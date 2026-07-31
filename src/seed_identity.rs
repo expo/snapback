@@ -19,7 +19,10 @@ pub const SEED_RESET_REQUEST_FORMAT_V1: &str = "snapback.seed.reset-request.v1";
 pub const SEED_PREVIEW_REQUEST_FORMAT_V1: &str = "snapback.seed.preview-request.v1";
 pub const SEED_MATCHED_OBSERVATION_FORMAT_V1: &str = "snapback.seed.matched-observation.v1";
 pub const VERSIONED_SEED_MAX_EFFECTS_V1: usize = 1_024;
+pub const SEED_ASSET_FIXTURES_FORMAT_V1: &str = "snapback.seed-asset-fixtures.v1";
+pub const SEED_ASSET_FIXTURES_MAX_V1: usize = 256;
 const ARTIFACT_DIGEST_DOMAIN: &[u8] = b"snapback:seed-artifact:v1\n";
+const ASSET_FIXTURES_DIGEST_DOMAIN: &[u8] = b"snapback:seed-asset-fixtures:v1\n";
 const INSTALL_REQUEST_DIGEST_DOMAIN: &[u8] = b"snapback:seed-install-request:v1\n";
 const RESET_REQUEST_DIGEST_DOMAIN: &[u8] = b"snapback:seed-reset-request:v1\n";
 
@@ -33,6 +36,101 @@ pub struct SeedArtifactV1 {
     pub tables: std::collections::BTreeMap<String, Vec<serde_json::Map<String, Value>>>,
 }
 
+/// One committed binary fixture (LLP 0109 §17): bytes live as a file with
+/// the app's seed assets, never inside any artifact; `source_digest` covers
+/// the committed source bytes (canonical published bytes may differ after
+/// privacy rewriting — that is the trusted path, not drift).
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SeedAssetFixtureV1 {
+    pub id: String,
+    pub upload: String,
+    pub file: String,
+    pub media_type: String,
+    pub source_digest: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SeedAssetFixturesV1 {
+    pub format_version: String,
+    pub app_id: String,
+    pub fixtures_digest: String,
+    pub fixtures: Vec<SeedAssetFixtureV1>,
+}
+
+impl SeedAssetFixturesV1 {
+    pub fn validate(&self) -> SnapbackResult<()> {
+        if self.format_version != SEED_ASSET_FIXTURES_FORMAT_V1 {
+            return Err(invalid("seed asset fixtures format is unsupported"));
+        }
+        if self.app_id.is_empty() {
+            return Err(invalid("seed asset fixtures appId is empty"));
+        }
+        if self.fixtures.is_empty() || self.fixtures.len() > SEED_ASSET_FIXTURES_MAX_V1 {
+            return Err(invalid("seed asset fixtures count is outside bounds"));
+        }
+        let mut seen = std::collections::BTreeSet::new();
+        for fixture in &self.fixtures {
+            if !valid_seed_version(&fixture.id) {
+                return Err(invalid("fixture id is not a portable identity token"));
+            }
+            if !seen.insert(fixture.id.as_str()) {
+                return Err(invalid("fixture ids must be unique"));
+            }
+            if fixture.upload.is_empty() {
+                return Err(invalid("fixture upload intent is empty"));
+            }
+            if fixture.media_type.is_empty() {
+                return Err(invalid("fixture mediaType is empty"));
+            }
+            if !valid_fixture_source_path(&fixture.file) {
+                return Err(invalid(
+                    "fixture file must be a relative path with no traversal",
+                ));
+            }
+            if !valid_sha256_digest(&fixture.source_digest) {
+                return Err(invalid("fixture sourceDigest is not sha256:<64 hex>"));
+            }
+        }
+        let observed = asset_fixtures_digest(self)?;
+        if self.fixtures_digest != observed {
+            return Err(invalid(
+                "fixturesDigest does not match the canonical fixtures artifact",
+            ));
+        }
+        Ok(())
+    }
+
+    pub fn fixture(&self, id: &str) -> Option<&SeedAssetFixtureV1> {
+        self.fixtures.iter().find(|fixture| fixture.id == id)
+    }
+}
+
+pub fn asset_fixtures_digest(fixtures: &SeedAssetFixturesV1) -> SnapbackResult<String> {
+    let body = serde_json::json!({
+        "formatVersion": fixtures.format_version,
+        "appId": fixtures.app_id,
+        "fixtures": fixtures.fixtures,
+    });
+    tagged_digest(ASSET_FIXTURES_DIGEST_DOMAIN, &body, true)
+}
+
+fn valid_fixture_source_path(path: &str) -> bool {
+    !path.is_empty()
+        && path.len() <= 512
+        && !path.starts_with('/')
+        && !path.contains('\\')
+        && !path.contains("..")
+        && path.split('/').all(|segment| !segment.is_empty())
+}
+
+fn valid_sha256_digest(value: &str) -> bool {
+    value
+        .strip_prefix("sha256:")
+        .is_some_and(|hex| hex.len() == 64 && hex.bytes().all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase()))
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct InstallSeedRequestV1 {
@@ -40,6 +138,11 @@ pub struct InstallSeedRequestV1 {
     pub operation_id: String,
     pub artifact: SeedArtifactV1,
     pub requested_mode: crate::manifest::AuthMode,
+    /// LLP 0109 §17: fixture-bearing seeds attach the fixtures artifact so
+    /// placeholder resolution can bind ingested assets inside the install
+    /// transaction. Absent for ordinary seeds; old digests are unchanged.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub asset_fixtures: Option<SeedAssetFixturesV1>,
 }
 
 impl InstallSeedRequestV1 {
@@ -48,7 +151,14 @@ impl InstallSeedRequestV1 {
             return Err(invalid("install request format is unsupported"));
         }
         validate_operation_id(&self.operation_id)?;
-        self.artifact.validate()
+        self.artifact.validate()?;
+        if let Some(fixtures) = &self.asset_fixtures {
+            fixtures.validate()?;
+            if fixtures.app_id != self.artifact.app_id {
+                return Err(invalid("fixtures artifact appId does not match the seed"));
+            }
+        }
+        Ok(())
     }
 
     pub fn request_digest(&self) -> SnapbackResult<String> {
@@ -801,6 +911,7 @@ mod tests {
             operation_id: "01983c8d-9f87-7ec1-bc02-7e81290debc0".to_owned(),
             artifact: artifact.clone(),
             requested_mode: crate::manifest::AuthMode::Dev,
+            asset_fixtures: None,
         };
         let installed = database
             .ensure_versioned_seed(request.clone())
@@ -824,6 +935,7 @@ mod tests {
                 operation_id: "01983c8d-9f87-7ec1-bc02-7e81290debc3".to_owned(),
                 artifact,
                 requested_mode: crate::manifest::AuthMode::Dev,
+                asset_fixtures: None,
             })
             .expect("matched");
         match matched {
@@ -880,6 +992,7 @@ mod tests {
                 operation_id: "01982c7a-7c00-7000-8000-000000000101".to_owned(),
                 artifact,
                 requested_mode: crate::manifest::AuthMode::Dev,
+                asset_fixtures: None,
             })
             .expect("1024 direct effects install");
         let SeedEnsureResultV1::Installed { receipt } = installed else {
@@ -904,6 +1017,7 @@ mod tests {
                 operation_id: "01982c7a-7c00-7000-8000-000000000102".to_owned(),
                 artifact: todo_artifact("migration-v1", 1),
                 requested_mode: crate::manifest::AuthMode::Dev,
+                asset_fixtures: None,
             })
             .expect("initial migration identity");
         let refused = migration
@@ -912,6 +1026,7 @@ mod tests {
                 operation_id: "01982c7a-7c00-7000-8000-000000000103".to_owned(),
                 artifact: todo_artifact("migration-v2", 1),
                 requested_mode: crate::manifest::AuthMode::Dev,
+                asset_fixtures: None,
             })
             .unwrap_err();
         assert_eq!(refused.diagnostic.code, "SNAPBACK_SEED_MIGRATION_REQUIRED");
@@ -941,6 +1056,7 @@ mod tests {
                 operation_id: "01982c7a-7c00-7000-8000-000000000104".to_owned(),
                 artifact: todo_artifact("empty-named-target", 0),
                 requested_mode: crate::manifest::AuthMode::Dev,
+                asset_fixtures: None,
             })
             .unwrap_err();
         assert_eq!(refused.diagnostic.code, "SNAPBACK_SEED_NONEMPTY_UNTRACKED");

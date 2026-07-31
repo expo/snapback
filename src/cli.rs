@@ -956,6 +956,27 @@ pub enum AssetsCommand {
         #[command(flatten)]
         target: TargetArgs,
     },
+    /// asset.ensureSeedFixture — idempotent LLP 0109 SS17 fixture ingestion
+    /// through the ordinary trusted upload path; a matching mapping is
+    /// reused, changed bytes ingest a new asset and repoint the mapping.
+    EnsureSeedFixture {
+        #[command(flatten)]
+        target: TargetArgs,
+        /// Path of the committed fixture source file.
+        file: PathBuf,
+        /// The upload intent's exported name.
+        #[arg(long)]
+        upload: String,
+        /// The stable logical fixture id from the fixtures artifact.
+        #[arg(long)]
+        fixture_id: String,
+        /// Declared media type.
+        #[arg(long)]
+        media_type: String,
+        /// Ingest as this app user (devUser authority).
+        #[arg(long)]
+        user: Option<String>,
+    },
     /// asset.delete — explicit authorized delete (refuses while typed
     /// references remain).
     Delete {
@@ -1128,6 +1149,49 @@ pub async fn run_from_env() -> anyhow::Result<()> {
                 &target,
                 json!({ "operation": "asset.rotateSigningKey" }),
             ),
+            AssetsCommand::EnsureSeedFixture {
+                target,
+                file,
+                upload,
+                fixture_id,
+                media_type,
+                user,
+            } => {
+                use sha2::Digest as _;
+                let bytes = std::fs::read(&file)
+                    .map_err(|error| anyhow::anyhow!("cannot read {}: {error}", file.display()))?;
+                let source_digest = format!(
+                    "sha256:{}",
+                    sha2::Sha256::digest(&bytes)
+                        .iter()
+                        .map(|byte| format!("{byte:02x}"))
+                        .collect::<String>()
+                );
+                let file_name = file
+                    .file_name()
+                    .map(|name| name.to_string_lossy().into_owned());
+                let mut input = json!({
+                    "fixtureId": fixture_id,
+                    "upload": upload,
+                    "sourceDigest": source_digest,
+                    "mediaType": media_type,
+                    "bytesBase64": base64::Engine::encode(
+                        &base64::engine::general_purpose::STANDARD,
+                        bytes,
+                    ),
+                });
+                if let Some(name) = file_name {
+                    input["fileName"] = json!(name);
+                }
+                host_op_via_http(
+                    &target,
+                    json!({
+                        "operation": "asset.ensureSeedFixture",
+                        "input": input,
+                        "userId": user,
+                    }),
+                )
+            }
             AssetsCommand::Delete {
                 target,
                 asset_id,

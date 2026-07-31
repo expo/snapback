@@ -71,8 +71,8 @@ use crate::migration::{
 };
 use crate::seed_identity::{
     ActiveSeedIdentityV1, ExpectedDataVersionStreamV1, InstallSeedRequestV1, ResetSeedRequestV1,
-    SeedArtifactV1, SeedEnsureResultV1, SeedInstallReceiptV1, SeedMatchedObservationV1,
-    SeedPreviewRequestV1, SeedPreviewResultV1,
+    SeedArtifactV1, SeedAssetFixturesV1, SeedEnsureResultV1, SeedInstallReceiptV1,
+    SeedMatchedObservationV1, SeedPreviewRequestV1, SeedPreviewResultV1,
 };
 use crate::server::{
     AuthorizedLeaseQueryRequest, AuthorizedLeaseQueryResponse, ConnectionGrant, ErrorResponse,
@@ -173,6 +173,11 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "seed.preview-result.schema.json",
             schemars::schema_for!(SeedPreviewResultV1),
+        ),
+        // LLP 0109 SS17: the separately versioned seed asset-fixtures artifact.
+        finish(
+            "seed.asset-fixtures.schema.json",
+            schemars::schema_for!(SeedAssetFixturesV1),
         ),
         // LLP 0081 canonical migration artifacts (the Phase C wave-1 types).
         finish(

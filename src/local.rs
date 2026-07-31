@@ -4293,6 +4293,12 @@ impl LocalSnapback {
             committed.reset.secret_read_generation,
             committed.reset.next_secret_read_generation,
         );
+        // Asset tables cleared inside the reset transaction; the store's
+        // files are unreferenced by construction now (LLP 0109 §17).
+        // Best-effort like other post-commit staging cleanup.
+        if let Ok(store) = self.asset_store() {
+            let _ = store.wipe_all();
+        }
         committed.receipt
     }
 
@@ -4310,6 +4316,11 @@ impl LocalSnapback {
             committed.secret_read_generation,
             committed.next_secret_read_generation,
         );
+        // Asset tables cleared inside the reset transaction; wipe the now
+        // unreferenced store files (LLP 0109 §17), best-effort.
+        if let Ok(store) = self.asset_store() {
+            let _ = store.wipe_all();
+        }
         committed.seeded
     }
 
@@ -6222,6 +6233,9 @@ impl LocalSnapback {
     ) -> SnapbackResult<Value> {
         match operation {
             "asset.put" => self.asset_host_put(input, user_id, profile),
+            "asset.ensureSeedFixture" => {
+                self.asset_host_ensure_seed_fixture(input, user_id, profile)
+            }
             "asset.inspect" => self.asset_host_inspect(input, user_id),
             "asset.list" => self.asset_host_list(input),
             "asset.retry" => self.asset_host_retry(input),
@@ -6259,27 +6273,23 @@ impl LocalSnapback {
         self.prepare_legacy_dev_authority(source, profile, &input)
     }
 
-    fn asset_host_put(
+    /// The shared in-process ingestion engine: create → per-chunk-checksummed
+    /// transfer → finalize with the whole-upload digest, under the declared
+    /// intent's full policy. `asset.put` and seed-fixture ingestion (LLP 0109
+    /// §17) both ride it, so a fixture can never bypass the trusted path.
+    fn asset_ingest_bytes(
         &mut self,
-        input: Option<&Value>,
+        upload: &str,
+        bytes: &[u8],
+        file_name: Option<String>,
+        content_type: Option<String>,
+        args: Value,
         user_id: Option<&str>,
         profile: ServerProfile,
-    ) -> SnapbackResult<Value> {
+    ) -> SnapbackResult<crate::assets::AssetTaskStateV1> {
         use sha2::Digest as _;
 
-        let parsed: AssetHostPutInput = asset_host_input(input, "asset.put")?;
-        let bytes = base64::Engine::decode(
-            &base64::engine::general_purpose::STANDARD,
-            parsed.bytes_base64.as_bytes(),
-        )
-        .map_err(|_| {
-            SnapbackError::error(
-                "SNAPBACK_ASSET_HOST_OP_INPUT_INVALID",
-                "assets",
-                "asset.put bytesBase64 is not valid base64",
-            )
-        })?;
-        let intent = self.asset_intent(&parsed.upload)?.clone();
+        let intent = self.asset_intent(upload)?.clone();
         let creator = self.asset_host_authority(user_id, InvocationSource::HttpQuery, profile)?;
         let transfer =
             self.asset_host_authority(user_id, InvocationSource::AssetTransfer, profile)?;
@@ -6288,12 +6298,10 @@ impl LocalSnapback {
             crate::assets::AssetAttemptCreateRequestV1 {
                 intent_id: intent.id.clone(),
                 intent_policy_hash: intent.intent_policy_hash.clone(),
-                args: parsed
-                    .args
-                    .unwrap_or_else(|| Value::Object(Default::default())),
-                declared_filename: parsed.file_name,
+                args,
+                declared_filename: file_name,
                 declared_length: Some(bytes.len() as u64),
-                declared_content_type: parsed.content_type,
+                declared_content_type: content_type,
                 retry_of_asset_id: None,
             },
         )?;
@@ -6314,7 +6322,7 @@ impl LocalSnapback {
             )?;
             offset = offset.saturating_add(chunk.len() as u64);
         }
-        let whole_digest = sha2::Sha256::digest(&bytes)
+        let whole_digest = sha2::Sha256::digest(bytes)
             .iter()
             .map(|byte| format!("{byte:02x}"))
             .collect::<String>();
@@ -6337,7 +6345,39 @@ impl LocalSnapback {
                 declared_digest: Some(whole_digest),
             },
         )?;
-        serde_json::to_value(&finalized.task)
+        Ok(finalized.task)
+    }
+
+    fn asset_host_put(
+        &mut self,
+        input: Option<&Value>,
+        user_id: Option<&str>,
+        profile: ServerProfile,
+    ) -> SnapbackResult<Value> {
+        let parsed: AssetHostPutInput = asset_host_input(input, "asset.put")?;
+        let bytes = base64::Engine::decode(
+            &base64::engine::general_purpose::STANDARD,
+            parsed.bytes_base64.as_bytes(),
+        )
+        .map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_ASSET_HOST_OP_INPUT_INVALID",
+                "assets",
+                "asset.put bytesBase64 is not valid base64",
+            )
+        })?;
+        let task = self.asset_ingest_bytes(
+            &parsed.upload,
+            &bytes,
+            parsed.file_name,
+            parsed.content_type,
+            parsed
+                .args
+                .unwrap_or_else(|| Value::Object(Default::default())),
+            user_id,
+            profile,
+        )?;
+        serde_json::to_value(&task)
             .map(|task| serde_json::json!({ "task": task }))
             .map_err(|error| {
                 SnapbackError::error(
@@ -6346,6 +6386,98 @@ impl LocalSnapback {
                     format!("task state does not serialize: {error}"),
                 )
             })
+    }
+
+    /// LLP 0109 §17: idempotent seed-fixture ingestion. A matching mapping
+    /// (same source digest, asset still present) is reused; anything else
+    /// ingests through the ordinary trusted path and repoints the mapping.
+    /// The superseded asset follows ordinary replacement/GC semantics.
+    fn asset_host_ensure_seed_fixture(
+        &mut self,
+        input: Option<&Value>,
+        user_id: Option<&str>,
+        profile: ServerProfile,
+    ) -> SnapbackResult<Value> {
+        use sha2::Digest as _;
+
+        let parsed: AssetHostEnsureSeedFixtureInput =
+            asset_host_input(input, "asset.ensureSeedFixture")?;
+        let bytes = base64::Engine::decode(
+            &base64::engine::general_purpose::STANDARD,
+            parsed.bytes_base64.as_bytes(),
+        )
+        .map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_ASSET_HOST_OP_INPUT_INVALID",
+                "assets",
+                "asset.ensureSeedFixture bytesBase64 is not valid base64",
+            )
+        })?;
+        let observed = format!(
+            "sha256:{}",
+            sha2::Sha256::digest(&bytes)
+                .iter()
+                .map(|byte| format!("{byte:02x}"))
+                .collect::<String>()
+        );
+        if observed != parsed.source_digest {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_SEED_FIXTURE_DIGEST_MISMATCH",
+                "assets",
+                "fixture bytes do not match the declared sourceDigest",
+            ));
+        }
+        let existing = self.db.asset_transaction(|tx| {
+            let Some(mapping) = crate::assets::lookup_seed_fixture(tx, &parsed.fixture_id)?
+            else {
+                return Ok(None);
+            };
+            if mapping.source_digest != parsed.source_digest {
+                return Ok(None);
+            }
+            let live = crate::assets::load_asset(tx, &mapping.asset_id)?.is_some_and(|asset| {
+                asset.availability != crate::assets::AssetAvailability::Deleted
+            });
+            Ok(live.then_some(mapping.asset_id))
+        })?;
+        if let Some(asset_id) = existing {
+            return Ok(serde_json::json!({ "assetId": asset_id, "reused": true }));
+        }
+        let task = self.asset_ingest_bytes(
+            &parsed.upload,
+            &bytes,
+            parsed.file_name,
+            Some(parsed.media_type.clone()),
+            Value::Object(Default::default()),
+            user_id,
+            profile,
+        )?;
+        if task.availability != crate::assets::AssetAvailability::Ready {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_SEED_FIXTURE_REJECTED",
+                "assets",
+                format!(
+                    "fixture {} did not publish under intent {} (availability {:?}); the seed refuses rather than referencing an unusable asset",
+                    parsed.fixture_id, parsed.upload, task.availability
+                ),
+            ));
+        }
+        let intent_id = self.asset_intent(&parsed.upload)?.id.clone();
+        let asset_id = task.asset_id.clone();
+        let now_ms = now_millis();
+        self.db.asset_transaction(|tx| {
+            crate::assets::upsert_seed_fixture(
+                tx,
+                &crate::assets::SeedFixtureMappingV1 {
+                    fixture_id: parsed.fixture_id.clone(),
+                    source_digest: parsed.source_digest.clone(),
+                    asset_id: asset_id.clone(),
+                    intent_id: intent_id.clone(),
+                    updated_at_ms: now_ms,
+                },
+            )
+        })?;
+        Ok(serde_json::json!({ "assetId": asset_id, "reused": false }))
     }
 
     fn asset_host_inspect(
@@ -22041,6 +22173,18 @@ struct AssetHostPutInput {
     file_name: Option<String>,
     #[serde(default)]
     content_type: Option<String>,
+    bytes_base64: String,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+struct AssetHostEnsureSeedFixtureInput {
+    fixture_id: String,
+    upload: String,
+    source_digest: String,
+    media_type: String,
+    #[serde(default)]
+    file_name: Option<String>,
     bytes_base64: String,
 }
 

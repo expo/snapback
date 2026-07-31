@@ -133,3 +133,86 @@ export function parseSeedSourceV1(bytes, appId) {
 export function canonicalSeedArtifactJson(artifact) {
   return `${canonicalJson(artifact)}\n`;
 }
+
+// --- LLP 0109 §17: seed asset fixtures ------------------------------------
+
+export const SEED_ASSET_FIXTURES_FORMAT_V1 = 'snapback.seed-asset-fixtures.v1';
+const SEED_ASSET_FIXTURES_MAX_V1 = 256;
+
+export function seedAssetFixturesDigest(body) {
+  const hash = createHash('sha256');
+  hash.update('snapback:seed-asset-fixtures:v1\n', 'utf8');
+  hash.update(canonicalJson(body), 'utf8');
+  return `sha256:${hash.digest('hex')}`;
+}
+
+/// `source` is the authored seed-assets.json; `sourceDigests` maps each
+/// fixture's declared file path to the sha256 hex of its committed bytes
+/// (the caller reads files under its own capability discipline — this
+/// module never touches the filesystem).
+export function buildSeedAssetFixturesV1(source, appId, sourceDigests) {
+  closedKeys(source, ['fixtures'], 'seed asset fixtures declaration');
+  if (!Array.isArray(source.fixtures) || source.fixtures.length === 0) {
+    fail('SNAPBACK_SEED_ASSET_FIXTURES_INVALID', 'fixtures must be a nonempty array');
+  }
+  if (source.fixtures.length > SEED_ASSET_FIXTURES_MAX_V1) {
+    fail('SNAPBACK_SEED_ASSET_FIXTURES_INVALID', `fixtures exceed the ${SEED_ASSET_FIXTURES_MAX_V1} bound`);
+  }
+  if (typeof appId !== 'string' || appId.length === 0) {
+    fail('SNAPBACK_SEED_ASSET_FIXTURES_INVALID', 'seed asset fixtures require a nonempty appId');
+  }
+  const seen = new Set();
+  const fixtures = source.fixtures.map((fixture) => {
+    closedKeys(fixture, ['id', 'upload', 'file', 'mediaType'], 'seed asset fixture');
+    if (typeof fixture.id !== 'string' || !SEED_VERSION.test(fixture.id)) {
+      fail('SNAPBACK_SEED_ASSET_FIXTURES_INVALID', 'fixture id is not a portable identity token');
+    }
+    if (seen.has(fixture.id)) {
+      fail('SNAPBACK_SEED_ASSET_FIXTURES_INVALID', `fixture ids must be unique: ${fixture.id}`);
+    }
+    seen.add(fixture.id);
+    if (typeof fixture.upload !== 'string' || fixture.upload.length === 0) {
+      fail('SNAPBACK_SEED_ASSET_FIXTURES_INVALID', `fixture ${fixture.id} upload intent is empty`);
+    }
+    if (typeof fixture.mediaType !== 'string' || fixture.mediaType.length === 0) {
+      fail('SNAPBACK_SEED_ASSET_FIXTURES_INVALID', `fixture ${fixture.id} mediaType is empty`);
+    }
+    if (
+      typeof fixture.file !== 'string'
+      || fixture.file.length === 0
+      || fixture.file.length > 512
+      || fixture.file.startsWith('/')
+      || fixture.file.includes('\\')
+      || fixture.file.includes('..')
+      || fixture.file.split('/').some((segment) => segment.length === 0)
+    ) {
+      fail('SNAPBACK_SEED_ASSET_FIXTURES_INVALID', `fixture ${fixture.id} file must be a relative path with no traversal`);
+    }
+    const digest = sourceDigests.get(fixture.file);
+    if (typeof digest !== 'string' || !/^[0-9a-f]{64}$/.test(digest)) {
+      fail('SNAPBACK_SEED_ASSET_FIXTURES_INVALID', `fixture ${fixture.id} has no readable source digest for ${fixture.file}`);
+    }
+    return {
+      id: fixture.id,
+      upload: fixture.upload,
+      file: fixture.file,
+      mediaType: fixture.mediaType,
+      sourceDigest: `sha256:${digest}`,
+    };
+  });
+  const body = {
+    formatVersion: SEED_ASSET_FIXTURES_FORMAT_V1,
+    appId,
+    fixtures,
+  };
+  return {
+    formatVersion: SEED_ASSET_FIXTURES_FORMAT_V1,
+    appId,
+    fixturesDigest: seedAssetFixturesDigest(body),
+    fixtures,
+  };
+}
+
+export function canonicalSeedAssetFixturesJson(artifact) {
+  return `${canonicalJson(artifact)}\n`;
+}

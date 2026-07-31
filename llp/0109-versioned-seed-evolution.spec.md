@@ -5,7 +5,15 @@
 **Systems:** Authoring, Code generation, App provisioning, Storage, Schema evolution, Auth, Inspection, Client integration, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-07-27 (round-2 author reconciliation: scope the first
+**Revised:** 2026-07-31 (LLP 0044 completion-program amendment: the
+separately versioned `SeedAssetFixturesV1` sibling artifact with JCS
+digest identity, file custody with no artifact-borne bytes, idempotent
+`asset.ensureSeedFixture` ingestion through the trusted path, the
+`{"$assetFixture": id}` placeholder resolved inside the install
+transaction with refuse-whole semantics, resetInstall decomposition for
+fixture-bearing seeds, app reset now clearing asset state, ordinary
+quota, and the `seedAssetFixtures` capability fact — `SeedArtifactV1`
+itself unchanged). 2026-07-27 (round-2 author reconciliation: scope the first
 landing to fresh/same-mode install plus single-transaction reset-install/clear;
 key active identity by the existing data-version stream so predecessor resets
 cannot leave it active; remove migration/restore identity publication until a
@@ -18,7 +26,7 @@ seed custody; separate membership/permission paths; gate/redaction precedence;
 finite surface matrix). 2026-07-27 (entered the author-invoked super-refine
 loop; initial focused specification for authored seed identity, safe
 installation, and explicit evolution)
-**Related:** LLP 0007, LLP 0010, LLP 0012, LLP 0024, LLP 0031, LLP 0034, LLP 0037, LLP 0040, LLP 0043, LLP 0053, LLP 0056, LLP 0058, LLP 0059, LLP 0080, LLP 0081, LLP 0094
+**Related:** LLP 0007, LLP 0010, LLP 0012, LLP 0024, LLP 0031, LLP 0034, LLP 0037, LLP 0040, LLP 0043, LLP 0044, LLP 0053, LLP 0056, LLP 0058, LLP 0059, LLP 0080, LLP 0081, LLP 0094
 
 ## Summary
 
@@ -1583,3 +1591,95 @@ The local and remote SQLite target manifests now advertise
 `experimental` maturity. The Spec remains **Review**—this implementation
 evidence does not substitute for Charlie's author acceptance or the dual-READY
 review lifecycle required to change that status.
+
+## 17. Dated amendment: seed asset fixtures (2026-07-31)
+
+Recorded as part of [LLP 0044](./0044-asset-storage-pipeline.rfc.md)'s
+completion program (its §Seeds and agent DX reserves seed-carried binary
+fixtures for "a separately versioned fixture artifact and an LLP 0109
+amendment covering digest identity, custody, install ordering, reset, and
+quota semantics"). `SeedArtifactV1` and the authored `seed.json` shape stay
+**closed and unchanged**; this amendment adds a sibling artifact and one
+optional install-request member.
+
+**Artifact.** Codegen emits `snapback/generated/seed.asset-fixtures.artifact.json`,
+the closed `SeedAssetFixturesV1`:
+
+```json
+{
+  "formatVersion": "snapback.seed-asset-fixtures.v1",
+  "appId": "<appId>",
+  "fixturesDigest": "sha256:<64 hex>",
+  "fixtures": [
+    {
+      "id": "welcome-photo",
+      "upload": "photoUpload",
+      "file": "seed-assets/welcome.jpg",
+      "mediaType": "image/jpeg",
+      "sourceDigest": "sha256:<64 hex>"
+    }
+  ]
+}
+```
+
+Authored source is `snapback/seed-assets.json` (`{ "fixtures": [ { id,
+upload, file, mediaType } ] }`); codegen derives `sourceDigest` per file
+and `fixturesDigest` over the JCS body with domain prefix
+`snapback:seed-asset-fixtures:v1\n`, exactly the §2.2 discipline. Fixture
+ids share `seedVersion`'s token grammar and are unique. `sourceDigest`
+covers the committed **source** bytes; canonical published bytes may
+differ (strip rewrites), which is the 0044 trusted-path invariant, not
+drift.
+
+**Custody.** Fixture bytes live as committed files under the app's
+`snapback/` directory, referenced by relative path (no traversal, no
+absolute paths). No artifact ever carries base64 bytes. Bytes travel only
+the ordinary upload transport: ingestion is the admin-gated
+`asset.ensureSeedFixture` host operation, which drives the same
+create → checksummed-transfer → finalize path as any upload under the
+declared intent — ceilings, privacy policy, capability gates, and quota
+all apply. A seed can never inject bytes directly as a ready blob.
+
+**Idempotent ingestion.** The server keeps the durable mapping
+`(fixtureId) → (sourceDigest, assetId, intent)` in
+`_snapback_asset_seed_fixtures_v1`. `asset.ensureSeedFixture` with a
+matching digest returns the mapped asset (re-ingesting only if the asset
+no longer exists); a changed digest ingests a new asset and repoints the
+mapping — the superseded asset follows ordinary replacement/GC semantics,
+never special-cased deletion.
+
+**Install ordering and placeholders.** Seed rows reference fixtures with
+the reserved value `{"$assetFixture": "<fixtureId>"}` in `v.assetRef`
+fields (exactly one member; any other use refuses). The install request
+(`InstallSeedRequestV1`) gains one optional member, `assetFixtures`,
+carrying the fixtures artifact. Resolution happens inside the install
+transaction, before row validation: each placeholder resolves through the
+mapping, which must exist **and** match the artifact's `sourceDigest` —
+any missing or stale mapping refuses the whole ensure with a structured
+diagnostic and zero row effects. Fixtures therefore finalize strictly
+before rows install, and the resolved rows pass the ordinary
+commit-boundary asset admission (seed-path authority). A placeholder with
+no attached fixtures artifact, or a fixtures artifact for a different
+app, refuses. Placeholder resolution never participates in `seedDigest` —
+identity covers the authored placeholder form; installed rows carry
+per-instance asset ids.
+
+**Reset.** Single-transaction `resetInstall` carries no placeholders and
+no `assetFixtures` member — a fixture-bearing seed decomposes into the
+idempotent `clear` + fixture ensure + `install` sequence (managed tooling
+owns the decomposition), because trusted finalization cannot run inside
+the destructive transaction. App reset/clear deletes every asset system
+table and removes the instance's staging and blob files after commit —
+asset bytes are app state, and this amendment makes that explicit
+(previously the asset tables survived reset).
+
+**Quota.** Fixture bytes consume ordinary logical quota under the
+declared intent; there is no seed bypass. A fixture the target cannot
+admit (inadmissible intent, missing capability, ceiling) refuses at
+ingestion, which managed tooling surfaces before any seed effect.
+
+**Capability.** Targets advertise fixture support as the
+`seedAssetFixtures` fact in the assets facts block; a request carrying
+`assetFixtures` against a server without the fact fails closed under the
+existing deny-unknown-member discipline, which is the intended
+negotiation.

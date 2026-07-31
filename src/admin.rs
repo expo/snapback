@@ -226,7 +226,8 @@ pub(crate) fn operation_profile_requirement(
         // The asset operator surface is developer/operator tooling like the
         // direct runner; hosted production traffic uses the ordinary asset
         // routes.
-        "asset.put" | "asset.inspect" | "asset.list" | "asset.retry" | "asset.delete" => {
+        "asset.put" | "asset.ensureSeedFixture" | "asset.inspect" | "asset.list"
+        | "asset.retry" | "asset.delete" => {
             OperationProfileRequirement::NonProd
         }
         // Frozen LLP 0039 deliberately excludes demo from the below-manifest

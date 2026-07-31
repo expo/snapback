@@ -68,6 +68,8 @@ import {
   publishGeneratedGraph,
 } from './review-surface.mjs';
 import {
+  buildSeedAssetFixturesV1,
+  canonicalSeedAssetFixturesJson,
   canonicalSeedArtifactJson,
   parseSeedSourceV1,
 } from './seed-artifact.mjs';
@@ -2158,6 +2160,38 @@ export async function generateInProcess(backendDir, options = {}) {
       );
     }
   }
+  // @ref LLP 0109#17-dated-amendment-seed-asset-fixtures-2026-07-31 — the
+  //   fixtures artifact is a separately versioned sibling; fixture bytes
+  //   stay committed files, digested here, never embedded in any artifact.
+  let seedAssetFixtures = null;
+  const seedAssetsPath = join(backendRoot, 'seed-assets.json');
+  if (existsSync(seedAssetsPath)) {
+    try {
+      const fixturesSource = JSON.parse(
+        resolveFileReadCapability(seedAssetsPath, {
+          allowedRoots: [backendRoot],
+          codePrefix: 'SEED_ASSETS_SOURCE',
+        }).read().toString('utf8'),
+      );
+      const sourceDigests = new Map();
+      for (const fixture of Array.isArray(fixturesSource?.fixtures) ? fixturesSource.fixtures : []) {
+        if (typeof fixture?.file !== 'string') continue;
+        const bytes = resolveFileReadCapability(join(backendRoot, fixture.file), {
+          allowedRoots: [backendRoot],
+          codePrefix: 'SEED_ASSETS_SOURCE',
+        }).read();
+        sourceDigests.set(fixture.file, createHash('sha256').update(bytes).digest('hex'));
+      }
+      seedAssetFixtures = buildSeedAssetFixturesV1(fixturesSource, appId, sourceDigests);
+    } catch (error) {
+      err(
+        error.code ?? error.codegenCode ?? 'SNAPBACK_SEED_ASSET_FIXTURES_INVALID',
+        'seed',
+        error.message,
+        error.details ?? {},
+      );
+    }
+  }
   if (diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
   }
@@ -2395,6 +2429,46 @@ export async function generateInProcess(backendDir, options = {}) {
             field: tableField.name,
             intent: restriction,
           });
+        }
+      }
+    }
+    // @ref LLP 0109#17-dated-amendment-seed-asset-fixtures-2026-07-31 —
+    //   fixtures bind to declared intents at generation, and placeholders
+    //   are admissible only on v.assetRef fields naming declared fixtures.
+    if (seedAssetFixtures) {
+      for (const fixture of seedAssetFixtures.fixtures) {
+        const intent = assetUploadIntents.find((candidate) => candidate.name === fixture.upload);
+        if (!intent) {
+          err('SNAPBACK_SEED_ASSET_FIXTURES_INVALID', 'seed', `fixture ${fixture.id} names undeclared upload intent ${fixture.upload}`, {});
+          continue;
+        }
+        const admitted = (intent.accept?.mediaTypes ?? []).some((entry) =>
+          entry === fixture.mediaType
+          || (entry.endsWith('/*') && fixture.mediaType.startsWith(entry.slice(0, -1))));
+        if (!admitted) {
+          err('SNAPBACK_SEED_ASSET_FIXTURES_INVALID', 'seed', `fixture ${fixture.id} mediaType ${fixture.mediaType} is outside intent ${fixture.upload}'s accepted media types`, {});
+        }
+      }
+    }
+    if (seedArtifact) {
+      for (const [tableName, rows] of Object.entries(seedArtifact.tables)) {
+        for (const row of rows) {
+          for (const [fieldName, value] of Object.entries(row)) {
+            const placeholder = value !== null && typeof value === 'object' && !Array.isArray(value)
+              && Object.keys(value).length === 1 && typeof value.$assetFixture === 'string'
+              ? value.$assetFixture
+              : null;
+            if (placeholder === null) continue;
+            const table = tables[tableName];
+            const field = table?.fields?.find((candidate) => candidate.name === fieldName);
+            if (!field?.field_type?.AssetRef) {
+              err('SNAPBACK_SEED_ASSET_FIXTURE_PLACEMENT_INVALID', 'seed', `${tableName}.${fieldName} carries an $assetFixture placeholder but is not a v.assetRef field`, {});
+              continue;
+            }
+            if (!seedAssetFixtures?.fixtures.some((fixture) => fixture.id === placeholder)) {
+              err('SNAPBACK_SEED_ASSET_FIXTURE_UNKNOWN', 'seed', `${tableName}.${fieldName} references undeclared asset fixture ${placeholder}`, {});
+            }
+          }
         }
       }
     }
@@ -2846,6 +2920,7 @@ export async function generateInProcess(backendDir, options = {}) {
       },
       ...(routesManifest ? { './routes': './routes.manifest.json' } : {}),
       ...(seedArtifact ? { './seed': './seed.artifact.json' } : {}),
+      ...(seedAssetFixtures ? { './seed-assets': './seed.asset-fixtures.artifact.json' } : {}),
       './operations/*': './operations/*',
       './contract/*': './contract/*',
       ...(remoteServicePublication ? {
@@ -2866,7 +2941,7 @@ export async function generateInProcess(backendDir, options = {}) {
     generatedAt,
     schemaHash,
     bundleHash,
-    artifacts: ['schema.manifest.json', 'functions.manifest.json', 'capability.manifest.json', 'provider-introspection.json', 'provider-bindings.json', 'provider-bindings.d.ts', 'contract-data.manifest.json', 'api.mjs', 'api.d.ts', 'package.json', ...(routesManifest ? ['routes.manifest.json'] : []), ...(seedArtifact ? ['seed.artifact.json'] : []), ...operationArtifactFiles, ...remoteServiceArtifactFiles, ...contractArtifactFiles],
+    artifacts: ['schema.manifest.json', 'functions.manifest.json', 'capability.manifest.json', 'provider-introspection.json', 'provider-bindings.json', 'provider-bindings.d.ts', 'contract-data.manifest.json', 'api.mjs', 'api.d.ts', 'package.json', ...(routesManifest ? ['routes.manifest.json'] : []), ...(seedArtifact ? ['seed.artifact.json'] : []), ...(seedAssetFixtures ? ['seed.asset-fixtures.artifact.json'] : []), ...operationArtifactFiles, ...remoteServiceArtifactFiles, ...contractArtifactFiles],
     tables: Object.keys(tables),
     ephemeralCollections: ephemeralCollections.map((collection) => collection.name),
     functions: functionManifest.functions.map((f) => ({ id: f.id, name: f.name, kind: f.kind })),
@@ -2905,6 +2980,7 @@ export async function generateInProcess(backendDir, options = {}) {
       contractModules,
       packageJson,
       seedArtifact,
+      seedAssetFixtures,
       artifactIndex: null,
     });
     const files = createArtifactFileRecords(tmpOutDir, legacyArtifactIndex.artifacts, {
@@ -8236,6 +8312,7 @@ function writeGeneratedOutput(outDir, {
   contractModules,
   packageJson,
   seedArtifact,
+  seedAssetFixtures,
   artifactIndex,
 }) {
   const contractOutDir = join(outDir, 'contract');
@@ -8257,6 +8334,9 @@ function writeGeneratedOutput(outDir, {
   writeFileSync(join(outDir, 'api.d.ts'), apiTypes);
   if (seedArtifact) {
     writeFileSync(join(outDir, 'seed.artifact.json'), canonicalSeedArtifactJson(seedArtifact));
+  }
+  if (seedAssetFixtures) {
+    writeFileSync(join(outDir, 'seed.asset-fixtures.artifact.json'), canonicalSeedAssetFixturesJson(seedAssetFixtures));
   }
   for (const schema of operationSchemas) {
     writeFileSync(join(operationsOutDir, schema.file), stableJson(schema.value) + '\n');

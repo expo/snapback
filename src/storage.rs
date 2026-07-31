@@ -896,6 +896,14 @@ fn reset_and_seed_transaction(
         }
         tx.execute(&format!("DELETE FROM {}", quote_ident(table)?), [])?;
     }
+    // @ref LLP 0109#17-dated-amendment-seed-asset-fixtures-2026-07-31 —
+    //   asset bytes are app state: reset clears every asset system table
+    //   (records, blobs, ledger, fixture mappings, signing keys — outstanding
+    //   signed URLs die with the destructive reset) in the same transaction;
+    //   the caller removes store files after commit.
+    for table in crate::assets::ASSET_SYSTEM_TABLES {
+        tx.execute(&format!("DELETE FROM {table}"), [])?;
+    }
     tx.execute("DELETE FROM _snapback_changes", [])?;
     tx.execute("DELETE FROM _snapback_client_mutations", [])?;
     tx.execute("DELETE FROM _snapback_client_mutation_auth_retention", [])?;
@@ -2802,8 +2810,18 @@ impl LocalDatabase {
         let touched = request.artifact.tables.keys().cloned().collect();
         validate_touched_managed_tables(&tx, &schema, &touched, current_version)?;
         preflight_membership_activation_sources(&tx, &schema, current_version)?;
-        let mut changes =
-            seed_into_transaction(&tx, &schema, request.artifact.seed_data(), next_version)?;
+        // @ref LLP 0109#17-dated-amendment-seed-asset-fixtures-2026-07-31 —
+        //   fixtures finalize strictly before rows install: placeholders
+        //   resolve through the ingestion mapping inside this transaction,
+        //   and any missing or stale mapping refuses the whole ensure with
+        //   zero row effects.
+        let seed_data = crate::assets::resolve_seed_fixture_placeholders(
+            &tx,
+            &schema,
+            &request.artifact.tables,
+            request.asset_fixtures.as_ref(),
+        )?;
+        let mut changes = seed_into_transaction(&tx, &schema, seed_data, next_version)?;
         let direct_application_rows = changes.len();
         if !projections.is_empty() {
             maintain_projections_in_tx(
@@ -11481,6 +11499,25 @@ fn seed_into_transaction(
     seed: SeedData,
     version: u64,
 ) -> SnapbackResult<Vec<ChangedRow>> {
+    // @ref LLP 0109#17-dated-amendment-seed-asset-fixtures-2026-07-31 — by
+    //   this point every placeholder must have been resolved by the install
+    //   path; legacy and resetInstall paths carry none, so an unresolved
+    //   placeholder here is a precise refusal, not a generic validator error.
+    for (table_name, rows) in &seed.tables {
+        for row in rows {
+            for (field_name, value) in row {
+                if crate::assets::seed_placeholder_fixture_id(value).is_some() {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_SEED_ASSET_FIXTURE_UNRESOLVED",
+                        "seed",
+                        format!(
+                            "{table_name}.{field_name} carries an $assetFixture placeholder; attach the fixtures artifact on the install path — resetInstall and legacy seeds do not carry placeholders"
+                        ),
+                    ));
+                }
+            }
+        }
+    }
     let mut changes = seed_rows_into_transaction(tx, schema, seed, version)?;
     // @ref LLP 0044#typed-references-and-atomic-attachment — seeds run the
     //   same commit-boundary admission under system authority: restricted
@@ -24508,6 +24545,7 @@ mod membership_write_tests {
                 operation_id: "01982c7a-7c00-7000-8000-000000000201".to_owned(),
                 artifact: predecessor_artifact.clone(),
                 requested_mode: AuthMode::Dev,
+                asset_fixtures: None,
             })
             .expect("install predecessor");
         let SeedEnsureResultV1::Installed {
@@ -24575,6 +24613,7 @@ mod membership_write_tests {
                 operation_id: "01982c7a-7c00-7000-8000-000000000203".to_owned(),
                 artifact: predecessor_artifact,
                 requested_mode: AuthMode::Dev,
+                asset_fixtures: None,
             })
             .expect("predecessor identity remains active");
         assert!(matches!(matched, SeedEnsureResultV1::Matched { .. }));

@@ -14069,6 +14069,21 @@ pub fn operation_registry() -> Vec<OperationSpec> {
                 response_sensitivity: None,
             },
         ),
+        // LLP 0109 §17: idempotent seed-fixture ingestion, same posture as
+        // asset.put — the fixture path is the ordinary trusted upload path.
+        host(
+            "host_ops.asset.ensureSeedFixture",
+            RoutePolicy::AdminWrite,
+            EffectPolicy::None,
+            SessionModeOverlay {
+                path_policy: None,
+                credential_resolution: None,
+                invocation_authority: Some(InvocationAuthority::AnonymousAdminBypass),
+                legacy_body_policy: Some(LegacyBodyPolicy::Rejected),
+                effect_policy: None,
+                response_sensitivity: None,
+            },
+        ),
         host(
             "host_ops.asset.inspect",
             RoutePolicy::AdminWrite,
@@ -14536,6 +14551,7 @@ pub(crate) fn host_ops_operation_spec(
         "auth.mintSession" => "host_ops.auth.mintSession",
         "auth.rescueCollidingTable" => "host_ops.auth.rescueCollidingTable",
         "asset.put" => "host_ops.asset.put",
+        "asset.ensureSeedFixture" => "host_ops.asset.ensureSeedFixture",
         "asset.inspect" => "host_ops.asset.inspect",
         "asset.list" => "host_ops.asset.list",
         "asset.retry" => "host_ops.asset.retry",

@@ -648,8 +648,9 @@ pub struct AssetRefusalDetailV1 {
 /// app-declared identifier with this prefix, so collision refusal is the
 /// existing `SNAPBACK_INVALID_IDENTIFIER` diagnostic. Receipts and intent
 /// generations joined the original seven with the session ticket (L1-04);
-/// retained intent artifacts joined with the W2a retention work.
-pub const ASSET_SYSTEM_TABLES: [&str; 11] = [
+/// retained intent artifacts joined with the W2a retention work, and the
+/// seed-fixture mapping with the LLP 0109 §17 amendment (W2f).
+pub const ASSET_SYSTEM_TABLES: [&str; 12] = [
     "_snapback_asset_records_v1",
     "_snapback_asset_attempts_v1",
     "_snapback_asset_blobs_v1",
@@ -661,6 +662,7 @@ pub const ASSET_SYSTEM_TABLES: [&str; 11] = [
     "_snapback_asset_intent_generations_v1",
     "_snapback_asset_intent_artifacts_v1",
     "_snapback_asset_signing_keys_v1",
+    "_snapback_asset_seed_fixtures_v1",
 ];
 
 pub fn create_infra(tx: &Transaction<'_>) -> SnapbackResult<()> {
@@ -787,6 +789,13 @@ pub fn create_infra(tx: &Transaction<'_>) -> SnapbackResult<()> {
              material TEXT NOT NULL,
              created_at_ms INTEGER NOT NULL,
              retired_at_ms INTEGER
+         );
+         CREATE TABLE IF NOT EXISTS _snapback_asset_seed_fixtures_v1 (
+             fixture_id TEXT PRIMARY KEY NOT NULL,
+             source_digest TEXT NOT NULL,
+             asset_id TEXT NOT NULL,
+             intent_id TEXT NOT NULL,
+             updated_at_ms INTEGER NOT NULL
          );",
     )?;
     // Blob record_json once carried referenceCount/condemned copies of the
@@ -1697,6 +1706,28 @@ impl AssetFsStore {
 
     pub fn blob_path(&self, physical_key: &str) -> SnapbackResult<PathBuf> {
         Ok(self.blobs_dir.join(validated_key(physical_key)?))
+    }
+
+    /// Destructive-reset companion (LLP 0109 §17): after the reset
+    /// transaction clears every asset system table, the store's files are
+    /// unreferenced by construction, so both namespaces empty wholesale.
+    pub fn wipe_all(&self) -> SnapbackResult<()> {
+        for dir in [&self.staging_dir, &self.blobs_dir] {
+            let entries = std::fs::read_dir(dir).map_err(|error| {
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                    "assets",
+                    format!("cannot list asset store directory {}: {error}", dir.display()),
+                )
+            })?;
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_file() {
+                    let _ = std::fs::remove_file(&path);
+                }
+            }
+        }
+        Ok(())
     }
 
     /// Every file currently in the staging namespace, by opaque key. The GC
@@ -2907,6 +2938,11 @@ pub struct AssetTargetFactsV1 {
     /// generation).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub lifecycle_callbacks: Vec<String>,
+    /// Seed binary fixtures (LLP 0109 §17): idempotent
+    /// `asset.ensureSeedFixture` ingestion plus placeholder resolution in
+    /// the install transaction. `false` is the honest Missing report.
+    #[serde(default)]
+    pub seed_asset_fixtures: bool,
     /// Every listed limit above is `Enforced` on this target; a limit a
     /// target cannot enforce must move to this graded list instead of
     /// silently keeping the field.
@@ -2953,6 +2989,7 @@ impl AssetTargetFactsV1 {
                 grace_max_ms: ASSET_REFERENCE_GC_GRACE_MAX_MS,
             }),
             lifecycle_callbacks: vec!["ready".to_owned(), "rejected".to_owned()],
+            seed_asset_fixtures: true,
             advisory_limits: Vec::new(),
             missing: vec![
                 "asset-backup-export".to_owned(),
@@ -2983,6 +3020,162 @@ pub const ASSET_WORK_KIND_LIFECYCLE_CALLBACK: &str = "lifecycle-callback";
 /// schema-declared grace outside them refuses at generation.
 pub const ASSET_REFERENCE_GC_GRACE_MIN_MS: u64 = 60_000;
 pub const ASSET_REFERENCE_GC_GRACE_MAX_MS: u64 = 30 * 24 * 60 * 60 * 1000;
+/// The reserved seed-row value for a fixture-produced asset reference
+/// (LLP 0109 §17): an object with exactly this one member, admissible only
+/// on `v.assetRef` fields, resolved inside the install transaction.
+pub const SEED_FIXTURE_PLACEHOLDER_KEY: &str = "$assetFixture";
+
+#[derive(Clone, Debug)]
+pub struct SeedFixtureMappingV1 {
+    pub fixture_id: String,
+    pub source_digest: String,
+    pub asset_id: String,
+    pub intent_id: String,
+    pub updated_at_ms: u64,
+}
+
+pub fn seed_placeholder_fixture_id(value: &Value) -> Option<&str> {
+    let object = value.as_object()?;
+    if object.len() != 1 {
+        return None;
+    }
+    object.get(SEED_FIXTURE_PLACEHOLDER_KEY)?.as_str()
+}
+
+pub fn lookup_seed_fixture(
+    tx: &Transaction<'_>,
+    fixture_id: &str,
+) -> SnapbackResult<Option<SeedFixtureMappingV1>> {
+    tx.query_row(
+        "SELECT source_digest, asset_id, intent_id, updated_at_ms
+         FROM _snapback_asset_seed_fixtures_v1 WHERE fixture_id = ?1",
+        [fixture_id],
+        |row| {
+            Ok(SeedFixtureMappingV1 {
+                fixture_id: fixture_id.to_owned(),
+                source_digest: row.get(0)?,
+                asset_id: row.get(1)?,
+                intent_id: row.get(2)?,
+                updated_at_ms: row.get::<_, i64>(3)? as u64,
+            })
+        },
+    )
+    .optional()
+    .map_err(SnapbackError::from)
+}
+
+pub fn upsert_seed_fixture(
+    tx: &Transaction<'_>,
+    mapping: &SeedFixtureMappingV1,
+) -> SnapbackResult<()> {
+    tx.execute(
+        "INSERT INTO _snapback_asset_seed_fixtures_v1
+             (fixture_id, source_digest, asset_id, intent_id, updated_at_ms)
+         VALUES (?1, ?2, ?3, ?4, ?5)
+         ON CONFLICT(fixture_id) DO UPDATE SET
+             source_digest = excluded.source_digest,
+             asset_id = excluded.asset_id,
+             intent_id = excluded.intent_id,
+             updated_at_ms = excluded.updated_at_ms",
+        rusqlite::params![
+            mapping.fixture_id,
+            mapping.source_digest,
+            mapping.asset_id,
+            mapping.intent_id,
+            mapping.updated_at_ms as i64,
+        ],
+    )?;
+    Ok(())
+}
+
+/// Resolve `{"$assetFixture": id}` placeholders into asset ids inside the
+/// install transaction (LLP 0109 §17). Refuse-whole semantics: any missing
+/// fixture declaration, un-ingested or stale mapping, wrong placement, or
+/// vanished asset refuses before a single row effect. Placeholders are
+/// admissible only on `v.assetRef` fields, so a placeholder can never
+/// silently become an ordinary string value.
+pub fn resolve_seed_fixture_placeholders(
+    tx: &Transaction<'_>,
+    schema: &crate::manifest::SchemaManifest,
+    tables: &std::collections::BTreeMap<String, Vec<serde_json::Map<String, Value>>>,
+    fixtures: Option<&crate::seed_identity::SeedAssetFixturesV1>,
+) -> SnapbackResult<crate::manifest::SeedData> {
+    let mut resolved = std::collections::BTreeMap::new();
+    for (table_name, rows) in tables {
+        let mut resolved_rows = Vec::with_capacity(rows.len());
+        for row in rows {
+            let mut resolved_row = row.clone();
+            for (field_name, value) in row {
+                let Some(fixture_id) = seed_placeholder_fixture_id(value) else {
+                    continue;
+                };
+                let is_asset_ref = schema.table(table_name).is_some_and(|table| {
+                    table.fields.iter().any(|field| {
+                        field.name == *field_name
+                            && matches!(
+                                field.field_type,
+                                crate::manifest::FieldType::AssetRef { .. }
+                            )
+                    })
+                });
+                if !is_asset_ref {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_SEED_ASSET_FIXTURE_PLACEMENT_INVALID",
+                        "seed",
+                        format!(
+                            "{table_name}.{field_name} carries an $assetFixture placeholder but is not a v.assetRef field"
+                        ),
+                    ));
+                }
+                let Some(fixtures) = fixtures else {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_SEED_ASSET_FIXTURE_UNRESOLVED",
+                        "seed",
+                        "seed rows reference asset fixtures but no fixtures artifact is attached; resetInstall and legacy seed paths do not carry placeholders",
+                    ));
+                };
+                let Some(declared) = fixtures.fixture(fixture_id) else {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_SEED_ASSET_FIXTURE_UNKNOWN",
+                        "seed",
+                        format!("seed references undeclared asset fixture {fixture_id}"),
+                    ));
+                };
+                let mapping = lookup_seed_fixture(tx, fixture_id)?;
+                let mapping = match mapping {
+                    Some(mapping) if mapping.source_digest == declared.source_digest => mapping,
+                    _ => {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_SEED_ASSET_FIXTURE_NOT_INGESTED",
+                            "seed",
+                            format!(
+                                "asset fixture {fixture_id} is not ingested at its declared sourceDigest; run asset.ensureSeedFixture first"
+                            ),
+                        ));
+                    }
+                };
+                let asset = load_asset(tx, &mapping.asset_id)?;
+                if !asset.is_some_and(|asset| asset.availability != AssetAvailability::Deleted) {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_SEED_ASSET_FIXTURE_NOT_INGESTED",
+                        "seed",
+                        format!(
+                            "asset fixture {fixture_id} maps to a missing or deleted asset; re-run asset.ensureSeedFixture"
+                        ),
+                    ));
+                }
+                resolved_row.insert(
+                    field_name.clone(),
+                    Value::String(mapping.asset_id.clone()),
+                );
+            }
+            resolved_rows.push(resolved_row);
+        }
+        resolved.insert(table_name.clone(), resolved_rows);
+    }
+    Ok(crate::manifest::SeedData { tables: resolved })
+}
+
 /// Optional declared image renditions produced off the canonical bytes by
 /// the runner; required ones ride finalization itself (LLP 0044 §step 8).
 pub const ASSET_WORK_KIND_IMAGE_VARIANT: &str = "image-variant";
