@@ -8,6 +8,75 @@
       ],
       "type": "string"
     },
+    "AssetImageFactsV1": {
+      "additionalProperties": false,
+      "description": "The declared image-processing facts (LLP 0044 §Declarative processing;\nthe `asset-image-finalization` fact carried by the pipeline composite).\nEvery ceiling here is `Enforced` on the declaring target — the values are\nsingle-sourced from `assets_image::ASSET_IMAGE_CEILINGS_LOCAL_V1`.",
+      "properties": {
+        "capabilityIds": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "formats": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "maxDecompressionRatio": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxDimension": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxMetadataBytes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxOutputBytes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxPixels": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "placeholderAlgorithm": {
+          "type": "string"
+        },
+        "ratioFloorBytes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "stepTimeBudgetMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "capabilityIds",
+        "placeholderAlgorithm",
+        "formats",
+        "maxPixels",
+        "maxDimension",
+        "maxDecompressionRatio",
+        "ratioFloorBytes",
+        "maxMetadataBytes",
+        "stepTimeBudgetMs",
+        "maxOutputBytes"
+      ],
+      "type": "object"
+    },
     "AssetTargetFactsV1": {
       "additionalProperties": false,
       "description": "The declared asset target facts (LLP 0044 §Capability facts; LLP 0012\ndated registration 2026-07-31). The lifecycle claim is store-parameterized\n— `lifecycle_stores` is part of the claim, and the v1 nonclaims are\nreported Missing here, never omitted.",
@@ -40,6 +109,17 @@
         },
         "digestAlgorithm": {
           "type": "string"
+        },
+        "image": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AssetImageFactsV1"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The image-processing facts block; `None` is the honest Missing\nreport for a target without `asset-image-finalization`."
         },
         "integrityGrades": {
           "items": {
@@ -480,7 +560,9 @@
             "versioned_seed_install_v1",
             "versioned_seed_reset_v1",
             "write_activity_v1",
-            "asset_lifecycle_v1"
+            "asset_lifecycle_v1",
+            "asset_image_finalization_v1",
+            "asset_image_pipeline_v1"
           ],
           "type": "string"
         },

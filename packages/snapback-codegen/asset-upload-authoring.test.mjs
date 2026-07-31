@@ -10,12 +10,16 @@ import { generate } from './index.mjs';
 
 const defineUrl = pathToFileURL(join(dirname(fileURLToPath(import.meta.url)), 'define.mjs')).href;
 
-async function runCase({ schema, functions }) {
+async function runCase({ schema, functions, targetProfile }) {
   const dir = mkdtempSync(join(tmpdir(), 'snapback-codegen-assets-'));
   writeFileSync(join(dir, 'schema.mjs'), schema);
   writeFileSync(join(dir, 'functions.mjs'), functions);
   mkdirSync(join(dir, 'generated'), { recursive: true });
-  return { dir, result: await generate(dir) };
+  mkdirSync(join(dir, 'generated-remote-service'), { recursive: true });
+  const result = targetProfile
+    ? await generate(dir, { targetProfile })
+    : await generate(dir);
+  return { dir, result };
 }
 
 const codes = (result) => result.diagnostics.map((d) => d.code);
@@ -134,15 +138,43 @@ export const photoUpload = defineAssetUpload({
 });
 `, 'SNAPBACK_ASSET_INTENT_LOCATION_POLICY_REQUIRED');
 
-// 'strip' requires the image-finalization capability no v1 target advertises.
-await refusalCase(`
+// Since the P-05 flip the local target advertises asset_image_finalization_v1,
+// so a strip-declared image intent ADMITS on local — with declared variants.
+{
+  const { result, dir } = await runCase({
+    schema: baseSchema,
+    functions: `
+import { defineAssetUpload } from '${defineUrl}';
+export const photoUpload = defineAssetUpload({
+  accept: { mediaTypes: ['image/jpeg'], maxBytes: 1_000_000 },
+  image: { location: 'strip', variants: [{ key: 'thumb', width: 128 }] },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+`,
+  });
+  assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+  const api = readFileSync(join(dir, 'generated', 'api.mjs'), 'utf8');
+  assert.ok(api.includes('"artifactKind": "assetUploadReference"'));
+}
+
+// A target without the fact still refuses strip — the remote-service profile
+// withholds the image facts, and generation stays honest there.
+{
+  const { result } = await runCase({
+    schema: baseSchema,
+    functions: `
 import { defineAssetUpload } from '${defineUrl}';
 export const photoUpload = defineAssetUpload({
   accept: { mediaTypes: ['image/jpeg'], maxBytes: 1_000_000 },
   image: { location: 'strip' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
-`, 'SNAPBACK_ASSET_INTENT_LOCATION_STRIP_UNSUPPORTED');
+`,
+    targetProfile: 'remote-service-sqlite-ibex',
+  });
+  assert.equal(result.ok, false, 'strip must refuse where the fact is absent');
+  assert.ok(codes(result).includes('SNAPBACK_ASSET_INTENT_LOCATION_STRIP_UNSUPPORTED'));
+}
 
 // A strip-declared video intent refuses on every v1 target.
 await refusalCase(`

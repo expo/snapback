@@ -5266,11 +5266,17 @@ impl LocalSnapback {
     }
 
     /// Whether this target performs image finalization (the
-    /// `asset-image-finalization` fact). P-05 keys this off the declared
-    /// capability facts block when the image-pipeline composite flips;
-    /// until then only the test override enables it.
+    /// `asset-image-finalization` fact). Reads the declared capability
+    /// facts block — the same single source the manifest embeds — so the
+    /// runtime gate and the advertised claim can never disagree; the
+    /// override exists for tests that pin the disabled posture.
     pub(crate) fn asset_image_finalization_enabled(&self) -> bool {
-        self.asset_image_finalization_override.unwrap_or(false)
+        static DECLARED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        self.asset_image_finalization_override.unwrap_or_else(|| {
+            *DECLARED.get_or_init(|| {
+                crate::assets::AssetTargetFactsV1::local_v1().image.is_some()
+            })
+        })
     }
 
     #[cfg(test)]
@@ -24194,6 +24200,10 @@ globalThis.__snapbackHandlers = {
             variants: Vec::new(),
         });
         let mut snapback = LocalSnapback::memory().expect("memory snapback");
+        // Pin the disabled posture explicitly: since the P-05 flip the local
+        // declaration enables image finalization, and this test is about the
+        // defense on a target WITHOUT the fact.
+        snapback.set_asset_image_finalization_override(false);
         snapback.load_functions(FunctionManifest {
             asset_upload_intents: vec![strip],
             ..FunctionManifest::default()
@@ -24272,7 +24282,10 @@ globalThis.__snapbackHandlers = {
         max_bytes: u64,
     ) -> LocalSnapback {
         let mut snapback = LocalSnapback::memory().expect("memory snapback");
-        snapback.set_asset_image_finalization_override(true);
+        // No override: since the P-05 flip these suites run against the
+        // declared capability facts, proving the manifest-keyed gate is
+        // what admits image finalization on this target.
+        assert!(snapback.asset_image_finalization_enabled());
         let diagnostics = snapback.load_functions(FunctionManifest {
             asset_upload_intents: vec![asset_image_intent(location, max_bytes)],
             ..FunctionManifest::default()

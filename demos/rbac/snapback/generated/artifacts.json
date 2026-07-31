@@ -37,8 +37,8 @@
   ],
   "bundleHash": "snapback.v1:sessions:function:sha256:992fc30206ff12d43cf5fdfb43379fa2696bcb1f090fbbdd2fc8ddad9ece2512",
   "cache": {
-    "graphPath": "../../.snapback/codegen-cache/snapback.v1%3Asessions%3Ainputs%3Asha256%3Aaf6cfaaa84db7b673c26cd6d754386c8f0097ec8e1da8294d6091c4299b28b82",
-    "key": "snapback.v1%3Asessions%3Ainputs%3Asha256%3Aaf6cfaaa84db7b673c26cd6d754386c8f0097ec8e1da8294d6091c4299b28b82",
+    "graphPath": "../../.snapback/codegen-cache/snapback.v1%3Asessions%3Ainputs%3Asha256%3A24419680239ea98f00f221d525ba25d21dd6e29fd445b6ed4647c3e8a72926a1",
+    "key": "snapback.v1%3Asessions%3Ainputs%3Asha256%3A24419680239ea98f00f221d525ba25d21dd6e29fd445b6ed4647c3e8a72926a1",
     "regenerationRule": "regenerate-or-fail-closed"
   },
   "config": [],
@@ -75,7 +75,7 @@
       "sha256": "sha256:ff25c5800094cc54b28140605850ca60da1d7a67f5cc0c2fa714f3fea4d642d6"
     },
     {
-      "bytes": 7182,
+      "bytes": 7787,
       "consumer": "snapback-runtime",
       "custody": "regenerable-cache",
       "logicalKind": "capability-manifest",
@@ -84,7 +84,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:385007a7686555fae5f8e0619759f44d760f0ee9526dcdd09ad60b7d4fe641a7"
+      "sha256": "sha256:09111b41f7d289a3dd0b8a4e9640b1f0c125f0b901c0346c56e0575906c0c8a5"
     },
     {
       "bytes": 7871,
@@ -96,7 +96,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:283888d739f5c7843eb35e6feb4e765a17cadb82f531f332289db1959e030b28"
+      "sha256": "sha256:8c76972dde7bb35baf6e429f699f293ce1f3f5337f38bacdeb6d77d2435b997b"
     },
     {
       "bytes": 298,
@@ -288,7 +288,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:c74b1e3bb07348e154f343c754360451e309631d339f64f2c6c6c6543060d2e5"
+      "sha256": "sha256:1a15640815b775110064f48a4d11d47fd9532b1d07e4c611a414523291d1a09c"
     },
     {
       "bytes": 260,
@@ -408,7 +408,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:c9da43712d4aca078b4e74f8d8b486465d0de0446fbc58c9b62d6d5da0ab0ba6"
+      "sha256": "sha256:5132099c378536e6187145b47248e539270ea1183facbe55acba64e6f7a86954"
     },
     {
       "bytes": 10769,
@@ -420,7 +420,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:2aff25f9fe29ac89eb9969fe69f64fcf45171f33c913bc0cd3c1c1fcf39c5623"
+      "sha256": "sha256:2fca900a0688889797baf28b2aa94bbfdd2a8f5eac2091fc7963163391e94c0f"
     },
     {
       "bytes": 2718,
@@ -432,7 +432,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:a8ae905fbb39229947ce2f7cc57c75684952a25d0e556f23cbc66ff0f0567754"
+      "sha256": "sha256:2552c77c510572ca8820744134b9f00d57494a3b8b8dafc3854e5165645f3980"
     }
   ],
   "functions": [
@@ -473,7 +473,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:af6cfaaa84db7b673c26cd6d754386c8f0097ec8e1da8294d6091c4299b28b82",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:24419680239ea98f00f221d525ba25d21dd6e29fd445b6ed4647c3e8a72926a1",
   "manifestVersion": 2,
   "reviewManifest": {
     "authority": "@expo/snapback-codegen/review-manifest.schema.json",
@@ -596,7 +596,7 @@
         }
       }
     ],
-    "inputsHash": "snapback.v1:sessions:inputs:sha256:af6cfaaa84db7b673c26cd6d754386c8f0097ec8e1da8294d6091c4299b28b82",
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:24419680239ea98f00f221d525ba25d21dd6e29fd445b6ed4647c3e8a72926a1",
     "schemaVersion": "snapback.codegen-summary.v1"
   },
   "tables": [

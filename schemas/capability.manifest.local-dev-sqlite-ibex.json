@@ -10,6 +10,24 @@
       "private-strict"
     ],
     "digestAlgorithm": "sha256",
+    "image": {
+      "capabilityIds": [
+        "asset_image_finalization_v1",
+        "asset_image_pipeline_v1"
+      ],
+      "formats": [
+        "image/jpeg",
+        "image/png"
+      ],
+      "maxDecompressionRatio": 500,
+      "maxDimension": 16384,
+      "maxMetadataBytes": 1048576,
+      "maxOutputBytes": 67108864,
+      "maxPixels": 50000000,
+      "placeholderAlgorithm": "thumbhash.v1",
+      "ratioFloorBytes": 16777216,
+      "stepTimeBudgetMs": 10000
+    },
     "integrityGrades": [
       "end-to-end-verified",
       "received-bytes-canonical"
@@ -22,7 +40,6 @@
     "maxOpenAttemptsPerPrincipal": 8,
     "minAccountingUnitBytes": 4096,
     "missing": [
-      "asset-image-finalization",
       "asset-video-finalization",
       "asset-backup-export",
       "asset-custom-read-authorizers",
@@ -58,6 +75,8 @@
   ],
   "capabilityMaturity": {
     "args_contract_v1": "experimental",
+    "asset_image_finalization_v1": "experimental",
+    "asset_image_pipeline_v1": "experimental",
     "asset_lifecycle_v1": "experimental",
     "bounded_children_v1": "experimental",
     "inline_handler_v1": "experimental",
@@ -253,7 +272,9 @@
     "versioned_seed_install_v1",
     "versioned_seed_reset_v1",
     "write_activity_v1",
-    "asset_lifecycle_v1"
+    "asset_lifecycle_v1",
+    "asset_image_finalization_v1",
+    "asset_image_pipeline_v1"
   ],
   "supportedQueryForms": [
     "host-plan-single-table-eq",

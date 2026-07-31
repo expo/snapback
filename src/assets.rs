@@ -2336,6 +2336,47 @@ pub fn enqueue_work_with_params(
     Ok(row.work_id)
 }
 
+/// The declared image-processing facts (LLP 0044 §Declarative processing;
+/// the `asset-image-finalization` fact carried by the pipeline composite).
+/// Every ceiling here is `Enforced` on the declaring target — the values are
+/// single-sourced from `assets_image::ASSET_IMAGE_CEILINGS_LOCAL_V1`.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AssetImageFactsV1 {
+    pub capability_ids: Vec<String>,
+    pub placeholder_algorithm: String,
+    pub formats: Vec<String>,
+    pub max_pixels: u64,
+    pub max_dimension: u32,
+    pub max_decompression_ratio: u64,
+    pub ratio_floor_bytes: u64,
+    pub max_metadata_bytes: u64,
+    pub step_time_budget_ms: u64,
+    pub max_output_bytes: u64,
+}
+
+impl AssetImageFactsV1 {
+    pub fn local_v1() -> Self {
+        let ceilings = crate::assets_image::ASSET_IMAGE_CEILINGS_LOCAL_V1;
+        Self {
+            capability_ids: vec![
+                "asset_image_finalization_v1".to_owned(),
+                "asset_image_pipeline_v1".to_owned(),
+            ],
+            placeholder_algorithm: crate::assets_image::ASSET_PLACEHOLDER_ALGO_THUMBHASH_V1
+                .to_owned(),
+            formats: vec!["image/jpeg".to_owned(), "image/png".to_owned()],
+            max_pixels: ceilings.max_pixels,
+            max_dimension: ceilings.max_dimension,
+            max_decompression_ratio: ceilings.max_decompression_ratio,
+            ratio_floor_bytes: ceilings.ratio_floor_bytes,
+            max_metadata_bytes: ceilings.max_metadata_bytes,
+            step_time_budget_ms: ceilings.step_time_budget_ms,
+            max_output_bytes: ceilings.max_output_bytes,
+        }
+    }
+}
+
 /// The declared asset target facts (LLP 0044 §Capability facts; LLP 0012
 /// dated registration 2026-07-31). The lifecycle claim is store-parameterized
 /// — `lifecycle_stores` is part of the claim, and the v1 nonclaims are
@@ -2362,6 +2403,9 @@ pub struct AssetTargetFactsV1 {
     pub publication_retention_ms: u64,
     pub work_retry_ceiling: u64,
     pub work_lease_ms: u64,
+    /// The image-processing facts block; `None` is the honest Missing
+    /// report for a target without `asset-image-finalization`.
+    pub image: Option<AssetImageFactsV1>,
     /// Every listed limit above is `Enforced` on this target; a limit a
     /// target cannot enforce must move to this graded list instead of
     /// silently keeping the field.
@@ -2394,9 +2438,9 @@ impl AssetTargetFactsV1 {
             publication_retention_ms: ASSET_PUBLICATION_RETENTION_MS,
             work_retry_ceiling: ASSET_WORK_RETRY_CEILING,
             work_lease_ms: ASSET_WORK_LEASE_MS,
+            image: Some(AssetImageFactsV1::local_v1()),
             advisory_limits: Vec::new(),
             missing: vec![
-                "asset-image-finalization".to_owned(),
                 "asset-video-finalization".to_owned(),
                 "asset-backup-export".to_owned(),
                 "asset-custom-read-authorizers".to_owned(),

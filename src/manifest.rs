@@ -5751,10 +5751,14 @@ pub enum TargetCapabilityId {
     WriteActivityV1,
     #[serde(rename = "asset_lifecycle_v1")]
     AssetLifecycleV1,
+    #[serde(rename = "asset_image_finalization_v1")]
+    AssetImageFinalizationV1,
+    #[serde(rename = "asset_image_pipeline_v1")]
+    AssetImagePipelineV1,
 }
 
 impl TargetCapabilityId {
-    pub const ALL: [Self; 22] = [
+    pub const ALL: [Self; 24] = [
         Self::AuthSessionsV1,
         Self::BoundedResponseStreamV1,
         Self::BoundedChildrenV1,
@@ -5777,6 +5781,8 @@ impl TargetCapabilityId {
         Self::VersionedSeedResetV1,
         Self::WriteActivityV1,
         Self::AssetLifecycleV1,
+        Self::AssetImageFinalizationV1,
+        Self::AssetImagePipelineV1,
     ];
 
     pub const fn as_str(self) -> &'static str {
@@ -5803,6 +5809,8 @@ impl TargetCapabilityId {
             Self::VersionedSeedResetV1 => "versioned_seed_reset_v1",
             Self::WriteActivityV1 => "write_activity_v1",
             Self::AssetLifecycleV1 => "asset_lifecycle_v1",
+            Self::AssetImageFinalizationV1 => "asset_image_finalization_v1",
+            Self::AssetImagePipelineV1 => "asset_image_pipeline_v1",
         }
     }
 
@@ -5838,7 +5846,9 @@ impl TargetCapabilityId {
             | Self::VersionedSeedInstallV1
             | Self::VersionedSeedResetV1
             | Self::WriteActivityV1
-            | Self::AssetLifecycleV1 => CapabilityMaturity::Experimental,
+            | Self::AssetLifecycleV1
+            | Self::AssetImageFinalizationV1
+            | Self::AssetImagePipelineV1 => CapabilityMaturity::Experimental,
             _ => CapabilityMaturity::Stable,
         }
     }
@@ -5964,6 +5974,22 @@ impl TargetCapabilityId {
                                 .iter()
                                 .any(|profile| profile == "private-strict")
                     })
+            }
+            // @ref LLP 0044#capability-facts-and-implementation-slices — the
+            // image facts block IS the `asset-image-finalization` fact: the
+            // registered implementation plus the declared Enforced ceilings.
+            Self::AssetImageFinalizationV1 => {
+                facts.asset_image_finalization_registered
+                    && manifest
+                        .assets
+                        .as_ref()
+                        .is_some_and(|assets| assets.image.is_some())
+            }
+            // The pipeline composite carries the finalization fact and sits
+            // on the lifecycle composite; it never holds without both.
+            Self::AssetImagePipelineV1 => {
+                Self::AssetLifecycleV1.is_supported_by(manifest, facts)
+                    && Self::AssetImageFinalizationV1.is_supported_by(manifest, facts)
             }
         }
     }
@@ -6151,6 +6177,7 @@ pub struct TargetCapabilityFacts {
     write_activity_v1_registered: bool,
     local_relation_activity_publication_v1_verified: bool,
     asset_lifecycle_local_fs_registered: bool,
+    asset_image_finalization_registered: bool,
 }
 
 impl TargetCapabilityFacts {
@@ -6172,6 +6199,7 @@ impl TargetCapabilityFacts {
         // stays experimental until the author accepts the contract.
         Self {
             asset_lifecycle_local_fs_registered: true,
+            asset_image_finalization_registered: true,
             bounded_children_v1_registered: true,
             bounded_response_stream_v1_registered: true,
             relational_query_v1_registered: true,
@@ -6816,6 +6844,7 @@ impl CapabilityManifest {
             TargetCapabilityFacts::local_auth_aware().with_relation_activity_publication_withheld();
         facts.full_text_search_v1_registered = false;
         facts.asset_lifecycle_local_fs_registered = false;
+        facts.asset_image_finalization_registered = false;
         manifest.refresh_supported_capabilities(facts);
         manifest
     }
@@ -6841,12 +6870,16 @@ impl CapabilityManifest {
         manifest.assets = None;
         manifest.asset_upload = false;
         manifest.capability_gaps.push("assets".to_owned());
-        manifest
-            .supported_capabilities
-            .retain(|capability| *capability != TargetCapabilityId::AssetLifecycleV1);
-        manifest
-            .capability_maturity
-            .remove(&TargetCapabilityId::AssetLifecycleV1);
+        for withheld in [
+            TargetCapabilityId::AssetLifecycleV1,
+            TargetCapabilityId::AssetImageFinalizationV1,
+            TargetCapabilityId::AssetImagePipelineV1,
+        ] {
+            manifest
+                .supported_capabilities
+                .retain(|capability| *capability != withheld);
+            manifest.capability_maturity.remove(&withheld);
+        }
         ensure_relation_activity_capability_gaps(&mut manifest.capability_gaps);
         manifest.vm_lifecycle = "fresh-process-per-invocation".to_owned();
         for limit in &mut manifest.resource_limits {
@@ -7379,6 +7412,14 @@ mod membership_manifest_grammar_tests {
             ),
             (
                 TargetCapabilityId::AssetLifecycleV1,
+                CapabilityMaturity::Experimental,
+            ),
+            (
+                TargetCapabilityId::AssetImageFinalizationV1,
+                CapabilityMaturity::Experimental,
+            ),
+            (
+                TargetCapabilityId::AssetImagePipelineV1,
                 CapabilityMaturity::Experimental,
             ),
         ]);

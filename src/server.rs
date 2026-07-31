@@ -22199,6 +22199,15 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_ASSET_ATTACH_DENIED" => StatusCode::BAD_REQUEST,
         "SNAPBACK_ASSET_ADMISSION_REVOKED" => StatusCode::FORBIDDEN,
         "SNAPBACK_ASSET_LOCATION_POLICY_UNSUPPORTED" => StatusCode::UNPROCESSABLE_ENTITY,
+        // Image-processing refusals about the client's bytes are 422: the
+        // request was well-formed, the content is unprocessable under the
+        // declared Enforced ceilings or undecodable as its detected type.
+        // SNAPBACK_ASSET_IMAGE_TIME_BUDGET_EXCEEDED and
+        // SNAPBACK_ASSET_WORK_PARAMS_INVALID stay deliberately unlisted
+        // (truthful 500): the first is a server resource condition, the
+        // second an internal ledger-row defect — neither is client-fixable.
+        "SNAPBACK_ASSET_IMAGE_BOUNDS_EXCEEDED"
+        | "SNAPBACK_ASSET_IMAGE_DECODE_FAILED" => StatusCode::UNPROCESSABLE_ENTITY,
         "SNAPBACK_ASSET_INTENT_STALE"
         | "SNAPBACK_ASSET_INTENT_REVOKED"
         | "SNAPBACK_ASSET_OFFSET_CONFLICT"
@@ -36173,6 +36182,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_ASSET_INTENT_ACCEPT_INVALID",
         "SNAPBACK_ASSET_INTENT_IDENTITY_COLLISION",
         "SNAPBACK_ASSET_INTENT_IDENTITY_INVALID",
+        "SNAPBACK_ASSET_IMAGE_TIME_BUDGET_EXCEEDED",
         "SNAPBACK_ASSET_INTENT_RUNTIME_INVALID",
         "SNAPBACK_ASSET_INTENT_RUNTIME_UNSUPPORTED",
         "SNAPBACK_ASSET_LIVE_INPUT_INVALID",
@@ -36187,6 +36197,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_ASSET_TEST_TRANSIENT",
         "SNAPBACK_ASSET_TRANSITION_INVALID",
         "SNAPBACK_ASSET_WORK_KIND_UNKNOWN",
+        "SNAPBACK_ASSET_WORK_PARAMS_INVALID",
         "SNAPBACK_ASSET_WORK_TRANSITION_INVALID",
         "SNAPBACK_ASSET_WORK_UNKNOWN",
     ];
@@ -36226,8 +36237,11 @@ globalThis.__snapbackHandlers = {
     ];
 
     const ASSET_GONE_DIAGNOSTICS: &[&str] = &["SNAPBACK_ASSET_ATTEMPT_EXPIRED"];
-    const ASSET_UNPROCESSABLE_DIAGNOSTICS: &[&str] =
-        &["SNAPBACK_ASSET_LOCATION_POLICY_UNSUPPORTED"];
+    const ASSET_UNPROCESSABLE_DIAGNOSTICS: &[&str] = &[
+        "SNAPBACK_ASSET_IMAGE_BOUNDS_EXCEEDED",
+        "SNAPBACK_ASSET_IMAGE_DECODE_FAILED",
+        "SNAPBACK_ASSET_LOCATION_POLICY_UNSUPPORTED",
+    ];
     const ASSET_PRECONDITION_DIAGNOSTICS: &[&str] =
         &["SNAPBACK_ASSET_TUS_VERSION_UNSUPPORTED"];
     const ASSET_UNSUPPORTED_MEDIA_DIAGNOSTICS: &[&str] =
