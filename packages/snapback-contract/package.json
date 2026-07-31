@@ -4,46 +4,118 @@
   "type": "module",
   "description": "Provider/runtime boundary for Contract applications backed by Snapback.",
   "files": [
+    "artifact-validation.d.mts",
     "artifact-validation.mjs",
+    "auth-coordinator.d.mts",
     "auth-coordinator.mjs",
+    "auth-custody-indexeddb.d.mts",
     "auth-custody-indexeddb.mjs",
+    "auth-invalidation.d.mts",
     "auth-invalidation.mjs",
+    "authorized-lease.d.mts",
     "authorized-lease.mjs",
+    "build-preset.d.mts",
     "build-preset.mjs",
+    "capabilities.d.mts",
     "capabilities.mjs",
+    "client-store.d.mts",
     "client-store.mjs",
     "derived-overlay.mjs",
+    "diagnostics.d.mts",
     "diagnostics.mjs",
+    "exact-conformance.d.mts",
     "exact-conformance.mjs",
+    "exact-package.d.mts",
     "exact-package.mjs",
+    "exact-project-check.d.mts",
     "exact-project-check.mjs",
+    "index.d.mts",
     "index.mjs",
+    "keyed-provider.d.mts",
     "keyed-provider.mjs",
+    "online-surface.d.mts",
     "online-surface.mjs",
     "package-export-path.mjs",
+    "query-authorization.d.mts",
     "query-authorization.mjs",
+    "result-contract-validator.d.mts",
     "result-contract-validator.mjs",
+    "render-first.d.mts",
     "render-first.mjs"
   ],
   "exports": {
-    ".": "./index.mjs",
-    "./capabilities": "./capabilities.mjs",
-    "./artifact-validation": "./artifact-validation.mjs",
-    "./auth-coordinator": "./auth-coordinator.mjs",
-    "./auth-custody-indexeddb": "./auth-custody-indexeddb.mjs",
-    "./auth-invalidation": "./auth-invalidation.mjs",
-    "./query-authorization": "./query-authorization.mjs",
-    "./result-contract-validator": "./result-contract-validator.mjs",
-    "./authorized-lease": "./authorized-lease.mjs",
-    "./render-first": "./render-first.mjs",
-    "./keyed-provider": "./keyed-provider.mjs",
-    "./online-surface": "./online-surface.mjs",
-    "./client-store": "./client-store.mjs",
-    "./diagnostics": "./diagnostics.mjs",
-    "./build-preset": "./build-preset.mjs",
-    "./exact-conformance": "./exact-conformance.mjs",
-    "./exact-package": "./exact-package.mjs",
-    "./exact-project-check": "./exact-project-check.mjs",
+    ".": {
+      "types": "./index.d.mts",
+      "default": "./index.mjs"
+    },
+    "./capabilities": {
+      "types": "./capabilities.d.mts",
+      "default": "./capabilities.mjs"
+    },
+    "./artifact-validation": {
+      "types": "./artifact-validation.d.mts",
+      "default": "./artifact-validation.mjs"
+    },
+    "./auth-coordinator": {
+      "types": "./auth-coordinator.d.mts",
+      "default": "./auth-coordinator.mjs"
+    },
+    "./auth-custody-indexeddb": {
+      "types": "./auth-custody-indexeddb.d.mts",
+      "default": "./auth-custody-indexeddb.mjs"
+    },
+    "./auth-invalidation": {
+      "types": "./auth-invalidation.d.mts",
+      "default": "./auth-invalidation.mjs"
+    },
+    "./query-authorization": {
+      "types": "./query-authorization.d.mts",
+      "default": "./query-authorization.mjs"
+    },
+    "./result-contract-validator": {
+      "types": "./result-contract-validator.d.mts",
+      "default": "./result-contract-validator.mjs"
+    },
+    "./authorized-lease": {
+      "types": "./authorized-lease.d.mts",
+      "default": "./authorized-lease.mjs"
+    },
+    "./render-first": {
+      "types": "./render-first.d.mts",
+      "default": "./render-first.mjs"
+    },
+    "./keyed-provider": {
+      "types": "./keyed-provider.d.mts",
+      "default": "./keyed-provider.mjs"
+    },
+    "./online-surface": {
+      "types": "./online-surface.d.mts",
+      "default": "./online-surface.mjs"
+    },
+    "./client-store": {
+      "types": "./client-store.d.mts",
+      "default": "./client-store.mjs"
+    },
+    "./diagnostics": {
+      "types": "./diagnostics.d.mts",
+      "default": "./diagnostics.mjs"
+    },
+    "./build-preset": {
+      "types": "./build-preset.d.mts",
+      "default": "./build-preset.mjs"
+    },
+    "./exact-conformance": {
+      "types": "./exact-conformance.d.mts",
+      "default": "./exact-conformance.mjs"
+    },
+    "./exact-package": {
+      "types": "./exact-package.d.mts",
+      "default": "./exact-package.mjs"
+    },
+    "./exact-project-check": {
+      "types": "./exact-project-check.d.mts",
+      "default": "./exact-project-check.mjs"
+    },
     "./package.json": "./package.json"
   },
   "publishConfig": {
