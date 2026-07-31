@@ -426,8 +426,32 @@ export interface SnapbackClientOptions {
   readonly clientStoreId?: string;
   readonly authCounterCeiling?: number;
   readonly rqsStore?: unknown;
+  /**
+   * LLP 0043 M2 queued-intent outbox (LLP 0129 Phase 0). 'auto' (default)
+   * queues connectivity-refused mutations durably when the resolved store
+   * carries the outbox contract; false disables; true requires support.
+   * A queued delivery resolves `{ queued: true, clientMutationId, sequence }`
+   * instead of a settlement; it settles by ordered replay after reconnect.
+   */
+  readonly offlineQueue?: 'auto' | boolean;
   readonly strictWireVersion?: boolean;
   readonly onWireVersionDiagnostic?: ((diagnostic: unknown) => void) | null;
+}
+
+/** DK-9 degradation fact: which persistence store the client resolved. */
+export interface RqsStoreInfo {
+  readonly source: 'default' | 'injected' | 'disabled';
+  readonly implementation: string | null;
+  readonly durable: boolean | null;
+  readonly reason: string | null;
+}
+
+/** Outcome of one LLP 0043 M2 ordered outbox drain. */
+export interface OutboxReplayOutcome {
+  readonly replayed: number;
+  readonly failed: number;
+  readonly remaining: number;
+  readonly stopped?: boolean;
 }
 
 export type AuthMode = 'dev' | 'sessions';
@@ -682,6 +706,7 @@ export class SnapbackClient {
       readonly args?: FunctionArgs<Ref>;
       readonly userId?: string;
       readonly clientMutationId?: string | null;
+      readonly queue?: 'auto' | boolean;
     },
   ): Promise<MutationOutput<FunctionResult<Ref>>>;
   mutate<Result = unknown>(
@@ -690,8 +715,15 @@ export class SnapbackClient {
       readonly args?: Record<string, unknown>;
       readonly userId?: string;
       readonly clientMutationId?: string | null;
+      readonly queue?: 'auto' | boolean;
     },
   ): Promise<MutationOutput<Result>>;
+  /** The resolved persistence store's implementation/durability facts. */
+  readonly rqsStoreInfo: RqsStoreInfo;
+  /** Drain the durable outbox in sequence order (single-flight). */
+  replayQueuedMutations(): Promise<OutboxReplayOutcome>;
+  /** Structured LLP 0043 M2 queue/replay diagnostics (bounded ring). */
+  readonly outboxDiagnostics: readonly Record<string, unknown>[];
   action<Ref extends FunctionRef<'Action'>>(
     ref: Ref,
     options?: { readonly args?: FunctionArgs<Ref>; readonly userId?: string },

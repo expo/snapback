@@ -20,6 +20,7 @@
     "index.mjs",
     "online.d.mts",
     "online.mjs",
+    "outbox-shared.mjs",
     "react-binding.mjs",
     "rqs.d.mts",
     "rqs.mjs",
@@ -28,7 +29,9 @@
     "rqs-store.d.mts",
     "rqs-store.mjs",
     "rqs-store-file.d.mts",
+    "rqs-store-default.mjs",
     "rqs-store-file.mjs",
+    "rqs-store-memory.mjs",
     "sender-proof.mjs",
     "search.d.mts",
     "search.mjs"
@@ -78,6 +81,14 @@
       "types": "./rqs-store-file.d.mts",
       "import": "./rqs-store-file.mjs"
     },
+    "./outbox-shared": {
+      "types": "./outbox-shared.d.mts",
+      "import": "./outbox-shared.mjs"
+    },
+    "./rqs-store-default": {
+      "types": "./rqs-store-default.d.mts",
+      "import": "./rqs-store-default.mjs"
+    },
     "./search": {
       "types": "./search.d.mts",
       "import": "./search.mjs"
@@ -91,6 +102,6 @@
     "access": "public"
   },
   "scripts": {
-    "test": "node package.test.mjs && node attribution.test.mjs && node app-data.test.mjs && node lifecycle-disposal.test.mjs && node argument-validation.test.mjs && node reservation-retry.test.mjs && node search.test.mjs && node external-store.test.mjs && node sender-proof.test.mjs && node sender-transport.test.mjs && node hosted-browser.test.mjs && node hosted-ephemeral.test.mjs && node ephemeral-room.test.mjs && node rqs-digest-parity.test.mjs && node rqs-store.test.mjs && node rqs-store-file.test.mjs && node rqs-resume.test.mjs && node rqs-resume-native.test.mjs && node bundle.test.mjs && node wire-version.test.mjs && ../../node_modules/.bin/tsc --noEmit --strict --target es2022 --module esnext --moduleResolution bundler exact-reference-types.fixture.ts"
+    "test": "node package.test.mjs && node attribution.test.mjs && node app-data.test.mjs && node lifecycle-disposal.test.mjs && node argument-validation.test.mjs && node reservation-retry.test.mjs && node search.test.mjs && node external-store.test.mjs && node sender-proof.test.mjs && node sender-transport.test.mjs && node hosted-browser.test.mjs && node hosted-ephemeral.test.mjs && node ephemeral-room.test.mjs && node rqs-digest-parity.test.mjs && node rqs-store.test.mjs && node rqs-store-file.test.mjs && node outbox-store.test.mjs && node rqs-resume.test.mjs && node rqs-resume-native.test.mjs && node bundle.test.mjs && node wire-version.test.mjs && ../../node_modules/.bin/tsc --noEmit --strict --target es2022 --module esnext --moduleResolution bundler exact-reference-types.fixture.ts"
   }
 }

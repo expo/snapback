@@ -13,7 +13,11 @@
 //   poll fallback, reconnect-by-fresh-subscribe, and the Exact LLP 0284 §2.2
 //   connection axis.
 
-import { retainedQueryKey, stableJson } from '@snapback/contract/client-store';
+import {
+  createClientMutationId,
+  retainedQueryKey,
+  stableJson,
+} from '@snapback/contract/client-store';
 import {
   createLiveQueryAuthorizationFence,
   createLiveQueryInstanceAllocator,
@@ -84,6 +88,9 @@ export {
   RQS_STORE_MAX_BYTES,
   RQS_STORE_MAX_ENTRIES,
 } from './rqs-store.mjs';
+export { createFileRqsResumeStore } from './rqs-store-file.mjs';
+export { createMemoryRqsResumeStore } from './rqs-store-memory.mjs';
+export { resolveDefaultRqsStore } from './rqs-store-default.mjs';
 export {
   createRqsPreloadRegistry,
   createRqsRegisteredRegistry,
@@ -91,6 +98,19 @@ export {
   readRqsPreloadRegistry,
   RQS_BOOT_ELEMENT_ID,
 } from './rqs-preload.mjs';
+import { resolveDefaultRqsStore } from './rqs-store-default.mjs';
+
+// Connectivity classification for the LLP 0043 M2 queue path: a fetch-level
+// transport failure (the runtime throws TypeError; sanitizeTransportError
+// preserves the class) with no HTTP status, no server diagnostic, and no
+// receipt. Anything the server answered — refusals, conflicts, rejections —
+// is NOT connectivity and is never queued.
+const isConnectivityFailureError = (error) => (
+  error instanceof TypeError
+  && error?.status === undefined
+  && error?.diagnostic === undefined
+  && error?.receipt === undefined
+);
 
 // ---------------------------------------------------------------------------
 // D1 freshness + reconnect policy (LLP 0034 §2.2/§2.3; Exact LLP 0284 §2.2).
@@ -1498,8 +1518,20 @@ export class SnapbackClient {
     authCounterCeiling = Number.MAX_SAFE_INTEGER,
     // Channel B persisted RQS resume store (LLP 0090 D3 / rollout step 5):
     // when present, rqsEligible subscriptions persist {rows, meta, token}
-    // and relaunches render-first + resume. Absent = today's behavior.
-    rqsStore = null,
+    // and relaunches render-first + resume.
+    //
+    // DEFAULT-ON since LLP 0129 Phase 0 (option A): when the option is
+    // omitted the client resolves a default store — IndexedDB in browsers,
+    // durable files on node, in-memory otherwise — reported on
+    // `client.rqsStoreInfo`. Pass `rqsStore: null` (or set
+    // SNAPBACK_CLIENT_RQS_STORE=off) to disable persistence entirely.
+    rqsStore = undefined,
+    // LLP 0043 M2 queued-intent outbox (LLP 0129 Phase 0, JS arm): 'auto'
+    // enables durable offline queueing whenever the resolved store carries
+    // the outbox contract and the client is not under browser/agent session
+    // custody (that leg is the Contract arm's; see #offlineQueueStore).
+    // `false` disables queueing; `true` requires an outbox-capable store.
+    offlineQueue = 'auto',
     // LLP 0094 §0B.6 strict mode: refuse a suspected pre-B1 legacy server
     // instead of downgrading to an offerless (legacy) open. Conformance
     // claims made against a strict configuration are claims about v1-bound
@@ -1557,7 +1589,41 @@ export class SnapbackClient {
     this.agentAuthority = agentAuthority;
     this.authorityFence = authCoordinator ?? agentAuthority;
     this.clientStoreId = clientStoreId;
-    this.rqsStore = rqsStore;
+    // Default persistence resolution (LLP 0129 Phase 0). `undefined` means
+    // "not configured" and resolves the default ladder; explicit null/false
+    // is the opt-out. The resolved implementation and durability mode are
+    // always reported (LLP 0008 DK-9).
+    if (rqsStore === undefined) {
+      const resolved = resolveDefaultRqsStore({ baseUrl: this.baseUrl });
+      this.rqsStore = resolved.store;
+      this.rqsStoreInfo = resolved.info;
+    } else if (rqsStore) {
+      this.rqsStore = rqsStore;
+      const durability = typeof rqsStore.durability === 'function'
+        ? rqsStore.durability()
+        : null;
+      this.rqsStoreInfo = Object.freeze({
+        source: 'injected',
+        implementation: durability?.implementation ?? 'injected',
+        durable: durability?.durable ?? null,
+        reason: null,
+      });
+    } else {
+      this.rqsStore = null;
+      this.rqsStoreInfo = Object.freeze({
+        source: 'disabled',
+        implementation: null,
+        durable: false,
+        reason: 'explicit-opt-out',
+      });
+    }
+    if (offlineQueue !== 'auto' && typeof offlineQueue !== 'boolean') {
+      throw new TypeError("offlineQueue must be 'auto', true, or false");
+    }
+    this.__offlineQueue = offlineQueue;
+    this.__outboxReplayTask = null;
+    this.__outboxReplayScheduled = false;
+    this.__outboxDiagnostics = [];
     if (typeof strictWireVersion !== 'boolean') {
       throw new TypeError('strictWireVersion must be boolean');
     }
@@ -4893,6 +4959,190 @@ export class SnapbackClient {
     }, undefined, { expectedAuthorityCapture: authorityCapture });
   }
 
+  // -------------------------------------------------------------------
+  // LLP 0043 M2 queued-intent outbox on the JS arm (LLP 0129 Phase 0).
+  // -------------------------------------------------------------------
+
+  /// The outbox-capable store this client may queue into, or null. Session
+  /// custody (AuthCoordinator / AgentAuthorityFence) is deliberately outside
+  /// this arm's Phase 0 queue: a queued sessions-mode mutation must carry a
+  /// current authority descriptor at settlement, and that custody discipline
+  /// is the Contract arm's shipped LLP 0043 store — not re-implemented here.
+  #offlineQueueStore(required = false) {
+    const fail = (code, message) => {
+      if (!required) return null;
+      const error = new Error(`${code}: ${message}`);
+      error.code = code;
+      throw error;
+    };
+    if (this.__offlineQueue === false) {
+      return fail('SNAPBACK_OFFLINE_QUEUE_DISABLED', 'offlineQueue is disabled for this client');
+    }
+    if (this.authorityFence) {
+      return fail(
+        'SNAPBACK_OFFLINE_QUEUE_CUSTODY_UNSUPPORTED',
+        'the JS-arm outbox does not queue under browser/agent session custody (Contract-arm territory)',
+      );
+    }
+    const store = this.rqsStore;
+    const capable = store
+      && typeof store.outboxEnqueue === 'function'
+      && typeof store.outboxPending === 'function'
+      && typeof store.outboxSettle === 'function';
+    if (!capable) {
+      return fail(
+        'SNAPBACK_OFFLINE_QUEUE_STORE_INCAPABLE',
+        'the configured rqsStore does not carry the outbox contract',
+      );
+    }
+    return store;
+  }
+
+  #recordOutboxDiagnostic(diagnostic) {
+    this.__outboxDiagnostics.push(Object.freeze({ at: Date.now(), ...diagnostic }));
+    if (this.__outboxDiagnostics.length > 256) this.__outboxDiagnostics.shift();
+  }
+
+  get outboxDiagnostics() {
+    return [...this.__outboxDiagnostics];
+  }
+
+  /// Durable enqueue of one refused-by-connectivity mutation intent.
+  /// Returns the queued marker, or null when the store refused (the caller
+  /// then surfaces the ORIGINAL connectivity error — an enqueue failure must
+  /// never masquerade as queued success).
+  async #enqueueOfflineMutation(store, record) {
+    try {
+      const stored = await store.outboxEnqueue(record);
+      this.#recordOutboxDiagnostic({
+        code: 'SNAPBACK_OFFLINE_MUTATION_QUEUED',
+        mutation: record.function,
+        clientMutationId: stored.id,
+        sequence: stored.sequence,
+      });
+      return {
+        queued: true,
+        clientMutationId: stored.id,
+        sequence: stored.sequence,
+      };
+    } catch (error) {
+      this.#recordOutboxDiagnostic({
+        code: 'SNAPBACK_OFFLINE_MUTATION_QUEUE_REFUSED',
+        mutation: record.function,
+        reason: error?.code ?? error?.message ?? String(error),
+      });
+      return null;
+    }
+  }
+
+  /// Deferred single-flight replay trigger, scheduled by every successful
+  /// fresh-subscribe snapshot (the full-resync barrier of LLP 0008
+  /// §Mutation Replay: resync first, then replay in sequence order).
+  #scheduleOutboxReplay() {
+    if (this.__outboxReplayScheduled) return;
+    let store = null;
+    try {
+      store = this.#offlineQueueStore();
+    } catch {
+      store = null;
+    }
+    if (!store) return;
+    this.__outboxReplayScheduled = true;
+    const timer = setTimeout(() => {
+      this.__outboxReplayScheduled = false;
+      void this.replayQueuedMutations().catch(() => {});
+    }, 0);
+    timer.unref?.();
+  }
+
+  /// Replay every pending queued mutation in client-local sequence order
+  /// (LLP 0008: ordering uses the sequence, never a wall clock). Success
+  /// settles the record and schedules its exactly-once ledger ACK; a server
+  /// refusal is drop-and-mark-failed (never retried, visible as failed
+  /// client state); a connectivity failure stops the drain with the record
+  /// still pending. Single-flight: concurrent calls share one drain.
+  async replayQueuedMutations() {
+    if (this.__outboxReplayTask) return this.__outboxReplayTask;
+    const task = this.#replayOutboxOnce().finally(() => {
+      if (this.__outboxReplayTask === task) this.__outboxReplayTask = null;
+    });
+    this.__outboxReplayTask = task;
+    return task;
+  }
+
+  async #replayOutboxOnce() {
+    let store = null;
+    try {
+      store = this.#offlineQueueStore();
+    } catch {
+      store = null;
+    }
+    if (!store) return { replayed: 0, failed: 0, remaining: 0 };
+    let pending;
+    try {
+      pending = await store.outboxPending();
+    } catch {
+      return { replayed: 0, failed: 0, remaining: 0 };
+    }
+    let replayed = 0;
+    let failed = 0;
+    let stopped = false;
+    for (const record of pending) {
+      try {
+        // Redelivery under the SAME client-minted durable identity: the
+        // server's settlement ledger returns the original result on a
+        // duplicate, so a crash between settle and remove cannot double-
+        // apply (LLP 0043 M2 exactly-once).
+        await this.mutate(record.function, {
+          args: record.args,
+          userId: record.userId ?? undefined,
+          readSet: record.readSet ?? [],
+          correlation: record.correlation ?? null,
+          clientMutationId: record.id,
+          authorityDescriptor: record.authorityDescriptor ?? null,
+          ctxLedger: record.ctxLedger ?? null,
+          queue: false,
+        });
+        await store.outboxSettle(record.id);
+        try {
+          await store.outboxRecordAcknowledgement(record.id, record.userId ?? null);
+        } catch { /* ACK obligation is best-effort bookkeeping */ }
+        replayed += 1;
+        this.#recordOutboxDiagnostic({
+          code: 'SNAPBACK_OFFLINE_MUTATION_REPLAYED',
+          mutation: record.function,
+          clientMutationId: record.id,
+        });
+      } catch (error) {
+        if (isConnectivityFailureError(error)) {
+          // Still offline: keep the record pending and preserve order.
+          stopped = true;
+          break;
+        }
+        // LLP 0008: a mutation the server refused on replay is dropped and
+        // marked failed, never retried — observable client state.
+        try {
+          await store.outboxMarkFailed(record.id, {
+            code: error?.diagnostic?.code ?? error?.code ?? 'SNAPBACK_OUTBOX_REPLAY_FAILED',
+            message: error?.message ?? String(error),
+          });
+        } catch { /* the failure marking is best-effort; the record stays */ }
+        failed += 1;
+        this.#recordOutboxDiagnostic({
+          code: 'SNAPBACK_OFFLINE_MUTATION_REPLAY_FAILED',
+          mutation: record.function,
+          clientMutationId: record.id,
+          reason: error?.diagnostic?.code ?? error?.code ?? error?.message,
+        });
+      }
+    }
+    let remaining = 0;
+    try {
+      remaining = (await store.outboxPending()).length;
+    } catch { /* inspection only */ }
+    return { replayed, failed, remaining, stopped };
+  }
+
   async mutate(ref, {
     args = {},
     userId,
@@ -4903,9 +5153,17 @@ export class SnapbackClient {
     ctxLedger = null,
     authorityDescriptor = null,
     authorityCapture = null,
+    // LLP 0129 Phase 0 (LLP 0043 M2): 'auto' queues this intent durably
+    // when delivery fails at the transport (connectivity) and the client
+    // carries an outbox-capable store; `false` restores fail-loud delivery.
+    queue = 'auto',
   } = {}) {
     const name = functionName(ref);
     validateGeneratedArguments(ref, args, name);
+    if (queue !== 'auto' && queue !== false && queue !== true) {
+      throw new TypeError("mutate queue option must be 'auto', true, or false");
+    }
+    const queueStore = queue === false ? null : this.#offlineQueueStore(queue === true);
     const body = { args, auth: SnapbackClient.auth(userId), read_set: readSet };
     // Opaque adapter correlation (LLP 0034 §3.2): sent verbatim, echoed on
     // the receipt; the provider never interprets it.
@@ -4921,6 +5179,29 @@ export class SnapbackClient {
         'SNAPBACK_AUTHORITY_DESCRIPTOR_INVALID',
       );
     }
+    // Exactly-once ledger GC piggyback (LLP 0043 M2): ride pending ACK
+    // obligations for this auth identity on the next mutation. A request
+    // may not acknowledge its own current id.
+    let sentAcknowledgements = [];
+    if (queueStore && acknowledgedClientMutationIds.length === 0) {
+      try {
+        sentAcknowledgements = (await queueStore.outboxPendingAcknowledgements(
+          typeof userId === 'string' ? userId : null,
+          64,
+        )).filter((id) => id !== clientMutationId);
+      } catch {
+        sentAcknowledgements = [];
+      }
+      if (sentAcknowledgements.length > 0) {
+        body.acknowledgedClientMutationIds = sentAcknowledgements;
+      }
+    }
+    const confirmSentAcknowledgements = async () => {
+      if (sentAcknowledgements.length === 0) return;
+      try {
+        await queueStore.outboxConfirmAcknowledgements(sentAcknowledgements);
+      } catch { /* retained obligations are retried on a later mutation */ }
+    };
     if (acknowledgedClientMutationIds.length > 0) {
       body.acknowledgedClientMutationIds = acknowledgedClientMutationIds;
     }
@@ -4972,6 +5253,18 @@ export class SnapbackClient {
         if (json?.receipt) {
           this.recordReceipt(json.receipt, json?.[AUTHORITY_CAPTURE] ?? null);
         }
+        // The response proves the origin ran its piggyback ACK stage
+        // (LLP 0043): retire the sent obligations, and record the GC
+        // obligation for this settled durable identity.
+        await confirmSentAcknowledgements();
+        if (queueStore && clientMutationId) {
+          try {
+            await queueStore.outboxRecordAcknowledgement(
+              clientMutationId,
+              typeof userId === 'string' ? userId : null,
+            );
+          } catch { /* the obligation is bookkeeping, never the result */ }
+        }
         if (attempt > 1) {
           this.#recordReservationRetryDiagnostic({
             code: 'SNAPBACK_AUTH_RESERVATION_RETRY_SETTLED',
@@ -4985,7 +5278,36 @@ export class SnapbackClient {
         // A REJECTED mutation still produced its receipt (it rides the error
         // envelope) — retain it before rethrowing.
         if (error?.receipt) this.recordReceipt(error.receipt);
-        if (!this.#isEffectFreeReservationStale(error)) throw error;
+        if (!this.#isEffectFreeReservationStale(error)) {
+          // A provider receipt on the refusal proves the piggyback ACK
+          // stage ran even though this mutation was rejected (LLP 0043); a
+          // receipt-less failure is ambiguous and RETAINS the obligations.
+          if (error?.receipt) await confirmSentAcknowledgements();
+          if (queueStore && isConnectivityFailureError(error)) {
+            // LLP 0043 M2 / LLP 0129 Phase 0: delivery refused at the
+            // transport — queue the intent durably under a client-minted
+            // durable identity and settle it by ordered replay after the
+            // full-resync reconnect. The captured wall-clock is a labeled
+            // claim (decision 10 taxonomy), never transmitted as authority;
+            // this arm runs no local execution, so there is no captured
+            // {generatedIds} ledger unless the caller supplied one
+            // (LLP 0008 §Replay environment contract governs when one
+            // exists — replay then transmits it verbatim).
+            const queued = await this.#enqueueOfflineMutation(queueStore, {
+              id: clientMutationId ?? createClientMutationId(),
+              function: name,
+              args,
+              userId: typeof userId === 'string' ? userId : null,
+              readSet,
+              correlation,
+              authorityDescriptor: body.authorityDescriptor ?? null,
+              ctxLedger: ctxLedger ?? null,
+              capturedNow: Date.now(),
+            });
+            if (queued) return queued;
+          }
+          throw error;
+        }
         if (this.authorityFence) {
           const refusalCapture = this.authorityCaptureFor(error);
           if (reservationRetryAuthorityCapture === null) {
@@ -6302,6 +6624,12 @@ export class SnapbackClient {
       // answer (CurrentAsOf, replay completion, or fresh LiveReplace) makes
       // them 'current'; null while nothing authoritative-or-retained is held.
       freshness: null,
+      // Retainability fact (LLP 0129 Phase 0 / LLP 0053's retainability
+      // invariant): null until the first subscribe response classifies this
+      // subscription; then a frozen {retainable, code, reason, store}
+      // record. Refuse-with-clarity — a non-retainable subscription names
+      // WHY it will never render cold instead of silently acting online.
+      retention: null,
       authorizationDisposition: 'retain',
       get connection() {
         return connection;
@@ -7572,7 +7900,22 @@ export class SnapbackClient {
           // Auth-scoped handles never hold a token (the server never mints
           // one for them); on relaunch the token comes from the persisted
           // Channel B entry seeded above.
-          const heldResume = handle.rqsResume;
+          //
+          // LLP 0090 D3 outbox rule, applied to EVERY fresh subscribe (not
+          // only relaunch seeding): a client with pending queued intent
+          // never resumes — it takes the LLP 0043 path (full snapshot, then
+          // ordered replay). Delta-resume with pending mutations is the
+          // explicitly deferred milestone. An unreadable outbox counts as
+          // pending (fail closed to the full-resync path).
+          let outboxHasPending = false;
+          if (handle.rqsResume && resumeStore) {
+            try {
+              outboxHasPending = (await resumeStore.outboxEmpty()) !== true;
+            } catch {
+              outboxHasPending = true;
+            }
+          }
+          const heldResume = outboxHasPending ? null : handle.rqsResume;
           // Rung-2 membership witness (LLP 0090 D1.3 / LLP 0091 rung-2
           // amendment): for an mset1 result within the cap, name the exact
           // (rowId, oldRowHash) pairs so the server can prove predicate
@@ -7670,6 +8013,39 @@ export class SnapbackClient {
           return true;
         });
         if (!installed.committed) throw staleAuthorityError();
+        // Retainability classification (LLP 0129 Phase 0, refuse-with-
+        // clarity). Only what LLP 0053 admits is retained: an auth-scoped
+        // subscription's retained display is exclusively the LLP 0043/0053
+        // lease machinery's decision (not carried by this arm), and a query
+        // the server minted no resume token for is not rqsEligible
+        // (authority-independent + closed inputs).
+        if (sub.authorizationScope) {
+          handle.retention = Object.freeze({
+            retainable: false,
+            code: 'SNAPBACK_RETENTION_NOT_RETAINABLE',
+            reason: 'authority-scoped query: retained display requires the '
+              + 'LLP 0043/0053 lease machinery (Contract arm); protected '
+              + 'queries are never cold-retained on this arm',
+            store: client.rqsStoreInfo,
+          });
+        } else if (sub.resume) {
+          handle.retention = Object.freeze({
+            retainable: resumeStore !== null,
+            code: resumeStore === null ? 'SNAPBACK_RETENTION_STORE_DISABLED' : null,
+            reason: resumeStore === null
+              ? 'rqsEligible, but this client has no persistence store'
+              : null,
+            store: client.rqsStoreInfo,
+          });
+        } else {
+          handle.retention = Object.freeze({
+            retainable: false,
+            code: 'SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE',
+            reason: 'the server minted no resume token: not an '
+              + 'authority-independent closed-inputs live query (LLP 0090)',
+            store: client.rqsStoreInfo,
+          });
+        }
         if (sub.authorizationScope) {
           await installAuthorizationSubscription(sub);
           // Eligibility gate at write time (LLP 0090 Authorization scope): an
@@ -7711,6 +8087,10 @@ export class SnapbackClient {
         resubscribeAttempts = 0;
         clearResubscribeRetry();
       }
+      // LLP 0129 Phase 0: a landed fresh snapshot is this subscription's
+      // full-resync barrier — schedule the single-flight outbox drain
+      // (LLP 0008 §Mutation Replay: resync first, then ordered replay).
+      if (sub.snapshot) client.#scheduleOutboxReplay();
       return sub;
     };
 
@@ -8212,6 +8592,33 @@ export class SnapbackClient {
       try {
         await subscribeFresh();
       } catch (error) {
+        // Cold-boot offline survival (LLP 0129 Phase 0): when this handle
+        // was seeded from a VERIFIED persisted entry and the first fresh
+        // subscribe was refused by connectivity (server unreachable), the
+        // handle stays alive rendering retained rows — the exact scenario
+        // Diary 0027 recorded as Convex's cold-boot GAP — and re-enters
+        // through the ordinary bounded-backoff fresh-subscribe retry when
+        // the server returns. Every other failure (server refusals, auth,
+        // protocol) keeps the LLP 0034 contract: fail loudly, run nothing.
+        if (
+          !disposed
+          && seededFromResumeState
+          && handle.freshness === 'retained'
+          && isConnectivityFailureError(error)
+        ) {
+          handle.retention ??= Object.freeze({
+            retainable: true,
+            code: null,
+            reason: 'offline boot from verified persisted entry',
+            store: client.rqsStoreInfo,
+          });
+          needsResubscribe = true;
+          pendingResubscribeReason = 'offline_boot';
+          setConnection('stale');
+          scheduleResubscribeRetry('offline_boot');
+          emitEstablishedOnce();
+          return;
+        }
         disposed = true;
         invalidateSubscribeLifecycle('disposed');
         stopFallback();

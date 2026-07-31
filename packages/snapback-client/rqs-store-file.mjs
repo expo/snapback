@@ -54,8 +54,24 @@ import {
   rqsEntryRecordBytes,
   rqsEvictionOrder,
 } from './rqs-store.mjs';
+import {
+  allOutboxRecords,
+  emptyOutboxState,
+  outboxNotWriterError,
+  outboxOps,
+  pendingAcknowledgementsFor,
+  pendingOutboxRecords,
+  validateOutboxState,
+} from './outbox-shared.mjs';
 
-export const RQS_FILE_STORE_FORMAT = 'snapback-rqs-store-file.v1';
+// v1 held `{ format, entries }`. v2 adds the LLP 0043 M2 outbox section
+// (`{ format, entries, outbox }` — LLP 0129 Phase 0). A v1 blob migrates in
+// place (entries preserved, empty outbox: v1 had no queue by construction).
+// A v2 blob read by v1 code is a future format there and fails closed with
+// bytes preserved — a downgrade can never load the queue as empty and
+// overwrite the only copy (LLP 0008 DK-9).
+export const RQS_FILE_STORE_FORMAT_V1 = 'snapback-rqs-store-file.v1';
+export const RQS_FILE_STORE_FORMAT = 'snapback-rqs-store-file.v2';
 const BLOB_PREFIX = 'rqs-';
 const BLOB_SUFFIX = '.v1.json';
 const LOCK_SUFFIX = '.v1.lock';
@@ -79,14 +95,39 @@ const corruptError = (path) => storeError(
 /// Default files adapter: Node-compatible hosts (`node:fs` loaded lazily so
 /// bundling this module for a Hermes/React Native host — which injects its
 /// own adapter over the platform filesystem — never resolves the builtin).
+// Process-exit lock hygiene (module-level so N store instances share ONE
+// exit listener): a normal process exit unlinks still-held lock files so
+// short-lived clients (tests, CLIs) do not strew stale locks — a crashed
+// process still relies on the dead-pid staleness verdict instead.
+const exitLockCleanup = { paths: new Set(), unlinkSync: null, hooked: false };
+
 export function createNodeFilesAdapter() {
   let fsPromise = null;
   const fs = () => {
-    fsPromise ??= import('node:fs').then((mod) => mod.promises);
+    fsPromise ??= import('node:fs').then((mod) => {
+      exitLockCleanup.unlinkSync ??= mod.unlinkSync;
+      return mod.promises;
+    });
     return fsPromise;
   };
   const missing = (error) => error?.code === 'ENOENT';
   return {
+    trackLockForExitCleanup(path) {
+      exitLockCleanup.paths.add(path);
+      if (!exitLockCleanup.hooked && typeof globalThis.process?.on === 'function') {
+        exitLockCleanup.hooked = true;
+        globalThis.process.on('exit', () => {
+          for (const lockPath of exitLockCleanup.paths) {
+            try {
+              exitLockCleanup.unlinkSync?.(lockPath);
+            } catch { /* stale-pid reclaim covers what exit cleanup cannot */ }
+          }
+        });
+      }
+    },
+    untrackLockForExitCleanup(path) {
+      exitLockCleanup.paths.delete(path);
+    },
     async mkdir(path) {
       await (await fs()).mkdir(path, { recursive: true });
     },
@@ -229,6 +270,7 @@ export function createFileRqsResumeStore({
     const granted = () => {
       writer = true;
       heldLocks.set(lockPath, instanceId);
+      files.trackLockForExitCleanup?.(lockPath);
     };
     if (await files.writeFileExclusive(lockPath, payload)) {
       granted();
@@ -261,27 +303,31 @@ export function createFileRqsResumeStore({
   const readState = async () => {
     if (corrupt) throw corruptError(blobPath);
     const raw = await files.readFile(blobPath);
-    if (raw === null) return { entries: {} };
+    if (raw === null) return { entries: {}, outbox: emptyOutboxState() };
     let parsed = null;
     try {
       parsed = JSON.parse(raw);
     } catch {
       parsed = null;
     }
-    if (
-      parsed === null
-      || typeof parsed !== 'object'
-      || parsed.format !== RQS_FILE_STORE_FORMAT
-      || parsed.entries === null
-      || typeof parsed.entries !== 'object'
-      || Array.isArray(parsed.entries)
-    ) {
+    const entriesValid = parsed !== null
+      && typeof parsed === 'object'
+      && parsed.entries !== null
+      && typeof parsed.entries === 'object'
+      && !Array.isArray(parsed.entries);
+    if (entriesValid && parsed.format === RQS_FILE_STORE_FORMAT_V1) {
+      // In-place v1 migration: entries preserved, empty outbox (v1 stores
+      // held no queue, so nothing can be silently dropped).
+      return { entries: parsed.entries, outbox: emptyOutboxState() };
+    }
+    const outboxValid = entriesValid && validateOutboxState(parsed.outbox) !== null;
+    if (!entriesValid || parsed.format !== RQS_FILE_STORE_FORMAT || !outboxValid) {
       // Unparseable bytes and future/unknown formats are the same verdict:
       // preserve in place, refuse reads and writes until an explicit wipe.
       corrupt = true;
       throw corruptError(blobPath);
     }
-    return { entries: parsed.entries };
+    return { entries: parsed.entries, outbox: parsed.outbox };
   };
 
   // Atomic replace: temp write + rename lands the entry, its bookkeeping,
@@ -291,8 +337,26 @@ export function createFileRqsResumeStore({
     await files.writeFile(tmpPath, JSON.stringify({
       format: RQS_FILE_STORE_FORMAT,
       entries: state.entries,
+      outbox: validateOutboxState(state.outbox) ?? emptyOutboxState(),
     }));
     await files.rename(tmpPath, blobPath);
+  };
+
+  // Writer-gated outbox transition committed atomically with the whole blob
+  // (the DK-9 transaction analogue). Enqueue throws on a non-writer; the
+  // other transitions report false, matching the entry methods' posture.
+  const outboxWrite = async (transition, { throwWhenNotWriter = false } = {}) => {
+    await acquireLock();
+    if (!writer) {
+      if (throwWhenNotWriter) throw outboxNotWriterError();
+      return { skipped: true, result: false };
+    }
+    const state = await readState();
+    const applied = transition(state.outbox);
+    if (applied.state !== state.outbox) {
+      await writeState({ ...state, outbox: applied.state });
+    }
+    return { skipped: false, result: applied.result };
   };
 
   const requireOpen = () => {
@@ -310,9 +374,95 @@ export function createFileRqsResumeStore({
       return serialized(acquireLock).catch(() => {});
     },
 
+    /// Degradation-mode capability fact (DK-9: capability reports name the
+    /// store implementation and degradation mode in force).
+    durability() {
+      return { implementation: 'file', durable: true };
+    },
+
+    /// LLP 0090 D3 outbox rule input: false whenever this arm's own durable
+    /// queue holds pending intent (or a composing layer's injected check
+    /// says so). A corrupt blob reads as non-empty — fail closed to the
+    /// full-resync path, never to token resume over an unknown queue.
     async outboxEmpty() {
-      if (relaunchOutboxEmpty === null) return true;
-      return (await relaunchOutboxEmpty()) === true;
+      requireOpen();
+      if (relaunchOutboxEmpty !== null && (await relaunchOutboxEmpty()) !== true) return false;
+      return serialized(async () => {
+        let state;
+        try {
+          state = await readState();
+        } catch {
+          return false;
+        }
+        return pendingOutboxRecords(state.outbox).length === 0;
+      });
+    },
+
+    // ---- LLP 0043 M2 outbox (LLP 0129 Phase 0, JS/node arm) ----
+
+    async outboxEnqueue(record) {
+      requireOpen();
+      return serialized(async () => {
+        const { result } = await outboxWrite(
+          (outbox) => outboxOps.enqueue(outbox, record, now()),
+          { throwWhenNotWriter: true },
+        );
+        return result;
+      });
+    },
+
+    async outboxPending() {
+      requireOpen();
+      return serialized(async () => pendingOutboxRecords((await readState()).outbox));
+    },
+
+    async outboxRecords() {
+      requireOpen();
+      return serialized(async () => allOutboxRecords((await readState()).outbox));
+    },
+
+    async outboxSettle(id) {
+      requireOpen();
+      return serialized(async () => (await outboxWrite(
+        (outbox) => outboxOps.settle(outbox, id),
+      )).result);
+    },
+
+    async outboxMarkFailed(id, failure) {
+      requireOpen();
+      return serialized(async () => (await outboxWrite(
+        (outbox) => outboxOps.markFailed(outbox, id, failure),
+      )).result);
+    },
+
+    async outboxDiscard(id) {
+      requireOpen();
+      return serialized(async () => (await outboxWrite(
+        (outbox) => outboxOps.discard(outbox, id),
+      )).result);
+    },
+
+    async outboxRecordAcknowledgement(id, userId = null) {
+      requireOpen();
+      return serialized(async () => (await outboxWrite(
+        (outbox) => outboxOps.recordAck(outbox, id, userId),
+      )).result);
+    },
+
+    async outboxPendingAcknowledgements(userId = null, limit = 64) {
+      requireOpen();
+      return serialized(async () => pendingAcknowledgementsFor(
+        (await readState()).outbox,
+        userId,
+        limit,
+      ));
+    },
+
+    async outboxConfirmAcknowledgements(ids) {
+      requireOpen();
+      return serialized(async () => (await outboxWrite(
+        (outbox) => outboxOps.confirmAcks(outbox, ids),
+      )).result);
     },
 
     /// Read one persisted entry (reader or writer — reading is how a second
@@ -502,6 +652,11 @@ export function createFileRqsResumeStore({
           bytes: records.reduce((sum, record) => sum + (record?.bytes ?? 0), 0),
           maxBytes,
           maxEntries,
+          outbox: Object.freeze({
+            pending: pendingOutboxRecords(state.outbox).length,
+            failed: allOutboxRecords(state.outbox).filter((r) => r.status === 'failed').length,
+            pendingAcknowledgements: state.outbox.acks.length,
+          }),
         });
       });
     },
@@ -513,6 +668,7 @@ export function createFileRqsResumeStore({
         if (writer) {
           writer = false;
           if (heldLocks.get(lockPath) === instanceId) heldLocks.delete(lockPath);
+          files.untrackLockForExitCleanup?.(lockPath);
           try {
             await files.unlink(lockPath);
           } catch {
