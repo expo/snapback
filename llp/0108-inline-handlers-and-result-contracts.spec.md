@@ -5,7 +5,18 @@
 **Systems:** Authoring, Code generation, Runtime, Data API, Client integration, Contract, Security, Artifacts, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-07-30 (dated evidence note, Diary 0039 / LLP 0115 audit —
+**Revised:** 2026-07-31 (same-file helper sharing absorbed as normative text —
+the landed move-2 mechanism (LLP 0115 CV-7; LLP 0118 option 1a; LLP 0127
+decision 6; commit `4d72c407`) is specified in §Same-file helper sharing at
+the end of this document: same-file lexical graph scope, lazy admission with
+symbol-resolved sibling helpers, resolve-and-splice emission, the v2
+named-helper-content implementation-hash format, and the four helper refusal
+codes. §A's sibling-helper exclusion is narrowed exactly that far; the
+superseded §Bounded static bundling and the Diary 0039 follow-on note are
+marked where their group-bundle/warm-pool phrasing no longer describes the
+landed design, with history retained. Benchmark receipts against LLP 0035's
+fresh-invocation baseline are recorded in LLP 0118 open question 1.)
+2026-07-30 (dated evidence note, Diary 0039 / LLP 0115 audit —
 see §Diary 0039 field evidence at the end of this document: the info-severity
 degraded-result diagnostic demonstrably failed to prevent two real apps from
 shipping degraded contracts, making the strictness decision (LLP 0115 OQ3) a
@@ -29,7 +40,9 @@ post-JSON validation, legacy rows/actions, retained-contract replay, Contract
 GAP witness, action diagnostics, and redacted path rules). 2026-07-27 (entered
 the author-invoked super-refine loop; initial focused specification for the
 backend-bakeoff authoring and result-contract program)
-**Related:** LLP 0004, LLP 0009, LLP 0010, LLP 0012, LLP 0031, LLP 0037, LLP 0043, LLP 0051, LLP 0055, LLP 0064, LLP 0065, LLP 0074, LLP 0093, LLP 0094, LLP 0095
+**Related:** LLP 0004, LLP 0009, LLP 0010, LLP 0012, LLP 0031, LLP 0035,
+LLP 0037, LLP 0043, LLP 0051, LLP 0055, LLP 0064, LLP 0065, LLP 0074,
+LLP 0093, LLP 0094, LLP 0095, LLP 0115, LLP 0118, LLP 0127, LLP 0131
 
 ## Summary
 
@@ -117,6 +130,17 @@ codegen one unambiguous source slice and prevents isolated evaluation from
 becoming an authority-discovery mechanism.
 
 ## Bounded static bundling
+
+> **Superseded blueprint (marked 2026-07-31).** This section was demoted to
+> research by the round-3 reconciliation below and is retained as history.
+> Its helper-sharing intent landed in narrowed form as the same-file slice
+> (§Same-file helper sharing, at the end of this document), but its emission
+> and lifecycle model did not: the group-bundle/warm-pool-key design below
+> speaks in retired DK-4 terms — LLP 0009 retired DK-4 warm reuse on
+> 2026-07-27 and the shipped lifecycle is fresh-per-invocation — and under
+> that lifecycle resolve-and-splice dominates the group bundle on both the
+> identity and runtime axes (LLP 0118 finding 7). Group-bundle emission is
+> re-motivated only if pooling returns under LLP 0009's stated condition.
 
 Inline handlers use a bounded, handler-only module transform, not a
 closure-free literal model and not a runtime import of the definition module.
@@ -640,6 +664,11 @@ admits no imported or sibling helper, class declaration or expression,
 computed/static class element, dynamic import, `eval`, `Function`, top-level
 definition initializer, or transitive source graph.
 
+*(Amended 2026-07-31: the sibling-helper exclusion is narrowed — same-file
+top-level sibling function declarations are now admitted under §Same-file
+helper sharing at the end of this document. Every other exclusion in the
+paragraph above stands.)*
+
 Codegen parses the authored module and extracts the handler member's exact AST
 node and source span. It does not reconstruct executable source with
 `Function.prototype.toString()`. The definitions module continues to run in
@@ -803,3 +832,111 @@ DK-4 benchmark gate; and every 2026-07-28 adversarial-closure refusal rule
 must be re-proved across module boundaries. The non-negotiables are
 unchanged: closed content-addressed graph, no `Function.prototype.toString()`
 authority, no runtime capture inference, no ambient checkout access.
+
+*(Corrected by the 2026-07-31 landing: the middle consequence was wrong.
+Shared helpers do not require the group-bundle model — the landed mechanism
+uses resolve-and-splice emission, under which no shared bundle and no
+warm-pool key exist; per-invocation evaluation stays bounded by the
+operation's own closure and invalidation stays exactly per-operation under
+the shipped fresh-per-invocation lifecycle (LLP 0118 finding 7). The other
+two consequences held as stated: helper edges landed as the v2 hash format,
+and the adversarial refusals were re-proved across the helper boundary.
+§Same-file helper sharing below is the normative text.)*
+
+## Same-file helper sharing — 2026-07-31 (normative)
+
+The first widening of the round-3 self-containment narrowing landed on
+2026-07-31 (LLP 0115 CV-7 move 2; LLP 0118 option 1a; LLP 0127 decision 6;
+commit `4d72c407` — `packages/snapback-codegen/inline-handlers.mjs`, proven
+in `inline-helper-sharing.test.mjs` for both motivating diary shapes). This
+section is normative. It narrows §A's "no imported or sibling helper"
+exclusion exactly this far and no farther.
+
+### Graph scope: the same-file lexical slice
+
+An inline handler may reference statically reachable top-level sibling
+**function declarations** in the same authored functions file. Admission is
+lazy: only helpers actually reached from an admitted handler expression are
+analyzed under the handler rules, so top-level functions used purely at
+definition time stay untouched. Identifier resolution is symbol-based and
+runs before the globals allowlist, so a sibling declaration keeps its
+authored lexical meaning even when it shadows an admitted global name. There
+is still no import, no multi-file graph, no resolver, and no filesystem path
+in identity: the executable graph remains closed, content-addressed, and
+defined by the file's bytes alone.
+
+Context-reader helpers are admitted (LLP 0127 decision 6): a helper may
+receive and use the runtime context or values derived from it. Declared
+reads/writes remain evidence (basis: `declared`), never an enforced ceiling;
+a helper inherits exactly its consumer's kind- and grant-keyed runtime
+boundaries. Ceiling enforcement is sequenced as its own later decision,
+decoupled from this slice.
+
+### Admission rules
+
+Only a single-declaration, bodied, named top-level function declaration is a
+spliceable helper. Helper bodies are scanned under exactly the
+handler-expression rules, so the 2026-07-28 adversarial closure holds across
+the helper boundary: alias, computed, and destructured reflection, assignment
+destructuring, `eval`/`Function`, dynamic import, class syntax, and ambient
+`this` all refuse inside a helper. Mutual helper recursion refuses;
+self-recursion is admitted. A reference to a top-level
+`const`/`let`/`var`/`class`/import binding refuses with the binding kind
+named — under splice emission such a binding would be a temporal-dead-zone
+edge or a laundering channel (e.g. `const c = obj.constructor` at top
+level). The stable helper refusal codes:
+
+- `SNAPBACK_INLINE_HELPER_SYNTAX_FORBIDDEN` — an adversarial-closure rule
+  violated inside a helper body, reported at the helper's authored span;
+- `SNAPBACK_INLINE_HELPER_FREE_IDENTIFIER` — a helper references
+  identifiers outside the admitted helper graph, with the top-level binding
+  kind named in the hint;
+- `SNAPBACK_INLINE_HELPER_CYCLE` — mutual helper recursion; and
+- `SNAPBACK_INLINE_HELPER_INADMISSIBLE` — a reference to a duplicate,
+  bodyless, or unnamed top-level function declaration.
+
+### Emission: resolve-and-splice
+
+Each operation's runtime module carries exactly its own reachable-helper
+subset as hoisted function declarations after the v1 registration line, in
+sorted-name order for deterministic regeneration. Zero-helper emission is
+byte-identical to v1, so every pre-existing generated artifact regenerates
+unchanged. The final capability rescan runs over the complete spliced bytes —
+registration plus helpers — with refusals mapped back to the helper's
+authored source span. Duplicated helper storage lands in generated
+artifacts, the tier where LLP 0115 constraint 4 tolerates volume;
+per-invocation evaluation stays bounded by the operation's own closure under
+the shipped fresh-per-invocation lifecycle. The per-invocation cost of that
+duplication was measured against LLP 0035's fresh-invocation baseline on
+2026-07-31 and is noise-level; the receipts live in LLP 0118 open question 1
+and the `helper_splice` section of the `snapback-bench` harness
+(`src/bench.rs`).
+
+### Identity: the v2 implementation-hash format
+
+A helper-using operation moves to the v2 implementation-identity format: the
+identity object's `format` is `snapback.function-implementation.v2`, its
+hash-preimage domain versions with it, and its inline handler member
+carries — besides the canonical handler AST — a sorted-name list of
+helper-content edges `{name, contentHash}`. `contentHash` is the SHA-256 of
+the helper's export-stripped canonical AST under the
+`snapback:inline-helper-content:v1` domain, so toggling `export` on the
+authored declaration changes neither the helper's content identity nor the
+spliced bytes. No paths and no graph encoding enter identity. Helper-free
+operations keep the exact v1 encoding, so every pre-existing implementation
+hash regenerates byte-identically, and invalidation is exactly
+per-operation: a helper edit re-hashes only the operations whose reachable
+subsets contain it. The implementation-hash recompute cascade and the
+generation-time registry conformance gate this identity sits under are
+pinned by LLP 0131.
+
+### What remains excluded
+
+Multi-file bounded imports (LLP 0118 option 1 proper, gated on measured
+pressure — LLP 0118 open question 6), hermetic package closures (LLP 0118
+open question 8), group-bundle emission (superseded under the
+fresh-per-invocation lifecycle; re-motivated only if pooling returns under
+LLP 0009's stated condition), and any enforcement of declared reads/writes
+as ceilings. The invariants are unchanged: closed content-addressed graph,
+no `Function.prototype.toString()` authority, no runtime capture inference,
+no ambient checkout access.

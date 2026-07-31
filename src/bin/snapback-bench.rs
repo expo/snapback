@@ -78,5 +78,20 @@ fn main() -> anyhow::Result<()> {
         "  synchronized write hold (lane):    {:>10.0} µs   (L6 read lane: pooled WAL reader, pinned snapshot)",
         report.read_during_write_via_read_lane_us
     );
+    println!("  helper splice (LLP 0118 OQ1, fresh per-invocation):");
+    for (label, variant) in [
+        ("helper-free", &report.helper_splice.helper_free),
+        ("one helper", &report.helper_splice.one_helper),
+        ("three helpers", &report.helper_splice.three_helpers),
+    ] {
+        println!(
+            "    {label:<14} p50 {:>8.0} µs   p95 {:>8.0} µs   mean {:>8.0} µs   ({} module bytes, ΔRSS {:+.0} KiB)",
+            variant.invoke_p50_us,
+            variant.invoke_p95_us,
+            variant.invoke_mean_us,
+            variant.module_bytes,
+            variant.rss_delta_kb
+        );
+    }
     Ok(())
 }

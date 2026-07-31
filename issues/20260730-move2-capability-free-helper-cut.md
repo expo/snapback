@@ -1,6 +1,6 @@
 # Move 2 first slice: same-file helper sharing, the full option-1a cut
 
-**Status:** Open
+**Status:** Resolved (2026-07-31)
 **Impact:** 3
 **Urgency:** 2
 **Ease:** 2
@@ -130,3 +130,83 @@ benchmark receipts (per-invocation evaluation latency/memory against
 LLP 0035's ~3.9 ms fresh-invocation baseline, 0118 OQ1), and
 absorbing the mechanism into LLP 0108's normative text. This ticket
 closes when those two land.
+
+## 2026-07-31 — Work item (5): benchmark receipts; 0108 absorption
+
+Method. The respecified benchmark landed as the `helper_splice` section
+of the LLP 0035 harness (`src/bench.rs`, printed by the `snapback-bench`
+bin, asserted at smoke scale inside `m1_bench_smoke`), using the
+baseline's own method: in-process `LocalSnapback`, the real Hermes VM
+through the embedded bridge, `Instant` timing, four warm-up invocations,
+and pooling disabled inside the measurement so `vm_cost_us`'s
+fresh-per-invocation definition holds. Three per-operation runtime
+modules are registered in the exact splice-emitted byte shape — the
+three-helper module was verified byte-identical to
+`renderInlineOperationModule` output for equivalent authored source —
+all computing the same civil-date record (the Streak Lab shape):
+(a) `helperFree`, logic inline, zero-helper v1 emission;
+(b) `helperOne`, the same logic through one spliced helper;
+(c) `helperThree`, a three-helper chain (helper-calls-helper). 400
+individually clocked fresh invocations per variant per run give
+p50/p95/mean; a cross-variant equality gate refuses if the three
+factorings disagree on the computed date, so an error path cannot be
+mistaken for speed. Memory: resident set (`ps -o rss`, the LLP 0035
+idle-cost probe) sampled around each timed loop, plus module byte
+counts — the artifact-tier duplication cost.
+
+Numbers (two full-scale release runs, `snapback-bench --json`,
+iterations=400, one Apple Silicon dev machine, Darwin 25.5.0,
+2026-07-31; order-of-magnitude honesty per LLP 0035 §Method):
+
+| Variant (module bytes) | run 1 p50/p95/mean µs | run 2 p50/p95/mean µs |
+| --- | --- | --- |
+| helper-free (653 B)    | 7 155 / 7 447 / 7 173 | 7 457 / 8 170 / 7 565 |
+| one helper (692 B)     | 7 193 / 7 596 / 7 241 | 7 690 / 8 701 / 7 830 |
+| three helpers (942 B)  | 7 316 / 7 777 / 7 355 | 7 662 / 8 238 / 7 661 |
+
+RSS delta across each 400-invocation loop: 16–32 KiB in every cell
+(page granularity — no per-invocation retention; each invocation drops
+its VM). Same-run fresh baseline (`vm_cost_us`, LLP 0035's metric):
+10 010 µs run 1, 7 468 µs run 2. Machine caveat: today's fresh
+invocation on this machine/build sits at ~7.2–10 ms, not the ~3.9 ms of
+LLP 0035's dated 2026-07-01/02 tables — the runtime has grown since
+(protected-profile machinery among it) and absolute digits are
+machine-dependent; the OQ1 quantity is the within-run delta between
+variants, which is robust to that.
+
+Reading. Splice duplication costs nothing material per invocation. One
+spliced helper adds +38 µs p50 (run 1) / +233 µs (run 2) over the
+identical inline factoring — 0.5–3.1% of the fresh-invocation floor —
+and the three-helper chain lands inside that band (run 2 ranks it
+*faster* than one helper), so the deltas are at or below run-to-run
+noise: exactly what LLP 0118 finding 7 projected for evaluation bounded
+by the operation's own closure. The real duplication cost is generated-
+artifact bytes (+39 B and +289 B per consuming operation here), the
+tier LLP 0115 constraint 4 tolerates. `m1_bench_smoke` pins the
+property in CI (5× relative bound on spliced-vs-free p50, module-size
+monotonicity, cross-variant equality gate).
+
+Absorption. LLP 0108 now carries the landed mechanism as normative text
+(§Same-file helper sharing — 2026-07-31): same-file lexical graph
+scope, admission rules with the four helper refusal codes,
+resolve-and-splice emission, the v2 named-helper-content identity, and
+the exclusion boundary. The superseded warm-pool-era phrasing is
+marked, never deleted: §Bounded static bundling carries a
+superseded-blueprint banner, §A's sibling-helper exclusion carries the
+dated narrowing note, and the Diary 0039 "requires the group-bundle
+model" consequence carries a dated correction. LLP 0118 OQ1 carries the
+dated answer with these numbers.
+
+## Resolution (2026-07-31)
+
+All work items are closed. (1)–(4) landed at `4d72c407` (the full
+same-file option-1a slice: context-readers admitted, splice emission,
+v2 named-helper-content hash, cross-helper adversarial re-proof,
+spliced-bytes capability rescan). (5) landed with this entry: the
+respecified benchmark ran twice on the real fresh-per-invocation
+runtime path against LLP 0035's baseline metric, receipts above, and
+the `helper_splice` harness section keeps the property measured and
+CI-pinned. The LLP 0108 absorption the landing owed is done and LLP
+0118 OQ1 is answered with data. Per this ticket's own closing text
+("This ticket closes when those two land"): Resolved. Ready to move to
+`issues/closed/`.

@@ -6,7 +6,16 @@
 generation, Runtime, Security
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-07-30 (v0.5, round-4 delta review corrections — Codex
+**Revised:** 2026-07-31 (v0.6, OQ1 answered with benchmark receipts — the
+same-file splice mechanism landed at `4d72c407` (normative text: LLP 0108
+§Same-file helper sharing), and the respecified benchmark ran twice on the
+real fresh-per-invocation runtime path (`helper_splice`, `src/bench.rs`)
+against LLP 0035's fresh-invocation metric: splice duplication is
++0.5–3.1% p50 per invocation with cross-run rank inversion (noise-level)
+and retains no per-invocation memory; the dated answer with the table
+lives under open question 1, and finding 7 carries the measured pointer
+plus 0108's completed absorption.)
+2026-07-30 (v0.5, round-4 delta review corrections — Codex
 NOT READY: one blocking and one detail item, both inside the v0.4-changed
 sentences; Fable READY since round 2. Round-4 artifact:
 `reviews/0118-handler-composition-and-helper-reuse.codex.md`. Blocking:
@@ -912,11 +921,15 @@ jointly with 0120's frame, not as an eighth option in this one.
    closure, invalidation is exact, and the duplicated helper *storage* lands
    in generated artifacts — the tier where LLP 0115 tolerates volume — while
    the per-invocation evaluation cost is a runtime-tier quantity the
-   respecified benchmark must measure. Group-bundle emission is re-motivated
+   respecified benchmark must measure (measured 2026-07-31: noise-level —
+   see the dated answer under open question 1). Group-bundle emission is
+   re-motivated
    only if pooling returns under 0009's stated condition (stable
    runtime-owner threads or a new upstream transfer contract). Both 0108's
    blueprint note and 0115's CV-7 work text still speak in warm-pool terms
-   and owe this absorption.
+   and owe this absorption (0108's absorption landed 2026-07-31 — its
+   superseded sections are marked and §Same-file helper sharing is the
+   normative text).
 8. Options 5 (drift tooling) and 7 (pinned stdlib) are cheap complements that
    neither meet CV-7's exit alone nor conflict with anything; option 3's
    delegated-resolution form is research-useful mainly as the undisciplined
@@ -1046,6 +1059,47 @@ a small increment while near-identical detection is not (option 5).
    per-invocation evaluation latency and memory as a function of runtime
    module size and helper-duplication factor, against LLP 0035's ~3.9 ms
    fresh-invocation / ~45%-eval baseline.
+
+   **Answered 2026-07-31 (measured).** Both halves are closed for the
+   landed slice. The decisions: same-file graph scope and splice emission
+   landed at `4d72c407` (LLP 0127 decision 6; normative text in LLP 0108
+   §Same-file helper sharing). The empirical question: the respecified
+   benchmark ran as the `helper_splice` section of the LLP 0035 harness
+   (`src/bench.rs`, `snapback-bench`), on the real fresh-per-invocation
+   runtime path — real Hermes create+eval through `LocalSnapback`,
+   pooling disabled, per-invocation `Instant` samples — over three
+   per-operation modules in the exact splice-emitted byte shape (the
+   three-helper module verified byte-identical to
+   `renderInlineOperationModule` output for equivalent authored source),
+   all computing the same civil-date record: logic inline (653 module
+   bytes), one spliced helper (692 B), a three-helper chain (942 B). Two
+   full-scale release runs, 400 timed invocations per variant, one Apple
+   Silicon dev machine (2026-07-31):
+
+   | Variant | run 1 p50/p95 (µs) | run 2 p50/p95 (µs) |
+   | --- | --- | --- |
+   | helper-free | 7 155 / 7 447 | 7 457 / 8 170 |
+   | one helper | 7 193 / 7 596 | 7 690 / 8 701 |
+   | three helpers | 7 316 / 7 777 | 7 662 / 8 238 |
+
+   Splice duplication costs nothing material per invocation: the spliced
+   variants sit +0.5–3.1% over the identical inline factoring at p50, and
+   the ranking of one-versus-three helpers inverts between runs, so the
+   deltas are at or below run-to-run noise — evaluation is bounded by the
+   operation's own closure, as finding 7 projected. Memory: RSS drift
+   across each 400-invocation loop is 16–32 KiB (page granularity, no
+   per-invocation retention — each fresh VM is dropped); the real
+   duplication cost is generated-artifact bytes, the tier LLP 0115
+   constraint 4 tolerates. Machine-dependence, honestly: the same-run
+   fresh baseline (`vm_cost_us`) measured 7.5–10 ms on this machine/build
+   versus the ~3.9 ms of LLP 0035's dated 2026-07-01/02 tables — absolute
+   digits vary by machine and the runtime has grown since — but the OQ1
+   quantity is the within-run cross-variant delta, which is robust to
+   that. `m1_bench_smoke` pins the property in CI (5× relative bound,
+   module-size monotonicity, cross-variant equality gate). What this does
+   not answer: the cost curve beyond small helper counts/module sizes
+   (multi-file scale), which stays with open question 6's pressure
+   evidence.
 2. **Who is the composition surface for?** If the durable audience is agents
    with a guide in context, option 2's novel idiom may cost little; if human
    Convex refugees matter, ordinary syntax is worth its mechanism — and

@@ -130,6 +130,39 @@ pub struct BenchReport {
     /// Mean read latency during the same synchronized hold through the L6 read
     /// lane (pooled WAL reader, pinned snapshot).
     pub read_during_write_via_read_lane_us: f64,
+    /// Move 2 same-file helper sharing (LLP 0118 OQ1): per-invocation
+    /// evaluation latency and memory for splice-emitted runtime modules under
+    /// the fresh-per-invocation lifecycle, as a function of helper count and
+    /// module size.
+    pub helper_splice: HelperSpliceBench,
+}
+
+/// The three helper-splice module shapes the OQ1 measurement compares. Each
+/// variant computes the same civil-date result (the Streak Lab shape that
+/// motivated the mechanism); only the module's splice factoring differs.
+#[derive(Clone, Debug, Serialize)]
+pub struct HelperSpliceBench {
+    /// The logic inlined in the handler expression — zero-helper emission,
+    /// byte-identical to the v1 module shape.
+    pub helper_free: HelperVariantBench,
+    /// The same logic factored through one spliced sibling helper.
+    pub one_helper: HelperVariantBench,
+    /// A three-helper chain (helper-calls-helper), the deepest shape the
+    /// same-file slice admits without cycles.
+    pub three_helpers: HelperVariantBench,
+}
+
+/// Per-variant numbers: module size (the splice-duplication cost in artifact
+/// bytes), per-invocation latency distribution over individually timed fresh
+/// invocations, and the resident-memory delta across the timed loop (KiB via
+/// `ps -o rss`; ~0 expected because every invocation drops its VM).
+#[derive(Clone, Debug, Serialize)]
+pub struct HelperVariantBench {
+    pub module_bytes: usize,
+    pub invoke_p50_us: f64,
+    pub invoke_p95_us: f64,
+    pub invoke_mean_us: f64,
+    pub rss_delta_kb: f64,
 }
 
 const HANDLER_SOURCE: &str = r#"
@@ -153,6 +186,72 @@ globalThis.__snapbackHandlers = {
 };
 "#;
 
+// The helper-splice benchmark modules (LLP 0118 OQ1). Each is the exact
+// byte shape `renderInlineOperationModule` emits for one operation: the v1
+// registration line, then the operation's reachable-helper subset as hoisted
+// function declarations in sorted-name order. All three compute the same
+// civil-date record for `args.epochMs` so the latency comparison isolates the
+// splice factoring, not the work.
+const HELPER_FREE_MODULE: &str = r#"globalThis.__snapbackHandlers = { "helperFree": (async (ctx, args) => {
+  const day = Math.floor(args.epochMs / 86400000);
+  const z = day + 719468;
+  const era = Math.floor(z / 146097);
+  const doe = z - era * 146097;
+  const yoe = Math.floor((doe - Math.floor(doe / 1460) + Math.floor(doe / 36524) - Math.floor(doe / 146096)) / 365);
+  const doy = doe - (365 * yoe + Math.floor(yoe / 4) - Math.floor(yoe / 100));
+  const mp = Math.floor((5 * doy + 2) / 153);
+  const d = doy - Math.floor((153 * mp + 2) / 5) + 1;
+  const m = mp < 10 ? mp + 3 : mp - 9;
+  const y = m <= 2 ? yoe + era * 400 + 1 : yoe + era * 400;
+  return [{ y: y, m: m, d: d }];
+}) };
+"#;
+
+const HELPER_ONE_MODULE: &str = r#"globalThis.__snapbackHandlers = { "helperOne": (async (ctx, args) => {
+  return [civilFromDay(Math.floor(args.epochMs / 86400000))];
+}) };
+function civilFromDay(day) {
+  const z = day + 719468;
+  const era = Math.floor(z / 146097);
+  const doe = z - era * 146097;
+  const yoe = Math.floor((doe - Math.floor(doe / 1460) + Math.floor(doe / 36524) - Math.floor(doe / 146096)) / 365);
+  const doy = doe - (365 * yoe + Math.floor(yoe / 4) - Math.floor(yoe / 100));
+  const mp = Math.floor((5 * doy + 2) / 153);
+  const d = doy - Math.floor((153 * mp + 2) / 5) + 1;
+  const m = mp < 10 ? mp + 3 : mp - 9;
+  const y = m <= 2 ? yoe + era * 400 + 1 : yoe + era * 400;
+  return { y: y, m: m, d: d };
+}
+"#;
+
+const HELPER_THREE_MODULE: &str = r#"globalThis.__snapbackHandlers = { "helperThree": (async (ctx, args) => {
+  return [streakKey(args.epochMs)];
+}) };
+function civilFromDay(day) {
+  const z = day + 719468;
+  const era = Math.floor(z / 146097);
+  const doe = z - era * 146097;
+  const yoe = Math.floor((doe - Math.floor(doe / 1460) + Math.floor(doe / 36524) - Math.floor(doe / 146096)) / 365);
+  const doy = doe - (365 * yoe + Math.floor(yoe / 4) - Math.floor(yoe / 100));
+  const mp = Math.floor((5 * doy + 2) / 153);
+  const d = doy - Math.floor((153 * mp + 2) / 5) + 1;
+  const m = mp < 10 ? mp + 3 : mp - 9;
+  const y = m <= 2 ? yoe + era * 400 + 1 : yoe + era * 400;
+  return { y: y, m: m, d: d };
+}
+function dayNumber(epochMs) {
+  return Math.floor(epochMs / 86400000);
+}
+function streakKey(epochMs) {
+  const civil = civilFromDay(dayNumber(epochMs));
+  return { y: civil.y, m: civil.m, d: civil.d, key: String(civil.y) + "-" + String(civil.m) + "-" + String(civil.d) };
+}
+"#;
+
+/// A fixed instant (2026-07-30T00:00:00Z-ish) so every variant computes the
+/// same civil date and the cross-variant equality check is deterministic.
+const HELPER_BENCH_EPOCH_MS: i64 = 1_785_456_000_000;
+
 /// Run the whole harness and return the report.
 pub fn run(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<BenchReport> {
     let vm_cost_us = measure_vm_cost(config)?;
@@ -166,6 +265,7 @@ pub fn run(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<BenchRepor
     let (ephemeral_publishes_per_sec, ephemeral_publish_us) = measure_ephemeral(config)?;
     let (read_during_write_via_lock_us, read_during_write_via_read_lane_us) =
         measure_read_during_write()?;
+    let helper_splice = measure_helper_splice(config)?;
 
     Ok(BenchReport {
         iterations: config.iterations,
@@ -192,6 +292,7 @@ pub fn run(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<BenchRepor
         ephemeral_publish_us,
         read_during_write_via_lock_us,
         read_during_write_via_read_lane_us,
+        helper_splice,
     })
 }
 
@@ -931,6 +1032,132 @@ fn measure_read_during_write_at(
     Ok((via_lock_us, via_read_lane_us))
 }
 
+/// The move-2 helper-splice measurement (LLP 0118 OQ1): does resolve-and-splice
+/// helper duplication cost anything material per invocation under the shipped
+/// fresh-per-invocation lifecycle? Each variant registers its own per-operation
+/// runtime module in the exact splice-emitted byte shape and is invoked through
+/// the same real Hermes create+eval path as `vm_cost_us` (pooling disabled so
+/// the fresh definition holds). Invocations are timed individually for a
+/// p50/p95 distribution; resident memory is sampled around each timed loop.
+///
+/// @ref LLP 0118#open-questions — OQ1: per-invocation evaluation latency and
+/// memory as a function of runtime module size and helper-duplication factor,
+/// against LLP 0035's fresh-invocation baseline.
+fn measure_helper_splice(
+    config: &BenchConfig,
+) -> crate::diagnostic::SnapbackResult<HelperSpliceBench> {
+    let query = |name: &str, source: &str| {
+        FunctionDefinition::new(
+            name,
+            FunctionKind::Query,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: source.to_owned(),
+                export: name.to_owned(),
+            }),
+        )
+    };
+    let mut snapback = LocalSnapback::memory()?;
+    snapback.apply_schema(schema())?;
+    snapback.load_functions(FunctionManifest {
+        functions: vec![
+            query("helperFree", HELPER_FREE_MODULE),
+            query("helperOne", HELPER_ONE_MODULE),
+            query("helperThree", HELPER_THREE_MODULE),
+        ],
+        ..FunctionManifest::default()
+    });
+    // This metric is defined as the fresh per-invocation cost, like
+    // `vm_cost_us`.
+    snapback.set_warm_vms_enabled(false);
+
+    // Cross-variant correctness gate: all three factorings must compute the
+    // same civil date, or the latency comparison would be comparing different
+    // work (e.g. a variant short-circuiting through an error path).
+    let civil = |name: &str| -> crate::diagnostic::SnapbackResult<Value> {
+        let output =
+            snapback.invoke_query(name, args(json!({ "epochMs": HELPER_BENCH_EPOCH_MS })))?;
+        Ok(output.rows.first().cloned().unwrap_or(Value::Null))
+    };
+    let reference = civil("helperFree")?;
+    for name in ["helperOne", "helperThree"] {
+        let row = civil(name)?;
+        for field in ["y", "m", "d"] {
+            if row.get(field) != reference.get(field) {
+                return Err(crate::diagnostic::SnapbackError::error(
+                    "SNAPBACK_BENCH_HELPER_SPLICE_MISMATCH",
+                    "bench",
+                    format!(
+                        "helper-splice variant {name} disagrees with the inline reference on \
+                         {field}: {row:?} vs {reference:?}"
+                    ),
+                ));
+            }
+        }
+    }
+
+    Ok(HelperSpliceBench {
+        helper_free: measure_helper_variant(&snapback, "helperFree", HELPER_FREE_MODULE, config)?,
+        one_helper: measure_helper_variant(&snapback, "helperOne", HELPER_ONE_MODULE, config)?,
+        three_helpers: measure_helper_variant(
+            &snapback,
+            "helperThree",
+            HELPER_THREE_MODULE,
+            config,
+        )?,
+    })
+}
+
+fn measure_helper_variant(
+    snapback: &LocalSnapback,
+    name: &str,
+    module: &str,
+    config: &BenchConfig,
+) -> crate::diagnostic::SnapbackResult<HelperVariantBench> {
+    // Warm up (first eval pays one-time costs the steady state should not).
+    for _ in 0..4 {
+        snapback.invoke_query(name, args(json!({ "epochMs": HELPER_BENCH_EPOCH_MS })))?;
+    }
+    let rss_before = resident_kb();
+    let mut samples = Vec::with_capacity(config.iterations);
+    for _ in 0..config.iterations {
+        let start = Instant::now();
+        snapback.invoke_query(name, args(json!({ "epochMs": HELPER_BENCH_EPOCH_MS })))?;
+        samples.push(start.elapsed().as_micros() as f64);
+    }
+    let rss_after = resident_kb();
+    let invoke_mean_us = samples.iter().sum::<f64>() / samples.len().max(1) as f64;
+    samples.sort_by(|left, right| left.partial_cmp(right).unwrap_or(std::cmp::Ordering::Equal));
+    Ok(HelperVariantBench {
+        module_bytes: module.len(),
+        invoke_p50_us: percentile_sorted(&samples, 0.50),
+        invoke_p95_us: percentile_sorted(&samples, 0.95),
+        invoke_mean_us,
+        rss_delta_kb: rss_after - rss_before,
+    })
+}
+
+/// Nearest-rank percentile over an ascending-sorted sample vector.
+fn percentile_sorted(sorted: &[f64], fraction: f64) -> f64 {
+    if sorted.is_empty() {
+        return 0.0;
+    }
+    let rank = ((sorted.len() as f64 - 1.0) * fraction).round() as usize;
+    sorted[rank.min(sorted.len() - 1)]
+}
+
+/// Resident set size of this process in KiB (`ps -o rss`, the same probe LLP
+/// 0035's idle-cost section used). 0.0 when the probe is unavailable.
+fn resident_kb() -> f64 {
+    std::process::Command::new("ps")
+        .args(["-o", "rss=", "-p"])
+        .arg(std::process::id().to_string())
+        .output()
+        .ok()
+        .and_then(|output| String::from_utf8(output.stdout).ok())
+        .and_then(|text| text.trim().parse::<f64>().ok())
+        .unwrap_or(0.0)
+}
+
 fn micros_per(start: Instant, iterations: usize) -> f64 {
     start.elapsed().as_micros() as f64 / iterations.max(1) as f64
 }
@@ -1042,6 +1269,41 @@ mod tests {
         ensure!(
             report.read_during_write_via_read_lane_us * 2.0 < report.read_during_write_via_lock_us,
             "read lane must decisively beat the queued mutex path: {report:?}"
+        );
+        // Move 2 helper splice (LLP 0118 OQ1): every variant must invoke, the
+        // splice-duplicated modules are strictly larger by construction, and a
+        // spliced module must stay within the same order of magnitude as the
+        // helper-free one — under the fresh-per-invocation lifecycle the VM
+        // create+eval dominates, so a large ratio means splice emission
+        // regressed into something material.
+        let splice = &report.helper_splice;
+        for variant in [
+            &splice.helper_free,
+            &splice.one_helper,
+            &splice.three_helpers,
+        ] {
+            ensure!(
+                variant.invoke_p50_us > 0.0 && variant.invoke_p50_us < 1_000_000.0,
+                "{report:?}"
+            );
+            ensure!(
+                variant.invoke_p95_us >= variant.invoke_p50_us
+                    && variant.invoke_p95_us < 1_000_000.0,
+                "{report:?}"
+            );
+        }
+        ensure!(
+            splice.helper_free.module_bytes < splice.one_helper.module_bytes
+                && splice.one_helper.module_bytes < splice.three_helpers.module_bytes,
+            "{report:?}"
+        );
+        ensure!(
+            splice.one_helper.invoke_p50_us < 5.0 * splice.helper_free.invoke_p50_us,
+            "one spliced helper must not blow up per-invocation cost: {report:?}"
+        );
+        ensure!(
+            splice.three_helpers.invoke_p50_us < 5.0 * splice.helper_free.invoke_p50_us,
+            "three spliced helpers must not blow up per-invocation cost: {report:?}"
         );
         Ok(())
     }
