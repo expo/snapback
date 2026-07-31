@@ -5,7 +5,38 @@
 **Systems:** Search, Storage, Schema, Code generation, Auth, Client integration, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:**
+**Revised:** 2026-07-31 (v0.2, round-1 dual-family review fixes — both
+round-1 reviews NOT READY (`reviews/0132-vector-search.fable.md`:
+3 MATERIAL C1–C3 + 4 detail C4–C7;
+`reviews/0132-vector-search.codex.md`: 4 MATERIAL M1–M4 + 1 MINOR M5);
+every finding re-verified against LLP 0073's text, LLP 0115 v0.7's
+decision-8 registry entry, LLP 0102 App 5, and Diary 0031 before
+application; all findings applied, none refuted; overlapping findings
+(Fable C1 = Codex M1, Fable C6 = Codex M3) fixed once. Applied: the
+classification-to-visibility admission matrix closed to 0073's
+resolved-OQ4 rule for every participating role, with private-posting
+custody, query-vector telemetry, and generation-negative acceptance
+(C1/M1); the wire-decimal→binary64 admission conversion pinned to the
+correctly rounded strtod-class conversion with halfway-case corpus
+witnesses (C2); the approximate ANN door re-attributed as this Spec's
+own undecided proposal — disclosed beyond-commission, routed to the
+author (C3); the closed logical-work object and evaluation order
+defined so the paired-database noninterference claim is falsifiable
+(M2); the adversarial-corpus claim scoped to named divergence classes
+on exercised kernels, with committed bit-pattern witnesses, per-kernel
+coverage, and build/flag evidence replacing the universal
+nonconforming-build claim (C6/M3); the realistic-scale floor pinned to
+the filled maximum generation-validated partition with a receipt
+recording exact cardinality (M4); the cosine recipe's preconditions
+stated — both sides consistently normalized and nonzero, the claim
+being portable dot ranking over admitted binary64 components (M5); the
+never-−0-output lemma and partial-bound representability clause added
+and the RFC 8785 injectivity claim scoped to the reachable output
+domain (C4, C7c); filter conjunction and duplicate-field refusal
+stated (C5); the load-bearing product claim restated as specification
+rather than present-tense shipping (C7a); the mutation-side
+corpus-bound refusal coded `SNAPBACK_VECTOR_CORPUS_BOUND` (C7b); and
+the 32-dimension attribution corrected to Diary 0031's freeze (C7d))
 **Related:** LLP 0004, LLP 0007, LLP 0019, LLP 0037, LLP 0044, LLP 0046, LLP 0058, LLP 0065, LLP 0073, LLP 0074, LLP 0080, LLP 0081, LLP 0102, LLP 0113, LLP 0115, LLP 0124, LLP 0127, LLP 0130, Diary 0031
 
 ## Summary
@@ -55,7 +86,12 @@ Beyond the commission, this Spec decides: the candidate-to-release
 consistency model (snapshot participation, pre-authorization filter
 timing, leakage posture — 0124 OQ8), filtered k-NN in the minimum
 profile (0124 OQ9's first half; hybrid ranking excluded), the vector
-value and index contract, bounds, and acceptance.
+value and index contract, bounds, and acceptance. It additionally
+*proposes without deciding* one item: the approximate-door admission
+constraint in §ANN successor admission. Decision 8 decided only the
+proved-superset accelerator route; the approximate door is this
+Spec's own proposal, undecided, and routed to the author (see that
+section).
 
 ## Vector values and declarations
 
@@ -77,6 +113,17 @@ the writing transaction:
   round-trip form; binary64 survives the SQLite REAL round trip
   exactly, so the integral-Real hazard 0073 repaired cannot recur here.
 
+Admission also pins the conversion *in*, not only the arithmetic
+after it. Wire components arrive as JSON decimals; admission converts
+each to the nearest binary64 value with ties to even — the correctly
+rounded strtod-class decimal-to-binary conversion IEEE 754 specifies
+for decimal character sequences — and the admitted binary64 value,
+not the wire spelling, is the semantic input to storage, digests, and
+every distance. A parser off by an ulp on halfway-adjacent decimals is
+a divergence source of exactly the same kind as the forbidden
+fast-math transformations and does not conform; the adversarial corpus
+carries conversion witnesses (§Acceptance).
+
 The type contract is specified by this Spec as the vector owner; its
 schema-vocabulary landing (`v.vector(dims)` beside `v.number()` et al.)
 and one-physical-mapping-per-engine storage mapping are executed as
@@ -90,9 +137,9 @@ Application source declares `table.vectorIndex(name, spec)` with:
 - a stable index name and schema version;
 - one ordinary source table with a stable row identity;
 - exactly one `v.vector(dimensions)` source field with a declared
-  field classification (`public` or `private`; `sensitive` and
-  `forbidden` vector fields are rejected from v1 indexing — an
-  embedding is derived from content and inherits its custody);
+  field classification, admitted under the classification matrix
+  below — an embedding is derived from content and inherits its
+  custody;
 - `metric`: exactly `l2sq` (squared Euclidean distance) or `dot`
   (inner-product similarity) — see §Distance profile;
 - at most 8 equality-filter fields from LLP 0073's closed scalar
@@ -104,6 +151,32 @@ Application source declares `table.vectorIndex(name, spec)` with:
   visibility are not v1 declarations;
 - a declared `id-asc` or `id-desc` row-id tie-break; and
 - a declared corpus bound `maxIndexedVectorsPerPartition` (1–65,536).
+
+**Classification-to-visibility admission matrix.** Classification
+closes over every participating role, mirroring LLP 0073's resolved
+open question 4 exactly: the vector field, every equality-filter
+field, and every stored display field carries a
+`public`/`private`/`sensitive`/`forbidden` classification; omission
+is `forbidden`, and a table-wide classification may only make the
+result more restrictive. `public-read` indexes admit only `public`
+fields in every participating role. `owner.v1` indexes may admit
+`public` or `private` fields, because the canonical effective-user
+partition is both the posting key and release authority. `sensitive`
+and `forbidden` fields are rejected from every participating role on
+every target; admitting `sensitive` content requires a later named
+profile, as in 0073. Generation refuses any declaration outside this
+matrix, and a classification change is a semantic index migration and
+rebuild, never an in-place flag.
+
+Private custody travels with the matrix. When any participating field
+is `private`, the index inherits 0073's private-custody clause:
+posting bytes, content digests, caches, rebuild and rollback
+generations, backups, and administrative access carry a storage and
+encryption class at least as restrictive as the source. Query vectors
+are embeddings of caller content and are equally custody-bearing:
+logging is redacted, and default telemetry records query shape
+(dimensions, `k`, filter shape) and digest, never raw components —
+0073's query-text telemetry rule, transferred.
 
 Generation validates every field, filter, and authorization fact, and
 additionally proves the **bounded-scan product rule**:
@@ -136,11 +209,16 @@ This is 0124 OQ3's rider, decided as follows.
 in IEEE 754 binary64 with round-to-nearest-ties-even, evaluated as a
 strict sequential accumulation in ascending dimension index:
 
-- `l2sq`: `acc ← acc + (a[i] − b[i]) × (a[i] − b[i])`, acc from +0.0;
+- `l2sq`: `d ← a[i] − b[i]; acc ← acc + d × d` — the difference is
+  computed and rounded once, then squared — acc from +0.0;
 - `dot`: `acc ← acc + a[i] × b[i]`, acc from +0.0.
 
 Each subtraction, multiplication, and addition is one correctly rounded
-binary64 operation. Fused multiply-add, reassociation, extended-precision
+binary64 operation — three per `l2sq` term, two per `dot` term, in the
+order written. Gradual underflow is honored: subnormal intermediates
+and results are produced exactly as IEEE 754 requires, so
+flush-to-zero / denormals-are-zero (FTZ/DAZ) execution modes are
+nonconforming. Fused multiply-add, reassociation, extended-precision
 intermediates (x87), and reduction-order-changing vectorization are
 forbidden — a SIMD implementation must reproduce the sequential
 accumulation bit-for-bit or not report the capability. Because IEEE 754
@@ -157,15 +235,32 @@ fast-math — acceptable for a scan already bounded to 2^26 scalar pairs.
 
 **Provable finiteness.** With components bounded by 2^100 and
 dimensions by 4096 (= 2^12): each `l2sq` term is at most
-(2^101)^2 = 2^202, so the accumulator never exceeds 2^214; each `dot`
-term is at most 2^200, accumulator at most 2^212. Both are far below
-the binary64 overflow threshold of 2^1024, so no admitted computation
-produces infinity or NaN. There is no division and no square root
-anywhere in v1 — which is also why `cosine` is not a v1 metric id: the
-platform is embedding-agnostic, so an application wanting cosine
-similarity normalizes its vectors where it computes them and declares
-`dot` (a documented Guide recipe). Distances therefore need no epsilon
-vocabulary and no saturation rule.
+(2^101)^2 = 2^202, so the accumulator never exceeds
+2^12 × 2^202 = 2^214; each `dot` term is at most 2^200, accumulator at
+most 2^212. The bounds hold under rounding, not merely in exact
+arithmetic: every partial bound k·2^202 (resp. k·2^200) is exactly
+representable for k ≤ 2^12 — 12 bits beside a 53-bit significand — and
+correctly rounded addition is monotone, so the accumulator can never
+round past a representable bound. Both bounds are far below the
+binary64 overflow threshold of 2^1024, so no admitted computation
+produces infinity or NaN. No admitted computation produces −0 either:
+components are +0-canonicalized at admission; in `l2sq` an exact-zero
+difference rounds to +0 under round-to-nearest-ties-even and every
+square is ≥ +0; in `dot` the accumulator starts at +0.0 and IEEE
+zero-sign rules yield −0 only from (−0) + (−0), which induction
+excludes — a −0 product term is absorbed as +0 + (−0) = +0. There is
+no division and no square root anywhere in v1 — which is also why
+`cosine` is not a v1 metric id: the platform is embedding-agnostic, so
+an application wanting cosine ranking unit-normalizes where it
+computes embeddings and declares `dot`, under stated preconditions:
+stored and query vectors must both be consistently
+application-normalized, and both must be nonzero — a zero vector has
+no cosine, so the application rejects or defines it before admission
+(a versioned normalization producer is the documented Guide recipe).
+The resulting claim is portable dot *ranking* over the
+application-normalized binary64 components as admitted, not exact-real
+cosine over the pre-normalization vectors. Distances therefore need no
+epsilon vocabulary and no saturation rule.
 
 **Ordering.** The ordering profile is `nearest-first-row-id.v1`:
 results order by ascending distance for `l2sq`, descending similarity
@@ -173,8 +268,10 @@ for `dot`, then by canonical opaque row-id bytes in the declared
 direction. Bit-equal distances are well defined, so the tie-break is
 total and deterministic. Distances are surfaced as informational
 binary64 JSON numbers — RFC 8785's shortest round-trip spelling is
-injective on binary64, so the wire value is exact and fixtures may pin
-it as a string. Distances are never authorization, moderation, pricing,
+injective on the profile's reachable output domain (binary64 excluding
+−0 and non-finites, none of which the profile can produce — §Provable
+finiteness), so the wire value is exact and fixtures may pin it as a
+string. Distances are never authorization, moderation, pricing,
 or other correctness inputs (0073's rule, unchanged).
 
 The distance profile — formulas, evaluation order, admission bounds,
@@ -198,7 +295,11 @@ violations refuse with `SNAPBACK_VECTOR_QUERY_INVALID` before storage
 work, as does an unknown field, operator, or filter value. `k` defaults
 to 10. At most 8 equality filters, `eq` only, over declared filter
 fields; `eq null` is not admitted (LLP 0080's authority — null never
-matches).
+matches). Filters conjoin: a row is a candidate only if every listed
+filter matches. A filter list naming the same field twice refuses with
+`SNAPBACK_VECTOR_QUERY_INVALID` — the validation posture used
+everywhere else in this Spec — rather than being admitted as a
+duplicate or vacuously empty conjunction.
 
 Exact result: `VectorPageV1 { items }`, each item
 `{ rowId, distance, fields }` with `fields` exactly the declared stored
@@ -217,8 +318,9 @@ projection** — named explicitly so 0073 open question 12's
 
 Stable diagnostics: `SNAPBACK_VECTOR_QUERY_INVALID`,
 `SNAPBACK_VECTOR_WORK_LIMIT`, `SNAPBACK_VECTOR_INDEX_UNAVAILABLE`,
-`SNAPBACK_VECTOR_INDEX_CORRUPT`, `SNAPBACK_VECTOR_VALUE_INVALID` — all
-on the existing structured `Diagnostic` envelope.
+`SNAPBACK_VECTOR_INDEX_CORRUPT`, `SNAPBACK_VECTOR_VALUE_INVALID`,
+`SNAPBACK_VECTOR_CORPUS_BOUND` — all on the existing structured
+`Diagnostic` envelope.
 
 ## Candidate-to-release consistency
 
@@ -226,7 +328,8 @@ This is the section 0124 said any vector path owes, and it is the
 load-bearing product claim: what Convex ships as
 action → internal query → vector search → internal query — Diary 0031's
 "works, but adds conceptual overhead," with a documented
-nontransactional seam — Snapback ships as one authorized query call.
+nontransactional seam — this Spec specifies as one authorized query
+call.
 
 **Snapshot participation.** Candidate selection, visibility filtering,
 equality filtering, distance evaluation, and document hydration all
@@ -253,10 +356,33 @@ post-filter re-ranking; (c) leakage is excluded structurally rather
 than statistically — distances, ranks, result counts, work accounting,
 and admission all range over the caller's partition only, so 0073's
 paired-database noninterference boundary transfers with the same claim
-shape (value/code, termination-insensitive, over counted logical work;
-wall-clock effects explicitly outside the semantic transcript). Any
-later ANN capability inherits the pre-filter-or-proved-over-fetch
-obligation explicitly; it cannot weaken this posture silently.
+shape (value/code, termination-insensitive, over the closed
+logical-work object defined next; wall-clock effects explicitly
+outside the semantic transcript). Any later ANN capability inherits
+the pre-filter-or-proved-over-fetch obligation explicitly; it cannot
+weaken this posture silently.
+
+**Logical work, closed.** The counted logical-work object the
+noninterference and work-limit claims range over is closed, and the
+evaluation order is fixed. The four counters: (1) partition postings
+enumerated — rows read from the caller's visibility-partition key
+range in canonical key order; (2) filter comparisons evaluated —
+enumerated postings times the declared filters actually tested;
+(3) scored candidates and their scalar pairs — candidates admitted
+past filtering, and that count times dimensions; (4) release source
+reads — one authoritative-row read per released candidate. Evaluation
+proceeds enumeration → equality filtering → distance evaluation →
+top-k selection → release recheck; ceilings are checked in that order,
+and a `SNAPBACK_VECTOR_WORK_LIMIT` refusal names the first exceeded
+ceiling. These four counters are the work-accounting inspection facts
+the acceptance evidence compares. Every counter and every work-limit
+outcome depends only on the caller's partition contents and the query,
+never on any other partition. Physical pages, caches, elapsed time,
+cancellation, and machine loss are coupled nondeterminism outside the
+semantic transcript, exactly per 0073: the claim is value/code,
+termination-insensitive noninterference over these counted units, not
+constant-time execution, and no target may report a stronger
+timing-sensitive claim without separate evidence.
 
 **Release recheck.** Pushdown narrows work but never authorizes.
 **Vector search never authorizes data**: before any rowId, distance,
@@ -288,10 +414,12 @@ failure rolls back the complete source mutation with a stable
 diagnostic (0073's resolved choice, adopted). Accepted rows are
 retrievable at their commit head; no stale-success state exists.
 Inserting a row that would exceed the declared partition corpus bound
-is an ordinary validation refusal — the write side enforces what the
-generation-time product rule proved, so `SNAPBACK_VECTOR_WORK_LIMIT`
-at query time indicates drift, is fail-closed defense in depth, and
-never releases a partial or unordered page.
+refuses with `SNAPBACK_VECTOR_CORPUS_BOUND` on the ordinary validation
+envelope, rolling back the source mutation — the write side enforces
+what the generation-time product rule proved, so
+`SNAPBACK_VECTOR_WORK_LIMIT` at query time indicates drift, is
+fail-closed defense in depth, and never releases a partial or
+unordered page.
 
 Work composes globally with 0073's ceilings rather than beside them:
 one mutation may replace at most 1,024 per-index vector postings
@@ -353,11 +481,14 @@ Implementation sequence, copying 0073's:
 
 ## ANN successor admission
 
-Decision 8's rule, made concrete. The base profile is exact and stays
-exact. A later ANN admission takes one of two doors, both outside
-`vector_search_v1`:
+The base profile is exact and stays exact. Two future doors are
+named, both outside `vector_search_v1`. The first is decision 8's
+rule made concrete; the second is **this Spec's own proposal** —
+decision 8 decided only the proved-superset route, and no document
+has decided the second door:
 
-- **Accelerator door** (0073's precedent): an ANN or pruning structure
+- **Accelerator door** (decision 8's proved-superset rule; 0073's
+  precedent): an ANN or pruning structure
   whose candidate set provably contains the true top-k for every
   admitted query — proved by construction, not by finite corpus — may
   serve as a physical accelerator behind the *same* exact claims, with
@@ -365,12 +496,17 @@ exact. A later ANN admission takes one of two doors, both outside
   accelerator identity. The pre-filter obligation transfers: it must
   return k authorized candidates under partition pushdown or
   over-fetch by a proved bound.
-- **Approximate door**: an honest approximate capability
-  (`vector_search_ann_v1` or successor) with a different evidence
-  vocabulary — recall@k against pinned corpora, per-target measured
-  claims — its own consistency analysis against §Candidate-to-release
-  consistency, and its own guide row. It never changes, shadows, or
-  silently substitutes for the exact base profile.
+- **Approximate door — this Spec's proposal, undecided**: an honest
+  approximate capability (`vector_search_ann_v1` or successor) with a
+  different evidence vocabulary — recall@k against pinned corpora,
+  per-target measured claims — its own consistency analysis against
+  §Candidate-to-release consistency, and its own guide row, never
+  changing, shadowing, or silently substituting for the exact base
+  profile. This door is not part of decision 8: it is disclosed in
+  §Commission's beyond-the-commission list, rides open question 2,
+  and its adoption as policy is routed to the author. A future
+  `vector_search_ann_v1` document may not cite this section as
+  commissioned or decided policy.
 
 What observed corpus or work evidence justifies opening either door is
 open question 2; the ceilings above are instrumented so that evidence
@@ -381,35 +517,63 @@ can exist.
 The implementation must retain executable evidence that:
 
 - the pinned golden corpus — seeded from Diary 0031's frozen
-  Research Room fixture (LLP 0102 App 5's deterministic 32-dimensional
-  embeddings), restated under v1's `owner.v1` and `public-read`
+  Research Room fixture (LLP 0102 App 5's deterministic embedding
+  fixture; the 32 dimensions are Diary 0031's freeze, not a 0102
+  specification), restated under v1's `owner.v1` and `public-read`
   visibility shapes — produces byte-identical distances (pinned RFC
   8785 spellings), ranks, and pages through the semantic oracle and
   every claimed target adapter; the fixture's room-membership
   visibility itself is restated, not claimed (membership shapes are a
   v1 nonclaim, as in 0073);
 - an adversarial arithmetic corpus covers negative zero, subnormals,
-  components at the 2^100 admission bound, bit-equal distance ties
-  resolved by row-id direction, dimension mismatch, and non-finite
-  refusal — and includes vectors chosen so that FMA, reassociated, or
-  extended-precision evaluation produces detectably different bits,
-  so a nonconforming build fails the corpus rather than passing
-  approximately;
+  components at the 2^100 admission bound, halfway-case
+  decimal→binary64 conversion entries (adjacent decimals that a
+  non-correctly-rounded parser converts off by one ulp), bit-equal
+  distance ties resolved by row-id direction, dimension mismatch, and
+  non-finite refusal. For each named divergence class — FMA
+  contraction, reassociation/reduction reorder, extended-precision
+  (x87) intermediates, FTZ/DAZ subnormal flushing, and one-ulp
+  decimal conversion — the corpus commits bit-pattern witness vectors
+  with expected output bits per metric, and every compiled kernel a
+  target ships (scalar, SIMD, or dimension-specialized) must run the
+  full corpus. The claim is scoped honestly: the corpus detects the
+  named divergence classes on the kernels it exercises; no finite
+  corpus detects every nonconforming build, so conformance evidence
+  combines corpus results, per-kernel coverage records, and
+  build/flag evidence (strict-FP flags, contraction and fast-math
+  disabled, no extended-precision intermediates). The normative
+  guarantee remains the pin (§Distance profile); the corpus is its
+  detector;
 - paired databases differing only in another owner's vectors are
-  identical across items, distances, refusal codes, work accounting,
-  and ordinary inspection, to 0073's termination-insensitive claim;
+  identical across items, distances, refusal codes, the four closed
+  logical-work counters (§Candidate-to-release consistency), and
+  ordinary inspection, to 0073's termination-insensitive claim;
 - inserts, updates, ownership transfers, and deletes are reflected at
   their commit head; post-delete and post-transfer negative probes
   pass deterministically; injected maintenance failure rolls back the
   complete source mutation;
-- the declared corpus bound refuses the overflowing insert; activation
-  preflight refuses an over-bound legacy partition; the generation
-  refuses a declaration violating the product rule;
-- a preregistered realistic-dimensionality budget corpus (at least
-  1,536 dimensions at its generation-validated partition bound) meets
-  pinned build, update, query-latency, and memory budgets — because
-  the 32-dimensional fixture exercises mechanics, not scale (0124's
-  caveat, adopted);
+- the declared corpus bound refuses the overflowing insert with
+  `SNAPBACK_VECTOR_CORPUS_BOUND`; activation preflight refuses an
+  over-bound legacy partition; the generation refuses a declaration
+  violating the product rule;
+- generation refuses every admission-matrix violation — a `private`
+  vector, filter, or stored field in a `public-read` index, and a
+  `sensitive` or `forbidden` field in any participating role — and
+  paired public/private evidence shows an `owner.v1` index over
+  `private` fields releasing to its owner and never across the
+  partition;
+- a preregistered realistic-scale budget corpus of at least 1,536
+  dimensions, with its partition filled to the maximum
+  generation-validated bound for its dimensionality
+  (min(⌊2^26 / dimensions⌋, 65,536); at 1,536 dimensions, exactly
+  43,690 vectors — a one-vector or token-cardinality index does not
+  satisfy this bullet), meets pinned build, update, query-latency,
+  and memory budgets; the budget receipt records the exact vector
+  count, vector bytes, and scalar-pair count, and boundary evidence
+  shows the bound-filling insert admitted and the next insert refused.
+  Dimensionality demonstrates realistic width; the filled partition
+  demonstrates corpus-scale scan behavior; the 32-dimensional fixture
+  exercises mechanics, not scale (0124's caveat, adopted);
 - release-recheck drift, tampered postings, and digest mismatch fail
   closed with the coded corruption outcome and quarantine; and
 - generated schemas, TypeScript pages, the client adapter, capability
