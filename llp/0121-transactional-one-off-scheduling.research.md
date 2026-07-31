@@ -1,7 +1,7 @@
 # LLP 0121: Transactional one-off scheduling
 
 **Type:** Research
-**Status:** Review
+**Status:** Active
 **Systems:** Competitive evaluation, Scheduled work, Background work, Developer experience, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30

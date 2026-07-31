@@ -1,7 +1,7 @@
 # LLP 0122: Installed-product coherence and packaging
 
 **Type:** Research
-**Status:** Review
+**Status:** Active
 **Systems:** Developer experience, Packaging, Tooling, Client integration, Documentation, Competitive evaluation
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30

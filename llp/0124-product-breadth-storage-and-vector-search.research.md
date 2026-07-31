@@ -1,7 +1,7 @@
 # LLP 0124: Product breadth — file storage and vector search
 
 **Type:** Research
-**Status:** Review
+**Status:** Active
 **Systems:** Competitive evaluation, Assets, Storage, Search, Application data API
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30

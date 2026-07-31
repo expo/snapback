@@ -1,7 +1,7 @@
 # LLP 0118: Handler composition and helper reuse
 
 **Type:** Research
-**Status:** Review
+**Status:** Active
 **Systems:** Competitive evaluation, Developer experience, Authoring, Code
 generation, Runtime, Security
 **Author:** Charlie Cheever / Claude (Fable 5)

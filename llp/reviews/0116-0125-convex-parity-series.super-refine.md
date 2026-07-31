@@ -280,7 +280,15 @@ Per LLP 0005 the loop proposes and the author decides: the proposed
 transition is Review → Active for all ten documents (Research-type
 terminal healthy status), with the Tier-2 documents' reviewers'
 recommended next steps recorded in their artifacts for the author's
-weighing. Residuals outside this program's scope: the LLP 0108
+weighing.
+
+**Author adjudication — 2026-07-30.** Charlie Cheever accepted the
+proposal ("Promote all 10"); all ten documents advanced Review → Active
+in the same landing as this note. The author simultaneously directed
+the next phase: a new deep-dive Research document on local-first and
+local sync (every plausible approach, not one approach's details) with
+its own super-refine loop, followed by a synthesis of coherent
+implementation direction addressing LLP 0116–0126. Residuals outside this program's scope: the LLP 0108
 Campfire→Relay misattribution correction (0108 ~line 793, deferred to
 its next revision), LLP 0115's author-gated OQ3–OQ7, and the named
 empirical agendas inside the series documents.

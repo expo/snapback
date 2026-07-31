@@ -1,7 +1,7 @@
 # LLP 0125: Concurrency and conflict ergonomics
 
 **Type:** Research
-**Status:** Review
+**Status:** Active
 **Systems:** Competitive evaluation, Developer experience, Application data API, Client integration, Runtime, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
