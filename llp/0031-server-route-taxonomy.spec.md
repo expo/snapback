@@ -1130,7 +1130,11 @@ registers the root-level AppData asset family:
   every ordinary and range request re-authorizes through the declared
   read-access policy (query-shaped, `HttpQuery`), and responses carry
   `Cache-Control: private, no-store` with attachment disposition forced
-  for active-content types;
+  for active-content types. The image program (P-04, 2026-07-31) adds
+  the declarative selector as the reserved variant `best` with a
+  required `maxWidth` query parameter — the widest Ready rendition
+  within the bound, else the narrowest available — changing no route
+  shape and no authority posture;
 - `DELETE /assets/records/{id}` (L1-10) — the owner's explicit delete
   running the one-transaction cascade; refuses while typed reference
   edges remain (the records path's second method — same-path

@@ -981,6 +981,11 @@ pub enum AssetLocationPolicy {
 pub struct AssetImageVariant {
     pub key: String,
     pub width: u64,
+    /// A required variant is part of the asset-ready contract (LLP 0044
+    /// §Lifecycle transitions); absent means optional, and absence is
+    /// canonical so pre-existing intent policy hashes are unchanged.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub required: bool,
 }
 
 impl Default for FunctionManifest {

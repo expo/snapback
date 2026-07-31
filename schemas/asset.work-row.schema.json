@@ -71,6 +71,9 @@
       "minimum": 0,
       "type": "integer"
     },
+    "params": {
+      "description": "Kind-specific inputs (an image variant's key/width/recipe version);\nadditive and optional so pre-existing rows decode unchanged."
+    },
     "retryCeiling": {
       "format": "uint64",
       "minimum": 0,

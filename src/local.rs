@@ -2546,6 +2546,7 @@ pub struct LocalSnapback {
     /// P-05 keys this off the declared capability facts block; until the
     /// image-pipeline capability flip, only tests enable it.
     asset_image_finalization_override: Option<bool>,
+    asset_quota_override: Option<u64>,
     functions: FunctionManifest,
     // Complete pairs proven by this process. Durable deployment identities
     // are hashes, not manifest bodies, so they can never supply a missing
@@ -5277,6 +5278,18 @@ impl LocalSnapback {
         self.asset_image_finalization_override = Some(enabled);
     }
 
+    /// The app logical quota, overridable in tests so exceed paths are
+    /// exercisable without gigabyte fixtures.
+    pub(crate) fn asset_app_quota(&self) -> u64 {
+        self.asset_quota_override
+            .unwrap_or(crate::assets::ASSET_APP_LOGICAL_QUOTA_BYTES)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn set_asset_quota_override(&mut self, quota: u64) {
+        self.asset_quota_override = Some(quota);
+    }
+
     pub(crate) fn asset_store(&self) -> SnapbackResult<crate::assets::AssetFsStore> {
         // File-backed instances root the store beside the database; memory
         // instances (tests, --memory) mint a per-instance temp root — the
@@ -5457,6 +5470,7 @@ impl LocalSnapback {
         let app_id = self.functions.app_id.clone();
         let now = now_millis();
         let store = self.asset_store()?;
+        let app_quota = self.asset_app_quota();
 
         let response = self.db.asset_transaction(|tx| {
             let generation =
@@ -5492,14 +5506,14 @@ impl LocalSnapback {
             let reservation =
                 declared_length.max(assets::ASSET_MIN_ACCOUNTING_UNIT_BYTES);
             let in_use = accounting.reserved_bytes.saturating_add(accounting.settled_bytes);
-            if in_use.saturating_add(reservation) > assets::ASSET_APP_LOGICAL_QUOTA_BYTES {
+            if in_use.saturating_add(reservation) > app_quota {
                 return Err(SnapbackError::error(
                     "SNAPBACK_ASSET_QUOTA_EXCEEDED",
                     "assets",
                     "the app's logical asset quota cannot cover this reservation",
                 )
                 .with_details(serde_json::json!({
-                    "limit": assets::ASSET_APP_LOGICAL_QUOTA_BYTES,
+                    "limit": app_quota,
                     "observed": in_use,
                     "reservation": reservation,
                 })));
@@ -6524,6 +6538,74 @@ impl LocalSnapback {
         Ok(response)
     }
 
+    /// Render one declared variant off the canonical bytes and stage it
+    /// through the write-ahead publication protocol: plan (attempt-less
+    /// record) → idempotent object put → verify → staged. The commit half
+    /// runs inside the publishing transaction; orphaned records from a
+    /// crash here converge via the ordinary maintenance pass.
+    fn asset_prepare_variant(
+        &mut self,
+        store: &crate::assets::AssetFsStore,
+        app_id: &str,
+        canonical_bytes: &[u8],
+        content_type: &str,
+        variant: &crate::manifest::AssetImageVariant,
+        recipe_version: u64,
+    ) -> SnapbackResult<AssetPreparedVariant> {
+        use crate::assets as assets;
+        let rendered = crate::assets_image::render_variant(
+            canonical_bytes,
+            content_type,
+            variant.width,
+            &crate::assets_image::ASSET_IMAGE_CEILINGS_LOCAL_V1,
+        )?;
+        let digest = asset_hash_bytes(&rendered);
+        let now = now_millis();
+        let mut publication = {
+            let mut record =
+                asset_planned_publication(app_id, "variant", &digest, now);
+            record.attempt_id = None;
+            record
+        };
+        self.db.asset_transaction(|tx| assets::insert_publication(tx, &publication))?;
+        let object_path = store.blob_path(&publication.planned_key)?;
+        if !object_path.exists() {
+            std::fs::write(&object_path, &rendered).map_err(|error| {
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                    "assets",
+                    format!("cannot publish variant object: {error}"),
+                )
+            })?;
+        }
+        let copied = asset_hash_staging(&object_path)?;
+        if copied.digest != digest || copied.byte_length != rendered.len() as u64 {
+            let _ = std::fs::remove_file(&object_path);
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                "assets",
+                "the published variant object did not verify",
+            ));
+        }
+        self.db.asset_transaction(|tx| {
+            assets::transition_publication(
+                tx,
+                &mut publication,
+                assets::AssetPublicationState::Staged,
+                now_millis(),
+            )
+        })?;
+        Ok(AssetPreparedVariant {
+            key: variant.key.clone(),
+            width: variant.width,
+            publication,
+            digest,
+            byte_length: rendered.len() as u64,
+            content_type: content_type.to_owned(),
+            recipe_version,
+        })
+    }
+
     pub(crate) fn asset_attempt_finalize_inner(
         &mut self,
         authority: &PreparedAuthority,
@@ -6929,6 +7011,66 @@ impl LocalSnapback {
             return Err(asset_test_crash());
         }
 
+        // Declared variants (LLP 0044 §step 8/9): required ones render and
+        // stage now so the publishing transaction can commit them with the
+        // primary and switch `ready` atomically with the last required
+        // publication; optional ones enqueue ledger work inside that same
+        // transaction and never gate the asset.
+        let declared_variants: Vec<crate::manifest::AssetImageVariant> = intent
+            .image
+            .as_ref()
+            .map(|image| image.variants.clone())
+            .unwrap_or_default();
+        let variants_enabled = self.asset_image_finalization_enabled()
+            && !declared_variants.is_empty()
+            && matches!(detected, "image/jpeg" | "image/png");
+        let app_quota = self.asset_app_quota();
+        let mut prepared_required: Vec<AssetPreparedVariant> = Vec::new();
+        if variants_enabled {
+            let canonical_bytes = std::fs::read(&canonical.path).map_err(|error| {
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                    "assets",
+                    format!("cannot read canonical bytes for variants: {error}"),
+                )
+            })?;
+            for variant in declared_variants.iter().filter(|variant| variant.required) {
+                match self.asset_prepare_variant(
+                    &store,
+                    &app_id,
+                    &canonical_bytes,
+                    detected,
+                    variant,
+                    1,
+                ) {
+                    Ok(prepared) => prepared_required.push(prepared),
+                    // Ceiling/decode refusals over trusted canonical bytes
+                    // are deterministic: the required variant can never
+                    // materialize, so the asset rejects rather than staying
+                    // retry-eligible; store errors stay transient.
+                    Err(error) => {
+                        let availability = if error.diagnostic.code
+                            == "SNAPBACK_ASSET_STORE_UNAVAILABLE"
+                        {
+                            assets::AssetAvailability::Pending
+                        } else {
+                            assets::AssetAvailability::Rejected
+                        };
+                        return self.asset_fail_attempt(&attempt, availability, error);
+                    }
+                }
+            }
+        }
+        let optional_variants: Vec<crate::manifest::AssetImageVariant> = if variants_enabled {
+            declared_variants
+                .iter()
+                .filter(|variant| !variant.required)
+                .cloned()
+                .collect()
+        } else {
+            Vec::new()
+        };
+
         // Phase D — the publication transaction: witness re-validation, blob
         // uniqueness, rendition + availability, quota settlement, receipts —
         // one commit. Witness movement re-runs the authorizer and retries
@@ -6955,7 +7097,9 @@ impl LocalSnapback {
             let detected_type = detected.to_owned();
             let app = app_id.clone();
             let digest_value = digest.clone();
-            let result = self.db.asset_transaction(|tx| {
+            let required_variants = prepared_required.clone();
+            let optional_keys = optional_variants.clone();
+            let publish_attempt = self.db.asset_transaction(|tx| {
                 let mut record = assets::load_attempt(tx, &attempt_id)?.ok_or_else(|| {
                     SnapbackError::error(
                         "SNAPBACK_ASSET_ATTEMPT_UNKNOWN",
@@ -7132,6 +7276,37 @@ impl LocalSnapback {
                 };
                 assets::insert_rendition(tx, &rendition)?;
 
+                let mut committed_variants: Vec<(String, String)> = Vec::new();
+                for prepared in &required_variants {
+                    match asset_commit_prepared_variant(
+                        tx,
+                        &app,
+                        &record.asset_id,
+                        prepared,
+                        app_quota,
+                        now,
+                    )? {
+                        AssetVariantCommit::Committed { rendition_id, .. } => {
+                            committed_variants.push((prepared.key.clone(), rendition_id));
+                        }
+                        AssetVariantCommit::AlreadyCurrent
+                        | AssetVariantCommit::StaleLost => {}
+                        AssetVariantCommit::QuotaRefused => {
+                            // Err aborts the transaction whole: required
+                            // renditions are part of the asset-ready
+                            // contract, so nothing publishes.
+                            return Err(SnapbackError::error(
+                                "SNAPBACK_ASSET_QUOTA_EXCEEDED",
+                                "assets",
+                                "a required rendition's settlement would exceed the app quota",
+                            )
+                            .with_details(serde_json::json!({
+                                "variantKey": prepared.key,
+                            })));
+                        }
+                    }
+                }
+
                 let mut asset = assets::load_asset(tx, &record.asset_id)?.ok_or_else(|| {
                     SnapbackError::error(
                         "SNAPBACK_ASSET_UNKNOWN",
@@ -7141,6 +7316,26 @@ impl LocalSnapback {
                 })?;
                 asset.primary_rendition_id = Some(rendition.rendition_id.clone());
                 assets::transition_asset(tx, &mut asset, assets::AssetAvailability::Ready, now)?;
+
+                // Optional variants enqueue transactionally with `ready`,
+                // carrying the post-transition generation so the runner's
+                // claim fence admits them.
+                for variant in &optional_keys {
+                    assets::enqueue_work_with_params(
+                        tx,
+                        assets::ASSET_WORK_KIND_IMAGE_VARIANT,
+                        &record.asset_id,
+                        None,
+                        asset.lifecycle_generation,
+                        now,
+                        Some(serde_json::json!({
+                            "key": variant.key,
+                            "width": variant.width,
+                            "recipeVersion": 1,
+                            "contentType": detected_type,
+                        })),
+                    )?;
+                }
 
                 record.integrity_grade = grade;
                 assets::transition_attempt(
@@ -7193,12 +7388,42 @@ impl LocalSnapback {
                         &asset_receipt(&lineage, event, &record.asset_id, Some(&attempt_id), now, details),
                     )?;
                 }
+                for (variant_key, rendition_id) in &committed_variants {
+                    assets::write_receipt(
+                        tx,
+                        &asset_receipt(
+                            &lineage,
+                            assets::AssetReceiptEventV1::RenditionProduced,
+                            &record.asset_id,
+                            Some(&attempt_id),
+                            now,
+                            serde_json::json!({
+                                "renditionId": rendition_id,
+                                "variantKey": variant_key,
+                                "required": true,
+                            }),
+                        ),
+                    )?;
+                }
                 Ok(AssetPublishOutcome::Published {
                     attempt: Box::new(record),
                     asset: Box::new(asset),
                     reused,
                 })
-            })?;
+            });
+            let result = match publish_attempt {
+                Ok(result) => result,
+                Err(error) if error.diagnostic.code == "SNAPBACK_ASSET_QUOTA_EXCEEDED" => {
+                    // The transaction aborted whole; quota can free later,
+                    // so the asset stays pending and retry-eligible.
+                    return self.asset_fail_attempt(
+                        &attempt,
+                        assets::AssetAvailability::Pending,
+                        error,
+                    );
+                }
+                Err(error) => return Err(error),
+            };
             match result {
                 AssetPublishOutcome::Published { attempt, asset, reused } => {
                     break (*attempt, *asset, reused);
@@ -7620,6 +7845,7 @@ impl LocalSnapback {
         asset_id: &str,
         variant: &str,
         range_header: Option<&str>,
+        max_width: Option<u64>,
     ) -> SnapbackResult<AssetDeliveryOutcome> {
         use crate::assets as assets;
         let caller = Self::asset_caller_principal(authority);
@@ -7651,15 +7877,53 @@ impl LocalSnapback {
                     "the asset has no deliverable bytes yet",
                 ));
             }
-            let rendition = assets::load_rendition_by_variant(tx, asset_id, &variant)?
-                .filter(|r| r.state == assets::AssetRenditionState::Ready)
-                .ok_or_else(|| {
+            // `best` is the declarative selector (LLP 0044: "best image
+            // variant with width ≤ N"): the widest Ready rendition within
+            // the bound, else the narrowest available — a bound below every
+            // rendition serves the closest fit, never an arbitrary larger
+            // one.
+            let rendition = if variant == "best" {
+                let bound = max_width.ok_or_else(|| {
                     SnapbackError::error(
                         "SNAPBACK_ASSET_VARIANT_UNKNOWN",
                         "assets",
-                        format!("no ready rendition for variant {variant}"),
+                        "the best selector requires a maxWidth bound",
                     )
                 })?;
+                let ready = assets::load_ready_renditions(tx, asset_id)?;
+                let width_of = |r: &assets::AssetRenditionRecordV1| {
+                    r.media_facts
+                        .as_ref()
+                        .and_then(|facts| facts.get("width"))
+                        .and_then(serde_json::Value::as_u64)
+                };
+                let mut sized: Vec<_> = ready
+                    .into_iter()
+                    .filter_map(|r| width_of(&r).map(|w| (w, r)))
+                    .collect();
+                sized.sort_by_key(|(w, _)| *w);
+                let within = sized.iter().rev().find(|(w, _)| *w <= bound).cloned();
+                within
+                    .or_else(|| sized.into_iter().next())
+                    .map(|(_, r)| r)
+                    .ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_ASSET_VARIANT_UNKNOWN",
+                            "assets",
+                            "no ready rendition carries a width fact",
+                        )
+                    })?
+            } else {
+                assets::load_rendition_by_variant(tx, asset_id, &variant)?
+                    .filter(|r| r.state == assets::AssetRenditionState::Ready)
+                    .ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_ASSET_VARIANT_UNKNOWN",
+                            "assets",
+                            format!("no ready rendition for variant {variant}"),
+                        )
+                    })?
+            };
             let blob = assets::load_blob(tx, &rendition.blob_id)?
                 .filter(|b| !b.condemned)
                 .ok_or_else(|| {
@@ -8115,8 +8379,11 @@ impl LocalSnapback {
                     // A programmer-error kind can never succeed on retry;
                     // exhaust it on first observation instead of burning the
                     // ceiling on deterministic failures.
-                    let unretryable =
-                        error.diagnostic.code == "SNAPBACK_ASSET_WORK_KIND_UNKNOWN";
+                    let unretryable = matches!(
+                        error.diagnostic.code.as_str(),
+                        "SNAPBACK_ASSET_WORK_KIND_UNKNOWN"
+                            | "SNAPBACK_ASSET_WORK_PARAMS_INVALID"
+                    );
                     if unretryable || row.attempt_count >= row.retry_ceiling {
                         assets::transition_work(
                             tx,
@@ -8222,6 +8489,195 @@ impl LocalSnapback {
                     }
                 }
                 let _ = now_ms;
+                Ok(())
+            }
+            // An optional declared rendition: render off the canonical
+            // primary blob, stage through the publication protocol, and
+            // settle with the generation-checked pointer switch. Idempotent
+            // per re-drive; a quota refusal is a structured rendition
+            // failure that never gates the ready primary.
+            assets::ASSET_WORK_KIND_IMAGE_VARIANT => {
+                let params = row.params.clone().unwrap_or_default();
+                let (Some(key), Some(width), Some(content_type)) = (
+                    params.get("key").and_then(serde_json::Value::as_str).map(str::to_owned),
+                    params.get("width").and_then(serde_json::Value::as_u64),
+                    params
+                        .get("contentType")
+                        .and_then(serde_json::Value::as_str)
+                        .map(str::to_owned),
+                ) else {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_ASSET_WORK_PARAMS_INVALID",
+                        "assets",
+                        "image-variant work carries no usable params",
+                    ));
+                };
+                let recipe_version = params
+                    .get("recipeVersion")
+                    .and_then(serde_json::Value::as_u64)
+                    .unwrap_or(1);
+                let app_id = self.functions.app_id.clone();
+                let app_quota = self.asset_app_quota();
+                let store = self.asset_store()?;
+                let asset_id = row.asset_id.clone();
+
+                let already = self.db.asset_transaction(|tx| {
+                    Ok(assets::load_rendition_by_variant(tx, &asset_id, &key)?
+                        .filter(|r| {
+                            r.state == assets::AssetRenditionState::Ready
+                                && r.recipe == assets::ASSET_RECIPE_IMAGE_VARIANT_V1
+                                && r.recipe_version >= recipe_version
+                        })
+                        .is_some())
+                })?;
+                if already {
+                    return Ok(());
+                }
+                let primary_key = self.db.asset_transaction(|tx| {
+                    let asset = assets::load_asset(tx, &asset_id)?.ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_ASSET_UNKNOWN",
+                            "assets",
+                            format!("unknown asset {asset_id}"),
+                        )
+                    })?;
+                    let rendition_id =
+                        asset.primary_rendition_id.as_deref().ok_or_else(|| {
+                            SnapbackError::error(
+                                "SNAPBACK_ASSET_NOT_READY",
+                                "assets",
+                                "the asset has no primary rendition to derive from",
+                            )
+                        })?;
+                    let primary = assets::load_rendition(tx, rendition_id)?.ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_ASSET_RECORD_INVALID",
+                            "assets",
+                            "the primary rendition record is missing",
+                        )
+                    })?;
+                    let blob = assets::load_blob(tx, &primary.blob_id)?
+                        .filter(|blob| !blob.condemned)
+                        .ok_or_else(|| {
+                            SnapbackError::error(
+                                "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                                "assets",
+                                "the primary blob is not available",
+                            )
+                        })?;
+                    Ok(blob.physical_key)
+                })?;
+                let canonical_bytes = std::fs::read(store.blob_path(&primary_key)?)
+                    .map_err(|error| {
+                        SnapbackError::error(
+                            "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                            "assets",
+                            format!("cannot read the canonical object: {error}"),
+                        )
+                    })?;
+                let variant = crate::manifest::AssetImageVariant {
+                    key: key.clone(),
+                    width,
+                    required: false,
+                };
+                let prepared = match self.asset_prepare_variant(
+                    &store,
+                    &app_id,
+                    &canonical_bytes,
+                    &content_type,
+                    &variant,
+                    recipe_version,
+                ) {
+                    Ok(prepared) => prepared,
+                    // Deterministic processing refusals become durable
+                    // rendition failures (work Done, optional never gates);
+                    // store errors surface for retry.
+                    Err(error)
+                        if error.diagnostic.code != "SNAPBACK_ASSET_STORE_UNAVAILABLE" =>
+                    {
+                        let work_id = row.work_id.clone();
+                        self.db.asset_transaction(|tx| {
+                            assets::write_receipt(
+                                tx,
+                                &asset_receipt(
+                                    &work_id,
+                                    assets::AssetReceiptEventV1::RenditionFailed,
+                                    &asset_id,
+                                    None,
+                                    now_ms,
+                                    serde_json::json!({
+                                        "variantKey": key,
+                                        "failure": error.diagnostic.code,
+                                    }),
+                                ),
+                            )
+                        })?;
+                        return Ok(());
+                    }
+                    Err(error) => return Err(error),
+                };
+                let work_id = row.work_id.clone();
+                self.db.asset_transaction(|tx| {
+                    match asset_commit_prepared_variant(
+                        tx,
+                        &app_id,
+                        &asset_id,
+                        &prepared,
+                        app_quota,
+                        now_ms,
+                    )? {
+                        AssetVariantCommit::Committed { rendition_id, .. } => {
+                            assets::write_receipt(
+                                tx,
+                                &asset_receipt(
+                                    &work_id,
+                                    assets::AssetReceiptEventV1::RenditionProduced,
+                                    &asset_id,
+                                    None,
+                                    now_ms,
+                                    serde_json::json!({
+                                        "renditionId": rendition_id,
+                                        "variantKey": prepared.key,
+                                    }),
+                                ),
+                            )?;
+                        }
+                        AssetVariantCommit::QuotaRefused => {
+                            assets::write_receipt(
+                                tx,
+                                &asset_receipt(
+                                    &work_id,
+                                    assets::AssetReceiptEventV1::RenditionFailed,
+                                    &asset_id,
+                                    None,
+                                    now_ms,
+                                    serde_json::json!({
+                                        "variantKey": prepared.key,
+                                        "failure": "SNAPBACK_ASSET_QUOTA_EXCEEDED",
+                                    }),
+                                ),
+                            )?;
+                        }
+                        AssetVariantCommit::AlreadyCurrent
+                        | AssetVariantCommit::StaleLost => {
+                            assets::write_receipt(
+                                tx,
+                                &asset_receipt(
+                                    &work_id,
+                                    assets::AssetReceiptEventV1::RenditionSuperseded,
+                                    &asset_id,
+                                    None,
+                                    now_ms,
+                                    serde_json::json!({
+                                        "variantKey": prepared.key,
+                                        "outcome": "pointer-unchanged",
+                                    }),
+                                ),
+                            )?;
+                        }
+                    }
+                    Ok(())
+                })?;
                 Ok(())
             }
             #[cfg(test)]
@@ -14894,6 +15350,7 @@ impl LocalSnapback {
                 .fetch_add(1, std::sync::atomic::Ordering::Relaxed),
             asset_memory_store_root: std::sync::OnceLock::new(),
             asset_image_finalization_override: None,
+            asset_quota_override: None,
             functions: FunctionManifest::default(),
             preflighted_artifact_pairs: VecDeque::new(),
             functions_loaded: false,
@@ -20721,6 +21178,7 @@ pub(crate) struct AssetDelivery {
     pub partial: bool,
 }
 
+#[derive(Debug)]
 pub(crate) enum AssetDeliveryOutcome {
     Content(Box<AssetDelivery>),
     /// Syntactically valid but unsatisfiable range: 416 with the total.
@@ -20949,6 +21407,152 @@ fn asset_planned_publication(
         blob_id: None,
         created_at_ms: now_ms,
         updated_at_ms: now_ms,
+    }
+}
+
+fn asset_hash_bytes(bytes: &[u8]) -> String {
+    use sha2::Digest as _;
+    let mut hasher = sha2::Sha256::new();
+    hasher.update(bytes);
+    hasher.finalize().iter().map(|byte| format!("{byte:02x}")).collect()
+}
+
+/// A rendered variant staged through the write-ahead publication protocol:
+/// the object exists and verifies under a `staged` record; the commit half
+/// (`asset_commit_prepared_variant`) runs inside the publishing transaction.
+#[derive(Clone)]
+struct AssetPreparedVariant {
+    key: String,
+    width: u64,
+    publication: crate::assets::AssetPublicationRecordV1,
+    digest: String,
+    byte_length: u64,
+    content_type: String,
+    recipe_version: u64,
+}
+
+enum AssetVariantCommit {
+    Committed { rendition_id: String },
+    /// An idempotent re-drive: a Ready same-lineage rendition already holds
+    /// the pointer; our duplicate publication condemns with tracked cleanup.
+    AlreadyCurrent,
+    /// Settlement would exceed the app quota: a structured rendition
+    /// failure, gating `ready` only when the variant is required.
+    QuotaRefused,
+    /// A newer recipe version holds the pointer; the stale run loses and
+    /// its publication condemns.
+    StaleLost,
+}
+
+fn asset_commit_prepared_variant(
+    tx: &rusqlite::Transaction<'_>,
+    app_id: &str,
+    asset_id: &str,
+    prepared: &AssetPreparedVariant,
+    app_quota: u64,
+    now: u64,
+) -> SnapbackResult<AssetVariantCommit> {
+    use crate::assets;
+    let mut publication = prepared.publication.clone();
+    let condemn = |tx: &rusqlite::Transaction<'_>,
+                   publication: &mut assets::AssetPublicationRecordV1|
+     -> SnapbackResult<()> {
+        assets::transition_publication(
+            tx,
+            publication,
+            assets::AssetPublicationState::Condemned,
+            now,
+        )?;
+        assets::enqueue_work(
+            tx,
+            assets::ASSET_WORK_KIND_CONDEMNED_CLEANUP,
+            asset_id,
+            None,
+            0,
+            now,
+        )?;
+        Ok(())
+    };
+
+    let accounting = assets::asset_accounting(tx, app_id)?;
+    let increment = prepared
+        .byte_length
+        .max(assets::ASSET_MIN_ACCOUNTING_UNIT_BYTES);
+    let in_use = accounting.reserved_bytes.saturating_add(accounting.settled_bytes);
+    if in_use.saturating_add(increment) > app_quota {
+        condemn(tx, &mut publication)?;
+        return Ok(AssetVariantCommit::QuotaRefused);
+    }
+
+    let blob_record = assets::AssetBlobRecordV1 {
+        blob_id: assets::AssetFsStore::new_opaque_key(),
+        app_id: app_id.to_owned(),
+        store: assets::ASSET_STORE_LOCAL_FS.to_owned(),
+        physical_key: publication.planned_key.clone(),
+        byte_length: prepared.byte_length,
+        detected_content_type: prepared.content_type.clone(),
+        digest_algorithm: assets::ASSET_DIGEST_ALGORITHM_SHA256.to_owned(),
+        digest: prepared.digest.clone(),
+        canonicalization_policy: assets::ASSET_CANONICALIZATION_NONE.to_owned(),
+        reference_count: 1,
+        condemned: false,
+        created_at_ms: now,
+    };
+    let blob_id = match assets::insert_blob(tx, &blob_record, now)? {
+        assets::BlobInsertOutcome::Created => {
+            publication.blob_id = Some(blob_record.blob_id.clone());
+            assets::transition_publication(
+                tx,
+                &mut publication,
+                assets::AssetPublicationState::Committed,
+                now,
+            )?;
+            blob_record.blob_id.clone()
+        }
+        assets::BlobInsertOutcome::ConvergedOnWinner { blob_id } => {
+            condemn(tx, &mut publication)?;
+            blob_id
+        }
+    };
+
+    let rendition = assets::AssetRenditionRecordV1 {
+        rendition_id: assets::AssetFsStore::new_opaque_key(),
+        asset_id: asset_id.to_owned(),
+        variant_key: prepared.key.clone(),
+        blob_id: blob_id.clone(),
+        state: assets::AssetRenditionState::Ready,
+        recipe: assets::ASSET_RECIPE_IMAGE_VARIANT_V1.to_owned(),
+        recipe_version: prepared.recipe_version,
+        media_facts: Some(serde_json::json!({
+            "contentType": prepared.content_type,
+            "byteLength": prepared.byte_length,
+            "width": prepared.width,
+        })),
+        created_at_ms: now,
+        updated_at_ms: now,
+        failure: None,
+    };
+    match assets::switch_variant_pointer(tx, &rendition, now)? {
+        assets::AssetVariantSwitchOutcome::Installed => Ok(AssetVariantCommit::Committed {
+            rendition_id: rendition.rendition_id,
+        }),
+        outcome @ (assets::AssetVariantSwitchOutcome::AlreadyCurrent
+        | assets::AssetVariantSwitchOutcome::StaleLoses) => {
+            // No rendition row took our reference: whether the blob was
+            // freshly created (refcount 1) or converged onto the winner
+            // (incremented), the acquired reference releases here. A
+            // freshly created blob goes to zero references and blob GC
+            // condemns it through its ordinary transactional path — the
+            // committed publication record retires on retention, it does
+            // not condemn (its closed set has no committed → condemned).
+            assets::release_blob_reference(tx, &blob_id, now)?;
+            Ok(match outcome {
+                assets::AssetVariantSwitchOutcome::AlreadyCurrent => {
+                    AssetVariantCommit::AlreadyCurrent
+                }
+                _ => AssetVariantCommit::StaleLost,
+            })
+        }
     }
 }
 
@@ -23630,6 +24234,39 @@ globalThis.__snapbackHandlers = {
         intent
     }
 
+    fn asset_image_intent_with_variants(
+        location: crate::manifest::AssetLocationPolicy,
+        max_bytes: u64,
+        variants: Vec<crate::manifest::AssetImageVariant>,
+    ) -> crate::manifest::AssetUploadIntentDefinition {
+        let mut intent = asset_image_intent(location, max_bytes);
+        intent.image = Some(crate::manifest::AssetImagePolicy { location, variants });
+        intent
+    }
+
+    fn asset_variant_snapback(
+        location: crate::manifest::AssetLocationPolicy,
+        variants: Vec<crate::manifest::AssetImageVariant>,
+    ) -> LocalSnapback {
+        let mut snapback = LocalSnapback::memory().expect("memory snapback");
+        snapback.set_asset_image_finalization_override(true);
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            asset_upload_intents: vec![asset_image_intent_with_variants(
+                location,
+                64 * 1024,
+                variants,
+            )],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "variant intent manifest must load: {diagnostics:?}"
+        );
+        snapback
+    }
+
     fn asset_image_snapback(
         location: crate::manifest::AssetLocationPolicy,
         max_bytes: u64,
@@ -23969,6 +24606,275 @@ globalThis.__snapbackHandlers = {
     // Strict delivery and the deletion/GC sweeps (tickets L1-09/L1-10).
     // -----------------------------------------------------------------
 
+    fn asset_variant(key: &str, width: u64, required: bool) -> crate::manifest::AssetImageVariant {
+        crate::manifest::AssetImageVariant { key: key.to_owned(), width, required }
+    }
+
+    fn asset_rendition_for(
+        snapback: &mut LocalSnapback,
+        asset_id: &str,
+        key: &str,
+    ) -> Option<crate::assets::AssetRenditionRecordV1> {
+        snapback
+            .db
+            .asset_transaction(|tx| {
+                crate::assets::load_rendition_by_variant(tx, asset_id, key)
+            })
+            .expect("rendition lookup")
+    }
+
+    #[test]
+    fn asset_variants_required_gate_ready_and_optionals_ride_the_runner() {
+        let mut snapback = asset_variant_snapback(
+            crate::manifest::AssetLocationPolicy::Strip,
+            vec![asset_variant("thumb", 16, true), asset_variant("display", 48, false)],
+        );
+        let fixture = crate::assets_image::fixtures::plain_jpeg(64, 48);
+        let created = asset_upload(&mut snapback, "user_a", &fixture, true);
+        asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
+            .expect("publishes");
+        let asset_id = created.task.asset_id.clone();
+
+        // Required committed with `ready`, atomically — visible immediately.
+        let thumb = asset_rendition_for(&mut snapback, &asset_id, "thumb")
+            .expect("required thumb is ready with the asset");
+        assert_eq!(thumb.state, crate::assets::AssetRenditionState::Ready);
+        assert_eq!(thumb.media_facts.as_ref().unwrap()["width"], 16);
+
+        // The optional enqueued transactionally with `ready` and is not
+        // produced until the runner drives it.
+        assert!(asset_rendition_for(&mut snapback, &asset_id, "display").is_none());
+        let work = snapback
+            .db
+            .asset_transaction(|tx| crate::assets::work_rows_for_asset(tx, &asset_id))
+            .expect("work rows");
+        assert!(work.iter().any(|row| {
+            row.kind == crate::assets::ASSET_WORK_KIND_IMAGE_VARIANT
+                && row.params.as_ref().is_some_and(|params| params["key"] == "display")
+        }));
+
+        let report = snapback.asset_runner_tick(now_millis()).expect("runner tick");
+        assert!(report.completed >= 1);
+        let display = asset_rendition_for(&mut snapback, &asset_id, "display")
+            .expect("optional display produced by the runner");
+        assert_eq!(display.state, crate::assets::AssetRenditionState::Ready);
+        assert_eq!(display.media_facts.as_ref().unwrap()["width"], 48);
+
+        // Delivery: by key, and the declarative best-≤-width selector.
+        let by_key = asset_deliver_content(&mut snapback, "user_a", &asset_id, "thumb", None)
+            .expect("thumb delivers");
+        assert!(by_key.total_length > 0);
+        let authority = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+        let pick = |snapback: &mut LocalSnapback, bound: u64| {
+            match snapback
+                .asset_deliver(&authority, &asset_id, "best", None, Some(bound))
+                .expect("best delivers")
+            {
+                crate::local::AssetDeliveryOutcome::Content(delivery) => delivery.content_type,
+                other => panic!("unexpected outcome: {other:?}"),
+            }
+        };
+        // 48 admits the display; 20 admits only the thumb; 8 falls back to
+        // the narrowest available.
+        assert_eq!(pick(&mut snapback, 48), "image/jpeg");
+        let best_48 = snapback
+            .asset_deliver(&authority, &asset_id, "best", None, Some(48))
+            .expect("best 48");
+        let best_20 = snapback
+            .asset_deliver(&authority, &asset_id, "best", None, Some(20))
+            .expect("best 20");
+        let best_8 = snapback
+            .asset_deliver(&authority, &asset_id, "best", None, Some(8))
+            .expect("best 8");
+        let width_of = |outcome: &crate::local::AssetDeliveryOutcome| match outcome {
+            crate::local::AssetDeliveryOutcome::Content(delivery) => delivery.total_length,
+            other => panic!("unexpected outcome: {other:?}"),
+        };
+        assert!(width_of(&best_48) > width_of(&best_20), "48 picks the wider display");
+        assert_eq!(width_of(&best_20), width_of(&best_8), "8 falls back to the thumb");
+
+        // Required-variant receipt with lineage.
+        let receipts = snapback
+            .db
+            .asset_transaction(|tx| crate::assets::receipts_for_asset(tx, &asset_id, 64))
+            .expect("receipts");
+        assert!(receipts.iter().any(|receipt| {
+            receipt.event == crate::assets::AssetReceiptEventV1::RenditionProduced
+                && receipt.details["variantKey"] == "thumb"
+                && receipt.details["required"] == true
+        }));
+    }
+
+    #[test]
+    fn asset_variant_stale_recipe_run_cannot_replace_newer() {
+        let mut snapback = asset_variant_snapback(
+            crate::manifest::AssetLocationPolicy::Strip,
+            vec![asset_variant("display", 48, false)],
+        );
+        let fixture = crate::assets_image::fixtures::plain_jpeg(64, 48);
+        let created = asset_upload(&mut snapback, "user_a", &fixture, true);
+        asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
+            .expect("publishes");
+        let asset_id = created.task.asset_id.clone();
+
+        // A newer recipe generation already holds the pointer before the
+        // enqueued v1 work drives.
+        let newer = crate::assets::AssetRenditionRecordV1 {
+            rendition_id: crate::assets::AssetFsStore::new_opaque_key(),
+            asset_id: asset_id.clone(),
+            variant_key: "display".to_owned(),
+            blob_id: "synthetic-newer".to_owned(),
+            state: crate::assets::AssetRenditionState::Ready,
+            recipe: crate::assets::ASSET_RECIPE_IMAGE_VARIANT_V1.to_owned(),
+            recipe_version: 2,
+            media_facts: Some(serde_json::json!({ "width": 48 })),
+            created_at_ms: now_millis(),
+            updated_at_ms: now_millis(),
+            failure: None,
+        };
+        snapback
+            .db
+            .asset_transaction(|tx| crate::assets::insert_rendition(tx, &newer))
+            .expect("newer rendition installs");
+
+        let report = snapback.asset_runner_tick(now_millis()).expect("runner tick");
+        assert!(report.completed >= 1, "the stale run settles as done, not retrying");
+        let current = asset_rendition_for(&mut snapback, &asset_id, "display")
+            .expect("pointer still present");
+        assert_eq!(current.rendition_id, newer.rendition_id, "the stale run cannot replace");
+
+        // The runner's idempotent short-circuit caught the newer pointer
+        // before rendering; the pointer-layer rule holds independently: a
+        // v1 candidate against the v2 holder loses at the switch itself.
+        let stale_candidate = crate::assets::AssetRenditionRecordV1 {
+            rendition_id: crate::assets::AssetFsStore::new_opaque_key(),
+            asset_id: asset_id.clone(),
+            variant_key: "display".to_owned(),
+            blob_id: "synthetic-stale".to_owned(),
+            state: crate::assets::AssetRenditionState::Ready,
+            recipe: crate::assets::ASSET_RECIPE_IMAGE_VARIANT_V1.to_owned(),
+            recipe_version: 1,
+            media_facts: None,
+            created_at_ms: now_millis(),
+            updated_at_ms: now_millis(),
+            failure: None,
+        };
+        let outcome = snapback
+            .db
+            .asset_transaction(|tx| {
+                crate::assets::switch_variant_pointer(tx, &stale_candidate, now_millis())
+            })
+            .expect("switch runs");
+        assert_eq!(outcome, crate::assets::AssetVariantSwitchOutcome::StaleLoses);
+        let still = asset_rendition_for(&mut snapback, &asset_id, "display")
+            .expect("pointer survives");
+        assert_eq!(still.rendition_id, newer.rendition_id);
+    }
+
+    #[test]
+    fn asset_variant_quota_refusals_are_structured_and_never_gate_the_primary() {
+        // Optional path: publish under a generous quota, then shrink it so
+        // the runner's settlement refuses as a rendition failure while the
+        // primary stays ready.
+        let mut snapback = asset_variant_snapback(
+            crate::manifest::AssetLocationPolicy::Strip,
+            vec![asset_variant("display", 48, false)],
+        );
+        let fixture = crate::assets_image::fixtures::plain_jpeg(64, 48);
+        let created = asset_upload(&mut snapback, "user_a", &fixture, true);
+        asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
+            .expect("publishes");
+        let asset_id = created.task.asset_id.clone();
+        snapback.set_asset_quota_override(crate::assets::ASSET_MIN_ACCOUNTING_UNIT_BYTES);
+        let report = snapback.asset_runner_tick(now_millis()).expect("runner tick");
+        assert!(report.completed >= 1, "quota refusal settles the work as done");
+        assert!(asset_rendition_for(&mut snapback, &asset_id, "display").is_none());
+        let receipts = snapback
+            .db
+            .asset_transaction(|tx| crate::assets::receipts_for_asset(tx, &asset_id, 64))
+            .expect("receipts");
+        assert!(receipts.iter().any(|receipt| {
+            receipt.event == crate::assets::AssetReceiptEventV1::RenditionFailed
+                && receipt.details["failure"] == "SNAPBACK_ASSET_QUOTA_EXCEEDED"
+        }));
+        let asset = snapback
+            .db
+            .asset_transaction(|tx| {
+                Ok(crate::assets::load_asset(tx, &asset_id)?.expect("asset"))
+            })
+            .expect("asset");
+        assert_eq!(asset.availability, crate::assets::AssetAvailability::Ready);
+
+        // Required path: the whole publication refuses, pending for retry.
+        let mut strict = asset_variant_snapback(
+            crate::manifest::AssetLocationPolicy::Strip,
+            vec![asset_variant("thumb", 16, true)],
+        );
+        strict.set_asset_quota_override(
+            crate::assets::ASSET_MIN_ACCOUNTING_UNIT_BYTES * 2,
+        );
+        let held = asset_upload(&mut strict, "user_a", &fixture, true);
+        let refused = asset_finalize(&mut strict, "user_a", &held.task.attempt_id, None)
+            .expect_err("required settlement must refuse");
+        assert_eq!(refused.diagnostic.code, "SNAPBACK_ASSET_QUOTA_EXCEEDED");
+        assert_eq!(refused.diagnostic.details["variantKey"], "thumb");
+        let held_asset = strict
+            .db
+            .asset_transaction(|tx| {
+                Ok(crate::assets::load_asset(tx, &held.task.asset_id)?.expect("asset"))
+            })
+            .expect("asset");
+        assert_eq!(
+            held_asset.availability,
+            crate::assets::AssetAvailability::Pending,
+            "quota can free later; the asset stays retry-eligible"
+        );
+        assert!(
+            asset_rendition_for(&mut strict, &held.task.asset_id, "primary").is_none(),
+            "nothing published: required renditions gate ready atomically"
+        );
+    }
+
+    #[test]
+    fn asset_deletion_retires_variant_renditions_with_exact_refcounts() {
+        let mut snapback = asset_variant_snapback(
+            crate::manifest::AssetLocationPolicy::Strip,
+            vec![asset_variant("thumb", 16, true)],
+        );
+        let fixture = crate::assets_image::fixtures::plain_jpeg(64, 48);
+        let created = asset_upload(&mut snapback, "user_a", &fixture, true);
+        asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
+            .expect("publishes");
+        let asset_id = created.task.asset_id.clone();
+        let thumb =
+            asset_rendition_for(&mut snapback, &asset_id, "thumb").expect("thumb ready");
+
+        let authority = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+        snapback.asset_delete(&authority, &asset_id).expect("deletes");
+
+        let (thumb_after, live_refcount) = snapback
+            .db
+            .asset_transaction(|tx| {
+                let rendition = crate::assets::load_rendition(tx, &thumb.rendition_id)?
+                    .expect("rendition row survives as retired");
+                // The reference_count column is the refcounting authority
+                // (release/acquire mutate it in place); the record_json copy
+                // is the insert-time snapshot.
+                let count: u64 = tx.query_row(
+                    "SELECT reference_count FROM _snapback_asset_blobs_v1 WHERE blob_id = ?1",
+                    [&thumb.blob_id],
+                    |row| row.get(0),
+                )?;
+                Ok((rendition, count))
+            })
+            .expect("post-delete rows");
+        assert_eq!(thumb_after.state, crate::assets::AssetRenditionState::Retired);
+        assert_eq!(
+            live_refcount, 0,
+            "each rendition's blob reference decrements exactly once"
+        );
+    }
+
     fn asset_deliver_content(
         snapback: &mut LocalSnapback,
         user: &str,
@@ -23977,7 +24883,7 @@ globalThis.__snapbackHandlers = {
         range: Option<&str>,
     ) -> SnapbackResult<crate::local::AssetDelivery> {
         let authority = asset_dev_authority(snapback, user, InvocationSource::HttpQuery);
-        match snapback.asset_deliver(&authority, asset_id, variant, range)? {
+        match snapback.asset_deliver(&authority, asset_id, variant, range, None)? {
             crate::local::AssetDeliveryOutcome::Content(delivery) => Ok(*delivery),
             crate::local::AssetDeliveryOutcome::Unsatisfiable { total_length } => Err(SnapbackError::error(
                 "TEST_UNSATISFIABLE",
@@ -24045,7 +24951,7 @@ globalThis.__snapbackHandlers = {
         // RFC 9110; the outcome carries what the handler needs.
         let authority = asset_dev_authority(&mut snapback, "user_a", InvocationSource::HttpQuery);
         match snapback
-            .asset_deliver(&authority, &asset_id, "primary", Some("bytes=999999-"))
+            .asset_deliver(&authority, &asset_id, "primary", Some("bytes=999999-"), None)
             .expect("outcome resolves")
         {
             crate::local::AssetDeliveryOutcome::Unsatisfiable { total_length } => {

@@ -194,4 +194,49 @@ export default defineSchema({
   assert.ok(codes(result).includes('SNAPBACK_ASSET_INTENT_UNKNOWN'), JSON.stringify(codes(result)));
 }
 
+// --- variants: required is an optional boolean, canonical when absent -----
+
+{
+  const functions = `
+import { defineAssetUpload } from '${defineUrl}';
+export const gallery = defineAssetUpload({
+  args: {},
+  auth: 'authenticated',
+  accept: { mediaTypes: ['image/jpeg'], maxBytes: 1_000_000 },
+  image: {
+    location: 'retain',
+    variants: [
+      { key: 'thumb', width: 128, required: true },
+      { key: 'display', width: 1024 },
+    ],
+  },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+`;
+  const { dir, result } = await runCase({ schema: baseSchema, functions });
+  assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+  const manifest = JSON.parse(readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8'));
+  const intent = manifest.assetUploadIntents.find((entry) => entry.name === 'gallery');
+  const variants = intent.image.variants;
+  assert.deepEqual(variants[0], { key: 'thumb', width: 128, required: true });
+  // Absence is canonical: no `required` member at all, so pre-existing
+  // intent policy hashes are unchanged by the field's introduction.
+  assert.deepEqual(variants[1], { key: 'display', width: 1024 });
+}
+
+{
+  const functions = `
+import { defineAssetUpload } from '${defineUrl}';
+export const gallery = defineAssetUpload({
+  args: {},
+  auth: 'authenticated',
+  accept: { mediaTypes: ['image/jpeg'], maxBytes: 1_000_000 },
+  image: { location: 'retain', variants: [{ key: 'thumb', width: 128, required: 'yes' }] },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+`;
+  const { result } = await runCase({ schema: baseSchema, functions });
+  assert.equal(result.ok, false, 'a non-boolean required must refuse');
+}
+
 console.log('asset-upload-authoring.test.mjs passed');

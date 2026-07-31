@@ -365,6 +365,10 @@ pub struct AssetWorkRowV1 {
     pub updated_at_ms: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub failure: Option<Value>,
+    /// Kind-specific inputs (an image variant's key/width/recipe version);
+    /// additive and optional so pre-existing rows decode unchanged.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub params: Option<Value>,
 }
 
 // ---------------------------------------------------------------------------
@@ -1850,6 +1854,77 @@ pub fn renditions_for_asset(
 
 /// Delivery resolves `(asset, variant)` aliases only; blob identity never
 /// appears in a URL (LLP 0044 §Delivery profiles, URL identity).
+/// How a produced rendition lands against the variant's current pointer.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AssetVariantSwitchOutcome {
+    /// No current row (or a superseded lineage): the new rendition installed.
+    Installed,
+    /// A Ready row of the same recipe lineage/version already exists — the
+    /// producing run is an idempotent re-drive; nothing switched.
+    AlreadyCurrent,
+    /// A newer recipe version holds the pointer; the stale run loses and
+    /// must clean up its own publication.
+    StaleLoses,
+}
+
+/// The atomic, generation-checked variant pointer switch (LLP 0044: a recipe
+/// run creates an immutable rendition row, then switches the pointer; a
+/// stale run may clean up its unreferenced blob but cannot replace a newer
+/// rendition; regeneration supersedes only same-lineage outputs).
+pub fn switch_variant_pointer(
+    tx: &Transaction<'_>,
+    candidate: &AssetRenditionRecordV1,
+    now_ms: u64,
+) -> SnapbackResult<AssetVariantSwitchOutcome> {
+    let current = load_rendition_by_variant(tx, &candidate.asset_id, &candidate.variant_key)?;
+    match current {
+        None => {
+            insert_rendition(tx, candidate)?;
+            Ok(AssetVariantSwitchOutcome::Installed)
+        }
+        Some(existing) if existing.recipe_version > candidate.recipe_version => {
+            Ok(AssetVariantSwitchOutcome::StaleLoses)
+        }
+        Some(existing)
+            if existing.state == AssetRenditionState::Ready
+                && existing.recipe == candidate.recipe
+                && existing.recipe_version == candidate.recipe_version =>
+        {
+            Ok(AssetVariantSwitchOutcome::AlreadyCurrent)
+        }
+        Some(mut existing) => {
+            // A Ready lower-version row supersedes; a Pending row here is a
+            // crash artifact of an interrupted producer — it fails (its
+            // closed set has no Pending → Superseded) and the fresh row
+            // installs.
+            let out = if existing.state == AssetRenditionState::Ready {
+                AssetRenditionState::Superseded
+            } else {
+                AssetRenditionState::Failed
+            };
+            transition_rendition(tx, &mut existing, out, now_ms)?;
+            insert_rendition(tx, candidate)?;
+            Ok(AssetVariantSwitchOutcome::Installed)
+        }
+    }
+}
+
+/// Every Ready rendition for an asset — the best-variant selection input.
+pub fn load_ready_renditions(
+    tx: &Transaction<'_>,
+    asset_id: &str,
+) -> SnapbackResult<Vec<AssetRenditionRecordV1>> {
+    let mut statement = tx.prepare(
+        "SELECT record_json FROM _snapback_asset_renditions_v1
+         WHERE asset_id = ?1 AND state = 'ready'
+         ORDER BY variant_key, rendition_id",
+    )?;
+    let rows = statement
+        .query_map([asset_id], |row| row.get::<_, String>(0))?
+        .collect::<Result<Vec<_>, _>>()?;
+    rows.iter().map(|json| decode_record(json)).collect()
+}
+
 pub fn load_rendition_by_variant(
     tx: &Transaction<'_>,
     asset_id: &str,
@@ -2213,6 +2288,18 @@ pub fn enqueue_work(
     lifecycle_generation: u64,
     now_ms: u64,
 ) -> SnapbackResult<String> {
+    enqueue_work_with_params(tx, kind, asset_id, attempt_id, lifecycle_generation, now_ms, None)
+}
+
+pub fn enqueue_work_with_params(
+    tx: &Transaction<'_>,
+    kind: &str,
+    asset_id: &str,
+    attempt_id: Option<&str>,
+    lifecycle_generation: u64,
+    now_ms: u64,
+    params: Option<Value>,
+) -> SnapbackResult<String> {
     let row = AssetWorkRowV1 {
         work_id: AssetFsStore::new_opaque_key(),
         kind: kind.to_owned(),
@@ -2229,6 +2316,7 @@ pub fn enqueue_work(
         created_at_ms: now_ms,
         updated_at_ms: now_ms,
         failure: None,
+        params,
     };
     tx.execute(
         "INSERT INTO _snapback_asset_work_ledger_v1 (
@@ -2322,6 +2410,10 @@ impl AssetTargetFactsV1 {
 }
 
 pub const ASSET_WORK_KIND_CONDEMNED_CLEANUP: &str = "condemned-object-cleanup";
+/// Optional declared image renditions produced off the canonical bytes by
+/// the runner; required ones ride finalization itself (LLP 0044 §step 8).
+pub const ASSET_WORK_KIND_IMAGE_VARIANT: &str = "image-variant";
+pub const ASSET_RECIPE_IMAGE_VARIANT_V1: &str = "image-variant.v1";
 #[cfg(test)]
 pub const ASSET_WORK_KIND_TEST_TRANSIENT_FAILURE: &str = "test-transient-failure";
 pub const ASSET_WORK_LEASE_MS: u64 = 60_000;

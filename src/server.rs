@@ -18116,14 +18116,17 @@ async fn asset_deliver_route(
     State(state): State<SharedSnapback>,
     Extension(authority): Extension<PreparedAuthority>,
     Path((id, variant)): Path<(String, String)>,
+    Query(query): Query<std::collections::HashMap<String, String>>,
     headers: HeaderMap,
 ) -> Result<Response, ApiError> {
     let range_header = headers
         .get(header::RANGE)
         .and_then(|value| value.to_str().ok())
         .map(str::to_owned);
+    // The declarative best-variant bound (LLP 0044): `best?maxWidth=N`.
+    let max_width = query.get("maxWidth").and_then(|value| value.parse::<u64>().ok());
     let outcome = with_snapback(&state, move |snapback| {
-        snapback.asset_deliver(&authority, &id, &variant, range_header.as_deref())
+        snapback.asset_deliver(&authority, &id, &variant, range_header.as_deref(), max_width)
     })
     .await?;
     let delivery = match outcome {

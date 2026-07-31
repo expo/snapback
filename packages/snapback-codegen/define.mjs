@@ -103,7 +103,7 @@ const ASSET_DELIVERY_KINDS = new Set(['public-immutable', 'private-signed', 'pri
 const ASSET_READ_ACCESS = new Set(['owner-only', 'via-references']);
 const ASSET_LOCATION_POLICIES = new Set(['strip', 'retain']);
 const ASSET_IMAGE_FIELDS = new Set(['location', 'variants']);
-const ASSET_VARIANT_FIELDS = new Set(['key', 'width']);
+const ASSET_VARIANT_FIELDS = new Set(['key', 'width', 'required']);
 // @ref LLP 0007#dated-amendment-asset-references-sharing-declarations-and-admission-2026-07-31
 //   — the sharing declaration reuses the shipped closed visibility union.
 const ASSET_SHARING_KINDS = new Set(['public-read', 'owner', 'membership']);
@@ -2562,7 +2562,10 @@ export function defineAssetUpload(spec) {
       exactObject(variant, `AssetUpload image.variants[${index}]`, ASSET_VARIANT_FIELDS);
       assert(typeof variant.key === 'string' && variant.key.length > 0, `AssetUpload image.variants[${index}].key is required`);
       assert(Number.isSafeInteger(variant.width) && variant.width > 0, `AssetUpload image.variants[${index}].width must be a positive integer`);
-      return { key: variant.key, width: variant.width };
+      assert(variant.required === undefined || typeof variant.required === 'boolean', `AssetUpload image.variants[${index}].required must be a boolean when present`);
+      // Absence stays canonical: an omitted `required` adds nothing to the
+      // policy identity, so pre-existing intent hashes are unchanged.
+      return { key: variant.key, width: variant.width, ...(variant.required === true ? { required: true } : {}) };
     });
     assert(variants.length <= 8, 'AssetUpload image.variants is bounded to 8');
     image = { location: spec.image.location, ...(variants.length > 0 ? { variants } : {}) };

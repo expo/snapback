@@ -172,6 +172,10 @@
         "key": {
           "type": "string"
         },
+        "required": {
+          "description": "A required variant is part of the asset-ready contract (LLP 0044\n§Lifecycle transitions); absent means optional, and absence is\ncanonical so pre-existing intent policy hashes are unchanged.",
+          "type": "boolean"
+        },
         "width": {
           "format": "uint64",
           "minimum": 0,
