@@ -448,6 +448,15 @@ export declare function defineSchema(
 ): unknown;
 export declare function defineQuery(spec: HostPlanQuerySpec): unknown;
 export declare function defineLiveQuery(spec: HostPlanQuerySpec): unknown;
+/**
+ * The generated declared job-status query (LLP 0070 first slice; LLP 0121
+ * option 3): an ordinary live query over one job's privacy-bounded lifecycle
+ * projection. Args are fixed (`jobId: v.string()`); requires the experimental
+ * `jobs_one_off_v1` target capability, acknowledged by codegen.
+ */
+export declare function defineJobStatusQuery(spec?: {
+  auth?: AuthRequirement;
+}): unknown;
 export declare function defineJsQuery(spec: JsQuerySpec): unknown;
 export declare function defineJsLiveQuery(spec: JsQuerySpec): unknown;
 export declare function defineSearchQuery(spec: {

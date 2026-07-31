@@ -241,7 +241,7 @@ fn target_capability_registry_is_exact_and_fail_closed() {
             "write_activity_v1",
         ]
     );
-    assert_eq!(TargetCapabilityId::ALL.len(), 20);
+    assert_eq!(TargetCapabilityId::ALL.len(), 21);
     for capability in TargetCapabilityId::ALL {
         assert_eq!(
             capability.as_str().parse::<TargetCapabilityId>(),
