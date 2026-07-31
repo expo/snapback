@@ -77,8 +77,9 @@ publication uses `@ccheever/snapback-*`.
 
 ## 1. Edit
 
-Change `schema.mjs`, `functions.mjs`, `handlers.mjs`, or `seed.json`
-([your first backend](./your-first-backend.md) covers each).
+Change `schema.mjs`, `functions.mjs`, or `seed.json`
+([your first backend](./your-first-backend.md) covers each; apps on the
+legacy bundled-module form also edit `handlers.mjs`).
 
 ## 2. Regenerate
 

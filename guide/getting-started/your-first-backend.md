@@ -4,12 +4,12 @@ id: getting-started.your-first-backend
 order: 1
 audience: agent-first
 capabilities: [backend.schema, backend.functions, backend.seed, backend.provisioning, backend.codegen]
-authorities: [llp/0004-application-data-api.rfc.md, llp/0037-schema-source-of-truth.decision.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs]
-examples: [demos/todo/snapback, demos/todo-v2/snapback]
+authorities: [llp/0004-application-data-api.rfc.md, llp/0037-schema-source-of-truth.decision.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs]
+examples: [demos/todo/snapback, demos/todo-v2/snapback, demos/signal-desk/snapback, packages/snapback-codegen/inline-result-contracts.test.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-26
+reviewed: 2026-07-31
 reviewed-commit: HEAD
 ---
 
@@ -33,8 +33,7 @@ behavior are in [the authoring loop](./the-authoring-loop.md).
 myapp/
   snapback/
     schema.mjs        # source-authored schema (the source of truth)
-    functions.mjs     # query/mutation/action definitions
-    handlers.mjs      # bundled ctx.db handler module (only if you use JS handlers)
+    functions.mjs     # query/mutation/action definitions, JS handlers inline
     seed.json         # deterministic declarative seed
     generated/
       artifacts.json  # committed deterministic review manifest
@@ -43,10 +42,12 @@ myapp/
     codegen-cache/    # complete graphs keyed by the complete inputsHash
 ```
 
-You write the first four. Codegen owns everything under `generated/` and
+You write the first three. Codegen owns everything under `generated/` and
 `.snapback/codegen-cache/`. Commit `generated/artifacts.json` and only
 consumer projections explicitly required by policy; see
-[generated artifact custody](./generated-artifacts.md).
+[generated artifact custody](./generated-artifacts.md). (Apps on the
+[legacy bundled-module form](#legacy-compatibility-bundled-handler-modules)
+author one more file, `handlers.mjs`.)
 
 ## Declare the schema
 
@@ -92,9 +93,10 @@ There are two authoring styles, freely mixed in one `functions.mjs`:
 1. **Declarative plans** (`defineQuery`, `defineLiveQuery`,
    `defineMutation`) — built from expression helpers, deterministic, no JS
    runtime involved.
-2. **JS handlers** (`defineJsQuery`, `defineJsLiveQuery`,
-   `defineJsMutation`, `defineAction`) — logic lives in a bundled
-   `handlers.mjs` and runs against the injected `ctx`.
+2. **Inline JS handlers** (`defineJsQuery`, `defineJsLiveQuery`,
+   `defineJsMutation`, `defineAction`) — one direct, self-contained
+   `handler:` expression colocated with its arguments, result contract, and
+   declared reads/writes, run against the injected `ctx`.
 
 A declarative query — filter, order, index, and the server-derived user id:
 
@@ -108,16 +110,31 @@ export const listTodosOnce = defineQuery({
 });
 ```
 
-A JS mutation — the definition names its handler and declares its writes:
+A JS mutation and a JS live query in the paved inline form — each definition
+carries its `handler` directly, next to `args`, `result`, and the declared
+`reads`/`writes`:
 
-```js source=demos/todo/snapback/functions.mjs
-export const createTodo = defineJsMutation({
-  args: { title: v.string() },
-  source: 'handlers.mjs',
-  exportName: 'createTodo',
-  writes: ['todos'],
-});
+```js source=packages/snapback-codegen/inline-result-contracts.test.mjs
+  export const createTodo = defineJsMutation({
+    args: { title: v.string() },
+    writes: ['todos'],
+    result: results.value(v.id('todos')),
+    handler: async (ctx, args) => ctx.db.insert('todos', { title: args.title }),
+  });
+  export const watchTodos = defineJsLiveQuery({
+    args: {},
+    reads: ['todos'],
+    result: results.documents('todos'),
+    handler: async (ctx) => ctx.db.query('todos').collect(),
+  });
 ```
+
+(That excerpt is transcluded from the codegen package's inline-handler
+conformance test over a minimal `todos` table, so this page breaks if the
+paved form drifts. Fuller inline examples — index-first lookups, auth
+scoping, multi-table writes — are transcluded from
+`demos/signal-desk/snapback/functions.mjs` on the reference pages linked
+below.)
 
 A declarative mutation, for comparison:
 
@@ -129,44 +146,41 @@ export const editTitle = defineMutation({
 });
 ```
 
-`demos/todo-v2/snapback/functions.mjs` is the fully declarative variant of
-the same app — the side-by-side worth reading when choosing a style.
-The reference pages cover the semantics shared by both styles:
-[queries](../backend/queries.md) and [mutations](../backend/mutations.md).
+Use a declarative plan when the plan vocabulary expresses the operation; use
+an inline JS handler for bounded logic it cannot express.
+`demos/todo-v2/snapback/functions.mjs` is a fully declarative app, and
+`demos/signal-desk/snapback/functions.mjs` mixes declarative live queries
+with inline JS mutations — the side-by-sides worth reading when choosing.
+The reference pages carry the complete semantics:
+[queries](../backend/queries.md), [mutations](../backend/mutations.md), and
+[actions](../backend/actions-and-fetch.md).
 
-## Write handlers (JS style only)
+## Inside a JS handler
 
-Handlers register on a global and receive only the injected `ctx` — no
-imports, no `process`/env, no timers, no network, no direct storage:
-
-```js source=demos/todo/snapback/handlers.mjs
-globalThis.__snapbackHandlers = {
-  async listTodos(ctx) {
-    return await ctx.db
-      .query('todos')
-      .withIndex('by_user')
-      .eq('userId', ctx.auth.userId)
-      .order('_createdAt', 'asc')
-      .collect();
-  },
-
-  async createTodo(ctx, args) {
-    const title = String(args.title ?? '').trim();
-    if (!title) throw new Error('todo title is required');
-    return await ctx.db.insert('todos', {
-      title,
-      completed: false,
-      userId: ctx.auth.userId,
-    });
-  },
-```
-
-The core `ctx.db` surface: `ctx.db.query(table).withIndex(name).eq(field, value)`
+A handler receives only the injected `ctx` and its validated `args` — no
+imports, no `process`/env, no timers, no network, no direct storage. The
+core `ctx.db` surface: `ctx.db.query(table).withIndex(name).eq(field, value)`
 `.in(field, [...])`.`order(field, dir)`.`collect()`, plus
 `ctx.db.get(table, id)`, `ctx.db.insert(table, values)`,
 `ctx.db.patch(table, id, values)`, `ctx.db.delete(table, id)`, and
 `ctx.auth.userId` — the server-derived identity
 ([never client-asserted](../auth/sessions-and-principals.md)).
+
+Inline v1 is deliberately self-contained: it does not capture imports,
+sibling helpers, or outer constants, so put all application logic and locals
+inside the direct handler expression. Class syntax, dynamic import, `eval`,
+and `Function` are refused during generation.
+[Queries](../backend/queries.md) covers the capture limits; the governing
+spec is
+[LLP 0108](repo:llp/0108-inline-handlers-and-result-contracts.spec.md).
+
+Declare what a handler returns. JS query and live-query handlers return an
+**array of rows** (`[]` for missing, `[row]` for present) described by
+`results.documents(table)` or `results.records(v.object({...}))`; mutations
+and actions use `results.value(validator)` or `results.document(table)`.
+Omitting `result` is an explicit degraded `unknown` contract. The complete
+result-contract vocabulary and runtime-validation rules are on
+[queries](../backend/queries.md) and [mutations](../backend/mutations.md).
 
 Membership declarations additionally generate query-side
 `ctx.permissions.<declaration>` checks and mutation-only
@@ -255,12 +269,68 @@ Continue with [the authoring loop](./the-authoring-loop.md) for the full
 edit-regenerate-test cycle, and
 [testing/acceptance](../testing/acceptance.md) for the harness.
 
+## Legacy compatibility: bundled handler modules
+
+Before inline handlers landed, the JS style split every definition from its
+logic: the definition names a bundled module and export
+(`source` / `exportName`), and the logic registers on a global in a separate
+authored `handlers.mjs` next to `functions.mjs`. This form remains fully
+supported — `demos/todo` still uses it — but it is the compatibility lane,
+not the paved path for new work.
+
+The definition names its handler and declares its writes:
+
+```js source=demos/todo/snapback/functions.mjs
+export const createTodo = defineJsMutation({
+  args: { title: v.string() },
+  source: 'handlers.mjs',
+  exportName: 'createTodo',
+  writes: ['todos'],
+});
+```
+
+The bundled module registers its logic on a global and receives the same
+injected `ctx` and bounded `ctx.db` surface as an inline handler:
+
+```js source=demos/todo/snapback/handlers.mjs
+globalThis.__snapbackHandlers = {
+  async listTodos(ctx) {
+    return await ctx.db
+      .query('todos')
+      .withIndex('by_user')
+      .eq('userId', ctx.auth.userId)
+      .order('_createdAt', 'asc')
+      .collect();
+  },
+
+  async createTodo(ctx, args) {
+    const title = String(args.title ?? '').trim();
+    if (!title) throw new Error('todo title is required');
+    return await ctx.db.insert('todos', {
+      title,
+      completed: false,
+      userId: ctx.auth.userId,
+    });
+  },
+```
+
+The `{ source, exportName }` lane remains useful for existing apps already
+on the split and for logic that genuinely needs imported or sibling helpers,
+which inline v1 deliberately refuses to capture. One definition declares
+`handler` or `source`/`exportName`, never both — mixed or missing
+discriminants fail generation with
+`SNAPBACK_FUNCTION_HANDLER_FORM_INVALID`.
+
 ## Anti-patterns
 
 - **Do not hand-wire HTTP glue for app data.** The generated `api.mjs`
   references plus the kit client (or the Contract adapter /
   React arm) are the product path; raw `fetch` against `/query/...` is how
   demos accumulated unauditable glue before the kit existed.
+- **Do not start new JS functions on the bundled `handlers.mjs` split.**
+  Inline `handler:` is the paved form; the `source`/`exportName` module lane
+  is compatibility for existing apps and for logic that needs sibling
+  modules.
 - **Do not edit anything under `generated/` or `.snapback/codegen-cache/`.**
   Regenerate. The server
   rejects stale artifacts loudly (`SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION`,

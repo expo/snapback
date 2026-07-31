@@ -370,7 +370,7 @@ relational query exist — and the remainder is CV-8, not a rediscovery.
 | CV-11 | Live/re-executing search story | D (P1) | 4 | 0073 + 0112/0114 | 0119 | L | Open (genuine design hole; design pass startable) |
 | CV-12a | Portable range filters | D (P1) | 4 (rider) | 0073 (new design) | — | M | Open |
 | CV-12b | Search target expansion | D (P2) | 4 (rider) | 0073 §adapter sequence; PG blocked on LLP 0046 | 0124 | M | Open (roadmap exists; execution only) |
-| CV-13 | Inline handlers primary in "Your first backend" | E (P2) | 5 | guide (0061) | 0122 | S | Open (guide-gap issue filed 2026-07-30) |
+| CV-13 | Inline handlers primary in "Your first backend" | E (P2) | 5 | guide (0061) | 0122 | S | Landed 2026-07-31 (first-backend page rewritten inline-primary, legacy split moved to a labeled compatibility section; guide checks green; ticket closed) |
 | CV-14 | Semantic review summary for dense manifests | E (P2) | — | custody owner (confirm at start; 0062 family) | — | M | Open (claimed by no move; rides its custody trigger) |
 | CV-15 | Resolve `unpinned` harness wording for exact binaries | E (P2) | 5 | 0010 harness | 0123 | S | Open |
 | CV-16 | Declaration-closed rejection unions as result-contract variants | B (P1) | 1 | 0108 family (0125 option 2) | 0125 | M | Confirmed (0127 decision 7, 2026-07-30) |

@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "1e27a41828a744a9957af0e9c3b9f780f310f052"
+    "commit": "427244d743c524970cd61927a9f35d2bbcc3e80b"
   },
   "nav": {
     ".": [
@@ -1480,7 +1480,7 @@
       ],
       "reviewed": "2026-07-28",
       "reviewedCommit": "HEAD",
-      "sha256": "ee493f2dd03c240ad21182c68d5127da58dfc9ae0d93c056d17dfbb338bcbdbb",
+      "sha256": "0007063aa3abaef2d91552165b282d3af6e0e37d9386521e7a36fc268e676603",
       "snippets": []
     },
     "getting-started.your-first-backend": {
@@ -1503,17 +1503,21 @@
         "llp/0004-application-data-api.rfc.md",
         "llp/0037-schema-source-of-truth.decision.md",
         "llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md",
+        "llp/0108-inline-handlers-and-result-contracts.spec.md",
         "packages/snapback-codegen/define.mjs",
+        "packages/snapback-codegen/inline-handlers.mjs",
         "packages/snapback-codegen/index.mjs",
         "packages/snapback-client/index.mjs"
       ],
       "examples": [
         "demos/todo/snapback",
-        "demos/todo-v2/snapback"
+        "demos/todo-v2/snapback",
+        "demos/signal-desk/snapback",
+        "packages/snapback-codegen/inline-result-contracts.test.mjs"
       ],
-      "reviewed": "2026-07-26",
+      "reviewed": "2026-07-31",
       "reviewedCommit": "HEAD",
-      "sha256": "00f595939f82418a532592c941d3783bc8f2f18eff7e7dd22455cf31c07203bc",
+      "sha256": "48fca1c6a5e64ce3378ac768267ea7c2c747e8df041996b563ca8588fa1f136f",
       "snippets": [
         {
           "lang": "js",
@@ -1528,17 +1532,12 @@
         {
           "lang": "js",
           "class": "transcluded",
-          "source": "demos/todo/snapback/functions.mjs"
+          "source": "packages/snapback-codegen/inline-result-contracts.test.mjs"
         },
         {
           "lang": "js",
           "class": "transcluded",
           "source": "demos/todo/snapback/functions.mjs"
-        },
-        {
-          "lang": "js",
-          "class": "transcluded",
-          "source": "demos/todo/snapback/handlers.mjs"
         },
         {
           "lang": "json",
@@ -1558,6 +1557,16 @@
           "lang": "js",
           "class": "transcluded",
           "source": "demos/todo/tests/acceptance/headless.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/todo/snapback/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/todo/snapback/handlers.mjs"
         }
       ]
     },
@@ -1588,7 +1597,7 @@
       ],
       "reviewed": "2026-07-27",
       "reviewedCommit": "8399da34f8bdebb2776395ee5751b57c2bd2e71f",
-      "sha256": "54ee11c0ea4ba554a8b067b0ef38d91643a7c704a0623cb25c930811c329b116",
+      "sha256": "5082769c6df84ac2bceacd68df1aa2eb8f685be37315798176286e85123a90a9",
       "snippets": []
     },
     "operating.admin-console": {
@@ -2202,5 +2211,5 @@
     "routes": 73,
     "hostOps": 19
   },
-  "contentHash": "0e4c1b798c1f1bf8fd83995933fc54c0f704392d1aaf82cc8ebf9a3184db0e5e"
+  "contentHash": "49d85c07a1877d9229522b6365630e3ca9f9578ccdb70e52b03d53c7ef5de1a0"
 }
