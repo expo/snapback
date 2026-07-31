@@ -131,9 +131,9 @@ try {
   // the CLI's ready file + database, so `auto` mode attaches to the
   // CLI-managed server instead of spawning one.
   const clientDir = join(root, 'client');
-  mkdirSync(join(clientDir, 'node_modules', '@snapback'), { recursive: true });
+  mkdirSync(join(clientDir, 'node_modules', '@expo'), { recursive: true });
   symlinkSync(join(repoRoot, 'packages', 'snapback-vite', 'node_modules', 'vite'), join(clientDir, 'node_modules', 'vite'));
-  symlinkSync(join(repoRoot, 'packages', 'snapback-vite'), join(clientDir, 'node_modules', '@snapback', 'vite'));
+  symlinkSync(join(repoRoot, 'packages', 'snapback-vite'), join(clientDir, 'node_modules', '@expo', 'snapback-vite'));
   writeFileSync(join(clientDir, 'index.html'), '<!doctype html><title>dev-loop client</title>\n');
   const clientPort = await freePort();
   writeFileSync(join(clientDir, 'client.mjs'), `
