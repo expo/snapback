@@ -5,15 +5,17 @@
 **Systems:** Authoring, Code generation, Runtime, Application data API, Search, Client integration, Contract, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-07-31 (v0.3, round-2 fixes — descriptor wire form frozen
-as a closed schema table with the registry's executable generation-time
-conformance gate; durable-job successor-replay rule decided, closing open
-question 5 with a proposed dated LLP 0070 amendment; hot-path budget
-preregistered numerically with a ceiling-reduction fallback; search
-version-skew guarantee restated per direction; relation-incarnation
-normalization corrected to the string node; option E reconciled to a
-distinct node kind; `resultOnly` churn narrowed to actual reachability;
-stale code cites refreshed against current main)
+**Revised:** 2026-07-31 (v0.4, round-3 fixes — successor-admission rule
+corrected against LLP 0070: every new successor job, verbatim-copy or
+migrated-args, operator-initiated or automatic, validates at its own
+enqueue against the then-current admitted artifact's contract, and only
+execution/retry attempts of the original immutable job inherit its
+enqueue-time validation (replay lane 3, Appendix C, acceptance 14, open
+question 5); the round-3 `v.literal(null)` reachability claim
+re-verified empirically and narrowed — it clears the argument gate's
+primitive map but refuses on the object-fields requirement, so
+`resultOnly` churn stays scoped to `v.finiteReal`; two cites the v0.3
+sweep missed refreshed: client search pin, 0108 formula)
 **Related:** LLP 0004, LLP 0037, LLP 0051, LLP 0070, LLP 0073, LLP 0093, LLP 0108, LLP 0110, LLP 0115, LLP 0117, LLP 0127, LLP 0130
 
 ## Summary
@@ -132,15 +134,23 @@ the builders' dead `resultOnly` metadata — carried by five builders:
 `finiteReal`, `null`, `literal`, `array`, `union`
 (`packages/snapback-codegen/define.mjs:228,239,249,273,282`; no readers
 repo-wide, verified in LLP 0117) — is deleted from all five rather than
-becoming load-bearing. Reachability, stated exactly: of the five, only
-`v.finiteReal` passes today's argument gate, through its `number`/`Real`
-classification (index.mjs:3326); `v.null`, `v.literal`, `v.array`, and
-`v.union` are rejected at argument positions today, so the deletion's
-immediate silent churn is scoped to functions declaring `v.finiteReal`
-args. The deeper ground is general: a witness whose preimage is the
-internal builder spelling moves whenever any builder metadata
-(`fieldType`, `resultKind`, `resultOnly`) is refactored (§Identity and
-hashing).
+becoming load-bearing. Reachability, re-verified empirically in round
+3: of the five, only `v.finiteReal` passes today's argument gate,
+through its `number`/`Real` classification (index.mjs:3326). The
+round-3 review flagged `v.literal(null)` as a second admitted builder —
+its `object`/`Json` classification does clear the gate's primitive map
+(index.mjs:3323) — but the gate's next check requires every
+`primitive: 'object'` validator to carry a `fields` object
+(index.mjs:3342), which literal builders never construct, so
+`v.literal(null)` refuses `FUNCTION_INVALID_VALIDATOR` ("object
+validator must have a fields object"; confirmed by running `generate`
+against current main). `v.null`, every other `v.literal`, `v.array`,
+and `v.union` refuse at the primitive map itself, so the deletion's
+immediate silent churn stays scoped to functions declaring
+`v.finiteReal` args. The deeper ground is general: a witness whose
+preimage is the internal builder spelling moves whenever any builder
+metadata (`fieldType`, `resultKind`, `resultOnly`) is refactored
+(§Identity and hashing).
 
 **Host-plan interaction.** Host-plan value expressions already receive
 structured JSON — `ValueExpr::Args` yields the whole args object and
@@ -229,7 +239,7 @@ not deferred to the implementation:
 - **Ordering and canonicalization.** The carried JSON preserves
   declaration order in every `fields` array, and projections read it
   in that order. The witness preimage is the canonical form under LLP
-  0108's rule (0108:381–382 is the result-side formula):
+  0108's rule (0108:380–381 is the result-side formula):
   `argsContractHash = "sha256:" +
   hex(sha256(UTF8("snapback:function-args:v2\n") ||
   JCS(FunctionArgsContractV1)))` — RFC 8785 JCS, lowercase hex.
@@ -322,8 +332,9 @@ that exception into one seam:
   search invocation, offline-outbox replay (a queued client mutation
   arrives as a fresh server mutation request and validates as one —
   replay lane 1 below), and scheduled-work admission at enqueue time
-  (execution-time posture: enqueue-validated bytes are authoritative —
-  replay lane 3, decided) — before
+  (execution-time posture: enqueue-validated bytes are authoritative
+  for that job's own attempts; every successor job validates at its
+  own enqueue — replay lane 3, decided) — before
   handler dispatch, plan execution, or any buffered write. All evaluator
   lanes (native, IR, buffered, hosted) see the same seam and the same
   corpus, mirroring LLP 0108's runtime-validation posture.
@@ -378,24 +389,33 @@ that exception into one seam:
      identity posture; re-validating history against a newer contract
      would be a different (and wrong) claim.
   3. **Durable jobs validate at enqueue; enqueue-time validation is
-     authoritative for the job's lifetime (decided; open question 5
-     closed).** `ctx.jobs.enqueue` validates the canonical argument
-     bytes at enqueue time, inside the enclosing transaction (LLP 0070
-     already requires canonical validator-checked argument bytes and
-     their digest). Execution and retry attempts of that job never
-     re-validate args shape: they re-execute against the retained
-     validated bytes under LLP 0070's immutable-job model, even when
-     the app's contract narrows between enqueue and execution — the
-     same history posture as lane 2. A successor job that copies the
-     predecessor's retained canonical bytes verbatim inherits their
-     validated status (0070's successor admission still rechecks
-     artifact and authorization; args shape is not re-derived).
-     Operator resubmission, and any successor that migrates or edits
-     the argument bytes, is a fresh invocation: it validates at its
-     own enqueue against the then-current admitted contract, and
-     identical bytes a narrowed contract no longer admits refuse
-     there. The rule lands in LLP 0070 as Appendix C's dated amendment
-     at this Spec's acceptance; acceptance 14 pins the matrix.
+     authoritative for that job's own attempts (decided; open
+     question 5 closed, corrected in v0.4).** `ctx.jobs.enqueue`
+     validates the canonical argument bytes at enqueue time, inside
+     the enclosing transaction (LLP 0070 already requires canonical
+     validator-checked argument bytes and their digest). Execution and
+     retry attempts of that same immutable job never re-validate args
+     shape: they re-execute against the retained validated bytes under
+     LLP 0070's immutable-job model, even when the app's contract
+     narrows between enqueue and execution — the same history posture
+     as lane 2. The inheritance boundary is the job id. Every
+     successor job is a new job with its own enqueue — LLP 0070's
+     replay transactionally creates a fresh job id and rechecks
+     current artifact admission (0070:124–131), and operator replay is
+     itself successor creation that may copy canonical bytes verbatim
+     — so every successor, verbatim-copy or migrated-args,
+     operator-initiated or automatic, validates its argument bytes at
+     its own enqueue against the then-current admitted artifact's
+     contract. Identical bytes a narrowed contract no longer admits
+     refuse there; a predecessor's validation authorizes nothing
+     beyond that predecessor's own execution and retry attempts.
+     (v0.3's verbatim-copy inheritance is withdrawn: operator replay
+     can itself be a verbatim copy, and inheriting would let a
+     predecessor's validation admit a new job under a possibly-
+     narrowed current artifact, contradicting 0070's successor
+     admission.) The rule lands in LLP 0070 as Appendix C's dated
+     amendment at this Spec's acceptance; acceptance 14 pins the
+     matrix.
 - **Capability posture.** Targets advertise `args_contract_v1`. Every
   v2-generated app requires it app-wide: every function manifest carries
   the v2 descriptor — scalar-only functions and empty argument roots
@@ -493,10 +513,13 @@ projection is the bounds-blind `shape`/`name`/`optional` descriptor
   mandated deletion of the dead `resultOnly` metadata (§One argument
   grammar) would silently churn v1 hashes for every function declaring
   `v.finiteReal` args — the one flagged builder today's argument gate
-  admits — identity drift with zero contract change; and the same
-  exposure holds for any refactor of the `fieldType`/`resultKind`
-  metadata the preimage also carries. A witness hashed over an internal
-  spelling moves whenever the builders are refactored.
+  admits end-to-end (round-3-verified: `v.literal(null)` clears the
+  primitive map but refuses on the object-fields requirement, §One
+  argument grammar) — identity drift with zero contract change; and
+  the same exposure holds for any refactor of the
+  `fieldType`/`resultKind` metadata the preimage also carries. A
+  witness hashed over an internal spelling moves whenever the builders
+  are refactored.
 
 **Re-keyed witness.** The v2 witness is computed over the canonical form
 of `FunctionArgsContractV1` itself — the carried descriptor becomes the
@@ -551,7 +574,7 @@ four verified consumers; each gets a normative migration rule:
    skew refusal in the one direction new code can promise.** The
    client hard-pins the v1 search-request digest and compares per
    call, today throwing a plain `TypeError` on mismatch
-   (snapback-client/index.mjs:147, compared at 167). The pin is hit
+   (snapback-client/index.mjs:167, compared at 187). The pin is hit
    twice — by the re-key and by CV-5's own
    `v.json()`→`PlatformSchemaRef` descriptor change. Normative: the
    pinned constant becomes a generated artifact emitted from the same
@@ -760,14 +783,16 @@ that can fail:
     consequence), the owning parser's stable code for
     `PlatformSchemaRef`-delegated refusals, each carrying the bounded
     pointer.
-14. **Durable-job lifetime authority.** With a job enqueued under
+14. **Durable-job attempt authority.** With a job enqueued under
     contract generation G and the contract narrowed before execution:
     the job executes and retries against its retained validated bytes
-    with no shape revalidation; a successor copying those bytes
-    verbatim likewise executes; operator resubmission of the identical
-    bytes refuses at its fresh enqueue under the narrowed contract;
-    and an invalid payload refuses at the original enqueue with no job
-    row created (replay lane 3; Appendix C).
+    with no shape revalidation; every successor creation validates at
+    its own enqueue — a successor copying those bytes verbatim, a
+    migrated-args successor, and operator resubmission of the
+    identical bytes alike refuse under the narrowed contract, with no
+    successor job row created and the predecessor left immutable; and
+    an invalid payload refuses at the original enqueue with no job row
+    created (replay lane 3; Appendix C).
 
 ## Appendix A — proposed LLP 0004 dated alignment
 
@@ -841,16 +866,18 @@ document.
 > argument bytes validate against the function's declared argument
 > contract at enqueue time, inside the enclosing transaction, refusing
 > `SNAPBACK_FUNCTION_ARGS_CONTRACT_VIOLATION` before any job row
-> exists. Enqueue-time validation is authoritative for the job's
-> lifetime: execution and retry attempts re-execute the retained
-> validated bytes and never re-derive args shape; a successor job that
-> copies the predecessor's canonical bytes verbatim inherits their
-> validated status, while artifact and authorization admission are
-> rechecked as this RFC already requires. Operator resubmission, and
-> any successor that migrates or edits argument bytes, is a fresh
-> admission validating against the then-current admitted contract at
-> its own enqueue. History is never revalidated against a newer
-> contract.
+> exists. Enqueue-time validation is authoritative for that job's own
+> execution and retry attempts: they re-execute the retained validated
+> bytes and never re-derive args shape. Every successor job is a fresh
+> admission: replay already creates a fresh job id and rechecks
+> current artifact and authorization admission under this RFC, and the
+> successor's argument bytes — copied verbatim or explicitly migrated,
+> operator-initiated or domain reconciliation — validate at the
+> successor's own enqueue against the then-current admitted artifact's
+> contract. A predecessor's enqueue-time validation authorizes only
+> that predecessor's attempts, never a new job. History is never
+> revalidated against a newer contract: attempts of an existing job
+> are history; a successor job is not.
 
 ## Open questions
 
@@ -887,12 +914,18 @@ places them here, outside the ten author-adjudicated decisions):
 4. **Structured-leaf plan operators.** Does any host-plan operator need
    array/membership semantics over structured args in the near term, or
    does scalar-leaf comparison hold until CV-4b?
-5. **Scheduled-execution revalidation — closed in v0.3.** Decided:
-   enqueue-time validation is authoritative for the job's lifetime.
-   Execution, retry, and verbatim-copy successors never re-derive args
-   shape; operator resubmission and migrated-args successors validate
-   as fresh admissions against the then-current contract (replay lane
-   3; acceptance 14). The rule lands in LLP 0070 through Appendix C's
+5. **Scheduled-execution revalidation — closed in v0.3, corrected in
+   v0.4.** Decided: enqueue-time validation is authoritative for the
+   enqueued job's own execution and retry attempts, which never
+   re-derive args shape. Every new successor job — verbatim-copy or
+   migrated-args, operator-initiated or automatic — validates at its
+   own enqueue against the then-current admitted artifact's contract
+   (replay lane 3; acceptance 14). v0.3's verbatim-copy inheritance
+   contradicted LLP 0070's successor admission (0070:124–131 —
+   operator replay is itself successor creation that may copy bytes
+   verbatim) and would have let a predecessor's validation admit a
+   new job under a possibly-narrowed contract; round 3 caught it and
+   it is withdrawn. The rule lands in LLP 0070 through Appendix C's
    dated amendment at acceptance.
 6. **Unchanged-lane debt.** Ephemeral scope/value and legacy `result`
    positions keep the scalar map in v1; decide whether they widen with
@@ -925,7 +958,28 @@ documenting the pre-v2 client's uncoded `TypeError` as the legacy mode;
 relation-incarnation normalization is corrected to the string node with
 the witness collision accepted; option E is reconciled to a distinct
 node kind; the `resultOnly` churn claim is narrowed to `v.finiteReal`
-reachability; and every stale code cite is refreshed against current
-main. A focused Codex round-3 delta review follows; the loop should
-adjudicate open questions 1–2 before implementation starts; acceptance
-criteria are §Acceptance verbatim.
+reachability; and stale code cites are refreshed against current main
+(two survived that sweep and are corrected in v0.4).
+
+Revised to v0.4 the same day after the round-3 reviews — the Codex
+round-3 delta review, Round 3 of
+llp/reviews/0131-structured-argument-contracts.codex.md (NOT READY,
+one MATERIAL, one MINOR), and the Fable round-3 fix-verification in
+llp/reviews/0131-structured-argument-contracts.fable.md (READY with
+one hygiene residual). The successor rule is
+corrected against LLP 0070: every new successor job — verbatim-copy or
+migrated-args, operator-initiated or automatic — validates at its own
+enqueue against the then-current admitted artifact's contract, and only
+execution/retry attempts of the original immutable job inherit its
+enqueue-time validation (replay lane 3, Appendix C, acceptance 14, open
+question 5). The round-3 `v.literal(null)` reachability claim was
+re-verified empirically and narrowed rather than adopted: it clears the
+argument gate's primitive map (index.mjs:3323) but refuses on the
+object-fields requirement (index.mjs:3342), so `resultOnly` churn
+stays scoped to `v.finiteReal` (§One argument grammar). The two cites
+the v0.3 sweep missed are refreshed: the client search pin moved to
+snapback-client/index.mjs:167 (compared at 187) under the LLP 0129
+client commits, and the 0108 result-formula cite is corrected to
+0108:380–381. A focused Codex round-4 delta review follows; the loop
+should adjudicate open questions 1–2 before implementation starts;
+acceptance criteria are §Acceptance verbatim.
