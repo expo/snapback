@@ -12,6 +12,7 @@ const suites = [
   'demos/dispatch-board/tests/acceptance/headless.mjs',
   'demos/pulse-monitor/tests/acceptance/headless.mjs',
   'demos/public-dashboard/tests/acceptance/headless.mjs',
+  'demos/public-dashboard/tests/acceptance/offline-local-first.mjs',
   'demos/access-desk/tests/acceptance/headless.mjs',
 ];
 

@@ -1,0 +1,162 @@
+{
+  "title": "public-dashboard / offline-local-first (JS arm)",
+  "passed": 9,
+  "skipped": 0,
+  "failed": 0,
+  "total": 9,
+  "ok": true,
+  "results": [
+    {
+      "name": "default persistence path resolves a durable store and persists the eligible query",
+      "ok": true,
+      "details": {
+        "store": {
+          "source": "default",
+          "implementation": "file",
+          "durable": true,
+          "reason": null
+        },
+        "entries": 1
+      }
+    },
+    {
+      "name": "non-eligible query refuses retention with a named reason (LLP 0053 boundary)",
+      "ok": true,
+      "details": {
+        "retention": {
+          "retainable": false,
+          "code": "SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE",
+          "reason": "the server minted no resume token: not an authority-independent closed-inputs live query (LLP 0090)"
+        }
+      }
+    },
+    {
+      "name": "cold relaunch with the backend down renders retained rows (Diary 0027 comparator)",
+      "ok": true,
+      "details": {
+        "firstFrame": {
+          "kind": "persisted",
+          "freshness": "retained",
+          "rows": 2
+        },
+        "connection": "stale"
+      }
+    },
+    {
+      "name": "offline create/update queue durably with client-minted ids",
+      "ok": true,
+      "details": {
+        "queuedCreate": {
+          "queued": true,
+          "clientMutationId": "cm_51c6a14398a742f4819fa593db5b385b",
+          "sequence": 1
+        },
+        "queuedUpdate": {
+          "queued": true,
+          "clientMutationId": "cm_898c7efef65043df9cd4bd60c3ca9941",
+          "sequence": 2
+        }
+      }
+    },
+    {
+      "name": "a relaunch with pending intent renders nothing ahead of the full resync (outbox rule)",
+      "ok": true,
+      "details": {
+        "refused": true
+      }
+    },
+    {
+      "name": "server restart settles the queued intent exactly-once through the outbox",
+      "ok": true,
+      "details": {
+        "rows": [
+          {
+            "_id": "019fb74e-b0c8-7452-a174-f07e1be14705",
+            "_version": 2,
+            "_createdAt": 1785486815432,
+            "_updatedAt": 1785486815432,
+            "dashboardId": "ops",
+            "label": "error_rate",
+            "value": 3
+          },
+          {
+            "_id": "metric_ops_latency",
+            "_version": 1,
+            "_createdAt": 1785486803601,
+            "_updatedAt": 1785486803601,
+            "dashboardId": "ops",
+            "label": "latency_ms",
+            "value": 42
+          },
+          {
+            "_id": "metric_ops_uptime",
+            "_version": 3,
+            "_createdAt": 1785486803601,
+            "_updatedAt": 1785486815445,
+            "dashboardId": "ops",
+            "label": "uptime_pct",
+            "value": 98
+          }
+        ],
+        "diagnostics": [
+          "SNAPBACK_OFFLINE_MUTATION_QUEUED",
+          "SNAPBACK_OFFLINE_MUTATION_QUEUED",
+          "SNAPBACK_OFFLINE_MUTATION_REPLAYED",
+          "SNAPBACK_OFFLINE_MUTATION_REPLAYED"
+        ]
+      }
+    },
+    {
+      "name": "duplicate delivery of a settled id returns the original settlement (exactly-once ledger)",
+      "ok": true,
+      "details": {
+        "duplicate": {
+          "version": 2,
+          "changed_count": 1,
+          "result": "019fb74e-b0c8-7452-a174-f07e1be14705",
+          "ctx_ledger": {
+            "version": 1,
+            "ids": [
+              "019fb74e-b0c8-7452-a174-f07e1be14705"
+            ],
+            "now": 1785486815432
+          },
+          "receipt": {
+            "kind": "mutation",
+            "mutationId": "cm_51c6a14398a742f4819fa593db5b385b",
+            "mutation": "recordMetric",
+            "outcome": "confirmed",
+            "rollbackReason": null,
+            "affectedTables": [
+              "metrics"
+            ],
+            "snapshotVersion": 2,
+            "transport": "http",
+            "correlation": null,
+            "receivedAtMs": 1785486816498
+          }
+        }
+      }
+    },
+    {
+      "name": "cold relaunch after restart renders retained rows first, then settles current",
+      "ok": true,
+      "details": {
+        "updateKinds": [
+          "persisted"
+        ],
+        "rows": 3
+      }
+    },
+    {
+      "name": "claims match acceptance: no Parity claim, retained is marked, memory fallback declared",
+      "ok": true,
+      "details": {
+        "optOut": true
+      }
+    }
+  ],
+  "expectedChecks": 9,
+  "cleanupErrors": [],
+  "cleanupErrorCount": 0
+}
