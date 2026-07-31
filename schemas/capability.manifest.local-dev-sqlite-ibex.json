@@ -58,6 +58,7 @@
       "graceMinMs": 60000
     },
     "resumableLane": "tus-1.0.0",
+    "seedAssetFixtures": true,
     "signedUrlDefaultTtlMs": 900000,
     "signedUrlMaxTtlMs": 86400000,
     "tombstoneRetentionMs": 604800000,

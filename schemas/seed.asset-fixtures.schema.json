@@ -1,0 +1,61 @@
+{
+  "$defs": {
+    "SeedAssetFixtureV1": {
+      "additionalProperties": false,
+      "description": "One committed binary fixture (LLP 0109 §17): bytes live as a file with\nthe app's seed assets, never inside any artifact; `source_digest` covers\nthe committed source bytes (canonical published bytes may differ after\nprivacy rewriting — that is the trusted path, not drift).",
+      "properties": {
+        "file": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "mediaType": {
+          "type": "string"
+        },
+        "sourceDigest": {
+          "type": "string"
+        },
+        "upload": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "upload",
+        "file",
+        "mediaType",
+        "sourceDigest"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/seed.asset-fixtures.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "appId": {
+      "type": "string"
+    },
+    "fixtures": {
+      "items": {
+        "$ref": "#/$defs/SeedAssetFixtureV1"
+      },
+      "type": "array"
+    },
+    "fixturesDigest": {
+      "type": "string"
+    },
+    "formatVersion": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "formatVersion",
+    "appId",
+    "fixturesDigest",
+    "fixtures"
+  ],
+  "title": "SeedAssetFixturesV1",
+  "type": "object"
+}

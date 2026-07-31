@@ -1897,3 +1897,26 @@ S3 store qualification, store migration, and the
 LLP 0070 runner generation, each already scoped as later capabilities
 above. The document stays Accepted; Implemented awaits the client
 remainder and a second target's evidence.
+
+### Implementation status: seed asset fixtures (2026-07-31, W2f)
+
+The LLP 0109 §17 dated amendment landed with its implementation: the
+separately versioned `SeedAssetFixturesV1` artifact (JCS digest identity,
+committed-file custody, no artifact-borne bytes), codegen emission of
+`seed.asset-fixtures.artifact.json` with intent-binding and
+placeholder-placement validation, the idempotent admin-gated
+`asset.ensureSeedFixture` host operation riding the shared trusted
+ingestion engine (fixtures obey ceilings, privacy policy, capability
+gates, and ordinary logical quota — no seed bypass), and
+`{"$assetFixture": id}` placeholder resolution inside the install
+transaction with refuse-whole semantics on any missing, stale, or
+misplaced binding. App reset now clears every asset system table and the
+store's staging/blob files — asset bytes are app state; previously they
+survived reset. Fixture-bearing seeds decompose reset-install into
+clear + fixture ensure + install (single-transaction resetInstall carries
+no placeholders). §Seeds and agent DX's "until then" clause is retired;
+the `seedAssetFixtures` capability fact reports support (local true,
+every other target Missing). Managed-CLI JS wiring (driving fixture
+ensure before `ensureVersionedSeed` and the reset decomposition) is the
+recorded remainder — it touches the client packages the concurrent Lane 1
+owns.

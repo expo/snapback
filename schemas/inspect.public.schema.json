@@ -357,6 +357,11 @@
         "resumableLane": {
           "type": "string"
         },
+        "seedAssetFixtures": {
+          "default": false,
+          "description": "Seed binary fixtures (LLP 0109 §17): idempotent\n`asset.ensureSeedFixture` ingestion plus placeholder resolution in\nthe install transaction. `false` is the honest Missing report.",
+          "type": "boolean"
+        },
         "signedUrlDefaultTtlMs": {
           "description": "`private-signed` issuance TTLs: the default applied when a request\nnames none, and the declared maximum a request may not exceed.",
           "format": "uint64",

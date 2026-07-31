@@ -1708,6 +1708,11 @@ impl AssetFsStore {
         Ok(self.blobs_dir.join(validated_key(physical_key)?))
     }
 
+    #[cfg(test)]
+    pub fn blobs_dir_for_test(&self) -> &Path {
+        &self.blobs_dir
+    }
+
     /// Destructive-reset companion (LLP 0109 §17): after the reset
     /// transaction clears every asset system table, the store's files are
     /// unreferenced by construction, so both namespaces empty wholesale.

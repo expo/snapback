@@ -42,6 +42,62 @@
         "tables"
       ],
       "type": "object"
+    },
+    "SeedAssetFixtureV1": {
+      "additionalProperties": false,
+      "description": "One committed binary fixture (LLP 0109 §17): bytes live as a file with\nthe app's seed assets, never inside any artifact; `source_digest` covers\nthe committed source bytes (canonical published bytes may differ after\nprivacy rewriting — that is the trusted path, not drift).",
+      "properties": {
+        "file": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "mediaType": {
+          "type": "string"
+        },
+        "sourceDigest": {
+          "type": "string"
+        },
+        "upload": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "upload",
+        "file",
+        "mediaType",
+        "sourceDigest"
+      ],
+      "type": "object"
+    },
+    "SeedAssetFixturesV1": {
+      "additionalProperties": false,
+      "properties": {
+        "appId": {
+          "type": "string"
+        },
+        "fixtures": {
+          "items": {
+            "$ref": "#/$defs/SeedAssetFixtureV1"
+          },
+          "type": "array"
+        },
+        "fixturesDigest": {
+          "type": "string"
+        },
+        "formatVersion": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "formatVersion",
+        "appId",
+        "fixturesDigest",
+        "fixtures"
+      ],
+      "type": "object"
     }
   },
   "$id": "https://schemas.snapback.dev/snapback.v0/seed.install-request.schema.json",
@@ -50,6 +106,17 @@
   "properties": {
     "artifact": {
       "$ref": "#/$defs/SeedArtifactV1"
+    },
+    "assetFixtures": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SeedAssetFixturesV1"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "LLP 0109 §17: fixture-bearing seeds attach the fixtures artifact so\nplaceholder resolution can bind ingested assets inside the install\ntransaction. Absent for ordinary seeds; old digests are unchanged."
     },
     "formatVersion": {
       "type": "string"

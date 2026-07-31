@@ -25260,6 +25260,249 @@ globalThis.__snapbackHandlers = {
         );
     }
 
+    fn asset_seed_fixture_input(fixture_id: &str, bytes: &[u8]) -> serde_json::Value {
+        use sha2::Digest as _;
+        serde_json::json!({
+            "fixtureId": fixture_id,
+            "upload": "avatarUpload",
+            "sourceDigest": format!(
+                "sha256:{}",
+                sha2::Sha256::digest(bytes)
+                    .iter()
+                    .map(|byte| format!("{byte:02x}"))
+                    .collect::<String>()
+            ),
+            "mediaType": "application/octet-stream",
+            "bytesBase64":
+                base64::Engine::encode(&base64::engine::general_purpose::STANDARD, bytes),
+        })
+    }
+
+    /// @ref LLP 0109#17-dated-amendment-seed-asset-fixtures-2026-07-31 —
+    ///   ingestion is idempotent on (fixtureId, sourceDigest); changed bytes
+    ///   ingest a new asset and repoint the mapping; a digest lie refuses.
+    #[test]
+    fn asset_seed_fixture_ensure_is_idempotent_and_reingests_on_change() {
+        let mut snapback = asset_test_snapback();
+        let first = snapback
+            .asset_host_op(
+                "asset.ensureSeedFixture",
+                Some(&asset_seed_fixture_input("welcome-photo", b"fixture-bytes-v1")),
+                Some("user_a"),
+                ServerProfile::Dev,
+            )
+            .expect("first ingest");
+        assert_eq!(first["reused"], serde_json::json!(false));
+        let asset_a = first["assetId"].as_str().expect("asset id").to_owned();
+
+        let again = snapback
+            .asset_host_op(
+                "asset.ensureSeedFixture",
+                Some(&asset_seed_fixture_input("welcome-photo", b"fixture-bytes-v1")),
+                Some("user_a"),
+                ServerProfile::Dev,
+            )
+            .expect("idempotent re-ensure");
+        assert_eq!(again["reused"], serde_json::json!(true));
+        assert_eq!(again["assetId"].as_str(), Some(asset_a.as_str()));
+
+        let changed = snapback
+            .asset_host_op(
+                "asset.ensureSeedFixture",
+                Some(&asset_seed_fixture_input("welcome-photo", b"fixture-bytes-v2")),
+                Some("user_a"),
+                ServerProfile::Dev,
+            )
+            .expect("changed bytes re-ingest");
+        assert_eq!(changed["reused"], serde_json::json!(false));
+        let asset_b = changed["assetId"].as_str().expect("asset id").to_owned();
+        assert_ne!(asset_a, asset_b, "changed bytes are a new asset");
+
+        let mut lying = asset_seed_fixture_input("welcome-photo", b"fixture-bytes-v2");
+        lying["sourceDigest"] = serde_json::json!(
+            "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+        );
+        let refusal = snapback
+            .asset_host_op(
+                "asset.ensureSeedFixture",
+                Some(&lying),
+                Some("user_a"),
+                ServerProfile::Dev,
+            )
+            .expect_err("digest lie refuses");
+        assert_eq!(refusal.diagnostic.code, "SNAPBACK_ASSET_SEED_FIXTURE_DIGEST_MISMATCH");
+    }
+
+    /// The full LLP 0109 §17 install path: placeholder resolution binds the
+    /// ingested asset inside the install transaction (edge committed by the
+    /// ordinary seed-path admission), and every refusal is whole — zero rows.
+    #[test]
+    fn versioned_seed_with_fixture_placeholders_installs_and_refuses_whole() {
+        use crate::seed_identity::{
+            InstallSeedRequestV1, SEED_ARTIFACT_FORMAT_V1, SEED_ASSET_FIXTURES_FORMAT_V1,
+            SEED_INSTALL_REQUEST_FORMAT_V1, SeedArtifactV1, SeedAssetFixtureV1,
+            SeedAssetFixturesV1, artifact_digest, asset_fixtures_digest,
+        };
+        use std::collections::BTreeMap;
+
+        let mut snapback = LocalSnapback::memory().expect("memory snapback");
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            app_id: "app".to_owned(),
+            asset_upload_intents: vec![asset_test_intent()],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "intent manifest must load: {diagnostics:?}"
+        );
+        let mut schema = asset_reference_schema();
+        schema.app_id = "app".to_owned();
+        schema.schema_hash = Some("sha256:test-schema".to_owned());
+        snapback.db.apply_schema(schema).expect("schema");
+
+        let bytes = b"seeded-photo";
+        let ingested = snapback
+            .asset_host_op(
+                "asset.ensureSeedFixture",
+                Some(&asset_seed_fixture_input("welcome-photo", bytes)),
+                Some("user_a"),
+                ServerProfile::Dev,
+            )
+            .expect("fixture ingests");
+        let asset_id = ingested["assetId"].as_str().expect("asset id").to_owned();
+
+        let make_artifact = |version: &str| {
+            let mut artifact = SeedArtifactV1 {
+                format_version: SEED_ARTIFACT_FORMAT_V1.to_owned(),
+                app_id: "app".to_owned(),
+                seed_version: version.to_owned(),
+                seed_digest: String::new(),
+                tables: BTreeMap::from([(
+                    "posts".to_owned(),
+                    vec![serde_json::Map::from_iter([
+                        ("_id".to_owned(), serde_json::json!("welcome")),
+                        ("title".to_owned(), serde_json::json!("Welcome")),
+                        (
+                            "photo".to_owned(),
+                            serde_json::json!({ "$assetFixture": "welcome-photo" }),
+                        ),
+                    ])],
+                )]),
+            };
+            artifact.seed_digest = artifact_digest(&artifact).expect("digest");
+            artifact
+        };
+        let fixtures = {
+            use sha2::Digest as _;
+            let mut fixtures = SeedAssetFixturesV1 {
+                format_version: SEED_ASSET_FIXTURES_FORMAT_V1.to_owned(),
+                app_id: "app".to_owned(),
+                fixtures_digest: String::new(),
+                fixtures: vec![SeedAssetFixtureV1 {
+                    id: "welcome-photo".to_owned(),
+                    upload: "avatarUpload".to_owned(),
+                    file: "seed-assets/welcome.bin".to_owned(),
+                    media_type: "application/octet-stream".to_owned(),
+                    source_digest: format!(
+                        "sha256:{}",
+                        sha2::Sha256::digest(bytes)
+                            .iter()
+                            .map(|byte| format!("{byte:02x}"))
+                            .collect::<String>()
+                    ),
+                }],
+            };
+            fixtures.fixtures_digest =
+                asset_fixtures_digest(&fixtures).expect("fixtures digest");
+            fixtures
+        };
+
+        // Placeholder without the fixtures artifact refuses whole.
+        let unresolved = snapback
+            .ensure_versioned_seed(InstallSeedRequestV1 {
+                format_version: SEED_INSTALL_REQUEST_FORMAT_V1.to_owned(),
+                operation_id: "01982c7a-7c00-7000-8000-00000000f001".to_owned(),
+                artifact: make_artifact("v1"),
+                requested_mode: crate::manifest::AuthMode::Dev,
+                asset_fixtures: None,
+            })
+            .expect_err("placeholder without fixtures refuses");
+        assert_eq!(unresolved.diagnostic.code, "SNAPBACK_SEED_ASSET_FIXTURE_UNRESOLVED");
+        assert_eq!(
+            snapback.db.scan_table("posts", 10, 0).expect("scan").total,
+            0,
+            "refusal is whole: zero rows"
+        );
+
+        // A stale mapping (declared digest != ingested digest) refuses whole.
+        let mut stale = fixtures.clone();
+        stale.fixtures[0].source_digest =
+            "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+                .to_owned();
+        stale.fixtures_digest = asset_fixtures_digest(&stale).expect("digest");
+        let not_ingested = snapback
+            .ensure_versioned_seed(InstallSeedRequestV1 {
+                format_version: SEED_INSTALL_REQUEST_FORMAT_V1.to_owned(),
+                operation_id: "01982c7a-7c00-7000-8000-00000000f002".to_owned(),
+                artifact: make_artifact("v1"),
+                requested_mode: crate::manifest::AuthMode::Dev,
+                asset_fixtures: Some(stale),
+            })
+            .expect_err("stale mapping refuses");
+        assert_eq!(not_ingested.diagnostic.code, "SNAPBACK_SEED_ASSET_FIXTURE_NOT_INGESTED");
+
+        // The matching artifact installs; the row carries the asset id and
+        // the seed-path admission committed the reverse edge.
+        snapback
+            .ensure_versioned_seed(InstallSeedRequestV1 {
+                format_version: SEED_INSTALL_REQUEST_FORMAT_V1.to_owned(),
+                operation_id: "01982c7a-7c00-7000-8000-00000000f003".to_owned(),
+                artifact: make_artifact("v1"),
+                requested_mode: crate::manifest::AuthMode::Dev,
+                asset_fixtures: Some(fixtures),
+            })
+            .expect("fixture-bearing seed installs");
+        let scan = snapback.db.scan_table("posts", 10, 0).expect("scan");
+        assert_eq!(scan.total, 1);
+        assert_eq!(scan.rows[0]["photo"], serde_json::json!(asset_id));
+        let edges = snapback
+            .db
+            .asset_transaction(|tx| crate::assets::load_edges_for_asset(tx, &asset_id))
+            .expect("edges");
+        assert_eq!(edges.len(), 1, "seed admission committed the reverse edge");
+        assert_eq!(edges[0].table_name, "posts");
+    }
+
+    /// App reset clears every asset system table and the store's files —
+    /// asset bytes are app state (LLP 0109 §17).
+    #[test]
+    fn asset_reset_clears_tables_and_store_files() {
+        let mut snapback = asset_test_snapback();
+        let asset_id = asset_ready(&mut snapback, "user_a", b"reset-me");
+        let store = snapback.asset_store().expect("store");
+        let blob_files = || {
+            std::fs::read_dir(store.blobs_dir_for_test())
+                .map(|entries| entries.count())
+                .unwrap_or(0)
+        };
+        assert!(blob_files() > 0, "published blob exists on disk");
+        snapback.db.reset_and_seed(None).expect("reset");
+        // Table clearing rides the reset transaction itself.
+        let remaining: u64 = snapback
+            .db
+            .asset_transaction(|tx| {
+                Ok(crate::assets::load_asset(tx, &asset_id)?.is_some() as u64)
+            })
+            .expect("post-reset lookup");
+        assert_eq!(remaining, 0, "asset records cleared by reset");
+        // File wipe is the publish finisher's job; prove the store call.
+        store.wipe_all().expect("wipe");
+        assert_eq!(blob_files(), 0, "store files removed");
+    }
+
+
     fn asset_receipt_events(snapback: &mut LocalSnapback, asset_id: &str) -> Vec<String> {
         snapback
             .db
