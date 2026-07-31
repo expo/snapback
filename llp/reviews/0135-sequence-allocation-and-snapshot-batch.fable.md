@@ -736,3 +736,235 @@ indistinguishability sentence and the diagnostic pin), sweeps
 D-N1–D-N3, and requests a targeted round-3 delta of §1.7, §2.4, §3,
 §4, and the two §5 vectors touched. On that revision this family
 expects READY.
+
+---
+
+## Round 3 — 2026-07-31
+
+**Family:** Fable (Claude)
+**Runtime:** Claude Code / claude-fable-5
+**Effort:** session-inherited
+**Date:** 2026-07-31
+**Method:** round-3 delta — verify the round-2 Fable items (M-A, M-B,
+D-N1–D-N3) and the Codex-originated diagnostics narrowing against
+v0.3's delta surface (§1.2, §1.4, §1.7, §2.4, §3, §4.1, and the
+touched §5.1/§5.2 vectors); new text reviewed for fresh defects only;
+blind to the codex artifact (not opened)
+**Target:** `llp/0135-sequence-allocation-and-snapshot-batch.spec.md`
+v0.3 (956 lines)
+**Target SHA-256:**
+`a58bc797a08238e8953e7d2fff6b5d24ba6e08cbc124450a870bb4c55b37a941`
+**Status:** completed
+
+Re-verified against the corpus for this round: LLP 0110 lines
+140–204 (plan shape — the order-field list is a **per-plan**
+declaration, "one non-empty ordered list of ascending child scalar
+fields"; admitted order types at 194–197), 1123–1124 ("Every central
+writer—plan, inline/JS buffered commit, seed, migration, import, and
+restore—uses the same protected stamping boundary" — the
+central-writer enumeration §4.1's enforcement claim rides on),
+1148–1157 (`sbbc1` plaintext: "a closed, unknown-field-denying
+record"; the 14-day age and mint-failure rule); LLP 0043 M2 lines
+150–184 (the overlay is "computed from what the client *can* know:
+host-plan write plans and mutation args"; "Overlay application is
+all-or-nothing per changeset — 0008 pins multi-row atomicity after
+Valet's half-applied-kanban bug"; drop-and-mark-failed at 178–179);
+LLP 0133 lines 140–177 (lane Q's "args/write-plan-derived optimistic
+overlay (LLP 0043 M2)") and 420–512 (divergence class 3 is named
+**Outcome divergence**; class 1's leaf-rewrite soundness grounds);
+LLP 0003 line 288 ("if the handler throws, no writes are applied and
+the mutation is rejected").
+
+### Round-2 item resolution
+
+- **M-A — RESOLVED.** All four demands are met. The declaration
+  surface exists and has an owner: §4.1 drafts the LLP 0110
+  order-field-declaration `maxEncodedBytes` member (a declared UTF-8
+  encoded-length maximum for string order fields). Write enforcement
+  is stated with the new coded refusal
+  `SNAPBACK_ORDER_FIELD_MAX_ENCODED_BYTES_EXCEEDED`, classed in §3 as
+  a stable public **runtime** diagnostic (the right class for a
+  write-boundary refusal), and "enforced at the write boundary by
+  every central writer" is genuinely total against 0110's own
+  enumeration — plan, inline/JS buffered commit, seed, migration,
+  import, **and restore** (0110:1123–1124) — so the
+  restore/import/migration side doors that would have let an
+  oversized value in behind the bound are closed by the cited
+  authority, not by hope. Reviewed adoption over pre-existing rows
+  ("no row silently blessed") mirrors 0110's activation discipline.
+  With the bound write-enforced, no stored boundary can exceed the
+  computed worst case: §2.4's static establishment-time budget is now
+  a real bound, the no-cliff claim ("runtime mint failure therefore
+  has custody grounds only") holds, and §5.2's
+  round-trip-at-declared-bounds vector is implementable once the
+  amendment folds on acceptance. Two small residues in the fix's
+  wording → D-R1, D-R2 below.
+- **M-B — RESOLVED.** The oracle is closed. §1.7 pins the collapse:
+  for a non-public counter, no-reach and absence refuse
+  **byte-identically** with `SNAPBACK_RELATION_PARENT_UNAVAILABLE`,
+  and the order of checks is stated — "the visibility evaluation is
+  ordered before (and collapses into) the incarnation check" — so an
+  implementation cannot accidentally sequence the registry lookup
+  first and leak existence through a differing code. §1.2
+  cross-references the collapse; §3 carries the single-code entry
+  naming both causes byte-indistinguishable; §5.1's vector now tests
+  hidden and absent causes against the **single** outcome rather than
+  listing them as separately-coded refusals. Checked for residual
+  distinguishers: `SNAPBACK_SEQUENCE_UNDECLARED` is a counter-name
+  declaration check at the ctx boundary, disclosing nothing about
+  scope rows; the public-scope case keeps PARENT_UNAVAILABLE with the
+  disclosure deliberate (the declaration is the reviewable consent);
+  timing stays a named nonclaim in the sink matrix, consistent with
+  the corpus-wide posture (0110's absent-versus-invisible discipline
+  makes no constant-time claim either). No distinguishing surface
+  remains on the result path.
+- **D-N1 — RESOLVED.** §5.1's race vector now binds the invariant —
+  T1's stale attempt never commits its value; the committed history
+  stays dense, duplicate-free, and ordered by commit version — and
+  explicitly admits both LLP 0003 recovery shapes ("a fresh
+  re-execution allocating after T2 or a typed conflict … either
+  recovery shape passes"). The parenthetical abort mechanism
+  (captured-read validation on the counter row) is no longer
+  overbinding: §1.2 makes that protocol normative on both surfaces,
+  and the writer-lock-never-held-across-handler-execution rule makes
+  "T2 driven to commit first" realizable on every conforming target.
+- **D-N2 — RESOLVED.** Verified against 0043 M2's actual text: the
+  overlay is exactly "host-plan write plans and mutation args"
+  (0043:160–161), so §1.4's premise is faithful, and the allocated
+  value genuinely cannot exist in the overlay's inputs. The
+  omission-not-fabrication posture is the only sound v1 choice — a
+  sentinel would present a speculative allocated value, which §1.4
+  prohibits on settlement-soundness grounds (class-3 has no typed
+  mapping for copied speculative integers) — and the overlay
+  lifecycle owner (0043 M2 within lane Q, LLP 0133) is correctly
+  named for the successor. Coherence for Campfire checked: `send` is
+  handler-tier, so lane Q's write-plan-derived overlay has no host
+  plan to derive from there anyway — the pending message was already
+  unpresentable pre-0135, and this Spec makes the gap explicit and
+  owned rather than creating it. The message-invisible-until-
+  settlement UX is a real product gap but an honestly-specified one.
+  One unstated interaction with 0043's atomicity rule → D-R3.
+- **D-N3 — RESOLVED.** Cross-parent appears in §2.4's collapse list
+  (malformed, cross-app, cross-plan, cross-parent, cross-authority,
+  boundary-invalid → `SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID`),
+  matching §5.2's cursor matrix.
+
+### Codex-originated diagnostics narrowing (checked as directed)
+
+**Sound, and the information-flow story survives.** The narrowed
+no-trace claim (§1.2/§1.3: trace-free on durable and protocol
+surfaces — counter state, stored rows, settlement, receipts,
+activity, results — with handler-authored diagnostics the named
+exception) is honest where the old absolute claim was not: a handler
+holds the tentative integer as an ordinary value, and imperative code
+can always stringify it outward. The buffering-rejection rationale
+holds on both horns: buffering only sequence-bearing diagnostics is
+unenforceable (a derived or stringified copy is untrackable without
+dynamic taint analysis — the same declared-versus-proved reality the
+Spec already concedes for the containment rule), and whole-channel
+buffering until commit would blind exactly the aborted attempts
+diagnostics exist to explain; the generated profile authors no
+diagnostics, so the narrowing is confined to the tier that needs it.
+§1.7's story stays intact because the gate runs **before** the value
+exists: a handler only ever holds a tentative value for a scope its
+effective subject already reached (or a declared-public scope), so
+the diagnostics channel can disclose prior-allocation counts only to
+parties the sink matrix already admits — no new count oracle opens,
+and the matrix row makes the channel reviewable rather than hidden.
+Two vector-level residues → D-R4, D-R5.
+
+### New concerns (v0.3 text)
+
+DETAIL (no new MATERIAL):
+
+- **D-R1 — "Schema-level" versus the per-plan declaration surface.**
+  §2.4 calls the `maxEncodedBytes` bound "schema-level and
+  write-enforced," but §4.1 attaches the member to LLP 0110's
+  order-field declaration, which in 0110 is **per plan** ("one
+  non-empty ordered list of ascending child scalar fields",
+  0110:150). Two plans ordering the same child field could then carry
+  different bounds, and the write boundary needs exactly one
+  authoritative bound per (table, field) for the budget to stay
+  sound (enforcing only the larger while a composite computed against
+  the smaller breaks the worst case). §2.4's "schema-level" is the
+  controlling normative word, so the coherent reading exists on the
+  page; pin it with one clause in §4.1 — the member is single-valued
+  per (table, field), with conflicting declarations refusing at
+  admission (or the member lives on the field contract and the order
+  declaration references it).
+- **D-R2 — The worst case must be computed over serialized bytes.**
+  The budget subtracts nonce and tag correctly, but the plaintext is
+  a closed record (0110:1150), and a bounded string's in-record
+  encoding can exceed its raw UTF-8 length (escaping/framing,
+  depending on the record encoding the golden vectors pin). One
+  clause: establishment computes each boundary's worst case as the
+  **serialized** size of a maximal value in the credential's actual
+  plaintext encoding, not the raw `maxEncodedBytes` sum — otherwise
+  an implementation summing declared bounds can undercount and
+  reintroduce the mid-flight cliff on adversarial strings.
+- **D-R3 — The omission posture's interaction with 0043 M2's
+  atomicity rule is unstated.** 0043 pins "Overlay application is
+  all-or-nothing per changeset" (multi-row atomicity after the
+  half-applied-kanban bug, 0043:162–163). §1.4's omission is row-and-
+  projection-scoped: a generated changeset writing a sequence-bearing
+  activity row plus a sequence-free card patch would present the
+  patch while omitting the activity row — a partially presented
+  changeset, the class that atomicity rule exists to prevent. State
+  which posture governs when a changeset mixes sequence-bearing and
+  sequence-free writes (whole-changeset withholding is the reading
+  congruent with 0043's rule), or delegate that choice explicitly to
+  the named overlay owner.
+- **D-R4 — §5.1's aborted-allocation vector is unimplementable as a
+  single run.** The vector has the handler stringify the tentative
+  value into "a console log and a thrown-error payload" **and** be
+  "driven to abort by captured-read invalidation on the counter row"
+  — but a handler that throws never reaches commit-time captured-read
+  validation (LLP 0003:288 rejects on throw), and a handler that
+  reaches captured-read validation completed without throwing. Split
+  it into two arms: a console-log arm aborted by captured-read
+  invalidation, and a thrown-error arm aborted by its own throw; the
+  trace-free assertions apply to both.
+- **D-R5 — The thrown-error payload's channel classification needs
+  one pin.** §1.7 classes thrown-error payloads as handler-authored
+  diagnostics, while §1.2/§5.1 keep "results" trace-free — but under
+  LLP 0003:288 a handler throw rejects the mutation, and the
+  rejection the submitting caller receives is, in ordinary protocol
+  vocabulary, a response surface. State where the thrown payload
+  rides (app-error rejection payload classed as the diagnostics
+  channel, distinct from the declared result contract) so the §5.1
+  assertion "results record nothing" stays falsifiable rather than
+  definitional. No information-flow consequence either way: the
+  submitting caller passed the §1.7 gate before the value existed.
+
+Also checked, no concern: §1.4's Codex-D1 reframing is faithful to
+LLP 0133 — class 3 is named Outcome divergence, authoritative-wins is
+its rule, and the stated gap (no typed mapping for a speculative
+small integer copied into later pending args; leaf rewrite sound only
+for high-entropy minted strings) matches class 1's own scope-honesty
+text verbatim in substance. §5.2's softened SD-2 bullet (Codex D2)
+keeps the round-1 hygiene PASS: "expected consequence" is a
+prediction attributed to LLP 0120's own prior record, with the
+trigger and branch adjudication explicitly left to SD-2's owner — no
+branch is decided here. The v0.3 Revised-header's account of both
+families' round-2 counts matches this artifact.
+
+### Verdict
+
+**READY** (round 3). All five round-2 Fable items (M-A, M-B,
+D-N1–D-N3) are resolved, and the resolutions are verified against the
+authorities they cite — including the load-bearing facts that 0110's
+central-writer enumeration covers restore/import/migration (making
+the write-enforcement claim total) and that 0043 M2's overlay really
+is write-plan-and-args-derived (making omission the only sound
+posture). The Codex-originated diagnostics narrowing is sound and
+keeps §1.7's information-flow story closed. Five new DETAILs
+(D-R1–D-R5) are one-clause pins — no new MATERIAL concern, so under
+LLP 0130 SD-4's zero-unresolved-MATERIAL bar this family's half of
+the dual-READY condition is met.
+
+### Recommended next step
+
+Sweep D-R1–D-R5 as an editorial pass (D-R1/D-R2 belong in §4.1/§2.4,
+D-R3 in §1.4, D-R4/D-R5 in §5.1/§1.7); none requires re-review by
+this family. Convergence then rests on the Codex family's round-3
+verdict per SD-4.

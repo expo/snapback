@@ -325,3 +325,27 @@ SD-4 cannot fire because N1 and N2 remain MATERIAL: E4(b) does not cryptographic
 Next step: make A5 recompute a canonical, self-excluding E4(b) tree manifest—or designate a full landed-tree audit as the normative witness—and fully specify the three E6 field domains, nested schemas, cross-record constraints, and success predicates. Then request a targeted Codex round 4.
 
 The filesystem is read-only, so I could not append this section to the Codex review artifact.
+
+## Round 4 — 2026-07-31
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model `gpt-5.6-sol`
+**Reasoning effort:** CLI default (`medium` per CLI banner)
+**Date:** 2026-07-31
+**Method:** round-4 targeted — verify the two Round 3 MATERIAL residues (N1 staged-tree binding, N2 closed E6 schemas) against v0.4, plus the D1 wording fix and the `llp-blob.v1`/`git` locator tokens; new text only for fresh defects; fresh CLI runner, read-only sandbox, blind to this Spec's fable artifact; Rounds 1–3 sections above provided as required context
+**Target SHA-256:** `84de64d433c1093accb9db095e58d9c6592373c5b98cbec9ab2f8c5c0fe3d0b1`
+**Session id:** `019fb76b-71df-7cd3-841b-ed406235a27e`
+**Status:** completed
+
+### Verbatim review
+
+Verified SHA-256 `84de64d…d0b1`; read required Codex Rounds 1–3 only and did not read `.fable.md`.
+
+**Verdict: NOT READY**
+
+- **N1 — RESOLVED.** Self-exclusion breaks the circularity, while the canonical byte-sorted manifest binds every other landed file—including the E4(b) audit artifact—and A5 exact-compares it on the admitted transition commit; this is cryptographically sufficient.
+- **N2 — MATERIAL remains.** The individual schemas and stated equality checks are closed, but A2 still lacks complete population coverage: `journalExtractRef` is singular despite potentially multiple hosted deployment identities, and membership/date checks do not require a green observation for every local population profile on every UTC day. Unobserved population members can therefore pass.
+- **D1 — RESOLVED.** The text now correctly identifies two `defineWriteWithActivity` declarations and preserves the product-bypass conclusion.
+- **Locator tokens — RESOLVED.** `llp-blob.v1` and producer `git` are explicitly defined for exact committed LLP blob bytes.
+
+Next step: make `journalExtractRefs` plural with exactly one successful extract per hosted deployment identity, and require A2 to prove a green observation for every local `targetProfileId × UTC-day` cell in the window. Then request targeted Round 5.

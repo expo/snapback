@@ -1,11 +1,24 @@
 # LLP 0131: Structured argument contracts
 
 **Type:** Spec
-**Status:** Draft
+**Status:** Accepted
 **Systems:** Authoring, Code generation, Runtime, Application data API, Search, Client integration, Contract, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-07-31 (v0.4, round-3 fixes — successor-admission rule
+**Revised:** 2026-07-31 (ACCEPTED under LLP 0130 SD-4's standing
+authorization: dual-family READY — Fable round 3 fix-verification,
+Codex round 4, the round-3 literal(null) claim retracted by its own
+family after empirical refutation — with the three conditions checked
+and satisfied: (1) zero unresolved MATERIAL concerns in either
+family's final round (the round-4 MINOR wording item on acceptance 14
+is folded into this same landing: a conforming migrated-args
+successor enqueues as its own fresh admission); (2) within the decided
+scope of its commission (0115 CV-4a+CV-5; OQ1-OQ3 adjudicated in-loop,
+OQ5 closed v0.4); (3) no evidence boundary weakened — the ingress seam
+is strictly additive and the identity re-key is visible-once with its
+consumer cascade specified. Recorded per SD-4's honesty rule: the
+author's standing acceptance made in advance. Review artifacts:
+reviews/0131-structured-argument-contracts.{fable,codex}.md.) 2026-07-31 (v0.4, round-3 fixes — successor-admission rule
 corrected against LLP 0070: every new successor job, verbatim-copy or
 migrated-args, operator-initiated or automatic, validates at its own
 enqueue against the then-current admitted artifact's contract, and only
@@ -788,9 +801,12 @@ that can fail:
     the job executes and retries against its retained validated bytes
     with no shape revalidation; every successor creation validates at
     its own enqueue — a successor copying those bytes verbatim, a
-    migrated-args successor, and operator resubmission of the
-    identical bytes alike refuse under the narrowed contract, with no
-    successor job row created and the predecessor left immutable; and
+    migrated-args successor whose payload the narrowed contract still
+    rejects, and operator resubmission of the identical bytes alike
+    refuse under the narrowed contract, with no successor job row
+    created and the predecessor left immutable; a migrated-args
+    successor whose payload conforms to the narrowed contract enqueues
+    successfully as its own fresh admission; and
     an invalid payload refuses at the original enqueue with no job row
     created (replay lane 3; Appendix C).
 

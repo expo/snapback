@@ -240,3 +240,51 @@ One unresolved MATERIAL concern remains, so LLP 0130 SD-4’s zero-unresolved-MA
 ## Next step
 
 Revise the sink/abort contract to cover handler logs and thrown errors, add an adversarial aborted-allocation diagnostic test, and make the two DETAIL wording corrections. Then rerun the Codex-family delta review on the new SHA.
+
+## Round 3 — 2026-07-31
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model `gpt-5.6-sol`
+**Reasoning effort:** CLI default (`medium` per CLI banner)
+**Date:** 2026-07-31
+**Method:** round-3 delta — reviewer given its own Rounds 1–2, instructed to verify M1 (v0.3's narrowing posture, re-verifying the cited code claims), D1, and D2 against v0.3, then check the Fable-originated delta changes for fresh defects only; read-only sandbox, blind to this Spec's fable artifact
+**Target SHA-256:** `a58bc797a08238e8953e7d2fff6b5d24ba6e08cbc124450a870bb4c55b37a941`
+**Status:** completed (first attempt, no retry needed)
+
+### Verbatim review
+
+Reviewed exact v0.3 SHA-256 `a58bc797a08238e8953e7d2fff6b5d24ba6e08cbc124450a870bb4c55b37a941`, without reading the Fable review.
+
+## Round-2 item resolution
+
+- **M1 diagnostics posture — NOT RESOLVED; MATERIAL.**  
+  Narrowing is honest for `console`: arguments are eagerly stringified and immediately forwarded through `runtime.log` ([allowlist-install.js](/Users/ccheever/projects/snapback/packages/snapback-harness/allowlist-install.js:409), [ctx-bootstrap.js](/Users/ccheever/projects/snapback/packages/snapback-harness/ctx-bootstrap.js:664)). Therefore an aborted attempt can indeed leak its tentative number through this explicitly non-protocol diagnostics channel.
+
+  The problem is the Spec treats a **thrown-error payload** as the same kind of channel. An uncaught handler error is instead encoded into the handler completion envelope and converted into `SnapbackError` details ([ctx-bootstrap.js](/Users/ccheever/projects/snapback/packages/snapback-harness/ctx-bootstrap.js:1097), [runtime.rs](/Users/ccheever/projects/snapback/src/runtime.rs:2550)). That is a runtime/protocol diagnostic, contradicting §1.2's claim that a failed attempt leaves no trace on any protocol surface.
+
+  The acceptance vector is also impossible as written: if the handler actually throws, execution fails before captured-read commit validation; it cannot both surface the thrown payload and then be "driven to abort" by counter validation. If it catches the error, the thrown payload does not itself escape. Thus the narrowing hides one remaining protocol leak rather than fully resolving it.
+
+- **D1 divergence classification — RESOLVED.**  
+  §1.4 now correctly classifies changed sequence-bearing outcomes as ordinary LLP 0133 class-3 outcome divergence and identifies the missing typed mapping for values copied into later pending arguments as the actual gap.
+
+- **D2 SD-2 branch language — RESOLVED.**  
+  The reachable-or-not overstatement is gone. §5.2 accurately says the contracted-profile branch is the expected consequence of SD-2 plus LLP 0120 once the usage-evidence trigger fires, while leaving trigger and branch adjudication with LLP 0130's owner.
+
+## Fable-originated delta
+
+- **`maxEncodedBytes` declaration — no fresh defect.** The write-enforced UTF-8 bound, adoption check, establishment refusal, and maximum-width acceptance vector provide a workable static cursor bound.
+- **Byte-identical `PARENT_UNAVAILABLE` collapse — no fresh defect.** The ordering and acceptance requirements consistently collapse hidden, absent, and inactive non-public scopes without an existence oracle.
+- **Invariant-bound race vector — no fresh defect.** It now tests density, uniqueness, and commit-version order while properly allowing either retry or typed conflict as LLP 0003's target-specific recovery.
+- **Lane-Q overlay omission — new MATERIAL concern.** §1.4 defines query-dependent omission of "the pending row" only from projections that project or order by the sequence field. Existing LLP 0008/0043 semantics make an optimistic changeset mutation-level and all-or-nothing, not dependent on which projection observes it. The same row could consequently appear optimistically in one projection while being absent from another, and a multi-row allocating mutation could partially apply its optimistic changeset. The fold list also does not draft the required LLP 0008/0043 amendment.
+
+  Resolve this by choosing a mutation-level atomic rule—most simply, omit the entire optimistic changeset when any write depends on an unavailable allocation—or formally extend the overlay model. Add a cross-projection, multi-row acceptance vector and fold the rule into its owning LLPs.
+
+## Verdict
+
+**NOT READY**
+
+SD-4 is not met: M1 remains MATERIAL, and the lane-Q delta introduces another MATERIAL inconsistency.
+
+## Next step
+
+Revise §1.7 and §5.1 to separate immediate console disclosure from uncaught thrown errors, deciding whether thrown messages are sanitized/value-free or explicitly acknowledged as protocol disclosure. Then define a mutation-atomic lane-Q withholding rule with an LLP 0008/0043 fold and acceptance coverage, and rerun the Codex-family delta review.

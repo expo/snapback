@@ -321,3 +321,31 @@ SD-4 is not met because item 6 remains MATERIAL.
 Revise replay lane 3, Appendix C, acceptance 14, and OQ5 so every new successor validates against its freshly admitted artifact, regardless of whether its bytes were copied verbatim. Preserve inherited validation only for attempts of the existing immutable job. Also correct the `v.literal(null)` reachability statement, then request a focused Round 4.
 
 I could not append this section to the Codex review artifact because the workspace is read-only.
+
+## Round 4 — 2026-07-31
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model `gpt-5.6-sol`
+**Reasoning effort:** CLI default (`medium` per CLI banner)
+**Date:** 2026-07-31
+**Method:** round-4 focused — reviewer re-read its own Rounds 1-3, verified the two Round-3 items (item 6 successor rule against LLP 0070:124-131; N4 `literal(null)` reachability, including judging the fixer's empirical refutation) against v0.4, checked the refreshed client cites, and checked v0.4-changed text only for fresh defects; read-only sandbox, blind to this Spec's fable artifact; appended by the mechanical runner because the reviewer's sandbox is read-only
+**Target SHA-256:** `b4d633fc93dd3403ee90c0b41ea6e0043f154f783a969aa3e1eb82cc317364df`
+**Status:** completed
+
+### Verbatim review
+
+## Round 4 verdict: READY
+
+Target SHA-256 verified: `b4d633fc93dd3403ee90c0b41ea6e0043f154f783a969aa3e1eb82cc317364df`. Required Codex Rounds 1–3 read; Fable artifact not read.
+
+- **MATERIAL — RESOLVED.** Replay lane 3, Appendix C, acceptance 14, and OQ5 consistently restrict inherited validation to the original immutable job’s execution/retries; every successor validates at enqueue against the then-current artifact, matching [LLP 0070:124–131](/Users/ccheever/projects/snapback/llp/0070-durable-background-work.rfc.md:124).
+
+- **MINOR — RESOLVED BY EMPIRICAL REFUTATION.** `v.literal(null)` produces `primitive: "object"`/`fieldType: "Json"` without `fields`; it passes the primitive map but fails the object-fields check at [index.mjs:3342](/Users/ccheever/projects/snapback/packages/snapback-codegen/index.mjs:3342), reported as `FUNCTION_INVALID_VALIDATOR` through line 1254. FiniteReal-only reachability therefore stands.
+
+- **Refreshed client cites — VERIFIED.** The search digest is at [index.mjs:167](/Users/ccheever/projects/snapback/packages/snapback-client/index.mjs:167) and compared at line 187.
+
+- **Fresh MINOR — acceptance wording.** Acceptance 14 says a “migrated-args successor” refuses under the narrowed contract. Validation does not necessarily imply refusal: migrated arguments that satisfy the current contract should succeed. Clarify that the tested migrated payload remains invalid, or add the conforming-migration acceptance row. The normative replay rule itself is correct, so this is not MATERIAL.
+
+**Verdict: READY** — zero unresolved MATERIAL concerns under SD-4.
+
+**Next step:** tighten acceptance 14’s migrated-args wording, append this Round 4 to the Codex review artifact, then proceed with the SD-4 acceptance transition.
