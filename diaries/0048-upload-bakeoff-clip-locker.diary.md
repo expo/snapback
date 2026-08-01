@@ -322,3 +322,55 @@ ranking honest.
 ### Outcome
 All checklist items measured; `pocketbase/results.json` carries
 receipts. Binary and `pb_data/` are gitignored.
+
+## 2026-08-01 — App C synthesis (Clip Locker, round 1)
+
+### Resumability truth (the axis this app exists to measure)
+
+| Arm | Interrupted at | Bytes re-transmitted | Mechanism | Custody |
+| --- | --- | --- | --- | --- |
+| **Snapback** | 58.7 MB / 120 MB | **0** | TUS 1.0.0 HEAD→offset→PATCH | client ships `resumePersisted` |
+| **Supabase** | 18.9 MB / 40 MB¹ | **0** | TUS 1.0.0, 6 MiB fixed chunks | **app must persist `upload.url`** — naive path re-sent 100 % |
+| **Firebase** | 66.8 MB / 120 MB | **120.2 MB (all)** | `uploadBytesResumable` session | in-process only; handle not exposed → new process restarts |
+| **Convex** | 59.8 MB / 120 MB | **59.8 MB (all sent)** | none | single-shot POST upload URL |
+| **PocketBase** | ~0 (no partial) | **120.2 MB (all)** | none | one multipart POST |
+| **R2** | not run | — | ListParts (untested) | app persists `UploadId` |
+
+¹ Supabase refused the 120 MB file outright (project cap → TUS create
+413); the resumability leg ran at 40 MB under the cap.
+
+### Per-axis outcomes
+
+- **Resumability:** Snapback best (protocol + shipped custody);
+  Supabase equal on protocol, worse on ergonomics; Firebase misleading;
+  Convex and PocketBase absent.
+- **Integrity:** Convex best (queryable sha256 as system data);
+  Firebase md5; Snapback verifies end-to-end but does not expose the
+  digest as app-queryable data — worth stealing; PocketBase/R2 nothing
+  comparable (R2's multipart ETag is not a byte digest).
+- **Range/playback:** Snapback, Firebase, PocketBase, Supabase all
+  correct; **Convex 500s on suffix ranges** — a real bug for scrubbing.
+- **Share links:** Snapback only arm with issuance-time authorization +
+  TTL + origin death on delete/revocation; Supabase/R2 have TTL without
+  revocation; Convex/Firebase/PocketBase hand out long-lived tokened
+  URLs (PocketBase's file token is the shortest-lived).
+- **Deletion truth:** PocketBase structurally best (file is the field);
+  Snapback equally strong via typed references (referenced-delete 409
+  → cascade); everyone else leaves dangling references to the app.
+- **Metadata privacy:** **Snapback is alone.** Every other arm served
+  the GPS-tagged clip back byte-identical. This is the sharpest product
+  differentiator found in the bakeoff, and it costs the competitor apps
+  a hand-rolled ffmpeg pipeline to match.
+- **Ceremony/local story:** PocketBase fastest to first byte; Firebase's
+  emulator and Snapback's local target are the two credible offline
+  development stories; Convex simplest managed path.
+
+### What Snapback should steal (tickets filed/owed)
+1. Expose the canonical digest as queryable asset metadata (Convex's
+   `sha256` on the system row is strictly better DX than "we verified
+   it, trust us").
+2. Fix the policy-gate chunk ceiling before anyone uploads a real video
+   (`issues/20260801-0044-policy-gate-caps-tus-chunks.md`) — our own
+   default config cannot upload a 120 MB file today.
+3. Consider a documented "storage limits" surface: three of five arms
+   made me discover limits by failing.
