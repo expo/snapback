@@ -69,3 +69,19 @@ export const notifyInline = defineAction({
   result: results.value(v.object({ delivered: v.boolean() })),
   writes: [],
 });
+
+// 0137 a4-f1/a5-f1 conformance witness, host-mediated form: plain `ctx.fetch`
+// is served locally by the same detached action lane as `ctx.fetchStream`
+// and returns the target-portable {status, ok, url, bodyText} value.
+export const notifyHostFetch = defineAction({
+  args: { url: v.string() },
+  handler: async (ctx, args) => {
+    const response = await ctx.fetch({ url: args.url });
+    return {
+      delivered: response.ok === true && response.status === 200,
+      body: response.bodyText,
+    };
+  },
+  result: results.value(v.object({ delivered: v.boolean(), body: v.string() })),
+  writes: [],
+});

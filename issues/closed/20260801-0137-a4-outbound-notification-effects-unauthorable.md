@@ -100,3 +100,22 @@ on the local host by design (hosts without the op must not fall back to
 ambient fetch); local actions use the global `fetch`. Implementing local
 host-mediated fetch with secret placement slots would be a new design
 decision under LLP 0049, not a regression repair.
+
+---
+
+**2026-08-01 (post-A5 addendum, same fix lane).** The A5 narrowing and the
+coordinator's re-scope superseded the "residual (deliberate)" paragraph
+above: with the streamed lane (`action.streamOpen` etc.) already serving
+local upstream requests on the detached action host, plain `ctx.fetch`
+being the one dead op was an inconsistency, not a design boundary. The
+lane's follow-up landing implements `host.fetch` locally on the same
+detached lane and egress gate as `ctx.fetchStream` — target-portable
+`{status, ok, url, bodyText}` value, CF-identical 1,000,000-byte bound,
+`SNAPBACK_HOST_FETCH_RESPONSE_*` refusals in both envelope decoders,
+descriptor slots still hosted-only (`SNAPBACK_HOST_FETCH_SLOT_INVALID`
+locally). Witness: the egress acceptance's "plain ctx.fetch works on the
+local target" check (17/17), previously
+`SNAPBACK_HANDLER_HOST_CALL_UNKNOWN` byte-identically on A4 and A5. Dated
+notes: LLP 0049 §Action Egress; guide actions-and-fetch §Host-mediated
+ctx.fetch. See also
+issues/closed/20260801-0137-a5-streamed-lane-is-the-only-working-egress.md.

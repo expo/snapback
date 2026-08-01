@@ -128,6 +128,41 @@ fn default_stream_method() -> String {
     "GET".to_owned()
 }
 
+/// One buffered host-mediated fetch request crossing the action-only host
+/// seam (`ctx.fetch` → `host.fetch`, LLP 0049 §Action Egress). Same envelope
+/// as the streamed sibling minus the cursor machinery; the hosted profile
+/// resolves descriptor placement slots at its own boundary, the local
+/// value-mode profile refuses them (0137 a4-f1 / a5-f1: plain `ctx.fetch`
+/// must work wherever `ctx.fetchStream` does).
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HostFetchRequest {
+    pub url: String,
+    #[serde(default = "default_stream_method")]
+    pub method: String,
+    #[serde(default)]
+    pub headers: BTreeMap<String, String>,
+    #[serde(default)]
+    pub body: Option<String>,
+    #[serde(default)]
+    pub timeout_ms: Option<u64>,
+    #[serde(default)]
+    pub secret_slots: Vec<StreamSecretSlot>,
+}
+
+/// The buffered response value — field-compatible with the workerd
+/// coordinator's `hostActionFetch`, so `ctx.fetch` reads identically on both
+/// targets: `{status, ok, url, bodyText}` with the AUTHORED url echoed
+/// (never a host-substituted, potentially secret-bearing representation).
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HostFetchResponse {
+    pub status: u16,
+    pub ok: bool,
+    pub url: String,
+    pub body_text: String,
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ActionStreamOpened {
@@ -214,6 +249,19 @@ pub trait IbexActionHost {
             "SNAPBACK_ACTION_STREAM_UNSUPPORTED",
             "runtime",
             "this invocation target does not implement stream attempt settlement",
+        ))
+    }
+    /// Buffered host-mediated fetch (`ctx.fetch`), the streamed profile's
+    /// plain sibling (0137 a4-f1 / a5-f1). A target that does not implement
+    /// it refuses with the stable code, exactly like the streamed default —
+    /// never by falling back to ambient fetch.
+    fn host_fetch(&mut self, _request: HostFetchRequest) -> SnapbackResult<HostFetchResponse> {
+        Err(SnapbackError::error(
+            "SNAPBACK_HOST_FETCH_UNSUPPORTED",
+            "runtime",
+            "this invocation target does not implement host-mediated fetch; on the local \
+             target ctx.fetch is served by the detached action host (the same execution \
+             lane as ctx.fetchStream)",
         ))
     }
 }
@@ -2019,19 +2067,54 @@ impl<'a> IbexHostContext<'a> {
                     }
                 }
             }
-            // `ctx.fetch` is the HOSTED host-mediated fetch op (LLP 0049
-            // §Action Egress, implemented by the workerd coordinator). The
-            // local Ibex host deliberately does not fall back to ambient
-            // fetch for it (see ctx-bootstrap.js), but the refusal must name
-            // the local alternative instead of dead-ending as an anonymous
-            // unknown op (0137 a4-f1).
-            "host.fetch" => Err(SnapbackError::error(
-                "SNAPBACK_HANDLER_HOST_CALL_UNKNOWN",
-                "runtime",
-                "ctx.fetch (host.fetch) is not implemented on this host; on the local target an \
-                 outbound-enabled action calls the global fetch directly \
-                 (guide/backend/actions-and-fetch.md)",
-            )),
+            // `ctx.fetch` — buffered host-mediated fetch (LLP 0049 §Action
+            // Egress), the plain sibling of `action.streamOpen`. 0137
+            // a4-f1/a5-f1: the streamed lane worked on the local target while
+            // plain ctx.fetch dead-ended as an anonymous unknown op; both now
+            // ride the same action-host seam under the same egress gate, and
+            // a host without an implementation refuses typed — never by
+            // falling back to ambient fetch.
+            "host.fetch" => {
+                self.ensure_action("fetch")?;
+                if !outbound_actions_enabled() {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED",
+                        "runtime",
+                        "ctx.fetch requires the deployment's outbound-actions capability",
+                    )
+                    .with_details(json!({
+                        "operation": "fetch",
+                        "expected": "SNAPBACK_OUTBOUND_ACTIONS=1",
+                        "received": "outbound actions disabled",
+                        "repair": "guide/backend/actions-and-fetch#enable-egress-deliberately",
+                    })));
+                }
+                let request =
+                    serde_json::from_value::<HostFetchRequest>(args).map_err(|_error| {
+                        SnapbackError::error(
+                            "SNAPBACK_HOST_FETCH_INVALID",
+                            "runtime",
+                            "ctx.fetch received an invalid request shape",
+                        )
+                        .with_details(json!({
+                            "operation": "fetch",
+                            "expected": "{url, method?, headers?, body?, timeoutMs?}",
+                            "received": "nonconforming request object",
+                            "repair": "guide/backend/actions-and-fetch#the-inline-form",
+                        }))
+                    })?;
+                let host = self
+                    .action_host
+                    .as_deref_mut()
+                    .ok_or_else(action_host_missing)?;
+                serde_json::to_value(host.host_fetch(request)?).map_err(|_error| {
+                    SnapbackError::error(
+                        "SNAPBACK_HOST_FETCH_FAILED",
+                        "runtime",
+                        "the host fetch response could not be serialized",
+                    )
+                })
+            }
             _ => Err(SnapbackError::error(
                 "SNAPBACK_HANDLER_HOST_CALL_UNKNOWN",
                 "runtime",
@@ -3579,6 +3662,11 @@ fn handler_envelope_code(code: &str) -> &str {
         | "SNAPBACK_ACTION_STREAM_UPSTREAM_AMBIGUOUS"
         | "SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED"
         | "SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED"
+        // Parity with envelope.mjs's PASSTHROUGH_CODES: the bounded host
+        // fetch response refusals survive with their exact code on both
+        // decoders (0137 a4-f1/a5-f1 — ctx.fetch is now target-portable).
+        | "SNAPBACK_HOST_FETCH_RESPONSE_TOO_LARGE"
+        | "SNAPBACK_HOST_FETCH_RESPONSE_INVALID_UTF8"
         | "SNAPBACK_BUFFERED_WRITE_LIMIT_EXCEEDED"
         | "SNAPBACK_OVERLOADED"
         | "SNAPBACK_VALUE_TOO_LARGE"

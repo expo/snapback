@@ -51,7 +51,7 @@ with the Snapback label and `guide-gap` in the title.
 | backend.provisioning | Idempotent app provisioning (ensureApp) | ensure, deploy app, load app | local | shipped | route /app/ensure | llp/0034 | getting-started/your-first-backend.md |
 | backend.codegen | Generate a digest-verified review manifest, input-hash cache, client API, and Contract bindings with deterministic human/JSON summaries | codegen, generate, artifacts, cache, custody, review manifest | all | shipped | `createReviewManifest` in packages/snapback-codegen/review-surface.mjs | llp/0010, llp/0012, llp/0037, llp/0041 | getting-started/generated-artifacts.md |
 | backend.query-semantics | Read sets, snapshots, commit versions, conflict validation | consistency, transactions, conflicts | local | shipped | route /query/{name} | llp/0003, llp/0004, llp/0007 | backend/queries.md |
-| backend.actions | Actions with gated outbound fetch | action, fetch, side effects | local | shipped | route /action/{name} | llp/0004, llp/0009 | backend/actions-and-fetch.md |
+| backend.actions | Actions with gated outbound fetch: global `fetch` and target-portable host-mediated `ctx.fetch`, in closed-script module handlers or the inline form | action, fetch, ctx.fetch, side effects, notification, webhook | local | shipped | route /action/{name} | llp/0004, llp/0009, llp/0049 | backend/actions-and-fetch.md |
 | backend.assets | Authenticated asset lifecycle plus the media pipeline on the local target — generated upload intents, TUS 1.0.0 resumable transfer, trusted SHA-256 finalization with GPS-strip canonicalization for images (decode/rewrite) and MP4/QuickTime video (in-place location-atom blanking, no transcoding), declared renditions with ThumbHash placeholders, typed `v.assetRef` attachment, private-strict/private-signed/public-immutable delivery with ranges and best-variant selection, opt-in reference GC, lifecycle callbacks, deletion/GC, receipts (`asset_lifecycle_v1`, `asset_image_finalization_v1`, `asset_image_pipeline_v1`, `asset_reference_gc_v1`, `asset_video_finalization_v1`); transcoding and hosted targets remain design-only | files, images, video, upload, object storage, media | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json (all five asset ids in supportedCapabilities; `assets` facts block with Enforced image and video ceilings) + src/assets.rs + src/assets_image.rs + src/assets_video.rs suites | llp/0044 | backend/assets.md |
 | backend.notifications | First-class notification and effect delivery; application-authored table ledgers are not this product capability | notifications, push, email, delivery, effects | none | design-only | schemas/capability.manifest.local-dev-sqlite-ibex.json (`notifications: false`; explicit `notifications` gap) | llp/0045 | GAP (owner: Charlie, review: 2026-08-31; issue: issues/20260728-guide-gap-assets-and-notifications-capability-rows.md) |
 | backend.vector-search | Portable vector storage, ANN indexing, and semantic retrieval; no ordinary vector path ships today | vector, embeddings, similarity, semantic search, RAG, ANN | none | design-only | llp/0019-agentic-readiness.research.md (unmade product decision; no shipped witness) | llp/0019, llp/0007 | GAP (owner: Charlie, review: 2026-08-31; issue: issues/20260729-guide-gap-vector-semantic-search-capability-row.md) |
@@ -2219,12 +2219,38 @@ export const notifyInline = defineAction({
 });
 ```
 
-On the local target, actions call the **global** `fetch` — `ctx.fetch` is
-the hosted host-mediated fetch operation (secret placement slots resolve at
-the host boundary) and is deliberately not implemented on the local host;
-calling it there refuses with a `SNAPBACK_HANDLER_HOST_CALL_UNKNOWN`
-diagnostic that routes back here. `ctx.fetchStream` works on both targets
-([streamed actions](./streamed-actions.md)).
+### Host-mediated `ctx.fetch`
+
+Alongside the global `fetch`, an action may use the host-mediated
+`ctx.fetch` (LLP 0049 §Action Egress). It is target-portable: on the local
+target it is served by the same detached execution lane as
+`ctx.fetchStream`, under the same `SNAPBACK_OUTBOUND_ACTIONS` gate, and on
+both targets it resolves to the same buffered value —
+`{status, ok, url, bodyText}` with the authored URL echoed:
+
+```js source=demos/all-aboard/tests/egress-probe/functions.mjs
+export const notifyHostFetch = defineAction({
+  args: { url: v.string() },
+  handler: async (ctx, args) => {
+    const response = await ctx.fetch({ url: args.url });
+    return {
+      delivered: response.ok === true && response.status === 200,
+      body: response.bodyText,
+    };
+  },
+  result: results.value(v.object({ delivered: v.boolean(), body: v.string() })),
+  writes: [],
+});
+```
+
+Responses are bounded (1,000,000 bytes, UTF-8 text; the refusals are
+`SNAPBACK_HOST_FETCH_RESPONSE_TOO_LARGE` and
+`SNAPBACK_HOST_FETCH_RESPONSE_INVALID_UTF8` on every target). Secret
+DESCRIPTOR placement slots resolve only at the hosted fetch boundary; the
+local profile stages secret values through `ctx.secrets` handles into
+headers and refuses descriptor slots with
+`SNAPBACK_HOST_FETCH_SLOT_INVALID`. `ctx.fetchStream` works the same way
+on both targets ([streamed actions](./streamed-actions.md)).
 
 For the partial local agent-auth slice, codegen also derives
 `authorityCreating: true` when an action or mutation declares a write to a

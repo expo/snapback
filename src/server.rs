@@ -768,6 +768,11 @@ const ACTION_LOCK_POLL_MS: u64 = 5;
 // 0076 is the sole numeric authority; the first five match LLP 0075's frozen
 // fixture, the 16 KiB host read size and 4-cursor cap are v1 profile limits.
 const ACTION_STREAM_TOTAL_BYTES_MAX: u64 = 1_048_576;
+/// Buffered `ctx.fetch` response cap — the workerd coordinator's
+/// `MAX_HOST_RESPONSE_BYTES` (1,000,000), kept byte-identical so
+/// `SNAPBACK_HOST_FETCH_RESPONSE_TOO_LARGE` fires at the same size on both
+/// targets (0137 a4-f1/a5-f1 portability).
+const HOST_FETCH_RESPONSE_BYTES_MAX: u64 = 1_000_000;
 const ACTION_STREAM_CHUNK_BYTES_MAX: usize = 16_384;
 const ACTION_STREAM_WALL_MS: u64 = 30_000;
 const ACTION_STREAM_IDLE_MS: u64 = 5_000;
@@ -1729,6 +1734,152 @@ impl IbexActionHost for DetachedActionHost {
             status_text,
             url: final_url,
             headers,
+        })
+    }
+
+    // Buffered host-mediated fetch — `ctx.fetch`'s local implementation
+    // (0137 a4-f1 / a5-f1): the same detached execution lane, egress gate,
+    // request validation, and value-mode secret profile as the streamed
+    // sibling above, minus the cursor machinery. The response value is
+    // field-compatible with the workerd coordinator's `hostActionFetch`
+    // ({status, ok, url, bodyText}, authored URL echoed) so `ctx.fetch`
+    // reads identically on both targets.
+    fn host_fetch(
+        &mut self,
+        request: crate::runtime::HostFetchRequest,
+    ) -> SnapbackResult<crate::runtime::HostFetchResponse> {
+        self.validate_host_call("host.fetch")?;
+        let fetch_error = |code: &str, message: &str| {
+            SnapbackError::error(code, "runtime", message).with_details(json!({
+                "operation": "fetch",
+                "repair": "guide/backend/actions-and-fetch#the-inline-form",
+            }))
+        };
+        if request.url.len() > 4_096
+            || !(request.url.starts_with("http://") || request.url.starts_with("https://"))
+            || request.url.chars().any(char::is_control)
+        {
+            return Err(fetch_error(
+                "SNAPBACK_HOST_FETCH_INVALID",
+                "ctx.fetch requires a bounded absolute HTTP(S) URL",
+            ));
+        }
+        let method = request.method.to_ascii_uppercase();
+        if !matches!(
+            method.as_str(),
+            "GET" | "HEAD" | "POST" | "PUT" | "PATCH" | "DELETE"
+        ) {
+            return Err(fetch_error(
+                "SNAPBACK_HOST_FETCH_INVALID",
+                "ctx.fetch received an unsupported HTTP method",
+            ));
+        }
+        if request.headers.len() > 64
+            || request.headers.iter().any(|(name, value)| {
+                name.is_empty()
+                    || name.len() > 256
+                    || value.len() > 8_192
+                    || name.chars().any(char::is_control)
+                    || value.contains(['\r', '\n'])
+            })
+        {
+            return Err(fetch_error(
+                "SNAPBACK_HOST_FETCH_INVALID",
+                "ctx.fetch headers exceeded the safe shape",
+            ));
+        }
+        // @ref LLP 0036#runtime-exposure-d5-d8 — the local profile stages
+        // secret VALUES into the invocation, so descriptor placement slots
+        // have nothing to resolve here: refuse them explicitly rather than
+        // silently sending a request the author believes carries a secret.
+        if request
+            .secret_slots
+            .iter()
+            .any(|slot| slot.secret.is_some())
+        {
+            return Err(fetch_error(
+                "SNAPBACK_HOST_FETCH_SLOT_INVALID",
+                "opaque secret descriptors resolve only at a hosted fetch boundary; this profile stages secret values",
+            ));
+        }
+        if request
+            .body
+            .as_ref()
+            .is_some_and(|body| body.len() as u64 > HOST_FETCH_RESPONSE_BYTES_MAX)
+        {
+            return Err(fetch_error(
+                "SNAPBACK_HOST_FETCH_INVALID",
+                "ctx.fetch request body exceeded the byte limit",
+            ));
+        }
+        let remaining = self.deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            return Err(action_deadline_elapsed("fetch"));
+        }
+        // Same bounds as the workerd leg: the authored timeout (default 15 s)
+        // clamped by the action's remaining wall budget.
+        let requested_timeout = Duration::from_millis(
+            request
+                .timeout_ms
+                .filter(|timeout| *timeout > 0)
+                .unwrap_or(15_000),
+        );
+        let request_timeout = requested_timeout.min(remaining);
+        let agent = ureq::AgentBuilder::new()
+            .timeout_connect(request_timeout)
+            .timeout_read(request_timeout)
+            .timeout_write(request_timeout)
+            .build();
+        let mut outbound = agent
+            .request(&method, &request.url)
+            .timeout(request_timeout);
+        for (name, value) in &request.headers {
+            outbound = outbound.set(name, value);
+        }
+        let response = match &request.body {
+            Some(body) => outbound.send_string(body),
+            None => outbound.call(),
+        };
+        let response = match response {
+            Ok(response) | Err(ureq::Error::Status(_, response)) => response,
+            Err(ureq::Error::Transport(_transport)) => {
+                // Header/body/transport detail is application data; report
+                // the phase fact only (the streamed sibling's rule).
+                return Err(fetch_error(
+                    "SNAPBACK_HOST_FETCH_FAILED",
+                    "the upstream request failed before a response was available",
+                ));
+            }
+        };
+        self.validate_host_call("host.fetch")?;
+        let status = response.status();
+        let mut body = Vec::new();
+        let mut reader = response
+            .into_reader()
+            .take(HOST_FETCH_RESPONSE_BYTES_MAX + 1);
+        if std::io::Read::read_to_end(&mut reader, &mut body).is_err() {
+            return Err(fetch_error(
+                "SNAPBACK_HOST_FETCH_FAILED",
+                "the upstream response body could not be read",
+            ));
+        }
+        if body.len() as u64 > HOST_FETCH_RESPONSE_BYTES_MAX {
+            return Err(fetch_error(
+                "SNAPBACK_HOST_FETCH_RESPONSE_TOO_LARGE",
+                "the upstream response exceeded the bounded host fetch byte limit",
+            ));
+        }
+        let body_text = String::from_utf8(body).map_err(|_error| {
+            fetch_error(
+                "SNAPBACK_HOST_FETCH_RESPONSE_INVALID_UTF8",
+                "the upstream response body was not valid UTF-8",
+            )
+        })?;
+        Ok(crate::runtime::HostFetchResponse {
+            status,
+            ok: (200..300).contains(&status),
+            url: request.url,
+            body_text,
         })
     }
 
@@ -22288,6 +22439,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_EPHEMERAL_METADATA_TOO_LARGE"
         | "SNAPBACK_EPHEMERAL_VALUE_TOO_LARGE"
         | "SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED"
+        | "SNAPBACK_HOST_FETCH_RESPONSE_TOO_LARGE"
         | "SNAPBACK_HANDLER_HOST_CALL_BODY_TOO_LARGE"
         | "SNAPBACK_CLIENT_MUTATION_RESULT_TOO_LARGE"
         | "SNAPBACK_WEBSOCKET_MESSAGE_TOO_LARGE" => StatusCode::PAYLOAD_TOO_LARGE,
@@ -22317,12 +22469,17 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         // ambiguity are upstream outcomes, distinct from malformed author
         // input and from Snapback's own internal failures.
         "SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED"
-        | "SNAPBACK_ACTION_STREAM_UPSTREAM_AMBIGUOUS" => StatusCode::BAD_GATEWAY,
+        | "SNAPBACK_ACTION_STREAM_UPSTREAM_AMBIGUOUS"
+        // Buffered ctx.fetch upstream outcomes (0137 a4-f1/a5-f1): transport
+        // failure and a non-UTF-8 upstream body are upstream facts.
+        | "SNAPBACK_HOST_FETCH_FAILED"
+        | "SNAPBACK_HOST_FETCH_RESPONSE_INVALID_UTF8" => StatusCode::BAD_GATEWAY,
         // @ref LLP 0058#admitted-body-ingestion — the admitted ingest deadline
         // is a client fault: the request body never finished arriving.
         "SNAPBACK_REQUEST_BODY_TIMEOUT" => StatusCode::REQUEST_TIMEOUT,
         "SNAPBACK_ACTION_CAPACITY_EXCEEDED"
         | "SNAPBACK_ACTION_STREAM_UNSUPPORTED"
+        | "SNAPBACK_HOST_FETCH_UNSUPPORTED"
         | "SNAPBACK_CRON_DISPATCH_CAPACITY_EXCEEDED"
         | "SNAPBACK_CRON_DEFINITION_GENERATION_EXHAUSTED"
         | "SNAPBACK_CRON_RUN_CAPACITY_EXCEEDED"
@@ -22473,6 +22630,8 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         "SNAPBACK_ARG_MISSING"
         | "SNAPBACK_ACTION_MUTATION_REFERENCE_INVALID"
         | "SNAPBACK_ACTION_STREAM_INVALID"
+        | "SNAPBACK_HOST_FETCH_INVALID"
+        | "SNAPBACK_HOST_FETCH_SLOT_INVALID"
         | "SNAPBACK_AUTHORITY_INDEPENDENT_INVALID"
         | "SNAPBACK_PUBLIC_INLINE_INVALID"
         | "SNAPBACK_ROUTES_MANIFEST_INVALID"
@@ -35753,6 +35912,9 @@ globalThis.__snapbackHandlers = {
     const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_MUTATION_REFERENCE_INVALID",
         "SNAPBACK_ACTION_STREAM_INVALID",
+        // Buffered ctx.fetch request-shape refusals (0137 a4-f1/a5-f1).
+        "SNAPBACK_HOST_FETCH_INVALID",
+        "SNAPBACK_HOST_FETCH_SLOT_INVALID",
         // LLP 0092 §0D.1 bundle request-shape refusals.
         "SNAPBACK_BUNDLE_ENTRY_INVALID",
         "SNAPBACK_BUNDLE_MODE_INVALID",
@@ -36222,6 +36384,7 @@ globalThis.__snapbackHandlers = {
 
     const PAYLOAD_TOO_LARGE_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED",
+        "SNAPBACK_HOST_FETCH_RESPONSE_TOO_LARGE",
         // LLP 0092 §0D.2 bundle hard limits.
         "SNAPBACK_BUNDLE_LIMIT_BYTES",
         "SNAPBACK_BUNDLE_LIMIT_QUERIES",
@@ -36274,10 +36437,14 @@ globalThis.__snapbackHandlers = {
     const BAD_GATEWAY_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_STREAM_UPSTREAM_AMBIGUOUS",
         "SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED",
+        // Buffered ctx.fetch upstream outcomes (0137 a4-f1/a5-f1).
+        "SNAPBACK_HOST_FETCH_FAILED",
+        "SNAPBACK_HOST_FETCH_RESPONSE_INVALID_UTF8",
     ];
 
     const SERVICE_UNAVAILABLE_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_CAPACITY_EXCEEDED",
+        "SNAPBACK_HOST_FETCH_UNSUPPORTED",
         "SNAPBACK_RELATIONAL_CURSOR_MINT_UNAVAILABLE",
         "SNAPBACK_BOUNDED_CHILDREN_CURSOR_MINT_UNAVAILABLE",
         "SNAPBACK_STANDARD_PATTERN_CURSOR_MINT_UNAVAILABLE",

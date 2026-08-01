@@ -815,12 +815,14 @@
       };
       // Host-mediated fetch with secret placement slots (LLP 0049 §Action
       // Egress): the action passes URL/method/headers/body/timeout plus
-      // slots that reference DESCRIPTOR handles; the host resolves each
-      // descriptor to its value only at its own fetch boundary and redacts
-      // every error envelope before it re-enters this isolate. Available in
-      // actions only; on hosts without the host.fetch op the call fails with
-      // the host's unknown-op diagnostic rather than falling back to ambient
-      // fetch.
+      // slots that reference DESCRIPTOR handles; the hosted profile resolves
+      // each descriptor to its value only at its own fetch boundary and
+      // redacts every error envelope before it re-enters this isolate. The
+      // local profile serves host.fetch from the detached action host under
+      // the same egress gate as ctx.fetchStream, staging secret VALUES via
+      // ctx.secrets and refusing descriptor slots (0137 a4-f1/a5-f1).
+      // Available in actions only; a host without an implementation fails
+      // typed rather than falling back to ambient fetch.
       ctx.fetch = function(request) {
         var req = request || {};
         var given = req.secretSlots || [];

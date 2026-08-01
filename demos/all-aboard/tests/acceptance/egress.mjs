@@ -134,6 +134,13 @@ await runAcceptance(suite, async () => {
     assertEqual(result.result.delivered, true, 'inline action reports the delivery');
   });
 
+  await suite.check('plain ctx.fetch works on the local target (host-mediated, a5-f1)', async () => {
+    const result = await runAction(on, 'notifyHostFetch', { url: providerUrl });
+    assert(result.ok, `notifyHostFetch failed: ${JSON.stringify(result.diagnostic)}`);
+    assertEqual(result.result.delivered, true, 'ctx.fetch returns the portable {status, ok, url, bodyText} value');
+    assert(/"delivered":true/.test(result.result.body), `bodyText carries the provider payload, got ${result.result.body}`);
+  });
+
   await suite.check('granted handles rotate the imported pool across invocations', async () => {
     const second = await runAction(on, 'egressProbe');
     const third = await runAction(on, 'egressProbe');

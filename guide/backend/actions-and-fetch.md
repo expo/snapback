@@ -112,12 +112,38 @@ export const notifyInline = defineAction({
 });
 ```
 
-On the local target, actions call the **global** `fetch` — `ctx.fetch` is
-the hosted host-mediated fetch operation (secret placement slots resolve at
-the host boundary) and is deliberately not implemented on the local host;
-calling it there refuses with a `SNAPBACK_HANDLER_HOST_CALL_UNKNOWN`
-diagnostic that routes back here. `ctx.fetchStream` works on both targets
-([streamed actions](./streamed-actions.md)).
+### Host-mediated `ctx.fetch`
+
+Alongside the global `fetch`, an action may use the host-mediated
+`ctx.fetch` (LLP 0049 §Action Egress). It is target-portable: on the local
+target it is served by the same detached execution lane as
+`ctx.fetchStream`, under the same `SNAPBACK_OUTBOUND_ACTIONS` gate, and on
+both targets it resolves to the same buffered value —
+`{status, ok, url, bodyText}` with the authored URL echoed:
+
+```js source=demos/all-aboard/tests/egress-probe/functions.mjs
+export const notifyHostFetch = defineAction({
+  args: { url: v.string() },
+  handler: async (ctx, args) => {
+    const response = await ctx.fetch({ url: args.url });
+    return {
+      delivered: response.ok === true && response.status === 200,
+      body: response.bodyText,
+    };
+  },
+  result: results.value(v.object({ delivered: v.boolean(), body: v.string() })),
+  writes: [],
+});
+```
+
+Responses are bounded (1,000,000 bytes, UTF-8 text; the refusals are
+`SNAPBACK_HOST_FETCH_RESPONSE_TOO_LARGE` and
+`SNAPBACK_HOST_FETCH_RESPONSE_INVALID_UTF8` on every target). Secret
+DESCRIPTOR placement slots resolve only at the hosted fetch boundary; the
+local profile stages secret values through `ctx.secrets` handles into
+headers and refuses descriptor slots with
+`SNAPBACK_HOST_FETCH_SLOT_INVALID`. `ctx.fetchStream` works the same way
+on both targets ([streamed actions](./streamed-actions.md)).
 
 For the partial local agent-auth slice, codegen also derives
 `authorityCreating: true` when an action or mutation declares a write to a

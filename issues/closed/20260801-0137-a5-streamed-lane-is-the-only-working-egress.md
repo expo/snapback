@@ -42,3 +42,34 @@ effects on 0.1.7 (the A5 `runRefresh` in
 is a working taught shape), plus a packaged-closure conformance test that
 executes one plain-fetch action and one streamed action against a local
 fixture.
+
+---
+
+**Status:** Resolved (2026-08-01, 0137 between-arms fix lane)
+
+**Fix.** `host.fetch` is now registered for the local target exactly as the
+fix shape asks: the detached action host (the lane that already served
+`action.streamOpen`/`streamRead`) implements a buffered host-mediated fetch
+under the same `SNAPBACK_OUTBOUND_ACTIONS` gate — request validation
+mirrors the streamed sibling (bounded URL/method/headers/body, value-mode
+secret profile refusing descriptor slots with
+`SNAPBACK_HOST_FETCH_SLOT_INVALID`), and the response value is
+field-compatible with the workerd coordinator's `hostActionFetch`
+(`{status, ok, url, bodyText}`, authored URL echoed, 1,000,000-byte bound,
+`SNAPBACK_HOST_FETCH_RESPONSE_TOO_LARGE`/`_INVALID_UTF8` passing both
+envelope decoders). Targets without an implementation refuse typed
+(`SNAPBACK_HOST_FETCH_UNSUPPORTED`), never by ambient fallback.
+
+**Docs.** guide/backend/actions-and-fetch.md gained §Host-mediated
+`ctx.fetch` (CI-verified example) alongside the module-form closed-script
+section and the inline-form global-fetch example landed for a4-f1; dated
+notes in LLP 0049 §Action Egress and (a4-f1) LLP 0108 §Admission rules.
+
+**Witness.** The egress acceptance runs a plain `ctx.fetch` action against
+a live local HTTP fixture ("plain ctx.fetch works on the local target",
+17/17; pre-fix this exact call died `SNAPBACK_HANDLER_HOST_CALL_UNKNOWN:
+host.fetch` — re-verified byte-identically by this arm). The streamed
+action against a local fixture is covered by the existing
+`demos/competitive-checkpoint/tests/acceptance/local-streaming.mjs` suite;
+the packaged-closure (npm) rerun of both is the next sweep arm's
+re-verification.

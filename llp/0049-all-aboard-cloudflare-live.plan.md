@@ -5,7 +5,11 @@
 **Systems:** Demo apps, Cloudflare, Deployment, Runtime, Security, Cron, Data gateway, Realtime, Contract/Exact, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-28 (the fast deployment-identity lane now regenerates
+**Revised:** 2026-08-01 (0137 a4-f1/a5-f1: §Action Egress dated note —
+`ctx.fetch` gained its local implementation on the detached action host,
+same lane and egress gate as `ctx.fetchStream`, response value
+field-compatible with the coordinator's; descriptor slots stay
+hosted-only.) 2026-07-28 (the fast deployment-identity lane now regenerates
 All Aboard's intentionally ignored schema/functions manifests from the
 tracked source and refuses tracked `artifacts.json` drift before recomputing
 identity, making its clean-checkout claim reproducible); 2026-07-25
@@ -400,6 +404,20 @@ acquisition is the revisit trigger.
 Cloudflare actions may use `fetch` only through the action execution class. The
 proof must keep the denial tests for queries and mutations: ambient `fetch`,
 Worker env, bindings, and storage handles remain unavailable there.
+
+**Dated note (2026-08-01, 0137 a4-f1/a5-f1): `ctx.fetch` is now
+target-portable.** The buffered host-mediated fetch designed here for the
+Cloudflare coordinator gained a local implementation: the detached action
+host serves `host.fetch` on the same execution lane and under the same
+`SNAPBACK_OUTBOUND_ACTIONS` gate as `ctx.fetchStream` (whose local leg had
+shipped with LLP 0076 while plain `ctx.fetch` dead-ended as an anonymous
+unknown host call). The response value is field-compatible with the
+coordinator's (`{status, ok, url, bodyText}`, authored URL echoed, the same
+1,000,000-byte bound and `SNAPBACK_HOST_FETCH_RESPONSE_*` refusals). The
+profile split stands: descriptor placement slots resolve only at the hosted
+boundary; the local value-mode profile stages `ctx.secrets` values and
+refuses descriptor slots with `SNAPBACK_HOST_FETCH_SLOT_INVALID`, exactly
+like the streamed sibling.
 
 **Decision: host-mediated fetch**, with scoped handler fetch as the named
 fallback (ratified 2026-07-07, ENG-23627):
