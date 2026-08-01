@@ -157,3 +157,41 @@ Evidence highlights (`convex/run.mjs`):
   than Snapback's one-await task but each step is obvious and the
   storageId-in-document model is refreshingly plain. 1.8 s to first
   served byte.
+
+## 2026-08-01 — firebase, arm 5, ACCESS GAP (posture recorded)
+
+Hosted probe project: **auth works** (email-password and anonymous both
+enabled; two identities created and later deleted — cleanup proof in the
+driver output). **Cloud Storage is not provisioned**: the bucket 404s at
+the REST root, `uploadBytes` fails `storage/unknown`, and provisioning
+requires console + billing action (since late 2024, Cloud Storage for
+Firebase requires the Blaze paid plan for new projects) that no agent
+credential here can take. The Local Emulator Suite alternative needs
+Java, absent on this machine. Per the 0102 amendment this is recorded as
+environment/credential evidence, not a product failure — but one real
+product finding stands regardless: **the free-tier avatar has a billing
+cliff on Firebase** that none of the other four arms has, and the
+checklist's time-to-first-photo is unmeasurable without a credit card.
+What the docs promise for the unmeasured checks (recorded as *claims*,
+not evidence): download URLs are public-by-token; originals serve as
+stored (EXIF passthrough); resize/EXIF-strip requires the paid Resize
+Images extension.
+
+## App A wrap — the comparative picture (evidence-backed)
+
+| Axis | snapback | pocketbase | supabase | convex | firebase |
+| --- | --- | --- | --- | --- | --- |
+| Ceremony (concepts) | 6 | **5, zero files** | 6 + SQL | 6 | gap |
+| Anonymous fetch of avatar URL | 400 (strict) | **200** | 400 | **200** | (claims 200) |
+| GPS in served original | **stripped** | served | served | served | gap |
+| Old avatar after replace | 403 next request | 404 (deleted) | overwritten | 200 (orphan) | gap |
+| First-serve latency measured | 199 ms local | 335 ms local | 2.6 s cloud | 1.8 s cloud | gap |
+
+The single sharpest cross-field fact: **Snapback is the only arm where
+the served avatar provably lost its GPS location** — every other
+working arm serves the uploader's coordinates in the original bytes,
+and two of them serve it to anyone holding the URL. The single
+sharpest Snapback deficit: ceremony — PocketBase needed *zero authored
+backend files* against our three plus codegen, and its on-the-fly
+thumb parameter has no Snapback equivalent (variants are pre-declared).
+Both findings go to the synthesis.
