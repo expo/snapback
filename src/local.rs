@@ -29993,6 +29993,92 @@ globalThis.__snapbackHandlers = {
         );
     }
 
+    // Regression for issues/20260801-0137-a3-live-subscriber-wedges-watch-reload.md:
+    // the served provision path runs the same-mode commit inside the managed
+    // Local write scope, where every live publication effect guard retains a
+    // clone of the transition's private projection root in the after-Local
+    // owner batch. That batch flushes only after the commit closure returns,
+    // so with one attached live subscriber the committed-carrier check saw
+    // its own projection root as a foreign in-flight admission and failed —
+    // wedging every watch-reload schema evolution in permanent
+    // SNAPBACK_AUTH_MODE_PENDING. This drives the exact production ordering.
+    #[test]
+    fn same_mode_activation_with_live_subscriber_survives_after_local_owner_retention() {
+        let (schema, predecessor_functions) = sessions_activation_pair('b', false);
+        let mut snapback = settled_sessions_activation_snapback(schema, predecessor_functions);
+
+        let connection = install_test_invalidation(&mut snapback);
+        snapback
+            .subscribe_live_with_invalidation(
+                "listItems",
+                LiveSubscribeInput {
+                    connection_id: "activation-live-retained".to_owned(),
+                    input: HandlerInput::default(),
+                    authorization_namespace: Some(test_authorization_namespace(91)),
+                    supersedes: None,
+                    resume_from_token: None,
+                },
+                LiveInvalidationAdmission {
+                    session_mode: true,
+                    connection: Some(connection),
+                    effect_fence: None,
+                },
+            )
+            .expect("subscribe under predecessor deployment");
+
+        let (_, mut successor_functions) = sessions_activation_pair('d', true);
+        successor_functions.functions[0].authority_creating = true;
+        let prepared = snapback
+            .prepare_auth_provision(
+                EnsureAppMode::Sessions,
+                None,
+                Some(successor_functions),
+                None,
+            )
+            .expect("preflight successor pair");
+        let controller = snapback.admission.clone();
+        let transition = controller
+            .begin_transition()
+            .expect("close and drain predecessor admission");
+
+        // Mirror the served write lane: reservation + Local write scope, with
+        // the after-Local owner batch (which holds clones of the projection
+        // root) flushing only after the commit closure returns.
+        let committed = snapback
+            .try_with_direct_authorization_write(
+                crate::storage::AuthorizationCommitPreflight::AllProtectedRooms,
+                move |snapback| {
+                    transition.commit_and_project_mode_state(|projection_admission| {
+                        let committed = snapback.commit_auth_provision_classified(
+                            prepared,
+                            "test",
+                            Some(projection_admission),
+                        )?;
+                        let state = committed.state.clone();
+                        Ok((committed, state))
+                    })
+                },
+            )
+            .expect("reserve the authorization write lane")
+            .expect(
+                "a live subscriber's retained publication admission must not wedge the \
+                 same-mode activation",
+            );
+
+        let (_, _, reopened) = committed
+            .publish_successor()
+            .expect("publish successor after the after-Local owners flushed");
+        assert!(reopened.accepting);
+        assert_eq!(reopened.in_flight, 0);
+        assert_eq!(
+            controller
+                .admit_for_mode(AuthMode::Sessions)
+                .expect("admission reopens for app data after the evolution")
+                .admission_epoch(),
+            reopened.admission_epoch
+        );
+    }
+
     #[test]
     fn same_mode_activation_terminally_deletes_live_service_scope_tombstones() {
         let (schema, predecessor_functions) = sessions_activation_pair('b', false);

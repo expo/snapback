@@ -137,6 +137,13 @@ struct EpochState {
     retired: bool,
     transition_owned: bool,
     in_flight: usize,
+    /// How many of the `in_flight` roots are the transition's own private
+    /// projection admission (0 or 1). Publication effect guards clone that
+    /// lease into the after-Local owner retention, so the root can outlive
+    /// the commit closure; the committed-carrier check must be able to prove
+    /// "every remaining root is the transition's own" without treating those
+    /// retained clones as foreign admitted work.
+    projection_in_flight: usize,
     cancellation: Arc<CancellationSignal>,
 }
 
@@ -245,6 +252,7 @@ impl AdmissionController {
                 retired: false,
                 transition_owned: false,
                 in_flight: 0,
+                projection_in_flight: 0,
                 cancellation: Arc::new(CancellationSignal::default()),
             },
         );
@@ -398,6 +406,7 @@ impl AdmissionController {
                 active_mode: Some(current.active_mode),
                 cancellation: current.cancellation.clone(),
                 diagnostic: true,
+                projection: false,
             }),
         })
     }
@@ -436,6 +445,7 @@ impl AdmissionController {
                         retired: false,
                         transition_owned: false,
                         in_flight: 0,
+                        projection_in_flight: 0,
                         cancellation: Arc::new(CancellationSignal::default()),
                     },
                 );
@@ -483,6 +493,7 @@ impl AdmissionController {
                 active_mode: Some(current.active_mode),
                 cancellation: current.cancellation.clone(),
                 diagnostic: false,
+                projection: false,
             }),
         })
     }
@@ -744,6 +755,7 @@ impl AdmissionController {
                     retired: false,
                     transition_owned: false,
                     in_flight: 0,
+                    projection_in_flight: 0,
                     cancellation: Arc::new(CancellationSignal::default()),
                 },
             );
@@ -781,6 +793,11 @@ struct LeaseToken {
     active_mode: Option<AuthMode>,
     cancellation: Arc<CancellationSignal>,
     diagnostic: bool,
+    /// True only for the transition's private projection root minted by
+    /// `admit_transition_projection`. Counted separately so the committed
+    /// carrier can prove no *foreign* root is in flight while publication
+    /// owners still retain clones of this root.
+    projection: bool,
 }
 
 impl Drop for LeaseToken {
@@ -792,6 +809,9 @@ impl Drop for LeaseToken {
         let mut remove = false;
         if let Some(epoch) = state.epochs.get_mut(&self.admission_epoch) {
             epoch.in_flight = epoch.in_flight.saturating_sub(1);
+            if self.projection {
+                epoch.projection_in_flight = epoch.projection_in_flight.saturating_sub(1);
+            }
             remove = epoch.retired && epoch.in_flight == 0;
         }
         if remove && state.current_epoch != self.admission_epoch {
@@ -815,6 +835,7 @@ impl AdmissionLease {
                 active_mode: None,
                 cancellation: Arc::new(CancellationSignal::default()),
                 diagnostic: false,
+                projection: false,
             }),
         }
     }
@@ -1087,7 +1108,17 @@ impl ModeTransitionGuard {
         // publication failure must not reopen the predecessor. Return the
         // still-closed guard as an owned carrier; its caller must complete all
         // remaining projection before explicitly publishing the successor.
-        self.validate_closed()?;
+        //
+        // Live publication effect guards retain clones of the projection root
+        // through the after-Local owner batch, which flushes only after this
+        // closure's Local scope exits. With at least one live subscription
+        // that root is therefore legitimately still counted here; treating it
+        // as a foreign admitted root wedged every watch-reload evolution with
+        // an attached live subscriber in permanent SNAPBACK_AUTH_MODE_PENDING
+        // (issues/closed/20260801-0137-a3-live-subscriber-wedges-watch-reload.md).
+        // The strict all-roots-dropped gate still holds at successor
+        // publication, after the batch has flushed.
+        self.validate_closed_allowing_projection_root(true)?;
         mode.validate_shape()?;
         Ok(CommittedModeTransition {
             transition: self,
@@ -1119,6 +1150,14 @@ impl ModeTransitionGuard {
                 "transition projection admission count overflowed",
             )
         })?;
+        epoch.projection_in_flight =
+            epoch.projection_in_flight.checked_add(1).ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_AUTH_MODE_STATE_CORRUPT",
+                    "auth",
+                    "transition projection admission count overflowed",
+                )
+            })?;
         Ok(AdmissionLease {
             token: Arc::new(LeaseToken {
                 controller: Some(self.controller.inner.clone()),
@@ -1127,6 +1166,7 @@ impl ModeTransitionGuard {
                 active_mode: Some(epoch.active_mode),
                 cancellation: epoch.cancellation.clone(),
                 diagnostic: false,
+                projection: true,
             }),
         })
     }
@@ -1188,9 +1228,31 @@ impl ModeTransitionGuard {
     }
 
     fn validate_closed(&self) -> SnapbackResult<()> {
+        self.validate_closed_allowing_projection_root(false)
+    }
+
+    /// `allow_projection_root` is used exactly once: after the same-mode
+    /// durable cut, publication effect guards may still retain clones of the
+    /// transition's own private projection root in the after-Local owner
+    /// batch, so the committed carrier is validated against "no foreign root
+    /// in flight" rather than "no root at all". Every reopen path stays on
+    /// the strict form, so the projection root is provably dropped before a
+    /// successor epoch can accept work.
+    // @ref LLP 0058#same-mode-provisioning — the private projection root is
+    // dropped before reopen; retained publication owners must not read as a
+    // foreign admitted root at the committed-carrier cut (2026-08-01 note).
+    fn validate_closed_allowing_projection_root(
+        &self,
+        allow_projection_root: bool,
+    ) -> SnapbackResult<()> {
         let state = lock(&self.controller.inner.state);
         let Some(epoch) = state.epochs.get(&self.admission_epoch) else {
             return Err(admission_closed());
+        };
+        let foreign_in_flight = if allow_projection_root {
+            epoch.in_flight != epoch.projection_in_flight
+        } else {
+            epoch.in_flight != 0
         };
         if state.current_epoch != self.admission_epoch
             || epoch.transition_generation != self.transition_generation
@@ -1198,7 +1260,7 @@ impl ModeTransitionGuard {
             || epoch.accepting
             || epoch.retired
             || !epoch.transition_owned
-            || epoch.in_flight != 0
+            || foreign_in_flight
         {
             return Err(admission_closed());
         }
@@ -1514,6 +1576,75 @@ mod tests {
             controller.admit().unwrap_err().diagnostic.code,
             "SNAPBACK_AUTH_MODE_PENDING"
         );
+    }
+
+    // Regression for issues/20260801-0137-a3-live-subscriber-wedges-watch-reload.md:
+    // live publication effect guards clone the transition's private projection
+    // root into the after-Local owner batch, which flushes only after the
+    // commit closure returns. The committed carrier must tolerate its own
+    // still-retained projection root (otherwise every same-mode evolution with
+    // an attached live subscriber failed post-commit and wedged admission in
+    // permanent SNAPBACK_AUTH_MODE_PENDING), while successor publication still
+    // strictly requires that root to be dropped before reopen.
+    #[test]
+    fn retained_projection_root_clone_does_not_fail_the_committed_carrier() {
+        let settled = settled_sessions(13);
+        let controller = AdmissionController::from_mode_state(&settled).unwrap();
+        let mut retained_publication_owner = None;
+        let committed = controller
+            .begin_transition()
+            .unwrap()
+            .commit_and_project_mode_state(|projection_admission| {
+                // Model `effect_guard`'s after-Local owner retention: a clone
+                // of the projection root outlives the commit closure.
+                retained_publication_owner = Some(projection_admission.clone());
+                Ok(((), settled.clone()))
+            })
+            .expect(
+                "a retained clone of the transition's own projection root must not \
+                 fail the known-committed carrier",
+            );
+        assert_eq!(controller.snapshot().in_flight, 1);
+
+        // LLP 0058 same-mode provisioning: the projection root is dropped
+        // before reopen. Publishing while the retained owner still holds the
+        // root must refuse instead of reopening over live projection work.
+        let refused = committed.publish_successor().unwrap_err();
+        assert_eq!(refused.diagnostic.code, "SNAPBACK_AUTH_MODE_PENDING");
+        let closed = controller.snapshot();
+        assert!(!closed.accepting);
+
+        // Once the after-Local owners flush (modeled by dropping the clone),
+        // a fresh commit over the fail-closed epoch is not possible, but the
+        // epoch must be fully drained: no counted root remains.
+        drop(retained_publication_owner.take());
+        assert_eq!(controller.snapshot().in_flight, 0);
+    }
+
+    #[test]
+    fn published_successor_after_projection_root_flush_reopens_accepting() {
+        let settled = settled_sessions(14);
+        let controller = AdmissionController::from_mode_state(&settled).unwrap();
+        let before = controller.snapshot();
+        let mut retained_publication_owner = None;
+        let committed = controller
+            .begin_transition()
+            .unwrap()
+            .commit_and_project_mode_state(|projection_admission| {
+                retained_publication_owner = Some(projection_admission.clone());
+                Ok(((), settled.clone()))
+            })
+            .expect("retained projection root must not fail the committed carrier");
+        // The after-Local batch flushes before the carrier's owner publishes
+        // the successor; model that ordering, then reopen must succeed.
+        drop(retained_publication_owner.take());
+        let (_, returned, reopened) = committed
+            .publish_successor()
+            .expect("successor publishes after the projection root flushed");
+        assert_eq!(returned, settled);
+        assert_ne!(reopened.admission_epoch, before.admission_epoch);
+        assert!(reopened.accepting);
+        assert_eq!(reopened.in_flight, 0);
     }
 
     #[test]

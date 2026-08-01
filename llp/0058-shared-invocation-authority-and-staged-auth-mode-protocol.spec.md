@@ -5,7 +5,13 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Security, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-27 (LLP 0108 amendment: `inline_handler_v1` and
+**Revised:** 2026-08-01 (same-mode provisioning note: the committed-carrier
+check proves "no foreign root in flight" — the transition's own private
+projection root may stay counted while after-Local publication owners drain,
+and the strict all-roots-dropped gate holds at successor publication; fixes
+the A3 sweep's live-subscriber watch-reload wedge,
+issues/closed/20260801-0137-a3-live-subscriber-wedges-watch-reload.md);
+2026-07-27 (LLP 0108 amendment: `inline_handler_v1` and
 `result_contract_v1` join the closed registry at experimental maturity and
 require generated-artifact acknowledgement); 2026-07-25 (acknowledgement-source split, defect resolution of
 issues/20260725-0093-p3-invalidation-ack-descriptor-coupling.md, author
@@ -972,6 +978,24 @@ The transition guard enters both durable-commit closures in fail-closed
 posture. Only an explicit typed `RolledBack` result may re-arm predecessor
 reopen; an unwind or otherwise unclassified exit is treated like an ambiguous
 post-commit failure and leaves admission closed.
+
+**Projection-root retention at the committed-carrier cut (2026-08-01).** The
+private projection admission is a counted root whose clones the publication
+effect guards retain through the after-Local owner batch, and that batch
+flushes only after the commit closure's Local scope exits. The
+committed-carrier validation therefore proves "no foreign root is in flight"
+— the transition's own projection root may still be counted while its
+retained publication owners drain — and the strict all-roots-dropped gate
+moves to successor publication, which runs after the batch has flushed.
+Treating the retained projection root as a foreign admitted root at the
+carrier cut misclassified every same-mode evolution with at least one
+attached live subscription as an ambiguous post-commit failure: the reload
+reported `SNAPBACK_AUTH_MODE_PENDING`, admission never reopened, and the
+operator had to restore the predecessor sources to boot (the A3 sweep's
+headline defect,
+`issues/closed/20260801-0137-a3-live-subscriber-wedges-watch-reload.md`).
+"Dropped before reopen" is unchanged: a successor epoch still cannot accept
+work while any clone of the projection root is alive.
 
 ### Sessions-to-dev downgrade
 
