@@ -97,3 +97,31 @@ data, and all `llp/`/`diaries/` history.
 Still open here: work item 2 (slice 5-rebuild) and the actual npm
 publication under the terminal names — both explicitly excluded
 from this landing and sequenced after it.
+
+## Execution record — npm candidate publication (2026-08-01, publish lane)
+
+The first real publication under the terminal names EXECUTED. All nine
+`@expo/snapback-*` packages are live on the public registry at 0.1.7
+under the immutable candidate tag `bakeoff-0-1-7-fdd49db8abf1`:
+staging run 30684007891 (tree `fdd49db8`, both platform proofs green
+after four real defects were found and fixed by the staged proof —
+codegen tarball missing `search-request-schema.mjs`, stale comparator
+fixture, missing TCP_NODELAY stalling Linux live frames, and the
+browser-capture race), qualified ledger + both platform receipts
+consumed unrestaged, every row's registry bytes verified byte-equal
+to the staged digests, candidate tag verified selecting 0.1.7 on all
+nine, closed candidate ledger emitted. Operational notes: npm applies
+a ~15–20 min serving hold to each brand-new package name (PUT 200 +
+receipt email, then packument 404 / web 403 until it clears) — the
+per-row publish-then-verify loop serializes on these holds, so the
+remaining uploads were fired in one batch (the exact staged tarballs)
+and the canonical script run once after all holds cleared, verifying
+every row via its skipped-already-published path. Ledger custody:
+candidate + qualified ledgers preserved at
+`~/snapback-release-ledgers/{candidate,qualified}-ledger-0.1.7-fdd49db8.json`
+(committed home to be decided by the promotion/5-rebuild lane, which
+consumes the candidate ledger). Charlie joined the npm expo org and
+the publish used an org-scoped granular token; the `latest` tag is
+untouched. STILL OPEN on this ticket: the leased promotion (moving
+`latest`; needs the publication-authority lease) and work item 2,
+slice 5-rebuild from the published artifacts.
