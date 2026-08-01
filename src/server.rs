@@ -37192,9 +37192,10 @@ globalThis.__snapbackHandlers = {
         wait_for_dispatcher_permits(&dispatcher, 4).await;
     }
 
-    /// An always-armed `everyMs` job whose epoch-0 interval anchor makes it
-    /// past-due the moment it loads, backed by a host-plan action so the run
-    /// executes without an Ibex VM.
+    /// An always-armed `everyMs` job whose seeded most-recent-slot nominal
+    /// (epoch-anchored grid, 0137 a4-f4) makes it past-due the moment it
+    /// loads, backed by a host-plan action so the run executes without an
+    /// Ibex VM.
     fn armed_due_cron_state() -> SharedSnapback {
         let manifest = FunctionManifest {
             functions: vec![FunctionDefinition::new(
@@ -37251,8 +37252,9 @@ globalThis.__snapbackHandlers = {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn disabled_scheduler_claims_nothing_while_manual_ticks_still_run() {
         let state = armed_due_cron_state();
-        // The job is armed and already due (epoch-0 interval anchor): an
-        // enabled scheduler's first 1 s tick would claim it.
+        // The job is armed and already due (seeded most-recent-slot nominal,
+        // jitter disabled): an enabled scheduler's first 1 s tick would
+        // claim it.
         let inspect = super::inspect_snapback(&state).await.unwrap();
         let job = inspect
             .cron

@@ -9,7 +9,7 @@ examples: [demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/accep
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-27
+reviewed: 2026-08-01
 reviewed-commit: HEAD
 ---
 
@@ -132,12 +132,14 @@ way, read the effective origin from `server.baseUrl`.
 ### Keep cron out of your suite
 
 If the app declares cron jobs, a live scheduler can commit runs mid-suite —
-and the first one can land surprisingly early: an `everyMs` job's nominal
-grid anchors at Unix epoch 0, so its first tick can fire up to one full
-interval after boot **regardless of when demand arrived** ([LLP 0028
+and the first one can land surprisingly early: an `everyMs` job seeds the
+most recent past slot on its epoch-anchored grid, so its first tick fires
+promptly after arming **regardless of when demand arrived** ([LLP 0028
 §Inspection and query
-surface](repo:llp/0028-cron-scheduled-execution.rfc.md), ENG-22604). Start
-the server with the scheduler inert and drive ticks yourself:
+surface](repo:llp/0028-cron-scheduled-execution.rfc.md), ENG-22604 and the
+2026-08-01 a4-f4 amendment — the run's trusted clock is its due time,
+within one interval of wall clock). Start the server with the scheduler
+inert and drive ticks yourself:
 
 ```js fragment reason="illustrative option on the startServer call above"
 const server = await startServer({ db: ':memory:', cwd: repoRoot, cronDisabled: true });

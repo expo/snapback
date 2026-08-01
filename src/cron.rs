@@ -1227,12 +1227,21 @@ fn ensure_next_due(job: &CronJobDefinition, state: &mut CronJobRuntimeState, now
 }
 
 fn initial_nominal(job: &CronJobDefinition, now_ms: u64) -> Option<u64> {
-    if job.schedule.every_ms.is_some() {
-        // @ref LLP 0028#inspection-and-query-surface — interval nominals
-        // anchor at epoch 0 so "every 1m" means whole-minute boundaries; the
-        // anchor reads as "due at the next tick" and surfaces in inspect, so
-        // display layers must not render it as a wall-clock date.
-        Some(0)
+    if let Some(every_ms) = job.schedule.every_ms {
+        if every_ms == 0 {
+            // Rejected by validation; keep the historical inert value for a
+            // stale persisted artifact (`next_nominal_after` never advances it).
+            return Some(0);
+        }
+        // @ref LLP 0028#inspection-and-query-surface — interval nominals stay
+        // on the epoch-anchored grid ("every 1m" means whole-minute
+        // boundaries), but a never-run job seeds at the MOST RECENT past
+        // slot, not slot 0: the run's trusted clock is bound to its due time
+        // (ctx.runtime.now()), and the epoch-0 seed executed the catch-up
+        // run with trusted time ~0 — time-gated handler logic silently
+        // no-oped while the ledger recorded Succeeded, and any committed
+        // timestamps were 1970-dated (0137 a4-f4).
+        Some(now_ms / every_ms * every_ms)
     } else if job.schedule.cron.is_some() {
         next_calendar_nominal_after(job, None, now_ms)
     } else {
@@ -1745,6 +1754,51 @@ mod tests {
                 "previous={previous} interval={interval} now={now}"
             );
         }
+    }
+
+    // 0137 a4-f4: a never-run `everyMs` job seeds its catch-up nominal at
+    // the most recent epoch-aligned slot, never slot 0. The run's trusted
+    // clock is bound to its due time (`ctx.runtime.now()` == due), so the
+    // old epoch-0 seed executed the catch-up run with trusted time ~0:
+    // time-gated handler logic (`remindAt <= now`) silently no-oped while
+    // the ledger recorded Succeeded, and committed timestamps were
+    // 1970-dated. The grid stays epoch-anchored — the seeded slot is a
+    // whole multiple of the interval — and the catch-up still fires
+    // immediately (due <= now with default jitter).
+    #[test]
+    fn first_interval_claim_seeds_at_the_most_recent_slot_not_epoch_zero() {
+        let mut job = interval_job("poll", 60_000);
+        job.jitter_policy = CronJitterPolicy {
+            enabled: false,
+            max_offset_ms: 0,
+        };
+        let manifest = manifest_with_jobs(vec![job]);
+        let mut runtime = LocalCronRuntime::default();
+        runtime.reconcile(&manifest);
+        let now = 1_753_000_000_123_u64;
+        let slot = now / 60_000 * 60_000;
+        let claims = runtime.claim_due_runs(&manifest, &BTreeSet::new(), now);
+        assert_eq!(claims.len(), 1, "the seeded catch-up run still claims immediately");
+        let metadata = &claims[0].metadata;
+        assert_eq!(
+            metadata.scheduled_at_ms,
+            Some(slot),
+            "catch-up nominal must be the most recent epoch-aligned slot"
+        );
+        assert_eq!(metadata.due_at_ms, slot, "jitter disabled: due is the seeded slot");
+        assert!(
+            now - metadata.due_at_ms < 60_000,
+            "the run's trusted clock stays within one interval of wall clock"
+        );
+        // The consumed nominal advances to the strictly-future slot: nothing
+        // else is due at this instant (grid advancement itself is pinned by
+        // `interval_strict_next_vectors_match_cloudflare`).
+        assert!(
+            runtime
+                .claim_due_runs(&manifest, &BTreeSet::new(), now)
+                .is_empty(),
+            "next nominal must be strictly in the future"
+        );
     }
 
     #[test]
@@ -2674,8 +2728,11 @@ mod tests {
         let manifest = manifest_with_jobs(vec![interval_job("poll", 60_000)]);
         let mut runtime = LocalCronRuntime::default();
         runtime.reconcile(&manifest);
+        // 70s: past the seeded slot (60s) plus the default jitter ceiling
+        // (every/10), so the first claim is unambiguously due (0137 a4-f4
+        // moved the never-run seed from epoch 0 to the most recent slot).
         let claim = runtime
-            .claim_due_runs(&manifest, &BTreeSet::new(), 60_000)
+            .claim_due_runs(&manifest, &BTreeSet::new(), 70_000)
             .pop()
             .expect("claim");
         let persisted = runtime.persisted_value().expect("persist cron state");
@@ -2754,8 +2811,9 @@ mod tests {
         let mut runtime = LocalCronRuntime::default();
         let manifest = manifest_with_jobs(vec![interval_job("poll", 60_000)]);
         runtime.reconcile(&manifest);
+        // 70s: past the seeded slot plus the default jitter ceiling (a4-f4).
         let claim = runtime
-            .claim_due_runs(&manifest, &BTreeSet::new(), 60_000)
+            .claim_due_runs(&manifest, &BTreeSet::new(), 70_000)
             .pop()
             .expect("claim");
 

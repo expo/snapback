@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "da25ab3826f15302d9e19052ce81d2b0513adfcc"
+    "commit": "f991081fca8e504edde0b512476d27f70a05a6d8"
   },
   "nav": {
     ".": [
@@ -671,9 +671,9 @@
       "examples": [
         "demos/all-aboard"
       ],
-      "reviewed": "2026-07-17",
+      "reviewed": "2026-08-01",
       "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
-      "sha256": "4a813c77d7b0708a3055ce4a2c2f205a2b201dd725c4c453d56fb5ed8461df02",
+      "sha256": "2b814547d3cae58a5fc951cb78a3e0429046289b25f7fb51de111618e922f3b7",
       "snippets": [
         {
           "lang": "js",
@@ -2227,9 +2227,9 @@
         "demos/all-aboard/tests/acceptance/headless.mjs",
         "packages/snapback-cli/fixtures/comparator/green.config.mjs"
       ],
-      "reviewed": "2026-07-27",
+      "reviewed": "2026-08-01",
       "reviewedCommit": "HEAD",
-      "sha256": "dab508e557d6437225ba9a1f2556902357c918606ec7328ddc5061e3da5cf3c2",
+      "sha256": "340343422c880dc9908badfaa56f8a8913b3e5930f5babb17a394420d0ffd582",
       "snippets": [
         {
           "lang": "js",
@@ -2327,5 +2327,5 @@
     "routes": 86,
     "hostOps": 28
   },
-  "contentHash": "16c48dcf3cccd67e74e34380d083f0a2192e72a4c1436f86ab2e13397b0b092f"
+  "contentHash": "f878e3cfe2cb306446ef4823163f4edb6c802100054dce2216b3c6721d423cde"
 }

@@ -5,7 +5,14 @@
 **Systems:** Cron, Runtime, Realtime, Data gateway, Deployment, Security, Developer experience, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-30
-**Revised:** 2026-07-30 (dated boundary amendment per Diary 0039 and LLP 0115
+**Revised:** 2026-08-01 (0137 a4-f4: §Inspection and query surface — a
+never-run `everyMs` job seeds its first nominal at the most recent
+epoch-aligned slot, not slot 0; the run's trusted clock is bound to its due
+time, so the epoch-0 seed made the documented first catch-up run execute
+with `ctx.runtime.now()` ~0 while its ledger row recorded Succeeded. Grid
+stays epoch-anchored; run identity stays deterministic; downtime-recovery
+coalescing and its nominal-bound trusted time are unchanged and flagged as
+an open question.) 2026-07-30 (dated boundary amendment per Diary 0039 and LLP 0115
 CV-9: transactional *one-off* scheduling — the Convex `runAfter`-class
 primitive the rerun scored as the everyday winner — is explicitly outside
 this RFC. The run ledger's identity model (`jobName`, nominal slot, schedule
@@ -692,18 +699,34 @@ controls, but read-only job/status inspection should be available as soon as cro
 lands.
 
 One wire value in the runtime view needs interpretation rather than direct
-display. Interval schedules anchor their nominal grid at Unix epoch 0 so that
-"every 1m" means whole-minute boundaries regardless of when the process
-started; a job that has never advanced past its anchor therefore reports
-`nextNominalAtMs: 0` (and a jitter-offset `nextDueAtMs` near 0). Under the
-scheduler contract `dueAt <= now` means "due at the next tick", so the anchor
-is truthful machine-readable state, not a missing value — headless consumers
-may rely on it. Display surfaces, however, must not render the anchor (or any
-past-due time on an armed job) as a wall-clock date: show "due now" for an
-armed job whose due time is in the past, and show the next times as absent for
-a job the scheduler will not fire (`disabled` or `inactive:no-demand`) — its
-stored nominal/due values will not fire as written. The motivating failure was
-the admin console printing `12/31/1969` for a demand-gated poller (ENG-22604).
+display. Interval schedules keep their nominal grid anchored at Unix epoch 0
+so that "every 1m" means whole-minute boundaries regardless of when the
+process started. **Amended 2026-08-01 (0137 a4-f4):** a job that has never
+run seeds its first nominal at the **most recent epoch-aligned slot at or
+before now** (`floor(now / everyMs) * everyMs`), not at slot 0. The run's
+trusted clock is bound to its due time — `ctx.runtime.now()` inside a cron
+run returns the run's nominal-plus-jitter — so the historical epoch-0 seed
+executed the documented first catch-up run with trusted time ~0:
+time-gated handler logic (`remindAt <= now` scans) silently no-oped while
+the run ledger recorded Succeeded, and any committed timestamps were
+1970-dated. Under the new seeding the first catch-up still fires promptly
+(the seeded slot is already past; jitter applies as usual), run identity
+stays deterministic (`cron:{job}:scheduled:{slot}`), and the first run's
+trusted clock is within one interval of wall clock. `nextNominalAtMs: 0`
+no longer appears for a fresh interval job; headless consumers that keyed
+on the literal 0 anchor must key on `dueAt <= now` instead, which was
+always the scheduler contract. A **stale persisted** nominal (downtime
+recovery) still coalesces per §Delivery — the single catch-up run keeps
+the missed slot's identity and therefore its nominal-bound trusted time;
+whether that recovery run should also clamp its trusted clock is an open
+design question, not covered by this amendment. Display surfaces must
+still not render any past-due time on an armed job as a wall-clock date:
+show "due now" for an armed job whose due time is in the past, and show
+the next times as absent for a job the scheduler will not fire
+(`disabled` or `inactive:no-demand`) — its stored nominal/due values will
+not fire as written. The original motivating display failure was the
+admin console printing `12/31/1969` for a demand-gated poller
+(ENG-22604); the seeding amendment removes that hazard at the source.
 
 ### Security and isolation
 

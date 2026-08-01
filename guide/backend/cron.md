@@ -9,7 +9,7 @@ examples: [demos/all-aboard]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-17
+reviewed: 2026-08-01
 reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
 ---
 
@@ -115,15 +115,18 @@ on the child (and refuses to reuse an already-running server, whose
 scheduler may be live). See
 [LLP 0028 §Scheduler state and run ledger](repo:llp/0028-cron-scheduled-execution.rfc.md).
 
-**The first tick can look early.** `everyMs` schedules anchor their nominal
-grid at Unix epoch 0, so an armed job's first evaluation usually finds a
-past-due nominal and fires one catch-up run — up to one full interval after
-boot, regardless of when your subscription armed it. A 180 s job observed
-firing ~180 s after boot "before anything subscribed" is this anchor, not a
+**The first tick can look early.** `everyMs` schedules keep their nominal
+grid anchored at Unix epoch 0, and a job's first evaluation seeds the most
+recent past slot — so one catch-up run fires promptly after arming,
+regardless of when your subscription armed it. A 180 s job observed firing
+shortly after boot "before anything subscribed" is this catch-up, not a
 bug ([LLP 0028 §Inspection and query
-surface](repo:llp/0028-cron-scheduled-execution.rfc.md), ENG-22604). If
-that mid-suite run would perturb your assertions, disable the scheduler as
-above and tick manually.
+surface](repo:llp/0028-cron-scheduled-execution.rfc.md), ENG-22604 and the
+2026-08-01 a4-f4 amendment). Inside that run, `ctx.runtime.now()` is the
+run's due time — since the a4-f4 amendment that is within one interval of
+wall clock, so time-gated scans (`remindAt <= now`) behave on the first
+tick. If the mid-suite run would perturb your assertions, disable the
+scheduler as above and tick manually.
 
 Definition generations and run sequences are exact JavaScript-safe integer
 identities. The maximum value is usable once; a successor fails before taking
