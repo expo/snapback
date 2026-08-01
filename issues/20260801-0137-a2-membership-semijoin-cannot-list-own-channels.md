@@ -16,3 +16,20 @@ ordinary per-user app-data feed as the supported interim pattern and makes
 clear that it is presentation data, never authorization backing. This issue
 remains open for the declaration-owned projection that would remove the
 mirror.
+
+---
+
+**Triage 2026-08-01 (fix-wave Lane β): executable, NOT 0100-gated.** Unlike
+its two A2/A3 siblings (principal-addressed removal and resource-partitioned
+keyset pages, both governed by LLP 0100 §§3-4 and gated on its ratification),
+the self-scoped projection this ticket asks for is *not* in 0100's scope —
+0100 mentions semi-joins only to exclude incremental semi-join deltas from
+its cursor profile.
+
+The proposal discloses strictly less than any existing surface: only the
+caller's own membership rows, resource ids, and roles — nothing about other
+principals — so the private-roster posture holds by construction, and
+revocation already blanks it through the ordinary membership-predicate
+invalidation. It needs a declaration-owned generated projection
+(`myMemberships` live query or `membershipResource.self()`), its LLP 0056
+amendment, and codegen + manifest plumbing. Ready to pick up.

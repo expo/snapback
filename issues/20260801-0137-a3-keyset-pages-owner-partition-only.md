@@ -21,3 +21,21 @@ axis is that field; the cursor binds the resource partition and the
 caller's seat. This is the LLP 0110/0131 bounded-children/board-list shape.
 Witness: generated pages over (orgId, pageKey) for any member, standard
 refusal matrix, outsider denied, stable under interleaved writes.
+
+---
+
+**Triage 2026-08-01 (fix-wave Lane β): governed by LLP 0100 §4, gated on its
+ratification.** This ticket's fix shape (a membership-gated resource
+partition for the generated keyset pager) is item 2 of **LLP 0100** (Draft):
+"a generated `membership-keyset-pages.v1` profile that pages one
+membership-protected resource through an opaque, authority-bound keyset
+cursor", with the cursor granting no authority and invalidating when the
+caller's authorization epoch changes. 0100 §4 carries the declaration and
+index shape.
+
+Do not implement independently: an ad-hoc resource partition that does not
+bind the cursor to the authorization epoch would hand out a cursor that
+outlives revocation — the exact property 0100 designs against. Blocked on
+0100 ratification alongside its sibling
+`20260801-0137-a2-no-admin-revocation-of-another-member.md` and
+`20260726-team-chat-room-pagination.md`.
