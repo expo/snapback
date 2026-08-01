@@ -52,6 +52,14 @@ section added, package/CLI surface corrected to repo reality, LLP 0030
 boundary stated, ready-file attach pinned; initial same day)
 **Related:** LLP 0000, LLP 0010, LLP 0012, LLP 0015, LLP 0016, LLP 0021, LLP 0023, LLP 0024, LLP 0030, LLP 0037, LLP 0038, LLP 0042
 
+**Revised (browser-canceled response tolerance):** 2026-07-31 (the staged
+linux-x64 cold-install proof failed deterministically with `browser response
+failed before complete capture: net::ERR_ABORTED` — the real-browser journey's
+own navigation raced the tail of resource capture. The capture now drains
+in-flight responses before proof-driven navigation and tolerates a
+browser-canceled response only when all protocol-reported delivered bytes are
+scanned; see §Acceptance.)
+
 **Revised (first-publication default-tag reconciliation):** 2026-07-29 (the
 `0.1.1` candidate run established that npm can assign `latest` to a brand-new
 public package name even when `npm publish --tag <candidate>` is explicit.
@@ -925,6 +933,21 @@ outside the root workspace and exercise independent consumer setups.
   listed proof-invoked host collection results remain outside the proof's
   pre-allocation-bound claim. Copies and encodings performed by the proof
   after those values return remain pre-allocation bounded.
+- Browser-canceled responses (`net::ERR_ABORTED` — a navigation aborting an
+  in-flight request, or the page's own client canceling a fetch it has
+  already consumed, as the packed starter's `/__snapback/connection/open`
+  does when the delivered-versus-finished window is wide enough, which
+  Linux's delivery timing makes near-deterministic) are not counterexamples
+  to that completeness claim and must not fail the proof. Programmatically
+  consumable responses (fetch/XHR/EventSource) are stream-captured into
+  proof-owned memory as their bytes arrive (`Network.streamResourceContent`),
+  so a later cancel cannot erase what the browser already read; the capture
+  additionally drains cancel-vulnerable in-flight responses before
+  proof-driven navigation. A cancel is then tolerated only when every byte
+  the protocol reported as delivered is scanned — zero delivered bytes scan
+  as an empty body, delivered bytes come from the proof-owned stream copy or
+  a full protocol-buffer salvage. An unsalvageable delivered byte, and every
+  non-cancel network failure, remains a fail-closed refusal.
 
 ## Open Questions
 

@@ -1317,6 +1317,7 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceIdentity) {
     const networkRequestMethods = new Map();
     const networkResponses = new Map();
     let captureFailure = null;
+    let journeyPhase = 'browser-launch';
     let networkResourcesObserved = 0;
     let responseBodiesObserved = 0;
     let responseBodiesScanned = 0;
@@ -1365,6 +1366,27 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceIdentity) {
         await new Promise((resolveTurn) => setTimeout(resolveTurn, 0));
       }
       if (captureFailure) throw captureFailure;
+    };
+    // Bounded in-flight drain: before navigating away (reload) and before
+    // asserting completeness, give every response that already has protocol
+    // events a chance to finish and be captured, so a navigation does not
+    // race the tail of its own page's resource capture. Before a
+    // proof-driven navigation only cancel-vulnerable entries matter:
+    // stream-captured responses already hold their delivered bytes in
+    // proof-owned memory, so canceling them loses nothing.
+    const drainNetworkCapture = async ({
+      cancelVulnerableOnly = false,
+      timeoutMs = 10_000,
+    } = {}) => {
+      const deadline = Date.now() + timeoutMs;
+      const undrained = () => (cancelVulnerableOnly
+        ? [...networkResponses.values()].some((response) => response.streamEnabled === null)
+        : networkResponses.size > 0);
+      await settleEvidence();
+      while (undrained() && Date.now() < deadline) {
+        await new Promise((resolveWait) => setTimeout(resolveWait, 25));
+        await settleEvidence();
+      }
     };
     const assertNetworkResourceSlot = () => {
       networkResourcesObserved += 1;
@@ -1498,13 +1520,37 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceIdentity) {
     });
     cdp.on('Network.responseReceived', (event) => {
       responseBodiesObserved += 1;
-      networkResponses.set(event.requestId, {
+      const response = {
+        aborted: false,
         dataEvents: 0,
         decodedDataLength: 0,
+        finished: false,
         method: networkRequestMethods.get(event.requestId) ?? null,
         status: event.response.status,
+        streamEnabled: null,
+        streamParts: [],
+        streamPrefix: null,
         url: event.response.url,
-      });
+      };
+      networkResponses.set(event.requestId, response);
+      // @ref LLP 0041#acceptance — programmatically consumable responses
+      // (fetch/XHR/EventSource) are the ones a page can read as a stream and
+      // then cancel before the protocol reports them finished, which would
+      // evict the buffer `Network.getResponseBody` reads from. Stream their
+      // bytes into proof-owned memory as they arrive, so a later cancel
+      // cannot erase what the browser already read.
+      if (event.type === 'Fetch' || event.type === 'XHR' || event.type === 'EventSource') {
+        response.streamEnabled = cdp.send('Network.streamResourceContent', {
+          requestId: event.requestId,
+        }).then(
+          (result) => {
+            if (typeof result?.bufferedData !== 'string') return false;
+            response.streamPrefix = result.bufferedData;
+            return true;
+          },
+          () => false,
+        );
+      }
       captureStructuredSurface('response-metadata', {
         frameId: event.frameId,
         hasExtraInfo: event.hasExtraInfo,
@@ -1546,13 +1592,45 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceIdentity) {
             `browser response exceeded its decoded scan bound while loading: ${response.url}`,
           );
         }
+        // Streamed chunks arrive in event order; chunks emitted before the
+        // stream enable took effect carry no `data` and are returned by the
+        // enable call as its buffered prefix instead.
+        if (typeof event.data === 'string' && response.streamEnabled !== null) {
+          response.streamParts.push(event.data);
+        }
       } catch (error) {
         captureFailure ??= error;
       }
     });
+    // Assemble the proof-owned copy of a streamed response: the buffered
+    // prefix returned by the stream enable, then every chunk in protocol
+    // event order. Returns null when streaming was not enabled (or refused),
+    // in which case the caller falls back to `Network.getResponseBody`.
+    const assembleStreamedBody = async (response) => {
+      if (response.streamEnabled === null) return null;
+      const enabled = await response.streamEnabled;
+      if (enabled !== true || typeof response.streamPrefix !== 'string') return null;
+      const accumulator = createBoundedByteAccumulator({
+        label: 'browser streamed response body',
+        maxBytes: BROWSER_MAX_SURFACE_BYTES,
+        maxChunks: BROWSER_MAX_SURFACES + 1,
+      });
+      if (response.streamPrefix.length > 0) {
+        accumulator.add(
+          decodeBoundedBase64(response.streamPrefix, 'browser streamed response body'),
+        );
+      }
+      for (const part of response.streamParts) {
+        if (part.length > 0) {
+          accumulator.add(decodeBoundedBase64(part, 'browser streamed response body'));
+        }
+      }
+      return accumulator.finish();
+    };
     cdp.on('Network.loadingFinished', (event) => {
       const response = networkResponses.get(event.requestId);
-      if (!response) return;
+      if (!response || response.aborted || response.finished) return;
+      response.finished = true;
       scheduleEvidence(async () => {
         const bodyForbidden = (
           response.method === 'HEAD'
@@ -1581,24 +1659,27 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceIdentity) {
             `browser protocol omitted response data events; completeness unavailable: ${response.url}`,
           );
         }
-        let result;
-        try {
-          result = await cdp.send('Network.getResponseBody', { requestId: event.requestId });
-        } catch (error) {
-          if (bodyForbidden) {
-            result = { body: '', base64Encoded: false };
-          } else {
-            throw new Error(
-              `could not capture browser-readable response bytes ${response.url}: ${error.message}`,
-            );
+        let body = await assembleStreamedBody(response);
+        if (body === null) {
+          let result;
+          try {
+            result = await cdp.send('Network.getResponseBody', { requestId: event.requestId });
+          } catch (error) {
+            if (bodyForbidden) {
+              result = { body: '', base64Encoded: false };
+            } else {
+              throw new Error(
+                `could not capture browser-readable response bytes ${response.url}: ${error.message}`,
+              );
+            }
           }
+          if (typeof result.body !== 'string') {
+            throw new Error(`browser response body was not text: ${response.url}`);
+          }
+          body = result.base64Encoded
+            ? decodeBoundedBase64(result.body, 'browser response body')
+            : result.body;
         }
-        if (typeof result.body !== 'string') {
-          throw new Error(`browser response body was not text: ${response.url}`);
-        }
-        const body = result.base64Encoded
-          ? decodeBoundedBase64(result.body, 'browser response body')
-          : result.body;
         const bodyBytes = typeof body === 'string'
           ? boundedUtf8ByteLength(body, 'browser response body')
           : body.byteLength;
@@ -1614,11 +1695,72 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceIdentity) {
         return true;
       });
     });
+    // @ref LLP 0041#acceptance — a browser-canceled response (navigation or
+    // reload aborting an in-flight request, surfaced as `net::ERR_ABORTED`)
+    // is tolerated only when every byte the protocol reported as delivered to
+    // the browser is still scanned: zero delivered bytes scan as an empty
+    // body, delivered bytes must be salvaged in full from the protocol
+    // buffer. Any other failure, or an unsalvageable delivered byte, remains
+    // a fail-closed refusal — completeness stays proven, not assumed.
     cdp.on('Network.loadingFailed', (event) => {
-      if (!networkResponses.has(event.requestId)) return;
-      captureFailure ??= new Error(
-        `browser response failed before complete capture: ${event.errorText}`,
-      );
+      const response = networkResponses.get(event.requestId);
+      if (!response || response.aborted || response.finished) return;
+      response.aborted = true;
+      const detail = `${response.method ?? '?'} ${response.url}`
+        + ` (status ${response.status}, resource ${event.type ?? 'unknown'},`
+        + ` canceled ${event.canceled === true},`
+        + ` ${response.dataEvents} data events,`
+        + ` ${response.decodedDataLength} delivered bytes,`
+        + ` phase ${journeyPhase})`;
+      const browserCanceled = event.canceled === true
+        || event.errorText === 'net::ERR_ABORTED';
+      if (!browserCanceled) {
+        captureFailure ??= new Error(
+          `browser response failed before complete capture: ${event.errorText} ${detail}`,
+        );
+        return;
+      }
+      scheduleEvidence(async () => {
+        let body = '';
+        if (response.dataEvents > 0 || response.decodedDataLength > 0) {
+          body = await assembleStreamedBody(response);
+          if (body === null) {
+            let result;
+            try {
+              result = await cdp.send('Network.getResponseBody', { requestId: event.requestId });
+            } catch (error) {
+              throw new Error(
+                'browser canceled a response after delivering bytes it no longer serves:'
+                + ` ${detail}: ${error.message}`,
+              );
+            }
+            if (typeof result.body !== 'string') {
+              throw new Error(`browser canceled response body was not text: ${detail}`);
+            }
+            body = result.base64Encoded
+              ? decodeBoundedBase64(result.body, 'browser canceled response body')
+              : result.body;
+          }
+          const bodyBytes = typeof body === 'string'
+            ? boundedUtf8ByteLength(body, 'browser canceled response body')
+            : body.byteLength;
+          if (bodyBytes < response.decodedDataLength) {
+            throw new Error(
+              'browser canceled response bytes were incomplete'
+              + ` (${bodyBytes} < ${response.decodedDataLength}): ${detail}`,
+            );
+          }
+        }
+        console.error(
+          'snapback-package-cold-install: scanned and tolerated a browser-canceled'
+          + ` response (${event.errorText}) ${detail}`,
+        );
+        captureSurface('response-body', body);
+        responseBodiesScanned += 1;
+        networkRequestMethods.delete(event.requestId);
+        networkResponses.delete(event.requestId);
+        return true;
+      });
     });
     page.on('console', (message) => {
       try {
@@ -1746,6 +1888,7 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceIdentity) {
 
     let browserJourney;
     try {
+      journeyPhase = 'initial-load';
       await page.goto(origin, { waitUntil: 'domcontentloaded' });
       await page.getByRole('heading', { name: 'Snapback todos' }).waitFor();
       await page.getByText('Connection: live', { exact: true }).waitFor();
@@ -1756,6 +1899,7 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceIdentity) {
       }
       await settleEvidence();
 
+      journeyPhase = 'mutation';
       const framesBeforeMutation = liveFrames;
       await page.getByRole('button', { name: 'Add todo' }).click();
       await page.getByRole('listitem').filter({ hasText: 'Todo 2' }).waitFor();
@@ -1768,8 +1912,9 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceIdentity) {
         'one-command starter native live WebSocket delivery',
       );
       const liveFramesAfterMutation = liveFrames - framesBeforeMutation;
-      await settleEvidence();
+      await drainNetworkCapture({ cancelVulnerableOnly: true });
 
+      journeyPhase = 'reload';
       await page.reload({ waitUntil: 'domcontentloaded' });
       await page.getByText('Connection: live', { exact: true }).waitFor();
       await page.getByRole('listitem').filter({ hasText: 'Build with Snapback' }).waitFor();
@@ -1779,6 +1924,7 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceIdentity) {
         fail(`real browser reload did not preserve the mutation: ${reloadedTodoCount} todos`);
       }
 
+      journeyPhase = 'inspection';
       captureSurface('page-state', await inspectPageState(page));
       for (const worker of page.workers()) observeWorker(worker, 'worker-state');
       for (const worker of context.serviceWorkers()) {
@@ -1787,10 +1933,13 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceIdentity) {
       const workerResults = await Promise.all(
         [...observedWorkers.values()].map(({ inspection }) => inspection),
       );
-      await settleEvidence();
+      await drainNetworkCapture();
       if (networkResponses.size !== 0) {
         throw new Error(
-          `browser response capture remained incomplete for ${networkResponses.size} resources`,
+          `browser response capture remained incomplete for ${networkResponses.size} resources: `
+          + [...networkResponses.values()]
+            .map(({ method, url }) => `${method ?? '?'} ${url}`)
+            .join(', '),
         );
       }
       const storageInspection = await inspectBrowserStorage(page);
