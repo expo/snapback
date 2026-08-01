@@ -1,0 +1,274 @@
+{
+  "item1": {
+    "fileSize": 120212515,
+    "wallMs": 12872,
+    "requests": 31,
+    "patchRequests": 29,
+    "patchBodyBytes": 120212515,
+    "totalBodyBytes": 120212900,
+    "maxChunkBytes": 8388608,
+    "tusResponseHeaders": {
+      "tus-resumable": "1.0.0",
+      "snapback-max-chunk-bytes": "8388608",
+      "upload-offset": "4194304"
+    },
+    "assetId": "019fbf92-e3a0-7630-ba65-86531091a94a",
+    "clipId": "019fbf93-158d-7143-9dbc-97eda3094f02"
+  },
+  "item2": {
+    "killMethod": "process.exit(9) fired synchronously from the task subscribe callback the moment the server-acknowledged offset first reached >= 50% of the file — the process (and any connection) dies between the acknowledged chunk and the next PATCH",
+    "killedAtOffset": 62914560,
+    "killedAtFractionOfFile": 0.523361149211461,
+    "bytesSentBeforeKill": 62914560,
+    "resumeHeadOffset": 62914560,
+    "bytesReTransmitted": 57297955,
+    "fullResendWouldBe": 120212515,
+    "resumabilitySavedBytes": 62914560,
+    "resumeWallMs": 10528
+  },
+  "item3": {
+    "sourceDigest": "6f821fe4d57acae58fa3da2b1981fa1207d2f652a64552badc792eb960e1c829",
+    "serverDigest": "6f821fe4d57acae58fa3da2b1981fa1207d2f652a64552badc792eb960e1c829",
+    "downloadedDigest": "6f821fe4d57acae58fa3da2b1981fa1207d2f652a64552badc792eb960e1c829",
+    "integrityGrade": "end-to-end-verified",
+    "downloadedBytes": 120212515
+  },
+  "item4": {
+    "fileSize": 549153,
+    "probes": {
+      "first-1KiB": {
+        "requested": "bytes=0-1023",
+        "status": 206,
+        "contentRange": "bytes 0-1023/549153",
+        "contentLength": 1024,
+        "acceptRanges": "bytes",
+        "cacheControl": "no-store, private",
+        "contentType": "video/mp4"
+      },
+      "mid-100KB": {
+        "requested": "bytes=100000-199999",
+        "status": 206,
+        "contentRange": "bytes 100000-199999/549153",
+        "contentLength": 100000,
+        "acceptRanges": "bytes",
+        "cacheControl": "no-store, private",
+        "contentType": "video/mp4"
+      },
+      "open-ended-tail": {
+        "requested": "bytes=500000-",
+        "status": 206,
+        "contentRange": "bytes 500000-549152/549153",
+        "contentLength": 49153,
+        "acceptRanges": "bytes",
+        "cacheControl": "no-store, private",
+        "contentType": "video/mp4"
+      }
+    }
+  },
+  "item5": {
+    "strictIntentIssuanceStatus": 422,
+    "mintedUrlShape": "/assets/signed/019fbf93-4a02-7833-a748-7082df4b8d00/primary",
+    "bareFetchStatus": 200,
+    "bareFetchWithProtocolHeaderStatus": null,
+    "afterTtlExpiryStatus": 401,
+    "ttlMs": 4000,
+    "deleteAssetStatus": 200,
+    "afterDeletionStatus": 404
+  },
+  "item6": {
+    "deleteWhileReferencedStatus": 409,
+    "deleteWhileReferencedDiagnostic": null,
+    "deleteAfterRowRemovedStatus": 200,
+    "metadataStatusImmediatelyAfterDeletion": 200,
+    "metadataAvailabilityImmediatelyAfterDeletion": "deleted",
+    "bytesStatusImmediatelyAfterDeletion": 404,
+    "gcSweepRan": true,
+    "gcSweepReport": {
+      "expiredAttempts": 0,
+      "stagingOrphansRemoved": 0,
+      "pendingReclaimed": 0,
+      "referenceReclaimed": 0,
+      "tombstonesPurged": 0,
+      "blobsCondemned": 0,
+      "blobObjectsDeleted": 0,
+      "blobRowsRemoved": 0,
+      "intentArtifactsReclaimed": 0,
+      "publication": {
+        "staged": 0,
+        "condemned": 0,
+        "retired": 2,
+        "objectsDeleted": 0
+      }
+    },
+    "metadataStatusAfterSweep": 200,
+    "bytesStatusAfterSweep": 404,
+    "finalMetadataStatus": 200,
+    "finalBytesStatus": 404,
+    "dedupSiblingStillServes": 206
+  },
+  "item7": {
+    "providerDefault": "video location policy must be declared explicitly; retain preserves GPS metadata to every consumer byte-identically",
+    "sourceDigest": "1cde74181af2b180fd37c0f217bc3331004ed3e02c2b81c28791046d19fb0268",
+    "servedDigest": "1cde74181af2b180fd37c0f217bc3331004ed3e02c2b81c28791046d19fb0268",
+    "sourceLocationTag": "TAG:location-eng=+37.7749-122.4194/; TAG:location=+37.7749-122.4194/",
+    "servedLocationTag": "TAG:location-eng=+37.7749-122.4194/; TAG:location=+37.7749-122.4194/",
+    "gpsSurvivesToConsumers": true,
+    "stripCodegenExit": 0,
+    "stripCodegenDiagnostic": null,
+    "stripRuntime": {
+      "uploadStatus": "ready",
+      "diagnostic": null,
+      "servedLocationTag": "",
+      "gpsStripped": true,
+      "servedDigest": "910a353e5046e940e15ec8ab8401e48f265140a9793127dcbaa998af4ba12729"
+    }
+  },
+  "item8": {
+    "manifestAssetsLimits": {
+      "advisoryLimits": [],
+      "appLogicalQuotaBytes": 4294967296,
+      "attemptTtlMs": 21600000,
+      "capabilityId": "asset_lifecycle_v1",
+      "deliveryProfiles": [
+        "private-strict",
+        "private-signed",
+        "public-immutable"
+      ],
+      "digestAlgorithm": "sha256",
+      "export": {
+        "cutExport": true,
+        "importApply": "experimental",
+        "importValidation": true
+      },
+      "image": {
+        "capabilityIds": [
+          "asset_image_finalization_v1",
+          "asset_image_pipeline_v1"
+        ],
+        "formats": [
+          "image/jpeg",
+          "image/png"
+        ],
+        "maxDecompressionRatio": 500,
+        "maxDimension": 16384,
+        "maxMetadataBytes": 1048576,
+        "maxOutputBytes": 67108864,
+        "maxPixels": 50000000,
+        "placeholderAlgorithm": "thumbhash.v1",
+        "ratioFloorBytes": 16777216,
+        "stepTimeBudgetMs": 10000
+      },
+      "integrityGrades": [
+        "end-to-end-verified",
+        "received-bytes-canonical"
+      ],
+      "lifecycleCallbacks": [
+        "ready",
+        "rejected"
+      ],
+      "lifecycleStores": [
+        "local-fs"
+      ],
+      "maxChunkBytes": 8388608,
+      "maxOpenAttemptsPerApp": 64,
+      "maxOpenAttemptsPerPrincipal": 8,
+      "minAccountingUnitBytes": 4096,
+      "missing": [
+        "asset-byte-backup",
+        "asset-custom-read-authorizers",
+        "asset-deferred-length"
+      ],
+      "pendingGraceMs": 86400000,
+      "publicationRetentionMs": 604800000,
+      "referenceGc": {
+        "capabilityId": "asset_reference_gc_v1",
+        "graceMaxMs": 2592000000,
+        "graceMinMs": 60000
+      },
+      "resumableLane": "tus-1.0.0",
+      "seedAssetFixtures": true,
+      "signedUrlDefaultTtlMs": 900000,
+      "signedUrlMaxTtlMs": 86400000,
+      "tombstoneRetentionMs": 604800000,
+      "video": {
+        "capabilityIds": [
+          "asset_video_finalization_v1"
+        ],
+        "containerBrands": [
+          "isom",
+          "iso2",
+          "mp41",
+          "mp42",
+          "avc1",
+          "qt"
+        ],
+        "formats": [
+          "video/mp4",
+          "video/quicktime"
+        ],
+        "maxBoxCount": 65536,
+        "maxBoxDepth": 16,
+        "maxMetadataBytes": 4194304,
+        "maxParseBytes": 268435456,
+        "stepTimeBudgetMs": 10000
+      },
+      "workLeaseMs": 60000,
+      "workRetryCeiling": 5
+    },
+    "attemptCreateMaxChunkBytes": 8388608,
+    "clientDefaultChunkBytes": 4194304,
+    "tusResponseHeaders": {
+      "tus-resumable": "1.0.0",
+      "snapback-max-chunk-bytes": "8388608",
+      "upload-offset": "4194304"
+    },
+    "intentDeclaredMaxBytes": 200000000,
+    "pricing": "self-hosted local target: no pricing cliff exists to record; no hosted asset pricing is published (hosted targets report the asset capability Missing)"
+  },
+  "milestones": [
+    {
+      "name": "server booted (sessions) at http://127.0.0.1:65112",
+      "atMs": 26507
+    },
+    {
+      "name": "session minted",
+      "atMs": 26557
+    },
+    {
+      "name": "item 1: 120 MB upload ready in 12.9s, 29 PATCHes, 120212515 PATCH body bytes",
+      "atMs": 39580
+    },
+    {
+      "name": "item 2: killed at 62914560, resumed from HEAD offset 62914560, re-transmitted 57297955 bytes",
+      "atMs": 52704
+    },
+    {
+      "name": "item 3: integrity verified (server digest + full download)",
+      "atMs": 52864
+    },
+    {
+      "name": "item 4: ranged delivery probed (3 ranges, all 206)",
+      "atMs": 52993
+    },
+    {
+      "name": "item 5: signed URL minted, expired, and revoked-by-deletion",
+      "atMs": 58139
+    },
+    {
+      "name": "item 6: deletion truth recorded",
+      "atMs": 58183
+    },
+    {
+      "name": "item 7: GPS survival + strip-refusal probe recorded",
+      "atMs": 67994
+    },
+    {
+      "name": "item 8: limits recorded from manifest + attempt-create response",
+      "atMs": 67994
+    }
+  ],
+  "serverLaunch": {
+    "rung": "cargo",
+    "identity": "unpinned-binary"
+  }
+}

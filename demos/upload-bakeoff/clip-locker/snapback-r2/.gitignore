@@ -1,0 +1,8 @@
+# Large local artifacts only — evidence.json and build-log.md are committed.
+tmp/
+*.mp4
+# Generated-artifact custody (guide: commit the review manifest only).
+snapback/generated/*
+!snapback/generated/artifacts.json
+snapback/.snapback/
+*.snapback.restore.lock
