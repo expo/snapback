@@ -1,12 +1,17 @@
 # LLP 0144: Declared application refusal codes
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Review
 **Systems:** Runtime, Code generation, Client protocol, Client integration,
 Authoring, Contract, Diagnostics, Guide, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-01
-**Revised:** 2026-08-01 (v4, round-3 narrow fixes: per Codex R3, the
+**Revised:** 2026-08-01 (loop CONVERGED dual-family READY — Fable round 3,
+Codex round 4, zero unresolved concerns; artifacts
+reviews/0144-declared-app-refusal-codes.{fable,codex}.md. Status
+advances Draft -> Review; acceptance is the author's call; the
+engine-leg admission floor repair (widened parity ticket) is the
+first implementation motion.) 2026-08-01 (v4, round-3 narrow fixes: per Codex R3, the
 F1 correlation token's shim-side binding is now non-extractable — a
 token branded as an error property would be handler-copyable, so the
 `host()` shim holds token-to-error in a shim-private identity map
