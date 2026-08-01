@@ -12,10 +12,11 @@
 **Related:** LLP 0041, issues/20260731-sd6-scope-migration-and-rebuild.md
 **Marker:** release-lane
 
-## Implementation checkpoint — 2026-08-01
+## Execution checkpoint — 2026-08-01
 
-The structural migration is implemented but the timing exit remains open
-until the first retained EAS execution:
+The structural migration is implemented and the first retained EAS execution
+passed end to end. The timing exit remains open because the successful warm
+run took 18m29s rather than the target 15m:
 
 - staging moved from `.github/workflows/qualified-package-staging.yml` to
   `.eas/workflows/qualified-package-staging.yml` under the dedicated
@@ -28,15 +29,27 @@ until the first retained EAS execution:
 - macOS and Linux staged cold-install proofs fan out concurrently after
   assembly, then one retention job requires all nine tarballs and both
   receipts; and
-- Hermes build/install and Cargo target caches are restored from authority-bound
-  keys and saved under source-revision-specific keys. LLP 0041 §Qualified
+- Hermes build/install caches are restored from authority-bound keys and saved
+  under source-revision-specific keys. Cargo target caching was removed after
+  compression/upload overhead made it counterproductive. LLP 0041 §Qualified
   staging substrate — 2026-08-01 records why cache reuse does not replace any
   output proof.
 
+Successful run:
+[019fbd18-6ad1-744b-98cd-684945ae0ad7](https://expo.dev/accounts/expo/projects/snapback-ci/workflows/019fbd18-6ad1-744b-98cd-684945ae0ad7),
+source revision `87cc4ac358082e51c2781d0241c4ee761b9cd24e`.
+
+- macOS runtime: 6m43s; Linux runtime: 14m42s, launched together;
+- assembly: 1m18s;
+- macOS staged proof: 1m46s; Linux staged proof: 1m59s, launched together;
+- final retention: 28s; total wall time: 18m29s; and
+- retained output: a 66.5 MB qualified release containing nine tarballs and
+  both platform receipts.
+
 The current EAS schema validator accepts the workflow and the file is below
-EAS's 16 KiB limit. Do not close this ticket until a real run retains the
-qualified release and demonstrates the target wall time (or records the
-remaining measured bottleneck).
+EAS's 16 KiB limit. The structural waste is removed (roughly 90m to 18m29s),
+but the ticket remains open for the final 3m29s: the Linux runtime build alone
+now consumes 14m42s, and the required assembly/proof tail follows it.
 
 Measured across five runs of `.github/workflows/qualified-package-staging.yml`
 (30460781040 .. 30684007891): total ~90 min, of which `linux-runtime` ~36 min
