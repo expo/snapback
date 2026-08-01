@@ -26,9 +26,7 @@ jobs:
         with:
           name: artifact-smoke
       - name: Inspect artifact output
-        env:
-          ARTIFACT_PATH: ${{ steps.downloaded.outputs.artifact_path }}
         run: |
-          printf 'artifact output=<%s>\n' "$ARTIFACT_PATH"
-          test -f "$ARTIFACT_PATH"
-          grep -q 'artifact smoke' "$ARTIFACT_PATH"
+          printf 'artifact output=<%s>\n' ${{ steps.downloaded.outputs.artifact_path }}
+          test -f ${{ steps.downloaded.outputs.artifact_path }}
+          grep -q 'artifact smoke' ${{ steps.downloaded.outputs.artifact_path }}
