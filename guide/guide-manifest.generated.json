@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "bd6219ee03d0dc3f07942f0df65690e043b5f382"
+    "commit": "9f7db1324a254d7f93ee661885f004c3da7ee613"
   },
   "nav": {
     ".": [
@@ -946,6 +946,7 @@
       "authorities": [
         "llp/0051-language-neutral-data-tier.rfc.md",
         "llp/0065-generated-data-pattern-soundness.rfc.md",
+        "llp/0100-membership-addressed-operations-and-pages.rfc.md",
         "llp/0110-bounded-children-and-activity-patterns.spec.md",
         "llp/0113-qualification-and-publication-authority.spec.md",
         "packages/snapback-codegen/standard-patterns.mjs",
@@ -957,8 +958,13 @@
       ],
       "reviewed": "2026-07-28",
       "reviewedCommit": "HEAD",
-      "sha256": "beae97a2758407dcc62e6d0919a063fb4c545388ff1c263a3d6d0d51f7387ab3",
+      "sha256": "8cc2f6a5905f4f33f7737bc7e5ce9d783a4e0c450da9451c618bcf95ee7a57c8",
       "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-codegen/standard-patterns.test.mjs"
+        },
         {
           "lang": "js",
           "class": "transcluded",
@@ -1162,7 +1168,7 @@
       "examples": [],
       "reviewed": "2026-08-01",
       "reviewedCommit": "HEAD",
-      "sha256": "7286d775b9b0933490cbf0500ec5d3a0d3d4f7c2f929c3788014ffb0cf2ff991",
+      "sha256": "bcfe335cdca04d049126b62a406647c93fa9f60ccaf4419f602ad93b6edbfc72",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2450,5 +2456,5 @@
     "routes": 86,
     "hostOps": 29
   },
-  "contentHash": "2155848a42a16dd2036334cb187a375d29ba4695507c732bc68419b340038697"
+  "contentHash": "ff9948c41c4ccf79ba58b9880db1000301aac49f4659bbdd78a4853e98d4852d"
 }

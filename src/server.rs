@@ -23004,6 +23004,9 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         // LLP 0065: the standard-pattern keyset cursor's collapsed refusal —
         // malformed, cross-plan, and cross-owner are byte-indistinguishable.
         | "SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID"
+        // LLP 0100 §4/§5: an incoherent membership-keyset standard-pattern
+        // declaration is a load-time authoring defect — client-fixable.
+        | "SNAPBACK_STANDARD_PATTERN_MEMBERSHIP_INVALID"
         | "SNAPBACK_REQUEST_JSON_INVALID"
         | "SNAPBACK_SEED_DECLARATION_INVALID"
         | "SNAPBACK_SEED_INVALID"
@@ -36351,6 +36354,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_RELATIONAL_CARDINALITY_UNPROVEN",
         "SNAPBACK_RELATIONAL_CURSOR_INVALID",
         "SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID",
+        "SNAPBACK_STANDARD_PATTERN_MEMBERSHIP_INVALID",
         "SNAPBACK_REQUEST_JSON_INVALID",
         "SNAPBACK_SEED_DECLARATION_INVALID",
         "SNAPBACK_SEED_INVALID",

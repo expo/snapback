@@ -55,8 +55,42 @@ function normalizeStandardPattern(spec, kind) {
   assert(
     value && typeof value === 'object' && !Array.isArray(value)
       && typeof value.helper === 'string' && value.helper.length > 0
-      && typeof value.profile === 'string' && value.profile.length > 0
-      && Object.keys(value).length === 2,
+      && typeof value.profile === 'string' && value.profile.length > 0,
+    `${kind} standardPattern must carry { helper, profile } version identifiers`,
+  );
+  // @ref LLP 0100#5-index-and-continuation-contract — the membership pages
+  // profile carries its generation-time membership facts (declaration stable
+  // id, resource argument/field, canonical role set) on the standard pattern
+  // so the runtime's cursor binding digest can consume them without
+  // re-deriving authority facts from the plan.
+  if (value.membership !== undefined) {
+    const membership = value.membership;
+    assert(
+      membership && typeof membership === 'object' && !Array.isArray(membership)
+        && typeof membership.declaration === 'string' && membership.declaration.length > 0
+        && typeof membership.resourceArg === 'string' && membership.resourceArg.length > 0
+        && typeof membership.resourceField === 'string' && membership.resourceField.length > 0
+        && Array.isArray(membership.roles) && membership.roles.length > 0
+        && membership.roles.every((role) => typeof role === 'string' && role.length > 0)
+        && Object.keys(membership).length === 4
+        && Object.keys(value).length === 3,
+      `${kind} standardPattern.membership must be { declaration, resourceArg, resourceField, roles }`,
+    );
+    return {
+      standardPattern: {
+        helper: value.helper,
+        profile: value.profile,
+        membership: {
+          declaration: membership.declaration,
+          resourceArg: membership.resourceArg,
+          resourceField: membership.resourceField,
+          roles: [...membership.roles],
+        },
+      },
+    };
+  }
+  assert(
+    Object.keys(value).length === 2,
     `${kind} standardPattern must be { helper, profile } version identifiers`,
   );
   return { standardPattern: { helper: value.helper, profile: value.profile } };

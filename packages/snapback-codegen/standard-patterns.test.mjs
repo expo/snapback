@@ -440,6 +440,327 @@ export const getTodoByHand = defineLiveQuery({
   rmSync(dir, { recursive: true, force: true });
 }
 
+// ---------------------------------------------------------------------------
+// Membership keyset pages (LLP 0100 §4): generation negatives + emission.
+// ---------------------------------------------------------------------------
+{
+  const { defineMembershipKeysetPages } = await import(patternsUrl);
+  const makeTables = () => {
+    const rooms = defineTable({ name: v.string() });
+    const roomMembers = defineTable({
+      roomId: v.id('rooms'),
+      userId: v.principal(),
+      role: v.string(),
+    })
+      .index('by_room_user', ['roomId', 'userId'], { unique: true })
+      .membership({
+        resource: 'roomId',
+        principal: 'userId',
+        role: 'role',
+        roles: ['owner', 'member'],
+        pendingRoles: ['invited'],
+        transitions: [
+          { op: 'insert', target: 'other', by: ['owner'], to: ['member'] },
+          { op: 'remove', target: 'self', by: ['self'] },
+        ],
+      });
+    const messages = defineTable({
+      roomId: v.id('rooms'),
+      pageKey: v.string(),
+      body: v.string(),
+      optionalKey: v.optional(v.string()),
+      plainRoom: v.string(),
+    })
+      .index('by_room_page_key', ['roomId', 'pageKey'], { unique: true })
+      .index('by_room_page_loose', ['roomId', 'pageKey'])
+      .index('by_room_body', ['roomId', 'body'], { unique: true });
+    defineSchema({ rooms, roomMembers, messages });
+    return { rooms, roomMembers, messages };
+  };
+  const names = { first: 'firstRoomMessagePage', next: 'nextRoomMessagePage' };
+  const goodMembership = (roomMembers) => ({
+    declaration: roomMembers,
+    resourceArg: 'roomId',
+    resourceField: 'roomId',
+    roles: ['owner', 'member'],
+  });
+  {
+    const { roomMembers, messages } = makeTables();
+    assert.throws(
+      () => defineMembershipKeysetPages({
+        table: messages,
+        names,
+        index: 'by_room_page_key',
+        cursorField: 'pageKey',
+      }),
+      /SNAPBACK_STANDARD_PATTERN_VISIBILITY_REQUIRED/,
+      'generation must fail closed when the membership block is omitted',
+    );
+    assert.throws(
+      () => defineMembershipKeysetPages({
+        table: roomMembers,
+        names,
+        membership: goodMembership(roomMembers),
+        index: 'by_room_user',
+        cursorField: 'userId',
+      }),
+      /SNAPBACK_STANDARD_PATTERN_TABLE_INELIGIBLE/,
+      'the membership table itself can never be the page table',
+    );
+    assert.throws(
+      () => defineMembershipKeysetPages({
+        table: messages,
+        names,
+        membership: { ...goodMembership(roomMembers), roles: ['owner', 'invited'] },
+        index: 'by_room_page_key',
+        cursorField: 'pageKey',
+      }),
+      /SNAPBACK_STANDARD_PATTERN_VISIBILITY_REQUIRED: membership.roles names pending role invited/,
+      'pending seats are not page visibility (LLP 0100 §4)',
+    );
+    assert.throws(
+      () => defineMembershipKeysetPages({
+        table: messages,
+        names,
+        membership: { ...goodMembership(roomMembers), roles: ['owner', 'moderator'] },
+        index: 'by_room_page_key',
+        cursorField: 'pageKey',
+      }),
+      /SNAPBACK_STANDARD_PATTERN_VISIBILITY_REQUIRED: membership.roles names undeclared role moderator/,
+    );
+    assert.throws(
+      () => defineMembershipKeysetPages({
+        table: messages,
+        names,
+        membership: { ...goodMembership(roomMembers), roles: [] },
+        index: 'by_room_page_key',
+        cursorField: 'pageKey',
+      }),
+      /SNAPBACK_STANDARD_PATTERN_VISIBILITY_REQUIRED: membership.roles must be a non-empty array/,
+    );
+    assert.throws(
+      () => defineMembershipKeysetPages({
+        table: messages,
+        names,
+        membership: { ...goodMembership(roomMembers), resourceField: 'plainRoom' },
+        index: 'by_room_page_key',
+        cursorField: 'pageKey',
+      }),
+      /SNAPBACK_STANDARD_PATTERN_VISIBILITY_REQUIRED: membership.resourceField plainRoom must carry the declaration's exact nominal resource type/,
+      'a plain string that merely looks like a room id is refused (nominal identity)',
+    );
+    assert.throws(
+      () => defineMembershipKeysetPages({
+        table: messages,
+        names,
+        membership: goodMembership(roomMembers),
+        index: 'by_room_page_loose',
+        cursorField: 'pageKey',
+      }),
+      /SNAPBACK_STANDARD_PATTERN_PAGINATION_INDEX_REQUIRED: by_room_page_loose must be unique with exact fields \[roomId, pageKey\]/,
+      'a non-unique index cannot carry the strict continuation boundary',
+    );
+    assert.throws(
+      () => defineMembershipKeysetPages({
+        table: messages,
+        names,
+        membership: goodMembership(roomMembers),
+        index: 'by_room_page_key',
+        cursorField: 'optionalKey',
+      }),
+      /SNAPBACK_STANDARD_PATTERN_PAGINATION_INDEX_REQUIRED/,
+      'an optional cursor field is refused',
+    );
+    assert.throws(
+      () => defineMembershipKeysetPages({
+        table: messages,
+        names,
+        membership: goodMembership(roomMembers),
+        index: 'by_room_page_key',
+        cursorField: 'pageKey',
+        limit: 0,
+      }),
+      /SNAPBACK_STANDARD_PATTERN_INVALID: limit must be an integer from 1 through 1024/,
+    );
+    assert.throws(
+      () => defineMembershipKeysetPages({
+        table: messages,
+        names,
+        membership: goodMembership(roomMembers),
+        index: 'by_room_page_key',
+        cursorField: 'pageKey',
+        extra: true,
+      }),
+      /SNAPBACK_STANDARD_PATTERN_INVALID: defineMembershipKeysetPages options has unknown field extra/,
+      'top-level pattern options are a closed vocabulary',
+    );
+  }
+  {
+    // App-scoped membership declarations are refused: §4 requires a
+    // resource-scoped declaration.
+    const orgSettings = defineTable({ pageKey: v.string(), body: v.string() })
+      .index('by_page_key_only', ['pageKey'], { unique: true });
+    const staff = defineTable({ userId: v.principal(), role: v.string() })
+      .index('by_user', ['userId'], { unique: true })
+      .membership({
+        scope: 'app',
+        principal: 'userId',
+        role: 'role',
+        roles: ['admin'],
+        transitions: [{ op: 'insert', target: 'other', by: ['admin'], to: ['admin'] }],
+      });
+    defineSchema({ orgSettings, staff });
+    assert.throws(
+      () => defineMembershipKeysetPages({
+        table: orgSettings,
+        names,
+        membership: {
+          declaration: staff,
+          resourceArg: 'orgId',
+          resourceField: 'pageKey',
+          roles: ['admin'],
+        },
+        index: 'by_page_key_only',
+        cursorField: 'pageKey',
+      }),
+      /SNAPBACK_STANDARD_PATTERN_VISIBILITY_REQUIRED: membership keyset pages require a resource-scoped membership declaration/,
+    );
+  }
+  {
+    // Positive emission: ordinary callable Query pair (LLP 0100 §4's
+    // deliberate delta from defineLiveQuery+defaultLive:false), membership
+    // predicate as executable authority, and the §5 generation-time facts on
+    // the standard pattern.
+    const { roomMembers, messages } = makeTables();
+    const pages = defineMembershipKeysetPages({
+      table: messages,
+      names,
+      membership: goodMembership(roomMembers),
+      index: 'by_room_page_key',
+      cursorField: 'pageKey',
+      limit: 50,
+    });
+    const first = pages.firstRoomMessagePage;
+    const next = pages.nextRoomMessagePage;
+    assert.equal(first.__kind, 'Query', 'membership pages are callable-only Query emissions');
+    assert.equal(next.__kind, 'Query');
+    assert.equal(first.defaultLive, undefined, 'not a defaultLive:false live query');
+    assert.deepEqual(first.standardPattern, {
+      helper: 'membership-keyset-pages.v1',
+      profile: 'membership.v1',
+      membership: {
+        declaration: 'roomMembers',
+        resourceArg: 'roomId',
+        resourceField: 'roomId',
+        roles: ['member', 'owner'],
+      },
+    }, 'the §5 binding facts ride the standard pattern, roles canonicalized');
+    assert.deepEqual(first.standardPattern, next.standardPattern);
+    assert.equal(first.plan.membershipFilters.length, 1, 'the seat predicate is executable authority');
+    assert.deepEqual(first.plan.membershipFilters[0].roles, ['member', 'owner']);
+    assert.equal(first.plan.membershipFilters[0].resource.kind, 'arg');
+    assert.equal(first.plan.membershipFilters[0].resource.path, 'roomId');
+    assert.deepEqual(Object.keys(first.args), ['roomId'], 'first takes exactly the resource argument');
+    assert.deepEqual(Object.keys(next.args), ['roomId', 'after'], 'next adds the opaque continuation');
+    assert.equal(first.plan.filters.length, 1, 'first filters on the resource value only');
+    assert.equal(next.plan.filters.length, 2, 'next adds exactly the strict boundary');
+  }
+}
+
+// Membership pages ride the full generate() pipeline: Query-kind manifest
+// emission with the membership facts intact.
+{
+  const dir2 = mkdtempSync(join(tmpdir(), 'snapback-membership-pages-'));
+  try {
+    writeFileSync(join(dir2, 'schema.mjs'), `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export const rooms = defineTable({ name: v.string() });
+export const roomMembers = defineTable({
+  roomId: v.id('rooms'),
+  userId: v.principal(),
+  role: v.string(),
+})
+  .index('by_room_user', ['roomId', 'userId'], { unique: true })
+  .membership({
+    resource: 'roomId',
+    principal: 'userId',
+    role: 'role',
+    roles: ['owner', 'member'],
+    transitions: [
+      { op: 'insert', target: 'other', by: ['owner'], to: ['member'] },
+      { op: 'remove', target: 'self', by: ['self'] },
+    ],
+  });
+export const messages = defineTable({
+  roomId: v.id('rooms'),
+  pageKey: v.string(),
+  body: v.string(),
+})
+  .index('by_room_page_key', ['roomId', 'pageKey'], { unique: true })
+  .sync();
+export default defineSchema(
+  { rooms, roomMembers, messages },
+  { auth: { mode: 'sessions' } },
+);
+`);
+    writeFileSync(join(dir2, 'functions.mjs'), `
+import { defineMembershipKeysetPages } from '${patternsUrl}';
+import { messages, roomMembers } from './schema.mjs';
+
+export const { firstRoomMessagePage, nextRoomMessagePage } =
+  defineMembershipKeysetPages({
+    table: messages,
+    names: { first: 'firstRoomMessagePage', next: 'nextRoomMessagePage' },
+    membership: {
+      declaration: roomMembers,
+      resourceArg: 'roomId',
+      resourceField: 'roomId',
+      roles: ['owner', 'member'],
+    },
+    index: 'by_room_page_key',
+    cursorField: 'pageKey',
+    limit: 50,
+  });
+`);
+    const result = await generate(dir2);
+    assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+    const manifest = JSON.parse(
+      readFileSync(join(dir2, 'generated', 'functions.manifest.json'), 'utf8'),
+    );
+    const byName = new Map(manifest.functions.map((fn) => [fn.name, fn]));
+    for (const name of ['firstRoomMessagePage', 'nextRoomMessagePage']) {
+      const fn = byName.get(name);
+      assert.ok(fn, `${name} must be emitted`);
+      assert.equal(fn.kind, 'Query', `${name} is callable-only — never a LiveQuery`);
+      assert.equal(fn.authRequirement, 'authenticated');
+      assert.deepEqual(fn.standardPattern, {
+        helper: 'membership-keyset-pages.v1',
+        profile: 'membership.v1',
+        membership: {
+          declaration: 'roomMembers',
+          resourceArg: 'roomId',
+          resourceField: 'roomId',
+          roles: ['member', 'owner'],
+        },
+      }, `${name} carries the §5 generation-time membership facts`);
+      const plan = fn.runtime.HostPlan.Query;
+      assert.equal(plan.membershipFilters.length, 1, `${name} executes the seat predicate`);
+      assert.ok(
+        plan.filters.some((filter) => filter.field === 'roomId' && filter.op === 'Eq'),
+        `${name} filters on the exact resource value`,
+      );
+    }
+    const nextArgs = JSON.parse(readFileSync(
+      join(dir2, 'generated', 'operations', 'nextRoomMessagePage.args.schema.json'),
+      'utf8',
+    ));
+    assert.deepEqual(nextArgs.required.sort(), ['after', 'roomId']);
+    assert.equal(nextArgs.additionalProperties, false);
+  } finally {
+    rmSync(dir2, { recursive: true, force: true });
+  }
+}
+
 console.log('standard-patterns.test.mjs: all cases passed');
 
 function snapshotTree(root) {

@@ -40,7 +40,7 @@ with the Snapback label and `guide-gap` in the title.
 | backend.schema | Declare tables, fields, indexes, sync | schema, tables, model | local | shipped | `defineSchema` in packages/snapback-codegen/define.mjs | llp/0037, llp/0004 | getting-started/your-first-backend.md |
 | backend.functions | Queries, live queries, mutations, and actions; declarative plans or self-contained colocated JS handlers; explicit document/record/value result contracts with generated exact references and runtime egress validation | query, mutation, endpoint, api, inline handler, result contract, results.documents, results.records | local | shipped | `results` in packages/snapback-codegen/define.mjs | llp/0004, llp/0009, llp/0101 | backend/queries.md |
 | backend.runtime-values | Derive deterministic per-invocation time and fresh identifiers inside JavaScript handlers | server time, server clock, timestamp, generated id, UUID, Date.now, Math.random | local | shipped | `runtime.now` in packages/snapback-harness/ctx-bootstrap.js | llp/0051, llp/0065 | backend/trusted-runtime-values.md |
-| backend.standard-patterns | Generate owner-scoped CRUD, unique lookup, and keyset pages with trusted defaults | CRUD generator, pagination, trusted defaults | local | partial | `defineOwnedCrud` in packages/snapback-codegen/standard-patterns.mjs | llp/0051, llp/0065 | backend/standard-patterns.md |
+| backend.standard-patterns | Generate owner CRUD, unique lookup, owner/membership keyset pages | CRUD generator, pagination, membership pages, trusted defaults | local | partial | `defineOwnedCrud` in packages/snapback-codegen/standard-patterns.mjs | llp/0051, llp/0065, llp/0100 | backend/standard-patterns.md |
 | backend.relational-queries | Bounded two-source equi-joins with explicit visibility, closed projections, and transactionally maintained projection tables (`defineRelationalQuery`, `defineMaintainedProjection`, stable capability since 2026-07-26) | joins, relational queries, denormalized reads, materialized views | local | partial | `defineRelationalQuery` in packages/snapback-codegen/define.mjs | llp/0080, llp/0065 | backend/relational-queries.md |
 | backend.bounded-children-v1 | Experimental one-visible-parent/one-index-bounded-child-page profile with protected relation incarnations and `sbbc1` AEAD keysets; only contributor source builds with the exact embedded atomic carrier advertise it, while public runtime packages and hosted targets retain a structured GAP | one-to-many, parent children, relation incarnation, bounded child page | local | partial | src/local-relation-activity-publication.v1.json | llp/0104, llp/0108, llp/0101 | GAP (public-package attestation and hosted publication; owner: Charlie, review: 2026-08-31) |
 | backend.write-activity-v1 | Experimental closed source-write plus one provenance-bearing activity insert with exact source-effect assertion and LLP 0043/0101 settlement; only contributor source builds with the exact embedded atomic carrier advertise it, while public runtime packages and hosted targets retain a structured GAP | audit log, activity feed, transactional activity, write receipt | local | partial | tests/conformance/relation-activity-publication-v1.receipt.json | llp/0104, llp/0108, llp/0043, llp/0101 | GAP (public-package attestation and hosted publication; owner: Charlie, review: 2026-08-31) |
@@ -3642,7 +3642,7 @@ id: backend.standard-patterns
 order: 25
 audience: agent-first
 capabilities: [backend.standard-patterns]
-authorities: [llp/0051-language-neutral-data-tier.rfc.md, llp/0065-generated-data-pattern-soundness.rfc.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0113-qualification-and-publication-authority.spec.md, packages/snapback-codegen/standard-patterns.mjs, packages/snapback-codegen/define.mjs]
+authorities: [llp/0051-language-neutral-data-tier.rfc.md, llp/0065-generated-data-pattern-soundness.rfc.md, llp/0100-membership-addressed-operations-and-pages.rfc.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0113-qualification-and-publication-authority.spec.md, packages/snapback-codegen/standard-patterns.mjs, packages/snapback-codegen/define.mjs]
 examples: [packages/snapback-codegen/standard-patterns.test.mjs, packages/snapback-codegen/relation-activity-authoring.test.mjs]
 status: current
 targets: [local]
@@ -3788,6 +3788,68 @@ page with fewer than `limit` rows is terminal and carries no cursor.
 Continuation guarantees no skipped and no duplicated row among rows
 untouched by concurrent mutations; a row whose cursor field is concurrently
 mutated may move relative to the page boundary.
+
+## Generate membership-scoped keyset pages
+
+When the partition is a shared resource rather than the caller's own rows —
+a chat room's history, an org's board — `defineMembershipKeysetPages`
+(LLP 0100 §4) pages one membership-protected resource. Visibility is the
+caller's declared seat: the generated pair executes the resource-value
+filter AND the declaration-bound role predicate on every invocation —
+executable authority, never metadata.
+
+```js source=packages/snapback-codegen/standard-patterns.test.mjs
+export const { firstRoomMessagePage, nextRoomMessagePage } =
+  defineMembershipKeysetPages({
+    table: messages,
+    names: { first: 'firstRoomMessagePage', next: 'nextRoomMessagePage' },
+    membership: {
+      declaration: roomMembers,
+      resourceArg: 'roomId',
+      resourceField: 'roomId',
+      roles: ['owner', 'member'],
+    },
+    index: 'by_room_page_key',
+    cursorField: 'pageKey',
+    limit: 50,
+  });
+```
+
+The `membership` block is this profile's visibility declaration and is
+closed: `declaration` is the `defineTable(...).membership(...)` table
+(resource-scoped only), `resourceArg`/`resourceField` carry the
+declaration's exact nominal resource id type (a plain string that merely
+looks like a room id is refused), and `roles` is a non-empty subset of the
+declared non-pending roles — a pending seat is not visibility. The index
+must be unique with exactly `[resourceField, cursorField]`, and a
+membership or permission-backing table can never be the page table.
+
+**The per-resource page-key idiom is a real authoring constraint.** The
+single-column cursor means a chat-shaped table that would naturally page on
+`(createdAt, id)` must instead maintain a per-resource unique page key —
+a generated string `pageKey` written with an `id` trusted default (or an
+app-owned monotone key) so `[roomId, pageKey]` can be declared unique.
+Compound cursor boundaries are LLP 0100 open question 4, not a v1 surface.
+
+**These pages are callable-only.** The pair is emitted as ordinary `Query`
+definitions that cannot be subscribed at all — a deliberate delta from the
+owned helper's live-query emission, because a subscribable historical page
+would create one authorization-sensitive subscription per visited page.
+The product's separate current-room `live_replace` query owns live
+grant/revocation updates; a fresh first-page call observes a later grant.
+
+A non-member's first page is empty with no cursor and reveals neither room
+nor membership existence — byte-identical to a nonexistent resource id.
+The continuation cursor binds, beyond the owned profile's members, the
+exact resource-argument VALUE (a room-A cursor presented for room B
+refuses), the membership declaration facts, the global authorization pair
+(any membership write invalidates outstanding continuations — removal
+between pages refuses the old cursor, and rejoining does not revive it),
+the data-version stream (reset invalidates), and the active artifact
+identity (any redeploy invalidates — accepted conservatism). Every refusal
+class answers with the byte-identical
+`SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID` before any candidate row is
+read.
 
 ## Know when to leave the profile
 

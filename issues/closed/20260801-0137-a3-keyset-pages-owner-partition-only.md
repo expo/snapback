@@ -39,3 +39,41 @@ outlives revocation — the exact property 0100 designs against. Blocked on
 0100 ratification alongside its sibling
 `20260801-0137-a2-no-admin-revocation-of-another-member.md` and
 `20260726-team-chat-room-pagination.md`.
+
+## Resolution (2026-08-01, 0100 program lane M2)
+
+RESOLVED — the fix shape landed exactly as this ticket and LLP 0100 §4
+specified, under the ratified custody design (LLP 0100 is Accepted; the
+"do not implement independently" gate is satisfied):
+
+- `defineMembershipKeysetPages` (packages/snapback-codegen/
+  standard-patterns.mjs): membership-gated resource partition over a unique
+  `[resourceField, cursorField]` index, resource-scoped declaration +
+  non-pending role subset + exact nominal resource id type all enforced at
+  generation; emitted as ordinary callable Query definitions (LLP 0100 §4's
+  deliberate delta — historical pages are not subscribable) executing the
+  resource-value filter AND the declaration-bound seat predicate.
+- The cursor binds the resource partition and the caller's seat — and per
+  §5 the concrete resource VALUE, the membership declaration facts, the
+  durable global authorization pair, the data-version stream, and the
+  active artifact identity, over the same sbpc1 envelope and instance
+  keyring (src/local.rs standard_pattern_cursor_binding, profile-
+  conditional; the owned profile's digest is pinned byte-identical by
+  test).
+
+Witness (this ticket's own): generated pages over a (roomId, pageKey)-class
+unique index traverse three pages for any member without overlap; the
+standard refusal matrix runs component-wise (malformed, cross-RESOURCE-value
+with the caller seated in both rooms, cross-principal, global-authorization
+advance, artifact reload, reset stream — every refusal byte-identical
+`SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID` before candidate-row
+evaluation); the outsider's first page is empty with no cursor and
+byte-identical to a nonexistent room. Tests:
+`membership_keyset_*` in src/local.rs (5 suites, all green; full lib run
+1575 passed / 0 failed) plus generation negatives in
+packages/snapback-codegen/standard-patterns.test.mjs. Docs:
+guide/backend/standard-patterns.md "Generate membership-scoped keyset
+pages" + capability-index row; LLP 0100 dated implementation note.
+
+The sibling 20260726-team-chat-room-pagination ticket stays open (narrowed)
+for Team Chat adoption and product receipts — implementation-order step 6.

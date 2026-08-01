@@ -1248,6 +1248,7 @@ impl FunctionManifest {
             validate_public_inline(function)?;
             validate_retainable_query(function)?;
             validate_effect_ceiling(function)?;
+            validate_standard_pattern_identity(function)?;
             validate_result_contract_definition(function)?;
             validate_args_contract_definition(function)?;
             validate_declared_refusals(function)?;
@@ -1405,7 +1406,10 @@ impl FunctionManifest {
                 return Err(SnapbackError::error(
                     "SNAPBACK_ASSET_INTENT_IDENTITY_COLLISION",
                     "asset",
-                    format!("asset upload intent identity {:?} is duplicated", intent.name),
+                    format!(
+                        "asset upload intent identity {:?} is duplicated",
+                        intent.name
+                    ),
                 ));
             }
             if intent.accept.media_types.is_empty() || intent.accept.max_bytes == 0 {
@@ -1422,14 +1426,20 @@ impl FunctionManifest {
                 return Err(SnapbackError::error(
                     "SNAPBACK_ASSET_INTENT_IDENTITY_INVALID",
                     "asset",
-                    format!("asset upload intent {} is missing intentPolicyHash", intent.name),
+                    format!(
+                        "asset upload intent {} is missing intentPolicyHash",
+                        intent.name
+                    ),
                 ));
             }
             if !matches!(intent.runtime, FunctionRuntime::IbexModule(_)) {
                 return Err(SnapbackError::error(
                     "SNAPBACK_ASSET_INTENT_RUNTIME_INVALID",
                     "asset",
-                    format!("asset upload intent {} requires an Ibex authorizer", intent.name),
+                    format!(
+                        "asset upload intent {} requires an Ibex authorizer",
+                        intent.name
+                    ),
                 ));
             }
             // Declared lifecycle callbacks name ordinary generated mutations
@@ -1458,6 +1468,53 @@ impl FunctionManifest {
         }
         Ok(())
     }
+}
+
+/// Fail-closed shape validation for standard-pattern metadata whose deeper
+/// table/declaration coherence is checked when the function manifest is paired
+/// with its schema.
+fn validate_standard_pattern_identity(function: &FunctionDefinition) -> SnapbackResult<()> {
+    let Some(pattern) = &function.standard_pattern else {
+        return Ok(());
+    };
+    let membership_helper = pattern.helper == "membership-keyset-pages.v1";
+    let membership_profile = pattern.profile == "membership.v1";
+    let invalid = |message: &str| {
+        SnapbackError::error(
+            "SNAPBACK_STANDARD_PATTERN_MEMBERSHIP_INVALID",
+            "runtime",
+            format!("function {} {message}", function.name),
+        )
+    };
+
+    if membership_helper != membership_profile {
+        return Err(invalid(
+            "must pair helper membership-keyset-pages.v1 with profile membership.v1",
+        ));
+    }
+    if membership_helper {
+        if pattern.membership.is_none() {
+            return Err(invalid(
+                "requires the closed standardPattern.membership block",
+            ));
+        }
+        if function.kind != FunctionKind::Query {
+            return Err(invalid(
+                "must be an ordinary callable Query and cannot be a LiveQuery",
+            ));
+        }
+        if !matches!(
+            function.runtime,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(_))
+        ) {
+            return Err(invalid("requires a single-table HostPlan query"));
+        }
+    } else if pattern.membership.is_some() {
+        return Err(invalid(
+            "carries membership metadata for a helper that does not admit it",
+        ));
+    }
+    Ok(())
 }
 
 const RESULT_CONTRACT_MAX_DEPTH: usize = 16;
@@ -1658,7 +1715,13 @@ fn validate_result_value_contract(
     depth: usize,
     object_fields: &mut usize,
 ) -> SnapbackResult<()> {
-    validate_value_contract_node(function, contract, depth, object_fields, ContractLane::Result)
+    validate_value_contract_node(
+        function,
+        contract,
+        depth,
+        object_fields,
+        ContractLane::Result,
+    )
 }
 
 /// Which contract root a value node sits under. One node vocabulary, two
@@ -2179,7 +2242,10 @@ fn validate_declared_refusals(function: &FunctionDefinition) -> SnapbackResult<(
         Err(SnapbackError::error(
             "SNAPBACK_FUNCTION_REFUSAL_DECLARATION_INVALID",
             "runtime",
-            format!("function {} declares an invalid refusal: {reason}", function.name),
+            format!(
+                "function {} declares an invalid refusal: {reason}",
+                function.name
+            ),
         )
         .with_details(serde_json::json!({
             "function": function.name,
@@ -3590,7 +3656,6 @@ pub struct FunctionArgsContract {
     pub fields: Vec<ResultObjectFieldContract>,
 }
 
-
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ResultObjectFieldContract {
@@ -4009,6 +4074,26 @@ pub struct MaintainedProjectionPlan {
 pub struct StandardPatternIdentity {
     pub helper: String,
     pub profile: String,
+    /// Membership-specific generation facts for callable keyset pages. This
+    /// block is closed and is admitted only for the exact
+    /// `membership-keyset-pages.v1` / `membership.v1` pair.
+    ///
+    /// @ref LLP 0100#5-index-and-continuation-contract — membership cursor
+    ///   custody binds the declaration, resource argument/field, and canonical
+    ///   role set; other helpers must not smuggle an uninterpreted block.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub membership: Option<StandardPatternMembershipIdentity>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct StandardPatternMembershipIdentity {
+    pub declaration: String,
+    #[serde(rename = "resourceArg", alias = "resource_arg")]
+    pub resource_arg: String,
+    #[serde(rename = "resourceField", alias = "resource_field")]
+    pub resource_field: String,
+    pub roles: Vec<String>,
 }
 
 // @ref LLP 0080#1-closed-relational-plan — this Rust-owned shape is the
@@ -8324,7 +8409,10 @@ mod asset_upload_intent_manifest_tests {
         let error = manifest_with(vec![bad])
             .validate_semantics()
             .expect_err("empty accept must refuse");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_INTENT_ACCEPT_INVALID");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_ASSET_INTENT_ACCEPT_INVALID"
+        );
     }
 
     #[test]
@@ -8341,6 +8429,9 @@ mod asset_upload_intent_manifest_tests {
         let error = manifest_with(vec![bad])
             .validate_semantics()
             .expect_err("host-plan authorizer must refuse");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_INTENT_RUNTIME_INVALID");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_ASSET_INTENT_RUNTIME_INVALID"
+        );
     }
 }

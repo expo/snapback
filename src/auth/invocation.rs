@@ -2019,6 +2019,7 @@ mod tests {
         pattern.standard_pattern = Some(crate::manifest::StandardPatternIdentity {
             helper: "owned-crud.v1".to_owned(),
             profile: "owner.v1".to_owned(),
+            membership: None,
         });
         let scope = |function: &FunctionDefinition| ResolvedGrantScope {
             function_id: function.id.clone(),

@@ -5300,6 +5300,10 @@ impl LocalSnapback {
             Some(RelationalCursorAuthority {
                 app_id: &self.functions.app_id,
                 keyring: &self.resume_keyring,
+                schema_hash: self.db.schema().schema_hash.as_deref(),
+                function_bundle_hash: self.functions.bundle_hash.as_deref(),
+                function_publication_generation: self.app_generation,
+                target_profile: self.db.schema().target_profile.as_deref(),
             }),
         )
     }
@@ -5334,7 +5338,9 @@ impl LocalSnapback {
         static DECLARED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
         self.asset_image_finalization_override.unwrap_or_else(|| {
             *DECLARED.get_or_init(|| {
-                crate::assets::AssetTargetFactsV1::local_v1().image.is_some()
+                crate::assets::AssetTargetFactsV1::local_v1()
+                    .image
+                    .is_some()
             })
         })
     }
@@ -5351,7 +5357,9 @@ impl LocalSnapback {
         static DECLARED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
         self.asset_video_finalization_override.unwrap_or_else(|| {
             *DECLARED.get_or_init(|| {
-                crate::assets::AssetTargetFactsV1::local_v1().video.is_some()
+                crate::assets::AssetTargetFactsV1::local_v1()
+                    .video
+                    .is_some()
             })
         })
     }
@@ -5561,7 +5569,7 @@ impl LocalSnapback {
         authority: &PreparedAuthority,
         request: crate::assets::AssetAttemptCreateRequestV1,
     ) -> SnapbackResult<crate::assets::AssetAttemptCreateResponseV1> {
-        use crate::assets as assets;
+        use crate::assets;
 
         let intent = self.asset_intent(&request.intent_id)?.clone();
         // A stale or target-incompatible generated reference refuses before
@@ -5629,7 +5637,7 @@ impl LocalSnapback {
                     "SNAPBACK_ASSET_INTENT_RUNTIME_UNSUPPORTED",
                     "assets",
                     "upload-intent authorizers run as Ibex modules in v1",
-                ))
+                ));
             }
         };
         let input = prepared.canonicalize_input(crate::manifest::HandlerInput {
@@ -5637,7 +5645,12 @@ impl LocalSnapback {
             ..Default::default()
         });
         let run = self.db.with_pinned_read_view(|db| {
-            crate::runtime::run_ibex_asset_authorizer_prepared(&module, input.clone(), &prepared, db)
+            crate::runtime::run_ibex_asset_authorizer_prepared(
+                &module,
+                input.clone(),
+                &prepared,
+                db,
+            )
         })?;
 
         let caller = Self::asset_caller_principal(authority);
@@ -5877,7 +5890,7 @@ impl LocalSnapback {
         authority: &PreparedAuthority,
         attempt_id: &str,
     ) -> SnapbackResult<crate::assets::AssetAttemptRecordV1> {
-        use crate::assets as assets;
+        use crate::assets;
         let caller = Self::asset_caller_principal(authority);
         let now = now_millis();
         let (attempt, expired_staging) = self.db.asset_transaction(|tx| {
@@ -5961,12 +5974,8 @@ impl LocalSnapback {
                     format!("unknown asset {asset_id}"),
                 )
             })?;
-            let decision = crate::storage::asset_read_authorized(
-                &schema,
-                tx,
-                caller.as_deref(),
-                &asset,
-            )?;
+            let decision =
+                crate::storage::asset_read_authorized(&schema, tx, caller.as_deref(), &asset)?;
             if !decision.authorized {
                 return Err(SnapbackError::error(
                     "SNAPBACK_ASSET_FORBIDDEN",
@@ -6768,7 +6777,13 @@ impl LocalSnapback {
     ) -> SnapbackResult<crate::assets::AssetTaskStateV1> {
         use sha2::Digest as _;
 
-        let AssetIngestSpec { upload, bytes, file_name, content_type, args } = spec;
+        let AssetIngestSpec {
+            upload,
+            bytes,
+            file_name,
+            content_type,
+            args,
+        } = spec;
         let intent = self.asset_intent(upload)?.clone();
         let creator = self.asset_host_authority(user_id, InvocationSource::HttpQuery, profile)?;
         let transfer =
@@ -6910,8 +6925,7 @@ impl LocalSnapback {
             ));
         }
         let existing = self.db.asset_transaction(|tx| {
-            let Some(mapping) = crate::assets::lookup_seed_fixture(tx, &parsed.fixture_id)?
-            else {
+            let Some(mapping) = crate::assets::lookup_seed_fixture(tx, &parsed.fixture_id)? else {
                 return Ok(None);
             };
             if mapping.source_digest != parsed.source_digest {
@@ -6969,7 +6983,7 @@ impl LocalSnapback {
         input: Option<&Value>,
         user_id: Option<&str>,
     ) -> SnapbackResult<Value> {
-        use crate::assets as assets;
+        use crate::assets;
 
         let parsed: AssetHostIdInput = asset_host_input(input, "asset.inspect")?;
         let caller = user_id.map(str::to_owned);
@@ -7064,7 +7078,7 @@ impl LocalSnapback {
     }
 
     fn asset_host_list(&mut self, input: Option<&Value>) -> SnapbackResult<Value> {
-        use crate::assets as assets;
+        use crate::assets;
 
         let parsed: AssetHostListInput = match input {
             None => AssetHostListInput::default(),
@@ -7103,7 +7117,7 @@ impl LocalSnapback {
     /// and ledger work. It never reopens a terminal attempt or edits a
     /// receipt — it runs the same maintenance the runner runs, now.
     fn asset_host_retry(&mut self, input: Option<&Value>) -> SnapbackResult<Value> {
-        use crate::assets as assets;
+        use crate::assets;
 
         let parsed: AssetHostIdInput = asset_host_input(input, "asset.retry")?;
         let asset = self
@@ -7148,7 +7162,7 @@ impl LocalSnapback {
         authority: &PreparedAuthority,
         request: crate::assets::AssetAttemptCancelRequestV1,
     ) -> SnapbackResult<crate::assets::AssetTaskStateV1> {
-        use crate::assets as assets;
+        use crate::assets;
         // Enforces caller lineage and lazy expiry before the cancel proper.
         self.asset_attempt_for_caller(authority, &request.attempt_id)?;
         let now = now_millis();
@@ -7208,7 +7222,8 @@ impl LocalSnapback {
             }
             Ok((attempt, asset))
         })?;
-        self.asset_store_obj()?.delete_staging_pair(&attempt.staging_key)?;
+        self.asset_store_obj()?
+            .delete_staging_pair(&attempt.staging_key)?;
         Ok(asset_task_state(&attempt, asset.as_ref()))
     }
 
@@ -7232,7 +7247,7 @@ impl LocalSnapback {
         chunk: &[u8],
         checksum: Option<(&str, &str)>,
     ) -> SnapbackResult<crate::assets::AssetAttemptRecordV1> {
-        use crate::assets as assets;
+        use crate::assets;
         use sha2::Digest as _;
 
         let attempt = self.asset_attempt_for_caller(authority, attempt_id)?;
@@ -7363,7 +7378,7 @@ impl LocalSnapback {
         variant: &crate::manifest::AssetImageVariant,
         recipe_version: u64,
     ) -> SnapbackResult<AssetPreparedVariant> {
-        use crate::assets as assets;
+        use crate::assets;
         let rendered = crate::assets_image::render_variant(
             canonical_bytes,
             content_type,
@@ -7373,15 +7388,16 @@ impl LocalSnapback {
         let digest = asset_hash_bytes(&rendered);
         let now = now_millis();
         let mut publication = {
-            let mut record =
-                asset_planned_publication(app_id, "variant", &digest, now);
+            let mut record = asset_planned_publication(app_id, "variant", &digest, now);
             record.attempt_id = None;
             record
         };
-        self.db.asset_transaction(|tx| assets::insert_publication(tx, &publication))?;
+        self.db
+            .asset_transaction(|tx| assets::insert_publication(tx, &publication))?;
         store.put_blob_idempotent(&publication.planned_key, &rendered)?;
-        let copied =
-            store.hash(crate::assets_store::AssetObjectRef::Blob(&publication.planned_key))?;
+        let copied = store.hash(crate::assets_store::AssetObjectRef::Blob(
+            &publication.planned_key,
+        ))?;
         if copied.digest != digest || copied.byte_length != rendered.len() as u64 {
             let _ = store.delete_blob(&publication.planned_key);
             return Err(SnapbackError::error(
@@ -7415,7 +7431,7 @@ impl LocalSnapback {
         request: crate::assets::AssetFinalizeRequestV1,
         crash_after: Option<AssetFinalizeCrashPoint>,
     ) -> SnapbackResult<crate::assets::AssetFinalizeResponseV1> {
-        use crate::assets as assets;
+        use crate::assets;
 
         let attempt = self.asset_attempt_for_caller(authority, &request.attempt_id)?;
         if attempt.lifecycle_generation != request.lifecycle_generation {
@@ -7448,13 +7464,16 @@ impl LocalSnapback {
         }
 
         // Intent removal is a revocation trigger: nothing further finalizes.
-        let intent = self.asset_intent(&attempt.intent_id).map_err(|_| {
-            SnapbackError::error(
-                "SNAPBACK_ASSET_INTENT_REVOKED",
-                "assets",
-                "this attempt's intent was removed from the deployed artifact",
-            )
-        })?.clone();
+        let intent = self
+            .asset_intent(&attempt.intent_id)
+            .map_err(|_| {
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_INTENT_REVOKED",
+                    "assets",
+                    "this attempt's intent was removed from the deployed artifact",
+                )
+            })?
+            .clone();
         // The frozen generation's authorizer code (LLP 0044 v6.1 reading
         // (a)): when the policy hash moved, the attempt still finalizes under
         // the policy it was admitted with — witness re-runs go through the
@@ -7517,8 +7536,7 @@ impl LocalSnapback {
         // enforcement. The refusal is a policy the intent can never satisfy
         // on this target, so the asset is rejected, not left retry-eligible.
         let image_location = intent.image.as_ref().map(|image| image.location);
-        let strip_declared =
-            image_location == Some(crate::manifest::AssetLocationPolicy::Strip);
+        let strip_declared = image_location == Some(crate::manifest::AssetLocationPolicy::Strip);
         // The capability defense for strip-declared media is keyed by the
         // *detected* type below — image bytes need the image-finalization
         // fact, video bytes the video one — so it runs after detection.
@@ -7526,8 +7544,9 @@ impl LocalSnapback {
         // Byte verification over restricted staging: exact length, canonical
         // SHA-256 digest, trusted detection from bytes.
         let store = self.asset_store_obj()?;
-        let staged =
-            store.hash(crate::assets_store::AssetObjectRef::Staging(&attempt.staging_key))?;
+        let staged = store.hash(crate::assets_store::AssetObjectRef::Staging(
+            &attempt.staging_key,
+        ))?;
         if staged.byte_length != attempt.declared_length {
             return self.asset_fail_attempt(
                 &attempt,
@@ -7563,9 +7582,7 @@ impl LocalSnapback {
                 SnapbackError::error(
                     "SNAPBACK_ASSET_MEDIA_TYPE_UNSUPPORTED",
                     "assets",
-                    format!(
-                        "detected content type {detected} is outside the intent's accept list"
-                    ),
+                    format!("detected content type {detected} is outside the intent's accept list"),
                 )
                 .with_details(serde_json::json!({
                     "declared": attempt.declared_content_type,
@@ -7579,8 +7596,7 @@ impl LocalSnapback {
         // received bytes under policy `none`. Canonical bytes are what gets
         // digested, deduplicated, and published.
         let mut image_media_facts = serde_json::Map::new();
-        let detected_video_container =
-            matches!(detected, "video/mp4" | "video/quicktime");
+        let detected_video_container = matches!(detected, "video/mp4" | "video/quicktime");
         let strip_capability_missing = if detected_video_container {
             !self.asset_video_finalization_enabled()
         } else {
@@ -7608,17 +7624,18 @@ impl LocalSnapback {
             // (never transcoding); the blanked file is the canonical byte
             // stream, under its own policy tag so strip and retain video
             // can never alias in blob identity.
-            let source = store
-                .read(crate::assets_store::AssetObjectRef::Staging(&attempt.staging_key))?;
+            let source = store.read(crate::assets_store::AssetObjectRef::Staging(
+                &attempt.staging_key,
+            ))?;
             match crate::assets_video::canonicalize_strip_video(
                 &source,
                 &crate::assets_video::ASSET_VIDEO_CEILINGS_LOCAL_V1,
             ) {
                 Ok(outcome) => {
                     store.write_canonical(&attempt.staging_key, &outcome.canonical)?;
-                    let hashed = store.hash(
-                        crate::assets_store::AssetObjectRef::Canonical(&attempt.staging_key),
-                    )?;
+                    let hashed = store.hash(crate::assets_store::AssetObjectRef::Canonical(
+                        &attempt.staging_key,
+                    ))?;
                     asset_insert_video_facts(&mut image_media_facts, &outcome.facts);
                     AssetCanonicalBytes {
                         object: AssetCanonicalObject::Canonical(attempt.staging_key.clone()),
@@ -7640,8 +7657,9 @@ impl LocalSnapback {
                 }
             }
         } else if strip_declared {
-            let source = store
-                .read(crate::assets_store::AssetObjectRef::Staging(&attempt.staging_key))?;
+            let source = store.read(crate::assets_store::AssetObjectRef::Staging(
+                &attempt.staging_key,
+            ))?;
             match crate::assets_image::canonicalize_strip(
                 &source,
                 detected,
@@ -7649,12 +7667,11 @@ impl LocalSnapback {
             ) {
                 Ok(outcome) => {
                     store.write_canonical(&attempt.staging_key, &outcome.canonical)?;
-                    let hashed = store.hash(
-                        crate::assets_store::AssetObjectRef::Canonical(&attempt.staging_key),
-                    )?;
+                    let hashed = store.hash(crate::assets_store::AssetObjectRef::Canonical(
+                        &attempt.staging_key,
+                    ))?;
                     if let Some(orientation) = outcome.safe_exif.orientation {
-                        image_media_facts
-                            .insert("orientationApplied".into(), orientation.into());
+                        image_media_facts.insert("orientationApplied".into(), orientation.into());
                     }
                     if let Some(captured_at) = outcome.safe_exif.captured_at {
                         image_media_facts.insert("capturedAt".into(), captured_at.into());
@@ -7691,9 +7708,9 @@ impl LocalSnapback {
                 && self.asset_image_finalization_enabled()
                 && matches!(detected, "image/jpeg" | "image/png")
             {
-                let source = store.read(
-                    crate::assets_store::AssetObjectRef::Staging(&attempt.staging_key),
-                )?;
+                let source = store.read(crate::assets_store::AssetObjectRef::Staging(
+                    &attempt.staging_key,
+                ))?;
                 match crate::assets_image::inspect_image(
                     &source,
                     detected,
@@ -7705,15 +7722,11 @@ impl LocalSnapback {
                                 .insert("orientationApplied".into(), orientation.into());
                         }
                         if let Some(captured_at) = inspection.safe_exif.captured_at {
-                            image_media_facts
-                                .insert("capturedAt".into(), captured_at.into());
+                            image_media_facts.insert("capturedAt".into(), captured_at.into());
                         }
                         image_media_facts.insert("width".into(), inspection.width.into());
                         image_media_facts.insert("height".into(), inspection.height.into());
-                        asset_insert_derived_facts(
-                            &mut image_media_facts,
-                            &inspection.derived,
-                        );
+                        asset_insert_derived_facts(&mut image_media_facts, &inspection.derived);
                     }
                     Err(error) => {
                         return self.asset_fail_attempt(
@@ -7732,9 +7745,9 @@ impl LocalSnapback {
                 // duration/dimensions — and a hostile container refuses
                 // deterministically, exactly like strip: the video claim
                 // covers both policies or neither.
-                let source = store.read(
-                    crate::assets_store::AssetObjectRef::Staging(&attempt.staging_key),
-                )?;
+                let source = store.read(crate::assets_store::AssetObjectRef::Staging(
+                    &attempt.staging_key,
+                ))?;
                 match crate::assets_video::inspect_video(
                     &source,
                     &crate::assets_video::ASSET_VIDEO_CEILINGS_LOCAL_V1,
@@ -7849,8 +7862,9 @@ impl LocalSnapback {
         // points at it.
         let canonical_bytes = store.read(canonical.object.as_ref())?;
         store.put_blob_idempotent(&publication.planned_key, &canonical_bytes)?;
-        let copied =
-            store.hash(crate::assets_store::AssetObjectRef::Blob(&publication.planned_key))?;
+        let copied = store.hash(crate::assets_store::AssetObjectRef::Blob(
+            &publication.planned_key,
+        ))?;
         if copied.digest != digest || copied.byte_length != canonical.byte_length {
             let _ = store.delete_blob(&publication.planned_key);
             return Err(SnapbackError::error(
@@ -7922,13 +7936,12 @@ impl LocalSnapback {
                     // materialize, so the asset rejects rather than staying
                     // retry-eligible; store errors stay transient.
                     Err(error) => {
-                        let availability = if error.diagnostic.code
-                            == "SNAPBACK_ASSET_STORE_UNAVAILABLE"
-                        {
-                            assets::AssetAvailability::Pending
-                        } else {
-                            assets::AssetAvailability::Rejected
-                        };
+                        let availability =
+                            if error.diagnostic.code == "SNAPBACK_ASSET_STORE_UNAVAILABLE" {
+                                assets::AssetAvailability::Pending
+                            } else {
+                                assets::AssetAvailability::Rejected
+                            };
                         return self.asset_fail_attempt(&attempt, availability, error);
                     }
                 }
@@ -8053,9 +8066,7 @@ impl LocalSnapback {
                         )?;
                         (blob_id, true)
                     }
-                    Err(error)
-                        if error.diagnostic.code == "SNAPBACK_ASSET_BLOB_CONDEMNED_RACE" =>
-                    {
+                    Err(error) if error.diagnostic.code == "SNAPBACK_ASSET_BLOB_CONDEMNED_RACE" => {
                         // The identity slot is held by a condemned row: the
                         // retry-under-fresh-key path deletes it, records its
                         // orphaned object as a condemned publication, and
@@ -8072,8 +8083,7 @@ impl LocalSnapback {
                                 app_id: app.clone(),
                                 attempt_id: Some(attempt_id.clone()),
                                 planned_key: orphan_key,
-                                digest_algorithm: assets::ASSET_DIGEST_ALGORITHM_SHA256
-                                    .to_owned(),
+                                digest_algorithm: assets::ASSET_DIGEST_ALGORITHM_SHA256.to_owned(),
                                 digest: digest_value.clone(),
                                 canonicalization_policy: canonical_policy.to_owned(),
                                 state: assets::AssetPublicationState::Condemned,
@@ -8136,7 +8146,8 @@ impl LocalSnapback {
                                 attempt.declared_filename.as_deref(),
                             ),
                         });
-                        facts.as_object_mut()
+                        facts
+                            .as_object_mut()
                             .expect("json object")
                             .extend(image_facts.clone());
                         facts
@@ -8160,8 +8171,7 @@ impl LocalSnapback {
                         AssetVariantCommit::Committed { rendition_id, .. } => {
                             committed_variants.push((prepared.key.clone(), rendition_id));
                         }
-                        AssetVariantCommit::AlreadyCurrent
-                        | AssetVariantCommit::StaleLost => {}
+                        AssetVariantCommit::AlreadyCurrent | AssetVariantCommit::StaleLost => {}
                         AssetVariantCommit::QuotaRefused => {
                             // Err aborts the transaction whole: required
                             // renditions are part of the asset-ready
@@ -8277,7 +8287,14 @@ impl LocalSnapback {
                 ] {
                     assets::write_receipt(
                         tx,
-                        &asset_receipt(&lineage, event, &record.asset_id, Some(&attempt_id), now, details),
+                        &asset_receipt(
+                            &lineage,
+                            event,
+                            &record.asset_id,
+                            Some(&attempt_id),
+                            now,
+                            details,
+                        ),
                     )?;
                 }
                 for (variant_key, rendition_id) in &committed_variants {
@@ -8317,7 +8334,11 @@ impl LocalSnapback {
                 Err(error) => return Err(error),
             };
             match result {
-                AssetPublishOutcome::Published { attempt, asset, reused } => {
+                AssetPublishOutcome::Published {
+                    attempt,
+                    asset,
+                    reused,
+                } => {
                     break (*attempt, *asset, reused);
                 }
                 AssetPublishOutcome::WitnessMoved => {
@@ -8349,7 +8370,8 @@ impl LocalSnapback {
                         ));
                     }
                     let definition = self.asset_intent_definition(frozen)?;
-                    let prepared = InvocationGate::prepare_function(authority.clone(), &definition)?;
+                    let prepared =
+                        InvocationGate::prepare_function(authority.clone(), &definition)?;
                     let module = match &frozen.runtime {
                         crate::manifest::FunctionRuntime::IbexModule(module) => module.clone(),
                         _ => {
@@ -8357,7 +8379,7 @@ impl LocalSnapback {
                                 "SNAPBACK_ASSET_INTENT_RUNTIME_UNSUPPORTED",
                                 "assets",
                                 "upload-intent authorizers run as Ibex modules in v1",
-                            ))
+                            ));
                         }
                     };
                     let input = prepared.canonicalize_input(crate::manifest::HandlerInput {
@@ -8366,7 +8388,10 @@ impl LocalSnapback {
                     });
                     let rerun = self.db.with_pinned_read_view(|db| {
                         crate::runtime::run_ibex_asset_authorizer_prepared(
-                            &module, input.clone(), &prepared, db,
+                            &module,
+                            input.clone(),
+                            &prepared,
+                            db,
                         )
                     });
                     let rerun = match rerun {
@@ -8418,7 +8443,7 @@ impl LocalSnapback {
                         "SNAPBACK_ASSET_STORE_UNAVAILABLE",
                         "assets",
                         format!("cannot remove condemned object: {error}"),
-                    ))
+                    ));
                 }
             }
         }
@@ -8454,7 +8479,7 @@ impl LocalSnapback {
         asset_outcome: crate::assets::AssetAvailability,
         refusal: SnapbackError,
     ) -> SnapbackResult<crate::assets::AssetFinalizeResponseV1> {
-        use crate::assets as assets;
+        use crate::assets;
         let now = now_millis();
         let attempt_id = attempt.attempt_id.clone();
         // The rejected callback resolves from the deployed intent; a removed
@@ -8508,12 +8533,7 @@ impl LocalSnapback {
                         format!("unknown asset {}", record.asset_id),
                     )
                 })?;
-                assets::transition_asset(
-                    tx,
-                    &mut asset,
-                    assets::AssetAvailability::Rejected,
-                    now,
-                )?;
+                assets::transition_asset(tx, &mut asset, assets::AssetAvailability::Rejected, now)?;
                 assets::write_receipt(
                     tx,
                     &asset_receipt(
@@ -8559,14 +8579,14 @@ impl LocalSnapback {
         &mut self,
         now_ms: u64,
     ) -> SnapbackResult<AssetPublicationMaintenanceReport> {
-        use crate::assets as assets;
+        use crate::assets;
         let store = self.asset_store_obj()?;
         let mut report = AssetPublicationMaintenanceReport::default();
 
         // Planned records: probe the recorded key.
-        let planned = self
-            .db
-            .asset_transaction(|tx| assets::publications_in_state(tx, assets::AssetPublicationState::Planned))?;
+        let planned = self.db.asset_transaction(|tx| {
+            assets::publications_in_state(tx, assets::AssetPublicationState::Planned)
+        })?;
         for mut record in planned {
             let attempt = self.db.asset_transaction(|tx| {
                 record
@@ -8577,8 +8597,7 @@ impl LocalSnapback {
                     .map(Option::flatten)
             })?;
             let re_drivable = attempt.as_ref().is_some_and(|a| a.state.is_current());
-            let object =
-                crate::assets_store::AssetObjectRef::Blob(&record.planned_key);
+            let object = crate::assets_store::AssetObjectRef::Blob(&record.planned_key);
             let object_verifies = store.exists(object)?
                 && store
                     .hash(object)
@@ -8639,9 +8658,9 @@ impl LocalSnapback {
         }
 
         // Staged records whose work is dead: condemn.
-        let staged = self
-            .db
-            .asset_transaction(|tx| assets::publications_in_state(tx, assets::AssetPublicationState::Staged))?;
+        let staged = self.db.asset_transaction(|tx| {
+            assets::publications_in_state(tx, assets::AssetPublicationState::Staged)
+        })?;
         for mut record in staged {
             let attempt = self.db.asset_transaction(|tx| {
                 record
@@ -8678,9 +8697,9 @@ impl LocalSnapback {
         }
 
         // Condemned records: delete the object (if any), then retire.
-        let condemned = self
-            .db
-            .asset_transaction(|tx| assets::publications_in_state(tx, assets::AssetPublicationState::Condemned))?;
+        let condemned = self.db.asset_transaction(|tx| {
+            assets::publications_in_state(tx, assets::AssetPublicationState::Condemned)
+        })?;
         for record in condemned {
             let object = crate::assets_store::AssetObjectRef::Blob(&record.planned_key);
             // Never delete an object a live blob row owns (the reused-path
@@ -8719,9 +8738,9 @@ impl LocalSnapback {
 
         // Committed records past the retention window: the blob row is the
         // durable evidence; retire the record so the ceiling stays clear.
-        let committed = self
-            .db
-            .asset_transaction(|tx| assets::publications_in_state(tx, assets::AssetPublicationState::Committed))?;
+        let committed = self.db.asset_transaction(|tx| {
+            assets::publications_in_state(tx, assets::AssetPublicationState::Committed)
+        })?;
         for record in committed {
             if now_ms.saturating_sub(record.updated_at_ms)
                 < crate::assets::ASSET_PUBLICATION_RETENTION_MS
@@ -8759,7 +8778,7 @@ impl LocalSnapback {
         range_header: Option<&str>,
         max_width: Option<u64>,
     ) -> SnapbackResult<AssetDeliveryOutcome> {
-        use crate::assets as assets;
+        use crate::assets;
         let caller = Self::asset_caller_principal(authority);
         let schema = self.db.schema().clone();
         let store = self.asset_store_obj()?;
@@ -8819,7 +8838,7 @@ impl LocalSnapback {
         cache_control: String,
         now: u64,
     ) -> SnapbackResult<AssetDeliveryOutcome> {
-        use crate::assets as assets;
+        use crate::assets;
         let asset_id = asset.asset_id.as_str();
         {
             let rendition = if variant == "best" {
@@ -8881,9 +8900,7 @@ impl LocalSnapback {
                 });
             }
             let (window_start, window_length, partial) = match range {
-                assets::ByteRangeOutcome::Partial { start, end } => {
-                    (start, end - start + 1, true)
-                }
+                assets::ByteRangeOutcome::Partial { start, end } => (start, end - start + 1, true),
                 _ => (0, blob.byte_length, false),
             };
             assets::write_receipt(
@@ -8942,7 +8959,7 @@ impl LocalSnapback {
         asset_id: &str,
         request: crate::assets::AssetSignedUrlIssueRequestV1,
     ) -> SnapbackResult<crate::assets::AssetSignedUrlIssueResponseV1> {
-        use crate::assets as assets;
+        use crate::assets;
         let caller = Self::asset_caller_principal(authority);
         let schema = self.db.schema().clone();
         let now = now_millis();
@@ -9041,7 +9058,7 @@ impl LocalSnapback {
         token: &str,
         range_header: Option<&str>,
     ) -> SnapbackResult<AssetDeliveryOutcome> {
-        use crate::assets as assets;
+        use crate::assets;
         let store = self.asset_store_obj()?;
         let now = now_millis();
         let variant = variant.to_owned();
@@ -9118,7 +9135,7 @@ impl LocalSnapback {
         variant: &str,
         range_header: Option<&str>,
     ) -> SnapbackResult<AssetDeliveryOutcome> {
-        use crate::assets as assets;
+        use crate::assets;
         let store = self.asset_store_obj()?;
         let now = now_millis();
         let variant = variant.to_owned();
@@ -9149,7 +9166,7 @@ impl LocalSnapback {
     /// outstanding signed URL stops validating (LLP 0044: an operator
     /// action, not per-principal revocation). No key ids in the result.
     pub(crate) fn asset_rotate_signing_key(&mut self) -> SnapbackResult<Value> {
-        use crate::assets as assets;
+        use crate::assets;
         let now = now_millis();
         self.db.asset_transaction(|tx| {
             assets::rotate_signing_key(tx, now)?;
@@ -9187,7 +9204,7 @@ impl LocalSnapback {
         asset_id: &str,
         crash_mid_cascade: bool,
     ) -> SnapbackResult<Value> {
-        use crate::assets as assets;
+        use crate::assets;
         let caller = Self::asset_caller_principal(authority);
         let now = now_millis();
         let fenced_staging = self.db.asset_transaction(|tx| {
@@ -9210,8 +9227,7 @@ impl LocalSnapback {
                     "typed references to this asset remain; clear them first",
                 ));
             }
-            let staging =
-                asset_delete_cascade(tx, &mut asset, "explicit-delete", now)?;
+            let staging = asset_delete_cascade(tx, &mut asset, "explicit-delete", now)?;
             if crash_mid_cascade {
                 return Err(asset_test_crash());
             }
@@ -9236,7 +9252,7 @@ impl LocalSnapback {
     /// publication maintenance pass. Every reclamation receipts.
     #[allow(dead_code)] // scheduled by the L1-11 runner; exercised in tests.
     pub(crate) fn asset_gc_sweep(&mut self, now_ms: u64) -> SnapbackResult<AssetGcReport> {
-        use crate::assets as assets;
+        use crate::assets;
         let store = self.asset_store_obj()?;
         let mut report = AssetGcReport::default();
         let mut reclaimed_asset_ids: Vec<String> = Vec::new();
@@ -9330,7 +9346,8 @@ impl LocalSnapback {
                     let current = assets::load_asset(tx, &asset.asset_id)?;
                     let still_eligible = current.as_ref().is_some_and(|current| {
                         current.availability == assets::AssetAvailability::Ready
-                    }) && assets::load_edges_for_asset(tx, &asset.asset_id)?.is_empty();
+                    }) && assets::load_edges_for_asset(tx, &asset.asset_id)?
+                        .is_empty();
                     if !still_eligible {
                         return Ok(false);
                     }
@@ -9414,7 +9431,9 @@ impl LocalSnapback {
             }
         }
         for blob in self.db.asset_transaction(assets::condemned_blobs)? {
-            if store.exists(crate::assets_store::AssetObjectRef::Blob(&blob.physical_key))? {
+            if store.exists(crate::assets_store::AssetObjectRef::Blob(
+                &blob.physical_key,
+            ))? {
                 store.delete_blob(&blob.physical_key)?;
                 report.blob_objects_deleted += 1;
             }
@@ -9471,18 +9490,14 @@ impl LocalSnapback {
     /// per-item receipts. The 0028-style sweep loop is scheduler only — this
     /// function is the deterministic drive tests call directly, and it never
     /// records sweeper-level success as the work's success (LLP 0127's bar).
-    pub(crate) fn asset_runner_tick(
-        &mut self,
-        now_ms: u64,
-    ) -> SnapbackResult<AssetRunnerReport> {
-        use crate::assets as assets;
+    pub(crate) fn asset_runner_tick(&mut self, now_ms: u64) -> SnapbackResult<AssetRunnerReport> {
+        use crate::assets;
         let mut report = AssetRunnerReport::default();
 
         // Phase A: expired leases become enqueued again — an explicit,
         // receipted transition, never a silent claim-metadata mutation.
         let reclaimed = self.db.asset_transaction(|tx| {
-            let expired =
-                assets::load_expired_leases(tx, now_ms, assets::ASSET_WORK_CLAIM_BATCH)?;
+            let expired = assets::load_expired_leases(tx, now_ms, assets::ASSET_WORK_CLAIM_BATCH)?;
             let mut count = 0u64;
             for mut row in expired {
                 row.lease_owner = None;
@@ -9542,13 +9557,9 @@ impl LocalSnapback {
                     continue;
                 }
                 if now_ms > row.deadline_at_ms {
-                    row.failure = Some(serde_json::json!({ "cause": "deadline exceeded before completion" }));
-                    assets::transition_work(
-                        tx,
-                        &mut row,
-                        assets::AssetWorkState::Claimed,
-                        now_ms,
-                    )?;
+                    row.failure =
+                        Some(serde_json::json!({ "cause": "deadline exceeded before completion" }));
+                    assets::transition_work(tx, &mut row, assets::AssetWorkState::Claimed, now_ms)?;
                     assets::transition_work(
                         tx,
                         &mut row,
@@ -9622,8 +9633,7 @@ impl LocalSnapback {
                     // ceiling on deterministic failures.
                     let unretryable = matches!(
                         error.diagnostic.code.as_str(),
-                        "SNAPBACK_ASSET_WORK_KIND_UNKNOWN"
-                            | "SNAPBACK_ASSET_WORK_PARAMS_INVALID"
+                        "SNAPBACK_ASSET_WORK_KIND_UNKNOWN" | "SNAPBACK_ASSET_WORK_PARAMS_INVALID"
                     );
                     if unretryable || row.attempt_count >= row.retry_ceiling {
                         assets::transition_work(
@@ -9661,8 +9671,7 @@ impl LocalSnapback {
                     )?;
                     row.lease_owner = None;
                     row.lease_expires_at_ms = None;
-                    row.next_eligible_at_ms =
-                        now_ms + assets::work_backoff_ms(row.attempt_count);
+                    row.next_eligible_at_ms = now_ms + assets::work_backoff_ms(row.attempt_count);
                     assets::transition_work(
                         tx,
                         &mut row,
@@ -9700,7 +9709,7 @@ impl LocalSnapback {
         row: &crate::assets::AssetWorkRowV1,
         now_ms: u64,
     ) -> SnapbackResult<()> {
-        use crate::assets as assets;
+        use crate::assets;
         match row.kind.as_str() {
             // Condemned-object cleanup completes on observation: the pass
             // deletes any condemned publication object still on disk for
@@ -9709,10 +9718,7 @@ impl LocalSnapback {
             assets::ASSET_WORK_KIND_CONDEMNED_CLEANUP => {
                 let store = self.asset_store_obj()?;
                 let condemned = self.db.asset_transaction(|tx| {
-                    assets::publications_in_state(
-                        tx,
-                        assets::AssetPublicationState::Condemned,
-                    )
+                    assets::publications_in_state(tx, assets::AssetPublicationState::Condemned)
                 })?;
                 for record in condemned
                     .iter()
@@ -9738,7 +9744,10 @@ impl LocalSnapback {
             assets::ASSET_WORK_KIND_LIFECYCLE_CALLBACK => {
                 let params = row.params.clone().unwrap_or_default();
                 let (Some(event), Some(handler)) = (
-                    params.get("event").and_then(serde_json::Value::as_str).map(str::to_owned),
+                    params
+                        .get("event")
+                        .and_then(serde_json::Value::as_str)
+                        .map(str::to_owned),
                     params
                         .get("handler")
                         .and_then(serde_json::Value::as_str)
@@ -9751,16 +9760,14 @@ impl LocalSnapback {
                     ));
                 };
                 let (asset, renditions) = self.db.asset_transaction(|tx| {
-                    let asset =
-                        crate::assets::load_asset(tx, &row.asset_id)?.ok_or_else(|| {
-                            SnapbackError::error(
-                                "SNAPBACK_ASSET_UNKNOWN",
-                                "assets",
-                                format!("unknown asset {}", row.asset_id),
-                            )
-                        })?;
-                    let renditions =
-                        crate::assets::renditions_for_asset(tx, &row.asset_id)?;
+                    let asset = crate::assets::load_asset(tx, &row.asset_id)?.ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_ASSET_UNKNOWN",
+                            "assets",
+                            format!("unknown asset {}", row.asset_id),
+                        )
+                    })?;
+                    let renditions = crate::assets::renditions_for_asset(tx, &row.asset_id)?;
                     Ok((asset, renditions))
                 })?;
                 let facts = serde_json::json!({
@@ -9824,7 +9831,10 @@ impl LocalSnapback {
             assets::ASSET_WORK_KIND_IMAGE_VARIANT => {
                 let params = row.params.clone().unwrap_or_default();
                 let (Some(key), Some(width), Some(content_type)) = (
-                    params.get("key").and_then(serde_json::Value::as_str).map(str::to_owned),
+                    params
+                        .get("key")
+                        .and_then(serde_json::Value::as_str)
+                        .map(str::to_owned),
                     params.get("width").and_then(serde_json::Value::as_u64),
                     params
                         .get("contentType")
@@ -9866,14 +9876,13 @@ impl LocalSnapback {
                             format!("unknown asset {asset_id}"),
                         )
                     })?;
-                    let rendition_id =
-                        asset.primary_rendition_id.as_deref().ok_or_else(|| {
-                            SnapbackError::error(
-                                "SNAPBACK_ASSET_NOT_READY",
-                                "assets",
-                                "the asset has no primary rendition to derive from",
-                            )
-                        })?;
+                    let rendition_id = asset.primary_rendition_id.as_deref().ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_ASSET_NOT_READY",
+                            "assets",
+                            "the asset has no primary rendition to derive from",
+                        )
+                    })?;
                     let primary = assets::load_rendition(tx, rendition_id)?.ok_or_else(|| {
                         SnapbackError::error(
                             "SNAPBACK_ASSET_RECORD_INVALID",
@@ -9893,8 +9902,8 @@ impl LocalSnapback {
                         })?;
                     Ok(blob.physical_key)
                 })?;
-                let canonical_bytes = store
-                    .read(crate::assets_store::AssetObjectRef::Blob(&primary_key))?;
+                let canonical_bytes =
+                    store.read(crate::assets_store::AssetObjectRef::Blob(&primary_key))?;
                 let variant = crate::manifest::AssetImageVariant {
                     key: key.clone(),
                     width,
@@ -9912,9 +9921,7 @@ impl LocalSnapback {
                     // Deterministic processing refusals become durable
                     // rendition failures (work Done, optional never gates);
                     // store errors surface for retry.
-                    Err(error)
-                        if error.diagnostic.code != "SNAPBACK_ASSET_STORE_UNAVAILABLE" =>
-                    {
+                    Err(error) if error.diagnostic.code != "SNAPBACK_ASSET_STORE_UNAVAILABLE" => {
                         let work_id = row.work_id.clone();
                         self.db.asset_transaction(|tx| {
                             assets::write_receipt(
@@ -9939,12 +9946,7 @@ impl LocalSnapback {
                 let work_id = row.work_id.clone();
                 self.db.asset_transaction(|tx| {
                     match asset_commit_prepared_variant(
-                        tx,
-                        &app_id,
-                        &asset_id,
-                        &prepared,
-                        app_quota,
-                        now_ms,
+                        tx, &app_id, &asset_id, &prepared, app_quota, now_ms,
                     )? {
                         AssetVariantCommit::Committed { rendition_id, .. } => {
                             assets::write_receipt(
@@ -9978,8 +9980,7 @@ impl LocalSnapback {
                                 ),
                             )?;
                         }
-                        AssetVariantCommit::AlreadyCurrent
-                        | AssetVariantCommit::StaleLost => {
+                        AssetVariantCommit::AlreadyCurrent | AssetVariantCommit::StaleLost => {
                             assets::write_receipt(
                                 tx,
                                 &asset_receipt(
@@ -12896,6 +12897,10 @@ impl LocalSnapback {
                 Some(RelationalCursorAuthority {
                     app_id: &self.functions.app_id,
                     keyring: &self.resume_keyring,
+                    schema_hash: self.db.schema().schema_hash.as_deref(),
+                    function_bundle_hash: self.functions.bundle_hash.as_deref(),
+                    function_publication_generation: self.app_generation,
+                    target_profile: self.db.schema().target_profile.as_deref(),
                 }),
             )?
         };
@@ -16644,13 +16649,13 @@ impl LocalSnapback {
             recent_diagnostics.push_back(diagnostic);
         }
 
+        let app_generation = next_app_generation()?;
         let read_manifests = Arc::new(RwLock::new(Arc::new(ReadManifests {
             functions: FunctionManifest::default(),
             schema: db.schema().clone(),
             capabilities: runtime.capabilities().clone(),
+            app_generation,
         })));
-
-        let app_generation = next_app_generation()?;
         // @ref LLP 0091#0a1-token-envelope-mac-keyring-custody-expiry — the
         // local-arm resume keyring is a `secure_file` sidecar beside the
         // database, separate from the auth keyring; in-memory instances mint
@@ -17140,6 +17145,7 @@ impl LocalSnapback {
             functions: self.functions.clone(),
             schema: self.db.schema().clone(),
             capabilities: self.runtime.capabilities().clone(),
+            app_generation: self.app_generation,
         });
         *self
             .read_manifests
@@ -19470,6 +19476,7 @@ struct ReadManifests {
     functions: FunctionManifest,
     schema: SchemaManifest,
     capabilities: RuntimeCapabilities,
+    app_generation: u64,
 }
 
 /// The lock-free read lane (LLP 0032 L6): `/query` and `/health` execute
@@ -19709,6 +19716,10 @@ impl ReadLane {
             Some(RelationalCursorAuthority {
                 app_id: &manifests.functions.app_id,
                 keyring: &self.resume_keyring,
+                schema_hash: manifests.schema.schema_hash.as_deref(),
+                function_bundle_hash: manifests.functions.bundle_hash.as_deref(),
+                function_publication_generation: manifests.app_generation,
+                target_profile: manifests.schema.target_profile.as_deref(),
             }),
         )?;
         Ok(invocation.output)
@@ -19750,6 +19761,205 @@ impl ReadLane {
 
 fn ephemeral_manifest_error(error: crate::ephemeral::EphemeralError) -> SnapbackError {
     SnapbackError::error(error.code.diagnostic_code(), "ephemeral", error.message)
+}
+
+fn validate_membership_keyset_pattern(
+    function: &FunctionDefinition,
+    plan: &QueryPlan,
+    schema: &SchemaManifest,
+) -> SnapbackResult<()> {
+    let Some(pattern) = &function.standard_pattern else {
+        return Ok(());
+    };
+    if pattern.helper != "membership-keyset-pages.v1" {
+        return Ok(());
+    }
+    let invalid = |message: String| {
+        SnapbackError::error(
+            "SNAPBACK_STANDARD_PATTERN_MEMBERSHIP_INVALID",
+            "runtime",
+            format!("function {} {message}", function.name),
+        )
+    };
+    let membership_facts = pattern.membership.as_ref().ok_or_else(|| {
+        invalid("requires the closed standardPattern.membership block".to_owned())
+    })?;
+    let (declaration_table, declaration) =
+        crate::membership_rules::find_declaration(schema, &membership_facts.declaration)
+            .ok_or_else(|| {
+                invalid(format!(
+                    "names unknown membership declaration {:?}",
+                    membership_facts.declaration
+                ))
+            })?;
+    if declaration.scope != crate::manifest::MembershipScope::Resource {
+        return Err(invalid(
+            "requires a resource-scoped membership declaration".to_owned(),
+        ));
+    }
+    let resource_table = declaration.resource_table.as_deref().ok_or_else(|| {
+        invalid("membership declaration has no nominal resource table".to_owned())
+    })?;
+    let declaration_resource = declaration
+        .resource
+        .as_deref()
+        .and_then(|name| declaration_table.field(name))
+        .ok_or_else(|| invalid("membership declaration has no resource axis".to_owned()))?;
+    if declaration_resource.optional
+        || !matches!(
+            &declaration_resource.field_type,
+            crate::manifest::FieldType::Id { table } if table == resource_table
+        )
+    {
+        return Err(invalid(
+            "membership declaration resource axis lacks its exact required nominal Id type"
+                .to_owned(),
+        ));
+    }
+
+    let page_table = schema
+        .table(&plan.table)
+        .ok_or_else(|| invalid(format!("references unknown page table {:?}", plan.table)))?;
+    if page_table.is_permission_backing() {
+        return Err(invalid("cannot page an authority-bearing table".to_owned()));
+    }
+    let resource_field = page_table
+        .field(&membership_facts.resource_field)
+        .ok_or_else(|| {
+            invalid(format!(
+                "references unknown resource field {}.{}",
+                page_table.name, membership_facts.resource_field
+            ))
+        })?;
+    if resource_field.optional || resource_field.field_type != declaration_resource.field_type {
+        return Err(invalid(format!(
+            "resource field {}.{} must be required and carry the declaration's exact nominal Id type",
+            page_table.name, membership_facts.resource_field
+        )));
+    }
+
+    let mut canonical_roles = membership_facts.roles.clone();
+    canonical_roles.sort();
+    canonical_roles.dedup();
+    if membership_facts.roles.is_empty() || canonical_roles != membership_facts.roles {
+        return Err(invalid(
+            "membership roles must be a non-empty sorted, deduplicated canonical set".to_owned(),
+        ));
+    }
+    if membership_facts.roles.iter().any(|role| {
+        !declaration.roles.iter().any(|declared| declared == role)
+            || declaration
+                .pending_roles
+                .iter()
+                .flatten()
+                .any(|pending| pending == role)
+    }) {
+        return Err(invalid(
+            "membership roles must be a subset of the declaration's non-pending roles".to_owned(),
+        ));
+    }
+
+    let resource_arg = function
+        .args_contract
+        .as_ref()
+        .and_then(|contract| {
+            contract
+                .fields
+                .iter()
+                .find(|field| field.name == membership_facts.resource_arg)
+        })
+        .ok_or_else(|| {
+            invalid(format!(
+                "resource argument {:?} is not declared",
+                membership_facts.resource_arg
+            ))
+        })?;
+    if !resource_arg.required
+        || !matches!(
+            &resource_arg.value,
+            crate::manifest::ResultValueContract::Id { table } if table == resource_table
+        )
+    {
+        return Err(invalid(format!(
+            "resource argument {:?} must be a required Id<{resource_table}>",
+            membership_facts.resource_arg
+        )));
+    }
+    let resource_equality = plan.filters.iter().filter(|filter| {
+        filter.field == membership_facts.resource_field
+            && filter.op == crate::manifest::FilterOp::Eq
+            && matches!(
+                &filter.value,
+                ValueExpr::Arg(name) if name == &membership_facts.resource_arg
+            )
+    });
+    if resource_equality.count() != 1 {
+        return Err(invalid(
+            "requires exactly one resourceField == arg(resourceArg) filter".to_owned(),
+        ));
+    }
+
+    let predicate_matches = plan.membership_filters.iter().filter(|predicate| {
+        predicate.declaration == membership_facts.declaration
+            && predicate.roles.as_ref() == Some(&membership_facts.roles)
+            && matches!(
+                &predicate.resource,
+                crate::manifest::MembershipResourceRef::Arg {
+                    path,
+                    resource_table: Some(table),
+                } if path == &membership_facts.resource_arg && table == resource_table
+            )
+    });
+    if predicate_matches.count() != 1 {
+        return Err(invalid(
+            "requires exactly one declaration/resourceArg predicate with the exact role set"
+                .to_owned(),
+        ));
+    }
+
+    let Some(limit) = plan.limit else {
+        return Err(invalid("requires an explicit page limit".to_owned()));
+    };
+    if !(1..=1_024).contains(&limit) || plan.order.len() != 1 {
+        return Err(invalid(
+            "requires one ordered cursor field and a page limit from 1 through 1024".to_owned(),
+        ));
+    }
+    let cursor_field_name = &plan.order[0].field;
+    if cursor_field_name == &membership_facts.resource_field {
+        return Err(invalid(
+            "cursor field must differ from resourceField".to_owned(),
+        ));
+    }
+    let cursor_field = page_table.field(cursor_field_name).ok_or_else(|| {
+        invalid(format!(
+            "references unknown cursor field {}.{cursor_field_name}",
+            page_table.name
+        ))
+    })?;
+    if cursor_field.optional {
+        return Err(invalid("cursor field must be required".to_owned()));
+    }
+    let index_name = plan
+        .indexed_by
+        .as_deref()
+        .ok_or_else(|| invalid("requires an explicit unique page index".to_owned()))?;
+    let exact_index = page_table.indexes.iter().any(|index| {
+        index.name == index_name
+            && index.unique
+            && index.fields
+                == [
+                    membership_facts.resource_field.clone(),
+                    cursor_field_name.clone(),
+                ]
+    });
+    if !exact_index {
+        return Err(invalid(format!(
+            "index {index_name:?} must be unique with exact fields [{}, {}] in that order",
+            membership_facts.resource_field, cursor_field_name
+        )));
+    }
+    Ok(())
 }
 
 fn validate_write_activity_schema_plan(
@@ -20280,7 +20490,10 @@ fn validate_function_schema_references(
 
     for function in &manifest.functions {
         match &function.runtime {
-            FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) => query(plan)?,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) => {
+                query(plan)?;
+                validate_membership_keyset_pattern(function, plan, schema)?;
+            }
             // The job-status plan reads no application schema table: nothing
             // to validate against the schema here (its shape is Rust-owned).
             FunctionRuntime::HostPlan(HandlerPlan::JobStatusQuery(_)) => {}
@@ -20562,9 +20775,7 @@ fn validate_function_schema_references(
                                         // opaque id string; commit-boundary
                                         // admission, not shape, is what
                                         // protects the field (LLP 0044).
-                                        FieldType::AssetRef { .. } => {
-                                            ResultValueContract::AssetRef
-                                        }
+                                        FieldType::AssetRef { .. } => ResultValueContract::AssetRef,
                                         FieldType::Json | FieldType::RelationIncarnation { .. } => {
                                             unreachable!("non-portable projections refused above")
                                         }
@@ -21234,6 +21445,16 @@ fn read_lane_unavailable() -> SnapbackError {
 pub(crate) struct RelationalCursorAuthority<'a> {
     pub(crate) app_id: &'a str,
     pub(crate) keyring: &'a RwLock<crate::rqs::ResumeKeyring>,
+    pub(crate) schema_hash: Option<&'a str>,
+    pub(crate) function_bundle_hash: Option<&'a str>,
+    pub(crate) function_publication_generation: u64,
+    pub(crate) target_profile: Option<&'a str>,
+}
+
+#[derive(Clone, Debug)]
+struct MembershipCursorCustodySnapshot {
+    authorization: crate::storage::AuthorizationVersion,
+    data_version_stream: Option<String>,
 }
 
 /// The one uniform cursor refusal (LLP 0080 §2): malformed, cross-plan,
@@ -21312,7 +21533,7 @@ fn standard_pattern_cursor_mint_unavailable() -> SnapbackError {
     )
 }
 
-/// The generated `defineOwnedKeysetPages` facts the runtime recovers from a
+/// The generated owned/membership keyset facts the runtime recovers from a
 /// standard-pattern function's own plan: the strict continuation filter
 /// names the cursor argument, the (single) order field is the cursor field,
 /// and the plan limit is the page size. Recovered rather than re-declared so
@@ -21328,7 +21549,10 @@ fn standard_pattern_keyset_facts<'a>(
     plan: &'a QueryPlan,
 ) -> Option<StandardPatternKeysetFacts<'a>> {
     let pattern = function.standard_pattern.as_ref()?;
-    if pattern.helper != "owned-keyset-pages.v1" {
+    if !matches!(
+        pattern.helper.as_str(),
+        "owned-keyset-pages.v1" | "membership-keyset-pages.v1"
+    ) {
         return None;
     }
     let order = plan.order.first()?;
@@ -21368,12 +21592,13 @@ fn standard_pattern_keyset_facts<'a>(
 /// pattern profile still refuses. The deployment/database axis rides the
 /// per-instance MAC keyring rather than the digest.
 fn standard_pattern_cursor_binding(
-    app_id: &str,
+    authority: &RelationalCursorAuthority<'_>,
     function: &FunctionDefinition,
     plan: &QueryPlan,
     facts: &StandardPatternKeysetFacts<'_>,
     input: &HandlerInput,
     permission_epochs: &BTreeMap<String, u64>,
+    membership_snapshot: Option<&MembershipCursorCustodySnapshot>,
 ) -> Result<String, ()> {
     let pattern = function.standard_pattern.as_ref().ok_or(())?;
     let shared_filters: Vec<Value> = plan
@@ -21398,7 +21623,7 @@ fn standard_pattern_cursor_binding(
         None => json!({}),
     };
     let binding = json!({
-        "app": app_id,
+        "app": authority.app_id,
         "helper": pattern.helper,
         "profile": pattern.profile,
         "table": plan.table,
@@ -21409,6 +21634,37 @@ fn standard_pattern_cursor_binding(
         "authority": {
             "fingerprint": crate::manifest::auth_fingerprint(&input.auth),
             "epochs": epochs,
+        },
+    });
+    if pattern.helper != "membership-keyset-pages.v1" {
+        // Keep the inherited owned-keyset digest byte-identical: membership
+        // additions are profile-conditional, not nullable members appended to
+        // the existing object.
+        return crate::rqs::sha256_identity(&binding).map_err(|_| ());
+    }
+
+    let membership = pattern.membership.as_ref().ok_or(())?;
+    let membership_snapshot = membership_snapshot.ok_or(())?;
+    let mut args = input.args.clone();
+    if let (Some(cursor_arg), Value::Object(map)) = (facts.cursor_arg, &mut args) {
+        map.remove(cursor_arg);
+    }
+    // @ref LLP 0100#5-index-and-continuation-contract — unlike the owner
+    //   partition, membership custody must bind the concrete resource value,
+    //   declaration facts, durable global authorization pair, reset stream,
+    //   and exact active artifact/profile identity. `validate_function_args`
+    //   has already normalized and admitted `input.args` at this seam.
+    let binding = json!({
+        "inherited": binding,
+        "args": args,
+        "membership": membership,
+        "globalAuthorization": membership_snapshot.authorization,
+        "dataVersionStream": membership_snapshot.data_version_stream,
+        "artifact": {
+            "schemaHash": authority.schema_hash,
+            "functionBundleHash": authority.function_bundle_hash,
+            "functionPublicationGeneration": authority.function_publication_generation,
+            "targetProfile": authority.target_profile,
         },
     });
     crate::rqs::sha256_identity(&binding).map_err(|_| ())
@@ -21518,6 +21774,10 @@ fn execute_query_invocation(
             //   cross-owner presentations refuse byte-identically and are
             //   never repositioned.
             let keyset = standard_pattern_keyset_facts(function, plan);
+            let membership_keyset = function.standard_pattern.as_ref().is_some_and(|pattern| {
+                pattern.helper == "membership-keyset-pages.v1" && pattern.profile == "membership.v1"
+            });
+            let mut membership_snapshot = None;
             let mut input = input;
             if let Some(facts) = &keyset
                 && let Some(arg_name) = facts.cursor_arg
@@ -21537,13 +21797,23 @@ fn execute_query_invocation(
                             crate::rqs::RELATIONAL_CURSOR_MAX_AGE_MS,
                         )
                         .map_err(|_| standard_pattern_cursor_invalid())?;
+                        if membership_keyset && membership_snapshot.is_none() {
+                            let (authorization, data_version_stream) = db
+                                .membership_cursor_custody_snapshot()
+                                .map_err(|_| standard_pattern_cursor_invalid())?;
+                            membership_snapshot = Some(MembershipCursorCustodySnapshot {
+                                authorization,
+                                data_version_stream,
+                            });
+                        }
                         let binding = standard_pattern_cursor_binding(
-                            authority.app_id,
+                            &authority,
                             function,
                             plan,
                             facts,
                             &input,
                             permission_epochs,
+                            membership_snapshot.as_ref(),
                         )
                         .map_err(|()| standard_pattern_cursor_invalid())?;
                         if body.app != authority.app_id || body.binding != binding {
@@ -21579,13 +21849,23 @@ fn execute_query_invocation(
                     .ok_or_else(standard_pattern_cursor_mint_unavailable)?;
                 let authority =
                     cursor_authority.ok_or_else(standard_pattern_cursor_mint_unavailable)?;
+                if membership_keyset && membership_snapshot.is_none() {
+                    let (authorization, data_version_stream) = db
+                        .membership_cursor_custody_snapshot()
+                        .map_err(|_| standard_pattern_cursor_mint_unavailable())?;
+                    membership_snapshot = Some(MembershipCursorCustodySnapshot {
+                        authorization,
+                        data_version_stream,
+                    });
+                }
                 let binding = standard_pattern_cursor_binding(
-                    authority.app_id,
+                    &authority,
                     function,
                     plan,
                     facts,
                     &input,
                     permission_epochs,
+                    membership_snapshot.as_ref(),
                 )
                 .map_err(|()| standard_pattern_cursor_mint_unavailable())?;
                 let (key_id, key) = authority
@@ -22499,9 +22779,7 @@ enum AssetCanonicalObject {
 impl AssetCanonicalObject {
     fn as_ref(&self) -> crate::assets_store::AssetObjectRef<'_> {
         match self {
-            AssetCanonicalObject::Staging(key) => {
-                crate::assets_store::AssetObjectRef::Staging(key)
-            }
+            AssetCanonicalObject::Staging(key) => crate::assets_store::AssetObjectRef::Staging(key),
             AssetCanonicalObject::Canonical(key) => {
                 crate::assets_store::AssetObjectRef::Canonical(key)
             }
@@ -22522,7 +22800,10 @@ fn asset_insert_derived_facts(
             "value": derived.placeholder,
         }),
     );
-    facts.insert("dominantColor".into(), derived.dominant_color.clone().into());
+    facts.insert(
+        "dominantColor".into(),
+        derived.dominant_color.clone().into(),
+    );
 }
 
 fn asset_insert_video_facts(
@@ -22613,7 +22894,9 @@ impl std::fmt::Debug for AssetDelivery {
 pub(crate) enum AssetDeliveryOutcome {
     Content(Box<AssetDelivery>),
     /// Syntactically valid but unsatisfiable range: 416 with the total.
-    Unsatisfiable { total_length: u64 },
+    Unsatisfiable {
+        total_length: u64,
+    },
 }
 
 #[derive(Debug, Default)]
@@ -22743,10 +23026,15 @@ fn asset_delete_cascade(
     cause: &str,
     now_ms: u64,
 ) -> SnapbackResult<Option<String>> {
-    use crate::assets as assets;
+    use crate::assets;
     let mut fenced_staging = None;
     if let Some(mut attempt) = assets::current_attempt(tx, &asset.asset_id)? {
-        assets::transition_attempt(tx, &mut attempt, assets::AssetAttemptState::Cancelled, now_ms)?;
+        assets::transition_attempt(
+            tx,
+            &mut attempt,
+            assets::AssetAttemptState::Cancelled,
+            now_ms,
+        )?;
         assets::write_receipt(
             tx,
             &asset_receipt(
@@ -22825,7 +23113,11 @@ fn asset_hash_bytes(bytes: &[u8]) -> String {
     use sha2::Digest as _;
     let mut hasher = sha2::Sha256::new();
     hasher.update(bytes);
-    hasher.finalize().iter().map(|byte| format!("{byte:02x}")).collect()
+    hasher
+        .finalize()
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
 }
 
 /// A rendered variant staged through the write-ahead publication protocol:
@@ -22843,7 +23135,9 @@ struct AssetPreparedVariant {
 }
 
 enum AssetVariantCommit {
-    Committed { rendition_id: String },
+    Committed {
+        rendition_id: String,
+    },
     /// An idempotent re-drive: a Ready same-lineage rendition already holds
     /// the pointer; our duplicate publication condemns with tracked cleanup.
     AlreadyCurrent,
@@ -22889,7 +23183,9 @@ fn asset_commit_prepared_variant(
     let increment = prepared
         .byte_length
         .max(assets::ASSET_MIN_ACCOUNTING_UNIT_BYTES);
-    let in_use = accounting.reserved_bytes.saturating_add(accounting.settled_bytes);
+    let in_use = accounting
+        .reserved_bytes
+        .saturating_add(accounting.settled_bytes);
     if in_use.saturating_add(increment) > app_quota {
         condemn(tx, &mut publication)?;
         return Ok(AssetVariantCommit::QuotaRefused);
@@ -23094,17 +23390,15 @@ mod auth_room_kick_acceptance;
 #[cfg(test)]
 mod tests {
     use super::{
-        ASSET_RECORD_LIVE_FUNCTION, MY_MEMBERSHIPS_LIVE_FUNCTION, AssetFinalizeCrashPoint,
-        AuthorizationBlastRadiusStats,
-        AuthorizationInvalidationAckInput,
-        BEFORE_ACTION_RESULT_HANDOFF_HOOK, BEFORE_CONFIG_VERIFY_PUBLICATION_HOOK,
-        BEFORE_MUTATION_POSTCOMMIT_HOOK, BEFORE_QUERY_RESULT_HANDOFF_HOOK, DetachedIbexMutation,
-        DetachedMutationRead, EnsureAppMode, FAIL_NEXT_LIVE_SCOPE_REGISTRATION,
-        FAIL_NEXT_SCOPE_RETIREMENT_AUTH, LiveInvalidationAdmission, LiveResumeInput,
-        LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback, MAX_LIVE_SUBSCRIPTIONS,
-        MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION, MaintenanceOperation, PublicInspect,
-        RetryEpisodeKey, RetryReservationKind, SnapbackError, SnapbackResult,
-        StagedNestedMutation,
+        ASSET_RECORD_LIVE_FUNCTION, AssetFinalizeCrashPoint, AuthorizationBlastRadiusStats,
+        AuthorizationInvalidationAckInput, BEFORE_ACTION_RESULT_HANDOFF_HOOK,
+        BEFORE_CONFIG_VERIFY_PUBLICATION_HOOK, BEFORE_MUTATION_POSTCOMMIT_HOOK,
+        BEFORE_QUERY_RESULT_HANDOFF_HOOK, DetachedIbexMutation, DetachedMutationRead,
+        EnsureAppMode, FAIL_NEXT_LIVE_SCOPE_REGISTRATION, FAIL_NEXT_SCOPE_RETIREMENT_AUTH,
+        LiveInvalidationAdmission, LiveResumeInput, LiveSubscribeInput, LiveUnsubscribeInput,
+        LocalSnapback, MAX_LIVE_SUBSCRIPTIONS, MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION,
+        MY_MEMBERSHIPS_LIVE_FUNCTION, MaintenanceOperation, PublicInspect, RetryEpisodeKey,
+        RetryReservationKind, SnapbackError, SnapbackResult, StagedNestedMutation,
         next_secret_read_reset_generation, now_millis,
         refuse_unprovenanced_host_plan_authority_creation, reserve_unique_generation,
         validate_bounded_children_schema_plan, validate_function_schema_references,
@@ -23592,7 +23886,9 @@ globalThis.__snapbackHandlers = {
             ..FunctionManifest::default()
         });
         assert!(
-            diagnostics.iter().all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
             "intent manifest must load: {diagnostics:?}"
         );
         snapback
@@ -23605,12 +23901,13 @@ globalThis.__snapbackHandlers = {
         let export_dir_str = export_dir.to_string_lossy().into_owned();
 
         let mut source = asset_profile_snapback();
-        let kept =
-            asset_ready_under_intent(&mut source, "alice", b"cut bytes one", "signedUpload");
+        let kept = asset_ready_under_intent(&mut source, "alice", b"cut bytes one", "signedUpload");
         let doomed =
             asset_ready_under_intent(&mut source, "alice", b"cut bytes two", "publicUpload");
         let deleter = asset_dev_authority(&source, "alice", InvocationSource::HttpQuery);
-        source.asset_delete(&deleter, &doomed).expect("delete tombstones");
+        source
+            .asset_delete(&deleter, &doomed)
+            .expect("delete tombstones");
         let source_generation = source
             .db
             .asset_transaction(|tx| crate::assets::load_asset(tx, &kept))
@@ -23820,9 +24117,7 @@ globalThis.__snapbackHandlers = {
         .expect("dev authority")
     }
 
-    fn asset_create_request(
-        length: Option<u64>,
-    ) -> crate::assets::AssetAttemptCreateRequestV1 {
+    fn asset_create_request(length: Option<u64>) -> crate::assets::AssetAttemptCreateRequestV1 {
         crate::assets::AssetAttemptCreateRequestV1 {
             intent_id: "app:avatarUpload".to_owned(),
             intent_policy_hash: "sha256:test-policy".to_owned(),
@@ -23846,14 +24141,16 @@ globalThis.__snapbackHandlers = {
     fn asset_attempt_lifecycle_creates_transfers_resumes_and_cancels() {
         let mut snapback = asset_test_snapback();
         let creator = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
-        let transfer =
-            asset_dev_authority(&snapback, "user_a", InvocationSource::AssetTransfer);
+        let transfer = asset_dev_authority(&snapback, "user_a", InvocationSource::AssetTransfer);
 
         let response = snapback
             .asset_attempt_create(&creator, asset_create_request(Some(10)))
             .expect("attempt creates");
         assert_eq!(response.transfer.tus_resumable, "1.0.0");
-        assert_eq!(response.task.attempt_state, crate::assets::AssetAttemptState::Open);
+        assert_eq!(
+            response.task.attempt_state,
+            crate::assets::AssetAttemptState::Open
+        );
         // The authorizer's owner is the caller's dev identity, captured with
         // a witness (auth facts at minimum) and the frozen policy identity.
         let attempt_id = response.task.attempt_id.clone();
@@ -23869,7 +24166,10 @@ globalThis.__snapbackHandlers = {
             )
             .expect("first chunk lands");
         assert_eq!(attempt.acknowledged_offset, 5);
-        assert_eq!(attempt.state, crate::assets::AssetAttemptState::Transferring);
+        assert_eq!(
+            attempt.state,
+            crate::assets::AssetAttemptState::Transferring
+        );
         assert!(attempt.all_chunks_checksummed);
         assert_eq!(attempt.admission.owner_principal, "user_a");
 
@@ -23899,8 +24199,7 @@ globalThis.__snapbackHandlers = {
 
         // The staging bytes are exactly the appended stream.
         let store = snapback.asset_store().expect("store");
-        let staged =
-            std::fs::read(store.staging_path(&attempt.staging_key).unwrap()).unwrap();
+        let staged = std::fs::read(store.staging_path(&attempt.staging_key).unwrap()).unwrap();
         assert_eq!(staged, b"helloworld");
 
         let task = snapback
@@ -23913,7 +24212,10 @@ globalThis.__snapbackHandlers = {
                 },
             )
             .expect("cancel-and-discard");
-        assert_eq!(task.attempt_state, crate::assets::AssetAttemptState::Cancelled);
+        assert_eq!(
+            task.attempt_state,
+            crate::assets::AssetAttemptState::Cancelled
+        );
         assert_eq!(task.availability, crate::assets::AssetAvailability::Deleted);
         assert!(!store.staging_path(&attempt.staging_key).unwrap().exists());
     }
@@ -23944,15 +24246,23 @@ globalThis.__snapbackHandlers = {
         let error = snapback
             .asset_attempt_create(&creator, asset_create_request(Some(1024 * 1024)))
             .expect_err("over-bounds refuses");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_MEDIA_BOUNDS_EXCEEDED");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_ASSET_MEDIA_BOUNDS_EXCEEDED"
+        );
         let mut wrong_type = asset_create_request(Some(1));
         wrong_type.declared_content_type = Some("video/mp4".to_owned());
         let error = snapback
             .asset_attempt_create(&creator, wrong_type)
             .expect_err("undeclared media type refuses");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_MEDIA_TYPE_UNSUPPORTED");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_ASSET_MEDIA_TYPE_UNSUPPORTED"
+        );
 
-        let error = snapback.asset_intent("missing").expect_err("unknown intent");
+        let error = snapback
+            .asset_intent("missing")
+            .expect_err("unknown intent");
         assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_INTENT_UNKNOWN");
     }
 
@@ -23960,10 +24270,8 @@ globalThis.__snapbackHandlers = {
     fn asset_retry_supersedes_and_lineage_gates_access() {
         let mut snapback = asset_test_snapback();
         let creator = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
-        let transfer =
-            asset_dev_authority(&snapback, "user_a", InvocationSource::AssetTransfer);
-        let stranger =
-            asset_dev_authority(&snapback, "user_b", InvocationSource::AssetTransfer);
+        let transfer = asset_dev_authority(&snapback, "user_a", InvocationSource::AssetTransfer);
+        let stranger = asset_dev_authority(&snapback, "user_b", InvocationSource::AssetTransfer);
 
         let first = snapback
             .asset_attempt_create(&creator, asset_create_request(Some(10)))
@@ -23987,34 +24295,42 @@ globalThis.__snapbackHandlers = {
         let predecessor = snapback
             .asset_tus_head(&transfer, &first.task.attempt_id)
             .expect_err("superseded predecessor is terminal");
-        assert_eq!(predecessor.diagnostic.code, "SNAPBACK_ASSET_ATTEMPT_TERMINAL");
+        assert_eq!(
+            predecessor.diagnostic.code,
+            "SNAPBACK_ASSET_ATTEMPT_TERMINAL"
+        );
     }
 
     #[test]
     fn asset_checksums_gate_chunks_and_grade_basis_demotes_without_them() {
         let mut snapback = asset_test_snapback();
         let creator = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
-        let transfer =
-            asset_dev_authority(&snapback, "user_a", InvocationSource::AssetTransfer);
+        let transfer = asset_dev_authority(&snapback, "user_a", InvocationSource::AssetTransfer);
         let created = snapback
             .asset_attempt_create(&creator, asset_create_request(Some(10)))
             .expect("attempt");
         let attempt_id = created.task.attempt_id;
 
         let error = snapback
-            .asset_tus_patch(&transfer, &attempt_id, 0, b"hello", Some(("sha256", "bogus")))
-            .expect_err("bad checksum refuses");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_CHUNK_CHECKSUM_INVALID");
-        let error = snapback
             .asset_tus_patch(
                 &transfer,
                 &attempt_id,
                 0,
                 b"hello",
-                Some(("crc32", "AAAA")),
+                Some(("sha256", "bogus")),
             )
+            .expect_err("bad checksum refuses");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_ASSET_CHUNK_CHECKSUM_INVALID"
+        );
+        let error = snapback
+            .asset_tus_patch(&transfer, &attempt_id, 0, b"hello", Some(("crc32", "AAAA")))
             .expect_err("unsupported algorithm refuses");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_CHUNK_CHECKSUM_INVALID");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_ASSET_CHUNK_CHECKSUM_INVALID"
+        );
         let head = snapback
             .asset_tus_head(&transfer, &attempt_id)
             .expect("offset unchanged after refusals");
@@ -24047,8 +24363,7 @@ globalThis.__snapbackHandlers = {
     fn asset_expired_attempt_refuses_and_receipts() {
         let mut snapback = asset_test_snapback();
         let creator = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
-        let transfer =
-            asset_dev_authority(&snapback, "user_a", InvocationSource::AssetTransfer);
+        let transfer = asset_dev_authority(&snapback, "user_a", InvocationSource::AssetTransfer);
         let created = snapback
             .asset_attempt_create(&creator, asset_create_request(Some(10)))
             .expect("attempt");
@@ -24058,8 +24373,8 @@ globalThis.__snapbackHandlers = {
         snapback
             .db
             .asset_transaction(|tx| {
-                let mut attempt = crate::assets::load_attempt(tx, &attempt_id)?
-                    .expect("attempt exists");
+                let mut attempt =
+                    crate::assets::load_attempt(tx, &attempt_id)?.expect("attempt exists");
                 attempt.expires_at_ms = 1;
                 crate::assets::store_attempt(tx, &attempt)?;
                 Ok(())
@@ -24093,8 +24408,7 @@ globalThis.__snapbackHandlers = {
                 asset_upload_intents: vec![asset_test_intent()],
                 ..FunctionManifest::default()
             });
-            let creator =
-                asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+            let creator = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
             let transfer =
                 asset_dev_authority(&snapback, "user_a", InvocationSource::AssetTransfer);
             let created = snapback
@@ -24200,7 +24514,9 @@ globalThis.__snapbackHandlers = {
             ..FunctionManifest::default()
         });
         assert!(
-            diagnostics.iter().all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
             "intent manifest must load: {diagnostics:?}"
         );
         snapback
@@ -24394,7 +24710,10 @@ globalThis.__snapbackHandlers = {
             .into_iter()
             .filter(|receipt| {
                 receipt.event == crate::assets::AssetReceiptEventV1::GcReclaimed
-                    && receipt.details.get("policy").and_then(|value| value.as_str())
+                    && receipt
+                        .details
+                        .get("policy")
+                        .and_then(|value| value.as_str())
                         == Some(policy)
             })
             .map(|receipt| receipt.details)
@@ -24417,10 +24736,7 @@ globalThis.__snapbackHandlers = {
             vec![crate::storage::BufferedWrite::Insert {
                 table: "posts".to_owned(),
                 id: "post_gc".to_owned(),
-                values: serde_json::Map::from_iter([(
-                    "photo".to_owned(),
-                    json!(attached.clone()),
-                )]),
+                values: serde_json::Map::from_iter([("photo".to_owned(), json!(attached.clone()))]),
             }],
             vec![crate::assets::AssetAttachmentAdmission {
                 asset_id: attached.clone(),
@@ -24445,7 +24761,10 @@ globalThis.__snapbackHandlers = {
             .asset_transaction(|tx| crate::assets::load_asset(tx, &attached))
             .expect("load")
             .expect("attached asset survives");
-        assert_eq!(survivor.availability, crate::assets::AssetAvailability::Ready);
+        assert_eq!(
+            survivor.availability,
+            crate::assets::AssetAvailability::Ready
+        );
 
         // Clearing the field starts the clock; re-attaching clears it, so
         // a racing attachment always wins over the sweep.
@@ -24466,10 +24785,7 @@ globalThis.__snapbackHandlers = {
             vec![crate::storage::BufferedWrite::Patch {
                 table: "posts".to_owned(),
                 id: "post_gc".to_owned(),
-                values: serde_json::Map::from_iter([(
-                    "photo".to_owned(),
-                    json!(attached.clone()),
-                )]),
+                values: serde_json::Map::from_iter([("photo".to_owned(), json!(attached.clone()))]),
             }],
             vec![crate::assets::AssetAttachmentAdmission {
                 asset_id: attached.clone(),
@@ -24480,7 +24796,10 @@ globalThis.__snapbackHandlers = {
         let report = snapback
             .asset_gc_sweep(now_millis() + GRACE_MS * 3)
             .expect("sweep");
-        assert_eq!(report.reference_reclaimed, 0, "re-attached asset is protected");
+        assert_eq!(
+            report.reference_reclaimed, 0,
+            "re-attached asset is protected"
+        );
 
         // Detach for good: the clock runs from the removal and the asset
         // reclaims through the ordinary deletion cascade.
@@ -24505,8 +24824,7 @@ globalThis.__snapbackHandlers = {
             .expect("load");
         assert!(
             reclaimed.is_none()
-                || reclaimed.unwrap().availability
-                    == crate::assets::AssetAvailability::Deleted,
+                || reclaimed.unwrap().availability == crate::assets::AssetAvailability::Deleted,
             "detached asset reclaimed"
         );
     }
@@ -24528,7 +24846,10 @@ globalThis.__snapbackHandlers = {
             .expect("operator sweep");
         assert_eq!(swept["nowMs"], serde_json::json!(now_ms));
         assert_eq!(swept["report"]["referenceReclaimed"], serde_json::json!(1));
-        assert_eq!(swept["report"]["publication"]["staged"], serde_json::json!(0));
+        assert_eq!(
+            swept["report"]["publication"]["staged"],
+            serde_json::json!(0)
+        );
 
         let receipts = asset_receipts_with_policy(&mut snapback, &asset_id, "reference-gc");
         assert_eq!(receipts.len(), 1, "reclamation is semantically receipted");
@@ -24554,7 +24875,10 @@ globalThis.__snapbackHandlers = {
         let ambient_clock = snapback
             .asset_host_op("asset.gcSweep", None, None, ServerProfile::Dev)
             .expect_err("the operator must inject nowMs");
-        assert_eq!(ambient_clock.diagnostic.code, "SNAPBACK_HOST_OP_INPUT_MISSING");
+        assert_eq!(
+            ambient_clock.diagnostic.code,
+            "SNAPBACK_HOST_OP_INPUT_MISSING"
+        );
 
         let out_of_range = snapback
             .asset_host_op(
@@ -24566,7 +24890,10 @@ globalThis.__snapbackHandlers = {
                 ServerProfile::Dev,
             )
             .expect_err("non-portable clock refused");
-        assert_eq!(out_of_range.diagnostic.code, "SNAPBACK_TIMESTAMP_OUT_OF_RANGE");
+        assert_eq!(
+            out_of_range.diagnostic.code,
+            "SNAPBACK_TIMESTAMP_OUT_OF_RANGE"
+        );
 
         let open_shape = snapback
             .asset_host_op(
@@ -24816,9 +25143,11 @@ globalThis.__snapbackHandlers = {
         snapback
             .db
             .asset_transaction(|tx| {
-                Ok(tx.query_row("SELECT COUNT(*) FROM callback_log", [], |row| {
-                    row.get::<_, u64>(0)
-                })?)
+                Ok(
+                    tx.query_row("SELECT COUNT(*) FROM callback_log", [], |row| {
+                        row.get::<_, u64>(0)
+                    })?,
+                )
             })
             .expect("count")
     }
@@ -24838,12 +25167,14 @@ globalThis.__snapbackHandlers = {
             .iter()
             .filter(|row| row.kind == crate::assets::ASSET_WORK_KIND_LIFECYCLE_CALLBACK)
             .collect();
-        assert_eq!(callback_rows.len(), 1, "ready enqueued exactly one callback");
+        assert_eq!(
+            callback_rows.len(),
+            1,
+            "ready enqueued exactly one callback"
+        );
 
         // The runner invokes the declared mutation with typed facts.
-        snapback
-            .asset_runner_tick(now_millis() + 1)
-            .expect("tick");
+        snapback.asset_runner_tick(now_millis() + 1).expect("tick");
         assert_eq!(asset_callback_log_count(&mut snapback), 1);
         let generation = callback_rows[0].lifecycle_generation;
 
@@ -24867,9 +25198,7 @@ globalThis.__snapbackHandlers = {
                 .map(|_| ())
             })
             .expect("duplicate enqueues");
-        snapback
-            .asset_runner_tick(now_millis() + 1)
-            .expect("tick");
+        snapback.asset_runner_tick(now_millis() + 1).expect("tick");
         assert_eq!(
             asset_callback_log_count(&mut snapback),
             1,
@@ -24878,15 +25207,9 @@ globalThis.__snapbackHandlers = {
 
         // A throwing callback retries toward its ceiling and never touches
         // the asset: failure is isolated to the work row.
-        let boom_asset = asset_ready_under_intent(
-            &mut snapback,
-            "user_a",
-            b"boom-bytes",
-            "boomUpload",
-        );
-        snapback
-            .asset_runner_tick(now_millis() + 1)
-            .expect("tick");
+        let boom_asset =
+            asset_ready_under_intent(&mut snapback, "user_a", b"boom-bytes", "boomUpload");
+        snapback.asset_runner_tick(now_millis() + 1).expect("tick");
         let boom_rows = snapback
             .db
             .asset_transaction(|tx| crate::assets::work_rows_for_asset(tx, &boom_asset))
@@ -24968,8 +25291,10 @@ globalThis.__snapbackHandlers = {
         let edges = asset_edges(&mut snapback, "posts", "post_ok");
         assert_eq!(edges.len(), 1);
         assert_eq!(edges[0].asset_id, asset_id);
-        assert!(asset_receipt_events(&mut snapback, &asset_id)
-            .contains(&"attachment-committed".to_owned()));
+        assert!(
+            asset_receipt_events(&mut snapback, &asset_id)
+                .contains(&"attachment-committed".to_owned())
+        );
     }
 
     #[test]
@@ -25043,9 +25368,7 @@ globalThis.__snapbackHandlers = {
         let plan_insert = |table: &str, field: &str, asset: &str| MutationPlan {
             steps: vec![MutationStep::Insert {
                 table: table.to_owned(),
-                values: BTreeMap::from([
-                    (field.to_owned(), ValueExpr::Literal(json!(asset))),
-                ]),
+                values: BTreeMap::from([(field.to_owned(), ValueExpr::Literal(json!(asset)))]),
                 bind_id_as: None,
             }],
             return_value: None,
@@ -25060,18 +25383,27 @@ globalThis.__snapbackHandlers = {
         // Restricted field: the commit boundary derives the full admission.
         snapback
             .db
-            .execute_mutation(&plan_insert("posts", "photo", &asset_id), &input_for("user_a"))
+            .execute_mutation(
+                &plan_insert("posts", "photo", &asset_id),
+                &input_for("user_a"),
+            )
             .expect("host plan with restriction commits");
         // Wrong owner fails closed.
         let error = snapback
             .db
-            .execute_mutation(&plan_insert("posts", "photo", &asset_id), &input_for("user_b"))
+            .execute_mutation(
+                &plan_insert("posts", "photo", &asset_id),
+                &input_for("user_b"),
+            )
             .expect_err("foreign host plan refuses");
         assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_FORBIDDEN");
         // A restriction-less field is handler-attach-only on host plans.
         let error = snapback
             .db
-            .execute_mutation(&plan_insert("drafts", "pic", &asset_id), &input_for("user_a"))
+            .execute_mutation(
+                &plan_insert("drafts", "pic", &asset_id),
+                &input_for("user_a"),
+            )
             .expect_err("unrestricted host plan refuses");
         assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_REF_UNVERIFIED");
         // Seeds run the same commit-boundary admission under system
@@ -25140,8 +25472,9 @@ globalThis.__snapbackHandlers = {
         let edges = asset_edges(&mut snapback, "posts", "post_e");
         assert_eq!(edges.len(), 1);
         assert_eq!(edges[0].asset_id, second);
-        assert!(asset_receipt_events(&mut snapback, &first)
-            .contains(&"reference-removed".to_owned()));
+        assert!(
+            asset_receipt_events(&mut snapback, &first).contains(&"reference-removed".to_owned())
+        );
         // Clear: writing null removes the edge with no new admission needed.
         asset_handler_commit(
             &mut snapback,
@@ -25303,12 +25636,8 @@ globalThis.__snapbackHandlers = {
             .db
             .asset_transaction(|tx| {
                 let asset = crate::assets::load_asset(tx, &asset_id)?.unwrap();
-                let decision = crate::storage::asset_read_authorized(
-                    &schema,
-                    tx,
-                    Some("user_b"),
-                    &asset,
-                )?;
+                let decision =
+                    crate::storage::asset_read_authorized(&schema, tx, Some("user_b"), &asset)?;
                 assert!(!decision.authorized);
                 Ok(decision.dependencies)
             })
@@ -25346,7 +25675,10 @@ globalThis.__snapbackHandlers = {
                 )
             })
             .expect("re-evaluation");
-        assert!(moved, "the first attachment must move the pinned empty capture");
+        assert!(
+            moved,
+            "the first attachment must move the pinned empty capture"
+        );
     }
 
     fn asset_live_input(connection_id: &str, user: &str, asset_id: &str) -> LiveSubscribeInput {
@@ -25783,10 +26115,7 @@ globalThis.__snapbackHandlers = {
             vec![crate::storage::BufferedWrite::Insert {
                 table: "notes".to_owned(),
                 id: "note_1".to_owned(),
-                values: serde_json::Map::from_iter([(
-                    "body".to_owned(),
-                    json!("frame driver"),
-                )]),
+                values: serde_json::Map::from_iter([("body".to_owned(), json!("frame driver"))]),
             }],
             Vec::new(),
         )
@@ -25800,10 +26129,7 @@ globalThis.__snapbackHandlers = {
         snapback
             .db
             .asset_transaction(|tx| {
-                tx.execute(
-                    "DELETE FROM channel_members WHERE _id = 'seat_a2'",
-                    [],
-                )?;
+                tx.execute("DELETE FROM channel_members WHERE _id = 'seat_a2'", [])?;
                 Ok(())
             })
             .expect("revoke seat");
@@ -25813,10 +26139,7 @@ globalThis.__snapbackHandlers = {
             vec![crate::storage::BufferedWrite::Insert {
                 table: "notes".to_owned(),
                 id: "note_2".to_owned(),
-                values: serde_json::Map::from_iter([(
-                    "body".to_owned(),
-                    json!("second frame"),
-                )]),
+                values: serde_json::Map::from_iter([("body".to_owned(), json!("second frame"))]),
             }],
             Vec::new(),
         )
@@ -26164,8 +26487,7 @@ globalThis.__snapbackHandlers = {
         snapback
             .db
             .asset_transaction(|tx| {
-                let mut row =
-                    crate::assets::load_work_row(tx, &work_id)?.expect("row exists");
+                let mut row = crate::assets::load_work_row(tx, &work_id)?.expect("row exists");
                 row.lease_owner = Some("crashed-runner".to_owned());
                 row.lease_expires_at_ms = Some(now.saturating_sub(1));
                 row.next_eligible_at_ms = now.saturating_sub(1);
@@ -26180,7 +26502,10 @@ globalThis.__snapbackHandlers = {
 
         let report = snapback.asset_runner_tick(now).expect("tick");
         assert_eq!(report.leases_reclaimed, 1, "the expired lease reclaims");
-        assert_eq!(report.completed, 1, "and the reclaimed row re-drives to done");
+        assert_eq!(
+            report.completed, 1,
+            "and the reclaimed row re-drives to done"
+        );
         let events = asset_receipt_events(&mut snapback, &asset_id);
         assert!(events.iter().any(|event| event == "work-lease-reclaimed"));
         assert_eq!(
@@ -26244,7 +26569,10 @@ globalThis.__snapbackHandlers = {
         );
 
         let report = snapback.asset_runner_tick(now).expect("tick");
-        assert_eq!(report.cancelled, 1, "stale-generation work cancels at claim");
+        assert_eq!(
+            report.cancelled, 1,
+            "stale-generation work cancels at claim"
+        );
         assert_eq!(report.claimed, 0, "a fenced row never holds a lease");
         assert_eq!(
             asset_work_row(&mut snapback, &work_id).state,
@@ -26272,8 +26600,7 @@ globalThis.__snapbackHandlers = {
         snapback
             .db
             .asset_transaction(|tx| {
-                let mut row =
-                    crate::assets::load_work_row(tx, &deadline_row)?.expect("row exists");
+                let mut row = crate::assets::load_work_row(tx, &deadline_row)?.expect("row exists");
                 row.deadline_at_ms = now.saturating_sub(1);
                 crate::assets::update_work_row(tx, &row)
             })
@@ -26308,8 +26635,7 @@ globalThis.__snapbackHandlers = {
     fn asset_host_ops_round_trip_put_inspect_list_retry_delete() {
         let mut snapback = asset_test_snapback();
         let bytes = b"host-op bytes";
-        let encoded =
-            base64::Engine::encode(&base64::engine::general_purpose::STANDARD, bytes);
+        let encoded = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, bytes);
 
         let put = snapback
             .asset_host_op(
@@ -26342,7 +26668,10 @@ globalThis.__snapbackHandlers = {
                 ServerProfile::Dev,
             )
             .expect("owner inspects");
-        assert_eq!(inspected["asset"]["availability"], serde_json::json!("ready"));
+        assert_eq!(
+            inspected["asset"]["availability"],
+            serde_json::json!("ready")
+        );
         assert!(
             inspected["receipts"]
                 .as_array()
@@ -26388,11 +26717,9 @@ globalThis.__snapbackHandlers = {
             )
             .expect("list");
         assert!(
-            listed["assets"]
-                .as_array()
-                .is_some_and(|assets| assets
-                    .iter()
-                    .any(|asset| asset["assetId"] == serde_json::json!(asset_id))),
+            listed["assets"].as_array().is_some_and(|assets| assets
+                .iter()
+                .any(|asset| asset["assetId"] == serde_json::json!(asset_id))),
             "listing includes the published asset: {listed}"
         );
 
@@ -26422,7 +26749,10 @@ globalThis.__snapbackHandlers = {
                 ServerProfile::Dev,
             )
             .expect_err("deleted assets have no re-drivable work");
-        assert_eq!(ineligible.diagnostic.code, "SNAPBACK_ASSET_RETRY_INELIGIBLE");
+        assert_eq!(
+            ineligible.diagnostic.code,
+            "SNAPBACK_ASSET_RETRY_INELIGIBLE"
+        );
     }
 
     #[test]
@@ -26453,12 +26783,18 @@ globalThis.__snapbackHandlers = {
                 ServerProfile::Dev,
             )
             .expect_err("unknown intent refused");
-        assert_eq!(unknown_intent.diagnostic.code, "SNAPBACK_ASSET_INTENT_UNKNOWN");
+        assert_eq!(
+            unknown_intent.diagnostic.code,
+            "SNAPBACK_ASSET_INTENT_UNKNOWN"
+        );
 
         let missing_input = snapback
             .asset_host_op("asset.inspect", None, None, ServerProfile::Dev)
             .expect_err("missing input refused");
-        assert_eq!(missing_input.diagnostic.code, "SNAPBACK_HOST_OP_INPUT_MISSING");
+        assert_eq!(
+            missing_input.diagnostic.code,
+            "SNAPBACK_HOST_OP_INPUT_MISSING"
+        );
 
         let bad_state = snapback
             .asset_host_op(
@@ -26520,7 +26856,10 @@ globalThis.__snapbackHandlers = {
         let first = snapback
             .asset_host_op(
                 "asset.ensureSeedFixture",
-                Some(&asset_seed_fixture_input("welcome-photo", b"fixture-bytes-v1")),
+                Some(&asset_seed_fixture_input(
+                    "welcome-photo",
+                    b"fixture-bytes-v1",
+                )),
                 Some("user_a"),
                 ServerProfile::Dev,
             )
@@ -26531,7 +26870,10 @@ globalThis.__snapbackHandlers = {
         let again = snapback
             .asset_host_op(
                 "asset.ensureSeedFixture",
-                Some(&asset_seed_fixture_input("welcome-photo", b"fixture-bytes-v1")),
+                Some(&asset_seed_fixture_input(
+                    "welcome-photo",
+                    b"fixture-bytes-v1",
+                )),
                 Some("user_a"),
                 ServerProfile::Dev,
             )
@@ -26542,7 +26884,10 @@ globalThis.__snapbackHandlers = {
         let changed = snapback
             .asset_host_op(
                 "asset.ensureSeedFixture",
-                Some(&asset_seed_fixture_input("welcome-photo", b"fixture-bytes-v2")),
+                Some(&asset_seed_fixture_input(
+                    "welcome-photo",
+                    b"fixture-bytes-v2",
+                )),
                 Some("user_a"),
                 ServerProfile::Dev,
             )
@@ -26563,7 +26908,10 @@ globalThis.__snapbackHandlers = {
                 ServerProfile::Dev,
             )
             .expect_err("digest lie refuses");
-        assert_eq!(refusal.diagnostic.code, "SNAPBACK_ASSET_SEED_FIXTURE_DIGEST_MISMATCH");
+        assert_eq!(
+            refusal.diagnostic.code,
+            "SNAPBACK_ASSET_SEED_FIXTURE_DIGEST_MISMATCH"
+        );
     }
 
     /// The full LLP 0109 §17 install path: placeholder resolution binds the
@@ -26647,8 +26995,7 @@ globalThis.__snapbackHandlers = {
                     ),
                 }],
             };
-            fixtures.fixtures_digest =
-                asset_fixtures_digest(&fixtures).expect("fixtures digest");
+            fixtures.fixtures_digest = asset_fixtures_digest(&fixtures).expect("fixtures digest");
             fixtures
         };
 
@@ -26662,7 +27009,10 @@ globalThis.__snapbackHandlers = {
                 asset_fixtures: None,
             })
             .expect_err("placeholder without fixtures refuses");
-        assert_eq!(unresolved.diagnostic.code, "SNAPBACK_SEED_ASSET_FIXTURE_UNRESOLVED");
+        assert_eq!(
+            unresolved.diagnostic.code,
+            "SNAPBACK_SEED_ASSET_FIXTURE_UNRESOLVED"
+        );
         assert_eq!(
             snapback.db.scan_table("posts", 10, 0).expect("scan").total,
             0,
@@ -26672,8 +27022,7 @@ globalThis.__snapbackHandlers = {
         // A stale mapping (declared digest != ingested digest) refuses whole.
         let mut stale = fixtures.clone();
         stale.fixtures[0].source_digest =
-            "sha256:1111111111111111111111111111111111111111111111111111111111111111"
-                .to_owned();
+            "sha256:1111111111111111111111111111111111111111111111111111111111111111".to_owned();
         stale.fixtures_digest = asset_fixtures_digest(&stale).expect("digest");
         let not_ingested = snapback
             .ensure_versioned_seed(InstallSeedRequestV1 {
@@ -26684,7 +27033,10 @@ globalThis.__snapbackHandlers = {
                 asset_fixtures: Some(stale),
             })
             .expect_err("stale mapping refuses");
-        assert_eq!(not_ingested.diagnostic.code, "SNAPBACK_SEED_ASSET_FIXTURE_NOT_INGESTED");
+        assert_eq!(
+            not_ingested.diagnostic.code,
+            "SNAPBACK_SEED_ASSET_FIXTURE_NOT_INGESTED"
+        );
 
         // The matching artifact installs; the row carries the asset id and
         // the seed-path admission committed the reverse edge.
@@ -26725,16 +27077,13 @@ globalThis.__snapbackHandlers = {
         // Table clearing rides the reset transaction itself.
         let remaining: u64 = snapback
             .db
-            .asset_transaction(|tx| {
-                Ok(crate::assets::load_asset(tx, &asset_id)?.is_some() as u64)
-            })
+            .asset_transaction(|tx| Ok(crate::assets::load_asset(tx, &asset_id)?.is_some() as u64))
             .expect("post-reset lookup");
         assert_eq!(remaining, 0, "asset records cleared by reset");
         // File wipe is the publish finisher's job; prove the store call.
         store.wipe_all().expect("wipe");
         assert_eq!(blob_files(), 0, "store files removed");
     }
-
 
     fn asset_receipt_events(snapback: &mut LocalSnapback, asset_id: &str) -> Vec<String> {
         snapback
@@ -26760,9 +27109,12 @@ globalThis.__snapbackHandlers = {
         let attempt_id = created.task.attempt_id.clone();
         let asset_id = created.task.asset_id.clone();
 
-        let response = asset_finalize(&mut snapback, "user_a", &attempt_id, None)
-            .expect("finalize publishes");
-        assert_eq!(response.task.availability, crate::assets::AssetAvailability::Ready);
+        let response =
+            asset_finalize(&mut snapback, "user_a", &attempt_id, None).expect("finalize publishes");
+        assert_eq!(
+            response.task.availability,
+            crate::assets::AssetAvailability::Ready
+        );
         assert_eq!(
             response.task.attempt_state,
             crate::assets::AssetAttemptState::Complete
@@ -26785,13 +27137,12 @@ globalThis.__snapbackHandlers = {
         let (rendition, blob, publication_states, accounting) = snapback
             .db
             .asset_transaction(|tx| {
-                let rendition = crate::assets::load_rendition(tx, &rendition_id)?
-                    .expect("rendition row");
-                let blob = crate::assets::load_blob_live(tx, &rendition.blob_id)?
-                    .expect("blob row");
-                let mut statement = tx.prepare(
-                    "SELECT state FROM _snapback_asset_publications_v1",
-                )?;
+                let rendition =
+                    crate::assets::load_rendition(tx, &rendition_id)?.expect("rendition row");
+                let blob =
+                    crate::assets::load_blob_live(tx, &rendition.blob_id)?.expect("blob row");
+                let mut statement =
+                    tx.prepare("SELECT state FROM _snapback_asset_publications_v1")?;
                 let states = statement
                     .query_map([], |row| row.get::<_, String>(0))?
                     .collect::<Result<Vec<_>, _>>()?;
@@ -26802,11 +27153,17 @@ globalThis.__snapbackHandlers = {
         assert_eq!(rendition.variant_key, "primary");
         assert_eq!(blob.record.byte_length, 10);
         assert_eq!(blob.reference_count, 1, "the live column is the authority");
-        assert_eq!(blob.record.detected_content_type, "application/octet-stream");
+        assert_eq!(
+            blob.record.detected_content_type,
+            "application/octet-stream"
+        );
         assert_eq!(blob.record.digest_algorithm, "sha256");
         assert!(store.blob_path(&blob.record.physical_key).unwrap().exists());
         assert_eq!(publication_states, vec!["committed".to_owned()]);
-        assert_eq!(accounting.reserved_bytes, 0, "completion released the reservation");
+        assert_eq!(
+            accounting.reserved_bytes, 0,
+            "completion released the reservation"
+        );
         assert_eq!(
             accounting.settled_bytes,
             crate::assets::ASSET_MIN_ACCOUNTING_UNIT_BYTES,
@@ -26824,13 +27181,19 @@ globalThis.__snapbackHandlers = {
             "attempt-completed",
             "staging-cleaned",
         ] {
-            assert!(events.contains(&expected.to_owned()), "missing receipt {expected}: {events:?}");
+            assert!(
+                events.contains(&expected.to_owned()),
+                "missing receipt {expected}: {events:?}"
+            );
         }
 
         // Re-driving a complete attempt is idempotent, not an error.
         let again = asset_finalize(&mut snapback, "user_a", &attempt_id, None)
             .expect("idempotent completion");
-        assert_eq!(again.task.availability, crate::assets::AssetAvailability::Ready);
+        assert_eq!(
+            again.task.availability,
+            crate::assets::AssetAvailability::Ready
+        );
     }
 
     #[test]
@@ -26854,9 +27217,13 @@ globalThis.__snapbackHandlers = {
             .map(|byte| format!("{byte:02x}"))
             .collect::<String>();
         let created = asset_upload(&mut snapback, "user_a", bytes, false);
-        let response =
-            asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, Some(digest))
-                .expect("declared digest upgrades");
+        let response = asset_finalize(
+            &mut snapback,
+            "user_a",
+            &created.task.attempt_id,
+            Some(digest),
+        )
+        .expect("declared digest upgrades");
         assert_eq!(
             response.task.integrity_grade,
             crate::assets::AssetIntegrityGrade::EndToEndVerified
@@ -26883,7 +27250,10 @@ globalThis.__snapbackHandlers = {
             })
             .expect("records");
         assert_eq!(attempt.state, crate::assets::AssetAttemptState::Failed);
-        assert_eq!(asset.availability, crate::assets::AssetAvailability::Pending);
+        assert_eq!(
+            asset.availability,
+            crate::assets::AssetAvailability::Pending
+        );
     }
 
     #[test]
@@ -26917,7 +27287,10 @@ globalThis.__snapbackHandlers = {
         let created = asset_upload(&mut snapback, "user_a", &png, true);
         let error = asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
             .expect_err("detected type outside the accept list refuses");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_MEDIA_TYPE_UNSUPPORTED");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_ASSET_MEDIA_TYPE_UNSUPPORTED"
+        );
         let details = error.diagnostic.details;
         assert_eq!(details["detected"], "image/png");
 
@@ -26946,7 +27319,10 @@ globalThis.__snapbackHandlers = {
         let response = asset_finalize(&mut snapback, "user_a", &retried.task.attempt_id, None)
             .expect("retry publishes the same asset id");
         assert_eq!(response.task.asset_id, created.task.asset_id);
-        assert_eq!(response.task.availability, crate::assets::AssetAvailability::Ready);
+        assert_eq!(
+            response.task.availability,
+            crate::assets::AssetAvailability::Ready
+        );
     }
 
     #[test]
@@ -26956,9 +27332,8 @@ globalThis.__snapbackHandlers = {
 
         let first = asset_upload(&mut snapback, "user_a", b"same-bytes", true);
         let second = asset_upload(&mut snapback, "user_a", b"same-bytes", true);
-        let first_response =
-            asset_finalize(&mut snapback, "user_a", &first.task.attempt_id, None)
-                .expect("first publishes");
+        let first_response = asset_finalize(&mut snapback, "user_a", &first.task.attempt_id, None)
+            .expect("first publishes");
         let second_response =
             asset_finalize(&mut snapback, "user_a", &second.task.attempt_id, None)
                 .expect("second publishes");
@@ -26967,11 +27342,10 @@ globalThis.__snapbackHandlers = {
         let (blob_rows, refcount, accounting, cleanup_work) = snapback
             .db
             .asset_transaction(|tx| {
-                let rows: u64 = tx.query_row(
-                    "SELECT COUNT(*) FROM _snapback_asset_blobs_v1",
-                    [],
-                    |row| row.get(0),
-                )?;
+                let rows: u64 =
+                    tx.query_row("SELECT COUNT(*) FROM _snapback_asset_blobs_v1", [], |row| {
+                        row.get(0)
+                    })?;
                 let refcount: u64 = tx.query_row(
                     "SELECT reference_count FROM _snapback_asset_blobs_v1",
                     [],
@@ -26994,7 +27368,10 @@ globalThis.__snapbackHandlers = {
             2 * crate::assets::ASSET_MIN_ACCOUNTING_UNIT_BYTES,
             "logical quota charges each asset, not physical dedup",
         );
-        assert_eq!(cleanup_work, 1, "the loser's object cleanup enqueued transactionally");
+        assert_eq!(
+            cleanup_work, 1,
+            "the loser's object cleanup enqueued transactionally"
+        );
 
         let events = asset_receipt_events(&mut snapback, &second_response.task.asset_id);
         assert!(events.contains(&"blob-reused".to_owned()), "{events:?}");
@@ -27030,7 +27407,11 @@ globalThis.__snapbackHandlers = {
                 };
                 crate::assets::insert_blob(tx, &record, 1)?;
                 crate::assets::release_blob_reference(tx, "blob_condemned", 2)?;
-                assert!(crate::assets::condemn_blob_if_unreferenced(tx, "blob_condemned", 3)?);
+                assert!(crate::assets::condemn_blob_if_unreferenced(
+                    tx,
+                    "blob_condemned",
+                    3
+                )?);
                 Ok(())
             })
             .expect("condemned identity");
@@ -27038,7 +27419,10 @@ globalThis.__snapbackHandlers = {
         let created = asset_upload(&mut snapback, "user_a", bytes, true);
         let response = asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
             .expect("condemned race republishes");
-        assert_eq!(response.task.availability, crate::assets::AssetAvailability::Ready);
+        assert_eq!(
+            response.task.availability,
+            crate::assets::AssetAvailability::Ready
+        );
 
         let (live_blobs, condemned_rows, orphan_publications) = snapback
             .db
@@ -27102,8 +27486,7 @@ globalThis.__snapbackHandlers = {
         snapback
             .db
             .asset_transaction(|tx| {
-                let mut attempt =
-                    crate::assets::load_attempt(tx, attempt_id)?.expect("attempt");
+                let mut attempt = crate::assets::load_attempt(tx, attempt_id)?.expect("attempt");
                 attempt.admission.witness = witness.clone();
                 crate::assets::store_attempt(tx, &attempt)
             })
@@ -27138,19 +27521,28 @@ globalThis.__snapbackHandlers = {
         // invalidates an observed absence), the re-run authorizer admits the
         // materially identical decision, the upload publishes.
         let mut snapback = asset_test_snapback();
-        snapback.db.apply_schema(asset_profiles_schema()).expect("schema");
+        snapback
+            .db
+            .apply_schema(asset_profiles_schema())
+            .expect("schema");
         let created = asset_upload(&mut snapback, "user_a", b"churned", true);
         asset_plant_missing_row_witness(&mut snapback, &created.task.attempt_id);
         asset_insert_phantom(&mut snapback);
         let response = asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
             .expect("benign churn publishes — a long upload never livelocks");
-        assert_eq!(response.task.availability, crate::assets::AssetAvailability::Ready);
+        assert_eq!(
+            response.task.availability,
+            crate::assets::AssetAvailability::Ready
+        );
 
         // Case 2 — denial: the witness moved and the re-run decision is
         // materially different (a different owner). Refuse; attempt fails;
         // the asset stays pending.
         let mut snapback = asset_test_snapback();
-        snapback.db.apply_schema(asset_profiles_schema()).expect("schema");
+        snapback
+            .db
+            .apply_schema(asset_profiles_schema())
+            .expect("schema");
         let created = asset_upload(&mut snapback, "user_a", b"revoked-bytes", true);
         asset_plant_missing_row_witness(&mut snapback, &created.task.attempt_id);
         asset_insert_phantom(&mut snapback);
@@ -27185,7 +27577,10 @@ globalThis.__snapbackHandlers = {
         // finalizes (LLP 0044 v6.1 reading (a) — the exact case the W2a
         // retention ticket names).
         let mut snapback = asset_test_snapback();
-        snapback.db.apply_schema(asset_profiles_schema()).expect("schema");
+        snapback
+            .db
+            .apply_schema(asset_profiles_schema())
+            .expect("schema");
         let created = asset_upload(&mut snapback, "user_a", b"stale-bytes", true);
         asset_plant_missing_row_witness(&mut snapback, &created.task.attempt_id);
         asset_insert_phantom(&mut snapback);
@@ -27197,12 +27592,18 @@ globalThis.__snapbackHandlers = {
         });
         let response = asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
             .expect("the retained frozen authorizer finalizes across a redeploy");
-        assert_eq!(response.task.availability, crate::assets::AssetAvailability::Ready);
+        assert_eq!(
+            response.task.availability,
+            crate::assets::AssetAvailability::Ready
+        );
 
         // Case 3b — same shape, but the retained artifact is genuinely
         // missing (crash-safety): fail closed with the distinct detail.
         let mut snapback = asset_test_snapback();
-        snapback.db.apply_schema(asset_profiles_schema()).expect("schema");
+        snapback
+            .db
+            .apply_schema(asset_profiles_schema())
+            .expect("schema");
         let created = asset_upload(&mut snapback, "user_a", b"missing-artifact", true);
         asset_plant_missing_row_witness(&mut snapback, &created.task.attempt_id);
         asset_insert_phantom(&mut snapback);
@@ -27243,7 +27644,10 @@ globalThis.__snapbackHandlers = {
     #[test]
     fn asset_intent_artifact_retention_reclaims_after_last_attempt_terminates() {
         let mut snapback = asset_test_snapback();
-        snapback.db.apply_schema(asset_profiles_schema()).expect("schema");
+        snapback
+            .db
+            .apply_schema(asset_profiles_schema())
+            .expect("schema");
 
         // Like `asset_upload`, but presenting a generated reference that
         // matches the currently deployed (changed) intent policy.
@@ -27287,8 +27691,7 @@ globalThis.__snapbackHandlers = {
         });
         // Gen 2 mints at the next admission and retains its own artifact;
         // its attempt stays open, pinning gen 2 across the next redeploy.
-        let pinned =
-            upload_with_hash(&mut snapback, "user_a", b"gen-two-bytes", "sha256:gen-two");
+        let pinned = upload_with_hash(&mut snapback, "user_a", b"gen-two-bytes", "sha256:gen-two");
 
         let count_artifacts = |snapback: &mut LocalSnapback| -> u64 {
             snapback
@@ -27302,7 +27705,11 @@ globalThis.__snapbackHandlers = {
                 })
                 .expect("count")
         };
-        assert_eq!(count_artifacts(&mut snapback), 2, "both generations retained");
+        assert_eq!(
+            count_artifacts(&mut snapback),
+            2,
+            "both generations retained"
+        );
 
         // A third deploy supersedes gen 2 while its attempt is still open.
         let mut third = asset_test_intent();
@@ -27311,8 +27718,12 @@ globalThis.__snapbackHandlers = {
             asset_upload_intents: vec![third],
             ..FunctionManifest::default()
         });
-        let _fourth =
-            upload_with_hash(&mut snapback, "user_a", b"gen-three-bytes", "sha256:gen-three");
+        let _fourth = upload_with_hash(
+            &mut snapback,
+            "user_a",
+            b"gen-three-bytes",
+            "sha256:gen-three",
+        );
 
         let report = snapback.asset_gc_sweep(1).expect("sweep");
         assert_eq!(
@@ -27327,7 +27738,11 @@ globalThis.__snapbackHandlers = {
             .expect("the pinned attempt finalizes through its retained artifact");
         let report = snapback.asset_gc_sweep(2).expect("sweep");
         assert_eq!(report.intent_artifacts_reclaimed, 1, "gen 2 released");
-        assert_eq!(count_artifacts(&mut snapback), 1, "only the current generation remains");
+        assert_eq!(
+            count_artifacts(&mut snapback),
+            1,
+            "only the current generation remains"
+        );
         let receipted: u64 = snapback
             .db
             .asset_transaction(|tx| {
@@ -27375,7 +27790,10 @@ globalThis.__snapbackHandlers = {
                 Ok(crate::assets::load_asset(tx, &created.task.asset_id)?.unwrap())
             })
             .expect("asset");
-        assert_eq!(asset.availability, crate::assets::AssetAvailability::Rejected);
+        assert_eq!(
+            asset.availability,
+            crate::assets::AssetAvailability::Rejected
+        );
     }
 
     fn asset_image_intent(
@@ -27498,10 +27916,12 @@ globalThis.__snapbackHandlers = {
         );
         assert_eq!(view["media"]["placeholder"]["algo"], "thumbhash.v1");
         assert_eq!(view["media"]["mediaType"], "image/jpeg");
-        assert!(view["media"]["dominantColor"]
-            .as_str()
-            .expect("dominant color")
-            .starts_with('#'));
+        assert!(
+            view["media"]["dominantColor"]
+                .as_str()
+                .expect("dominant color")
+                .starts_with('#')
+        );
         // Never the physical side: no blob keys or staging identifiers.
         assert!(view.get("physicalKey").is_none());
         assert!(view["media"].get("stagingKey").is_none());
@@ -27552,7 +27972,10 @@ globalThis.__snapbackHandlers = {
             .asset_record_projection(Some("user_a"), &created.task.asset_id)
             .expect("ready projection");
         assert_eq!(ready_rows.len(), 1);
-        assert_eq!(ready_rows[0]["media"]["placeholder"]["algo"], "thumbhash.v1");
+        assert_eq!(
+            ready_rows[0]["media"]["placeholder"]["algo"],
+            "thumbhash.v1"
+        );
         assert_ne!(
             fingerprint(&pending_deps),
             fingerprint(&ready_deps),
@@ -27603,7 +28026,9 @@ globalThis.__snapbackHandlers = {
         assert_eq!(stripped.orientation, None);
         assert_eq!(stripped.captured_at, None);
         assert!(
-            !canonical_bytes.windows(2).any(|window| window == [0xFF, 0xE1]),
+            !canonical_bytes
+                .windows(2)
+                .any(|window| window == [0xFF, 0xE1]),
             "no APP1 segment in the canonical object"
         );
     }
@@ -27621,8 +28046,7 @@ globalThis.__snapbackHandlers = {
         asset_finalize(&mut strip, "user_a", &second.task.attempt_id, None)
             .expect("second strip publishes");
         let first_rendition = asset_primary_rendition(&mut strip, &first.task.asset_id);
-        let second_rendition =
-            asset_primary_rendition(&mut strip, &second.task.asset_id);
+        let second_rendition = asset_primary_rendition(&mut strip, &second.task.asset_id);
         assert_eq!(
             first_rendition.blob_id, second_rendition.blob_id,
             "strip dedups with strip: one canonical blob, two assets"
@@ -27643,8 +28067,7 @@ globalThis.__snapbackHandlers = {
         let strip_blob = strip
             .db
             .asset_transaction(|tx| {
-                Ok(crate::assets::load_blob(tx, &first_rendition.blob_id)?
-                    .expect("blob"))
+                Ok(crate::assets::load_blob(tx, &first_rendition.blob_id)?.expect("blob"))
             })
             .expect("blob");
         assert_eq!(
@@ -27669,9 +28092,7 @@ globalThis.__snapbackHandlers = {
         // Retain evidence reaches the receipts too.
         let receipts = retain
             .db
-            .asset_transaction(|tx| {
-                crate::assets::receipts_for_asset(tx, &kept.task.asset_id, 64)
-            })
+            .asset_transaction(|tx| crate::assets::receipts_for_asset(tx, &kept.task.asset_id, 64))
             .expect("receipts");
         assert!(receipts.iter().any(|receipt| {
             receipt.event == crate::assets::AssetReceiptEventV1::AssetReady
@@ -27698,9 +28119,7 @@ globalThis.__snapbackHandlers = {
         intent
     }
 
-    fn asset_video_snapback(
-        location: crate::manifest::AssetLocationPolicy,
-    ) -> LocalSnapback {
+    fn asset_video_snapback(location: crate::manifest::AssetLocationPolicy) -> LocalSnapback {
         let mut snapback = LocalSnapback::memory().expect("memory snapback");
         // No override: the W2d flip makes the declared facts the gate.
         assert!(snapback.asset_video_finalization_enabled());
@@ -27723,8 +28142,7 @@ globalThis.__snapbackHandlers = {
         let gps = crate::assets_video::fixtures::GPS.as_bytes();
         assert!(fixture.windows(gps.len()).any(|window| window == gps));
 
-        let mut snapback =
-            asset_video_snapback(crate::manifest::AssetLocationPolicy::Strip);
+        let mut snapback = asset_video_snapback(crate::manifest::AssetLocationPolicy::Strip);
         let created = asset_upload(&mut snapback, "user_a", &fixture, true);
         asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
             .expect("video strip publishes");
@@ -27754,7 +28172,11 @@ globalThis.__snapbackHandlers = {
                 .expect("canonical object");
         // In-place blanking: identical layout, zero location survivors.
         assert_eq!(canonical_bytes.len(), fixture.len());
-        assert!(!canonical_bytes.windows(gps.len()).any(|window| window == gps));
+        assert!(
+            !canonical_bytes
+                .windows(gps.len())
+                .any(|window| window == gps)
+        );
         assert!(
             !canonical_bytes
                 .windows(4)
@@ -27767,8 +28189,7 @@ globalThis.__snapbackHandlers = {
     fn asset_finalize_video_retain_keeps_bytes_and_still_extracts_facts() {
         let fixture = crate::assets_video::fixtures::mp4_with_gps();
         let gps = crate::assets_video::fixtures::GPS.as_bytes();
-        let mut snapback =
-            asset_video_snapback(crate::manifest::AssetLocationPolicy::Retain);
+        let mut snapback = asset_video_snapback(crate::manifest::AssetLocationPolicy::Retain);
         let created = asset_upload(&mut snapback, "user_a", &fixture, true);
         asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
             .expect("video retain publishes");
@@ -27787,9 +28208,8 @@ globalThis.__snapbackHandlers = {
             crate::assets::ASSET_CANONICALIZATION_NONE
         );
         let store = snapback.asset_store().expect("store");
-        let kept_bytes =
-            std::fs::read(store.blob_path(&blob.physical_key).expect("blob path"))
-                .expect("retained object");
+        let kept_bytes = std::fs::read(store.blob_path(&blob.physical_key).expect("blob path"))
+            .expect("retained object");
         // Retain is honest: the declared policy keeps the location atom.
         assert!(kept_bytes.windows(gps.len()).any(|window| window == gps));
     }
@@ -27817,8 +28237,7 @@ globalThis.__snapbackHandlers = {
 
         // Unclassifiable metadata refuses under strip — fail closed, never
         // silently retain — and rejects the asset deterministically.
-        let mut snapback =
-            asset_video_snapback(crate::manifest::AssetLocationPolicy::Strip);
+        let mut snapback = asset_video_snapback(crate::manifest::AssetLocationPolicy::Strip);
         let mut unknown_payload = [0x11u8; 16].to_vec();
         unknown_payload.extend_from_slice(b"vendor mystery");
         let hostile = [
@@ -27839,7 +28258,10 @@ globalThis.__snapbackHandlers = {
                 Ok(crate::assets::load_asset(tx, &created.task.asset_id)?.unwrap())
             })
             .expect("asset");
-        assert_eq!(asset.availability, crate::assets::AssetAvailability::Rejected);
+        assert_eq!(
+            asset.availability,
+            crate::assets::AssetAvailability::Rejected
+        );
     }
 
     #[test]
@@ -27861,13 +28283,14 @@ globalThis.__snapbackHandlers = {
             canonical.canonical.len()
         );
         let bound = (source.len() + 1) as u64;
-        let mut snapback =
-            asset_image_snapback(crate::manifest::AssetLocationPolicy::Strip, bound);
+        let mut snapback = asset_image_snapback(crate::manifest::AssetLocationPolicy::Strip, bound);
         let created = asset_upload(&mut snapback, "user_a", &source, true);
-        let error =
-            asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
-                .expect_err("expansion refuses");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_MEDIA_BOUNDS_EXCEEDED");
+        let error = asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
+            .expect_err("expansion refuses");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_ASSET_MEDIA_BOUNDS_EXCEEDED"
+        );
     }
 
     #[test]
@@ -27878,9 +28301,8 @@ globalThis.__snapbackHandlers = {
         let mut snapback =
             asset_image_snapback(crate::manifest::AssetLocationPolicy::Strip, 64 * 1024);
         let created = asset_upload(&mut snapback, "user_a", truncated, true);
-        let error =
-            asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
-                .expect_err("hostile bytes reject");
+        let error = asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
+            .expect_err("hostile bytes reject");
         assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_IMAGE_DECODE_FAILED");
         let asset = snapback
             .db
@@ -27888,16 +28310,18 @@ globalThis.__snapbackHandlers = {
                 Ok(crate::assets::load_asset(tx, &created.task.asset_id)?.unwrap())
             })
             .expect("asset");
-        assert_eq!(asset.availability, crate::assets::AssetAvailability::Rejected);
+        assert_eq!(
+            asset.availability,
+            crate::assets::AssetAvailability::Rejected
+        );
 
         // A format with no strip canonicalization: structurally refused.
         let gif = b"GIF89a\x01\x00\x01\x00\x00\x00\x00;";
         let mut snapback =
             asset_image_snapback(crate::manifest::AssetLocationPolicy::Strip, 64 * 1024);
         let created = asset_upload(&mut snapback, "user_a", gif, true);
-        let error =
-            asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
-                .expect_err("gif strip unsupported");
+        let error = asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
+            .expect_err("gif strip unsupported");
         assert_eq!(
             error.diagnostic.code,
             "SNAPBACK_ASSET_LOCATION_POLICY_UNSUPPORTED"
@@ -27925,11 +28349,16 @@ globalThis.__snapbackHandlers = {
             )
             .expect_err("injected crash");
         assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_TEST_CRASH");
-        let report = snapback.asset_publication_maintain(now_millis()).expect("maintain");
+        let report = snapback
+            .asset_publication_maintain(now_millis())
+            .expect("maintain");
         assert_eq!(report.condemned, 0, "a re-drivable planned record survives");
         let response = asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
             .expect("re-drive completes from the planned record");
-        assert_eq!(response.task.availability, crate::assets::AssetAvailability::Ready);
+        assert_eq!(
+            response.task.availability,
+            crate::assets::AssetAvailability::Ready
+        );
 
         // Cut 2 — after the acknowledged object put, before `staged`: the
         // attempt dies; recovery stages the verified object, condemns the
@@ -27958,7 +28387,9 @@ globalThis.__snapbackHandlers = {
                 },
             )
             .expect("the work dies");
-        let report = snapback.asset_publication_maintain(now_millis()).expect("maintain");
+        let report = snapback
+            .asset_publication_maintain(now_millis())
+            .expect("maintain");
         assert_eq!(report.staged, 1, "the acknowledged put staged on probe");
         assert_eq!(report.condemned, 1, "dead work condemned");
         assert_eq!(report.retired, 1, "condemned record retired");
@@ -27989,7 +28420,9 @@ globalThis.__snapbackHandlers = {
                 },
             )
             .expect("the work dies");
-        let report = snapback.asset_publication_maintain(now_millis()).expect("maintain");
+        let report = snapback
+            .asset_publication_maintain(now_millis())
+            .expect("maintain");
         assert_eq!(report.condemned, 1);
         assert_eq!(report.retired, 1);
         assert_eq!(report.objects_deleted, 1);
@@ -27999,16 +28432,23 @@ globalThis.__snapbackHandlers = {
     fn asset_publication_records_retire_after_the_retention_window() {
         let mut snapback = asset_test_snapback();
         let created = asset_upload(&mut snapback, "user_a", b"retained", true);
-        asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
-            .expect("publishes");
+        asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None).expect("publishes");
 
         let now = now_millis();
         let report = snapback.asset_publication_maintain(now).expect("maintain");
-        assert_eq!(report.retired, 0, "inside the retention window nothing retires");
+        assert_eq!(
+            report.retired, 0,
+            "inside the retention window nothing retires"
+        );
 
         let later = now + crate::assets::ASSET_PUBLICATION_RETENTION_MS + 1;
-        let report = snapback.asset_publication_maintain(later).expect("maintain");
-        assert_eq!(report.retired, 1, "the committed record retires; the blob row is the evidence");
+        let report = snapback
+            .asset_publication_maintain(later)
+            .expect("maintain");
+        assert_eq!(
+            report.retired, 1,
+            "the committed record retires; the blob row is the evidence"
+        );
         let blob_count: u64 = snapback
             .db
             .asset_transaction(|tx| {
@@ -28027,7 +28467,11 @@ globalThis.__snapbackHandlers = {
     // -----------------------------------------------------------------
 
     fn asset_variant(key: &str, width: u64, required: bool) -> crate::manifest::AssetImageVariant {
-        crate::manifest::AssetImageVariant { key: key.to_owned(), width, required }
+        crate::manifest::AssetImageVariant {
+            key: key.to_owned(),
+            width,
+            required,
+        }
     }
 
     fn asset_rendition_for(
@@ -28037,9 +28481,7 @@ globalThis.__snapbackHandlers = {
     ) -> Option<crate::assets::AssetRenditionRecordV1> {
         snapback
             .db
-            .asset_transaction(|tx| {
-                crate::assets::load_rendition_by_variant(tx, asset_id, key)
-            })
+            .asset_transaction(|tx| crate::assets::load_rendition_by_variant(tx, asset_id, key))
             .expect("rendition lookup")
     }
 
@@ -28047,12 +28489,14 @@ globalThis.__snapbackHandlers = {
     fn asset_variants_required_gate_ready_and_optionals_ride_the_runner() {
         let mut snapback = asset_variant_snapback(
             crate::manifest::AssetLocationPolicy::Strip,
-            vec![asset_variant("thumb", 16, true), asset_variant("display", 48, false)],
+            vec![
+                asset_variant("thumb", 16, true),
+                asset_variant("display", 48, false),
+            ],
         );
         let fixture = crate::assets_image::fixtures::plain_jpeg(64, 48);
         let created = asset_upload(&mut snapback, "user_a", &fixture, true);
-        asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
-            .expect("publishes");
+        asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None).expect("publishes");
         let asset_id = created.task.asset_id.clone();
 
         // Required committed with `ready`, atomically — visible immediately.
@@ -28070,10 +28514,15 @@ globalThis.__snapbackHandlers = {
             .expect("work rows");
         assert!(work.iter().any(|row| {
             row.kind == crate::assets::ASSET_WORK_KIND_IMAGE_VARIANT
-                && row.params.as_ref().is_some_and(|params| params["key"] == "display")
+                && row
+                    .params
+                    .as_ref()
+                    .is_some_and(|params| params["key"] == "display")
         }));
 
-        let report = snapback.asset_runner_tick(now_millis()).expect("runner tick");
+        let report = snapback
+            .asset_runner_tick(now_millis())
+            .expect("runner tick");
         assert!(report.completed >= 1);
         let display = asset_rendition_for(&mut snapback, &asset_id, "display")
             .expect("optional display produced by the runner");
@@ -28085,14 +28534,12 @@ globalThis.__snapbackHandlers = {
             .expect("thumb delivers");
         assert!(by_key.total_length > 0);
         let authority = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
-        let pick = |snapback: &mut LocalSnapback, bound: u64| {
-            match snapback
-                .asset_deliver(&authority, &asset_id, "best", None, Some(bound))
-                .expect("best delivers")
-            {
-                crate::local::AssetDeliveryOutcome::Content(delivery) => delivery.content_type,
-                other => panic!("unexpected outcome: {other:?}"),
-            }
+        let pick = |snapback: &mut LocalSnapback, bound: u64| match snapback
+            .asset_deliver(&authority, &asset_id, "best", None, Some(bound))
+            .expect("best delivers")
+        {
+            crate::local::AssetDeliveryOutcome::Content(delivery) => delivery.content_type,
+            other => panic!("unexpected outcome: {other:?}"),
         };
         // 48 admits the display; 20 admits only the thumb; 8 falls back to
         // the narrowest available.
@@ -28110,8 +28557,15 @@ globalThis.__snapbackHandlers = {
             crate::local::AssetDeliveryOutcome::Content(delivery) => delivery.total_length,
             other => panic!("unexpected outcome: {other:?}"),
         };
-        assert!(width_of(&best_48) > width_of(&best_20), "48 picks the wider display");
-        assert_eq!(width_of(&best_20), width_of(&best_8), "8 falls back to the thumb");
+        assert!(
+            width_of(&best_48) > width_of(&best_20),
+            "48 picks the wider display"
+        );
+        assert_eq!(
+            width_of(&best_20),
+            width_of(&best_8),
+            "8 falls back to the thumb"
+        );
 
         // Required-variant receipt with lineage.
         let receipts = snapback
@@ -28133,8 +28587,7 @@ globalThis.__snapbackHandlers = {
         );
         let fixture = crate::assets_image::fixtures::plain_jpeg(64, 48);
         let created = asset_upload(&mut snapback, "user_a", &fixture, true);
-        asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
-            .expect("publishes");
+        asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None).expect("publishes");
         let asset_id = created.task.asset_id.clone();
 
         // A newer recipe generation already holds the pointer before the
@@ -28157,11 +28610,19 @@ globalThis.__snapbackHandlers = {
             .asset_transaction(|tx| crate::assets::insert_rendition(tx, &newer))
             .expect("newer rendition installs");
 
-        let report = snapback.asset_runner_tick(now_millis()).expect("runner tick");
-        assert!(report.completed >= 1, "the stale run settles as done, not retrying");
+        let report = snapback
+            .asset_runner_tick(now_millis())
+            .expect("runner tick");
+        assert!(
+            report.completed >= 1,
+            "the stale run settles as done, not retrying"
+        );
         let current = asset_rendition_for(&mut snapback, &asset_id, "display")
             .expect("pointer still present");
-        assert_eq!(current.rendition_id, newer.rendition_id, "the stale run cannot replace");
+        assert_eq!(
+            current.rendition_id, newer.rendition_id,
+            "the stale run cannot replace"
+        );
 
         // The runner's idempotent short-circuit caught the newer pointer
         // before rendering; the pointer-layer rule holds independently: a
@@ -28185,9 +28646,12 @@ globalThis.__snapbackHandlers = {
                 crate::assets::switch_variant_pointer(tx, &stale_candidate, now_millis())
             })
             .expect("switch runs");
-        assert_eq!(outcome, crate::assets::AssetVariantSwitchOutcome::StaleLoses);
-        let still = asset_rendition_for(&mut snapback, &asset_id, "display")
-            .expect("pointer survives");
+        assert_eq!(
+            outcome,
+            crate::assets::AssetVariantSwitchOutcome::StaleLoses
+        );
+        let still =
+            asset_rendition_for(&mut snapback, &asset_id, "display").expect("pointer survives");
         assert_eq!(still.rendition_id, newer.rendition_id);
     }
 
@@ -28202,12 +28666,16 @@ globalThis.__snapbackHandlers = {
         );
         let fixture = crate::assets_image::fixtures::plain_jpeg(64, 48);
         let created = asset_upload(&mut snapback, "user_a", &fixture, true);
-        asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
-            .expect("publishes");
+        asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None).expect("publishes");
         let asset_id = created.task.asset_id.clone();
         snapback.set_asset_quota_override(crate::assets::ASSET_MIN_ACCOUNTING_UNIT_BYTES);
-        let report = snapback.asset_runner_tick(now_millis()).expect("runner tick");
-        assert!(report.completed >= 1, "quota refusal settles the work as done");
+        let report = snapback
+            .asset_runner_tick(now_millis())
+            .expect("runner tick");
+        assert!(
+            report.completed >= 1,
+            "quota refusal settles the work as done"
+        );
         assert!(asset_rendition_for(&mut snapback, &asset_id, "display").is_none());
         let receipts = snapback
             .db
@@ -28219,9 +28687,7 @@ globalThis.__snapbackHandlers = {
         }));
         let asset = snapback
             .db
-            .asset_transaction(|tx| {
-                Ok(crate::assets::load_asset(tx, &asset_id)?.expect("asset"))
-            })
+            .asset_transaction(|tx| Ok(crate::assets::load_asset(tx, &asset_id)?.expect("asset")))
             .expect("asset");
         assert_eq!(asset.availability, crate::assets::AssetAvailability::Ready);
 
@@ -28230,9 +28696,7 @@ globalThis.__snapbackHandlers = {
             crate::manifest::AssetLocationPolicy::Strip,
             vec![asset_variant("thumb", 16, true)],
         );
-        strict.set_asset_quota_override(
-            crate::assets::ASSET_MIN_ACCOUNTING_UNIT_BYTES * 2,
-        );
+        strict.set_asset_quota_override(crate::assets::ASSET_MIN_ACCOUNTING_UNIT_BYTES * 2);
         let held = asset_upload(&mut strict, "user_a", &fixture, true);
         let refused = asset_finalize(&mut strict, "user_a", &held.task.attempt_id, None)
             .expect_err("required settlement must refuse");
@@ -28263,14 +28727,14 @@ globalThis.__snapbackHandlers = {
         );
         let fixture = crate::assets_image::fixtures::plain_jpeg(64, 48);
         let created = asset_upload(&mut snapback, "user_a", &fixture, true);
-        asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
-            .expect("publishes");
+        asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None).expect("publishes");
         let asset_id = created.task.asset_id.clone();
-        let thumb =
-            asset_rendition_for(&mut snapback, &asset_id, "thumb").expect("thumb ready");
+        let thumb = asset_rendition_for(&mut snapback, &asset_id, "thumb").expect("thumb ready");
 
         let authority = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
-        snapback.asset_delete(&authority, &asset_id).expect("deletes");
+        snapback
+            .asset_delete(&authority, &asset_id)
+            .expect("deletes");
 
         let (thumb_after, live_refcount) = snapback
             .db
@@ -28288,7 +28752,10 @@ globalThis.__snapbackHandlers = {
                 Ok((rendition, count))
             })
             .expect("post-delete rows");
-        assert_eq!(thumb_after.state, crate::assets::AssetRenditionState::Retired);
+        assert_eq!(
+            thumb_after.state,
+            crate::assets::AssetRenditionState::Retired
+        );
         assert_eq!(
             live_refcount, 0,
             "each rendition's blob reference decrements exactly once"
@@ -28370,7 +28837,11 @@ globalThis.__snapbackHandlers = {
                 },
             )
             .expect("owner issuance");
-        assert!(issued.url.starts_with(&format!("/assets/signed/{asset_id}/primary?token=v1.")));
+        assert!(
+            issued
+                .url
+                .starts_with(&format!("/assets/signed/{asset_id}/primary?token=v1."))
+        );
         let token = issued.url.split("token=").nth(1).expect("token").to_owned();
         let served = match snapback
             .asset_deliver_signed(&asset_id, "primary", &token, None)
@@ -28409,8 +28880,7 @@ globalThis.__snapbackHandlers = {
         let expired_token = snapback
             .db
             .asset_transaction(|tx| {
-                let asset =
-                    crate::assets::load_asset(tx, &asset_id)?.expect("asset exists");
+                let asset = crate::assets::load_asset(tx, &asset_id)?.expect("asset exists");
                 let key = crate::assets::active_signing_key(tx, now_millis())?;
                 Ok(crate::assets::mint_signed_url_token(
                     &key,
@@ -28475,8 +28945,7 @@ globalThis.__snapbackHandlers = {
         let stale_generation_token = snapback
             .db
             .asset_transaction(|tx| {
-                let asset =
-                    crate::assets::load_asset(tx, &asset_id)?.expect("asset exists");
+                let asset = crate::assets::load_asset(tx, &asset_id)?.expect("asset exists");
                 let key = crate::assets::active_signing_key(tx, now_millis())?;
                 Ok(crate::assets::mint_signed_url_token(
                     &key,
@@ -28553,8 +29022,12 @@ globalThis.__snapbackHandlers = {
 
         // The declared-profile runtime gate reads the same facts the
         // manifest embeds.
-        assert!(LocalSnapback::asset_delivery_profile_declared("private-signed"));
-        assert!(LocalSnapback::asset_delivery_profile_declared("public-immutable"));
+        assert!(LocalSnapback::asset_delivery_profile_declared(
+            "private-signed"
+        ));
+        assert!(LocalSnapback::asset_delivery_profile_declared(
+            "public-immutable"
+        ));
         assert!(!LocalSnapback::asset_delivery_profile_declared("cdn-magic"));
     }
 
@@ -28568,11 +29041,13 @@ globalThis.__snapbackHandlers = {
         let authority = asset_dev_authority(snapback, user, InvocationSource::HttpQuery);
         match snapback.asset_deliver(&authority, asset_id, variant, range, None)? {
             crate::local::AssetDeliveryOutcome::Content(delivery) => Ok(*delivery),
-            crate::local::AssetDeliveryOutcome::Unsatisfiable { total_length } => Err(SnapbackError::error(
-                "TEST_UNSATISFIABLE",
-                "assets",
-                format!("unsatisfiable over {total_length}"),
-            )),
+            crate::local::AssetDeliveryOutcome::Unsatisfiable { total_length } => {
+                Err(SnapbackError::error(
+                    "TEST_UNSATISFIABLE",
+                    "assets",
+                    format!("unsatisfiable over {total_length}"),
+                ))
+            }
         }
     }
 
@@ -28635,13 +29110,21 @@ globalThis.__snapbackHandlers = {
         // RFC 9110; the outcome carries what the handler needs.
         let authority = asset_dev_authority(&mut snapback, "user_a", InvocationSource::HttpQuery);
         match snapback
-            .asset_deliver(&authority, &asset_id, "primary", Some("bytes=999999-"), None)
+            .asset_deliver(
+                &authority,
+                &asset_id,
+                "primary",
+                Some("bytes=999999-"),
+                None,
+            )
             .expect("outcome resolves")
         {
             crate::local::AssetDeliveryOutcome::Unsatisfiable { total_length } => {
                 assert_eq!(total_length, bytes.len() as u64);
             }
-            crate::local::AssetDeliveryOutcome::Content(_) => panic!("range past end must be unsatisfiable"),
+            crate::local::AssetDeliveryOutcome::Content(_) => {
+                panic!("range past end must be unsatisfiable")
+            }
         }
 
         // Unknown variants and unknown assets are 404-shaped; foreign
@@ -28839,7 +29322,11 @@ globalThis.__snapbackHandlers = {
                 ))
             })
             .expect("facts");
-        assert_eq!(availability, json!("ready"), "crash rolled the cascade back");
+        assert_eq!(
+            availability,
+            json!("ready"),
+            "crash rolled the cascade back"
+        );
         assert_eq!(rendition_state, json!("ready"));
 
         // The retried delete completes and is idempotent thereafter.
@@ -28863,10 +29350,9 @@ globalThis.__snapbackHandlers = {
         std::fs::write(store.staging_path(&orphan_key).expect("path"), b"orphan")
             .expect("orphan written");
 
-        let after_grace =
-            now_millis() + crate::assets::ASSET_ATTEMPT_TTL_MS.max(
-                crate::assets::ASSET_PENDING_GRACE_MS,
-            ) + 1000;
+        let after_grace = now_millis()
+            + crate::assets::ASSET_ATTEMPT_TTL_MS.max(crate::assets::ASSET_PENDING_GRACE_MS)
+            + 1000;
         let report = snapback.asset_gc_sweep(after_grace).expect("sweep");
         assert_eq!(report.expired_attempts, 1, "overdue attempt expired");
         assert!(report.staging_orphans_removed >= 1, "orphan removed");
@@ -34485,6 +34971,836 @@ globalThis.__snapbackHandlers = {
         );
     }
 
+    fn membership_keyset_artifacts() -> (SchemaManifest, FunctionManifest) {
+        let ordinary =
+            |name: &str, fields: Vec<FieldManifest>, indexes: Vec<IndexManifest>| TableManifest {
+                name: name.to_owned(),
+                fields,
+                indexes,
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                search_indexes: Vec::new(),
+                membership: None,
+                asset_sharing: None,
+            };
+        let schema = SchemaManifest {
+            tables: vec![
+                ordinary(
+                    "rooms",
+                    vec![FieldManifest {
+                        name: "title".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    }],
+                    Vec::new(),
+                ),
+                ordinary(
+                    "messages",
+                    vec![
+                        FieldManifest {
+                            name: "roomId".to_owned(),
+                            field_type: FieldType::Id {
+                                table: "rooms".to_owned(),
+                            },
+                            optional: false,
+                        },
+                        FieldManifest {
+                            name: "pageKey".to_owned(),
+                            field_type: FieldType::Integer,
+                            optional: false,
+                        },
+                        FieldManifest {
+                            name: "tag".to_owned(),
+                            field_type: FieldType::String,
+                            optional: false,
+                        },
+                        FieldManifest {
+                            name: "body".to_owned(),
+                            field_type: FieldType::String,
+                            optional: false,
+                        },
+                    ],
+                    vec![IndexManifest {
+                        name: "by_room_page_key".to_owned(),
+                        fields: vec!["roomId".to_owned(), "pageKey".to_owned()],
+                        unique: true,
+                    }],
+                ),
+                TableManifest {
+                    name: "room_members".to_owned(),
+                    fields: vec![
+                        FieldManifest {
+                            name: "userId".to_owned(),
+                            field_type: FieldType::Principal,
+                            optional: false,
+                        },
+                        FieldManifest {
+                            name: "roomId".to_owned(),
+                            field_type: FieldType::Id {
+                                table: "rooms".to_owned(),
+                            },
+                            optional: false,
+                        },
+                        FieldManifest {
+                            name: "role".to_owned(),
+                            field_type: FieldType::String,
+                            optional: false,
+                        },
+                    ],
+                    indexes: Vec::new(),
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    search_indexes: Vec::new(),
+                    membership: Some(MembershipManifest {
+                        id: Some("roomSeats".to_owned()),
+                        principal: "userId".to_owned(),
+                        resource: Some("roomId".to_owned()),
+                        role: "role".to_owned(),
+                        roles: vec!["owner".to_owned(), "member".to_owned()],
+                        pending_roles: Some(vec!["invited".to_owned()]),
+                        bootstrap_role: None,
+                        last_holder: None,
+                        expiry: None,
+                        incidental: None,
+                        provenance: None,
+                        transitions: vec![
+                            crate::manifest::MembershipTransition {
+                                op: crate::manifest::MembershipOp::Insert,
+                                by: vec!["none".to_owned()],
+                                target: crate::manifest::MembershipTarget::Own,
+                                from: None,
+                                to: Some(vec!["member".to_owned()]),
+                                fields: None,
+                            },
+                            crate::manifest::MembershipTransition {
+                                op: crate::manifest::MembershipOp::Remove,
+                                by: vec!["self".to_owned()],
+                                target: crate::manifest::MembershipTarget::Own,
+                                from: Some(vec!["member".to_owned(), "owner".to_owned()]),
+                                to: None,
+                                fields: None,
+                            },
+                        ],
+                        scope: MembershipScope::Resource,
+                        resource_table: Some("rooms".to_owned()),
+                        principal_addressed_writes: None,
+                    }),
+                    asset_sharing: None,
+                },
+            ],
+            ..SchemaManifest::default()
+        };
+
+        let args_contract = |with_cursor: bool| {
+            let mut fields = vec![
+                crate::manifest::ResultObjectFieldContract {
+                    name: "roomId".to_owned(),
+                    required: true,
+                    value: crate::manifest::ResultValueContract::Id {
+                        table: "rooms".to_owned(),
+                    },
+                },
+                crate::manifest::ResultObjectFieldContract {
+                    name: "tag".to_owned(),
+                    required: true,
+                    value: crate::manifest::ResultValueContract::String { max_bytes: 64 },
+                },
+            ];
+            if with_cursor {
+                fields.push(crate::manifest::ResultObjectFieldContract {
+                    name: "after".to_owned(),
+                    required: true,
+                    value: crate::manifest::ResultValueContract::String { max_bytes: 1_024 },
+                });
+            }
+            crate::manifest::FunctionArgsContract { fields }
+        };
+        let page = |name: &str, with_cursor: bool| {
+            let mut filters = vec![
+                FilterExpr {
+                    field: "roomId".to_owned(),
+                    op: FilterOp::Eq,
+                    value: ValueExpr::Arg("roomId".to_owned()),
+                },
+                FilterExpr {
+                    field: "tag".to_owned(),
+                    op: FilterOp::Eq,
+                    value: ValueExpr::Arg("tag".to_owned()),
+                },
+            ];
+            if with_cursor {
+                filters.push(FilterExpr {
+                    field: "pageKey".to_owned(),
+                    op: FilterOp::Gt,
+                    value: ValueExpr::Arg("after".to_owned()),
+                });
+            }
+            let mut function = FunctionDefinition::new(
+                name,
+                FunctionKind::Query,
+                FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                    table: "messages".to_owned(),
+                    filters,
+                    membership_filters: vec![MembershipPredicate {
+                        declaration: "roomSeats".to_owned(),
+                        resource: MembershipResourceRef::Arg {
+                            path: "roomId".to_owned(),
+                            resource_table: Some("rooms".to_owned()),
+                        },
+                        roles: Some(vec!["member".to_owned(), "owner".to_owned()]),
+                    }],
+                    order: vec![crate::manifest::OrderExpr {
+                        field: "pageKey".to_owned(),
+                        direction: crate::manifest::OrderDirection::Asc,
+                    }],
+                    limit: Some(2),
+                    indexed_by: Some("by_room_page_key".to_owned()),
+                })),
+            );
+            function.auth_requirement = Some(crate::manifest::AuthRequirement::Authenticated);
+            let contract = args_contract(with_cursor);
+            function.args_contract_hash = Some(
+                crate::manifest::args_contract_hash(&contract).expect("hash membership page args"),
+            );
+            function.args_contract = Some(contract);
+            function
+                .required_capabilities
+                .push("args_contract_v1".to_owned());
+            function.standard_pattern = Some(crate::manifest::StandardPatternIdentity {
+                helper: "membership-keyset-pages.v1".to_owned(),
+                profile: "membership.v1".to_owned(),
+                membership: Some(crate::manifest::StandardPatternMembershipIdentity {
+                    declaration: "roomSeats".to_owned(),
+                    resource_arg: "roomId".to_owned(),
+                    resource_field: "roomId".to_owned(),
+                    roles: vec!["member".to_owned(), "owner".to_owned()],
+                }),
+            });
+            function
+        };
+        let functions = FunctionManifest {
+            functions: vec![
+                page("firstRoomMessagePage", false),
+                page("nextRoomMessagePage", true),
+            ],
+            acknowledged_experimental_capabilities: vec!["args_contract_v1".to_owned()],
+            ..FunctionManifest::default()
+        };
+        (schema, functions)
+    }
+
+    fn membership_keyset_snapback() -> (LocalSnapback, FunctionManifest) {
+        let (schema, functions) = membership_keyset_artifacts();
+        let mut snapback = LocalSnapback::memory().expect("memory membership-keyset fixture");
+        snapback
+            .apply_schema(schema)
+            .expect("apply membership-keyset schema");
+        let diagnostics = snapback.load_functions(functions.clone());
+        assert!(
+            diagnostics.iter().all(|diagnostic| !matches!(
+                diagnostic.severity,
+                crate::diagnostic::DiagnosticSeverity::Error
+                    | crate::diagnostic::DiagnosticSeverity::Fatal
+            )),
+            "membership-keyset fixture must activate: {diagnostics:?}"
+        );
+        let row = |value: Value| value.as_object().cloned().expect("fixture row");
+        snapback
+            .seed(SeedData {
+                tables: BTreeMap::from([
+                    (
+                        "rooms".to_owned(),
+                        vec![
+                            row(json!({ "_id": "room-a", "title": "A" })),
+                            row(json!({ "_id": "room-b", "title": "B" })),
+                        ],
+                    ),
+                    (
+                        "messages".to_owned(),
+                        (1..=5)
+                            .map(|page_key| {
+                                row(json!({
+                                    "_id": format!("a-{page_key}"),
+                                    "roomId": "room-a",
+                                    "pageKey": page_key,
+                                    "tag": "history",
+                                    "body": "same",
+                                }))
+                            })
+                            .chain((1..=2).map(|page_key| {
+                                row(json!({
+                                    "_id": format!("b-{page_key}"),
+                                    "roomId": "room-b",
+                                    "pageKey": page_key,
+                                    "tag": "history",
+                                    "body": "same",
+                                }))
+                            }))
+                            .collect(),
+                    ),
+                ]),
+            })
+            .expect("seed membership-keyset resources and history");
+        (snapback, functions)
+    }
+
+    fn membership_keyset_input(user: &str, room: &str, after: Option<String>) -> HandlerInput {
+        let mut args = json!({ "roomId": room, "tag": "history" });
+        if let (Some(after), Value::Object(map)) = (after, &mut args) {
+            map.insert("after".to_owned(), Value::String(after));
+        }
+        HandlerInput {
+            args,
+            auth: AuthInput {
+                user_id: Some(user.to_owned()),
+                ..AuthInput::default()
+            },
+            ..HandlerInput::default()
+        }
+    }
+
+    fn grant_membership(snapback: &mut LocalSnapback, user: &str, room: &str) -> String {
+        let writer = crate::storage::MembershipWriter::User {
+            effective_principal: user.to_owned(),
+        };
+        let plan = snapback
+            .db
+            .plan_membership_insert(
+                &writer,
+                "room_members",
+                Map::from_iter([
+                    ("userId".to_owned(), json!(user)),
+                    ("roomId".to_owned(), json!(room)),
+                    ("role".to_owned(), json!("member")),
+                ]),
+            )
+            .expect("plan membership grant");
+        snapback
+            .db
+            .commit_membership_plan(&writer, plan)
+            .expect("commit membership grant");
+        snapback
+            .db
+            .scan_table("room_members", 100, 0)
+            .expect("scan membership ids")
+            .rows
+            .into_iter()
+            .find(|row| row["userId"] == user && row["roomId"] == room)
+            .and_then(|row| row["_id"].as_str().map(str::to_owned))
+            .expect("granted membership row")
+    }
+
+    fn remove_membership(snapback: &mut LocalSnapback, user: &str, member_id: &str) {
+        let writer = crate::storage::MembershipWriter::User {
+            effective_principal: user.to_owned(),
+        };
+        let plan = snapback
+            .db
+            .plan_membership_remove(&writer, "room_members", member_id)
+            .expect("plan membership removal");
+        snapback
+            .db
+            .commit_membership_plan(&writer, plan)
+            .expect("commit membership removal");
+    }
+
+    // @ref LLP 0100#4-membership-scoped-keyset-pages — direct manifests are
+    //   re-validated at load: the metadata block, callable-only kind, nominal
+    //   resource argument, executable predicate, canonical roles, and exact
+    //   unique index are authority-bearing facts, not trusted codegen hints.
+    #[test]
+    fn membership_keyset_manifest_validation_is_fail_closed() {
+        let (schema, functions) = membership_keyset_artifacts();
+        validate_function_schema_references(&functions, &schema)
+            .expect("generated membership keyset pair validates");
+
+        let mut missing = functions.clone();
+        missing.functions[0]
+            .standard_pattern
+            .as_mut()
+            .expect("pattern")
+            .membership = None;
+        assert_eq!(
+            missing
+                .validate_artifact()
+                .expect_err("membership block is required")
+                .diagnostic
+                .code,
+            "SNAPBACK_STANDARD_PATTERN_MEMBERSHIP_INVALID"
+        );
+
+        let mut live = functions.clone();
+        live.functions[0].kind = FunctionKind::LiveQuery;
+        assert_eq!(
+            live.validate_artifact()
+                .expect_err("membership pages are callable-only")
+                .diagnostic
+                .code,
+            "SNAPBACK_STANDARD_PATTERN_MEMBERSHIP_INVALID"
+        );
+
+        let mut wrong_index = functions.clone();
+        let FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) =
+            &mut wrong_index.functions[0].runtime
+        else {
+            panic!("query plan")
+        };
+        plan.indexed_by = None;
+        assert_eq!(
+            validate_function_schema_references(&wrong_index, &schema)
+                .expect_err("exact unique index is required")
+                .diagnostic
+                .code,
+            "SNAPBACK_STANDARD_PATTERN_MEMBERSHIP_INVALID"
+        );
+
+        let mut pending_role = functions.clone();
+        pending_role.functions[0]
+            .standard_pattern
+            .as_mut()
+            .and_then(|pattern| pattern.membership.as_mut())
+            .expect("membership facts")
+            .roles = vec!["invited".to_owned()];
+        assert_eq!(
+            validate_function_schema_references(&pending_role, &schema)
+                .expect_err("pending role is not page visibility")
+                .diagnostic
+                .code,
+            "SNAPBACK_STANDARD_PATTERN_MEMBERSHIP_INVALID"
+        );
+
+        let mut foreign_helper = functions;
+        foreign_helper.functions[0]
+            .standard_pattern
+            .as_mut()
+            .expect("pattern")
+            .helper = "owned-keyset-pages.v1".to_owned();
+        assert_eq!(
+            foreign_helper
+                .validate_artifact()
+                .expect_err("other helpers must not carry membership facts")
+                .diagnostic
+                .code,
+            "SNAPBACK_STANDARD_PATTERN_MEMBERSHIP_INVALID"
+        );
+    }
+
+    // @ref LLP 0100#5-index-and-continuation-contract — a member traverses
+    //   unique [resource, pageKey] pages without overlap; full pages carry a
+    //   continuation and short pages are terminal. Non-members receive the
+    //   same empty first page for existing-unjoined and nonexistent resources.
+    #[test]
+    fn membership_keyset_pages_traverse_three_pages_and_hide_probes() {
+        let (mut snapback, _) = membership_keyset_snapback();
+        grant_membership(&mut snapback, "alice", "room-a");
+
+        let keys = |output: &crate::manifest::QueryOutput| {
+            output
+                .rows
+                .iter()
+                .map(|row| row["pageKey"].as_i64().expect("page key"))
+                .collect::<Vec<_>>()
+        };
+        let first = snapback
+            .invoke_query(
+                "firstRoomMessagePage",
+                membership_keyset_input("alice", "room-a", None),
+            )
+            .expect("member first page");
+        assert_eq!(keys(&first), vec![1, 2]);
+        let cursor1 = first.cursor.expect("full first page continuation");
+        let second = snapback
+            .invoke_query(
+                "nextRoomMessagePage",
+                membership_keyset_input("alice", "room-a", Some(cursor1)),
+            )
+            .expect("member second page");
+        assert_eq!(keys(&second), vec![3, 4]);
+        let cursor2 = second.cursor.expect("full second page continuation");
+        let third = snapback
+            .invoke_query(
+                "nextRoomMessagePage",
+                membership_keyset_input("alice", "room-a", Some(cursor2)),
+            )
+            .expect("member terminal page");
+        assert_eq!(keys(&third), vec![5]);
+        assert!(third.cursor.is_none(), "short page is terminal");
+
+        let existing_unjoined = snapback
+            .invoke_query(
+                "firstRoomMessagePage",
+                membership_keyset_input("mallory", "room-b", None),
+            )
+            .expect("existing unjoined room is an empty page");
+        let nonexistent = snapback
+            .invoke_query(
+                "firstRoomMessagePage",
+                membership_keyset_input("mallory", "room-does-not-exist", None),
+            )
+            .expect("nonexistent room is an empty page");
+        assert!(existing_unjoined.rows.is_empty());
+        assert!(existing_unjoined.cursor.is_none());
+        assert_eq!(
+            serde_json::to_vec(&existing_unjoined).expect("serialize existing probe"),
+            serde_json::to_vec(&nonexistent).expect("serialize nonexistent probe"),
+            "existing-unjoined and nonexistent resource probes are byte-identical"
+        );
+    }
+
+    // @ref LLP 0100#5-index-and-continuation-contract — every presentation
+    //   mismatch folds to the existing uniform refusal before row evaluation:
+    //   concrete resource value, caller authority, global auth pair, reset
+    //   stream, and function/schema publication identity all bind custody.
+    #[test]
+    fn membership_keyset_cursor_custody_refuses_every_runtime_axis_uniformly() {
+        let (mut snapback, functions) = membership_keyset_snapback();
+        grant_membership(&mut snapback, "alice", "room-a");
+        grant_membership(&mut snapback, "alice", "room-b");
+        grant_membership(&mut snapback, "bob", "room-a");
+
+        let mint = |snapback: &LocalSnapback| {
+            snapback
+                .invoke_query(
+                    "firstRoomMessagePage",
+                    membership_keyset_input("alice", "room-a", None),
+                )
+                .expect("mint room-a page")
+                .cursor
+                .expect("full room-a page mints")
+        };
+        let refuse = |snapback: &LocalSnapback, user: &str, room: &str, token: String| {
+            snapback
+                .invoke_query(
+                    "nextRoomMessagePage",
+                    membership_keyset_input(user, room, Some(token)),
+                )
+                .expect_err("cursor presentation must refuse")
+        };
+        let malformed = refuse(&snapback, "alice", "room-a", "sbpc1.garbage".to_owned());
+        assert_eq!(
+            malformed.diagnostic.code,
+            "SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID"
+        );
+        let uniform = |refused: &SnapbackError| {
+            assert_eq!(
+                (
+                    refused.diagnostic.code.as_str(),
+                    refused.diagnostic.message.as_str()
+                ),
+                (
+                    malformed.diagnostic.code.as_str(),
+                    malformed.diagnostic.message.as_str()
+                )
+            );
+        };
+
+        let cursor = mint(&snapback);
+        // Mandatory cross-resource VALUE negative: Alice belongs to both rooms,
+        // and the shared filter shape is identical; only the concrete roomId
+        // value in the binding can reject this presentation.
+        uniform(&refuse(&snapback, "alice", "room-b", cursor.clone()));
+        uniform(&refuse(&snapback, "bob", "room-a", cursor));
+
+        let global_cursor = mint(&snapback);
+        grant_membership(&mut snapback, "carol", "room-b");
+        uniform(&refuse(&snapback, "alice", "room-a", global_cursor));
+
+        let artifact_cursor = mint(&snapback);
+        let diagnostics = snapback.load_functions(functions.clone());
+        assert!(diagnostics.iter().all(|diagnostic| !matches!(
+            diagnostic.severity,
+            crate::diagnostic::DiagnosticSeverity::Error
+                | crate::diagnostic::DiagnosticSeverity::Fatal
+        )));
+        uniform(&refuse(&snapback, "alice", "room-a", artifact_cursor));
+
+        let reset_cursor = mint(&snapback);
+        snapback.reset().expect("rotate reset/data stream");
+        uniform(&refuse(&snapback, "alice", "room-a", reset_cursor));
+    }
+
+    // @ref LLP 0100#5-index-and-continuation-contract — membership removal
+    //   advances the global authorization pair, so page-one custody dies before
+    //   page two; rejoining advances it again and cannot revive the old token.
+    #[test]
+    fn membership_keyset_removal_invalidates_rejoin_does_not_revive_and_grant_reveals_history() {
+        let (mut snapback, _) = membership_keyset_snapback();
+        let before = snapback
+            .invoke_query(
+                "firstRoomMessagePage",
+                membership_keyset_input("alice", "room-a", None),
+            )
+            .expect("pre-membership first page");
+        assert!(before.rows.is_empty());
+        assert!(before.cursor.is_none());
+
+        let member_id = grant_membership(&mut snapback, "alice", "room-a");
+        let granted = snapback
+            .invoke_query(
+                "firstRoomMessagePage",
+                membership_keyset_input("alice", "room-a", None),
+            )
+            .expect("fresh first page after grant");
+        assert_eq!(granted.rows.len(), 2, "grant reveals prior history");
+        let cursor = granted.cursor.expect("granted full page cursor");
+
+        remove_membership(&mut snapback, "alice", &member_id);
+        let removed = snapback
+            .invoke_query(
+                "nextRoomMessagePage",
+                membership_keyset_input("alice", "room-a", Some(cursor.clone())),
+            )
+            .expect_err("removal invalidates page-one cursor");
+        assert_eq!(
+            (
+                removed.diagnostic.code.as_str(),
+                removed.diagnostic.message.as_str()
+            ),
+            (
+                "SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID",
+                "pagination cursor is not valid for this operation and caller; request the first page again"
+            )
+        );
+        let absent = snapback
+            .invoke_query(
+                "firstRoomMessagePage",
+                membership_keyset_input("alice", "room-a", None),
+            )
+            .expect("fresh first page after removal");
+        assert!(absent.rows.is_empty());
+
+        grant_membership(&mut snapback, "alice", "room-a");
+        let revived = snapback
+            .invoke_query(
+                "nextRoomMessagePage",
+                membership_keyset_input("alice", "room-a", Some(cursor)),
+            )
+            .expect_err("rejoin cannot revive old cursor");
+        assert_eq!(
+            (
+                revived.diagnostic.code.as_str(),
+                revived.diagnostic.message.as_str()
+            ),
+            (
+                removed.diagnostic.code.as_str(),
+                removed.diagnostic.message.as_str()
+            )
+        );
+        let fresh = snapback
+            .invoke_query(
+                "firstRoomMessagePage",
+                membership_keyset_input("alice", "room-a", None),
+            )
+            .expect("fresh first page after rejoin");
+        assert_eq!(fresh.rows.len(), 2);
+    }
+
+    // @ref LLP 0100#5-index-and-continuation-contract — component-wise proof
+    //   for the five membership-only binding groups, including the second
+    //   non-cursor argument. The owned profile is simultaneously pinned to the
+    //   exact pre-0100 JSON digest despite the authority carrier gaining fields.
+    #[test]
+    fn membership_keyset_binding_components_change_and_owned_digest_is_stable() {
+        let (_, functions) = membership_keyset_artifacts();
+        let next = functions
+            .function("nextRoomMessagePage")
+            .expect("next function")
+            .clone();
+        let keyring = std::sync::RwLock::new(crate::rqs::ResumeKeyring::in_memory(now_millis()));
+        let authority = super::RelationalCursorAuthority {
+            app_id: "local-app",
+            keyring: &keyring,
+            schema_hash: Some("schema-a"),
+            function_bundle_hash: Some("bundle-a"),
+            function_publication_generation: 7,
+            target_profile: Some("local-dev-sqlite-ibex"),
+        };
+        let snapshot = super::MembershipCursorCustodySnapshot {
+            authorization: crate::storage::AuthorizationVersion {
+                incarnation: "auth-a".to_owned(),
+                epoch: 11,
+            },
+            data_version_stream: Some("stream-a".to_owned()),
+        };
+        let input = membership_keyset_input("alice", "room-a", Some("opaque".to_owned()));
+        let binding = |function: &FunctionDefinition,
+                       input: &HandlerInput,
+                       authority: &super::RelationalCursorAuthority<'_>,
+                       snapshot: &super::MembershipCursorCustodySnapshot| {
+            let FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) = &function.runtime else {
+                panic!("keyset query plan")
+            };
+            let facts = super::standard_pattern_keyset_facts(function, plan)
+                .expect("registered keyset facts");
+            super::standard_pattern_cursor_binding(
+                authority,
+                function,
+                plan,
+                &facts,
+                input,
+                &BTreeMap::new(),
+                Some(snapshot),
+            )
+            .expect("membership binding")
+        };
+        let baseline = binding(&next, &input, &authority, &snapshot);
+
+        let reordered = HandlerInput {
+            args: Value::Object(Map::from_iter([
+                ("tag".to_owned(), json!("history")),
+                ("after".to_owned(), json!("different-cursor-wire")),
+                ("roomId".to_owned(), json!("room-a")),
+            ])),
+            auth: input.auth.clone(),
+            ..HandlerInput::default()
+        };
+        assert_eq!(
+            binding(&next, &reordered, &authority, &snapshot),
+            baseline,
+            "serde_json::Map canonical key order and cursor removal normalize args"
+        );
+
+        let mut room_b = input.clone();
+        room_b.args["roomId"] = json!("room-b");
+        assert_ne!(binding(&next, &room_b, &authority, &snapshot), baseline);
+        let mut other_tag = input.clone();
+        other_tag.args["tag"] = json!("later");
+        assert_ne!(binding(&next, &other_tag, &authority, &snapshot), baseline);
+        let mut other_caller = input.clone();
+        other_caller.auth.user_id = Some("bob".to_owned());
+        assert_ne!(
+            binding(&next, &other_caller, &authority, &snapshot),
+            baseline
+        );
+
+        let mut authorization = snapshot.clone();
+        authorization.authorization.epoch += 1;
+        assert_ne!(binding(&next, &input, &authority, &authorization), baseline);
+        let mut stream = snapshot.clone();
+        stream.data_version_stream = Some("stream-b".to_owned());
+        assert_ne!(binding(&next, &input, &authority, &stream), baseline);
+
+        let changed_artifact = super::RelationalCursorAuthority {
+            schema_hash: Some("schema-b"),
+            ..authority
+        };
+        assert_ne!(
+            binding(&next, &input, &changed_artifact, &snapshot),
+            baseline
+        );
+        let changed_generation = super::RelationalCursorAuthority {
+            function_publication_generation: 8,
+            ..authority
+        };
+        assert_ne!(
+            binding(&next, &input, &changed_generation, &snapshot),
+            baseline
+        );
+        let changed_profile = super::RelationalCursorAuthority {
+            target_profile: Some("other-target"),
+            ..authority
+        };
+        assert_ne!(
+            binding(&next, &input, &changed_profile, &snapshot),
+            baseline
+        );
+
+        for mutate in ["declaration", "roles", "helper", "profile"] {
+            let mut changed = next.clone();
+            let pattern = changed.standard_pattern.as_mut().expect("pattern");
+            match mutate {
+                "declaration" => {
+                    pattern.membership.as_mut().expect("membership").declaration =
+                        "otherSeats".to_owned();
+                }
+                "roles" => {
+                    pattern.membership.as_mut().expect("membership").roles =
+                        vec!["member".to_owned()];
+                }
+                "helper" => pattern.helper = "owned-keyset-pages.v1".to_owned(),
+                "profile" => pattern.profile = "membership.v2".to_owned(),
+                _ => unreachable!(),
+            }
+            assert_ne!(
+                binding(&changed, &input, &authority, &snapshot),
+                baseline,
+                "{mutate} must be an independent binding member"
+            );
+        }
+
+        let owned_plan = QueryPlan {
+            table: "pages".to_owned(),
+            filters: vec![
+                FilterExpr {
+                    field: "ownerId".to_owned(),
+                    op: FilterOp::Eq,
+                    value: ValueExpr::AuthUserId,
+                },
+                FilterExpr {
+                    field: "pageKey".to_owned(),
+                    op: FilterOp::Gt,
+                    value: ValueExpr::Arg("after".to_owned()),
+                },
+            ],
+            membership_filters: Vec::new(),
+            order: vec![crate::manifest::OrderExpr {
+                field: "pageKey".to_owned(),
+                direction: crate::manifest::OrderDirection::Asc,
+            }],
+            limit: Some(2),
+            indexed_by: Some("by_owner_page_key".to_owned()),
+        };
+        let mut owned = FunctionDefinition::new(
+            "nextOwnedPage",
+            FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(owned_plan.clone())),
+        );
+        owned.standard_pattern = Some(crate::manifest::StandardPatternIdentity {
+            helper: "owned-keyset-pages.v1".to_owned(),
+            profile: "owner.v1".to_owned(),
+            membership: None,
+        });
+        let owned_input = HandlerInput {
+            args: json!({ "after": "opaque" }),
+            auth: AuthInput {
+                user_id: Some("alice".to_owned()),
+                ..AuthInput::default()
+            },
+            ..HandlerInput::default()
+        };
+        let owned_facts =
+            super::standard_pattern_keyset_facts(&owned, &owned_plan).expect("owned keyset facts");
+        let epochs = BTreeMap::from([("user:alice".to_owned(), 7)]);
+        let actual = super::standard_pattern_cursor_binding(
+            &authority,
+            &owned,
+            &owned_plan,
+            &owned_facts,
+            &owned_input,
+            &epochs,
+            None,
+        )
+        .expect("owned binding");
+        let expected = crate::rqs::sha256_identity(&json!({
+            "app": "local-app",
+            "helper": "owned-keyset-pages.v1",
+            "profile": "owner.v1",
+            "table": "pages",
+            "index": "by_owner_page_key",
+            "order": serde_json::to_value(&owned_plan.order).expect("order json"),
+            "limit": 2,
+            "filters": [serde_json::to_value(&owned_plan.filters[0]).expect("filter json")],
+            "authority": {
+                "fingerprint": crate::manifest::auth_fingerprint(&owned_input.auth),
+                "epochs": { "user:alice": 7 },
+            },
+        }))
+        .expect("legacy owned digest");
+        assert_eq!(actual, expected, "owned binding bytes must not change");
+    }
+
     // @ref LLP 0065#4-capability-and-llp-0053-composition — a generated
     //   standard pattern claims no skip and no live_delta: the identical
     //   plan shape rides the delta lane without the pattern identity and
@@ -34546,6 +35862,7 @@ globalThis.__snapbackHandlers = {
         pattern.standard_pattern = Some(StandardPatternIdentity {
             helper: "owned-unique-lookup.v1".to_owned(),
             profile: "owner.v1".to_owned(),
+            membership: None,
         });
         let control = FunctionDefinition::new(
             "lookupControl",
@@ -34690,6 +36007,7 @@ globalThis.__snapbackHandlers = {
             Some(crate::manifest::StandardPatternIdentity {
                 helper: "owned-keyset-pages.v1".to_owned(),
                 profile: "owner.v1".to_owned(),
+                membership: None,
             })
         };
         let mut first_def = FunctionDefinition::new(
@@ -34927,6 +36245,7 @@ globalThis.__snapbackHandlers = {
                 Some(StandardPatternIdentity {
                     helper: "owned-keyset-pages.v1".to_owned(),
                     profile: "owner.v1".to_owned(),
+                    membership: None,
                 })
             };
             let mut first_def = FunctionDefinition::new(
@@ -35452,9 +36771,8 @@ globalThis.__snapbackHandlers = {
                 return_value: Some(ReturnValue::ChangedCount),
             })),
         );
-        record.args_contract_hash = Some(
-            crate::manifest::args_contract_hash(&contract).expect("hash split contract"),
-        );
+        record.args_contract_hash =
+            Some(crate::manifest::args_contract_hash(&contract).expect("hash split contract"));
         record.args_contract = Some(contract);
         record
             .required_capabilities

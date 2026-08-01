@@ -15,6 +15,7 @@ import {
   bindingRef,
   defineLiveQuery,
   defineMutation,
+  defineQuery,
   del,
   desc,
   eq,
@@ -25,6 +26,7 @@ import {
   guard,
   insert,
   ltFilter,
+  membershipResource,
   patch,
   returnDocument,
   runtimeId,
@@ -45,6 +47,13 @@ const UNIQUE_LOOKUP_OPTION_FIELDS = new Set([
 const KEYSET_OPTION_FIELDS = new Set([
   'table', 'names', 'index', 'cursorField', 'cursor', 'direction',
   'limit', 'visibility',
+]);
+const MEMBERSHIP_KEYSET_OPTION_FIELDS = new Set([
+  'table', 'names', 'membership', 'index', 'cursorField', 'cursor',
+  'direction', 'limit',
+]);
+const MEMBERSHIP_KEYSET_MEMBERSHIP_FIELDS = new Set([
+  'declaration', 'resourceArg', 'resourceField', 'roles',
 ]);
 const SYSTEM_ORDER_FIELDS = new Set(['_id', '_version', '_createdAt', '_updatedAt']);
 
@@ -473,6 +482,209 @@ export function defineOwnedKeysetPages(options) {
       // SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID, never repositioned.
       args: { [cursor]: v.string() },
       filter: [eq(ownerField, authUserId()), after],
+    }),
+  });
+}
+
+/**
+ * Generate first/next membership-scoped keyset pages (LLP 0100 §4): pages of
+ * one membership-protected resource, visible to the caller's declared seat
+ * rather than a principal-owner partition. The selected index must be unique
+ * with exactly [resourceField, cursorField], and the declaration-bound
+ * membership predicate executes on every page invocation — executable
+ * authority, never metadata.
+ *
+ * @ref LLP 0100#4-membership-scoped-keyset-pages — the pair is emitted as
+ *   ordinary callable `Query` definitions (a deliberate delta from the owned
+ *   helper's defineLiveQuery+defaultLive:false emission): a subscribable
+ *   historical page would be exactly the per-visited-page
+ *   authorization-sensitive subscription the RFC rules out. The separate
+ *   current-room live_replace query owns live grant/revocation updates.
+ */
+export function defineMembershipKeysetPages(options) {
+  exactObject(options, 'defineMembershipKeysetPages options', MEMBERSHIP_KEYSET_OPTION_FIELDS);
+  const {
+    table,
+    names,
+    membership,
+    index,
+    cursorField,
+    cursor = 'after',
+    direction = 'asc',
+    limit = 50,
+  } = options;
+  const facts = tableFacts(table);
+  // A membership or permission-backing table can never be the page table:
+  // paging authority rows through a generated reader would disclose the
+  // authority surface this helper exists to gate.
+  if (facts.authorityBearing) {
+    fail(
+      'SNAPBACK_STANDARD_PATTERN_TABLE_INELIGIBLE',
+      `${facts.name} carries a membership or permission-backing declaration; `
+        + 'membership keyset pages cannot page an authority-bearing table',
+    );
+  }
+  exactObject(names, 'names', new Set(['first', 'next']));
+  requireName(names.first, 'names.first');
+  requireName(names.next, 'names.next');
+  requireDistinctNames(names, ['first', 'next'], 'names');
+  requireName(cursorField, 'cursorField');
+  requireName(cursor, 'cursor');
+  if (direction !== 'asc' && direction !== 'desc') {
+    fail('SNAPBACK_STANDARD_PATTERN_INVALID', 'direction must be asc or desc');
+  }
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > 1_024) {
+    fail('SNAPBACK_STANDARD_PATTERN_INVALID', 'limit must be an integer from 1 through 1024');
+  }
+  // The membership block IS this profile's visibility declaration: closed,
+  // resource-scoped, and role-explicit — omission fails generation exactly
+  // like a missing owner visibility.
+  if (!membership || typeof membership !== 'object' || Array.isArray(membership)) {
+    fail(
+      'SNAPBACK_STANDARD_PATTERN_VISIBILITY_REQUIRED',
+      'defineMembershipKeysetPages requires membership: '
+        + '{ declaration, resourceArg, resourceField, roles }',
+    );
+  }
+  exactObject(membership, 'membership', MEMBERSHIP_KEYSET_MEMBERSHIP_FIELDS);
+  const declarationTable = membership.declaration;
+  const declared = declarationTable?.membershipDeclaration;
+  if (!declarationTable?.__table || typeof declarationTable.__tableName !== 'string'
+    || !declarationTable.__tableName || !declared) {
+    fail(
+      'SNAPBACK_STANDARD_PATTERN_VISIBILITY_REQUIRED',
+      'membership.declaration must be a defineTable(...) carrying membership(), '
+        + 'installed in defineSchema(...)',
+    );
+  }
+  if (declared.scope !== 'resource') {
+    fail(
+      'SNAPBACK_STANDARD_PATTERN_VISIBILITY_REQUIRED',
+      'membership keyset pages require a resource-scoped membership declaration',
+    );
+  }
+  const resourceArg = requireName(membership.resourceArg, 'membership.resourceArg');
+  const resourceField = requireName(membership.resourceField, 'membership.resourceField');
+  if (resourceArg === cursor) {
+    fail('SNAPBACK_STANDARD_PATTERN_INVALID', 'membership.resourceArg collides with the cursor argument');
+  }
+  if (cursorField === resourceField) {
+    fail(
+      'SNAPBACK_STANDARD_PATTERN_PAGINATION_INDEX_REQUIRED',
+      'cursor field must differ from the resource field',
+    );
+  }
+  const resourceValidator = facts.fields[resourceField];
+  if (!resourceValidator || resourceValidator.optional) {
+    fail(
+      'SNAPBACK_STANDARD_PATTERN_VISIBILITY_REQUIRED',
+      `membership.resourceField ${resourceField} must be a required schema field`,
+    );
+  }
+  // Exact nominal resource identity (LLP 0100 §4): the page table's resource
+  // field must carry the same nominal id type as the declaration's own
+  // resource axis — a string that merely looks like a room id is refused.
+  const declarationResourceValidator = declarationTable.fields[declared.resource];
+  if (
+    !declarationResourceValidator
+    || JSON.stringify(resourceValidator.fieldType)
+      !== JSON.stringify(declarationResourceValidator.fieldType)
+  ) {
+    fail(
+      'SNAPBACK_STANDARD_PATTERN_VISIBILITY_REQUIRED',
+      `membership.resourceField ${resourceField} must carry the declaration's exact `
+        + 'nominal resource type',
+    );
+  }
+  // roles: a non-empty canonical subset of the declaration's FULL roles.
+  // Pending roles are rejected in v1: a pending seat is not visibility.
+  const roles = membership.roles;
+  if (!Array.isArray(roles) || roles.length === 0
+    || roles.some((role) => typeof role !== 'string' || role.length === 0)) {
+    fail(
+      'SNAPBACK_STANDARD_PATTERN_VISIBILITY_REQUIRED',
+      'membership.roles must be a non-empty array of declared role names',
+    );
+  }
+  const canonicalRoles = [...new Set(roles)].sort();
+  if (canonicalRoles.length !== roles.length) {
+    fail('SNAPBACK_STANDARD_PATTERN_INVALID', 'membership.roles must not repeat roles');
+  }
+  for (const role of canonicalRoles) {
+    if ((declared.pendingRoles ?? []).includes(role)) {
+      fail(
+        'SNAPBACK_STANDARD_PATTERN_VISIBILITY_REQUIRED',
+        `membership.roles names pending role ${role}; pending seats are not page visibility`,
+      );
+    }
+    if (!declared.roles.includes(role)) {
+      fail(
+        'SNAPBACK_STANDARD_PATTERN_VISIBILITY_REQUIRED',
+        `membership.roles names undeclared role ${role}`,
+      );
+    }
+  }
+  const indexFacts = facts.indexes.find((candidate) => candidate.name === index);
+  if (
+    !indexFacts
+    || indexFacts.unique !== true
+    || indexFacts.fields.length !== 2
+    || indexFacts.fields[0] !== resourceField
+    || indexFacts.fields[1] !== cursorField
+  ) {
+    fail(
+      'SNAPBACK_STANDARD_PATTERN_PAGINATION_INDEX_REQUIRED',
+      `${index} must be unique with exact fields [${resourceField}, ${cursorField}] in that order`,
+    );
+  }
+  const cursorValidator = facts.fields[cursorField];
+  if (!cursorValidator) fail('SNAPBACK_STANDARD_PATTERN_INVALID', `unknown cursor field ${cursorField}`);
+  if (cursorValidator.optional) {
+    fail('SNAPBACK_STANDARD_PATTERN_PAGINATION_INDEX_REQUIRED', `cursor field ${cursorField} must be required`);
+  }
+  const order = direction === 'asc' ? asc(cursorField) : desc(cursorField);
+  const after = direction === 'asc' ? gtFilter(cursorField, arg(cursor)) : ltFilter(cursorField, arg(cursor));
+  const seat = declarationTable.hasRole(
+    membershipResource.arg(resourceArg),
+    ...canonicalRoles,
+  );
+  const base = {
+    table: facts.name,
+    order: [order],
+    limit,
+    index,
+    auth: 'authenticated',
+    membership: [seat],
+    standardPattern: {
+      helper: 'membership-keyset-pages.v1',
+      profile: 'membership.v1',
+      membership: {
+        declaration: declared.id ?? declarationTable.__tableName,
+        resourceArg,
+        resourceField,
+        roles: canonicalRoles,
+      },
+    },
+  };
+  return Object.freeze({
+    // Ordinary callable Query emission (LLP 0100 §4): these definitions
+    // cannot be subscribed at all — not defaultLive:false live queries.
+    [names.first]: defineQuery({
+      ...base,
+      args: { [resourceArg]: resourceValidator },
+      filter: [eq(resourceField, arg(resourceArg))],
+    }),
+    [names.next]: defineQuery({
+      ...base,
+      // The continuation is the opaque MAC cursor from the previous full
+      // page. Its binding additionally covers the concrete resource-argument
+      // VALUE, the declaration facts, the global authorization pair, the
+      // data-version stream, and the active artifact identity (LLP 0100 §5)
+      // — a room-A cursor presented for room B, a post-membership-change
+      // cursor, or a cursor crossing a reset/redeploy refuses with the
+      // byte-identical SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID.
+      args: { [resourceArg]: resourceValidator, [cursor]: v.string() },
+      filter: [eq(resourceField, arg(resourceArg)), after],
     }),
   });
 }

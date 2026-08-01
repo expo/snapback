@@ -6,7 +6,7 @@
 
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::SeedData;
-use rusqlite::{OptionalExtension, Transaction, params};
+use rusqlite::{Connection, OptionalExtension, Transaction, params};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -126,9 +126,12 @@ fn valid_fixture_source_path(path: &str) -> bool {
 }
 
 fn valid_sha256_digest(value: &str) -> bool {
-    value
-        .strip_prefix("sha256:")
-        .is_some_and(|hex| hex.len() == 64 && hex.bytes().all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase()))
+    value.strip_prefix("sha256:").is_some_and(|hex| {
+        hex.len() == 64
+            && hex
+                .bytes()
+                .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+    })
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
@@ -514,8 +517,8 @@ pub fn active_installation(
 ///
 /// @ref LLP 0109#161-replay-observes-current-state-before-historical-completion
 /// — replay and preview observe currentness before classifying completion.
-pub fn strict_current_data_version_stream(tx: &Transaction<'_>) -> SnapbackResult<Option<String>> {
-    let value: Option<(String, Vec<u8>)> = tx
+pub fn strict_current_data_version_stream(conn: &Connection) -> SnapbackResult<Option<String>> {
+    let value: Option<(String, Vec<u8>)> = conn
         .query_row(
             "SELECT typeof(value), CAST(value AS BLOB)
              FROM _snapback_meta

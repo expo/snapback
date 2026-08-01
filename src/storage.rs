@@ -7685,6 +7685,26 @@ impl DbRead<'_> {
         }
     }
 
+    /// Durable cursor-custody facts read through the same pinned snapshot as
+    /// the membership page query. These are distinct from the legacy
+    /// process-local permission-epoch map.
+    ///
+    /// @ref LLP 0100#5-index-and-continuation-contract — membership keyset
+    ///   cursors bind the global AuthorizationVersion and reset-rotated data
+    ///   stream observed by the query snapshot.
+    pub(crate) fn membership_cursor_custody_snapshot(
+        &self,
+    ) -> SnapbackResult<(AuthorizationVersion, Option<String>)> {
+        let conn = match self {
+            DbRead::Pinned { conn, .. } => *conn,
+            DbRead::Live(db) => &db.conn,
+        };
+        Ok((
+            authorization_version_on(conn)?,
+            crate::seed_identity::strict_current_data_version_stream(conn)?,
+        ))
+    }
+
     pub fn query(&self, plan: &QueryPlan, input: &HandlerInput) -> SnapbackResult<QueryOutput> {
         match self {
             DbRead::Pinned { conn, schema } => query_on(conn, schema, plan, input),
@@ -14480,24 +14500,18 @@ pub(crate) fn asset_read_authorized(
                         table = quote_ident(&mtable.name)?,
                         principal_col = quote_ident(&declaration.principal)?,
                     );
-                    let mut params: Vec<SqlValue> =
-                        vec![SqlValue::Text(principal.to_owned())];
+                    let mut params: Vec<SqlValue> = vec![SqlValue::Text(principal.to_owned())];
                     if let (Some(resource_col), Some(resource_value)) =
                         (declaration.resource.as_ref(), resource_value.as_ref())
                     {
-                        sql.push_str(&format!(
-                            " AND {} = ?2",
-                            quote_ident(resource_col)?
-                        ));
+                        sql.push_str(&format!(" AND {} = ?2", quote_ident(resource_col)?));
                         params.push(json_to_sql_value(
                             resource_value,
                             field_type(mtable, resource_col),
                         )?);
                     }
-                    tx.query_row(&sql, rusqlite::params_from_iter(params), |row| {
-                        row.get(0)
-                    })
-                    .optional()?
+                    tx.query_row(&sql, rusqlite::params_from_iter(params), |row| row.get(0))
+                        .optional()?
                 };
                 dependencies.push(CapturedReadDependency {
                     kind: if role.is_some() {

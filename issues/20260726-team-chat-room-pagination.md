@@ -75,3 +75,37 @@ sweep-report.md §4 item 6 folds both into the membership-expressiveness
 one-decision batch. LLP 0100 is still Draft;
 defineMembershipKeysetPages exists only in the RFC. demos/team-chat
 still uses defineOwnedKeysetPages.
+
+## Progress 2026-08-01 (0100 program lane M2) — implementation LANDED; adoption + receipts remain
+
+LLP 0100 is Accepted and the §4/§5 pages surface is now implemented on the
+local target:
+
+- `defineMembershipKeysetPages` with the stable
+  `membership-keyset-pages.v1` / `membership.v1` identities, the exact
+  `[resource, cursor]` unique index requirement, the declaration-bound
+  membership predicate executing on every page, and callable-only Query
+  emission (packages/snapback-codegen/standard-patterns.mjs + generation
+  negatives in standard-patterns.test.mjs).
+- The opaque MAC cursor envelope reused with the §5 extended binding: app,
+  function pair, room-argument VALUE, authority fingerprint + per-user
+  epochs, the durable global authorization pair, plan/index/order shape,
+  data-version stream, activation/artifact + target identity, and instance
+  keyring custody (src/local.rs; registry extended past owned-keyset-only;
+  owned digest pinned byte-identical).
+- This ticket's acceptance rows 1-5 are proven at the runtime layer
+  (`membership_keyset_*` tests in src/local.rs: pinned multi-page
+  traversal without overlap; non-member sees no room or cursor existence,
+  byte-identical to nonexistent; malformed/cross-room/cross-user/
+  stale-authorization/post-membership-change cursors → one safe coded
+  outcome before candidate evaluation; removal invalidates an
+  already-minted continuation, rejoin does not revive; index-served with
+  the declared limit bound).
+
+Remaining for this ticket (kept open, honestly narrowed to
+implementation-order step 6): demos/team-chat adoption of the generated
+surface (it still uses defineOwnedKeysetPages for inboxes and has no room
+pages), the headless + complete React/Contract product receipts, the
+pressure-ledger row, and the diary entry — plus the composed family
+witness rows owned by the program's other lanes. Cross-target work/page
+bound preregistration beyond the declared limit is part of that receipt.

@@ -5943,6 +5943,17 @@
         "helper": {
           "type": "string"
         },
+        "membership": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StandardPatternMembershipIdentity"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Membership-specific generation facts for callable keyset pages. This\nblock is closed and is admitted only for the exact\n`membership-keyset-pages.v1` / `membership.v1` pair.\n\n@ref LLP 0100#5-index-and-continuation-contract — membership cursor\n  custody binds the declaration, resource argument/field, and canonical\n  role set; other helpers must not smuggle an uninterpreted block."
+        },
         "profile": {
           "type": "string"
         }
@@ -5950,6 +5961,33 @@
       "required": [
         "helper",
         "profile"
+      ],
+      "type": "object"
+    },
+    "StandardPatternMembershipIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "declaration": {
+          "type": "string"
+        },
+        "resourceArg": {
+          "type": "string"
+        },
+        "resourceField": {
+          "type": "string"
+        },
+        "roles": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "declaration",
+        "resourceArg",
+        "resourceField",
+        "roles"
       ],
       "type": "object"
     },

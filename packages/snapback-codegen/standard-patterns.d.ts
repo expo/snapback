@@ -79,3 +79,30 @@ export declare function defineOwnedKeysetPages<
   limit?: number;
   visibility: OwnerVisibility<OwnerFieldName<Fields>>;
 }): PatternDefinitions<Names[keyof KeysetNames]>;
+
+/** LLP 0100 §4: the membership block is this profile's closed visibility
+ * declaration — a resource-scoped membership declaration table, the exact
+ * nominal resource argument/field pair, and a non-empty subset of the
+ * declared non-pending roles. */
+export interface MembershipKeysetVisibility<
+  DeclarationFields extends Record<string, Validator> = Record<string, Validator>,
+> {
+  declaration: TableBuilder<DeclarationFields>;
+  resourceArg: string;
+  resourceField: string;
+  roles: string[];
+}
+
+export declare function defineMembershipKeysetPages<
+  const Fields extends Record<string, Validator>,
+  const Names extends KeysetNames,
+>(options: {
+  table: TableBuilder<Fields>;
+  names: Names;
+  membership: MembershipKeysetVisibility;
+  index: string;
+  cursorField: RequiredFieldName<Fields>;
+  cursor?: string;
+  direction?: 'asc' | 'desc';
+  limit?: number;
+}): PatternDefinitions<Names[keyof KeysetNames]>;
