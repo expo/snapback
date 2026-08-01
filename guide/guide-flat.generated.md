@@ -2832,9 +2832,13 @@ The complete options vocabulary:
 - `delayMs` — non-negative integer; `availableAt = now + delayMs` on the
   frozen invocation clock (deterministic under replay). Horizon: 30 days
   (`SNAPBACK_JOB_DELAY_INVALID` beyond it).
-- `idempotencyKey` — 1..200 bytes, scoped to (queue, action). Re-enqueueing
-  with the same key and byte-identical canonical args returns the existing
-  job with `deduplicated: true`; divergent reuse fails
+- `idempotencyKey` — 1..200 bytes, scoped to (queue, action); the same key
+  under a different action is a different scope and creates an independent
+  job. Re-enqueueing with the same key, byte-identical canonical args, and
+  the same `maxAttempts` returns the existing job with
+  `deduplicated: true` (a different `delayMs` does not break identity —
+  the existing job keeps its original `availableAt`); divergent args or
+  attempt policy under the same key fails
   `SNAPBACK_JOB_IDEMPOTENCY_KEY_REUSED`; a commit-time race fails closed
   with `SNAPBACK_JOB_IDEMPOTENCY_KEY_RACED` (retry the mutation to
   converge).
@@ -2910,9 +2914,11 @@ rollback schedules nothing.
 ## Drain deterministically in tests
 
 `POST /_snapback/api/jobs/drain` is the injected-clock seam — the set-based
-sibling of cron's forced tick. Body `{ nowMs?, maxWaves? }`: every job with
-`availableAt <= nowMs` is claimed, executed, and terminally published, with
-the drain receipts returned synchronously. Acceptance never sleeps:
+sibling of cron's forced tick. Body `{ nowMs?, maxWaves? }`: due jobs
+(`availableAt <= nowMs`) are claimed in pinned order up to the claim batch
+of 64 per wave, executed, and terminally published, with the drain receipts
+returned synchronously (ceiling per call: 64 × waves; a larger due set
+needs further calls or waves). Acceptance never sleeps:
 
 ```sh
 # Enqueue with delayMs: 60000, then force due-ness by injecting the clock.
@@ -2923,9 +2929,11 @@ curl -s -X POST "$SERVER/_snapback/api/jobs/drain" \
 ```
 
 From a headless suite, `AdminClient.drainJobs({ nowMs, maxWaves })` sends
-the admin credential for you. Waves are bounded (default 1, cap 16): jobs
-enqueued by a wave's actions become claimable in the next wave when due —
-cascades are refused by the cap, never detected.
+the admin credential for you. Waves are bounded (default 1; out-of-range
+values are clamped to 1..=16): jobs enqueued by a wave's actions become
+claimable in the next wave when due, and a due set larger than one claim
+batch paginates across waves the same way — cascades are refused by the
+cap, never detected.
 
 The autonomous worker is its own ~1 s loop; keep it out of a suite with
 `SNAPBACK_JOBS_DISABLED=1` (the deliberate sibling of

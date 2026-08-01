@@ -5,7 +5,36 @@
 **Systems:** Background work, Actions, Webhooks, Cron, Storage, Runtime, Auth, Secrets, Deployment, Admin, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-08-01 (first-slice absorption: the dated 2026-07-31
+**Revised:** 2026-08-01 (v2, round-1 review application: both round-1
+reviews applied — Fable READY with five minor findings, Codex NOT READY
+with three material and two lesser. Codex M1: idempotency scope and
+equivalence settled to what `src/jobs.rs`/`src/runtime.rs` actually do —
+keys scoped to (queue, action), the identical-reuse fingerprint is the
+canonical-args digest plus `maxAttempts`, `delayMs`/`availableAt`
+deliberately excluded, a different action is a different scope and creates
+an independent job — with the body §Semantics telling, the shipped
+section, and the guide aligned to that one tuple. Codex M2: an explicit
+shipped/future boundary now precedes §Semantics; everything after it is
+the proposed complete contract unless §First slice as shipped says
+otherwise; the host-plan-only admission sentence is rewritten primary
+rather than corrected parenthetically, and the honest-gaps list is marked
+non-exhaustive with the present-tense §Semantics machinery it does not
+repeat. Codex M3 / Fable F1: the drain is documented at its shipped bound
+— up to 64 claims per wave, `maxWaves` silently clamped to 1..=16, waves
+serving both cascade depth and pagination of a large due set, ceiling
+64×waves per call. Codex SF: evidence attribution mapped precisely
+(A6-04 → enqueue/drain/association; RV-A6-F1 → job-status boot/live;
+RV-A6-F2 → guide/dedup/lease custody; the zero-advisory result contract
+is later in-tree codegen-suite evidence, not part of the external 0.1.8
+pass). Codex detail: attempt rows are append-only identities with a
+one-time terminal completion, not literally append-only storage. Fable
+F2: the shipped lifecycle-state union is stated with its unreachable
+`cancelled` member and planned `ambiguous` widening; F3: the job-status
+projection's producer association is scoped to three fields with
+`producerPrincipal` durable but privacy-excluded; F4: realistic receipt
+example timestamp; F5: secret-read-root lifecycle cross-reference noted
+against the open g1-f5 ticket. Status stays Draft.)
+2026-08-01 (first-slice absorption: the dated 2026-07-31
 amendment note's spec text — enqueue-association receipt shape, callee-class
 admission, deterministic drain seam, paved default queue, inspection
 surfaces, idempotency narrowing, honest gaps, capability posture — is
@@ -86,13 +115,28 @@ This section is normative for the implemented surface. It absorbs the dated
 2026-07-31 amendment note (now a tombstone pointer under `llp/tombstones/`)
 and reconciles it against everything that landed through 2026-08-01. The
 slice landed as e25ab2a3 (`src/jobs.rs`, storage/runtime/server wiring,
-codegen jobs authoring), was completed by the 01ddd8e2 job-status
-boot-admission fix, and is proven by executable evidence three ways: the
-in-tree Rust and codegen suites, the external-consumer LLP 0137 A6 arm
-(10/10 checks on the public 0.1.7 closure;
-`demos/improvement-sweep/arms/a6-snapback-web/run-capsule.json`), and the
-0.1.8 re-verification pass
-(`demos/improvement-sweep/arms/reverify-0.1.8/run-capsule.json`, RV-A6-F2).
+codegen jobs authoring) and was completed by the 01ddd8e2 job-status
+boot-admission fix. The executable evidence maps as follows:
+
+- **A6-04-SCHEDULING** (external-consumer LLP 0137 A6 arm, 10/10 on the
+  public 0.1.7 closure;
+  `demos/improvement-sweep/arms/a6-snapback-web/run-capsule.json`):
+  transactional enqueue, the bounded `enqueues` receipt fact, producer
+  association, injected-clock drain with exactly-once execution, and the
+  admin lane — while the declared job-status query boot-refused on that
+  closure (the a6-f1 defect 01ddd8e2 fixed).
+- **RV-A6-F1** (0.1.8 re-verification;
+  `demos/improvement-sweep/arms/reverify-0.1.8/run-capsule.json`): the
+  job-status boot fix verified externally — the declaring app boots and
+  the projection serves live transitions.
+- **RV-A6-F2** (same capsule): the guide recipe, idempotent-enqueue
+  dedup, and the secret-read-lease custody route.
+- **In-tree suites** (`src/jobs.rs`/`src/server.rs`/`src/local.rs` tests,
+  `packages/snapback-codegen/jobs-authoring.test.mjs`): the state-machine
+  and fault corpus, rollback-schedules-nothing, drain receipts, admission
+  narrowness, and — later than the 0.1.8 pass — the platform-owned
+  job-status result contract with zero degraded advisories.
+
 The RFC remains Draft; nothing here claims a durable-background-work
 capability class or the `durable-work-single-process-sqlite-v1` tuple
 (§Capability posture below). The authoring surface is documented for
@@ -124,7 +168,9 @@ the association is provable without growing the bounded receipt ring.
 (`Receipt::Mutation`, LLP 0034 §3.2 family) gains one optional field:
 
 ```json
-"enqueues": [ { "jobId": "…", "action": "notify", "availableAtMs": 1753 } ]
+"enqueues": [
+  { "jobId": "…", "action": "notify", "availableAtMs": 1785578000000 }
+]
 ```
 
 - Present only on **confirmed** receipts that enqueued at least one job;
@@ -171,15 +217,21 @@ keys).
 ### Deterministic drain seam (0121 OQ5/OQ9 — decided)
 
 - **Shape:** set-based, not slot-based. `POST /_snapback/api/jobs/drain`
-  with body `{ nowMs?, maxWaves? }` claims every job with
-  `availableAt <= nowMs`, executes each claim, publishes each terminal
-  transition, and returns the drain receipts synchronously. Due-ness,
-  lease arithmetic, retry `availableAt`, and attempt timestamps are pure
-  functions of the injected clock — acceptance never sleeps.
-- **Cascades:** bounded waves (default 1, cap 16), never
-  run-to-quiescence; jobs enqueued by a wave's actions become claimable by
-  the next wave when due. Nontermination is refused by the cap, not
-  detected.
+  with body `{ nowMs?, maxWaves? }` claims due jobs
+  (`availableAt <= nowMs`) in pinned order **up to the claim batch of 64
+  per wave**, executes each claim, publishes each terminal transition,
+  and returns the drain receipts synchronously. Due-ness, lease
+  arithmetic, retry `availableAt`, and attempt timestamps are pure
+  functions of the injected clock — acceptance never sleeps. One drain
+  call's ceiling is therefore 64 × waves; a due set larger than that
+  needs further calls.
+- **Waves and bound:** bounded waves (default 1; `maxWaves` outside
+  1..=16 is silently clamped, not refused), never run-to-quiescence; a
+  wave ends early only when a claim returns empty. Waves serve **both**
+  purposes: jobs enqueued by a wave's actions become claimable by the
+  next wave when due (cascade depth), and a pre-existing due set larger
+  than 64 is paginated across successive waves by the same mechanism.
+  Nontermination is refused by the cap, not detected.
 - **Determinism bar (OQ9):** deterministic externally observable outcomes
   plus stable job identity — not byte-identical rows. Job ids are
   allocated through the invocation's ctx-answer ledger (LLP 0051 D1), so
@@ -228,8 +280,16 @@ Two surfaces, per LLP 0121's four-way split:
   ordinary contract, live-capable through the ordinary subscription
   machinery; never an ambient system table. The projection is
   privacy-bounded lifecycle facts only (ids, action/queue names, state,
-  counters, timestamps, diagnostic codes, producer association) — never
-  argument values or results. V1 authorization vocabulary: the
+  counters, timestamps, diagnostic codes, and the producer association's
+  `producerMutationId`/`producerSnapshotVersion`/`producerFunction` —
+  `producerPrincipal` stays durable row provenance, deliberately
+  privacy-excluded from the projection) — never argument values or
+  results. The shipped lifecycle-state union is the literal
+  `pending | claimed | succeeded | dead | cancelled`: `cancelled` is
+  emitted in the type but **unreachable** in v1 (cancellation is on the
+  honest-gaps list), and `ambiguous` is absent, to be widened into the
+  union later under the experimental acknowledgment when that terminal
+  state ships. V1 authorization vocabulary: the
   operation's own declared auth requirement plus knowledge of the opaque
   job id; per-job row-level policy is a later vocabulary. Two facts
   landed after the amendment note and are part of the shipped contract:
@@ -243,32 +303,58 @@ Two surfaces, per LLP 0121's four-way split:
   authoring step with zero degraded advisories (see the closed ticket
   `20260801-0137-reverify-jobstatus-declaration-degraded-advisory.md`).
 - **Operator/acceptance inspection:** the admin lane —
-  `GET /_snapback/api/jobs`, `GET /_snapback/api/jobs/{id}` (job plus
-  append-only attempts), and the drain endpoint's synchronous receipts.
-  In **sessions auth mode** these reads can carry application-adjacent
-  data, so the admin token alone is deliberately insufficient: the
-  request must also present an operator-minted, TTL- and budget-bounded
-  secret-read lease (`x-snapback-secret-read-lease`, minted through the
-  ready-file-only CLI proof), or it refuses with
-  `SNAPBACK_ADMIN_SECRET_READ_REQUIRED`. Dev auth mode takes the
-  ordinary admin credential. This custody landed with the slice's fix
-  lane and is the shipped admin-lane posture for jobs inspection.
+  `GET /_snapback/api/jobs`, `GET /_snapback/api/jobs/{id}` (job plus its
+  attempt history: append-only attempt identities with a one-time
+  terminal completion — a row is inserted at claim and completed once
+  with its outcome, one row per attempt, never rewritten thereafter),
+  and the drain endpoint's synchronous receipts. In **sessions auth
+  mode** these reads can carry application-adjacent data, so the admin
+  token alone is deliberately insufficient: the request must also
+  present an operator-minted, TTL- and budget-bounded secret-read lease
+  (`x-snapback-secret-read-lease`, minted through the ready-file-only
+  CLI proof), or it refuses with `SNAPBACK_ADMIN_SECRET_READ_REQUIRED`.
+  Dev auth mode takes the ordinary admin credential. This custody landed
+  with the slice's fix lane and is the shipped admin-lane posture for
+  jobs inspection. (Custody-lifecycle cross-reference: the chain's proof
+  root, `<ready>.secret-read-root`, is a descriptor-scoped sidecar —
+  removed at server teardown with its parent ready descriptor, per the
+  LLP 0017 custody split, unlike the reattach-by-design `<db>.*`
+  sidecars. The G1 arm observed the pre-fix orphaning; fixed and
+  regression-pinned per the closed ticket
+  `20260801-0137-g1-orphaned-secret-read-root-sidecar.md`, with the
+  packaged closure picking the fix up at the next release cut.)
 
 Domain-result reactivity needs nothing here (it falls out of the terminal
 mutation, as LLP 0121 established); producer correlation is the
 enqueue-association section above.
 
-### Idempotency-key semantics, narrowed for v1
+### Idempotency-key semantics, as shipped
 
-The RFC's rule — same scoped key plus identical canonical bytes returns
-the existing job; divergent reuse fails
-`SNAPBACK_JOB_IDEMPOTENCY_KEY_REUSED` — is implemented with one
-narrowing: the identical-reuse fast path resolves at handler execution
-time against the read snapshot. If an identical job with the same key
-lands between that snapshot and commit, the commit fails closed with the
-typed `SNAPBACK_JOB_IDEMPOTENCY_KEY_RACED`; a retry of the mutation
-converges on the existing job. Divergent reuse fails closed in both
-places.
+The shipped contract is one exact tuple (this is also the normative
+telling for §Semantics' enqueue rule above):
+
+- **Scope.** A key is scoped to `(queue, action)` — in v1, queue is
+  always `default`. The **same key under a different action is a
+  different scope**: it never matches, never fails, and creates an
+  independent job. (The `SNAPBACK_JOB_IDEMPOTENCY_KEY_REUSED`
+  diagnostic's prose mentions "different action" loosely; the scope rule
+  above is what executes.)
+- **Identity fingerprint.** Within one scope, an enqueue is *identical*
+  when the canonical-args SHA-256 digest **and** `maxAttempts` both
+  match. `delayMs` (and therefore the derived absolute `availableAt`) is
+  **deliberately excluded**: a re-enqueue of the same intent with a
+  different delay returns the existing job with its original
+  `availableAt`, `deduplicated: true`.
+- **Identical reuse** resolves at handler execution time against the
+  read snapshot (including read-your-enqueues within the same
+  invocation's buffer) and returns the existing job.
+- **Divergent reuse** — same scope and key, but digest or `maxAttempts`
+  differs — fails closed with `SNAPBACK_JOB_IDEMPOTENCY_KEY_REUSED`, at
+  handler time and again at commit.
+- **Commit-time race.** If an identical job under the same scoped key
+  lands between the handler's snapshot and its commit, the commit fails
+  closed with the typed `SNAPBACK_JOB_IDEMPOTENCY_KEY_RACED`; a retry of
+  the mutation converges on the existing job.
 
 ### What the slice deliberately does not implement (honest gaps)
 
@@ -286,6 +372,16 @@ pinning and queue-admission epochs; restore fences; Postgres and every
 hosted/multi-worker tuple (hosted stays blocked-on per the Dynamic
 Workflows assessment below).
 
+This list is **not exhaustive**: the design sections after the boundary
+below also describe, in present-tense contract language, machinery the
+slice does not ship — among others the generated atomic terminal-result
+mutation, conditional lease renewal, the `ctx.job` execution metadata
+surface, generated failure-classification policy, weighted deficit
+round-robin scheduling and priority aging, the admin
+pause/resume/cancel/replay controls, and the backup/restore recovery
+fences. The rule is the boundary statement before §Semantics, not this
+enumeration: only what §First slice as shipped states is implemented.
+
 ### Capability posture
 
 The registry id `jobs_one_off_v1` (experimental for as long as LLP 0070
@@ -300,6 +396,18 @@ contract (LLP 0058 capability maturity); codegen emits both the
 capability requirement and the acknowledgment when the surface is
 declared — `defineSchema(..., { requiredCapabilities })` deliberately
 refuses the id, which admits schema-level target capabilities only.
+
+---
+
+**Shipped/future boundary.** Everything above this line describes the
+implemented surface and is normative for it. Everything below —
+§Semantics through §Decisions still requiring ratification — is the
+proposed complete future contract of this Draft RFC, written in
+present-tense contract language as RFC convention, and is **unshipped
+unless §First slice as shipped explicitly states otherwise**. Where a
+sentence below and the shipped section differ (admission wording,
+idempotency tuple, drain bound), the shipped section is the record of
+what exists; the text below is what is being proposed for ratification.
 
 ## Semantics
 
@@ -329,19 +437,23 @@ queue-admission epoch admits both its artifact and the job's producer ABI.
 
 A mutation calls `ctx.jobs.enqueue(reference, args, options)`. Validation and
 insertion occur in the same database transaction as the mutation's ordinary
-writes. If that transaction rolls back, no job exists. The same scoped
-idempotency key and identical canonical bytes return the existing job; reuse
-with different action, args, or policy fails as
-`SNAPBACK_JOB_IDEMPOTENCY_KEY_REUSED`.
+writes. If that transaction rolls back, no job exists. Idempotency keys are
+scoped to `(queue, action)`: within one scope, an identical intent (the
+canonical-args digest plus attempt policy) returns the existing job, while
+divergent reuse of the same key fails as
+`SNAPBACK_JOB_IDEMPOTENCY_KEY_REUSED`; the same key under a different
+action is a different scope and creates an independent job. The exact
+shipped tuple — including the deliberate exclusion of the delay from the
+identity fingerprint and the commit-time race code — is §First slice as
+shipped, idempotency-key semantics.
 
-The first profile admits generated host-plan actions only: a closed,
-artifact-owned action plan with generated validators, read/write/secret grants,
-and the LLP 0009/0047 execution envelope. Broad execution of arbitrary trusted
-application actions is a later capability. *(As shipped, 2026-07-31: the
-admission reads "manifest-declared actions under the generated host
-envelope", which covers both the HostPlan and the Ibex JS runtime forms —
-§First slice as shipped, callee-class admission. Direct mutation and query
-callees remain excluded and fail closed.)*
+The first profile admits manifest-declared actions only — in both runtime
+forms, HostPlan-planned and Ibex JS — because both execute under the
+generated host envelope: generated validators, read/write/secret grants,
+and the LLP 0009/0047 execution limits (§First slice as shipped,
+callee-class admission). Direct mutation and query callees are excluded
+and fail closed; broad execution of arbitrary trusted application actions
+is a later capability.
 
 Actions may enqueue follow-up work only through an explicit mutation, preserving
 LLP 0004's rule that actions and database commits are not one transaction.
