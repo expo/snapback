@@ -2403,6 +2403,15 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         ),
         _ => None,
     };
+    if secret_read_proof_root.is_some() {
+        if let (Some(target), Some(path)) =
+            (ready_target.as_mut(), secret_read_root_file.as_deref())
+        {
+            // Descriptor-scoped custody: the proof root is removed with the
+            // descriptor and the impersonation sidecar at shutdown (0137 G1).
+            target.adopt_secret_read_root_sibling(path)?;
+        }
+    }
     let secret_read_process_prerequisites =
         ready_target.is_some() && token_configured && secret_read_proof_root.is_some();
 
@@ -2867,6 +2876,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     drop(database_lock);
     if let Some(target) = ready_target.as_ref() {
         let _ = target.remove_impersonation_capability();
+        let _ = target.remove_secret_read_root();
         let _ = target.remove_published();
     }
     // An in-memory instance's minted token dies with the process; remove the
@@ -3071,6 +3081,7 @@ async fn run_auth_collision_recovery(
     drop(database_lock);
     if let Some(target) = ready_target.as_ref() {
         let _ = target.remove_impersonation_capability();
+        let _ = target.remove_secret_read_root();
         let _ = target.remove_published();
     }
     server_result?;
@@ -3297,6 +3308,7 @@ struct ReadyFileTarget {
     published_identity: Option<(u64, u64)>,
     parent_identity: Option<(u64, u64)>,
     impersonation_identity: Option<(PathBuf, (u64, u64))>,
+    secret_read_root_identity: Option<(PathBuf, (u64, u64))>,
     #[cfg(unix)]
     parent: std::fs::File,
 }
@@ -3363,6 +3375,7 @@ impl ReadyFileTarget {
             published_identity: None,
             parent_identity,
             impersonation_identity: None,
+            secret_read_root_identity: None,
             #[cfg(unix)]
             parent,
         })
@@ -3780,6 +3793,33 @@ impl ReadyFileTarget {
         self.remove_sibling_if_identity(path, *identity)
     }
 
+    /// Bind the secret-read proof-root sidecar this serve resolved (read or
+    /// created) to the target's cleanup custody. The sidecar is named after
+    /// and scoped to the ready descriptor, so it must not survive the
+    /// descriptor on shutdown (0137 G1) — unlike the database-scoped reattach
+    /// family (`<db>.admin-token`), which persists by design.
+    fn adopt_secret_read_root_sibling(&mut self, path: &Path) -> std::io::Result<()> {
+        #[cfg(unix)]
+        let identity = self.identity_at(self.sibling_name(path)?)?;
+        #[cfg(not(unix))]
+        let identity = existing_file_identity(path);
+        let identity = identity.ok_or_else(|| {
+            std::io::Error::new(
+                ErrorKind::NotFound,
+                "resolved secret-read root sidecar is missing",
+            )
+        })?;
+        self.secret_read_root_identity = Some((path.to_path_buf(), identity));
+        Ok(())
+    }
+
+    fn remove_secret_read_root(&self) -> std::io::Result<()> {
+        let Some((path, identity)) = self.secret_read_root_identity.as_ref() else {
+            return Ok(());
+        };
+        self.remove_sibling_if_identity(path, *identity)
+    }
+
     fn write_atomic_protected(
         &mut self,
         content: &str,
@@ -3976,6 +4016,10 @@ impl ReadyFileTarget {
 impl Drop for ReadyFileTarget {
     fn drop(&mut self) {
         let _ = self.remove_impersonation_capability();
+        // The secret-read proof root shares the descriptor's identity; a
+        // target that dies without reaching the explicit shutdown removal
+        // (startup failure, task abort) must not orphan it (0137 G1).
+        let _ = self.remove_secret_read_root();
     }
 }
 
@@ -5826,6 +5870,43 @@ mod tests {
         );
         assert!(!ready_parent.join("app.sqlite3").exists());
         assert!(!pinned_token.exists());
+    }
+
+    // 0137 G1: the secret-read proof root is descriptor-scoped custody. It is
+    // removed with the descriptor — but only the adopted inode, never a
+    // foreign replacement at the same path.
+    #[cfg(unix)]
+    #[test]
+    fn secret_read_root_cleanup_removes_only_the_adopted_identity() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut target = ReadyFileTarget::open(&dir.path().join("dev.ready.json")).unwrap();
+        let root = crate::admin_secret_read::secret_read_root_sibling(target.pinned_path());
+        let resolve = |target: &ReadyFileTarget| {
+            crate::admin_secret_read::resolve_secret_read_proof_root_with_io(
+                &root,
+                |path| target.read_owner_only_sibling(path),
+                |path, bytes| target.write_owner_only_sibling(path, bytes),
+            )
+            .unwrap()
+        };
+        resolve(&target);
+        target.adopt_secret_read_root_sibling(&root).unwrap();
+
+        // A replaced inode is not this serve's sidecar: identity-guarded
+        // removal must leave it alone.
+        std::fs::remove_file(&root).unwrap();
+        std::fs::write(&root, b"unrelated replacement").unwrap();
+        target.remove_secret_read_root().unwrap();
+        assert!(root.exists(), "a foreign inode at the sidecar path must survive");
+
+        std::fs::remove_file(&root).unwrap();
+        resolve(&target);
+        target.adopt_secret_read_root_sibling(&root).unwrap();
+        target.remove_secret_read_root().unwrap();
+        assert!(
+            !root.exists(),
+            "the adopted sidecar is removed with descriptor custody"
+        );
     }
 
     #[cfg(unix)]

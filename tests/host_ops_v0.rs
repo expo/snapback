@@ -317,3 +317,48 @@ async fn p6_ready_file_descriptor_is_written_and_validates() {
 
     server.abort();
 }
+
+// Regression (0137 G1): the `<ready>.secret-read-root` proof root is named
+// after and scoped to the ready descriptor, so descriptor custody teardown
+// must remove it — a serve that dies without it previously orphaned a 0600
+// token-like sidecar next to an already-deleted descriptor. The clean-signal
+// shutdown path removes it through the same identity-guarded helper.
+#[tokio::test]
+async fn p6_secret_read_root_sidecar_does_not_survive_descriptor_custody() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let ready_path = dir.path().join("dev.ready.json");
+    let args = snapback::cli::Args {
+        host: "127.0.0.1".to_owned(),
+        port: Some(0),
+        db: PathBuf::from(".snapback/unused.sqlite3"),
+        memory: true,
+        ready_file: Some(ready_path.clone()),
+        restored_from_backup: None,
+        startup_artifacts: None,
+        clear_desired_auth_mode: false,
+        allow_auth_downgrade: false,
+        allow_insecure_dev_auth: false,
+        auth_deployment: snapback::auth::deployment::AuthDeploymentTarget::Local,
+        hosted_edge: None,
+        hosted_admission: None,
+        cron_disabled: false,
+    };
+    let server = tokio::spawn(snapback::cli::run(args));
+
+    let root_path = dir.path().join("dev.ready.json.secret-read-root");
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    while !(ready_path.exists() && root_path.exists()) {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "ready descriptor and secret-read root never appeared"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+    }
+
+    server.abort();
+    let _ = server.await;
+    assert!(
+        !root_path.exists(),
+        "secret-read root sidecar must not outlive its ready descriptor custody"
+    );
+}
