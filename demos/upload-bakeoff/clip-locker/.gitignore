@@ -1,0 +1,7 @@
+fixtures/*.mp4
+fixtures/checksums.txt
+*/node_modules/
+*/.tmp/
+*/pocketbase
+*/pb_data/
+*/downloads/
