@@ -1,11 +1,21 @@
 # LLP 0100: Membership-addressed operations and pages
 
 **Type:** RFC
-**Status:** Review
+**Status:** Accepted
 **Systems:** Memberships, Authorization, Query planning, Pagination, Code generation, Live Queries, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-26
-**Revised:** 2026-08-01 (loop CONVERGED dual-family READY — Fable round 2,
+**Revised:** 2026-08-01 (ACCEPTED by explicit composed-parent ruling: the
+author's 2026-08-01 ballot, verbatim item 2, "ruling: accept" — the
+explicit maintainer ruling this RFC's own §Status and ratification
+boundary names as the alternative to LLP 0056 (still Review) reaching
+Accepted first, ratifying the exact composed parent slice and this RFC
+together, ahead of LLP 0056. Grounds: the converged dual-family loop —
+Fable READY at round 2, Codex READY at round 3, zero unresolved concerns
+(reviews/0100-membership-addressed-operations-and-pages.{fable,codex}.md).
+If LLP 0056's own loop later diverges from the composed slice ruled on
+here, reconciliation lands as dated amendments to this document, never as
+silent rewrites.) 2026-08-01 (loop CONVERGED dual-family READY — Fable round 2,
 Codex round 3, zero unresolved concerns; review artifacts
 reviews/0100-membership-addressed-operations-and-pages.{fable,codex}.md.
 Status advances Draft -> Review. Full acceptance honors this RFC's own
@@ -900,9 +910,12 @@ declaration, the same principals, one authorization timeline.
 
 ## Status and ratification boundary
 
-**Draft.** This authoring session is not an independent reviewer. The proposal
-authorizes no code, no default, no claim promotion, and no change to the current
-Team Chat pressure profile.
+**Accepted (2026-08-01), by the explicit composed-parent ruling this
+section defines below** — the author's ballot, verbatim: "ruling: accept",
+ratifying the composed LLP 0056 parent slice and this RFC together ahead
+of LLP 0056's own acceptance. The paragraphs below are retained as the
+boundary that ruling satisfied. (Original at authoring time: Draft; the
+converged review loop advanced it to Review on 2026-08-01, same day.)
 
 LLP 0056 itself remains in `Review`. Accepting this child cannot silently
 accept or amend its parent. Implementation requires LLP 0056 to be accepted, or
