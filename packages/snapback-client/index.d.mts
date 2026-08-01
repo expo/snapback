@@ -484,6 +484,18 @@ export interface OutboxStatus {
   readonly replaying: boolean;
 }
 
+/** Terminal-auth fact (0137 A6 f3): pure projection of the client's own
+ * terminal custody cut. `terminated: true` means this client's current
+ * authority is permanently done (for example SNAPBACK_AUTH_STREAM_RESET
+ * after a receipted reset-install) — retries will not reconnect; rebuild
+ * the session. Cleared by an explicit custody replacement. */
+export interface AuthTerminalStatus {
+  readonly terminated: boolean;
+  readonly code: string | null;
+  readonly authorityDisposition: 'carrier' | 'durableDelete' | null;
+  readonly atMs: number | null;
+}
+
 export type AuthMode = 'dev' | 'sessions';
 export type ExpectedDataVersionStreamV1 =
   | { readonly state: 'absent' }
@@ -757,6 +769,13 @@ export class SnapbackClient {
   /** Fires after every outbox transition (queue/replay/settle-failure) and
    * around each drain; returns the unsubscribe. Listeners observe only. */
   subscribeOutbox(listener: () => void): () => void;
+  /** Terminal-auth fact: is this client's current authority permanently
+   * done? Synchronous pure projection; see AuthTerminalStatus. */
+  authTerminalStatus(): AuthTerminalStatus;
+  /** Fires after a terminal-auth fact is recorded, escalated, or cleared by
+   * a custody replacement; returns the unsubscribe. Listeners observe via
+   * authTerminalStatus() and never own auth state. */
+  subscribeAuthTerminal(listener: () => void): () => void;
   /** Structured LLP 0043 M2 queue/replay diagnostics (bounded ring). */
   readonly outboxDiagnostics: readonly Record<string, unknown>[];
   action<Ref extends FunctionRef<'Action'>>(

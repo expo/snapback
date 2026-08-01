@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "7437e6e07ada684db202a3175f848baaaea050b8"
+    "commit": "c94b251b248339e45288151a24fd815324e50516"
   },
   "nav": {
     ".": [
@@ -79,6 +79,11 @@
         "id": "backend.cron",
         "order": 4,
         "title": "Scheduled execution with cron"
+      },
+      {
+        "id": "backend.jobs",
+        "order": 5,
+        "title": "One-off durable jobs"
       },
       {
         "id": "backend.versioned-seed",
@@ -697,6 +702,54 @@
         }
       ]
     },
+    "backend.jobs": {
+      "path": "guide/backend/jobs.md",
+      "title": "One-off durable jobs",
+      "order": 5,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "partial",
+      "capabilities": [
+        "backend.jobs-one-off"
+      ],
+      "authorities": [
+        "llp/0070-durable-background-work.rfc.md",
+        "llp/0070-durable-background-work.amendment-2026-07-31-first-slice.md",
+        "src/jobs.rs",
+        "src/runtime.rs",
+        "src/admin.rs",
+        "src/admin_secret_read.rs",
+        "src/cli.rs",
+        "packages/snapback-codegen/define.mjs",
+        "packages/snapback-codegen/jobs-authoring.test.mjs",
+        "packages/snapback-admin-client/index.mjs"
+      ],
+      "examples": [
+        "packages/snapback-codegen/jobs-authoring.test.mjs"
+      ],
+      "reviewed": "2026-08-01",
+      "reviewedCommit": "HEAD",
+      "sha256": "11a32a0c7d948548a80edd570124c04ffbfb58a8c50a79562378ee13156ccd46",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-codegen/jobs-authoring.test.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-codegen/jobs-authoring.test.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-codegen/jobs-authoring.test.mjs"
+        }
+      ]
+    },
     "backend.mutations": {
       "path": "guide/backend/mutations.md",
       "title": "Mutations",
@@ -1042,7 +1095,7 @@
       "examples": [],
       "reviewed": "2026-07-28",
       "reviewedCommit": "HEAD",
-      "sha256": "227c3c0dd170b532bfbb10e05178bc3daa488a220b9c2d9cb2b2540d9e6f0771",
+      "sha256": "cf8488de6e96fe42bf77b1c43e2058fdeed8f478099244e5c52172f2d4874c90",
       "snippets": []
     },
     "meta.capabilities": {
@@ -1068,7 +1121,7 @@
       "examples": [],
       "reviewed": "2026-07-27",
       "reviewedCommit": "8399da34f8bdebb2776395ee5751b57c2bd2e71f",
-      "sha256": "d9d9090c6a3626383e6b2e94d3a0557b3c63cd84343785342e0846606907d7dc",
+      "sha256": "35627bf0963e57f6bc7324b06dc267cae783e6a5e7cda7373fe26e3bcf96afc5",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1682,7 +1735,7 @@
       ],
       "reviewed": "2026-07-27",
       "reviewedCommit": "8399da34f8bdebb2776395ee5751b57c2bd2e71f",
-      "sha256": "5c5c253a0d81b6dfda6db03ae768500166c7bedb36105d8c369723e9f25ed5d4",
+      "sha256": "90c0831d9972e3bd7267f28f3010dacf5a291ffdb97171a3608965c7206b00eb",
       "snippets": []
     },
     "operating.admin-console": {
@@ -2274,6 +2327,7 @@
       "backend.codegen",
       "backend.cron",
       "backend.functions",
+      "backend.jobs-one-off",
       "backend.provisioning",
       "backend.query-semantics",
       "backend.relational-queries",
@@ -2319,7 +2373,6 @@
     ],
     "gaps": [
       "backend.bounded-children-v1",
-      "backend.jobs-one-off",
       "backend.notifications",
       "backend.vector-search",
       "backend.write-activity-v1",
@@ -2332,5 +2385,5 @@
     "routes": 86,
     "hostOps": 28
   },
-  "contentHash": "56557b94941f9bf4cc6ab8574433ab465b6abc0856c82acd1b571e576af627a1"
+  "contentHash": "b1b620c02f4d5c56a9a6d9d81e97efc98118fad2c605ccb0e5cd215457c660d9"
 }

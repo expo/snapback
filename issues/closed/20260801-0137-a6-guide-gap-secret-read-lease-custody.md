@@ -36,3 +36,38 @@ The custody design itself is good (operator-minted, ready-file-bound,
 scoped/budgeted leases; the admin token deliberately cannot read
 secrets alone) — this ticket is exclusively about writing it down where
 the already-owed jobs guide page will live.
+
+---
+
+**Status:** Resolved (2026-08-01, 0137 between-arms fix lane)
+
+**Resolution.** The jobs guide page now exists: `guide/backend/jobs.md`
+(id `backend.jobs`, capability `backend.jobs-one-off`, maturity partial,
+local target), with CI-transcluded authoring snippets from
+`packages/snapback-codegen/jobs-authoring.test.mjs`. It covers everything
+this ticket names:
+
+- the full enqueue options vocabulary (`delayMs` + 30-day horizon,
+  `idempotencyKey` semantics with all three refusal codes, `maxAttempts`
+  1..8) plus the paved default-queue limits and the
+  enqueue-admission/callee-class refusals;
+- the drain seam (`POST /_snapback/api/jobs/drain` `{nowMs, maxWaves}`,
+  `AdminClient.drainJobs`, `SNAPBACK_JOBS_DISABLED`);
+- the admin custody lane: the secret-read lease, the mint route
+  (`/_snapback/api/admin-secret-read/mint`), the
+  `x-snapback-secret-read-lease` header, the first-class
+  `snapback secret-read-mint --ready-file ... --admin-inspect` CLI with
+  every scope/budget flag, why minting is ready-file-only, and the exact
+  discovery-ladder codes this arm walked
+  (`SNAPBACK_ADMIN_SECRET_READ_REQUIRED` →
+  `SNAPBACK_ADMIN_SECRET_READ_PROOF_INVALID` →
+  `SNAPBACK_ADMIN_TOKEN_REQUIRED`), with the sessions-mode-only scoping
+  stated precisely (dev mode takes the admin credential alone).
+
+The adjacent trap is fixed at its source: define.d.ts and define.mjs now
+say codegen itself emits both the `jobs_one_off_v1` requirement and the
+acknowledgment, and explicitly warn that
+`defineSchema(..., { requiredCapabilities: ['jobs_one_off_v1'] })` refuses
+(verified against the define-time allowlist). The capability-index row's
+GAP cell now points at the page; the index nav lists it;
+`node scripts/check-guide.mjs` is green (46 pages, 124 snippets).

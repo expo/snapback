@@ -1123,8 +1123,11 @@ export const defineQuery = (spec) => queryDef('Query', spec);
  * option 3): an ordinary live query over one job's privacy-bounded lifecycle
  * projection — never an ambient system table. Args are fixed (`jobId`), the
  * projection shape is server-owned, and observability scope is the declared
- * auth requirement. Requires the experimental `jobs_one_off_v1` target
- * capability; codegen emits the acknowledgment because LLP 0070 is Draft.
+ * auth requirement. Declaring it is the whole authoring step: codegen itself
+ * emits both the experimental `jobs_one_off_v1` capability requirement and
+ * the artifact-level acknowledgment (LLP 0070 is Draft). Never add
+ * `jobs_one_off_v1` to `defineSchema(..., { requiredCapabilities })` — that
+ * option admits schema-level target capabilities only and refuses this id.
  */
 export function defineJobStatusQuery(spec = {}) {
   assertKnownSpecFields(spec, 'JobStatusQuery', new Set(['auth']));

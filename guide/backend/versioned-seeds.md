@@ -74,6 +74,29 @@ Automation can instead use the corresponding
 require AdminWrite plus the NonProd profile, and host-operation bodies place
 the closed seed request only under `input`.
 
+## Expect the reset blast radius on connected clients
+
+A receipted reset-install (or clear) retires the **entire pre-reset world**,
+deliberately including authority — reset never resurrects it. Every already
+connected client is permanently done, not transiently disconnected:
+
+- Live-query holders receive `SNAPBACK_AUTH_STREAM_RESET` as a **terminal**
+  error; the client closes for auth and reconnect retries will not recover
+  it.
+- Pre-reset session tokens invalidate globally: later mutations from any
+  client still holding one fail `SNAPBACK_AUTH_REQUIRED`.
+- A fresh email-code sign-in for the same email mints a **new** principal,
+  so seats/roles must be re-entered through whatever the restored seed
+  provides (for example invites); nothing re-links the old principal.
+
+Rigs and admin tools should not learn this from an incidental throw out of
+an unrelated await: `SnapbackClient.authTerminalStatus()` is the synchronous
+terminal-auth fact (`{ terminated, code, authorityDisposition, atMs }`), and
+`subscribeAuthTerminal(listener)` fires at the cut — rebuild the session
+(fresh sign-in or explicit custody replacement, which clears the fact)
+instead of retrying. Suites that reset mid-run must plan to re-authenticate
+every persona afterwards.
+
 ## Interpret refusals
 
 - `SNAPBACK_SEED_MIGRATION_REQUIRED`: migrate, or explicitly reset-install.

@@ -69,6 +69,32 @@ export const jobStatus = defineJobStatusQuery({ auth: 'authenticated' });
     { HostPlan: { JobStatusQuery: {} } },
     'the runtime is the Rust-owned JobStatusQuery plan, not an app table read',
   );
+  // Regression pin (0137 A6 f1): the read-set summary and effect ceiling name
+  // the reserved `_snapback_jobs` projection — the exact logical stream the
+  // runtime's summary builder and live matcher pin. The runtime's
+  // schema-reference preflight admits precisely this shape (read-only, on the
+  // job-status plan); renaming either side makes every declaring app
+  // unbootable at load.
+  assert.deepEqual(
+    jobStatus.readSetSummary,
+    {
+      authScopeField: null,
+      mode: 'singleTable',
+      primaryTable: '_snapback_jobs',
+      tables: ['_snapback_jobs'],
+    },
+    'the job-status read summary names the reserved projection',
+  );
+  assert.deepEqual(
+    jobStatus.writeSetSummary,
+    { mode: 'none', primaryTable: null, tables: [] },
+    'the job-status query never declares writes',
+  );
+  assert.deepEqual(
+    jobStatus.effectCeiling.reads,
+    [{ access: 'point', table: '_snapback_jobs' }],
+    'the effect ceiling carries the same reserved point read',
+  );
   assert.equal(jobStatus.authRequirement, 'authenticated');
   assert.ok(
     jobStatus.requiredCapabilities.includes('jobs_one_off_v1'),

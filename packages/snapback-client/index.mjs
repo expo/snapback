@@ -1759,6 +1759,12 @@ export class SnapbackClient {
     this.__terminalAuthorityCapture = undefined;
     this.__terminalAuthorityHandle = null;
     this.__terminalTransportCut = null;
+    // Terminal-auth projection state (0137 A6 f3): the recorded fact behind
+    // authTerminalStatus()/subscribeAuthTerminal(). Recorded at the single
+    // terminal choke point (handleTerminalAuthLoss) and the counter-failure
+    // cut; cleared only by the explicit custody-replacement barriers.
+    this.__authTerminalFact = null;
+    this.__authTerminalListeners = new Set();
     this.__authTransportParticipant = {
       name: 'snapback-kit-transport',
       quiesce: (context = {}) => {
@@ -1836,6 +1842,7 @@ export class SnapbackClient {
           this.__terminalAuthorityCapture = undefined;
           this.__terminalAuthorityHandle = null;
           this.__terminalTransportCut = null;
+          this.#clearAuthTerminalFact();
           return;
         }
         await this.#resumeAuthTransport(context.capture, context.stagePublication);
@@ -1871,6 +1878,7 @@ export class SnapbackClient {
       try { capture = this.authorityFence?.capture?.() ?? null; } catch { /* already clearing */ }
       this.__authCounterError = error;
       if (capture !== null) this.__terminalAuthorityCapture = capture;
+      this.#recordAuthTerminalFact(error, 'carrier');
       this.#performAuthCounterTerminalCut(error, capture);
     }
     return this.__authCounterError;
@@ -2233,6 +2241,7 @@ export class SnapbackClient {
       this.__terminalAuthorityCapture = undefined;
       this.__terminalAuthorityHandle = null;
       this.__terminalTransportCut = null;
+      this.#clearAuthTerminalFact();
 
       if (token !== null) {
         const resumes = await Promise.allSettled(
@@ -2318,6 +2327,7 @@ export class SnapbackClient {
     this.__terminalAuthorityCapture = undefined;
     this.__terminalAuthorityHandle = null;
     this.__terminalTransportCut = null;
+    this.#clearAuthTerminalFact();
     return capture;
   }
 
@@ -2591,6 +2601,7 @@ export class SnapbackClient {
         });
         if (escalated && typeof escalated === 'object') {
           this.__terminalAuthorityHandle = escalated;
+          this.#recordAuthTerminalFact(error, authorityDisposition);
           return escalated;
         }
       }
@@ -2616,6 +2627,7 @@ export class SnapbackClient {
       && (!capture || !this.authorityFence.isCurrent?.(capture))
     ) return false;
     this.__terminalAuthorityCapture = capture ?? null;
+    this.#recordAuthTerminalFact(error, authorityDisposition);
 
     if (this.agentAuthority) {
       // AgentAuthorityFence owns the synchronous transport participant barrier.
@@ -3121,6 +3133,7 @@ export class SnapbackClient {
       this.__terminalAuthorityCapture = undefined;
       this.__terminalAuthorityHandle = null;
       this.__terminalTransportCut = null;
+      this.#clearAuthTerminalFact();
       return this.#cacheAuthSession(session, capture);
     });
   }
@@ -5086,6 +5099,68 @@ export class SnapbackClient {
     }
     this.__outboxListeners.add(listener);
     return () => { this.__outboxListeners.delete(listener); };
+  }
+
+  /// Terminal-auth fact for rigs and admin tools (0137 A6 f3): a pure
+  /// projection of the custody cut this client already performs on a
+  /// terminal auth loss (SNAPBACK_AUTH_STREAM_RESET after a receipted
+  /// reset-install, session revocation, finite auth refusals).
+  /// `terminated: true` means this client's current authority is permanently
+  /// done — reconnect retries will not recover it; rebuild the session
+  /// (fresh sign-in or an explicit custody replacement such as
+  /// replaceBearerToken / replaceAgentCredential), which clears the fact.
+  /// The projection changes nothing: recording happens at the existing
+  /// terminal choke point, and the authority posture (reset never
+  /// resurrects authority) is untouched.
+  authTerminalStatus() {
+    return this.__authTerminalFact ?? Object.freeze({
+      terminated: false,
+      code: null,
+      authorityDisposition: null,
+      atMs: null,
+    });
+  }
+
+  /// Notification seam for the terminal-auth projection: fires after a
+  /// terminal fact is recorded or escalated (carrier → durableDelete) and
+  /// after a custody replacement clears it. Listeners observe via
+  /// authTerminalStatus(); they never own auth state, and a throwing
+  /// listener cannot perturb the custody cut.
+  subscribeAuthTerminal(listener) {
+    if (typeof listener !== 'function') {
+      throw new TypeError('subscribeAuthTerminal requires a listener function');
+    }
+    this.__authTerminalListeners.add(listener);
+    return () => { this.__authTerminalListeners.delete(listener); };
+  }
+
+  #recordAuthTerminalFact(error, authorityDisposition) {
+    const code = error?.diagnostic?.code ?? error?.code ?? null;
+    const previous = this.__authTerminalFact;
+    if (
+      previous
+      && previous.code === code
+      && previous.authorityDisposition === authorityDisposition
+    ) return;
+    this.__authTerminalFact = Object.freeze({
+      terminated: true,
+      code,
+      authorityDisposition,
+      atMs: Date.now(),
+    });
+    this.#notifyAuthTerminalListeners();
+  }
+
+  #clearAuthTerminalFact() {
+    if (this.__authTerminalFact === null) return;
+    this.__authTerminalFact = null;
+    this.#notifyAuthTerminalListeners();
+  }
+
+  #notifyAuthTerminalListeners() {
+    for (const listener of [...this.__authTerminalListeners]) {
+      try { listener(); } catch { /* observation cannot own auth state */ }
+    }
   }
 
   /// Durable enqueue of one refused-by-connectivity mutation intent.

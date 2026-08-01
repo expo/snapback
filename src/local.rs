@@ -20444,12 +20444,40 @@ fn validate_function_schema_references(
                 .collect();
             validate_write_activity_schema_plan(plan, schema, &projection_outputs)?;
         }
+        // The declared job-status query reads the reserved `_snapback_jobs`
+        // projection — the logical stream name the live matcher and the Rust
+        // read-summary builder pin, which no application schema can declare.
+        // Codegen honestly manifests that read (summary and effect ceiling),
+        // so the schema lookup must admit it — but only as a read, and only
+        // for the job-status plan; every other dependency stays validated
+        // against the application schema (0137 A6 f1: this loop refusing the
+        // reserved name made any app declaring defineJobStatusQuery
+        // unbootable).
+        // @ref LLP 0070#inspection-audit-and-recovery — the job-status query
+        //   is an ordinary declared operation over the reserved projection,
+        //   never an ambient system table.
+        let reserved_job_status_read = |name: &str| {
+            name == crate::jobs::JOBS_STATUS_TABLE
+                && matches!(
+                    function.runtime,
+                    FunctionRuntime::HostPlan(HandlerPlan::JobStatusQuery(_))
+                )
+        };
         for dependency in function
             .read_set_summary
             .tables
             .iter()
-            .chain(function.write_set_summary.tables.iter())
             .chain(function.read_set_summary.primary_table.iter())
+        {
+            if reserved_job_status_read(dependency) {
+                continue;
+            }
+            table(dependency)?;
+        }
+        for dependency in function
+            .write_set_summary
+            .tables
+            .iter()
             .chain(function.write_set_summary.primary_table.iter())
         {
             table(dependency)?;
@@ -39510,6 +39538,201 @@ globalThis.__snapbackHandlers = {
             settled["rows"][0]["producerFunction"],
             json!("scheduleOnly"),
             "the job row carries its producer association into the live view"
+        );
+    }
+
+    /// The declared job-status query exactly as codegen manifests it: the
+    /// read-set summary and effect ceiling both name the reserved
+    /// `_snapback_jobs` projection (the logical stream the live matcher and
+    /// the Rust summary builder pin — never an application table).
+    fn codegen_shaped_job_status_query(name: &str) -> FunctionDefinition {
+        let mut function = FunctionDefinition::new(
+            name,
+            FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::JobStatusQuery(
+                crate::manifest::JobStatusQueryPlanV1::default(),
+            )),
+        );
+        function.required_capabilities = vec![
+            "live_subscriptions".to_owned(),
+            "jobs_one_off_v1".to_owned(),
+        ];
+        function.read_set_summary = crate::manifest::DependencySummary {
+            primary_table: Some(crate::jobs::JOBS_STATUS_TABLE.to_owned()),
+            tables: vec![crate::jobs::JOBS_STATUS_TABLE.to_owned()],
+            mode: Some("singleTable".to_owned()),
+            auth_scope_field: None,
+        };
+        function.effect_ceiling = Some(crate::manifest::EffectCeiling {
+            version: "EffectCeilingV1".to_owned(),
+            basis: "static".to_owned(),
+            reads: vec![crate::manifest::EffectCeilingRead {
+                table: crate::jobs::JOBS_STATUS_TABLE.to_owned(),
+                access: "point".to_owned(),
+                index: None,
+            }],
+            writes: Vec::new(),
+            host_operations: Vec::new(),
+            authorization_inputs: Vec::new(),
+        });
+        function
+    }
+
+    /// Regression (0137 A6 f1): one declared `defineJobStatusQuery()` line
+    /// made the whole app unbootable. Codegen emits the query's read-set
+    /// summary and effect ceiling over the reserved `_snapback_jobs`
+    /// projection, but the whole-manifest schema-reference preflight looked
+    /// that name up in the application schema and refused the manifest at
+    /// load (SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID — `snapback dev`
+    /// exited before dev.ready.json). The codegen-shaped manifest must
+    /// activate alongside an ordinary app schema and serve the pending job
+    /// row through the live subscription machinery.
+    #[test]
+    fn codegen_shaped_job_status_query_boots_with_an_app_schema_and_serves_live() {
+        let mut snapback = LocalSnapback::memory().expect("memory instance");
+        // The A6 arm's shape: an ordinary application schema is present, so
+        // the summary validation runs against it and must not look the
+        // reserved projection up there.
+        snapback
+            .apply_schema(rqs_schema())
+            .expect("apply app schema");
+        let manifest = FunctionManifest {
+            functions: vec![
+                FunctionDefinition::new(
+                    "scheduleOnly",
+                    FunctionKind::Mutation,
+                    FunctionRuntime::IbexModule(IbexModule {
+                        source: "globalThis.__snapbackHandlers = {\
+                             async scheduleOnly(ctx, args) {\
+                               return await ctx.jobs.enqueue(\
+                                 'inertNotify', { tag: args.tag },\
+                                 { delayMs: args.delayMs || 0 });\
+                             } };"
+                            .to_owned(),
+                        export: "scheduleOnly".to_owned(),
+                    }),
+                ),
+                FunctionDefinition::new(
+                    "inertNotify",
+                    FunctionKind::Action,
+                    FunctionRuntime::HostPlan(HandlerPlan::Action(crate::manifest::ActionPlan {
+                        steps: Vec::new(),
+                        return_value: None,
+                    })),
+                ),
+                codegen_shaped_job_status_query("jobStatus"),
+            ],
+            acknowledged_experimental_capabilities: vec!["jobs_one_off_v1".to_owned()],
+            ..FunctionManifest::default()
+        };
+        let diagnostics = snapback.load_functions(manifest);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.severity
+                    != crate::diagnostic::DiagnosticSeverity::Error),
+            "the codegen-shaped job-status manifest must activate: {diagnostics:?}"
+        );
+
+        let output = snapback
+            .invoke_mutation(
+                "scheduleOnly",
+                HandlerInput {
+                    args: json!({ "tag": "alpha", "delayMs": 60_000 }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("enqueueing mutation commits");
+        let job_id = output.result["jobId"]
+            .as_str()
+            .expect("enqueue returns jobId")
+            .to_owned();
+
+        let subscribed = snapback
+            .subscribe_live(
+                "jobStatus",
+                LiveSubscribeInput {
+                    connection_id: "conn-jobs-boot".to_owned(),
+                    input: HandlerInput {
+                        args: json!({ "jobId": job_id }),
+                        ..HandlerInput::default()
+                    },
+                    authorization_namespace: None,
+                    supersedes: None,
+                    resume_from_token: None,
+                },
+            )
+            .expect("subscribe job status");
+        let snapshot = subscribed.snapshot.expect("initial snapshot");
+        assert_eq!(snapshot.rows.len(), 1, "the pending job is served live");
+        assert_eq!(snapshot.rows[0]["state"], "pending");
+        assert_eq!(snapshot.rows[0]["jobId"], json!(job_id));
+    }
+
+    /// The reserved-projection admission stays exactly as narrow as the
+    /// design: only the job-status plan's read set may name
+    /// `_snapback_jobs`. Any other runtime declaring it — and any write-set
+    /// naming it — keeps the schema-reference refusal (fail closed).
+    #[test]
+    fn reserved_job_projection_admission_stays_narrow() {
+        let schema_reference_invalid = |diagnostics: &[crate::diagnostic::Diagnostic]| {
+            diagnostics.iter().any(|d| {
+                d.code == "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID"
+                    || d.message
+                        .contains("SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID")
+            })
+        };
+
+        // An opaque handler declaring a read on the reserved projection is
+        // not a job-status plan: refused.
+        let mut opaque = FunctionDefinition::new(
+            "opaqueJobsReader",
+            FunctionKind::Query,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: "globalThis.__snapbackHandlers = {};".to_owned(),
+                export: "opaqueJobsReader".to_owned(),
+            }),
+        );
+        opaque.read_set_summary = crate::manifest::DependencySummary {
+            primary_table: Some(crate::jobs::JOBS_STATUS_TABLE.to_owned()),
+            tables: vec![crate::jobs::JOBS_STATUS_TABLE.to_owned()],
+            mode: Some("handlerDeclared".to_owned()),
+            auth_scope_field: None,
+        };
+        let mut snapback = LocalSnapback::memory().expect("memory instance");
+        snapback
+            .apply_schema(rqs_schema())
+            .expect("apply app schema");
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![opaque],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            schema_reference_invalid(&diagnostics),
+            "a non-job-status read of the reserved projection must refuse: {diagnostics:?}"
+        );
+
+        // Even the job-status plan may never declare a WRITE on the
+        // reserved projection.
+        let mut writer = codegen_shaped_job_status_query("jobStatusWriter");
+        writer.write_set_summary = crate::manifest::DependencySummary {
+            primary_table: Some(crate::jobs::JOBS_STATUS_TABLE.to_owned()),
+            tables: vec![crate::jobs::JOBS_STATUS_TABLE.to_owned()],
+            mode: Some("mutationPlan".to_owned()),
+            auth_scope_field: None,
+        };
+        let mut snapback = LocalSnapback::memory().expect("memory instance");
+        snapback
+            .apply_schema(rqs_schema())
+            .expect("apply app schema");
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![writer],
+            acknowledged_experimental_capabilities: vec!["jobs_one_off_v1".to_owned()],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            schema_reference_invalid(&diagnostics),
+            "a declared write on the reserved projection must refuse: {diagnostics:?}"
         );
     }
 

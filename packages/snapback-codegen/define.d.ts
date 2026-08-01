@@ -469,8 +469,12 @@ export declare function defineLiveQuery(spec: HostPlanQuerySpec): unknown;
 /**
  * The generated declared job-status query (LLP 0070 first slice; LLP 0121
  * option 3): an ordinary live query over one job's privacy-bounded lifecycle
- * projection. Args are fixed (`jobId: v.string()`); requires the experimental
- * `jobs_one_off_v1` target capability, acknowledged by codegen.
+ * projection. Args are fixed (`jobId: v.string()`). Declaring it is the whole
+ * authoring step: codegen itself emits both the experimental
+ * `jobs_one_off_v1` capability requirement and the artifact-level
+ * experimental acknowledgment. Do NOT add `jobs_one_off_v1` to
+ * `defineSchema(..., { requiredCapabilities })` — that option admits
+ * schema-level target capabilities only and refuses this id as unknown.
  */
 export declare function defineJobStatusQuery(spec?: {
   auth?: AuthRequirement;

@@ -236,6 +236,53 @@ await withHarness({}, async ({ client, harness }) => {
   );
 });
 
+// 0137 A6 f3: a terminal auth loss (e.g. SNAPBACK_AUTH_STREAM_RESET after a
+// receipted reset-install) previously surfaced only as a thrown code out of
+// whatever op a consumer awaited next. The client now projects the fact:
+// authTerminalStatus() flips to terminated at the cut, subscribeAuthTerminal
+// fires at the transition, and an explicit custody replacement clears both.
+// The authority posture is untouched — this is observation only.
+await withHarness({}, async ({ client, harness }) => {
+  const handle = await openHandle(client);
+  harness.retire(handle.subscriptionId);
+  assert.deepEqual(
+    client.authTerminalStatus(),
+    { terminated: false, code: null, authorityDisposition: null, atMs: null },
+    'a live client projects a non-terminal fact',
+  );
+  let notifications = 0;
+  const unsubscribe = client.subscribeAuthTerminal(() => { notifications += 1; });
+  const reset = new Error(
+    'SNAPBACK_AUTH_STREAM_RESET: the pre-reset world was retired',
+  );
+  reset.code = 'SNAPBACK_AUTH_STREAM_RESET';
+  reset.diagnostic = { code: reset.code, message: 'the pre-reset world was retired' };
+  reset.authorityDisposition = 'durableDelete';
+  const terminal = client.handleTerminalAuthLoss(null, reset);
+  await terminal.settlement;
+  const status = client.authTerminalStatus();
+  assert.equal(status.terminated, true, 'the cut records a terminal fact');
+  assert.equal(status.code, 'SNAPBACK_AUTH_STREAM_RESET');
+  assert.equal(status.authorityDisposition, 'durableDelete');
+  assert.ok(Number.isFinite(status.atMs), 'the fact carries its recording time');
+  assert.equal(notifications, 1, 'the terminal transition notifies exactly once');
+  assert.throws(
+    () => { client.authTerminalStatus().terminated = false; },
+    TypeError,
+    'the projected fact is frozen',
+  );
+  // A repeated identical loss is not a new transition.
+  client.handleTerminalAuthLoss(null, reset);
+  assert.equal(notifications, 1, 'repeat identical losses do not re-notify');
+  // The explicit custody replacement is the rebuild path: it clears the
+  // fact and notifies so rigs re-render from authTerminalStatus().
+  await client.replaceBearerToken(null);
+  assert.equal(client.authTerminalStatus().terminated, false, 'custody replacement clears the fact');
+  assert.equal(notifications, 2, 'the clear is an observable transition');
+  unsubscribe();
+  await settleBestEffortCleanup();
+});
+
 await withHarness({ unsubscribe: 'ownership-mismatch' }, async ({ client }) => {
   const handle = await openHandle(client);
   await assert.rejects(
