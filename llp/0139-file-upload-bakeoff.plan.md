@@ -5,7 +5,10 @@
 **Systems:** Assets, Storage, Client integration, Testing, Research
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-01
-**Revised:** 2026-08-01 (initial; commissioned by Charlie: "do a bakeoff
+**Revised:** 2026-08-01, later same day (synthesis landed: §Findings
+filled from diaries 0048/0048-clip-locker/0049 and the per-arm receipts;
+summary at `demos/upload-bakeoff/reports/summary.md`; steal-and-fix
+tickets filed; program ticket closed). Initial same day (commissioned by Charlie: "do a bakeoff
 focused on a few different apps that work out file upload in various ways
 vs. convex, supabase, firebase, anything else you think might be a
 compelling option that could be best in class in certain ways. keep
@@ -105,9 +108,66 @@ export); diagnostics quality when the author holds it wrong.
 
 ## Findings
 
-Recorded at synthesis; empty at freeze.
+Synthesis landed 2026-08-01; the full evidence-cited version is
+`demos/upload-bakeoff/reports/summary.md`, over diaries 0048 (Faceplate),
+0049 (Party Wall), and 0048-clip-locker, with per-arm receipts committed
+beside each arm.
+
+**Headline thesis.** Most of the field runs file bytes under a different
+authority system than the application data that justifies them, and the
+two systems disagree exactly when it matters — after replacement,
+revocation, and deletion. Snapback and (by the opposite mechanism)
+PocketBase are the two arms without that split: Snapback because one
+declared sharing system gates feed and bytes per-request, PocketBase
+because the file *is* the record field — though its bytes ignore its
+rule system entirely (public-by-URL default).
+
+**Per-axis best-in-class calls** (never averaged; details and rankings
+in the summary): ceremony/time-to-first-byte — PocketBase, decisively;
+upload robustness (resumability truth, measured in re-transmitted
+bytes) — Snapback (0 bytes; Supabase 0-with-custody-homework at 40 MB,
+Firebase in-process-only re-sent all, Convex/PocketBase no protocol);
+privacy defaults — Snapback alone in the field (only arm whose served
+media provably lost GPS, images and video; two competitors serve
+uploader coordinates to anonymous URL holders); authorization
+integration depth — Snapback; realtime integration — Snapback (with
+PocketBase's per-delivery SSE rules and Supabase's per-delivery RLS the
+strongest competitors; nobody else pushes thumbnail readiness);
+media pipeline — Snapback on capability, PocketBase on DX
+(`?thumb=` beats pre-declared variants ergonomically); delivery
+ergonomics — PocketBase (Convex's suffix-range 500 is the axis's one
+outright bug); deletion truth — Snapback and PocketBase by different
+guarantees; local story — Snapback and Firebase's emulator are the only
+high-fidelity local stories; operational surface — Snapback (Convex's
+queryable sha256 the one strictly-better competitor idea); diagnostics
+quality — Snapback (Supabase's RLS-recursion-as-storage-503 the worst
+distance-from-cause measured).
+
+**Snapback's own report card:** one real product defect (the policy
+gate's 2 MiB inspection ceiling 413'd the client's own default 4 MiB
+TUS chunk — default config could not upload a 120 MB video; ticketed at
+discovery, fixed in a parallel landing) and three deficits ticketed
+from the steal list: canonical-digest opacity (vs. Convex),
+ceremony floor and thumbs-on-demand (vs. PocketBase — the ticket
+proposes reopening 0044's deferred dynamic-transform non-goal with this
+evidence), and limits discoverability ergonomics (vs. the field's
+discover-by-failure norm, which Snapback's manifest beats server-side
+but the client does not yet consume as preflight).
+
+**Method findings:** Convex deploys are deployment-global — parallel
+arms interfered (ticketed as a standing bakeoff hazard); Firebase
+hosted Storage has a billing cliff before the first byte (access-gapped
+here, emulator posture used); Cloudflare R2 needs interactive account
+enablement (arm code complete, recorded access-gapped); Supabase's
+120 MB refusal is a project-plan fact. Untested contenders named in the
+summary: Uploadthing, Mux, Appwrite, R2-hosted, Firebase-hosted.
 
 ## Status
 
-Active; commissioned 2026-08-01. Arms and diaries land as built; the
-summary lands with the synthesis.
+Active; commissioned 2026-08-01; all three apps built and landed same
+day (16 working arms + 3 access-gapped postures recorded); synthesis
+landed 2026-08-01 (`demos/upload-bakeoff/reports/summary.md` +
+§Findings above). Remaining live value: the access-gapped arms are
+runnable the moment access exists (R2 enablement, Firebase Blaze, or
+Uploadthing/Mux credentials), and the steal-and-fix tickets carry the
+program's Snapback follow-ups.
