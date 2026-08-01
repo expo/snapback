@@ -180,9 +180,29 @@ jobs:
           '
           artifact_root="$HOME/snapback-staging"
           mkdir -p "$artifact_root/linux" "$artifact_root/darwin"
-          tar -xzf "${{ steps.linux_artifact.outputs.artifact_path }}" \
+          mkdir -p .eas-artifacts
+          stage_download() {
+            source_path="$1"
+            filename="$2"
+            destination="$3"
+            if [ -d "$source_path" ]; then
+              source_path="$source_path/$filename"
+            fi
+            test -f "$source_path"
+            cp "$source_path" "$destination"
+            gzip -t "$destination"
+          }
+          stage_download \
+            ${{ steps.linux_artifact.outputs.artifact_path }} \
+            snapback-linux-runtime.tar.gz \
+            .eas-artifacts/snapback-linux-runtime.tar.gz
+          stage_download \
+            ${{ steps.darwin_artifact.outputs.artifact_path }} \
+            snapback-darwin-runtime.tar.gz \
+            .eas-artifacts/snapback-darwin-runtime.tar.gz
+          tar -xzf .eas-artifacts/snapback-linux-runtime.tar.gz \
             -C "$artifact_root/linux"
-          tar -xzf "${{ steps.darwin_artifact.outputs.artifact_path }}" \
+          tar -xzf .eas-artifacts/snapback-darwin-runtime.tar.gz \
             -C "$artifact_root/darwin"
 
           darwin_identity="$($artifact_root/darwin/bin/snapback build-identity)"
@@ -226,7 +246,6 @@ jobs:
             }
           '
           test -z "$(git status --porcelain --untracked-files=all)"
-          mkdir -p .eas-artifacts
           tar -czf .eas-artifacts/snapback-qualified-tarballs.tar.gz \
             -C "$SNAPBACK_PACKAGE_OUT" .
 
