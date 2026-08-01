@@ -462,3 +462,145 @@ existing binding with the cross-resource acceptance negative, and fold the
 should-fix/detail items opportunistically. Then round 2 (delta review, both
 families). The ratification path (LLP 0056 boundary) can be decided in
 parallel per open question 3.
+
+## Round 2 — delta review of v0.3 (Fable, 2026-08-01)
+
+**Reviewer family:** Fable (Claude) · claude-code session (Claude Fable 5) ·
+same reviewer session lineage as the Round 1 section above; the codex
+artifact remains unread (mutual blindness).
+**Redacted:** No — full local repository access; `.agent-local-secrets.md`
+not read.
+**Method:** Delta review per the loop commission: verify each Round 1
+concern's recorded disposition against the v0.3 text and the current tree
+(origin/main at `ee66e20f`), check the changed text for fresh defects, and
+spot-verify every new tree citation.
+**Target:** `llp/0100-membership-addressed-operations-and-pages.rfc.md` (v0.3, 837 lines)
+**Target SHA-256:** `5261cce83b62a478f25b076205733fac12bd6971b6fce3c37ec1fbd255520dfd` (verified)
+
+### Per-concern disposition check (Round 1 concerns 1–10)
+
+1. **MATERIAL, search visibility — RESOLVED by routing (§8a).** Named owner
+   (LLP 0073 dated amendment), pinned interface
+   (`{ kind: 'membership', declaration, resourceField, roles }`), and
+   falsifiable obligations: one-snapshot seat resolution + posting recheck,
+   outsider result byte-identical to nonexistent-resource, revocation
+   zeroes the next search, the search continuation gains §5's
+   authorization binding, mandatory member/outsider/revoked cases. The
+   fail-closed status-quo claim verified: `SearchVisibilityV1` is closed to
+   `public-read | owner` (src/search/types.rs:41–44) and re-enforced at
+   authoring (define.mjs:607–608), so nothing partial can ship — the
+   deferral-safety argument holds. The routing is pinned tightly enough to
+   hold its owner. (Supporting precedent the RFC could optionally cite:
+   asset sharing already carries a `membership` kind —
+   `ASSET_SHARING_KINDS`, define.mjs:129 — so the variant name has in-tree
+   family precedent.)
+2. **MATERIAL, seed/reset — RESOLVED by routing (§8b).** Named owner
+   (LLP 0109 dated amendment composed with LLP 0056), pinned interface:
+   admission only through the existing `MembershipWriter::Seed` carrier
+   (verified: src/storage.rs:11842, with `::Import` at 11843, both in the
+   closed enumeration and unreachable from the receipted lane today),
+   full declaration validation, membership tables as reset targets, atomic
+   receipted reset with LLP 0056 event-1 consequences, the ticket's own
+   runtime-seat-retired witness. `validate_versioned_seed_request` cite
+   verified (src/storage.rs:1062). §1's trusted-migration/import sentence
+   is honestly reconciled ("currently names only the unreceipted
+   id-addressed methods"). Resolved.
+3. **Should-fix, §1 baseline — RESOLVED; the recorded partial rejection is
+   correct and I concede it.** The baseline refresh is accurate
+   (`MY_MEMBERSHIPS_LIVE_FUNCTION`, src/local.rs:2863; landed `67da515f`;
+   LLP 0056 dated amendment cross-referenced both ways). The author
+   rejected my suggestion to cite the projection inside the §1 disclosure
+   argument, with evidence: the projection returns only the **caller's
+   own** seats, so it says nothing about a removal *target* and cannot
+   substitute for the display-roster premise that argument rests on. The
+   evidence holds — my Round 1 suggestion conflated "host-owned membership
+   observable" with "observable about the target"; the rejection is right.
+4. **Should-fix, §5 custody baseline — RESOLVED, and better than asked.**
+   §5 now states the inherited-vs-new delta explicitly, names the current
+   binding truthfully (verified again: `standard_pattern_cursor_binding`
+   still exactly at src/local.rs:21370; filter *shapes* with symbolic
+   `Arg`s; per-user permission-scope epoch; custody-not-digest for
+   instance binding; profile registry refusing non-owned helpers inside
+   `standard_pattern_keyset_facts`, src/local.rs:21325–21331), defines
+   pair identity as the boundary-filter exclusion (which the current code
+   does implement), and adds the implementation bridge naming a real seam
+   for every new member — all five spot-verified: LLP 0131's
+   `validate_function_args` ingress (landed; src/args_contract.rs, called
+   from src/local.rs), the durable `AuthorizationVersion`
+   (src/storage.rs:272; the local.rs:11035–11038 comment distinguishing it
+   from the legacy resync map reads verbatim as cited),
+   `strict_current_data_version_stream` (src/seed_identity.rs:517), and
+   artifact identity. The component-wise binding-mutation acceptance
+   schedule includes the cross-resource resource-value negative I asked
+   for, correctly framed as the row an omitting implementation fails.
+5. **Should-fix, companion-write idempotence — RESOLVED** (§3 names it a
+   guide obligation with LLP 0061 standing; §Acceptance carries the
+   branch-insensitivity row).
+6. **Should-fix, LLP 0110 positioning — RESOLVED** (§4's
+   compose-not-compete paragraph is accurate — bounded children is
+   live-oriented and parent-visibility-shaped, this helper is a callable
+   continuation — and LLP 0110 joined Related).
+7. **Detail, LLP 0131 composition — RESOLVED** (§7 sentence; now literal
+   tree fact since the args-contract lane landed).
+8. **Detail, lastHolder proof + expiry edge — RESOLVED** (§2 records the
+   proof and extends it through 0056's expired-but-authorized edge; the
+   swept-non-final-holder branch correctly lands in §3 step 3's refusal;
+   §Acceptance schedules both).
+9. **Detail, myMemberships receipt line — RESOLVED** (product receipt
+   item 4: seat-drop at the same authorization cut).
+10. **Detail, OQ1 — RESOLVED** (decided: `removePrincipal`, with the
+    address-vs-policy rationale recorded).
+
+Codex-attributed items I could observe without reading that artifact (via
+the Revised header): the callable-only `Query` emission decision (§4) is
+verified against the tree — `defineOwnedKeysetPages` does build its pair
+through `defineLiveQuery` with `defaultLive: false`
+(standard-patterns.mjs:392), so the stated delta is real and the
+subscription-impossibility claim is type-correct (`Query` kind is
+online-only); and the composed family witness (§Acceptance) is a genuine
+strengthening — one declaration, one authorization timeline, honest
+fail-closed placeholder rows for the two routed surfaces until their
+owners land.
+
+### Fresh-defect check on the changed text
+
+Three detail-level nits; nothing blocking:
+
+- **§5 artifact-identity rationale slightly understates its own
+  conservatism.** "A cursor cannot survive an artifact swap that changes
+  plan meaning" — binding artifact identity invalidates on *any* artifact
+  change, meaning-preserving regenerations included (the LLP 0131 identity
+  rotation itself was exactly such a whole-app hash rotation with zero
+  behavior change). The mechanism is right and OQ3 already owns the
+  conservatism posture; suggest the sentence say "any artifact change,
+  meaning-changing or not" so the cost is stated as accepted rather than
+  minimized.
+- **§5 cite precision:** `validate_function_args` lives in
+  src/args_contract.rs (its call sites are in src/local.rs); the cite
+  reads as if the function is in local.rs. Cosmetic.
+- **§8a optional precedent:** the `membership` sharing kind already exists
+  in the asset lane (define.mjs:129), worth one clause as in-tree
+  precedent for the visibility-variant vocabulary.
+
+### Verdict
+
+**READY.** All ten Round 1 concerns are resolved as recorded — the two
+MATERIAL family gaps by routing with named owners and interfaces pinned
+tightly enough to hold them (falsifiable obligations, verified fail-closed
+status quo, join points in the composed witness), the custody delta by an
+accurate restatement whose every new-member seam exists in the tree today,
+and the one recorded partial rejection of my Round 1 suggestion is
+supported by evidence I verified and accept. The fresh v0.3 text
+introduces no defect above detail level. This meets the standing READY
+bar: the design is thought through as far as it can be without writing
+the code, and what it deliberately does not design is now a decision with
+owners rather than silence.
+
+### Recommended next step
+
+Author applies the three detail nits at will (none gates), then proceeds
+to the ratification boundary the RFC itself states: LLP 0056 acceptance
+first, or the explicit composed-slice maintainer ruling (the RFC's Status
+section already drafts it). Implementation order steps 2–5 are ready to
+schedule once ratified; the composed family witness should land with the
+Team Chat adoption in step 6.
