@@ -10237,6 +10237,7 @@ impl LocalSnapback {
                         payload.ctx_ledger.clone(),
                         payload.job_enqueues.clone(),
                         payload.job_producer.clone(),
+                        payload.asset_admissions.clone(),
                     )?;
                     (
                         self.authorization_commit_preflight_for_changes(preview.changes),
@@ -14514,6 +14515,7 @@ impl LocalSnapback {
             executed.reads.clone(),
             executed.result.clone(),
             executed.ctx_ledger.clone(),
+            executed.asset_admissions.clone(),
         )?;
         Ok(self.authorization_commit_preflight_for_changes(preview.changes))
     }
@@ -23804,6 +23806,80 @@ globalThis.__snapbackHandlers = {
                     == crate::assets::AssetAvailability::Deleted,
             "detached asset reclaimed"
         );
+    }
+
+    const ASSET_ATTACH_SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async attachPhoto(ctx, args) {
+    const admitted = await ctx.assets.attach(args.assetId, { upload: 'avatarUpload' });
+    const id = await ctx.db.insert('posts', { title: 'staged', photo: admitted });
+    return { id };
+  }
+};
+"#;
+
+    /// Regression for the served-path admission drop found by the Lane-1
+    /// conformance vectors: the staged mutation path previews through
+    /// `dry_run_buffered_writes_with_jobs`, which discarded handler-recorded
+    /// `ctx.assets.attach` admissions, so the canonical handler attach flow
+    /// refused `SNAPBACK_ASSET_REF_UNVERIFIED` on a real server while the
+    /// direct-commit helper (`asset_handler_commit`) could not observe it.
+    #[test]
+    fn asset_handler_attach_commits_through_the_staged_mutation_path() {
+        let mut snapback = LocalSnapback::memory().expect("memory snapback");
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![FunctionDefinition::new(
+                "attachPhoto",
+                FunctionKind::Mutation,
+                FunctionRuntime::IbexModule(IbexModule {
+                    source: ASSET_ATTACH_SOURCE.to_owned(),
+                    export: "attachPhoto".to_owned(),
+                }),
+            )],
+            asset_upload_intents: vec![asset_test_intent()],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "attach manifest must load: {diagnostics:?}"
+        );
+        snapback
+            .db
+            .apply_schema(asset_reference_schema())
+            .expect("schema");
+        let asset_id = asset_ready(&mut snapback, "alice", b"staged-attach-bytes");
+
+        let (result, _receipt) = snapback.invoke_mutation_recording(
+            "attachPhoto",
+            HandlerInput {
+                args: serde_json::json!({ "assetId": asset_id }),
+                auth: crate::manifest::AuthInput {
+                    user_id: Some("alice".to_owned()),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        );
+        let output = result.expect("staged handler attach commits");
+        let row_id = output.result["id"]
+            .as_str()
+            .expect("handler returns the inserted row id")
+            .to_owned();
+
+        let edges = asset_edges(&mut snapback, "posts", &row_id);
+        assert_eq!(edges.len(), 1, "reverse edge commits with the row");
+        assert_eq!(edges[0].asset_id, asset_id);
+        let committed = snapback
+            .db
+            .asset_transaction(|tx| crate::assets::receipts_for_asset(tx, &asset_id, 200))
+            .expect("receipts")
+            .into_iter()
+            .any(|receipt| {
+                receipt.event == crate::assets::AssetReceiptEventV1::AttachmentCommitted
+            });
+        assert!(committed, "the attachment-committed receipt lands");
     }
 
     const ASSET_CALLBACK_SOURCE: &str = r#"

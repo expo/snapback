@@ -4259,6 +4259,7 @@ impl LocalDatabase {
         read_dependencies: Vec<CapturedReadDependency>,
         result: Value,
         ctx_ledger: CtxAnswerLedger,
+        asset_admissions: Vec<crate::assets::AssetAttachmentAdmission>,
     ) -> SnapbackResult<MutationCommit> {
         self.dry_run_buffered_writes_with_jobs(
             input,
@@ -4269,6 +4270,7 @@ impl LocalDatabase {
             ctx_ledger,
             Vec::new(),
             None,
+            asset_admissions,
         )
     }
 
@@ -4286,6 +4288,11 @@ impl LocalDatabase {
         ctx_ledger: CtxAnswerLedger,
         job_enqueues: Vec<crate::jobs::BufferedJobEnqueue>,
         job_producer: Option<crate::jobs::JobProducer>,
+        // The preview must see the same admissions the commit will: a
+        // handler-recorded `ctx.assets.attach` admission that is absent here
+        // makes the staged preview refuse `SNAPBACK_ASSET_REF_UNVERIFIED`
+        // even though the real commit would admit the write.
+        asset_admissions: Vec<crate::assets::AssetAttachmentAdmission>,
     ) -> SnapbackResult<MutationCommit> {
         self.apply_buffered_writes_with_lifecycle_gated(
             input,
@@ -4296,7 +4303,7 @@ impl LocalDatabase {
                 result,
                 job_enqueues,
                 job_producer,
-                asset_admissions: Vec::new(),
+                asset_admissions,
             },
             BufferedCommitOptions {
                 ctx_ledger: Some(ctx_ledger),

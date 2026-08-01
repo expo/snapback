@@ -313,6 +313,7 @@ impl RuntimeManager {
             job_enqueues,
             membership_commands,
             reads,
+            asset_admissions,
             ..
         } = invocation;
         let membership_plans = db.authorize_membership_commands(membership_commands)?;
@@ -329,6 +330,7 @@ impl RuntimeManager {
                 function: "mutationDryRun".to_owned(),
                 principal: input.auth.user_id.clone(),
             }),
+            asset_admissions,
         )
     }
 
@@ -4223,6 +4225,7 @@ mod membership_bridge_tests {
                 now: 1,
                 auth_fingerprint: None,
             },
+            Vec::new(),
         )
         .expect("membership dry run");
         assert_eq!(
