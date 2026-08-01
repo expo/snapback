@@ -5,7 +5,38 @@
 **Systems:** Memberships, Authorization, Query planning, Pagination, Code generation, Live Queries, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-26
-**Revised:** 2026-08-01 (v0.3, the verify-then-fix pass applying the merged
+**Revised:** 2026-08-01 (v0.4, applying the round-2 delta verdicts — Fable
+READY, Codex NOT READY on two text-fixable residuals; both round-2
+artifacts:
+`llp/reviews/0100-membership-addressed-operations-and-pages.fable.md`
+(Round 2 section) and
+`llp/reviews/0100-membership-addressed-operations-and-pages.codex.md`
+(Round 2 section), on target
+`5261cce83b62a478f25b076205733fac12bd6971b6fce3c37ec1fbd255520dfd`.
+Dispositions, verified against the tree at `6c68fe6c`:
+**Codex 2 residual** (§8a resource contract) — pinned: `SearchRequestV1`
+carries no resource argument (`{query, limit?, after?}`,
+src/search/types.rs:268–274), so the routed interface requires a
+**required, equality-bound resource argument** on the generated
+membership-visible search function, one singular
+`membership:{declaration, resource-value}` partition per invocation —
+canonical multi-seat traversal is explicitly rejected, with the reasons
+recorded (§8a). The two post-revocation observables are now
+distinguished and pinned: stale continuation → uniform custody refusal;
+fresh search → empty result, byte-identical to outsider/nonexistent.
+**Codex 3 residual** (§8b event semantics) — corrected: the receipted
+reset carries LLP 0056's **event-3/declared-restore** incarnation
+semantics (llp/0056 "reset/import carry event-3/declared-restore
+incarnation semantics"; ordinary membership writes are event 1); the
+"exactly like a kick" clause is withdrawn and no remaining text leans on
+event 1 for the reset lane.
+**Fable round-2 nits, all applied:** §5 artifact-identity binding stated
+as invalidating on any artifact change, meaning-changing or not (the
+accepted conservatism OQ3 owns); `validate_function_args` cited at its
+home (src/args_contract.rs, called from src/local.rs); §8a cites the
+asset lane's existing `membership` sharing kind (define.mjs:129) as
+in-tree vocabulary precedent. No reviewer point rejected this round.)
+2026-08-01 (v0.3, the verify-then-fix pass applying the merged
 round-1 findings of the author-directed loop. Both round-1 artifacts:
 `llp/reviews/0100-membership-addressed-operations-and-pages.fable.md`
 (2026-08-01 section) and
@@ -453,8 +484,8 @@ not deliver:
   for room A verifies for room B: the shared filter shape
   `resourceField == arg(resourceArg)` is identical for every room. Source:
   the LLP 0131-validated `input.args`, normalized over the declared
-  argument order, after ingress validation
-  (`validate_function_args`, src/local.rs).
+  argument order, after ingress validation (`validate_function_args`,
+  src/args_contract.rs, called from src/local.rs).
 - **the membership declaration stable id, resource field/argument, and
   canonical role set** (generation-time facts carried on the standard
   pattern).
@@ -470,7 +501,9 @@ not deliver:
   cannot survive a receipted reset-install even if epochs coincide.
 - **exact active function/schema artifact identity and target profile**
   (the instance's loaded schema hash and function publication generation),
-  so a cursor cannot survive an artifact swap that changes plan meaning.
+  so a cursor cannot survive **any** artifact change — meaning-changing
+  or not; a meaning-preserving regeneration also invalidates, an accepted
+  conservatism under the same posture OQ3 owns.
 
 **Pair identity is the digest, not the names**: the generated first/next
 functions share one binding because the strict boundary filter — cursor
@@ -591,15 +624,52 @@ The owning change is a third pushdown-compilable visibility variant in
 LLP 0073's own contract, which already carries the visibility-partition
 shape in its identity: `{ kind: 'membership', declaration, resourceField,
 roles }`, partitioned by the caller's seat rather than `owner:{subject}`.
-The interface obligations this RFC pins for that amendment, in its own
-vocabulary: the declaration-bound seat resolution and the posting/source-
-row recheck execute in one snapshot; an outsider's result is empty and
-byte-identical to the nonexistent-resource result; revocation zeroes the
-next search; the search continuation's identity gains the same
-authorization binding §5 defines (global pair, declaration facts, resource
-value); and member/outsider/revoked acceptance cases are mandatory. What
-this RFC contributes is the semantic vocabulary — the membership predicate
-as executable visibility authority — and the custody delta of §5; the
+The variant name has in-tree family precedent: the asset lane's sharing
+vocabulary already carries a `membership` kind (`ASSET_SHARING_KINDS`,
+packages/snapback-codegen/define.mjs:129).
+
+**How the resource is supplied is pinned, not left to the owner**
+*(v0.4, closing the round-2 residual)*. The wire request shape carries no
+resource today — `SearchRequestV1` is exactly `{query, limit?, after?}`
+(src/search/types.rs:268–274) — while the variant names only a
+`resourceField` on indexed rows. The routed interface therefore requires
+a **required, equality-bound resource argument on the generated
+membership-visible search function**, exactly §4's `resourceArg` shape:
+every invocation addresses one singular
+`membership:{declaration, resource-value}` partition, and the argument
+value joins the search continuation's identity the same way §5 binds the
+page cursor's resource value. Whether LLP 0073 carries the value as a new
+generated-function argument beside `SearchRequestV1` or extends the
+request shape is the owner's wire decision; the singular-partition
+contract is not. **Canonical multi-seat partition traversal is explicitly
+rejected** for this variant, for the RFC's own reasons: §4/§5's partition
+model is one resource value per invocation (the cursor binds the concrete
+value; the outsider/nonexistent negative is defined per resource); a
+seat-union search would reintroduce resource enumeration through a side
+door (listing the caller's resources is `_snapback.myMemberships`' job,
+§1); and cross-resource ranking would force one score ordering across
+partitions LLP 0073 deliberately keeps independent. A caller searching
+several rooms iterates its own seats and issues per-resource searches.
+
+**Two post-revocation observables, both pinned** *(v0.4)*: presenting a
+**stale continuation** minted before the revocation fails the custody
+binding — the uniform invalid-continuation refusal, byte-identical across
+causes, refused before candidate evaluation (the §5 contract carried into
+0073's continuation); a **fresh search** after revocation is *not* a
+refusal — it succeeds with the empty result, byte-identical to the
+outsider and nonexistent-resource results. These are different
+observables with different meanings: the first is the epoch-bound
+observable §1 already scopes as an accepted disclosure, the second is the
+non-disclosing steady state.
+
+The remaining interface obligations this RFC pins for that amendment, in
+its own vocabulary: the declaration-bound seat resolution and the
+posting/source-row recheck execute in one snapshot; an outsider's result
+is empty and byte-identical to the nonexistent-resource result;
+revocation zeroes the next search; and member/outsider/revoked acceptance
+cases are mandatory — including one row per observable above. What this
+RFC contributes is the semantic vocabulary — the membership predicate as
+executable visibility authority — and the custody delta of §5; the
 search-side carrier, posting pipeline, and scoring surface belong to
 LLP 0073. Deferral is safe because the union is closed: no membership
 search behavior can exist until the amendment lands whole.
@@ -621,14 +691,19 @@ under full declaration validation (principal identity shape, declared role
 vocabulary, nominal resource type, `lastHolder` and final-state validation
 in the declaration's own order); named membership tables become legal
 reset targets; reset deletes runtime seats and restores fixture seats
-atomically in one receipted operation whose authorization-version and
-incarnation consequences are LLP 0056 event 1, exactly like a user-
-authored kick; replay/idempotence follows LLP 0109's existing receipt
-discipline; and the mandatory witness is the ticket's own: a runtime-only
-principal provably loses authority after reset while fixture seats
-survive. §1's trusted-migration/import sentence is reconciled above: the
-receipted trusted lane refusing memberships is a named gap with this named
-owner, not an implied capability.
+atomically in one receipted operation carrying LLP 0056's
+**event-3/declared-restore** incarnation semantics *(corrected v0.4 —
+0056's taxonomy is explicit: "reset/import carry event-3/declared-restore
+incarnation semantics"; event 1 is the ordinary per-write membership
+path, and a bulk restore is deliberately not a stream of kicks)*;
+replay/idempotence follows LLP 0109's existing receipt discipline; and
+the mandatory witness is the ticket's own: a runtime-only principal
+provably loses authority after reset while fixture seats survive — the
+authority cut delivered by the declared-restore incarnation advance, and
+every §5-bound cursor and stale witness refused across it. §1's
+trusted-migration/import sentence is reconciled above: the receipted
+trusted lane refusing memberships is a named gap with this named owner,
+not an implied capability.
 
 Neither routing is a scope change to this RFC's two designed surfaces;
 both compose with them through the same declaration, and the composed
