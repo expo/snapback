@@ -56,3 +56,12 @@ same prior-default-closure binding the message names — v4 leases bind
 test asserting the promote CLI accepts the lease generation the in-repo
 authority currently issues, so the next generation bump cannot strand the
 promotion path again.
+
+## Note (2026-08-01, fast-path lane)
+
+0.1.8 was published OUTSIDE the leased ceremony under Charlie's same-day
+fast-path decision (LLP 0041 §Fast-path pre-consumer release (2026-08-01)):
+all nine packages staged dry-run from clean main `5d5c6b71` and
+npm-published directly to `latest`. This ticket stays OPEN — the stale v3
+pin still strands `scripts/snapback-promote.mjs` whenever the leased
+ceremony next runs.

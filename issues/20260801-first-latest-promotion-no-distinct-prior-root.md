@@ -88,3 +88,14 @@ How the first terminal-scope default vector gets its lineage and proof:
 Until decided, the leased promotion for 0.1.7 cannot execute, and
 `issues/20260801-promote-v3-lease-pin-refuses-v4.md` blocks any promotion at
 all.
+
+## Note (2026-08-01, fast-path lane)
+
+0.1.8 was published OUTSIDE the leased ceremony under Charlie's same-day
+fast-path decision (LLP 0041 §Fast-path pre-consumer release (2026-08-01)):
+all nine packages staged dry-run from clean main `5d5c6b71` and
+npm-published directly to `latest` (now `latest: 0.1.8` on all nine). This
+ticket stays OPEN as the bootstrap-lineage author decision for the ceremony
+machinery; note the fast-path publication also means the next leased
+promotion (0.1.9+) WILL have a distinct prior root (0.1.8), so option (iii)
+resolves itself naturally once the v3-pin ticket is fixed.

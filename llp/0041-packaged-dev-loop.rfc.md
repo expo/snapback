@@ -52,6 +52,13 @@ section added, package/CLI surface corrected to repo reality, LLP 0030
 boundary stated, ready-file attach pinned; initial same day)
 **Related:** LLP 0000, LLP 0010, LLP 0012, LLP 0015, LLP 0016, LLP 0021, LLP 0023, LLP 0024, LLP 0030, LLP 0037, LLP 0038, LLP 0042
 
+**Revised (0.1.8 fast-path publication):** 2026-08-01 (author decision:
+pre-consumer releases may skip the staged proofs and the candidate-tag/
+leased-promotion ceremony entirely while the packages have no external
+consumers; 0.1.8 published fast-path from clean main `5d5c6b71` directly to
+`latest` on all nine packages. See §Fast-path pre-consumer release
+(2026-08-01).)
+
 **Revised (parallel EAS qualified staging):** 2026-08-01 (the qualified
 candidate staging lane moves from GitHub Actions to the dedicated
 `@expo/snapback-ci` EAS project. Linux/x64 and macOS/arm64 release runtimes now
@@ -1064,6 +1071,46 @@ excludes it from the nine-package public closure while LLP 0115's 5-types
 sweep counts it among the publishing packages the export-types gate covers —
 both true today (it is versioned, non-private, types-swept, and unpublished),
 flagged here so the GA-front-door closure decision resolves it explicitly.
+
+## Fast-path pre-consumer release (2026-08-01)
+
+Author decision (Charlie, 2026-08-01): while the nine packages have no
+external consumers — the only consumer is Charlie himself, and the LLP 0137
+re-verification arms are the effective test — a release may skip qualified
+staging, the staged platform proofs, and the candidate-tag/leased-promotion
+ceremony entirely, publishing directly to `latest`. The ceremony resumes
+when external consumers exist or at Charlie's call.
+
+0.1.8 was published this way on 2026-08-01:
+
+- Source: clean main `5d5c6b7183af160baf66cefcd9a53b9f510eb3a6`; both
+  runtime binaries carry the `public-package`/clean/`release` build
+  identity at that exact commit (darwin-arm64 built locally; linux-x64
+  built on the `expo-build-1000` fleet host with the standard bootstrap +
+  release recipe and consumed through the attested cross-host artifact
+  seam — `SNAPBACK_RUNTIME_LINUX_X64_*` inputs with a validated
+  `snapback.runtime-artifact-attestation.v1`).
+- Staging: `scripts/snapback-publish.mjs --version 0.1.8
+  --runtime-platforms all` in its default dry-run mode — correct
+  version/dependency stamping, nine `dry-run-ok` rows, ledger emitted; no
+  qualified ledger, no platform receipts, no candidate tag.
+- Publication: the nine staged tarballs published directly with
+  `npm publish --access public` under the default `latest` tag, in ledger
+  order. Registry verification: all nine serve `0.1.8` with
+  `latest: 0.1.8` (the immutable `bakeoff-0-1-7-fdd49db8abf1` tag still
+  selects 0.1.7), and the `@expo/snapback-cli` registry tarball is
+  byte-identical to the staged artifact (sha256 `6c73b261…`).
+- Ledger custody: the dry-run staging ledger is retained at
+  `~/snapback-release-ledgers/fastpath-ledger-0.1.8-5d5c6b7183af.json`.
+
+The lineage gap is acknowledged and deliberate: 0.1.8 has no qualified
+ledger, no platform proofs, no candidate tag, and no publication-authority
+lease record — the promotion-machinery record for this version is the note
+you are reading plus the retained dry-run ledger. The open leased-promotion
+defects (issues/20260801-promote-v3-lease-pin-refuses-v4.md and
+issues/20260801-first-latest-promotion-no-distinct-prior-root.md) are
+untouched by this decision and still gate the ceremony machinery whenever
+it next runs.
 
 ## Status
 
