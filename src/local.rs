@@ -35193,6 +35193,48 @@ globalThis.__snapbackHandlers = {
 
     fn membership_keyset_snapback() -> (LocalSnapback, FunctionManifest) {
         let (schema, functions) = membership_keyset_artifacts();
+        membership_keyset_snapback_with(schema, functions)
+    }
+
+    /// The same fixture with the LLP 0100 §2 opt-in installed: a total
+    /// other-principal removal carrier for `owner`, plus a self-bootstrap
+    /// owner seat so the fixture can seat that carrier class at all. Only the
+    /// composed disclosure witness needs both surfaces in one instance.
+    fn membership_keyset_principal_addressed_snapback() -> LocalSnapback {
+        let (mut schema, functions) = membership_keyset_artifacts();
+        {
+            let membership = schema
+                .tables
+                .iter_mut()
+                .find(|table| table.name == "room_members")
+                .and_then(|table| table.membership.as_mut())
+                .expect("membership fixture");
+            membership.transitions.push(crate::manifest::MembershipTransition {
+                op: crate::manifest::MembershipOp::Insert,
+                by: vec!["none".to_owned()],
+                target: crate::manifest::MembershipTarget::Own,
+                from: None,
+                to: Some(vec!["owner".to_owned()]),
+                fields: None,
+            });
+            membership.transitions.push(crate::manifest::MembershipTransition {
+                op: crate::manifest::MembershipOp::Remove,
+                by: vec!["owner".to_owned()],
+                target: crate::manifest::MembershipTarget::Other,
+                from: None,
+                to: None,
+                fields: None,
+            });
+            membership.principal_addressed_writes =
+                Some(crate::manifest::MembershipPrincipalAddressedWrites { remove: true });
+        }
+        membership_keyset_snapback_with(schema, functions).0
+    }
+
+    fn membership_keyset_snapback_with(
+        schema: SchemaManifest,
+        functions: FunctionManifest,
+    ) -> (LocalSnapback, FunctionManifest) {
         let mut snapback = LocalSnapback::memory().expect("memory membership-keyset fixture");
         snapback
             .apply_schema(schema)
@@ -35800,6 +35842,106 @@ globalThis.__snapbackHandlers = {
         .expect("legacy owned digest");
         assert_eq!(actual, expected, "owned binding bytes must not change");
     }
+
+    // @ref LLP 0100#1-private-roster-posture-remains-closed — the composed
+    //   §Acceptance row "the absent-target no-op advances no authorization
+    //   version and the present-target removal does … asserted via cursor
+    //   validity across each branch". It spans both surfaces, so neither
+    //   surface's own suite can carry it: a third party's outstanding page
+    //   cursor is the observable, and the cursor holder's own seat is never
+    //   touched, so the difference is attributable only to the epoch.
+    #[test]
+    fn membership_keyset_cursor_witnesses_the_scoped_removal_disclosure() {
+        let mut snapback = membership_keyset_principal_addressed_snapback();
+        let owner = crate::storage::MembershipWriter::User {
+            effective_principal: "alice".to_owned(),
+        };
+        let seat_owner = snapback
+            .db
+            .plan_membership_insert(
+                &owner,
+                "room_members",
+                Map::from_iter([
+                    ("userId".to_owned(), json!("alice")),
+                    ("roomId".to_owned(), json!("room-a")),
+                    ("role".to_owned(), json!("owner")),
+                ]),
+            )
+            .expect("plan owner seat");
+        snapback
+            .db
+            .commit_membership_plan(&owner, seat_owner)
+            .expect("commit owner seat");
+        grant_membership(&mut snapback, "bob", "room-a");
+        grant_membership(&mut snapback, "carol", "room-a");
+
+        // Bob holds the continuation. His seat survives both branches below.
+        let page = snapback
+            .invoke_query(
+                "firstRoomMessagePage",
+                membership_keyset_input("bob", "room-a", None),
+            )
+            .expect("bob's first page");
+        let cursor = page.cursor.expect("a full page mints a continuation");
+
+        // Absent-target branch: no membership write, no authorization event,
+        // so an unrelated outstanding cursor still verifies.
+        let no_op = snapback
+            .db
+            .plan_membership_remove_principal(&owner, "room_members", Some("room-a"), "ghost")
+            .expect("absent-target no-op plans");
+        snapback
+            .db
+            .commit_membership_plan(&owner, no_op)
+            .expect("commit absent-target no-op");
+        let after_no_op = snapback
+            .invoke_query(
+                "nextRoomMessagePage",
+                membership_keyset_input("bob", "room-a", Some(cursor.clone())),
+            )
+            .expect("the no-op advances nothing, so the cursor still verifies");
+        assert!(
+            !after_no_op.rows.is_empty(),
+            "the continuation still returns its page"
+        );
+
+        // Present-target branch: a committed membership write is LLP 0056
+        // event 1, so the same cursor now refuses — byte-identically.
+        let removal = snapback
+            .db
+            .plan_membership_remove_principal(&owner, "room_members", Some("room-a"), "carol")
+            .expect("present-target removal plans");
+        snapback
+            .db
+            .commit_membership_plan(&owner, removal)
+            .expect("commit present-target removal");
+        let refused = snapback
+            .invoke_query(
+                "nextRoomMessagePage",
+                membership_keyset_input("bob", "room-a", Some(cursor)),
+            )
+            .expect_err("the present-target removal advanced the authorization version");
+        assert_eq!(
+            (
+                refused.diagnostic.code.as_str(),
+                refused.diagnostic.message.as_str()
+            ),
+            (
+                "SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID",
+                "pagination cursor is not valid for this operation and caller; request the first page again"
+            )
+        );
+
+        // Bob never lost his seat: a fresh first page still serves.
+        let fresh = snapback
+            .invoke_query(
+                "firstRoomMessagePage",
+                membership_keyset_input("bob", "room-a", None),
+            )
+            .expect("bob is still seated");
+        assert!(!fresh.rows.is_empty());
+    }
+
 
     // @ref LLP 0065#4-capability-and-llp-0053-composition — a generated
     //   standard pattern claims no skip and no live_delta: the identical

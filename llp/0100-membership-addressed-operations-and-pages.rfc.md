@@ -19,7 +19,15 @@ byte-identical; §Acceptance's membership-pages rows run in src/local.rs
 including the mandatory cross-resource VALUE negative and the
 per-component mutation schedule. Team Chat adoption and the product/
 composed-family receipts (implementation-order step 6) remain open with
-their tickets.) 2026-08-01 (M1 core operations LANDED: §§1–3 implemented on
+their tickets.) 2026-08-01, later same day (the one §Acceptance row that
+spans both surfaces — "the absent-target no-op advances no authorization
+version and the present-target removal does … asserted via cursor
+validity across each branch" — is now witnessed:
+`membership_keyset_cursor_witnesses_the_scoped_removal_disclosure`
+in src/local.rs runs both branches against one instance carrying the §2
+opt-in and the §4 pages, using an uninvolved third party's outstanding
+continuation as the observable while that holder's own seat survives
+both branches, so the difference is attributable only to the epoch.) 2026-08-01 (M1 core operations LANDED: §§1–3 implemented on
 the local target — `principalAddressedWrites` activation with the carrier
 contract (codegen + `validate_membership_declaration`), the generated
 `removePrincipal` command with the §3 refusal ordering, captured
