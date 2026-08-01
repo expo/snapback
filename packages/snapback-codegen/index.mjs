@@ -642,6 +642,20 @@ export async function generateInProcess(backendDir, options = {}) {
   const functionsGraph = functionsBuild.graph;
   const schemaModule = { default: evaluated.schema };
   const functionsModule = evaluated.functions;
+  for (const [name, kind] of Object.entries(evaluated.schemaMisplacedDefinitions ?? {})) {
+    const code = kind === 'asset-upload'
+      ? 'SNAPBACK_ASSET_INTENT_IN_SCHEMA_MODULE'
+      : 'SNAPBACK_DEFINITION_IN_SCHEMA_MODULE';
+    err(
+      code,
+      'schema',
+      `schema.mjs exports ${name}, a ${kind} definition — schema.mjs contributes only its default defineSchema(...); move ${name} to functions.mjs or it can never generate`,
+      { export: name, kind },
+    );
+  }
+  if (diagnostics.some((d) => d.severity === 'error')) {
+    return { ok: false, diagnostics };
+  }
   const routesModule = routesBuild ? evaluated.routes : null;
 
   const schemaDef = schemaModule.default;
@@ -7971,7 +7985,11 @@ function __snapbackNormalize(value, stack = new __snapbackSet()) {
 }
 `;
   if (kind === 'schema') {
-    return `${imports}\nimport schema from ${entry};\n${normalization}\nglobalThis[${JSON.stringify(resultKey)}] = __snapbackJsonStringify(__snapbackNormalize(schema));\n`;
+    // Besides the default export, capture each named export's isolated-
+    // definition kind: a defineAssetUpload (or any handler-family
+    // definition) exported from the schema module would otherwise vanish
+    // silently at evaluation (0137 A1: schema-module intent ignored).
+    return `${imports}\nimport schema, * as __schemaNamespace from ${entry};\n${normalization}\nconst __misplaced = {};\nfor (const [__name, __value] of Object.entries(__schemaNamespace)) {\n  if (__name === 'default') continue;\n  const __kind = __value && typeof __value === 'object' ? __snapbackDefinitionKind(__value) : null;\n  if (typeof __kind === 'string') __misplaced[__name] = __kind;\n}\nglobalThis[${JSON.stringify(resultKey)}] = __snapbackJsonStringify({ schema: __snapbackNormalize(schema), misplacedDefinitions: __misplaced });\n`;
   }
   if (kind === 'routes') {
     // The route manifest declaration (LLP 0092 §0C.1): one default-exported
@@ -8073,8 +8091,14 @@ function evaluateDefinitionBundles(schemaBuild, functionsBuild, diagnostics, rou
         fail('isolated definition evaluator returned an invalid routes result shape');
         return;
       }
+      // The schema payload carries the normalized default export plus the
+      // named-export definition kinds the facade captured (0137 A1: a
+      // definition exported from schema.mjs must refuse, never vanish).
+      const schemaPayload = response.values.schema;
+      const wrapped = typeof schemaPayload.schema === 'object' && schemaPayload.schema !== null;
       finish({
-        schema: response.values.schema,
+        schema: wrapped ? schemaPayload.schema : schemaPayload,
+        schemaMisplacedDefinitions: wrapped ? (schemaPayload.misplacedDefinitions ?? {}) : {},
         functions: response.values.functions,
         ...(routesBuild ? { routes: response.values.routes } : {}),
       });

@@ -548,3 +548,28 @@ console.log('asset-upload-authoring.test.mjs passed');
   });
   console.log('undetectable-accept refusal assertions pass');
 }
+
+// 0137 A1: a defineAssetUpload exported from schema.mjs refuses with a named
+// diagnostic instead of vanishing silently.
+{
+  const schema = `
+import { defineSchema, defineTable, defineAssetUpload, v } from '${defineUrl}';
+export const strayUpload = defineAssetUpload({
+  args: {},
+  auth: 'authenticated',
+  accept: { mediaTypes: ['application/pdf'], maxBytes: 1000 },
+  delivery: { kind: 'private-strict' },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+export default defineSchema({
+  docs: defineTable({ title: v.string() }).sync(),
+});
+`;
+  const { result } = await runCase({ schema, functions: 'export {};\n' });
+  assert.equal(result.ok, false, 'schema-module intent must refuse generation');
+  assert.ok(
+    codes(result).includes('SNAPBACK_ASSET_INTENT_IN_SCHEMA_MODULE'),
+    `named diagnostic present: ${JSON.stringify(codes(result))}`,
+  );
+  console.log('schema-module intent refusal assertions pass');
+}

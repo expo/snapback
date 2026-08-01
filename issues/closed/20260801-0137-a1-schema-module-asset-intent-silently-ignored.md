@@ -15,3 +15,17 @@ reading. Moving the export to the functions module makes everything appear.
 Fix shape: collect intents from the schema module too, or refuse generation
 (named diagnostic) when an intent export is found where it cannot be
 collected and when attach references an undeclared intent.
+
+---
+
+**RESOLVED 2026-08-01 (fix-wave α2).** The schema facade now captures
+every named export's definition kind, and codegen refuses generation
+with `SNAPBACK_ASSET_INTENT_IN_SCHEMA_MODULE` (asset intents) or
+`SNAPBACK_DEFINITION_IN_SCHEMA_MODULE` (any other handler-family
+definition) naming the export and its home module — nothing exported
+from schema.mjs can vanish silently anymore. Attach naming an
+undeclared intent already refuses at both seams: codegen refuses
+`v.assetRef({upload})` restrictions naming undeclared intents, and the
+runtime refuses `SNAPBACK_ASSET_INTENT_UNKNOWN` at attempt-create and
+attachment verification (existing tests). Proven in
+asset-upload-authoring.test.mjs (schema-module refusal case).
