@@ -36821,6 +36821,13 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_ASSET_INTENT_RUNTIME_UNSUPPORTED",
         "SNAPBACK_ASSET_LIVE_INPUT_INVALID",
         "SNAPBACK_ASSET_RECORD_INVALID",
+        // The my-memberships reserved projection (LLP 0056 self-projection
+        // amendment): like the asset record projection's codes above, both
+        // stay deliberate default-500s — the reserved lane is driven by
+        // generated clients that never send malformed input, and no HTTP
+        // route surfaces them as a top-level error today.
+        "SNAPBACK_MEMBERSHIP_LIVE_INPUT_INVALID",
+        "SNAPBACK_MEMBERSHIP_LIVE_INVALID",
         "SNAPBACK_ASSET_REFCOUNT_INVALID",
         "SNAPBACK_ASSET_RETRY_INELIGIBLE",
         "SNAPBACK_ASSET_RUNNER_DISABLED",

@@ -33,3 +33,20 @@ revocation already blanks it through the ordinary membership-predicate
 invalidation. It needs a declaration-owned generated projection
 (`myMemberships` live query or `membershipResource.self()`), its LLP 0056
 amendment, and codegen + manifest plumbing. Ready to pick up.
+
+---
+
+**RESOLVED 2026-08-01 (fix-wave Lane β2).** The declaration-owned
+self-projection shipped as the reserved native live query
+`_snapback.myMemberships` (`{membership: <declaration id>}` → the
+caller's own `{id, resource, role, sinceMs}` rows only), riding the
+ordinary live surface — `client.liveQuery('_snapback.myMemberships',
+{args:{membership}})` — with pinned empty-range capture (first grant
+wakes a blank subscription), witnessed sessions-lane delivery, and
+anonymous/unknown-id refusal semantics. LLP 0056 carries the dated
+amendment. Evidence:
+`local::tests::my_memberships_projection_lists_own_seats_only_and_wakes_on_grant`
+(own-seats isolation, outsider-blank, grant-wake, revocation-removal,
+anonymous-empty, unknown-refusal). The roster mirror the guide
+documented as interim remains valid presentation-data advice; the
+authorization-backing mirror is no longer needed.

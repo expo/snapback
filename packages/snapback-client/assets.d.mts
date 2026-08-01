@@ -1,6 +1,13 @@
 // Headless asset upload client (LLP 0044 §Client upload surface, L1-14).
 
 export declare const ASSET_RECORD_LIVE_FUNCTION: '_snapback.assetRecord';
+export declare const MY_MEMBERSHIPS_LIVE_FUNCTION: '_snapback.myMemberships';
+export interface MyMembershipRow {
+  id: string;
+  resource: string | null;
+  role: string;
+  sinceMs: number;
+}
 
 export declare const PERSISTED_RESUME_FACT_MEMBERS: readonly [
   'assetId',

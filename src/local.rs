@@ -2853,6 +2853,53 @@ fn asset_record_live_definition() -> SnapbackResult<FunctionDefinition> {
     })
 }
 
+/// The reserved system live query projecting the caller's own membership
+/// rows for one declared membership (LLP 0056 §Declaration-owned
+/// self-projection, amended 2026-08-01). Like the asset record projection it
+/// is admitted by name, executes natively, and never enters public listings.
+/// It discloses strictly less than any existing surface: only the caller's
+/// own seats — resource ids, roles, and timestamps — never another
+/// principal's existence.
+pub const MY_MEMBERSHIPS_LIVE_FUNCTION: &str = "_snapback.myMemberships";
+
+/// The synthesized definition backing the self-projection; see
+/// [`asset_record_live_definition`] for why execution stays native and the
+/// definition is never `authority_independent`.
+fn my_memberships_live_definition() -> SnapbackResult<FunctionDefinition> {
+    serde_json::from_value(serde_json::json!({
+        "id": MY_MEMBERSHIPS_LIVE_FUNCTION,
+        "name": MY_MEMBERSHIPS_LIVE_FUNCTION,
+        "kind": "LiveQuery",
+        "runtime": { "IbexModule": { "source": "", "export": "_snapbackMyMemberships" } },
+        "authRequirement": "optional-user",
+    }))
+    .map_err(|error| {
+        SnapbackError::error(
+            "SNAPBACK_MEMBERSHIP_LIVE_INVALID",
+            "auth",
+            format!("my-memberships live definition does not synthesize: {error}"),
+        )
+    })
+}
+
+/// True for the reserved native live queries admitted by name at
+/// subscribe/re-run: they share the subscribe machinery, the witnessed
+/// auth-scoped lane, and the conservative every-frame recompute with
+/// fingerprint-deduplicated delivery.
+pub(crate) fn is_reserved_live_function(name: &str) -> bool {
+    name == ASSET_RECORD_LIVE_FUNCTION || name == MY_MEMBERSHIPS_LIVE_FUNCTION
+}
+
+fn reserved_live_definition(name: &str) -> Option<SnapbackResult<FunctionDefinition>> {
+    if name == ASSET_RECORD_LIVE_FUNCTION {
+        Some(asset_record_live_definition())
+    } else if name == MY_MEMBERSHIPS_LIVE_FUNCTION {
+        Some(my_memberships_live_definition())
+    } else {
+        None
+    }
+}
+
 fn routes_manifest_error(message: impl Into<String>) -> SnapbackError {
     SnapbackError::error(
         "SNAPBACK_ROUTES_MANIFEST_INVALID",
@@ -6008,6 +6055,167 @@ impl LocalSnapback {
         })
     }
 
+    /// Route one reserved native live query to its invocation. Every seam
+    /// that recomputes a reserved subscription — subscribe, resume
+    /// resnapshot, the witnessed episode, and both frame-loop rerun paths —
+    /// dispatches through here so a new reserved projection cannot miss one.
+    fn reserved_live_invocation(
+        &mut self,
+        authority: &PreparedAuthority,
+        function: &str,
+        input: &HandlerInput,
+    ) -> SnapbackResult<QueryInvocation> {
+        if function == ASSET_RECORD_LIVE_FUNCTION {
+            self.asset_record_query_invocation(authority, input)
+        } else if function == MY_MEMBERSHIPS_LIVE_FUNCTION {
+            self.my_memberships_query_invocation(authority, input)
+        } else {
+            Err(SnapbackError::error(
+                "SNAPBACK_FUNCTION_NOT_LIVE",
+                "runtime",
+                format!("{function} is not a reserved live query"),
+            ))
+        }
+    }
+
+    /// The caller's own membership rows for one declared membership
+    /// (LLP 0056 self-projection). Dependencies are the rows read plus one
+    /// query-range capture over the caller's principal slice — including the
+    /// pinned empty capture, so a first grant moves the fingerprint and
+    /// wakes a previously blank subscription through the conservative
+    /// reserved-lane recompute.
+    fn my_memberships_query_invocation(
+        &mut self,
+        authority: &PreparedAuthority,
+        input: &HandlerInput,
+    ) -> SnapbackResult<QueryInvocation> {
+        let membership_id = input
+            .args
+            .get("membership")
+            .and_then(Value::as_str)
+            .map(str::to_owned)
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_MEMBERSHIP_LIVE_INPUT_INVALID",
+                    "auth",
+                    "the my-memberships projection requires a string `membership` argument",
+                )
+            })?;
+        let schema = self.db.schema().clone();
+        let declaration = schema
+            .tables
+            .iter()
+            .find_map(|table| {
+                table.membership.as_ref().and_then(|membership| {
+                    (membership.effective_id(&table.name) == membership_id.as_str())
+                        .then(|| (table.name.clone(), membership.clone()))
+                })
+            })
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_MEMBERSHIP_LIVE_INPUT_INVALID",
+                    "auth",
+                    format!("no membership declaration named {membership_id}"),
+                )
+            })?;
+        let (table_name, membership) = declaration;
+        let caller = Self::asset_caller_principal(authority);
+        let version = self.db.current_version()?;
+        let (rows, read_dependencies) =
+            self.my_memberships_projection(caller.as_deref(), &table_name, &membership)?;
+        Ok(QueryInvocation {
+            output: crate::manifest::QueryOutput {
+                version,
+                rows,
+                cursor: None,
+            },
+            read_dependencies,
+        })
+    }
+
+    fn my_memberships_projection(
+        &mut self,
+        caller: Option<&str>,
+        table_name: &str,
+        membership: &crate::manifest::MembershipManifest,
+    ) -> SnapbackResult<(Vec<Value>, Vec<CapturedReadDependency>)> {
+        // An anonymous caller holds no seats and captures no dependencies:
+        // signing in is a fenced authority transition that re-establishes
+        // the subscription rather than mutating this one.
+        let Some(caller) = caller else {
+            return Ok((Vec::new(), Vec::new()));
+        };
+        let caller = caller.to_owned();
+        let table_name = table_name.to_owned();
+        let principal_field = membership.principal.clone();
+        let resource_field = membership.resource.clone();
+        let role_field = membership.role.clone();
+        self.db.asset_transaction(move |tx| {
+            let table_ident = crate::storage::quote_ident(&table_name)?;
+            let principal_ident = crate::storage::quote_ident(&principal_field)?;
+            let role_ident = crate::storage::quote_ident(&role_field)?;
+            let resource_select = match &resource_field {
+                Some(field) => crate::storage::quote_ident(field)?,
+                None => "NULL".to_owned(),
+            };
+            let sql = format!(
+                "SELECT _id, _version, _createdAt, {resource_select}, {role_ident} \
+                 FROM {table_ident} WHERE {principal_ident} = ?1 \
+                 ORDER BY _createdAt, _id"
+            );
+            let mut statement = tx.prepare(&sql)?;
+            let mut rows = Vec::new();
+            let mut dependencies = Vec::new();
+            let mut result = statement.query(rusqlite::params![caller])?;
+            while let Some(row) = result.next()? {
+                let id: String = row.get(0)?;
+                let row_version: u64 = row.get::<_, i64>(1)?.try_into().unwrap_or_default();
+                let since: i64 = row.get(2)?;
+                let resource: Option<String> = row.get(3)?;
+                let role: String = row.get(4)?;
+                dependencies.push(CapturedReadDependency {
+                    kind: CapturedReadKind::Row,
+                    table: Some(table_name.clone()),
+                    id: Some(id.clone()),
+                    version: Some(row_version),
+                    predicate: None,
+                    rows: Vec::new(),
+                    field: None,
+                    value: None,
+                    order: None,
+                    limit: None,
+                    result_count: None,
+                    boundary: None,
+                });
+                rows.push(serde_json::json!({
+                    "id": id,
+                    "resource": resource,
+                    "role": role,
+                    "sinceMs": since,
+                }));
+            }
+            // The principal-slice range capture: result_count participates in
+            // the fingerprint, so the empty slice is a first-class captured
+            // fact (the LLP 0056 pinned-empty-capture idiom) and a grant or
+            // removal moves the vector even before its row dependency exists.
+            dependencies.push(CapturedReadDependency {
+                kind: CapturedReadKind::Query,
+                table: Some(table_name.clone()),
+                id: None,
+                version: None,
+                predicate: None,
+                rows: Vec::new(),
+                field: Some(principal_field.clone()),
+                value: Some(Value::String(caller.clone())),
+                order: None,
+                limit: None,
+                result_count: Some(rows.len()),
+                boundary: None,
+            });
+            Ok((rows, dependencies))
+        })
+    }
+
     /// The reserved system live query's initial snapshot (LLP 0044 §Live
     /// asset lifecycle). Rides the ordinary subscribe machinery; only the
     /// execution is native.
@@ -6067,7 +6275,11 @@ impl LocalSnapback {
                     return;
                 }
             };
-        let query = match self.asset_record_query_invocation(&authority, &subscription.input) {
+        let query = match self.reserved_live_invocation(
+            &authority,
+            &subscription.function,
+            &subscription.input,
+        ) {
             Ok(query) => query,
             Err(error) => {
                 self.fail_subscription_fanout(
@@ -6160,7 +6372,11 @@ impl LocalSnapback {
                     return;
                 }
             };
-        let probe = match self.asset_record_query_invocation(&authority, &subscription.input) {
+        let probe = match self.reserved_live_invocation(
+            &authority,
+            &subscription.function,
+            &subscription.input,
+        ) {
             Ok(query) => query,
             Err(error) => {
                 self.fail_subscription_fanout(
@@ -12474,7 +12690,7 @@ impl LocalSnapback {
         authority.validate_admission("live subscribe preparation")?;
         let effect_fence = invalidation.effect_fence.clone();
         let authority_subject = authority.resolved().invalidation_subject();
-        let asset_record_live = name == ASSET_RECORD_LIVE_FUNCTION;
+        let reserved_live = is_reserved_live_function(name);
         // Sessions-mode establishment is admitted (2026-07-31): LLP 0053's
         // §Asset read-authorization inputs classification already covers every
         // input the projection reads, and the sealed sessions caller flows
@@ -12483,10 +12699,9 @@ impl LocalSnapback {
         // sessions mode it is auth-scoped below: protocol negotiation, a
         // query namespace, obligation registration, and the witnessed
         // re-run/drain lane all apply — never a plain unwitnessed replace.
-        let function = if asset_record_live {
-            asset_record_live_definition()?
-        } else {
-            self.function(name)?.clone()
+        let function = match reserved_live_definition(name) {
+            Some(definition) => definition?,
+            None => self.function(name)?.clone(),
         };
         if function.kind != FunctionKind::LiveQuery {
             return Err(SnapbackError::error(
@@ -12667,8 +12882,8 @@ impl LocalSnapback {
             })));
         }
 
-        let query = if asset_record_live {
-            self.asset_record_query_invocation(&authority, &subscription_input)?
+        let query = if reserved_live {
+            self.reserved_live_invocation(&authority, name, &subscription_input)?
         } else {
             execute_query_invocation(
                 &function,
@@ -14081,8 +14296,8 @@ impl LocalSnapback {
                 &subscription.authority,
                 authority.admission_lease().clone(),
             )?;
-            let query = if subscription.function == ASSET_RECORD_LIVE_FUNCTION {
-                self.asset_record_query_invocation(&rerun, &subscription.input)?
+            let query = if is_reserved_live_function(&subscription.function) {
+                self.reserved_live_invocation(&rerun, &subscription.function, &subscription.input)?
             } else {
                 self.invoke_query_with_dependencies_prepared(
                     &subscription.function,
@@ -17451,12 +17666,16 @@ impl LocalSnapback {
             match self
                 .prepare_live_rerun_authority(&subscription.authority, admission.clone())
                 .and_then(|authority| {
-                    if subscription.function == ASSET_RECORD_LIVE_FUNCTION {
-                        // The reserved projection executes natively; the
-                        // manifest lookup below can never produce it. The
+                    if is_reserved_live_function(&subscription.function) {
+                        // Reserved projections execute natively; the
+                        // manifest lookup below can never produce them. The
                         // retry-episode and witness machinery wrapping this
-                        // closure applies to it unchanged.
-                        self.asset_record_query_invocation(&authority, &subscription.input)
+                        // closure applies to them unchanged.
+                        self.reserved_live_invocation(
+                            &authority,
+                            &subscription.function,
+                            &subscription.input,
+                        )
                     } else {
                         self.invoke_query_with_dependencies_prepared(
                             &subscription.function,
@@ -18335,7 +18554,7 @@ impl LocalSnapback {
             if already_resynced.contains(&subscription.id) {
                 continue;
             }
-            if subscription.function == ASSET_RECORD_LIVE_FUNCTION {
+            if is_reserved_live_function(&subscription.function) {
                 asset_record_subscriptions.push(subscription.clone());
                 continue;
             }
@@ -22875,7 +23094,8 @@ mod auth_room_kick_acceptance;
 #[cfg(test)]
 mod tests {
     use super::{
-        ASSET_RECORD_LIVE_FUNCTION, AssetFinalizeCrashPoint, AuthorizationBlastRadiusStats,
+        ASSET_RECORD_LIVE_FUNCTION, MY_MEMBERSHIPS_LIVE_FUNCTION, AssetFinalizeCrashPoint,
+        AuthorizationBlastRadiusStats,
         AuthorizationInvalidationAckInput,
         BEFORE_ACTION_RESULT_HANDOFF_HOOK, BEFORE_CONFIG_VERIFY_PUBLICATION_HOOK,
         BEFORE_MUTATION_POSTCOMMIT_HOOK, BEFORE_QUERY_RESULT_HANDOFF_HOOK, DetachedIbexMutation,
@@ -25235,6 +25455,260 @@ globalThis.__snapbackHandlers = {
         snapback.asset_delete(&owner, &asset_id).expect("delete");
         let rows = asset_last_replace_rows(&mut snapback, "conn-owner");
         assert_eq!(rows.len(), 0, "deletion blanks the record projection");
+    }
+
+    fn my_memberships_snapback() -> LocalSnapback {
+        let mut snapback = asset_test_snapback();
+        let schema = SchemaManifest {
+            schema_hash: Some("my-memberships-projection".to_owned()),
+            tables: vec![
+                crate::manifest::TableManifest {
+                    name: "channels".to_owned(),
+                    fields: vec![crate::manifest::FieldManifest {
+                        name: "title".to_owned(),
+                        field_type: crate::manifest::FieldType::String,
+                        optional: true,
+                    }],
+                    indexes: Vec::new(),
+                    syncable: false,
+                    permission_backing: false,
+                    permission_fields: None,
+                    search_indexes: Vec::new(),
+                    membership: None,
+                    asset_sharing: None,
+                },
+                crate::manifest::TableManifest {
+                    name: "notes".to_owned(),
+                    fields: vec![crate::manifest::FieldManifest {
+                        name: "body".to_owned(),
+                        field_type: crate::manifest::FieldType::String,
+                        optional: true,
+                    }],
+                    indexes: Vec::new(),
+                    syncable: false,
+                    permission_backing: false,
+                    permission_fields: None,
+                    search_indexes: Vec::new(),
+                    membership: None,
+                    asset_sharing: None,
+                },
+                crate::manifest::TableManifest {
+                    name: "channel_members".to_owned(),
+                    fields: vec![
+                        crate::manifest::FieldManifest {
+                            name: "channelId".to_owned(),
+                            field_type: crate::manifest::FieldType::Id {
+                                table: "channels".to_owned(),
+                            },
+                            optional: false,
+                        },
+                        crate::manifest::FieldManifest {
+                            name: "userId".to_owned(),
+                            field_type: crate::manifest::FieldType::Principal,
+                            optional: false,
+                        },
+                        crate::manifest::FieldManifest {
+                            name: "role".to_owned(),
+                            field_type: crate::manifest::FieldType::String,
+                            optional: false,
+                        },
+                    ],
+                    indexes: Vec::new(),
+                    syncable: false,
+                    permission_backing: false,
+                    permission_fields: None,
+                    search_indexes: Vec::new(),
+                    membership: Some(crate::manifest::MembershipManifest {
+                        id: Some("channelSeats".to_owned()),
+                        principal: "userId".to_owned(),
+                        resource: Some("channelId".to_owned()),
+                        role: "role".to_owned(),
+                        roles: vec!["owner".to_owned(), "member".to_owned()],
+                        pending_roles: None,
+                        bootstrap_role: Some("owner".to_owned()),
+                        last_holder: None,
+                        expiry: None,
+                        incidental: None,
+                        provenance: None,
+                        transitions: Vec::new(),
+                        scope: crate::manifest::MembershipScope::Resource,
+                        resource_table: Some("channels".to_owned()),
+                    }),
+                    asset_sharing: None,
+                },
+            ],
+            ..SchemaManifest::default()
+        };
+        snapback.db.apply_schema(schema).expect("membership schema");
+        snapback
+    }
+
+    /// Seed a membership row directly at the storage layer. The membership
+    /// write policy (planners, transitions, provenance) is not under test
+    /// here — only what the projection reads — and production grants commit
+    /// through the membership writer, whose frames drive the same
+    /// conservative reserved-lane recompute this test exercises with an
+    /// unrelated framed commit.
+    fn seed_membership_row(
+        snapback: &mut LocalSnapback,
+        id: &str,
+        channel: &str,
+        user: &str,
+        role: &str,
+    ) {
+        let id = id.to_owned();
+        let channel = channel.to_owned();
+        let user = user.to_owned();
+        let role = role.to_owned();
+        snapback
+            .db
+            .asset_transaction(move |tx| {
+                tx.execute(
+                    "INSERT INTO channel_members (_id, _version, _createdAt, _updatedAt, channelId, userId, role) \
+                     VALUES (?1, 1, 1000, 1000, ?2, ?3, ?4)",
+                    rusqlite::params![id, channel, user, role],
+                )?;
+                Ok(())
+            })
+            .expect("seed membership row");
+    }
+
+    fn memberships_live_input(connection_id: &str, user: Option<&str>) -> LiveSubscribeInput {
+        LiveSubscribeInput {
+            connection_id: connection_id.to_owned(),
+            input: HandlerInput {
+                args: json!({ "membership": "channelSeats" }),
+                auth: crate::manifest::AuthInput {
+                    user_id: user.map(str::to_owned),
+                    ..crate::manifest::AuthInput::default()
+                },
+                ..HandlerInput::default()
+            },
+            authorization_namespace: None,
+            supersedes: None,
+            resume_from_token: None,
+        }
+    }
+
+    #[test]
+    fn my_memberships_projection_lists_own_seats_only_and_wakes_on_grant() {
+        let mut snapback = my_memberships_snapback();
+        seed_membership_row(&mut snapback, "seat_a1", "chan1", "user_a", "owner");
+        seed_membership_row(&mut snapback, "seat_a2", "chan2", "user_a", "member");
+        seed_membership_row(&mut snapback, "seat_b1", "chan1", "user_b", "member");
+
+        // Own seats only, deterministic order, roles and resources projected.
+        let a = snapback
+            .subscribe_live(
+                MY_MEMBERSHIPS_LIVE_FUNCTION,
+                memberships_live_input("conn-a", Some("user_a")),
+            )
+            .expect("member subscribes");
+        let rows = a.snapshot.expect("initial rows").rows;
+        assert_eq!(rows.len(), 2, "user_a holds exactly two seats");
+        assert_eq!(rows[0]["resource"], "chan1");
+        assert_eq!(rows[0]["role"], "owner");
+        assert_eq!(rows[1]["resource"], "chan2");
+        assert!(a.resume.is_none(), "never RQS-eligible");
+
+        // Cross-principal isolation: b sees one row, an outsider none.
+        let b = snapback
+            .subscribe_live(
+                MY_MEMBERSHIPS_LIVE_FUNCTION,
+                memberships_live_input("conn-b", Some("user_b")),
+            )
+            .expect("second member subscribes");
+        assert_eq!(b.snapshot.expect("rows").rows.len(), 1);
+        let outsider = snapback
+            .subscribe_live(
+                MY_MEMBERSHIPS_LIVE_FUNCTION,
+                memberships_live_input("conn-c", Some("user_c")),
+            )
+            .expect("outsider subscribes");
+        assert_eq!(
+            outsider.snapshot.expect("rows").rows.len(),
+            0,
+            "no seats, empty projection — the pinned empty capture"
+        );
+
+        // A grant wakes the previously blank subscription: the seat lands at
+        // the storage layer, and the next framed commit drives the
+        // conservative reserved-lane recompute whose fingerprint moved.
+        seed_membership_row(&mut snapback, "seat_c1", "chan2", "user_c", "member");
+        asset_handler_commit(
+            &mut snapback,
+            "user_a",
+            vec![crate::storage::BufferedWrite::Insert {
+                table: "notes".to_owned(),
+                id: "note_1".to_owned(),
+                values: serde_json::Map::from_iter([(
+                    "body".to_owned(),
+                    json!("frame driver"),
+                )]),
+            }],
+            Vec::new(),
+        )
+        .expect("framed commit");
+        let woken = asset_last_replace_rows(&mut snapback, "conn-c");
+        assert_eq!(woken.len(), 1, "first grant wakes the blank subscription");
+        assert_eq!(woken[0]["resource"], "chan2");
+        assert_eq!(woken[0]["role"], "member");
+
+        // Revocation blanks: remove a seat, next frame re-delivers without it.
+        snapback
+            .db
+            .asset_transaction(|tx| {
+                tx.execute(
+                    "DELETE FROM channel_members WHERE _id = 'seat_a2'",
+                    [],
+                )?;
+                Ok(())
+            })
+            .expect("revoke seat");
+        asset_handler_commit(
+            &mut snapback,
+            "user_a",
+            vec![crate::storage::BufferedWrite::Insert {
+                table: "notes".to_owned(),
+                id: "note_2".to_owned(),
+                values: serde_json::Map::from_iter([(
+                    "body".to_owned(),
+                    json!("second frame"),
+                )]),
+            }],
+            Vec::new(),
+        )
+        .expect("framed commit two");
+        let after_revoke = asset_last_replace_rows(&mut snapback, "conn-a");
+        assert_eq!(after_revoke.len(), 1, "revoked seat leaves the projection");
+        assert_eq!(after_revoke[0]["resource"], "chan1");
+
+        // Anonymous callers hold nothing; unknown declarations refuse.
+        let anonymous = snapback
+            .subscribe_live(
+                MY_MEMBERSHIPS_LIVE_FUNCTION,
+                memberships_live_input("conn-anon", None),
+            )
+            .expect("anonymous subscribes");
+        assert_eq!(anonymous.snapshot.expect("rows").rows.len(), 0);
+        let unknown = snapback.subscribe_live(
+            MY_MEMBERSHIPS_LIVE_FUNCTION,
+            LiveSubscribeInput {
+                connection_id: "conn-x".to_owned(),
+                input: HandlerInput {
+                    args: json!({ "membership": "nope" }),
+                    auth: crate::manifest::AuthInput {
+                        user_id: Some("user_a".to_owned()),
+                        ..crate::manifest::AuthInput::default()
+                    },
+                    ..HandlerInput::default()
+                },
+                authorization_namespace: None,
+                supersedes: None,
+                resume_from_token: None,
+            },
+        );
+        assert!(unknown.is_err(), "unknown declaration refuses");
     }
 
     #[test]

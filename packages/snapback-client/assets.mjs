@@ -144,6 +144,22 @@ function createHash(algorithm) {
 /** The reserved system live query projecting one asset record. */
 export const ASSET_RECORD_LIVE_FUNCTION = '_snapback.assetRecord';
 
+/**
+ * The reserved system live query projecting the caller's own membership
+ * rows for one declared membership (LLP 0056 §Declaration-owned
+ * self-projection). It rides the ordinary live-query surface — no wrapper
+ * needed:
+ *
+ *   client.liveQuery(MY_MEMBERSHIPS_LIVE_FUNCTION, {
+ *     args: { membership: 'channelSeats' },
+ *     onUpdate: (rows) => render(rows), // [{ id, resource, role, sinceMs }]
+ *   })
+ *
+ * Rows are the caller's own seats only; a grant wakes a blank
+ * subscription and a revocation removes the seat live.
+ */
+export const MY_MEMBERSHIPS_LIVE_FUNCTION = '_snapback.myMemberships';
+
 const TUS_VERSION = '1.0.0';
 const DEFAULT_CHUNK_BYTES = 4 * 1024 * 1024;
 

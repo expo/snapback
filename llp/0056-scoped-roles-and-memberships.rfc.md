@@ -5,7 +5,10 @@
 **Systems:** Auth, Sync, Storage, API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-13
-**Revised:** 2026-07-21 (delivery-lane boundary enforced in code: `live_delta`
+**Revised:** 2026-08-01 (declaration-owned self-projection: the reserved
+native live query `_snapback.myMemberships` lists the caller's own seats
+with pinned empty-range capture — see the dated amendment; closes the
+0137 A2 roster-mirror finding). 2026-07-21 (delivery-lane boundary enforced in code: `live_delta`
 candidacy and `compute_live_delta` now fail closed on non-empty
 `membership_filters`, closing the LLP 0067 §F2a over-delivery/visibility-freeze
 discrepancy; the L4 oracle extends to `NoChange` settles). 2026-07-18 (the generated write surface gains host-resolved
@@ -1792,6 +1795,37 @@ semi-join amendment** and are not v1 acceptance.
   public payload; full doctor variant), and the unique-index manifest capability.
 - **LLP 0055 composition** — the `authorityCreating` marker (0055 defines;
   this RFC's `provenance` is its precondition).
+
+## Dated amendment: the declaration-owned self-projection (2026-08-01)
+
+Recorded per the LLP 0137 A2 finding (ticket
+`20260801-0137-a2-membership-semijoin-cannot-list-own-channels`,
+resolved this date) and the fix-wave triage: "channels I belong to" was
+inexpressible against a resource-scoped declaration, so external apps
+maintained the exact app-data roster mirror this document warns
+against.
+
+The host now serves a **reserved, declaration-owned self-projection**:
+the native live query `_snapback.myMemberships` (admitted by name,
+never in public listings), argument `{ membership: <effective
+declaration id> }`, returning only the caller's own rows —
+`{ id, resource, role, sinceMs }` — under the caller's resolved
+authority (anonymous callers hold nothing; unknown declaration ids
+refuse). Its captured dependencies are the caller's own rows plus one
+principal-slice range capture whose `result_count` participates in the
+delivery fingerprint, so the empty slice is a first-class captured fact
+in this document's pinned-empty-capture idiom: a first grant wakes a
+previously blank subscription, and a removal leaves the projection on
+the next delivery. In sessions mode the projection is auth-scoped and
+rides the witnessed invalidation lane like every other protected
+query.
+
+Disclosure posture: the projection reveals strictly less than any
+existing surface — nothing about other principals, not even existence —
+so the private-roster rule holds by construction. The two adjacent A2/A3
+findings (principal-addressed removal, resource-partitioned keyset
+pages) remain governed by LLP 0100 and are deliberately **not** part of
+this amendment.
 
 ## Status
 
