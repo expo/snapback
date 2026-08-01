@@ -34,3 +34,18 @@ Witness: an Expo simulator app registers a push token through a documented
 Snapback path and an RSVP change produces one inspectable delivery attempt
 at a push-provider boundary (simulator receipts may stub APNs; the boundary
 and the ledger are the witnessed facts).
+
+## Resolution (2026-08-01)
+
+RESOLVED as designed-and-owned. The author decided the boundary
+(2026-08-01 ballot item 5): push is an INTEGRATION SEAM to Expo's
+push service, not a first-class Snapback delivery capability. The
+owning design landed as LLP 0143 ("Expo push-notification seam",
+Draft): token custody, the ctx.push.send action lane over the
+landed egress seam, the handed-to-Expo receipt ledger with the
+normative never-claims list, capability id and per-target
+availability (hosted stays Missing per the a1expo-f5 gate), the A4
+EXPO-09 acceptance fit, and the no-op posture. Implementation and
+the review loop proceed under LLP 0143; this ticket's ask — that
+the boundary exist as an explicit decision rather than a silent
+GAP — is discharged.
