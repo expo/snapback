@@ -12,6 +12,32 @@
 **Related:** LLP 0041, issues/20260731-sd6-scope-migration-and-rebuild.md
 **Marker:** release-lane
 
+## Implementation checkpoint — 2026-08-01
+
+The structural migration is implemented but the timing exit remains open
+until the first retained EAS execution:
+
+- staging moved from `.github/workflows/qualified-package-staging.yml` to
+  `.eas/workflows/qualified-package-staging.yml` under the dedicated
+  `@expo/snapback-ci` EAS project;
+- `linux_runtime` (`linux-large`) and `darwin_runtime` (`macos-large`) are
+  dependency-free roots and therefore build concurrently;
+- the macOS assembly job waits for both native artifacts, preserves the Linux
+  cross-host attestation, executes and revision-checks the transported macOS
+  runtime, and emits the same nine-package qualified staging ledger;
+- macOS and Linux staged cold-install proofs fan out concurrently after
+  assembly, then one retention job requires all nine tarballs and both
+  receipts; and
+- Hermes build/install and Cargo target caches are restored from authority-bound
+  keys and saved under source-revision-specific keys. LLP 0041 §Qualified
+  staging substrate — 2026-08-01 records why cache reuse does not replace any
+  output proof.
+
+The current EAS schema validator accepts the workflow and the file is below
+EAS's 16 KiB limit. Do not close this ticket until a real run retains the
+qualified release and demonstrates the target wall time (or records the
+remaining measured bottleneck).
+
 Measured across five runs of `.github/workflows/qualified-package-staging.yml`
 (30460781040 .. 30684007891): total ~90 min, of which `linux-runtime` ~36 min
 and `assemble` (macos-15) ~51 min run **serially**; the staged proofs

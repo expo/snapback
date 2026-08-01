@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "name": "snapback-ci",
+    "slug": "snapback-ci",
+    "owner": "expo",
+    "extra": {
+      "eas": {
+        "projectId": "6a83ec05-e0f3-4ced-a8d8-50c67e46f5cd"
+      }
+    }
+  }
+}
