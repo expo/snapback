@@ -18,3 +18,23 @@ Fix shape: print the not-ok envelope through the same `printResult` path
 every other command uses before returning 1, and reject flag-shaped
 positional arguments. Witness: a CLI test drives `snapback dev` over a
 failing backend and asserts the diagnostic reaches the terminal.
+
+---
+
+**Status:** Resolved (2026-08-01, 0137 between-arms fix lane)
+
+**Root cause.** The `dev` branch of `runCli`
+(`packages/snapback-cli/index.mjs`) returned `result.ok ? 0 : 1` without
+ever routing a not-ok result through `printResult`, unlike every other
+command; and `backendDirectory = args.shift()` consumed flag-shaped tokens
+(`--help`) as a directory name, producing the same silent exit.
+
+**Fix.** The dev branch prints a failed result envelope through the shared
+`printResult` path before returning 1, and rejects a flag-shaped positional
+with `SNAPBACK_CLI_ARGUMENT_INVALID` carrying dev usage.
+
+**Witness.** `packages/snapback-cli/dev-cli-diagnostics.test.mjs` (wired
+into the package test script and the canonical inventory) drives the real
+CLI over a failing backend and asserts the diagnostic reaches the terminal,
+and asserts `dev --help` fails loudly with usage; proven to fail pre-fix
+(silent exit 1, zero bytes).

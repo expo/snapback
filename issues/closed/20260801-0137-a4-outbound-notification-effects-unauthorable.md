@@ -48,3 +48,55 @@ the streamed lane is the ONLY working egress and undocumented as such —
 is tracked in
 issues/20260801-0137-a5-streamed-lane-is-the-only-working-egress.md
 (finding 0137-a5-f1).
+
+---
+
+**Status:** Resolved (2026-08-01, 0137 between-arms fix lane)
+
+**Root cause.** Not an engine regression: the module form with the actual
+contract — the handler file is a closed script that registers each
+`exportName` on `globalThis.__snapbackHandlers` and calls the global
+`fetch` — worked end to end against a local HTTP fixture on this tree
+(reproduced before any fix). What regressed on the packaged closure was
+*authorability*: (a) the registration contract was documented nowhere the
+packaged consumer can see (the guide's excerpt skipped the registration
+line, demos are not shipped), and both diagnostics dead-ended —
+`BUNDLE_UNSUPPORTED_EXPORT` said only "unsupported ambient dependency
+export" and `SNAPBACK_HANDLER_EXPORT_MISSING` named neither the object nor
+the reason, which is the observed catch-22; (b) the inline extractor's
+globals allowlist had no egress awareness, so `fetch` refused at generation
+even under `SNAPBACK_OUTBOUND_ACTIONS=1` while the module-form scanner
+honored the same seam; (c) `ctx.fetch` is the *hosted* host-mediated fetch
+op (LLP 0049) and the local Ibex host deliberately does not fall back to
+ambient fetch, but the refusal was an anonymous unknown-op.
+
+**Fix (at each layer).**
+- `packages/snapback-codegen/inline-handlers.mjs`: `fetch` is an admitted
+  global in inline handler/helper analysis when the codegen egress opt-in
+  is set, mirroring `scanUnsupportedHandlerSource`; runtime remains the
+  security boundary. Dated note in LLP 0108 §Admission rules.
+- `packages/snapback-codegen/index.mjs`: `BUNDLE_UNSUPPORTED_EXPORT` now
+  states the closed-script registration contract and routes to the guide.
+- `packages/snapback-harness/ctx-bootstrap.js` + `src/runtime.rs`
+  (`prepare_ibex_module` probe and preflight): `SNAPBACK_HANDLER_EXPORT_MISSING`
+  now names `globalThis.__snapbackHandlers` and the export refusal.
+- `src/runtime.rs` host-call dispatch: `host.fetch` on the local host
+  refuses with a message naming the global-fetch alternative instead of an
+  anonymous unknown op (the no-ambient-fallback stance is unchanged).
+- `guide/backend/actions-and-fetch.md`: new "The handler file is a closed
+  script" section with CI-verified excerpts (module form + inline form).
+
+**Witness.** `demos/all-aboard/tests/egress-probe` gained `notifyDelivery`
+(module form: fetch a local provider, commit the response through
+`recordDelivery`) and `notifyInline` (inline form, global fetch); the
+egress acceptance suite starts a local HTTP fixture and proves both execute
+end to end (16/16). Codegen regression tests in
+`packages/snapback-codegen/authoring-validation.test.mjs` (inline fetch
+admits under the opt-in / refuses without; export refusal message names the
+contract) were proven to fail before the fix.
+
+**Residual (deliberate, not a defect).** `ctx.fetch` remains unimplemented
+on the local host by design (hosts without the op must not fall back to
+ambient fetch); local actions use the global `fetch`. Implementing local
+host-mediated fetch with secret placement slots would be a new design
+decision under LLP 0049, not a regression repair.
