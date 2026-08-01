@@ -1,6 +1,6 @@
 # Mutation settlement lifecycle: LLP 0043 acknowledgement, replay, recovery
 
-**Status:** Open
+**Status:** Shelved
 **Impact:** 5
 **Urgency:** 4
 **Ease:** 2
@@ -54,3 +54,15 @@ in sub-stage (b).
 - Replay under changed profile/user/grant/authority/generation
   refuses with zero dispatch (already in the auth matrix; wired to
   this state machine's records).
+
+## Shelved (2026-08-01, author decision) — ask re-filed
+
+Temporarily shelved per Charlie's 2026-08-01 decision on the
+triage-sweep recommendation: the app-cli program is paused. The
+substantive ask outlives the program and is RE-FILED against its real
+owner:
+issues/20260801-llp0043-settlement-acknowledgement-lifecycle.md
+(the LLP 0043 acknowledgement-lifecycle contract; the JS-arm M2 outbox
+half has since landed and been re-verified against 0.1.8). This
+original stays as the app-cli-era record. Reopening condition for the
+program: LLP 0062 leaves Review or is recommissioned.

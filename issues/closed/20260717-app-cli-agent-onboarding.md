@@ -1,6 +1,6 @@
 # Agent onboarding: credential profile, pair, fence bootstrap, token lifecycle
 
-**Status:** Open
+**Status:** Shelved
 **Impact:** 4
 **Urgency:** 3
 **Ease:** 2
@@ -53,3 +53,12 @@ compatibility.
   failed-release retry-then-TTL, and a hundreds-long sequential
   burst all pass.
 - The dated LLP 0055 amendment lands with all five named items.
+
+## Shelved (2026-08-01, author decision)
+
+Temporarily shelved per Charlie's 2026-08-01 decision on the
+triage-sweep recommendation: the app-cli program is paused (owning RFC
+LLP 0062 parked at Review since 2026-07-17; LLP 0122 Q6 still open on
+the CLI's shape). Reopening condition: LLP 0062 leaves Review or the
+program is recommissioned. The design content here is not invalidated
+by the shelving.

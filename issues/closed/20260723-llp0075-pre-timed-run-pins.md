@@ -1,6 +1,6 @@
 # DECISION: pin the pre-timed-run amendments
 
-**Status:** Open (author decisions; blocks the first timed run)
+**Status:** Shelved
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 5
@@ -79,3 +79,14 @@ leg, statistics, metric definitions — all now status pinned/pinnedBy
 v0.9). Remaining: rubric scoring anchors + run capsule (the latter still
 carrying the two absent credential preconditions: a Convex account and
 the shared Cloudflare Pages token).
+
+## Shelved (2026-08-01, author decision)
+
+Temporarily shelved per Charlie's 2026-08-01 decision: the timed
+Convex checkpoint comparison is paused; llp/0075's Status moves
+Accepted → Shelved in the same landing. State at shelving: 6 of 8
+pins landed via amendment v0.9; remaining were the rubric scoring
+anchors and the run capsule (the latter still carrying the two absent
+credential preconditions: a Convex account and the shared Cloudflare
+Pages token). Reopening condition: the author recommissions the timed
+comparison.

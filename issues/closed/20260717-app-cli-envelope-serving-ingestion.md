@@ -1,6 +1,6 @@
 # Serve and ingest the API envelope (/app-api routes, LLP 0012 + 0031 amendments)
 
-**Status:** Open
+**Status:** Shelved
 **Impact:** 4
 **Urgency:** 3
 **Ease:** 2
@@ -71,3 +71,12 @@ LLP 0012 and LLP 0031 amendments carry all of it.
   redeploy-required refusal on network operations.
 - No credential of any class attaches to the public fetches
   (planted-carrier test).
+
+## Shelved (2026-08-01, author decision)
+
+Temporarily shelved per Charlie's 2026-08-01 decision on the
+triage-sweep recommendation: the app-cli program is paused (owning RFC
+LLP 0062 parked at Review since 2026-07-17; LLP 0122 Q6 still open on
+the CLI's shape). Reopening condition: LLP 0062 leaves Review or the
+program is recommissioned. The design content here is not invalidated
+by the shelving.

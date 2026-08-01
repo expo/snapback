@@ -1,6 +1,6 @@
 # Engine package with dev-target subcommands (sub-stage a core)
 
-**Status:** Open
+**Status:** Shelved
 **Impact:** 4
 **Urgency:** 2
 **Ease:** 2
@@ -71,3 +71,12 @@ case can become an implementation choice.
   `types` materializes them, including schema-owned app-global leaves.
 - Server diagnostic codes pass through verbatim in `diagnostics[]`
   (never rewritten to `SNAPBACK_APP_CLI_*` codes, which only classify).
+
+## Shelved (2026-08-01, author decision)
+
+Temporarily shelved per Charlie's 2026-08-01 decision on the
+triage-sweep recommendation: the app-cli program is paused (owning RFC
+LLP 0062 parked at Review since 2026-07-17; LLP 0122 Q6 still open on
+the CLI's shape). Reopening condition: LLP 0062 leaves Review or the
+program is recommissioned. The design content here is not invalidated
+by the shelving.

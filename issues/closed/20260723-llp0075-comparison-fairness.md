@@ -1,6 +1,6 @@
 # DECISION: comparison fairness — Convex local-leg topology, margins, generalization
 
-**Status:** Open (author decisions)
+**Status:** Shelved
 **Impact:** 4
 **Urgency:** 4
 **Ease:** 3
@@ -33,3 +33,13 @@ affects the timed result.
 - Whether a Convex-arm Stop-class defect (e.g. cross-user access in the
   comparator implementation) stops the checkpoint or is scored as comparator
   evidence.
+
+## Shelved (2026-08-01, author decision)
+
+Temporarily shelved per Charlie's 2026-08-01 decision: the timed
+Convex checkpoint comparison is paused; llp/0075's Status moves
+Accepted → Shelved in the same landing. The fairness forks recorded
+here (Convex local-leg topology, margins, generalization) remain the
+open author decisions to take at recommissioning; amendment v0.9
+already pinned the four choice forks it covers. Reopening condition:
+the author recommissions the timed comparison.

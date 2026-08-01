@@ -1,6 +1,6 @@
 # LLP 0075 Convex checkpoint protocol — pre-rerun program (index)
 
-**Status:** Open (author-gated; two pins remain)
+**Status:** Shelved
 **Impact:** 4
 **Urgency:** 4
 **Ease:** 1
@@ -82,3 +82,15 @@ demos/competitive-checkpoint/acceptance/protocol.v0.json:122, 274, 356).
 Amendments now run v0.1–v0.9. No timed two-arm sample has run (results
 dir holds none). Not superseded by LLP 0102/0115/0137: LLP 0102 §93
 explicitly leaves 0075's fixture, margins, and adjudication to 0075.
+
+## Shelved (2026-08-01, author decision)
+
+Temporarily shelved per Charlie's 2026-08-01 decision: the timed
+Convex checkpoint comparison is paused; llp/0075's Status moves
+Accepted → Shelved in the same landing. Reopening condition: the
+author recommissions the timed comparison. Outstanding needs recorded
+at shelving (from the 2026-08-01 triage note): two unpinned
+blocks-timed-runs protocol gates (evidenceConfidence.scoringAnchors,
+runCapsule — demos/competitive-checkpoint/acceptance/protocol.v0.json),
+a Convex account, and the shared Cloudflare Pages token. No timed
+two-arm sample ever ran.

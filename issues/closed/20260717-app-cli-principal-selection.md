@@ -1,6 +1,6 @@
 # Principal selection: anonymous default, explicit promotion, dev identity
 
-**Status:** Open
+**Status:** Shelved
 **Impact:** 4
 **Urgency:** 3
 **Ease:** 3
@@ -64,3 +64,14 @@ already-frozen selection rules.
   and nothing else is predicted client-side.
 - Descriptor-absent tests distinguish the credential-free stage-(a)
   dev carve-out from every fail-closed credentialed/non-dev case.
+
+## Shelved (2026-08-01, author decision)
+
+Temporarily shelved per Charlie's 2026-08-01 decision on the
+triage-sweep recommendation: the app-cli program is paused (owning RFC
+LLP 0062 parked at Review since 2026-07-17; LLP 0122 Q6 still open on
+the CLI's shape). Reopening condition: LLP 0062 leaves Review or the
+program is recommissioned. Note the adjacent landed surface: anonymous
+public custody on the packaged client (custody:'anonymous-public',
+fix-wave α1 5ed6d6b9) covers part of the anonymous-default story for
+protocol clients.

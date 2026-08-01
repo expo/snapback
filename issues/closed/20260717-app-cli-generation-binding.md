@@ -1,6 +1,6 @@
 # Call-time generation binding on sessions targets
 
-**Status:** Open
+**Status:** Shelved
 **Impact:** 5
 **Urgency:** 4
 **Ease:** 3
@@ -41,3 +41,14 @@ explicitly out of scope (accepted residual, LLP 0062 §1).
   against the amended server.
 - Exit 7's three sub-causes (integrity / binding / generation) are
   machine-distinguishable in diagnostics.
+
+## Shelved (2026-08-01, author decision) — ask re-filed
+
+Temporarily shelved per Charlie's 2026-08-01 decision on the
+triage-sweep recommendation: the app-cli program is paused. The
+substantive ask outlives the program and is RE-FILED against its real
+owner:
+issues/20260801-llp0012-call-time-generation-binding.md (LLP 0012
+amendment vehicle; consumers are the packaged protocol clients). This
+original stays as the app-cli-era record. Reopening condition for the
+program: LLP 0062 leaves Review or is recommissioned.

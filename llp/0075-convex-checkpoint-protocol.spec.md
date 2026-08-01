@@ -1,11 +1,22 @@
 # LLP 0075: Convex checkpoint protocol
 
 **Type:** Spec
-**Status:** Accepted
+**Status:** Shelved
 **Systems:** Competitive evaluation, Developer experience, Deployment, Control plane, Actions, Streaming, Code generation, React/Expo, Packaging, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-30 (protocol amendment v0.9 — author decisions, Charlie
+**Revised:** 2026-08-01 (Accepted → Shelved; author decision, Charlie
+Cheever, via the triage sweep: the timed Convex checkpoint comparison is
+temporarily shelved. The three program tickets are closed as Shelved
+under `issues/closed/` (20260723-llp0075-checkpoint-program,
+-comparison-fairness, -pre-timed-run-pins). State at shelving: protocol
+amendments v0.1–v0.9 retained; 6 of 8 pre-timed-run pins landed; the two
+unpinned blocks-timed-runs gates are evidenceConfidence.scoringAnchors
+and runCapsule, and the run capsule still lacks a Convex account and the
+shared Cloudflare Pages token; no timed two-arm sample ever ran.
+Reopening condition: the author recommissions the timed comparison —
+this Spec's frozen fixture, margins, and adjudication remain the
+authority when that happens, per LLP 0102's deference). 2026-07-30 (protocol amendment v0.9 — author decisions, Charlie
 Cheever, in-session: the four choice forks are pinned (assistance policy:
 one identical Claude Code + claude-fable-5 + default-tools agent across
 arms with per-arm vendor docs by digest; frontend hosting: one shared

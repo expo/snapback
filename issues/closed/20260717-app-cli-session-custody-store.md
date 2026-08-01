@@ -1,6 +1,6 @@
 # Node session custody store and session lifecycle commands
 
-**Status:** Open
+**Status:** Superseded
 **Impact:** 4
 **Urgency:** 2
 **Ease:** 2
@@ -77,3 +77,17 @@ separately. The file-backed Node custody store this ticket designs was
 never built. Recommended disposition: close as superseded when Charlie
 rules on the app-cli program's shelving (see the sweep report); left
 open only so the program decision is taken once, on the whole family.
+
+## Superseded (2026-08-01, author decision)
+
+Closed as superseded per Charlie's 2026-08-01 decision, on the
+triage finding recorded below (2026-08-01 sweep note): the human-
+session path for non-browser protocol clients was re-decided as
+non-custodial bearer injection — createExternalSessionClient
+(packages/snapback-client/index.mjs, @ref LLP 0096 §2), explicitly
+mutually exclusive with coordinator/agent custody — and LLP 0096 pins
+external session-bearer adoption and the trusted identity-broker seam.
+The file-backed Node custody store this ticket designs was never built
+and its premise no longer holds. If the shelved app-cli program is
+recommissioned, session custody should be re-derived from LLP 0096,
+not from this design.
