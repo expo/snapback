@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "findingId": "0137-g1-f2-guide-authoring-loop-stale-public-closure",
+  "dimension": "diagnostics-docs-agent-usability-and-escape-hatches",
+  "observation": {
+    "description": "guide/getting-started/the-authoring-loop.md still tells a consumer that `@expo/snapback-vite`, the current React starter, the versioned-seed integration, and the Linux run 'still need one newly versioned public closure before this page can call the React command a public-registry path', and leads with the historical `@ccheever/snapback-*` alias story for '0.1.x'. This G1 arm proved the entire React path — scaffold, generate, typecheck, vite build, dev lifecycle, live acceptance, teardown — from the public `@expo/snapback-*` 0.1.7 closure. The page's hedge is now false and steers external consumers away from a working paved path; the alias paragraph invites installing the wrong scope.",
+    "evidence": [
+      "demos/improvement-sweep/arms/g1-public-package-qualification/run-capsule.json (scenarios g1.install-closure, g1.scaffold-generate-build-start-inspect-stop)",
+      "demos/improvement-sweep/arms/g1-public-package-qualification/evidence/ledger-verification.json"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Competitor getting-started pages document exactly the install command that works against their public registry state; none hedge their primary quickstart behind a future publication.",
+    "source": "official-docs",
+    "sourceDate": "2026-08-01"
+  },
+  "classification": "documentation",
+  "mustNotRegress": "The guide's honesty discipline of never claiming a public-registry path before a verified closure exists — the fix is to update the claim now that the evidence exists, not to loosen the discipline.",
+  "smallestCoherentFix": "Refresh the-authoring-loop.md: state that the 0.1.7 `@expo/snapback-*` closure is the public-registry React path (citing the publication ledger and this G1 capsule), and demote the `@ccheever` alias history to a clearly-labeled lineage note.",
+  "acceptanceWitness": "The page's claims match a rerun of the G1 external smoke against the pinned closure version it names; guide freshness review (reviewed/reviewed-commit) updated in the same change.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-g1-guide-gap-authoring-loop-stale-public-closure.md"
+  },
+  "stopClass": false,
+  "budgetFinding": false
+}

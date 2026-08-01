@@ -1,0 +1,1461 @@
+{
+  "startedAt": "2026-08-01T09:07:41.506Z",
+  "readyDescriptor": {
+    "schemaVersion": "snapback.v0",
+    "descriptorKind": "snapbackHostReady",
+    "startupId": "srt_019fbc9446e47a818eb613236e05724b",
+    "ready": true,
+    "serverUrl": "http://127.0.0.1:4288",
+    "host": "127.0.0.1",
+    "port": 4288,
+    "pid": 45766,
+    "startupNonce": "019fbc94-46d8-7232-a465-983577bb3941",
+    "target": {
+      "appId": "g1-smoke",
+      "appRoot": null,
+      "targetProfile": "local-dev-sqlite-ibex",
+      "serverUrl": "http://127.0.0.1:4288"
+    },
+    "database": {
+      "mode": "file",
+      "path": "/private/tmp/claude-501/-Users-ccheever-projects-snapback/163679b8-1eab-4c5a-ac51-7e3d350c9b61/scratchpad/g1-external/g1-smoke/.snapback/dev.sqlite3"
+    },
+    "startedAtMs": 1785575261924,
+    "adminGated": true,
+    "adminTokenFile": "<redacted-path-retained-out-of-band>",
+    "secretReadRootFile": "/private/tmp/claude-501/-Users-ccheever-projects-snapback/163679b8-1eab-4c5a-ac51-7e3d350c9b61/scratchpad/g1-external/g1-smoke/.snapback/dev.ready.json.secret-read-root",
+    "impersonationCapabilityFile": "/private/tmp/claude-501/-Users-ccheever-projects-snapback/163679b8-1eab-4c5a-ac51-7e3d350c9b61/scratchpad/g1-external/g1-smoke/.snapback/dev.ready.json.impersonation",
+    "diagnostics": []
+  },
+  "readyDescriptorAdminTokenFileInsideApp": true,
+  "loadedEvent": {
+    "schemaVersion": "snapback.dev.v1",
+    "ok": true,
+    "state": "generated-and-loaded",
+    "managed": true,
+    "readyFile": "/private/tmp/claude-501/-Users-ccheever-projects-snapback/163679b8-1eab-4c5a-ac51-7e3d350c9b61/scratchpad/g1-external/g1-smoke/.snapback/dev.ready.json",
+    "serverUrl": "http://127.0.0.1:4288",
+    "runtime": {
+      "binary": "/private/tmp/claude-501/-Users-ccheever-projects-snapback/163679b8-1eab-4c5a-ac51-7e3d350c9b61/scratchpad/g1-external/g1-smoke/node_modules/@expo/snapback-runtime-darwin-arm64/bin/snapback",
+      "source": "@expo/snapback-runtime-darwin-arm64",
+      "platform": "darwin-arm64"
+    },
+    "runtimeRecovery": {
+      "schemaVersion": "snapback.runtime-recovery.v1",
+      "selectedBinary": "/private/tmp/claude-501/-Users-ccheever-projects-snapback/163679b8-1eab-4c5a-ac51-7e3d350c9b61/scratchpad/g1-external/g1-smoke/node_modules/@expo/snapback-runtime-darwin-arm64/bin/snapback",
+      "selectionRung": "packaged-runtime",
+      "expected": null,
+      "actualStamp": {
+        "gitCommit": "fdd49db8abf1943ad6051fcba1c73f2983ad0e66",
+        "gitDirty": false,
+        "crateVersion": "0.1.0",
+        "buildProfile": "release"
+      },
+      "currentCheckout": {
+        "buildable": null,
+        "runnable": true
+      },
+      "qualification": null,
+      "reuse": {
+        "allowed": true,
+        "reason": "selected dev runtime launched and reported its independent build stamp"
+      },
+      "diagnostic": {
+        "code": "SNAPBACK_RUNTIME_LAUNCH_OK"
+      },
+      "producerInputs": {
+        "platform": "darwin-arm64",
+        "runtimeSource": "@expo/snapback-runtime-darwin-arm64"
+      },
+      "recovery": {
+        "repairCommand": "reinstall @expo/snapback-cli and its platform runtime package",
+        "overrideCommand": "SNAPBACK_RUNTIME_BINARY=\"/private/tmp/claude-501/-Users-ccheever-projects-snapback/163679b8-1eab-4c5a-ac51-7e3d350c9b61/scratchpad/g1-external/g1-smoke/node_modules/@expo/snapback-runtime-darwin-arm64/bin/snapback\""
+      }
+    }
+  },
+  "serverUrl": "http://127.0.0.1:4288",
+  "port": 4288,
+  "publicInspect": {
+    "artifactKind": "runtimeState",
+    "schemaVersion": "snapback.v0",
+    "targetProfileId": "local-dev-sqlite-ibex",
+    "target": "local-dev-sqlite-ibex",
+    "storage": {
+      "version": 3,
+      "tables": [
+        "todos"
+      ]
+    },
+    "runtime": {
+      "canonicalEngine": "ibex",
+      "ibexSubmodule": {
+        "present": false
+      },
+      "ibexCli": {
+        "available": false,
+        "version": null
+      },
+      "hostPlanRuntime": true,
+      "ibexCtxDbHostBridge": "Available",
+      "asyncHandlerCompletion": "Available",
+      "sqliteLockHeldAcrossAsync": "Unavailable",
+      "mutationDryRun": true
+    },
+    "schema": {
+      "artifactKind": "schemaManifest",
+      "schemaVersion": "snapback.v0",
+      "appId": "g1-smoke",
+      "app": null,
+      "auth": null,
+      "requiredCapabilities": [],
+      "schemaHash": "sha256:dc66dcfdb39dca41",
+      "inputsHash": "545b9cee67773639f0ebf69762f94665a13a31a4acd08308f7aa279dc246e274",
+      "generatedAt": 0,
+      "sourceHash": null,
+      "artifactDiagnostics": [],
+      "targetProfile": "local-dev-sqlite-ibex",
+      "portabilityFlags": [],
+      "ephemeralCollections": [],
+      "tables": [
+        {
+          "name": "todos",
+          "fields": [
+            {
+              "name": "title",
+              "field_type": "String",
+              "optional": false
+            },
+            {
+              "name": "completed",
+              "field_type": "Boolean",
+              "optional": false
+            }
+          ],
+          "indexes": [
+            {
+              "name": "by_title",
+              "fields": [
+                "title"
+              ]
+            }
+          ],
+          "syncable": true
+        }
+      ]
+    },
+    "functions": {
+      "artifactKind": "functionManifest",
+      "schemaVersion": "snapback.v0",
+      "appId": "g1-smoke",
+      "bundleHash": "sha256:af4063533d2d1104",
+      "inputsHash": "545b9cee67773639f0ebf69762f94665a13a31a4acd08308f7aa279dc246e274",
+      "generatedAt": 0,
+      "unsupportedDependencyDiagnostics": [
+        {
+          "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+          "severity": "info",
+          "subsystem": "function"
+        }
+      ],
+      "acknowledgedExperimentalCapabilities": [
+        "args_contract_v1",
+        "result_contract_v1"
+      ],
+      "functions": [
+        {
+          "id": "g1-smoke:createTodo",
+          "name": "createTodo",
+          "exportedName": "createTodo",
+          "kind": "Mutation",
+          "handlerForm": "plan",
+          "implementationHash": "sha256:44e2524911274dcd9ee32488924d26fd24fb4db8edb3e3e3fe74bd3a97215f90",
+          "argsContractHash": "sha256:183eacdd291aace7e537f40eba314ec53ab2435baedec326d97336385a2cee0c",
+          "argsContract": {
+            "fields": [
+              {
+                "name": "title",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              }
+            ]
+          },
+          "resultContract": {
+            "kind": "unknown"
+          },
+          "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+          "requiredCapabilities": [
+            "host_plan_runtime",
+            "mutation_read_set_validation",
+            "result_contract_v1",
+            "args_contract_v1"
+          ],
+          "authRequirement": "optional-user",
+          "authorityIndependent": false,
+          "syncabilityClass": "mutation",
+          "readSetSummary": {
+            "primaryTable": null,
+            "tables": [],
+            "mode": "none",
+            "authScopeField": null
+          },
+          "writeSetSummary": {
+            "primaryTable": "todos",
+            "tables": [
+              "todos"
+            ],
+            "mode": "mutationPlan",
+            "authScopeField": null
+          },
+          "permissionEpochBumps": [],
+          "bundleEntrypoint": "createTodo",
+          "uses": [],
+          "runtime": {
+            "HostPlan": "Mutation"
+          }
+        },
+        {
+          "id": "g1-smoke:listTodos",
+          "name": "listTodos",
+          "exportedName": "listTodos",
+          "kind": "LiveQuery",
+          "handlerForm": "plan",
+          "implementationHash": "sha256:c079f894557ec6ed9e19d511c3297c68c4cf1458ec0317d40dc9c9452cde5bb0",
+          "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+          "argsContract": {
+            "fields": []
+          },
+          "resultContract": {
+            "kind": "documents",
+            "table": "todos",
+            "document": {
+              "kind": "object",
+              "fields": [
+                {
+                  "name": "_id",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "todos"
+                  }
+                },
+                {
+                  "name": "_version",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "min": 0,
+                    "max": 9007199254740991
+                  }
+                },
+                {
+                  "name": "_createdAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "min": 0,
+                    "max": 9007199254740991
+                  }
+                },
+                {
+                  "name": "_updatedAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "min": 0,
+                    "max": 9007199254740991
+                  }
+                },
+                {
+                  "name": "title",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "completed",
+                  "required": true,
+                  "value": {
+                    "kind": "boolean"
+                  }
+                }
+              ],
+              "allowExtra": false
+            }
+          },
+          "resultContractHash": "sha256:6cb72d727377ef0be17862a3349c42b1824f0dbea54154e4ca0bc1a41e4d47fa",
+          "requiredCapabilities": [
+            "live_subscriptions",
+            "host_plan_runtime",
+            "result_contract_v1",
+            "args_contract_v1"
+          ],
+          "authRequirement": "optional-user",
+          "authorityIndependent": false,
+          "syncabilityClass": "syncable-live",
+          "readSetSummary": {
+            "primaryTable": "todos",
+            "tables": [
+              "todos"
+            ],
+            "mode": "singleTable",
+            "authScopeField": null
+          },
+          "writeSetSummary": {
+            "primaryTable": null,
+            "tables": [],
+            "mode": "none",
+            "authScopeField": null
+          },
+          "permissionEpochBumps": [],
+          "bundleEntrypoint": "listTodos",
+          "uses": [],
+          "runtime": {
+            "HostPlan": "Query"
+          }
+        }
+      ],
+      "cronJobs": [],
+      "config": []
+    },
+    "capabilityManifest": {
+      "artifactKind": "capabilityManifest",
+      "schemaVersion": "snapback.v0",
+      "targetProfileId": "local-dev-sqlite-ibex",
+      "supportedArtifactVersions": [
+        "snapback.v0",
+        "snapback.v1"
+      ],
+      "supportedAuthModes": [
+        "dev",
+        "sessions"
+      ],
+      "supportedArtifactAuthPairs": [
+        {
+          "schemaVersion": "snapback.v0",
+          "authMode": "dev"
+        },
+        {
+          "schemaVersion": "snapback.v1",
+          "authMode": "sessions"
+        }
+      ],
+      "supportedCapabilities": [
+        "auth.sessions.v1",
+        "cron",
+        "cron_action_run_mutation",
+        "host_plan_runtime",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "jobs_one_off_v1",
+        "live_subscriptions",
+        "mutation_read_set_validation",
+        "permission_epoch_resync",
+        "registered_bundle_boot_v1",
+        "relational_query_v1",
+        "migration_keyset_scan_v1",
+        "full_text_search_v1",
+        "result_contract_v1",
+        "args_contract_v1",
+        "versioned_seed_install_v1",
+        "versioned_seed_reset_v1",
+        "asset_lifecycle_v1",
+        "asset_image_finalization_v1",
+        "asset_image_pipeline_v1"
+      ],
+      "capabilityMaturity": {
+        "inline_handler_v1": "experimental",
+        "jobs_one_off_v1": "experimental",
+        "registered_bundle_boot_v1": "experimental",
+        "result_contract_v1": "experimental",
+        "args_contract_v1": "experimental",
+        "versioned_seed_install_v1": "experimental",
+        "versioned_seed_reset_v1": "experimental",
+        "asset_lifecycle_v1": "experimental",
+        "asset_image_finalization_v1": "experimental",
+        "asset_image_pipeline_v1": "experimental"
+      },
+      "authProtocols": {
+        "provider": 1,
+        "invocation": 1,
+        "stagedMode": 1,
+        "bootstrap": 1
+      },
+      "hostedAuth": {
+        "externalTls": "unavailable",
+        "effectiveSource": "unavailable",
+        "authenticationThrottle": "processLocal",
+        "sessionInvalidation": "singleProcess",
+        "clientCredentialPosture": "bearerV1XssExposed"
+      },
+      "storageEngine": "sqlite",
+      "runtimeEngine": "ibex",
+      "localServerLifecycle": true,
+      "liveSubscriptions": true,
+      "syncableLiveQueries": true,
+      "onlineOnlyQueries": true,
+      "replaceOnlyQueries": true,
+      "ephemeralRealtime": true,
+      "ephemeralWebSocketPublish": true,
+      "ephemeralLocalRoomAuthority": true,
+      "ephemeralHostedAdapter": false,
+      "offlineRetention": true,
+      "optimisticReplay": true,
+      "mutationIsolationMode": "handler-captured-read-set-validation",
+      "authImpersonation": true,
+      "permissionDiagnostics": false,
+      "assetUpload": true,
+      "outboundActions": false,
+      "cron": true,
+      "notifications": false,
+      "supportedQueryForms": [
+        "host-plan-single-table-eq",
+        "host-plan-single-table-in",
+        "host-plan-single-table-range",
+        "host-plan-live-replace",
+        "ibex-ctx-db-single-table-eq",
+        "ibex-ctx-db-single-table-in",
+        "ibex-ctx-db-single-table-range",
+        "ibex-live-eq-replace",
+        "ibex-live-in-replace",
+        "ibex-live-range-replace",
+        "ibex-live-limited-boundary-replace",
+        "websocket-live-replace",
+        "ephemeral-latest-state-local",
+        "websocket-ephemeral-publish",
+        "cron-fixed-interval-local",
+        "cron-calendar-local",
+        "cron-action-run-mutation"
+      ],
+      "portabilityOptOuts": [],
+      "resourceLimits": [
+        {
+          "name": "wall_clock_timeout",
+          "status": "Missing"
+        },
+        {
+          "name": "action_wall_clock_timeout",
+          "status": "Enforced"
+        },
+        {
+          "name": "bounded_response_stream_total_bytes",
+          "status": "Enforced"
+        },
+        {
+          "name": "bounded_response_stream_buffered_bytes",
+          "status": "Enforced"
+        },
+        {
+          "name": "bounded_response_stream_read_bytes",
+          "status": "Enforced"
+        },
+        {
+          "name": "bounded_response_stream_open_cursors",
+          "status": "Enforced"
+        },
+        {
+          "name": "bounded_response_stream_wall_clock",
+          "status": "Enforced"
+        },
+        {
+          "name": "bounded_response_stream_idle_timeout",
+          "status": "Enforced"
+        },
+        {
+          "name": "bounded_response_stream_progress_rate",
+          "status": "Enforced"
+        },
+        {
+          "name": "cpu_budget",
+          "status": "Missing"
+        },
+        {
+          "name": "maximum_result_size",
+          "status": "Enforced"
+        },
+        {
+          "name": "maximum_subscription_count",
+          "status": "Enforced"
+        },
+        {
+          "name": "ephemeral_value_size",
+          "status": "Enforced"
+        },
+        {
+          "name": "ephemeral_publish_rate",
+          "status": "Enforced"
+        },
+        {
+          "name": "ephemeral_durable_lane_priority",
+          "status": "Enforced"
+        }
+      ],
+      "capabilityGaps": [
+        "postgres",
+        "cloudflare",
+        "hosted_untrusted_code",
+        "external_auth",
+        "outbound_actions",
+        "bounded_response_stream_v1",
+        "bounded_children_v1",
+        "notifications",
+        "ephemeral_hosted_adapter",
+        "ephemeral_multi_instance_sticky_routing",
+        "write_activity_v1",
+        "ibex_cli"
+      ],
+      "vmLifecycle": "fresh-per-invocation",
+      "runtimeFacts": {
+        "authProgramReadiness": {
+          "routeRegistryEnforced": true,
+          "existingSurfaceClosure": true,
+          "adminSecretReadEnforced": true,
+          "secretReadProcessPrerequisites": true,
+          "providerCore": true,
+          "sharedInvocationGate": true,
+          "stagedMode": true,
+          "connectionBinding": true,
+          "twoPhaseRevocation": true,
+          "authCoordinator": true,
+          "authorizationInvalidation": false,
+          "authorityDescriptor": true,
+          "authorizedLease": false,
+          "sessionActivationReady": true
+        }
+      },
+      "migration": {
+        "executor": "local-exclusive-single-writer",
+        "fenceLanes": [
+          "mutation",
+          "buffered-mutation",
+          "query",
+          "live-subscribe",
+          "live-resume",
+          "cron",
+          "action-stage",
+          "ephemeral-publish"
+        ]
+      },
+      "relationalQueries": {
+        "liveDelivery": "live_replace",
+        "retention": [
+          "none",
+          "opaque-authorized-snapshot-v1"
+        ]
+      },
+      "standardPatterns": {
+        "liveDelivery": "conservative-resnapshot",
+        "authScopeDisjointnessSkip": "disabled"
+      },
+      "fullTextSearch": {
+        "capabilityId": "full_text_search_v1",
+        "maturity": "stable",
+        "analyzer": "snapback-category-unicode17-v1",
+        "unicodeVersion": "17.0.0",
+        "analyzerTablesDigest": "sha256:67feb427579c6f3f9d601d93251c19cb18b15ab13cf46e7f33d285c3ff10181d",
+        "parser": "snapback-search-parser-v1",
+        "scorer": "snapback-term-score-v1",
+        "scoreMax": 22937600,
+        "maintenance": "synchronous",
+        "pagination": "current-keyset-v1",
+        "cursorTtlMs": 120000,
+        "accelerator": "none",
+        "authorizationFilters": [
+          "public-read",
+          "owner.v1"
+        ],
+        "highlights": true,
+        "counts": false,
+        "facets": false,
+        "suggestions": false,
+        "offline": false,
+        "storageEngines": [
+          "sqlite"
+        ],
+        "nonclaims": [
+          "live-search",
+          "offline-search",
+          "postgres",
+          "relational-visibility",
+          "native-fts-acceleration",
+          "sensitive-fields"
+        ]
+      },
+      "assets": {
+        "capabilityId": "asset_lifecycle_v1",
+        "lifecycleStores": [
+          "local-fs"
+        ],
+        "deliveryProfiles": [
+          "private-strict"
+        ],
+        "integrityGrades": [
+          "end-to-end-verified",
+          "received-bytes-canonical"
+        ],
+        "resumableLane": "tus-1.0.0",
+        "digestAlgorithm": "sha256",
+        "maxChunkBytes": 8388608,
+        "appLogicalQuotaBytes": 4294967296,
+        "minAccountingUnitBytes": 4096,
+        "attemptTtlMs": 21600000,
+        "maxOpenAttemptsPerApp": 64,
+        "maxOpenAttemptsPerPrincipal": 8,
+        "pendingGraceMs": 86400000,
+        "tombstoneRetentionMs": 604800000,
+        "publicationRetentionMs": 604800000,
+        "workRetryCeiling": 5,
+        "workLeaseMs": 60000,
+        "image": {
+          "capabilityIds": [
+            "asset_image_finalization_v1",
+            "asset_image_pipeline_v1"
+          ],
+          "placeholderAlgorithm": "thumbhash.v1",
+          "formats": [
+            "image/jpeg",
+            "image/png"
+          ],
+          "maxPixels": 50000000,
+          "maxDimension": 16384,
+          "maxDecompressionRatio": 500,
+          "ratioFloorBytes": 16777216,
+          "maxMetadataBytes": 1048576,
+          "stepTimeBudgetMs": 10000,
+          "maxOutputBytes": 67108864
+        },
+        "advisoryLimits": [],
+        "missing": [
+          "asset-video-finalization",
+          "asset-backup-export",
+          "asset-custom-read-authorizers",
+          "asset-deferred-length",
+          "asset-reference-gc",
+          "public-immutable",
+          "private-signed"
+        ]
+      }
+    },
+    "routeManifestHash": "absent",
+    "subscriptions": [],
+    "activeConnections": 0,
+    "reapedConnections": 0,
+    "liveDelivery": {
+      "totalFanoutAttempts": 0,
+      "totalDeliveries": 0,
+      "totalSkipped": 0,
+      "totalFailed": 0,
+      "lastFanoutSubscriptions": 0,
+      "lastDeliveries": 0,
+      "lastSkipped": 0,
+      "lastFailed": 0,
+      "authorizationBlastRadius": {
+        "global": {
+          "versionAdvances": 0,
+          "quarantinedSubscriptions": 0,
+          "resnapshots": 0
+        },
+        "membershipDeclarations": {}
+      },
+      "resume": {
+        "attempted": 0,
+        "currentAsOfAnswers": 0,
+        "deltaReplayAnswers": 0,
+        "replayOps": 0,
+        "replayBytesAvoided": 0,
+        "freshReplaceAnswers": 0,
+        "refused": {},
+        "noCertifiedSummary": 0,
+        "tokensMinted": 0,
+        "tokensRefreshed": 0,
+        "mintRefusals": 0,
+        "lastJournalDistance": 0,
+        "maxJournalDistance": 0
+      }
+    },
+    "ephemeral": {
+      "roomCount": 0,
+      "entryCount": 0,
+      "subscriberCount": 0,
+      "valueBytes": 0,
+      "retainedBytes": 0,
+      "outboxRetainedBytes": 0,
+      "pendingEphemeralKeys": 0,
+      "pendingDurableMessages": 0,
+      "pendingResyncMessages": 0,
+      "rejectedPublishes": 0,
+      "rateLimitedPublishes": 0,
+      "oversizedPublishes": 0,
+      "unauthorizedRequests": 0,
+      "metadataRejections": 0,
+      "expiredEntries": 0,
+      "disconnectedEntries": 0,
+      "coalescedUpdates": 0,
+      "resyncRequired": 0,
+      "outboxOverflows": 0,
+      "limitRejections": 0,
+      "generationExhaustions": 0
+    },
+    "cron": {
+      "artifactKind": "cronRuntimeState",
+      "schemaVersion": "snapback.v0",
+      "jobCount": 0,
+      "failedJobCount": 0,
+      "inFlightJobCount": 0
+    },
+    "maintenance": {
+      "permissionResolutionFailures": 0,
+      "journalPruneFailures": 0,
+      "lastPermissionResolutionFailureMs": null,
+      "lastJournalPruneFailureMs": null
+    },
+    "recentDiagnostics": [
+      {
+        "code": "SNAPBACK_IBEX_CLI_UNAVAILABLE",
+        "severity": "info",
+        "subsystem": "runtime"
+      },
+      {
+        "code": "SNAPBACK_IBEX_CLI_UNAVAILABLE",
+        "severity": "info",
+        "subsystem": "runtime"
+      }
+    ],
+    "capabilityGaps": [
+      "postgres",
+      "cloudflare",
+      "hosted_untrusted_code",
+      "external_auth",
+      "outbound_actions",
+      "bounded_response_stream_v1",
+      "bounded_children_v1",
+      "notifications",
+      "ephemeral_hosted_adapter",
+      "ephemeral_multi_instance_sticky_routing",
+      "write_activity_v1",
+      "ibex_cli"
+    ]
+  },
+  "health": {
+    "ok": true,
+    "target": "local-dev-sqlite-ibex",
+    "sqlite_version": 3,
+    "ibex_available": true,
+    "authProvider": "dormant",
+    "binary": {
+      "crateVersion": "0.1.0",
+      "gitCommit": "fdd49db8abf1943ad6051fcba1c73f2983ad0e66",
+      "gitDirty": false,
+      "buildProfile": "release",
+      "startupNonce": "019fbc94-46d8-7232-a465-983577bb3941"
+    }
+  },
+  "handlerExecution": {
+    "mutation": "createTodo",
+    "structuredResultKeys": [
+      "changed_count",
+      "ctx_ledger",
+      "receipt",
+      "result",
+      "version"
+    ],
+    "returnedBindingKind": "string",
+    "liveQuery": "listTodos",
+    "committedRowVisible": true
+  },
+  "adminInspect": {
+    "artifactKind": "runtimeState",
+    "schemaVersion": "snapback.v0",
+    "targetProfileId": "local-dev-sqlite-ibex",
+    "target": "local-dev-sqlite-ibex",
+    "storage": {
+      "version": 4,
+      "tables": [
+        "todos"
+      ]
+    },
+    "runtime": {
+      "canonicalEngine": "ibex",
+      "ibexSubmodule": {
+        "present": false
+      },
+      "ibexCli": {
+        "available": false,
+        "version": null
+      },
+      "hostPlanRuntime": true,
+      "ibexCtxDbHostBridge": "Available",
+      "asyncHandlerCompletion": "Available",
+      "sqliteLockHeldAcrossAsync": "Unavailable",
+      "mutationDryRun": true
+    },
+    "schema": {
+      "artifactKind": "schemaManifest",
+      "schemaVersion": "snapback.v0",
+      "appId": "g1-smoke",
+      "app": null,
+      "auth": null,
+      "requiredCapabilities": [],
+      "schemaHash": "sha256:dc66dcfdb39dca41",
+      "inputsHash": "545b9cee67773639f0ebf69762f94665a13a31a4acd08308f7aa279dc246e274",
+      "generatedAt": 0,
+      "sourceHash": null,
+      "artifactDiagnostics": [],
+      "targetProfile": "local-dev-sqlite-ibex",
+      "portabilityFlags": [],
+      "ephemeralCollections": [],
+      "tables": [
+        {
+          "name": "todos",
+          "fields": [
+            {
+              "name": "title",
+              "field_type": "String",
+              "optional": false
+            },
+            {
+              "name": "completed",
+              "field_type": "Boolean",
+              "optional": false
+            }
+          ],
+          "indexes": [
+            {
+              "name": "by_title",
+              "fields": [
+                "title"
+              ]
+            }
+          ],
+          "syncable": true
+        }
+      ]
+    },
+    "functions": {
+      "artifactKind": "functionManifest",
+      "schemaVersion": "snapback.v0",
+      "appId": "g1-smoke",
+      "bundleHash": "sha256:af4063533d2d1104",
+      "inputsHash": "545b9cee67773639f0ebf69762f94665a13a31a4acd08308f7aa279dc246e274",
+      "generatedAt": 0,
+      "unsupportedDependencyDiagnostics": [
+        {
+          "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+          "severity": "info",
+          "subsystem": "function"
+        }
+      ],
+      "acknowledgedExperimentalCapabilities": [
+        "args_contract_v1",
+        "result_contract_v1"
+      ],
+      "functions": [
+        {
+          "id": "g1-smoke:createTodo",
+          "name": "createTodo",
+          "exportedName": "createTodo",
+          "kind": "Mutation",
+          "handlerForm": "plan",
+          "implementationHash": "sha256:44e2524911274dcd9ee32488924d26fd24fb4db8edb3e3e3fe74bd3a97215f90",
+          "argsContractHash": "sha256:183eacdd291aace7e537f40eba314ec53ab2435baedec326d97336385a2cee0c",
+          "argsContract": {
+            "fields": [
+              {
+                "name": "title",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              }
+            ]
+          },
+          "resultContract": {
+            "kind": "unknown"
+          },
+          "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+          "requiredCapabilities": [
+            "host_plan_runtime",
+            "mutation_read_set_validation",
+            "result_contract_v1",
+            "args_contract_v1"
+          ],
+          "authRequirement": "optional-user",
+          "authorityIndependent": false,
+          "syncabilityClass": "mutation",
+          "readSetSummary": {
+            "primaryTable": null,
+            "tables": [],
+            "mode": "none",
+            "authScopeField": null
+          },
+          "writeSetSummary": {
+            "primaryTable": "todos",
+            "tables": [
+              "todos"
+            ],
+            "mode": "mutationPlan",
+            "authScopeField": null
+          },
+          "permissionEpochBumps": [],
+          "bundleEntrypoint": "createTodo",
+          "uses": [],
+          "runtime": {
+            "HostPlan": "Mutation"
+          }
+        },
+        {
+          "id": "g1-smoke:listTodos",
+          "name": "listTodos",
+          "exportedName": "listTodos",
+          "kind": "LiveQuery",
+          "handlerForm": "plan",
+          "implementationHash": "sha256:c079f894557ec6ed9e19d511c3297c68c4cf1458ec0317d40dc9c9452cde5bb0",
+          "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+          "argsContract": {
+            "fields": []
+          },
+          "resultContract": {
+            "kind": "documents",
+            "table": "todos",
+            "document": {
+              "kind": "object",
+              "fields": [
+                {
+                  "name": "_id",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "todos"
+                  }
+                },
+                {
+                  "name": "_version",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "min": 0,
+                    "max": 9007199254740991
+                  }
+                },
+                {
+                  "name": "_createdAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "min": 0,
+                    "max": 9007199254740991
+                  }
+                },
+                {
+                  "name": "_updatedAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "min": 0,
+                    "max": 9007199254740991
+                  }
+                },
+                {
+                  "name": "title",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "completed",
+                  "required": true,
+                  "value": {
+                    "kind": "boolean"
+                  }
+                }
+              ],
+              "allowExtra": false
+            }
+          },
+          "resultContractHash": "sha256:6cb72d727377ef0be17862a3349c42b1824f0dbea54154e4ca0bc1a41e4d47fa",
+          "requiredCapabilities": [
+            "live_subscriptions",
+            "host_plan_runtime",
+            "result_contract_v1",
+            "args_contract_v1"
+          ],
+          "authRequirement": "optional-user",
+          "authorityIndependent": false,
+          "syncabilityClass": "syncable-live",
+          "readSetSummary": {
+            "primaryTable": "todos",
+            "tables": [
+              "todos"
+            ],
+            "mode": "singleTable",
+            "authScopeField": null
+          },
+          "writeSetSummary": {
+            "primaryTable": null,
+            "tables": [],
+            "mode": "none",
+            "authScopeField": null
+          },
+          "permissionEpochBumps": [],
+          "bundleEntrypoint": "listTodos",
+          "uses": [],
+          "runtime": {
+            "HostPlan": "Query"
+          }
+        }
+      ],
+      "cronJobs": [],
+      "config": []
+    },
+    "capabilityManifest": {
+      "artifactKind": "capabilityManifest",
+      "schemaVersion": "snapback.v0",
+      "targetProfileId": "local-dev-sqlite-ibex",
+      "supportedArtifactVersions": [
+        "snapback.v0",
+        "snapback.v1"
+      ],
+      "supportedAuthModes": [
+        "dev",
+        "sessions"
+      ],
+      "supportedArtifactAuthPairs": [
+        {
+          "schemaVersion": "snapback.v0",
+          "authMode": "dev"
+        },
+        {
+          "schemaVersion": "snapback.v1",
+          "authMode": "sessions"
+        }
+      ],
+      "supportedCapabilities": [
+        "auth.sessions.v1",
+        "cron",
+        "cron_action_run_mutation",
+        "host_plan_runtime",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "jobs_one_off_v1",
+        "live_subscriptions",
+        "mutation_read_set_validation",
+        "permission_epoch_resync",
+        "registered_bundle_boot_v1",
+        "relational_query_v1",
+        "migration_keyset_scan_v1",
+        "full_text_search_v1",
+        "result_contract_v1",
+        "args_contract_v1",
+        "versioned_seed_install_v1",
+        "versioned_seed_reset_v1",
+        "asset_lifecycle_v1",
+        "asset_image_finalization_v1",
+        "asset_image_pipeline_v1"
+      ],
+      "capabilityMaturity": {
+        "inline_handler_v1": "experimental",
+        "jobs_one_off_v1": "experimental",
+        "registered_bundle_boot_v1": "experimental",
+        "result_contract_v1": "experimental",
+        "args_contract_v1": "experimental",
+        "versioned_seed_install_v1": "experimental",
+        "versioned_seed_reset_v1": "experimental",
+        "asset_lifecycle_v1": "experimental",
+        "asset_image_finalization_v1": "experimental",
+        "asset_image_pipeline_v1": "experimental"
+      },
+      "authProtocols": {
+        "provider": 1,
+        "invocation": 1,
+        "stagedMode": 1,
+        "bootstrap": 1
+      },
+      "hostedAuth": {
+        "externalTls": "unavailable",
+        "effectiveSource": "unavailable",
+        "authenticationThrottle": "processLocal",
+        "sessionInvalidation": "singleProcess",
+        "clientCredentialPosture": "bearerV1XssExposed"
+      },
+      "storageEngine": "sqlite",
+      "runtimeEngine": "ibex",
+      "localServerLifecycle": true,
+      "liveSubscriptions": true,
+      "syncableLiveQueries": true,
+      "onlineOnlyQueries": true,
+      "replaceOnlyQueries": true,
+      "ephemeralRealtime": true,
+      "ephemeralWebSocketPublish": true,
+      "ephemeralLocalRoomAuthority": true,
+      "ephemeralHostedAdapter": false,
+      "offlineRetention": true,
+      "optimisticReplay": true,
+      "mutationIsolationMode": "handler-captured-read-set-validation",
+      "authImpersonation": true,
+      "permissionDiagnostics": false,
+      "assetUpload": true,
+      "outboundActions": false,
+      "cron": true,
+      "notifications": false,
+      "supportedQueryForms": [
+        "host-plan-single-table-eq",
+        "host-plan-single-table-in",
+        "host-plan-single-table-range",
+        "host-plan-live-replace",
+        "ibex-ctx-db-single-table-eq",
+        "ibex-ctx-db-single-table-in",
+        "ibex-ctx-db-single-table-range",
+        "ibex-live-eq-replace",
+        "ibex-live-in-replace",
+        "ibex-live-range-replace",
+        "ibex-live-limited-boundary-replace",
+        "websocket-live-replace",
+        "ephemeral-latest-state-local",
+        "websocket-ephemeral-publish",
+        "cron-fixed-interval-local",
+        "cron-calendar-local",
+        "cron-action-run-mutation"
+      ],
+      "portabilityOptOuts": [],
+      "resourceLimits": [
+        {
+          "name": "wall_clock_timeout",
+          "status": "Missing"
+        },
+        {
+          "name": "action_wall_clock_timeout",
+          "status": "Enforced"
+        },
+        {
+          "name": "bounded_response_stream_total_bytes",
+          "status": "Enforced"
+        },
+        {
+          "name": "bounded_response_stream_buffered_bytes",
+          "status": "Enforced"
+        },
+        {
+          "name": "bounded_response_stream_read_bytes",
+          "status": "Enforced"
+        },
+        {
+          "name": "bounded_response_stream_open_cursors",
+          "status": "Enforced"
+        },
+        {
+          "name": "bounded_response_stream_wall_clock",
+          "status": "Enforced"
+        },
+        {
+          "name": "bounded_response_stream_idle_timeout",
+          "status": "Enforced"
+        },
+        {
+          "name": "bounded_response_stream_progress_rate",
+          "status": "Enforced"
+        },
+        {
+          "name": "cpu_budget",
+          "status": "Missing"
+        },
+        {
+          "name": "maximum_result_size",
+          "status": "Enforced"
+        },
+        {
+          "name": "maximum_subscription_count",
+          "status": "Enforced"
+        },
+        {
+          "name": "ephemeral_value_size",
+          "status": "Enforced"
+        },
+        {
+          "name": "ephemeral_publish_rate",
+          "status": "Enforced"
+        },
+        {
+          "name": "ephemeral_durable_lane_priority",
+          "status": "Enforced"
+        }
+      ],
+      "capabilityGaps": [
+        "postgres",
+        "cloudflare",
+        "hosted_untrusted_code",
+        "external_auth",
+        "outbound_actions",
+        "bounded_response_stream_v1",
+        "bounded_children_v1",
+        "notifications",
+        "ephemeral_hosted_adapter",
+        "ephemeral_multi_instance_sticky_routing",
+        "write_activity_v1",
+        "ibex_cli"
+      ],
+      "vmLifecycle": "fresh-per-invocation",
+      "runtimeFacts": {
+        "authProgramReadiness": {
+          "routeRegistryEnforced": true,
+          "existingSurfaceClosure": true,
+          "adminSecretReadEnforced": true,
+          "secretReadProcessPrerequisites": true,
+          "providerCore": true,
+          "sharedInvocationGate": true,
+          "stagedMode": true,
+          "connectionBinding": true,
+          "twoPhaseRevocation": true,
+          "authCoordinator": true,
+          "authorizationInvalidation": false,
+          "authorityDescriptor": true,
+          "authorizedLease": false,
+          "sessionActivationReady": true
+        }
+      },
+      "migration": {
+        "executor": "local-exclusive-single-writer",
+        "fenceLanes": [
+          "mutation",
+          "buffered-mutation",
+          "query",
+          "live-subscribe",
+          "live-resume",
+          "cron",
+          "action-stage",
+          "ephemeral-publish"
+        ]
+      },
+      "relationalQueries": {
+        "liveDelivery": "live_replace",
+        "retention": [
+          "none",
+          "opaque-authorized-snapshot-v1"
+        ]
+      },
+      "standardPatterns": {
+        "liveDelivery": "conservative-resnapshot",
+        "authScopeDisjointnessSkip": "disabled"
+      },
+      "fullTextSearch": {
+        "capabilityId": "full_text_search_v1",
+        "maturity": "stable",
+        "analyzer": "snapback-category-unicode17-v1",
+        "unicodeVersion": "17.0.0",
+        "analyzerTablesDigest": "sha256:67feb427579c6f3f9d601d93251c19cb18b15ab13cf46e7f33d285c3ff10181d",
+        "parser": "snapback-search-parser-v1",
+        "scorer": "snapback-term-score-v1",
+        "scoreMax": 22937600,
+        "maintenance": "synchronous",
+        "pagination": "current-keyset-v1",
+        "cursorTtlMs": 120000,
+        "accelerator": "none",
+        "authorizationFilters": [
+          "public-read",
+          "owner.v1"
+        ],
+        "highlights": true,
+        "counts": false,
+        "facets": false,
+        "suggestions": false,
+        "offline": false,
+        "storageEngines": [
+          "sqlite"
+        ],
+        "nonclaims": [
+          "live-search",
+          "offline-search",
+          "postgres",
+          "relational-visibility",
+          "native-fts-acceleration",
+          "sensitive-fields"
+        ]
+      },
+      "assets": {
+        "capabilityId": "asset_lifecycle_v1",
+        "lifecycleStores": [
+          "local-fs"
+        ],
+        "deliveryProfiles": [
+          "private-strict"
+        ],
+        "integrityGrades": [
+          "end-to-end-verified",
+          "received-bytes-canonical"
+        ],
+        "resumableLane": "tus-1.0.0",
+        "digestAlgorithm": "sha256",
+        "maxChunkBytes": 8388608,
+        "appLogicalQuotaBytes": 4294967296,
+        "minAccountingUnitBytes": 4096,
+        "attemptTtlMs": 21600000,
+        "maxOpenAttemptsPerApp": 64,
+        "maxOpenAttemptsPerPrincipal": 8,
+        "pendingGraceMs": 86400000,
+        "tombstoneRetentionMs": 604800000,
+        "publicationRetentionMs": 604800000,
+        "workRetryCeiling": 5,
+        "workLeaseMs": 60000,
+        "image": {
+          "capabilityIds": [
+            "asset_image_finalization_v1",
+            "asset_image_pipeline_v1"
+          ],
+          "placeholderAlgorithm": "thumbhash.v1",
+          "formats": [
+            "image/jpeg",
+            "image/png"
+          ],
+          "maxPixels": 50000000,
+          "maxDimension": 16384,
+          "maxDecompressionRatio": 500,
+          "ratioFloorBytes": 16777216,
+          "maxMetadataBytes": 1048576,
+          "stepTimeBudgetMs": 10000,
+          "maxOutputBytes": 67108864
+        },
+        "advisoryLimits": [],
+        "missing": [
+          "asset-video-finalization",
+          "asset-backup-export",
+          "asset-custom-read-authorizers",
+          "asset-deferred-length",
+          "asset-reference-gc",
+          "public-immutable",
+          "private-signed"
+        ]
+      }
+    },
+    "routeManifestHash": "absent",
+    "subscriptions": [],
+    "activeConnections": 0,
+    "reapedConnections": 0,
+    "liveDelivery": {
+      "totalFanoutAttempts": 0,
+      "totalDeliveries": 0,
+      "totalSkipped": 0,
+      "totalFailed": 0,
+      "lastFanoutSubscriptions": 0,
+      "lastDeliveries": 0,
+      "lastSkipped": 0,
+      "lastFailed": 0,
+      "authorizationBlastRadius": {
+        "global": {
+          "versionAdvances": 0,
+          "quarantinedSubscriptions": 0,
+          "resnapshots": 0
+        },
+        "membershipDeclarations": {}
+      },
+      "resume": {
+        "attempted": 0,
+        "currentAsOfAnswers": 0,
+        "deltaReplayAnswers": 0,
+        "replayOps": 0,
+        "replayBytesAvoided": 0,
+        "freshReplaceAnswers": 0,
+        "refused": {},
+        "noCertifiedSummary": 0,
+        "tokensMinted": 0,
+        "tokensRefreshed": 0,
+        "mintRefusals": 0,
+        "lastJournalDistance": 0,
+        "maxJournalDistance": 0
+      }
+    },
+    "ephemeral": {
+      "roomCount": 0,
+      "entryCount": 0,
+      "subscriberCount": 0,
+      "valueBytes": 0,
+      "retainedBytes": 0,
+      "outboxRetainedBytes": 0,
+      "pendingEphemeralKeys": 0,
+      "pendingDurableMessages": 0,
+      "pendingResyncMessages": 0,
+      "rejectedPublishes": 0,
+      "rateLimitedPublishes": 0,
+      "oversizedPublishes": 0,
+      "unauthorizedRequests": 0,
+      "metadataRejections": 0,
+      "expiredEntries": 0,
+      "disconnectedEntries": 0,
+      "coalescedUpdates": 0,
+      "resyncRequired": 0,
+      "outboxOverflows": 0,
+      "limitRejections": 0,
+      "generationExhaustions": 0
+    },
+    "cron": {
+      "artifactKind": "cronRuntimeState",
+      "schemaVersion": "snapback.v0",
+      "jobCount": 0,
+      "failedJobCount": 0,
+      "inFlightJobCount": 0
+    },
+    "maintenance": {
+      "permissionResolutionFailures": 0,
+      "journalPruneFailures": 0,
+      "lastPermissionResolutionFailureMs": null,
+      "lastJournalPruneFailureMs": null
+    },
+    "recentDiagnostics": [
+      {
+        "code": "SNAPBACK_IBEX_CLI_UNAVAILABLE",
+        "severity": "info",
+        "subsystem": "runtime"
+      },
+      {
+        "code": "SNAPBACK_IBEX_CLI_UNAVAILABLE",
+        "severity": "info",
+        "subsystem": "runtime"
+      }
+    ],
+    "capabilityGaps": [
+      "postgres",
+      "cloudflare",
+      "hosted_untrusted_code",
+      "external_auth",
+      "outbound_actions",
+      "bounded_response_stream_v1",
+      "bounded_children_v1",
+      "notifications",
+      "ephemeral_hosted_adapter",
+      "ephemeral_multi_instance_sticky_routing",
+      "write_activity_v1",
+      "ibex_cli"
+    ]
+  },
+  "bundle": {
+    "appId": "g1-smoke",
+    "inputsHash": "545b9cee67773639f0ebf69762f94665a13a31a4acd08308f7aa279dc246e274",
+    "artifactKind": "artifactIndex",
+    "functions": [
+      "createTodo",
+      "listTodos"
+    ]
+  },
+  "binary": {
+    "path": "/private/tmp/claude-501/-Users-ccheever-projects-snapback/163679b8-1eab-4c5a-ac51-7e3d350c9b61/scratchpad/g1-external/g1-smoke/node_modules/@expo/snapback-runtime-darwin-arm64/bin/snapback",
+    "sha256": "6c5c956750edc1be016823824bf5e28a3e969810aed6d7299cf5f593fa2023fe"
+  },
+  "runtimeReadiness": {
+    "path": null,
+    "note": "no readiness receipt file shipped next to the packaged binary"
+  },
+  "stop": {
+    "devExitCode": 0,
+    "forcedKill": false
+  },
+  "teardown": {
+    "portReleased": true,
+    "lingeringListener": null,
+    "readyFileStillPresent": false
+  }
+}

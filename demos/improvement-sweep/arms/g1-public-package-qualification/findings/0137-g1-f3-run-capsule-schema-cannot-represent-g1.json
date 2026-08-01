@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "findingId": "0137-g1-f3-run-capsule-schema-cannot-represent-g1",
+  "dimension": "diagnostics-docs-agent-usability-and-escape-hatches",
+  "observation": {
+    "description": "The frozen run-capsule.v1 schema requires arm.contract ∈ {a1…a6} with additionalProperties:false, but LLP 0137's own diary/evidence protocol requires a capsule for the G1 qualification arm, which implements no contract. This capsule was forced to record a placeholder contract ('a2') with armKind 'untimed-extension' and an environment.role disclaimer — a freeze artifact defect in the G0 evidence schemas, not a product defect.",
+    "evidence": [
+      "demos/improvement-sweep/protocol/schemas/run-capsule.v1.schema.json (arm.contract enum)",
+      "demos/improvement-sweep/arms/g1-public-package-qualification/run-capsule.json (environment.role)"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Not a competitor-comparable product fact; internal evidence-protocol gap.",
+    "source": "none-available",
+    "sourceDate": "2026-08-01"
+  },
+  "classification": "defect",
+  "mustNotRegress": "The freeze-boundary rule that outcome-affecting protocol changes need a dated prospective amendment and re-freeze; retained capsules are never rewritten.",
+  "smallestCoherentFix": "Prospective G0 amendment: allow a contract-free qualification arm (add 'none'/'g1' to the contract enum or a dedicated armKind that drops the contract requirement), then re-freeze per demos/improvement-sweep/README.md's amendment rules.",
+  "acceptanceWitness": "A future qualification capsule validates against the amended schema without a placeholder contract, and verify-freeze passes on the amended tree.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-g1-run-capsule-schema-gap.md"
+  },
+  "stopClass": false,
+  "budgetFinding": false
+}

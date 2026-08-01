@@ -1,0 +1,87 @@
+{
+  "schemaVersion": "snapback.cli-doctor.v2",
+  "ok": true,
+  "runtime": {
+    "binary": "/private/tmp/claude-501/-Users-ccheever-projects-snapback/163679b8-1eab-4c5a-ac51-7e3d350c9b61/scratchpad/g1-external/consumer/node_modules/@expo/snapback-runtime-darwin-arm64/bin/snapback",
+    "source": "@expo/snapback-runtime-darwin-arm64",
+    "platform": "darwin-arm64"
+  },
+  "runtimeRecovery": {
+    "schemaVersion": "snapback.runtime-recovery.v1",
+    "selectedBinary": "/private/tmp/claude-501/-Users-ccheever-projects-snapback/163679b8-1eab-4c5a-ac51-7e3d350c9b61/scratchpad/g1-external/consumer/node_modules/@expo/snapback-runtime-darwin-arm64/bin/snapback",
+    "selectionRung": "packaged-runtime",
+    "expected": null,
+    "actualStamp": {
+      "gitCommit": "fdd49db8abf1943ad6051fcba1c73f2983ad0e66",
+      "gitDirty": false,
+      "crateVersion": "0.1.0",
+      "buildProfile": "release"
+    },
+    "currentCheckout": {
+      "buildable": null,
+      "runnable": true
+    },
+    "qualification": null,
+    "reuse": {
+      "allowed": true,
+      "reason": "selected runtime launched and reported its independent build stamp"
+    },
+    "diagnostic": {
+      "code": "SNAPBACK_RUNTIME_LAUNCH_OK"
+    },
+    "producerInputs": {
+      "platform": "darwin-arm64",
+      "runtimeSource": "@expo/snapback-runtime-darwin-arm64"
+    },
+    "recovery": {
+      "repairCommand": "reinstall @expo/snapback-cli and its platform runtime package",
+      "overrideCommand": "SNAPBACK_RUNTIME_BINARY=\"/private/tmp/claude-501/-Users-ccheever-projects-snapback/163679b8-1eab-4c5a-ac51-7e3d350c9b61/scratchpad/g1-external/consumer/node_modules/@expo/snapback-runtime-darwin-arm64/bin/snapback\""
+    }
+  },
+  "checks": [
+    {
+      "code": "SNAPBACK_RUNTIME_LAUNCH_OK",
+      "severity": "info",
+      "subsystem": "runtime",
+      "message": "the packaged Snapback binary launched without ambient dynamic-loader paths"
+    },
+    {
+      "code": "SNAPBACK_DOCTOR_BUNDLE_LOAD_OK",
+      "severity": "info",
+      "subsystem": "runtime",
+      "message": "the disposable server created its VM and loaded the generated bundle"
+    },
+    {
+      "code": "SNAPBACK_DOCTOR_QUERY_OK",
+      "severity": "info",
+      "subsystem": "runtime",
+      "message": "the disposable generated query executed in the runtime VM",
+      "details": {
+        "version": 0,
+        "rowCount": 0
+      }
+    },
+    {
+      "code": "SNAPBACK_DOCTOR_MUTATION_OK",
+      "severity": "info",
+      "subsystem": "storage",
+      "message": "the disposable mutation committed against an isolated temporary database",
+      "details": {
+        "version": 1
+      }
+    },
+    {
+      "code": "SNAPBACK_DOCTOR_LIVE_OK",
+      "severity": "info",
+      "subsystem": "realtime",
+      "message": "the disposable live subscription opened with an authoritative snapshot and closed"
+    },
+    {
+      "code": "SNAPBACK_DOCTOR_SHUTDOWN_OK",
+      "severity": "info",
+      "subsystem": "runtime",
+      "message": "the disposable server stopped and its temporary state was removed"
+    }
+  ],
+  "probe": "vertical-slice"
+}

@@ -554,3 +554,30 @@ rules, and names-only credentials preflight are retained under
 `demos/improvement-sweep/`, digest-bound by `protocol/freeze.v1.json` and
 verified by `scripts/verify-freeze.mjs`. Phase 1 froze no Snapback revision,
 per this gate. Diaried sweep execution remains blocked on G1.
+
+G1 (Stage 1, public package qualification) executed 2026-08-01 and
+**passed** on the macOS/arm64 host: from a clean external directory outside
+any checkout, the complete terminal `@expo/snapback-*` closure installed
+from the public registry at immutable 0.1.7; all nine registry artifacts
+byte-verified against the retained publication ledger
+(`terminal-package-publication-0.1.7-fdd49db8.json`, sha256/sha1/sha512 and
+live-registry dist all matching); every public subpath the arm uses
+typechecked; a backend was scaffolded, generated, built, started,
+inspected, exercised (a real handler in the qualified restricted-VM
+runtime, structured result envelope, committed row observed live), and
+stopped through package-owned commands only; exact package, binary
+(sha256 = ledger `runtimeBinarySha256`, build stamp `fdd49db8…`),
+runtime-readiness (`snapback.runtime-qualify.v1` ok), and bundle
+(`inputsHash 545b9cee…`) identities are retained; teardown proven (no
+processes, listeners, checkout-relative imports, or sibling dependencies —
+one orphaned secret sidecar filed as a finding and removed). The Linux-host
+half is covered by public-package-proof run 30692108019 (exact-mode,
+green), cited rather than re-run. Capsule and evidence:
+`demos/improvement-sweep/arms/g1-public-package-qualification/`; five
+findings filed (template degraded-result advisory, stale authoring-loop
+guide claim, run-capsule schema gap for G1 arms, missing packaged
+runtime-readiness receipt/doc, orphaned `secret-read-root` sidecar) as
+`issues/20260801-0137-g1-*.md`. This status note is the dated amendment
+that re-froze `protocol/freeze.v1.json` (the plan document is inside the
+freeze boundary). Diaried sweep arms are now unblocked by G1; G2/G3 gate
+their tracks as frozen.

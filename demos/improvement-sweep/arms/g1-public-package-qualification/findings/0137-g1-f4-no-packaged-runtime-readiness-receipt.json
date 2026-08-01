@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "findingId": "0137-g1-f4-no-packaged-runtime-readiness-receipt",
+  "dimension": "diagnostics-docs-agent-usability-and-escape-hatches",
+  "observation": {
+    "description": "The packaged runtime ships no persisted runtime-readiness receipt: @expo/snapback-runtime-darwin-arm64 contains only package.json, bin/snapback, and the Hermes framework, and running `snapback runtime-qualify` on the packaged binary prints a valid snapback.runtime-qualify.v1 result (restricted-no-eval-handler-vm, ok=true) but persists nothing. The repo-side discipline binds a digest-bound `<binary>.runtime-readiness.json` receipt that doctor and the proof rungs re-verify (LLP 0010); a public consumer has no receipt to pin and `runtime-qualify` appears nowhere in the guide, so the G1 'runtime-readiness identity' had to be reported from live command output.",
+    "evidence": [
+      "demos/improvement-sweep/arms/g1-public-package-qualification/evidence/runtime-qualify.json",
+      "demos/improvement-sweep/arms/g1-public-package-qualification/evidence/lifecycle.json (runtimeReadiness.path=null)"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "No competitor offers a comparable handler-VM qualification receipt at all; this is a differentiator with an unfinished consumer-facing half rather than a parity gap.",
+    "source": "none-available",
+    "sourceDate": "2026-08-01"
+  },
+  "classification": "capability",
+  "mustNotRegress": "doctor's live six-boundary qualification of the exact packaged binary — a persisted receipt must complement, never replace, on-demand qualification.",
+  "smallestCoherentFix": "Document `snapback runtime-qualify` on the guide diagnostics page as the packaged readiness identity, and have doctor (or runtime-qualify with a flag) persist the digest-bound receipt under the app's managed .snapback/ state (not inside read-only node_modules) so consumers can retain it as evidence.",
+  "acceptanceWitness": "An external consumer can produce and re-verify a digest-bound readiness receipt for the packaged binary via a guide-documented command; the guide page's snippet is CI-checked.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-g1-guide-gap-packaged-runtime-readiness-receipt.md"
+  },
+  "stopClass": false,
+  "budgetFinding": false
+}

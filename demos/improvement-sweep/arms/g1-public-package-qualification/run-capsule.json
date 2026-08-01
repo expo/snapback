@@ -1,0 +1,206 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "arm": {
+    "contract": "a2",
+    "armKind": "untimed-extension",
+    "platform": "web",
+    "provider": "snapback",
+    "attemptId": "g1-public-package-qualification-darwin-arm64-20260801"
+  },
+  "packageVersions": {
+    "@expo/snapback-cli": "0.1.7",
+    "@expo/snapback-app-cli": "0.1.7",
+    "@expo/snapback-client": "0.1.7",
+    "@expo/snapback-codegen": "0.1.7",
+    "@expo/snapback-contract": "0.1.7",
+    "@expo/snapback-react": "0.1.7",
+    "@expo/snapback-vite": "0.1.7",
+    "@expo/snapback-runtime-darwin-arm64": "0.1.7",
+    "@expo/snapback-runtime-linux-x64": "0.1.7 (ledger-verified tarball only; unmet optional on macOS by design)",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "vite": "8.2.0",
+    "typescript": "5.9.3"
+  },
+  "environment": {
+    "role": "G1 gate qualification (LLP 0137 §G1) — NOT a contract arm. The arm.contract value 'a2' is a schema-forced placeholder; see finding 0137-g1-f3-run-capsule-schema-cannot-represent-g1.",
+    "host": "macOS (Darwin 25.5.0), arm64",
+    "node": "24.18.0 (volta)",
+    "bun": "1.3.12 (matches the template's packageManager pin)",
+    "npm": "11.12.1",
+    "registry": "https://registry.npmjs.org",
+    "externalDirectory": "session scratchpad g1-external/ — outside any Snapback checkout; no repo-relative imports, no sibling checkouts",
+    "sanctionedDocumentation": [
+      "the Snapback guide (guide/index.md, getting-started/*, clients/app-cli.md, testing/acceptance.md, deploying/releases.md excerpts)",
+      "the retained publication ledger demos/partiful-matrix/acceptance/evidence/terminal-package-publication-0.1.7-fdd49db8.json (shasum comparison is external-consumer-legitimate per the G1 commission)"
+    ],
+    "linuxHostHalf": {
+      "status": "covered-by-citation",
+      "citation": "public-package-proof GitHub Actions run 30692108019 (exact-mode, green) covered the Linux-host half of G1; not re-run for this capsule per the Stage 1 commission",
+      "ledgerLinuxTarball": "expo-snapback-runtime-linux-x64-0.1.7.tgz byte-verified against the ledger from this macOS host (sha256/sha1/sha512 triple match)"
+    }
+  },
+  "budget": {
+    "class": "untimed-qualification",
+    "note": "G1 is untimed by LLP 0137; wall clock and tool calls recorded as instruments only.",
+    "wallClock": {
+      "externalArmStart": "2026-08-01T09:02:27Z",
+      "externalArmEnd": "2026-08-01T09:10:49Z",
+      "externalArmSeconds": 502,
+      "docsPhaseBeforeArm": "~25 minutes reading the commission, freeze protocol, and sanctioned guide pages"
+    },
+    "toolCalls": {
+      "executedDuringExternalArm": 30,
+      "sandboxRefusedRetries": 5,
+      "countingNote": "counted from the session transcript; refusals are harness-complexity rejections that executed nothing"
+    }
+  },
+  "actors": {
+    "builder": "Claude (Fable 5), LLP 0137 Stage 1 agent, external-consumer posture",
+    "personas": "none — the smoke arm exercises the dev-mode template with no auth personas"
+  },
+  "targets": {
+    "kind": "fresh-isolated-local",
+    "targetProfile": "local-dev-sqlite-ibex",
+    "appId": "g1-smoke",
+    "database": "file-backed .snapback/dev.sqlite3 inside the scaffolded app",
+    "serverUrl": "http://127.0.0.1:4288",
+    "port": 4288,
+    "portDiscipline": "dev-supervisor-assigned; asserted != 4420 (fleet-shared port) in the lifecycle script",
+    "hostedTarget": "none — not required by G1"
+  },
+  "milestones": {
+    "closureInstalled": "2026-08-01T09:02:40Z (npm install of the 7-package closure + platform runtime, ~9s)",
+    "ledgerVerified": "2026-08-01T09:03:37Z (all 9 tarballs, triple hash match + live registry dist match)",
+    "doctorQualified": "2026-08-01T09:04Z (six info boundaries, ok=true)",
+    "scaffolded": "2026-08-01T09:05Z (snapback new g1-smoke --template react)",
+    "generated": "2026-08-01T09:05Z (19 files, deterministic summary; one degraded-result advisory — finding f1)",
+    "typecheckAndBuild": "2026-08-01T09:06Z (tsc --noEmit template + augmented subpath file; vite build 483kB bundle)",
+    "verifiedRealtime": "2026-08-01T09:07Z (template acceptance.live.mjs: live query snapshot → mutation → delivery → zero-leak disposal)",
+    "identityLifecycleRun": "2026-08-01T09:07:41Z (g1-lifecycle.mjs start/inspect/handler/stop with retained identities)",
+    "teardownProven": "2026-08-01T09:09:14Z (no processes, port free); secret-sidecar finding cleanup at 09:10:49Z"
+  },
+  "assistanceEvents": [],
+  "postureBreaks": [],
+  "commands": [
+    "npm install --save-exact @expo/snapback-{cli,app-cli,client,codegen,contract,react,vite}@0.1.7",
+    "npm pack <all 9 closure packages>@0.1.7 && node verify-ledger.mjs",
+    "snapback doctor --json",
+    "snapback new g1-smoke --template react",
+    "bun install",
+    "snapback generate snapback",
+    "tsc --noEmit (template tsconfig + src/g1-typecheck.ts importing every used public subpath)",
+    "node acceptance.mjs",
+    "vite build",
+    "node acceptance.live.mjs",
+    "node g1-lifecycle.mjs (spawns 'snapback dev snapback', captures ready descriptor, GET /inspect + /health, client.mutate(api.createTodo) + client.query(api.listTodos), stdin-close stop, lsof teardown proof)",
+    "node_modules/@expo/snapback-runtime-darwin-arm64/bin/snapback runtime-qualify"
+  ],
+  "scenarioResults": [
+    {
+      "id": "g1.install-closure",
+      "result": "pass",
+      "evidencePaths": ["evidence/ledger-verification.json"],
+      "note": "Complete terminal @expo/snapback-* closure installed from the public registry by immutable version 0.1.7 in ~9s; darwin-arm64 runtime selected, linux-x64 an unmet optional exactly as published."
+    },
+    {
+      "id": "g1.ledger-verification",
+      "result": "pass",
+      "evidencePaths": ["evidence/ledger-verification.json"],
+      "note": "All 9 packages: downloaded tarball sha256 == ledger sha256 == ledger registrySha256; sha1 == registryShasum; sha512 == registryIntegrity; live registry dist matches the ledger. allPass=true."
+    },
+    {
+      "id": "g1.typecheck-public-subpaths",
+      "result": "pass",
+      "evidencePaths": [],
+      "note": "Template strict tsc --noEmit passes, plus an augmented src/g1-typecheck.ts importing every public subpath the arm uses: @expo/snapback-client, @expo/snapback-react, @expo/snapback-vite, @expo/snapback-codegen/define, and the generated api. All closure packages ship typed exports maps."
+    },
+    {
+      "id": "g1.scaffold-generate-build-start-inspect-stop",
+      "result": "pass",
+      "evidencePaths": ["evidence/lifecycle.json", "evidence/doctor.json"],
+      "note": "snapback new → bun install → snapback generate (19 files; one degraded advisory = finding f1) → vite build → snapback dev (ready descriptor + generated-and-loaded lifecycle event) → GET /inspect + /health + admin inspect → stdin-close stop, dev exit 0, port released, ready file removed. All package-owned."
+    },
+    {
+      "id": "g1.execute-real-handler",
+      "result": "pass",
+      "evidencePaths": ["evidence/lifecycle.json"],
+      "note": "client.mutate(api.createTodo) executed in the qualified runtime returning the documented structured envelope (version, changed_count, result, ctx_ledger, receipt) with the returnBinding string; committed row visible via api.listTodos. The template's acceptance.live.mjs independently proved the React-provider path with live delivery."
+    },
+    {
+      "id": "g1.report-identities",
+      "result": "pass",
+      "evidencePaths": ["evidence/lifecycle.json", "evidence/runtime-qualify.json", "evidence/doctor.json"],
+      "note": "Packages: all @expo/snapback-* at 0.1.7. Binary: node_modules/@expo/snapback-runtime-darwin-arm64/bin/snapback, sha256 6c5c956750edc1be016823824bf5e28a3e969810aed6d7299cf5f593fa2023fe == ledger runtimeBinarySha256; build stamp gitCommit fdd49db8abf1943ad6051fcba1c73f2983ad0e66 (clean, release) == ledger revision. Runtime readiness: snapback.runtime-qualify.v1 restricted-no-eval-handler-vm ok=true (no persisted receipt ships — finding f4). Bundle: appId g1-smoke, inputsHash 545b9cee67773639f0ebf69762f94665a13a31a4acd08308f7aa279dc246e274, functions [createTodo, listTodos]."
+    },
+    {
+      "id": "g1.clean-finish",
+      "result": "gap",
+      "evidencePaths": ["evidence/lifecycle.json"],
+      "note": "Processes, listeners, ready descriptor, and its .impersonation sidecar all torn down by the packaged stop; no checkout-relative import (grep clean) and no manual sibling dependency (the one attempted sibling-resolution script was refused by node and moved inside the app — the posture held). GAP: clean 'snapback dev' shutdown orphaned .snapback/dev.ready.json.secret-read-root (0600, 70-char token-like value) — finding f5, removed manually; dev.sqlite3.admin-token and resume-keyring.json persist by reattach design and were also removed at arm end."
+    }
+  ],
+  "expectedCheckCount": 7,
+  "findings": [
+    "0137-g1-f1-react-template-degraded-result-contract",
+    "0137-g1-f2-guide-authoring-loop-stale-public-closure",
+    "0137-g1-f3-run-capsule-schema-cannot-represent-g1",
+    "0137-g1-f4-no-packaged-runtime-readiness-receipt",
+    "0137-g1-f5-orphaned-secret-read-root-sidecar"
+  ],
+  "differentiators": [
+    {
+      "observation": "One command, `snapback doctor --json`, gives a six-boundary installed-product qualification (launch, bundle load, query, mutation, live subscription, shutdown) with stable codes and an independent build stamp — stronger than any install verification the 0102-era competitor arms had.",
+      "mustNotRegress": "doctor must keep exercising all six boundaries against the packaged binary users actually receive, never degrade to a launch-only probe.",
+      "referenceEvidence": "evidence/doctor.json"
+    },
+    {
+      "observation": "The publication ledger permits a full third-party byte audit: tarball sha256/sha1/sha512 and the live registry dist all triple-match, and the served binary's build stamp equals the ledger revision.",
+      "mustNotRegress": "every future closure version must retain a committed ledger with per-package registrySha256/shasum/integrity and runtimeBinarySha256.",
+      "referenceEvidence": "evidence/ledger-verification.json"
+    },
+    {
+      "observation": "The dev supervisor's machine-readable lifecycle (snapback.dev.v1 events + dev.ready.json descriptor) plus stdin-close stop made a scripted start/inspect/stop trivially reliable — no log parsing, no polling loops against prose.",
+      "mustNotRegress": "the ready-descriptor contract and the generated-and-loaded event remain the packaged lifecycle protocol.",
+      "referenceEvidence": "evidence/lifecycle.json"
+    },
+    {
+      "observation": "The scaffolded template ships its own acceptance suite, and the live one proves zero-leak disposal (stores/consumers/subscriptions/leases/timers/listeners all 0) and empty server subscriptions after dispose.",
+      "mustNotRegress": "the template's live acceptance keeps asserting provider-inspection zero state and server-side subscription emptiness.",
+      "referenceEvidence": "template acceptance.live.mjs (public package bytes)"
+    }
+  ],
+  "inventory": {
+    "authored": [
+      "consumer/package.json (7 exact-version closure deps)",
+      "evidence/verify-ledger.mjs (ledger byte-audit script)",
+      "g1-smoke/src/g1-typecheck.ts (augmented public-subpath typecheck)",
+      "g1-smoke/g1-lifecycle.mjs (identity-capture lifecycle run)"
+    ],
+    "scaffolded": "12 template files from snapback new --template react (backend .mjs x3, React shell, acceptance x2, configs)",
+    "generated": "19 codegen files (review manifest + ignored cache materialization), inputsHash 545b9cee…",
+    "glue": "none — no gateway, poller, or normalization layer was needed",
+    "evidenceRetained": [
+      "evidence/ledger-verification.json",
+      "evidence/doctor.json",
+      "evidence/runtime-qualify.json",
+      "evidence/lifecycle.json"
+    ]
+  },
+  "attribution": {
+    "transport": "native packaged server over local loopback HTTP/WS; live delivery verified through the first-party React provider in the template's live acceptance",
+    "authority": "server-authoritative local-dev-sqlite-ibex target; admin-gated operations via the managed owner-only token file; handler ran in the restricted no-eval VM (runtime-qualify ok)",
+    "settlement": "mutation returned the structured result envelope (version, changed_count, result, ctx_ledger, receipt) and the committed row was observed through the listTodos live query and the React delivery path"
+  },
+  "stopDefects": [],
+  "cleanup": {
+    "processes": "none remaining (pgrep -lf g1-external empty after every run, including the one mid-arm failure)",
+    "listeners": "port 4288 free (lsof LISTEN empty); never touched port 4420",
+    "secretSidecars": "dev.ready.json + .impersonation removed by the packaged stop; orphaned .secret-read-root (finding f5), admin-token, and resume-keyring removed manually at arm end; no secret content copied into any record",
+    "checkoutRelativeImports": "none — grep over the app sources found no references to any Snapback checkout",
+    "siblingDependencies": "none — all imports resolve inside the app's own node_modules",
+    "externalDirectory": "scratchpad g1-external/ retained (session-isolated, secrets stripped) as the working area; durable evidence copied into this arms/ directory"
+  },
+  "result": "complete"
+}

@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "findingId": "0137-g1-f1-react-template-degraded-result-contract",
+  "dimension": "installed-product-first-hour",
+  "observation": {
+    "description": "The paved scaffold's very first generate warns about the scaffold itself: `snapback new my-app --template react` ships a `createTodo` mutation that `snapback generate` immediately flags as 'degraded createTodo … Add `result: results.document(\"table\")` … and regenerate'. A first-hour consumer's untouched starter should generate advisory-clean, or the advisory should not apply to the paved declarative `returns: returnBinding(...)` form.",
+    "evidence": [
+      "demos/improvement-sweep/arms/g1-public-package-qualification/run-capsule.json (milestones.generated)",
+      "codegen summary output retained in the capsule's scenario g1.scaffold-generate-build-start-inspect-stop"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "No frozen 0102/0115 evidence bears on Snapback's own scaffolder polish; the general reference standard is that first-party starters (e.g. create-vite, npm create convex) generate without tool-emitted fix-me advisories on the untouched template.",
+    "source": "none-available",
+    "sourceDate": "2026-08-01"
+  },
+  "classification": "experience",
+  "mustNotRegress": "Codegen's honest degraded-contract advisory itself — the fix is to make the template clean, never to silence the advisory.",
+  "smallestCoherentFix": "Ship the react template's createTodo with a complete declared result contract (or teach the advisory that a declarative returnBinding plan already fixes the result type), so a fresh scaffold generates with zero advisories.",
+  "acceptanceWitness": "Fresh external `snapback new x --template react && snapback generate snapback` prints a summary with zero degraded advisories; a template acceptance assertion pins it.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-g1-react-template-degraded-result-contract.md"
+  },
+  "stopClass": false,
+  "budgetFinding": false
+}
