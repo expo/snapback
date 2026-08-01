@@ -1086,3 +1086,24 @@ claimed; the observations exist to shape the a1-f4/f5/f6 and
 a1expo-f2/f3/f7 fixes. This status note is a dated amendment inside the
 freeze boundary; the freeze was re-verified (and re-frozen for this plan
 digest) with the sweep's own scripts in the landing commit.
+
+Stage 6 (synthesis) executed 2026-08-01. The sweep report and gap
+ledger land at `demos/improvement-sweep/reports/sweep-report.md` and
+`demos/improvement-sweep/reports/gap-ledger.v1.json`: 52 findings
+across six web arms, two Expo iOS arms, the G1 qualification, and the
+A1/Firebase probe — 21 fixed on main by the between-arms fix loop
+(awaiting the next release cut; 0.1.7 stays the arms' pinned
+baseline), 31 open, zero Stop-class, zero architectural rethink
+triggers. The longitudinal comparison records three frozen-epoch
+verdicts reversed on the merits (Diary 0031 research-room, LLP 0121
+Dispatch scheduling, external-package lifecycle), two regressions
+caught (outbound effect lane — fixed on main; bounded ctx.db verbs —
+open), and two 0102-epoch repeats still unpaid (anonymous public lane,
+config shapes). Track B's Android halves and Track C remain honest
+program GAPs. **Dry-well assessment: the trigger does not fire** — the
+default signal cannot even be evaluated until a closure containing the
+fixes ships and a re-verification pass runs; Stage 7 stays deferred
+per Charlie's 2026-08-01 directive. Reassessment condition recorded in
+the report. This status note is a dated amendment inside the freeze
+boundary; the freeze was re-verified (re-frozen for this plan digest)
+with the sweep's own scripts in the landing commit.
