@@ -81,3 +81,33 @@ Revise those two MATERIAL points first, then tighten the fixture, LLP 0133 owner
 The workspace was read-only, so I could not persist this review as the LLP 0005 review artifact.
 
 *(Runner note: the verbatim body above is unaltered except that file citations the reviewer emitted as absolute paths into the disposable review worktree are mechanically rewritten to the equivalent paths under /Users/ccheever/projects/snapback/ to avoid dead worktree links; raw output is preserved in the session capture.)*
+
+## Round 2 — 2026-08-01
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model `gpt-5.6-sol`
+**Reasoning effort:** CLI default (`medium` per CLI banner)
+**Date:** 2026-08-01
+**Redaction:** not redacted
+**Method:** round-2 delta — reviewer given its own Round 1, instructed to verify v2's application of its five items (per-host floor + Cloudflare parity-blocker ticket, B3+D2 discriminated-pair repair, fixture-class separation + Rust-only correction + OQ8, E1-until-named-amendment, Axis F rebuild) and check the changed text only for fresh defects; read-only sandbox in a fresh worktree of origin/main at 9224c01a, blind to this RFC's fable artifact (the reviewer itself discloses one inadvertent metadata-only fable search hit in the verbatim body below)
+**Target SHA-256:** `6eb359517530cd222f05ce69a32149789f0e98910527c6506b4e25fbb67d5dda`
+**Instruction SHA-256:** `914da398e5c53212f5fd7b29526d3ea38c953da5da521e9a42c8cef3a8c71188`
+**Status:** completed (first attempt, no retry needed)
+
+### Verbatim review
+
+Verified SHA-256: `6eb359517530cd222f05ce69a32149789f0e98910527c6506b4e25fbb67d5dda`.
+
+Verdict: **NOT READY**
+
+1. **READY** — The settled floor is now accurately scoped per host, and the Cloudflare parity blocker has a concrete test triad.
+2. **READY** — B3+D2 is type-consistent through the `detailsDropped` discriminated pair, with OQ1 correctly controlling D2’s grammar.
+3. **READY** — Decoder, admission, and declaration fixtures are properly separated; Rust-only coverage is stated honestly and OQ8 names the allowlist ruling.
+4. **READY** — E1 is normative until a named queue/outbox amendment, without falsely gating on LLP 0133.
+5. **NOT READY** — F1’s witness sketch cannot reliably implement its catch-invalidation rule: a caught interior refusal followed by a later same-`appCode` failure still satisfies code-only matching and can resurrect stale details. It also requires the final envelope to claim the witnessed `appCode`, which does not compose with FO-3 under the stated transport. See [LLP 0144](/Users/ccheever/projects/snapback/llp/0144-declared-app-refusal-codes.rfc.md:431).
+
+Next step: revise F1 with an unforgeable per-host-call correlation token or equivalent identity rule, and state explicitly which FO options can compose with it; then request a narrow round-3 review.
+
+The read-only workspace prevented appending this round to the Codex review artifact. Also, I did not open the 0144 Fable review, though a broad search inadvertently exposed one metadata-only match from it; none of its review content informed this verdict.
+
+*(Runner note: the single file citation above was emitted as an absolute path into the disposable review worktree and is mechanically rewritten to the equivalent /Users/ccheever/projects/snapback/ path; raw output is preserved in the session capture.)*

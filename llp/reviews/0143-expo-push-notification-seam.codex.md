@@ -154,3 +154,43 @@ Revise D1–D5 around a normalized per-token ledger, crash-safe send protocol, e
 LLP 0005 calls for this actual review to be saved as `llp/reviews/0143-expo-push-notification-seam.codex.md`. I could not create that artifact because this workspace is read-only.
 
 *(Runner note: the verbatim body above is unaltered except that file citations the reviewer emitted as absolute paths into the disposable review worktree are mechanically rewritten to the equivalent paths under /Users/ccheever/projects/snapback/ to avoid dead worktree links; raw output is preserved in the session capture.)*
+
+## Round 2 — 2026-08-01
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model `gpt-5.6-sol`
+**Reasoning effort:** CLI default (`medium` per CLI banner)
+**Date:** 2026-08-01
+**Redaction:** not redacted
+**Method:** round-2 delta — reviewer given its own Round 1, instructed to verify v2's application of its seven MATERIALs plus two lesser items (API matrix incl. the retained receipt-level InvalidCredentials, D3b crash protocol, three-level ledger, D1/D1a/D1b custody, D2b/D2c authority modes, D6 definePushSeam + D2d endpoint pinning, D4 a1expo-f5 conjunction, never-claims extension, receipt cadence) and check the changed text only for fresh defects; read-only sandbox in a fresh worktree of origin/main at 9224c01a, blind to this RFC's fable artifact
+**Target SHA-256:** `35f0a6e2fd8ff29e9aae13fa1453725c3c894ea2b6be4012d2ef5180feab773f`
+**Instruction SHA-256:** `48972f24e80f13b0d5ee8c0f4397a9486fd54094696090a1e4dc766d6cf73be1`
+**Status:** completed (first attempt, no retry needed)
+
+### Verbatim review
+
+## Verdict: NOT READY
+
+Verified SHA-256: `35f0a6e2fd8ff29e9aae13fa1453725c3c894ea2b6be4012d2ef5180feab773f`. Reviewed only v1→v2 changes and the required Codex round-one artifact; did not read `.fable.md`.
+
+1. **API matrix — SHOULD-FIX:** Retaining receipt-level `InvalidCredentials` beside request-level `UNAUTHORIZED` is correct, but D3e incorrectly gives `MessageTooBig` as a ticket-error example; Expo documents it as a receipt error and the matrix should classify it there. [Expo error documentation](https://docs.expo.dev/push-notifications/sending-notifications/#errors)
+
+2. **D3b crash safety — MATERIAL:** `claimed` with no persisted tickets cannot distinguish “not transmitted” from “Expo accepted, then process crashed”; recovery could therefore retransmit ambiguously. Persist a fenced `transmitting/uncertain` state before network I/O and never automatically re-drive once that boundary is entered.
+
+3. **Three-level ledger — PASS:** Intent, HTTP batch, and per-token message rows correctly represent mixed outcomes; clarify that each message row belongs to exactly one batch attempt.
+
+4. **D1 custody — MATERIAL:** `addPushTokenListener` emits a native `DevicePushToken`, not `ExpoPushToken.data`; rotation must reacquire the Expo token using that native token. Also pin `appScope`’s project/application/environment tuple and add stale-row retention/GC—the current “bounded, not accumulated” claim does not follow after reinstall with a different token. [Expo notifications API](https://docs.expo.dev/versions/v56.0.0/sdk/notifications/)
+
+5. **D2 authority — MATERIAL:** Deferred capture plus execution-time audience resolution is sound, but immediate sends still depend on an app convention—calling `requireRole` first. `ctx.push.send` needs host-verifiable authorization evidence or a declaration-enforced policy; otherwise an action can omit the check.
+
+6. **D6/D2d activation and endpoint — PASS:** The declaration supplies a concrete activation boundary, and production endpoint pinning with operator-owned loopback-only test overrides closes the exfiltration path.
+
+7. **D4 hosted conjunction — PASS:** The full `a1expo-f5` conjunction is now accurately restated, including hosted native auth, registry operations, config, egress, polling, and conformance evidence.
+
+8. **Never-claims extension — PASS:** Exactly-once, ordering, latency/SLA, token validity, and misleading “sent” copy are now appropriately disclaimed.
+
+9. **Receipt cadence — SHOULD-FIX:** The 1,000-ID limit, ~15-minute first poll, ~24-hour window, and missing-receipt terminal state are pinned, but “bounded retry schedule” still does not specify intervals or attempt count.
+
+**Next step:** Revise D3b’s durable transmit boundary, make immediate authorization host-enforced, correct the rotation/API details and `MessageTooBig` classification, then run another Codex delta review against the new hash.
+
+I could not append this round-two section to the review artifact because the workspace is read-only.
