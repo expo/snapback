@@ -27134,8 +27134,13 @@ globalThis.__snapbackHandlers = {
             other => panic!("expected partial content, got {other:?}"),
         }
         let mut tampered = token.clone();
-        tampered.pop();
-        tampered.push('A');
+        let last = tampered.pop().expect("token has a final character");
+        // The 43-char base64url HMAC-SHA256 signature's final group carries
+        // only two meaningful bits, so its value set is {A, Q, g, w}:
+        // replacing it with a *fixed* character was a no-op one run in four
+        // (the recurring "flake" — the untampered token validly served).
+        // Swap to a guaranteed-different member of the set.
+        tampered.push(if last == 'A' { 'Q' } else { 'A' });
         let invalid = snapback
             .asset_deliver_signed(&asset_id, "primary", &tampered, None)
             .expect_err("tampered token refuses");

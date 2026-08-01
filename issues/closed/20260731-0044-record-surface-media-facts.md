@@ -18,3 +18,18 @@ height, safe media facts — never blob keys or staging identifiers) into
 both surfaces, moving the read dependencies with it so live updates fire
 on rendition publication. The conformance suite's vector-1 comment marks
 the assertions to strengthen when this lands.
+
+---
+
+**RESOLVED 2026-07-31** (Lane-2 interrupt cluster, commit dbe83360).
+`AssetRecordClientViewV1` (Rust-owned, `schemas/asset.record-view.schema.json`)
+now backs both `GET /assets/records/{id}` and the reserved live
+projection: rendition summaries `{variant, ready, width?, height?}` plus
+the primary's typed media facts including the ThumbHash placeholder and
+detected mediaType — never blob keys or staging identifiers. The
+projection's synthetic dependency carries the summaries and facts, so a
+rendition arrival moves the delivery fingerprint
+(`asset_record_projection_fingerprint_moves_when_renditions_land`).
+Client-side consumption of server-provided placeholders is the noted
+Lane-1 follow-up (`useSnapbackAssetImage` currently takes the
+placeholder as a prop).
