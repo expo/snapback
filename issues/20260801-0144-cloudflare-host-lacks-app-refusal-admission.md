@@ -1,7 +1,9 @@
-# Cloudflare host has no declared-refusal admission: undeclared ctx.refuse survives
+# Declared-refusal admission runs on one engine leg only: undeclared ctx.refuse survives on the workerd twin and on Cloudflare
 
 **Opened:** 2026-08-01
-**Systems:** Cloudflare, Runtime, Client protocol
+**Widened:** 2026-08-01 (LLP 0144 round-2, Fable M-R2-1: the local
+host's workerd-v8 twin leg is a second unadmitted surface — see below)
+**Systems:** Cloudflare, Runtime, Workerd twin, Client protocol
 **Related:** LLP 0144 (round-1 Codex MATERIAL 1), LLP 0108 §"Declared
 application refusals", LLP 0053
 
@@ -26,10 +28,28 @@ channel's fail-closed invariant (LLP 0144 I1/I3) and the LLP 0053
 symmetry (a code admitted with no corroborating declaration). LLP 0108's
 "fail-closed by construction" is true per-host, not cross-host.
 
-Fix shape: implement Cloudflare-side admission against the invoked
-function's manifest-declared refusal set, with declared / undeclared /
-bare-claim tests mirroring
-`runtime::parse_handler_output_tests::application_refusal_is_admitted_only_when_declared`;
-until it lands, LLP 0108/0144 describe the floor as local-host with this
-ticket as the named parity blocker (recorded in LLP 0144 v2's floor
-section).
+**Widening (2026-08-01, LLP 0144 round-2).** The gap is an engine-leg
+gap, not just a host gap. The only `admit_declared_refusal` call site
+is on the local host's Ibex leg (src/runtime.rs:2726). When the
+LLP 0048 workerd-v8 twin is selected,
+`run_ibex_handler_with_context_until` routes every non-action
+invocation to the twin and returns at src/runtime.rs:2682 — *before*
+that call site — and `run_handler_workerd` ends in plain
+`parse_handler_output` (src/workerd_exec.rs:874): no claim extraction,
+no admission. An undeclared `ctx.refuse` therefore survives on the
+LOCAL host under the twin, inside the parity harness whose purpose is
+engine equivalence.
+
+Fix shape (structural, per LLP 0144 v3 floor fact 3): hoist claim
+extraction and admission into the engine-neutral completion path shared
+by both local legs — do not duplicate the admitter per engine — and
+implement Cloudflare-side admission against the invoked function's
+manifest-declared set. The denial-witness restore may remain on the
+Ibex leg: witness restores are action-scoped and actions never take the
+twin ("Actions stay on Ibex", the LLP 0048 @ref at the routing site).
+Acceptance: the declared / undeclared / bare-claim triad (mirroring
+`runtime::parse_handler_output_tests::application_refusal_is_admitted_only_when_declared`)
+green on all THREE serving surfaces — local Ibex leg, local workerd
+twin leg, Cloudflare host. Until it lands, LLP 0108/0144 describe the
+floor as one-engine-leg with this ticket as the named parity blocker
+(LLP 0144 v3 floor section).

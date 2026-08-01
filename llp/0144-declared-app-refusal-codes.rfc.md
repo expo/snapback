@@ -6,7 +6,30 @@
 Authoring, Contract, Diagnostics, Guide, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-01
-**Revised:** 2026-08-01 (v2, round-1 verify-then-fix: all six MATERIAL
+**Revised:** 2026-08-01 (v3, round-2 verify-then-fix: the floor's
+admission story narrowed again after Fable M-R2-1 proved it short an
+ENGINE LEG, not just a host — the only `admit_declared_refusal` call
+site is the local Ibex leg (src/runtime.rs:2726) and the workerd-v8
+twin path returns before it (:2682, plain `parse_handler_output` at
+workerd_exec.rs:874), so undeclared `ctx.refuse` survives on the local
+host under the LLP 0048 twin; floor fact 3 rewritten as a
+per-engine-leg admission matrix with the structural fix recorded
+(hoist admission into the engine-neutral completion path; witness
+restores stay Ibex-side since actions never take the twin), the parity
+ticket widened to both unadmitted surfaces, and step 0 / the floor
+witness extended to the three-surface triad. Per Codex round-2 F1, the
+refusal-witness sketch now keys restoration on an unforgeable
+host-minted per-host-call correlation token (code-only matching would
+let a caught refusal resurrect stale details onto a later
+same-appCode failure) and states FO/F-transport composability
+explicitly. Fable details: A2's stale 0094-ticket parenthetical
+re-pointed at the analogy, I3 restated normatively (must fold; the
+unadmitted surfaces are violations to repair), and B3's value-free
+note given its wire carrier (`appDetailsDropped` inside diagnostic
+details — a new detail key, not an envelope-schema change — making
+D2's `detailsDropped` discriminant client-computable and keeping C1's
+posture honest). Status stays Draft.) 2026-08-01 (v2,
+round-1 verify-then-fix: all six MATERIAL
 findings across both families verified against the tree and applied —
 the floor restated per-host after Codex M1 proved it false on the
 Cloudflare host (no admission counterpart under cloudflare/src; blocker
@@ -45,8 +68,9 @@ closed per-function `refusals: [...]` vocabulary, `ctx.refuse(code,
 details?)`, the platform carrier `SNAPBACK_APP_REFUSAL` with
 `appCode`/`appDetails` in diagnostic details, and fail-closed admission
 that folds every undeclared, forged, or bare claim back to the generic
-code — on the local Rust host; the Cloudflare host has no admission
-counterpart yet, a named parity blocker recorded in the floor section.
+code — on the local host's Ibex engine leg only; the local workerd-v8
+twin leg and the Cloudflare host have no admission counterpart yet, a
+named parity blocker recorded in the floor section.
 
 This RFC does not re-open that slice. It records it as the floor,
 states the invariants any extension must preserve, and lays out the
@@ -121,31 +145,49 @@ LLP 0108 §"Declared application refusals"; implementation:
 2. **Raising.** `ctx.refuse(code, details?)` throws a branded error;
    the claimed code and JSON-safe details ride the completion envelope
    beside the platform code `SNAPBACK_APP_REFUSAL`.
-3. **Admission — local host only.** On the Rust host,
-   `admit_declared_refusal` admits the claim only when the invoked
-   function declared that code; everything else — undeclared, forged,
-   bare claim — folds to `SNAPBACK_HANDLER_FAILED` and the app payload
-   is dropped with it. The declared set rides the prepared invocation
-   and is empty by default: fail-closed by construction *on that host*.
-   **The Cloudflare host has no admission counterpart**: the JS decoder
-   is deliberately claims-only (its own comment: "Claims, not facts:
-   the host admits these only against the declared refusal set",
-   envelope.mjs:94–98), and `classifyHandlerPlatformFailure`
-   (cloudflare/src/coordinator.js, platform-errors.js) passes
-   non-platform results — including a claimed `appCode` — through
-   unchanged, so an **undeclared `ctx.refuse` survives on Cloudflare**.
-   The floor is therefore a per-host fact, not a cross-host one, and
-   LLP 0108's "fail-closed by construction" holds only where an
-   admitter exists. Named parity blocker:
-   `issues/20260801-0144-cloudflare-host-lacks-app-refusal-admission.md`
-   (Cloudflare-side admission against the manifest-declared set, with
-   the declared/undeclared/bare-claim test triad).
+3. **Admission — one engine leg of one host.** `admit_declared_refusal`
+   admits the claim only when the invoked function declared that code;
+   everything else — undeclared, forged, bare claim — folds to
+   `SNAPBACK_HANDLER_FAILED` and the app payload is dropped with it.
+   The declared set rides the prepared invocation and is empty by
+   default. But the admitter runs at exactly **one call site, on the
+   local host's Ibex leg** (src/runtime.rs:2726). The admission matrix
+   as built:
+   - *Local host, Ibex leg*: admitted — fail-closed as described.
+   - *Local host, workerd-v8 twin leg (LLP 0048)*: **unadmitted** —
+     `run_ibex_handler_with_context_until` routes every non-action
+     invocation to the twin when it is selected and returns at
+     src/runtime.rs:2682, *before* the only admit site, and
+     `run_handler_workerd` ends in plain `parse_handler_output`
+     (src/workerd_exec.rs:874, no claim extraction, no admission). An
+     **undeclared `ctx.refuse` therefore survives on the local host**
+     whenever the twin runs — inside the very parity harness whose job
+     is engine equivalence.
+   - *Cloudflare host*: **unadmitted** — the JS decoder is deliberately
+     claims-only (its own comment: "Claims, not facts: the host admits
+     these only against the declared refusal set", envelope.mjs:94–98),
+     and `classifyHandlerPlatformFailure`
+     (cloudflare/src/coordinator.js, platform-errors.js) passes
+     non-platform results — including a claimed `appCode` — through
+     unchanged.
+   The floor is therefore a per-engine-leg fact, not even a per-host
+   one, and LLP 0108's "fail-closed by construction" holds only where
+   the one admitter runs. Named parity blocker (widened to both
+   unadmitted surfaces):
+   `issues/20260801-0144-cloudflare-host-lacks-app-refusal-admission.md`.
+   The structural fix is recorded there and here: **hoist claim
+   extraction and admission into the engine-neutral completion path**
+   shared by both local legs, rather than duplicating the admitter
+   per engine; the denial-witness restore can stay on the Ibex leg
+   without loss because witness restores are action-scoped and actions
+   never take the twin (the LLP 0048 @ref at the routing site:
+   "Actions stay on Ibex").
 4. **Surface.** The refusal arrives as platform code
    `SNAPBACK_APP_REFUSAL` with `appCode`/`appDetails` in diagnostic
    details — beside the platform namespace, structurally unable to mask
    a `SNAPBACK_*` denial. Decoder parity is *claims* parity: both
    decoder legs extract the claimed carrier identically on the refusal
-   branch; only the Rust host then adjudicates the claim.
+   branch; only the Ibex leg then adjudicates the claim (fact 3).
 5. **Effects.** A declared refusal is an ordinary handler failure for
    effect purposes: a refusing mutation commits nothing.
 6. **Enumerability — deliberately absent from the protocol surface.**
@@ -178,9 +220,13 @@ option below must preserve that symmetry.
   codes live in a namespaced field (`appCode`) beside a platform code,
   never in the platform code position, and the reserved prefix is
   refused at declaration.
-- **I3.** Fail-closed folding: any path that does not deliberately
-  carry the declared set folds every claim; invalid extensions degrade
-  to the landed behavior, never past it.
+- **I3.** Fail-closed folding, stated normatively: any completion path
+  that does not deliberately carry and adjudicate the declared set
+  **must fold every claim** — decoding a claim is never admitting it.
+  The two unadmitted surfaces in floor fact 3 (the local twin leg, the
+  Cloudflare host) are violations of this invariant to repair, not
+  tolerated exceptions; and any new engine leg or host inherits the
+  obligation before it serves handlers.
 - **I4.** A refusing mutation commits nothing (refusal is not a partial
   effect channel).
 - **I5.** Wire tolerance per LLP 0093: unknown fields and unknown app
@@ -209,7 +255,9 @@ option below must preserve that symmetry.
   `refusals: [refusals.STALE_MOVE]`. Fits the LLP 0115 grammar-cluster
   rule ("one declared-contract vocabulary; composite contracts
   reference declared shapes; nothing respells") and gives the clean-room
-  client a single enumerable registry (the 0094-gap ticket's ask).
+  client a single enumerable registry (the clean-room lesson this RFC
+  extrapolates from the 0094-gap ticket by analogy — see §Motivating
+  evidence — and unreachable either way while floor fact 6 stands).
   Additive over A1: a bare string stays sugar for a function-local
   entry.
 - **A3.** Schema-bearing declarations: the registry entry (A2) or the
@@ -242,7 +290,16 @@ Given a details schema (A3), what happens when a raise violates it?
   keeps the typed `appCode` and loses only the malformed details
   (surfaced as a value-free validation note). Preserves the primary
   product value (branch on code) while still refusing to deliver
-  off-contract bytes.
+  off-contract bytes. **The note needs a stated wire carrier**, because
+  `appDetails: null` alone is ambiguous — `ctx.refuse(code)` with no
+  details also yields null — and D2's `detailsDropped` discriminant
+  must be client-computable: the carrier is `appDetailsDropped: true`
+  set beside `appCode` *inside the existing diagnostic-details map*
+  (absent otherwise). That is a new detail key, not an envelope-schema
+  change — diagnostic details are an open map — so C1's
+  no-envelope-change posture survives, but the key is contract surface
+  the moment D2 generates from it: it must be named normatively and
+  pinned by an admission fixture, never inferred.
 - **B4.** Validate at codegen/dev only; production admits declared
   codes with any JSON-safe payload. Cheapest, but it makes `appDetails`
   a documentation contract rather than an enforced one, which is
@@ -336,11 +393,14 @@ union reaching client types". Options for the shape:
   The composed shape is a discriminated pair per variant —
   `{ appCode: 'STALE_MOVE'; appDetails: StaleMoveDetails;
   detailsDropped: false } | { appCode: 'STALE_MOVE'; appDetails: null;
-  detailsDropped: true }` — where `detailsDropped: true` is also the
-  named, typed location for B3's value-free validation note. Under B2
-  (fold everything) the pair collapses to the simple typed member;
-  choosing B3 *requires* this shape, and OQ1's ruling therefore fixes
-  D2's grammar too.
+  detailsDropped: true }` — where `detailsDropped` is computed from
+  B3's stated wire carrier (`appDetailsDropped` in diagnostic details;
+  its absence plus null details means "refused without details", never
+  "dropped"), and `detailsDropped: true` is the named, typed location
+  for B3's value-free validation note. Under B2 (fold everything) the
+  pair collapses to the simple typed member; choosing B3 *requires*
+  this shape, and OQ1's ruling therefore fixes both D2's grammar and
+  the carrier key.
 - **D3.** D2 plus typed *result* integration: the refusal union joins
   the mutation's result type as a discriminated non-exception return
   (`await mutate(...)` yielding `ok | refusal`), replacing thrown
@@ -436,12 +496,22 @@ is new and open (OQ2).
   be pinned before this is adoptable: the witness is recorded only for
   an *admitted* interior refusal; it is **invalidated when the action's
   JS catches the error and continues** (a caught-and-handled refusal
-  must not resurrect); restoration requires the failing envelope's
-  claimed code to match exactly (`SNAPBACK_APP_REFUSAL` with the
-  witnessed `appCode`, mirroring `restore_denial_witness`'s
-  exact-match rule); an unrelated subsequent failure restores nothing;
-  and at most one witness is live per invocation (last-write or
-  first-write must be chosen and tested).
+  must not resurrect); an unrelated subsequent failure restores
+  nothing; and at most one witness is live per invocation (last-write
+  or first-write must be chosen and tested). **Restoration matching
+  must key on an unforgeable per-host-call correlation token, not on
+  the code**: code-only matching (the `restore_denial_witness`
+  exact-match rule) is insufficient here, because a handler that
+  catches an interior `STALE_MOVE` and later fails with its own
+  same-`appCode` claim would resurrect the stale witnessed details
+  onto an unrelated failure. The host mints the token when it records
+  the witness at `dispatch_host_call`, returns it in the structured
+  FFI error (a small structured addition to the `-` response either
+  way — the bare `"CODE: message"` string cannot carry it), the
+  `host()` shim brands it onto the thrown error, and the settle
+  encoder echoes it; restore fires only on token match, and the token
+  is consumed on restore or invalidation. Handler bytes can copy a
+  code; they cannot mint the token.
 - **F2.** Boundary re-admission: each crossing re-checks the code
   against the *crossing* function's declaration, so an action must also
   declare `STALE_MOVE` to let it out. Fail-closed at every layer, at
@@ -453,6 +523,20 @@ is new and open (OQ2).
   `refusals` array with a string sentinel would change A1's settled
   grammar; if a union-shaped `refusals` is ever wanted instead, that is
   an Axis A grammar change and must be argued there.
+
+**Composability of the two halves, stated explicitly.** Every
+FO-option pairs with every transport option, but not symmetrically:
+FO-1 (structured crossing) subsumes the correlation token naturally —
+the same structured FFI error that carries `appCode`/`appDetails`
+carries the token, catching becomes observable to the host, and
+invalidation follows from the catch; FO-2 (witness-side read) must
+consume or mark the **same** witness the transport half would restore —
+one authority, so an observed-then-rethrown refusal cannot restore
+twice and an observed-then-swallowed one restores never; FO-3
+(unobservable) keeps the token internal to the host and is the only
+FO-option with zero FFI surface change. Choosing F1 without any
+FO-option still requires the token's structured FFI addition; choosing
+FO-1 gets it for free.
 
 The draft leans F1-by-witness for mutations-inside-actions with F3's
 opt-out considered, and takes no position yet on F-observation. The
@@ -537,11 +621,15 @@ section states the disclosure obligation, and one negative example
 The floor (A1/B1/C1/D1/E1, local host) is shipped. The recommended
 target, staged:
 
-0. **Repair the floor's own claims immediately**: the Cloudflare
-   admission parity blocker (floor fact 3; the ticket's
-   declared/undeclared/bare-claim triad on that host) and the
-   fold-always boundary pinning test (Axis F) — both guard everything
-   below against building on an unstated exception.
+0. **Repair the floor's own claims immediately**: the admission parity
+   blocker across all **three** serving surfaces — the local Ibex leg
+   (green today), the local workerd-v8 twin leg, and the Cloudflare
+   host — with the declared/undeclared/bare-claim triad run on each
+   (floor fact 3's matrix; the structural fix is hoisting admission
+   into the engine-neutral completion path, not duplicating the
+   admitter per engine), plus the fold-always boundary pinning test
+   (Axis F). Both guard everything below against building on an
+   unstated exception.
 1. **Fixtures** (Axis C), scoped honestly: decide the
    completion-envelope corpus class with the 0094/0095 owners
    (formatVersion-bump-class change), then land the three fixture
@@ -609,10 +697,10 @@ target, staged:
 
 ## Acceptance witnesses (per axis, when adopted)
 
-- Floor repair (step 0): the Cloudflare host folds an undeclared
-  `ctx.refuse` identically to the local host (the parity ticket's
-  triad green on both hosts), and the fold-always boundary test pins
-  today's collapse.
+- Floor repair (step 0): an undeclared `ctx.refuse` folds identically
+  on all three serving surfaces — local Ibex leg, local workerd-v8
+  twin leg, Cloudflare host (the parity ticket's triad green on each)
+  — and the fold-always boundary test pins today's collapse.
 - A2/A3: a clean consumer declares a registry entry with a payload
   schema once, references it from two functions, and the generated
   manifest carries one shape (no respelling); an off-schema raise
