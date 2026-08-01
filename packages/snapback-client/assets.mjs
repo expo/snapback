@@ -649,10 +649,11 @@ export class SnapbackAssetClient {
 
   /**
    * External store over the reserved record projection: one authorized
-   * establishment, then `live_replace` frames with no polling. Denial and
-   * deletion arrive as an empty row set and blank the snapshot. On clients
-   * without the durable-frame lane the store still resolves the
-   * establishment snapshot and reports itself `static` rather than
+   * establishment, then the deep live-query delivery pipeline. Auth-scoped
+   * replacements ride witnessed authorization envelopes and ACK only after
+   * this store applies them; denial and deletion blank the snapshot. Shallow
+   * clients without the deep handle retain the raw-frame compatibility path,
+   * and clients without any durable-frame lane report `static` rather than
    * pretending to be live.
    */
   watchStore(assetId, { userId = null, connectionId = null } = {}) {
@@ -660,6 +661,7 @@ export class SnapbackAssetClient {
     let snapshot = Object.freeze({ status: 'connecting', record: null, mode: 'live' });
     let disposed = false;
     let subscriptionId = null;
+    let liveHandle = null;
     let unregister = () => {};
     const publish = (next) => {
       if (disposed) return;
@@ -678,6 +680,51 @@ export class SnapbackAssetClient {
     let releaseStream = null;
     void (async () => {
       try {
+        // The full client owns LLP 0053's query identity, publication fence,
+        // duplicate/redelivery ledger, and post-commit acknowledgement. Keep
+        // the raw subscribe/consumer path below only as the compatibility
+        // seam for shallow adapters and tests that do not expose liveQuery.
+        //
+        // @ref LLP 0053#client-fences — an asset resolution is ACKed only
+        // after this external-store boundary has synchronously applied it.
+        if (typeof this.#client.liveQuery === 'function') {
+          let publishedThroughHandle = false;
+          const applyAuthorizationBoundary = (rows, detail) => {
+            if (detail?.kind === 'authorization_retain') return;
+            applyRows(rows);
+            publishedThroughHandle = true;
+          };
+          const applyOrdinaryUpdate = (rows, detail) => {
+            // Authorization updates already committed through the synchronous
+            // boundary above. Skipping them here avoids a second publication
+            // through liveQuery's isolated observation callback.
+            if (detail?.kind?.startsWith?.('authorization_')) return;
+            applyRows(rows);
+            publishedThroughHandle = true;
+          };
+          const handle = await this.#client.liveQuery(
+            ASSET_RECORD_LIVE_FUNCTION,
+            {
+              connectionId: effectiveConnectionId,
+              userId,
+              args: { assetId },
+              transport: 'stream',
+              onAuthorizationBoundary: applyAuthorizationBoundary,
+              onUpdate: applyOrdinaryUpdate,
+            },
+          );
+          if (disposed) {
+            handle.dispose();
+            return;
+          }
+          liveHandle = handle;
+          subscriptionId = handle.subscriptionId ?? null;
+          // Auth establishment commits through the synchronous boundary
+          // before liveQuery resolves. Authority-independent establishment
+          // sets only handle.rows, so it still needs this first publication.
+          if (!publishedThroughHandle) applyRows(handle.rows ?? []);
+          return;
+        }
         // Frames only flow while a live stream holds the connection open.
         // Acquire stream demand when the client exposes the manager; a
         // stream that cannot come up degrades honestly to `static` (the
@@ -730,9 +777,9 @@ export class SnapbackAssetClient {
               // plain live_replace: the witnessed authorization_invalidation
               // envelope carries the snapshot instead, with the subscription
               // id inside the snapshot block (camelCase per the wire struct).
-              // Applying it here is data-correct; the obligation ACK stays
-              // with the deep client integration (LLP 0053's lease covers a
-              // non-ACKing consumer) — see the raw-lane ACK follow-up ticket.
+              // Shallow compatibility clients have no LLP 0053 machinery;
+              // production SnapbackClient instances took the liveQuery path
+              // above and therefore never enter this raw consumer.
               if (frame?.kind === 'authorization_invalidation') {
                 const witnessed = frame?.snapshot ?? null;
                 const witnessedSubscription = witnessed?.subscriptionId
@@ -774,6 +821,11 @@ export class SnapbackAssetClient {
         if (disposed) return;
         disposed = true;
         listeners.clear();
+        if (liveHandle) {
+          liveHandle.dispose();
+          liveHandle = null;
+          return;
+        }
         unregister();
         if (subscriptionId && typeof this.#client.unsubscribeLive === 'function') {
           void Promise.resolve(this.#client.unsubscribeLive(ASSET_RECORD_LIVE_FUNCTION, {
