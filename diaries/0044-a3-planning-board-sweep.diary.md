@@ -186,3 +186,24 @@ repro probes lacked the guard and one transiently adopted the then-free 4288
 in the capsule rather than silently). jsdom render of the app's real
 BoardView module worked first try once `navigator` was installed via
 defineProperty (node 24 makes the global getter-only).
+
+## 2026-08-01 — RE-VERIFICATION against 0.1.8 (fix-loop entry, not a rerun)
+
+Packages: all @expo/snapback-* at 0.1.8 (fast-path publication from
+main 5d5c6b71; ledger fastpath-ledger-0.1.8-5d5c6b7183af).
+Evidence: demos/improvement-sweep/arms/reverify-0.1.8/ (capsule +
+evidence + drivers).
+
+Both evolution fixes verified from external-consumer posture (generic
+sessions app, live subscriber attached):
+
+- **a3-f5 (live subscriber wedges watch reload): VERIFIED.** With a live
+  stream handle attached, a schema edit watch-reloaded to
+  `generated-and-loaded` and a post-reload query served rows under the
+  evolved catalog; no `SNAPBACK_AUTH_MODE_PENDING` wedge (RV-A3-F5).
+- **a3-f4 (misattributed restart refusal): VERIFIED.** The
+  stop/regenerate/start sequence refused with
+  `SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH` as the primary diagnostic,
+  whose recovery text now says the startup pin "is auth-mode state
+  (LLP 0058), not a runtime/codegen mismatch" and points at the live
+  reload path and the cold-start repair (RV-A3-F4).

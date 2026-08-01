@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "snapback.improvement-sweep.run-capsule.v1",
   "title": "Improvement sweep run capsule",
-  "description": "One machine-readable capsule per arm or probe. Required by LLP 0137's diary and evidence protocol: expected check count, target identity, cleanup proof, and transport/authority/settlement attribution.",
+  "description": "One machine-readable capsule per arm or probe. Required by LLP 0137's diary and evidence protocol: expected check count, target identity, cleanup proof, and transport/authority/settlement attribution. Amended 2026-08-01 (prospective G0 amendment resolving finding 0137-g1-f3): contract 'none' plus armKinds 'qualification' and 're-verification' and platform 'node' admit contract-free program arms; re-frozen in the same landing.",
   "type": "object",
   "required": [
     "schemaVersion",
@@ -34,9 +34,9 @@
       "type": "object",
       "required": ["contract", "armKind", "platform", "provider", "attemptId"],
       "properties": {
-        "contract": { "enum": ["a1", "a2", "a3", "a4", "a5", "a6"] },
-        "armKind": { "enum": ["snapback-web", "probe", "snapback-expo", "exact", "untimed-extension"] },
-        "platform": { "enum": ["web", "expo-ios", "expo-android", "contract-web", "exact-native-ios", "exact-native-android"] },
+        "contract": { "enum": ["a1", "a2", "a3", "a4", "a5", "a6", "none"] },
+        "armKind": { "enum": ["snapback-web", "probe", "snapback-expo", "exact", "untimed-extension", "qualification", "re-verification"] },
+        "platform": { "enum": ["web", "expo-ios", "expo-android", "contract-web", "exact-native-ios", "exact-native-android", "node"] },
         "provider": { "enum": ["snapback", "convex", "supabase", "firebase", "instantdb", "spacetimedb"] },
         "attemptId": { "type": "string", "minLength": 1 },
         "probeSlice": {

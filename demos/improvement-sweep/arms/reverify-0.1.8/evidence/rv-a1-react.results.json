@@ -1,0 +1,20 @@
+{
+  "ok": true,
+  "freshnessField": "current",
+  "retentionField": true,
+  "outboxSupported": false,
+  "pendingSeen": 1,
+  "replayResult": {
+    "replayed": 1,
+    "failed": 0,
+    "remaining": 0,
+    "stopped": false
+  },
+  "finalOutbox": {
+    "status": "ready",
+    "supported": true,
+    "pending": 0,
+    "failed": 0,
+    "replaying": true
+  }
+}

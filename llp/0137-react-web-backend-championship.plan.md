@@ -1107,3 +1107,24 @@ per Charlie's 2026-08-01 directive. Reassessment condition recorded in
 the report. This status note is a dated amendment inside the freeze
 boundary; the freeze was re-verified (re-frozen for this plan digest)
 with the sweep's own scripts in the landing commit.
+
+The 0.1.8 re-verification pass executed 2026-08-01 (later), per the
+fix-loop rule. 0.1.8 published fast-path from main `5d5c6b71`
+(retained ledger `fastpath-ledger-0.1.8-5d5c6b7183af`); every
+previously fixed-on-main finding's affected acceptance fact was re-run
+from external-consumer posture against the public registry: **22 facts,
+21 pass, 1 gap, 0 regressions** (capsule
+`demos/improvement-sweep/arms/reverify-0.1.8/`; dated entries in
+diaries 0042–0047; ledger and report dispositions updated to
+verified-in-0.1.8). The gap: the a1-f5 React offline projections are
+verified live, but the cold-offline-boot React witness is unreachable
+externally (binding preparation fetches) — ticketed, with one further
+papercut (jobStatus degraded advisory). The g1-f3 capsule-schema debt
+was retired by a dated prospective G0 amendment (contract-free
+qualification/re-verification arms) and the freeze rewritten in the
+same landing. The dry-well default signal is now evaluable: this
+targeted pass produced no table-stakes and no Stop-class findings, but
+the open backlog (32 tickets, including the asset sharing chain and the
+mobile floor) keeps the trigger unfired; the next full re-verification
+sweep across the six contracts after those close is the reassessment
+point.

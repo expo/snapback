@@ -27,3 +27,18 @@ G1 capsule.
 
 A future qualification capsule validates without a placeholder;
 `npm run verify` (verify-freeze) passes on the amended tree.
+
+## Resolution (2026-08-01, 0.1.8 re-verification pass)
+
+Took the prospective G0 amendment exactly as filed:
+`protocol/schemas/run-capsule.v1.schema.json` now admits contract
+`none`, armKinds `qualification` and `re-verification`, and platform
+`node`, with a dated amendment note in the schema description; the
+freeze was rewritten in the same landing (`npm run freeze`) and
+`npm run verify` passes. Acceptance witness satisfied: the
+re-verification capsule
+`demos/improvement-sweep/arms/reverify-0.1.8/run-capsule.json`
+(contract none / armKind re-verification) validates against the amended
+schema with no placeholder, checked structurally (required fields, enums,
+additionalProperties, expected-check-count match). The retained G1
+capsule was not rewritten.

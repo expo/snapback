@@ -1,0 +1,14 @@
+{
+  "facts": [
+    {
+      "id": "RV-A2-F1",
+      "result": "pass",
+      "note": "presence status ready, publisher [object Object], 2 entries, on a provider owning an active live query"
+    },
+    {
+      "id": "RV-A2-F2",
+      "result": "pass",
+      "note": "generated api.ephemeral.chatPresence admitted by prepareReactBinding path; no schemaVersion refusal"
+    }
+  ]
+}

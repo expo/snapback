@@ -331,3 +331,32 @@ already is.
 4. Protect while fixing: the atomic deep-link redemption settlement, the
    ≤122ms second-device push, cross-carrier canonical content identity,
    the uniform denial surface, and the 110-second full-receipt loop.
+
+## 2026-08-01 — RE-VERIFICATION against 0.1.8 (fix-loop entry, not a rerun)
+
+Packages: all @expo/snapback-* at 0.1.8 (fast-path publication from
+main 5d5c6b71; ledger fastpath-ledger-0.1.8-5d5c6b7183af).
+Evidence: demos/improvement-sweep/arms/reverify-0.1.8/ (capsule +
+evidence + drivers).
+
+All four A4 web fixes verified from external-consumer posture (this
+arm's retained app + probe actions, local egress fixture,
+SNAPBACK_OUTBOUND_ACTIONS=1):
+
+- **a4-f1 (outbound actions unauthorable): VERIFIED, both forms.**
+  Inline `ctx.fetch({url})` and a module-form action (closed-script
+  `globalThis.__snapbackHandlers` registration — the refusal now names
+  that recipe) both executed against the fixture, status 200
+  (RV-A4-F1-INLINE, RV-A4-F1-MODULE).
+- **a4-f2 (dev swallows failure envelopes): VERIFIED** — a
+  reused-seedVersion dev start exited 1 WITH the structured
+  `SNAPBACK_SEED_VERSION_REUSED` envelope printed (RV-A4-F2).
+- **a4-f4 (epoch-0 catch-up): VERIFIED** — the first everyMs tick ran at
+  the most recent slot, 253ms behind wall clock (RV-A4-F4).
+- **a4-f5 (collapsed auth refusals): VERIFIED** — an outsider driving
+  `runReminder` received `SNAPBACK_AUTH_PERMISSION_DENIED` through
+  the action boundary (RV-A4-F5).
+
+The web arm's "no" verdict rested on a1-f2/f3 (flyer) + f1 (notify);
+with f1 fixed and verified, the remaining holes are the asset sharing
+chain tickets.

@@ -1,0 +1,14 @@
+{
+  "facts": [
+    {
+      "id": "RV-A3-F5",
+      "result": "pass",
+      "note": "watch reload reached generated-and-loaded with a live subscriber attached; post-reload query served 3 rows; handle connection now 'live'"
+    },
+    {
+      "id": "RV-A3-F4",
+      "result": "pass",
+      "note": "stop/regenerate/start refused; SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH present: true; recovery text present: true; tail: inned deployment forward\",\"coldStartRepair\":\"to cold-start first, restore the generated artifacts matching the pinned deployment, boot, then apply the evolved sources through the running server\",\"safety\":\"do not reinstall the runtime or set SNAPBACK_RUNTIME_BINARY; the startup pin is auth-mode state (LLP 0058), not a runtime/codegen mismatch\"}}}]} "
+    }
+  ]
+}

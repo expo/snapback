@@ -1,0 +1,14 @@
+{
+  "facts": [
+    {
+      "id": "RV-A4-F4",
+      "result": "pass",
+      "note": "first catch-up tick nominal 1785605880000 vs wall 1785605880253 (delta 253ms, interval 1000ms); runs: [{\"runId\":\"cron:reminderTick:scheduled:1785605880000:1\",\"jobName\":\"reminderTick\",\"scheduledAtMs\":1785605880000,\"dueAtMs\":1785605880000,\"startedAtMs\":1785605880276,\"finishedAtMs\":1785605880307,\"trigger"
+    },
+    {
+      "id": "RV-A4-F2",
+      "result": "pass",
+      "note": "dev exited 1 with 639 bytes of output; envelope code present: true; excerpt: {   \"schemaVersion\": \"snapback.generate.v1\",   \"ok\": false,   \"diagnostics\": [     {       \"code\": \"SNAPBACK_SEED_VERSION_REUSED\",       \"severity\": \"error\",       \"subsystem\": \"seed\",       \"message\": \"seedVersion \\\"a4-"
+    }
+  ]
+}

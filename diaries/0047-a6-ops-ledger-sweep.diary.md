@@ -183,3 +183,30 @@ does.
    ledgers, and digest-stable exports are the differentiators this arm
    would defend hardest — they are what made an OPERATIONS contract
    green in 5 seconds.
+
+## 2026-08-01 — RE-VERIFICATION against 0.1.8 (fix-loop entry, not a rerun)
+
+Packages: all @expo/snapback-* at 0.1.8 (fast-path publication from
+main 5d5c6b71; ledger fastpath-ledger-0.1.8-5d5c6b7183af).
+Evidence: demos/improvement-sweep/arms/reverify-0.1.8/ (capsule +
+evidence + drivers).
+
+All three A6 fixes verified from external-consumer posture (this arm's
+retained app + a jobStatus/enqueue probe pair):
+
+- **a6-f1 (jobStatus boot refusal): VERIFIED.** The app boots with
+  `export const jobStatus = defineJobStatusQuery({auth:'authenticated'})`
+  declared (0.1.7: unbootable), and the query served the lifecycle
+  projection live (state pending -> claimed, queue default) across an
+  injected-clock drain (RV-A6-F1). One papercut ticketed: generate
+  still emits a degraded-result advisory for the declaration.
+- **a6-f2 (jobs guide custody): VERIFIED.** The page's recipe is
+  accurate on 0.1.8: delayMs + idempotencyKey enqueue (reuse returns
+  deduplicated:true), `snapback secret-read-mint` lease custody, and
+  the lease-custodied status route 200 (RV-A6-F2).
+- **a6-f3 (reset strands live clients): VERIFIED.** Across a receipted
+  reset-install, the connected client observed the frozen terminal fact
+  through the new surface — `authTerminalStatus()` returned
+  {terminated:true, code:SNAPBACK_AUTH_STREAM_RESET,
+  authorityDisposition:durableDelete} and `subscribeAuthTerminal`
+  fired at the cut (RV-A6-F3).

@@ -1,0 +1,34 @@
+{
+  "facts": [
+    {
+      "id": "RV-A1E-F1",
+      "result": "pass",
+      "note": "cryptoless boot reached live query (3 rows), zero polyfills"
+    },
+    {
+      "id": "RV-A1E-F4",
+      "result": "pass",
+      "note": "downgrade settled without throw; denial fact null; back-rotation restored 1 rows"
+    },
+    {
+      "id": "RV-A1E-F2",
+      "result": "pass",
+      "note": "plain-Error rejection queued: {\"queued\":true,\"clientMutationId\":\"cm_183d5496817b4dbdbe76db35a4f0b704\",\"sequence\":1}"
+    },
+    {
+      "id": "RV-A1-F4",
+      "result": "pass",
+      "note": "guide-declared retainable query cold-booted: freshness retained, connection stale, 3 rows"
+    },
+    {
+      "id": "RV-A1-F6",
+      "result": "pass",
+      "note": "relaunch with pending intent rendered 3 retained rows (freshness retained); outbox []"
+    },
+    {
+      "id": "RV-A1-F5",
+      "result": "fail",
+      "note": "react projection offline: freshness undefined, rows undefined, outbox undefined, error {\"message\":\"fetch failed\",\"code\":null,\"name\":\"TypeError\"}"
+    }
+  ]
+}

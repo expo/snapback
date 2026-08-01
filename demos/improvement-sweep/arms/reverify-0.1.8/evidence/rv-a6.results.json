@@ -1,0 +1,19 @@
+{
+  "facts": [
+    {
+      "id": "RV-A6-F1",
+      "result": "pass",
+      "note": "dev reached ready + generated-and-loaded with defineJobStatusQuery declared (0.1.7: SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID unbootable); projection served {state pending -> claimed, queue default, attemptCount 1} live"
+    },
+    {
+      "id": "RV-A6-F2",
+      "result": "pass",
+      "note": "guide recipe: idempotencyKey re-enqueue deduplicated=true; secret-read-mint ok=true; lease-custodied status route 200"
+    },
+    {
+      "id": "RV-A6-F3",
+      "result": "pass",
+      "note": "reset-install reset-installed; authTerminalStatus {\"terminated\":true,\"code\":\"SNAPBACK_AUTH_STREAM_RESET\",\"authorityDisposition\":\"durableDelete\",\"atMs\":1785606067061}; subscribeAuthTerminal fired: true"
+    }
+  ]
+}

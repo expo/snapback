@@ -44,10 +44,32 @@ Machine-readable index with dispositions:
 [`gap-ledger.v1.json`](./gap-ledger.v1.json). Organized here by the ten
 frozen dimensions; each headline names its dedup group.
 
-**Release-vehicle note (applies to every "fixed" below):** external
-consumers cannot see any of the 21 fixes until a 0.1.8 closure ships;
-0.1.7 remains the pinned baseline the arms measured. Cutting and
-re-verifying 0.1.8 is the improvement program's first item.
+**Release-vehicle note (as written at synthesis):** external consumers
+cannot see any of the 21 fixes until a 0.1.8 closure ships; 0.1.7
+remains the pinned baseline the arms measured. Cutting and re-verifying
+0.1.8 is the improvement program's first item.
+
+### 0.1.8 re-verification (dated update, 2026-08-01 later)
+
+Item 1 of the improvement program executed: 0.1.8 was published
+(fast-path from main `5d5c6b71`, ledger
+`fastpath-ledger-0.1.8-5d5c6b7183af`) and this pass re-verified every
+previously fixed-on-main finding's affected acceptance fact from
+external-consumer posture against the public registry — 22 facts across
+five consolidated scenario apps, a scaffold lifecycle, and a TS subpath
+consumer. **Result: 21 pass, 1 gap, 0 regressions.** Capsule and
+evidence: `arms/reverify-0.1.8/`; dated entries appended to diaries
+0042–0047. Dispositions below and in `gap-ledger.v1.json` are updated
+to **verified-in-0.1.8** accordingly. The one gap: a1-f5's projections
+and outbox hook are verified live, but the cold-offline-boot React
+witness is unreachable externally (`prepareReactBinding` fetches at
+prep) — filed as
+`issues/20260801-0137-reverify-react-cold-boot-binding-requires-server.md`,
+plus one new papercut
+(`...-reverify-jobstatus-declaration-degraded-advisory.md`). The
+capsule-schema program debt (g1-f3) was retired by the dated G0
+amendment in the same landing; the run-capsule schema now admits
+contract-free qualification and re-verification arms.
 
 ### Installed-product first hour
 

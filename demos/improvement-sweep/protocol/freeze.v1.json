@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "protocolId": "llp-0137-improvement-sweep-v1",
-  "frozenAt": "2026-08-01T16:50:51.209Z",
+  "frozenAt": "2026-08-01T17:47:28.186Z",
   "gate": "g0-sweep-freeze",
   "snapbackRevisionFrozen": false,
-  "aggregateSha256": "dfb07008c55d106efba7a8bc4c6320c1dfe60a6791f8c1b3349265617a4ec25b",
+  "aggregateSha256": "6348f8b8b5f056583bada40830ea2f5b79e16bc60e0c65f912f980da498d0015",
   "artifacts": [
     {
       "path": "demos/improvement-sweep/README.md",
@@ -173,8 +173,8 @@
     },
     {
       "path": "demos/improvement-sweep/protocol/schemas/run-capsule.v1.schema.json",
-      "bytes": 4991,
-      "sha256": "26a209fa6ab6ede0c8b2b44483c726d0be667a4457f7663e52a6dcc7bae9af99"
+      "bytes": 5272,
+      "sha256": "dc32fc5e508f0f2a73f77468fcba8abeb2d5bbf4c4753c8c07f234833c84de7c"
     },
     {
       "path": "demos/improvement-sweep/protocol/target-lifecycle.v1.json",
@@ -203,8 +203,8 @@
     },
     {
       "path": "llp/0137-react-web-backend-championship.plan.md",
-      "bytes": 69019,
-      "sha256": "70abd7e0acef1ebe5c0c9d211621d3616f70c6393a864527b59d466eb07e6372"
+      "bytes": 70291,
+      "sha256": "979d852d77125fb6c2ad24259452de1b93a24790c539e9c31f674d18c0de3387"
     }
   ],
   "appendOnlyArtifacts": [],

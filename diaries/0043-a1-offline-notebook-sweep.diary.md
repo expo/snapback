@@ -376,3 +376,42 @@ honesty (facts, refusals, receipts, custody) the reference lacks. Cleanup
 proven: probe docs deleted through the SDK (second client observed zero),
 emulators and static server stopped, ports verified free, browser profiles
 deleted, live project never written.
+
+## 2026-08-01 — RE-VERIFICATION against 0.1.8 (fix-loop entry, not a rerun)
+
+Packages: all @expo/snapback-* at 0.1.8 (fast-path publication from
+main 5d5c6b71; ledger fastpath-ledger-0.1.8-5d5c6b7183af).
+Evidence: demos/improvement-sweep/arms/reverify-0.1.8/ (capsule +
+evidence + drivers).
+
+Web offline trio and the Expo-floor carrier-agnostic fixes, verified
+from external-consumer posture (node-simulated where a simulator adds
+nothing; the RN-carrier-specific facts f3/f5/f7 stay open and were not
+claimed):
+
+- **a1-f4 (retainability opt-in): VERIFIED** — following only the new
+  guide section, the declared query cold-booted `freshness: retained`,
+  `connection: stale`, 3 rows (RV-A1-F4).
+- **a1-f6 (pending outbox blanked retained render): VERIFIED** — an
+  offline relaunch with one queued intent rendered the 3 retained rows
+  (0.1.7 rendered nothing) (RV-A1-F6).
+- **a1-f5 (React offline surface): VERIFIED WITH A GAP** — hook
+  snapshots carry `freshness`/`retention`, the outbox hook reported
+  pending 1 and `replay()` drained {replayed:1, failed:0}; but the
+  resolution's cold-offline-boot React witness is unreachable
+  externally: `prepareReactBinding` fetches inspection+session at prep.
+  New ticket:
+  issues/20260801-0137-reverify-react-cold-boot-binding-requires-server.md
+  (RV-A1-F5, result gap).
+- **a1expo-f1 (WebCrypto): VERIFIED** — a cryptoless node runtime booted
+  to a live query with zero polyfills (RV-A1E-F1).
+- **a1expo-f2 (queue provenance classification): VERIFIED** — a plain
+  `Error` fetch rejection (the RN shape) queued {queued:true} and
+  replayed exactly once on reconnect (RV-A1E-F2).
+- **a1expo-f4 (downgrade rotation wedge): VERIFIED** — the transition
+  settled without throwing, predecessor rows blanked, and back-rotation
+  restored them (RV-A1E-F4).
+- **a1expo-f6 (react-expo guide page): VERIFIED (static)** — every hook
+  the rewritten page teaches exists in the 0.1.8 exports; the
+  checkpoint-era object form appears only as the anti-pattern note
+  (RV-A1E-F6).

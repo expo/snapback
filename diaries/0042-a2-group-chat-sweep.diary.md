@@ -169,3 +169,26 @@ the settlement envelope.
 4. Write the sessions persona recipe into the guide and teach
    `SNAPBACK_AUTH_IMPERSONATION_REQUIRED` to name its header.
 5. Make the raw-reset diagnostic name its recovery.
+
+## 2026-08-01 — RE-VERIFICATION against 0.1.8 (fix-loop entry, not a rerun)
+
+Packages: all @expo/snapback-* at 0.1.8 (fast-path publication from
+main 5d5c6b71; ledger fastpath-ledger-0.1.8-5d5c6b7183af).
+Evidence: demos/improvement-sweep/arms/reverify-0.1.8/ (capsule +
+evidence + drivers).
+
+Both A2 fixes verified from external-consumer posture (fresh consumer
+dir, this arm's retained app sources as fixtures):
+
+- **a2-f1 (presence room wedged by live queries): VERIFIED.** A provider
+  owning an active live-query subscription brought its managed presence
+  room to status `ready` with two entries on both principals — the
+  single-provider path this arm had to work around is now the working
+  path (RV-A2-F1).
+- **a2-f2 (api.ephemeral schemaVersion mismatch): VERIFIED.** The same
+  run drove `observeSnapbackPresence` through the GENERATED
+  `api.ephemeral.chatPresence` reference with no admission refusal
+  (RV-A2-F2).
+
+The packaged-closure conformance test this diary asked for (presence
+beside a live query) is still worth pinning; the differentiator held.

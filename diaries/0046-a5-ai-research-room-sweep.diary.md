@@ -217,3 +217,23 @@ streamed-egress idiom are each one guide section away from free.
 5. Keep the 0031-reversal protected: a packaged-closure conformance
    fixture for sessions + streamAttempt + fetchStream (the probe app in
    this arm's evidence is a ready-made template).
+
+## 2026-08-01 — RE-VERIFICATION against 0.1.8 (fix-loop entry, not a rerun)
+
+Packages: all @expo/snapback-* at 0.1.8 (fast-path publication from
+main 5d5c6b71; ledger fastpath-ledger-0.1.8-5d5c6b7183af).
+Evidence: demos/improvement-sweep/arms/reverify-0.1.8/ (capsule +
+evidence + drivers).
+
+- **a5-f1 (streamed lane was the only working egress): VERIFIED as
+  fixed, with the must-not-regress half intact.** Plain `ctx.fetch` now
+  executes in the inline action lane, AND the streamed lane
+  (`ctx.streamAttempt` start/settle + `ctx.fetchStream` reader) still
+  completes with terminal settlement (RV-A5-F1, RV-A4-F1-*). The
+  0031-reversal surface this diary asked to protect survived the fix.
+- Papercut while re-verifying a6 nearby: the guide's own
+  `defineJobStatusQuery` declaration draws a degraded-result advisory
+  (new ticket
+  issues/20260801-0137-reverify-jobstatus-declaration-degraded-advisory.md)
+  — same advisory class as the g1-f1 template noise this program already
+  tracks.

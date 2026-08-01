@@ -1,0 +1,24 @@
+{
+  "facts": [
+    {
+      "id": "RV-A4-F1-INLINE",
+      "result": "pass",
+      "note": "inline ctx.fetch action: ok=true status 200, body \"rv018-fixture-ok\", fixture hits 1"
+    },
+    {
+      "id": "RV-A4-F1-MODULE",
+      "result": "pass",
+      "note": "module-form action: ok=true status 200 err=null, fixture hits 2"
+    },
+    {
+      "id": "RV-A5-F1",
+      "result": "pass",
+      "note": "streamed lane: ok=true 16 bytes (complete) err=null"
+    },
+    {
+      "id": "RV-A4-F5",
+      "result": "pass",
+      "note": "outsider runReminder envelope refused with SNAPBACK_AUTH_PERMISSION_DENIED"
+    }
+  ]
+}

@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "arm": {
+    "contract": "none",
+    "armKind": "re-verification",
+    "platform": "node",
+    "provider": "snapback",
+    "attemptId": "reverify-018-20260801"
+  },
+  "packageVersions": {
+    "@expo/snapback-cli": "0.1.8",
+    "@expo/snapback-app-cli": "0.1.8",
+    "@expo/snapback-client": "0.1.8",
+    "@expo/snapback-codegen": "0.1.8",
+    "@expo/snapback-contract": "0.1.8",
+    "@expo/snapback-react": "0.1.8",
+    "@expo/snapback-vite": "0.1.8",
+    "@expo/snapback-runtime-darwin-arm64": "0.1.8",
+    "publicationLedger": "~/snapback-release-ledgers/fastpath-ledger-0.1.8-5d5c6b7183af.json (fast-path from main 5d5c6b71)"
+  },
+  "environment": {
+    "host": "macOS 26.5.2 arm64 (Mac17,6)",
+    "node": "24.18.0 (volta)",
+    "posture": "external consumer: clean scratchpad dir, public npm 0.1.8 closure only; the retained sweep-arm app sources were reused as fixtures (they were authored externally in the original arms); guide/ pages consulted as the sanctioned docs",
+    "consolidation": "five consolidated scenario apps (a2-based, a1-based, evolution, a4-based, a6-based) plus a scaffold lifecycle and a TS subpath consumer, instead of 21 separate builds"
+  },
+  "budget": {
+    "class": "untimed-re-verification",
+    "note": "Re-verification of fixed facts is fix-loop bookkeeping, not a timed arm; wall clock and tool calls recorded as instruments only."
+  },
+  "actors": {
+    "personas": "fresh minted sessions per scenario app (alice/bob/mallory/hana/dana shapes reused from the owning arms)"
+  },
+  "targets": {
+    "mode": "fresh-local per scenario app (packaged snapback dev, loopback), fresh sqlite per run",
+    "hosted": "not exercised (unchanged G2 posture)"
+  },
+  "milestones": {
+    "startedAt": "2026-08-01T14:20Z",
+    "completedAt": "2026-08-01T16:05Z"
+  },
+  "assistanceEvents": [],
+  "postureBreaks": [],
+  "commands": [
+    "npm install (0.1.8 exact closure, scratchpad consumer root)",
+    "snapback generate/dev per scenario app",
+    "node evidence/drivers/rv-*.mjs (retained)",
+    "snapback new rv-g1 --template react && bun install (G1 lifecycle)",
+    "tsc -p xtp (export-types subpaths)"
+  ],
+  "scenarioResults": [
+    { "id": "RV-A2-F1", "result": "pass", "evidencePaths": ["evidence/rv-a2.results.json"], "note": "presence room ready with 2 entries on a provider owning an active live query (0.1.7 wedge gone)" },
+    { "id": "RV-A2-F2", "result": "pass", "evidencePaths": ["evidence/rv-a2.results.json"], "note": "generated api.ephemeral.chatPresence admitted; no schemaVersion refusal" },
+    { "id": "RV-A1-F4", "result": "pass", "evidencePaths": ["evidence/rv-a1.results.json"], "note": "guide-declared retainable query cold-booted freshness=retained connection=stale, 3 rows" },
+    { "id": "RV-A1-F5", "result": "gap", "evidencePaths": ["evidence/rv-a1-react.results.json", "evidence/rv-a1.results.json"], "note": "projection halves verified live (freshness field, retention field, outbox pending 1 -> replay {replayed:1,failed:0}); the resolution's cold-offline-boot React witness is unreachable externally: createExternalSessionClient.prepareReactBinding fetches inspection+session at prep — new finding filed" },
+    { "id": "RV-A1-F6", "result": "pass", "evidencePaths": ["evidence/rv-a1.results.json"], "note": "offline relaunch with one pending intent rendered 3 retained rows (0.1.7: rendered nothing)" },
+    { "id": "RV-A3-F4", "result": "pass", "evidencePaths": ["evidence/rv-a3.results.json"], "note": "stop/regenerate/start refusal names SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH with recovery text including 'the startup pin is auth-mode state (LLP 0058), not a runtime/codegen mismatch'" },
+    { "id": "RV-A3-F5", "result": "pass", "evidencePaths": ["evidence/rv-a3.results.json"], "note": "watch reload reached generated-and-loaded with a live subscriber attached; post-reload query served rows; handle stayed live" },
+    { "id": "RV-A4-F1-MODULE", "result": "pass", "evidencePaths": ["evidence/rv-a4.results.json"], "note": "module-form action via globalThis.__snapbackHandlers registration executed ctx.fetch against the fixture (status 200)" },
+    { "id": "RV-A4-F1-INLINE", "result": "pass", "evidencePaths": ["evidence/rv-a4.results.json"], "note": "inline action plain ctx.fetch({url}) executed end to end (status 200, bodyText delivered)" },
+    { "id": "RV-A4-F2", "result": "pass", "evidencePaths": ["evidence/rv-a4-cron-dev.results.json"], "note": "dev over a reused-seedVersion backend exited 1 with the structured envelope printed (SNAPBACK_SEED_VERSION_REUSED), not silently" },
+    { "id": "RV-A4-F4", "result": "pass", "evidencePaths": ["evidence/rv-a4-cron-dev.results.json"], "note": "first everyMs catch-up nominal 253ms behind wall clock (most recent slot), not epoch 0" },
+    { "id": "RV-A4-F5", "result": "pass", "evidencePaths": ["evidence/rv-a4.results.json"], "note": "outsider action envelope carries SNAPBACK_AUTH_PERMISSION_DENIED through the action boundary" },
+    { "id": "RV-A5-F1", "result": "pass", "evidencePaths": ["evidence/rv-a4.results.json"], "note": "streamed lane intact (streamAttempt start/settle + fetchStream, 16 bytes complete) AND plain ctx.fetch works — both egress lanes live" },
+    { "id": "RV-A6-F1", "result": "pass", "evidencePaths": ["evidence/rv-a6.results.json"], "note": "defineJobStatusQuery boots (0.1.7: unbootable) and served the lifecycle projection live (pending->claimed)" },
+    { "id": "RV-A6-F2", "result": "pass", "evidencePaths": ["evidence/rv-a6.results.json"], "note": "jobs guide recipe accurate: delayMs+idempotencyKey enqueue (deduplicated=true on reuse), secret-read-mint lease, lease-custodied status route 200" },
+    { "id": "RV-A6-F3", "result": "pass", "evidencePaths": ["evidence/rv-a6.results.json"], "note": "reset-install: authTerminalStatus() froze {terminated:true, code:SNAPBACK_AUTH_STREAM_RESET, authorityDisposition:durableDelete} and subscribeAuthTerminal fired" },
+    { "id": "RV-A1E-F1", "result": "pass", "evidencePaths": ["evidence/rv-a1.results.json"], "note": "node with globalThis.crypto undefined booted to a live query with zero polyfills" },
+    { "id": "RV-A1E-F2", "result": "pass", "evidencePaths": ["evidence/rv-a1.results.json"], "note": "plain-Error fetch rejection (RN shape) queued {queued:true, sequence:1}; reconnect replayed exactly once" },
+    { "id": "RV-A1E-F4", "result": "pass", "evidencePaths": ["evidence/rv-a1.results.json"], "note": "downgrade rotation settled without throwing; predecessor rows blanked; back-rotation restored rows" },
+    { "id": "RV-A1E-F6", "result": "pass", "evidencePaths": [], "note": "static check: every hook clients/react-expo.md teaches (createSnapbackReactProvider, useSnapbackQuery (ref,args), useSnapbackConnection, useSnapbackMutation, useSnapbackQueries, useSnapbackOutbox) exists in the 0.1.8 @expo/snapback-react exports; the checkpoint-era object form appears only as the documented anti-pattern; snippet CI covers the page in-repo" },
+    { "id": "RV-G1-F5", "result": "pass", "evidencePaths": [], "note": "scaffold+dev clean shutdown left zero dev.ready.json.* files (during: descriptor+impersonation+secret-read-root; after: none)" },
+    { "id": "RV-XTP", "result": "pass", "evidencePaths": ["evidence/drivers/rv-xtp.ts"], "note": "tsc green consuming @expo/snapback-react/thumbhash, @expo/snapback-client/assets (__testIncrementalSha256), @expo/snapback-codegen/seed-artifact (four seed-asset-fixtures exports)" }
+  ],
+  "expectedCheckCount": 22,
+  "findings": [
+    "0137-reverify-react-cold-boot-binding-requires-server",
+    "0137-reverify-jobstatus-declaration-degraded-advisory"
+  ],
+  "differentiators": [
+    {
+      "observation": "Presence beside owned live queries now works from the documented generated-api path — the A2 differentiator (zero-durable-amplification ephemeral state) is reachable from the first-party React arm.",
+      "mustNotRegress": "A packaged-closure conformance test rendering presence beside a live query (the diaries' ask) should pin this."
+    },
+    {
+      "observation": "Reset-install now leaves connected clients a frozen, subscribable terminal fact (authTerminalStatus/subscribeAuthTerminal) while still retiring predecessor authority completely.",
+      "mustNotRegress": "The receipted reset semantics and total predecessor retirement."
+    }
+  ],
+  "inventory": {
+    "authored": "seven driver scripts + three appended probe actions + one TS subpath consumer (retained under evidence/drivers/)",
+    "reused": "retained sweep-arm app sources (a1/a2/a4/a6 schemas, functions, seeds) as fixtures"
+  },
+  "attribution": {
+    "transport": "managed WebSocket stream for every live claim; loopback HTTP for admin/auth seams; local HTTP fixture for egress probes",
+    "authority": "server-authoritative reads/denials asserted via independent clients and envelopes; uniform denial codes observed through the action boundary",
+    "settlement": "structured mutation envelopes and receipts; outbox replay {replayed,failed,remaining}; streamAttempt terminal settle; reset-install receipt with expectedDataVersionStream fencing"
+  },
+  "stopDefects": [],
+  "cleanup": {
+    "servers": "every snapback dev child stopped via stdin-close (SIGKILL fallback unused in final runs)",
+    "fixtures": "egress fixture HTTP servers closed; ports released",
+    "data": "all scenario databases are scratchpad-local fresh sqlite files; no shared or hosted target touched",
+    "scratchpad": "consumer root retained at the session scratchpad (ephemeral); all probative results copied into evidence/"
+  },
+  "result": "complete"
+}
