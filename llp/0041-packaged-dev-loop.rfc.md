@@ -55,11 +55,11 @@ boundary stated, ready-file attach pinned; initial same day)
 **Revised (parallel EAS qualified staging):** 2026-08-01 (the qualified
 candidate staging lane moves from GitHub Actions to the dedicated
 `@expo/snapback-ci` EAS project. Linux/x64 and macOS/arm64 release runtimes now
-build concurrently on large workers, restore source-authority-keyed Hermes and
-Cargo caches, converge at one macOS assembly job, and fan back out
+build concurrently on large workers, restore source-authority-keyed Hermes
+caches, converge at one macOS assembly job, and fan back out
 into concurrent staged cold proofs. The final public `latest` proof and its
 GitHub-bound promotion collection remain on GitHub; see §Qualified staging
-substrate — 2026-08-01.)
+substrate — 2026-08-01. The first retained run completed in 18m29s.)
 
 **Revised (browser-canceled response tolerance):** 2026-07-31 (the staged
 linux-x64 cold-install proof failed deterministically with `browser response
@@ -509,13 +509,23 @@ receipts are present.
 Restoring a cache is not evidence and does not weaken the clean-source claim.
 Hermes build/install caches are keyed by the pinned Hermes source/profile
 authority (version, patch application and patch stack, builder, and Ibex
-manifest), and Cargo target caches are keyed by the pinned Rust toolchain plus
-Cargo manifests and lockfile. Each saved entry also carries the workflow source
-revision and later revisions may only use it as a restore prefix. The native
-build still runs the normal bootstrap, link smoke, release build, package
-preparation, runtime identity check, source-clean check, and (for transported
-Linux bytes) digest attestation. Those output checks, not cache provenance
-alone, remain the qualification authority.
+manifest). Each saved entry also carries the workflow source revision and later
+revisions may only use it as a restore prefix. Cargo target caching is omitted:
+on the hosted workers its compression and upload cost exceeded the reuse value.
+The native build still runs the normal bootstrap, link smoke, release build,
+package preparation, runtime identity check, source-clean check, and (for
+transported Linux bytes) digest attestation. Those output checks, not cache
+provenance alone, remain the qualification authority.
+
+The first retained execution at revision
+`87cc4ac358082e51c2781d0241c4ee761b9cd24e` completed successfully in 18m29s
+([EAS run](https://expo.dev/accounts/expo/projects/snapback-ci/workflows/019fbd18-6ad1-744b-98cd-684945ae0ad7)). The independent roots overlapped:
+macOS completed in 6m43s and Linux in 14m42s. Assembly completed in 1m18s;
+the independent staged proofs then overlapped at 1m46s on macOS and 1m59s on
+Linux; final retention took 28s and emitted the nine tarballs plus both
+receipts. This verifies the graph and reduces the former roughly 90-minute
+lane to 18m29s, while leaving the 15-minute target open because Linux is now
+the dominant 14m42s root before the required assembly/proof tail.
 
 #### Retained comparator evidence hardening
 
