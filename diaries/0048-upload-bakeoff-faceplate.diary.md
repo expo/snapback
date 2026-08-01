@@ -124,3 +124,36 @@ own driver (undici single-read responses — my bug, recorded for
 fairness since wall-clocks include it); the storage list API returns
 folders as null-id entries you must recurse (cleanup code grew 20 lines
 for the proof).
+
+## 2026-08-01 — convex, arm 4, PASS (shared dev deployment, cleanup proven)
+
+Shared dev deployment (the standing probe target) via the HTTP function
+API; convex-cli 1.43.0. Shared-target caveat, disclosed per the 0102
+amendment: a Convex deploy **replaces** the deployment's function set and
+schema — my push removed two earlier probes' indexes (deploy output
+archived redacted; tables/data untouched). Function replacement cannot
+be namespace-scoped; this deployment exists for exactly these probes.
+Identity posture, recorded honestly: no auth provider is configured, so
+"two users" are application rows and every access statement is Convex's
+documented file-URL model, not a JWT check. Wall-clock ~45 min.
+
+Evidence highlights (`convex/run.mjs`):
+- **checks 3 + 7: file URLs are unauthenticated capability URLs by
+  documented design** — the signed-out fetch and the "other user" fetch
+  are the same 200. App-level authorization gates *learning* the URL
+  (queries), never *fetching* it. With **check 4 (GPS served = true)**,
+  the posture compounds the same way PocketBase's does: any URL holder
+  reads the uploader's location from the original bytes.
+- **check 6: the replaced file stays stored and fetchable (200)** until
+  app code deletes it — my own arm proved the burden by leaving an
+  orphan on the first cleanup pass and needing a `_storage`
+  system-table sweep mutation to finish the job (sweep proof:
+  scanned 1, deleted 1). `setAvatar` returning the prior storageId is
+  the API nudging you to handle it; nothing does it for you.
+- **check 5:** replacement mints a new storageId → new URL
+  (`cache-control: private, max-age=2592000` — cache-safe by identity
+  change, the same design instinct as Snapback's rendition-id ETags).
+- The three-step dance (mutation → POST → mutation) is more ceremony
+  than Snapback's one-await task but each step is obvious and the
+  storageId-in-document model is refreshingly plain. 1.8 s to first
+  served byte.
