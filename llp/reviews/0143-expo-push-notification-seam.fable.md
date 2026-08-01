@@ -312,3 +312,117 @@ normative line (the durable transmit-start marker) — ideally as a v2.1
 edit or with the first implementation commit — and fold the two nits
 where convenient. No further Fable round is needed unless the author
 restructures D3b.
+
+
+## Round 3 — 2026-08-01 (targeted review of v3)
+
+**Reviewer family:** Claude Fable
+**Provider / runtime:** Anthropic Claude Code, `claude-fable-5`, same
+non-author session as rounds 1-2
+**Effort:** session-inherited
+**Date:** 2026-08-01
+**Method:** targeted delta — verify the round-2 must-fix and both nits
+against the v3 text, then a mobile-lens spot-check of the round-2
+Codex-driven additions (host-enforced authorize clauses, rotation-signal
+reacquisition, pinned poll schedule, MessageTooBig reclassification,
+idle-retention GC). Blind to the codex artifact throughout.
+**Target:** `llp/0143-expo-push-notification-seam.rfc.md` (730 lines, Draft, v3)
+**Target SHA-256:** `019659ae8fb9f94178571dd8d64c90123363e3ce6724512d9d61ce517c0ffbb9`
+**Repo revision at review start:** origin/main `b0bf4594`
+**Tool uses:** ~5 (review phase)
+**Status:** completed
+**Verdict:** READY
+
+## Verbatim review
+
+## Overall assessment
+
+**Verdict: READY** — the must-fix is resolved exactly as asked, both
+nits are resolved beyond what was asked, and the new material survives
+the spot-check. No further Fable round is needed.
+
+- **R2-1 (must-fix) → D3b step 3, resolved.** The durable
+  `transmitting` transition is now a normative, named step written
+  "before the first network byte leaves the host", explicitly labeled
+  the crash discriminator; recovery is discriminated by the marker
+  (claimed-without-marker → safe re-drive; marker-without-settlement →
+  `ambiguous`), and an attempt past the transmit boundary is never
+  automatically re-driven — only D3c's explicit re-drive, which records
+  the duplicate risk, may follow. This is precisely the line round 2
+  required, in the right register.
+- **R2 nit 2 → D1b, resolved and improved.** Single ownership is
+  scoped per `appScope`; a cross-scope collision refuses the
+  registration and records a leak-indicator diagnostic instead of
+  silently retiring either row — the correct treatment, since
+  cross-scope duplicates are illegitimate by construction. `appScope`
+  itself is now a declared (EAS project id, application identity,
+  environment profile) tuple fixed in `definePushSeam`, closing the
+  inference ambiguity as a bonus.
+- **R2 nit 3 → D2b/D2c, resolved.** The capture step is explicitly
+  host-evaluated ("at capture the host evaluates the audience's
+  `authorize` clause as the producer"), the resolver-authorization
+  declaration is cross-referenced, and OQ8 now owns the clause
+  vocabulary question.
+
+Spot-check of the round-2 Codex-driven additions, from the mobile lens:
+
+- **Host-enforced authorize clauses (D2b/D2c):** the right boundary
+  move — the host evaluates a declared clause (LLP 0100 vocabulary) in
+  all three trigger modes, demoting the app-side `requireRole` idiom to
+  defense in depth. Composition with LLP 0053 invalidation and
+  capture-then-revalidate is coherent.
+- **Rotation-signal reacquisition (D1c):** accurate to the SDK —
+  `addPushTokenListener` does fire with the native `DevicePushToken`,
+  and treating it as a signal to reacquire via `getExpoPushTokenAsync`
+  before re-registering is the correct pattern; the
+  backgrounded-rotation catch-up via foreground refresh is the honest
+  residual.
+- **`MessageTooBig` reclassification (D3e):** correct — it is a
+  receipt-stage error in Expo's documented vocabulary; the ticket-stage
+  catch-all ("any other enumerated ticket error → failed-permanent") is
+  a safe generalization.
+- **Pinned poll schedule (D3d):** internally consistent (15 m + 30 m +
+  1 h + 2 h + 4 h + 4 h + 4 h ≈ 15.75 h across seven polls, inside the
+  ~24-hour receipt window), published as manifest facts beside pacing.
+- **Idle-retention GC (D1a):** the "bounded, not accumulated" claim is
+  now earned — the stranded-reinstall case is named, and the declared
+  idle window ("no successful handoff and no re-registration") cannot
+  retire a device that is actually receiving sends; foreground
+  re-registration recovers a retired-but-valid installation.
+
+## Residual nits (cosmetic; no further round required)
+
+1. **[nit] Mode-3 send-time revalidation subject.** D2b says the clause
+   is "re-evaluated" at send time for deferred sends but does not name
+   the evaluation subject; the design intent (evaluate against the
+   captured `producerPrincipal`, so a producer who lost the role
+   between enqueue and send stops the send) should be stated in one
+   clause — re-evaluating as system authority would be vacuous.
+2. **[nit] D3d's terminal phrasing.** "Terminal at the earlier of
+   receipt arrival or the ~24-hour window close" — with seven polls
+   exhausting at ~15.75 h, the window-close branch is unreachable;
+   either phrase the terminal rule as schedule exhaustion (with the
+   window as the outer bound rationale) or note the last poll is
+   window-aligned.
+
+## Coverage
+
+- Verified in v3 text: D3b's transmit boundary and discriminated
+  recovery list; D1b scope + cross-scope refusal/diagnostic; D1a
+  appScope tuple + idle-retention rule and its D6 declaration shape;
+  D2b/D2c authorize clauses across all three modes; D3d schedule; D3e
+  matrix consistency after the reclassification; the updated Revised
+  entry's Fable dispositions (all match the text).
+- Sanity-checked from knowledge: `addPushTokenListener` native-token
+  behavior, Expo receipt-error vocabulary, receipt-window guidance.
+- Not verified: LLP 0100's declaration vocabulary internals (existence
+  and fit taken from the tree's prior-art description); codex artifact
+  remains unread.
+
+## Verdict and next step
+
+**READY.** Rounds 1-3 converged: the honesty and custody claims now
+match what the composed system can actually promise, and the two
+residual nits are one-clause wording items safely left to the author's
+next editing pass. From the Fable side this document is ready to leave
+Draft when the author and the codex family concur.
