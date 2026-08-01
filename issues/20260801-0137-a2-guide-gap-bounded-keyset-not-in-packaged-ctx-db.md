@@ -11,3 +11,17 @@ Asks, in order:
 1. Ship the bounded verbs (`.lt/.lte/.gt/.gte/.take`) in the packaged inline-handler runtime.
 2. Codegen statically validates the chain so an unsupported verb fails generation with a named diagnostic rather than a runtime "undefined is not a function".
 3. The guide's "Inside a JS handler" section documents the complete chain (guide-gap per LLP 0061 §5; Diary 0034's discoverability lesson, still unabsorbed).
+
+---
+
+**2026-08-01 (fix-wave Lane β2) — ask 1 is satisfied-by-release, not by
+new code.** The bounded verbs exist in the current handler runtime
+(`packages/snapback-harness/ctx-bootstrap.js`: `lt` @610, `gt` @618,
+`take` @630 — with the collect-cap diagnostic even *recommending*
+`order(...).take(n)`), and diary 0034 exercised them on repo main. The
+0.1.7 packaged absence is the same staleness class as the closed
+packaged-asset tickets: the release refresh (fix-wave Lane α's
+handoff/execution item) delivers them to external consumers. Remaining
+open asks: (2) codegen static validation of the chain so an unsupported
+verb refuses at generation with a named diagnostic, and (3) the guide's
+"Inside a JS handler" complete-chain documentation — both still owed.
