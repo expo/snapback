@@ -43,3 +43,40 @@ mask the `SNAPBACK_*` platform namespace, plus the client-protocol
 legs) treatment. Owner decision required on: vocabulary declaration
 surface, payload validation, and whether declared refusals participate in
 retry/quarantine client dispositions. Left open, author-gated.
+
+---
+
+**RESOLVED 2026-08-01 (fix-wave Lane β).** The declared refusal channel
+landed as LLP 0108 §"Declared application refusals" (normative).
+
+Shape, exactly as the ticket's author-gated questions required:
+- **Vocabulary declaration surface:** a closed per-function set —
+  `refusals: ['STALE_MOVE', ...]` — validated at codegen (`define.mjs`) and
+  re-validated at manifest load (`validate_declared_refusals`,
+  src/manifest.rs): 1–64 chars, `A-Z0-9_`, ≤64 per function, no duplicates,
+  and the reserved `SNAPBACK_` prefix refused
+  (`SNAPBACK_FUNCTION_REFUSAL_DECLARATION_INVALID`).
+- **Payload validation:** `ctx.refuse(code, details?)` carries JSON-safe
+  details through the completion envelope; the platform code is
+  `SNAPBACK_APP_REFUSAL`, with `appCode`/`appDetails` in diagnostic details
+  — a namespaced field beside the platform code, never replacing it.
+- **Admission:** `admit_declared_refusal` (src/runtime.rs) admits a claim
+  only when the invoked function declared the code, folding undeclared,
+  forged, and bare claims to `SNAPBACK_HANDLER_FAILED` and dropping the app
+  payload. The declared set rides `PreparedInvocation` → `IbexHostContext`
+  and is empty by default, so any path that does not deliberately carry it
+  folds every claim (fail-closed by construction). LLP 0053's pinned rule is
+  unchanged: the declaration types the code, not the throw.
+- **Retry/quarantine dispositions:** deliberately deferred — declared
+  refusals participate in none today; recorded in 0108's deferred list with
+  i18n, a platform-wide taxonomy, and result-contract hash participation.
+
+Both envelope decoders treat the code identically (`handler_envelope_code`,
+`packages/snapback-harness/envelope.mjs`). Evidence:
+`runtime::parse_handler_output_tests::application_refusal_is_admitted_only_when_declared`
+(declared admits with payload; undeclared, no-declaration, and bare-claim
+all fold and drop the payload) and
+`local::tests::declared_application_refusal_round_trips_and_undeclared_folds`
+(end to end through the real served mutation path). Full lib suite 1569
+passed; pinned suites, codegen, client, guide, artifacts, conformance
+(17/17 + ok), ref-check all green.
