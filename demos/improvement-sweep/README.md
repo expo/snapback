@@ -32,7 +32,11 @@ Stage 0 (G0) freezes, before any diaried arm:
   gap-ledger finding, Expo platform receipt) and the expected-check-count
   manifests (`protocol/arm-matrix.v1.json`, `protocol/expo-receipt.v1.json`);
 - the assistance policy (`protocol/assistance-policy.v1.json`) binding the
-  external-consumer posture, the fix loop, and budgets-as-instruments;
+  external-consumer posture, the fix loop, and budgets-as-instruments —
+  **ratified as written by the author 2026-08-01** (ballot item 1,
+  verbatim "1 ratify"; the synthesis choices in the closed ticket
+  `issues/closed/20260801-0137-assistance-policy-synthesized-at-g0.md`
+  are confirmed, not amended);
 - the G2 target-lifecycle rules (`protocol/target-lifecycle.v1.json`); and
 - the credentials preflight (`protocol/credentials-health.v1.json`), which
   retains capability names and statuses only — never values.

@@ -555,6 +555,19 @@ rules, and names-only credentials preflight are retained under
 verified by `scripts/verify-freeze.mjs`. Phase 1 froze no Snapback revision,
 per this gate. Diaried sweep execution remains blocked on G1.
 
+Assistance policy ratified 2026-08-01: the author ratified the G0-frozen
+synthesized assistance policy
+(`demos/improvement-sweep/protocol/assistance-policy.v1.json`,
+`llp-0137-external-consumer-assistance-v1`) as written — ballot item 1,
+verbatim "1 ratify" — closing
+`issues/closed/20260801-0137-assistance-policy-synthesized-at-g0.md`. The
+synthesis choices recorded there (source inspection = assistance event AND
+posture-break finding; cross-arm knowledge inside the sweep not an event
+while probe-directed imports are; 0102's independent-review block deferred
+to Phase 2's freeze) are confirmed, not amended, so no policy re-freeze
+semantics change; the ratification note itself lands per the freeze's
+dated-amendment convention.
+
 G1 (Stage 1, public package qualification) executed 2026-08-01 and
 **passed** on the macOS/arm64 host: from a clean external directory outside
 any checkout, the complete terminal `@expo/snapback-*` closure installed

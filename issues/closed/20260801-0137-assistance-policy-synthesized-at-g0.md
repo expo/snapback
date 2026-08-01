@@ -37,4 +37,14 @@ prospective amendment and a re-freeze per the freeze boundary.
 
 ## Resolution
 
-Open.
+**Resolved (2026-08-01): ratified by the author.** Charlie's 2026-08-01
+ballot, verbatim: "1 ratify". The G0-frozen synthesized policy
+(`demos/improvement-sweep/protocol/assistance-policy.v1.json`,
+`llp-0137-external-consumer-assistance-v1`) is confirmed as written — the
+synthesis choices above (source inspection = assistance event AND
+posture-break finding; cross-arm knowledge inside the sweep not an
+assistance event while probe-directed imports are; the 0102
+independent-review block deferred to Phase 2's own freeze) stand
+unamended. Dated ratification notes recorded beside the policy in
+`demos/improvement-sweep/README.md` (with the freeze digest re-run per the
+dated-amendment convention) and in LLP 0137 §Status.
