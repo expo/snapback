@@ -90,3 +90,37 @@ The architecture is strong and the shipped slice is credible, but the idempotenc
 Revise the RFC to settle idempotency equivalence, state the actual drain bound, and place an unmistakable future-design boundary around the remainder. Then update the evidence citations and request a focused Codex re-review of the new exact hash. The author remains responsible for any status transition.
 
 *(Runner note: the verbatim body above is unaltered except that file citations the reviewer emitted as absolute paths into the disposable review worktree are mechanically rewritten to the equivalent paths under /Users/ccheever/projects/snapback/ to avoid dead worktree links; raw output is preserved in the session capture.)*
+
+## Round 2 — 2026-08-01
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model `gpt-5.6-sol`
+**Reasoning effort:** CLI default (`medium` per CLI banner)
+**Date:** 2026-08-01
+**Redaction:** not redacted
+**Method:** round-2 targeted — reviewer given its own Round 1, instructed to check v2's application of its three MATERIALs and two lesser items (idempotency tuple consistency, shipped/future boundary block, 64-per-wave drain restatement, four-row evidence map, insert-at-claim attempt wording) and the changed text only for fresh defects; read-only sandbox in a fresh worktree of origin/main at 97828e64, blind to this RFC's fable artifact
+**Target SHA-256:** `9f6d420de35edc2aa44ba4f83ebfb870f03ea6f55ff7f4da832a7e8def396dff`
+**Instruction SHA-256:** `80c5b4863dcb7d6a4544c7c89f939d9cc859b45582ed866aa12e48b14623730e`
+**Status:** completed (first attempt, no retry needed)
+
+### Verbatim review
+
+Verified SHA-256: `9f6d420de35edc2aa44ba4f83ebfb870f03ea6f55ff7f4da832a7e8def396dff`. I did not read `.fable.md`.
+
+Verdict: **NOT READY**
+
+1. **Idempotency — should-fix remains.** Shipped text matches code exactly, but [§Semantics](/Users/ccheever/projects/snapback/llp/0070-durable-background-work.rfc.md:440) says generic "attempt policy," not `maxAttempts`, while the guide says byte-identical canonical args rather than digest equality. Repeat the literal tuple everywhere.
+
+2. **Boundary — MATERIAL fresh defect.** Host-plan admission and non-exhaustive gaps are fixed, but [the boundary](/Users/ccheever/projects/snapback/llp/0070-durable-background-work.rfc.md:402) says "Everything above" is implemented, incorrectly encompassing the Summary's future subsystem and target profiles. Scope it specifically to "§First slice as shipped." Below-boundary present-tense prose is otherwise clearly marked future.
+
+3. **Drain — resolved.** It matches `src/server.rs`/`src/jobs.rs`: at most 64 per wave, silent 1–16 clamp, `64 × waves` ceiling, with waves serving pagination and cascade depth.
+
+4. **Evidence — resolved with wording nit.** The four-way attribution is correct. Change A6-04's "exactly-once execution" to "one observed execution and no rerun" to avoid implying exactly-once delivery semantics.
+
+5. **Attempts — resolved.** Insert-at-claim plus `outcome IS NULL`-guarded terminal completion accurately supports "append-only attempt identities with one-time terminal completion."
+
+Next step: fix the boundary sentence, copy the literal digest-plus-`maxAttempts` tuple into §Semantics and the guide, and narrow the A6 wording. No further material Codex concern would remain.
+
+I could not append this round to the Codex review artifact because the workspace is read-only.
+
+*(Runner note: the two file citations above were emitted as absolute paths into the disposable review worktree and are mechanically rewritten to the equivalent /Users/ccheever/projects/snapback/ paths; raw output is preserved in the session capture.)*
