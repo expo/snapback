@@ -1,0 +1,11 @@
+{
+  "arm": "cloudflare-r2",
+  "status": "ACCESS-GAPPED (not a product judgment)",
+  "evidence": {
+    "apiProbe": "GET /accounts/<acct>/r2/buckets -> {\"code\":10042,\"message\":\"Please enable R2 through the Cloudflare Dashboard.\"}",
+    "s3Endpoint": "TLS handshake failure (alert 40) from both Node and curl against <acct>.r2.cloudflarestorage.com — consistent with an unprovisioned R2 endpoint; DNS resolves",
+    "conclusion": "R2 is not enabled on this account. Enabling requires an interactive dashboard action outside this run. Per LLP 0102 target-access amendment, recorded as an environment/credential gap; the arm code is complete and runnable once enabled."
+  },
+  "armCodeReady": "run.mjs implements multipart create/upload-part/ListParts-resume/complete, presigned GET, TTL + deletion legs, and namespace cleanup with absence proof",
+  "startedAt": "2026-08-01T16:34:57.092Z"
+}

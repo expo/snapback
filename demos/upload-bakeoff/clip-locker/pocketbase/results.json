@@ -1,0 +1,66 @@
+{
+  "arm": "pocketbase",
+  "posture": "official single-binary local server (its only posture; hosting is self-managed)",
+  "startedAt": "2026-08-01T16:35:45.804Z",
+  "steps": {
+    "boot": {
+      "wallMs": 3,
+      "created": "ok",
+      "ceremony": "download binary, serve, create superuser, POST a collection with a file field"
+    },
+    "interrupt": {
+      "outcome": {
+        "aborted": true,
+        "error": "This operation was aborted"
+      },
+      "resumeMechanism": "none — a record create is a single multipart POST; there is no resumable protocol or upload session",
+      "partialRecordCreated": 0
+    },
+    "bigUpload": {
+      "wallMsTotal": 1005,
+      "wallMsRetryLeg": 740,
+      "fileBytes": 120212515,
+      "bytesTransferredTotal": 120212515,
+      "bytesRetransmitted": "full file re-sent (no resume surface); the aborted attempt’s bytes are additional",
+      "status": 200,
+      "recordId": "ib3qd405815uaij",
+      "storedName": "clip_120mb_118koz6m65.mp4"
+    },
+    "integrity": {
+      "sourceSha256": "6f821fe4d57acae58fa3da2b1981fa1207d2f652a64552badc792eb960e1c829",
+      "storedSha256": "6f821fe4d57acae58fa3da2b1981fa1207d2f652a64552badc792eb960e1c829",
+      "matches": true,
+      "providerDigest": "none exposed"
+    },
+    "range": {
+      "status": 206,
+      "contentRange": "bytes 100-4099/549153",
+      "bytes": 4000,
+      "suffixStatus": 206,
+      "suffixContentRange": "bytes 548129-549152/549153",
+      "cacheControl": "max-age=2592000, stale-while-revalidate=86400"
+    },
+    "share": {
+      "headerlessServeStatus": 200,
+      "fileTokenStatus": 200,
+      "ttlMechanism": "POST /api/files/token mints a short-lived file token (default ~3 min, configurable); public collections need no token at all",
+      "revocation": "token TTL only; no per-URL revocation"
+    },
+    "deletion": {
+      "outstandingUrlAfterDelete": 404,
+      "referenceTracking": "the file IS the record field — deleting the record deletes the file; no dangling ids by construction"
+    },
+    "geoPrivacy": {
+      "digestUnchanged": true,
+      "note": "unchanged ⇒ verbatim; PocketBase does thumbs for images only, nothing for video metadata"
+    },
+    "limits": {
+      "docs": "PocketBase: file field maxSize per field (200MB set here); single binary, local disk or S3-backed storage; no resumable protocol"
+    },
+    "cleanup": {
+      "collectionDeleted": true,
+      "note": "arm collection removed; pb_data is gitignored and local-only"
+    }
+  },
+  "finishedAt": "2026-08-01T16:35:47.125Z"
+}

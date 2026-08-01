@@ -251,3 +251,74 @@ including the provider sha256 and the suffix-range 500.
 All checklist items measured under the emulator posture;
 `firebase/results.json` carries receipts including the md5 metadata and
 the 187 MB two-attempt total.
+
+## 2026-08-01 — cloudflare-r2, round 1, ACCESS-GAPPED (not a product judgment)
+
+R2 is **not enabled on the credentialed account**: the Cloudflare API
+answers `{"code":10042,"message":"Please enable R2 through the
+Cloudflare Dashboard."}`, and the S3 endpoint refuses the TLS handshake
+(alert 40) from both Node and `curl` while DNS resolves — the shape of
+an unprovisioned endpoint. Enabling requires an interactive dashboard
+action outside an autonomous run, so per LLP 0102's amendment this is
+environment/credential evidence and the arm is recorded as gapped
+rather than substituted or faked.
+
+The arm code is complete and runnable the moment R2 is enabled:
+`cloudflare-r2/run.mjs` drives CreateMultipartUpload →
+UploadPart(×N with an injected drop) → **ListParts** →
+upload-missing-parts → Complete, plus presigned GET, TTL expiry, delete,
+and bucket cleanup with an absence proof. Its expected shape, stated
+before evidence: byte-exact resume (ListParts is the sanctioned
+mechanism) at the price of hand-building the entire lifecycle —
+UploadId custody, a presign service, a Worker for authorization, and
+the database linkage. That "you assemble it" cost is exactly what the
+integrated arms exist to avoid; recording it as untested keeps the
+ranking honest.
+
+## 2026-08-01 — pocketbase, round 1, PASS (the single-binary peer)
+
+### Environment
+- `pocketbase 0.23.4` (darwin/arm64) as its own server on :8291, a
+  superuser, and one `ub_c_clips` collection with a `file` field
+  (`maxSize` 200 MB, `mimeTypes: ['video/mp4']`). Hosting posture: you
+  run the binary — there is no managed cloud, which is the honest
+  peer-comparison to Snapback's packaged local target.
+
+### Headline numbers
+- **Fastest big upload in the bakeoff by an order of magnitude**: 740 ms
+  for 120 MB on loopback (no chunking, no session, no round trips) —
+  the local-disk baseline the network arms are measured against.
+- **No resumability at all**: a record create is one multipart POST; an
+  interrupted transfer leaves *no* partial record (`totalItems: 0`) and
+  the retry re-sends the entire file. Same class as Convex, without the
+  upload-URL indirection.
+- Range: 206, correct `content-range`, suffix ranges honored, and the
+  friendliest cache posture observed (`max-age=2592000,
+  stale-while-revalidate=86400`).
+- Share: `POST /api/files/token` mints a short-lived file token
+  (~3 min default) for protected collections; no per-URL revocation.
+- **Deletion truth is the best in the field, structurally**: the file
+  *is* the record field, so deleting the record deletes the bytes and
+  dangling references cannot exist by construction. Snapback reaches
+  the same guarantee through typed references and reverse edges; every
+  other arm leaves it to the app.
+- **GPS: served verbatim.** Image thumbs exist; video metadata has no
+  surface.
+- Integrity: no digest exposed anywhere.
+
+### What felt good
+- Zero-to-uploading was the shortest of any arm: download a binary,
+  `serve`, create a superuser, POST a collection with a `file` field.
+  No SDK, no project, no keys, no plan.
+- File-as-field is a genuinely good idea: the schema says a clip has a
+  video, and the storage/reference/deletion story falls out of it.
+
+### What felt bad or frustrating
+1. No resumability and no digest — for 100 MB+ media over real networks
+   this is the weakest transfer story here.
+2. Everything above the file field (authorization beyond collection
+   rules, variants, privacy) is yours to build.
+
+### Outcome
+All checklist items measured; `pocketbase/results.json` carries
+receipts. Binary and `pb_data/` are gitignored.

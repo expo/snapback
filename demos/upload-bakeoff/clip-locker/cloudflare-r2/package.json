@@ -1,0 +1,9 @@
+{
+  "name": "clip-locker-r2-arm",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1101.0",
+    "@aws-sdk/s3-request-presigner": "^3.1101.0"
+  }
+}
