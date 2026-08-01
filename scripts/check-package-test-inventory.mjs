@@ -34,6 +34,7 @@ const inventories = [
     expectedFiles: [
       'adapters/fly-machines-vm-driver.test.mjs',
       'comparator-profile.test.mjs',
+      'dev-cli-diagnostics.test.mjs',
       'dev-loop.test.mjs',
       'hosted-admission-producer.test.mjs',
       'hosted-control.test.mjs',
@@ -118,7 +119,7 @@ const inventories = [
     packageDir: 'packages/snapback-react',
     testDir: '.',
     suffix: '.test.mjs',
-    expectedFiles: ['lifecycle.test.mjs', 'optimistic.test.mjs', 'package.test.mjs', 'presence.test.mjs'],
+    expectedFiles: ['assets.test.mjs', 'lifecycle.test.mjs', 'offline.test.mjs', 'optimistic.test.mjs', 'package.test.mjs', 'presence.test.mjs'],
   },
   {
     id: '@expo/snapback-app-cli',
@@ -162,6 +163,7 @@ const inventories = [
       'search-ast-fixtures.test.mjs',
       'search-result-contracts.test.mjs',
       'seed-artifact.test.mjs',
+      'seed-asset-fixtures.test.mjs',
       'standard-patterns.test.mjs',
     ],
   },
@@ -366,7 +368,15 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // asset-thumbhash-vector.test.mjs (@expo/snapback-codegen, LLP 0044
 // P-03..P-05) are registered here — those landings added the files and their
 // test-script entries without updating this canonical inventory.
-assert.equal(total, 136, 'reviewed package/admin test count changed');
+// 136 -> 140 (2026-08-01, 0137 between-arms fix lane): @expo/snapback-cli
+// gains dev-cli-diagnostics.test.mjs (a4-f2: `snapback dev` must print its
+// failed envelope and reject flag-shaped positionals); and three earlier
+// landings that added files plus test-script entries without updating this
+// canonical inventory are registered — @expo/snapback-react's
+// offline.test.mjs and assets.test.mjs (`c40dbd1a`, 0137 a1-f4/f5/f6) and
+// @expo/snapback-codegen's seed-asset-fixtures.test.mjs (`a22fd5fd`,
+// LLP 0044 W2f).
+assert.equal(total, 140, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

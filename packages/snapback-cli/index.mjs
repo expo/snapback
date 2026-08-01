@@ -3106,6 +3106,16 @@ export async function runCli(argv, options = {}) {
     const database = takeFlag(args, '--db');
     const clientDirectory = takeFlag(args, '--client');
     const clientCommand = takeFlag(args, '--client-command');
+    // A leftover flag-shaped token would silently become the backend
+    // directory name (`snapback dev --help` "ran" against a directory named
+    // --help and exited 1 with no output — 0137 a4-f2). Reject it loudly.
+    if (typeof args[0] === 'string' && args[0].startsWith('-')) {
+      throw diagnosticError(
+        'SNAPBACK_CLI_ARGUMENT_INVALID',
+        `unknown dev option ${args[0]}; usage: snapback dev [<backend-dir>] [--attach] [--no-watch] `
+          + '[--ready-file <path>] [--db <path>] [--client <dir>] [--client-command <cmd>] [--json]',
+      );
+    }
     // A restart replaces the managed child, so unexpected-exit detection goes
     // through runDev's onServerExit callback instead of a listener pinned to
     // the first child process.
@@ -3128,6 +3138,15 @@ export async function runCli(argv, options = {}) {
       onServerExit(code, signal) { onUnexpectedServerExit?.(code, signal); },
       ...options,
     });
+    // A failed dev result must reach the terminal through the same
+    // printResult path every other command uses — `snapback dev` used to
+    // exit 1 with zero bytes of output when the managed loop's first result
+    // was not ok (0137 a4-f2), while `snapback generate` printed the full
+    // structured diagnostic for the identical failure.
+    if (result.ok === false) {
+      printResult(result, json);
+      return 1;
+    }
     if (noWatch) {
       result.close?.();
     } else if (result.ok) {
