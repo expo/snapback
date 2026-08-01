@@ -2642,6 +2642,18 @@ through the declared read-access policy, responses carry
 and active-content types are never served inline. Revoking access or
 deleting the asset denies the next request.
 
+Intents may instead declare `delivery: { kind: 'public-immutable' }`
+(ready renditions on `GET /assets/public/{id}/{variant}` with
+year-long immutable cache headers — public product media) or
+`{ kind: 'private-signed' }` (`POST /assets/records/{id}/signed-url`
+issues a bearer URL under per-request authorization, valid until its
+TTL). Both serve lanes are **pasteable**: the URL is the entire
+authority, so a plain `<img src>`, a CDN pull, or a link pasted into an
+email fetches with no Snapback headers — including on sessions-mode
+servers, where every other asset route requires the auth-client
+protocol offer. Signed issuance and strict delivery keep full
+per-request authorization.
+
 ## Images
 
 Declare a location policy on every image intent — omission refuses at
