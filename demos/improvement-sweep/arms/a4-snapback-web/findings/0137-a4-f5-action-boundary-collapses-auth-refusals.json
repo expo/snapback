@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "findingId": "0137-a4-f5-action-boundary-collapses-auth-refusals",
+  "dimension": "authorization-and-revocation",
+  "observation": {
+    "description": "When a nested mutation inside an action refuses with SNAPBACK_AUTH_PERMISSION_DENIED (an outsider driving runReminder; a guest driving sendNotification), the caller receives only SNAPBACK_HANDLER_FAILED — the platform auth code does not survive the action boundary. The denial itself holds (nothing was delivered or created), but the uniform-denial diagnostic property that every direct read/subscribe/write surface upholds is lost one hop into the action lane: a client cannot distinguish 'you are not allowed' from 'the handler crashed'. Related to the app-level refusal collapse already owned by 0137-a3-f3, but this leg collapses a PLATFORM code, not an app Error.",
+    "evidence": [
+      "demos/improvement-sweep/arms/a4-snapback-web/evidence/scenario-evidence.json (A4-09 outsiderActionDenied and A4-10 guestDenied both SNAPBACK_HANDLER_FAILED; A4-03 negative matrices show the direct surfaces returning SNAPBACK_AUTH_PERMISSION_DENIED)",
+      "demos/improvement-sweep/arms/a4-snapback-web/evidence/app/acceptance.a4.mjs (A4-09/A4-10 authority legs)"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Convex actions rethrow ConvexError from nested runMutation calls with the structured data intact, so an auth refusal keeps its identity through the action boundary.",
+    "source": "official-docs",
+    "sourceDate": "2026-08-01",
+    "reference": "docs.convex.dev/functions/error-handling"
+  },
+  "classification": "defect",
+  "mustNotRegress": "Non-disclosing uniform denials on direct surfaces, and the rule that nested mutations inherit the action's server-resolved authority rather than accepting a replacement identity.",
+  "smallestCoherentFix": "Propagate the platform diagnostic class (at minimum SNAPBACK_AUTH_PERMISSION_DENIED) from a nested mutation failure through the action's structured error envelope, keeping message bytes uniform and non-disclosing.",
+  "acceptanceWitness": "An unauthorized principal invoking an action whose nested mutation requireRole-refuses receives SNAPBACK_AUTH_PERMISSION_DENIED (byte-uniform with the direct-mutation denial), and an unrelated handler crash still surfaces as SNAPBACK_HANDLER_FAILED.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a4-action-boundary-collapses-auth-refusals.md"
+  },
+  "stopClass": false,
+  "budgetFinding": false
+}

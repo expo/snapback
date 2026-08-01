@@ -1,0 +1,10 @@
+{
+  "multiQueryCount": 3,
+  "domProof": {
+    "guestCount": "6 / 12 attending",
+    "wallPosts": 3,
+    "guestListText": "Pia +1 · Quinn +2 · Rae",
+    "wallAfter": "Render Guest Rendered live from a second connection"
+  },
+  "liveDomUpdate": true
+}

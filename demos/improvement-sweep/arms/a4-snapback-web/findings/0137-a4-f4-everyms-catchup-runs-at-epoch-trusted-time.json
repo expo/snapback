@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "findingId": "0137-a4-f4-everyms-catchup-runs-at-epoch-trusted-time",
+  "dimension": "conflicts-jobs-effects-and-ambiguity",
+  "observation": {
+    "description": "An everyMs cron job's first evaluation fires the documented epoch-anchor catch-up run at nominal slot 0 — and the handler's trusted clock inside that run IS the nominal: ctx.runtime.now() returns 0 (1970), not wall time. Any time-gated scheduled logic (A4's `remindAt <= now` reminder scan) silently no-ops on that run while the run ledger records outcome Succeeded, and any timestamps it commits would be epoch-dated. Observed directly: tick 0 = {scheduledAtMs: 0, outcome: Succeeded, dueAtMs: 0} delivering nothing over a long-past-due reminder; tick 1 = {scheduledAtMs: <real wall ms>} delivering it. The cron guide documents that the first tick 'can look early' but not that its trusted time is the epoch nominal — a correctness hazard, not just a surprise. A five-field cron expression avoids it only by anchoring nominals to calendar slots.",
+    "evidence": [
+      "demos/improvement-sweep/arms/a4-snapback-web/evidence/scenario-evidence.json (A4-09 epochCatchupFinding + runReceipt tickTrace)",
+      "demos/improvement-sweep/arms/a4-snapback-web/evidence/app/probe-cron.mjs (retained isolation probe: tick 0 s:0 no delivery, tick 1 real nominal delivers)",
+      "diaries/0045-a4-events-sweep.diary.md"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Convex scheduled functions and crons receive real wall-clock time (Date.now inside the scheduled function is the execution time); there is no epoch-nominal first run in the frozen evidence or current docs.",
+    "source": "official-docs",
+    "sourceDate": "2026-08-01",
+    "reference": "docs.convex.dev/scheduling/cron-jobs"
+  },
+  "classification": "defect",
+  "mustNotRegress": "Deterministic, replayable trusted time inside handlers (the LLP 0051 recordable-ops property) and the epoch-anchored nominal grid that makes run identity stable.",
+  "smallestCoherentFix": "Clamp the catch-up run's nominal to the most recent past-due slot (floor(now/everyMs)*everyMs) instead of slot 0 — the run stays deterministic and identity-stable but its trusted time is current — or, if slot-0 catch-up is intentional, skip it when the job has never run and document the trusted-time consequence loudly in the cron guide.",
+  "acceptanceWitness": "A conformance test schedules an everyMs job whose action records ctx.runtime.now(); the first tick's recorded time is within one interval of wall clock (or no catch-up run occurs), and a time-gated due-scan over a past-due fixture delivers on the first effective run.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a4-everyms-catchup-runs-at-epoch-trusted-time.md"
+  },
+  "stopClass": false,
+  "budgetFinding": false
+}

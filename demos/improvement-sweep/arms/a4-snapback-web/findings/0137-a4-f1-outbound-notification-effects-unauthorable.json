@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "findingId": "0137-a4-f1-outbound-notification-effects-unauthorable",
+  "dimension": "conflicts-jobs-effects-and-ambiguity",
+  "observation": {
+    "description": "An action that performs outbound fetch cannot be authored at all on packaged 0.1.7, in any form. (1) The documented module form (js:{source, exportName} — the only form the actions guide teaches) is a catch-22: the bundle validator refuses EVERY export form (BUNDLE_UNSUPPORTED_EXPORT for ExportNamed/Default/All and modifier spellings) while the runtime loader demands the named export (an export-free file generates cleanly, then the server exits before ready with SNAPBACK_HANDLER_EXPORT_MISSING). (2) The undocumented inline handler: form (found only in packaged define.mjs) refuses a global fetch reference at generation (SNAPBACK_INLINE_HANDLER_FREE_IDENTIFIER — the inline allowlist has no egress awareness at all), and ctx.fetch passes generation but fails at runtime with SNAPBACK_HANDLER_HOST_CALL_UNKNOWN: unknown handler host call host.fetch — even though the inline ctx bridge exposes fetch and fetchStream as functions and the runtime binary contains the host.fetch registration string. SNAPBACK_OUTBOUND_ACTIONS=1 was set for both generation and the server. Consequence: A4's external notification effect (A4-10) is unimplementable; the scripted local provider was never reached. The app-level intent/attempt ledger behaved correctly around the hole (the unreachable call classified ambiguous, non-terminal, retryable).",
+    "evidence": [
+      "demos/improvement-sweep/arms/a4-snapback-web/evidence/probe-action-forms.json (both module-form legs, machine-readable)",
+      "demos/improvement-sweep/arms/a4-snapback-web/evidence/scenario-evidence.json (A4-10 authoringDefect + actionCtxSurface: fetch/fetchStream typeof function, host call unknown)",
+      "demos/improvement-sweep/arms/a4-snapback-web/evidence/app/probe-action-forms.mjs (retained repro)",
+      "diaries/0045-a4-events-sweep.diary.md"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Frozen Convex Partiful-arm evidence implements the same notification effect as an ordinary action calling fetch with retries and an idempotency key — actions with egress are the bread-and-butter effect lane there, documented and working first try. Longitudinal regression: the 0102-epoch SNAPBACK arm itself (repo-source commit 5f31cb61) passed the PARTY-10/11 effect legs — actions could fetch and the app built the ledger machinery; on the packaged 0.1.7 closure the fetch call itself is unreachable, so the effect story regressed from 'safe primitives, app supplies machinery' to 'unauthorable'.",
+    "source": "frozen-0102",
+    "sourceDate": "2026-07-28",
+    "reference": "diaries/0030-partiful-backend-bakeoff.diary.md (Convex arm effect legs; Snapback arm 'Actions composed with mutations' + PARTY-10/11)"
+  },
+  "classification": "defect",
+  "mustNotRegress": "The egress security posture: fetch denied in queries/mutations, the two-boundary SNAPBACK_OUTBOUND_ACTIONS opt-in, no-eval treatment of fetched text, and the action/mutation split that keeps network I/O outside the transaction.",
+  "smallestCoherentFix": "Make one action form shippable end to end on the packaged closure: either register the host.fetch (and host.fetchStream) handler host calls for the inline-handler bridge under the existing SNAPBACK_OUTBOUND_ACTIONS gate, or make the module-form pipeline accept exactly the export the loader requires — plus a packaged-closure conformance test that generates, loads, and executes a fetching action against a local HTTP fixture, and an actions-guide example that is that test's source.",
+  "acceptanceWitness": "From a clean external consumer on the public closure: an action performing ctx-mediated or global fetch generates, loads, executes against a local provider, and its mutation commits the response — with SNAPBACK_OUTBOUND_ACTIONS honored at both boundaries and the A4-10 check flipping to pass.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a4-outbound-notification-effects-unauthorable.md"
+  },
+  "stopClass": false,
+  "budgetFinding": false
+}

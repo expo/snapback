@@ -1,0 +1,22 @@
+{
+  "probes": [
+    {
+      "name": "module-form with export",
+      "generateStatus": 1,
+      "diagnostic": "BUNDLE_UNSUPPORTED_EXPORT",
+      "excerpt": ",\n      \"severity\": \"error\",\n      \"subsystem\": \"bundle\",\n      \"message\": \"probeModuleAction: unsupported ambient dependency export\",\n      \"function\": \"probeModuleAction\",\n      \"source\": \"handlers-probe.mjs\",\n      \"token\": \"export\",\n      \"sourceSpan\": {\n        \"file\": \"handlers-probe.mjs\",\n        \"line\": 1,\n        \"column\": 1\n      }\n    }\n  ],\n  \"targetProfile\": \"local-dev-sqlite-ibex\"\n}\n"
+    },
+    {
+      "name": "module-form without export: generation",
+      "generateStatus": 0
+    },
+    {
+      "name": "module-form without export: server load",
+      "devExitCode": 1,
+      "exportMissing": true,
+      "startFailed": true,
+      "stderrExcerpt": "Error: SNAPBACK_HANDLER_EXPORT_MISSING: JavaScript handler failed\n{\"ok\":false,\"diagnostics\":[{\"code\":\"SNAPBACK_DEV_SERVER_START_FAILED\",\"severity\":\"error\",\"subsystem\":\"cli\",\"message\":\"Snapback exited before writing /private/tmp/claude-501/-Users-ccheever-projects-snapback/163679b8-1eab-4c5a-ac51-7e3d350c9b61/scratchpad/sweep-a4/consumer/event-app/.snapback/dev.ready.json\",\"details\":{\"status\":1,\"stdout\":\"\",\"stderr\":\"Error: SNAPBACK_HANDLER_EXPORT_MISSING: JavaScript handler failed\\n\"}}]}\n"
+    }
+  ],
+  "restored": true
+}

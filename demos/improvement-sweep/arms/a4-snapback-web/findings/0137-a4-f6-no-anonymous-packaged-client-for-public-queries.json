@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "findingId": "0137-a4-f6-no-anonymous-packaged-client-for-public-queries",
+  "dimension": "installed-product-first-hour",
+  "observation": {
+    "description": "A sessions-mode server happily serves auth:'public' queries to an anonymous request that carries only the `x-snapback-auth-client-protocol: 1` offer header — but the packaged SnapbackClient cannot be constructed to make that request outside a browser: `new SnapbackClient(url)` sends no offer (server refuses SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED), and `new SnapbackClient(url, {authClientProtocol: 1})` without a bearer throws 'authClientProtocol v1 requires browser, agent, or explicit external-bearer custody'. The public event preview — the anonymous Partiful page, the first surface an event app ships — is therefore unreachable from any node/headless consumer without hand-rolled fetch calls. The arm's suite and any SSR/prerender path must bypass the client.",
+    "evidence": [
+      "demos/improvement-sweep/arms/a4-snapback-web/evidence/scenario-evidence.json (A4-02 transportNote + offerlessRequest)",
+      "demos/improvement-sweep/arms/a4-snapback-web/evidence/app/acceptance.a4.mjs (anonQuery helper)"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Convex and Supabase clients query public data anonymously from node with the same client used in the browser (public functions / anon key), no custody ceremony. Longitudinal repeat: the 0102-epoch Snapback Partiful arm hit exactly this ('a plain SnapbackClient was refused... the arm needed a raw HTTP helper carrying the protocol offer without caller auth') and filed a guide-gap; the paved path still does not exist on 0.1.7.",
+    "source": "frozen-0102",
+    "sourceDate": "2026-07-28",
+    "reference": "diaries/0030-partiful-backend-bakeoff.diary.md (Snapback arm 'What felt bad'; public preview legs)"
+  },
+  "classification": "capability",
+  "mustNotRegress": "The custody rule that protocol-offering AUTHENTICATED clients outside a browser must hold explicit external-bearer custody; uniform refusal of offerless requests.",
+  "smallestCoherentFix": "An explicit anonymous custody mode on the packaged client (e.g. custody:'anonymous-public') that sends the protocol offer with no credential and is accepted only for public-auth operations, documented beside the public-query declaration.",
+  "acceptanceWitness": "From node, a packaged client constructed in the anonymous mode reads an auth:'public' query on a sessions server and is refused on any protected operation; the browser path is unchanged.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a4-no-anonymous-packaged-client-for-public-queries.md"
+  },
+  "stopClass": false,
+  "budgetFinding": false
+}

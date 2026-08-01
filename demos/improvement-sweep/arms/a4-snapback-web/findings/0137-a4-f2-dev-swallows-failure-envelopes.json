@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "findingId": "0137-a4-f2-dev-swallows-failure-envelopes",
+  "dimension": "diagnostics-docs-agent-usability-and-escape-hatches",
+  "observation": {
+    "description": "When the managed `snapback dev` loop's initial runDev result is not ok (for example SNAPBACK_SEED_VERSION_REUSED after a seed edit, or any generation failure), the CLI exits 1 having printed NOTHING on stdout or stderr: the dev command path returns `result.ok ? 0 : 1` without ever printing the failed result envelope (@expo/snapback-cli/index.mjs, dev branch), while the same failure through `snapback generate` prints a full structured diagnostic. The arm lost a debugging cycle to a silent exit before recovering the diagnostic by calling runDev programmatically. (`snapback dev --help` also silently exits 1 — '--help' is consumed as the backend directory.) Later dev-side failures DO print (SNAPBACK_DEV_SERVER_START_FAILED arrives via stderr), which makes the silent early exit more surprising.",
+    "evidence": [
+      "diaries/0045-a4-events-sweep.diary.md (silent-exit sequence and recovery)",
+      "demos/improvement-sweep/arms/a4-snapback-web/evidence/app/smoke.mjs (the harness that hit it)"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Frozen evidence: `npx convex dev` prints every push/codegen failure with the diagnostic inline in the same terminal; a silent nonzero exit does not occur in the recorded arms.",
+    "source": "frozen-0102",
+    "sourceDate": "2026-07-28",
+    "reference": "diaries/0030-partiful-backend-bakeoff.diary.md (Convex dev loop notes)"
+  },
+  "classification": "defect",
+  "mustNotRegress": "The machine-readable dev lifecycle: snapback.dev.v1 stdout events, the ready-file descriptor, and stdin-close stop that let suites own their servers.",
+  "smallestCoherentFix": "In the CLI dev branch, print the not-ok runDev result envelope (same printResult path every other command uses) before returning 1, and reject an argument that collides with a flag spelling instead of treating it as a backend directory.",
+  "acceptanceWitness": "A CLI test runs `snapback dev` over a backend whose generation fails (e.g. reused seedVersion) and asserts the structured diagnostic appears on stderr/stdout and the exit code is nonzero; `snapback dev --help` prints usage.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a4-dev-swallows-failure-envelopes.md"
+  },
+  "stopClass": false,
+  "budgetFinding": false
+}

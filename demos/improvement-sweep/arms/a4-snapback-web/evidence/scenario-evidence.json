@@ -1,0 +1,479 @@
+{
+  "A4-01": {
+    "targetIdentity": {
+      "serverUrl": "http://127.0.0.1:4291",
+      "port": 4291,
+      "appId": "event-app",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:c63b729c6d842e559e1f6db7bb344ac5750fa0f632b6d2e7fa62b58b1b66eb2c",
+      "authMode": "sessions",
+      "runtime": null
+    },
+    "authoritativeCounts": {
+      "rsvps": 8,
+      "goingSeats": 6,
+      "goingCount": 3,
+      "maybeCount": 1,
+      "capacity": 12,
+      "wallPosts": 3,
+      "invites": 4,
+      "reminders": 1
+    },
+    "seedReceipt": {
+      "seedVersion": "a4-events.2026-08-01.2",
+      "dataVersionStream": "019fbd5b-b4b3-72a1-b1e5-0b880e7ed39b"
+    },
+    "personas": {
+      "hana": "host",
+      "cora": "cohost",
+      "gil": "guest",
+      "mira": "guest (enters in A4-04)",
+      "max": "outsider (authenticated, no seat)"
+    }
+  },
+  "A4-02": {
+    "anonymousRead": {
+      "status": 200,
+      "row": {
+        "slug": "lantern-supper",
+        "title": "Lantern Supper Club",
+        "startsAt": 1783200000000,
+        "city": "Oakland, California",
+        "blurb": "A long-table supper under paper lanterns. Bring a story.",
+        "capacity": 12,
+        "goingSeats": 6,
+        "spotsLeft": 6,
+        "hasFlyer": false
+      }
+    },
+    "fieldBoundary": {
+      "publicFields": [
+        "blurb",
+        "capacity",
+        "city",
+        "goingSeats",
+        "hasFlyer",
+        "slug",
+        "spotsLeft",
+        "startsAt",
+        "title"
+      ],
+      "negativesProbed": [
+        "privateAddress",
+        "hostNotes",
+        "invite codes",
+        "guest identities",
+        "seed principals"
+      ]
+    },
+    "negativePrivateRead": {
+      "guestEventView": "SNAPBACK_AUTH_PERMISSION_DENIED",
+      "hostEventDetail": "SNAPBACK_AUTH_PERMISSION_DENIED",
+      "guestList": "SNAPBACK_AUTH_PERMISSION_DENIED",
+      "wallFeed": "SNAPBACK_AUTH_PERMISSION_DENIED"
+    },
+    "offerlessRequest": {
+      "status": 400,
+      "code": "SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED"
+    },
+    "transportNote": "packaged SnapbackClient cannot construct an anonymous protocol-offering client outside a browser; anonymous preview uses raw HTTP with the offer header (arm finding)"
+  },
+  "A4-03": {
+    "positiveRoleMatrix": {
+      "host": {
+        "updateEventDetails": "allowed",
+        "createInvite": "allowed",
+        "hostEventDetail": "allowed"
+      },
+      "guest": {
+        "read": "allowed",
+        "updateRsvp": "allowed",
+        "postWall": "allowed"
+      },
+      "cohost": {
+        "updateRsvp": "allowed",
+        "deleteWallPost": "allowed",
+        "createInvite": "allowed",
+        "hostEventDetail": "allowed",
+        "updateEventDetails": "SNAPBACK_AUTH_PERMISSION_DENIED"
+      },
+      "guestNegative": {
+        "hostEventDetail": "SNAPBACK_AUTH_PERMISSION_DENIED",
+        "notifyLedger": "SNAPBACK_AUTH_PERMISSION_DENIED",
+        "updateEventDetails": "SNAPBACK_AUTH_PERMISSION_DENIED",
+        "createInvite": "SNAPBACK_AUTH_PERMISSION_DENIED",
+        "deleteWallPost": "SNAPBACK_AUTH_PERMISSION_DENIED"
+      }
+    },
+    "negativeRoleMatrix": {
+      "guest": {
+        "hostEventDetail": "SNAPBACK_AUTH_PERMISSION_DENIED",
+        "notifyLedger": "SNAPBACK_AUTH_PERMISSION_DENIED",
+        "updateEventDetails": "SNAPBACK_AUTH_PERMISSION_DENIED",
+        "createInvite": "SNAPBACK_AUTH_PERMISSION_DENIED",
+        "deleteWallPost": "SNAPBACK_AUTH_PERMISSION_DENIED"
+      },
+      "cohost": {
+        "updateEventDetails": "SNAPBACK_AUTH_PERMISSION_DENIED"
+      },
+      "outsider": {
+        "read": "SNAPBACK_AUTH_PERMISSION_DENIED",
+        "guestList": "SNAPBACK_AUTH_PERMISSION_DENIED",
+        "wall": "SNAPBACK_AUTH_PERMISSION_DENIED",
+        "hostDetail": "SNAPBACK_AUTH_PERMISSION_DENIED",
+        "writeRsvp": "SNAPBACK_AUTH_PERMISSION_DENIED",
+        "writeWall": "SNAPBACK_AUTH_PERMISSION_DENIED",
+        "subscribe": "SNAPBACK_AUTH_PERMISSION_DENIED"
+      },
+      "badInviteGuess": "SNAPBACK_HANDLER_FAILED"
+    }
+  },
+  "A4-04": {
+    "deepLink": "http://127.0.0.1:5173/?contract=event&invite=INV-GUEST-9143",
+    "parsedCode": "INV-GUEST-9143",
+    "settlement": {
+      "result": {
+        "eventId": "evt_lantern",
+        "role": "guest",
+        "inviteCode": "INV-GUEST-9143",
+        "invitedByName": "Cora",
+        "enteredVia": "deep-link"
+      },
+      "receipt": {
+        "mutationId": "mut_019fbd5bb7027173b9462ea048177b94",
+        "outcome": "confirmed",
+        "snapshotVersion": 12,
+        "affectedTables": [
+          "invites",
+          "rsvps",
+          "eventMembers"
+        ]
+      }
+    },
+    "attribution": {
+      "guestListRow": {
+        "_id": "019fbd5b-b709-70f3-be51-d74cd7125304",
+        "name": "Mira",
+        "status": "invited",
+        "plusOnes": 0,
+        "invitedByName": "Cora",
+        "enteredVia": "deep-link"
+      },
+      "inviteConsumed": true,
+      "replayRefusal": "SNAPBACK_HANDLER_FAILED"
+    }
+  },
+  "A4-05": {
+    "twoActorBarrier": "Promise.allSettled: two seated guests each requesting 3 seats with 4 remaining",
+    "settlement": {
+      "winnerReceiptSeats": 11,
+      "loserRefusal": {
+        "code": "SNAPBACK_HANDLER_FAILED",
+        "message": "capacity exceeded: 11 seats taken of 12, requested 3"
+      },
+      "loserRebooked": {
+        "status": "going",
+        "plusOnes": 0,
+        "goingSeats": 12,
+        "capacity": 12
+      },
+      "structuredRefusalNote": "capacity refusal arrives as SNAPBACK_HANDLER_FAILED prose, not a structured app code (known: finding 0137-a3-f3, not re-filed)"
+    },
+    "authoritativeCount": {
+      "goingSeats": 12,
+      "capacity": 12,
+      "previewSpotsLeft": 0
+    }
+  },
+  "A4-06": {
+    "secondClient": "gil (independent authenticated session), two stream handles + ephemeral overlay",
+    "transportAttribution": {
+      "connection": "live",
+      "transport": "stream",
+      "wallDeliveryMs": 46,
+      "countDeliveryMs": 40,
+      "presence": "ephemeral overlay lane over the managed stream (snapshot+delta); zero durable amplification verified against the store version",
+      "reactPresenceNonclaim": "the React-arm presence pair is known-broken on 0.1.7 (findings 0137-a2-f1, 0137-a2-f2) — cited, not re-filed"
+    },
+    "authoritativeCount": {
+      "goingSeatsBefore": 12,
+      "goingSeatsAfter": 11
+    },
+    "actorAttribution": {
+      "wallAuthorId": "019fbd5b-b4d7-7705-a60f-e430872649bf",
+      "matches": "hana session principal"
+    }
+  },
+  "A4-07": {
+    "objectIdentity": {
+      "flyerAssetId": "019fbd5b-ba29-7db1-8b17-00c1645beba4",
+      "galleryAssetId": "019fbd5b-ee3d-7f42-8b5b-fd4de205cfec",
+      "uploadedBytes": 7239,
+      "uploadedSha256": "85bc76228376fbfb351b39100bb50612948fdc2684bedb67a81564be441239f0",
+      "recordSnapshot": "{\"assetId\":\"019fbd5b-ba29-7db1-8b17-00c1645beba4\",\"availability\":\"ready\",\"deliveryProfile\":\"private-strict\",\"primaryRenditionId\":\"019fbd5b-ba34-7160-863c-5d54ce55a5c2\",\"lifecycleGeneration\":2,\"createdAtMs\":1785588333097,\"updatedAtMs\":1785588333107}"
+    },
+    "renditionIdentity": {
+      "card": {
+        "status": 200,
+        "bytes": 412,
+        "pngMagic": true
+      },
+      "thumb": {
+        "status": 200
+      },
+      "bestFit": {
+        "status": 200
+      },
+      "pipeline": "image intent location:strip with declared variants card(480)/thumb(128)"
+    },
+    "contentHash": {
+      "primarySha256": "f5c0506480b426993e296bb1eb1098def8dc6de421d0ffe4dba370488dedd85a",
+      "primaryEqualsUploaded": false,
+      "note": "strip re-encodes canonical bytes; content identity is the served primary digest, verified stable across reads"
+    },
+    "authorization": {
+      "ownerPrimary": 200,
+      "seatedGuestStrict": 403,
+      "outsiderStrict": 403,
+      "uploadPath": "authenticated raw attempt/TUS/finalize (packaged asset client cannot authenticate on sessions — known 0137-a1-f3, cited)"
+    },
+    "attachDefect": {
+      "committed": false,
+      "code": "SNAPBACK_ASSET_REF_UNVERIFIED"
+    },
+    "pasteableLanesDefect": {
+      "signedUrlIssuance": {
+        "status": 404,
+        "body": ""
+      },
+      "publicImmutableRoute": {
+        "status": 404
+      },
+      "galleryOwnerStrictRead": 200,
+      "note": "the assets guide documents both pasteable lanes as shipped; the packaged runtime serves neither route (arm finding)"
+    },
+    "queryableReference": {
+      "workaround": "events.flyerAssetId plain string (0137-a1-f1)",
+      "previewHasFlyer": true
+    }
+  },
+  "A4-08": {
+    "deleteProof": {
+      "gallery": {
+        "delete": 200,
+        "ownerReadAfter": 404
+      },
+      "flyer": {
+        "delete": 200,
+        "ownerReadAfter": 404
+      },
+      "appReferenceCleared": true
+    },
+    "authorityChange": {
+      "lane": "session retirement on the private-strict lane (authLogout): the previously authorized second host session read 200, then denied",
+      "before": 200,
+      "after": 401
+    },
+    "negativeDelivery": {
+      "revokedSession": 401,
+      "deletedGallery": 404,
+      "deletedOwner": 404
+    },
+    "nonclaim": "the check facts are proven on the only reachable viewer set (owner sessions): membership/reference sharing (0137-a1-f2 chain) and the pasteable lanes (this arm) are unauthorable on 0.1.7, so no other previously-authorized viewer class exists to revoke"
+  },
+  "A4-09": {
+    "scheduleIdentity": {
+      "jobName": "reminderTick",
+      "runId": "cron:reminderTick:scheduled:1785588347000:2",
+      "scheduledAtMs": 1785588347000,
+      "idempotencyKey": "cron:reminderTick:scheduled:1785588347000",
+      "schedule": "everyMs 1000 jitter:false (acceptance-rig scan cadence)",
+      "cronDisabled": "SNAPBACK_CRON_DISABLED=1: definitions load, autonomous claiming off, every run suite-driven"
+    },
+    "epochCatchupFinding": {
+      "run": {
+        "runId": "cron:reminderTick:scheduled:0:1",
+        "jobName": "reminderTick",
+        "scheduledAtMs": 0,
+        "dueAtMs": 0,
+        "startedAtMs": 1785588346538,
+        "finishedAtMs": 1785588346553,
+        "trigger": "Scheduled",
+        "attempt": 1,
+        "outcome": "Succeeded",
+        "durationMs": 15,
+        "idempotencyKey": "cron:reminderTick:scheduled:0",
+        "slotKey": "cron:reminderTick:scheduled:0",
+        "diagnostic": null,
+        "result": {
+          "trigger": "cron",
+          "delivered": [],
+          "alreadyDelivered": 0,
+          "notDue": 1
+        }
+      },
+      "fact": "the everyMs catch-up run Succeeded at nominal slot 0 with trusted time 0, so the due-scan silently no-opped — time-gated scheduled logic is wrong on the first run of every everyMs job (arm finding)"
+    },
+    "runReceipt": {
+      "run": {
+        "runId": "cron:reminderTick:scheduled:1785588347000:2",
+        "jobName": "reminderTick",
+        "scheduledAtMs": 1785588347000,
+        "dueAtMs": 1785588347000,
+        "startedAtMs": 1785588347658,
+        "finishedAtMs": 1785588347689,
+        "trigger": "Scheduled",
+        "attempt": 1,
+        "outcome": "Succeeded",
+        "durationMs": 31,
+        "idempotencyKey": "cron:reminderTick:scheduled:1785588347000",
+        "slotKey": "cron:reminderTick:scheduled:1785588347000",
+        "diagnostic": null,
+        "result": {
+          "trigger": "cron",
+          "delivered": [
+            "rem_daybefore:day-before"
+          ],
+          "alreadyDelivered": 0,
+          "notDue": 0
+        }
+      },
+      "tickTrace": [
+        [
+          {
+            "scheduledAtMs": 0,
+            "outcome": "Succeeded",
+            "runId": "cron:reminderTick:scheduled:0:1"
+          }
+        ],
+        [
+          {
+            "scheduledAtMs": 1785588347000,
+            "outcome": "Succeeded",
+            "runId": "cron:reminderTick:scheduled:1785588347000:2"
+          }
+        ]
+      ],
+      "extraTick": [],
+      "manualVerify": {
+        "trigger": "manual-verify",
+        "delivered": [],
+        "alreadyDelivered": 1,
+        "notDue": 0
+      }
+    },
+    "dedupeKey": {
+      "value": "rem_daybefore:day-before",
+      "recipients": 6,
+      "deliveredAt": 1785588347000,
+      "uniqueIndex": "reminderDeliveries.by_dedupe"
+    },
+    "outsiderActionDenied": "SNAPBACK_HANDLER_FAILED"
+  },
+  "A4-10": {
+    "providerBoundary": {
+      "url": "http://127.0.0.1:58744/notify",
+      "providerListening": true,
+      "providerReached": false,
+      "custody": "notifyToken set through the admin config surface; status reports set:true secret:true and never the bytes"
+    },
+    "actionCtxSurface": {
+      "keys": [
+        "assets",
+        "auth",
+        "cron",
+        "db",
+        "fetch",
+        "fetchStream",
+        "isDirectHuman",
+        "jobs",
+        "run",
+        "runMutation",
+        "runtime",
+        "secrets",
+        "streamAttempt"
+      ],
+      "fetchType": "function",
+      "fetchStreamType": "function",
+      "secretsType": "object",
+      "runMutationType": "function"
+    },
+    "faultInjection": "scripted provider (500 / socket-drop / ok) stood ready; no request ever arrived",
+    "attemptLedger": [
+      {
+        "attemptSeq": 1,
+        "outcome": "ambiguous",
+        "providerStatus": 0,
+        "detail": "no response: SNAPBACK_HANDLER_HOST_CALL_UNKNOWN: unknown handler host call host.fetch"
+      },
+      {
+        "attemptSeq": 2,
+        "outcome": "ambiguous",
+        "providerStatus": 0,
+        "detail": "no response: SNAPBACK_HANDLER_HOST_CALL_UNKNOWN: unknown handler host call host.fetch"
+      }
+    ],
+    "ambiguousState": {
+      "state": "ambiguous",
+      "settledAt": 0,
+      "note": "the app classified the unreachable outbound call as ambiguous and kept it retryable — correct app semantics over a missing platform surface"
+    },
+    "terminalSettlement": {
+      "reached": false,
+      "state": "ambiguous",
+      "attemptCount": 2
+    },
+    "authoringDefect": {
+      "moduleForm": "BUNDLE_UNSUPPORTED_EXPORT (every export form) at generation; an export-free file loads but fails SNAPBACK_HANDLER_EXPORT_MISSING",
+      "inlineGlobalFetch": "SNAPBACK_INLINE_HANDLER_FREE_IDENTIFIER: fetch not in the inline allowlist (no egress awareness)",
+      "inlineCtxFetch": "no response: SNAPBACK_HANDLER_HOST_CALL_UNKNOWN: unknown handler host call host.fetch",
+      "runtimeKnowsHostFetch": "the runtime binary contains \"host.fetch\" but the inline handler bridge never registers it"
+    },
+    "guestDenied": "SNAPBACK_HANDLER_FAILED"
+  },
+  "A4-11": {
+    "targetBoundPlan": "suite-owned dev database in the arm directory only; assets deleted in A4-08 and verified retired; config unset through the admin custody surface; seats retired by self-removal (0137-a3-f1 cited), then receipted versioned reset-installs",
+    "cleanupReceipts": [
+      {
+        "operation": "reset-install",
+        "outcome": "reset-installed",
+        "seedVersion": "a4-events.2026-08-01.2",
+        "resetDeletedRows": 24
+      },
+      {
+        "operation": "reset-install",
+        "outcome": "reset-installed",
+        "resetDeletedRows": 15
+      }
+    ],
+    "configCleared": true,
+    "assetsRetired": {
+      "flyer": {
+        "bytes": 404,
+        "record": 200,
+        "availability": "deleted"
+      },
+      "gallery": {
+        "bytes": 404,
+        "record": 200,
+        "availability": "deleted"
+      },
+      "note": "byte lanes refuse; metadata record retained as lifecycle evidence with non-ready availability"
+    },
+    "schedules": {
+      "cronDisabledWholeRun": true,
+      "finalTickReminderRuns": 0
+    },
+    "postCleanupNegative": {
+      "afterLeave": "SNAPBACK_AUTH_PERMISSION_DENIED",
+      "afterReset": "SNAPBACK_AUTH_PERMISSION_DENIED",
+      "final": "SNAPBACK_AUTH_PERMISSION_DENIED"
+    },
+    "fixtureVerification": {
+      "goingSeats": 6,
+      "wallPosts": 3,
+      "invitesUnconsumed": true,
+      "deliveries": 0,
+      "notifyIntents": 0
+    }
+  }
+}

@@ -1,0 +1,235 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "arm": {
+    "contract": "a4",
+    "armKind": "snapback-web",
+    "platform": "web",
+    "provider": "snapback",
+    "attemptId": "a4-snapback-web-darwin-arm64-20260801"
+  },
+  "packageVersions": {
+    "@expo/snapback-cli": "0.1.7",
+    "@expo/snapback-app-cli": "0.1.7 (installed in the consumer root; the scaffolded app's bin resolves to @expo/snapback-cli)",
+    "@expo/snapback-client": "0.1.7",
+    "@expo/snapback-codegen": "0.1.7",
+    "@expo/snapback-contract": "0.1.7",
+    "@expo/snapback-react": "0.1.7",
+    "@expo/snapback-vite": "0.1.7",
+    "@expo/snapback-runtime-darwin-arm64": "0.1.7",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "vite": "8.2.0",
+    "typescript": "5.9.3",
+    "jsdom": "28.0.0 (dev-only, render proof)"
+  },
+  "environment": {
+    "host": "macOS (Darwin 25.5.0), arm64",
+    "node": "24.18.0 (volta)",
+    "bun": "1.3.12",
+    "registry": "https://registry.npmjs.org",
+    "externalDirectory": "session scratchpad sweep-a4/consumer/event-app — outside any Snapback checkout; scaffolded by `snapback new event-app --template react`, event view of the frozen neutral-web shell wired live (other five views static placeholders)",
+    "sanctionedDocumentation": [
+      "the shipped Snapback guide (index, capabilities, cron, actions-and-fetch, assets, secrets-and-config, queries, versioned-seeds, scoped-roles, sessions-and-principals, ephemeral-state, react, acceptance, trusted-runtime-values)",
+      "installed public package bytes under node_modules (product the consumer receives)",
+      "prior 0137 arm records (G1/A2/A1/A3 capsules, diaries, findings, retained acceptance sources) for known defects and the sessions persona / dev-lifecycle / asset-upload recipes — program records, not product documentation"
+    ],
+    "authMode": "sessions (email-code provider; membership entry through seeded invite rows + the guide's documented app-data-invitation self-insert pattern; server env SNAPBACK_OUTBOUND_ACTIONS=1 and SNAPBACK_CRON_DISABLED=1)"
+  },
+  "budget": {
+    "class": "deep",
+    "ceilings": { "activeHours": 8, "toolCalls": 400 },
+    "wallClock": {
+      "orientationStart": "2026-08-01T11:46:00Z",
+      "externalBuildStart": "2026-08-01T11:59:07Z",
+      "finalGreenVerification": "2026-08-01T12:45:48Z",
+      "orientationMinutes": 13,
+      "activeBuildMinutes": 47,
+      "recordsPhase": "12:46Z onward (findings, tickets, capsule, diary, status, freeze/ref checks, rebase, commit)"
+    },
+    "toolCalls": {
+      "throughFinalVerification": 120,
+      "recordsPhaseEstimate": "~45 additional",
+      "note": "counted from the session transcript; well under the 400-call deep ceiling including records"
+    },
+    "ceilingExceeded": false
+  },
+  "actors": {
+    "builder": "Claude (Fable 5), LLP 0137 Stage 2 fourth diaried sweep arm (A4), external-consumer posture",
+    "personas": {
+      "hana": "hana@sweep-a4.test (host via seeded invite INV-HOST-2214; second session hana2 for the revocation leg)",
+      "cora": "cora@sweep-a4.test (cohost via seeded invite)",
+      "gil": "gil@sweep-a4.test (guest via seeded invite, second live client)",
+      "mira": "mira@sweep-a4.test (guest via invite deep link, A4-04)",
+      "max": "max@sweep-a4.test (authenticated outsider, no seat)",
+      "anonymous": "raw HTTP with only the auth-client protocol offer (public preview)"
+    },
+    "principalDerivation": "server-minted sessions via email-code exchange; wall-post and entry attribution asserted against the server principal, never client-supplied"
+  },
+  "targets": {
+    "kind": "fresh-isolated-local",
+    "targetProfile": "local-dev-sqlite-ibex",
+    "appId": "event-app",
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:c63b729c6d842e559e1f6db7bb344ac5750fa0f632b6d2e7fa62b58b1b66eb2c",
+    "seedIdentity": "a4-events.2026-08-01.2 (dataVersionStream 019fbd5b-b4b3-72a1-b1e5-0b880e7ed39b in the green run; .1 was burned by the SNAPBACK_SEED_VERSION_REUSED ledger after a seed edit — finding f2's trigger)",
+    "database": "app-local .snapback/dev.sqlite3, deleted before each suite run so the supervisor installs the versioned seed fresh",
+    "serverUrl": "http://127.0.0.1:4291",
+    "port": 4291,
+    "portDiscipline": "runtime 4287-4387 scan; suite guard-blocks 4288 (A2), 4289 (A1), 4290 (A3) during spawn and asserts never 4420; NOTE: one early raw-probe script predated the guard and transiently adopted the then-free 4288 (no prior-arm server was running; no listener remained); all later probes guard",
+    "runtimeBinary": "node_modules/@expo/snapback-runtime-darwin-arm64/bin/snapback, sha256 6c5c956750edc1be016823824bf5e28a3e969810aed6d7299cf5f593fa2023fe (byte-identical to the A1/A2/A3 arms' 0.1.7 publication)",
+    "notificationProvider": "suite-owned local HTTP server (port 0) with scripted faults (500 / process-then-drop-socket / ok) and idempotency-key dedupe ledger; never reached (finding f1)",
+    "hostedTarget": "none — A4 ran as a local-target contract; hosted availability remains the program-level gate"
+  },
+  "milestones": {
+    "closureInstalled": "2026-08-01T11:59:30Z (npm, 13 packages, ~6s)",
+    "scaffolded": "2026-08-01T12:00Z (snapback new --template react + bun install 534ms)",
+    "backendAuthored": "2026-08-01T12:00-12:10Z (10 tables incl. membership + ephemeral presence + 2 asset intents + cron + config, 21 operations; fail-closed iterations: Date -> ctx.runtime.now, action authoring lanes)",
+    "firstServerLoaded": "2026-08-01T12:14Z (after the silent-dev-failure detour: SNAPBACK_SEED_VERSION_REUSED surfaced only via programmatic runDev — finding f2)",
+    "firstRead": "2026-08-01T12:14Z (smoke: anonymous preview + protected denial)",
+    "firstMutation": "2026-08-01T12:14Z (redeemInvite via seeded invite)",
+    "verifiedRealtime": "2026-08-01T12:26Z (first full suite: A4-06 second-client wall/count deliveries)",
+    "localAcceptance11Checks": "2026-08-01T12:45:48Z (9 pass / 2 evidenced-defect fails, expectedChecks=11 enforced; suite wall 17.7s incl. the cron real-nominal wait)",
+    "uiTypecheckAndBuild": "2026-08-01T12:41Z (tsc --noEmit clean; vite build ok)",
+    "reactRuntimeRender": "2026-08-01T12:43Z (jsdom render of the app's own EventView: seeded 6/12 seats + 3 wall posts, live DOM update from an independent client; auxiliary evidence outside the 11 frozen checks)",
+    "hostedUrl": "not-applicable (local contract)",
+    "cleanup": "2026-08-01T12:45:48Z (dev child stopped via stdin close, port refused after stop, no arm processes or listeners on 4288-4295)"
+  },
+  "assistanceEvents": [
+    {
+      "elapsedMs": 300000,
+      "kind": "prior-arm-records",
+      "reason": "the sessions test-persona recipe, dev-server lifecycle ownership, versioned-seed admin custody, and the authenticated raw asset attempt/TUS/finalize recipe are still undocumented",
+      "informationSupplied": "reused the recipes from the A1/A3 arms' retained acceptance sources (which derive from A2's packaged-bytes read)",
+      "equivalentOpportunityOffered": "same program records available to the sweep; already owned by findings 0137-a2-f6, 0137-a1-f9, 0137-a1-f3 (not re-filed)",
+      "postureBreak": false
+    },
+    {
+      "elapsedMs": 600000,
+      "kind": "undocumented-package-bytes",
+      "reason": "`snapback dev` exited 1 with no output (finding f2): the only way to recover the diagnostic was to import runDev from @expo/snapback-cli and read the returned envelope; the same read later located the dev branch's silent `return result.ok ? 0 : 1`",
+      "informationSupplied": "runDev programmatic invocation; CLI index.mjs dev-branch source",
+      "equivalentOpportunityOffered": "same bytes ship to every public consumer; filed as finding f2",
+      "postureBreak": false
+    },
+    {
+      "elapsedMs": 900000,
+      "kind": "undocumented-package-bytes",
+      "reason": "no shippable action form: the documented js:{source, exportName} form failed both ways (finding f1); the working inline `handler:` form exists only in packaged define.mjs, and the inline free-identifier allowlist had to be read to understand the fetch refusal",
+      "informationSupplied": "define.mjs defineAction branches; inline-handlers.mjs allowlist; runtime binary strings (host.fetch present, signed-url/public routes absent, SNAPBACK_OUTBOUND_ACTIONS read by the server)",
+      "equivalentOpportunityOffered": "same bytes ship to every public consumer; filed as findings f1 and f3",
+      "postureBreak": false
+    },
+    {
+      "elapsedMs": 480000,
+      "kind": "undocumented-probe",
+      "reason": "config API request shapes are undocumented (finding f7) and the everyMs catch-up trusted-time behavior is undocumented (finding f4)",
+      "informationSupplied": "live-server probing: config set body iterations ({entry, value} accepted), two-tick cron nominal trace (retained probe-cron.mjs)",
+      "equivalentOpportunityOffered": "probes retained in evidence/app; filed as findings f7 and f4",
+      "postureBreak": false
+    }
+  ],
+  "postureBreaks": [],
+  "commands": [
+    "npm install --save-exact @expo/snapback-{cli,app-cli,client,codegen,contract,react,vite}@0.1.7",
+    "snapback new event-app --template react && bun install",
+    "SNAPBACK_OUTBOUND_ACTIONS=1 snapback generate snapback (suite's dev loop regenerates per boot)",
+    "node acceptance.a4.mjs (11-check suite; owns its dev server + local notification provider)",
+    "node smoke.mjs / probe-cron.mjs / probe-action-forms.mjs (surface probes; retained)",
+    "tsc --noEmit && vite build",
+    "node ui-render.mjs (auxiliary jsdom render proof, own dev server)",
+    "bun add -d jsdom"
+  ],
+  "scenarioResults": [
+    { "id": "A4-01-SEED", "result": "pass", "evidencePaths": ["evidence/report.json", "evidence/scenario-evidence.json"], "note": "versioned seed installs the capacity fixture (1 event cap 12 / 4 invites / 5 rsvps = 6 going seats / 3 wall posts / 1 due reminder) on a fresh managed database; 5 distinct principals; seats claimed via seeded invites (host/cohost/guest); seed identity previewed through admin custody" },
+    { "id": "A4-02-PREVIEW", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "anonymous raw-HTTP read (protocol offer only) serves exactly the 9-field public projection (6/12 seats); address/notes/invites/guest identities asserted absent byte-wise; guestEventView/hostEventDetail/guestList/wallFeed refuse anonymously with uniform SNAPBACK_AUTH_PERMISSION_DENIED; offerless requests refused at the auth boundary; packaged client cannot make the anonymous request outside a browser (finding f6)" },
+    { "id": "A4-03-ROLES", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "host edits event + invites; cohost invites/moderates but updateEventDetails denied; guest reads (incl. address), RSVPs, posts wall (seq 4 from the transactional counter) but denied all host surfaces incl. hostEventDetail read boundary; outsider uniformly denied on read/list/wall/detail/write/live-subscribe; invite-code guess refused" },
+    { "id": "A4-04-INVITE", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "deep link ?contract=event&invite=INV-GUEST-9143 parsed exactly as src/main.tsx does; redeemInvite settles with {role guest, inviteCode, invitedByName Cora, enteredVia deep-link}; attribution visible on the host guest list; invite consumed; replay by another principal refused" },
+    { "id": "A4-05-CAPACITY", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "two seated guests concurrently request 3 seats with 4 left: exactly one commits (11/12), loser refused on capacity inside the serialized transaction; retry at 3 still refused; loser fits at +0 (12/12 exactly full); upgrade overbook + plus-one-limit refusals; independent session and anonymous preview agree (spotsLeft 0); loser code is generic SNAPBACK_HANDLER_FAILED prose (known 0137-a3-f3, cited)" },
+    { "id": "A4-06-LIVE", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json", "evidence/ui-render.json"], "note": "second client (gil) with two stream handles: host wall post 47-56ms (author = server principal), guest-count drop 41-48ms; live rows equal an independent snapshot; presence via the ephemeral overlay lane (both entries visible, 10 publishes advance durable version by zero); React presence pair known-broken (0137-a2-f1/f2 cited); auxiliary jsdom proof: the app's own EventView renders the seeded event and updates live from an independent client" },
+    { "id": "A4-07-ASSETS", "result": "fail", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "POSITIVE: authenticated PNG upload via raw attempt/TUS/finalize (a1-f3 cited) publishes ready; image pipeline REAL on 0.1.7: card(480)/thumb(128) renditions serve as PNG, strict primary with private/no-store headers and stable digest; plain-string flyer reference drives the public preview (a1-f1 workaround). FAIL: no non-owner viewer is authorizable — typed attach still refuses SNAPBACK_ASSET_REF_UNVERIFIED (a1-f2 re-verified, cited), membership assetSharing therefore unreachable, and the documented pasteable lanes 404 (signed-url issuance + /assets/public — NEW finding f3); seated guest strict read 403" },
+    { "id": "A4-08-ASSET-REVOCATION", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "per-request re-authorization proven: a second host session read 200, then server-side logout (POST /auth/logout 204 — the packaged client's authLogout demands AuthCoordinator custody, recorded) and the same token denied 401; deletion stops delivery on both assets (404 next request); app-level flyer reference cleared; nonclaim recorded: no non-owner viewer class exists on 0.1.7 to revoke (a1-f2 chain + f3)" },
+    { "id": "A4-09-REMINDER", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json", "evidence/app/probe-cron.mjs"], "note": "deterministic scheduler (cron disabled, suite-driven ticks): epoch-0 catch-up run Succeeded while delivering nothing (trusted time 0 — NEW finding f4, receipt retained), next tick at the real nominal delivered exactly one receipt (dedupe rem_daybefore:day-before, 6 recipients, unique index); re-ticks and a host-invoked manual run are receipted no-ops; outsider action refused (code collapsed to SNAPBACK_HANDLER_FAILED — finding f5) and delivered nothing" },
+    { "id": "A4-10-EFFECT", "result": "fail", "evidencePaths": ["evidence/scenario-evidence.json", "evidence/probe-action-forms.json"], "note": "UNAUTHORABLE on 0.1.7 (NEW headline finding f1): module-form actions refuse every export at generation yet the loader demands the export (machine-readable repro retained); inline actions refuse global fetch at generation and ctx.fetch dies at runtime as unknown host call host.fetch (ctx exposes fetch/fetchStream as functions); the scripted provider was never reached. Around the hole: config custody verified (set/status/secret, never bytes), the app ledger classified the unreachable call ambiguous + non-terminal + retryable, and the guest send was refused creating no intent" },
+    { "id": "A4-11-CLEANUP", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "config unset through admin custody; assets retired (byte lanes refuse, records retained as lifecycle evidence with non-ready availability); every seat self-removed (membership unseedable/unresettable — 0137-a3-f1 cited); two receipted versioned reset-installs (deleted 24 + 15 rows) restore the literal fixture incl. redeemable invites and empty delivery/notify ledgers; final fresh-session negative denied; suite-owned database only, prior-arm ports guarded" }
+  ],
+  "expectedCheckCount": 11,
+  "findings": [
+    "0137-a4-f1-outbound-notification-effects-unauthorable",
+    "0137-a4-f2-dev-swallows-failure-envelopes",
+    "0137-a4-f3-pasteable-delivery-lanes-unimplemented",
+    "0137-a4-f4-everyms-catchup-runs-at-epoch-trusted-time",
+    "0137-a4-f5-action-boundary-collapses-auth-refusals",
+    "0137-a4-f6-no-anonymous-packaged-client-for-public-queries",
+    "0137-a4-f7-guide-gap-config-api-shapes"
+  ],
+  "differentiators": [
+    {
+      "observation": "Capacity contention is a one-mutation product fact: seats recomputed inside the serialized transaction made the two-actor final-seats race produce exactly one commit and an exact 12/12 booking with no counter service, no retry idiom, and no overbook window. The frozen Firebase arm needed a transaction-retry idiom and Supabase needed an RPC for the same fact.",
+      "mustNotRegress": "Serialized commit order making naive read-check-write capacity logic correct, with the refusal settling the loser deterministically.",
+      "referenceEvidence": "scenario-evidence.json A4-05; diaries/0030 (PARTY-06 legs)"
+    },
+    {
+      "observation": "The image pipeline is real on the packaged closure and better than every frozen 0102 arm's raw-bytes story: strip-declared canonical bytes, declared card/thumb renditions served by key, typed media facts, strict per-request re-authorization with private/no-store headers, and deletion denying the next request — all proven externally. In the 0102 epoch Snapback's assets were a wholesale GAP.",
+      "mustNotRegress": "private-strict semantics (per-request re-auth, no-store, active-content never inline) and canonical-digest content identity.",
+      "referenceEvidence": "scenario-evidence.json A4-07 renditionIdentity/contentHash; diaries/0030 (Snapback arm asset GAP)"
+    },
+    {
+      "observation": "Session revocation is live at the asset boundary: a logged-out session's very next strict read is denied (401) after a 200 — per-request re-authorization needs no cache invalidation story. Frozen Firebase evidence documents up-to-an-hour token validity after revocation.",
+      "mustNotRegress": "Every strict delivery re-authorizing through the current session state.",
+      "referenceEvidence": "scenario-evidence.json A4-08 authorityChange; diaries/0030 (Firebase revocation notes)"
+    },
+    {
+      "observation": "The public preview field boundary is a projection the server owns: the anonymous lane serves exactly the nine declared public fields and byte-level probes for the address, notes, codes, and guest identities all come back clean — while the same table's protected projections serve members. No RLS column juggling, no second table.",
+      "mustNotRegress": "Handler-projected public queries with auth:'public' on a sessions server refusing offerless requests uniformly.",
+      "referenceEvidence": "scenario-evidence.json A4-02 fieldBoundary"
+    },
+    {
+      "observation": "Invitation attribution is transactional: one mutation creates the seat, consumes the invite, and writes the attributed RSVP row (inviter, code, channel) with the settlement envelope carrying the receipt — the deep-link entry is a single atomic product fact instead of a client-orchestrated sequence.",
+      "mustNotRegress": "authority-creating membership self-insert + app-data writes composing in one serialized commit.",
+      "referenceEvidence": "scenario-evidence.json A4-04 settlement"
+    },
+    {
+      "observation": "Ephemeral presence stayed genuinely ephemeral under an event-page load: both guests visible on the overlay lane while ten publishes advanced the durable store version by zero — the zero-durable-amplification property held on its third consecutive arm.",
+      "mustNotRegress": "The ephemeral overlay lane's TTL/rate-bounded collections never touching durable versions.",
+      "referenceEvidence": "scenario-evidence.json A4-06 transportAttribution; A2 capsule differentiators"
+    },
+    {
+      "observation": "The 11-check suite — fresh seed install, five personas + anonymous lane, a capacity race, live deliveries, two asset lifecycles, scheduler ticks, and two receipted resets — runs in 17.7s wall, and the deterministic tick + run-ledger receipts made the scheduler evidence collectable without ever sleeping on a cadence.",
+      "mustNotRegress": "Machine-readable dev lifecycle + admin tick seam + append-only run receipts.",
+      "referenceEvidence": "evidence/report.json; scenario-evidence.json A4-09 runReceipt"
+    }
+  ],
+  "inventory": {
+    "authored": {
+      "backend": "snapback/schema.mjs (176 lines: 10 tables incl. membership, ephemeral presence collection, assetRef side table), snapback/functions.mjs (845: 21 operations incl. 2 asset intents, cron, config, 3 actions), snapback/seed.json (168, capacity fixture with named-empty runtime tables so reset-install clears them)",
+      "ui": "src/event-view.mjs (55, the shared live event surface), src/App.tsx (88, frozen shell + wired event view), src/main.tsx (96, sessions boot + deep-link invite redemption)",
+      "acceptance": "acceptance.a4.mjs (1089, 11 checks + own dev server + scripted notification provider + PNG builder), ui-render.mjs (150, auxiliary jsdom proof)",
+      "probes": "smoke.mjs (154), probe-cron.mjs (56), probe-action-forms.mjs (79) — retained in evidence/app"
+    },
+    "scaffolded": "react template (12 files) from snapback new",
+    "generated": "74 codegen files (21 operations); inputsHash c63b729c…",
+    "policy": "eventMembers scoped-role declaration (host/cohost/guest, invite self-insert + self-remove transitions); every protected operation requireRole-gated; two asset intents (private-strict via-references + private-signed) with membership assetSharing declared",
+    "glue": "the suite-owned local notification provider (scripted faults) is test fixture, not app glue; app-level workaround shapes: plain-string flyer reference (a1-f1), raw anonymous preview helper (f6), raw authenticated asset upload (a1-f3), raw /auth/logout (packaged authLogout custody), config API shapes by probe (f7)",
+    "evidenceRetained": [
+      "evidence/report.json",
+      "evidence/scenario-evidence.json",
+      "evidence/ui-render.json",
+      "evidence/probe-action-forms.json",
+      "evidence/app/*"
+    ]
+  },
+  "attribution": {
+    "transport": "managed WebSocket stream (transport:'stream', connection:'live') for every live claim — second-client wall/count deliveries at 41-56ms; presence over the ephemeral overlay lane on the shared stream; polling never used as evidence; the anonymous preview is an ordinary request-response query and claimed as such",
+    "authority": "server-authoritative sessions mode: server-minted principals, requireRole membership gates on every protected read/subscribe/write; wall-post and entry attribution asserted against session principals; capacity decided inside the serialized transaction; asset delivery re-authorized per request; anonymous access limited to the declared public projection",
+    "settlement": "structured mutation envelopes with receipts; invite redemption atomic (seat + consume + attributed RSVP); wall-post idempotency by (eventId, clientKey) unique index returning the committed seq; reminder idempotency by the delivery dedupe unique index across scheduler/tick/manual lanes; notification intent/attempt ledger keeps ambiguous distinct and retryable (the provider boundary itself unreachable — finding f1)"
+  },
+  "stopDefects": [],
+  "cleanup": {
+    "processes": "suite, probes, and render phase stop their own spawned children (stdin close, verified exit); no processes under the arm's app directory after the final run",
+    "listeners": "port 4291 refused after stop; 4288/4289/4290 guard-blocked during spawn; 4420 never used; lsof over 4288-4295 clean at arm end; the one pre-guard probe's transient adoption of then-free 4288 is recorded in targets.portDiscipline",
+    "unrelatedState": "nothing outside the arm-owned app directory touched; acceptance clients run rqsStore:null so no durable client store was created; the notification provider bound port 0 and closed with the suite",
+    "database": "arm-owned .snapback/dev.sqlite3 left at the literal versioned seed by the second receipted reset-install (zero memberships, unconsumed invites, empty delivery/notify ledgers); config entry unset; retained in the session-isolated scratchpad; no secrets copied into any record",
+    "externalDirectory": "scratchpad sweep-a4/consumer/event-app retained as the working area; durable evidence copied into this arms/ directory"
+  },
+  "result": "complete"
+}

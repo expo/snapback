@@ -1,0 +1,168 @@
+{
+  "seedVersion": "a4-events.2026-08-01.2",
+  "tables": {
+    "events": [
+      {
+        "_id": "evt_lantern",
+        "slug": "lantern-supper",
+        "title": "Lantern Supper Club",
+        "startsAt": 1783200000000,
+        "city": "Oakland, California",
+        "blurb": "A long-table supper under paper lanterns. Bring a story.",
+        "privateAddress": "482 Alcatraz Ave, backyard gate code 7311",
+        "hostNotes": "Caterer arrives 5pm. Extra chairs in the garage. Budget $900.",
+        "capacity": 12,
+        "plusOneLimit": 2,
+        "wallSeq": 3,
+        "flyerAssetId": ""
+      }
+    ],
+    "invites": [
+      {
+        "_id": "inv_host",
+        "eventId": "evt_lantern",
+        "code": "INV-HOST-2214",
+        "role": "host",
+        "invitedByName": "fixture",
+        "consumed": false,
+        "createdAt": 1782800000000
+      },
+      {
+        "_id": "inv_cohost",
+        "eventId": "evt_lantern",
+        "code": "INV-COHOST-5521",
+        "role": "cohost",
+        "invitedByName": "Hana",
+        "consumed": false,
+        "createdAt": 1782800100000
+      },
+      {
+        "_id": "inv_guest_gil",
+        "eventId": "evt_lantern",
+        "code": "INV-GUEST-7008",
+        "role": "guest",
+        "invitedByName": "Hana",
+        "consumed": false,
+        "createdAt": 1782800200000
+      },
+      {
+        "_id": "inv_guest_mira",
+        "eventId": "evt_lantern",
+        "code": "INV-GUEST-9143",
+        "role": "guest",
+        "invitedByName": "Cora",
+        "consumed": false,
+        "createdAt": 1782800300000
+      }
+    ],
+    "rsvps": [
+      {
+        "_id": "rsvp_pia",
+        "eventId": "evt_lantern",
+        "userId": "seed:pia",
+        "name": "Pia",
+        "status": "going",
+        "plusOnes": 1,
+        "inviteCode": "",
+        "invitedByName": "Hana",
+        "enteredVia": "seed",
+        "createdAt": 1782810000000,
+        "updatedAt": 1782810000000
+      },
+      {
+        "_id": "rsvp_quinn",
+        "eventId": "evt_lantern",
+        "userId": "seed:quinn",
+        "name": "Quinn",
+        "status": "going",
+        "plusOnes": 2,
+        "inviteCode": "",
+        "invitedByName": "Hana",
+        "enteredVia": "seed",
+        "createdAt": 1782810100000,
+        "updatedAt": 1782810100000
+      },
+      {
+        "_id": "rsvp_rae",
+        "eventId": "evt_lantern",
+        "userId": "seed:rae",
+        "name": "Rae",
+        "status": "going",
+        "plusOnes": 0,
+        "inviteCode": "",
+        "invitedByName": "Cora",
+        "enteredVia": "seed",
+        "createdAt": 1782810200000,
+        "updatedAt": 1782810200000
+      },
+      {
+        "_id": "rsvp_sam",
+        "eventId": "evt_lantern",
+        "userId": "seed:sam",
+        "name": "Sam",
+        "status": "maybe",
+        "plusOnes": 0,
+        "inviteCode": "",
+        "invitedByName": "Hana",
+        "enteredVia": "seed",
+        "createdAt": 1782810300000,
+        "updatedAt": 1782810300000
+      },
+      {
+        "_id": "rsvp_tess",
+        "eventId": "evt_lantern",
+        "userId": "seed:tess",
+        "name": "Tess",
+        "status": "declined",
+        "plusOnes": 0,
+        "inviteCode": "",
+        "invitedByName": "Cora",
+        "enteredVia": "seed",
+        "createdAt": 1782810400000,
+        "updatedAt": 1782810400000
+      }
+    ],
+    "wallPosts": [
+      {
+        "_id": "wall_1",
+        "eventId": "evt_lantern",
+        "authorName": "Pia",
+        "body": "Bringing dessert!",
+        "seq": 1,
+        "clientKey": "seed-wall-1",
+        "createdAt": 1782820000000
+      },
+      {
+        "_id": "wall_2",
+        "eventId": "evt_lantern",
+        "authorName": "Quinn",
+        "body": "Anyone driving from the Mission?",
+        "seq": 2,
+        "clientKey": "seed-wall-2",
+        "createdAt": 1782820100000
+      },
+      {
+        "_id": "wall_3",
+        "eventId": "evt_lantern",
+        "authorName": "Rae",
+        "body": "I can bring a projector for the slideshow.",
+        "seq": 3,
+        "clientKey": "seed-wall-3",
+        "createdAt": 1782820200000
+      }
+    ],
+    "reminders": [
+      {
+        "_id": "rem_daybefore",
+        "eventId": "evt_lantern",
+        "kind": "day-before",
+        "remindAt": 1782900000000,
+        "note": "Send the day-before reminder with the address to going guests."
+      }
+    ],
+    "reminderDeliveries": [],
+    "notifyIntents": [],
+    "notifyAttempts": [],
+    "eventFlyers": []
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "findingId": "0137-a4-f3-pasteable-delivery-lanes-unimplemented",
+  "dimension": "assets-search-vector-and-notifications",
+  "observation": {
+    "description": "The assets guide documents two pasteable delivery lanes as shipped on the local target — `delivery: {kind: 'private-signed'}` with `POST /assets/records/{id}/signed-url`, and `delivery: {kind: 'public-immutable'}` with `GET /assets/public/{id}/{variant}` — and both are explicitly described as working on sessions-mode servers. On packaged 0.1.7, an intent declaring private-signed generates cleanly and its asset uploads/finalizes to ready, but the issuance route 404s, and the /assets/public/ route 404s as well; the runtime binary contains only the two delivery-kind vocabulary strings, no route implementations. Combined with 0137-a1-f2 (typed attachment broken, so via-references and membership assetSharing are unreachable) this leaves NO authorizable non-owner viewer class for any asset on the public closure: A4's event flyer can be uploaded, rendered (card/thumb), and strictly delivered to its owner, but never shown to a guest. A4-07 is the check-level fail.",
+    "evidence": [
+      "demos/improvement-sweep/arms/a4-snapback-web/evidence/scenario-evidence.json (A4-07 pasteableLanesDefect: signed-url 404, public route 404, guest strict 403)",
+      "demos/improvement-sweep/arms/a4-snapback-web/evidence/app/acceptance.a4.mjs (A4-07-ASSETS)",
+      "diaries/0045-a4-events-sweep.diary.md (runtime strings probe: only kind names present)"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Frozen Partiful-arm evidence: Supabase Storage signed URLs and Firebase Storage download URLs both delivered event images to guests as pasteable links on the first documented path.",
+    "source": "frozen-0102",
+    "sourceDate": "2026-07-28",
+    "reference": "diaries/0030-partiful-backend-bakeoff.diary.md (PARTY-08 asset legs)"
+  },
+  "classification": "defect",
+  "mustNotRegress": "private-strict semantics: per-request re-authorization, private/no-store cache headers, active-content types never inline, deletion denying the next request.",
+  "smallestCoherentFix": "Ship the two documented routes on the local runtime (signed-url issuance under per-request authorization with TTL; public-immutable ready-rendition serving with immutable cache headers), or mark both lanes as explicit Missing nonclaims in the assets guide and capability manifest until they exist — the guide currently overclaims either way.",
+  "acceptanceWitness": "Packaged-closure conformance: a private-signed intent's owner issues a URL that an uncredentialed fetch retrieves until TTL/deletion, and a public-immutable intent's rendition serves via /assets/public with immutable headers; or, if nonclaimed, the guide/manifest rows say Missing and codegen warns on the declaration.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a4-pasteable-delivery-lanes-unimplemented.md"
+  },
+  "stopClass": false,
+  "budgetFinding": false
+}

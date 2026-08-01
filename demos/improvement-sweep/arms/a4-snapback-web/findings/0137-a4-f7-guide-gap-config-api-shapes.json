@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "findingId": "0137-a4-f7-guide-gap-config-api-shapes",
+  "dimension": "diagnostics-docs-agent-usability-and-escape-hatches",
+  "observation": {
+    "description": "The secrets-and-config guide names the config operations (status, set, unset, verify) but shows them only through the repo kit's configApi helper, which a public consumer does not have; neither the routes nor the request shapes are documented. The arm recovered them by probing: GET /_snapback/api/config/status (admin token), POST /_snapback/api/config/set with {entry: <name>, value: <string>} (a nested-object spelling 422s with a serde error naming the missing field, and {entry, member} 400s with SNAPBACK_CONFIG_VALUE_INVALID 'provide exactly one of value or values'), POST /_snapback/api/config/unset with {entry}. The custody behavior itself is excellent once reached (status reports set/secret/memberCount and never bytes; set returns {applyState:'applied', generation}).",
+    "evidence": [
+      "demos/improvement-sweep/arms/a4-snapback-web/evidence/scenario-evidence.json (A4-10 providerBoundary.custody, A4-11 configCleared)",
+      "diaries/0045-a4-events-sweep.diary.md (probe sequence)"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Convex documents `npx convex env set NAME value` and the dashboard flow as the first-class consumer path for deployment config. Longitudinal repeat: the 0102-epoch Snapback Partiful arm recorded the same gap ('local config automation named the operations without a runnable request shape') and filed a guide-gap ticket; the shapes are still undocumented on 0.1.7.",
+    "source": "official-docs",
+    "sourceDate": "2026-08-01",
+    "reference": "docs.convex.dev/production/environment-variables; diaries/0030-partiful-backend-bakeoff.diary.md (Snapback arm 'What felt bad')"
+  },
+  "classification": "documentation",
+  "mustNotRegress": "Values never appearing in status output, manifests, or seed data; the admin-gated custody boundary.",
+  "smallestCoherentFix": "A guide subsection (or CLI verbs: snapback config status|set|unset) giving the exact routes, header, and body shapes a public consumer can call, with the {entry, value}/{entry, values} union spelled out.",
+  "acceptanceWitness": "A consumer following only the guide sets, verifies, and unsets a config entry against a dev server without reading package or binary internals; a guide check exercises the documented shapes.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a4-guide-gap-config-api-shapes.md"
+  },
+  "stopClass": false,
+  "budgetFinding": false
+}

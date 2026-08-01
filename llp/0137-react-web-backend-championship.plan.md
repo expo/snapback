@@ -5,7 +5,7 @@
 **Systems:** Competitive evaluation, Demo applications, React, React/Expo, Exact Native, Developer experience, Data modeling, Realtime, Offline sync, Auth, Assets, Search, Actions, Scheduled work, Deployment, Operations, Testing, Documentation
 **Author:** Charlie Cheever / Codex / Claude
 **Date:** 2026-07-31
-**Revised:** 2026-08-01 (A2 arm status note: first diaried sweep arm complete — 11 pass / 1 GAP / 0 fail; findings 0137-a2-f1..f8 filed; freeze re-verified). 2026-07-31 (v3 purpose inversion per Charlie's direction: the program now exists to surface what would make Snapback better, not to prove Snapback is better — that proof is deferred until the improvement well runs dry. Phase 1 is a Snapback-first improvement sweep over all six contracts as an external npm consumer, with a mid-program fix loop, frozen-evidence-first competitor referencing, and demand-driven fresh probes; the symmetric championship — core/extension matrix, composite, ranking controls — is preserved compactly as deferred Phase 2 behind a dry-well trigger. Ranking-fairness controls that obstruct improvement, chiefly the single frozen Snapback revision and atomic rounds, move to Phase 2; honesty controls stay). 2026-07-31 (v2 efficiency restructure: sixteen-arm symmetric core over A1–A4 plus five extension arms; contract lineage to LLP 0102 with a zero-new-arm longitudinal comparison; atomic per-contract rounds; Track B baseline + checkpoint; former open questions 1–5 resolved). 2026-07-31 (refine pass: challenger gate unified; composite comparability scoped; Track B eligibility rule; cross-references verified). 2026-07-31 (initial draft: a four-backend React-web championship, a separately scored Expo validation, a Snapback-only Exact Native graduation exercise, and selective specialist challengers, all gated on public-package consumption)
+**Revised:** 2026-08-01 (A4 arm status note: fourth diaried sweep arm complete — 9 pass / 2 evidenced-defect fails / 0 GAP; findings 0137-a4-f1..f7 filed; freeze re-verified). 2026-08-01 (A2 arm status note: first diaried sweep arm complete — 11 pass / 1 GAP / 0 fail; findings 0137-a2-f1..f8 filed; freeze re-verified). 2026-07-31 (v3 purpose inversion per Charlie's direction: the program now exists to surface what would make Snapback better, not to prove Snapback is better — that proof is deferred until the improvement well runs dry. Phase 1 is a Snapback-first improvement sweep over all six contracts as an external npm consumer, with a mid-program fix loop, frozen-evidence-first competitor referencing, and demand-driven fresh probes; the symmetric championship — core/extension matrix, composite, ranking controls — is preserved compactly as deferred Phase 2 behind a dry-well trigger. Ranking-fairness controls that obstruct improvement, chiefly the single frozen Snapback revision and atomic rounds, move to Phase 2; honesty controls stay). 2026-07-31 (v2 efficiency restructure: sixteen-arm symmetric core over A1–A4 plus five extension arms; contract lineage to LLP 0102 with a zero-new-arm longitudinal comparison; atomic per-contract rounds; Track B baseline + checkpoint; former open questions 1–5 resolved). 2026-07-31 (refine pass: challenger gate unified; composite comparability scoped; Track B eligibility rule; cross-references verified). 2026-07-31 (initial draft: a four-backend React-web championship, a separately scored Expo validation, a Snapback-only Exact Native graduation exercise, and selective specialist challengers, all gated on public-package consumption)
 **Related:** LLP 0000, LLP 0010, LLP 0015, LLP 0016, LLP 0035, LLP 0041, LLP 0044, LLP 0064, LLP 0074, LLP 0093, LLP 0102, LLP 0103, LLP 0105, LLP 0107, LLP 0114, LLP 0115, LLP 0129, LLP 0130, LLP 0132, LLP 0133, LLP 0135, LLP 0136, Diary 0027–0039
 
 ## Summary
@@ -707,3 +707,64 @@ owner-partition search, sub-second unencumbered live evolution, the
 cursor surfaces. This status note is a dated amendment inside the
 freeze boundary; the freeze was re-verified (and re-frozen for this
 plan digest) with the sweep's own scripts in the landing commit.
+
+A4 (Stage 2, fourth diaried sweep arm — snapback-web, deep budget)
+executed 2026-08-01 and **completed**: all 11 frozen checks ran
+(expectedChecks enforced) with **9 pass, 2 fail, 0 GAP, 0 Stop** — both
+fails are evidenced platform defects with complete positive evidence
+around them, in sessions mode against the public 0.1.7 closure from a
+clean external directory. The event core carried the Partiful shape:
+seeded capacity fixture (12 seats), host/cohost/guest/outsider role
+matrix with uniform denials, anonymous public preview serving exactly
+the nine-field projection (address/notes/codes/guest identities
+byte-probed absent), atomic attributed invitation deep-link entry (one
+mutation: seat + consume + attributed RSVP + receipt), a two-actor
+capacity race committing exactly one contender and booking exactly
+12/12 (upgrade and plus-one-limit refusals held; anonymous preview
+agreed), 41–56ms second-client live wall/count deliveries with
+zero-durable-amplification ephemeral presence, a REAL packaged image
+pipeline (strip + card/thumb renditions + strict private/no-store
+delivery + stable digest + deletion + logged-out-session 401 on the
+very next read), a deterministic scheduled reminder (one receipted
+idempotent delivery across scheduled/re-tick/manual lanes), and
+receipted reset-install cleanup (config unset, assets retired, seats
+self-removed, literal fixture restored) — full suite wall 17.7s.
+Budget actuals: ~13 min orientation + ~47 min build and ~120
+build-phase tool calls against the 8h/400 deep ceilings; zero posture
+breaks; four assistance events (prior-arm recipes cited to their
+owning findings; packaged-bytes reads converted into findings).
+Capsule, evidence, probes, and app sources:
+`demos/improvement-sweep/arms/a4-snapback-web/`; diary:
+`diaries/0045-a4-events-sweep.diary.md`. Seven findings filed
+(`0137-a4-f1..f7`, tickets `issues/20260801-0137-a4-*.md`): the
+headline is **f1 — outbound notification effects are unauthorable on
+packaged 0.1.7** (the A4-10 fail; a packaging-era regression vs the
+0102 repo-source arm, which passed the same effect legs): the
+documented module action form refuses every export at generation
+(BUNDLE_UNSUPPORTED_EXPORT) while the loader demands the export
+(SNAPBACK_HANDLER_EXPORT_MISSING), and the undocumented inline form
+refuses global fetch at generation while ctx.fetch dies at runtime as
+unknown host call host.fetch — with the egress opt-in set at both
+boundaries. The asset chain is the other fail (A4-07): typed attach
+still refuses (a1-f2 re-verified, cited) and **f3 — the documented
+pasteable lanes (signed-url issuance, public-immutable route) are
+absent from the packaged runtime** (only their kind names exist), so
+no non-owner viewer class exists for any asset. Also filed: f2
+`snapback dev` exits 1 printing nothing when the managed loop's first
+result is not ok (the failure envelope is swallowed); f4 the everyMs
+catch-up run executes with trusted time at the epoch-0 nominal
+(Succeeded run, silently no-opped due-scan; receipt retained); f5
+nested-mutation SNAPBACK_AUTH_PERMISSION_DENIED collapses to
+SNAPBACK_HANDLER_FAILED through the action boundary; f6 no anonymous
+packaged client for public queries outside a browser (verbatim
+0102-epoch repeat); f7 config API request shapes undocumented (also a
+0102-epoch repeat). Differentiator watch (protect while fixing):
+serialized-commit capacity correctness with exact-full booking, atomic
+attributed invitation entry, per-request asset re-authorization with
+immediate session-revocation denial, the exact public-projection
+boundary on sessions servers, ephemeral presence with zero durable
+amplification, the deterministic scheduler seam with append-only run
+receipts, and the 17.7s full-suite loop. This status note is a dated
+amendment inside the freeze boundary; the freeze was re-verified (and
+re-frozen for this plan digest) with the sweep's own scripts in the
+landing commit.

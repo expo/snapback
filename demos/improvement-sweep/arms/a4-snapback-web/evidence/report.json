@@ -1,0 +1,83 @@
+{
+  "schemaVersion": "sweep-a4.acceptance.v1",
+  "title": "LLP 0137 A4 snapback-web acceptance",
+  "startedAt": "2026-08-01T12:45:30.569Z",
+  "finishedAt": "2026-08-01T12:45:48.285Z",
+  "expectedChecks": 11,
+  "observedChecks": 11,
+  "tally": {
+    "pass": 9,
+    "gap": 0,
+    "fail": 2,
+    "expected-refusal": 0
+  },
+  "results": [
+    {
+      "id": "A4-01-SEED",
+      "result": "pass",
+      "ms": 133,
+      "note": "capacity fixture seeded (12 cap, 6 going seats, 4 invites, 3 wall posts, 1 reminder); 5 distinct principals; invites redeemed host/cohost/guest"
+    },
+    {
+      "id": "A4-02-PREVIEW",
+      "result": "pass",
+      "ms": 52,
+      "note": "anonymous preview serves exactly the public projection (6/12 seats); address/notes/invites/guests excluded; four private surfaces refuse uniformly"
+    },
+    {
+      "id": "A4-03-ROLES",
+      "result": "pass",
+      "ms": 297,
+      "note": "host administers; cohost invites+moderates but cannot edit the event; guest reads/RSVPs/posts but denied all host surfaces; outsider denied uniformly incl. live subscribe"
+    },
+    {
+      "id": "A4-04-INVITE",
+      "result": "pass",
+      "ms": 50,
+      "note": "guest entered through the invite deep link; entry attributed (inviter, code, channel) on the settlement result and the host guest list; consumed invite refuses replay"
+    },
+    {
+      "id": "A4-05-CAPACITY",
+      "result": "pass",
+      "ms": 203,
+      "note": "concurrent 3-seat RSVPs: exactly one commits (11/12), loser refused then fits at 12/12; upgrade + plus-one-limit refusals hold; authoritative and public counts agree (SNAPBACK_HANDLER_FAILED)"
+    },
+    {
+      "id": "A4-06-LIVE",
+      "result": "pass",
+      "ms": 544,
+      "note": "wall post 46ms and guest-count drop 40ms to the second client over the managed stream; presence via ephemeral overlay with durable version untouched"
+    },
+    {
+      "id": "A4-07-ASSETS",
+      "result": "fail",
+      "ms": 13361,
+      "note": "upload + card/thumb renditions + owner strict delivery + stable content hash all verified, but no non-owner viewer is authorizable on 0.1.7: typed attach refuses (SNAPBACK_ASSET_REF_UNVERIFIED; known 0137-a1-f2); signed-url issuance 404 (arm finding); guest strict read 403"
+    },
+    {
+      "id": "A4-08-ASSET-REVOCATION",
+      "result": "pass",
+      "ms": 78,
+      "note": "every request re-authorizes: revoked session denied (401) after a 200 read; deletion stops delivery on both assets (404/404); non-owner viewer classes do not exist on 0.1.7 (recorded nonclaim)"
+    },
+    {
+      "id": "A4-09-REMINDER",
+      "result": "pass",
+      "ms": 1267,
+      "note": "scheduled tick ran reminderTick (cron:reminderTick:scheduled:1785588347000:2) and recorded one delivery (6 recipients, dedupe rem_daybefore:day-before); epoch-0 catch-up no-op receipted (finding); re-tick + manual re-run are no-ops; outsider denied"
+    },
+    {
+      "id": "A4-10-EFFECT",
+      "result": "fail",
+      "ms": 144,
+      "note": "outbound notification effect is UNAUTHORABLE on packaged 0.1.7: module-form actions cannot ship (export catch-22), inline actions deny fetch and host.fetch is unregistered (ambiguous after retry; provider never reached; app ledger correctly kept the outcome ambiguous+retryable; config custody verified) — arm finding filed"
+    },
+    {
+      "id": "A4-11-CLEANUP",
+      "result": "pass",
+      "ms": 324,
+      "note": "config unset, assets retired, seats self-removed, two receipted reset-installs (deleted 24 + 15 rows) restore the literal fixture incl. redeemable invites; final fresh-session negative denied"
+    }
+  ],
+  "exitCode": 1
+}
