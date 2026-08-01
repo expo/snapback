@@ -89,3 +89,38 @@ Posture summary: best-in-class ceremony and delivery ergonomics;
 weakest measured privacy defaults (public-by-URL + EXIF passthrough).
 The `protected` flag + file-token flow exists but is opt-in and
 per-field; the default is the measured behavior.
+
+## 2026-08-01 — supabase, arm 3, PASS (shared project, cleanup proven)
+
+Shared project under the 0102 amendment: namespace `ub-a-supabase-1`,
+baseline recorded (counts only), scoped cleanup with absence proof
+(`cleanup.mjs` printed bucketAbsent:true, nsUsersRemaining:0; the three
+RLS policies dropped by `cleanup.sql`). Wall-clock ~50 min including one
+cleanup-discipline detour of my own making.
+
+Evidence highlights (`supabase/run.mjs`):
+- **check 7: nothing serves anonymously** — private bucket + RLS means
+  both the authenticated route without a JWT and the public route on a
+  private bucket 400. Best privacy *default* of the non-Snapback arms.
+- **check 4: the original serves with GPS intact** to any authenticated
+  reader; the `render/image?width=100` transform endpoint (available on
+  this project) re-encodes and drops it. Same shape as PocketBase: the
+  derivative loses EXIF as a side effect, the original keeps it, and no
+  doc surface I touched mentions location data.
+- **check 5/6:** the paved avatar path is same-path upsert — same URL,
+  `cache-control: no-cache` on the authenticated route, no orphan
+  object. Their own docs warn about CDN staleness for public-bucket
+  upserts; the distinct-path alternative leaves orphans you sweep
+  yourself.
+- **check 2:** 2.6 s to first served byte (real cloud RTT from here).
+- **Ceremony: heaviest measured.** Six concepts including two API-key
+  classes and RLS-in-SQL; the folder-name-equals-auth-uid convention is
+  load-bearing for the owner-write policy and nothing enforces you got
+  it right until a 403 at runtime. The policy language is genuinely
+  powerful — and genuinely SQL, authored out-of-band from the app code.
+
+Frictions, as hit: assert-message body-consumption bit me twice in my
+own driver (undici single-read responses — my bug, recorded for
+fairness since wall-clocks include it); the storage list API returns
+folders as null-id entries you must recurse (cleanup code grew 20 lines
+for the proof).
