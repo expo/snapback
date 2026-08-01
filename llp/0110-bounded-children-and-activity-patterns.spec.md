@@ -1,11 +1,27 @@
 # LLP 0110 — Bounded children and activity patterns
 
 **Type:** Spec
-**Status:** Review
+**Status:** Accepted
 **Systems:** Application data API, Relational queries, Mutations, Code generation, Authorization, Live Queries, Storage portability, Contract/Exact, Diagnostics, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-07-30 (Diary 0039 evidence annotations on the open
+**Revised:** 2026-08-01 (ACCEPTED by author direction — the 2026-08-01
+ballot, verbatim item 4: "accept 0110+0113". Loop state verified before the
+flip: the super-refine rounds (2026-07-27, three rounds, both families NOT
+READY) and the post-bakeoff vector delta loop (2026-07-28, three rounds;
+terminal round Fable-family READY, Codex-family NOT READY — non-convergence
+at the round budget; per-doc artifacts
+reviews/0110-bounded-children-and-activity-patterns.{fable,codex,super-refine}.md,
+vector delta verdicts preserved in
+reviews/0111-fly-completion-and-hosted-ephemeral.{fable,codex}.md) left no
+MATERIAL finding undispositioned: every round's concerns were answered by
+the dated reconciliations in this history, culminating in the 2026-07-28
+unreviewed post-round correction and the 2026-07-30 Diary 0039 evidence
+notes — a stale-but-clean loop whose final vector is applied but not
+re-reviewed, which the author's direction accepts as grounds. Acceptance
+covers the Spec text only: `bounded_children_v1` / `write_activity_v1`
+runtime support facts stay false until their executable receipts pass, per
+this document's own capability gates.) 2026-07-30 (Diary 0039 evidence annotations on the open
 questions, per LLP 0115 CV-8 — concrete field instances now attached to open
 questions 2 and 4, plus the observed adoption-cost note; no normative
 change). 2026-07-28 (unreviewed post-round correction: device-bound

@@ -98,3 +98,34 @@ GPT author-side passes; LLP 0100 has one Fable round. Remaining
 agent-executable legs: independent cross-family review loops for 0068–0072
 and a second-family round for 0100. Final ratification (steps 4–5) stays
 author-only.
+
+## Progress note (2026-08-01 ballot)
+
+Charlie's 2026-08-01 ballot discharged two more legs and parked the rest:
+
+- **LLP 0100 — DISCHARGED** (ballot item 2, verbatim "ruling: accept"):
+  after the converged dual-family loop (Fable READY round 2, Codex READY
+  round 3, zero unresolved concerns), the author issued the explicit
+  composed-parent ruling LLP 0100's own §Status names, accepting it ahead
+  of LLP 0056. Status: Accepted (dated 2026-08-01 entry). Required-review
+  item 7 and Resolution steps 1–5 are satisfied for 0100; step 6 (the
+  Step 6 claim stays red until its executable witness passes) still holds.
+- **LLP 0110 + LLP 0113 — accepted by author direction** (ballot item 4,
+  verbatim "accept 0110+0113"): loop states verified (0110: terminal
+  delta-round non-convergence, Fable READY / Codex NOT READY, all MATERIAL
+  findings dispositioned and applied; 0113: corrective round dual NOT
+  READY, all 28 ledger items dispositioned and applied) — stale-but-clean
+  loops the author's direction accepts as grounds. Both flips cover Spec
+  text only; every capability/support fact stays false pending executable
+  receipts. (Neither doc was in this ticket's original packet; recorded
+  here because their acceptance narrows the Step 6 adjacent surface.)
+- **LLP 0068–0072 — STAY PARKED as Drafts** per ballot item 4's scope
+  (accepting exactly 0110+0113 and nothing else): they still carry only
+  the non-independent GPT author-side passes, and their independent
+  cross-family review loops (required-review items 1–5) plus the
+  Fly/Tigris live lease-fencing prerequisite remain the open remainder of
+  this ticket.
+
+Remaining after this ballot: independent loops + ratification for
+0068–0072 (and their executable Step 6 witnesses; `STEP6.CHAT`,
+`STEP6.DOCUMENTS`, `STEP6.COMMERCE` stay pending).

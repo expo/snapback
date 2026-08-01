@@ -1,11 +1,27 @@
 # LLP 0113: Qualification and publication authority
 
 **Type:** Spec
-**Status:** Review
+**Status:** Accepted
 **Systems:** Auth, Wire Protocol, Capability publication, Storage, Realtime, Migrations, Deployment, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-28
-**Revised:** 2026-07-31 (decision-9 terminal-scope migration, LLP 0130 SD-6:
+**Revised:** 2026-08-01 (ACCEPTED by author direction — the 2026-08-01
+ballot, verbatim item 4: "accept 0110+0113". Loop state verified before the
+flip: the author-authorized corrective delta round (2026-07-28) ended with
+both families NOT READY
+(reviews/0113-qualification-and-publication-authority.{fable,codex,super-refine}.md),
+but its terminal disposition ledger classified all 28 concerns — 20
+MATERIAL, every one "Valid / IN-DELTA", plus 8 DETAIL adoptions — and the
+author-directed implementation pass applied every disposition as the
+2026-07-28 unreviewed post-corrective-round reconciliation recorded below,
+followed by the 2026-07-31 SD-6 v4 terminal-scope generation. No MATERIAL
+finding is unresolved; the final vector is applied but not re-reviewed — a
+stale-but-clean loop the author's direction accepts as grounds. The
+journal's own constraint ("no Accepted status is inferred") bound the
+orchestrator absent author direction; this flip IS the author's direction.
+Acceptance covers the Spec text only: every sensitive
+qualification/publication capability and support fact stays false until
+the complete executable receipts pass, per §Status below.) 2026-07-31 (decision-9 terminal-scope migration, LLP 0130 SD-6:
 the authority's lease and issue-request wire schemas gained a v4 generation
 binding the terminal `@expo/snapback-*` nine-package name table (new signing
 domain, terminal scope pattern); the standing authority issues v4 only and
@@ -706,10 +722,15 @@ LLP 0110/0105 acceptance corpus gate landing.
 
 ## Status
 
-**Review.** This Spec records the corrective design authorized on 2026-07-28
-and entered the authorized super-refine loop on the same date. The revision
-above applies terminal review dispositions after that round and is explicitly
-**unreviewed post-round**.
-It does not make either capability publishable and does not advance the status
-of any related LLP. Review artifacts may recommend revision but cannot
-ratify it.
+**Accepted (2026-08-01), by author direction** — the ballot's verbatim
+item 4, "accept 0110+0113" (see the dated Revised entry for the verified
+loop state). Acceptance covers the Spec text only: it does not make either
+capability publishable, does not flip any runtime support fact ahead of
+the complete executable receipts, and does not advance the status of any
+related LLP. The paragraph below is retained as the pre-acceptance record.
+
+Originally **Review**: this Spec records the corrective design authorized
+on 2026-07-28 and entered the authorized super-refine loop on the same
+date. The 2026-07-28 revision applies terminal review dispositions after
+that round and is explicitly **unreviewed post-round**. Review artifacts
+may recommend revision but cannot ratify it.
