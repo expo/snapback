@@ -316,3 +316,63 @@ store arm implementing an already-defined contract, f4/f7 are lifecycle
 conformance work. The web arm's verdict ("best local-first floor I have
 tested, not yet a product") becomes, on mobile: **the floor hasn't shipped
 to this carrier yet — and the receipts now say precisely what's missing.**
+
+## 2026-08-01 — PROBE: Firebase on the same floor (Stage 3 reference)
+
+**Probe, not an arm.** Reference observations only — no ranking claims.
+Capsule: `demos/improvement-sweep/probes/a1-firebase-web/run-capsule.json`;
+observations: `probes/a1-firebase-web/reference-observations.md`.
+Justification is probe rule 2: no frozen evidence covers this contract's
+floor, and findings a1-f4/f5/f6 plus the Expo arm's a1expo-f2/f3/f7 needed a
+what-does-good-look-like reference.
+
+The official modern path (firebase 12.17.0 modular SDK,
+`persistentLocalCache`, anonymous Auth) against the official Emulator Suite
+under a `demo-` project id, driven through real Chrome persistent profiles
+with backend routes aborted for the offline legs. The live `snapback-probe`
+project turned out half-enabled — anonymous auth and Firestore on, security
+rules locked, rules deployment owner-credentialed — recorded as the setup
+observation; the emulator fallback also keeps the probe aligned with the
+frozen Diary 0027 Firebase practice. No system Java: the Firestore emulator
+ran on Android Studio's bundled JBR.
+
+What the reference showed, in one run (~7s, five browser relaunches):
+
+- **Cold-boot retained render:** 3 protected rows `fromCache:true` in 26ms,
+  anonymous uid restored offline from IndexedDB. No per-query opt-in exists
+  — persistence is one construction decision (the discoverability bar for
+  our a1-f4 fix).
+- **The D3 contrast fact is real:** offline create+update rendered
+  immediately beside the cached rows, survived a full browser restart while
+  still offline (first snapshot: 4 rows from cache, queued write still
+  pending, 24ms), and the second client honestly saw only committed rows
+  until reconnect. This is exactly the render Snapback's LLP 0090 D3 rule
+  forecloses (a1-f6) — achieved with blind overlays and silent LWW, which
+  is the part a Snapback answer should not copy.
+- **Reconnect:** cache-first render, flush and settle by 75ms; exactly one
+  doc for the queued create, but only because I chose deterministic doc
+  ids — idempotency is the author's job here, there is no settlement
+  envelope, receipt, or changed-count to assert against.
+- **Conflict:** offline-vs-online same-field edit settled deterministically
+  in server-apply order (the reconnecting client won), silently — no
+  revision surface, nothing shown to either client; both clients converged
+  byte-identically.
+- **The honesty gap runs the other way:** the entire offline surface is one
+  `fromCache` boolean. No retention facts, no refusal codes, no enumerable
+  outbox, no custody boundary (protected rows are cold-retained for whoever
+  holds the device; rules are not re-evaluated offline) — and one sharp
+  trap: with the persistence lease briefly held by a dying predecessor, the
+  SDK **silently fell back to an empty memory cache** (`rows:0,
+  fromCache:true`, no error anywhere) until
+  `persistentSingleTabManager({ forceOwnership: true })`. An app that
+  missed that renders an empty notebook offline with no way to tell.
+  Snapback's `rqsStoreInfo`/`retention`/receipt surfaces are ahead of this
+  reference on every evidence axis.
+
+Net reference for the design decisions: match the render (cached rows +
+durable queued intent together after an offline restart, one-decision
+retainability, offline state on the objects apps already hold), keep the
+honesty (facts, refusals, receipts, custody) the reference lacks. Cleanup
+proven: probe docs deleted through the SDK (second client observed zero),
+emulators and static server stopped, ports verified free, browser profiles
+deleted, live project never written.

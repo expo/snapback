@@ -1051,4 +1051,38 @@ workload (LLP 0064 §7). Track C remains a separate successor gate with
 named reopening conditions in the ticket; the sweep report is not
 delayed for it. This status note is a dated amendment inside the freeze
 boundary; the freeze was re-verified (and re-frozen for this plan
+
+A1/Firebase PROBE (Stage 3, first competitor probe — firebase, web,
+reference observations only) executed 2026-08-01 and **completed**:
+justified under probe rule 2 (no frozen evidence covers A1's local-first
+floor; triggering findings 0137-a1-f4/f5/f6 and 0137-a1expo-f2/f3/f7),
+timeboxed inside the deep ceiling (~13 active minutes, ~27 build-phase
+tool calls), official provider paths only (firebase 12.17.0 modular SDK
+with persistentLocalCache + anonymous Auth, official Emulator Suite under
+the demo- project prefix, real Chrome persistent profiles with backend
+routes aborted for the offline legs). Setup observation: the live
+snapback-probe project has Anonymous auth and Firestore console-enabled
+but rules locked (authenticated read PERMISSION_DENIED; deployment is
+owner-credentialed), so the probe ran the emulator fallback and hosted
+behavior stays unprobed. All five reference dimensions observed with
+timings: cold-boot retained render of protected rows in 26ms with
+offline-restored auth; queued create+update rendered WITH cached rows
+and durable across a browser restart while still offline (the exact
+render LLP 0090 D3 forecloses, a1-f6); honest second-client
+no-remote-commit; reconnect flush/settle by 75ms with author-supplied
+idempotency (no settlement envelope surface); silent
+deterministic-by-server-order LWW conflicts with byte-identical
+convergence. Counter-observations the reference lacks: one fromCache
+boolean is the whole honesty surface, no retention/refusal facts, no
+enumerable outbox, no custody boundary for protected data at rest, and a
+silent empty-memory-cache fallback when the persistence lease is
+contended (forceOwnership required). Capsule (PROBE-labeled, probeSlice
+declared), reference-observations doc, and evidence:
+`demos/improvement-sweep/probes/a1-firebase-web/`; dated PROBE entry
+appended to `diaries/0043-a1-offline-notebook-sweep.diary.md`. Cleanup
+proven (SDK-deleted probe docs, emulators/server stopped, ports free,
+browser profiles deleted, live project never written). No ranking is
+claimed; the observations exist to shape the a1-f4/f5/f6 and
+a1expo-f2/f3/f7 fixes. This status note is a dated amendment inside the
+freeze boundary; the freeze was re-verified (and re-frozen for this plan
 digest) with the sweep's own scripts in the landing commit.

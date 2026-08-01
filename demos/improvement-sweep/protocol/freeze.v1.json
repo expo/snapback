@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "protocolId": "llp-0137-improvement-sweep-v1",
-  "frozenAt": "2026-08-01T16:30:43.760Z",
+  "frozenAt": "2026-08-01T16:37:56.041Z",
   "gate": "g0-sweep-freeze",
   "snapbackRevisionFrozen": false,
-  "aggregateSha256": "917832810acd4bbc79fb810ca47fb9a2ee9f3fc8682d154a29ac87f68afbb07a",
+  "aggregateSha256": "bb3da67f902d8b2daa3155df309029138ac098a498d8a7667720850406e9d285",
   "artifacts": [
     {
       "path": "demos/improvement-sweep/README.md",
@@ -203,8 +203,8 @@
     },
     {
       "path": "llp/0137-react-web-backend-championship.plan.md",
-      "bytes": 65415,
-      "sha256": "f65b43c9f0ed4df9f182ee68343b8967375c019f7127fe99a3ee9ed9295879c6"
+      "bytes": 67671,
+      "sha256": "42ddeafcfd75250f3eadb6bf7f23ca73afd7ba8a8d7fae231bb33893cf8cb063"
     }
   ],
   "appendOnlyArtifacts": [],

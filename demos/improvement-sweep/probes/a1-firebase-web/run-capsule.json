@@ -1,0 +1,131 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "arm": {
+    "contract": "a1",
+    "armKind": "probe",
+    "platform": "web",
+    "provider": "firebase",
+    "attemptId": "a1-firebase-web-probe-darwin-arm64-20260801",
+    "probeSlice": {
+      "scenarioIds": ["A1-05-COLD-RESTART", "A1-06-RETAINED-READS", "A1-07-QUEUED-DURABILITY", "A1-08-CONFLICT", "A1-09-RECONNECT"],
+      "triggeringFinding": "probe rule 2 — no frozen evidence covers A1's local-first floor as a contract; reference needed for 0137-a1-f4/f5/f6 (retainability opt-in, React offline surface, D3 pending-outbox blank) and 0137-a1expo-f2/f3/f7 (Expo queue classification, no durable on-device store, RN connection cycles)"
+    }
+  },
+  "packageVersions": {
+    "firebase": "12.17.0",
+    "firebase-tools": "15.25.1",
+    "playwright-core": "1.62.1",
+    "vite": "8.2.0",
+    "chrome": "system Google Chrome.app (playwright-core executablePath)",
+    "java": "Android Studio JBR (/Applications/Android Studio.app/Contents/jbr) for the Firestore emulator"
+  },
+  "environment": {
+    "host": "macOS (Darwin 25.5.0), arm64",
+    "node": "24.18.0 (volta)",
+    "registry": "https://registry.npmjs.org",
+    "externalDirectory": "session scratchpad probe-a1-firebase/ — fresh clean directory, official provider paths only (firebase JS SDK modular API, initializeFirestore + persistentLocalCache + persistentSingleTabManager, Auth anonymous provider, official Emulator Suite)",
+    "backend": "Firebase Emulator Suite under the official demo- project prefix (demo-snapback-probe): Firestore 127.0.0.1:8181, Auth 127.0.0.1:9199, UI disabled; guarantees zero live-project contact",
+    "browserHarness": "real Chrome via playwright-core persistent profiles (client-a/client-b userDataDirs) for genuine cold restarts; backend-unreachable simulated by aborting all routes to the emulator ports while the page origin (127.0.0.1:4610 static server) stays reachable — same offline shape as the Snapback A1 arm",
+    "probeLabel": "PROBE — reference observations only; never ranking claims, never reusable as a Phase 2 championship arm"
+  },
+  "budget": {
+    "class": "deep (probe timebox)",
+    "ceilings": { "activeHours": 8, "toolCalls": 400 },
+    "wallClock": {
+      "orientationStart": "2026-08-01T16:20:00Z",
+      "externalBuildStart": "2026-08-01T16:24:00Z",
+      "finalGreenVerification": "2026-08-01T16:33:00Z",
+      "activeBuildMinutes": 9,
+      "orientationMinutes": 4,
+      "recordsPhase": "16:34Z onward (capsule, reference observations, diary entry, status note, freeze/ref checks, rebase, commit)"
+    },
+    "toolCalls": { "throughFinalVerification": 27, "recordsPhaseEstimate": "~20 additional", "note": "counted from the session transcript; far under the deep ceiling" },
+    "ceilingExceeded": false
+  },
+  "actors": {
+    "builder": "Claude (Fable 5), LLP 0137 Stage 3 competitor probe after the A1 snapback-web arm",
+    "personas": {
+      "clientA": "anonymous auth uid fjninEGboexaPkI8msJCeIYe2cxx (persistent profile client-a; offline/queue persona)",
+      "clientB": "anonymous auth (persistent profile client-b; online second device)"
+    },
+    "principalDerivation": "Firebase Auth anonymous provider (emulator); uid persisted in origin IndexedDB and restored across cold restarts without network"
+  },
+  "targets": {
+    "kind": "fresh-isolated-local",
+    "targetProfile": "firebase-emulator-suite-demo-project",
+    "appId": "demo-snapback-probe",
+    "database": "Firestore emulator in-memory (no --export-on-exit): all server-side probe data destroyed at emulator exit; probeRecords collection also deleted through the SDK before shutdown (leg 6, 4 docs, second client observed 0 rows)",
+    "serverUrl": "http://127.0.0.1:8181 (firestore), http://127.0.0.1:9199 (auth), http://127.0.0.1:4610 (static page)",
+    "port": 8181,
+    "portDiscipline": "non-default emulator ports (8181/9199) + 4610 chosen to avoid fleet collisions; 4420/4287-4289 untouched",
+    "rules": "firestore.rules: probeRecords read/write only when request.auth != null (models the authenticated team-workspace floor)",
+    "hostedTarget": "none — live project snapback-probe was NOT written: Anonymous auth and Firestore are console-enabled but security rules are locked (authenticated read returns PERMISSION_DENIED) and rules deployment is owner-credentialed; recorded as the setup observation driving the emulator fallback. Hosted/production-backend claims are NOT probed (G2-style gap for the probe)."
+  },
+  "milestones": {
+    "liveProjectPreflight": "2026-08-01T16:22Z (anonymous signUp mints idToken — provider enabled; authenticated Firestore REST read PERMISSION_DENIED — rules locked; fallback decision recorded)",
+    "closureInstalled": "2026-08-01T16:26:37Z (npm: firebase 12.17.0 + tooling)",
+    "emulatorsUp": "2026-08-01T16:30:14Z (firestore+auth under demo- project, JBR java)",
+    "firstRead": "leg 0: first snapshot 61ms after init (latency-compensated local), server-settled rows at 87ms",
+    "firstMutation": "leg 0: three seeded setDocs settle (hasPendingWrites false) by 156ms total leg time",
+    "verifiedRealtime": "leg 5: second client receives the flushed queue + conflict outcome (both clients byte-identical on r1.notes)",
+    "localAcceptance": "2026-08-01T16:33Z (all 7 legs green in one driver run, ~7s including five browser relaunches)",
+    "hostedUrl": "not-applicable (emulator probe)",
+    "cleanup": "2026-08-01T16:33:40Z (probeRecords deleted through the SDK, emulators + static server stopped, ports 8181/9199/4610/4400 verified free, browser profiles deleted)"
+  },
+  "assistanceEvents": [],
+  "postureBreaks": [],
+  "commands": [
+    "curl identitytoolkit accounts:signUp + firestore REST read (live-project preflight; read-only against live)",
+    "npm install firebase vite playwright-core firebase-tools",
+    "vite build --base ./",
+    "firebase emulators:start --only firestore,auth --project demo-snapback-probe (JBR java)",
+    "node serve.mjs (static page on 4610)",
+    "node driver.mjs (7-leg observation run over real Chrome persistent profiles)"
+  ],
+  "scenarioResults": [
+    { "id": "A1-05-COLD-RESTART", "result": "pass", "evidencePaths": ["evidence/observations.json"], "note": "REFERENCE: genuinely cold Chrome relaunch with every emulator route aborted renders all 3 protected rows fromCache:true in 26ms; anonymous auth uid restored offline from IndexedDB. Caveat observed: if the persistence lease is still held by a dying predecessor, the SDK silently falls back to an EMPTY memory cache (0 rows, fromCache:true, no error surface) — forceOwnership:true required for restart-shaped lifecycles" },
+    { "id": "A1-06-RETAINED-READS", "result": "pass", "evidencePaths": ["evidence/observations.json"], "note": "REFERENCE: freshness honesty is one boolean (snapshot.metadata.fromCache) surfaced per snapshot — rendered offline as fromCache:true, settling to false on reconnect. No per-query retention fact, no refusal contract: protected rows ARE cold-retained for whoever holds the device profile; rules are not re-evaluated for cached reads offline" },
+    { "id": "A1-07-QUEUED-DURABILITY", "result": "pass", "evidencePaths": ["evidence/observations.json"], "note": "REFERENCE: offline create+update render immediately beside the 3 cached rows (4 rows, pending=true, 68ms), survive a full browser restart while still offline (first post-restart snapshot: 4 rows fromCache with the queued write still pending, 24ms), and the second client proves no remote commit pre-reconnect (sees exactly 3 rows). The queue itself is opaque: no enumerable outbox, no per-intent identity/sequence surface — hasPendingWrites booleans only" },
+    { "id": "A1-08-CONFLICT", "result": "pass", "evidencePaths": ["evidence/observations.json"], "note": "REFERENCE: offline-vs-online same-field conflict settles deterministically in server-apply order — the reconnecting client's queued update lands after the online edit and wins the field; both clients converge to the identical final value. Blind last-write-wins: no revision check, no conflict surfaced to either client" },
+    { "id": "A1-09-RECONNECT", "result": "pass", "evidencePaths": ["evidence/observations.json"], "note": "REFERENCE: reconnect renders cache-first (25ms, 4 rows pending) then flushes and settles (hasPendingWrites false, fromCache false) by 75ms; exactly one document for the queued create (deterministic doc id via setDoc — dedupe is the author's job, not a settlement ledger); second client converges live. Settlement evidence is thin: write promises resolve, but there is no receipt/changed-count/version envelope to assert against" }
+  ],
+  "expectedCheckCount": 5,
+  "findings": [],
+  "differentiators": [
+    {
+      "observation": "REFERENCE BAR (what good looks like on the floor): cached rows AND durable queued writes render together after an offline restart — the exact combination Snapback's LLP 0090 D3 rule forecloses today (0137-a1-f6). Firebase pays for it with blind overlays (no derived-plan proof) and silent LWW conflicts.",
+      "mustNotRegress": "Not a Snapback surface — reference observation for the D3 design decision.",
+      "referenceEvidence": "evidence/observations.json legs 2/3 vs arms/a1-snapback-web/evidence/phase-queue-inspect.json (d3Probe)"
+    },
+    {
+      "observation": "REFERENCE CONTRAST (where the Snapback arm is already stronger): Firebase's floor has no honesty contract beyond one fromCache boolean — no retention facts, no refusal codes, protected rows cold-retained without lease custody, silent empty-cache fallback when the persistence lease is contended, no outbox inspection, no settlement envelopes. Snapback's refuse-with-clarity handles, coded refusals, enumerable outbox, and receipted settlement are ahead of this reference on every evidence axis.",
+      "mustNotRegress": "Snapback's retention/settlement honesty surfaces (0137 A1 arm differentiators) while closing the D3/render gap.",
+      "referenceEvidence": "evidence/observations.json vs arms/a1-snapback-web/run-capsule.json differentiators"
+    }
+  ],
+  "inventory": {
+    "authored": {
+      "app": "src/main.js (probe page: init/createRecord/updateNotes/probeCleanup over the official modular SDK), index.html",
+      "harness": "driver.mjs (7-leg Chrome persistent-profile driver), serve.mjs (static server)",
+      "config": "firebase.json (emulator ports, UI off), firestore.rules (authenticated-only probeRecords)"
+    },
+    "generated": "vite dist bundle (self-contained so the page loads while the backend is blocked)",
+    "glue": "none — official SDK surfaces only; route-abort is harness-level offline simulation, not an app shim",
+    "evidenceRetained": ["evidence/observations.json", "evidence/app/*"]
+  },
+  "attribution": {
+    "transport": "Firestore WebChannel to the emulator when online; offline legs abort every emulator route at the browser and all renders come from the persistentLocalCache (IndexedDB), attributed by snapshot.metadata.fromCache",
+    "authority": "Firebase Auth anonymous provider; rules gate reads/writes to authenticated users server-side; cached reads offline are served without rules re-evaluation (device custody)",
+    "settlement": "write promises + hasPendingWrites metadata; flush order is server-apply order; idempotency via author-chosen deterministic doc ids (setDoc), not a settlement ledger surface"
+  },
+  "stopDefects": [],
+  "cleanup": {
+    "processes": "firebase emulators and the static server stopped; no probe processes after teardown",
+    "listeners": "ports 8181, 9199, 4610, 4400 verified free (0 listeners each)",
+    "unrelatedState": "live project snapback-probe never written (read-only preflight only); fleet Snapback ports untouched",
+    "database": "emulator kept data in memory only (no export); probeRecords additionally deleted through the SDK (4 docs, second client observed 0 rows) before shutdown",
+    "externalDirectory": "scratchpad probe-a1-firebase retained as working area; browser profiles (client-a/client-b IndexedDB) deleted as the probe-data destruction proof; durable evidence copied into this probes/ directory"
+  },
+  "result": "complete"
+}

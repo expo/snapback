@@ -1,0 +1,453 @@
+{
+  "legs": [
+    {
+      "leg": "0-seed-online",
+      "ms": 156,
+      "view": {
+        "phase": "subscribed",
+        "uid": "9ldKbMr7ckNMvnlC6s6RTGnK82Lj",
+        "fromCache": false,
+        "hasPendingWrites": false,
+        "rows": [
+          {
+            "id": "r1",
+            "key": "r1",
+            "title": "Transformer vault reading",
+            "notes": "",
+            "position": 1000,
+            "revision": 1,
+            "pending": false
+          },
+          {
+            "id": "r2",
+            "key": "r2",
+            "title": "North fence corrosion pass",
+            "notes": "",
+            "position": 2000,
+            "revision": 1,
+            "pending": false
+          },
+          {
+            "id": "r3",
+            "key": "r3",
+            "title": "Pump house vibration log",
+            "notes": "",
+            "position": 3000,
+            "revision": 1,
+            "pending": false
+          }
+        ],
+        "timings": {
+          "bootStartedAt": 1785601948730,
+          "authReadyMs": 50,
+          "firstSnapshotMs": 61
+        },
+        "snapshots": [
+          {
+            "atMs": 61,
+            "rows": 1,
+            "fromCache": true,
+            "hasPendingWrites": true
+          },
+          {
+            "atMs": 64,
+            "rows": 2,
+            "fromCache": true,
+            "hasPendingWrites": true
+          },
+          {
+            "atMs": 66,
+            "rows": 3,
+            "fromCache": true,
+            "hasPendingWrites": true
+          },
+          {
+            "atMs": 87,
+            "rows": 3,
+            "fromCache": false,
+            "hasPendingWrites": true
+          },
+          {
+            "atMs": 120,
+            "rows": 3,
+            "fromCache": false,
+            "hasPendingWrites": true
+          },
+          {
+            "atMs": 122,
+            "rows": 3,
+            "fromCache": false,
+            "hasPendingWrites": true
+          },
+          {
+            "atMs": 123,
+            "rows": 3,
+            "fromCache": false,
+            "hasPendingWrites": false
+          }
+        ],
+        "errors": []
+      }
+    },
+    {
+      "leg": "1-cold-boot-retained-offline",
+      "ms": 71,
+      "renderedFromCache": true,
+      "authRestoredOffline": true,
+      "view": {
+        "phase": "subscribed",
+        "uid": "9ldKbMr7ckNMvnlC6s6RTGnK82Lj",
+        "fromCache": true,
+        "hasPendingWrites": false,
+        "rows": [
+          {
+            "id": "r1",
+            "key": "r1",
+            "title": "Transformer vault reading",
+            "notes": "",
+            "position": 1000,
+            "revision": 1,
+            "pending": false
+          },
+          {
+            "id": "r2",
+            "key": "r2",
+            "title": "North fence corrosion pass",
+            "notes": "",
+            "position": 2000,
+            "revision": 1,
+            "pending": false
+          },
+          {
+            "id": "r3",
+            "key": "r3",
+            "title": "Pump house vibration log",
+            "notes": "",
+            "position": 3000,
+            "revision": 1,
+            "pending": false
+          }
+        ],
+        "timings": {
+          "bootStartedAt": 1785601950650,
+          "authReadyMs": 18,
+          "firstSnapshotMs": 26
+        },
+        "snapshots": [
+          {
+            "atMs": 26,
+            "rows": 3,
+            "fromCache": true,
+            "hasPendingWrites": false
+          }
+        ],
+        "errors": []
+      }
+    },
+    {
+      "leg": "2-queue-offline-with-cached-rows",
+      "ms": 117,
+      "view": {
+        "phase": "subscribed",
+        "uid": "9ldKbMr7ckNMvnlC6s6RTGnK82Lj",
+        "fromCache": true,
+        "hasPendingWrites": true,
+        "rows": [
+          {
+            "id": "r1",
+            "key": "r1",
+            "title": "Transformer vault reading",
+            "notes": "offline note from A",
+            "position": 1000,
+            "revision": 2,
+            "pending": true
+          },
+          {
+            "id": "r2",
+            "key": "r2",
+            "title": "North fence corrosion pass",
+            "notes": "",
+            "position": 2000,
+            "revision": 1,
+            "pending": false
+          },
+          {
+            "id": "r3",
+            "key": "r3",
+            "title": "Pump house vibration log",
+            "notes": "",
+            "position": 3000,
+            "revision": 1,
+            "pending": false
+          },
+          {
+            "id": "q1",
+            "key": "q1",
+            "title": "Valve inspection — queued offline",
+            "notes": "",
+            "position": 4000,
+            "revision": 1,
+            "pending": true
+          }
+        ],
+        "timings": {
+          "bootStartedAt": 1785601952408,
+          "authReadyMs": 11,
+          "firstSnapshotMs": 19
+        },
+        "snapshots": [
+          {
+            "atMs": 19,
+            "rows": 3,
+            "fromCache": true,
+            "hasPendingWrites": false
+          },
+          {
+            "atMs": 68,
+            "rows": 4,
+            "fromCache": true,
+            "hasPendingWrites": true
+          },
+          {
+            "atMs": 71,
+            "rows": 4,
+            "fromCache": true,
+            "hasPendingWrites": true
+          }
+        ],
+        "errors": []
+      }
+    },
+    {
+      "leg": "3-offline-restart-pending-queue-renders",
+      "ms": 67,
+      "view": {
+        "phase": "subscribed",
+        "uid": "9ldKbMr7ckNMvnlC6s6RTGnK82Lj",
+        "fromCache": true,
+        "hasPendingWrites": true,
+        "rows": [
+          {
+            "id": "r1",
+            "key": "r1",
+            "title": "Transformer vault reading",
+            "notes": "offline note from A",
+            "position": 1000,
+            "revision": 2,
+            "pending": true
+          },
+          {
+            "id": "r2",
+            "key": "r2",
+            "title": "North fence corrosion pass",
+            "notes": "",
+            "position": 2000,
+            "revision": 1,
+            "pending": false
+          },
+          {
+            "id": "r3",
+            "key": "r3",
+            "title": "Pump house vibration log",
+            "notes": "",
+            "position": 3000,
+            "revision": 1,
+            "pending": false
+          },
+          {
+            "id": "q1",
+            "key": "q1",
+            "title": "Valve inspection — queued offline",
+            "notes": "",
+            "position": 4000,
+            "revision": 1,
+            "pending": true
+          }
+        ],
+        "timings": {
+          "bootStartedAt": 1785601954309,
+          "authReadyMs": 14,
+          "firstSnapshotMs": 24
+        },
+        "snapshots": [
+          {
+            "atMs": 24,
+            "rows": 4,
+            "fromCache": true,
+            "hasPendingWrites": true
+          }
+        ],
+        "errors": []
+      }
+    },
+    {
+      "leg": "4-second-client-precommit-and-conflict-edit",
+      "ms": 151,
+      "noRemoteCommit": true,
+      "view": {
+        "phase": "subscribed",
+        "uid": "fDMPwqbnD6v38PrIizRBjzzJ9XC3",
+        "fromCache": false,
+        "hasPendingWrites": false,
+        "rows": [
+          {
+            "id": "r1",
+            "key": "r1",
+            "title": "Transformer vault reading",
+            "notes": "online note from B",
+            "position": 1000,
+            "revision": 2,
+            "pending": false
+          },
+          {
+            "id": "r2",
+            "key": "r2",
+            "title": "North fence corrosion pass",
+            "notes": "",
+            "position": 2000,
+            "revision": 1,
+            "pending": false
+          },
+          {
+            "id": "r3",
+            "key": "r3",
+            "title": "Pump house vibration log",
+            "notes": "",
+            "position": 3000,
+            "revision": 1,
+            "pending": false
+          }
+        ],
+        "timings": {
+          "bootStartedAt": 1785601956151,
+          "authReadyMs": 49,
+          "firstSnapshotMs": 79
+        },
+        "snapshots": [
+          {
+            "atMs": 79,
+            "rows": 3,
+            "fromCache": false,
+            "hasPendingWrites": false
+          },
+          {
+            "atMs": 104,
+            "rows": 3,
+            "fromCache": false,
+            "hasPendingWrites": true
+          },
+          {
+            "atMs": 133,
+            "rows": 3,
+            "fromCache": false,
+            "hasPendingWrites": false
+          }
+        ],
+        "errors": []
+      }
+    },
+    {
+      "leg": "5-reconnect-settlement-and-convergence",
+      "ms": 120,
+      "cacheFirstRender": {
+        "fromCache": false,
+        "rows": 4
+      },
+      "settledA": {
+        "rows": 4,
+        "q1Count": 1,
+        "r1Notes": "offline note from A"
+      },
+      "convergedB": {
+        "rows": 4,
+        "q1Count": 1,
+        "r1Notes": "offline note from A"
+      },
+      "conflictOutcomeIdentical": true,
+      "view": {
+        "phase": "subscribed",
+        "uid": "9ldKbMr7ckNMvnlC6s6RTGnK82Lj",
+        "fromCache": false,
+        "hasPendingWrites": false,
+        "rows": [
+          {
+            "id": "r1",
+            "key": "r1",
+            "title": "Transformer vault reading",
+            "notes": "offline note from A",
+            "position": 1000,
+            "revision": 2,
+            "pending": false
+          },
+          {
+            "id": "r2",
+            "key": "r2",
+            "title": "North fence corrosion pass",
+            "notes": "",
+            "position": 2000,
+            "revision": 1,
+            "pending": false
+          },
+          {
+            "id": "r3",
+            "key": "r3",
+            "title": "Pump house vibration log",
+            "notes": "",
+            "position": 3000,
+            "revision": 1,
+            "pending": false
+          },
+          {
+            "id": "q1",
+            "key": "q1",
+            "title": "Valve inspection — queued offline",
+            "notes": "",
+            "position": 4000,
+            "revision": 1,
+            "pending": false
+          }
+        ],
+        "timings": {
+          "bootStartedAt": 1785601957861,
+          "authReadyMs": 15,
+          "firstSnapshotMs": 25
+        },
+        "snapshots": [
+          {
+            "atMs": 25,
+            "rows": 4,
+            "fromCache": true,
+            "hasPendingWrites": true
+          },
+          {
+            "atMs": 40,
+            "rows": 4,
+            "fromCache": false,
+            "hasPendingWrites": true
+          },
+          {
+            "atMs": 73,
+            "rows": 4,
+            "fromCache": false,
+            "hasPendingWrites": true
+          },
+          {
+            "atMs": 75,
+            "rows": 4,
+            "fromCache": false,
+            "hasPendingWrites": false
+          }
+        ],
+        "errors": []
+      }
+    },
+    {
+      "leg": "6-cleanup-deleted",
+      "ms": 66,
+      "rowsAfter": 0
+    }
+  ],
+  "errors": [],
+  "deletedDocs": 4,
+  "ok": true
+}
