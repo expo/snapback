@@ -22298,56 +22298,6 @@ fn asset_delete_cascade(
     Ok(fenced_staging)
 }
 
-struct AssetStagedBytes {
-    byte_length: u64,
-    /// Lowercase hex SHA-256 over the full byte stream.
-    digest: String,
-    /// The first bytes, for trusted content detection.
-    head: Vec<u8>,
-}
-
-/// Stream a staging or blob object through SHA-256, capturing length and the
-/// detection head, without loading the object into memory.
-fn asset_hash_staging(path: &std::path::Path) -> SnapbackResult<AssetStagedBytes> {
-    use sha2::Digest as _;
-    use std::io::Read as _;
-    let mut file = std::fs::File::open(path).map_err(|error| {
-        SnapbackError::error(
-            "SNAPBACK_ASSET_STORE_UNAVAILABLE",
-            "assets",
-            format!("cannot open staged object: {error}"),
-        )
-    })?;
-    let mut hasher = sha2::Sha256::new();
-    let mut head = Vec::with_capacity(64);
-    let mut byte_length = 0u64;
-    let mut buffer = vec![0u8; 64 * 1024];
-    loop {
-        let read = file.read(&mut buffer).map_err(|error| {
-            SnapbackError::error(
-                "SNAPBACK_ASSET_STORE_UNAVAILABLE",
-                "assets",
-                format!("cannot read staged object: {error}"),
-            )
-        })?;
-        if read == 0 {
-            break;
-        }
-        if head.len() < 64 {
-            let take = (64 - head.len()).min(read);
-            head.extend_from_slice(&buffer[..take]);
-        }
-        byte_length += read as u64;
-        hasher.update(&buffer[..read]);
-    }
-    let digest = hasher
-        .finalize()
-        .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect::<String>();
-    Ok(AssetStagedBytes { byte_length, digest, head })
-}
-
 fn asset_planned_publication(
     app_id: &str,
     attempt_id: &str,
@@ -22598,40 +22548,6 @@ fn asset_media_type_admitted(accepted: &[String], declared: &str) -> bool {
 
 /// Append one verified chunk to restricted staging at the exact offset,
 /// durably (flush + fsync) before the acknowledged offset advances.
-fn asset_append_staging_chunk(
-    path: &std::path::Path,
-    offset: u64,
-    chunk: &[u8],
-) -> SnapbackResult<()> {
-    use std::io::{Seek, SeekFrom, Write};
-    // Deliberately not `truncate`: chunks land at their exact offset, and a
-    // re-received tail after a crash overwrites in place.
-    #[allow(clippy::suspicious_open_options)]
-    let mut file = std::fs::OpenOptions::new()
-        .create(true)
-        .append(false)
-        .write(true)
-        .open(path)
-        .map_err(|error| {
-            SnapbackError::error(
-                "SNAPBACK_ASSET_STORE_UNAVAILABLE",
-                "assets",
-                format!("cannot open staging object: {error}"),
-            )
-        })?;
-    file.seek(SeekFrom::Start(offset))
-        .and_then(|_| file.write_all(chunk))
-        .and_then(|()| file.flush())
-        .and_then(|()| file.sync_data())
-        .map_err(|error| {
-            SnapbackError::error(
-                "SNAPBACK_ASSET_STORE_UNAVAILABLE",
-                "assets",
-                format!("cannot append staging chunk: {error}"),
-            )
-        })
-}
-
 fn now_millis() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)

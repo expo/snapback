@@ -766,3 +766,626 @@ impl AssetStore for AssetS3Store {
         Ok(())
     }
 }
+
+// ---------------------------------------------------------------------------
+// Protocol tests: an in-process S3-semantics fake that independently
+// re-derives SigV4 from the received request materials and enforces bucket
+// semantics, so signing and the multipart/publication/range/wipe state
+// machines are validated without a network. The live-endpoint suite below
+// runs the same shapes against a real S3-compatible server when
+// SNAPBACK_S3_TEST_* is set, and skips honestly otherwise.
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::BTreeMap;
+    use std::sync::atomic::{AtomicI64, Ordering};
+    use std::sync::{Arc, Mutex};
+
+    #[derive(Default)]
+    struct Bucket {
+        objects: BTreeMap<String, Vec<u8>>,
+        multiparts: BTreeMap<String, BTreeMap<u32, Vec<u8>>>,
+        next_upload: u64,
+    }
+
+    #[derive(Clone)]
+    struct FakeS3 {
+        bucket_name: String,
+        secret: String,
+        access_key: String,
+        state: Arc<Mutex<Bucket>>,
+        clock: Arc<AtomicI64>,
+    }
+
+    fn parse_query(url: &str) -> Vec<(String, String)> {
+        let Some((_, query)) = url.split_once('?') else {
+            return Vec::new();
+        };
+        query
+            .split('&')
+            .filter_map(|pair| {
+                let (k, v) = pair.split_once('=').unwrap_or((pair, ""));
+                Some((percent_decode(k), percent_decode(v)))
+            })
+            .collect()
+    }
+
+    fn percent_decode(input: &str) -> String {
+        let bytes = input.as_bytes();
+        let mut out = Vec::new();
+        let mut i = 0;
+        while i < bytes.len() {
+            if bytes[i] == b'%' && i + 2 < bytes.len() + 1 && i + 2 <= bytes.len() - 1 + 1 {
+                if let Ok(byte) =
+                    u8::from_str_radix(std::str::from_utf8(&bytes[i + 1..i + 3]).unwrap_or("zz"), 16)
+                {
+                    out.push(byte);
+                    i += 3;
+                    continue;
+                }
+            }
+            out.push(bytes[i]);
+            i += 1;
+        }
+        String::from_utf8_lossy(&out).into_owned()
+    }
+
+    impl FakeS3 {
+        fn new() -> (Self, AssetS3Config, Arc<AtomicI64>) {
+            let clock = Arc::new(AtomicI64::new(1_753_900_000_000));
+            let fake = FakeS3 {
+                bucket_name: "snapback-test".into(),
+                secret: "test-secret".into(),
+                access_key: "AKIDTEST".into(),
+                state: Arc::new(Mutex::new(Bucket::default())),
+                clock: clock.clone(),
+            };
+            let config = AssetS3Config {
+                endpoint: "http://s3.fake.local".into(),
+                bucket: fake.bucket_name.clone(),
+                region: "us-east-1".into(),
+                key_prefix: "instance-a".into(),
+                access_key_id: fake.access_key.clone(),
+                secret_access_key: fake.secret.clone(),
+            };
+            (fake, config, clock)
+        }
+
+        fn store(&self, config: &AssetS3Config) -> AssetS3Store {
+            let clock = self.clock.clone();
+            AssetS3Store::with_clock(
+                config.clone(),
+                Box::new(self.clone()),
+                Box::new(move || clock.load(Ordering::SeqCst)),
+            )
+        }
+
+        /// Independent SigV4 derivation from the received materials — never
+        /// calls the store's signer.
+        fn expected_signature(
+            &self,
+            method: &str,
+            path: &str,
+            canonical_query: &str,
+            signed_headers: &[(String, String)],
+            payload_hash: &str,
+            stamp: &str,
+            date: &str,
+            region: &str,
+        ) -> String {
+            let canonical_headers = signed_headers
+                .iter()
+                .map(|(k, v)| format!("{k}:{}\n", v.trim()))
+                .collect::<String>();
+            let names = signed_headers
+                .iter()
+                .map(|(k, _)| k.as_str())
+                .collect::<Vec<_>>()
+                .join(";");
+            let canonical_request = format!(
+                "{method}\n{path}\n{canonical_query}\n{canonical_headers}\n{names}\n{payload_hash}"
+            );
+            let scope = format!("{date}/{region}/s3/aws4_request");
+            let string_to_sign = format!(
+                "AWS4-HMAC-SHA256\n{stamp}\n{scope}\n{}",
+                sha256_hex(canonical_request.as_bytes())
+            );
+            let k_date = hmac_sha256(format!("AWS4{}", self.secret).as_bytes(), date.as_bytes());
+            let k_region = hmac_sha256(&k_date, region.as_bytes());
+            let k_service = hmac_sha256(&k_region, b"s3");
+            let k_signing = hmac_sha256(&k_service, b"aws4_request");
+            hex(&hmac_sha256(&k_signing, string_to_sign.as_bytes()))
+        }
+
+        /// Simulate a client hitting a presigned URL (query-authenticated).
+        fn http_presigned(&self, method: &str, url: &str, body: &[u8]) -> S3Response {
+            let path = url
+                .trim_start_matches("http://s3.fake.local")
+                .split('?')
+                .next()
+                .unwrap()
+                .to_owned();
+            let mut query = parse_query(url);
+            query.sort_by(|a, b| a.0.cmp(&b.0));
+            let signature = query
+                .iter()
+                .find(|(k, _)| k == "X-Amz-Signature")
+                .map(|(_, v)| v.clone())
+                .unwrap_or_default();
+            let without_sig: Vec<(String, String)> = query
+                .iter()
+                .filter(|(k, _)| k != "X-Amz-Signature")
+                .cloned()
+                .collect();
+            let canonical_query = without_sig
+                .iter()
+                .map(|(k, v)| format!("{}={}", sigv4_encode(k, false), sigv4_encode(v, false)))
+                .collect::<Vec<_>>()
+                .join("&");
+            let stamp = without_sig
+                .iter()
+                .find(|(k, _)| k == "X-Amz-Date")
+                .map(|(_, v)| v.clone())
+                .unwrap_or_default();
+            let date = stamp.split('T').next().unwrap_or("").to_owned();
+            let expires: i64 = without_sig
+                .iter()
+                .find(|(k, _)| k == "X-Amz-Expires")
+                .and_then(|(_, v)| v.parse().ok())
+                .unwrap_or(0);
+            // Expiry check against the fake's clock.
+            let (now_stamp, _) = amz_date(self.clock.load(Ordering::SeqCst));
+            if now_stamp > {
+                // stamp + expires as a lexically comparable stamp: recompute
+                // from the parsed epoch is overkill for the fake; compare by
+                // reconstructing the expiry stamp from the signing stamp's
+                // epoch position in our injected clock domain instead.
+                let signed_ms = stamp_to_ms(&stamp);
+                let (expiry_stamp, _) = amz_date(signed_ms + expires * 1000);
+                expiry_stamp
+            } {
+                return S3Response { status: 403, headers: vec![], body: b"expired".to_vec() };
+            }
+            let expected = self.expected_signature(
+                method,
+                &path,
+                &canonical_query,
+                &[("host".into(), "s3.fake.local".into())],
+                "UNSIGNED-PAYLOAD",
+                &stamp,
+                &date,
+                "us-east-1",
+            );
+            if expected != signature {
+                return S3Response { status: 403, headers: vec![], body: b"bad sig".to_vec() };
+            }
+            self.apply(method, &path, &without_sig, &[], body)
+        }
+
+        fn apply(
+            &self,
+            method: &str,
+            path: &str,
+            query: &[(String, String)],
+            headers: &[(String, String)],
+            body: &[u8],
+        ) -> S3Response {
+            let key = path
+                .trim_start_matches(&format!("/{}", self.bucket_name))
+                .trim_start_matches('/')
+                .to_owned();
+            let key = percent_decode(&key);
+            let mut state = self.state.lock().unwrap();
+            let get_header = |name: &str| {
+                headers
+                    .iter()
+                    .find(|(k, _)| k.eq_ignore_ascii_case(name))
+                    .map(|(_, v)| v.clone())
+            };
+            let query_get = |name: &str| {
+                query
+                    .iter()
+                    .find(|(k, _)| k == name)
+                    .map(|(_, v)| v.clone())
+            };
+            match method {
+                "PUT" if query_get("partNumber").is_some() => {
+                    let upload = query_get("uploadId").unwrap_or_default();
+                    let part: u32 = query_get("partNumber").unwrap().parse().unwrap();
+                    let Some(parts) = state.multiparts.get_mut(&upload) else {
+                        return S3Response { status: 404, headers: vec![], body: vec![] };
+                    };
+                    parts.insert(part, body.to_vec());
+                    S3Response {
+                        status: 200,
+                        headers: vec![("etag".into(), format!("\"p{part}\""))],
+                        body: vec![],
+                    }
+                }
+                "POST" if query.iter().any(|(k, _)| k == "uploads") => {
+                    state.next_upload += 1;
+                    let id = format!("mpu-{}", state.next_upload);
+                    state.multiparts.insert(id.clone(), BTreeMap::new());
+                    S3Response {
+                        status: 200,
+                        headers: vec![],
+                        body: format!(
+                            "<InitiateMultipartUploadResult><UploadId>{id}</UploadId></InitiateMultipartUploadResult>"
+                        )
+                        .into_bytes(),
+                    }
+                }
+                "POST" if query_get("uploadId").is_some() => {
+                    let upload = query_get("uploadId").unwrap();
+                    let Some(parts) = state.multiparts.remove(&upload) else {
+                        return S3Response { status: 404, headers: vec![], body: vec![] };
+                    };
+                    let mut assembled = Vec::new();
+                    for (_, part) in parts {
+                        assembled.extend_from_slice(&part);
+                    }
+                    state.objects.insert(key, assembled);
+                    S3Response { status: 200, headers: vec![], body: b"<ok/>".to_vec() }
+                }
+                "PUT" if get_header("x-amz-copy-source").is_some() => {
+                    let source = get_header("x-amz-copy-source").unwrap();
+                    let source_key = percent_decode(
+                        source
+                            .trim_start_matches(&format!("/{}/", self.bucket_name)),
+                    );
+                    let Some(bytes) = state.objects.get(&source_key).cloned() else {
+                        return S3Response { status: 404, headers: vec![], body: vec![] };
+                    };
+                    state.objects.insert(key, bytes);
+                    S3Response { status: 200, headers: vec![], body: b"<ok/>".to_vec() }
+                }
+                "PUT" => {
+                    if get_header("if-none-match").as_deref() == Some("*")
+                        && state.objects.contains_key(&key)
+                    {
+                        return S3Response { status: 412, headers: vec![], body: vec![] };
+                    }
+                    state.objects.insert(key, body.to_vec());
+                    S3Response { status: 200, headers: vec![], body: vec![] }
+                }
+                "HEAD" => match state.objects.get(&key) {
+                    Some(bytes) => S3Response {
+                        status: 200,
+                        headers: vec![("content-length".into(), bytes.len().to_string())],
+                        body: vec![],
+                    },
+                    None => S3Response { status: 404, headers: vec![], body: vec![] },
+                },
+                "GET" if query_get("list-type").as_deref() == Some("2") => {
+                    let prefix = query_get("prefix").unwrap_or_default();
+                    let keys = state
+                        .objects
+                        .keys()
+                        .filter(|k| k.starts_with(&prefix))
+                        .map(|k| format!("<Key>{k}</Key>"))
+                        .collect::<String>();
+                    S3Response {
+                        status: 200,
+                        headers: vec![],
+                        body: format!(
+                            "<ListBucketResult><IsTruncated>false</IsTruncated>{keys}</ListBucketResult>"
+                        )
+                        .into_bytes(),
+                    }
+                }
+                "GET" => {
+                    let Some(bytes) = state.objects.get(&key) else {
+                        return S3Response { status: 404, headers: vec![], body: vec![] };
+                    };
+                    match get_header("range") {
+                        Some(range) => {
+                            let spec = range.trim_start_matches("bytes=");
+                            let (start, end) = spec.split_once('-').unwrap_or((spec, ""));
+                            let start: u64 = start.parse().unwrap_or(0);
+                            if start >= bytes.len() as u64 {
+                                return S3Response {
+                                    status: 416,
+                                    headers: vec![],
+                                    body: vec![],
+                                };
+                            }
+                            let end: u64 = end
+                                .parse()
+                                .unwrap_or(bytes.len() as u64 - 1)
+                                .min(bytes.len() as u64 - 1);
+                            S3Response {
+                                status: 206,
+                                headers: vec![],
+                                body: bytes[start as usize..=end as usize].to_vec(),
+                            }
+                        }
+                        None => S3Response { status: 200, headers: vec![], body: bytes.clone() },
+                    }
+                }
+                "DELETE" if query_get("uploadId").is_some() => {
+                    let upload = query_get("uploadId").unwrap();
+                    state.multiparts.remove(&upload);
+                    S3Response { status: 204, headers: vec![], body: vec![] }
+                }
+                "DELETE" => {
+                    let existed = state.objects.remove(&key).is_some();
+                    S3Response {
+                        status: if existed { 204 } else { 404 },
+                        headers: vec![],
+                        body: vec![],
+                    }
+                }
+                _ => S3Response { status: 400, headers: vec![], body: vec![] },
+            }
+        }
+    }
+
+    fn stamp_to_ms(stamp: &str) -> i64 {
+        // Inverse of amz_date for the fake's expiry math (UTC).
+        let bytes = stamp.as_bytes();
+        let get = |range: std::ops::Range<usize>| -> i64 {
+            std::str::from_utf8(&bytes[range])
+                .unwrap_or("0")
+                .parse()
+                .unwrap_or(0)
+        };
+        let (year, month, day) = (get(0..4), get(4..6), get(6..8));
+        let (hh, mm, ss) = (get(9..11), get(11..13), get(13..15));
+        let y = if month <= 2 { year - 1 } else { year };
+        let era = y.div_euclid(400);
+        let yoe = y - era * 400;
+        let mp = if month > 2 { month - 3 } else { month + 9 };
+        let doy = (153 * mp + 2) / 5 + day - 1;
+        let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+        let days = era * 146_097 + doe - 719_468;
+        ((days * 86_400) + hh * 3600 + mm * 60 + ss) * 1000
+    }
+
+    impl S3Transport for FakeS3 {
+        fn execute(&self, request: S3Request) -> SnapbackResult<S3Response> {
+            let path = request
+                .url
+                .trim_start_matches("http://s3.fake.local")
+                .split('?')
+                .next()
+                .unwrap()
+                .to_owned();
+            let mut query = parse_query(&request.url);
+            query.sort_by(|a, b| a.0.cmp(&b.0));
+            let canonical_query = query
+                .iter()
+                .map(|(k, v)| format!("{}={}", sigv4_encode(k, false), sigv4_encode(v, false)))
+                .collect::<Vec<_>>()
+                .join("&");
+            let auth = request
+                .headers
+                .iter()
+                .find(|(k, _)| k == "authorization")
+                .map(|(_, v)| v.clone())
+                .unwrap_or_default();
+            let signature = auth
+                .split("Signature=")
+                .nth(1)
+                .unwrap_or("")
+                .to_owned();
+            let signed_names: Vec<&str> = auth
+                .split("SignedHeaders=")
+                .nth(1)
+                .and_then(|rest| rest.split(',').next())
+                .map(|names| names.split(';').collect())
+                .unwrap_or_default();
+            let header_value = |name: &str| -> String {
+                if name == "host" {
+                    return "s3.fake.local".into();
+                }
+                request
+                    .headers
+                    .iter()
+                    .find(|(k, _)| k == name)
+                    .map(|(_, v)| v.clone())
+                    .unwrap_or_default()
+            };
+            let signed_headers: Vec<(String, String)> = signed_names
+                .iter()
+                .map(|name| (name.to_string(), header_value(name)))
+                .collect();
+            let stamp = header_value("x-amz-date");
+            let date = stamp.split('T').next().unwrap_or("").to_owned();
+            let payload_hash = header_value("x-amz-content-sha256");
+            if sha256_hex(&request.body) != payload_hash {
+                return Ok(S3Response { status: 403, headers: vec![], body: b"payload".to_vec() });
+            }
+            let expected = self.expected_signature(
+                request.method,
+                &path,
+                &canonical_query,
+                &signed_headers,
+                &payload_hash,
+                &stamp,
+                &date,
+                "us-east-1",
+            );
+            if expected != signature {
+                return Ok(S3Response { status: 403, headers: vec![], body: b"bad sig".to_vec() });
+            }
+            let headers: Vec<(String, String)> = request.headers.clone();
+            Ok(self.apply(request.method, &path, &query, &headers, &request.body))
+        }
+    }
+
+    #[test]
+    fn s3_store_blob_publication_protocol_is_idempotent_and_verifiable() {
+        let (fake, config, _) = FakeS3::new();
+        let store = fake.store(&config);
+        let bytes = b"canonical-bytes".to_vec();
+        store.put_blob_idempotent("blob-1", &bytes).expect("put");
+        // Second put converges through the If-None-Match 412 arm.
+        store.put_blob_idempotent("blob-1", &bytes).expect("idempotent");
+        let hashed = store.hash(AssetObjectRef::Blob("blob-1")).expect("hash");
+        assert_eq!(hashed.byte_length, bytes.len() as u64);
+        assert_eq!(hashed.digest, sha256_hex(&bytes));
+        assert_eq!(hashed.head, bytes);
+        assert!(store.exists(AssetObjectRef::Blob("blob-1")).expect("exists"));
+        assert_eq!(
+            store.len(AssetObjectRef::Blob("blob-1")).expect("len"),
+            Some(bytes.len() as u64)
+        );
+        store.copy_blob("blob-1", "blob-2").expect("copy");
+        assert_eq!(store.read(AssetObjectRef::Blob("blob-2")).expect("read"), bytes);
+        store.delete_blob("blob-1").expect("delete");
+        store.delete_blob("blob-1").expect("tolerant re-delete");
+        assert!(!store.exists(AssetObjectRef::Blob("blob-1")).expect("gone"));
+    }
+
+    #[test]
+    fn s3_store_range_reads_mirror_fs_semantics() {
+        let (fake, config, _) = FakeS3::new();
+        let store = fake.store(&config);
+        let bytes: Vec<u8> = (0u8..100).collect();
+        store.put_blob_idempotent("ranged", &bytes).expect("put");
+        assert_eq!(
+            store.read_chunk(AssetObjectRef::Blob("ranged"), 0, 100).expect("full"),
+            bytes
+        );
+        assert_eq!(
+            store.read_chunk(AssetObjectRef::Blob("ranged"), 10, 5).expect("mid"),
+            bytes[10..15].to_vec()
+        );
+        // Past EOF mirrors the fs store: empty, not an error.
+        assert!(store
+            .read_chunk(AssetObjectRef::Blob("ranged"), 200, 5)
+            .expect("past eof")
+            .is_empty());
+        assert!(store
+            .read_chunk(AssetObjectRef::Blob("ranged"), 0, 0)
+            .expect("zero")
+            .is_empty());
+    }
+
+    #[test]
+    fn s3_store_multipart_lane_and_presigned_urls_validate_and_expire() {
+        let (fake, config, clock) = FakeS3::new();
+        let store = fake.store(&config);
+        let upload = store
+            .multipart_create(AssetObjectRef::Staging("stage-1"))
+            .expect("create");
+        let part1 = store.presign_part(AssetObjectRef::Staging("stage-1"), &upload, 1, 900);
+        let part2 = store.presign_part(AssetObjectRef::Staging("stage-1"), &upload, 2, 900);
+        let r1 = fake.http_presigned("PUT", &part1, b"hello ");
+        let r2 = fake.http_presigned("PUT", &part2, b"world");
+        assert_eq!((r1.status, r2.status), (200, 200));
+        let etag = |r: &S3Response| r.header("etag").unwrap().to_owned();
+        store
+            .multipart_complete(
+                AssetObjectRef::Staging("stage-1"),
+                &upload,
+                &[(1, etag(&r1)), (2, etag(&r2))],
+            )
+            .expect("complete");
+        assert_eq!(
+            store.read(AssetObjectRef::Staging("stage-1")).expect("assembled"),
+            b"hello world".to_vec()
+        );
+
+        // Presigned GET honors expiry against the injected clock.
+        let url = store.presign("GET", AssetObjectRef::Staging("stage-1"), 60, &[]);
+        assert_eq!(fake.http_presigned("GET", &url, b"").status, 200);
+        clock.fetch_add(120_000, Ordering::SeqCst);
+        assert_eq!(fake.http_presigned("GET", &url, b"").status, 403);
+        // Tampered signature refuses.
+        let tampered = format!("{url}0");
+        clock.fetch_add(-120_000, Ordering::SeqCst);
+        assert_eq!(fake.http_presigned("GET", &tampered, b"").status, 403);
+
+        // Abort drops an open upload.
+        let upload2 = store
+            .multipart_create(AssetObjectRef::Staging("stage-2"))
+            .expect("create2");
+        store
+            .multipart_abort(AssetObjectRef::Staging("stage-2"), &upload2)
+            .expect("abort");
+    }
+
+    #[test]
+    fn s3_store_prefix_scoped_wipe_and_staging_list() {
+        let (fake, config, _) = FakeS3::new();
+        let store_a = fake.store(&config);
+        let mut config_b = config.clone();
+        config_b.key_prefix = "instance-b".into();
+        let store_b = fake.store(&config_b);
+
+        store_a.append_staging("s", 0, b"x").expect_err("s3 lane has no proxied append");
+        store_a.write_canonical("stage-a", b"canon").expect("canonical");
+        store_a.put_blob_idempotent("blob-a", b"a").expect("blob a");
+        store_b.put_blob_idempotent("blob-b", b"b").expect("blob b");
+
+        // The canonical sibling folds into its source custody unit.
+        let keys = store_a.list_staging_keys().expect("list");
+        assert_eq!(keys, vec!["stage-a".to_owned()]);
+
+        store_a.wipe_all().expect("wipe a");
+        assert!(!store_a.exists(AssetObjectRef::Blob("blob-a")).expect("a gone"));
+        assert!(store_b.exists(AssetObjectRef::Blob("blob-b")).expect("b survives"));
+
+        store_a.delete_staging_pair("stage-a").expect("tolerant after wipe");
+    }
+
+    #[test]
+    fn s3_store_tampered_header_request_is_refused_by_independent_derivation() {
+        let (fake, config, _) = FakeS3::new();
+        let store = fake.store(&config);
+        // A request whose signed header changes after signing must refuse:
+        // sign for one payload, deliver another.
+        let signed = store.sign("PUT", "instance-a/blobs/tamper", &[], &[], b"honest".to_vec());
+        let mut tampered = signed.clone();
+        tampered.body = b"tampered".to_vec();
+        let response = fake.execute(tampered).expect("transport");
+        assert_eq!(response.status, 403);
+        let response = fake.execute(signed).expect("transport");
+        assert_eq!(response.status, 200);
+    }
+
+    /// The live qualification suite: the same protocol shapes against a real
+    /// S3-compatible endpoint. Skips honestly when no endpoint is
+    /// configured; the qualification-drill ticket records the runnable
+    /// recipe (MinIO or R2/Tigris credentials).
+    #[test]
+    fn s3_store_live_endpoint_qualification() {
+        let Ok(endpoint) = std::env::var("SNAPBACK_S3_TEST_ENDPOINT") else {
+            eprintln!(
+                "skipping live s3 qualification: SNAPBACK_S3_TEST_ENDPOINT is unset \
+                 (see the 0044 s3 qualification-drill ticket for the recipe)"
+            );
+            return;
+        };
+        let config = AssetS3Config {
+            endpoint,
+            bucket: std::env::var("SNAPBACK_S3_TEST_BUCKET").expect("bucket"),
+            region: std::env::var("SNAPBACK_S3_TEST_REGION").unwrap_or_else(|_| "us-east-1".into()),
+            key_prefix: format!("snapback-qual-{}", std::process::id()),
+            access_key_id: std::env::var("SNAPBACK_S3_TEST_ACCESS_KEY_ID").expect("access key"),
+            secret_access_key: std::env::var("SNAPBACK_S3_TEST_SECRET_ACCESS_KEY")
+                .expect("secret"),
+        };
+        let store = AssetS3Store::new(config, Box::new(UreqTransport));
+        let bytes = b"live-qualification-bytes".to_vec();
+        store.put_blob_idempotent("qual-blob", &bytes).expect("put");
+        store.put_blob_idempotent("qual-blob", &bytes).expect("idempotent");
+        let hashed = store.hash(AssetObjectRef::Blob("qual-blob")).expect("hash");
+        assert_eq!(hashed.digest, sha256_hex(&bytes));
+        assert_eq!(
+            store.read_chunk(AssetObjectRef::Blob("qual-blob"), 5, 8).expect("range"),
+            bytes[5..13].to_vec()
+        );
+        let upload = store
+            .multipart_create(AssetObjectRef::Staging("qual-stage"))
+            .expect("mpu create");
+        store
+            .multipart_abort(AssetObjectRef::Staging("qual-stage"), &upload)
+            .expect("mpu abort");
+        store.wipe_all().expect("wipe");
+        assert!(!store.exists(AssetObjectRef::Blob("qual-blob")).expect("clean"));
+    }
+}

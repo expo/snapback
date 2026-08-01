@@ -1,0 +1,65 @@
+{
+  "$defs": {
+    "AssetS3TransferPartV1": {
+      "additionalProperties": false,
+      "properties": {
+        "partNumber": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "url": {
+          "description": "Presigned PUT for direct client transfer of exactly this part.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "partNumber",
+        "url"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/asset.s3-instruction.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Target-specific transfer instructions for the S3-compatible lane: the\nsame headless task mapped to native multipart with presigned part URLs\n(LLP 0044 §Byte stores). Bytes go direct to the store; completion always\nreturns through Snapback admission — no client ever completes a\nmultipart upload itself. Frozen ahead of the S3 attempt routes; no v1\ntarget claims the lane until a live qualification runs.",
+  "properties": {
+    "completeUrl": {
+      "description": "The Snapback route that verifies and completes the upload under the\nattempt's admission; never a store URL.",
+      "type": "string"
+    },
+    "expiresAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "lane": {
+      "type": "string"
+    },
+    "partSizeBytes": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "parts": {
+      "items": {
+        "$ref": "#/$defs/AssetS3TransferPartV1"
+      },
+      "type": "array"
+    },
+    "uploadId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "lane",
+    "uploadId",
+    "partSizeBytes",
+    "parts",
+    "completeUrl",
+    "expiresAtMs"
+  ],
+  "title": "AssetS3TransferInstructionV1",
+  "type": "object"
+}

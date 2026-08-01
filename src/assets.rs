@@ -472,6 +472,33 @@ pub struct AssetAttemptCreateResponseV1 {
     pub transfer: AssetTusInstructionV1,
 }
 
+/// Target-specific transfer instructions for the S3-compatible lane: the
+/// same headless task mapped to native multipart with presigned part URLs
+/// (LLP 0044 §Byte stores). Bytes go direct to the store; completion always
+/// returns through Snapback admission — no client ever completes a
+/// multipart upload itself. Frozen ahead of the S3 attempt routes; no v1
+/// target claims the lane until a live qualification runs.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct AssetS3TransferInstructionV1 {
+    pub lane: String,
+    pub upload_id: String,
+    pub part_size_bytes: u64,
+    pub parts: Vec<AssetS3TransferPartV1>,
+    /// The Snapback route that verifies and completes the upload under the
+    /// attempt's admission; never a store URL.
+    pub complete_url: String,
+    pub expires_at_ms: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct AssetS3TransferPartV1 {
+    pub part_number: u32,
+    /// Presigned PUT for direct client transfer of exactly this part.
+    pub url: String,
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct AssetAttemptCancelRequestV1 {
@@ -3388,6 +3415,7 @@ pub fn schema_registrations() -> Vec<(&'static str, Value)> {
         ("asset.attempt-create-response.schema.json", schema_of::<AssetAttemptCreateResponseV1>()),
         ("asset.attempt-cancel-request.schema.json", schema_of::<AssetAttemptCancelRequestV1>()),
         ("asset.tus-instruction.schema.json", schema_of::<AssetTusInstructionV1>()),
+        ("asset.s3-instruction.schema.json", schema_of::<AssetS3TransferInstructionV1>()),
         ("asset.finalize-request.schema.json", schema_of::<AssetFinalizeRequestV1>()),
         ("asset.finalize-response.schema.json", schema_of::<AssetFinalizeResponseV1>()),
         ("asset.signed-url-request.schema.json", schema_of::<AssetSignedUrlIssueRequestV1>()),

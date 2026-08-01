@@ -36387,6 +36387,22 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_ASSET_REFCOUNT_INVALID",
         "SNAPBACK_ASSET_RETRY_INELIGIBLE",
         "SNAPBACK_ASSET_RUNNER_DISABLED",
+        // W2g store-selection configuration names and store diagnostics:
+        // the env vars ride the same reviewed inventory as
+        // SNAPBACK_ASSET_RUNNER_DISABLED; the three store codes are
+        // deliberate default-500s until a producer picks a client class.
+        "SNAPBACK_ASSET_S3_",
+        "SNAPBACK_ASSET_S3_ACCESS_KEY_ID",
+        "SNAPBACK_ASSET_S3_BUCKET",
+        "SNAPBACK_ASSET_S3_ENDPOINT",
+        "SNAPBACK_ASSET_S3_EXPERIMENTAL",
+        "SNAPBACK_ASSET_S3_PREFIX",
+        "SNAPBACK_ASSET_S3_REGION",
+        "SNAPBACK_ASSET_S3_SECRET_ACCESS_KEY",
+        "SNAPBACK_ASSET_STORE",
+        "SNAPBACK_ASSET_STORE_CONFIG_INVALID",
+        "SNAPBACK_ASSET_STORE_OP_UNSUPPORTED",
+        "SNAPBACK_ASSET_STORE_UNQUALIFIED",
         "SNAPBACK_ASSET_STORE_KEY_INVALID",
         "SNAPBACK_ASSET_STORE_UNAVAILABLE",
         "SNAPBACK_ASSET_TEST_CRASH",

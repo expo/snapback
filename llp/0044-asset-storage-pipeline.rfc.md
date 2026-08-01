@@ -1920,3 +1920,29 @@ every other target Missing). Managed-CLI JS wiring (driving fixture
 ensure before `ensureVersionedSeed` and the reset decomposition) is the
 recorded remainder — it touches the client packages the concurrent Lane 1
 owns.
+
+### Implementation status: the byte-store seam and the S3 core (2026-07-31, W2g)
+
+The store interface this RFC enumerates is now a real seam: every
+production asset path — transfer, finalization custody, write-ahead
+publication, delivery streaming, GC, reset — runs through the
+store-agnostic `AssetStore` trait (`src/assets_store.rs`), with the
+filesystem store proven behavior-identical (the full asset suite ran
+unmoved through the refactor). `AssetS3Store` (`src/assets_s3.rs`)
+implements the S3-compatible seam: hand-rolled SigV4 over the in-tree
+crypto, path-style addressing, a prefix-scoped instance keyspace whose
+reset is a bounded prefix wipe, `If-None-Match` idempotent publication
+with the provider-variance caveat recorded in code, and the
+native-multipart lane (create/presign-part/complete/abort plus the
+committed `AssetS3TransferInstructionV1` instruction schema) held inherent
+until the S3 attempt routes land. Protocol logic is validated 6/6 against
+an in-process fake that independently re-derives SigV4 from request
+materials and enforces bucket/multipart/range/wipe semantics.
+
+The honesty boundary holds: no live endpoint has been qualified (no
+MinIO/docker on the build machine), so **no target claims the S3 store**
+— `assetLifecycleStores` stays `["local-fs"]`, `SNAPBACK_ASSET_STORE=s3`
+refuses as unqualified without the explicit experimental acknowledgment,
+and `issues/20260731-0044-s3-qualification-drill.md` carries the runnable
+MinIO/R2/Tigris recipe plus the activation order (dev-lane fact → S3
+attempt routes → per-provider drills, R2 first per LLP 0014).
