@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "findingId": "0137-a5-f3-guide-gap-inline-handler-subset-undocumented",
+  "dimension": "diagnostics-docs-agent-usability-and-escape-hatches",
+  "observation": {
+    "description": "The inline_handler_v1 language subset is discoverable only by iterating against generation refusals; the guide documents just the no-sibling-capture rule (backend/queries.md anti-pattern). Restrictions this arm hit, one generation cycle each: (1) 'dynamic computed member access is outside inline_handler_v1' — string indexing lower[i] and array-slot writes vec[slot] are refused, forcing charCodeAt/charAt walks for tokenizers and index-matched .map() accumulation for vector math (any retrieval-scoring or embedding handler hits this immediately); (2) defineJsMutation refuses an empty writes list ('requires declared writes') even for a read-only helper mutation an action calls via runMutation, forcing a false write declaration; conversely JSON.stringify/JSON.parse, Math, template literals, arrow helpers declared inside the handler, and String.fromCharCode ARE allowed but nothing says so. For an agent consumer the missing subset spec costs one generate-diagnose-rewrite loop per restriction.",
+    "evidence": [
+      "demos/improvement-sweep/arms/a5-snapback-web/evidence/app/functions.mjs (tokenize/embedding workaround comments; beginRefresh writes note)",
+      "diaries/0046-a5-ai-research-room-sweep.diary.md (exact diagnostics and iteration count)"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Convex and Supabase functions run ordinary JavaScript/TypeScript (V8 isolates / Deno), so tokenizers and vector math are written naively; no equivalent authoring subset exists to document.",
+    "source": "frozen-0102",
+    "sourceDate": "2026-07-29",
+    "reference": "diaries/0031-research-room-backend-bakeoff.diary.md (Convex/Supabase arms)"
+  },
+  "classification": "documentation",
+  "mustNotRegress": "The fail-closed generation-time validation itself: refusing at generate with a positioned diagnostic (file/line/column, seen this arm) is the right failure site and far better than a runtime surprise.",
+  "smallestCoherentFix": "A guide subsection (backend/queries.md or a new inline-handlers reference) that states the inline_handler_v1 subset: what is refused (dynamic computed member access, free identifiers outside the allowlist, sibling capture, empty writes) with the standard rewrites (charAt/charCodeAt walk, index-matched map, declared-superset writes), and what is allowed (JSON, Math, String statics, inner helpers, template literals).",
+  "acceptanceWitness": "A consumer authoring a tokenizer/scoring handler finds the subset and the rewrite patterns in the guide before hitting the diagnostic; the guide snippet class covering the subset is CI-verified.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a5-guide-gap-inline-handler-subset.md"
+  },
+  "stopClass": false,
+  "budgetFinding": false
+}

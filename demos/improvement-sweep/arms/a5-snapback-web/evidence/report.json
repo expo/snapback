@@ -1,0 +1,95 @@
+{
+  "schemaVersion": "sweep-a5.acceptance.v1",
+  "title": "LLP 0137 A5 snapback-web acceptance",
+  "startedAt": "2026-08-01T13:35:59.838Z",
+  "finishedAt": "2026-08-01T13:36:04.789Z",
+  "expectedChecks": 13,
+  "observedChecks": 13,
+  "tally": {
+    "pass": 11,
+    "gap": 1,
+    "fail": 1,
+    "expected-refusal": 0
+  },
+  "results": [
+    {
+      "id": "A5-01-SEED",
+      "result": "pass",
+      "ms": 95,
+      "note": "room + 4 sources + 4 embedding fixtures (dim 32) + 3 invites seeded; 3 distinct principals; owner/member seats claimed"
+    },
+    {
+      "id": "A5-02-SOURCES",
+      "result": "fail",
+      "ms": 149,
+      "note": "owner upload/metadata/download/delete + outsider denial all verified (octet-stream md lane: ready), but the seated MEMBER cannot download a shared source (403): no non-owner viewer is authorizable on 0.1.7 (known chain 0137-a1-f2/0137-a1-f3/0137-a4-f3, cited; signed-url 404) — the collaborative file-sharing product fact fails"
+    },
+    {
+      "id": "A5-03-OUTSIDER",
+      "result": "pass",
+      "ms": 174,
+      "note": "outsider denied uniformly on 11 surfaces incl. live subscribe; file bytes 403; action boundary refused (collapsed code, cited)"
+    },
+    {
+      "id": "A5-04-KEYWORD",
+      "result": "pass",
+      "ms": 51,
+      "note": "keyword retrieval returns the frozen expected set (Cancellation notes.pdf:4, Architecture.pdf:3, Interview notes.md:1), identical for both members; native search index cited as inexpressible (a3-f2)"
+    },
+    {
+      "id": "A5-05-VECTOR",
+      "result": "gap",
+      "ms": 13,
+      "note": "no ordinary vector path on 0.1.7 (capability index GAP row; LLP 0132 Accepted-but-unimplemented cited); embeddings fixture stored and inventoried; explicit nonclaim recorded"
+    },
+    {
+      "id": "A5-06-PROGRESS",
+      "result": "pass",
+      "ms": 253,
+      "note": "4 durable stages streamed before terminal completion; observer deliveries retrieved:47ms ranked:51ms drafted:53ms answered:53ms; live rows equal the snapshot"
+    },
+    {
+      "id": "A5-07-CITATIONS",
+      "result": "pass",
+      "ms": 79,
+      "note": "answer cites [Cancellation notes.pdf, Architecture.pdf], both resolving for the second member; invalid citation refused at commit"
+    },
+    {
+      "id": "A5-08-CANCEL",
+      "result": "pass",
+      "ms": 200,
+      "note": "confirmed cancellation at 3/5 stages; all four late durable-patch lanes fenced with append-only receipts; terminal record byte-stable; cancelled is hard-terminal"
+    },
+    {
+      "id": "A5-09-RETRY",
+      "result": "pass",
+      "ms": 199,
+      "note": "same-key re-ask and a concurrent two-client ask both converge on one question; worker replay against the completed question fenced (5 progress, 1 answer, unchanged)"
+    },
+    {
+      "id": "A5-10-OUTCOMES",
+      "result": "pass",
+      "ms": 392,
+      "note": "complete, cancelled, failed, timed-out, ambiguous all simultaneously distinct with settlement records; ambiguous retries to complete without duplication"
+    },
+    {
+      "id": "A5-11-OBSERVER",
+      "result": "pass",
+      "ms": 400,
+      "note": "second member observed ask 32ms, stage 77ms, terminal 235ms over the managed stream; rows equal the snapshot"
+    },
+    {
+      "id": "A5-12-REFRESH",
+      "result": "pass",
+      "ms": 1314,
+      "note": "scheduled external refresh ran end to end over the STREAMED egress lane (3 receipted nominals, dedupe custody, 41 bytes drained per run); every provider request carried the staged secret server-side; canary absent from 6 client-visible surfaces; plain-fetch lane still broken (0137-a4-f1) — streamed lane finding 0137-a5-f1"
+    },
+    {
+      "id": "A5-13-CLEANUP",
+      "result": "pass",
+      "ms": 297,
+      "note": "config unset, asset retired, seats self-removed, two receipted reset-installs (deleted 77 + 13 rows) restore the literal fixture; final fresh-session negative denied"
+    }
+  ],
+  "exitCode": 1
+}

@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "findingId": "0137-a5-f1-streamed-lane-is-the-only-working-egress",
+  "dimension": "conflicts-jobs-effects-and-ambiguity",
+  "observation": {
+    "description": "On packaged 0.1.7 the STREAMED egress lane works end to end while ordinary fetch stays broken, and nothing tells a consumer that. Proven from a clean external consumer on a sessions server with SNAPBACK_OUTBOUND_ACTIONS=1: (1) ctx.streamAttempt.start/settle work in the inline action lane — start returns {attemptToken, leaseHeld, progressCommits, runnerGeneration, terminal}, settle('complete') returns the durable winner {cause, effectMayHaveExecuted, settledBy:'authored'}, and an idempotent rejoin returns that terminal verbatim; (2) an artifact carrying bounded_response_stream_v1 ADMITS and serves on a sessions target (the Diary 0031 product-blocking sessions+streaming composition refusal is gone); (3) ctx.fetchStream drains a real local chunked HTTP upstream (3 pulls, 24 bytes, correct text) and headers — including an authorization Bearer value staged from ctx.secrets — reach the upstream; (4) the A5 app's scheduled refresh runs the full documented pattern (attempt keyed by run dedupe key, GET via fetchStream, drain, settle, receipt) with the secret carried server-side and absent from every client-visible surface. Meanwhile plain ctx.fetch still dies at runtime with SNAPBACK_HANDLER_HOST_CALL_UNKNOWN: unknown handler host call host.fetch (re-verified this arm, byte-identical to 0137-a4-f1's observation). Consequence: 0137-a4-f1's 'outbound effects unauthorable in EVERY action form' NARROWS — a working egress idiom exists, but it is the streamed one only, and the actions-and-fetch guide teaches ctx.fetch as the primary path, so a consumer following the guide hits the broken lane first and has no documented reason to reach for fetchStream on a non-streaming effect.",
+    "evidence": [
+      "demos/improvement-sweep/arms/a5-snapback-web/evidence/probe-stream/probe-result-phase1-attempt-only.json",
+      "demos/improvement-sweep/arms/a5-snapback-web/evidence/probe-stream/probe-result-phase2-with-fetchstream.json (incl. upstreamSawHeaders)",
+      "demos/improvement-sweep/arms/a5-snapback-web/evidence/scenario-evidence.json (A5-12 outboundLeg: 3 receipted 'fetched' runs, 41 bytes each, authValid on every provider request)",
+      "demos/improvement-sweep/arms/a5-snapback-web/evidence/app/functions.mjs (runRefresh, the working streamed-lane authoring shape)",
+      "diaries/0046-a5-ai-research-room-sweep.diary.md"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Frozen Convex research-room evidence made plain-fetch actions the bread-and-butter effect lane (ordinary action calling fetch, retries, idempotency key). Longitudinally for Snapback itself, Diary 0031's frozen arm was PRODUCT-BLOCKED because sessions cold-start preflight refused bounded_response_stream_v1 — this arm proves that composition now admits and executes on the public packaged closure, a major reversal; but the ordinary-fetch half that the 0102-epoch repo-source arm had (PARTY-10/11) is still missing from the packaged closure.",
+    "source": "frozen-0102",
+    "sourceDate": "2026-07-29",
+    "reference": "diaries/0031-research-room-backend-bakeoff.diary.md (Snapback product-blocked arm; Convex arm effect legs); diaries/0030 (Snapback PARTY-10/11 at repo source)"
+  },
+  "classification": "defect",
+  "mustNotRegress": "The streamed lane itself: bounded_response_stream_v1 admission on sessions targets, the ctx.streamAttempt custody surface (lease, crash-safe terminal winner, effectMayHaveExecuted, idempotent rejoin), header/secret staging reaching the upstream, and the two-boundary SNAPBACK_OUTBOUND_ACTIONS egress opt-in.",
+  "smallestCoherentFix": "Register the host.fetch handler host call for the inline action lane under the existing egress gate (making the guide's primary documented path real), OR — until it ships — document the streamed lane as the supported egress idiom for ALL outbound effects on 0.1.7 in actions-and-fetch.md, with the runRefresh shape from this arm as the taught example; plus a packaged-closure conformance test that executes one plain-fetch action and one streamed action against a local fixture.",
+  "acceptanceWitness": "From a clean external consumer on the public closure: an action performing plain ctx.fetch executes against a local HTTP fixture and its mutation commits the response, with A4-10 flipping to pass; until then, the guide's egress page names the streamed lane as the only working path and its example generates, loads, and runs verbatim.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a5-streamed-lane-is-the-only-working-egress.md"
+  },
+  "stopClass": false,
+  "budgetFinding": false
+}

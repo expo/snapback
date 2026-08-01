@@ -5,7 +5,7 @@
 **Systems:** Competitive evaluation, Demo applications, React, React/Expo, Exact Native, Developer experience, Data modeling, Realtime, Offline sync, Auth, Assets, Search, Actions, Scheduled work, Deployment, Operations, Testing, Documentation
 **Author:** Charlie Cheever / Codex / Claude
 **Date:** 2026-07-31
-**Revised:** 2026-08-01 (A4 arm status note: fourth diaried sweep arm complete — 9 pass / 2 evidenced-defect fails / 0 GAP; findings 0137-a4-f1..f7 filed; freeze re-verified). 2026-08-01 (A2 arm status note: first diaried sweep arm complete — 11 pass / 1 GAP / 0 fail; findings 0137-a2-f1..f8 filed; freeze re-verified). 2026-07-31 (v3 purpose inversion per Charlie's direction: the program now exists to surface what would make Snapback better, not to prove Snapback is better — that proof is deferred until the improvement well runs dry. Phase 1 is a Snapback-first improvement sweep over all six contracts as an external npm consumer, with a mid-program fix loop, frozen-evidence-first competitor referencing, and demand-driven fresh probes; the symmetric championship — core/extension matrix, composite, ranking controls — is preserved compactly as deferred Phase 2 behind a dry-well trigger. Ranking-fairness controls that obstruct improvement, chiefly the single frozen Snapback revision and atomic rounds, move to Phase 2; honesty controls stay). 2026-07-31 (v2 efficiency restructure: sixteen-arm symmetric core over A1–A4 plus five extension arms; contract lineage to LLP 0102 with a zero-new-arm longitudinal comparison; atomic per-contract rounds; Track B baseline + checkpoint; former open questions 1–5 resolved). 2026-07-31 (refine pass: challenger gate unified; composite comparability scoped; Track B eligibility rule; cross-references verified). 2026-07-31 (initial draft: a four-backend React-web championship, a separately scored Expo validation, a Snapback-only Exact Native graduation exercise, and selective specialist challengers, all gated on public-package consumption)
+**Revised:** 2026-08-01 (A5 arm status note: fifth diaried sweep arm complete — 11 pass / 1 GAP / 1 evidenced-defect fail; findings 0137-a5-f1..f3 filed; the Diary 0031 sessions+streamed-actions blocker verified reversed on the packaged closure; freeze re-verified). 2026-08-01 (A4 arm status note: fourth diaried sweep arm complete — 9 pass / 2 evidenced-defect fails / 0 GAP; findings 0137-a4-f1..f7 filed; freeze re-verified). 2026-08-01 (A2 arm status note: first diaried sweep arm complete — 11 pass / 1 GAP / 0 fail; findings 0137-a2-f1..f8 filed; freeze re-verified). 2026-07-31 (v3 purpose inversion per Charlie's direction: the program now exists to surface what would make Snapback better, not to prove Snapback is better — that proof is deferred until the improvement well runs dry. Phase 1 is a Snapback-first improvement sweep over all six contracts as an external npm consumer, with a mid-program fix loop, frozen-evidence-first competitor referencing, and demand-driven fresh probes; the symmetric championship — core/extension matrix, composite, ranking controls — is preserved compactly as deferred Phase 2 behind a dry-well trigger. Ranking-fairness controls that obstruct improvement, chiefly the single frozen Snapback revision and atomic rounds, move to Phase 2; honesty controls stay). 2026-07-31 (v2 efficiency restructure: sixteen-arm symmetric core over A1–A4 plus five extension arms; contract lineage to LLP 0102 with a zero-new-arm longitudinal comparison; atomic per-contract rounds; Track B baseline + checkpoint; former open questions 1–5 resolved). 2026-07-31 (refine pass: challenger gate unified; composite comparability scoped; Track B eligibility rule; cross-references verified). 2026-07-31 (initial draft: a four-backend React-web championship, a separately scored Expo validation, a Snapback-only Exact Native graduation exercise, and selective specialist challengers, all gated on public-package consumption)
 **Related:** LLP 0000, LLP 0010, LLP 0015, LLP 0016, LLP 0035, LLP 0041, LLP 0044, LLP 0064, LLP 0074, LLP 0093, LLP 0102, LLP 0103, LLP 0105, LLP 0107, LLP 0114, LLP 0115, LLP 0129, LLP 0130, LLP 0132, LLP 0133, LLP 0135, LLP 0136, Diary 0027–0039
 
 ## Summary
@@ -768,3 +768,63 @@ receipts, and the 17.7s full-suite loop. This status note is a dated
 amendment inside the freeze boundary; the freeze was re-verified (and
 re-frozen for this plan digest) with the sweep's own scripts in the
 landing commit.
+
+A5 (Stage 2, fifth diaried sweep arm — snapback-web, deep budget)
+executed 2026-08-01 and **completed**: all 13 frozen checks ran
+(expectedChecks enforced) with **11 pass, 1 explicit GAP, 1 fail, 0
+Stop**, in sessions mode against the public 0.1.7 closure from a clean
+external directory — full suite wall 5.0s. The research-room core
+carried the shape end to end: seeded corpus with content-hash fixture
+identity and a stored (never retrieval-claimed) 32-dim embeddings
+fixture; a resumable staged assistant (one serialized mutation per
+pipeline stage looped by an action) streaming four durable progress
+commits to the second member at 35–85ms before terminal completion;
+transactionally validated citations (invalid citation refused at
+commit); confirmed cancellation fencing ALL FOUR late durable-patch
+lanes with append-only fenced receipts and a byte-stable terminal
+record; idempotent re-ask + a concurrent two-client ask converging on
+one question; the five-outcome matrix (complete/cancelled/failed/
+timed-out/ambiguous) simultaneously distinct with the retryable-vs-
+hard-terminal split enforced; and receipted reset-install cleanup. The
+**headline reversal of the frozen Diary 0031 blocker**: the sessions +
+streamed-actions composition that product-blocked the 0102-epoch arm
+now works on the packaged closure — `bounded_response_stream_v1`
+artifacts admit, `ctx.streamAttempt` custody (lease, terminal winner,
+`effectMayHaveExecuted`, idempotent rejoin) and the `ctx.fetchStream`
+one-pull reader run end to end, headers/secrets staged via
+`ctx.secrets` reach the upstream, and the A5-12 scheduled refresh ran
+the full documented pattern against a strict-auth local provider with
+the canary absent from every client-visible surface. The GAP is vector
+retrieval (A5-05 per its own check wording: capability-index
+design-only row + LLP 0132 Accepted-but-unimplemented cited, fixture
+stored, nonclaim recorded). The fail is A5-02's collaborative
+file-sharing leg: the seated member cannot download a shared source
+(a1-f2/a1-f3/a4-f3 chain re-verified, cited not re-filed); the
+octet-stream accept lane uploading markdown bytes is a working a1-f10
+workaround (dated ticket note). Budget actuals: ~14 min orientation +
+~40 min build and ~78 build-phase tool calls against the 8h/400 deep
+ceilings; zero posture breaks; one assistance event (prior-arm recipes
+cited to their owning findings). Capsule, evidence, probe app, and
+sources: `demos/improvement-sweep/arms/a5-snapback-web/`; diary:
+`diaries/0046-a5-ai-research-room-sweep.diary.md`. Three findings
+filed (`0137-a5-f1..f3`, tickets `issues/20260801-0137-a5-*.md`): the
+headline is **f1 — the streamed lane is the only working action
+egress** (plain `ctx.fetch` re-verified dead as unknown host call
+host.fetch while fetchStream works, so a4-f1's "every action form"
+NARROWS — dated note on the A4 ticket — and the guide teaches the
+broken lane first); f2 the `v.array` table-field refusal names the Json
+primitive but not the documented working `v.json()` column type; f3
+guide-gap: the inline_handler_v1 subset (dynamic computed member
+access, empty writes, allowed globals) is discoverable only by
+generation refusal. Also: a dated refinement on a4-f4 (the epoch-0
+catch-up clock applies to the ACTION only; nested mutations see real
+trusted time — two clocks in one run). Differentiator watch (protect
+while fixing): the sessions+streamed-actions composition itself (the
+0031 reversal), serialized per-stage mutations making workflow fencing
+correct with live composed-thread delivery, receipted cancellation
+fences, clean secret custody where frozen Convex evidence has its
+Stop-class argv/wildcard defect, the 5.0s full-suite loop, and the
+seed-version ledger refusing changed bytes under a reused identity.
+This status note is a dated amendment inside the freeze boundary; the
+freeze was re-verified (and re-frozen for this plan digest) with the
+sweep's own scripts in the landing commit.

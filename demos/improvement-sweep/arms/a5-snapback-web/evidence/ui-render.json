@@ -1,0 +1,16 @@
+{
+  "multiQueryGroups": 2,
+  "domProof": {
+    "sourceCount": "4 sources",
+    "seededSources": 4,
+    "statusRunning": "Answer · running",
+    "answerText": "Cancellation safety depends on the fence being checked inside the same serialized transaction that writes progress. Builders said cancellation must be confirmed and observable, not advisory.",
+    "citations": [
+      "[1] Architecture.pdf",
+      "[2] Interview notes.md"
+    ],
+    "progressItems": 6,
+    "completeDots": 5
+  },
+  "liveDomUpdate": true
+}

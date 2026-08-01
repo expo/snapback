@@ -1,0 +1,658 @@
+{
+  "A5-01": {
+    "targetIdentity": {
+      "serverUrl": "http://127.0.0.1:4292",
+      "port": 4292,
+      "appId": "research-app",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:b0bee8dc647db17eb7f2db9ef699ed1280d3e2ca0eaf2130f68473d3281a661c",
+      "authMode": "sessions",
+      "runtime": null
+    },
+    "authoritativeCounts": {
+      "sources": 4,
+      "embeddings": 4,
+      "questions": 0,
+      "answers": 0,
+      "invites": 3,
+      "members": 2
+    },
+    "seedReceipt": {
+      "seedVersion": "a5-research.2026-08-01.2",
+      "dataVersionStream": "019fbd89-ee2a-7342-8690-8de8aa06b3e4"
+    },
+    "personas": {
+      "alice": "owner",
+      "bruno": "member (second live client)",
+      "mallory": "outsider (authenticated, no seat)"
+    }
+  },
+  "A5-02": {
+    "objectIdentity": {
+      "cancelNotes": {
+        "assetId": "019fbd89-eee2-7fe1-9404-d52e7cc48d13",
+        "sourceId": "019fbd89-ef0c-7900-9910-c4811e820ba7",
+        "uploadedSha256": "55cd3162a206418cba9fd2c56e56dda7d29e720bbb0cd1fae896794e955af913",
+        "bytes": 514
+      },
+      "methods": {
+        "assetId": "019fbd89-eef5-7a62-a708-afa86beb94b9",
+        "lane": "ready"
+      },
+      "uploadPath": "authenticated raw attempt/TUS/finalize (packaged asset client cannot authenticate on sessions — known 0137-a1-f3, cited)"
+    },
+    "contentHash": {
+      "servedPrimarySha256": "55cd3162a206418cba9fd2c56e56dda7d29e720bbb0cd1fae896794e955af913",
+      "stableAcrossReads": true,
+      "servedEqualsUploaded": true,
+      "corpusTextSha256": "e20c2e49b5f96c9817267daa44e4e2f583ba29baa99028539dc83c471355e430"
+    },
+    "authority": {
+      "ownerRead": 200,
+      "memberRead": 403,
+      "outsiderRead": 403,
+      "signedUrlIssuance": 404,
+      "nonOwnerDelete": 403,
+      "nonUploaderRemoveSource": "SNAPBACK_AUTH_PERMISSION_DENIED"
+    },
+    "deleteProof": {
+      "assetDelete": 200,
+      "postDeleteRead": 404,
+      "corpusRowRemoved": true
+    },
+    "corpusSplit": "extracted text lives in the sources row (member-readable retrieval corpus); raw bytes in the asset store are owner-locked on 0.1.7"
+  },
+  "A5-03": {
+    "negativeQuery": {
+      "roomOverview": "SNAPBACK_AUTH_PERMISSION_DENIED",
+      "sourceList": "SNAPBACK_AUTH_PERMISSION_DENIED",
+      "sourceDetail": "SNAPBACK_AUTH_PERMISSION_DENIED",
+      "searchSources": "SNAPBACK_AUTH_PERMISSION_DENIED",
+      "embeddingInventory": "SNAPBACK_AUTH_PERMISSION_DENIED",
+      "questionFeed": "SNAPBACK_AUTH_PERMISSION_DENIED",
+      "refreshLedger": "SNAPBACK_AUTH_PERMISSION_DENIED",
+      "askQuestion": "SNAPBACK_AUTH_PERMISSION_DENIED",
+      "addSource": "SNAPBACK_AUTH_PERMISSION_DENIED",
+      "setRefreshSource": "SNAPBACK_AUTH_PERMISSION_DENIED",
+      "subscribe": "SNAPBACK_AUTH_PERMISSION_DENIED"
+    },
+    "negativeFile": {
+      "primary": 403
+    },
+    "negativeSubscription": "SNAPBACK_AUTH_PERMISSION_DENIED",
+    "inviteGuess": "SNAPBACK_HANDLER_FAILED",
+    "actionBoundary": {
+      "code": "SNAPBACK_HANDLER_FAILED",
+      "note": "action refusal collapses the auth code (known 0137-a4-f5 / 0137-a3-f3, cited)"
+    }
+  },
+  "A5-04": {
+    "indexOrQueryProof": "membership-gated handler query (requireRole + by_room index scan + deterministic scoring); the native searchIndex cannot express room-member visibility on 0.1.7 (known 0137-a3-f2, cited)",
+    "authoritativeResults": {
+      "query": "cancellation safety",
+      "results": [
+        {
+          "title": "Cancellation notes.pdf",
+          "score": 4,
+          "snippet": "Confirmed cancellation must fence late progress patches"
+        },
+        {
+          "title": "Architecture.pdf",
+          "score": 3,
+          "snippet": "Durable attempt identity and an authoritative cancellation f"
+        },
+        {
+          "title": "Interview notes.md",
+          "score": 1,
+          "snippet": "Builders said cancellation must be confirmed and observable,"
+        }
+      ],
+      "secondMemberIdentical": true,
+      "vectorTermPartition": [
+        "Roadmap.txt"
+      ]
+    }
+  },
+  "A5-05": {
+    "vectorPathIdentity": {
+      "ordinarySupportedPath": "none on @expo/snapback-* 0.1.7",
+      "capabilityIndexRow": "guide/capabilities.md backend.vector-search: maturity design-only, \"no ordinary vector path ships today\" (GAP row)",
+      "design": "LLP 0132 (portable vector search) Accepted 2026-07-31 — unimplemented in the shipped packages",
+      "generatedSurfaceScan": {
+        "vectorishExports": [
+          "embeddingInventory"
+        ],
+        "apiExportCount": 28
+      },
+      "manifestVectorMentions": "schema stores the app fixture table only"
+    },
+    "deterministicResults": {
+      "fixture": [
+        {
+          "title": "Architecture.pdf",
+          "dim": 32,
+          "sample": [
+            0.051714,
+            0.062057,
+            0.237886,
+            0.051714
+          ]
+        },
+        {
+          "title": "Benchmarks.csv",
+          "dim": 32,
+          "sample": [
+            -0.050347,
+            0.302084,
+            -0.27691,
+            -0.025174
+          ]
+        },
+        {
+          "title": "Cancellation notes.pdf",
+          "dim": 32,
+          "sample": [
+            0.139497,
+            -0.02325,
+            0.139497,
+            0.02325
+          ]
+        },
+        {
+          "title": "Interview notes.md",
+          "dim": 32,
+          "sample": [
+            0.140676,
+            -0.211014,
+            0.246183,
+            -0.035169
+          ]
+        },
+        {
+          "title": "Roadmap.txt",
+          "dim": 32,
+          "sample": [
+            -0.145065,
+            0.116052,
+            0.391675,
+            0.087039
+          ]
+        }
+      ],
+      "note": "the embeddings fixture (deterministic charcode-folded 32-dim vectors) is STORED per the contract seed fact"
+    },
+    "nonclaimIfGap": "no semantic/vector retrieval is claimed: no in-handler cosine scan is offered as a vector path; the app exposes keyword retrieval only. Recording explicit GAP per the check wording."
+  },
+  "A5-06": {
+    "durableSequence": [
+      {
+        "seq": 1,
+        "stage": "accepted",
+        "detail": "question 1 accepted",
+        "at": 1785591361631
+      },
+      {
+        "seq": 2,
+        "stage": "retrieved",
+        "detail": "retrieved 5 sources; 3 candidates for 8 terms",
+        "at": 1785591361669
+      },
+      {
+        "seq": 3,
+        "stage": "ranked",
+        "detail": "ranked top candidates: Cancellation notes.pdf(4), Architecture.pdf(3), Interview notes.md(1)",
+        "at": 1785591361719
+      },
+      {
+        "seq": 4,
+        "stage": "drafted",
+        "detail": "drafted extractive answer from 2 sources",
+        "at": 1785591361770
+      },
+      {
+        "seq": 5,
+        "stage": "answered",
+        "detail": "answer committed with 2 citations",
+        "at": 1785591361822
+      }
+    ],
+    "transportAttribution": {
+      "connection": "live",
+      "transport": "stream",
+      "observer": "bruno (independent authenticated session)",
+      "perStageDeliveries": [
+        {
+          "stage": "retrieved",
+          "progressSeq": 2,
+          "deliveredMs": 47,
+          "status": "running"
+        },
+        {
+          "stage": "ranked",
+          "progressSeq": 3,
+          "deliveredMs": 51,
+          "status": "running"
+        },
+        {
+          "stage": "drafted",
+          "progressSeq": 4,
+          "deliveredMs": 53,
+          "status": "running"
+        },
+        {
+          "stage": "answered",
+          "progressSeq": 5,
+          "deliveredMs": 53,
+          "status": "complete"
+        }
+      ],
+      "driver": "four runAssistant action invocations (resumable step worker), each committing exactly one durable stage through the serialized assistStep mutation"
+    },
+    "terminalOrder": {
+      "statusAfterStream": "complete",
+      "settledAt": 1785591361822,
+      "stageSequence": [
+        "accepted",
+        "retrieved",
+        "ranked",
+        "drafted",
+        "answered"
+      ]
+    },
+    "aiBoundaryNonclaim": "no external AI provider is called by the assistant: it is the deterministic in-transaction extractive pipeline (the contract-sanctioned stub). Plain ctx.fetch egress is unregistered (known 0137-a4-f1), but the STREAMED egress lane (ctx.streamAttempt + ctx.fetchStream) is proven working by this arm (finding 0137-a5-f1) and carries the A5-12 refresh — a streaming AI-provider call is therefore authorable on 0.1.7 through the documented streamed-actions pattern"
+  },
+  "A5-07": {
+    "authoritativeAnswer": {
+      "text": "Confirmed cancellation must fence late progress patches. Cancellation safety depends on the fence being checked inside the same serialized transaction that writes progress.",
+      "citations": [
+        {
+          "sourceId": "019fbd89-ef0c-7900-9910-c4811e820ba7",
+          "title": "Cancellation notes.pdf"
+        },
+        {
+          "sourceId": "src_architecture",
+          "title": "Architecture.pdf"
+        }
+      ],
+      "createdAt": 1785591361822
+    },
+    "sourceIdValidation": {
+      "memberResolvedAll": true,
+      "invalidCitationRefusal": "citation rejected: source src_deleted_or_foreign is not in this room",
+      "validationSite": "completeAnswer validates each cited source exists in the question room inside the same transaction"
+    },
+    "authority": "citations resolve through membership-gated sourceDetail for the second member; outsider denial proven in A5-03"
+  },
+  "A5-08": {
+    "cancelSettlement": {
+      "status": "cancelled",
+      "settledAt": 1785591362018,
+      "atProgress": 3,
+      "cancelledBy": "asker (member settlement mutation)"
+    },
+    "lateAttemptInjection": {
+      "lanes": [
+        "runAssistant (worker step)",
+        "appendProgress",
+        "completeAnswer",
+        "settleQuestion(failed)"
+      ],
+      "allFenced": true,
+      "workerStepResult": {
+        "steps": 1,
+        "status": "cancelled",
+        "stage": "ranked",
+        "terminal": true,
+        "abandoned": false
+      }
+    },
+    "authoritativeLog": {
+      "progressAfter": 3,
+      "answersAfter": 0,
+      "fencedReceipts": [
+        {
+          "seq": 3,
+          "attemptSeq": 1,
+          "event": "fenced",
+          "outcome": "assistStep",
+          "detail": "late assist step fenced: question already cancelled",
+          "at": 1785591362057
+        },
+        {
+          "seq": 4,
+          "attemptSeq": 1,
+          "event": "fenced",
+          "outcome": "appendProgress",
+          "detail": "late progress patch fenced: question already cancelled",
+          "at": 1785591362076
+        },
+        {
+          "seq": 5,
+          "attemptSeq": 1,
+          "event": "fenced",
+          "outcome": "completeAnswer",
+          "detail": "late answer commit fenced: question already cancelled",
+          "at": 1785591362093
+        },
+        {
+          "seq": 6,
+          "attemptSeq": 1,
+          "event": "fenced",
+          "outcome": "settle:failed",
+          "detail": "late settlement fenced: question already cancelled",
+          "at": 1785591362110
+        }
+      ],
+      "hardTerminal": {
+        "retried": false,
+        "status": "cancelled",
+        "attemptCount": 1
+      }
+    },
+    "fenceSite": "in-transaction status check inside every durable-patch mutation (the streamed-actions guide contract: \"in-transaction terminal checks are yours\")"
+  },
+  "A5-09": {
+    "dedupeKey": {
+      "reAsk": {
+        "key": "q-cancel-safety-1",
+        "deduped": true,
+        "sameQuestionId": true
+      },
+      "concurrentRace": {
+        "key": "q-race-1",
+        "converged": true,
+        "dedupedFlags": [
+          false,
+          true
+        ]
+      }
+    },
+    "attemptLedger": [
+      {
+        "seq": 1,
+        "attemptSeq": 1,
+        "event": "started",
+        "outcome": "",
+        "detail": "attempt 1 started by ask",
+        "at": 1785591361631
+      },
+      {
+        "seq": 2,
+        "attemptSeq": 1,
+        "event": "settled",
+        "outcome": "complete",
+        "detail": "answered with 2 citations",
+        "at": 1785591361822
+      },
+      {
+        "seq": 3,
+        "attemptSeq": 1,
+        "event": "fenced",
+        "outcome": "assistStep",
+        "detail": "late assist step fenced: question already complete",
+        "at": 1785591362292
+      }
+    ],
+    "authoritativeCounts": {
+      "before": {
+        "questions": 3,
+        "answers": 1
+      },
+      "after": {
+        "questions": 4,
+        "answers": 1
+      },
+      "q1": {
+        "progress": 5,
+        "answers": 1,
+        "attemptCount": 1
+      }
+    },
+    "retryRun": {
+      "steps": 1,
+      "status": "complete",
+      "stage": "answered",
+      "terminal": true,
+      "abandoned": false
+    }
+  },
+  "A5-10": {
+    "faultInjection": {
+      "failed": "fault fail-at-draft (definite failure inside the step transaction)",
+      "timedOut": "fault abandon-after-retrieve + deterministic expireOverdue watchdog",
+      "ambiguous": "fault ambiguous-at-settle (unprovable terminal write)"
+    },
+    "stateMachineRecords": {
+      "matrix": {
+        "complete": "complete",
+        "cancelled": "cancelled",
+        "failed": "failed",
+        "timed-out": "timed-out",
+        "ambiguous": "ambiguous"
+      },
+      "q5History": [
+        {
+          "seq": 1,
+          "attemptSeq": 1,
+          "event": "started",
+          "outcome": "",
+          "detail": "attempt 1 started by ask",
+          "at": 1785591362554
+        },
+        {
+          "seq": 2,
+          "attemptSeq": 1,
+          "event": "settled",
+          "outcome": "ambiguous",
+          "detail": "terminal write outcome unprovable (simulated settlement transport loss)",
+          "at": 1785591362609
+        },
+        {
+          "seq": 3,
+          "attemptSeq": 2,
+          "event": "started",
+          "outcome": "",
+          "detail": "attempt 2 started by retry",
+          "at": 1785591362686
+        },
+        {
+          "seq": 4,
+          "attemptSeq": 2,
+          "event": "settled",
+          "outcome": "complete",
+          "detail": "answered with 2 citations",
+          "at": 1785591362709
+        }
+      ]
+    },
+    "settlement": {
+      "fiveDistinctSimultaneous": true,
+      "retryability": {
+        "cancelled": "hard-terminal (A5-08)",
+        "complete": "hard-terminal (A5-09)",
+        "ambiguous": "retryable -> converged complete, 1 answer, attempt 2"
+      }
+    }
+  },
+  "A5-11": {
+    "secondClient": {
+      "observer": "bruno (independent session, distinct principal)",
+      "handles": [
+        "questionFeed",
+        "questionThread"
+      ],
+      "deliveries": {
+        "newQuestionMs": 32,
+        "stageMs": 77,
+        "terminalMs": 235
+      },
+      "alsoInA506": [
+        {
+          "stage": "retrieved",
+          "progressSeq": 2,
+          "deliveredMs": 47,
+          "status": "running"
+        },
+        {
+          "stage": "ranked",
+          "progressSeq": 3,
+          "deliveredMs": 51,
+          "status": "running"
+        },
+        {
+          "stage": "drafted",
+          "progressSeq": 4,
+          "deliveredMs": 53,
+          "status": "running"
+        },
+        {
+          "stage": "answered",
+          "progressSeq": 5,
+          "deliveredMs": 53,
+          "status": "complete"
+        }
+      ]
+    },
+    "transportAttribution": {
+      "connection": "live",
+      "transport": "stream",
+      "polling": "never used as evidence"
+    },
+    "authority": "observer authorized by the roomMembers seat; the outsider subscription denial is A5-03 evidence; feed row attribution asserted against the asker principal"
+  },
+  "A5-12": {
+    "scheduleIdentity": {
+      "job": "refreshTick (everyMs 1000, jitter false)",
+      "cronDisabled": "suite-driven deterministic ticks",
+      "runs": [
+        {
+          "jobName": "refreshTick",
+          "scheduledAtMs": 0,
+          "outcome": "Succeeded",
+          "runId": "cron:refreshTick:scheduled:0:1"
+        },
+        {
+          "jobName": "refreshTick",
+          "scheduledAtMs": 1785591364000,
+          "outcome": "Succeeded",
+          "runId": "cron:refreshTick:scheduled:1785591364000:2"
+        }
+      ],
+      "epochCatchup": {
+        "jobName": "refreshTick",
+        "scheduledAtMs": 0,
+        "outcome": "Succeeded",
+        "runId": "cron:refreshTick:scheduled:0:1"
+      },
+      "epochNote": "epoch-0 catch-up nominal receipted (known 0137-a4-f4, cited)"
+    },
+    "runReceipt": [
+      {
+        "dedupeKey": "refresh:1785591363185",
+        "outcome": "fetched",
+        "detail": "fetched 41 bytes from the refresh endpoint (streamed lane, 41 chars)",
+        "fetchedBytes": 41
+      },
+      {
+        "dedupeKey": "refresh:1785591364339",
+        "outcome": "fetched",
+        "detail": "fetched 41 bytes from the refresh endpoint (streamed lane, 41 chars)",
+        "fetchedBytes": 41
+      },
+      {
+        "dedupeKey": "refresh:1785591364392",
+        "outcome": "fetched",
+        "detail": "fetched 41 bytes from the refresh endpoint (streamed lane, 41 chars)",
+        "fetchedBytes": 41
+      }
+    ],
+    "outboundLeg": {
+      "providerReached": true,
+      "providerRequests": [
+        {
+          "at": 1785591363196,
+          "authValid": true
+        },
+        {
+          "at": 1785591364351,
+          "authValid": true
+        },
+        {
+          "at": 1785591364403,
+          "authValid": true
+        }
+      ],
+      "outcomes": [
+        "fetched",
+        "fetched"
+      ],
+      "fetchedBytes": [
+        41,
+        41
+      ],
+      "lane": "ctx.streamAttempt + ctx.fetchStream (guide backend/streamed-actions) with the Bearer secret staged via ctx.secrets — the streamed lane is the ONLY working egress on 0.1.7: plain ctx.fetch stays SNAPBACK_HANDLER_HOST_CALL_UNKNOWN (known 0137-a4-f1; narrowed by this arm's finding 0137-a5-f1, probe + first-run receipts retained)"
+    },
+    "canarySecretScan": {
+      "targets": [
+        "refreshLedgerRows",
+        "cronTickResponses",
+        "manualActionEnvelope",
+        "configStatus",
+        "devServerOutput",
+        "allEvidenceSoFar"
+      ],
+      "leaks": [],
+      "clean": true
+    },
+    "redactedConfigProof": {
+      "entry": {
+        "name": "refreshToken",
+        "set": true,
+        "secret": true
+      },
+      "valueDisclosed": false
+    },
+    "authority": {
+      "memberLedgerRead": "SNAPBACK_AUTH_PERMISSION_DENIED",
+      "outsiderRun": "SNAPBACK_HANDLER_FAILED"
+    }
+  },
+  "A5-13": {
+    "targetBoundPlan": "suite-owned dev database in the arm directory only; uploaded assets deleted and verified retired; config unset through admin custody; seats retired by self-removal (0137-a3-f1 cited); receipted versioned reset-installs",
+    "cleanupReceipts": [
+      {
+        "operation": "reset-install",
+        "outcome": "reset-installed",
+        "seedVersion": "a5-research.2026-08-01.2",
+        "resetDeletedRows": 77
+      },
+      {
+        "operation": "reset-install",
+        "outcome": "reset-installed",
+        "resetDeletedRows": 13
+      }
+    ],
+    "configCleared": true,
+    "assetsRetired": {
+      "cancelNotes": {
+        "delete": 200,
+        "postDeleteRead": 404
+      }
+    },
+    "schedules": {
+      "cronDisabledWholeRun": true,
+      "finalTickRuns": 0
+    },
+    "postCleanupNegative": {
+      "afterLeave": "SNAPBACK_AUTH_PERMISSION_DENIED",
+      "afterReset": "SNAPBACK_AUTH_PERMISSION_DENIED",
+      "final": "SNAPBACK_AUTH_PERMISSION_DENIED"
+    },
+    "fixtureVerification": {
+      "sources": 4,
+      "embeddings": 4,
+      "questions": 0,
+      "refreshRuns": 0,
+      "assetRefsClean": true
+    }
+  }
+}

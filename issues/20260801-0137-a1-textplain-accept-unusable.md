@@ -13,3 +13,16 @@ fixture to a PDF (magic-detectable) to proceed.
 
 Fix shape: bounded text sniffing (valid UTF-8/ASCII -> text/plain), or refuse
 at generation any accept entry the detector can never produce.
+
+---
+
+**2026-08-01 (A5 arm workaround confirmation):** declaring
+`application/octet-stream` in the accept list makes text-shaped research
+files (markdown bytes) upload and finalize cleanly — the A5 arm's
+`sourceUpload` intent used
+`mediaTypes: ['application/pdf', 'application/octet-stream']` and both a
+built PDF and raw `.md` bytes published `ready`
+(`demos/improvement-sweep/arms/a5-snapback-web/evidence/scenario-evidence.json`
+A5-02). The a1-f10 hazard is specifically a `text/plain` accept entry;
+the octet-stream spelling is a usable documented-detector workaround
+until sniffing lands.

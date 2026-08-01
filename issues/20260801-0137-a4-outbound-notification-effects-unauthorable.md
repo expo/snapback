@@ -34,3 +34,17 @@ packaged-closure conformance test that executes a fetching action against
 a local HTTP fixture, and an actions-guide example that is that test's
 source (the guide currently teaches only the broken form; the working
 inline form is undocumented).
+
+---
+
+**2026-08-01 (A5 arm — claim NARROWED):** "every action form fails" no
+longer holds. The A5 arm proved `host.fetchStream` IS registered and the
+whole streamed lane works on packaged 0.1.7 (inline `ctx.streamAttempt`
+custody + `ctx.fetchStream` reader + headers/secrets reaching the
+upstream + `bounded_response_stream_v1` admission on a sessions target).
+Plain inline `ctx.fetch` re-verified broken byte-identically
+(`SNAPBACK_HANDLER_HOST_CALL_UNKNOWN: host.fetch`). The narrowed defect —
+the streamed lane is the ONLY working egress and undocumented as such —
+is tracked in
+issues/20260801-0137-a5-streamed-lane-is-the-only-working-egress.md
+(finding 0137-a5-f1).

@@ -1,0 +1,12 @@
+{
+  "phase": "phase1-attempt-only",
+  "bootFailure": null,
+  "devTail": null,
+  "probeAttempt": {
+    "startOutcome": "ok",
+    "startShape": "keys=attemptToken,leaseHeld,progressCommits,runnerGeneration,terminal terminal=null",
+    "settleOutcome": "ok: {\"cause\":\"complete\",\"effectMayHaveExecuted\":false,\"settledBy\":\"authored\"}",
+    "rejoinOutcome": "terminal={\"cause\":\"complete\",\"effectMayHaveExecuted\":false,\"settledBy\":\"authored\"}"
+  },
+  "probeFetchStream": null
+}

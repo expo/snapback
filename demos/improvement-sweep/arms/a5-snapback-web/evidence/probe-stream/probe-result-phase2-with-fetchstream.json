@@ -1,0 +1,23 @@
+{
+  "phase": "phase2-with-fetchstream",
+  "bootFailure": null,
+  "devTail": null,
+  "probeAttempt": {
+    "startOutcome": "ok",
+    "startShape": "keys=attemptToken,leaseHeld,progressCommits,runnerGeneration,terminal terminal=null",
+    "settleOutcome": "ok: {\"cause\":\"complete\",\"effectMayHaveExecuted\":false,\"settledBy\":\"authored\"}",
+    "rejoinOutcome": "terminal={\"cause\":\"complete\",\"effectMayHaveExecuted\":false,\"settledBy\":\"authored\"}"
+  },
+  "probeFetchStream": {
+    "outcome": "ok",
+    "reads": 3,
+    "totalBytes": 24,
+    "text": "chunk-one chunk-two done"
+  },
+  "upstreamSawHeaders": [
+    {
+      "auth": "Bearer probe-token-abc",
+      "probe": "a5"
+    }
+  ]
+}

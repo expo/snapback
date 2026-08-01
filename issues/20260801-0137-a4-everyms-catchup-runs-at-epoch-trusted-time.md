@@ -20,3 +20,19 @@ way keep run identity deterministic — and document the rule. Witness: a
 conformance job records ctx.runtime.now() on its first tick and the value
 is within one interval of wall clock; a past-due time-gated scan delivers
 on the first effective run.
+
+---
+
+**2026-08-01 (A5 arm re-verification + refinement):** the epoch-0
+catch-up run reproduced on the A5 refresh cron
+(`{scheduledAtMs: 0, Succeeded}`, evidence
+`demos/improvement-sweep/arms/a5-snapback-web/evidence/scenario-evidence.json`
+A5-12 scheduleIdentity). Refinement: the epoch clock applies to the
+ACTION invocation only — mutations the action runs via `ctx.runMutation`
+during that same catch-up run see their own real trusted time (A5's
+`beginRefresh` minted real-timestamp dedupe keys like
+`refresh:1785591363185` inside the slot-0 run, never `refresh:0`). So
+time-gated logic is wrong at epoch only when it uses the action's clock
+or an action-passed `now`; nested-mutation clocks are sound — and the
+two clocks being different trusted values inside one run is itself worth
+documenting.

@@ -1,0 +1,206 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "arm": {
+    "contract": "a5",
+    "armKind": "snapback-web",
+    "platform": "web",
+    "provider": "snapback",
+    "attemptId": "a5-snapback-web-darwin-arm64-20260801"
+  },
+  "packageVersions": {
+    "@expo/snapback-cli": "0.1.7",
+    "@expo/snapback-app-cli": "0.1.7 (installed in the consumer root; the scaffolded app's bin resolves to @expo/snapback-cli)",
+    "@expo/snapback-client": "0.1.7",
+    "@expo/snapback-codegen": "0.1.7",
+    "@expo/snapback-contract": "0.1.7",
+    "@expo/snapback-react": "0.1.7",
+    "@expo/snapback-vite": "0.1.7",
+    "@expo/snapback-runtime-darwin-arm64": "0.1.7",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "vite": "8.2.0",
+    "typescript": "5.9.3",
+    "jsdom": "28.0.0 (dev-only, render proof)"
+  },
+  "environment": {
+    "host": "macOS (Darwin 25.5.0), arm64",
+    "node": "24.18.0 (volta)",
+    "bun": "1.3.12",
+    "registry": "https://registry.npmjs.org",
+    "externalDirectory": "session scratchpad sweep-a5/consumer/{research-app,probe-stream} — outside any Snapback checkout; scaffolded by `snapback new --template react`; research view of the frozen neutral-web shell wired live (other five views static placeholders); probe-stream is a second minimal consumer app isolating the streamed-action capability probes",
+    "sanctionedDocumentation": [
+      "the shipped Snapback guide (index, capabilities, streamed-actions, actions-and-fetch, cron, assets, queries, mutations, versioned-seeds, your-first-backend, sessions/scoped-roles pages)",
+      "prior 0137 arm records (G1/A2/A1/A3/A4 capsules, diaries, findings, retained acceptance sources) for known defects and the sessions persona / dev-lifecycle / raw asset-upload / config-and-cron API recipes — program records, not product documentation"
+    ],
+    "authMode": "sessions (email-code provider; membership entry through seeded invite rows + the documented app-data-invitation self-insert pattern; server env SNAPBACK_OUTBOUND_ACTIONS=1 and SNAPBACK_CRON_DISABLED=1)"
+  },
+  "budget": {
+    "class": "deep",
+    "ceilings": { "activeHours": 8, "toolCalls": 400 },
+    "wallClock": {
+      "orientationStart": "2026-08-01T12:52:00Z",
+      "externalBuildStart": "2026-08-01T13:05:39Z",
+      "firstFullSuiteGreen": "2026-08-01T13:26:34Z (10 pass / 1 gap / 2 fail)",
+      "streamedLaneRefreshGreen": "2026-08-01T13:34:00Z (A5-12 flipped to pass over ctx.fetchStream)",
+      "finalGreenVerification": "2026-08-01T13:36:05Z (suite, v.json final shape) / 13:44Z (tsc + vite + jsdom re-proof)",
+      "orientationMinutes": 14,
+      "activeBuildMinutes": 40,
+      "recordsPhase": "13:50Z onward (findings, tickets, capsule, diary, status, freeze/ref checks, rebase, commit)"
+    },
+    "toolCalls": {
+      "throughFinalVerification": 78,
+      "recordsPhaseEstimate": "~40 additional",
+      "note": "counted from the session transcript; well under the 400-call deep ceiling including records"
+    },
+    "ceilingExceeded": false
+  },
+  "actors": {
+    "builder": "Claude (Fable 5), LLP 0137 Stage 2 fifth diaried sweep arm (A5), external-consumer posture",
+    "personas": {
+      "alice": "alice@sweep-a5.test (room owner via seeded invite INV-OWNER-3401; asks the questions; drives the assistant; alice-verify / alice-final sessions for the cleanup legs)",
+      "bruno": "bruno@sweep-a5.test (member via seeded invite INV-MEMBER-7702; the second live client / observer)",
+      "mallory": "mallory@sweep-a5.test (authenticated outsider, no seat)",
+      "render": "render-owner / render-member @sweep-a5.test (jsdom render proof, own fresh database)",
+      "probe": "probe@sweep-a5.test (probe-stream app)"
+    },
+    "principalDerivation": "server-minted sessions via email-code exchange; question/source/attempt attribution asserted against the server principal, never client-supplied"
+  },
+  "targets": {
+    "kind": "fresh-isolated-local",
+    "targetProfile": "local-dev-sqlite-ibex",
+    "appId": "research-app",
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:b0bee8dc647db17eb7f2db9ef699ed1280d3e2ca0eaf2130f68473d3281a661c",
+    "seedIdentity": "a5-research.2026-08-01.2 (dataVersionStream 019fbd89-ee2a-7342-8690-8de8aa06b3e4 in the final green run; .1 was burned by the SNAPBACK_SEED_VERSION_REUSED ledger when the embedding-vector column moved from JSON text to v.json() — the ledger correctly refused changed bytes under a reused version)",
+    "database": "app-local .snapback/dev.sqlite3, deleted before each suite run so the supervisor installs the versioned seed fresh",
+    "serverUrl": "http://127.0.0.1:4292",
+    "port": 4292,
+    "portDiscipline": "runtime port scan with suite guard-blocks on 4287-4291 (prior arms) during spawn; never 4420; an UNRELATED fleet session's snapback server (started 2026-07-27 from the main checkout, --memory) was listening on 4287 the whole arm and was left untouched — the guards made the arm's servers land on 4292",
+    "runtimeBinary": "node_modules/@expo/snapback-runtime-darwin-arm64/bin/snapback, sha256 6c5c956750edc1be016823824bf5e28a3e969810aed6d7299cf5f593fa2023fe (byte-identical to the A1/A2/A3/A4 arms' 0.1.7 publication)",
+    "refreshContentServer": "suite-owned local HTTP server (port 0) REQUIRING the Bearer canary secret (401 otherwise); reached only by the app server's streamed fetch — every arrived request carried the staged secret",
+    "hostedTarget": "none — A5 ran as a local-target contract; hosted availability remains the program-level gate"
+  },
+  "milestones": {
+    "closureInstalled": "2026-08-01T13:05:45Z (npm, 13 packages, ~6s)",
+    "scaffolded": "2026-08-01T13:07Z (snapback new --template react + bun install 1.7s)",
+    "backendAuthored": "2026-08-01T13:07-13:20Z (11 tables incl. membership + embeddings fixture + refresh ledger, 25 operations; fail-closed iterations: dynamic computed member access, empty writes, v.array table fields)",
+    "firstServerLoadedAndFirstRead": "2026-08-01T13:26Z (first full suite boot: seed install + roomOverview)",
+    "firstMutation": "2026-08-01T13:26Z (redeemInvite via seeded invite)",
+    "verifiedRealtime": "2026-08-01T13:26Z (A5-06 observer deliveries 49-59ms on the first full run)",
+    "localAcceptance13Checks": "2026-08-01T13:36:05Z final (11 pass / 1 explicit GAP / 1 evidenced-defect fail, expectedChecks=13 enforced; suite wall 5.0s)",
+    "uiTypecheckAndBuild": "2026-08-01T13:44Z (tsc --noEmit clean; vite build ok)",
+    "reactRuntimeRender": "2026-08-01T13:44Z (jsdom render of the app's own ResearchView: 4 seeded sources; an independent client's question streams running -> complete with 2 citations in the DOM; two nested provider-owned live-query groups)",
+    "streamedLaneProbe": "2026-08-01T13:30-13:35Z (probe-stream app: streamAttempt custody, fetchStream reader, headers/secrets to upstream — finding 0137-a5-f1)",
+    "hostedUrl": "not-applicable (local contract)",
+    "cleanup": "2026-08-01T13:36:05Z (dev child stopped via stdin close, port refused after stop; final lsof over 4287-4295 shows only the pre-existing unrelated fleet listener on 4287)"
+  },
+  "assistanceEvents": [
+    {
+      "elapsedMs": 300000,
+      "kind": "prior-arm-records",
+      "reason": "the sessions test-persona recipe, dev-server lifecycle ownership, versioned-seed admin custody, raw asset attempt/TUS/finalize upload, and the config/cron admin API shapes are still undocumented in the guide",
+      "informationSupplied": "reused the recipes from the A4 arm's retained acceptance source (which derives from A2/A1/A3's packaged-bytes reads)",
+      "equivalentOpportunityOffered": "same program records available to the sweep; already owned by findings 0137-a2-f6, 0137-a1-f9, 0137-a1-f3, 0137-a4-f7 (not re-filed)",
+      "postureBreak": false
+    }
+  ],
+  "postureBreaks": [],
+  "commands": [
+    "npm install --save-exact @expo/snapback-{cli,app-cli,client,codegen,contract,react,vite}@0.1.7",
+    "snapback new research-app --template react && bun install",
+    "SNAPBACK_OUTBOUND_ACTIONS=1 snapback generate snapback (suite's dev loop regenerates per boot)",
+    "node acceptance.a5.mjs (13-check suite; owns its dev server + strict-auth refresh content server)",
+    "snapback new probe-stream --template react (isolated streamed-action capability probe app); node probe-run.mjs (two phases)",
+    "tsc --noEmit && vite build",
+    "node ui-render.mjs (auxiliary jsdom render proof, own dev server)",
+    "bun add -d jsdom"
+  ],
+  "scenarioResults": [
+    { "id": "A5-01-SEED", "result": "pass", "evidencePaths": ["evidence/report.json", "evidence/scenario-evidence.json"], "note": "versioned seed installs the room + 4 sources (served hashes equal the literal fixture's) + 4 deterministic 32-dim embedding-fixture rows + 3 invites on a fresh managed database; 3 distinct principals; owner/member seats claimed through seeded invites; seed identity a5-research.2026-08-01.2 receipted through admin custody" },
+    { "id": "A5-02-SOURCES", "result": "fail", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "POSITIVE: owner PDF upload via raw attempt/TUS/finalize (a1-f3 cited) publishes ready; markdown bytes upload under the application/octet-stream accept (a1-f10 workaround generalizes); metadata rows carry asset reference + uploader; owner strict download 200 with private/no-store and stable digest; non-owner delete refused; owner delete stops delivery and the corpus row + embedding retire. FAIL: the seated MEMBER cannot download a shared source (403) — no non-owner viewer is authorizable on 0.1.7 (known chain 0137-a1-f2/0137-a1-f3/0137-a4-f3 cited; signed-url 404); the extracted TEXT corpus stays member-readable through queries, raw bytes are owner-locked" },
+    { "id": "A5-03-OUTSIDER", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "authenticated outsider denied uniformly (SNAPBACK_AUTH_PERMISSION_DENIED) on 11 surfaces: overview, source list/detail, search, embeddings, feed, refresh ledger, ask/addSource/setRefreshSource writes, and the live stream subscription; file bytes 403; invite guess refused; action boundary refused with the collapsed code (0137-a4-f5/0137-a3-f3 cited)" },
+    { "id": "A5-04-KEYWORD", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "membership-gated handler-query retrieval returns the frozen expected set for 'cancellation safety' — Cancellation notes.pdf(4), Architecture.pdf(3), Interview notes.md(1) with snippets — identical for both members; 'vector' partitions to Roadmap.txt only; the native searchIndex cannot express room-member visibility (0137-a3-f2 cited) so the query path is the honest index-or-query-proof" },
+    { "id": "A5-05-VECTOR", "result": "gap", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "explicit GAP per the check wording: no ordinary vector path ships on 0.1.7 (capability index backend.vector-search: design-only; LLP 0132 Accepted 2026-07-31, unimplemented; generated-surface scan shows zero vectorish exports); the deterministic 32-dim embeddings fixture is STORED and inventoried; nonclaim recorded — no in-handler cosine offered as vector retrieval" },
+    { "id": "A5-06-PROGRESS", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "four separately committed durable pipeline stages (retrieved/ranked/drafted/answered) before terminal completion, each delivered live to the second member in 49-59ms over the managed stream; progress rows seq 1-5 strictly ordered, settled after the stream; live rows equal the authoritative snapshot; the assistant is a resumable step worker (serialized assistStep mutation looped by the runAssistant action); no external AI provider called — deterministic extractive stub (contract-sanctioned), with the streamed egress lane separately proven authorable (0137-a5-f1)" },
+    { "id": "A5-07-CITATIONS", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "the answer carries exactly [Cancellation notes.pdf, Architecture.pdf], both resolving through membership-gated sourceDetail for the second member; completeAnswer validates every cited source against the question's room inside the transaction; an invalid citation is refused at commit ('citation rejected')" },
+    { "id": "A5-08-CANCEL", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "confirmed cancellation at 3/5 stages; late-attempt injection over ALL FOUR durable-patch lanes (worker step, appendProgress, completeAnswer, re-settle) fenced in-transaction — no late progress row, no answer, terminal record byte-stable — with every fence receipted append-only in the attempt ledger; cancelled is hard-terminal (retry refused); the fence is the streamed-actions guide contract ('in-transaction terminal checks are yours')" },
+    { "id": "A5-09-RETRY", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "same-dedupe-key re-ask (different text) returns the committed question; a concurrent two-client ask under one fresh key converges on ONE question (exactly one insert, one dedupe); the worker replayed against the completed question is fenced without new writes (5 progress, 1 answer, attemptCount 1); room counts unchanged by retries" },
+    { "id": "A5-10-OUTCOMES", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "complete, cancelled, failed (fail-at-draft fault), timed-out (abandoned worker + deterministic expireOverdue watchdog), and ambiguous (unprovable settlement fault) all simultaneously distinct on the feed with settlement records and terminal details; retryability split proven: cancelled/complete hard-terminal, ambiguous reopens (attempt 2) and converges to complete with exactly one answer" },
+    { "id": "A5-11-OBSERVER", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "the second member (distinct principal, own session) observed a fresh question arrive on the live feed in 35ms, a pipeline stage in 85ms, and terminal completion in 216ms over transport:'stream'; observer rows equal the authoritative snapshot; plus the four per-stage deliveries recorded in A5-06" },
+    { "id": "A5-12-REFRESH", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json", "evidence/probe-stream/probe-result-phase2-with-fetchstream.json"], "note": "scheduled external refresh ran END TO END over the streamed egress lane (ctx.streamAttempt keyed by run dedupe + ctx.fetchStream + Bearer secret staged via ctx.secrets): 3 receipted nominals, 41 bytes drained per run, one receipt per nominal; the strict provider 401s without the secret and every arrived request carried it (server-side custody); canary absent from 6 client-visible surfaces incl. dev output and all prior evidence; config status redacted (set:true secret:true); epoch-0 catch-up nominal receipted (0137-a4-f4 cited, with the nested-mutation real-clock refinement); plain ctx.fetch re-verified broken (0137-a4-f1) — the streamed-lane split is this arm's finding 0137-a5-f1" },
+    { "id": "A5-13-CLEANUP", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "config unset through admin custody; uploaded asset deleted with byte-lane refusal verified; refresh source disabled; seats self-removed (membership unseedable — 0137-a3-f1 cited); two receipted versioned reset-installs (deleted 77 + 13 rows) restore the literal fixture (4 sources, 4 embeddings, 0 questions/answers/receipts, no dangling asset refs, invites redeemable); post-cleanup fresh-session negative denied; unrelated fleet listener on 4287 untouched" }
+  ],
+  "expectedCheckCount": 13,
+  "findings": [
+    "0137-a5-f1-streamed-lane-is-the-only-working-egress",
+    "0137-a5-f2-varray-field-refusal-hides-vjson",
+    "0137-a5-f3-guide-gap-inline-handler-subset-undocumented"
+  ],
+  "differentiators": [
+    {
+      "observation": "The sessions + streamed-actions composition that PRODUCT-BLOCKED the frozen 0102-epoch Snapback research-room arm (1 pass / 2 GAP / 12 fail: cold-start preflight refused bounded_response_stream_v1) now works end to end on the public packaged closure: the artifact admits on a sessions target, ctx.streamAttempt provides lease + crash-safe terminal-winner custody with effectMayHaveExecuted and idempotent rejoin, and ctx.fetchStream drains a real upstream with secrets staged server-side. The exact composition 0031 demanded as 'a CI sessions-plus-streamed-actions fixture' is externally reproduced by this arm.",
+      "mustNotRegress": "bounded_response_stream_v1 admission on sessions targets; the streamAttempt custody surface (lease, terminal winner, effectMayHaveExecuted, idempotent rejoin); staged secrets reaching the upstream and never any client-visible surface.",
+      "referenceEvidence": "evidence/probe-stream/*; scenario-evidence.json A5-12; diaries/0031 (Snapback product-blocked arm)"
+    },
+    {
+      "observation": "The AI-pipeline product shape needed no scheduler service and no external workflow engine: a serialized per-stage mutation (assistStep) makes naive fence logic correct, an action loop turns it into 4 separately committed durable progress updates with 35-85ms live observer deliveries, and the same in-transaction status check IS the cancellation fence. The frozen Convex arm needed scheduled mutations for the same durable-progress shape; SpacetimeDB/InstantDB could not express it at all.",
+      "mustNotRegress": "Serialized commit order making read-check-write stage logic correct; live composition queries (question + progress + answer in one registered live query) delivering each commit to authorized subscribers.",
+      "referenceEvidence": "scenario-evidence.json A5-06/A5-08; diaries/0031 (Convex scheduled-mutation progress; InstantDB/SpacetimeDB gaps)"
+    },
+    {
+      "observation": "Cancellation fencing produced an auditable authoritative log, not just absence of damage: every late durable-patch lane (worker step, direct progress, answer commit, re-settle) was fenced AND receipted append-only in the attempt ledger, with the terminal record byte-stable — evidence quality beyond the frozen arms, where fencing was proven by absence only.",
+      "mustNotRegress": "In-transaction fences writing only fence receipts; append-only attempt ledgers surviving as authoritative history.",
+      "referenceEvidence": "scenario-evidence.json A5-08 authoritativeLog"
+    },
+    {
+      "observation": "Secret custody is clean by construction where the frozen Convex arm had its Stop-class defect: no control credential in argv, loopback-bound local services, the canary secret absent from receipts, ledgers, tick responses, dev output, and all prior evidence, and config status reporting custody (set/secret) but never bytes — while the secret provably REACHED the external provider from the server (strict 401 provider).",
+      "mustNotRegress": "Value-free diagnostics and receipts; ctx.secrets staging with the redactor covering stream error envelopes; admin config custody reporting set/secret only.",
+      "referenceEvidence": "scenario-evidence.json A5-12 canarySecretScan; diaries/0031 (Convex argv/wildcard Stop)"
+    },
+    {
+      "observation": "Acceptance velocity: the full 13-check suite — fresh versioned-seed install, 8 sign-ins, two file uploads, a five-outcome fault matrix, live observer legs, scheduler ticks with real egress, and two receipted reset-installs — runs in 5.0s wall; the deterministic tick seam and the versioned-seed reset receipts made every scheduler and cleanup fact collectable without sleeping on cadences.",
+      "mustNotRegress": "Machine-readable dev lifecycle; admin tick seam; receipted reset-install restoring the literal fixture including named-empty runtime tables.",
+      "referenceEvidence": "evidence/report.json (startedAt/finishedAt); scenario-evidence.json A5-13"
+    },
+    {
+      "observation": "Fixture-identity integrity guarded the arm's own evidence: changing seed bytes (JSON-text vector -> v.json array) under a reused seedVersion was refused by the SNAPBACK_SEED_VERSION_REUSED ledger with both digests named — the versioned-seed system treats seed identity as immutable evidence, which no frozen 0102 arm's backend offered.",
+      "mustNotRegress": "The seed-version ledger refusing changed bytes under a reused identity.",
+      "referenceEvidence": "diaries/0046 (the .1 -> .2 bump); A4 capsule seedIdentity note (same behavior)"
+    }
+  ],
+  "inventory": {
+    "authored": {
+      "backend": "snapback/schema.mjs (183 lines: 11 tables incl. membership, embeddings fixture, question state machine, progress/attempt ledgers, refresh settings+runs), snapback/functions.mjs (1230: 25 operations — 9 queries/live queries incl. the composed thread, 14 mutations incl. the staged assistant brain and fences, 2 actions), snapback/seed.json (276, generated by gen-seed.mjs 67 so content hashes and fixture embeddings are computed with the app's own embed function)",
+      "ui": "src/research-view.mjs (85, the shared live research surface with a nested thread panel), src/App.tsx (90, frozen shell + wired research view), src/main.tsx (93, sessions boot + invite deep link)",
+      "acceptance": "acceptance.a5.mjs (1076, 13 checks + own dev server + strict-auth refresh provider + PDF builder), ui-render.mjs (161, auxiliary jsdom proof)",
+      "probes": "probe-stream app (probe-functions.mjs 118, probe-run.mjs 105, own schema/seed) — the streamed-action capability probe, retained in evidence/probe-stream"
+    },
+    "scaffolded": "react template (12 files) from snapback new, twice (research-app + probe-stream)",
+    "generated": "84 codegen files (25 operations); inputsHash b0bee8dc…",
+    "policy": "roomMembers scoped-role declaration (owner/member, invite self-insert + self-remove transitions); every protected operation requireRole-gated; owner-only refresh ledger/settings; uploader-or-owner source removal; one asset intent (private-strict, via-references declared, octet-stream+pdf accept)",
+    "glue": "suite-owned strict-auth refresh content server is test fixture; app-level workaround shapes: plain-string asset reference on sources (a1-f1), raw attempt/TUS/finalize upload (a1-f3), charCodeAt/charAt tokenizer walks + index-matched vector accumulation (a5-f3), declared-superset writes on beginRefresh (a5-f3); the JSON-string column detour was REMOVED after the v.json() probe (a5-f2) — the retained app is the documented shape",
+    "evidenceRetained": [
+      "evidence/report.json",
+      "evidence/scenario-evidence.json",
+      "evidence/ui-render.json",
+      "evidence/probe-stream/probe-result-phase1-attempt-only.json",
+      "evidence/probe-stream/probe-result-phase2-with-fetchstream.json",
+      "evidence/app/*",
+      "evidence/probe-stream/*"
+    ]
+  },
+  "attribution": {
+    "transport": "managed WebSocket stream (transport:'stream', connection:'live') for every live claim — per-stage observer deliveries 35-85ms (A5-06/A5-11), new-question feed delivery 35ms; polling never used as evidence; searches and detail reads are ordinary request-response queries and claimed as such",
+    "authority": "server-authoritative sessions mode: server-minted principals, requireRole membership gates on every protected read/subscribe/write incl. the composed thread; asker/uploader attribution from session principals; the outsider uniformly denied incl. the live subscription; asset delivery re-authorized per request (owner-locked on 0.1.7 — cited chain); refresh ledger and settings owner-only; cron runs with system authority and human invocations re-gated",
+    "settlement": "structured mutation envelopes with receipts; question dedupe by (roomId, dedupeKey) unique index with concurrent-ask convergence; the question state machine settles into five distinct terminal states with settledAt + terminalDetail; in-transaction fences receipt every late attempt append-only; the streamed refresh keys a host streamAttempt per nominal (durable winner custody, effectMayHaveExecuted) and receipts one run per dedupe key; reset-install receipts carry deleted-row counts"
+  },
+  "stopDefects": [],
+  "cleanup": {
+    "processes": "suite, probes, and render phase stop their own spawned children (stdin close, verified exit); no processes under the arm's app directories after the final runs",
+    "listeners": "arm servers on 4292 (guards blocked 4287-4291 during spawn); port refused after stop; 4420 never used; final lsof over 4287-4295 shows only the pre-existing unrelated fleet listener on 4287 (another session's 2026-07-27 main-checkout server, left untouched)",
+    "unrelatedState": "nothing outside the arm-owned app directories touched; acceptance clients run rqsStore:null so no durable client store was created; the refresh content server bound port 0 and closed with the suite",
+    "database": "arm-owned .snapback/dev.sqlite3 left at the literal versioned seed by the second receipted reset-install (zero memberships, zero questions/answers/receipts, redeemable invites, no dangling asset references); config entry unset; retained in the session-isolated scratchpad; no secrets copied into any record",
+    "externalDirectory": "scratchpad sweep-a5/consumer/{research-app,probe-stream} retained as the working area; durable evidence copied into this arms/ directory"
+  },
+  "result": "complete"
+}

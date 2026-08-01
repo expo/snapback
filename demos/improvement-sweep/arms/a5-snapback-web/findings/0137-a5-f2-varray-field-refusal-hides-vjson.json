@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "findingId": "0137-a5-f2-varray-field-refusal-hides-vjson",
+  "dimension": "diagnostics-docs-agent-usability-and-escape-hatches",
+  "observation": {
+    "description": "The validator vocabulary is asymmetric across the three authoring positions and the field-side refusal does not name the supported spelling. v.array(...) is accepted in RESULT schemas (results.records nested arrays, A4 precedent) and in mutation ARGS (completeAnswer's citations array validated fine), but a TABLE FIELD declared v.array(v.number()) refuses at generation with SCHEMA_INVALID_VALIDATOR: 'sourceEmbeddings.vector has unsupported validator primitive/field type \"array\"/\"Json\"' — a message that names the internal Json primitive yet does not say that v.json() IS the documented, working column type for exactly this value (guide getting-started/your-first-backend.md lists it in the complete validator set). This arm first shipped a JSON-string workaround (vector and citations as JSON text with stringify/parse at every boundary) before a probe showed v.json() generates and round-trips arrays/objects natively. Cost: one avoidable modeling detour on a natural research-room shape (citations {sourceId,title}[], 32-dim embedding vectors).",
+    "evidence": [
+      "demos/improvement-sweep/arms/a5-snapback-web/evidence/app/schema.mjs (final v.json() shape with the observation note)",
+      "demos/improvement-sweep/arms/a5-snapback-web/evidence/probe-stream/probe-schema.mjs (the v.json() probe field)",
+      "diaries/0046-a5-ai-research-room-sweep.diary.md (the detour and the exact diagnostic)"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Convex table fields take v.array(v.number()) and nested objects directly, so the same schema spelling works in every position; frozen 0102 research-room arms stored embedding fixtures as ordinary array columns without a detour.",
+    "source": "frozen-0102",
+    "sourceDate": "2026-07-29",
+    "reference": "diaries/0031-research-room-backend-bakeoff.diary.md (Convex arm: one schema declared ordinary, full-text, and vector indexes)"
+  },
+  "classification": "experience",
+  "mustNotRegress": "results.records/args accepting structured v.array validators, and v.json() fields round-tripping arrays and nested objects through insert, patch, live queries, and versioned seeds (all proven this arm).",
+  "smallestCoherentFix": "Either accept v.array(inner) on table fields as sugar for v.json() (keeping the stored primitive identical), or make the SCHEMA_INVALID_VALIDATOR diagnostic say 'use v.json() for structured columns' — plus one guide line in your-first-backend.md noting that arrays as column values are spelled v.json().",
+  "acceptanceWitness": "A clean consumer declaring a v.array field either generates successfully (sugar) or receives a diagnostic that names v.json(); a grep of the diagnostic text for 'v.json' passes.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a5-varray-field-refusal-hides-vjson.md"
+  },
+  "stopClass": false,
+  "budgetFinding": false
+}
