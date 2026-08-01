@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/snapback-r2/deletePost.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "postId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "postId"
+  ],
+  "title": "snapback-r2:deletePost arguments",
+  "type": "object"
+}

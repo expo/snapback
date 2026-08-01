@@ -1,0 +1,153 @@
+{
+  "appId": "snapback-r2",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "auth": {
+    "mode": "sessions"
+  },
+  "ephemeralCollections": [],
+  "generatedAt": 0,
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:1505ee67a983e5f2ff525ae26f89d486a66cad57a0e2f25c0772970c5119b1d1",
+  "portabilityFlags": [],
+  "requiredCapabilities": [
+    "auth.sessions.v1"
+  ],
+  "schemaHash": "snapback.v1:sessions:schema:sha256:1550090dc3c04a2c52819750898b907739edbf65b0504707f6428269b503d85b",
+  "schemaVersion": "snapback.v1",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "title",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "hostName",
+          "optional": false
+        }
+      ],
+      "indexes": [],
+      "name": "events",
+      "syncable": false
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "events"
+            }
+          },
+          "name": "eventId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "userId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "role",
+          "optional": false
+        }
+      ],
+      "indexes": [],
+      "membership": {
+        "bootstrapRole": "host",
+        "id": "eventMembers",
+        "lastHolder": {
+          "protect": "host"
+        },
+        "principal": "userId",
+        "provenance": "full",
+        "resource": "eventId",
+        "resourceTable": "events",
+        "role": "role",
+        "roles": [
+          "host",
+          "guest"
+        ],
+        "scope": "resource",
+        "transitions": [
+          {
+            "by": [
+              "host"
+            ],
+            "op": "insert",
+            "target": "other",
+            "to": [
+              "guest"
+            ]
+          },
+          {
+            "by": [
+              "self"
+            ],
+            "from": [
+              "guest"
+            ],
+            "op": "remove",
+            "target": "self"
+          }
+        ]
+      },
+      "name": "eventMembers",
+      "syncable": false
+    },
+    {
+      "assetSharing": {
+        "kind": "membership",
+        "membership": "eventMembers"
+      },
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "events"
+            }
+          },
+          "name": "eventId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "authorId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "authorName",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "caption",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "AssetRef": {
+              "upload": "photoUpload"
+            }
+          },
+          "name": "photo",
+          "optional": true
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "eventId"
+          ],
+          "name": "by_event"
+        }
+      ],
+      "name": "posts",
+      "syncable": true
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

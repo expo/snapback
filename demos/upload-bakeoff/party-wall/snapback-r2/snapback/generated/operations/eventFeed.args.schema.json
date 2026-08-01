@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/snapback-r2/eventFeed.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "eventId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "eventId"
+  ],
+  "title": "snapback-r2:eventFeed arguments",
+  "type": "object"
+}

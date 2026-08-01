@@ -1,0 +1,134 @@
+{
+  "artifactKind": "providerBindingMetadata",
+  "bindings": {
+    "actions": [],
+    "ephemeral": [],
+    "mutations": [
+      {
+        "argumentsType": "{ \"eventId\": string; \"userId\": string }",
+        "effects": {
+          "invalidates": [
+            "eventMembers"
+          ],
+          "writes": [
+            "eventMembers"
+          ]
+        },
+        "name": "addGuest",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "boolean"
+      },
+      {
+        "argumentsType": "{ \"hostName\": string; \"title\": string }",
+        "effects": {
+          "invalidates": [
+            "events",
+            "eventMembers"
+          ],
+          "writes": [
+            "events",
+            "eventMembers"
+          ]
+        },
+        "name": "createEvent",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "string"
+      },
+      {
+        "argumentsType": "{ \"assetId\": string; \"authorName\": string; \"caption\": string; \"eventId\": string }",
+        "effects": {
+          "invalidates": [
+            "posts"
+          ],
+          "writes": [
+            "posts"
+          ]
+        },
+        "name": "createPost",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "string"
+      },
+      {
+        "argumentsType": "{ \"postId\": string }",
+        "effects": {
+          "invalidates": [
+            "posts"
+          ],
+          "writes": [
+            "posts"
+          ]
+        },
+        "name": "deletePost",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "boolean"
+      },
+      {
+        "argumentsType": "{ \"eventId\": string }",
+        "effects": {
+          "invalidates": [
+            "eventMembers"
+          ],
+          "writes": [
+            "eventMembers"
+          ]
+        },
+        "name": "leaveEvent",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "boolean"
+      }
+    ],
+    "queries": [
+      {
+        "argumentsType": "{ \"eventId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "posts",
+            "eventMembers"
+          ]
+        },
+        "name": "eventFeed",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"authorId\": string; \"authorName\": string; \"caption\": string; \"eventId\": string; \"photo\": null | string }>"
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v1"
+  },
+  "schemaVersion": "provider-binding-metadata.v1",
+  "source": {
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:1505ee67a983e5f2ff525ae26f89d486a66cad57a0e2f25c0772970c5119b1d1",
+    "introspectionSchemaVersion": "provider-introspection.v1"
+  }
+}

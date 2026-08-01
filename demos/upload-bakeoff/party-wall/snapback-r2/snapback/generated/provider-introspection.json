@@ -1,0 +1,469 @@
+{
+  "artifactKind": "providerIntrospection",
+  "capabilities": {
+    "claims": {
+      "branchableFixtures": false,
+      "derivedOptimisticOverlays": false,
+      "forceStates": true,
+      "headlessBoot": true,
+      "initialSnapshot": true,
+      "localReplica": false,
+      "offlineReplay": false,
+      "optimisticMutations": false,
+      "rowSyncState": true,
+      "serverRunnableQueries": true,
+      "subscriptions": true
+    },
+    "receipts": {
+      "mutation": true,
+      "subscription": true
+    }
+  },
+  "operations": {
+    "actions": [],
+    "ephemeral": [],
+    "mutations": [
+      {
+        "arguments": {
+          "fields": {
+            "eventId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "userId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "eventId",
+            "userId"
+          ]
+        },
+        "contract": {
+          "argumentsHash": "sha256:122575cd1a22912941cb67caedc73d1c7e2485bc41952a9511f96a7c76801973",
+          "implementationHash": "sha256:a642d89ae6af97cf43e7f0986389e3fda46be15dbf9103632222829fcbd4ae4c",
+          "result": {
+            "kind": "value",
+            "value": {
+              "kind": "boolean"
+            }
+          },
+          "resultHash": "sha256:cef85756389fe6697581c9fdc29a14fa046523065517ac2ab38e451f0024e158",
+          "revision": "snapback.result-contract.v1"
+        },
+        "effects": {
+          "invalidates": [
+            "eventMembers"
+          ],
+          "writes": [
+            "eventMembers"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "addGuest",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "hostName": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "title": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "title",
+            "hostName"
+          ]
+        },
+        "contract": {
+          "argumentsHash": "sha256:899b913f83fbb1fa147f1d82f0ee58e645d9b830169b919feec4acc54ff453be",
+          "implementationHash": "sha256:7d2b466fa80f03fcb8495e18fe75431dbd80c88ce421356dea8785ea54a065bf",
+          "result": {
+            "kind": "value",
+            "value": {
+              "kind": "id",
+              "table": "events"
+            }
+          },
+          "resultHash": "sha256:9f313faa1aa737c300135c22e3e0c6e07fdfedce617a0918c7a9148e7d3d61ad",
+          "revision": "snapback.result-contract.v1"
+        },
+        "effects": {
+          "invalidates": [
+            "events",
+            "eventMembers"
+          ],
+          "writes": [
+            "events",
+            "eventMembers"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "createEvent",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "assetId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "authorName": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "caption": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "eventId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "eventId",
+            "caption",
+            "authorName",
+            "assetId"
+          ]
+        },
+        "contract": {
+          "argumentsHash": "sha256:aee023eb59eebff90c49a15fcb3db0fe23e063920827c605ba62ab903a9ccdf5",
+          "implementationHash": "sha256:6fc6be75a3d4574ae5ecb7196aba6dbea51d014ca001c7d9d0d03b0b78d6e917",
+          "result": {
+            "kind": "value",
+            "value": {
+              "kind": "id",
+              "table": "posts"
+            }
+          },
+          "resultHash": "sha256:e0ef3bbe1633c8798be565e34513abb219eba11377a270f218da1055da3d64a8",
+          "revision": "snapback.result-contract.v1"
+        },
+        "effects": {
+          "invalidates": [
+            "posts"
+          ],
+          "writes": [
+            "posts"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "createPost",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "postId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "postId"
+          ]
+        },
+        "contract": {
+          "argumentsHash": "sha256:fa8de2680b01c6878992ffd52f667d94072079f0e788d705ce15983f1f8edb02",
+          "implementationHash": "sha256:85073fc96b3925afc3116986377fa840e3a5d2b4f3cde9af2ac33c1eb4b0e3ef",
+          "result": {
+            "kind": "value",
+            "value": {
+              "kind": "boolean"
+            }
+          },
+          "resultHash": "sha256:cef85756389fe6697581c9fdc29a14fa046523065517ac2ab38e451f0024e158",
+          "revision": "snapback.result-contract.v1"
+        },
+        "effects": {
+          "invalidates": [
+            "posts"
+          ],
+          "writes": [
+            "posts"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "deletePost",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "eventId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "eventId"
+          ]
+        },
+        "contract": {
+          "argumentsHash": "sha256:c037c658aef337f3a2b9eb7f64468c4ab483a0e7ac3f5afe103c8db7958f2b01",
+          "implementationHash": "sha256:e46c94edbf8cf63405ccaab14e80ba91495fb7335912b48d8d2289cc93942d0e",
+          "result": {
+            "kind": "value",
+            "value": {
+              "kind": "boolean"
+            }
+          },
+          "resultHash": "sha256:cef85756389fe6697581c9fdc29a14fa046523065517ac2ab38e451f0024e158",
+          "revision": "snapback.result-contract.v1"
+        },
+        "effects": {
+          "invalidates": [
+            "eventMembers"
+          ],
+          "writes": [
+            "eventMembers"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "leaveEvent",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      }
+    ],
+    "queries": [
+      {
+        "arguments": {
+          "fields": {
+            "eventId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "eventId"
+          ]
+        },
+        "contract": {
+          "argumentsHash": "sha256:c037c658aef337f3a2b9eb7f64468c4ab483a0e7ac3f5afe103c8db7958f2b01",
+          "implementationHash": "sha256:a9a6f9c9a4ca93f1e8e6dc74df62b67768341f47bd17db7efad59f973515f198",
+          "result": {
+            "document": {
+              "allowExtra": false,
+              "fields": [
+                {
+                  "name": "_id",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "posts"
+                  }
+                },
+                {
+                  "name": "_version",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "_createdAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "_updatedAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "eventId",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "events"
+                  }
+                },
+                {
+                  "name": "authorId",
+                  "required": true,
+                  "value": {
+                    "kind": "principal"
+                  }
+                },
+                {
+                  "name": "authorName",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "caption",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "photo",
+                  "required": true,
+                  "value": {
+                    "kind": "union",
+                    "variants": [
+                      {
+                        "kind": "null"
+                      },
+                      {
+                        "kind": "assetRef"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "kind": "object"
+            },
+            "kind": "documents",
+            "table": "posts"
+          },
+          "resultHash": "sha256:9150d268a2a890782a2929e278c91f626ccdf8607f835db60828281d8b122de9",
+          "revision": "snapback.result-contract.v1"
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "posts",
+            "eventMembers"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "eventFeed",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "authorId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "authorName": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "caption": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "eventId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "photo": {
+                "shape": "union",
+                "variants": [
+                  {
+                    "shape": "literal",
+                    "value": null
+                  },
+                  {
+                    "name": "string",
+                    "shape": "primitive"
+                  }
+                ]
+              }
+            },
+            "shape": "object"
+          }
+        }
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v1"
+  },
+  "schemaVersion": "provider-introspection.v1",
+  "source": {
+    "implementationHash": "snapback.v1:sessions:function:sha256:22e2e1caff623cf9439078199369a204ce932967416e8e0521a261feb75d7d6c",
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:1505ee67a983e5f2ff525ae26f89d486a66cad57a0e2f25c0772970c5119b1d1",
+    "schemaHash": "snapback.v1:sessions:schema:sha256:1550090dc3c04a2c52819750898b907739edbf65b0504707f6428269b503d85b"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/snapback-r2/createPost.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "assetId": {
+      "type": "string"
+    },
+    "authorName": {
+      "type": "string"
+    },
+    "caption": {
+      "type": "string"
+    },
+    "eventId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "eventId",
+    "caption",
+    "authorName",
+    "assetId"
+  ],
+  "title": "snapback-r2:createPost arguments",
+  "type": "object"
+}
