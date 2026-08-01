@@ -1,0 +1,20 @@
+# A1 Expo sweep: hosted mobile availability GAP — no hosted sessions/native-auth path exists for an Expo app on 0.1.7
+
+**Opened:** 2026-08-01
+**Systems:** Auth, Deployment, React/Expo
+**Related:** LLP 0137 (Track B A1 Expo iOS arm), LLP 0045, LLP 0072, LLP 0129, demos/improvement-sweep/arms/a1-snapback-expo-ios/findings/0137-a1expo-f5-hosted-mobile-availability-gap.json
+
+guide/auth/native-apps.md: the Cloudflare arm exposes no sessions routes, the
+capture mailbox and `auth.mintSession` are non-production, and
+clients/react-expo.md is local-target-only. A mobile Snapback app therefore
+has no hosted story at all on the public 0.1.7 closure. Recorded per the
+frozen Track B rule as an explicit GAP (the arm used the supported local
+bridge from the simulator; `receipt.hostedAvailability` references this
+finding). Firebase's hosted-by-default mobile SDKs are the reference bar.
+
+Fix shape: hosted sessions routes + a production delivery/broker path
+reachable from mobile clients (existing LLP 0045/0072/0129 lines), then a
+hosted leg for the Expo receipt.
+
+Witness: an Expo simulator app signs in through a documented hosted path and
+passes the EXPO-04 realtime check against a hosted target.

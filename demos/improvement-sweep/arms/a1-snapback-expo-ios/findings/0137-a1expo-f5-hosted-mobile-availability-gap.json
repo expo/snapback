@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "stopClass": false,
+  "budgetFinding": false,
+  "findingId": "0137-a1expo-f5-hosted-mobile-availability-gap",
+  "dimension": "hosted-deployment-and-operations",
+  "observation": {
+    "description": "There is no hosted path for a mobile Snapback app on 0.1.7: guide auth/native-apps.md scopes native session entry to the local target ('the Cloudflare arm exposes no sessions routes', 'this page does not claim hosted production native auth'), the email provider's capture mailbox and auth.mintSession are non-production, and clients/react-expo.md is 'Local target only'. The arm used the supported local bridge from the simulator per the frozen Track B rule; hosted availability is recorded as this GAP, never an invented local equivalence. receipt.hostedAvailability references this finding.",
+    "evidence": [
+      "demos/improvement-sweep/arms/a1-snapback-expo-ios/receipt.json (hostedAvailability)",
+      "guide/auth/native-apps.md",
+      "guide/clients/react-expo.md"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Firebase's mobile SDKs are hosted-by-default: a new RN app signs in and reads production data with no self-hosted server; the frozen 0102 evidence exercised hosted Firebase throughout.",
+    "source": "frozen-0102",
+    "sourceDate": "2026-07-28"
+  },
+  "classification": "maturity",
+  "mustNotRegress": "The honesty about what hosted does and does not claim (auth/targets.md's deliberately weaker hosted claims), and the refusal to fake a hosted equivalence in receipts.",
+  "smallestCoherentFix": "Hosted sessions routes plus a production email (or broker) delivery path reachable from a mobile client, per the existing LLP 0045/0072/0129 program lines - then a hosted leg for the Expo receipt.",
+  "acceptanceWitness": "An Expo simulator app signs in through a documented hosted path and completes the EXPO-04 realtime check against a hosted target.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a1expo-f5-hosted-mobile-gap.md"
+  }
+}

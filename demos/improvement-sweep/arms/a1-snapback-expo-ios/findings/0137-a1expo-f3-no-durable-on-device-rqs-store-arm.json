@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "stopClass": false,
+  "budgetFinding": false,
+  "findingId": "0137-a1expo-f3-no-durable-on-device-rqs-store-arm",
+  "dimension": "retained-offline-and-reconnect-settlement",
+  "observation": {
+    "description": "The client's default persistence ladder (rqs-store-default.mjs: explicit option, env off, browser IndexedDB+WebLocks, node filesystem, in-memory) has no React Native arm, so on the Expo carrier every client silently resolves the in-memory store (rqsStoreInfo {implementation:'memory', durable:false}). LLP 0129 Phase 0's 'the client cache persists across cold boots BY DEFAULT' therefore does not extend to the documented mobile carrier: no cold-boot retained render, and even after f2 is fixed the queue would not survive process death. The receipt's cold-restart leg (EXPO-06) evidences the honest outcome: the app relaunches offline into a 'backend unreachable' state with zero rows, freshness/retention machinery never engaging.",
+    "evidence": [
+      "demos/improvement-sweep/arms/a1-snapback-expo-ios/evidence/scenario-evidence.json (EXPO-06 headlessProbe.rqsStoreInfo)",
+      "demos/improvement-sweep/arms/a1-snapback-expo-ios/evidence/shot-06-cold-restart-offline-locked.png"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Firestore RN ships on-device offline persistence so a cold offline relaunch renders prior data; InstantDB's RN client persists its cache similarly (frozen A1 bar: cached rows plus queued writes after relaunch).",
+    "source": "official-docs",
+    "sourceDate": "2026-08-01",
+    "reference": "diaries/0027 frozen offline facts; LLP 0129"
+  },
+  "classification": "capability",
+  "mustNotRegress": "The refuse-with-clarity honesty: retention must stay opt-in, authority-scoped, reported via rqsStoreInfo/retention facts, with zero protected bytes at rest outside lease custody - never Firebase-style silent protected-row caching.",
+  "smallestCoherentFix": "An RN store arm in the resolution ladder (expo-file-system or SQLite-backed implementation of the persisted-entry contract rqs-store-file.mjs already defines), selected on RN with the same DK-9 capability reporting, plus a react-expo guide section on mobile retention.",
+  "acceptanceWitness": "On an Expo simulator, a retainable public query cold-boots offline with freshness 'retained' / connection 'stale' from the on-device store, and the sentinel grep proves no protected bytes at rest - the web arm's A1-05/06 facts reproduced on the mobile carrier.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a1expo-f3-no-durable-on-device-store.md"
+  }
+}

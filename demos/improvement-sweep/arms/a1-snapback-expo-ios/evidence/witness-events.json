@@ -1,0 +1,2222 @@
+[
+  {
+    "receivedAt": 1785597747125,
+    "at": 1785597747124,
+    "type": "boot",
+    "serverUrl": "http://127.0.0.1:4294",
+    "hadStoredBearer": false,
+    "platform": "ios",
+    "platformVersion": "26.3.1",
+    "hermes": true
+  },
+  {
+    "receivedAt": 1785597747567,
+    "at": 1785597747564,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "idle"
+      },
+      "sites": {
+        "status": "pending",
+        "connection": "idle",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": null
+      },
+      "records": {
+        "status": "skipped",
+        "connection": "idle",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": null
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597747567,
+    "at": 1785597747564,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "connecting"
+      },
+      "sites": {
+        "status": "pending",
+        "connection": "connecting",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": null
+      },
+      "records": {
+        "status": "skipped",
+        "connection": "idle",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": null
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597747687,
+    "at": 1785597747581,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "live"
+      },
+      "sites": {
+        "status": "pending",
+        "connection": "live",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": null
+      },
+      "records": {
+        "status": "skipped",
+        "connection": "idle",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": null
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597747687,
+    "at": 1785597747582,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "live"
+      },
+      "sites": {
+        "status": "ready",
+        "connection": "live",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": [
+          {
+            "_id": "site_pump_house_8",
+            "title": "Pump house 8",
+            "state": null,
+            "position": null,
+            "revision": null,
+            "assigneeName": null,
+            "dueAt": null,
+            "notes": null
+          },
+          {
+            "_id": "site_site_a12",
+            "title": "Site A 12",
+            "state": null,
+            "position": null,
+            "revision": null,
+            "assigneeName": null,
+            "dueAt": null,
+            "notes": null
+          },
+          {
+            "_id": "site_substation_25",
+            "title": "Substation 25",
+            "state": null,
+            "position": null,
+            "revision": null,
+            "assigneeName": null,
+            "dueAt": null,
+            "notes": null
+          }
+        ]
+      },
+      "records": {
+        "status": "skipped",
+        "connection": "idle",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": null
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597747709,
+    "at": 1785597747707,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "live"
+      },
+      "sites": {
+        "status": "ready",
+        "connection": "live",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": [
+          {
+            "_id": "site_pump_house_8",
+            "title": "Pump house 8",
+            "state": null,
+            "position": null,
+            "revision": null,
+            "assigneeName": null,
+            "dueAt": null,
+            "notes": null
+          },
+          {
+            "_id": "site_site_a12",
+            "title": "Site A 12",
+            "state": null,
+            "position": null,
+            "revision": null,
+            "assigneeName": null,
+            "dueAt": null,
+            "notes": null
+          },
+          {
+            "_id": "site_substation_25",
+            "title": "Substation 25",
+            "state": null,
+            "position": null,
+            "revision": null,
+            "assigneeName": null,
+            "dueAt": null,
+            "notes": null
+          }
+        ]
+      },
+      "records": {
+        "status": "pending",
+        "connection": "idle",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": null
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597747709,
+    "at": 1785597747708,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "connecting"
+      },
+      "sites": {
+        "status": "ready",
+        "connection": "live",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": [
+          {
+            "_id": "site_pump_house_8",
+            "title": "Pump house 8",
+            "state": null,
+            "position": null,
+            "revision": null,
+            "assigneeName": null,
+            "dueAt": null,
+            "notes": null
+          },
+          {
+            "_id": "site_site_a12",
+            "title": "Site A 12",
+            "state": null,
+            "position": null,
+            "revision": null,
+            "assigneeName": null,
+            "dueAt": null,
+            "notes": null
+          },
+          {
+            "_id": "site_substation_25",
+            "title": "Substation 25",
+            "state": null,
+            "position": null,
+            "revision": null,
+            "assigneeName": null,
+            "dueAt": null,
+            "notes": null
+          }
+        ]
+      },
+      "records": {
+        "status": "pending",
+        "connection": "connecting",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": null
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597747736,
+    "at": 1785597747735,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "live"
+      },
+      "sites": {
+        "status": "ready",
+        "connection": "live",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": [
+          {
+            "_id": "site_pump_house_8",
+            "title": "Pump house 8",
+            "state": null,
+            "position": null,
+            "revision": null,
+            "assigneeName": null,
+            "dueAt": null,
+            "notes": null
+          },
+          {
+            "_id": "site_site_a12",
+            "title": "Site A 12",
+            "state": null,
+            "position": null,
+            "revision": null,
+            "assigneeName": null,
+            "dueAt": null,
+            "notes": null
+          },
+          {
+            "_id": "site_substation_25",
+            "title": "Substation 25",
+            "state": null,
+            "position": null,
+            "revision": null,
+            "assigneeName": null,
+            "dueAt": null,
+            "notes": null
+          }
+        ]
+      },
+      "records": {
+        "status": "ready",
+        "connection": "live",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597747777,
+    "at": 1785597747775,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "stale"
+      },
+      "sites": {
+        "status": "refreshing",
+        "connection": "stale",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      },
+      "records": {
+        "status": "ready",
+        "connection": "live",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597747778,
+    "at": 1785597747776,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "stale"
+      },
+      "sites": {
+        "status": "ready",
+        "connection": "stale",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      },
+      "records": {
+        "status": "ready",
+        "connection": "live",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597747827,
+    "at": 1785597747825,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "stale"
+      },
+      "sites": {
+        "status": "ready",
+        "connection": "stale",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      },
+      "records": {
+        "status": "ready",
+        "connection": "live",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": [
+          {
+            "_id": "019fbdeb-625b-7731-9343-f49c5dffc54f",
+            "title": "Transformer vault reading",
+            "state": "open",
+            "position": 1000,
+            "revision": 1,
+            "assigneeName": "Alice",
+            "dueAt": 1785542400000,
+            "notes": ""
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597747866,
+    "at": 1785597747865,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "stale"
+      },
+      "sites": {
+        "status": "ready",
+        "connection": "stale",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      },
+      "records": {
+        "status": "ready",
+        "connection": "live",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597747867,
+    "at": 1785597747866,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "stale"
+      },
+      "sites": {
+        "status": "ready",
+        "connection": "stale",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      },
+      "records": {
+        "status": "ready",
+        "connection": "live",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": [
+          {
+            "_id": "019fbdeb-625b-7731-9343-f49c5dffc54f",
+            "title": "Transformer vault reading",
+            "state": "open",
+            "position": 1000,
+            "revision": 1,
+            "assigneeName": "Alice",
+            "dueAt": 1785542400000,
+            "notes": ""
+          },
+          {
+            "_id": "019fbdeb-6284-7203-ab06-809fff47dc26",
+            "title": "North fence corrosion pass",
+            "state": "open",
+            "position": 2000,
+            "revision": 1,
+            "assigneeName": "Bob",
+            "dueAt": 1785628800000,
+            "notes": ""
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597747903,
+    "at": 1785597747902,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "stale"
+      },
+      "sites": {
+        "status": "ready",
+        "connection": "stale",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      },
+      "records": {
+        "status": "ready",
+        "connection": "live",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597747904,
+    "at": 1785597747903,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "stale"
+      },
+      "sites": {
+        "status": "ready",
+        "connection": "stale",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      },
+      "records": {
+        "status": "ready",
+        "connection": "live",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": [
+          {
+            "_id": "019fbdeb-625b-7731-9343-f49c5dffc54f",
+            "title": "Transformer vault reading",
+            "state": "open",
+            "position": 1000,
+            "revision": 1,
+            "assigneeName": "Alice",
+            "dueAt": 1785542400000,
+            "notes": ""
+          },
+          {
+            "_id": "019fbdeb-6284-7203-ab06-809fff47dc26",
+            "title": "North fence corrosion pass",
+            "state": "open",
+            "position": 2000,
+            "revision": 1,
+            "assigneeName": "Bob",
+            "dueAt": 1785628800000,
+            "notes": ""
+          },
+          {
+            "_id": "019fbdeb-62aa-7c12-b98f-9fabeb2528e4",
+            "title": "Pump house vibration log",
+            "state": "open",
+            "position": 3000,
+            "revision": 1,
+            "assigneeName": "Alice",
+            "dueAt": 1785715200000,
+            "notes": ""
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597747973,
+    "at": 1785597747972,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "stale"
+      },
+      "sites": {
+        "status": "ready",
+        "connection": "stale",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      },
+      "records": {
+        "status": "ready",
+        "connection": "live",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597747974,
+    "at": 1785597747973,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "stale"
+      },
+      "sites": {
+        "status": "ready",
+        "connection": "stale",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      },
+      "records": {
+        "status": "ready",
+        "connection": "live",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": [
+          {
+            "_id": "019fbdeb-625b-7731-9343-f49c5dffc54f",
+            "title": "Transformer vault reading",
+            "state": "open",
+            "position": 1000,
+            "revision": 1,
+            "assigneeName": "Alice",
+            "dueAt": 1785542400000,
+            "notes": ""
+          },
+          {
+            "_id": "019fbdeb-6284-7203-ab06-809fff47dc26",
+            "title": "North fence corrosion pass — URGENT",
+            "state": "done",
+            "position": 2000,
+            "revision": 2,
+            "assigneeName": "Bob",
+            "dueAt": 1785628800000,
+            "notes": ""
+          },
+          {
+            "_id": "019fbdeb-62aa-7c12-b98f-9fabeb2528e4",
+            "title": "Pump house vibration log",
+            "state": "open",
+            "position": 3000,
+            "revision": 1,
+            "assigneeName": "Alice",
+            "dueAt": 1785715200000,
+            "notes": ""
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597748162,
+    "at": 1785597748160,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "stale"
+      },
+      "sites": {
+        "status": "ready",
+        "connection": "stale",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      },
+      "records": {
+        "status": "refreshing",
+        "connection": "stale",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": [
+          {
+            "_id": "019fbdeb-625b-7731-9343-f49c5dffc54f",
+            "title": "Transformer vault reading",
+            "state": "open",
+            "position": 1000,
+            "revision": 1,
+            "assigneeName": "Alice",
+            "dueAt": 1785542400000,
+            "notes": ""
+          },
+          {
+            "_id": "019fbdeb-6284-7203-ab06-809fff47dc26",
+            "title": "North fence corrosion pass — URGENT",
+            "state": "done",
+            "position": 2000,
+            "revision": 2,
+            "assigneeName": "Bob",
+            "dueAt": 1785628800000,
+            "notes": ""
+          },
+          {
+            "_id": "019fbdeb-62aa-7c12-b98f-9fabeb2528e4",
+            "title": "Pump house vibration log",
+            "state": "open",
+            "position": 3000,
+            "revision": 1,
+            "assigneeName": "Alice",
+            "dueAt": 1785715200000,
+            "notes": ""
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597749967,
+    "at": 1785597749965,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "connecting"
+      },
+      "sites": {
+        "status": "refreshing",
+        "connection": "connecting",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      },
+      "records": {
+        "status": "refreshing",
+        "connection": "connecting",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": [
+          {
+            "_id": "019fbdeb-625b-7731-9343-f49c5dffc54f",
+            "title": "Transformer vault reading",
+            "state": "open",
+            "position": 1000,
+            "revision": 1,
+            "assigneeName": "Alice",
+            "dueAt": 1785542400000,
+            "notes": ""
+          },
+          {
+            "_id": "019fbdeb-6284-7203-ab06-809fff47dc26",
+            "title": "North fence corrosion pass — URGENT",
+            "state": "done",
+            "position": 2000,
+            "revision": 2,
+            "assigneeName": "Bob",
+            "dueAt": 1785628800000,
+            "notes": ""
+          },
+          {
+            "_id": "019fbdeb-62aa-7c12-b98f-9fabeb2528e4",
+            "title": "Pump house vibration log",
+            "state": "open",
+            "position": 3000,
+            "revision": 1,
+            "assigneeName": "Alice",
+            "dueAt": 1785715200000,
+            "notes": ""
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597749981,
+    "at": 1785597749980,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "connecting"
+      },
+      "sites": {
+        "status": "refreshing",
+        "connection": "connecting",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      },
+      "records": {
+        "status": "ready",
+        "connection": "connecting",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": [
+          {
+            "_id": "019fbdeb-625b-7731-9343-f49c5dffc54f",
+            "title": "Transformer vault reading",
+            "state": "open",
+            "position": 1000,
+            "revision": 1,
+            "assigneeName": "Alice",
+            "dueAt": 1785542400000,
+            "notes": ""
+          },
+          {
+            "_id": "019fbdeb-6284-7203-ab06-809fff47dc26",
+            "title": "North fence corrosion pass — URGENT",
+            "state": "done",
+            "position": 2000,
+            "revision": 2,
+            "assigneeName": "Bob",
+            "dueAt": 1785628800000,
+            "notes": ""
+          },
+          {
+            "_id": "019fbdeb-62aa-7c12-b98f-9fabeb2528e4",
+            "title": "Pump house vibration log",
+            "state": "open",
+            "position": 3000,
+            "revision": 1,
+            "assigneeName": "Alice",
+            "dueAt": 1785715200000,
+            "notes": ""
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597749982,
+    "at": 1785597749981,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "connecting"
+      },
+      "sites": {
+        "status": "refreshing",
+        "connection": "connecting",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      },
+      "records": {
+        "status": "ready",
+        "connection": "live",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": [
+          {
+            "_id": "019fbdeb-625b-7731-9343-f49c5dffc54f",
+            "title": "Transformer vault reading",
+            "state": "open",
+            "position": 1000,
+            "revision": 1,
+            "assigneeName": "Alice",
+            "dueAt": 1785542400000,
+            "notes": ""
+          },
+          {
+            "_id": "019fbdeb-6284-7203-ab06-809fff47dc26",
+            "title": "North fence corrosion pass — URGENT",
+            "state": "done",
+            "position": 2000,
+            "revision": 2,
+            "assigneeName": "Bob",
+            "dueAt": 1785628800000,
+            "notes": ""
+          },
+          {
+            "_id": "019fbdeb-62aa-7c12-b98f-9fabeb2528e4",
+            "title": "Pump house vibration log",
+            "state": "open",
+            "position": 3000,
+            "revision": 1,
+            "assigneeName": "Alice",
+            "dueAt": 1785715200000,
+            "notes": ""
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597749983,
+    "at": 1785597749983,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "live"
+      },
+      "sites": {
+        "status": "ready",
+        "connection": "live",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": [
+          {
+            "_id": "site_pump_house_8",
+            "title": "Pump house 8",
+            "state": null,
+            "position": null,
+            "revision": null,
+            "assigneeName": null,
+            "dueAt": null,
+            "notes": null
+          },
+          {
+            "_id": "site_site_a12",
+            "title": "Site A 12",
+            "state": null,
+            "position": null,
+            "revision": null,
+            "assigneeName": null,
+            "dueAt": null,
+            "notes": null
+          },
+          {
+            "_id": "site_substation_25",
+            "title": "Substation 25",
+            "state": null,
+            "position": null,
+            "revision": null,
+            "assigneeName": null,
+            "dueAt": null,
+            "notes": null
+          }
+        ]
+      },
+      "records": {
+        "status": "ready",
+        "connection": "live",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": [
+          {
+            "_id": "019fbdeb-625b-7731-9343-f49c5dffc54f",
+            "title": "Transformer vault reading",
+            "state": "open",
+            "position": 1000,
+            "revision": 1,
+            "assigneeName": "Alice",
+            "dueAt": 1785542400000,
+            "notes": ""
+          },
+          {
+            "_id": "019fbdeb-6284-7203-ab06-809fff47dc26",
+            "title": "North fence corrosion pass — URGENT",
+            "state": "done",
+            "position": 2000,
+            "revision": 2,
+            "assigneeName": "Bob",
+            "dueAt": 1785628800000,
+            "notes": ""
+          },
+          {
+            "_id": "019fbdeb-62aa-7c12-b98f-9fabeb2528e4",
+            "title": "Pump house vibration log",
+            "state": "open",
+            "position": 3000,
+            "revision": 1,
+            "assigneeName": "Alice",
+            "dueAt": 1785715200000,
+            "notes": ""
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597750182,
+    "at": 1785597750109,
+    "type": "app-state",
+    "state": "inactive"
+  },
+  {
+    "receivedAt": 1785597750265,
+    "at": 1785597750264,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "stale"
+      },
+      "sites": {
+        "status": "refreshing",
+        "connection": "stale",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      },
+      "records": {
+        "status": "ready",
+        "connection": "live",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597750267,
+    "at": 1785597750266,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "stale"
+      },
+      "sites": {
+        "status": "ready",
+        "connection": "stale",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      },
+      "records": {
+        "status": "ready",
+        "connection": "live",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": [
+          {
+            "_id": "019fbdeb-625b-7731-9343-f49c5dffc54f",
+            "title": "Transformer vault reading",
+            "state": "open",
+            "position": 1000,
+            "revision": 1,
+            "assigneeName": "Alice",
+            "dueAt": 1785542400000,
+            "notes": ""
+          },
+          {
+            "_id": "019fbdeb-6284-7203-ab06-809fff47dc26",
+            "title": "North fence corrosion pass — CLOSED",
+            "state": "done",
+            "position": 2000,
+            "revision": 3,
+            "assigneeName": "Bob",
+            "dueAt": 1785628800000,
+            "notes": ""
+          },
+          {
+            "_id": "019fbdeb-62aa-7c12-b98f-9fabeb2528e4",
+            "title": "Pump house vibration log",
+            "state": "open",
+            "position": 3000,
+            "revision": 1,
+            "assigneeName": "Alice",
+            "dueAt": 1785715200000,
+            "notes": ""
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597750267,
+    "at": 1785597750265,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "stale"
+      },
+      "sites": {
+        "status": "refreshing",
+        "connection": "stale",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      },
+      "records": {
+        "status": "ready",
+        "connection": "live",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": [
+          {
+            "_id": "019fbdeb-625b-7731-9343-f49c5dffc54f",
+            "title": "Transformer vault reading",
+            "state": "open",
+            "position": 1000,
+            "revision": 1,
+            "assigneeName": "Alice",
+            "dueAt": 1785542400000,
+            "notes": ""
+          },
+          {
+            "_id": "019fbdeb-6284-7203-ab06-809fff47dc26",
+            "title": "North fence corrosion pass — CLOSED",
+            "state": "done",
+            "position": 2000,
+            "revision": 3,
+            "assigneeName": "Bob",
+            "dueAt": 1785628800000,
+            "notes": ""
+          },
+          {
+            "_id": "019fbdeb-62aa-7c12-b98f-9fabeb2528e4",
+            "title": "Pump house vibration log",
+            "state": "open",
+            "position": 3000,
+            "revision": 1,
+            "assigneeName": "Alice",
+            "dueAt": 1785715200000,
+            "notes": ""
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597751125,
+    "at": 1785597751123,
+    "type": "app-state",
+    "state": "background"
+  },
+  {
+    "receivedAt": 1785597752345,
+    "at": 1785597752344,
+    "type": "app-state",
+    "state": "active"
+  },
+  {
+    "receivedAt": 1785597752512,
+    "at": 1785597752510,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "stale"
+      },
+      "sites": {
+        "status": "ready",
+        "connection": "stale",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      },
+      "records": {
+        "status": "refreshing",
+        "connection": "stale",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": [
+          {
+            "_id": "019fbdeb-625b-7731-9343-f49c5dffc54f",
+            "title": "Transformer vault reading",
+            "state": "open",
+            "position": 1000,
+            "revision": 1,
+            "assigneeName": "Alice",
+            "dueAt": 1785542400000,
+            "notes": ""
+          },
+          {
+            "_id": "019fbdeb-6284-7203-ab06-809fff47dc26",
+            "title": "North fence corrosion pass — CLOSED",
+            "state": "done",
+            "position": 2000,
+            "revision": 3,
+            "assigneeName": "Bob",
+            "dueAt": 1785628800000,
+            "notes": ""
+          },
+          {
+            "_id": "019fbdeb-62aa-7c12-b98f-9fabeb2528e4",
+            "title": "Pump house vibration log",
+            "state": "open",
+            "position": 3000,
+            "revision": 1,
+            "assigneeName": "Alice",
+            "dueAt": 1785715200000,
+            "notes": ""
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597754316,
+    "at": 1785597754313,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "connecting"
+      },
+      "sites": {
+        "status": "refreshing",
+        "connection": "connecting",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      },
+      "records": {
+        "status": "refreshing",
+        "connection": "connecting",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": [
+          {
+            "_id": "019fbdeb-625b-7731-9343-f49c5dffc54f",
+            "title": "Transformer vault reading",
+            "state": "open",
+            "position": 1000,
+            "revision": 1,
+            "assigneeName": "Alice",
+            "dueAt": 1785542400000,
+            "notes": ""
+          },
+          {
+            "_id": "019fbdeb-6284-7203-ab06-809fff47dc26",
+            "title": "North fence corrosion pass — CLOSED",
+            "state": "done",
+            "position": 2000,
+            "revision": 3,
+            "assigneeName": "Bob",
+            "dueAt": 1785628800000,
+            "notes": ""
+          },
+          {
+            "_id": "019fbdeb-62aa-7c12-b98f-9fabeb2528e4",
+            "title": "Pump house vibration log",
+            "state": "open",
+            "position": 3000,
+            "revision": 1,
+            "assigneeName": "Alice",
+            "dueAt": 1785715200000,
+            "notes": ""
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597754330,
+    "at": 1785597754329,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "connecting"
+      },
+      "sites": {
+        "status": "refreshing",
+        "connection": "connecting",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      },
+      "records": {
+        "status": "ready",
+        "connection": "connecting",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": [
+          {
+            "_id": "019fbdeb-625b-7731-9343-f49c5dffc54f",
+            "title": "Transformer vault reading",
+            "state": "open",
+            "position": 1000,
+            "revision": 1,
+            "assigneeName": "Alice",
+            "dueAt": 1785542400000,
+            "notes": ""
+          },
+          {
+            "_id": "019fbdeb-6284-7203-ab06-809fff47dc26",
+            "title": "North fence corrosion pass — CLOSED",
+            "state": "done",
+            "position": 2000,
+            "revision": 3,
+            "assigneeName": "Bob",
+            "dueAt": 1785628800000,
+            "notes": ""
+          },
+          {
+            "_id": "019fbdeb-62aa-7c12-b98f-9fabeb2528e4",
+            "title": "Pump house vibration log",
+            "state": "open",
+            "position": 3000,
+            "revision": 1,
+            "assigneeName": "Alice",
+            "dueAt": 1785715200000,
+            "notes": ""
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597754331,
+    "at": 1785597754330,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "connecting"
+      },
+      "sites": {
+        "status": "refreshing",
+        "connection": "connecting",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      },
+      "records": {
+        "status": "ready",
+        "connection": "live",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": [
+          {
+            "_id": "019fbdeb-625b-7731-9343-f49c5dffc54f",
+            "title": "Transformer vault reading",
+            "state": "open",
+            "position": 1000,
+            "revision": 1,
+            "assigneeName": "Alice",
+            "dueAt": 1785542400000,
+            "notes": ""
+          },
+          {
+            "_id": "019fbdeb-6284-7203-ab06-809fff47dc26",
+            "title": "North fence corrosion pass — CLOSED",
+            "state": "done",
+            "position": 2000,
+            "revision": 3,
+            "assigneeName": "Bob",
+            "dueAt": 1785628800000,
+            "notes": ""
+          },
+          {
+            "_id": "019fbdeb-62aa-7c12-b98f-9fabeb2528e4",
+            "title": "Pump house vibration log",
+            "state": "open",
+            "position": 3000,
+            "revision": 1,
+            "assigneeName": "Alice",
+            "dueAt": 1785715200000,
+            "notes": ""
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597754333,
+    "at": 1785597754332,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "live"
+      },
+      "sites": {
+        "status": "ready",
+        "connection": "live",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": [
+          {
+            "_id": "site_pump_house_8",
+            "title": "Pump house 8",
+            "state": null,
+            "position": null,
+            "revision": null,
+            "assigneeName": null,
+            "dueAt": null,
+            "notes": null
+          },
+          {
+            "_id": "site_site_a12",
+            "title": "Site A 12",
+            "state": null,
+            "position": null,
+            "revision": null,
+            "assigneeName": null,
+            "dueAt": null,
+            "notes": null
+          },
+          {
+            "_id": "site_substation_25",
+            "title": "Substation 25",
+            "state": null,
+            "position": null,
+            "revision": null,
+            "assigneeName": null,
+            "dueAt": null,
+            "notes": null
+          }
+        ]
+      },
+      "records": {
+        "status": "ready",
+        "connection": "live",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": [
+          {
+            "_id": "019fbdeb-625b-7731-9343-f49c5dffc54f",
+            "title": "Transformer vault reading",
+            "state": "open",
+            "position": 1000,
+            "revision": 1,
+            "assigneeName": "Alice",
+            "dueAt": 1785542400000,
+            "notes": ""
+          },
+          {
+            "_id": "019fbdeb-6284-7203-ab06-809fff47dc26",
+            "title": "North fence corrosion pass — CLOSED",
+            "state": "done",
+            "position": 2000,
+            "revision": 3,
+            "assigneeName": "Bob",
+            "dueAt": 1785628800000,
+            "notes": ""
+          },
+          {
+            "_id": "019fbdeb-62aa-7c12-b98f-9fabeb2528e4",
+            "title": "Pump house vibration log",
+            "state": "open",
+            "position": 3000,
+            "revision": 1,
+            "assigneeName": "Alice",
+            "dueAt": 1785715200000,
+            "notes": ""
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597754412,
+    "at": 1785597754410,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "stale"
+      },
+      "sites": {
+        "status": "refreshing",
+        "connection": "stale",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      },
+      "records": {
+        "status": "ready",
+        "connection": "live",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597754415,
+    "at": 1785597754413,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "stale"
+      },
+      "sites": {
+        "status": "refreshing",
+        "connection": "stale",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      },
+      "records": {
+        "status": "ready",
+        "connection": "live",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": [
+          {
+            "_id": "019fbdeb-625b-7731-9343-f49c5dffc54f",
+            "title": "Transformer vault reading",
+            "state": "open",
+            "position": 1000,
+            "revision": 1,
+            "assigneeName": "Alice",
+            "dueAt": 1785542400000,
+            "notes": ""
+          },
+          {
+            "_id": "019fbdeb-6284-7203-ab06-809fff47dc26",
+            "title": "North fence corrosion pass — CLOSED",
+            "state": "done",
+            "position": 2000,
+            "revision": 4,
+            "assigneeName": "Bob",
+            "dueAt": 1785628800000,
+            "notes": "post-reconnect note from bob"
+          },
+          {
+            "_id": "019fbdeb-62aa-7c12-b98f-9fabeb2528e4",
+            "title": "Pump house vibration log",
+            "state": "open",
+            "position": 3000,
+            "revision": 1,
+            "assigneeName": "Alice",
+            "dueAt": 1785715200000,
+            "notes": ""
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597754417,
+    "at": 1785597754415,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "stale"
+      },
+      "sites": {
+        "status": "ready",
+        "connection": "stale",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      },
+      "records": {
+        "status": "ready",
+        "connection": "live",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": [
+          {
+            "_id": "019fbdeb-625b-7731-9343-f49c5dffc54f",
+            "title": "Transformer vault reading",
+            "state": "open",
+            "position": 1000,
+            "revision": 1,
+            "assigneeName": "Alice",
+            "dueAt": 1785542400000,
+            "notes": ""
+          },
+          {
+            "_id": "019fbdeb-6284-7203-ab06-809fff47dc26",
+            "title": "North fence corrosion pass — CLOSED",
+            "state": "done",
+            "position": 2000,
+            "revision": 4,
+            "assigneeName": "Bob",
+            "dueAt": 1785628800000,
+            "notes": "post-reconnect note from bob"
+          },
+          {
+            "_id": "019fbdeb-62aa-7c12-b98f-9fabeb2528e4",
+            "title": "Pump house vibration log",
+            "state": "open",
+            "position": 3000,
+            "revision": 1,
+            "assigneeName": "Alice",
+            "dueAt": 1785715200000,
+            "notes": ""
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597754467,
+    "at": 1785597754466,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "stale"
+      },
+      "sites": {
+        "status": "ready",
+        "connection": "stale",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      },
+      "records": {
+        "status": "refreshing",
+        "connection": "stale",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": [
+          {
+            "_id": "019fbdeb-625b-7731-9343-f49c5dffc54f",
+            "title": "Transformer vault reading",
+            "state": "open",
+            "position": 1000,
+            "revision": 1,
+            "assigneeName": "Alice",
+            "dueAt": 1785542400000,
+            "notes": ""
+          },
+          {
+            "_id": "019fbdeb-6284-7203-ab06-809fff47dc26",
+            "title": "North fence corrosion pass — CLOSED",
+            "state": "done",
+            "position": 2000,
+            "revision": 4,
+            "assigneeName": "Bob",
+            "dueAt": 1785628800000,
+            "notes": "post-reconnect note from bob"
+          },
+          {
+            "_id": "019fbdeb-62aa-7c12-b98f-9fabeb2528e4",
+            "title": "Pump house vibration log",
+            "state": "open",
+            "position": 3000,
+            "revision": 1,
+            "assigneeName": "Alice",
+            "dueAt": 1785715200000,
+            "notes": ""
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597755615,
+    "at": 1785597755612,
+    "type": "boot",
+    "serverUrl": "http://127.0.0.1:4294",
+    "hadStoredBearer": true,
+    "platform": "ios",
+    "platformVersion": "26.3.1",
+    "hermes": true
+  },
+  {
+    "receivedAt": 1785597755621,
+    "at": 1785597755620,
+    "type": "cold-boot-offline",
+    "restoreError": {
+      "message": "fetch failed: UnexpectedException: Could not connect to the server. (at ExpoModulesCore/Promise.swift:56)",
+      "code": null,
+      "name": "Error"
+    },
+    "headlessProbe": {
+      "rqsStoreInfo": {
+        "source": "default",
+        "implementation": "memory",
+        "durable": false,
+        "reason": "no-durable-backend"
+      },
+      "sitesError": {
+        "message": "fetch failed: UnexpectedException: Could not connect to the server. (at ExpoModulesCore/Promise.swift:56)",
+        "code": null,
+        "name": "Error"
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597758664,
+    "at": 1785597758663,
+    "type": "session-restored",
+    "userId": "019fbde9-c256-7471-8cea-d3e8e3ad169b",
+    "after": "offline-cold-boot"
+  },
+  {
+    "receivedAt": 1785597758667,
+    "at": 1785597758665,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "idle"
+      },
+      "sites": {
+        "status": "pending",
+        "connection": "idle",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": null
+      },
+      "records": {
+        "status": "pending",
+        "connection": "idle",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": null
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597758668,
+    "at": 1785597758666,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "connecting"
+      },
+      "sites": {
+        "status": "pending",
+        "connection": "connecting",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": null
+      },
+      "records": {
+        "status": "pending",
+        "connection": "connecting",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": null
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597758683,
+    "at": 1785597758682,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "connecting"
+      },
+      "sites": {
+        "status": "pending",
+        "connection": "live",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": null
+      },
+      "records": {
+        "status": "pending",
+        "connection": "connecting",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": null
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597758684,
+    "at": 1785597758682,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "connecting"
+      },
+      "sites": {
+        "status": "ready",
+        "connection": "live",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": [
+          {
+            "_id": "site_pump_house_8",
+            "title": "Pump house 8",
+            "state": null,
+            "position": null,
+            "revision": null,
+            "assigneeName": null,
+            "dueAt": null,
+            "notes": null
+          },
+          {
+            "_id": "site_site_a12",
+            "title": "Site A 12",
+            "state": null,
+            "position": null,
+            "revision": null,
+            "assigneeName": null,
+            "dueAt": null,
+            "notes": null
+          },
+          {
+            "_id": "site_substation_25",
+            "title": "Substation 25",
+            "state": null,
+            "position": null,
+            "revision": null,
+            "assigneeName": null,
+            "dueAt": null,
+            "notes": null
+          }
+        ]
+      },
+      "records": {
+        "status": "pending",
+        "connection": "connecting",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": null
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597758695,
+    "at": 1785597758694,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "live"
+      },
+      "sites": {
+        "status": "ready",
+        "connection": "live",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": [
+          {
+            "_id": "site_pump_house_8",
+            "title": "Pump house 8",
+            "state": null,
+            "position": null,
+            "revision": null,
+            "assigneeName": null,
+            "dueAt": null,
+            "notes": null
+          },
+          {
+            "_id": "site_site_a12",
+            "title": "Site A 12",
+            "state": null,
+            "position": null,
+            "revision": null,
+            "assigneeName": null,
+            "dueAt": null,
+            "notes": null
+          },
+          {
+            "_id": "site_substation_25",
+            "title": "Substation 25",
+            "state": null,
+            "position": null,
+            "revision": null,
+            "assigneeName": null,
+            "dueAt": null,
+            "notes": null
+          }
+        ]
+      },
+      "records": {
+        "status": "ready",
+        "connection": "live",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": [
+          {
+            "_id": "019fbdeb-625b-7731-9343-f49c5dffc54f",
+            "title": "Transformer vault reading",
+            "state": "open",
+            "position": 1000,
+            "revision": 1,
+            "assigneeName": "Alice",
+            "dueAt": 1785542400000,
+            "notes": ""
+          },
+          {
+            "_id": "019fbdeb-6284-7203-ab06-809fff47dc26",
+            "title": "North fence corrosion pass — CLOSED",
+            "state": "done",
+            "position": 2000,
+            "revision": 4,
+            "assigneeName": "Bob",
+            "dueAt": 1785628800000,
+            "notes": "post-reconnect note from bob"
+          },
+          {
+            "_id": "019fbdeb-62aa-7c12-b98f-9fabeb2528e4",
+            "title": "Pump house vibration log",
+            "state": "open",
+            "position": 3000,
+            "revision": 1,
+            "assigneeName": "Alice",
+            "dueAt": 1785715200000,
+            "notes": ""
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597758858,
+    "at": 1785597758855,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "disconnected"
+      },
+      "sites": {
+        "status": "ready",
+        "connection": "disconnected",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      },
+      "records": {
+        "status": "ready",
+        "connection": "disconnected",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597758869,
+    "at": 1785597758868,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "connecting"
+      },
+      "sites": {
+        "status": "refreshing",
+        "connection": "connecting",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      },
+      "records": {
+        "status": "refreshing",
+        "connection": "connecting",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597758894,
+    "at": 1785597758892,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "disconnected"
+      },
+      "sites": {
+        "status": "refreshing",
+        "connection": "connecting",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      },
+      "records": {
+        "status": "refreshing",
+        "connection": "disconnected",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597758895,
+    "at": 1785597758893,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "disconnected"
+      },
+      "sites": {
+        "status": "refreshing",
+        "connection": "stale",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      },
+      "records": {
+        "status": "refreshing",
+        "connection": "disconnected",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597758895,
+    "at": 1785597758893,
+    "type": "bearer-rotation-lifecycle-failures",
+    "facts": {
+      "message": "external bearer custody transition completed with lifecycle failures",
+      "errors": [
+        {
+          "message": "SNAPBACK_AUTH_PERMISSION_DENIED: role requirement not satisfied",
+          "code": "SNAPBACK_AUTH_PERMISSION_DENIED",
+          "name": "Error"
+        }
+      ]
+    }
+  },
+  {
+    "receivedAt": 1785597758896,
+    "at": 1785597758895,
+    "type": "bearer-rotated",
+    "from": "019fbde9-c256-7471-8cea-d3e8e3ad169b",
+    "to": "019fbdeb-2ca0-7b9f-8819-652ed5efa003"
+  },
+  {
+    "receivedAt": 1785597759069,
+    "at": 1785597759066,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "disconnected"
+      },
+      "sites": {
+        "status": "ready",
+        "connection": "disconnected",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      },
+      "records": {
+        "status": "ready",
+        "connection": "disconnected",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597759078,
+    "at": 1785597759077,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "disconnected"
+      },
+      "sites": {
+        "status": "refreshing",
+        "connection": "connecting",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      },
+      "records": {
+        "status": "ready",
+        "connection": "disconnected",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597759094,
+    "at": 1785597759092,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "disconnected"
+      },
+      "sites": {
+        "status": "refreshing",
+        "connection": "stale",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      },
+      "records": {
+        "status": "ready",
+        "connection": "disconnected",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597759096,
+    "at": 1785597759095,
+    "type": "bearer-rotated",
+    "from": "019fbdeb-2ca0-7b9f-8819-652ed5efa003",
+    "to": "019fbde9-c256-7471-8cea-d3e8e3ad169b"
+  },
+  {
+    "receivedAt": 1785597759098,
+    "at": 1785597759097,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "disconnected"
+      },
+      "sites": {
+        "status": "ready",
+        "connection": "live",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      },
+      "records": {
+        "status": "ready",
+        "connection": "disconnected",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597789167,
+    "at": 1785597789164,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "disconnected"
+      },
+      "sites": {
+        "status": "ready",
+        "connection": "disconnected",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      },
+      "records": {
+        "status": "ready",
+        "connection": "disconnected",
+        "error": null,
+        "freshness": null,
+        "retention": null,
+        "rows": []
+      }
+    }
+  },
+  {
+    "receivedAt": 1785597789179,
+    "at": 1785597789178,
+    "type": "logout",
+    "userId": "019fbde9-c256-7471-8cea-d3e8e3ad169b"
+  },
+  {
+    "receivedAt": 1785597790405,
+    "at": 1785597790404,
+    "type": "boot",
+    "serverUrl": "http://127.0.0.1:4294",
+    "hadStoredBearer": false,
+    "platform": "ios",
+    "platformVersion": "26.3.1",
+    "hermes": true
+  }
+]

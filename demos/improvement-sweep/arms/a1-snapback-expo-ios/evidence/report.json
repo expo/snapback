@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "arm": {
+    "contract": "a1",
+    "platform": "expo-ios",
+    "provider": "snapback",
+    "attemptId": "a1-expo-ios-20260801"
+  },
+  "expectedChecks": 10,
+  "ranChecks": 10,
+  "results": [
+    {
+      "id": "EXPO-02-LAUNCH",
+      "result": "pass",
+      "ms": 907,
+      "note": "release artifact launched clean (pid dev.snapback.improvementsweep.shell: 83368); signed-out boot witnessed"
+    },
+    {
+      "id": "EXPO-01-IDENTITIES",
+      "result": "pass",
+      "ms": 172,
+      "note": "expo 57.0.9 / RN 0.86.2 / client 0.1.7 / iOS 26.3.1 sim / sha d7ba67eafd4a…"
+    },
+    {
+      "id": "EXPO-03-NATIVE-AUTH",
+      "result": "pass",
+      "ms": 217,
+      "note": "on-device email-code exchange minted 019fbde9…; deep-link return not required by this auth shape"
+    },
+    {
+      "id": "EXPO-04-REALTIME",
+      "result": "pass",
+      "ms": 223,
+      "note": "3 authoritative rows; outsider SNAPBACK_AUTH_PERMISSION_DENIED; bob's edit visible on device ≤33ms after settlement"
+    },
+    {
+      "id": "EXPO-07-QUEUE",
+      "result": "gap",
+      "ms": 1176,
+      "note": "queue unclaimed on this carrier and the opt-in cannot engage (Expo fetch failure is a plain Error, classification requires TypeError — finding filed); no ghost settlement (count 3); online refusal surfaced structured (mutate failed on device: {\"message\":\"SNAPBACK_HANDLER_FAILED…)"
+    },
+    {
+      "id": "EXPO-05-LIFECYCLE",
+      "result": "pass",
+      "ms": 5147,
+      "note": "background/foreground witnessed (inactive→active, missed commit caught up); network loss → stale with 3 rows retained; reconnect → live with fresh commit"
+    },
+    {
+      "id": "EXPO-06-COLD-RESTART",
+      "result": "gap",
+      "ms": 4401,
+      "note": "cold restart clean (bearer survived via app keychain custody; binding refuses offline: fetch failed: UnexpectedException: Could not connect to the server. (at ExpoModulesCore/Promise.swift:56)); retained render unclaimed on this carrier (rqs store=memory, durable=false) → GAP; auto-recovered to the authoritative row count when backend returned"
+    },
+    {
+      "id": "EXPO-10-AUTHORITY-ROTATION",
+      "result": "fail",
+      "ms": 31714,
+      "note": "rotation blanked predecessor rows (successor denial via transition AggregateError; query left refreshing/disconnected — finding filed); rotate-back DID NOT recover (ready); logout blanked + cleared keychain; relaunch boots signed-out"
+    },
+    {
+      "id": "EXPO-11-TEARDOWN",
+      "result": "pass",
+      "ms": 3480,
+      "note": "app uninstalled, sim shutdown, server stopped; reset-install deleted 9 rows; seed baseline restored (SNAPBACK_AUTH_PERMISSION_DENIED)"
+    },
+    {
+      "id": "EXPO-12-INDEPENDENCE",
+      "result": "pass",
+      "ms": 0,
+      "note": "receipt claims iOS simulator only; android recorded separately as not-run"
+    }
+  ],
+  "milestones": {
+    "suiteStart": "2026-08-01T15:22:13.219Z",
+    "serverSpawned": "2026-08-01T15:22:13.224Z",
+    "serverReady": "2026-08-01T15:22:14.018Z",
+    "appInstalled": "2026-08-01T15:22:26.391Z",
+    "authStart": "2026-08-01T15:22:27.470Z",
+    "firstMutation": "2026-08-01T15:22:27.905Z",
+    "verifiedRealtime": "2026-08-01T15:22:28.012Z",
+    "localAcceptance": "2026-08-01T15:23:10.566Z",
+    "cleanup": "2026-08-01T15:23:14.046Z"
+  }
+}

@@ -199,3 +199,120 @@ local-first floor I have tested.
 4. Write the custody capability map into the guide (which custody unlocks
    queue, logout, versioned seed) — f9 and the authLogout surprise are the
    same missing page.
+
+## 2026-08-01 — Track B: the same contract on Expo iOS (snapback-expo arm)
+
+**Arm:** snapback-expo, expo-ios, external consumer, public 0.1.7 closure
+**Capsule/receipt:** `demos/improvement-sweep/arms/a1-snapback-expo-ios/`
+**Result:** 7 pass / 2 GAP / 1 fail / 0 Stop, expectedChecks=10 enforced
+(EXPO manifest, a1 applicability); android = honest not-run (no JDK on this
+host, so `expo run:android`/gradle cannot execute; emulator binary and one
+AVD exist). Simulator receipt; physical-device remains a separately reported
+production gate, not-run.
+
+### Setup and the G3 pin
+
+Pinned before any arm work: the frozen neutral-expo shell's exact versions
+(Expo SDK 57.0.9 / RN 0.86.2 / React 19.2.3), the guide's documented RN path
+(`clients/react-expo.md`: same `@expo/snapback-client` + generated refs +
+`@expo/snapback-react` hook as web; an **Online** surface, local target
+only), and a native **release** simulator build (`expo run:ios
+--configuration Release`) — the page's own evidenced carrier mode. Clean
+external directory again; the backend (schema/functions/seed) adopted
+verbatim from this diary's web arm records (assistance event, cited), because
+Track B's job is the carrier, not re-authoring the notebook. Harness = the
+guide's own acceptance shape: a loopback director/witness collector the app
+polls, plus `simctl` for install/launch/terminate/keychain/screenshots.
+Sessions mode; alice's email-code entry runs ON the device.
+
+### What felt good
+
+- **Metro ate the closure with zero configuration.** The packaged client is
+  deliberately bundler-safe (no static `node:` imports in the index graph —
+  rqs-store-file.mjs documents the lazy-import design), so the release
+  bundle built on the first attempt. No resolver shims, no metro.config.
+- **The generated-refs + hook surface transplants cleanly.** The same
+  `api.mjs`, manifests, `prepareReactBinding`, `SnapbackProvider`,
+  `useSnapbackQuery(ref, args)` wiring as web ran unchanged on Hermes once
+  crypto existed (below). Type flow through the `.mjs` import worked under
+  the shell's tsconfig with only the known cast papercuts.
+- **Realtime to a phone-shaped carrier is genuinely fast:** bob's host-side
+  commit rendered on-device in **33–42ms** end-to-end, witnessed through the
+  collector against the settlement envelope.
+- **Uniform denials held on-device** (outsider read/subscribe, post-rotation
+  successor, post-logout probe), and the receipted versioned reset-install
+  cleanup worked identically from the mobile harness. The full 10-check
+  on-device suite: **61 seconds**.
+- **Honest nonclaims are honest in practice:** cold offline relaunch renders
+  a truthful "backend unreachable" state (no fabricated cache), and the app
+  self-healed into the notebook the moment the origin returned.
+
+### What felt bad — the mobile floor findings (f1–f7)
+
+- **f1: you cannot even sign in without undocumented archaeology.** RN has
+  no `globalThis.crypto`; the client needs `subtle.digest`,
+  `getRandomValues`, and `randomUUID`. `prepareReactBinding` dies with
+  `Cannot read property 'subtle' of undefined`, nothing names the
+  prerequisite, and the fix (an expo-crypto WebCrypto shim) is consumer
+  homework the guide never assigns.
+- **f2: the offline queue can NEVER engage on this carrier.** The M2
+  connectivity classification demands `instanceof TypeError`; Expo's fetch
+  rejects with a plain `Error` ("Could not connect to the server",
+  ExpoModulesCore), so `offlineQueue: true` surfaces raw transport errors
+  and queues nothing. A node control with identical options and an explicit
+  memory store queued `{queued:true}` against the same stopped server — the
+  error class is the entire story. For a *field notebook on the platform
+  where people are actually offline*, this plus f3 is the product gap.
+- **f3: there is no durable on-device store arm at all.** The default ladder
+  is browser IndexedDB → node file → memory; RN silently gets
+  `durable:false` memory. LLP 0129's "persists across cold boots BY
+  DEFAULT" simply does not reach the mobile carrier. The web arm's retained
+  cold boot — the best thing about this whole contract — does not exist here.
+- **f4 (found here, carrier-agnostic): downgrade rotation wedges the
+  client.** `replaceBearerToken` to a lesser-privileged principal throws
+  `AggregateError: … completed with lifecycle failures` (inner error = the
+  *expected* denial), the denial never appears on the query/hook, and
+  rotating back never re-subscribes: on the React provider path the whole
+  connection stays `disconnected` until process restart; on node the public
+  handle ends `live`-labeled with zero rows. The web arm never exercised
+  in-place rotation, so Track B caught it.
+- **f7: the RN connection axis is broken at steady state.** Live for
+  ~200ms, then `stale`, then a ~2s reconnect loop forever; the retainable
+  public query blanks permanently after the first cycle (sites: `ready (0)`
+  in every screenshot while node holds 3 rows stable). Deliveries still land
+  in 33–42ms — the socket works when it matters — but the chips say `stale`
+  and the reference list is empty. This is the difference between "demo
+  works" and "carrier is production-shaped".
+- **f5/f6:** no hosted mobile story at all on 0.1.7 (explicit GAP, local
+  bridge used per the frozen rule), and the react-expo guide page's only
+  snippet is a checkpoint-era API that does not exist in the package (plus a
+  lifecycle helper the documented path cannot reach).
+- Harness honesty note: expo-secure-store keychain entries **survive app
+  uninstall** on the simulator — pre-run hygiene needs `simctl keychain
+  reset`; the in-run logout evidence is app-mediated and clean.
+
+### Differentiator watch (mobile edition)
+
+At/above bar: delivery latency, uniform non-disclosing denials on-device,
+receipted deterministic cleanup from a mobile harness, bundler-safe
+packaging, no protected bytes at rest by construction. Behind bar (Firebase
+RN as reference): everything offline — retained cold boot, engaged queue,
+durable store — plus steady-state connection stability and rotation
+lifecycle. Must not regress while fixing: the 33–42ms push, refuse-with-
+clarity retention honesty, blank-before-successor rotation ordering, and the
+61-second receipt loop.
+
+### Would I choose this backend for this app on mobile?
+
+**Not on 0.1.7.** The A1 contract is the local-first floor, and on the
+documented Expo path that floor is absent: no durable store (f3), a queue
+that cannot engage (f2), an entry path that requires an undocumented
+polyfill (f1), and a connection axis that misreports steady state (f7). The
+data core underneath — sessions custody, membership, settlement envelopes,
+denial uniformity, live delivery — carried over beautifully, which is
+exactly why the carrier gaps read as finishable engineering rather than
+architecture: f1/f2 are small classification/primitive fixes, f3 is one
+store arm implementing an already-defined contract, f4/f7 are lifecycle
+conformance work. The web arm's verdict ("best local-first floor I have
+tested, not yet a product") becomes, on mobile: **the floor hasn't shipped
+to this carrier yet — and the receipts now say precisely what's missing.**

@@ -1,0 +1,209 @@
+{
+  "EXPO-02": {
+    "buildMode": "Release (expo run:ios --configuration Release, embedded bundle; no Metro attached)",
+    "launchPath": "xcrun simctl launch of the expo-built release artifact (guide clients/react-expo.md acceptance shape)",
+    "pid": "dev.snapback.improvementsweep.shell: 83368",
+    "bootEvent": {
+      "receivedAt": 1785597747125,
+      "at": 1785597747124,
+      "type": "boot",
+      "serverUrl": "http://127.0.0.1:4294",
+      "hadStoredBearer": false,
+      "platform": "ios",
+      "platformVersion": "26.3.1",
+      "hermes": true
+    },
+    "screenshot": "/private/tmp/claude-501/-Users-ccheever-projects-snapback/163679b8-1eab-4c5a-ac51-7e3d350c9b61/scratchpad/sweep-a1-expo/consumer/notebook-app/expo-acceptance/evidence/shot-00-signed-out.png"
+  },
+  "EXPO-01": {
+    "expoSdk": "57.0.9",
+    "reactNative": "0.86.2",
+    "react": "19.2.3",
+    "backendClient": "@expo/snapback-client 0.1.7 + @expo/snapback-react 0.1.7 (public npm, immutable 0.1.7)",
+    "os": "iOS 26.3 simulator runtime (device ios 26.3.1)",
+    "device": "iPhone 17 Pro simulator E0E49A2F-54A7-4355-8EB4-D52138E3361B",
+    "hostXcode": "Xcode 26.6 Build version 17F113",
+    "hermes": true,
+    "buildArtifact": {
+      "path": "/Users/ccheever/Library/Developer/Xcode/DerivedData/ImprovementSweepNeutralShell-bcnisflafusncqguywutuhqlcccv/Build/Products/Release-iphonesimulator/ImprovementSweepNeutralShell.app",
+      "binarySha256": "d7ba67eafd4a9695f00bd213ec9f962c69876ab358425fe433f5140434394c17",
+      "bundleId": "dev.snapback.improvementsweep.shell"
+    },
+    "backend": {
+      "server": "http://127.0.0.1:4294",
+      "appId": "notebook-app",
+      "targetProfile": "local-dev-sqlite-ibex (fresh isolated, arm-owned)"
+    }
+  },
+  "EXPO-03": {
+    "shape": "in-app email-code entry (guide auth/native-apps.md shape 1): /auth/request-code and /auth/exchange both executed on-device; code relayed by the director as the user",
+    "deepLink": "not required by this app: the documented native session entry is fully in-app (no external browser hop to return from); the sweepshell:// scheme exists in the frozen shell but carries no auth leg",
+    "userId": "019fbde9-c256-7471-8cea-d3e8e3ad169b",
+    "screenshot": "/private/tmp/claude-501/-Users-ccheever-projects-snapback/163679b8-1eab-4c5a-ac51-7e3d350c9b61/scratchpad/sweep-a1-expo/consumer/notebook-app/expo-acceptance/evidence/shot-01-authed-empty.png"
+  },
+  "EXPO-04": {
+    "initialRows": 3,
+    "independentAuthoritativeCount": 3,
+    "outsiderDenial": "SNAPBACK_AUTH_PERMISSION_DENIED",
+    "transition": {
+      "titleSeen": "North fence corrosion pass — URGENT",
+      "latencyMsUpperBound": 33
+    },
+    "transport": "server push over the client stream transport (witness event carries the on-device row state)",
+    "screenshot": "/private/tmp/claude-501/-Users-ccheever-projects-snapback/163679b8-1eab-4c5a-ac51-7e3d350c9b61/scratchpad/sweep-a1-expo/consumer/notebook-app/expo-acceptance/evidence/shot-02-realtime-after-bob-edit.png"
+  },
+  "EXPO-07": {
+    "defaultOfflineBehavior": "mutate failed on device: {\"message\":\"fetch failed: UnexpectedException: Could not connect to the server. (at ExpoModulesCore/Promise.swift:56)\",\"code\":null,\"name\":\"Error\"}",
+    "rqsStoreInfo": {
+      "source": "default",
+      "implementation": "memory",
+      "durable": false,
+      "reason": "no-durable-backend"
+    },
+    "queueOptInOutcome": {
+      "error": "queueClientMutate failed on device: {\"message\":\"fetch failed: UnexpectedException: Could not connect to the server. (at ExpoModulesCore/Promise.swift:56)\",\"code\":null,\"name\":\"Error\"}"
+    },
+    "hostControlProbe": "node + explicit createMemoryRqsResumeStore + offlineQueue:true against the same stopped server queues { queued: true, sequence: 1 } — the non-engagement is carrier-specific (fetch failure class), not store-driven",
+    "noGhostSettlement": {
+      "preCount": 3,
+      "postCount": 3
+    },
+    "refusalRollback": "mutate failed on device: {\"message\":\"SNAPBACK_HANDLER_FAILED: JavaScript handler failed\",\"code\":\"SNAPBACK_HANDLER_FAILED\",\"name\":\"Error\"}",
+    "claimBoundary": "guide clients/react-expo.md: the Expo path is an Online surface and does not claim the durable queue — nonclaim honored; the defect is that the documented offlineQueue opt-in exists on the same client and cannot engage on this carrier (connectivity classification requires instanceof TypeError; Expo fetch rejects with plain Error)",
+    "screenshot": "/private/tmp/claude-501/-Users-ccheever-projects-snapback/163679b8-1eab-4c5a-ac51-7e3d350c9b61/scratchpad/sweep-a1-expo/consumer/notebook-app/expo-acceptance/evidence/shot-03-queue-not-engaged.png"
+  },
+  "EXPO-05": {
+    "appStateEvents": [
+      {
+        "at": 1785597750109,
+        "state": "inactive"
+      },
+      {
+        "at": 1785597751123,
+        "state": "background"
+      },
+      {
+        "at": 1785597752344,
+        "state": "active"
+      }
+    ],
+    "backgroundedVia": "simctl launch com.apple.Preferences (guide clients/react-expo.md backgrounding shape)",
+    "backgroundEvent": {
+      "state": "inactive"
+    },
+    "foregroundCatchUp": {
+      "titleSeen": "North fence corrosion pass — CLOSED"
+    },
+    "networkLoss": {
+      "connectionFact": "stale",
+      "rowsRetained": 3,
+      "neverRelabeledLive": true
+    },
+    "reconnect": {
+      "connectionFact": "live",
+      "freshCommitObserved": true
+    },
+    "screenshots": {
+      "foreground": "/private/tmp/claude-501/-Users-ccheever-projects-snapback/163679b8-1eab-4c5a-ac51-7e3d350c9b61/scratchpad/sweep-a1-expo/consumer/notebook-app/expo-acceptance/evidence/shot-04-foreground-caught-up.png",
+      "stale": "/private/tmp/claude-501/-Users-ccheever-projects-snapback/163679b8-1eab-4c5a-ac51-7e3d350c9b61/scratchpad/sweep-a1-expo/consumer/notebook-app/expo-acceptance/evidence/shot-05-network-loss-stale.png"
+    }
+  },
+  "EXPO-06": {
+    "coldRestart": "simctl terminate + launch with the backend origin refusing",
+    "storedBearerSurvived": true,
+    "restoreError": {
+      "message": "fetch failed: UnexpectedException: Could not connect to the server. (at ExpoModulesCore/Promise.swift:56)",
+      "code": null,
+      "name": "Error"
+    },
+    "headlessProbe": {
+      "rqsStoreInfo": {
+        "source": "default",
+        "implementation": "memory",
+        "durable": false,
+        "reason": "no-durable-backend"
+      },
+      "sitesError": {
+        "message": "fetch failed: UnexpectedException: Could not connect to the server. (at ExpoModulesCore/Promise.swift:56)",
+        "code": null,
+        "name": "Error"
+      }
+    },
+    "retainedStateClaim": "NOT CLAIMED on this carrier: guide clients/react-expo.md declares the Expo path an Online surface with no local-first claim; the client rqs default store resolves to the in-memory arm on React Native (rqsStoreInfo above), so no cold-boot retained render is claimable — recorded as a GAP finding vs the A1 contract (web arm cold-retains the public subset via IndexedDB/file stores)",
+    "recovery": {
+      "sessionRestored": true,
+      "afterMs": 3049
+    },
+    "screenshots": {
+      "offline": "/private/tmp/claude-501/-Users-ccheever-projects-snapback/163679b8-1eab-4c5a-ac51-7e3d350c9b61/scratchpad/sweep-a1-expo/consumer/notebook-app/expo-acceptance/evidence/shot-06-cold-restart-offline-locked.png",
+      "recovered": "/private/tmp/claude-501/-Users-ccheever-projects-snapback/163679b8-1eab-4c5a-ac51-7e3d350c9b61/scratchpad/sweep-a1-expo/consumer/notebook-app/expo-acceptance/evidence/shot-07-cold-restart-recovered.png"
+    }
+  },
+  "EXPO-10": {
+    "rotateBackRecovered": false,
+    "rotateBackFacts": {
+      "error": "timeout: rows return under restored authority",
+      "lastSnapshot": {
+        "connection": "disconnected",
+        "records": {
+          "status": "ready",
+          "error": null,
+          "rows": 0
+        }
+      }
+    },
+    "rotation": {
+      "to": "outsider (mallory) via the documented explicit replacement-bearer transition",
+      "predecessorRowsBlanked": true,
+      "successorOutcome": "refreshing",
+      "lifecycleFailures": {
+        "message": "external bearer custody transition completed with lifecycle failures",
+        "errors": [
+          {
+            "message": "SNAPBACK_AUTH_PERMISSION_DENIED: role requirement not satisfied",
+            "code": "SNAPBACK_AUTH_PERMISSION_DENIED",
+            "name": "Error"
+          }
+        ]
+      },
+      "rotateBackLifecycleFailures": null,
+      "apiSurprise": "replaceBearerToken to a lesser-privileged principal REJECTS with AggregateError (external bearer custody transition completed with lifecycle failures) although the custody transition completes — the app must string-match to distinguish this from a failed transition; finding filed"
+    },
+    "rotateBack": "rows re-rendered under restored authority (fresh subscribe)",
+    "logout": {
+      "witnessed": true,
+      "rowsBlanked": true,
+      "records": "ready"
+    },
+    "retirement": {
+      "keychainCleared": true,
+      "relaunchPhase": "signed-out",
+      "deviceAtRest": "no durable client store exists on this carrier (in-memory rqs arm) and the app-owned keychain entry is deleted on logout — no protected bytes at rest"
+    },
+    "screenshots": {
+      "rotated": "/private/tmp/claude-501/-Users-ccheever-projects-snapback/163679b8-1eab-4c5a-ac51-7e3d350c9b61/scratchpad/sweep-a1-expo/consumer/notebook-app/expo-acceptance/evidence/shot-08-rotated-to-outsider.png",
+      "loggedOut": "/private/tmp/claude-501/-Users-ccheever-projects-snapback/163679b8-1eab-4c5a-ac51-7e3d350c9b61/scratchpad/sweep-a1-expo/consumer/notebook-app/expo-acceptance/evidence/shot-09-logged-out.png",
+      "relaunch": "/private/tmp/claude-501/-Users-ccheever-projects-snapback/163679b8-1eab-4c5a-ac51-7e3d350c9b61/scratchpad/sweep-a1-expo/consumer/notebook-app/expo-acceptance/evidence/shot-10-post-logout-relaunch.png"
+    }
+  },
+  "EXPO-11": {
+    "app": "terminated and uninstalled (container + keychain removed)",
+    "simulator": "shutdown E0E49A2F-54A7-4355-8EB4-D52138E3361B (booted by this run's build/launch path)",
+    "server": "snapback dev stopped; origin refuses",
+    "seedReceipt": {
+      "operation": "reset-install",
+      "outcome": "reset-installed",
+      "seedVersion": "2026-08-01.a1.1",
+      "resetDeletedRows": 9
+    },
+    "postCleanupNegative": {
+      "workspaceQuery": "SNAPBACK_AUTH_PERMISSION_DENIED",
+      "sites": 3
+    },
+    "credentials": "session bearers retired by the reset-install stream transition; admin/impersonation token files remain dev-local inside the arm-owned external directory only",
+    "testData": "all arm rows deleted by the receipted reset-install; literal 3-site seed restored"
+  },
+  "EXPO-12": {
+    "claim": "expo-ios simulator only. Nothing in this receipt establishes Android behavior (LLP 0064); the android arm is recorded as an honest not-run GAP in the capsule with its blocker."
+  }
+}

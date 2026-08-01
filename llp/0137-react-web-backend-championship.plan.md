@@ -5,7 +5,7 @@
 **Systems:** Competitive evaluation, Demo applications, React, React/Expo, Exact Native, Developer experience, Data modeling, Realtime, Offline sync, Auth, Assets, Search, Actions, Scheduled work, Deployment, Operations, Testing, Documentation
 **Author:** Charlie Cheever / Codex / Claude
 **Date:** 2026-07-31
-**Revised:** 2026-08-01 (A6 arm status note: sixth and final diaried web sweep arm complete — 10 pass / 0 GAP / 0 fail, the sweep's first fully green arm; findings 0137-a6-f1..f3 filed (defineJobStatusQuery boot refusal; jobs/secret-read custody guide-gap; reset-install strands live clients); jobs_one_off_v1 core verified end to end externally; freeze re-verified). 2026-08-01 (A5 arm status note: fifth diaried sweep arm complete — 11 pass / 1 GAP / 1 evidenced-defect fail; findings 0137-a5-f1..f3 filed; the Diary 0031 sessions+streamed-actions blocker verified reversed on the packaged closure; freeze re-verified). 2026-08-01 (A4 arm status note: fourth diaried sweep arm complete — 9 pass / 2 evidenced-defect fails / 0 GAP; findings 0137-a4-f1..f7 filed; freeze re-verified). 2026-08-01 (A2 arm status note: first diaried sweep arm complete — 11 pass / 1 GAP / 0 fail; findings 0137-a2-f1..f8 filed; freeze re-verified). 2026-07-31 (v3 purpose inversion per Charlie's direction: the program now exists to surface what would make Snapback better, not to prove Snapback is better — that proof is deferred until the improvement well runs dry. Phase 1 is a Snapback-first improvement sweep over all six contracts as an external npm consumer, with a mid-program fix loop, frozen-evidence-first competitor referencing, and demand-driven fresh probes; the symmetric championship — core/extension matrix, composite, ranking controls — is preserved compactly as deferred Phase 2 behind a dry-well trigger. Ranking-fairness controls that obstruct improvement, chiefly the single frozen Snapback revision and atomic rounds, move to Phase 2; honesty controls stay). 2026-07-31 (v2 efficiency restructure: sixteen-arm symmetric core over A1–A4 plus five extension arms; contract lineage to LLP 0102 with a zero-new-arm longitudinal comparison; atomic per-contract rounds; Track B baseline + checkpoint; former open questions 1–5 resolved). 2026-07-31 (refine pass: challenger gate unified; composite comparability scoped; Track B eligibility rule; cross-references verified). 2026-07-31 (initial draft: a four-backend React-web championship, a separately scored Expo validation, a Snapback-only Exact Native graduation exercise, and selective specialist challengers, all gated on public-package consumption)
+**Revised:** 2026-08-01 (Track B A1 Expo iOS arm status note: first Expo sweep arm complete — 7 pass / 2 GAP / 1 evidenced-defect fail on the 10 a1-applicable EXPO checks, iOS simulator, release build, G3 pin honored; findings 0137-a1expo-f1..f7 filed (WebCrypto prerequisite, queue cannot engage on Expo fetch errors, no on-device durable store, downgrade-rotation wedge, hosted mobile GAP, react-expo guide-gap, RN connection cycling); android honest not-run (no JDK); freeze re-verified). 2026-08-01 (A6 arm status note: sixth and final diaried web sweep arm complete — 10 pass / 0 GAP / 0 fail, the sweep's first fully green arm; findings 0137-a6-f1..f3 filed (defineJobStatusQuery boot refusal; jobs/secret-read custody guide-gap; reset-install strands live clients); jobs_one_off_v1 core verified end to end externally; freeze re-verified). 2026-08-01 (A5 arm status note: fifth diaried sweep arm complete — 11 pass / 1 GAP / 1 evidenced-defect fail; findings 0137-a5-f1..f3 filed; the Diary 0031 sessions+streamed-actions blocker verified reversed on the packaged closure; freeze re-verified). 2026-08-01 (A4 arm status note: fourth diaried sweep arm complete — 9 pass / 2 evidenced-defect fails / 0 GAP; findings 0137-a4-f1..f7 filed; freeze re-verified). 2026-08-01 (A2 arm status note: first diaried sweep arm complete — 11 pass / 1 GAP / 0 fail; findings 0137-a2-f1..f8 filed; freeze re-verified). 2026-07-31 (v3 purpose inversion per Charlie's direction: the program now exists to surface what would make Snapback better, not to prove Snapback is better — that proof is deferred until the improvement well runs dry. Phase 1 is a Snapback-first improvement sweep over all six contracts as an external npm consumer, with a mid-program fix loop, frozen-evidence-first competitor referencing, and demand-driven fresh probes; the symmetric championship — core/extension matrix, composite, ranking controls — is preserved compactly as deferred Phase 2 behind a dry-well trigger. Ranking-fairness controls that obstruct improvement, chiefly the single frozen Snapback revision and atomic rounds, move to Phase 2; honesty controls stay). 2026-07-31 (v2 efficiency restructure: sixteen-arm symmetric core over A1–A4 plus five extension arms; contract lineage to LLP 0102 with a zero-new-arm longitudinal comparison; atomic per-contract rounds; Track B baseline + checkpoint; former open questions 1–5 resolved). 2026-07-31 (refine pass: challenger gate unified; composite comparability scoped; Track B eligibility rule; cross-references verified). 2026-07-31 (initial draft: a four-backend React-web championship, a separately scored Expo validation, a Snapback-only Exact Native graduation exercise, and selective specialist challengers, all gated on public-package consumption)
 **Related:** LLP 0000, LLP 0010, LLP 0015, LLP 0016, LLP 0035, LLP 0041, LLP 0044, LLP 0064, LLP 0074, LLP 0093, LLP 0102, LLP 0103, LLP 0105, LLP 0107, LLP 0114, LLP 0115, LLP 0129, LLP 0130, LLP 0132, LLP 0133, LLP 0135, LLP 0136, Diary 0027–0039
 
 ## Summary
@@ -888,3 +888,66 @@ tick/drain/reset seams making a 10-check OPERATIONS suite green in
 note is a dated amendment inside the freeze boundary; the freeze was
 re-verified (and re-frozen for this plan digest) with the sweep's own
 scripts in the landing commit.
+
+Track B — A1 Expo iOS (Stage 4, first Expo sweep arm — snapback-expo,
+deep budget) executed 2026-08-01 and **completed**: all 10 a1-applicable
+frozen EXPO checks ran (expectedChecks enforced from the expo-receipt
+manifest) with **7 pass, 2 contract-sanctioned GAP, 1 evidenced-defect
+fail, 0 Stop** on an iPhone 17 Pro simulator (iOS 26.3), release build
+(`expo run:ios --configuration Release`, embedded bundle, Hermes), public
+0.1.7 closure from a clean external directory, sessions mode with the
+email-code exchange executed on-device, and the supported local bridge
+per the frozen Track B rule. The G3 pin (frozen neutral-expo shell
+versions Expo 57.0.9 / RN 0.86.2 / React 19.2.3; the guide's
+`clients/react-expo.md` path; release build mode) was recorded before arm
+work. What carried over cleanly: Metro bundled the closure with zero
+resolver configuration (deliberately bundler-safe packaging), the same
+generated-refs + provider + hook wiring as web ran unchanged on Hermes,
+second-device commits rendered on-device in 33–42ms, uniform
+non-disclosing denials held on every on-device surface, background/
+foreground caught up missed commits, network loss kept retained rows
+under an honest non-live fact, and the receipted versioned reset-install
+cleanup ran identically from the mobile harness — the 10-check on-device
+suite completes in 61 seconds. The GAPs are the mobile local-first floor:
+EXPO-06 (retained cold boot unclaimed — the default rqs store resolves to
+the in-memory arm on RN; the cold restart itself is clean and self-heals)
+and EXPO-07 (queue unclaimed — and the documented `offlineQueue` opt-in
+*cannot* engage because the connectivity classification requires
+`instanceof TypeError` while Expo fetch rejects plain `Error`; node
+control with identical options queues). The fail is EXPO-10:
+`replaceBearerToken` downgrade rotation rejects with AggregateError
+"completed with lifecycle failures" (inner error = the expected denial),
+surfaces no denial fact on the query/hook, and rotate-back never
+re-subscribes attached handles (React provider: connection wedged
+`disconnected` until process restart; node control: public handle
+live-labeled with zero rows) — logout and predecessor-data retirement
+themselves passed. Seven findings filed (`0137-a1expo-f1..f7`, tickets
+`issues/20260801-0137-a1expo-*.md`): the WebCrypto prerequisite (no
+`globalThis.crypto` on RN/Hermes; session establishment impossible
+without an undocumented consumer polyfill), the queue error-class defect,
+the missing on-device durable store arm (LLP 0129's default-persistence
+promise does not reach this carrier), the rotation wedge, the hosted
+mobile availability GAP (receipt.hostedAvailability), the react-expo
+guide page teaching a checkpoint-era hook API absent from the package,
+and the RN steady-state connection cycling live→stale (~2s loop) with the
+retainable public query blanking after the first cycle while deliveries
+still land in 33–42ms. Android: honest not-run GAP — the host has an
+emulator binary and one AVD but no JDK, so `expo run:android`/gradle
+cannot execute; no android receipt is minted and nothing iOS claims
+Android behavior (LLP 0064). Physical-device: not-run, separately
+reported production gate. Budget actuals: ~18 min orientation + ~38 min
+build (three release builds: initial + two defect-workaround rebuilds)
+and ~100 build-phase tool calls against the 8h/400 deep ceilings; zero
+posture breaks; two assistance events (prior-arm program-records
+adoption; packaged-bytes reads, each converted into a finding).
+Receipt, capsule, evidence (including on-device screenshots and the
+witness-event stream), and app sources:
+`demos/improvement-sweep/arms/a1-snapback-expo-ios/`; diary: Track B
+entry appended to `diaries/0043-a1-offline-notebook-sweep.diary.md`.
+Differentiator watch (protect while fixing the mobile floor): the
+33–42ms on-device push, refuse-with-clarity retention honesty (no
+protected bytes at rest by construction), blank-before-successor
+rotation ordering, bundler-safe packaging, and the 61-second receipt
+loop. This status note is a dated amendment inside the freeze boundary;
+the freeze was re-verified (and re-frozen for this plan digest) with the
+sweep's own scripts in the landing commit.

@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "stopClass": false,
+  "budgetFinding": false,
+  "findingId": "0137-a1expo-f6-react-expo-guide-page-stale-api-guide-gap",
+  "dimension": "diagnostics-docs-agent-usability-and-escape-hatches",
+  "observation": {
+    "description": "guide/clients/react-expo.md is the sanctioned page for this arm's exact task, and its only hook snippet shows a checkpoint-era object form - useSnapbackQuery({ provider, query, userId, authority }) - that does not exist on packaged 0.1.7 (the shipped hook is useSnapbackQuery(ref, args) under a SnapbackProvider, per clients/react.md), and whose userId field teaches dev-mode client-asserted identity. The page also directs RN consumers to bindSnapbackAppLifecycle(AppState, liveHandle) 'when a provider exposes the first-party liveQuery handle' - the documented React provider path never exposes such a handle, so the helper is unreachable from the path the same page prescribes. Nothing on the page mentions the WebCrypto prerequisite (f1), the in-memory store consequence (f3), or how the Online nonclaim interacts with the offlineQueue option (f2).",
+    "evidence": [
+      "guide/clients/react-expo.md",
+      "demos/improvement-sweep/arms/a1-snapback-expo-ios/evidence/app/App.tsx (working 0.1.7 wiring for contrast)"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Firebase and Expo both ship RN quickstarts that compile against the shipped SDK surface; provider docs teaching a nonexistent call shape is below any current bar.",
+    "source": "official-docs",
+    "sourceDate": "2026-08-01"
+  },
+  "classification": "documentation",
+  "mustNotRegress": "The page's honest evidence-boundary framing (per-OS receipts, no physical-device claim, anti-pattern list).",
+  "smallestCoherentFix": "Rewrite the page against the packaged 0.1.7 surface (context provider + (ref, args) hook, external-bearer session boot, crypto prerequisite, store/queue nonclaims with their mechanics) with CI-verified snippets, and either expose a lifecycle seam on the React provider or drop the unreachable helper reference.",
+  "acceptanceWitness": "node scripts/check-guide.mjs compiles the page's snippets against the packaged closure, and a fresh agent following only this page reaches a live query on an Expo simulator.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a1expo-f6-react-expo-guide-gap.md"
+  }
+}

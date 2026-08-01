@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "stopClass": false,
+  "budgetFinding": false,
+  "findingId": "0137-a1expo-f2-offline-queue-cannot-engage-on-expo-fetch-error-class",
+  "dimension": "retained-offline-and-reconnect-settlement",
+  "observation": {
+    "description": "With offlineQueue: true, an offline mutate on the Expo carrier surfaces the raw transport error (\"fetch failed: UnexpectedException: Could not connect to the server. (at ExpoModulesCore/Promise.swift:56)\", name 'Error') instead of queueing. The client's connectivity classification (index.mjs isConnectivityFailureError) requires `error instanceof TypeError`; Expo's fetch rejects connection failures with a plain Error, so the M2 queue path can never engage on this carrier. Node control with identical options and an explicit createMemoryRqsResumeStore against the same stopped server queues {queued:true, sequence:1} - the non-engagement is the error-class check, not the store.",
+    "evidence": [
+      "demos/improvement-sweep/arms/a1-snapback-expo-ios/evidence/scenario-evidence.json (EXPO-07: queueOptInOutcome, hostControlProbe)",
+      "demos/improvement-sweep/arms/a1-snapback-expo-ios/evidence/shot-03-queue-not-engaged.png"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Firestore's RN SDK queues writes offline and settles them on reconnect as a core documented behavior (frozen Diary 0027 evidenced the same shape on web).",
+    "source": "official-docs",
+    "sourceDate": "2026-08-01",
+    "reference": "diaries/0027 frozen offline facts (web)"
+  },
+  "classification": "defect",
+  "mustNotRegress": "The fail-closed half of the classification: anything the server answered (refusals, conflicts, rejections) must still NEVER queue.",
+  "smallestCoherentFix": "Classify connectivity by transport-layer provenance (fetch rejection with no HTTP status, no diagnostic, no receipt) independent of the error's constructor, or normalize carrier fetch rejections in the shared transport before classification; add a packaged-closure conformance test that runs the queue path under an Expo-fetch-shaped Error.",
+  "acceptanceWitness": "On an Expo simulator with the server stopped, an offlineQueue-enabled mutate returns {queued:true, clientMutationId, sequence} and replays exactly once after reconnect ({replayed:1, failed:0, remaining:0}).",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a1expo-f2-offline-queue-cannot-engage-expo.md"
+  }
+}

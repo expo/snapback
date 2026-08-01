@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "stopClass": false,
+  "budgetFinding": false,
+  "findingId": "0137-a1expo-f4-downgrade-rotation-wedges-live-handles",
+  "dimension": "authorization-and-revocation",
+  "observation": {
+    "description": "replaceBearerToken (the documented external-bearer authority transition) to a lesser-privileged principal: (1) rejects with AggregateError 'external bearer custody transition completed with lifecycle failures' whose inner error is the EXPECTED SNAPBACK_AUTH_PERMISSION_DENIED - the app must string-match to learn the transition actually completed; (2) blanks predecessor rows (correct) but the successor's denial never surfaces on the query/hook - on-device the records query presents 'refreshing'/'ready' with zero rows and no error fact while the provider connection drops to 'disconnected'; and (3) rotating BACK to the original authority resolves clean but NEVER re-subscribes the attached handles: on the Expo/React-provider path the whole connection stays 'disconnected' with all queries (public included) blank until process restart; on the node control the protected handle stays disconnected/0 and the public handle presents connection 'live' WITH ZERO ROWS - blanked data labeled live. The documented contract ('retires old grants and transports, and only then fresh-subscribes under the successor') does not hold on either carrier.",
+    "evidence": [
+      "demos/improvement-sweep/arms/a1-snapback-expo-ios/evidence/scenario-evidence.json (EXPO-10: rotation, rotateBackFacts)",
+      "demos/improvement-sweep/arms/a1-snapback-expo-ios/evidence/witness-events.json (bearer-rotation-lifecycle-failures, post-rotation states)",
+      "demos/improvement-sweep/arms/a1-snapback-expo-ios/evidence/shot-08-rotated-to-outsider.png"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Firebase RN: signing out and signing in as a different user swaps snapshot listeners to the new authority without wedging the transport; re-authenticating as the original user restores data.",
+    "source": "official-docs",
+    "sourceDate": "2026-08-01"
+  },
+  "classification": "defect",
+  "mustNotRegress": "The retirement half: predecessor rows blank BEFORE the successor subscribes, and denials stay uniform and non-disclosing.",
+  "smallestCoherentFix": "Make the transition settle without throwing when it completes (successor denials become handle/hook lifecycle facts, e.g. a denial code on the query state), and make successor fresh-subscribe actually re-establish transports for surviving handles - with a conformance test that rotates a-b-a over live protected + public queries on both node and an RN-shaped carrier.",
+  "acceptanceWitness": "Rotate alice-mallory-alice over a live provider: the transition resolves, the denial is renderable from the hook while mallory holds the bearer, and alice's rows re-render live afterwards with no process restart.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a1expo-f4-downgrade-rotation-wedges-handles.md"
+  }
+}

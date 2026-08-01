@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "stopClass": false,
+  "budgetFinding": false,
+  "findingId": "0137-a1expo-f1-webcrypto-required-on-documented-expo-path",
+  "dimension": "installed-product-first-hour",
+  "observation": {
+    "description": "The documented Expo path (guide clients/react-expo.md: same @expo/snapback-client + @expo/snapback-react as web) cannot establish a session on a stock Expo SDK 57 / RN 0.86 app: React Native/Hermes provides no globalThis.crypto, and the packaged client requires crypto.subtle.digest('SHA-256') (react-binding.mjs manifest digests), crypto.getRandomValues (mutation identity), and crypto.randomUUID (provider/store ids). prepareReactBinding dies with \"Cannot read property 'subtle' of undefined\". Neither the guide page nor the package documents any polyfill requirement; the arm proceeded only after authoring an expo-crypto-backed WebCrypto shim (evidence/app/src/crypto-polyfill.ts).",
+    "evidence": [
+      "demos/improvement-sweep/arms/a1-snapback-expo-ios/evidence/scenario-evidence.json (EXPO-02 note)",
+      "demos/improvement-sweep/arms/a1-snapback-expo-ios/evidence/app/src/crypto-polyfill.ts",
+      "diaries/0043-a1-offline-notebook-sweep.diary.md (Track B entry)"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "The Firebase JS SDK runs on React Native out of the box (RN is a documented first-class environment; no WebCrypto prerequisite for auth/Firestore basics).",
+    "source": "official-docs",
+    "sourceDate": "2026-08-01"
+  },
+  "classification": "defect",
+  "mustNotRegress": "The digest-bound binding verification itself (manifest identity checks) - fix the primitive's availability, not the verification.",
+  "smallestCoherentFix": "Ship an RN-safe crypto seam in the client: pure-JS SHA-256 fallback for the binding digests when subtle is absent, an explicit refusal naming the missing primitive for getRandomValues/randomUUID (or a documented one-line expo-crypto adapter), plus a react-expo guide prerequisites note.",
+  "acceptanceWitness": "A fresh Expo SDK 57 app on the documented path reaches a ready provider and a live query against the packaged closure with zero consumer-authored polyfills (or fails with a named SNAPBACK_* diagnostic pointing at the documented adapter).",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a1expo-f1-webcrypto-required-expo-path.md"
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "arm": {
+    "contract": "a1",
+    "platform": "expo-ios",
+    "provider": "snapback",
+    "attemptId": "a1-expo-ios-20260801"
+  },
+  "identities": {
+    "expoSdk": "57.0.9",
+    "reactNative": "0.86.2",
+    "backendClient": "@expo/snapback-client 0.1.7 + @expo/snapback-react 0.1.7 (public npm registry, immutable versions; react 19.2.3, expo-secure-store 57.0.1, expo-crypto 57.0.1 consumer workaround, typescript 6.0.3)",
+    "os": "iOS 26.3 simulator runtime (Platform.Version 26.3.1); host macOS Darwin 25.5.0 arm64, Xcode 26.6 (17F113)",
+    "device": "iPhone 17 Pro simulator E0E49A2F-54A7-4355-8EB4-D52138E3361B",
+    "buildArtifact": "ImprovementSweepNeutralShell.app (bundle dev.snapback.improvementsweep.shell), binary sha256 d7ba67eafd4a9695f00bd213ec9f962c69876ab358425fe433f5140434394c17, embedded release bundle (no Metro attached at run time)",
+    "buildMode": "Release — expo run:ios --configuration Release --no-bundler (G3 pin: the guide's evidenced carrier mode, release build on simulator; Hermes engine confirmed on-device)",
+    "backendServer": "snapback dev local target http://127.0.0.1:4294 (local-dev-sqlite-ibex, fresh isolated, arm-owned; appId notebook-app; same backend sources as the a1-snapback-web arm)",
+    "hermes": true
+  },
+  "checkResults": [
+    {
+      "id": "EXPO-01-IDENTITIES",
+      "result": "pass",
+      "evidencePaths": ["evidence/scenario-evidence.json#EXPO-01", "evidence/report.json"],
+      "note": "Expo 57.0.9 / RN 0.86.2 / client 0.1.7 / iOS 26.3.1 sim / release artifact sha d7ba67eafd4a…; all identities recorded."
+    },
+    {
+      "id": "EXPO-02-LAUNCH",
+      "result": "pass",
+      "evidencePaths": ["evidence/scenario-evidence.json#EXPO-02", "evidence/shot-00-signed-out.png"],
+      "note": "Clean release launch through the supported path (expo run:ios artifact via simctl); fresh signed-out boot witnessed on-device. Reaching this launch at all required the consumer-authored WebCrypto polyfill (finding 0137-a1expo-f1): without it the documented path dies at session establishment."
+    },
+    {
+      "id": "EXPO-03-NATIVE-AUTH",
+      "result": "pass",
+      "evidencePaths": ["evidence/scenario-evidence.json#EXPO-03", "evidence/shot-01-authed-empty.png"],
+      "note": "In-app email-code entry (guide auth/native-apps.md shape 1): /auth/request-code and /auth/exchange executed on-device; mailbox read host-side under admin custody and relayed as the user. Deep-link return: not required by this auth shape (fully in-app; no external browser hop) — recorded explicitly."
+    },
+    {
+      "id": "EXPO-04-REALTIME",
+      "result": "pass",
+      "evidencePaths": ["evidence/scenario-evidence.json#EXPO-04", "evidence/shot-02-realtime-after-bob-edit.png", "evidence/witness-events.json"],
+      "note": "Initial authoritative rows rendered and independently verified; outsider denied (SNAPBACK_AUTH_PERMISSION_DENIED); second-device (host protocol client) commit visible on-device ≤33-42ms after settlement over genuine server push. Steady-state caveat filed as 0137-a1expo-f7: the connection axis cycles live→stale (~2s reconnect loop) and the public retainable query blanks after the first cycle, so the chips read 'stale' even while deliveries land."
+    },
+    {
+      "id": "EXPO-05-LIFECYCLE",
+      "result": "pass",
+      "evidencePaths": ["evidence/scenario-evidence.json#EXPO-05", "evidence/shot-04-foreground-caught-up.png", "evidence/shot-05-network-loss-stale.png"],
+      "note": "Background via Settings launch (inactive/background witnessed), second-device commit while backgrounded caught up on foreground; network loss (origin refusing) left rendered rows retained under a non-live connection fact, never relabeled live; reconnect returned live and a fresh commit flowed."
+    },
+    {
+      "id": "EXPO-06-COLD-RESTART",
+      "result": "gap",
+      "evidencePaths": ["evidence/scenario-evidence.json#EXPO-06", "evidence/shot-06-cold-restart-offline-locked.png", "evidence/shot-07-cold-restart-recovered.png"],
+      "note": "Cold process restart with the backend unreachable is clean (app-keychain bearer survived; app renders an honest 'backend unreachable' state and self-heals when the origin returns). Protected retained state is NOT CLAIMED on this carrier (guide: Online surface; default rqs store resolves to the in-memory arm, durable:false) — contract-sanctioned GAP vs A1's local-first floor, filed as 0137-a1expo-f3; the web arm cold-retains the public subset on the same contract."
+    },
+    {
+      "id": "EXPO-07-QUEUE",
+      "result": "gap",
+      "evidencePaths": ["evidence/scenario-evidence.json#EXPO-07", "evidence/shot-03-queue-not-engaged.png"],
+      "note": "Queue unclaimed on this carrier (Online surface) — and the documented offlineQueue opt-in cannot engage: Expo fetch rejects connection failures with a plain Error while the client's connectivity classification requires instanceof TypeError, so offline mutates surface raw transport errors and nothing queues (0137-a1expo-f2; node control with identical options and an explicit memory store queues {queued:true}). No ghost settlement (authoritative count unchanged; no offline-attempt clientKey ever committed); online server-refused edit surfaced structured and left rendered rows authoritative. Durable-across-restart additionally blocked by the missing on-device store arm (f3)."
+    },
+    {
+      "id": "EXPO-10-AUTHORITY-ROTATION",
+      "result": "fail",
+      "evidencePaths": ["evidence/scenario-evidence.json#EXPO-10", "evidence/shot-08-rotated-to-outsider.png", "evidence/shot-09-logged-out.png", "evidence/shot-10-post-logout-relaunch.png"],
+      "note": "Evidenced defect (0137-a1expo-f4): rotation to a lesser-privileged principal blanks predecessor rows (correct) but rejects with AggregateError 'external bearer custody transition completed with lifecycle failures' carrying the expected denial, leaves the provider connection wedged 'disconnected', and rotate-back to the original authority NEVER re-subscribes the attached queries (device: all queries blank forever; node control: protected handle disconnected/0, public handle live-labeled with 0 rows) — recovery requires process restart. Logout itself is correct: rows blanked, app keychain custody cleared, relaunch boots signed-out with no predecessor data at rest (no durable client store exists on this carrier)."
+    },
+    {
+      "id": "EXPO-11-TEARDOWN",
+      "result": "pass",
+      "evidencePaths": ["evidence/scenario-evidence.json#EXPO-11"],
+      "note": "App terminated and uninstalled; simulator shut down; snapback dev stopped (origin refuses); receipted versioned reset-install (reset-installed, arm rows deleted, literal 3-site seed restored, workspace query denied post-cleanup); session bearers retired by the reset stream transition; admin/impersonation token files remain dev-local in the arm-owned external directory only. Hygiene note: expo-secure-store keychain entries survive app uninstall on the iOS simulator — the receipt run cleared them via simctl keychain reset pre-run and app logout in-run."
+    },
+    {
+      "id": "EXPO-12-INDEPENDENCE",
+      "result": "pass",
+      "evidencePaths": ["evidence/report.json"],
+      "note": "This receipt claims expo-ios simulator only (LLP 0064). Android: honest not-run — the host has an emulator binary and one AVD but no JDK, so expo run:android/gradle cannot execute; recorded in the capsule, no android receipt is minted."
+    }
+  ],
+  "expectedCheckCount": 10,
+  "deviceClass": "simulator",
+  "hostedAvailability": "GAP — finding 0137-a1expo-f5 (no hosted sessions/native-auth path for mobile on 0.1.7; guide auth/native-apps.md and auth/targets.md scope the documented path to the local target; the supported local bridge from the simulator was used, never an invented hosted equivalence)",
+  "cleanup": {
+    "app": "terminated + uninstalled; keychain entry cleared by in-run logout",
+    "simulator": "shutdown E0E49A2F-54A7-4355-8EB4-D52138E3361B",
+    "server": "snapback dev stopped; port 4294 refusing; guards on 4287-4293 released",
+    "data": "receipted versioned reset-install restored the literal 3-site seed; post-cleanup workspace read denied",
+    "physicalDevice": "not-run — physical-device receipts are a separately reported production-support gate (frozen protocol rule)"
+  },
+  "result": "complete"
+}

@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "stopClass": false,
+  "budgetFinding": false,
+  "findingId": "0137-a1expo-f7-rn-connection-cycles-and-public-query-blanks",
+  "dimension": "react-reactivity-and-lifecycle",
+  "observation": {
+    "description": "On the Expo carrier the provider's steady-state connection is broken: the axis reaches 'live' and drops to 'stale' within ~200ms, then reconnects on a ~2s loop indefinitely (witness timeline: live-stale at +0.2s, cycles at 2.4s/6.7s/11.1s...), even while idle. Across cycles the RETAINABLE public query (listSites) blanks permanently after the first cycle (ready/0 on-device while the same query holds 3 rows stable on node) and protected rows blank-then-refill on every cycle, so the UI chips read 'stale' and the sites list is empty in every screenshot - yet second-device commits still deliver in 33-42ms, so the transport works at delivery time. Node control with the SAME two queries against the SAME server holds a stable 'live' connection: the cycling is carrier-specific (suspected: the app-level heartbeat/pong activity accounting or the resume/re-prime path over the memory store misbehaving on RN WebSocket/fetch).",
+    "evidence": [
+      "demos/improvement-sweep/arms/a1-snapback-expo-ios/evidence/witness-events.json (connection transition timeline)",
+      "demos/improvement-sweep/arms/a1-snapback-expo-ios/evidence/shot-02-realtime-after-bob-edit.png (stale chips + empty sites while rows render)",
+      "demos/improvement-sweep/arms/a1-snapback-expo-ios/evidence/scenario-evidence.json (EXPO-04 latencies)"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Firestore RN listeners hold a stable connection on the same simulator class; the frozen 0102 web arms held 'live' steadily on every provider.",
+    "source": "frozen-0102",
+    "sourceDate": "2026-07-28"
+  },
+  "classification": "defect",
+  "mustNotRegress": "Delivery latency (33-42ms measured) and the honesty rule that rows are never relabeled live during a gap.",
+  "smallestCoherentFix": "Diagnose the RN carrier's activity accounting (heartbeat pong receipt) and the retainable resubscribe path after forced reconnect; add an Expo receipt gate asserting a 60s idle hold stays 'live' with public rows intact.",
+  "acceptanceWitness": "On an Expo simulator, an idle provider with one public and one protected query holds connection 'live' for 60s with rows intact, matching the node control.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a1expo-f7-rn-connection-cycles.md"
+  }
+}
