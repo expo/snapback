@@ -77,19 +77,6 @@ export const eventWall = defineLiveQuery({
   index: 'by_event',
 });
 
-// The post→photo mapping for rows whose photoId display copy is absent
-// (seeded posts: $assetFixture placeholders resolve only into v.assetRef
-// fields, so the seeded display copy cannot exist — diary finding 1
-// compounding). JS query because photoShares carries an assetRef and
-// therefore cannot be live-queried.
-export const wallPhotos = defineJsQuery({
-  auth: 'authenticated',
-  args: { eventId: v.id('events') },
-  source: 'handlers.mjs',
-  exportName: 'wallPhotos',
-  reads: ['photoShares'],
-});
-
 export const getEvent = defineJsQuery({
   auth: 'authenticated',
   args: { eventId: v.id('events') },
@@ -132,7 +119,7 @@ export const createPost = defineJsMutation({
   args: { eventId: v.id('events'), caption: v.string(), authorName: v.string(), assetId: v.string() },
   source: 'handlers.mjs',
   exportName: 'createPost',
-  writes: ['posts', 'photoShares'],
+  writes: ['posts'],
 });
 
 export const setCover = defineJsMutation({
@@ -148,5 +135,5 @@ export const deletePost = defineJsMutation({
   args: { postId: v.id('posts') },
   source: 'handlers.mjs',
   exportName: 'deletePost',
-  writes: ['posts', 'photoShares'],
+  writes: ['posts'],
 });

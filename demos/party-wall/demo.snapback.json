@@ -1,7 +1,7 @@
 {
   "id": "party-wall",
   "title": "Party Wall — a photos wall for events",
-  "description": "The first demo consumer of the full LLP 0044 asset pipeline: strip-declared photo uploads with required variants publish through trusted finalization, attach to wall posts via the canonical ctx.assets.attach handler, share exactly along event membership (join grants, leave revokes) through via-references, deliver strictly with ranges, plus public-immutable covers, signed-bearer share links, referenced-delete refusal → cascade, reference GC, and seed photo fixtures through the trusted path.",
+  "description": "The first demo consumer of the full LLP 0044 asset pipeline: strip-declared photo uploads with required variants publish through trusted finalization, attach directly to live wall posts via the canonical ctx.assets.attach handler, share exactly along event membership (join grants, leave revokes) through via-references, deliver strictly with ranges, plus public-immutable covers, signed-bearer share links, referenced-delete refusal → cascade, reference GC, and seed photo fixtures through the trusted path.",
   "artifactSchemaVersion": "snapback.v0",
   "targetProfile": "local-dev-sqlite-ibex",
   "systems": ["Assets", "Storage", "RBAC", "Auth", "Codegen", "Realtime", "Testing", "Clients"],
@@ -63,7 +63,6 @@
     ]
   },
   "capabilityGaps": [
-    "live queries cannot return tables containing v.assetRef fields (result-contract gap) — the wall uses the split posts/photoShares workaround",
     "dev-mode asset HTTP resolves anonymous, so per-user asset flows require sessions custody; the browser sign-in flow uses the dev mailbox with an admin token (trusted-local only)",
     "sessions-mode servers require the auth-client protocol header on every request, including public-immutable and signed URLs — public links are not yet plain-pasteable",
     "no operator verb drives the reference-GC sweep deterministically; the suite proves the edge-cleared state via explicit delete instead"

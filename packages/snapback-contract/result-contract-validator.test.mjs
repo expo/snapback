@@ -26,6 +26,14 @@ assert.deepEqual(
 assert.equal(validator.validate([{ kind: 'item', title: 'too-long!', count: 2 }]).ok, false);
 assert.equal(validator.validate([{ kind: 'item', title: 'hello', extra: true }]).ok, false);
 
+const assetRef = compileResultContractValidator({
+  kind: 'value',
+  value: { kind: 'assetRef' },
+});
+assert.equal(assetRef.validate('asset_0198').ok, true);
+assert.equal(assetRef.validate({ assetId: 'asset_0198' }).ok, false);
+assert.equal(assetRef.validate('').ok, false);
+
 const exactlyOneRow = compileResultContractValidator({
   kind: 'records',
   record: row,

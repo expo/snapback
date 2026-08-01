@@ -15,7 +15,9 @@ app code re-implements any of it.
   bearer links; strict photos refuse issuance by design).
 - **The canonical attach** — `createPost` runs `ctx.assets.attach`; the
   row, the reverse-reference edge, and the sharing grant commit atomically.
-- **Live wall** — the `eventWall` live query plus the React hooks
+- **Direct typed live wall** — each `posts.photo` is a `v.assetRef` carried
+  directly by the `eventWall` live-query result (the wire value is its opaque
+  asset-id string), plus the React hooks
   (`useSnapbackAssetUpload` for optimistic capture, `SnapbackAssetImage`
   for preview → ThumbHash → best-width rendition).
 - **Lifecycle honesty** — referenced deletes refuse; deleting the post

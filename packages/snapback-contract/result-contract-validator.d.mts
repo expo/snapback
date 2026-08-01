@@ -17,7 +17,7 @@ export interface ResultContractObjectFieldV1 {
 
 /** Closed Rust-owned value-contract grammar (post-JSON image). */
 export type ResultValueContractV1 =
-  | { readonly kind: 'null' | 'boolean' | 'principal' }
+  | { readonly kind: 'null' | 'boolean' | 'principal' | 'assetRef' }
   | { readonly kind: 'string'; readonly maxBytes: number }
   | { readonly kind: 'integer' | 'finiteReal'; readonly min: number; readonly max: number }
   | { readonly kind: 'id'; readonly table: string }

@@ -9,7 +9,11 @@
 seam note — with SNAPBACK_OUTBOUND_ACTIONS set at generation, `fetch` is an
 admitted global in inline handler/helper analysis, mirroring the module-form
 scanner; timers stay excluded; runtime remains the security boundary.)
-2026-07-31 (same-file helper sharing absorbed as normative text —
+2026-07-31 (the recursive result vocabulary gains `AssetRef`,
+the typed-reference leaf whose post-JSON representation is the non-empty
+opaque asset-id string; this unblocks direct query/live-query document
+contracts over asset-bearing tables while leaving attachment admission at the
+storage commit boundary per LLP 0007/0044). 2026-07-31 (same-file helper sharing absorbed as normative text —
 the landed move-2 mechanism (LLP 0115 CV-7; LLP 0118 option 1a; LLP 0127
 decision 6; commit `4d72c407`) is specified in §Same-file helper sharing at
 the end of this document: same-file lexical graph scope, lazy admission with
@@ -346,8 +350,9 @@ change.
 
 The recursive v1 value vocabulary is:
 
-- string, boolean, JavaScript-safe integer, finite real, null, principal, and
-  table-scoped id;
+- string, boolean, JavaScript-safe integer, finite real, null, principal,
+  typed asset reference (the non-empty opaque asset-id string), and table-scoped
+  id;
 - closed object with required and optional fields;
 - homogeneous bounded array;
 - closed union of 2–8 distinguishable variants, whose alternatives have
@@ -389,7 +394,7 @@ FunctionResultContractV1 =
 ResultValueV1 =
   Null | Boolean | String { maxBytes } |
   Integer { min, max } | FiniteReal { min, max } |
-  Principal | Id { table } | Literal { canonicalJson } |
+  Principal | AssetRef | Id { table } | Literal { canonicalJson } |
   Object { declarationOrderedFields[] } |
   Array { element, maxItems } |
   Union { discriminator?, variants[] } |

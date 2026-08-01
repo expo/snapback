@@ -101,7 +101,9 @@ fn validate_value(
             .filter(|number| number.is_finite() && number >= min && number <= max)
             .map(|_| ())
             .ok_or_else(|| path.to_owned()),
-        ResultValueContract::Principal | ResultValueContract::Id { .. } => value
+        ResultValueContract::Principal
+        | ResultValueContract::AssetRef
+        | ResultValueContract::Id { .. } => value
             .as_str()
             .filter(|text| !text.is_empty())
             .map(|_| ())
@@ -414,6 +416,11 @@ mod tests {
                 json!(2.0),
             ),
             (ResultValueContract::Principal, json!("usr_1"), json!("")),
+            (
+                ResultValueContract::AssetRef,
+                json!("asset_0198"),
+                json!({"assetId": "asset_0198"}),
+            ),
             (
                 ResultValueContract::Id {
                     table: "items".to_owned(),

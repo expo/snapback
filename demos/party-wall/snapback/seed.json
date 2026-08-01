@@ -1,5 +1,5 @@
 {
-  "seedVersion": "2026-07-31.2",
+  "seedVersion": "2026-07-31.3",
   "tables": {
     "events": [
       {
@@ -19,44 +19,27 @@
         "eventId": "seed-gallery",
         "authorId": "user_pat",
         "authorName": "Pat",
-        "caption": "Balloons up!"
+        "caption": "Balloons up!",
+        "photo": {
+          "$assetFixture": "photo-balloons"
+        }
       },
       {
         "_id": "seed-post-cake",
         "eventId": "seed-gallery",
         "authorId": "user_pat",
         "authorName": "Pat",
-        "caption": "Cake time"
+        "caption": "Cake time",
+        "photo": {
+          "$assetFixture": "photo-cake"
+        }
       },
       {
         "_id": "seed-post-confetti",
         "eventId": "seed-gallery",
         "authorId": "user_pat",
         "authorName": "Pat",
-        "caption": "Confetti everywhere"
-      }
-    ],
-    "photoShares": [
-      {
-        "_id": "seed-share-balloons",
-        "eventId": "seed-gallery",
-        "postId": "seed-post-balloons",
-        "photo": {
-          "$assetFixture": "photo-balloons"
-        }
-      },
-      {
-        "_id": "seed-share-cake",
-        "eventId": "seed-gallery",
-        "postId": "seed-post-cake",
-        "photo": {
-          "$assetFixture": "photo-cake"
-        }
-      },
-      {
-        "_id": "seed-share-confetti",
-        "eventId": "seed-gallery",
-        "postId": "seed-post-confetti",
+        "caption": "Confetti everywhere",
         "photo": {
           "$assetFixture": "photo-confetti"
         }

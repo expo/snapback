@@ -33,16 +33,17 @@ export interface ResultObjectFieldContract {
 }
 
 /**
- * The closed v1 value-contract vocabulary. `platformSchemaRef` is the one
- * argument-lane addition (LLP 0131): a reference into the closed
- * platform-owned registry of exported Rust-owned schemas, valid only in
- * argument contracts.
+ * The closed v1 value-contract vocabulary. `assetRef` is result-only;
+ * `platformSchemaRef` is the argument-lane addition (LLP 0131): a reference
+ * into the closed platform-owned registry of exported Rust-owned schemas,
+ * valid only in argument contracts.
  */
 export type ResultValueContract =
   | Readonly<{ kind: 'null' }>
   | Readonly<{ kind: 'boolean' }>
   | Readonly<{ kind: 'string'; maxBytes: number }>
   | Readonly<{ kind: 'principal' }>
+  | Readonly<{ kind: 'assetRef' }>
   | Readonly<{ kind: 'id'; table: string }>
   | Readonly<{ kind: 'integer'; min: number; max: number }>
   | Readonly<{ kind: 'finiteReal'; min: number; max: number }>

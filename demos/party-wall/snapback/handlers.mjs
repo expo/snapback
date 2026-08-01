@@ -12,13 +12,6 @@ globalThis.__snapbackHandlers = {
     });
   },
 
-  async wallPhotos(ctx, args) {
-    return await ctx.db
-      .query('photoShares')
-      .withIndex('by_event', (q) => q.eq('eventId', args.eventId))
-      .collect();
-  },
-
   async getEvent(ctx, args) {
     return await ctx.db.get('events', args.eventId);
   },
@@ -37,19 +30,13 @@ globalThis.__snapbackHandlers = {
   },
 
   async createPost(ctx, args) {
-    const postId = await ctx.db.insert('posts', {
+    return await ctx.db.insert('posts', {
       eventId: args.eventId,
       authorId: ctx.auth.userId,
       authorName: String(args.authorName ?? '').trim(),
       caption: String(args.caption ?? '').trim(),
-      photoId: args.assetId,
-    });
-    await ctx.db.insert('photoShares', {
-      eventId: args.eventId,
-      postId,
       photo: await ctx.assets.attach(args.assetId, { upload: 'photoUpload' }),
     });
-    return postId;
   },
 
   async setCover(ctx, args) {
@@ -60,13 +47,6 @@ globalThis.__snapbackHandlers = {
   },
 
   async deletePost(ctx, args) {
-    const shares = await ctx.db
-      .query('photoShares')
-      .withIndex('by_post', (q) => q.eq('postId', args.postId))
-      .collect();
-    for (const share of shares) {
-      await ctx.db.delete('photoShares', share._id);
-    }
     await ctx.db.delete('posts', args.postId);
     return null;
   },

@@ -252,12 +252,12 @@ await runAcceptance(suite, async () => {
     suiteAssert(!/staging[-_]?key|staging\/[A-Za-z0-9]/.test(inspectedJson), `inspect output carries no staging keys: ${stagingHits.join(' | ')}`);
     const devClient = new SnapbackClient(devServer.baseUrl, { adminToken: devServer.adminToken });
     const devApi = (await importGeneratedModule(join(devSeed.devRoot, 'generated'), 'api.mjs')).default;
-    const mapping = await devClient.query(devApi.wallPhotos, {
+    const mapping = await devClient.query(devApi.eventWall, {
       args: { eventId: 'seed-gallery' },
       userId: 'user_pat',
     });
     const rows = mapping.rows ?? mapping.result ?? [];
-    assertEqual(rows.length, 3, `three seeded photo shares, got ${JSON.stringify(rows).slice(0, 300)}`);
+    assertEqual(rows.length, 3, `three seeded photo posts, got ${JSON.stringify(rows).slice(0, 300)}`);
     suiteAssert(rows.every((r) => typeof r.photo === 'string' && r.photo.length > 0), 'placeholders resolved to asset ids');
   });
 
@@ -297,7 +297,7 @@ await runAcceptance(suite, async () => {
       assetId: photoAssetId,
     });
     const rows = await wall.poll();
-    assertEqual(rows.map((r) => [r.caption, r.photoId]), [['Balloons up!', photoAssetId]], 'live wall row');
+    assertEqual(rows.map((r) => [r.caption, r.photo]), [['Balloons up!', photoAssetId]], 'live wall row');
   });
 
   await suite.check('membership grant: joining makes the photo readable', async () => {

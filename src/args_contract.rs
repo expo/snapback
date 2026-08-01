@@ -237,7 +237,9 @@ fn validate_node(
             .filter(|number| number.is_finite() && number >= min && number <= max)
             .map(|_| ())
             .ok_or_else(mismatch),
-        ResultValueContract::Principal | ResultValueContract::Id { .. } => value
+        ResultValueContract::Principal
+        | ResultValueContract::AssetRef
+        | ResultValueContract::Id { .. } => value
             .as_str()
             .filter(|text| !text.is_empty())
             .map(|_| ())
@@ -443,6 +445,7 @@ fn node_kind(contract: &ResultValueContract) -> &'static str {
         ResultValueContract::Integer { .. } => "integer",
         ResultValueContract::FiniteReal { .. } => "finiteReal",
         ResultValueContract::Principal => "principal",
+        ResultValueContract::AssetRef => "assetRef",
         ResultValueContract::Id { .. } => "id",
         ResultValueContract::Literal { .. } => "literal",
         ResultValueContract::Json { .. } => "json",

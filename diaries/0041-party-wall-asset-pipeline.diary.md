@@ -5,11 +5,27 @@
 public covers, signed URLs, deletion, reference GC, seed fixtures).
 **Agent:** Claude (Fable 5), the session that built the pipeline — maximally
 biased toward it, which makes the frictions below more credible, not less.
-**Date:** 2026-07-31 (entry 1, mid-build; finalized at landing)
+**Date:** 2026-07-31 (entry 1, mid-build; finalized at landing; AssetRef
+follow-up appended the same day)
+
+## Follow-up — the flagship feed is direct now
+
+Finding 1 is resolved. The result-contract vocabulary now carries an
+`AssetRef` leaf whose JSON image is the opaque asset-id string, and Rust checks
+that leaf before publication. Party Wall deleted the `photoShares` side table
+and its `wallPhotos` query: `posts.photo` is the typed reference, the membership
+sharing declaration lives on `posts`, seeded fixture placeholders resolve into
+those same post rows, and `eventWall` returns the complete photo-bearing feed.
+
+The revised shape is notably better than the workaround: one row owns display,
+sharing, reverse-reference GC, seeding, and live delivery. It now matches the
+ordinary Convex feed ergonomics without giving up Snapback's commit-boundary
+attachment admission or declaration-backed asset authorization.
 
 ## Findings so far (recorded as hit, before the outcome smooths them over)
 
-1. **You cannot live-query a table that contains a `v.assetRef` field.**
+1. **Resolved in the follow-up: the original build could not live-query a
+   table that contains a `v.assetRef` field.**
    `defineLiveQuery` over my `posts` table failed codegen with
    `SNAPBACK_HANDLER_RESULT_CONTRACT_INVALID: unsupported result validator
    {"AssetRef":…}` — the live-query result contract has no AssetRef leaf.
@@ -123,9 +139,8 @@ one-declaration sharing is genuinely nicer *when the tables cooperate*.
 ## Verdict
 
 The pipeline's core is excellent and the demo proves it end to end on a
-real server. The remaining distance to "feels effortless" is concentrated
-in four places: AssetRef in live-query result contracts (finding 1), the
-sessions header on public/signed lanes (finding 7), a browser sign-in
-story (finding 7), and the guide teaching the membership/seed patterns
-(findings 2, 6). Tickets filed for each; none is structural.
-
+real server. With the flagship AssetRef feed fixed, the remaining distance to
+"feels effortless" is concentrated in the sessions header on public/signed
+lanes (finding 7), a browser sign-in story (finding 7), and the guide teaching
+the membership/seed patterns (findings 2, 6). Tickets were filed for each;
+none is structural.

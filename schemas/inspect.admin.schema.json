@@ -4968,6 +4968,20 @@
         },
         {
           "additionalProperties": false,
+          "description": "A typed asset reference in a handler result. Its post-JSON wire image\nis the non-empty opaque asset id string; attachment authority remains\na storage-commit concern rather than an egress-shape concern.",
+          "properties": {
+            "kind": {
+              "const": "assetRef",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "properties": {
             "kind": {
               "const": "id",

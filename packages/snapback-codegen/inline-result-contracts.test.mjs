@@ -18,6 +18,7 @@ const backend = () => {
       todos: defineTable({
         title: v.string(),
         metadata: v.optional(v.json()),
+        photo: v.optional(v.assetRef()),
       }).sync(),
     });
   `);
@@ -100,6 +101,15 @@ try {
   assert.equal(liveQuery.kind, 'LiveQuery');
   assert.equal(liveQuery.handlerForm, 'inline');
   assert.equal(liveQuery.resultContract.kind, 'documents');
+  const livePhoto = liveQuery.resultContract.document.fields.find(
+    ({ name }) => name === 'photo',
+  );
+  assert.equal(livePhoto.required, true);
+  assert.deepEqual(
+    livePhoto.value,
+    { kind: 'union', variants: [{ kind: 'null' }, { kind: 'assetRef' }] },
+    'a photo-bearing live table emits the typed AssetRef leaf instead of failing codegen',
+  );
   assert.equal(mutation.resultContract.kind, 'value');
   assert.equal(action.handlerForm, 'inline');
   assert.equal(action.resultContract.kind, 'value');

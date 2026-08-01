@@ -48,30 +48,19 @@ export default defineSchema(
       .assetSharing({ kind: 'membership', membership: 'eventMembers' })
       .sync(),
     eventMembers,
-    // The wall rows the browser live-queries. Deliberately assetRef-free:
-    // the live-query result contract does not admit AssetRef validators
-    // today (found building this demo — see the diary), so the typed
-    // reference lives in photoShares and the wall carries a display copy.
+    // The live wall carries its typed photo reference directly. AssetRef is
+    // represented by the opaque asset id string in the live result contract,
+    // while attachment admission remains enforced at commit.
     posts: defineTable({
       eventId: v.id('events'),
       authorId: v.principal(),
       authorName: v.string(),
       caption: v.string(),
-      photoId: v.optional(v.string()),
-    })
-      .index('by_event', ['eventId'])
-      .sync(),
-    // The typed reference + sharing edge, one row per posted photo. Never
-    // live-queried; exists so via-references authorization rides the
-    // membership declaration and deletion clears the edge with the row.
-    photoShares: defineTable({
-      eventId: v.id('events'),
-      postId: v.id('posts'),
       photo: v.optional(v.assetRef({ upload: 'photoUpload' })),
     })
-      .index('by_post', ['postId'])
       .index('by_event', ['eventId'])
-      .assetSharing({ kind: 'membership', membership: 'eventMembers' }),
+      .assetSharing({ kind: 'membership', membership: 'eventMembers' })
+      .sync(),
   },
   {
     auth: { mode: 'sessions' },

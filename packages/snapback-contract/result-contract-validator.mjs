@@ -55,7 +55,7 @@ function canonicalJson(value) {
 function primitiveKind(contract) {
   if (contract.kind === 'null') return 'null';
   if (contract.kind === 'boolean') return 'boolean';
-  if (['string', 'principal', 'id'].includes(contract.kind)) return 'string';
+  if (['string', 'principal', 'assetRef', 'id'].includes(contract.kind)) return 'string';
   if (['integer', 'finiteReal'].includes(contract.kind)) return 'number';
   if (contract.kind === 'array') return 'array';
   if (contract.kind === 'object') return 'object';
@@ -112,7 +112,8 @@ function admitValueContract(contract, depth, budget, where) {
     switch (contract?.kind) {
       case 'null':
       case 'boolean':
-      case 'principal': return ['kind'];
+      case 'principal':
+      case 'assetRef': return ['kind'];
       case 'string': return ['kind', 'maxBytes'];
       case 'integer':
       case 'finiteReal': return ['kind', 'min', 'max'];
@@ -130,6 +131,7 @@ function admitValueContract(contract, depth, budget, where) {
     case 'null':
     case 'boolean':
     case 'principal':
+    case 'assetRef':
       break;
     case 'string':
       integer(contract.maxBytes, `${where}.maxBytes`, {
@@ -305,6 +307,7 @@ function valuePath(contract, value, path, depth, budget) {
       return typeof value === 'number' && Number.isFinite(value)
         && value >= contract.min && value <= contract.max ? null : path;
     case 'principal':
+    case 'assetRef':
     case 'id':
       return typeof value === 'string' && value.length > 0 ? null : path;
     case 'literal':

@@ -20324,9 +20324,7 @@ fn validate_function_schema_references(
                                         // admission, not shape, is what
                                         // protects the field (LLP 0044).
                                         FieldType::AssetRef { .. } => {
-                                            ResultValueContract::String {
-                                                max_bytes: 1_048_576,
-                                            }
+                                            ResultValueContract::AssetRef
                                         }
                                         FieldType::Json | FieldType::RelationIncarnation { .. } => {
                                             unreachable!("non-portable projections refused above")

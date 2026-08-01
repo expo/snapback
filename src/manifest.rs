@@ -1525,6 +1525,7 @@ fn result_primitive_kind(contract: &ResultValueContract) -> ResultPrimitiveKind 
         ResultValueContract::Boolean => ResultPrimitiveKind::Boolean,
         ResultValueContract::String { .. }
         | ResultValueContract::Principal
+        | ResultValueContract::AssetRef
         | ResultValueContract::Id { .. } => ResultPrimitiveKind::String,
         ResultValueContract::Integer { .. } | ResultValueContract::FiniteReal { .. } => {
             ResultPrimitiveKind::Number
@@ -1804,6 +1805,14 @@ fn validate_value_contract_node(
         | ResultValueContract::Boolean
         | ResultValueContract::Principal
         | ResultValueContract::Id { .. } => {}
+        ResultValueContract::AssetRef => {
+            if lane == ContractLane::Args {
+                return Err(invalid_args_contract(
+                    function,
+                    "argument contracts do not admit assetRef nodes",
+                ));
+            }
+        }
     }
     Ok(())
 }
@@ -3420,6 +3429,10 @@ pub enum ResultValueContract {
         max: f64,
     },
     Principal,
+    /// A typed asset reference in a handler result. Its post-JSON wire image
+    /// is the non-empty opaque asset id string; attachment authority remains
+    /// a storage-commit concern rather than an egress-shape concern.
+    AssetRef,
     Id {
         table: String,
     },

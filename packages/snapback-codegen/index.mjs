@@ -4251,7 +4251,7 @@ function providerResultDescriptor(contract) {
     if (entry.kind === 'integer' || entry.kind === 'finiteReal') {
       return { shape: 'primitive', name: 'number' };
     }
-    if (entry.kind === 'string' || entry.kind === 'principal' || entry.kind === 'id') {
+    if (entry.kind === 'string' || entry.kind === 'principal' || entry.kind === 'assetRef' || entry.kind === 'id') {
       return { shape: 'primitive', name: 'string' };
     }
     if (entry.kind === 'literal') {

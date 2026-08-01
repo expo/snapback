@@ -80,7 +80,7 @@ function invalidResultContract(message) {
 function primitiveKind(contract) {
   if (contract.kind === 'null') return 'null';
   if (contract.kind === 'boolean') return 'boolean';
-  if (['string', 'principal', 'id'].includes(contract.kind)) return 'string';
+  if (['string', 'principal', 'assetRef', 'id'].includes(contract.kind)) return 'string';
   if (['integer', 'finiteReal'].includes(contract.kind)) return 'number';
   if (contract.kind === 'array') return 'array';
   if (contract.kind === 'object') return 'object';
@@ -286,6 +286,12 @@ export function validatorResultValue(validator, {
         max: options.max ?? Number.MAX_VALUE,
       });
     } else if (fieldType === 'Principal') value = scalar('principal');
+    else if (fieldType && typeof fieldType === 'object' && fieldType.AssetRef) {
+      if (args) {
+        throw new TypeError('v.assetRef() is a stored/result validator, not an argument validator');
+      }
+      value = scalar('assetRef');
+    }
     else if (fieldType && typeof fieldType === 'object' && fieldType.RelationIncarnation) {
       // @ref LLP 0131#the-argument-contract-descriptor — normalization rule:
       // at argument positions a relation incarnation is the `string` node
@@ -598,7 +604,7 @@ export function searchPageResultType(contract) {
 function resultValueType(value) {
   if (value.kind === 'null') return 'null';
   if (value.kind === 'boolean') return 'boolean';
-  if (value.kind === 'string' || value.kind === 'principal') return 'string';
+  if (value.kind === 'string' || value.kind === 'principal' || value.kind === 'assetRef') return 'string';
   if (value.kind === 'id') return `Id<${JSON.stringify(value.table)}>`;
   if (value.kind === 'integer' || value.kind === 'finiteReal') return 'number';
   if (value.kind === 'literal') return JSON.stringify(value.value);

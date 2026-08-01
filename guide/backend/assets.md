@@ -5,7 +5,7 @@ order: 9
 audience: agent-first
 capabilities: [backend.assets]
 authorities: [llp/0044-asset-storage-pipeline.rfc.md, src/assets.rs, src/local.rs, src/server.rs, packages/snapback-codegen/define.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md]
-examples: []
+examples: [demos/party-wall]
 status: current
 targets: [local]
 maturity: partial
@@ -102,6 +102,30 @@ id-shaped string written into a `v.assetRef` field fails the commit with
 `SNAPBACK_ASSET_REF_UNVERIFIED` on every write path, and the reverse
 reference edge commits in the same changeset. Deleting an asset refuses
 while typed references remain.
+
+## Put typed photos directly in a live feed
+
+`v.assetRef` is a first-class result-contract leaf. A query or live query may
+return a table containing typed references directly; each reference is the
+opaque asset-id string on the JSON wire. Do not duplicate it into a plain
+string display column or split the reference into a side table merely to make
+the row live-queryable.
+
+Party Wall keeps the photo, membership-backed sharing policy, reverse-reference
+edge, seed fixture, and live-feed row together:
+
+```js source=demos/party-wall/snapback/schema.mjs
+    posts: defineTable({
+      eventId: v.id('events'),
+      authorId: v.principal(),
+      authorName: v.string(),
+      caption: v.string(),
+      photo: v.optional(v.assetRef({ upload: 'photoUpload' })),
+    })
+      .index('by_event', ['eventId'])
+      .assetSharing({ kind: 'membership', membership: 'eventMembers' })
+      .sync(),
+```
 
 ## Deliver
 

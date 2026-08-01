@@ -74,9 +74,9 @@ function Wall({ session, eventId }: { session: Session; eventId: string }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
         {rows.map((post) => (
           <figure key={post._id} style={{ margin: 0 }}>
-            {post.photoId ? (
+            {post.photo ? (
               <SnapbackAssetImage
-                assetId={post.photoId}
+                assetId={post.photo}
                 maxWidth={320}
                 alt={post.caption}
                 style={{ width: '100%', borderRadius: 8 }}
