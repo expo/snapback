@@ -32,3 +32,7 @@ pasteableDeliveryHeaderless, and the sessions-custody legs. What remains
 is that packaged 0.1.7 predates these landings — the staged/published
 closure refresh is Lane α milestone 2 of the fix wave (see the α2
 handoff/receipt recorded there).
+
+*(α2 addendum: the release refresh is prepared and dry-run-proven; the
+real publish + default-tag promotion is handed to the promotion lane —
+see issues/20260801-release-refresh-handoff.md.)*
