@@ -1,0 +1,104 @@
+{
+  "startedAt": "2026-08-01T20:38:25.806Z",
+  "identities": {
+    "platform": "ios 26.3.1",
+    "hermes": true,
+    "navigatorProduct": "ReactNative",
+    "client": "published 0.1.8 closure + this branch client delta overlaid (index/rqs-store-default/rqs-store-expo/assets + d.mts)",
+    "server": "http://127.0.0.1:4298 (0.1.8 runtime, notebook-app)",
+    "app": "/Users/ccheever/Library/Developer/Xcode/DerivedData/ImprovementSweepNeutralShell-cpxjojrsjwclmlhaweidvrxgrifj/Build/Products/Release-iphonesimulator/ImprovementSweepNeutralShell.app"
+  },
+  "ladder": {
+    "source": "default",
+    "implementation": "file",
+    "durable": true,
+    "reason": null
+  },
+  "protectedOnline": {
+    "rows": 1,
+    "retention": {
+      "retainable": false,
+      "code": "SNAPBACK_RETENTION_NOT_RETAINABLE",
+      "reason": "authority-scoped query: retained display requires the LLP 0043/0053 lease machinery (Contract arm); protected queries are never cold-retained on this arm",
+      "store": {
+        "source": "default",
+        "implementation": "file",
+        "durable": true,
+        "reason": null
+      }
+    }
+  },
+  "online": {
+    "rows": 3,
+    "titles": [
+      "Pump house 8",
+      "Site A 12",
+      "Substation 25"
+    ],
+    "freshness": "current",
+    "connection": "live",
+    "retention": {
+      "retainable": true,
+      "code": null,
+      "reason": null,
+      "store": {
+        "source": "default",
+        "implementation": "file",
+        "durable": true,
+        "reason": null
+      }
+    },
+    "rqsResumeHeld": true,
+    "rqsStoreInfo": {
+      "source": "default",
+      "implementation": "file",
+      "durable": true,
+      "reason": null
+    }
+  },
+  "storeFiles": {
+    "names": [
+      "rqs-id-d066aff474a41d3ad75e84b88f378e8d.v1.json",
+      "rqs-id-d066aff474a41d3ad75e84b88f378e8d.v1.lock"
+    ],
+    "blobBytes": 1826,
+    "sentinelAtRest": false
+  },
+  "coldRetainedRender": {
+    "rows": 3,
+    "titles": [
+      "Pump house 8",
+      "Site A 12",
+      "Substation 25"
+    ],
+    "freshness": "retained",
+    "connection": "stale",
+    "retention": {
+      "retainable": true,
+      "code": null,
+      "reason": "offline boot from verified persisted entry",
+      "store": {
+        "source": "default",
+        "implementation": "file",
+        "durable": true,
+        "reason": null
+      }
+    },
+    "rqsResumeHeld": true,
+    "rqsStoreInfo": {
+      "source": "default",
+      "implementation": "file",
+      "durable": true,
+      "reason": null
+    }
+  },
+  "protectedCold": {
+    "refused": "liveProbe failed on device: {\"message\":\"fetch failed: UnexpectedException: Could not connect to the server. (at ExpoModulesCore/Promise.swift:56)\",\"code\":null,\"name\":\"Error\"}"
+  },
+  "cleanup": {
+    "app": "uninstalled",
+    "simulator": "shutdown",
+    "server": "stopped (origin refuses)"
+  },
+  "finishedAt": "2026-08-01T20:38:34.291Z"
+}

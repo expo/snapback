@@ -10,10 +10,11 @@
 //   1. explicit `rqsStore` option — injected store or `null` opt-out;
 //   2. env `SNAPBACK_CLIENT_RQS_STORE=off` — disabled (test/ops escape);
 //   3. browser (IndexedDB + Web Locks) — the web arm;
-//   4. node (filesystem + a resolvable state directory) — the file arm,
+//   4. React Native with registered platform files — the native file arm;
+//   5. node (filesystem + a resolvable state directory) — the file arm,
 //      under `SNAPBACK_CLIENT_RQS_DIR` or `~/.snapback/rqs`, keyed by the
 //      server origin so distinct servers never share a blob;
-//   5. otherwise — the in-memory arm (`durable: false`; no cold-boot or
+//   6. otherwise — the in-memory arm (`durable: false`; no cold-boot or
 //      restart-safe claim may be made over it).
 
 import { createIndexedDbRqsResumeStore } from './rqs-store.mjs';
@@ -23,6 +24,34 @@ import {
   sweepStaleRqsBlobs,
 } from './rqs-store-file.mjs';
 import { createMemoryRqsResumeStore } from './rqs-store-memory.mjs';
+
+const REQUIRED_NATIVE_FILES_METHODS = [
+  'mkdir', 'readFile', 'writeFile', 'writeFileExclusive', 'rename', 'unlink',
+  'readdir', 'processId', 'processAlive',
+];
+
+let nativeRqsFiles = null;
+
+export function registerNativeRqsFiles(provider) {
+  if (typeof provider?.directory !== 'string' || provider.directory.length === 0) {
+    throw new TypeError('native RQS files registration requires a non-empty directory');
+  }
+  for (const method of REQUIRED_NATIVE_FILES_METHODS) {
+    if (typeof provider?.files?.[method] !== 'function') {
+      throw new TypeError(`native RQS files registration requires files.${method}()`);
+    }
+  }
+  nativeRqsFiles = Object.freeze({
+    files: provider.files,
+    directory: provider.directory,
+    implementation: provider.implementation ?? null,
+  });
+  return nativeRqsFiles;
+}
+
+export function clearNativeRqsFiles() {
+  nativeRqsFiles = null;
+}
 
 const env = (name) => {
   const value = globalThis.process?.env?.[name];
@@ -80,9 +109,30 @@ export function resolveDefaultRqsStore({ baseUrl } = {}) {
       return memoryFallback(error?.code ?? 'indexeddb-unavailable');
     }
   }
+  // React Native arm: the app registers its platform filesystem module at
+  // the root, keeping Metro's static closure free of platform imports.
+  if (globalThis.navigator?.product === 'ReactNative') {
+    if (nativeRqsFiles === null) return memoryFallback('no-native-files-registered');
+    try {
+      return {
+        store: createFileRqsResumeStore({
+          directory: nativeRqsFiles.directory,
+          files: nativeRqsFiles.files,
+          identity: originIdentity(baseUrl),
+        }),
+        info: Object.freeze({
+          source: 'default',
+          implementation: 'file',
+          durable: true,
+          reason: null,
+        }),
+      };
+    } catch (error) {
+      return memoryFallback(error?.code ?? 'native-files-unavailable');
+    }
+  }
   // Node arm: durable files under a stable state directory. React Native
-  // hosts (no node fs, no IndexedDB) fall through to memory unless a store
-  // is injected (the native store needs an injected files adapter).
+  // hosts are handled above and remain explicitly excluded here.
   const isNode = typeof globalThis.process?.versions?.node === 'string'
     && globalThis.navigator?.product !== 'ReactNative';
   if (isNode) {

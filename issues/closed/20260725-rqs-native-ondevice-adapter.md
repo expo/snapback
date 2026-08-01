@@ -99,3 +99,46 @@ competing design. The a1expo-f2 fix (e1f9ac49) narrowed the residual:
 the M2 queue now engages on Expo, so what remains is the durable store
 arm (restart durability + cold-boot retained render). The store ladder
 still excludes RN (packages/snapback-client/rqs-store-default.mjs:83).
+
+---
+
+## RESOLVED (2026-08-01, B1 lane — RN durable store arm landed)
+
+All three items delivered on branch b1-rn-durable-rqs-store:
+
+1. **Platform files adapter:** `packages/snapback-client/rqs-store-expo.mjs`
+   — `createExpoFilesAdapter(fileSystem)` implements the nine adapter
+   methods over the pinned expo-file-system File/Directory API (57.0.1,
+   the new synchronous class API), with state-probe (never message-match)
+   error classification, a real exclusive create (`File.create` throws on
+   exist), and per-launch-id process liveness (mobile hosts are killed,
+   not exited; any other launch id is a reclaimable dead predecessor).
+   `createExpoRqsResumeStore` is the packaged convenience;
+   `registerExpoFileSystemRqsFiles` + the new React Native rung in
+   `rqs-store-default.mjs` make it the DEFAULT ladder outcome after a
+   one-line app-root registration (Metro forbids the client importing the
+   platform module itself — LLP 0129 dated note records the decision).
+   Conformance: the full store-parameterized Channel B resume suite runs
+   on this arm (`rqs-resume-expo.test.mjs`, 18/18, same list as web/node
+   arms) plus adapter/ladder unit obligations (`rqs-store-expo.test.mjs`,
+   7/7) over a node projection of the pinned API
+   (`fake-expo-file-system.mjs`); the browser-closure proof now also
+   refuses any `expo-file-system` specifier in the root bundle.
+2. **Device/Hermes harness proof:** `demos/rn-durable-store-witness/` —
+   iOS simulator, release Hermes build, REAL expo-file-system: default
+   ladder resolves `{source:default, implementation:file, durable:true}`
+   on-device, `flushResumeState()` persists the retainable public query,
+   the protected sentinel never lands at rest, and an offline cold
+   relaunch renders the persisted rows with `freshness: retained` /
+   `connection: stale` (relaunch-renders-persisted); corrupt-fail-closed
+   and lock-reclaim are covered by the conformance suites.
+3. **Host lifecycle flush wiring:** documented on
+   guide/clients/react-expo.md (AppState → `handle.flushResumeState()`)
+   and exercised by the witness; the chat-matrix demo adoption remains a
+   separate nicety, not a gate — the guide page now carries the reference
+   wiring the ticket asked the demo to pioneer.
+
+Residue (new ticket): sequential short-lived clients in one process
+degrade to non-persisting readers because no client disposal releases the
+default store writer lock —
+issues/20260801-rqs-default-store-lifecycle-sequential-clients.md.

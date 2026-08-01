@@ -32,6 +32,14 @@ assert.equal(
   null,
   `the client root browser closure references a Node builtin: ${builtinReference?.[0]?.trim()}`,
 );
+const expoFileSystemReference = bundled.match(
+  /(?:\bfrom\s*|\bimport\s*(?:\(\s*)?|\brequire\s*\(\s*)['"]expo-file-system['"]/u,
+);
+assert.equal(
+  expoFileSystemReference,
+  null,
+  `the client root browser closure imports expo-file-system: ${expoFileSystemReference?.[0]?.trim()}`,
+);
 assert.doesNotMatch(
   'process.getBuiltinModule("node:crypto")',
   /(?:\bfrom\s*|\bimport\s*(?:\(\s*)?|\brequire\s*\(\s*)['"]node:[^'"]+/u,

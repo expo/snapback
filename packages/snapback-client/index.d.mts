@@ -1042,5 +1042,21 @@ export function admittedReactEphemeralDefinition(
 ): PreparedReactEphemeralDefinition;
 
 export { createFileRqsResumeStore } from './rqs-store-file.mjs';
+export {
+  createExpoFilesAdapter,
+  createExpoRqsResumeStore,
+  registerExpoFileSystemRqsFiles,
+} from './rqs-store-expo.mjs';
+export type {
+  ExpoDirectoryLike,
+  ExpoFileLike,
+  ExpoFileSystemModuleLike,
+} from './rqs-store-expo.mjs';
 export declare function createMemoryRqsResumeStore(options?: Record<string, unknown>): unknown;
-export { resolveDefaultRqsStore, type DefaultRqsStoreResolution } from './rqs-store-default.mjs';
+export {
+  clearNativeRqsFiles,
+  registerNativeRqsFiles,
+  resolveDefaultRqsStore,
+  type DefaultRqsStoreResolution,
+  type NativeRqsFilesProvider,
+} from './rqs-store-default.mjs';

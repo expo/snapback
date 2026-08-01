@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "ee66e20f6ea33d1a1b9f846e6816fd99f541e610"
+    "commit": "ddb70b142f4bb10db534a78de933dcc4df9917cc"
   },
   "nav": {
     ".": [
@@ -1361,17 +1361,20 @@
         "packages/snapback-client/index.mjs",
         "packages/snapback-client/react-binding.mjs",
         "packages/snapback-client/rqs-store-default.mjs",
+        "packages/snapback-client/rqs-store-expo.mjs",
         "packages/snapback-react/index.mjs",
         "demos/partiful-matrix/tests/acceptance/native-react-expo.mjs"
       ],
       "examples": [
         "demos/partiful-matrix/native/react-expo",
         "packages/snapback-client/webcrypto-fallback.test.mjs",
-        "packages/snapback-react/webcrypto-fallback.test.mjs"
+        "packages/snapback-react/webcrypto-fallback.test.mjs",
+        "packages/snapback-client/rqs-store-expo.test.mjs",
+        "demos/rn-durable-store-witness/probe-App.tsx"
       ],
       "reviewed": "2026-08-01",
       "reviewedCommit": "HEAD",
-      "sha256": "8ad267ba63b4da84ca826da02297e8f43dcdff92ca806f093b90f3173a9073f4",
+      "sha256": "0bc9bec4ca913ba1856a7a43be2b2e536b9b03acb622ef478226d6d59a5490dc",
       "snippets": [
         {
           "lang": "ts",
@@ -1386,6 +1389,14 @@
           "lang": "js",
           "class": "transcluded",
           "source": "packages/snapback-client/webcrypto-fallback.test.mjs"
+        },
+        {
+          "lang": "ts",
+          "class": "fragment"
+        },
+        {
+          "lang": "ts",
+          "class": "fragment"
         }
       ]
     },
@@ -2430,5 +2441,5 @@
     "routes": 86,
     "hostOps": 29
   },
-  "contentHash": "7b46854f62d9604c4445d5dfbe7930babf3dc916dc183b72866a749e4a9f30a8"
+  "contentHash": "547e99895cb53ace07c77487f08fe2fb559443e5960f4b2e2e1ad2dcf269b2be"
 }

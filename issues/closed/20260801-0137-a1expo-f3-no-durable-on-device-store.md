@@ -47,3 +47,28 @@ was wrong — this is a DESIGN item explicitly owned by
 adapter), as the cross-reference above already records. No implementation
 here; the ticket stays open as the sweep-side witness holder per its own
 routing. Removed from the fix-wave's executable set.
+
+---
+
+## RESOLVED (2026-08-01, B1 lane — the witness this ticket held is now green on-device)
+
+The adapter ticket (issues/closed/20260725-rqs-native-ondevice-adapter.md)
+delivered the RN store arm: expo-file-system files adapter + default-ladder
+React Native rung behind a one-line app-root registration
+(`registerExpoFileSystemRqsFiles(FileSystem)`), same persisted-entry
+contract and DK-9 reporting as the web/node arms, full Channel B resume
+suite green on the new arm.
+
+This ticket's own witness sentence ran verbatim on the iOS simulator
+(release Hermes build, real expo-file-system, published 0.1.8 closure +
+the branch client delta): the retainable public query cold-boots offline
+with `freshness: retained` / `connection: stale`, and the store blob holds
+the retainable rows while the protected sentinel is NOT at rest
+(demos/rn-durable-store-witness/evidence/b1-witness.json, shots 0-1).
+Unregistered RN now resolves memory with the actionable reason
+`no-native-files-registered` instead of the generic no-durable-backend.
+guide/clients/react-expo.md documents mobile retention, the flush wiring,
+and the one-client-per-app sharp edge
+(issues/20260801-rqs-default-store-lifecycle-sequential-clients.md).
+The LLP 0129 default-persistence promise now reaches the Expo carrier
+through the documented explicit registration (0129 dated note, 2026-08-01).

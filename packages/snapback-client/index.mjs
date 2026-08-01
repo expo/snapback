@@ -93,8 +93,17 @@ export {
   RQS_STORE_MAX_ENTRIES,
 } from './rqs-store.mjs';
 export { createFileRqsResumeStore } from './rqs-store-file.mjs';
+export {
+  createExpoFilesAdapter,
+  createExpoRqsResumeStore,
+  registerExpoFileSystemRqsFiles,
+} from './rqs-store-expo.mjs';
 export { createMemoryRqsResumeStore } from './rqs-store-memory.mjs';
-export { resolveDefaultRqsStore } from './rqs-store-default.mjs';
+export {
+  clearNativeRqsFiles,
+  registerNativeRqsFiles,
+  resolveDefaultRqsStore,
+} from './rqs-store-default.mjs';
 export {
   createRqsPreloadRegistry,
   createRqsRegisteredRegistry,

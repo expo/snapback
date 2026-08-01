@@ -4,8 +4,8 @@ id: clients.react-expo
 order: 3
 audience: agent-first
 capabilities: [clients.react-expo]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/rqs-store-default.mjs, packages/snapback-react/index.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs]
-examples: [demos/partiful-matrix/native/react-expo, packages/snapback-client/webcrypto-fallback.test.mjs, packages/snapback-react/webcrypto-fallback.test.mjs]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/rqs-store-default.mjs, packages/snapback-client/rqs-store-expo.mjs, packages/snapback-react/index.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs]
+examples: [demos/partiful-matrix/native/react-expo, packages/snapback-client/webcrypto-fallback.test.mjs, packages/snapback-react/webcrypto-fallback.test.mjs, packages/snapback-client/rqs-store-expo.test.mjs, demos/rn-durable-store-witness/probe-App.tsx]
 status: current
 targets: [local]
 maturity: shipped
@@ -108,25 +108,71 @@ To use those surfaces on RN, install an RNG polyfill before constructing the
 client — Expo: `expo-crypto` (its `getRandomValues` polyfill), bare RN:
 `react-native-get-random-values`.
 
-## The store consequence: memory only, nothing durable on device
+## The store: durable on-device once the app registers its filesystem
 
-The default persistence ladder has no React Native arm: explicit option →
-env kill switch → browser IndexedDB → node filesystem → **in-memory**. On
-Expo every client resolves the memory store; the fact is honest and
-inspectable as `client.rqsStoreInfo`
-(`{ implementation: 'memory', durable: false }`). Consequences:
+The client package never imports `expo-file-system` (Metro statically
+resolves every literal specifier reachable from the root, so a platform
+import would break non-Expo consumers). Instead the app hands the module in
+**once, at the root, before constructing any client**:
 
-- **No cold-boot retained render.** Relaunching offline renders nothing —
-  even for queries that declared `rqsEligible` retention (see
-  [offline retention](../sync/offline-and-retention.md)); retained rows
-  require a durable store, and this carrier has none.
-- **The offline queue is not restart-durable.** Queued mutations survive
-  the process, not a relaunch.
+```ts fragment reason="app-root composition; the registration + ladder behavior is CI-proven in packages/snapback-client/rqs-store-expo.test.mjs and the on-device witness in demos/rn-durable-store-witness/"
+import * as FileSystem from 'expo-file-system';
+import { registerExpoFileSystemRqsFiles } from '@expo/snapback-client';
 
-An on-device durable adapter (expo-file-system/SQLite backing for the
-persisted-entry contract) is tracked in
-`issues/20260725-rqs-native-ondevice-adapter.md` (LLP 0129's on-device
-adapter); until it lands, do not claim mobile cold-boot retention.
+registerExpoFileSystemRqsFiles(FileSystem);
+```
+
+After that one line, the default persistence ladder (explicit option → env
+kill switch → browser IndexedDB → **React Native registered files** → node
+filesystem → in-memory) resolves the durable file arm for every client on
+this carrier: `client.rqsStoreInfo` reports
+`{ source: 'default', implementation: 'file', durable: true }`, blobs live
+under the app's document container (`Paths.document/snapback-rqs/`, one
+blob per server origin), and at-rest protection is the OS container plus
+platform disk encryption (LLP 0090 Q4 posture — no client-side encryption
+is claimed). Without the registration the ladder stays in-memory with the
+actionable fact `{ implementation: 'memory', durable: false, reason:
+'no-native-files-registered' }` — do not claim retention over it.
+
+What the durable arm enables (proven on the iOS simulator against a release
+Hermes build — `demos/rn-durable-store-witness/`):
+
+- **Cold-boot retained render** for queries that declared `rqsEligible`
+  retention (see [offline retention](../sync/offline-and-retention.md)):
+  relaunching offline renders the persisted rows with
+  `freshness: 'retained'` under an honest non-live connection fact.
+  Protected (authority-scoped) queries are never cold-retained on this arm
+  and their `handle.retention` names the refusal.
+- **A restart-durable offline queue:** queued mutations survive relaunch,
+  not just the process.
+
+The React-provider boot caveat above still applies: `prepareReactBinding`
+needs the server reachable, so hook-path rendering cannot start offline —
+the retained render is the headless `client.liveQuery` path.
+
+Flush on background (the LLP 0091 step-5 lifecycle wiring): persistence is
+debounced, so have the shell flush pending resume state when the app leaves
+the foreground:
+
+```ts fragment reason="app lifecycle composition varies by shell; flushResumeState itself is exercised by the on-device witness and the resume suites"
+AppState.addEventListener('change', (state) => {
+  if (state !== 'active') void liveHandle.flushResumeState();
+});
+```
+
+Two sharp edges, stated plainly:
+
+- **Construct one client for the app, not one per operation.** The durable
+  store is single-writer per origin; the first client's store instance
+  holds the writer lock for the whole launch and there is currently no
+  client API that releases it, so later clients in the same process
+  silently degrade to non-persisting readers
+  (`issues/20260801-rqs-default-store-lifecycle-sequential-clients.md`).
+- For bare React Native (no expo-file-system), implement the nine-method
+  files adapter against `createFileRqsResumeStore` yourself, or inject a
+  store per client via the `rqsStore` option
+  (`createExpoRqsResumeStore({ fileSystem })` is the packaged convenience
+  for Expo modules).
 
 ## The offline queue works on this carrier
 
@@ -135,7 +181,8 @@ engages on Expo: connectivity is classified by transport provenance — the
 fetch dispatch itself rejected, with no HTTP status, diagnostic, or receipt
 — independent of the rejection's constructor, so Expo's plain-`Error` fetch
 rejections queue exactly like undici's `TypeError` shape. Server-answered
-refusals and caller aborts never queue. See
+refusals and caller aborts never queue. With the registered durable store
+above, the queue is also restart-durable. See
 [offline and retention](../sync/offline-and-retention.md) for the mechanics
 and `useSnapbackOutbox()` for rendering the queued state.
 
@@ -227,8 +274,9 @@ honestly rather than assuming the cycle away.
 - **Do not polyfill RNG with `Math.random`.** When
   `SNAPBACK_CLIENT_WEBCRYPTO_RNG_MISSING` names a missing primitive, install
   a real RNG polyfill (`expo-crypto`).
-- **Do not claim cold-boot retention on this carrier.** The store is
-  in-memory; `client.rqsStoreInfo` is the honest fact to render.
+- **Do not claim cold-boot retention without the registered durable
+  store.** Unregistered, the store is in-memory; either way
+  `client.rqsStoreInfo` is the honest fact to render.
 - **Do not transfer evidence between operating systems.** Native evidence is
   per immutable surface/OS profile.
 - **Do not call Online local-first or Parity.** No local handler execution is

@@ -5,7 +5,30 @@
 **Systems:** Sync, Storage, Runtime, Client integration, Auth, Wire Protocol, Realtime, Packaging, Testing, Documentation, Competitive evaluation
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-08-01 (v0.8, super-refine round 6 — Fable READY,
+**Revised:** 2026-08-01 (React Native durable-store arm landed — the option-A
+default carrier now reaches React Native. Design decision recorded here
+because no prior revision answered it: the default ladder CANNOT import a
+platform filesystem module (Metro statically resolves every literal
+specifier reachable from the client root), so the conservative default is an
+explicit one-line registration at the app root —
+`registerExpoFileSystemRqsFiles(FileSystem)` — after which every client
+resolves the durable file arm (`rqs-store-file.mjs` over an injected
+expo-file-system files adapter, `rqs-store-expo.mjs`); unregistered RN
+resolves memory with the actionable reason `no-native-files-registered`,
+never a silent import attempt. Same store contract, same DK-9 reporting;
+conformance = the full Channel B resume suite on the node projection of the
+pinned expo-file-system API (`rqs-resume-expo.test.mjs`, 18/18) plus an
+on-device witness (iOS simulator, release Hermes build, real
+expo-file-system: ladder resolution, flushResumeState persistence,
+protected-sentinel-never-at-rest, cold-boot retained render
+`freshness:'retained'` — `demos/rn-durable-store-witness/`). Phase 0's
+own gate disposition is unchanged: the chosen arm remains JS/React
+BROWSER, and this RN witness is recorded as carrier reach, not as that
+gate's evidence. Known residue ticketed: sequential short-lived clients in
+one process degrade to non-persisting readers because nothing releases the
+default store's writer lock —
+`issues/20260801-rqs-default-store-lifecycle-sequential-clients.md`.)
+2026-08-01 (v0.8, super-refine round 6 — Fable READY,
 Codex NOT READY, the third split; the loop closed here with the
 fixable residue applied and the author-owned residue routed, not
 silently settled. **Gate 6's sandbox list was literally wrong** and is
