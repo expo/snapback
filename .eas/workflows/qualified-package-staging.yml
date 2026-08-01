@@ -29,8 +29,9 @@ jobs:
     steps:
       - uses: eas/checkout
 
-      - name: Initialize public submodules and remove checkout authority
+      - name: Remove checkout authority and initialize public submodules
         run: |
+          git remote set-url origin https://github.com/expo/snapback.git
           git submodule update --init --recursive
           scripts/check-checkout-credentials
 
@@ -108,8 +109,9 @@ jobs:
     steps:
       - uses: eas/checkout
 
-      - name: Initialize public submodules and remove checkout authority
+      - name: Remove checkout authority and initialize public submodules
         run: |
+          git remote set-url origin https://github.com/expo/snapback.git
           git submodule update --init --recursive
           scripts/check-checkout-credentials
 
@@ -173,7 +175,9 @@ jobs:
       - uses: eas/checkout
 
       - name: Remove checkout authority
-        run: scripts/check-checkout-credentials
+        run: |
+          git remote set-url origin https://github.com/expo/snapback.git
+          scripts/check-checkout-credentials
 
       - uses: eas/install_node_modules
 
@@ -266,7 +270,9 @@ jobs:
       - uses: eas/checkout
 
       - name: Remove checkout authority
-        run: scripts/check-checkout-credentials
+        run: |
+          git remote set-url origin https://github.com/expo/snapback.git
+          scripts/check-checkout-credentials
 
       - id: qualified_artifact
         uses: eas/download_artifact
@@ -303,7 +309,9 @@ jobs:
       - uses: eas/checkout
 
       - name: Remove checkout authority
-        run: scripts/check-checkout-credentials
+        run: |
+          git remote set-url origin https://github.com/expo/snapback.git
+          scripts/check-checkout-credentials
 
       - id: qualified_artifact
         uses: eas/download_artifact
