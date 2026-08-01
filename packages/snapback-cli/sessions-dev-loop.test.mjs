@@ -22,7 +22,7 @@ import {
   createMemoryAuthCustodyStorage,
 } from '@expo/snapback-contract/auth-coordinator';
 
-import { runDev, scaffoldApp } from './index.mjs';
+import { generateApp, runDev, scaffoldApp } from './index.mjs';
 
 const packageRoot = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(packageRoot, '..', '..');
@@ -217,7 +217,59 @@ try {
     /refined is not defined|ReferenceError/u,
   );
 
-  console.log('sessions-dev-loop.test.mjs: ordinary sessions startup/restart and deliberate stale-runtime restart diagnostics pass');
+  // issues/20260801-0137-a3-restart-evolution-refusal-misattributed-diagnostic:
+  // stop/regenerate/restart over the same sessions database is refused by the
+  // auth-mode startup pin. That refusal must surface as itself, carrying the
+  // expected deployment identity and the sanctioned evolution path — never as
+  // a runtime/codegen identity mismatch with reinstall advice.
+  rmSync(failNextStart, { force: true });
+  const evolvedSchema = sessionsSchema.replace(
+    ".index('by_title', ['title'])",
+    ".index('by_title', ['title']).index('by_completed', ['completed'])",
+  );
+  assert.notEqual(evolvedSchema, sessionsSchema);
+  writeFileSync(schemaPath, evolvedSchema);
+  const regenerated = await generateApp(backendRoot);
+  assert.equal(regenerated.ok, true);
+  const pinRefused = await dev.verbs.restart({ requestId: 'sessions-startup-pin' });
+  assert.equal(pinRefused.state, 'restart-failed');
+  assert.equal(pinRefused.requestId, 'sessions-startup-pin');
+  const pinDiagnostic = pinRefused.diagnostics[0];
+  assert.equal(
+    pinDiagnostic.code,
+    'SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH',
+    `the startup pin must name itself, got: ${JSON.stringify(pinDiagnostic)}`,
+  );
+  assert.equal(pinDiagnostic.details.causeCode, 'SNAPBACK_DEV_SERVER_START_FAILED');
+  assert.match(
+    pinDiagnostic.details.recovery.sanctionedEvolution,
+    /running dev server|reload/iu,
+    'the recovery names the supported evolution path',
+  );
+  assert.equal(
+    pinDiagnostic.details.recovery.contributorRebuild,
+    undefined,
+    'the pin refusal must not carry the runtime-identity rebuild advice',
+  );
+  assert.equal(
+    pinDiagnostic.details.recovery.compatibleOverride,
+    undefined,
+    'the pin refusal must not advise a SNAPBACK_RUNTIME_BINARY override',
+  );
+  assert.ok(
+    pinDiagnostic.details.expectedDeployment?.schemaHash,
+    'the structured refusal carries the exact expected deployment identity',
+  );
+  assert.ok(
+    pinDiagnostic.details.observedDeployment?.schemaHash,
+    'the structured refusal carries the observed (regenerated) identity',
+  );
+  assert.notEqual(
+    pinDiagnostic.details.observedDeployment.schemaHash,
+    pinDiagnostic.details.expectedDeployment.schemaHash,
+  );
+
+  console.log('sessions-dev-loop.test.mjs: ordinary sessions startup/restart, deliberate stale-runtime restart, and startup-pin refusal diagnostics pass');
 } finally {
   dev?.close?.();
   rmSync(scratchRoot, { recursive: true, force: true });

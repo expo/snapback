@@ -1408,15 +1408,78 @@ function requireNativeSuccess(result, code, operation) {
 
 const ARTIFACT_DECODE_EVIDENCE = /(?:unknown|missing|duplicate) field|invalid (?:json|type)|expected (?:struct|map|sequence|string)|did not match any variant|data did not match|SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH|SNAPBACK_STALE_(?:SCHEMA|FUNCTION)_ARTIFACT_(?:KIND|VERSION)/i;
 
-function generatedArtifactDecodeFailure(error) {
+// The auth-mode startup pin refusing a *different* artifact pair is not a
+// decode failure: the runtime parsed both manifests and computed a deployment
+// identity that differs from the pinned one. Only these identity-refusal
+// messages prove that; carrier shape/format failures with the same code stay
+// decode-shaped (a genuinely stale runtime emits those).
+const AUTH_STARTUP_PIN_EVIDENCE = /startup artifact (?:pair|identity) differs from the (?:pinned|pending) deployment/i;
+
+function failureEvidenceStrings(error) {
   const diagnostic = error?.diagnostic ?? {};
-  const evidence = [
+  return [
     error?.message,
     diagnostic.message,
     diagnostic.details?.error,
     diagnostic.details?.stdout,
     diagnostic.details?.stderr,
   ].filter((value) => typeof value === 'string' && value.length > 0).join('\n');
+}
+
+// The native runtime prints the complete refusal as one structured
+// `snapback.startup-diagnostic.v1` stderr line (LLP 0058: the CLI emits the
+// exact expected deployment identity). Recover it so the managed diagnostic
+// can carry the expected/observed identities instead of prose fragments.
+function structuredStartupDiagnostic(error) {
+  const details = error?.diagnostic?.details ?? {};
+  const captured = [details.stderr, details.stdout]
+    .filter((value) => typeof value === 'string')
+    .join('\n');
+  for (const line of captured.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith('{')) continue;
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (
+        parsed?.schemaVersion === 'snapback.startup-diagnostic.v1'
+        && typeof parsed.diagnostic?.code === 'string'
+      ) {
+        return parsed.diagnostic;
+      }
+    } catch {
+      // Not a structured diagnostic line; keep scanning.
+    }
+  }
+  return null;
+}
+
+function authStartupPinRefusal(error) {
+  const code = error?.diagnostic?.code;
+  if (
+    code !== 'SNAPBACK_DEV_SERVER_START_FAILED'
+    && code !== 'SNAPBACK_DEV_SERVER_LOAD_FAILED'
+  ) {
+    return null;
+  }
+  const structured = structuredStartupDiagnostic(error);
+  if (
+    structured?.code === 'SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH'
+    && structured.details?.observedDeployment
+  ) {
+    // Both identities computed: the pair decoded, the pin refused it.
+    return structured;
+  }
+  if (AUTH_STARTUP_PIN_EVIDENCE.test(failureEvidenceStrings(error))) {
+    return structured?.code === 'SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH'
+      ? structured
+      : { code: 'SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH', details: {} };
+  }
+  return null;
+}
+
+function generatedArtifactDecodeFailure(error) {
+  const diagnostic = error?.diagnostic ?? {};
+  const evidence = failureEvidenceStrings(error);
   return (
     diagnostic.code === 'SNAPBACK_REQUEST_JSON_INVALID'
     || (
@@ -1435,6 +1498,31 @@ function refineGeneratedArtifactFailure(error, {
   runtimeIdentity = null,
   artifacts = [],
 } = {}) {
+  // issues/20260801-0137-a3-restart-evolution-refusal-misattributed-diagnostic:
+  // surface the auth-mode startup pin as itself. Wrapping it in the
+  // runtime-identity mismatch sent consumers reinstalling runtimes that were
+  // never at fault; the sanctioned evolution path is a provision through the
+  // running server, not a cold start over regenerated artifacts.
+  const pin = authStartupPinRefusal(error);
+  if (pin) {
+    const refused = diagnosticError(
+      'SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH',
+      'the sessions deployment refused to start because the startup artifact pair differs from the pinned deployment; the runtime and codegen agree — evolve the deployment through the running server instead of cold-starting on regenerated artifacts',
+      {
+        causeCode: error?.diagnostic?.code ?? null,
+        expectedDeployment: pin.details?.expectedDeployment ?? null,
+        observedDeployment: pin.details?.observedDeployment ?? null,
+        artifacts: artifacts.map((path) => resolve(path)),
+        recovery: {
+          sanctionedEvolution: 'run the evolved sources through the running dev server (`snapback dev` watch reload or the reload verb): its app.ensure provision moves the pinned deployment forward',
+          coldStartRepair: 'to cold-start first, restore the generated artifacts matching the pinned deployment, boot, then apply the evolved sources through the running server',
+          safety: 'do not reinstall the runtime or set SNAPBACK_RUNTIME_BINARY; the startup pin is auth-mode state (LLP 0058), not a runtime/codegen mismatch',
+        },
+      },
+    );
+    refused.cause = error;
+    return refused;
+  }
   if (!generatedArtifactDecodeFailure(error)) return error;
   const causeDiagnostic = error?.diagnostic ?? null;
   const mismatch = diagnosticError(

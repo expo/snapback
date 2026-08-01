@@ -103,6 +103,30 @@ fn quarantine_pending_startup(
     snapback.auth_database_mut().quarantine_auth_mode(&code)
 }
 
+/// Emit the complete structured startup-artifact refusal on stderr before the
+/// process exits with the terse `code: message` line. The details carry the
+/// exact expected (and, for a pin refusal, observed) deployment identity —
+/// hashes only, no secret material — so managed tooling can attribute the
+/// refusal to the auth-mode startup pin instead of misclassifying it as a
+/// runtime/codegen artifact mismatch.
+// @ref LLP 0058#cold-startup-artifact-carrier — "the CLI emits the exact
+// expected deployment identity without secret material"; the startup pin is
+// not a wedge, and its refusal must name itself.
+fn emit_startup_artifact_refusal(error: &crate::diagnostic::SnapbackError) {
+    if !matches!(
+        error.diagnostic.code.as_str(),
+        "SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH" | "SNAPBACK_AUTH_STARTUP_ARTIFACT_REQUIRED"
+    ) {
+        return;
+    }
+    if let Ok(line) = serde_json::to_string(&json!({
+        "schemaVersion": "snapback.startup-diagnostic.v1",
+        "diagnostic": error.diagnostic,
+    })) {
+        eprintln!("{line}");
+    }
+}
+
 /// Resolve the four durable auth-mode keys and the one cold artifact carrier
 /// before listener bind. Valid pending failures become a durable diagnostic
 /// posture; settled-state failures remain nonmutating startup refusals.
@@ -2449,13 +2473,20 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         false,
         false,
     );
-    let auth_mode_state = compose_auth_mode_startup(
+    let auth_mode_state = match compose_auth_mode_startup(
         &args,
         &mut snapback,
         &mut auth_runtime,
         &auth_program_readiness,
     )
-    .await?;
+    .await
+    {
+        Ok(state) => state,
+        Err(error) => {
+            emit_startup_artifact_refusal(&error);
+            return Err(error.into());
+        }
+    };
     auth_runtime.seed_durable_clock_floor(&mut snapback)?;
     validate_auth_transport(
         bind_ip,

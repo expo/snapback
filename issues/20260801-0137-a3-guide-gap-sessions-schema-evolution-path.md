@@ -18,3 +18,13 @@ evolution through the running dev loop, the startup pin and its refusal
 code, the live-subscriber caveat, the not-yet-supported destructive cases,
 with a CI-verified snippet and a retrieval-eval row for "add a field to a
 table with existing data".
+
+**Update 2026-08-01 (between-arms fix lane):** two of the behaviors this
+page must describe changed. The live-subscriber caveat is gone — watch
+reload now evolves cleanly with live handles attached
+(issues/closed/20260801-0137-a3-live-subscriber-wedges-watch-reload.md) —
+and the stop/regenerate/restart refusal now surfaces
+`SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH` directly with the expected/observed
+deployment identities and a recovery naming the running-server evolution
+path (issues/closed/20260801-0137-a3-restart-evolution-refusal-misattributed-diagnostic.md).
+The page should teach the working path, not the workaround.
