@@ -69,3 +69,21 @@ tests), and no flushResumeState lifecycle wiring exists in any demo source.
 Large — adapter + device-harness proof + chat-matrix adoption + guide
 absorption. This is a natural next large executable now that the 0093
 medium tranche has landed.
+
+## Sweep evidence (2026-08-01, LLP 0137 A1-Expo arm — a1expo-f3)
+
+The Track B A1 field-notebook arm on the Expo iOS simulator produced direct
+product evidence for this ticket
+(issues/20260801-0137-a1expo-f3-no-durable-on-device-store.md, arm finding
+demos/improvement-sweep/arms/a1-snapback-expo-ios/findings/0137-a1expo-f3-no-durable-on-device-rqs-store-arm.json):
+the default ladder (rqs-store-default.mjs) has no RN arm, every Expo client
+silently resolves `{implementation:'memory', durable:false}`, the cold-restart
+leg renders nothing offline (shot-06 in the arm evidence), and — after the
+a1expo-f2 classification fix — the M2 queue engages on the carrier but is
+not restart-durable, on exactly the platform whose users are most often
+offline. The arm's acceptance witness for this ticket: a retainable public
+query cold-boots offline on the simulator with freshness `retained` /
+connection `stale`, and a sentinel grep shows no protected bytes at rest.
+The rewritten guide/clients/react-expo.md now documents the memory-store
+consequence with a pointer here; keep that page in the update set when the
+adapter lands.

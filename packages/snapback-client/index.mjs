@@ -104,13 +104,21 @@ export {
 } from './rqs-preload.mjs';
 import { resolveDefaultRqsStore } from './rqs-store-default.mjs';
 
-// Connectivity classification for the LLP 0043 M2 queue path: a fetch-level
-// transport failure (the runtime throws TypeError; sanitizeTransportError
-// preserves the class) with no HTTP status, no server diagnostic, and no
-// receipt. Anything the server answered — refusals, conflicts, rejections —
-// is NOT connectivity and is never queued.
+// Connectivity classification for the LLP 0043 M2 queue path: transport
+// PROVENANCE, not constructor identity (0137 A1-Expo f2). The primary signal
+// is `fetchDispatchFailed` — stamped by sanitizeTransportError exactly where
+// the fetch dispatch itself rejected, i.e. no Response was ever produced (no
+// HTTP status, no server diagnostic, no receipt). WHATWG runtimes reject
+// with TypeError there, but Expo/RN fetch rejects connection failures with a
+// plain Error, so class identity alone silently disabled the queue on that
+// carrier. The `instanceof TypeError` arm remains for errors that reach this
+// predicate without crossing the stamped boundary. Caller-owned aborts and
+// deadline expiries are not outages; anything the server answered —
+// refusals, conflicts, rejections — is NOT connectivity and is never queued.
+const CONNECTIVITY_EXCLUDED_ERROR_NAMES = new Set(['AbortError', 'TimeoutError']);
 const isConnectivityFailureError = (error) => (
-  error instanceof TypeError
+  (error?.fetchDispatchFailed === true || error instanceof TypeError)
+  && !CONNECTIVITY_EXCLUDED_ERROR_NAMES.has(error?.name)
   && error?.status === undefined
   && error?.diagnostic === undefined
   && error?.receipt === undefined
@@ -290,12 +298,32 @@ export function admitSnapbackId(table, value) {
   return value;
 }
 
+// 0137 A1-Expo f1: React Native/Hermes ships no `globalThis.crypto`.
+// Security-bearing random identity is never synthesized from Math.random —
+// when the WebCrypto RNG is absent these mints refuse with ONE named,
+// actionable code instead of the carrier's bare
+// "Cannot read property 'getRandomValues' of undefined".
+const cryptoRandomSource = (what) => {
+  const source = globalThis.crypto;
+  if (typeof source?.getRandomValues === 'function') return source;
+  const code = 'SNAPBACK_CLIENT_WEBCRYPTO_RNG_MISSING';
+  const message = `${what} requires crypto.getRandomValues, which this runtime `
+    + 'does not provide (React Native/Hermes ships no WebCrypto). Install an '
+    + 'RNG polyfill before constructing the client — Expo: expo-crypto '
+    + '(import its getRandomValues polyfill), bare RN: '
+    + 'react-native-get-random-values.';
+  const error = new Error(`${code}: ${message}`);
+  error.code = code;
+  error.diagnostic = { code, message };
+  throw error;
+};
+
 export function newSeedOperationIdV1(nowMs = Date.now()) {
   if (!Number.isSafeInteger(nowMs) || nowMs < 0 || nowMs > 0xffffffffffff) {
     throw new RangeError('seed operation timestamp is outside UUIDv7 range');
   }
   const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
+  cryptoRandomSource('seed operation identity').getRandomValues(bytes);
   let timestamp = BigInt(nowMs);
   for (let index = 5; index >= 0; index -= 1) {
     bytes[index] = Number(timestamp & 0xffn);
@@ -318,7 +346,7 @@ const EXTERNAL_BEARER_TRANSITION_PERMIT = Symbol('snapback.externalBearerTransit
 
 const senderProofId = () => {
   const value = new Uint8Array(16);
-  crypto.getRandomValues(value);
+  cryptoRandomSource('sender-constrained proof identity').getRandomValues(value);
   return value;
 };
 
@@ -652,13 +680,21 @@ const sanitizeProtocolErrorValue = (value, secrets, field = null) => {
   ]));
 };
 
-const sanitizeTransportError = (error, secrets) => {
+const sanitizeTransportError = (error, secrets, { dispatchFailure = false } = {}) => {
   const message = redactKnownSecrets(error?.message ?? String(error), secrets);
   // Preserve the fetch-unavailable class used by the offline cache policy;
   // only the payload is sanitized. A plain Error here would turn a known
   // network outage into a protocol failure and erase the last safe projection.
   const safe = error instanceof TypeError ? new TypeError(message) : new Error(message);
   safe.name = redactKnownSecrets(error?.name ?? 'Error', secrets);
+  // Transport provenance for the connectivity classifier (0137 A1-Expo f2):
+  // stamped only when the fetch dispatch itself rejected — no Response, so
+  // no status/diagnostic/receipt can exist. Carrier fetch implementations
+  // disagree on the rejection class (undici: TypeError; Expo/RN: Error), so
+  // provenance, not the constructor, carries the fact.
+  if (dispatchFailure || error?.fetchDispatchFailed === true) {
+    safe.fetchDispatchFailed = true;
+  }
   if (error?.code !== undefined) {
     safe.code = sanitizeProtocolErrorValue(error.code, secrets);
   }
@@ -852,6 +888,18 @@ const SUPERSEDED_AUTH_CODES = new Set([
   'SNAPBACK_AUTH_CREDENTIAL_SUPERSEDED',
   'SNAPBACK_AUTH_REFRESH_SUPERSEDED',
 ]);
+
+// 0137 A1-Expo f4 (carrier-agnostic): a successor bearer whose fresh
+// subscribe the server ANSWERS with an authorization refusal is a completed,
+// renderable outcome of a custody transition — not a lifecycle failure of the
+// barrier itself. Custody-terminal codes are excluded: they have their own
+// owner (handleTerminalAuthLoss) and must stay loud.
+const isSubscribeAuthorizationDenial = (error) => (
+  (error?.status === 401 || error?.status === 403)
+  && typeof error?.diagnostic?.code === 'string'
+  && error.diagnostic.code.startsWith('SNAPBACK_AUTH_')
+  && !TERMINAL_AUTH_CODES.has(error.diagnostic.code)
+);
 
 const LIVE_TERMINAL_AUTH_CODES = new Set([
   'SNAPBACK_AUTH_SESSION_EXPIRED',
@@ -1748,6 +1796,14 @@ export class SnapbackClient {
     // protected handles during an identity transition. Keep the live handles
     // that must release demand, blank, and re-enter under a successor bearer.
     this.__externalBearerHandles = new Set();
+    // Handles a bearer transition paused that have NOT yet fresh-subscribed
+    // under a successor (denied successor, transport loss mid-transition, or
+    // a null-token logout). Parked handles are transition-owned: the next
+    // transition re-enters them. App-paused handles are never parked, so app
+    // pause intent survives custody transitions. (0137 A1-Expo f4: the
+    // pre-fix resume set was "not paused when this transition started",
+    // which permanently excluded a handle a previous transition left paused.)
+    this.__externalBearerParkedHandles = new WeakSet();
     this.__externalBearerTransition = null;
     // A finite terminal response closes one exact explicit-bearer generation.
     // Keep the presented bearer installed for an explicit caller-controlled
@@ -2188,16 +2244,23 @@ export class SnapbackClient {
     // a transition that is not already visible there is not a closed barrier.
     this.__externalBearerTransition = transition;
     void (async () => {
+      const parked = this.__externalBearerParkedHandles;
       const handles = [...this.__externalBearerHandles].map((handle) => ({
         handle,
-        wasPaused: handle.paused === true,
+        // A parked handle is paused because a PREVIOUS transition parked it
+        // (denied successor / logout), not because the app paused it — it
+        // re-enters with this transition (0137 A1-Expo f4).
+        wasPaused: handle.paused === true && !parked.has(handle),
       }));
       const handlesPausedByTransition = handles.filter((entry) => !entry.wasPaused);
       const failures = [];
       // pause() quiesces locally and starts T-UNSUB synchronously. Blank in
       // this same turn; network release settlement is not a confidentiality
-      // gate and may take arbitrarily long.
+      // gate and may take arbitrarily long. Every handle this transition
+      // owns is parked BEFORE any async work, so an interrupted transition
+      // still leaves them re-enterable by the next one.
       const releasePromises = handlesPausedByTransition.map(({ handle }) => {
+        parked.add(handle);
         try {
           return Promise.resolve(handle.pause(EXTERNAL_BEARER_TRANSITION_PERMIT));
         } catch (error) {
@@ -2244,14 +2307,26 @@ export class SnapbackClient {
       this.#clearAuthTerminalFact();
 
       if (token !== null) {
+        const resumeEntries = handlesPausedByTransition
+          .filter(({ handle }) => this.__externalBearerHandles.has(handle));
         const resumes = await Promise.allSettled(
-          handlesPausedByTransition
-            .filter(({ handle }) => this.__externalBearerHandles.has(handle))
-            .map(({ handle }) => handle.resume(EXTERNAL_BEARER_TRANSITION_PERMIT)),
+          resumeEntries.map(({ handle }) => handle.resume(EXTERNAL_BEARER_TRANSITION_PERMIT)),
         );
-        for (const outcome of resumes) {
-          if (outcome.status === 'rejected') failures.push(outcome.reason);
-        }
+        resumes.forEach((outcome, index) => {
+          const { handle } = resumeEntries[index];
+          if (outcome.status === 'fulfilled') {
+            parked.delete(handle);
+            return;
+          }
+          // A server-ANSWERED authorization denial is the successor's
+          // completed outcome, recorded on the handle as a renderable
+          // lifecycle fact by resume() itself (0137 A1-Expo f4). The handle
+          // stays parked so a later authority transition re-enters it; the
+          // transition still settles. Anything else — transport loss, broken
+          // callbacks — remains a loud lifecycle failure below.
+          if (isSubscribeAuthorizationDenial(outcome.reason)) return;
+          failures.push(outcome.reason);
+        });
       }
       if (failures.length > 0) {
         throw new AggregateError(
@@ -4040,7 +4115,7 @@ export class SnapbackClient {
       });
     } catch (error) {
       if (opaqueSuccessFailure) throw opaqueCredentialResponseError();
-      throw sanitizeTransportError(error, requestSecrets);
+      throw sanitizeTransportError(error, requestSecrets, { dispatchFailure: true });
     }
     if (credentialed && isRedirectResponse(res)) {
       try { await res.body?.cancel?.(); } catch { /* the refusal owns cleanup */ }
@@ -4846,7 +4921,7 @@ export class SnapbackClient {
   /// hold distinct keys and produce distinct registration sets.
   static mintBundleBootKey() {
     const bytes = new Uint8Array(16);
-    globalThis.crypto.getRandomValues(bytes);
+    cryptoRandomSource('bundle boot idempotency key').getRandomValues(bytes);
     let binary = '';
     for (const byte of bytes) binary += String.fromCharCode(byte);
     return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/u, '');
@@ -6807,6 +6882,13 @@ export class SnapbackClient {
       // live queue state is client.outboxStatus(), not this boot-scoped fact.
       pendingIntentsAtSeed: 0,
       authorizationDisposition: 'retain',
+      // Renderable denial fact (0137 A1-Expo f4): when a fresh subscribe is
+      // ANSWERED with an authorization refusal (e.g. after a bearer custody
+      // transition to a lesser-privileged successor), the frozen
+      // { code, message, atMs } lands here instead of hiding inside a
+      // rejected transition. Cleared by the next successful fresh subscribe
+      // and by the custody blank barrier.
+      authorizationDenial: null,
       get connection() {
         return connection;
       },
@@ -7112,6 +7194,29 @@ export class SnapbackClient {
       deliverIsolated(onUpdate, handle.rows, detail);
       deliverIsolated(onAuthorizationError, error);
       if (!disposed && !paused) setConnection('stale');
+    };
+
+    // 0137 A1-Expo f4: a server-answered authorization denial on a fresh
+    // subscribe becomes a renderable handle fact. Rows are already blank
+    // (the custody barrier blanked them before any successor work); this
+    // projects WHY the handle holds nothing so hooks can render the denial
+    // instead of a silent ready-with-zero-rows. The handle stays paused;
+    // a later authority transition (or an app resume) re-enters it.
+    const recordAuthorizationDenial = (error) => {
+      const code = error?.diagnostic?.code ?? error?.code ?? null;
+      handle.authorizationDenial = Object.freeze({
+        code,
+        message: error?.diagnostic?.message ?? error?.message ?? null,
+        atMs: Date.now(),
+      });
+      const detail = {
+        version: handle.version,
+        kind: 'authorization_denied',
+        authorization: { kind: 'denied', code },
+        error,
+      };
+      deliverIsolated(onUpdate, handle.rows, detail);
+      emitEvent('authorization-denied', { code });
     };
 
     const applyQueueObligation = async (value) => {
@@ -8187,6 +8292,9 @@ export class SnapbackClient {
           assertSubscribeLifecycle(lifecycle);
           currentSubscriptionId = sub.subscription_id;
           knownRetiredSubscriptionId = null;
+          // Any successful fresh subscribe supersedes an earlier denial
+          // fact (0137 A1-Expo f4): the presented authority is authorized.
+          handle.authorizationDenial = null;
           handleAuthorityCapture = responseCapture;
           if (!sub.authorizationScope) {
             if (sub.snapshot) {
@@ -8612,6 +8720,9 @@ export class SnapbackClient {
         handle.rows = [];
         handle.freshness = null;
         handle.authorizationDisposition = 'delete';
+        // The custody blank opens a new authority world: a predecessor
+        // world's denial fact must not linger into it (0137 A1-Expo f4).
+        handle.authorizationDenial = null;
         markAuthorityCapture(handle.rows, handleAuthorityCapture);
         const detail = {
           version: handle.version,
@@ -8954,6 +9065,10 @@ export class SnapbackClient {
         paused = true;
         invalidateSubscribeLifecycle('paused');
         setConnection('disconnected');
+        // An ANSWERED authorization refusal is this handle's completed
+        // outcome under the presented authority — project it as a
+        // renderable fact before the throw (0137 A1-Expo f4).
+        if (isSubscribeAuthorizationDenial(error)) recordAuthorizationDenial(error);
         throw error;
       }
       const manager = transport === 'stream' ? client.liveStreamManager(connectionId, streamOptions) : null;

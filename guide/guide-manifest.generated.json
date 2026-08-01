@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "d6ae72cb6f222063c5ed3abeda795bf11e3fa6b5"
+    "commit": "3af4a56b71d2bc960c4d41b08e6cc2f87513503d"
   },
   "nav": {
     ".": [
@@ -313,7 +313,7 @@
       "examples": [],
       "reviewed": "2026-07-26",
       "reviewedCommit": "HEAD",
-      "sha256": "a7fae224cfd6d0b593000ddd78ee498aea22aa6e384a86000965f6c4fd2d9d84",
+      "sha256": "3ba9eb678864f08ade6ce8cb00672b4d5a81b81e164a3a788a24f60921d8ac37",
       "snippets": []
     },
     "auth.protecting-data": {
@@ -1310,7 +1310,7 @@
       ],
       "reviewed": "2026-07-23",
       "reviewedCommit": "HEAD",
-      "sha256": "5bc45afa9ffbceafb293cdd8c3586abf6c14075d637c634cbdbf05f33968ffc7",
+      "sha256": "15cd3782091e8da6bc0060bd27b83756d93f9d00e27df4d6281e4528e93b4eff",
       "snippets": [
         {
           "lang": "js",
@@ -1343,24 +1343,35 @@
       "authorities": [
         "llp/0012-headless-integration-contract.spec.md",
         "llp/0064-native-client-surfaces.rfc.md",
-        "llp/0074-convex-competitive-strategy.rfc.md",
+        "llp/0114-first-class-react-and-query-groups.spec.md",
         "packages/snapback-client/index.mjs",
-        "packages/snapback-client/external-store.mjs",
+        "packages/snapback-client/react-binding.mjs",
+        "packages/snapback-client/rqs-store-default.mjs",
         "packages/snapback-react/index.mjs",
         "demos/partiful-matrix/tests/acceptance/native-react-expo.mjs"
       ],
       "examples": [
         "demos/partiful-matrix/native/react-expo",
-        "demos/competitive-checkpoint/surfaces/react-expo"
+        "packages/snapback-client/webcrypto-fallback.test.mjs",
+        "packages/snapback-react/webcrypto-fallback.test.mjs"
       ],
-      "reviewed": "2026-07-22",
+      "reviewed": "2026-08-01",
       "reviewedCommit": "HEAD",
-      "sha256": "85f500c986b906e52a309044e38d1d1c5ed96b289bd8e7a770c0d9a21d82e4e1",
+      "sha256": "c516178ce01f6f4002bd908a79810a8c8ca637ee487858521a815dc69ddea7b0",
       "snippets": [
         {
-          "lang": "tsx",
+          "lang": "ts",
+          "class": "fragment"
+        },
+        {
+          "lang": "ts",
           "class": "transcluded",
-          "source": "demos/competitive-checkpoint/surfaces/react-expo/App.tsx"
+          "source": "packages/snapback-react/exact-result-types.fixture.ts"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-client/webcrypto-fallback.test.mjs"
         }
       ]
     },
@@ -2227,7 +2238,7 @@
       ],
       "reviewed": "2026-08-01",
       "reviewedCommit": "HEAD",
-      "sha256": "e2285ab2152b7f823aa98cc46246369ad8af69128a751a265956eaf9d59cf466",
+      "sha256": "0e0471464e380078013a8960d4fe311e4c3d7e7907e2303aa7f01b281223abb6",
       "snippets": [
         {
           "lang": "js",
@@ -2405,5 +2416,5 @@
     "routes": 86,
     "hostOps": 29
   },
-  "contentHash": "1b3d2d34776dd946a0e7be9445073ad211f79b01d9aad16ec691396c81c21f81"
+  "contentHash": "6d40f4e57b51010177be59b3940d4fb05eda7e2cb57e8c5615cb95603b8c4b2a"
 }

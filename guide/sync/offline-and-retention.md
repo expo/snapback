@@ -61,7 +61,12 @@ them from the Node receipt. The headless witness proves:
 - **A durable LLP 0043 M2 outbox.** A mutation refused by connectivity is
   queued durably under a client-minted `clientMutationId` (protocol-lane
   identity) with a monotonic local sequence, and returns
-  `{ queued: true, clientMutationId, sequence }`.
+  `{ queued: true, clientMutationId, sequence }`. Connectivity is classified
+  by transport provenance — the fetch dispatch itself rejected, so no HTTP
+  status, diagnostic, or receipt exists — independent of the rejection's
+  constructor (undici throws `TypeError`; Expo/RN fetch rejects a plain
+  `Error`). Caller-owned aborts/timeouts and anything the server answered
+  never queue.
 - **Ordered exactly-once replay.** After reconnect completes a fresh
   authoritative snapshot (full resync first — LLP 0008 §Mutation Replay),
   the client drains the queue in sequence order; the server's settlement

@@ -64,6 +64,18 @@ barrier. A broker that rotates credentials supplies the replacement bearer
 explicitly; the external-bearer seam does not silently assume refresh
 ownership.
 
+A transition that completes settles — including a downgrade. When the server
+answers a handle's successor fresh-subscribe with an authorization refusal
+(for example `SNAPBACK_AUTH_PERMISSION_DENIED`), the transition still
+resolves; the denial lands on that handle as the frozen
+`handle.authorizationDenial` fact (`{ code, message, atMs }`), is delivered to
+`onUpdate` observers as an `authorization_denied` update, and renders as the
+`error` query state under the React provider. The denied handle stays parked:
+the next authority transition (for example rotating back to the original
+bearer) fresh-subscribes it and clears the fact — no process restart. Genuine
+lifecycle breakage during a transition (transport loss, broken callbacks)
+still rejects with an `AggregateError`.
+
 ## Know the production boundary
 
 The shipped email provider's capture mailbox and `auth.mintSession` are

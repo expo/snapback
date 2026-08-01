@@ -50,6 +50,15 @@ const PRESENCE_PUBLISHER_CAP = 64;
 const OPTIMISTIC_LAYER_CAP = 256;
 const providerContext = createContext(null);
 let providerSequence = 0;
+// Local-uniqueness labels (provider instances, optimistic-layer ids): NOT
+// security-bearing identity, so a carrier with no WebCrypto (React
+// Native/Hermes — 0137 A1-Expo f1) falls back to time+sequence+Math.random
+// uniqueness, mirroring the headless client's processClientStoreId and the
+// contract arm's createClientMutationId. Never used for custody or
+// server-visible idempotency claims.
+let localLabelSequence = 0;
+const localUniqueLabel = () => globalThis.crypto?.randomUUID?.()
+  ?? `${Date.now().toString(36)}-${(localLabelSequence += 1).toString(36)}-${Math.random().toString(36).slice(2)}`;
 const preparedGroupReadersByRegistry = new WeakMap();
 
 function preparedGroupForProvider(provider) {
@@ -221,6 +230,14 @@ function queryStateForConnection(store, connection, detail = {}) {
       freshness: snapshot.freshness,
       retention: store.retention,
     });
+  }
+  if (snapshot.status === 'error') {
+    // An error snapshot (e.g. an authorization denial after a bearer custody
+    // transition — 0137 A1-Expo f4) survives ordinary connection movement;
+    // only fresh authoritative rows clear it. Pre-fix the trailing
+    // 'disconnected' event wiped the denial back to pending, so the hook
+    // presented zero rows with no error fact.
+    return Object.freeze({ ...snapshot, connection });
   }
   return pending(connection);
 }
@@ -628,6 +645,23 @@ function createRegistry(binding, providerInstanceId, options = {}) {
           unadoptedPreparedSubscriptions.delete(store.unadoptedSubscriptionId);
           store.unadoptedSubscriptionId = null;
         }
+        if (detail?.kind === 'authorization_denied') {
+          // A server-answered authorization denial (0137 A1-Expo f4: e.g. a
+          // bearer custody transition to a lesser-privileged successor) is a
+          // renderable outcome, not an empty 'ready'. Rows are already blank;
+          // project the denial on the error axis. Fresh authoritative rows
+          // (a later authorized subscribe) clear it below.
+          captureRetention(store);
+          publish(store, Object.freeze({
+            status: 'error',
+            data: undefined,
+            error: serializeError(detail.error ?? detail.authorization),
+            connection: normalizeConnection(store.handle?.current?.connection ?? 'disconnected'),
+            freshness: 'unknown',
+            retention: store.retention,
+          }), generation);
+          return;
+        }
         if (detail?.freshness === 'retained') {
           publishRetained(store, rows ?? [], generation);
           return;
@@ -822,7 +856,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         'optimistic mutation authority is no longer current',
       );
     }
-    const id = globalThis.crypto.randomUUID();
+    const id = localUniqueLabel();
     const frozenArgs = immutableClone(mutationArgs);
     const layer = {
       id,
@@ -1870,7 +1904,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
 
 export function createSnapbackReactProvider(binding, options = {}) {
   const prepared = assertPreparedReactBinding(binding);
-  const providerInstanceId = `provider-${++providerSequence}-${globalThis.crypto.randomUUID()}`;
+  const providerInstanceId = `provider-${++providerSequence}-${localUniqueLabel()}`;
   const preparedGroup = options.preparedGroup == null
     ? null
     : consumePreparedReactQueryGroup(prepared, options.preparedGroup);

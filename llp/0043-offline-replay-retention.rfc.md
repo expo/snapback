@@ -5,7 +5,14 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-31 (LLP 0129 Phase 0: the JS/React arm
+**Revised:** 2026-08-01 (0137 A1-Expo f2: connectivity classification for the
+M2 enqueue is transport provenance — the fetch dispatch itself rejected, so no
+HTTP status, server diagnostic, or receipt can exist — independent of the
+rejection's constructor. Expo/RN fetch rejects connection failures with a
+plain `Error`, which the previous `instanceof TypeError` gate could never
+queue, silently disabling the M2 path on that carrier. Caller-owned
+aborts/timeouts and anything the server answered still never queue.)
+2026-07-31 (LLP 0129 Phase 0: the JS/React arm
 (`packages/snapback-client`) gains its M2 slice — a durable queued-intent
 outbox on the persisted RQS store arms (IndexedDB/file/memory) with
 client-minted `clientMutationId`, connectivity-refusal enqueue, ordered

@@ -5,6 +5,7 @@ import {
   argsHash,
   queryArtifactHash,
   rowsMatchDigest,
+  sha256 as sha256PureJs,
 } from './rqs.mjs';
 
 // @ref LLP 0114#prepared-binding-and-provider-ownership — asynchronous
@@ -31,19 +32,29 @@ function diagnosticError(code, message, details = {}) {
   return error;
 }
 
-async function sha256Canonical(value) {
-  const bytes = utf8.encode(canonicalizeClientValueV1(value));
-  const digest = await globalThis.crypto.subtle.digest('SHA-256', bytes);
-  return `sha256:${[...new Uint8Array(digest)]
+// 0137 A1-Expo f1: React Native/Hermes ships no WebCrypto, and these binding
+// digests were the first thing the documented Expo path hit ("Cannot read
+// property 'subtle' of undefined" before any session existed). They are
+// deterministic integrity metadata — not key custody — so when
+// `crypto.subtle` is absent the parity-tested pure-JS SHA-256 from rqs.mjs
+// (byte-compatible with src/rqs.rs) computes the same bytes and the packaged
+// client boots with zero consumer polyfills.
+async function sha256Hex(bytes) {
+  const subtle = globalThis.crypto?.subtle;
+  const digest = subtle?.digest
+    ? new Uint8Array(await subtle.digest('SHA-256', bytes))
+    : sha256PureJs(bytes);
+  return `sha256:${[...digest]
     .map((byte) => byte.toString(16).padStart(2, '0'))
     .join('')}`;
 }
 
+async function sha256Canonical(value) {
+  return sha256Hex(utf8.encode(canonicalizeClientValueV1(value)));
+}
+
 async function sha256Text(value) {
-  const digest = await globalThis.crypto.subtle.digest('SHA-256', utf8.encode(value));
-  return `sha256:${[...new Uint8Array(digest)]
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('')}`;
+  return sha256Hex(utf8.encode(value));
 }
 
 async function resultContractHash(value) {
@@ -52,13 +63,9 @@ async function resultContractHash(value) {
       ? Object.fromEntries(Object.keys(child).sort().map((key) => [key, child[key]]))
       : child
   ));
-  const bytes = utf8.encode(
+  return sha256Hex(utf8.encode(
     `snapback:function-result:v1\n${canonicalJson(value)}`,
-  );
-  const digest = await globalThis.crypto.subtle.digest('SHA-256', bytes);
-  return `sha256:${[...new Uint8Array(digest)]
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('')}`;
+  ));
 }
 
 function deepFreeze(value, seen = new Set()) {

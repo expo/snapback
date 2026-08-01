@@ -5,7 +5,12 @@
 **Systems:** React, React/Expo, Client integration, Live Queries, Ephemeral state, Code generation, Sync, Auth, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-07-27 (round-1 author reconciliation: narrows v1 to the
+**Revised:** 2026-08-01 (authorization-denial projection: a server-answered
+denial on a handle's fresh subscribe — e.g. a bearer custody transition to a
+lesser-privileged successor, 0137 A1-Expo f4 — publishes the `error` variant
+with the denial diagnostic instead of an empty `ready`; an `error` snapshot
+survives ordinary connection movement and clears on the next authoritative
+delivery). 2026-07-27 (round-1 author reconciliation: narrows v1 to the
 shipped provider/connection, single-query/mutation hooks, finite typed query
 groups, and a clean-install starter; removes new authority, RQS adoption, SSR
 hydration, presence, optimistic-ledger, and bundle provenance claims).
@@ -1295,3 +1300,33 @@ constructs the successor provider before disposing the predecessor and proves
 that disposal drains only predecessor handles, republishers, listeners,
 barrier participation, and timers. The successor remains authoritative, and
 final cleanup reports zero React-owned resources.
+
+### Authorization-denial projection (dated amendment 2026-08-01)
+
+The 0137 A1-Expo sweep (finding f4, carrier-agnostic) showed a bearer custody
+transition to a lesser-privileged successor presenting on the hook as
+`ready`/`refreshing` with zero rows and `error: null` — the successor's
+server-answered `SNAPBACK_AUTH_PERMISSION_DENIED` never reached the closed
+state algebra, and the next connection event wiped any error snapshot back to
+`pending`.
+
+The headless client now records such a denial on the handle as a frozen
+`authorizationDenial` fact and delivers an `authorization_denied` update
+(rows already blanked by the custody barrier). The provider projects that
+update as the `error` variant carrying the denial diagnostic. Two rules keep
+the projection renderable:
+
+- An `error` snapshot survives ordinary connection movement (`connecting`,
+  `disconnected`, …): only the dedicated `error`/`closed` connection
+  transitions may replace it, and only the next authoritative delivery —
+  a fresh subscribe under an authorized successor — clears it back to
+  `ready`.
+- The denial never weakens the custody barrier: predecessor rows blank
+  before any successor work, and the denial diagnostic is the server's
+  uniform non-disclosing refusal.
+
+The transition itself settles (`replaceBearerToken` resolves) when its only
+failures are answered denials; the denied handle stays parked and the next
+authority transition fresh-subscribes it. Regression witnesses:
+`packages/snapback-client/bearer-rotation.test.mjs` and
+`packages/snapback-react/authorization-denial.test.mjs`.

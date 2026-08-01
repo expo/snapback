@@ -382,7 +382,13 @@ returning. An external-bearer client instead uses
 `await replaceBearerToken(nextBearer)`. That async custody transition pauses
 and unsubscribes every protected live handle, blanks predecessor rows, closes
 old transports and grants, installs the successor, then fresh-subscribes the
-handles. Passing `null` clears custody and leaves them blank/paused. Prefer
+handles. Passing `null` clears custody and leaves them blank/paused (parked:
+the next non-null transition fresh-subscribes them). A successor the server
+denies settles the transition rather than rejecting it: the denial becomes
+the handle's frozen `authorizationDenial` fact and an `authorization_denied`
+`onUpdate` delivery, the handle stays parked for the next transition, and
+only genuine lifecycle breakage (transport loss, broken callbacks) rejects
+with an `AggregateError`. Prefer
 `createExternalSessionClient` for construction so the exact auth offers cannot
 be forgotten. Neither method bypasses an `AuthCoordinator`.
 `captureAuthority` / `authorityCaptureFor` are adapter-level stale-work

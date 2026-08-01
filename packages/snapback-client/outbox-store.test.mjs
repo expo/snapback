@@ -309,6 +309,74 @@ test('replay drop-and-mark-failed on server refusal, pending kept on connectivit
   );
 });
 
+// Regression: 0137 A1-Expo f2 — connectivity classification must be transport
+// provenance (the fetch dispatch itself rejected: no HTTP status, no server
+// diagnostic, no receipt), not constructor identity. Expo/RN fetch rejects
+// connection failures with a PLAIN Error, so the pre-fix
+// `instanceof TypeError` gate meant the M2 queue could never engage on that
+// carrier — the raw transport error surfaced instead of {queued:true}.
+test('mutate queues when the carrier fetch rejects a plain Error (Expo shape)', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createMemoryRqsResumeStore();
+  const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
+
+  // The exact witnessed Expo simulator rejection shape: name 'Error'.
+  globalThis.fetch = async () => {
+    throw new Error(
+      'fetch failed: UnexpectedException: Could not connect to the server. '
+      + '(at ExpoModulesCore/Promise.swift:56)',
+    );
+  };
+  const queued = await client.mutate('createThing', { args: { title: 'expo-offline' } });
+  assert.equal(queued.queued, true, 'Expo-shaped transport rejection engages the queue');
+  assert.match(queued.clientMutationId, /^cm/);
+  assert.equal(queued.sequence, 1);
+  assert.equal((await store.outboxPending()).length, 1);
+
+  // Replay drains it exactly like the undici-shaped path.
+  const delivered = [];
+  globalThis.fetch = async (_url, init) => {
+    delivered.push(JSON.parse(init.body));
+    return Response.json({ result: { ok: true }, version: 1 });
+  };
+  const outcome = await client.replayQueuedMutations();
+  assert.deepEqual(
+    { replayed: outcome.replayed, failed: outcome.failed, remaining: outcome.remaining },
+    { replayed: 1, failed: 0, remaining: 0 },
+  );
+  assert.equal(delivered[0].clientMutationId, queued.clientMutationId);
+});
+
+test('caller aborts and server answers are never classified as connectivity', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createMemoryRqsResumeStore();
+  const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
+
+  // A caller-owned abort is not an outage: fail loud, never enqueue.
+  globalThis.fetch = async () => {
+    const abort = new Error('The operation was aborted.');
+    abort.name = 'AbortError';
+    throw abort;
+  };
+  await assert.rejects(
+    () => client.mutate('createThing', { args: { title: 'aborted' } }),
+    (error) => error?.name === 'AbortError',
+  );
+  assert.equal((await store.outboxPending()).length, 0, 'abort did not enqueue');
+
+  // A server-answered refusal keeps failing loud even with a plain-Error
+  // carrier (the answered diagnostic is the proof the transport worked).
+  globalThis.fetch = async () => Response.json(
+    { diagnostic: { code: 'SNAPBACK_VALIDATION', message: 'bad args' } },
+    { status: 400 },
+  );
+  await assert.rejects(
+    () => client.mutate('createThing', { args: { bad: true } }),
+    /SNAPBACK_VALIDATION/,
+  );
+  assert.equal((await store.outboxPending()).length, 0, 'refusal did not enqueue');
+});
+
 test('outboxStatus and subscribeOutbox project the queue facts (LLP 0114 React-arm seam)', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createMemoryRqsResumeStore();

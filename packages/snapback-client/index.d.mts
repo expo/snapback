@@ -231,12 +231,24 @@ export interface LiveQueryRetention {
   readonly store: RqsStoreInfo;
 }
 
+/** Renderable authorization-denial fact (0137 A1-Expo f4): recorded when a
+ * fresh subscribe is ANSWERED with an authorization refusal (e.g. after a
+ * bearer custody transition to a lesser-privileged successor). Cleared by
+ * the next successful fresh subscribe and by the custody blank barrier. */
+export interface LiveQueryAuthorizationDenial {
+  readonly code: string | null;
+  readonly message: string | null;
+  readonly atMs: number;
+}
+
 export interface LiveQueryHandle<Rows> {
   subscriptionId: string | null;
   version: number;
   rows: Rows;
   readonly connection: 'connecting' | 'live' | 'polling' | 'stale' | 'disconnected';
   readonly paused: boolean;
+  /** Denial fact; null while the presented authority is not refused. */
+  readonly authorizationDenial: LiveQueryAuthorizationDenial | null;
   /** Channel B freshness (LLP 0090 D1): rows from persistence/preload are
    * 'retained' until an authoritative answer makes them 'current'; null
    * while nothing authoritative-or-retained is held. */
