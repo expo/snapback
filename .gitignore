@@ -21,6 +21,7 @@ demos/all-aboard/tests/egress-probe/generated/*
 *.swp
 /cloudflare/.wrangler/
 /dist-publish/
+/.eas-artifacts/
 # Prebuilt Linux Hermes bundle staged for the remote-drill Docker build; the
 # drill receipt pins its identity + sha256 (never committed as bytes).
 /demos/competitive-checkpoint/acceptance/drill/hermes/

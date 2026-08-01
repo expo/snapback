@@ -52,6 +52,15 @@ section added, package/CLI surface corrected to repo reality, LLP 0030
 boundary stated, ready-file attach pinned; initial same day)
 **Related:** LLP 0000, LLP 0010, LLP 0012, LLP 0015, LLP 0016, LLP 0021, LLP 0023, LLP 0024, LLP 0030, LLP 0037, LLP 0038, LLP 0042
 
+**Revised (parallel EAS qualified staging):** 2026-08-01 (the qualified
+candidate staging lane moves from GitHub Actions to the dedicated
+`@expo/snapback-ci` EAS project. Linux/x64 and macOS/arm64 release runtimes now
+build concurrently on large workers, restore source-authority-keyed Hermes and
+Cargo caches, converge at one macOS assembly job, and fan back out
+into concurrent staged cold proofs. The final public `latest` proof and its
+GitHub-bound promotion collection remain on GitHub; see §Qualified staging
+substrate — 2026-08-01.)
+
 **Revised (browser-canceled response tolerance):** 2026-07-31 (the staged
 linux-x64 cold-install proof failed deterministically with `browser response
 failed before complete capture: net::ERR_ABORTED` — the real-browser journey's
@@ -475,6 +484,38 @@ artifacts, validates the closed sidecar and source revision, and only then
 stages the Linux package. ELF header checks remain independent. A sidecar
 without byte equality, exact source identity, or the public-package build
 distribution refuses qualification.
+
+#### Qualified staging substrate — 2026-08-01
+
+Qualified candidate staging is an EAS Workflow owned by the dedicated
+`@expo/snapback-ci` project. It is intentionally separate from the final
+public-registry proof-plan helper: staging builds and tests immutable local
+tarballs, while promotion still dispatches the GitHub-hosted matrix whose
+repository/run provenance is part of the signed publication evidence.
+
+The staging graph has two independent roots. `linux_runtime` and
+`darwin_runtime` check out the same workflow revision, remove checkout
+authority, build public-package release binaries concurrently on EAS large
+workers, and retain native artifacts. The Linux artifact keeps the existing
+cross-host digest attestation. The macOS artifact is transported back to a
+macOS assembler, which executes `build-identity` from that relocatable closure
+and requires the exact assembly checkout revision, clean build identity,
+release profile, and public-package distribution. Assembly begins only after
+both roots succeed. The exact nine-tarball closure then feeds independent
+macOS and Linux staged cold-proof jobs in parallel, and a final retention job
+admits the release archive only when the ledger, all nine tarballs, and both
+receipts are present.
+
+Restoring a cache is not evidence and does not weaken the clean-source claim.
+Hermes build/install caches are keyed by the pinned Hermes source/profile
+authority (version, patch application and patch stack, builder, and Ibex
+manifest), and Cargo target caches are keyed by the pinned Rust toolchain plus
+Cargo manifests and lockfile. Each saved entry also carries the workflow source
+revision and later revisions may only use it as a restore prefix. The native
+build still runs the normal bootstrap, link smoke, release build, package
+preparation, runtime identity check, source-clean check, and (for transported
+Linux bytes) digest attestation. Those output checks, not cache provenance
+alone, remain the qualification authority.
 
 #### Retained comparator evidence hardening
 
