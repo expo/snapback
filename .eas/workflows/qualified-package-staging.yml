@@ -42,14 +42,7 @@ jobs:
         with:
           key: linux-hermes-${{ hashFiles('vendor/ibex/scripts/hermes-version.sh', 'vendor/ibex/scripts/apply-hermes-patches.sh', 'vendor/ibex/scripts/build-hermes-linux.sh', 'vendor/ibex/patches/hermes/*.patch', 'vendor/ibex/Cargo.toml') }}-${{ github.sha }}
           restore_keys: linux-hermes-${{ hashFiles('vendor/ibex/scripts/hermes-version.sh', 'vendor/ibex/scripts/apply-hermes-patches.sh', 'vendor/ibex/scripts/build-hermes-linux.sh', 'vendor/ibex/patches/hermes/*.patch', 'vendor/ibex/Cargo.toml') }}
-          path: ~/.cache/exact/hermes-linux
-
-      - name: Restore Linux Cargo target
-        uses: eas/restore_cache
-        with:
-          key: linux-cargo-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'rust-toolchain.toml') }}-${{ github.sha }}
-          restore_keys: linux-cargo-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'rust-toolchain.toml') }}
-          path: target
+          path: /home/expo/.cache/exact/hermes-linux
 
       - name: Build and attest the source-bound Linux runtime
         run: |
@@ -90,12 +83,7 @@ jobs:
       - uses: eas/save_cache
         with:
           key: linux-hermes-${{ hashFiles('vendor/ibex/scripts/hermes-version.sh', 'vendor/ibex/scripts/apply-hermes-patches.sh', 'vendor/ibex/scripts/build-hermes-linux.sh', 'vendor/ibex/patches/hermes/*.patch', 'vendor/ibex/Cargo.toml') }}-${{ github.sha }}
-          path: ~/.cache/exact/hermes-linux
-
-      - uses: eas/save_cache
-        with:
-          key: linux-cargo-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'rust-toolchain.toml') }}-${{ github.sha }}
-          path: target
+          path: /home/expo/.cache/exact/hermes-linux
 
       - uses: eas/upload_artifact
         with:
@@ -122,14 +110,7 @@ jobs:
         with:
           key: darwin-hermes-${{ hashFiles('vendor/ibex/scripts/hermes-version.sh', 'vendor/ibex/scripts/apply-hermes-patches.sh', 'vendor/ibex/scripts/build-hermes.sh', 'vendor/ibex/patches/hermes/*.patch', 'vendor/ibex/Cargo.toml') }}-${{ github.sha }}
           restore_keys: darwin-hermes-${{ hashFiles('vendor/ibex/scripts/hermes-version.sh', 'vendor/ibex/scripts/apply-hermes-patches.sh', 'vendor/ibex/scripts/build-hermes.sh', 'vendor/ibex/patches/hermes/*.patch', 'vendor/ibex/Cargo.toml') }}
-          path: ~/.cache/exact/hermes
-
-      - name: Restore macOS Cargo target
-        uses: eas/restore_cache
-        with:
-          key: darwin-cargo-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'rust-toolchain.toml') }}-${{ github.sha }}
-          restore_keys: darwin-cargo-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'rust-toolchain.toml') }}
-          path: target
+          path: /Users/expo/.cache/exact/hermes
 
       - name: Build the source-bound macOS runtime
         run: |
@@ -154,12 +135,7 @@ jobs:
       - uses: eas/save_cache
         with:
           key: darwin-hermes-${{ hashFiles('vendor/ibex/scripts/hermes-version.sh', 'vendor/ibex/scripts/apply-hermes-patches.sh', 'vendor/ibex/scripts/build-hermes.sh', 'vendor/ibex/patches/hermes/*.patch', 'vendor/ibex/Cargo.toml') }}-${{ github.sha }}
-          path: ~/.cache/exact/hermes
-
-      - uses: eas/save_cache
-        with:
-          key: darwin-cargo-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'rust-toolchain.toml') }}-${{ github.sha }}
-          path: target
+          path: /Users/expo/.cache/exact/hermes
 
       - uses: eas/upload_artifact
         with:
@@ -196,12 +172,19 @@ jobs:
           RELEASE_VERSION: ${{ inputs.version || '0.1.1' }}
         run: |
           source_revision="$(git rev-parse HEAD)"
-          node -e '
-            const version = process.env.RELEASE_VERSION;
+          RELEASE_VERSION="$(node -e '
+            const raw = process.env.RELEASE_VERSION;
+            let version = raw;
+            try {
+              const parsed = JSON.parse(raw);
+              if (typeof parsed === "string") version = parsed;
+            } catch {}
             if (!/^[0-9]+[.][0-9]+[.][0-9]+$/.test(version)) {
               throw new Error("this workflow requires an exact stable semver");
             }
-          '
+            process.stdout.write(version);
+          ')"
+          export RELEASE_VERSION
           artifact_root="$HOME/snapback-staging"
           mkdir -p "$artifact_root/linux" "$artifact_root/darwin"
           tar -xzf "${{ steps.linux_artifact.outputs.artifact_path }}" \
