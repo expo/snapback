@@ -2616,15 +2616,14 @@ successor keeps it.
 
 Attach the asset to a row in an ordinary mutation:
 
-```js fragment reason="handler excerpt; the served handler-attach path is defect-blocked (issues/20260731-0044-handler-attach-admissions-dropped.md) — host-plan attachment is the conformance-proven lane until it lands"
-export const setAvatar = defineMutation({
-  args: { profileId: v.id('profiles'), assetId: v.assetRef({ upload: 'avatarUpload' }) },
-  handler: async (ctx, args) => {
-    await ctx.db.patch('profiles', args.profileId, {
-      avatar: await ctx.assets.attach(args.assetId, { upload: api.avatarUpload }),
+```js source=tests/acceptance/fixtures/asset-conformance/handlers.mjs
+  async createPhoto(ctx, args) {
+    return await ctx.db.insert('photos', {
+      ownerId: ctx.auth.userId,
+      caption: String(args.caption ?? '').trim(),
+      image: await ctx.assets.attach(args.assetId, { upload: 'photoUpload' }),
     });
   },
-});
 ```
 
 Enforcement lives at the storage commit boundary, not the helper: a raw

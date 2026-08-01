@@ -584,9 +584,23 @@ export class SnapbackAssetClient {
             snapshot = Object.freeze({ ...snapshot, mode: 'static' });
           }
         }
+        // Auth-scoped establishment (sessions mode) requires the LLP 0053
+        // client namespace; allocate one when the client can mint it.
+        const authorizationNamespace =
+          typeof this.#client.allocateLiveQueryNamespace === 'function'
+            ? this.#client.allocateLiveQueryNamespace(
+              ASSET_RECORD_LIVE_FUNCTION,
+              { assetId },
+            )
+            : null;
         const established = await this.#client.subscribeLive(
           ASSET_RECORD_LIVE_FUNCTION,
-          { connectionId: effectiveConnectionId, userId, args: { assetId } },
+          {
+            connectionId: effectiveConnectionId,
+            userId,
+            args: { assetId },
+            ...(authorizationNamespace ? { authorizationNamespace } : {}),
+          },
         );
         if (disposed) return;
         subscriptionId = established?.subscription_id
@@ -600,6 +614,23 @@ export class SnapbackAssetClient {
           unregister = this.#client.registerDurableConsumer(
             effectiveConnectionId,
             (frame) => {
+              // Auth-scoped subscriptions (sessions mode) never receive a
+              // plain live_replace: the witnessed authorization_invalidation
+              // envelope carries the snapshot instead, with the subscription
+              // id inside the snapshot block (camelCase per the wire struct).
+              // Applying it here is data-correct; the obligation ACK stays
+              // with the deep client integration (LLP 0053's lease covers a
+              // non-ACKing consumer) — see the raw-lane ACK follow-up ticket.
+              if (frame?.kind === 'authorization_invalidation') {
+                const witnessed = frame?.snapshot ?? null;
+                const witnessedSubscription = witnessed?.subscriptionId
+                  ?? witnessed?.subscription_id
+                  ?? null;
+                if (witnessed && witnessedSubscription === subscriptionId) {
+                  applyRows(witnessed.rows ?? []);
+                }
+                return;
+              }
               const frameSubscription = frame?.subscription_id ?? frame?.subscriptionId ?? null;
               if (frameSubscription !== subscriptionId) return;
               applyRows(frame?.rows ?? frame?.data?.rows ?? []);

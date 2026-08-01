@@ -358,5 +358,63 @@ function renderHook(provider, hook) {
   console.log('asset renderer placeholder-only ladder: ok');
 }
 
+// --- server-provided placeholder (the record view's media block) -----------
+
+{
+  const { provider, assets } = await harness();
+  const { output, renderer } = renderHook(
+    provider,
+    () => useSnapbackAssetImage({ assetId: 'asset-11', maxWidth: 128 }),
+  );
+  await act(async () => { await flush(); });
+  // No prop placeholder: idle until the watched record supplies one.
+  assert.equal(output.current.phase, 'empty');
+  // A pending record carrying media.placeholder renders the server
+  // placeholder with no prop involved.
+  act(() => {
+    assets.emitWatch({
+      status: 'ready',
+      record: {
+        assetId: 'asset-11',
+        availability: 'pending',
+        media: { placeholder: { algo: 'thumbhash.v1', value: SOLID_RED_VECTOR } },
+      },
+      mode: 'live',
+    });
+  });
+  assert.equal(output.current.phase, 'placeholder');
+  assert.ok(output.current.src.startsWith('data:image/png;base64,'));
+  // Readiness keeps the server placeholder as the rendition underlay.
+  act(() => {
+    assets.emitWatch({
+      status: 'ready',
+      record: {
+        assetId: 'asset-11',
+        availability: 'ready',
+        media: { placeholder: { algo: 'thumbhash.v1', value: SOLID_RED_VECTOR } },
+      },
+      mode: 'live',
+    });
+  });
+  assert.equal(output.current.phase, 'rendition');
+  assert.ok(output.current.placeholderSrc.startsWith('data:image/png;base64,'));
+  assert.ok(Math.abs(output.current.aspectRatio - 1) < 0.35);
+  // An unknown algorithm is ignored, never mis-decoded.
+  act(() => {
+    assets.emitWatch({
+      status: 'ready',
+      record: {
+        assetId: 'asset-11',
+        availability: 'pending',
+        media: { placeholder: { algo: 'blurhash.v9', value: 'nonsense' } },
+      },
+      mode: 'live',
+    });
+  });
+  assert.equal(output.current.phase, 'empty');
+  act(() => { renderer.unmount(); });
+  console.log('asset renderer server-provided placeholder: ok');
+}
+
 console.log('assets.test.mjs passed');
 process.exit(0);

@@ -2324,14 +2324,44 @@ export function useSnapbackAssetImage({
   return useMemo(() => {
     void watchTick;
     const record = watchRef.current?.getSnapshot() ?? null;
+    // The server-provided placeholder (the record view's media block) wins
+    // over the prop, which stays as the fallback for pre-establishment
+    // renders and older servers.
+    const media = record?.record?.media ?? null;
+    const serverPlaceholder =
+      media?.placeholder?.algo === 'thumbhash.v1'
+        && typeof media.placeholder.value === 'string'
+        ? media.placeholder.value
+        : null;
+    const effectivePlaceholder = serverPlaceholder ?? placeholder;
+    const placeholderState = (recordForPhase) => {
+      try {
+        const bytes = Uint8Array.from(
+          typeof atob === 'function'
+            ? atob(effectivePlaceholder).split('').map((char) => char.charCodeAt(0))
+            : Buffer.from(effectivePlaceholder, 'base64'),
+        );
+        return {
+          src: placeholderToDataURL(effectivePlaceholder),
+          aspectRatio: thumbHashToApproximateAspectRatio(bytes),
+          record: recordForPhase,
+        };
+      } catch {
+        return null;
+      }
+    };
     const ready = record?.status === 'ready'
       && (record.record?.availability ?? 'ready') === 'ready';
     const blanked = record?.status === 'blank';
     if (ready && assetId !== null && !blanked) {
+      const underlay = effectivePlaceholder !== null
+        ? placeholderState(record.record)
+        : null;
       return Object.freeze({
         phase: 'rendition',
         src: registry.assets.deliveryUrl(assetId, { maxWidth }),
-        aspectRatio: null,
+        aspectRatio: underlay?.aspectRatio ?? null,
+        placeholderSrc: underlay?.src ?? null,
         record: record.record,
       });
     }
@@ -2341,22 +2371,10 @@ export function useSnapbackAssetImage({
         phase: 'preview', src: previewUrl, aspectRatio: null, record: null,
       });
     }
-    if (placeholder !== null) {
-      try {
-        const bytes = Uint8Array.from(
-          typeof atob === 'function'
-            ? atob(placeholder).split('').map((char) => char.charCodeAt(0))
-            : Buffer.from(placeholder, 'base64'),
-        );
-        return Object.freeze({
-          phase: 'placeholder',
-          src: placeholderToDataURL(placeholder),
-          aspectRatio: thumbHashToApproximateAspectRatio(bytes),
-          record: null,
-        });
-      } catch {
-        return ASSET_IMAGE_IDLE;
-      }
+    if (effectivePlaceholder !== null) {
+      const state = placeholderState(null);
+      if (state === null) return ASSET_IMAGE_IDLE;
+      return Object.freeze({ phase: 'placeholder', ...state });
     }
     return ASSET_IMAGE_IDLE;
   }, [registry, assetId, placeholder, previewUrl, maxWidth, watchTick]);

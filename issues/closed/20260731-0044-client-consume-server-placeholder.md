@@ -12,3 +12,9 @@ snapshot types to surface the view's `media`/`renditions`, default the
 renderer ladder's placeholder to `media.placeholder` when present, and
 drop the prop to optional-override. Lane-1 package territory
 (packages/snapback-client, packages/snapback-react).
+
+**RESOLVED 2026-07-31 (Lane 1 landing).** `useSnapbackAssetImage` now prefers
+the watched record view's `media.placeholder` (thumbhash.v1) over the prop —
+as the placeholder phase for pending records and as `placeholderSrc`/aspect
+underlay in the rendition phase; unknown algorithms are ignored. Test:
+`packages/snapback-react/assets.test.mjs` ("server-provided placeholder").

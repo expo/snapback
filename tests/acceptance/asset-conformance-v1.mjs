@@ -283,19 +283,40 @@ try {
     `host-plan attach inserted: ${JSON.stringify(photoRow.result)}`);
   checks.attachViaHostPlan = true;
 
-  // Vector 3b — RECORDED DEFECT: `ctx.assets.attach` admissions recorded by
-  // the runtime host op do not reach the commit hook on the real-server
-  // mutation path, so the canonical handler attach refuses
-  // SNAPBACK_ASSET_REF_UNVERIFIED. Reported to the core lane
-  // (issues/20260731-0044-handler-attach-admissions-dropped.md); when the
-  // fix lands this assertion flips into the positive handler vector.
+  const custody = (session) => ({
+    authorization: `Bearer ${session.coordinator.credentialFor(session.coordinator.capture()).bearer}`,
+    'x-snapback-auth-client-protocol': '1',
+  });
+
+  // Vector 3b — the canonical handler attach (flipped positive when the
+  // admission-drop fix landed: the served dry-run seams now thread executed
+  // admissions): `ctx.assets.attach` in a handler mutation commits the row,
+  // and the reverse edge is proven by the referenced-delete refusal.
   const handlerAsset = await uploadReady(ada, adaAssets, redPng(8), api.photoUpload);
-  const handlerAttach = await refusalOf(() => mutate(ada, 'createPhoto', {
+  const handlerRow = await mutate(ada, 'createPhoto', {
     caption: 'handler attach',
     assetId: handlerAsset.assetId,
-  }, 'cm_assets_handler_attach'));
-  assert.equal(handlerAttach, 'SNAPBACK_ASSET_REF_UNVERIFIED');
-  checks.handlerAttachDefectRecorded = true;
+  }, 'cm_assets_handler_attach');
+  const handlerRowId = handlerRow.result;
+  assert.ok(typeof handlerRowId === 'string' && handlerRowId.length > 0,
+    `handler attach inserted: ${JSON.stringify(handlerRow.result)}`);
+  const handlerEdgeProof = await refusalOf(async () => {
+    const response = await fetch(
+      `${sessionsServer.baseUrl}/assets/records/${encodeURIComponent(handlerAsset.assetId)}`,
+      { method: 'DELETE', headers: custody(ada) },
+    );
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      const error = new Error('refused');
+      error.diagnostic = body?.diagnostics?.[0] ?? body?.diagnostic ?? body;
+      if (!error.diagnostic?.code && body?.code) error.diagnostic = body;
+      if (!error.diagnostic?.code) error.diagnostic = { code: JSON.stringify(body) };
+      throw error;
+    }
+  });
+  assert.equal(handlerEdgeProof, 'SNAPBACK_ASSET_REFERENCED',
+    'the handler-committed reverse edge protects the asset');
+  checks.handlerAttachCommits = true;
 
   // Vector 3c — a host plan writing an unrestricted assetRef field refuses:
   // no declared intent exists to derive an admission from.
@@ -317,10 +338,6 @@ try {
 
   // Vector 5 — strict delivery: owner gets bytes, ranges, and the exact
   // header posture; a foreign caller is denied on every surface.
-  const custody = (session) => ({
-    authorization: `Bearer ${session.coordinator.credentialFor(session.coordinator.capture()).bearer}`,
-    'x-snapback-auth-client-protocol': '1',
-  });
   const bytesUrl = adaAssets.deliveryUrl(first.assetId, { variant: 'thumb' });
   const full = await fetch(bytesUrl, { headers: custody(ada) });
   assert.equal(full.status, 200);
@@ -440,14 +457,41 @@ try {
   assert.ok(anonymous.status >= 400, 'anonymous create refuses');
   checks.negativeAuth = true;
 
-  // Vector 10 — the honest sessions-live boundary: establishment of the
-  // reserved record projection refuses in sessions mode until its LLP 0053
-  // classification (W2e) lands. This assertion flips consciously with W2e.
-  const liveBoundary = await refusalOf(() => adaAssets.watch(first.assetId, {
-    connectionId: 'assets-live-boundary',
-  }));
-  assert.equal(liveBoundary, 'SNAPBACK_ASSET_LIVE_SESSIONS_UNSUPPORTED');
-  checks.sessionsLiveBoundaryRecorded = true;
+  // Vector 10 — sessions-mode live (flipped positive with W2e): the reserved
+  // record projection establishes under sessions custody through the
+  // witnessed lane, a ready record arrives with no polling, and deletion
+  // blanks it. Auth-scoped subscriptions receive witnessed
+  // authorization_invalidation snapshots, never plain live_replace — the
+  // client's raw-lane consumer handles that shape.
+  const liveAsset = await uploadReady(ada, adaAssets, redPng(8), api.photoUpload);
+  const sessionsStore = adaAssets.watchStore(liveAsset.assetId, {
+    connectionId: 'assets-live-sessions',
+  });
+  const sessionsUntil = async (predicate, label, timeoutMs = 5_000) => {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (predicate()) return;
+      await sleep(20);
+    }
+    assert.fail(`timed out waiting for ${label}: ${JSON.stringify(sessionsStore.getSnapshot())}`);
+  };
+  await sessionsUntil(
+    () => sessionsStore.getSnapshot().status === 'ready'
+      && sessionsStore.getSnapshot().mode === 'live',
+    'sessions live establishment with the ready record',
+  );
+  assert.equal(sessionsStore.getSnapshot().record.availability, 'ready');
+  const liveDelete = await fetch(
+    `${sessionsServer.baseUrl}/assets/records/${encodeURIComponent(liveAsset.assetId)}`,
+    { method: 'DELETE', headers: custody(ada) },
+  );
+  assert.equal(liveDelete.status, 200, await liveDelete.text());
+  await sessionsUntil(
+    () => sessionsStore.getSnapshot().status === 'blank',
+    'the witnessed deletion frame blanking the sessions store',
+  );
+  sessionsStore.dispose();
+  checks.sessionsLiveDelivers = true;
 
   // --------------------------------------------------------------------- dev
   // The live-frame leg: dev mode is the lane where the reserved projection

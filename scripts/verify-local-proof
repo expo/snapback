@@ -222,6 +222,9 @@ run env SNAPBACK_BINARY="$runtime_binary" \
     node tests/conformance/run-versioned-seed-v1.mjs \
     --receipt target/conformance/versioned-seed-v1.receipt.json \
     --quiet
+# @ref LLP 0044#language-neutral-protocol-and-sdks — the real-server asset
+# conformance vectors (sessions custody, TUS, attach, live frames, delivery).
+run node tests/acceptance/asset-conformance-v1.mjs
 run node demos/todo/tests/acceptance/headless.mjs
 run node demos/todo-v2/tests/acceptance/headless.mjs
 # Five deliberately different app kernels keep relational reads, trusted
