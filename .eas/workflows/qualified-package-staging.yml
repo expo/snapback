@@ -181,16 +181,12 @@ jobs:
           artifact_root="$HOME/snapback-staging"
           mkdir -p "$artifact_root/linux" "$artifact_root/darwin"
           mkdir -p .eas-artifacts
-          linux_archive="$(find "${TMPDIR:-/tmp}" -type f \
-            -name snapback-linux-runtime.tar.gz -print -quit 2>/dev/null)"
-          darwin_archive="$(find "${TMPDIR:-/tmp}" -type f \
-            -name snapback-darwin-runtime.tar.gz -print -quit 2>/dev/null)"
-          test -n "$linux_archive"
-          test -n "$darwin_archive"
-          gzip -t "$linux_archive"
-          gzip -t "$darwin_archive"
-          tar -xzf "$linux_archive" -C "$artifact_root/linux"
-          tar -xzf "$darwin_archive" -C "$artifact_root/darwin"
+          linux_runtime=${{ steps.linux_artifact.outputs.artifact_path }}
+          darwin_runtime=${{ steps.darwin_artifact.outputs.artifact_path }}
+          test -d "$linux_runtime"
+          test -d "$darwin_runtime"
+          cp -R "$linux_runtime/." "$artifact_root/linux/"
+          cp -R "$darwin_runtime/." "$artifact_root/darwin/"
 
           darwin_identity="$($artifact_root/darwin/bin/snapback build-identity)"
           DARWIN_IDENTITY="$darwin_identity" SOURCE_REVISION="$source_revision" node -e '
@@ -267,10 +263,9 @@ jobs:
           receipt=".eas-artifacts/snapback-darwin-arm64-staged-receipt.json"
           mkdir -p .eas-artifacts
           mkdir -p "$qualified_root"
-          archive="$(find "${TMPDIR:-/tmp}" -type f \
-            -name snapback-qualified-tarballs.tar.gz -print -quit 2>/dev/null)"
-          test -n "$archive"
-          tar -xzf "$archive" -C "$qualified_root"
+          qualified_artifact=${{ steps.qualified_artifact.outputs.artifact_path }}
+          test -d "$qualified_artifact"
+          cp -R "$qualified_artifact/." "$qualified_root/"
           node scripts/snapback-package-cold-install.mjs \
             --ledger "$qualified_root/publish-ledger.json" \
             --install-source staged \
@@ -311,10 +306,9 @@ jobs:
           receipt=".eas-artifacts/snapback-linux-x64-staged-receipt.json"
           mkdir -p .eas-artifacts
           mkdir -p "$qualified_root"
-          archive="$(find "${TMPDIR:-/tmp}" -type f \
-            -name snapback-qualified-tarballs.tar.gz -print -quit 2>/dev/null)"
-          test -n "$archive"
-          tar -xzf "$archive" -C "$qualified_root"
+          qualified_artifact=${{ steps.qualified_artifact.outputs.artifact_path }}
+          test -d "$qualified_artifact"
+          cp -R "$qualified_artifact/." "$qualified_root/"
           node scripts/snapback-package-cold-install.mjs \
             --ledger "$qualified_root/publish-ledger.json" \
             --install-source staged \
@@ -351,17 +345,13 @@ jobs:
         run: |
           release_root="$HOME/qualified-release"
           mkdir -p "$release_root/receipts"
-          artifact_tmp="${TMPDIR:-/tmp}"
-          archive="$(find "$artifact_tmp" -type f \
-            -name snapback-qualified-tarballs.tar.gz -print -quit 2>/dev/null)"
-          darwin_receipt="$(find "$artifact_tmp" -type f \
-            -name snapback-darwin-arm64-staged-receipt.json -print -quit 2>/dev/null)"
-          linux_receipt="$(find "$artifact_tmp" -type f \
-            -name snapback-linux-x64-staged-receipt.json -print -quit 2>/dev/null)"
-          test -n "$archive"
-          test -n "$darwin_receipt"
-          test -n "$linux_receipt"
-          tar -xzf "$archive" -C "$release_root"
+          qualified_artifact=${{ steps.qualified_artifact.outputs.artifact_path }}
+          darwin_receipt=${{ steps.darwin_receipt.outputs.artifact_path }}
+          linux_receipt=${{ steps.linux_receipt.outputs.artifact_path }}
+          test -d "$qualified_artifact"
+          test -f "$darwin_receipt"
+          test -f "$linux_receipt"
+          cp -R "$qualified_artifact/." "$release_root/"
           cp "$darwin_receipt" \
             "$release_root/receipts/snapback-darwin-arm64-staged-receipt.json"
           cp "$linux_receipt" \
