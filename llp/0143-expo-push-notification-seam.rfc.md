@@ -1,12 +1,16 @@
 # LLP 0143: Expo push-notification seam
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Review
 **Systems:** Notifications, React/Expo, Actions, Auth, Secrets and config,
 Deployment, Testing, Documentation
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-01
-**Revised:** 2026-08-01 (v3, round-2 dual-family reconciliation — Fable
+**Revised:** 2026-08-01 (loop CONVERGED dual-family READY — Fable round 3,
+Codex round 3, zero unresolved concerns; artifacts
+reviews/0143-expo-push-notification-seam.{fable,codex}.md. Status
+advances Draft -> Review; acceptance is the author's call; two
+cosmetic Fable nits recorded for the next natural edit.) 2026-08-01 (v3, round-2 dual-family reconciliation — Fable
 READY with one must-fix, Codex NOT READY; artifacts appended to
 `llp/reviews/0143-expo-push-notification-seam.{fable,codex}.md`, each
 against v2 sha256 `35f0a6e2…`. Every point verified and applied; none
