@@ -1,11 +1,15 @@
 # LLP 0070: Durable background work
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Review
 **Systems:** Background work, Actions, Webhooks, Cron, Storage, Runtime, Auth, Secrets, Deployment, Admin, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-08-01 (v3, Codex round-2 application: the shipped/future
+**Revised:** 2026-08-01 (loop CONVERGED dual-family READY — Fable round 1,
+Codex round 3, zero unresolved concerns; artifacts
+reviews/0070-durable-background-work.{fable,codex}.md. Status
+advances Draft -> Review with the shipped first slice absorbed and
+reality-reconciled; acceptance is the author's call.) 2026-08-01 (v3, Codex round-2 application: the shipped/future
 boundary block now scopes its normative-shipped claim to §First slice as
 shipped precisely, instead of "everything above" — which had wrongly
 encompassed the Summary's future-subsystem prose; the §Semantics enqueue
