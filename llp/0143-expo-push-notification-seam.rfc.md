@@ -6,7 +6,40 @@
 Deployment, Testing, Documentation
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-01
-**Revised:** 2026-08-01 (v2, round-1 dual-family reconciliation — both
+**Revised:** 2026-08-01 (v3, round-2 dual-family reconciliation — Fable
+READY with one must-fix, Codex NOT READY; artifacts appended to
+`llp/reviews/0143-expo-push-notification-seam.{fable,codex}.md`, each
+against v2 sha256 `35f0a6e2…`. Every point verified and applied; none
+refuted. Dispositions — Fable R2-1 + Codex #2 (the shared finding, D3b
+crash discrimination): applied; a durable fenced `transmitting`
+transition now precedes the first network byte, recovery treats
+claimed-without-marker as safe re-drive and marker-without-settlement
+as `ambiguous`, and attempts past the transmit boundary are never
+auto-re-driven. Codex #4 (rotation + custody details): applied —
+verified that `addPushTokenListener` emits a native `DevicePushToken`,
+so D1c's rotation lane now reacquires the Expo token via
+`getExpoPushTokenAsync` before re-registering; `appScope` is pinned to
+a declared (EAS project id, application identity, environment profile)
+tuple; and D1a replaces the unsupported "bounded, not accumulated"
+claim with a declared idle-retention GC rule (reinstall with a new
+token strands the old row otherwise). Codex #5 (host-enforced send
+authorization): applied; D2b/D2c now bind every audience resolver to a
+declared authorize clause the HOST evaluates at capture and at send in
+all three trigger modes — composing the LLP 0100 membership-addressed
+declaration vocabulary and LLP 0053's invalidation semantics — so
+`ctx.push.send` refuses without host-verified evidence and the app
+`requireRole` convention is defense in depth, not the boundary. Codex
+#1 (matrix correction): applied; `MessageTooBig` reclassified to the
+receipt stage per Expo's error documentation, ticket-stage wording
+narrowed. Codex #9 (poll schedule): applied; D3d pins first poll,
+interval progression, attempt count, and terminal rule as published
+facts. Codex #3 clarification: applied (each message row belongs to
+exactly one batch attempt; re-drives mint new rows). Fable nit 2:
+applied (single ownership is per `appScope`; a cross-scope collision
+refuses and records a leak-indicator diagnostic). Fable nit 3: applied
+(D2b cross-references the resolver-authorization declaration and OQ8).
+Status remains Draft.)
+2026-08-01 (v2, round-1 dual-family reconciliation — both
 NOT READY; artifacts in
 `llp/reviews/0143-expo-push-notification-seam.{fable,codex}.md`, each
 against v1 sha256 `16ec3b56…`. Every material point verified against the
@@ -55,7 +88,8 @@ and 1,000-id chunking): applied. Status remains Draft.)
 integration seam to Expo's push service — option (a) — not a
 first-class Snapback delivery capability)
 **Related:** LLP 0000, LLP 0027, LLP 0028, LLP 0036, LLP 0039, LLP 0045,
-LLP 0049, LLP 0053, LLP 0055, LLP 0064, LLP 0070, LLP 0102, LLP 0137,
+LLP 0049, LLP 0053, LLP 0055, LLP 0064, LLP 0070, LLP 0100, LLP 0102,
+LLP 0137,
 issues/closed/20260801-0137-a4expo-f1-no-mobile-push-boundary.md,
 issues/20260801-0137-a4-outbound-notification-effects-unauthorable.md,
 issues/20260801-0137-a1expo-f5-hosted-mobile-gap.md,
@@ -222,9 +256,12 @@ setting). They therefore never enter ordinary app tables.
 (working name `pushTokens`), keyed by
 `(appScope, principal, installation)`:
 
-- `appScope` binds the registration to the app/EAS project identity the
-  token was minted for; two Expo projects (or incompatible token
-  domains) never share rows.
+- `appScope` binds the registration to the token's minting domain,
+  pinned as a declared tuple: the EAS project id, the application
+  identity (iOS bundle identifier / Android application id), and the
+  deployment environment profile. Two Expo projects (or incompatible
+  token domains) never share rows, and the tuple is declared once in
+  `definePushSeam` (D6), not inferred per registration.
 - `installation` is a **named dependency, not a naming choice** (this
   supersedes v1's OQ2 framing): no suitable identity exists today. On
   the Expo carrier there was no durable client store at all until the
@@ -236,21 +273,33 @@ setting). They therefore never enter ordinary app tables.
   the client's auth custody (not in the RQS cache, whose reset
   semantics are data-shaped, though the B1 files adapter is the
   plausible on-device carrier for the same persistence). A store reset
-  or reinstall that loses the id yields a fresh installation; the
-  stale row is retired by the single-owner rule below, by rotation, by
-  session end, or by `DeviceNotRegistered` — stale rows are bounded,
-  not accumulated. Open question 2 now asks only for the identity's
+  or reinstall that loses the id yields a fresh installation. The
+  stale predecessor row is often retired promptly — by the
+  single-owner rule below when the reinstall re-mints the *same* token
+  bytes, by session end, or by `DeviceNotRegistered` on the next send
+  — but a reinstall that mints a *different* token under a lingering
+  session strands the old row until a send happens to sweep it, so
+  boundedness needs its own rule: the registry declares an
+  **idle-retention window** (a `definePushSeam` fact, D6), and rows
+  with no successful handoff and no re-registration inside the window
+  are retired by the seam's maintenance lane with the retirement
+  reason recorded. Open question 2 now asks only for the identity's
   final home and reset semantics, not whether it exists.
 - Registration is idempotent per key with last-write-wins on token
   bytes, and each registration records the session/authority
   generation that performed it (D1c).
 
-**D1b. Single-owner rule (normative).** Token bytes have at most one
-live row. Registering token bytes already held by another principal's
-live row retires the predecessor row in the same transaction (a device
-that switches users stops receiving the previous user's sends). Without
-this rule, a send addressed to principal A would display on a device
-currently signed in as B, including whatever the app put in `data`.
+**D1b. Single-owner rule (normative).** Within one `appScope`, token
+bytes have at most one live row. Registering token bytes already held
+by another principal's live row in the same scope retires the
+predecessor row in the same transaction (a device that switches users
+stops receiving the previous user's sends). Without this rule, a send
+addressed to principal A would display on a device currently signed in
+as B, including whatever the app put in `data`. Across `appScope`s the
+same bytes are illegitimate by construction (Expo tokens are
+project-scoped): a cross-scope collision refuses the registration and
+records a leak-indicator diagnostic rather than silently retiring
+either row.
 
 **D1c. Retirement lanes.**
 
@@ -269,9 +318,12 @@ currently signed in as B, including whatever the app put in `data`.
   still exists and may hold app-independent authority. Whether an app
   wants send-audience membership to gate at resolution time is exactly
   what execution-time audience resolution (D2c) provides;
-- **token rotation:** the client surface subscribes
-  `addPushTokenListener` and re-registers the rolled token under the
-  same `(appScope, principal, installation)` key; the old bytes are
+- **token rotation:** `addPushTokenListener` fires with a **native
+  `DevicePushToken`** (the raw APNs/FCM token), not a new Expo token —
+  so the client surface treats the event as a rotation *signal*,
+  reacquires the Expo token via `getExpoPushTokenAsync`, and
+  re-registers the new `ExpoPushToken.data` under the same
+  `(appScope, principal, installation)` key; the old bytes are
   replaced atomically. Rotation while backgrounded is caught by the
   next foreground registration refresh;
 - **provider-driven:** `DeviceNotRegistered` at *either* stage — push
@@ -312,31 +364,48 @@ There is no shipped action-side `runAfter` that inherits user
 authority. The seam therefore defines three modes rather than implying
 inheritance:
 
+Authorization in every mode is **host-enforced, not an app
+convention**: each declared audience resolver (D2c) carries a declared
+`authorize` clause — the LLP 0100 membership-addressed vocabulary
+(membership resource, resource argument, permitted roles) or an
+explicit `system` allowance — and the host evaluates that clause
+itself before any transmit. An action that calls `ctx.push.send`
+without satisfying the clause is refused by the host; an app-side
+`requireRole` in a nested mutation (the A4 idiom) remains good
+defense in depth but is never the boundary. Revocation composes: the
+clause is evaluated against current membership state (LLP 0053's
+invalidation semantics apply), at capture for deferred sends and again
+at send time in every mode.
+
 1. **Immediate, client-triggered:** a client-invoked action calls
-   `ctx.push.send`; nested mutations inherit the action's
-   server-resolved (user) authority, and the app's product-level gate
-   (the A4 idiom: `requireRole` in a nested mutation *before* the
-   send) runs as that user.
-2. **Cron/system:** a cron action sends under system authority; the
-   product-level gate is the audience declaration itself (D2c) plus
-   the app's own due-scan logic, exactly as the A4 reminder leg works.
+   `ctx.push.send`; the host evaluates the audience's `authorize`
+   clause against the action's server-resolved (user) authority before
+   transmit and refuses on failure.
+2. **Cron/system:** a cron action sends under system authority; only
+   resolvers whose clause explicitly allows `system` are usable, and
+   the app's own due-scan logic remains the product-level trigger —
+   exactly as the A4 reminder leg works.
 3. **Deferred (`ctx.jobs.enqueue` from an authorized mutation):** the
    producing mutation runs as the user and is where recipient
    authorization happens; the job's action later executes as system
    authority. The seam makes this honest with **capture then
-   revalidate**: the producing mutation captures a narrow send grant —
+   revalidate**: at capture the host evaluates the audience's
+   `authorize` clause as the producer and mints a narrow send grant —
    the declared audience reference and its arguments, bound to the
    dedupe key, recorded with `producerPrincipal` provenance — and at
    execution time the system-authority action may send only through
-   that captured grant, with the audience *re-resolved* at send time
-   (D2c). No captured grant, no deferred send; arbitrary principal-id
-   lists are not a deferred-send audience.
+   that captured grant, with the clause re-evaluated and the audience
+   *re-resolved* at send time (D2c). No captured grant, no deferred
+   send; arbitrary principal-id lists are not a deferred-send
+   audience. (The declarable vocabulary of resolver `authorize`
+   clauses beyond membership-addressed shapes is open question 8.)
 
 **D2c. Audiences (normative).** `to` is a **declared audience
 resolver** — a generated, declaration-checked reference (e.g. "the
 registered installations of these explicit principals" or, per open
 question 8, "members of membership resource R with roles …") — not an
-arbitrary id list at execution time. Resolution always happens
+arbitrary id list at execution time. Every resolver declaration
+carries the `authorize` clause D2b enforces. Resolution always happens
 host-side **at execution time**, never at enqueue time: this is the
 rule that makes deferred sends respect retirement, the single-owner
 rule, and membership changes between enqueue and send. A resolver that
@@ -373,34 +442,46 @@ tickets and receipts diverge. The ledger is three levels:
   aggregate projection for product UI;
 - **Batch attempt** — one per Expo POST (≤100 messages): request
   outcome, HTTP class, timing;
-- **Message row** — one per (attempt, token identity): ticket outcome,
-  ticket id, receipt outcome, enumerated error codes, retirement
-  effect. Ticket ids, receipt state, error classification, and token
-  retirement live here; nothing aggregate ever overwrites them.
+- **Message row** — one per (attempt, token identity), and each
+  message row belongs to **exactly one** batch attempt (a re-drive
+  mints new message rows under its new attempt; it never rebinds old
+  ones): ticket outcome, ticket id, receipt outcome, enumerated error
+  codes, retirement effect. Ticket ids, receipt state, error
+  classification, and token retirement live here; nothing aggregate
+  ever overwrites them.
 
 **D3b. Crash-safe protocol.** "Record at the moment of the POST" is not
 a protocol. The seam's send path is reserve → claim → transmit →
-settle, all durable:
+settle, all durable, with the transmit boundary itself a durable
+transition:
 
 1. **Reserve:** the intent chain and this attempt's message rows are
    committed (state `reserved`, payload and resolved audience bound to
    the dedupe key) *before* any bytes leave the host. Reusing a dedupe
    key with a divergent payload or audience reference refuses.
 2. **Claim:** a single fenced owner claims the attempt (the LLP 0070
-   lease idiom); a crashed owner's lease expires and recovery finds a
-   `reserved`/`claimed` attempt with no ticket rows.
-3. **Transmit:** the Expo POST(s) run under the claim.
-4. **Settle:** ticket outcomes are written per message row; the batch
+   lease idiom); a crashed owner's lease expires and the attempt
+   becomes recoverable.
+3. **Transmit boundary (normative):** the owner durably writes the
+   batch attempt's `transmitting` transition **before the first
+   network byte leaves the host**. This marker is the crash
+   discriminator: without it, a claimed attempt with no ticket rows
+   cannot be told apart from one Expo accepted just before a crash.
+   Once an attempt has entered `transmitting` it is **never
+   automatically re-driven**.
+4. **Transmit:** the Expo POST(s) run under the claim.
+5. **Settle:** ticket outcomes are written per message row; the batch
    attempt records the request outcome.
 
-Crash recovery by point: before reserve — nothing exists, the send
-never happened; after reserve, before transmit — recovery re-drives
-the claimed attempt (no bytes were sent; safe); after Expo accepted
-bytes, before ticket persistence — recovery finds a transmitted-but-
-unsettled attempt and settles it `ambiguous` (bytes may have reached
-Expo; tickets are lost); mid-batch ticket persistence — message rows
-settle individually, and unsettled rows in a batch whose response was
-lost settle `ambiguous`.
+Crash recovery by point, discriminated by the marker: before reserve —
+nothing exists, the send never happened; after reserve or claim,
+**no `transmitting` marker** — no bytes were sent; recovery re-drives
+safely; **marker present, no settlement** — bytes may have reached
+Expo and the tickets are lost; recovery settles the attempt
+`ambiguous` (D3c: only an explicit re-drive, which records the
+duplicate risk, may follow); mid-batch ticket persistence — message
+rows settle individually, and unsettled rows in a batch whose response
+was lost settle `ambiguous`.
 
 **D3c. Ambiguity and duplicates (normative honesty).** Expo has no
 server-side idempotency; the dedupe key exists only in Snapback's
@@ -419,14 +500,17 @@ ledger. Therefore:
 
 **D3d. Receipt upgrade.** A bounded poll (the cron machinery LLP 0045
 already pins for its runner; suite-driven tick in tests) collects held
-ticket ids in ≤1,000-id `getReceipts` chunks, first poll ~15 minutes
-after handoff (Expo's guidance), on a bounded retry schedule inside
-Expo's ~24-hour receipt window. Message rows upgrade to `expo-accepted`
-(receipt ok — handed to APNs/FCM) or `expo-error` (enumerated code
-retained; `DeviceNotRegistered` additionally fires D1 retirement).
-Ticket ids with no receipt when the window closes settle
-`ambiguous-receipt` with the window recorded. Ledger retention is the
-seam's own declared limit (D6), independent of Expo's clearing.
+ticket ids in ≤1,000-id `getReceipts` chunks. The v1 schedule is
+pinned, published as manifest facts beside pacing: first poll 15
+minutes after handoff (Expo's guidance), then doubling intervals — 30
+minutes, 1 h, 2 h, 4 h — capped at 4 h, at most **seven polls per
+attempt**, terminal at the earlier of receipt arrival or the ~24-hour
+window close. Message rows upgrade to `expo-accepted` (receipt ok —
+handed to APNs/FCM) or `expo-error` (enumerated code retained;
+`DeviceNotRegistered` additionally fires D1 retirement). Ticket ids
+with no receipt when the schedule exhausts settle `ambiguous-receipt`
+with the window recorded. Ledger retention is the seam's own declared
+limit (D6), independent of Expo's clearing.
 
 **D3e. Outcome matrix (normative).** Request level: HTTP 400
 (malformed) → `failed-permanent`, no retry; `UNAUTHORIZED` (enhanced
@@ -435,15 +519,17 @@ config generation changes; HTTP 429 → `failed-retryable` with backoff;
 HTTP 5xx → `failed-retryable` with backoff; transport error/timeout →
 `ambiguous` (D3c). Ticket level (per message): `ok` →
 `handed-to-expo`, receipt pending; `DeviceNotRegistered` → terminal for
-that token + registry retirement; other enumerated ticket errors
-(e.g. `MessageTooBig`) → `failed-permanent` for that message. Receipt
-level: `ok` → `expo-accepted`; `DeviceNotRegistered` → `expo-error` +
-retirement; `InvalidCredentials` → `expo-error-config`
-(operator-facing: Expo's stored APNs/FCM credentials for the app are
-invalid); `MessageRateExceeded` → `expo-error-rate`, retryable as a new
-attempt under pacing; no receipt in window → `ambiguous-receipt`. In
-every cell the persisted diagnostic is the allowlisted code (D1d),
-never provider prose.
+that token + registry retirement; any other enumerated ticket error →
+`failed-permanent` for that message. Receipt level: `ok` →
+`expo-accepted`; `DeviceNotRegistered` → `expo-error` + retirement;
+`MessageTooBig` → `expo-error`, `failed-permanent` for that message
+(a receipt-stage error in Expo's documentation, not a ticket-stage
+one); `InvalidCredentials` → `expo-error-config` (operator-facing:
+Expo's stored APNs/FCM credentials for the app are invalid);
+`MessageRateExceeded` → `expo-error-rate`, retryable as a new attempt
+under pacing; no receipt in window → `ambiguous-receipt`. In every
+cell the persisted diagnostic is the allowlisted code (D1d), never
+provider prose.
 
 **D3f. Naming is the honesty surface.** Fields say `handedToExpoAt`,
 `expoAcceptedAt`, `expoErrorCode` — there is no `deliveredAt` anywhere
@@ -518,12 +604,15 @@ gate of this witness, not a footnote.
 
 - **Activation is a declaration, not an ambient.** The seam exists in a
   deployment only when the app's source declares it (working shape:
-  `definePushSeam({ appScope, audiences, uses, ledger: { retention },
+  `definePushSeam({ appScope: { easProjectId, applicationId,
+  environment }, audiences: { name: { resolve, authorize } },
+  uses, registry: { idleRetention }, ledger: { retention },
   read: { auth } })`). The declaration generates the manifest row, the
-  registry and ledger stores, the audience resolvers (D2c), the config
-  grant binding, and the ledger read projection. Apps that declare
-  nothing push-shaped pay nothing: no registry, no ledger, no manifest
-  row, no runtime cost.
+  registry (with its D1a idle-retention GC fact) and ledger stores,
+  the audience resolvers with their host-enforced authorize clauses
+  (D2b/D2c), the config grant binding, and the ledger read
+  projection. Apps that declare nothing push-shaped pay nothing: no
+  registry, no ledger, no manifest row, no runtime cost.
 - **The ledger read surface is a generated, declaration-checked
   projection** (host/cohost-shaped auth in A4 terms), privacy-bounded
   to lifecycle facts (states, timestamps, enumerated codes, token-row
@@ -617,6 +706,9 @@ gate of this witness, not a footnote.
 - **LLP 0039 / LLP 0053** — session-end authority transitions vs
   permission-revocation invalidation; D1c's retirement lanes sit on
   that division rather than blending it.
+- **LLP 0100** — membership-addressed operations: the declared,
+  host-enforced authorization vocabulary D2b's audience `authorize`
+  clauses reuse instead of inventing a push-specific one.
 - **LLP 0137 / Diary 0045 Track B entry** — the motivating evidence:
   `a4expo-f1` (this gap), `a4-f1` (egress hole, fixed on main),
   `a4-f5` (auth-code collapse through actions, an explicit D5 gate),
@@ -625,7 +717,8 @@ gate of this witness, not a footnote.
   conjunction in D4).
 - **Expo push service** — `expo-notifications` token acquisition
   (`ExpoPushToken.data`, optional-but-recommended `projectId`,
-  `addPushTokenListener` rotation), the `exp.host` send + receipts
+  `addPushTokenListener` as a native-token rotation signal), the
+  `exp.host` send + receipts
   HTTP API (100-message sends, 1,000-id receipt reads, ~15-minute
   receipt guidance, ~24-hour clearing), and its explicit
   tickets-then-receipts, best-effort, no-idempotency,
