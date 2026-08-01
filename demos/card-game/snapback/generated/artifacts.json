@@ -25,8 +25,8 @@
   ],
   "bundleHash": "snapback.v1:sessions:function:sha256:76b2c59df4bdfc1f2eecc18fdf19b72def1840622a0a708588de5fc01ba7d1c8",
   "cache": {
-    "graphPath": "../../.snapback/codegen-cache/snapback.v1%3Asessions%3Ainputs%3Asha256%3Ab5700e3e60e59eade36a32e4967a5ac31c744de6f495bada8b2bcafdb42a6bed",
-    "key": "snapback.v1%3Asessions%3Ainputs%3Asha256%3Ab5700e3e60e59eade36a32e4967a5ac31c744de6f495bada8b2bcafdb42a6bed",
+    "graphPath": "../../.snapback/codegen-cache/snapback.v1%3Asessions%3Ainputs%3Asha256%3A0efceb036f244224afa22dd93860b48987f1fba58b3e07589036331b34f65807",
+    "key": "snapback.v1%3Asessions%3Ainputs%3Asha256%3A0efceb036f244224afa22dd93860b48987f1fba58b3e07589036331b34f65807",
     "regenerationRule": "regenerate-or-fail-closed"
   },
   "config": [],
@@ -63,7 +63,7 @@
       "sha256": "sha256:dcc8cea54881f1ddda2c3e32d3f5bc30793a5ad093983ae4b13abad29a2f331a"
     },
     {
-      "bytes": 8995,
+      "bytes": 9018,
       "consumer": "snapback-runtime",
       "custody": "regenerable-cache",
       "logicalKind": "capability-manifest",
@@ -72,7 +72,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:8a09a0ba784fb6cb9cd3e1d387275f5884d2280ca5d6245e7571d3d72ebe74ff"
+      "sha256": "sha256:1b9097cc25ab48d06e8dce73e483bbbb9cf9e58671ad1b90f063eda7fbdb6b20"
     },
     {
       "bytes": 7588,
@@ -84,7 +84,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:c303d828104a08f782064629eb7dfc3fb06417105b65383ea2973463e905f0e1"
+      "sha256": "sha256:187c496c9523ac8b45922347ce6e278415c405a1b2222391d2afc1cbf4053cec"
     },
     {
       "bytes": 292,
@@ -180,7 +180,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:c993b54d1f731e9e6ad2dbc7f24dcf86919bfcb1245fff286068227dbd8738f2"
+      "sha256": "sha256:60848d2c7a6ce0cb4bd0a039a3fb16770cc2b9c7b7da176f6e057b237a81303c"
     },
     {
       "bytes": 477,
@@ -252,7 +252,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:aa96886f232f1071fe3272c959a94ac2b1a60e63c001fb791b841c203db83f51"
+      "sha256": "sha256:6695f7335926cf8ab6e2862d1a0b6cd8c06d3e7af31d43499874bb97991ccf0e"
     },
     {
       "bytes": 9793,
@@ -264,7 +264,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:e32d115f0626f03374f808eb3f4f3925870935bb9fd27128a0776ac1e6c23a19"
+      "sha256": "sha256:e300cf0c32f90d79175940782afc574d6bf3bc6f7807279bd2dbd615255b8611"
     },
     {
       "bytes": 2139,
@@ -276,7 +276,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:28b321f4e75ed3eedde84c55d757d994992dabf6e638679c3e301910ed1ee3f4"
+      "sha256": "sha256:8edf9211203051c583cb6fcc938858ac4feb8aeeb48a0c4505c580621a153383"
     }
   ],
   "functions": [
@@ -297,7 +297,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:b5700e3e60e59eade36a32e4967a5ac31c744de6f495bada8b2bcafdb42a6bed",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:0efceb036f244224afa22dd93860b48987f1fba58b3e07589036331b34f65807",
   "manifestVersion": 2,
   "reviewManifest": {
     "authority": "@expo/snapback-codegen/review-manifest.schema.json",
@@ -360,7 +360,7 @@
         }
       }
     ],
-    "inputsHash": "snapback.v1:sessions:inputs:sha256:b5700e3e60e59eade36a32e4967a5ac31c744de6f495bada8b2bcafdb42a6bed",
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:0efceb036f244224afa22dd93860b48987f1fba58b3e07589036331b34f65807",
     "schemaVersion": "snapback.codegen-summary.v1"
   },
   "tables": [

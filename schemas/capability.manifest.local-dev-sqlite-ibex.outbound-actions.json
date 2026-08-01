@@ -151,7 +151,8 @@
     "analyzerTablesDigest": "sha256:67feb427579c6f3f9d601d93251c19cb18b15ab13cf46e7f33d285c3ff10181d",
     "authorizationFilters": [
       "public-read",
-      "owner.v1"
+      "owner.v1",
+      "membership.v1"
     ],
     "capabilityId": "full_text_search_v1",
     "counts": false,
