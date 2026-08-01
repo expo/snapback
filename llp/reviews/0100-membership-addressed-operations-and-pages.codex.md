@@ -157,3 +157,29 @@ Next step: repair §8a's resource/continuation contract and §8b's event-1 versu
 The sandbox is read-only, so I could not append this round to the Codex review artifact.
 
 *(Runner note: the verbatim body above is unaltered except that the reviewer's two file citations in items 1 and 3 — emitted as absolute paths into the disposable review worktree — are rendered as plain `src/local.rs:2863` and `§8b lines 624–626` references to avoid dead worktree links; raw output is preserved in the session capture.)*
+
+## Round 3 — 2026-08-01
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model `gpt-5.6-sol`
+**Reasoning effort:** CLI default (`medium` per CLI banner)
+**Date:** 2026-08-01
+**Redaction:** not redacted
+**Method:** round-3 targeted — reviewer given its own Rounds 1–2, instructed to check v0.4's resolutions of its two round-2 residuals (§8a required equality-bound resource argument, multi-seat rejection, distinct post-revocation observables; §8b event-3/declared-restore reset semantics) and the changed text only for fresh defects; read-only sandbox in a fresh worktree of origin/main at ba87162a, blind to this RFC's fable artifact
+**Target SHA-256:** `d878489858f36af709f89a5cd1cb89ea35d2ccebbad4fcab71f9e083ab1ec932`
+**Instruction SHA-256:** `1824430aa113dda03fe2db8a5ec741b3f5eca10aba44b982d30dc657cfa12b57`
+**Status:** completed (first attempt, no retry needed)
+
+### Verbatim review
+
+## Verdict: READY
+
+Target SHA-256 verified: `d878489858f36af709f89a5cd1cb89ea35d2ccebbad4fcab71f9e083ab1ec932`. Required Codex rounds 1–2 read; Fable artifact not read.
+
+1. **§8a membership search — RESOLVED.** It pins a required equality-bound resource argument despite `SearchRequestV1` containing only `{query, limit, after}`, rejects multi-seat traversal coherently, and mandates separate acceptance rows for stale-continuation refusal and fresh post-revocation empty success.
+
+2. **§8b seed/reset — RESOLVED.** It now uses LLP 0056's exact event-3/declared-restore taxonomy, removes the kick/event-1 analogy, and places the runtime-seat-retirement witness across the declared-restore incarnation cut.
+
+No fresh defects found in the v0.4 delta.
+
+**Next step:** Append this verdict as Round 3 to the Codex review artifact, then the author may proceed to the stated maintainer-ratification boundary, subject to LLP 0056 first reaching `Accepted` or an explicit composed-parent ruling. The read-only workspace prevented me from appending it directly.
