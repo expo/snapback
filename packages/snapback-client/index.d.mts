@@ -446,6 +446,14 @@ export class EphemeralOverlay<Scope = Record<string, unknown>, Value = unknown> 
 export interface SnapbackClientOptions {
   readonly adminToken?: string | null;
   readonly bearerToken?: string | null;
+  /**
+   * `'anonymous-public'` sends the auth-client protocol offer with no
+   * credential so headless consumers can read `auth: 'public'` operations
+   * from a sessions server. Mutually exclusive with browser, agent, and
+   * external-bearer custody. Auth-required operations receive the server's
+   * ordinary anonymous refusal.
+   */
+  readonly custody?: 'anonymous-public' | null;
   readonly authClientProtocol?: number | null;
   readonly authInvalidationProtocol?: number | null;
   readonly authorityDescriptorProtocol?: number | null;

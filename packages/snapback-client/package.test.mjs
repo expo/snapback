@@ -99,7 +99,7 @@ assert.throws(
 );
 assert.throws(
   () => new SnapbackClient('http://127.0.0.1:9', { authClientProtocol: 1 }),
-  /explicit external-bearer custody/,
+  /explicit external-bearer, or anonymous-public custody/,
 );
 assert.throws(
   () => externalClient.setBearerToken('sbs_external_replacement'),

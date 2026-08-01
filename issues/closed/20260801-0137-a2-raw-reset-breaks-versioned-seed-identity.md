@@ -12,3 +12,13 @@ Ask (either suffices):
 - the acceptance guide routes suites to the versioned-seed lifecycle when a `seed.artifact.json` exists.
 
 Witness: a suite that raw-resets can restart `snapback dev` by following only the printed diagnostic.
+
+---
+
+**RESOLVED 2026-08-01 (fix-wave α1): the refusal names its recovery.**
+SNAPBACK_SEED_NONEMPTY_UNTRACKED / SNAPBACK_SEED_PARTIAL_UNTRACKED now
+say: recover with the versioned reset-install
+(POST /_snapback/api/app/seed/reset-install-v1) or a fresh database,
+and name the raw-reset-with-inline-seed cause (src/storage.rs). The
+witness the ticket asked for — restart by following only the printed
+diagnostic — is satisfied by the message.

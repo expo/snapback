@@ -355,6 +355,18 @@ pub struct AssetRecordClientViewV1 {
     /// color, dimensions, detected media type, …) as stored — already safe
     /// by construction, since finalization writes only typed facts here.
     pub media: Value,
+    /// The canonical content digest of the primary blob, exposed as an
+    /// app-queryable fact once ready (LLP 0139 bakeoff steal: Convex's
+    /// `_storage.sha256`). The digest is blob metadata, never the physical
+    /// key — LLP 0044's key/digest separation is unaffected.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub digest: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub digest_algorithm: Option<String>,
+    /// The published transfer's honest integrity grade
+    /// (end-to-end-verified vs received-bytes-canonical).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub integrity_grade: Option<AssetIntegrityGrade>,
 }
 
 /// Build the client view inside an asset transaction. The caller has already
@@ -367,6 +379,8 @@ pub fn asset_record_client_view(
     let renditions = renditions_for_asset(tx, &asset.asset_id)?;
     let mut summaries = Vec::new();
     let mut media = serde_json::Map::new();
+    let mut digest = None;
+    let mut digest_algorithm = None;
     for rendition in &renditions {
         if rendition.state == AssetRenditionState::Retired
             || rendition.state == AssetRenditionState::Superseded
@@ -397,6 +411,8 @@ pub fn asset_record_client_view(
                     "mediaType".to_owned(),
                     blob.detected_content_type.clone().into(),
                 );
+                digest = Some(blob.digest.clone());
+                digest_algorithm = Some(blob.digest_algorithm.clone());
             }
         }
     }
@@ -410,6 +426,13 @@ pub fn asset_record_client_view(
         updated_at_ms: asset.updated_at_ms,
         renditions: summaries,
         media: Value::Object(media),
+        integrity_grade: if digest.is_some() {
+            completed_attempt(tx, &asset.asset_id)?.map(|attempt| attempt.integrity_grade)
+        } else {
+            None
+        },
+        digest,
+        digest_algorithm,
     })
 }
 
@@ -1722,6 +1745,24 @@ pub fn current_attempt(
         .query_row(
             "SELECT record_json FROM _snapback_asset_attempts_v1
              WHERE asset_id = ?1 AND state IN ('open', 'transferring', 'finalizing')",
+            [asset_id],
+            |row| row.get(0),
+        )
+        .optional()?;
+    json.map(|json| decode_record(&json)).transpose()
+}
+
+/// The attempt that published a ready asset. Append-only attempts plus the
+/// single-current invariant leave at most one `complete` attempt per asset
+/// (replacement is a new asset; retry supersedes its predecessor).
+pub fn completed_attempt(
+    tx: &Transaction<'_>,
+    asset_id: &str,
+) -> SnapbackResult<Option<AssetAttemptRecordV1>> {
+    let json: Option<String> = tx
+        .query_row(
+            "SELECT record_json FROM _snapback_asset_attempts_v1
+             WHERE asset_id = ?1 AND state = 'complete'",
             [asset_id],
             |row| row.get(0),
         )

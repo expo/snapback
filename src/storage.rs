@@ -2796,7 +2796,11 @@ impl LocalDatabase {
             return Err(SnapbackError::error(
                 code,
                 "seed",
-                "seed targets contain application rows without active versioned identity",
+                "seed targets contain application rows without active versioned \
+                 identity; recover with the versioned reset-install \
+                 (POST /_snapback/api/app/seed/reset-install-v1) or start from \
+                 a fresh database — a raw app reset with an inline seed \
+                 produces exactly this state",
             ));
         }
 

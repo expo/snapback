@@ -24,3 +24,10 @@ Fix shape: accept `v.array(inner)` on table fields as sugar for `v.json()`
 (same stored primitive), or make the diagnostic say "use v.json() for
 structured columns" — plus one guide line noting that arrays as column
 values are spelled `v.json()`.
+
+---
+
+**RESOLVED 2026-08-01 (fix-wave α1).** The array-field refusal now
+appends: "(table fields have no array node; declare the field v.json()
+to store an array, or model one row per element)"
+(packages/snapback-codegen/index.mjs validator report).

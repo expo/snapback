@@ -45,7 +45,7 @@ export const avatarUpload = defineAssetUpload({
   args: {},
   auth: 'authenticated',
   reads: ['profiles'],
-  accept: { mediaTypes: ['application/pdf', 'text/plain'], maxBytes: 10_000_000 },
+  accept: { mediaTypes: ['application/pdf', 'application/octet-stream'], maxBytes: 10_000_000 },
   delivery: { kind: 'private-strict' },
   access: { read: 'via-references' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
@@ -521,3 +521,30 @@ export default defineSchema({
 }
 
 console.log('asset-upload-authoring.test.mjs passed');
+
+// 0137 A1-f10: an accept entry trusted detection can never produce refuses at
+// generation instead of admitting an intent no upload can ever satisfy.
+{
+  const { defineAssetUpload } = await import('./define.mjs');
+  assert.throws(
+    () => defineAssetUpload({
+      args: {},
+      auth: 'authenticated',
+      accept: { mediaTypes: ['text/plain'], maxBytes: 1000 },
+      delivery: { kind: 'private-strict' },
+      authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+    }),
+    /can never finalize/,
+    'undetectable accept entries refuse at generation',
+  );
+  // Wildcards intersecting the detectable set stay admitted.
+  defineAssetUpload({
+    args: {},
+    auth: 'authenticated',
+    accept: { mediaTypes: ['image/*'], maxBytes: 1000 },
+    delivery: { kind: 'private-strict' },
+    image: { location: 'retain' },
+    authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+  });
+  console.log('undetectable-accept refusal assertions pass');
+}

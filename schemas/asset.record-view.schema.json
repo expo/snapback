@@ -17,6 +17,14 @@
       ],
       "type": "string"
     },
+    "AssetIntegrityGrade": {
+      "description": "@ref LLP 0044#byte-stores-and-resumable-transfer — integrity is a graded\n  fact: a freshly computed digest names received bytes, it does not verify\n  them against client intent.",
+      "enum": [
+        "end-to-end-verified",
+        "received-bytes-canonical"
+      ],
+      "type": "string"
+    },
     "AssetRenditionSummaryV1": {
       "additionalProperties": false,
       "description": "One rendition, as a client may see it: variant identity, readiness, and\nsafe dimensions — never blob identity or recipe internals.",
@@ -69,6 +77,30 @@
     },
     "deliveryProfile": {
       "$ref": "#/$defs/AssetDeliveryProfile"
+    },
+    "digest": {
+      "description": "The canonical content digest of the primary blob, exposed as an\napp-queryable fact once ready (LLP 0139 bakeoff steal: Convex's\n`_storage.sha256`). The digest is blob metadata, never the physical\nkey — LLP 0044's key/digest separation is unaffected.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "digestAlgorithm": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "integrityGrade": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AssetIntegrityGrade"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The published transfer's honest integrity grade\n(end-to-end-verified vs received-bytes-canonical)."
     },
     "lifecycleGeneration": {
       "format": "uint64",

@@ -22,3 +22,12 @@ check becomes expressible against Snapback without downloading).
 Evidence: diaries/0048-upload-bakeoff-clip-locker.diary.md (Convex arm;
 App C synthesis steal list item 1); demos/upload-bakeoff/reports/summary.md
 (operational-surface axis).
+
+---
+
+**RESOLVED 2026-08-01 (fix-wave α1).** `AssetRecordClientViewV1` and
+`snapback assets inspect` expose `digest`, `digestAlgorithm`, and
+`integrityGrade` for ready assets (blob metadata + the completing
+attempt's grade; physical keys stay opaque — LLP 0044's key/digest
+separation intact). Schema regenerated; proven in
+asset_record_view_exposes_renditions_and_media_facts.

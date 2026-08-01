@@ -6776,6 +6776,7 @@ impl LocalSnapback {
                 }
             }
             let current = assets::current_attempt(tx, &asset.asset_id)?;
+            let view = assets::asset_record_client_view(tx, &asset)?;
             let renditions = assets::renditions_for_asset(tx, &asset.asset_id)?;
             let edges = assets::load_edges_for_asset(tx, &asset.asset_id)?;
             let accounting = assets::asset_accounting(tx, &asset.app_id)?;
@@ -6808,6 +6809,12 @@ impl LocalSnapback {
                     "policyGeneration": asset.policy_generation,
                     "createdAtMs": asset.created_at_ms,
                     "updatedAtMs": asset.updated_at_ms,
+                    // App-queryable integrity facts (LLP 0139 steal): the
+                    // canonical digest is blob metadata, never the physical
+                    // key.
+                    "digest": view.digest,
+                    "digestAlgorithm": view.digest_algorithm,
+                    "integrityGrade": view.integrity_grade,
                 },
                 "currentAttempt": attempt,
                 "renditions": renditions.iter().map(|rendition| serde_json::json!({
@@ -26882,6 +26889,16 @@ globalThis.__snapbackHandlers = {
         // Never the physical side: no blob keys or staging identifiers.
         assert!(view.get("physicalKey").is_none());
         assert!(view["media"].get("stagingKey").is_none());
+        // App-queryable integrity facts (LLP 0139 steal): digest + algorithm
+        // + honest grade, on the asset projection of the inspect payload.
+        let digest = view["digest"].as_str().expect("canonical digest");
+        assert_eq!(digest.len(), 64, "raw lowercase-hex sha256: {digest}");
+        assert_eq!(view["digestAlgorithm"], "sha256");
+        assert_eq!(
+            view["integrityGrade"],
+            serde_json::to_value(crate::assets::AssetIntegrityGrade::EndToEndVerified)
+                .expect("grade encodes"),
+        );
     }
 
     /// A rendition landing moves the projection's delivery fingerprint even

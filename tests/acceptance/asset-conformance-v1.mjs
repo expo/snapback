@@ -571,7 +571,7 @@ try {
   const putResult = await hostOp(devServer, 'asset.put', {
     upload: 'fileUpload',
     fileName: 'note.txt',
-    contentType: 'text/plain',
+    contentType: 'application/octet-stream',
     bytesBase64: Buffer.from('hello asset frames').toString('base64'),
   }, 'user_ada');
   const devAssetId = putResult.task?.assetId ?? putResult.assetId ?? putResult.asset_id;

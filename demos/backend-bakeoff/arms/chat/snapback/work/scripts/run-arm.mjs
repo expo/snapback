@@ -14,6 +14,21 @@ import {
 import { dirname, join, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
+import os from 'node:os';
+
+// Observed-at-runtime host facts for performance receipts. Receipts carry
+// only these derived fields for machine identity, so a hardcoded profile
+// cannot contradict the host the samples actually ran on.
+function observedMachineContext() {
+  return {
+    platform: os.platform(),
+    arch: os.arch(),
+    cpuModel: os.cpus()[0]?.model ?? 'unknown',
+    cpuCount: os.cpus().length,
+    totalMemoryBytes: os.totalmem(),
+    nodeVersion: process.version,
+  };
+}
 
 import { chromium } from 'playwright-core';
 
@@ -835,7 +850,11 @@ try {
   const performanceReceipt = {
     schemaVersion: 1,
     checkedAt: new Date().toISOString(),
-    profile: 'small local Mac17,3 arm64 workload; two warmups and seven recorded samples',
+    // Machine identity is derived at execution time; a free-form profile can
+    // never contradict observed host facts (issue
+    // 20260729-bakeoff-performance-machine-profile).
+    machine: observedMachineContext(),
+    profile: 'small local workload; two warmups and seven recorded samples',
     paths: {
       representativeRead25: readPerformance,
       burst20Messages: burstPerformance,

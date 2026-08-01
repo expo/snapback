@@ -274,6 +274,35 @@ try {
     'a dishonestly-framed (chunked) oversized artifact is refused on received bytes',
   );
 
+  // --- 0137 A4-f6: anonymous-public custody (headless public-query reads).
+  {
+    captured.length = 0;
+    const anonymous = new SnapbackClient(baseUrl, { custody: 'anonymous-public', adminToken: null });
+    assert.deepEqual(
+      await anonymous.query('listThings'),
+      { rows: [{ id: 't1' }], version: 3 },
+      'anonymous-public custody reads a query without credentials',
+    );
+    const request = captured.find((entry) => entry.url === '/query/listThings');
+    assert.equal(
+      request.headers['x-snapback-auth-client-protocol'],
+      '1',
+      'the protocol offer is sent',
+    );
+    assert.equal(request.headers.authorization, undefined, 'no bearer is sent');
+    assert.throws(
+      () => new SnapbackClient(baseUrl, { custody: 'anonymous-public', bearerToken: 'sbses_x', adminToken: null }),
+      /mutually exclusive/,
+      'anonymous-public custody refuses a bearer',
+    );
+    assert.throws(
+      () => new SnapbackClient(baseUrl, { custody: 'anything-else', adminToken: null }),
+      /custody must be null/,
+      'unknown custody values refuse',
+    );
+  }
+  console.log('app-data anonymous-public custody assertions pass');
+
   console.log('app-data.test.mjs: façade posture, redirect-terminal, ingress bounds, and bare artifact path pass');
 } finally {
   await new Promise((resolve) => server.close(resolve));

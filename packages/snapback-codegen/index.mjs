@@ -3888,7 +3888,10 @@ function validateAuthoringValidator(val, where, report, seen = new Set(), positi
   const assetRef = val.fieldType?.AssetRef;
   if (!primitives.get(val.primitive)?.has(val.fieldType)
       && !(val.primitive === 'string' && (idTable !== null || relationIncarnation || assetRef))) {
-    report(`${where} has unsupported validator primitive/field type ${JSON.stringify(val.primitive)}/${JSON.stringify(val.fieldType)}`);
+    const arrayHint = val.primitive === 'array'
+      ? ' (table fields have no array node; declare the field v.json() to store an array, or model one row per element)'
+      : '';
+    report(`${where} has unsupported validator primitive/field type ${JSON.stringify(val.primitive)}/${JSON.stringify(val.fieldType)}${arrayHint}`);
     return false;
   }
   if (typeof val.optional !== 'boolean') {

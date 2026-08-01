@@ -18257,6 +18257,11 @@ async fn acknowledge_mutations(
 // ---------------------------------------------------------------------------
 
 const TUS_RESUMABLE_HEADER: &str = "tus-resumable";
+const TUS_VERSION_HEADER: &str = "tus-version";
+const TUS_EXTENSION_HEADER: &str = "tus-extension";
+const TUS_CHECKSUM_ALGORITHM_HEADER: &str = "tus-checksum-algorithm";
+const TUS_EXTENSIONS_SUPPORTED: &str = "creation,expiration,checksum,termination";
+const SNAPBACK_MAX_CHUNK_BYTES_HEADER: &str = "snapback-max-chunk-bytes";
 const TUS_UPLOAD_OFFSET_HEADER: &str = "upload-offset";
 const TUS_UPLOAD_LENGTH_HEADER: &str = "upload-length";
 const TUS_UPLOAD_EXPIRES_MS_HEADER: &str = "upload-expires-ms";
@@ -18294,6 +18299,29 @@ fn tus_response_headers(
     }
     if let Ok(length) = HeaderValue::from_str(&attempt.declared_length.to_string()) {
         headers.insert(HeaderName::from_static(TUS_UPLOAD_LENGTH_HEADER), length);
+    }
+    // Capability advertisement on every TUS response (LLP 0139
+    // limits-discoverability finding): say on the wire what the lane
+    // implements. Tus-Max-Size is deliberately absent — uploads are created
+    // through the admission route where the intent's maxBytes refuses, so
+    // no single global creation bound exists; the chunk fact rides the
+    // Snapback header beside the standard trio.
+    headers.insert(
+        HeaderName::from_static(TUS_VERSION_HEADER),
+        HeaderValue::from_static(crate::assets::ASSET_TUS_VERSION),
+    );
+    headers.insert(
+        HeaderName::from_static(TUS_EXTENSION_HEADER),
+        HeaderValue::from_static(TUS_EXTENSIONS_SUPPORTED),
+    );
+    headers.insert(
+        HeaderName::from_static(TUS_CHECKSUM_ALGORITHM_HEADER),
+        HeaderValue::from_static("sha256"),
+    );
+    if let Ok(chunk) =
+        HeaderValue::from_str(&crate::assets::ASSET_MAX_CHUNK_BYTES.to_string())
+    {
+        headers.insert(HeaderName::from_static(SNAPBACK_MAX_CHUNK_BYTES_HEADER), chunk);
     }
     if let Ok(expires) = HeaderValue::from_str(&attempt.expires_at_ms.to_string()) {
         headers.insert(

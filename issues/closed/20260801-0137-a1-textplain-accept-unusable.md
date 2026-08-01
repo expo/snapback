@@ -26,3 +26,13 @@ built PDF and raw `.md` bytes published `ready`
 A5-02). The a1-f10 hazard is specifically a `text/plain` accept entry;
 the octet-stream spelling is a usable documented-detector workaround
 until sniffing lands.
+
+---
+
+**RESOLVED 2026-08-01 (fix-wave α1): refuse at generation.** Accept
+entries the trusted detector can never produce refuse at
+defineAssetUpload with a message naming the detectable set and the
+octet-stream escape (define.mjs `acceptEntryDetectable`, mirroring
+src/assets.rs detect_content_type; wildcards intersecting the set stay
+admitted). Proven in asset-upload-authoring.test.mjs; the two fixtures
+that declared text/plain moved to detectable types.

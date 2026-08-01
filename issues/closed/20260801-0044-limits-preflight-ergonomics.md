@@ -22,3 +22,15 @@ the extensions; we should say so on the wire like the protocol intends.
 Evidence: diaries/0048-upload-bakeoff-clip-locker.diary.md (Snapback
 finding 1 + Supabase frictions + App C steal list item 3);
 demos/upload-bakeoff/reports/summary.md (operational-surface axis).
+
+---
+
+**RESOLVED 2026-08-01 (fix-wave α1).** The client narrows its chunk
+size to the create response's declared `maxChunkBytes` (explicit
+overrides only narrow further) — proven by the default-chunk upload
+test chunking at the declared bound; every TUS response now advertises
+Tus-Version, Tus-Extension (creation,expiration,checksum,termination),
+Tus-Checksum-Algorithm, and Snapback-Max-Chunk-Bytes (Tus-Max-Size
+deliberately omitted: creation rides the admission route where the
+intent's maxBytes refuses — no global bound exists); the guide's
+assets page documents the preflightable limits.

@@ -183,7 +183,10 @@ const client = { baseUrl, subscribeLive: () => {} };
 // --- upload end to end: chunked, checksummed, digested ---
 {
   const store = createMemoryAssetTaskStore();
-  const assets = new SnapbackAssetClient(client, { taskStore: store, chunkBytes: CHUNK });
+  // No explicit chunkBytes: the client must narrow its default to the
+  // create response's declared maxChunkBytes (limits preflight,
+  // 20260801-0044-limits-preflight-ergonomics).
+  const assets = new SnapbackAssetClient(client, { taskStore: store });
   const payload = 'twenty-six characters here!!';
   const file = makeFile(payload);
   const seen = [];
@@ -210,6 +213,13 @@ const client = { baseUrl, subscribeLive: () => {} };
   for (const patch of patches) {
     assert.match(patch.headers['upload-checksum'], /^sha256 [A-Za-z0-9+/]+=*$/);
     assert.equal(patch.headers['tus-resumable'], '1.0.0');
+  }
+  // The client narrowed its default chunk to the declared maxChunkBytes
+  // instead of discovering the ceiling by 413.
+  for (const [, attempt] of state.attempts) {
+    for (const chunk of attempt.chunks) {
+      assert.ok(chunk.length <= CHUNK, `chunk ${chunk.length} <= declared ${CHUNK}`);
+    }
   }
   // The server holds exactly the payload (digest verified at finalize).
   assert.equal(state.assets.get('asset_1').bytes.toString('utf8'), payload);
@@ -482,7 +492,9 @@ const client = { baseUrl, subscribeLive: () => {} };
   assert.equal(fencedSeen.devUser, null, 'a credential suppresses the dev header');
   assert.equal(externalSeen.authorization, 'Bearer bearer_external_1');
   assert.equal(devSeen.authorization, null);
-  assert.equal(devSeen.devUser, 'user_dev');
+  // No server route ever read a dev-identity header; the client no longer
+  // sends one (dead-header removal, 20260801-0044-dev-user-header-dead-read).
+  assert.equal(devSeen.devUser, null, 'the dev lane sends no dead identity header');
   assert.equal(headSeen.authorization, 'Bearer bearer_fence_1', 'TUS custody matches');
 }
 

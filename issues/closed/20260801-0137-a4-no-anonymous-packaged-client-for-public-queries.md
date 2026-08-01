@@ -19,3 +19,13 @@ Fix shape: an explicit anonymous custody mode (e.g.
 is accepted only for public-auth operations, documented beside the
 public-query declaration. Witness: node client reads a public query on a
 sessions server and is refused on any protected operation.
+
+---
+
+**RESOLVED 2026-08-01 (fix-wave α1).** `new SnapbackClient(baseUrl,
+{ custody: 'anonymous-public' })` sends the auth-client protocol offer
+with no credential, skips the credential handshake, and is mutually
+exclusive with browser/agent/bearer custody; auth-required operations
+receive the server's ordinary anonymous refusal. Typed in index.d.mts;
+proven in app-data.test.mjs (offer header sent, no authorization
+header, public query served, exclusivity refusals).

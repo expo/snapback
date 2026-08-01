@@ -42,3 +42,12 @@ Run the same performance harness on macOS arm64 and Linux x86_64. Each receipt
 contains independently observed matching host metadata, strict validation
 passes, and a report generator refuses to compare latency windows until their
 machine contexts are explicitly normalized.
+
+---
+
+**RESOLVED 2026-08-01 (fix-wave α1).** Both frozen runners now derive
+machine identity at execution time (`observedMachineContext()`:
+platform, arch, CPU model/count, memory, node version) and the
+free-form profile no longer carries host claims, so a receipt cannot
+contradict the host it ran on. Report-side normalization guards remain
+with the 0102 harness owner.

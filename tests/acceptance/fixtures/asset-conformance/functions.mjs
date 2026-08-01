@@ -32,7 +32,7 @@ export const photoUpload = defineAssetUpload({
 export const fileUpload = defineAssetUpload({
   args: {},
   auth: 'authenticated',
-  accept: { mediaTypes: ['application/octet-stream', 'text/plain'], maxBytes: 100_000 },
+  accept: { mediaTypes: ['application/octet-stream', 'application/zip'], maxBytes: 100_000 },
   delivery: { kind: 'private-strict' },
   access: { read: 'owner-only' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),

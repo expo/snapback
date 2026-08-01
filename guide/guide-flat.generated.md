@@ -3017,7 +3017,7 @@ export const avatarUpload = defineAssetUpload({
   args: {},
   auth: 'authenticated',
   reads: ['profiles'],
-  accept: { mediaTypes: ['application/pdf', 'text/plain'], maxBytes: 10_000_000 },
+  accept: { mediaTypes: ['application/pdf', 'application/octet-stream'], maxBytes: 10_000_000 },
   delivery: { kind: 'private-strict' },
   access: { read: 'via-references' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
@@ -3207,6 +3207,17 @@ the framework-neutral upload task is `client.assets.start` in
 `useSnapbackAssetUpload` / `useSnapbackAssetImage` in
 `@expo/snapback-react`, and the real-server JS conformance vectors are
 `tests/acceptance/asset-conformance-v1.mjs`.
+
+The declared limits are preflightable, not discover-by-failure: the
+attempt-create response's `transfer.maxChunkBytes` carries the chunk
+ceiling (the packaged client narrows its chunk size to it
+automatically), every TUS response advertises `Tus-Version`,
+`Tus-Extension`, `Tus-Checksum-Algorithm`, and `Snapback-Max-Chunk-Bytes`
+on the wire, and the manifest's `assets` block declares the byte, quota,
+TTL, and count ceilings a suite can read before sending a byte. Ready
+records expose the canonical `digest`, `digestAlgorithm`, and
+`integrityGrade` as ordinary queryable facts on the record view and
+`snapback assets inspect`.
 
 ---
 
@@ -4687,6 +4698,11 @@ additional exports are required.
   constructor(baseUrl, {
     adminToken = (typeof process !== 'undefined' && process.env ? process.env.SNAPBACK_ADMIN_TOKEN : null) ?? null,
     bearerToken = null,
+    // 0137 A4-f6: an explicit anonymous mode so headless consumers (suites,
+    // SSR, prerender) can read `auth: 'public'` operations from a sessions
+    // server — the protocol offer is sent with no credential. Auth-required
+    // operations receive the server's ordinary anonymous refusal.
+    custody = null,
     authClientProtocol = null,
     authInvalidationProtocol = null,
     authorityDescriptorProtocol = 1,

@@ -343,7 +343,13 @@ export class SnapbackAssetClient {
     if (typeof external === 'string' && external.length > 0) {
       return bearerHeaders(external);
     }
-    return userId ? { 'x-snapback-dev-user': userId } : {};
+    // Dev-lane HTTP asset requests resolve anonymously today: no server
+    // route reads a dev identity header, and TUS PATCH bodies are raw bytes
+    // so the body-authority shape cannot ride them. Sending a dead header
+    // implied custody that did not exist; per-user dev identity flows
+    // through host-ops (`asset.put`) until the recorded dev-lane
+    // body-authority gap gets its design.
+    return {};
   }
 
   async #json(method, path, body, { userId = null } = {}) {
@@ -510,9 +516,20 @@ export class SnapbackAssetClient {
         }
         task._apply({ bytesTransferred: state.offset });
       }
+      // Preflight against the declared fact instead of discovering the
+      // ceiling by 413 (LLP 0139 bakeoff, limits-discoverability finding):
+      // the server's create response advertises maxChunkBytes; an explicit
+      // constructor override may only narrow it.
+      const declaredChunk = Number.isSafeInteger(state.transfer?.maxChunkBytes)
+        && state.transfer.maxChunkBytes > 0
+        ? state.transfer.maxChunkBytes
+        : null;
+      const effectiveChunk = declaredChunk === null
+        ? this.#chunkBytes
+        : Math.min(this.#chunkBytes, declaredChunk);
       while (state.offset < state.file.size) {
         if (task._paused || task._cancelled) return;
-        const end = Math.min(state.offset + this.#chunkBytes, state.file.size);
+        const end = Math.min(state.offset + effectiveChunk, state.file.size);
         const bytes = await chunkBytesOf(state.file.slice(state.offset, end));
         const controller = new AbortController();
         task._bindAbort(controller);

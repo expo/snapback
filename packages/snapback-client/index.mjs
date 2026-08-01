@@ -1579,6 +1579,11 @@ export class SnapbackClient {
   constructor(baseUrl, {
     adminToken = (typeof process !== 'undefined' && process.env ? process.env.SNAPBACK_ADMIN_TOKEN : null) ?? null,
     bearerToken = null,
+    // 0137 A4-f6: an explicit anonymous mode so headless consumers (suites,
+    // SSR, prerender) can read `auth: 'public'` operations from a sessions
+    // server — the protocol offer is sent with no credential. Auth-required
+    // operations receive the server's ordinary anonymous refusal.
+    custody = null,
     authClientProtocol = null,
     authInvalidationProtocol = null,
     authorityDescriptorProtocol = 1,
@@ -1648,17 +1653,30 @@ export class SnapbackClient {
       throw new TypeError('senderConstrained browser transport requires AuthCoordinator custody');
     }
     if (senderConstrained) canonicalSenderExternalUri(this.baseUrl, '/auth/session');
+    if (custody !== null && custody !== 'anonymous-public') {
+      throw new TypeError("custody must be null or 'anonymous-public'");
+    }
+    if (custody === 'anonymous-public') {
+      if (authCoordinator || agentAuthority || bearerToken !== null) {
+        throw new TypeError(
+          "custody 'anonymous-public' is mutually exclusive with browser, agent, and external-bearer custody",
+        );
+      }
+      if (authClientProtocol === null) authClientProtocol = 1;
+    }
     if (
       authClientProtocol === 1
       && !authCoordinator
       && !agentAuthority
+      && custody !== 'anonymous-public'
       && (typeof bearerToken !== 'string' || bearerToken.length === 0)
     ) {
       throw new TypeError(
-        'authClientProtocol v1 requires browser, agent, or explicit external-bearer custody',
+        'authClientProtocol v1 requires browser, agent, explicit external-bearer, or anonymous-public custody',
       );
     }
     if ((authCoordinator || agentAuthority) && authClientProtocol === null) authClientProtocol = 1;
+    this.custody = custody;
     if (!Number.isSafeInteger(authCounterCeiling) || authCounterCeiling < 1) {
       throw new TypeError('authCounterCeiling must be a positive safe integer');
     }
@@ -3774,6 +3792,10 @@ export class SnapbackClient {
         !admin
         && this.authProtocols.authClient != null
         && authHandshakeRequired(path)
+        // Anonymous-public custody has no credential to exchange: the offer
+        // header alone is the contract, and the server answers public-auth
+        // operations directly (0137 A4-f6).
+        && this.custody !== 'anonymous-public'
       ) {
         // Every top-level online operation establishes a new observable
         // connection attempt. Re-probe the same URL so a replacement process
@@ -3839,7 +3861,11 @@ export class SnapbackClient {
           path,
           requestBody,
           this.authorityFence ? bearerUsed : undefined,
-        ) : {}),
+        ) : this.custody === 'anonymous-public'
+          // No handshake session exists to flip sessionsMode; the offer
+          // header itself is the anonymous contract (0137 A4-f6).
+          ? this.#authOfferHeaders(false)
+          : {}),
         ...(headers ?? {}),
       };
       const connectionGrantToken = merged[CONNECTION_TOKEN_HEADER] ?? null;

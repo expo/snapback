@@ -37,6 +37,11 @@ additional exports are required.
   constructor(baseUrl, {
     adminToken = (typeof process !== 'undefined' && process.env ? process.env.SNAPBACK_ADMIN_TOKEN : null) ?? null,
     bearerToken = null,
+    // 0137 A4-f6: an explicit anonymous mode so headless consumers (suites,
+    // SSR, prerender) can read `auth: 'public'` operations from a sessions
+    // server — the protocol offer is sent with no credential. Auth-required
+    // operations receive the server's ordinary anonymous refusal.
+    custody = null,
     authClientProtocol = null,
     authInvalidationProtocol = null,
     authorityDescriptorProtocol = 1,

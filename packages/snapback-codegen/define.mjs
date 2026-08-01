@@ -100,6 +100,25 @@ const ASSET_UPLOAD_FIELDS = new Set([
 ]);
 const ASSET_CALLBACK_EVENTS = ['ready', 'rejected'];
 const ASSET_ACCEPT_FIELDS = new Set(['mediaTypes', 'maxBytes']);
+// The concrete types src/assets.rs detect_content_type can produce; accepts
+// outside this set (or wildcards intersecting it) can never finalize.
+const ASSET_DETECTABLE_MEDIA_TYPES = new Set([
+  'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+  'application/pdf', 'video/mp4', 'video/quicktime',
+  'application/gzip', 'application/zip', 'application/octet-stream',
+]);
+function acceptEntryDetectable(mediaType) {
+  const lower = mediaType.toLowerCase();
+  if (ASSET_DETECTABLE_MEDIA_TYPES.has(lower)) return true;
+  if (lower === '*/*') return true;
+  if (lower.endsWith('/*')) {
+    const prefix = lower.slice(0, -1);
+    for (const detectable of ASSET_DETECTABLE_MEDIA_TYPES) {
+      if (detectable.startsWith(prefix)) return true;
+    }
+  }
+  return false;
+}
 const ASSET_DELIVERY_KINDS = new Set(['public-immutable', 'private-signed', 'private-strict']);
 const ASSET_READ_ACCESS = new Set(['owner-only', 'via-references']);
 const ASSET_LOCATION_POLICIES = new Set(['strip', 'retain']);
@@ -2584,6 +2603,19 @@ export function defineAssetUpload(spec) {
   const mediaTypes = stringArray(spec.accept.mediaTypes, 'AssetUpload accept.mediaTypes');
   for (const mediaType of mediaTypes) {
     assert(/^[a-z0-9!#$&^_.+-]+\/[a-z0-9!#$&^_.+*-]+$/i.test(mediaType), `AssetUpload accept.mediaTypes entry ${mediaType} is not a media type`);
+    // Trusted finalization detects the type from bytes; an accept entry the
+    // detector can never produce admits an intent no upload can ever satisfy
+    // (0137 A1-f10: text/plain detects as application/octet-stream and every
+    // upload refuses at finalize). Mirror src/assets.rs detect_content_type.
+    assert(
+      acceptEntryDetectable(mediaType),
+      `AssetUpload accept.mediaTypes entry ${mediaType} can never finalize: trusted `
+      + 'detection identifies only image/jpeg, image/png, image/gif, image/webp, '
+      + 'application/pdf, video/mp4, video/quicktime, application/gzip, '
+      + 'application/zip, and application/octet-stream (the fallback for '
+      + 'everything else, including plain text). Accept application/octet-stream '
+      + 'for opaque files, or a detectable concrete type.',
+    );
   }
   assert(
     Number.isSafeInteger(spec.accept.maxBytes) && spec.accept.maxBytes > 0,
