@@ -43,3 +43,14 @@ fixture compile a `paths` mapping for `@expo/snapback-client`; or have
 codegen emit a relative type import in demo-local generated output. Any of
 these should land with a fresh-checkout `bun install && bun run --cwd
 packages/snapback-react test` witness.
+
+---
+
+**RESOLVED 2026-08-01 (fix-wave α1): fixed, not stale.** Root cause as
+described — bun 1.3.x links workspace packages only into dependents'
+node_modules, so generated api.d.ts imports of '@expo/snapback-client'
+cannot resolve from demos/* on a fresh checkout. Fix:
+scripts/ensure-workspace-hoist.mjs (idempotent root-level @expo/* links)
+now runs first in packages/snapback-react's test chain. Verified in a
+worktree that previously lacked the links: `bun run test` exit 0
+including the tsc fixture leg.

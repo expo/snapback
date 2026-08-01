@@ -36,3 +36,11 @@ guide/tickets.
 Definition of done per item: green gates, honest capability facts,
 acceptance rows, tickets resolved with evidence, docs in the same
 landing.
+
+---
+
+**CLOSED 2026-08-01 (fix-wave α1): program complete.** Every child
+ticket is resolved in issues/closed/ with commit-stamped evidence; the
+landings are recorded in llp/0044 §Status and the session memory
+(lifecycle a4e1e987..b5fd3ee0; image pipeline e2b7e49e..d93fd99f;
+completion waves through f9679cf4/5cba02cf/60a83597).
