@@ -685,6 +685,9 @@ unsafe extern "C" {
 pub(crate) struct RuntimeGuard {
     runtime: *mut HermesRuntimeOpaque,
     interrupt: Arc<RuntimeInterrupt>,
+    /// The strict capability context this VM claimed at construction. Retained
+    /// so posture regressions can prove the claim actually happened.
+    host_context_id: u64,
 }
 
 struct RuntimeInterrupt {
@@ -709,17 +712,18 @@ impl RuntimeInterrupt {
 
 /// The process-global Ibex host is a fixed capability *policy* (strict, plus a
 /// coarse `network:fetch` grant when outbound actions are enabled), not
-/// per-invocation state. Building and installing it on every invocation was
-/// pure overhead — and, per M1, per-invocation VM cost dominates the whole
-/// system. Install it exactly once per process. The per-invocation *context*
-/// (reads/writes) stays thread-local and separate.
+/// per-invocation state. Building it on every invocation was pure overhead —
+/// and, per M1, per-invocation VM cost dominates the whole system. Build it
+/// exactly once per process; clones share the same `Arc` capability manager,
+/// so every armed context carries the identical policy. The per-invocation
+/// *context* (reads/writes) stays thread-local and separate.
 ///
 /// @ref LLP 0009#invocation-isolation — DK-4 cheapest safe step: cache what
 /// carries no per-invocation user state.
 /// @ref LLP 0032#phase-4--measurement — M2.
-fn ensure_host_installed() {
-    static INSTALLED: std::sync::Once = std::sync::Once::new();
-    INSTALLED.call_once(|| {
+fn strict_host() -> &'static ibex_runtime::host::Host {
+    static HOST: std::sync::OnceLock<ibex_runtime::host::Host> = std::sync::OnceLock::new();
+    HOST.get_or_init(|| {
         // @ref LLP 0009#capability-model — static checks are defense-in-depth;
         // the runtime host itself must deny ambient powers. The coarse
         // network:fetch gate is opened only when outbound actions are enabled;
@@ -728,13 +732,32 @@ fn ensure_host_installed() {
         if outbound_actions_enabled() {
             host.capabilities().grant("*", "network:fetch", None);
         }
-        ibex_runtime::host::abi::install_host(host);
-    });
+        host
+    })
+}
+
+/// Arm the strict Host for *this thread's next* Hermes construction and return
+/// the armed context id.
+///
+/// `install_host` publishes the Host globally but the strict capability context
+/// it arms is a single-use, thread-bound token that `ex_hermes_create_no_eval`
+/// claims and zeroes. Installing once per process therefore handed the only
+/// Enforce-mode context to the first VM on the installing thread; every later
+/// VM — and every VM on every other thread — found no pending token and fell
+/// back to a fresh `SecurityMode::Audit` context, where a denied capability is
+/// logged but proceeds. Re-arming per construction gives each VM its own
+/// Enforce-mode context. Claimed contexts are released when their runtime is
+/// destroyed, exactly as the first VM's always was.
+///
+/// @ref LLP 0009#capability-model — the Ibex capability gate is honest
+/// defense-in-depth only when every VM actually holds it.
+fn arm_strict_host_context() -> u64 {
+    ibex_runtime::host::abi::install_host(strict_host().clone())
 }
 
 impl RuntimeGuard {
     pub(crate) fn create() -> SnapbackResult<Self> {
-        ensure_host_installed();
+        let host_context_id = arm_strict_host_context();
         // @ref LLP 0009#supply-chain-and-generated-bundles — application code
         // is exactly the selected manifest bundle; fetched or constructed
         // strings must not become additional code with the handler's ambient
@@ -762,7 +785,14 @@ impl RuntimeGuard {
             interrupt: Arc::new(RuntimeInterrupt {
                 runtime: StdMutex::new(Some((runtime as usize, runtime_nonce))),
             }),
+            host_context_id,
         })
+    }
+
+    /// The armed strict context id this VM claimed, for posture regressions.
+    #[cfg(test)]
+    pub(crate) fn host_context_id(&self) -> u64 {
+        self.host_context_id
     }
 
     pub(crate) fn ptr(&self) -> *mut HermesRuntimeOpaque {
@@ -888,6 +918,62 @@ fn allocate_invocation_epoch(next: &std::sync::atomic::AtomicU64) -> SnapbackRes
 
 fn next_invocation_epoch() -> SnapbackResult<u64> {
     allocate_invocation_epoch(&NEXT_INVOCATION_EPOCH)
+}
+
+/// Every handler VM must hold its own Enforce-mode Ibex capability context.
+///
+/// The armed context is a single-use, thread-bound token: a VM that claims it
+/// is recorded `claimed`, and a VM that finds none silently constructs a fresh
+/// `SecurityMode::Audit` context instead — the rollout mode where a denied
+/// capability is logged but proceeds. `ex_host_enter_context` answers exactly
+/// the question that distinguishes the two: it refuses (`u64::MAX`) for any id
+/// that is absent or unclaimed, so a VM whose armed context enters successfully
+/// provably claimed the strict token rather than falling back.
+///
+/// @ref LLP 0009#capability-model
+#[cfg(test)]
+mod strict_host_context_tests {
+    use super::RuntimeGuard;
+
+    fn claimed(context_id: u64) -> bool {
+        assert_ne!(context_id, 0, "creation must arm a strict context");
+        let previous = ibex_runtime::host::abi::ex_host_enter_context(context_id);
+        if previous == u64::MAX {
+            return false;
+        }
+        ibex_runtime::host::abi::ex_host_restore_context(previous);
+        true
+    }
+
+    #[test]
+    fn every_vm_claims_its_own_strict_context() {
+        let first = RuntimeGuard::create().expect("first VM");
+        let second = RuntimeGuard::create().expect("second VM");
+
+        assert_ne!(
+            first.host_context_id(),
+            second.host_context_id(),
+            "each creation arms a distinct context"
+        );
+        assert!(claimed(first.host_context_id()), "first VM claimed strict");
+        assert!(
+            claimed(second.host_context_id()),
+            "second VM fell back to an Audit context instead of claiming strict"
+        );
+
+        // A thread that never ran the process's first creation used to have no
+        // armed token at all, so its VMs were Audit-fallback from the start.
+        let across_threads = std::thread::spawn(|| {
+            let guard = RuntimeGuard::create().expect("VM on a fresh thread");
+            claimed(guard.host_context_id())
+        })
+        .join()
+        .expect("thread joined");
+        assert!(
+            across_threads,
+            "a VM created on another thread must claim its own strict context"
+        );
+    }
 }
 
 #[cfg(test)]

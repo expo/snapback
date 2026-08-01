@@ -5,7 +5,12 @@
 **Systems:** Runtime, Security, Storage, Auth, Deployment, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-27 (LLP 0108 amendment: inline v1 admits only a parsed,
+**Revised:** 2026-08-01 (strict host context is armed per VM: the M2
+install-once caching also cached the single-use, thread-bound arming, so only
+the first VM per process — and no VM on any other thread — claimed an
+Enforce-mode Ibex context; the Host is still built once, arming now happens
+per construction, with the claim itself pinned by a negative-proven
+regression); 2026-07-27 (LLP 0108 amendment: inline v1 admits only a parsed,
 self-contained handler expression and preserves the existing evaluator,
 capability scan, fresh-per-invocation isolation, and artifact-size ceilings);
 2026-07-27 (adopts Ibex main `63ad33bc` from `expo/ibex`: the upstream no-eval constructor uses Hermes patch 0014, leaves the consumer intrinsic graph mutable for Snapback's verified ambient policy, publishes detached rejections through the native owner-thread async-failure queue, owner-thread deadline watches remain unchanged, and foreign-thread cancellation carries the live runtime nonce through `ex_hermes_interrupt_eval` rather than calling `watchTimeLimit` off owner; retires DK-4 warm reuse because current Ibex binds evaluation, queue inspection, value release, and destruction to the creating OS thread while Snapback blocking workers may change threads, so the local capability honestly returns to `fresh-per-invocation`);
@@ -1069,6 +1074,38 @@ claimed erased. `inline_handler_v1` therefore adds an authoring and admission
 profile, not a stronger isolation claim. The existing DK-4 runtime benchmark
 inventory covers inline-operation counts 1, 4, 16, and 64 before the capability
 graduates from experimental maturity.
+
+## Dated amendment: strict host context is armed per VM (2026-08-01)
+
+The M2-era decision to install the Ibex host exactly once per process
+(§Invocation Isolation, DK-4 "cache what carries no per-invocation user
+state") cached one thing it should not have: the *arming*. `install_host`
+publishes the Host globally but also arms a single-use, thread-bound creation
+token that the next Hermes constructor claims and zeroes; a constructor that
+finds no token silently falls back to a fresh `SecurityMode::Audit` context,
+where a denied capability is computed and logged but proceeds. Installing once
+per process therefore gave the Enforce-mode context to exactly one VM — the
+first on the installing thread — while every later VM, and every VM on every
+other thread, ran the Ibex capability gate in Audit mode.
+
+Amended: the Host is still built once per process (clones share its `Arc`
+capability manager, so the policy is identical), but `RuntimeGuard::create`
+re-arms per construction, so every VM claims its own Enforce-mode context.
+Claimed contexts are released when their runtime is destroyed, exactly as the
+first VM's always was. The cost is one Host clone and one context insertion
+per VM creation, far below the Hermes construction it accompanies — the DK-4
+caching rationale is preserved for the expensive half and withdrawn for the
+half that was silently weakening the gate.
+
+The effective enforcement surface is unchanged, and was never solely the Ibex
+gate: JS ambient denial shadowing, the no-eval constructor, and
+`snapback_host_call` as the only host dispatcher all held on every VM (pinned
+by `tests/runtime_qualify_posture_v0.rs`). This amendment restores the
+defense-in-depth layer beneath them, and
+`runtime::strict_host_context_tests::every_vm_claims_its_own_strict_context`
+pins the claim itself — the observable that distinguishes a claimed strict
+context from an Audit fallback — including on a thread that never ran the
+process's first construction.
 
 ## Status
 

@@ -24,10 +24,11 @@
 //! What this deliberately does not claim: the Enforce-vs-Audit mode of an
 //! individual VM's Ibex capability context is not observable at Snapback's
 //! product surface (denials layer through the JS ambient shadowing and
-//! Snapback's own host-call dispatcher before Ibex's capability gate). The
-//! standing fact that only the first VM per process holds the Enforce-mode
-//! context predates CV-2, is unchanged by it, and is tracked with LLP 0009's
-//! owners (issues/20260731-first-vm-only-strict-host-context.md).
+//! Snapback's own host-call dispatcher before Ibex's capability gate). That
+//! mode is now pinned where it *is* observable — at the claim itself, by
+//! `runtime::strict_host_context_tests`, since 2026-08-01 arms the strict
+//! context per construction so every VM on every thread claims its own
+//! (issues/closed/20260731-first-vm-only-strict-host-context.md).
 
 use std::process::Command;
 

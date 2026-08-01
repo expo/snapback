@@ -46,3 +46,24 @@ constructor). Each changes the posture of second-and-later VMs and belongs
 with LLP 0009's host-install policy, not with the readiness tooling. Until
 decided, any in-serving-process boot witness (LLP 0030/0031 `/health`
 option) stays gated on this same ratification.
+
+---
+
+**RESOLVED 2026-08-01 (fix-wave Lane β).** `RuntimeGuard::create` now re-arms
+the strict context per construction (`arm_strict_host_context`, src/runtime.rs);
+the Host is still built once per process and cloned (clones share the `Arc`
+capability manager, so the policy is identical), preserving DK-4's caching for
+the expensive half. Every VM — including every VM on threads that never ran the
+process's first construction, which previously had no armed token at all — now
+claims its own `SecurityMode::Enforce` context; claimed contexts release on
+runtime destroy exactly as the first VM's always did.
+
+Evidence: `runtime::strict_host_context_tests::every_vm_claims_its_own_strict_context`
+pins the claim via `ex_host_enter_context`, which refuses any absent or
+unclaimed context id — the observable that distinguishes a claimed strict
+context from an Audit fallback. Negative-proven: restoring once-per-process
+arming fails it with "second VM fell back to an Audit context instead of
+claiming strict". Full lib suite 1567 passed; `runtime_qualify_posture_v0`
+green (its stale comment about the standing fact was corrected in the same
+change). Recorded as a dated amendment in LLP 0009 §"Dated amendment: strict
+host context is armed per VM (2026-08-01)".
