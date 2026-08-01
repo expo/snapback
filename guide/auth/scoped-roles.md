@@ -4,12 +4,12 @@ id: auth.scoped-roles
 order: 3
 audience: agent-first
 capabilities: [auth.scoped-roles]
-authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, src/manifest.rs, src/membership_rules.rs, src/runtime.rs, src/storage.rs, demos/rbac/tests/acceptance/rbac.mjs]
-examples: [demos/rbac, packages/snapback-codegen/rbac-authoring.test.mjs]
+authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, src/manifest.rs, src/membership_rules.rs, src/runtime.rs, src/storage.rs, demos/rbac/tests/acceptance/rbac.mjs, demos/shindig/snapback/schema.mjs, demos/shindig/snapback/functions.mjs]
+examples: [demos/rbac, demos/shindig, packages/snapback-codegen/rbac-authoring.test.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-29
+reviewed: 2026-07-31
 reviewed-commit: HEAD
 ---
 
@@ -151,6 +151,36 @@ Membership tables are private authorization backing in v1. There is no
 application-returning `ctx.permissions.*.get()` and a normal query cannot use
 the roster as an existence oracle.
 
+### Build a per-user resource feed
+
+For a home screen such as “my events,” do not try to membership-gate the
+resource table with `membershipResource.rowField('_id')`. System fields are
+not valid `rowField` operands, and the private membership table is not a UI
+feed. Keep a separate ordinary app-data feed row keyed by both the resource id
+and user id, copy the small display fields the card needs, and query that table
+by the server-derived `authUserId()`.
+
+Shindig uses this shape for its `invites` table. The same row represents the
+host's own feed entry, a pending invitation, or an RSVP, while the private
+`eventMembers` table remains the authority source:
+
+```js source=demos/shindig/snapback/functions.mjs
+export const myFeed = defineLiveQuery({
+  table: 'invites',
+  args: {},
+  filter: [eq('userId', authUserId())],
+  order: [asc('eventStartsAt')],
+  index: 'by_user',
+});
+```
+
+Create or update the feed row in the same mutation workflow that changes the
+product-visible invitation or membership state. Ordinary `ctx.db` writes may
+accompany the mutation's one generated membership command, so the feed and
+authority transition can commit atomically. Treat the copied fields as a
+maintained projection for presentation, never as an authorization decision;
+all protected reads still use the membership declaration.
+
 ## Check a role inside a transaction
 
 Query and mutation handlers receive declaration-qualified permission helpers.
@@ -281,6 +311,9 @@ coordinator transition.
   the nominal resource binding through arguments and row fields.
 - **Do not query or sync the roster to make an authorization decision.** Use a
   declaration-bound predicate or `ctx.permissions.requireRole`.
+- **Do not use the private roster as a “my resources” feed.** Maintain an
+  ordinary per-user app-data feed and keep authorization on the membership
+  declaration.
 - **Do not design administrator promotion/removal around private membership
   row ids.** V1 intentionally does not make those ids reachable; use app-data
   invitations plus a self transition, or choose a product flow that does not

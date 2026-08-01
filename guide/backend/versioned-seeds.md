@@ -4,12 +4,12 @@ id: backend.versioned-seed
 order: 8
 audience: agent-first
 capabilities: [backend.versioned-seed]
-authorities: [llp/0109-versioned-seed-evolution.spec.md, src/seed_identity.rs, src/storage.rs, src/server.rs, packages/snapback-codegen/seed-artifact.mjs, packages/snapback-client/index.mjs, packages/snapback-cli/index.mjs, packages/snapback-vite/lifecycle.mjs, tests/conformance/versioned-seed-v1.manifest.json]
-examples: []
+authorities: [llp/0109-versioned-seed-evolution.spec.md, llp/0056-scoped-roles-and-memberships.rfc.md, src/seed_identity.rs, src/storage.rs, src/server.rs, packages/snapback-codegen/seed-artifact.mjs, packages/snapback-client/index.mjs, packages/snapback-cli/index.mjs, packages/snapback-vite/lifecycle.mjs, tests/conformance/versioned-seed-v1.manifest.json]
+examples: [demos/party-wall]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-07-28
+reviewed: 2026-07-31
 reviewed-commit: HEAD
 ---
 
@@ -38,6 +38,23 @@ different identity to an installed stream refuses
 Named tables count as targets even when their seed arrays are empty. Occupied
 targets without an active identity refuse as nonempty or partially untracked
 data. This prevents Snapback from silently adopting a legacy database.
+
+## Bootstrap protected membership resources at runtime
+
+The first sessions-mode versioned-seed lane does not seed membership rows or
+membership-protected resource tables. It refuses the artifact before writing
+with `SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED`, even when the named
+membership table has an empty row list. Seed ordinary, unprotected app data
+only after the sessions catalog is active; create protected resources through
+the generated membership `bootstrap()` method after a real principal signs in.
+That method establishes the resource and initial holder atomically.
+
+Trusted dev/import tooling has a separate governed membership writer. In that
+lane, a `lastHolder`-protected resource and an eligible holder must appear in
+the same seed transaction or the whole write refuses with
+`SNAPBACK_MEMBERSHIP_ACTIVATION_UNPROTECTED_RESOURCE`. Party Wall exercises
+this dev-only fixture shape on a sibling server; do not present it as a
+sessions-mode deployment seed or as a roster raw-write escape for handlers.
 
 ## Use the generated lifecycle
 

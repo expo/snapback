@@ -10,3 +10,9 @@
 Proposed smallest fix: a declaration-owned self-scoped projection (generated `myMemberships` live query or `membershipResource.self()`), returning only the caller's own seats + resource ids + roles, revocation-active. This discloses nothing beyond the caller's own rows, so the private-roster posture holds.
 
 Witness: external app renders "my channels" from one generated query with no mirror table; cross-principal isolation and self-removal live-update asserted.
+
+Documentation status (2026-08-01): `guide/auth/scoped-roles.md` now teaches the
+ordinary per-user app-data feed as the supported interim pattern and makes
+clear that it is presentation data, never authorization backing. This issue
+remains open for the declaration-owned projection that would remove the
+mirror.

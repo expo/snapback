@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "4a7bc08fcdfb99d9843595512245dca2bd618c46"
+    "commit": "d6ae72cb6f222063c5ed3abeda795bf11e3fa6b5"
   },
   "nav": {
     ".": [
@@ -391,15 +391,18 @@
         "src/membership_rules.rs",
         "src/runtime.rs",
         "src/storage.rs",
-        "demos/rbac/tests/acceptance/rbac.mjs"
+        "demos/rbac/tests/acceptance/rbac.mjs",
+        "demos/shindig/snapback/schema.mjs",
+        "demos/shindig/snapback/functions.mjs"
       ],
       "examples": [
         "demos/rbac",
+        "demos/shindig",
         "packages/snapback-codegen/rbac-authoring.test.mjs"
       ],
-      "reviewed": "2026-07-29",
+      "reviewed": "2026-07-31",
       "reviewedCommit": "HEAD",
-      "sha256": "e6a53ce9ed790c0ecc72b2d977e3431cb992b7a8e382d8b560acc33f6916b5fb",
+      "sha256": "815795fc8bdb4f9d8c99a0241e245dd49aaa3e1eb7ba7a7e7ece40a92eb6ab6b",
       "snippets": [
         {
           "lang": "js",
@@ -415,6 +418,11 @@
           "lang": "js",
           "class": "transcluded",
           "source": "demos/rbac/snapback/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/shindig/snapback/functions.mjs"
         },
         {
           "lang": "js",
@@ -631,10 +639,12 @@
         "packages/snapback-codegen/define.mjs",
         "tests/acceptance/asset-lifecycle-v1-evidence.md"
       ],
-      "examples": [],
+      "examples": [
+        "demos/party-wall"
+      ],
       "reviewed": "2026-07-31",
       "reviewedCommit": "HEAD",
-      "sha256": "0a5b812b07c2ac473ecb79c31ead5a513299a7a8f87a4240ce9166201a87ec1a",
+      "sha256": "0c047d52dc6496c710f04a6243a3cb6e2231cec7b90a7987894b09ae2704448c",
       "snippets": [
         {
           "lang": "js",
@@ -650,6 +660,11 @@
           "lang": "js",
           "class": "transcluded",
           "source": "tests/acceptance/fixtures/asset-conformance/handlers.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/party-wall/snapback/schema.mjs"
         },
         {
           "lang": "js",
@@ -1083,6 +1098,7 @@
       ],
       "authorities": [
         "llp/0109-versioned-seed-evolution.spec.md",
+        "llp/0056-scoped-roles-and-memberships.rfc.md",
         "src/seed_identity.rs",
         "src/storage.rs",
         "src/server.rs",
@@ -1092,10 +1108,12 @@
         "packages/snapback-vite/lifecycle.mjs",
         "tests/conformance/versioned-seed-v1.manifest.json"
       ],
-      "examples": [],
-      "reviewed": "2026-07-28",
+      "examples": [
+        "demos/party-wall"
+      ],
+      "reviewed": "2026-07-31",
       "reviewedCommit": "HEAD",
-      "sha256": "cf8488de6e96fe42bf77b1c43e2058fdeed8f478099244e5c52172f2d4874c90",
+      "sha256": "c3d2bdbb957d32a388ed468448722bbce06eab2e8e380bddefb55bec5af32679",
       "snippets": []
     },
     "meta.capabilities": {
@@ -1121,7 +1139,7 @@
       "examples": [],
       "reviewed": "2026-08-01",
       "reviewedCommit": "HEAD",
-      "sha256": "f184bde86a3891b5bf2f90572c3ff4adbea4a281cfdea1873283e19c4a2abf2b",
+      "sha256": "ef59508c758e18b9f75ba30402461bd8fb7ca66e94f4220044e27f8c0211c827",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1974,6 +1992,7 @@
         "llp/0008-local-first-sync-and-realtime.rfc.md",
         "llp/0004-application-data-api.rfc.md",
         "llp/0034-contract-source-seam-provider-side.rfc.md",
+        "llp/0108-inline-handlers-and-result-contracts.spec.md",
         "packages/snapback-codegen/define.mjs",
         "packages/snapback-contract/keyed-provider.mjs",
         "demos/_kit/client.mjs"
@@ -1982,11 +2001,12 @@
         "demos/todo/tests/acceptance/headless.mjs",
         "demos/_kit/tests/live-delta-e2e.mjs",
         "demos/all-aboard/surfaces/react/src/main.tsx",
-        "demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs"
+        "demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs",
+        "demos/party-wall"
       ],
       "reviewed": "2026-07-17",
       "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
-      "sha256": "b7999efbeb85f7e575b6e9d8f5550a00c6ef38893e5d8beb108aa863517e6ded",
+      "sha256": "0c2de9350646b34d06d4f6d66027b7b159663f150210b6e5c3e1a4f7da4d1d2c",
       "snippets": [
         {
           "lang": "js",
@@ -2383,7 +2403,7 @@
   },
   "surfaces": {
     "routes": 86,
-    "hostOps": 28
+    "hostOps": 29
   },
-  "contentHash": "b4d1b4ede664b31e9cc499bdbd662c974d1e411833ffd246b1e413d77b605a38"
+  "contentHash": "1b3d2d34776dd946a0e7be9445073ad211f79b01d9aad16ec691396c81c21f81"
 }

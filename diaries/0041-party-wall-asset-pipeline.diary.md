@@ -22,6 +22,12 @@ sharing, reverse-reference GC, seeding, and live delivery. It now matches the
 ordinary Convex feed ergonomics without giving up Snapback's commit-boundary
 attachment admission or declaration-backed asset authorization.
 
+The operator story is complete too: after deleting a post, the acceptance
+suite invokes the admin-gated `asset.gcSweep` host operation with an explicit
+clock beyond the grace period and observes the canonical reclamation receipt.
+The same deterministic sweep still runs from the cron loop; the demo no longer
+has to wait for that loop to prove reference GC.
+
 ## Findings so far (recorded as hit, before the outcome smooths them over)
 
 1. **Resolved in the follow-up: the original build could not live-query a
@@ -82,13 +88,15 @@ attachment admission or declaration-backed asset authorization.
 
 ## Findings, continued (the suite and the browser found more)
 
-6. **Seeded resources under a protected membership need their holder
-   seeded too.** The versioned-seed install refused my seeded event with
+6. **The trusted dev seed for a protected resource needs its holder in the
+   same transaction.** The dev-sibling seed install refused my seeded event with
    `SNAPBACK_MEMBERSHIP_ACTIVATION_UNPROTECTED_RESOURCE` until the seed
    also carried the host's `eventMembers` row. The protection is *right*
-   (no orphaned resources), and seeding roster rows turned out to be
-   admitted — but nothing taught me that; I expected the raw-write refusal
-   handlers get. One guide sentence would have saved the round trip.
+   (no orphaned resources), and the trusted dev/import writer admits roster
+   rows — but sessions-mode versioned seeds deliberately refuse membership-
+   protected targets and must use a signed-in runtime `bootstrap()` instead.
+   Nothing taught me either side of that boundary; one guide paragraph would
+   have saved the round trip and prevented overgeneralizing the dev fixture.
    Related: the seed-version evidence ledger (`SNAPBACK_SEED_VERSION_
    REUSED` when I edited seed bytes under one version) was a pleasant
    surprise — 0109's discipline catching exactly the mistake I made.
@@ -141,6 +149,7 @@ one-declaration sharing is genuinely nicer *when the tables cooperate*.
 The pipeline's core is excellent and the demo proves it end to end on a
 real server. With the flagship AssetRef feed fixed, the remaining distance to
 "feels effortless" is concentrated in the sessions header on public/signed
-lanes (finding 7), a browser sign-in story (finding 7), and the guide teaching
-the membership/seed patterns (findings 2, 6). Tickets were filed for each;
-none is structural.
+lanes (finding 7), a browser sign-in story (finding 7), and the still-open
+first-class “my resources” membership projection (finding 2). The guide now
+teaches the supported membership-feed and seed/bootstrap patterns; the
+remaining tickets are explicit rather than hidden demo lore.

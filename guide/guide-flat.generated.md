@@ -1088,12 +1088,12 @@ id: auth.scoped-roles
 order: 3
 audience: agent-first
 capabilities: [auth.scoped-roles]
-authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, src/manifest.rs, src/membership_rules.rs, src/runtime.rs, src/storage.rs, demos/rbac/tests/acceptance/rbac.mjs]
-examples: [demos/rbac, packages/snapback-codegen/rbac-authoring.test.mjs]
+authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, src/manifest.rs, src/membership_rules.rs, src/runtime.rs, src/storage.rs, demos/rbac/tests/acceptance/rbac.mjs, demos/shindig/snapback/schema.mjs, demos/shindig/snapback/functions.mjs]
+examples: [demos/rbac, demos/shindig, packages/snapback-codegen/rbac-authoring.test.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-29
+reviewed: 2026-07-31
 reviewed-commit: HEAD
 ---
 
@@ -1235,6 +1235,36 @@ Membership tables are private authorization backing in v1. There is no
 application-returning `ctx.permissions.*.get()` and a normal query cannot use
 the roster as an existence oracle.
 
+### Build a per-user resource feed
+
+For a home screen such as “my events,” do not try to membership-gate the
+resource table with `membershipResource.rowField('_id')`. System fields are
+not valid `rowField` operands, and the private membership table is not a UI
+feed. Keep a separate ordinary app-data feed row keyed by both the resource id
+and user id, copy the small display fields the card needs, and query that table
+by the server-derived `authUserId()`.
+
+Shindig uses this shape for its `invites` table. The same row represents the
+host's own feed entry, a pending invitation, or an RSVP, while the private
+`eventMembers` table remains the authority source:
+
+```js source=demos/shindig/snapback/functions.mjs
+export const myFeed = defineLiveQuery({
+  table: 'invites',
+  args: {},
+  filter: [eq('userId', authUserId())],
+  order: [asc('eventStartsAt')],
+  index: 'by_user',
+});
+```
+
+Create or update the feed row in the same mutation workflow that changes the
+product-visible invitation or membership state. Ordinary `ctx.db` writes may
+accompany the mutation's one generated membership command, so the feed and
+authority transition can commit atomically. Treat the copied fields as a
+maintained projection for presentation, never as an authorization decision;
+all protected reads still use the membership declaration.
+
 ## Check a role inside a transaction
 
 Query and mutation handlers receive declaration-qualified permission helpers.
@@ -1365,6 +1395,9 @@ coordinator transition.
   the nominal resource binding through arguments and row fields.
 - **Do not query or sync the roster to make an authorization decision.** Use a
   declaration-bound predicate or `ctx.permissions.requireRole`.
+- **Do not use the private roster as a “my resources” feed.** Maintain an
+  ordinary per-user app-data feed and keep authorization on the membership
+  declaration.
 - **Do not design administrator promotion/removal around private membership
   row ids.** V1 intentionally does not make those ids reachable; use app-data
   invitations plus a self transition, or choose a product flow that does not
@@ -2797,12 +2830,12 @@ id: backend.versioned-seed
 order: 8
 audience: agent-first
 capabilities: [backend.versioned-seed]
-authorities: [llp/0109-versioned-seed-evolution.spec.md, src/seed_identity.rs, src/storage.rs, src/server.rs, packages/snapback-codegen/seed-artifact.mjs, packages/snapback-client/index.mjs, packages/snapback-cli/index.mjs, packages/snapback-vite/lifecycle.mjs, tests/conformance/versioned-seed-v1.manifest.json]
-examples: []
+authorities: [llp/0109-versioned-seed-evolution.spec.md, llp/0056-scoped-roles-and-memberships.rfc.md, src/seed_identity.rs, src/storage.rs, src/server.rs, packages/snapback-codegen/seed-artifact.mjs, packages/snapback-client/index.mjs, packages/snapback-cli/index.mjs, packages/snapback-vite/lifecycle.mjs, tests/conformance/versioned-seed-v1.manifest.json]
+examples: [demos/party-wall]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-07-28
+reviewed: 2026-07-31
 reviewed-commit: HEAD
 ---
 
@@ -2831,6 +2864,23 @@ different identity to an installed stream refuses
 Named tables count as targets even when their seed arrays are empty. Occupied
 targets without an active identity refuse as nonempty or partially untracked
 data. This prevents Snapback from silently adopting a legacy database.
+
+## Bootstrap protected membership resources at runtime
+
+The first sessions-mode versioned-seed lane does not seed membership rows or
+membership-protected resource tables. It refuses the artifact before writing
+with `SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED`, even when the named
+membership table has an empty row list. Seed ordinary, unprotected app data
+only after the sessions catalog is active; create protected resources through
+the generated membership `bootstrap()` method after a real principal signs in.
+That method establishes the resource and initial holder atomically.
+
+Trusted dev/import tooling has a separate governed membership writer. In that
+lane, a `lastHolder`-protected resource and an eligible holder must appear in
+the same seed transaction or the whole write refuses with
+`SNAPBACK_MEMBERSHIP_ACTIVATION_UNPROTECTED_RESOURCE`. Party Wall exercises
+this dev-only fixture shape on a sibling server; do not present it as a
+sessions-mode deployment seed or as a roster raw-write escape for handlers.
 
 ## Use the generated lifecycle
 
@@ -2918,7 +2968,7 @@ order: 9
 audience: agent-first
 capabilities: [backend.assets]
 authorities: [llp/0044-asset-storage-pipeline.rfc.md, src/assets.rs, src/local.rs, src/server.rs, packages/snapback-codegen/define.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md]
-examples: []
+examples: [demos/party-wall]
 status: current
 targets: [local]
 maturity: partial
@@ -3015,6 +3065,30 @@ id-shaped string written into a `v.assetRef` field fails the commit with
 `SNAPBACK_ASSET_REF_UNVERIFIED` on every write path, and the reverse
 reference edge commits in the same changeset. Deleting an asset refuses
 while typed references remain.
+
+## Put typed photos directly in a live feed
+
+`v.assetRef` is a first-class result-contract leaf. A query or live query may
+return a table containing typed references directly; each reference is the
+opaque asset-id string on the JSON wire. Do not duplicate it into a plain
+string display column or split the reference into a side table merely to make
+the row live-queryable.
+
+Party Wall keeps the photo, membership-backed sharing policy, reverse-reference
+edge, seed fixture, and live-feed row together:
+
+```js source=demos/party-wall/snapback/schema.mjs
+    posts: defineTable({
+      eventId: v.id('events'),
+      authorId: v.principal(),
+      authorName: v.string(),
+      caption: v.string(),
+      photo: v.optional(v.assetRef({ upload: 'photoUpload' })),
+    })
+      .index('by_event', ['eventId'])
+      .assetSharing({ kind: 'membership', membership: 'eventMembers' })
+      .sync(),
+```
 
 ## Deliver
 
@@ -7795,8 +7869,8 @@ id: realtime.live-queries
 order: 1
 audience: agent-first
 capabilities: [realtime.live-queries, realtime.durable-push]
-authorities: [llp/0008-local-first-sync-and-realtime.rfc.md, llp/0004-application-data-api.rfc.md, llp/0034-contract-source-seam-provider-side.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-contract/keyed-provider.mjs, demos/_kit/client.mjs]
-examples: [demos/todo/tests/acceptance/headless.mjs, demos/_kit/tests/live-delta-e2e.mjs, demos/all-aboard/surfaces/react/src/main.tsx, demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs]
+authorities: [llp/0008-local-first-sync-and-realtime.rfc.md, llp/0004-application-data-api.rfc.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-contract/keyed-provider.mjs, demos/_kit/client.mjs]
+examples: [demos/todo/tests/acceptance/headless.mjs, demos/_kit/tests/live-delta-e2e.mjs, demos/all-aboard/surfaces/react/src/main.tsx, demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs, demos/party-wall]
 status: current
 targets: [local]
 maturity: shipped
@@ -7841,6 +7915,12 @@ Offline cold retention is a separate per-query opt-in: `auth: 'public'` +
 `rqsEligible`; without the declaration nothing persists and the handle's
 `retention` fact names the refusal. The full recipe is in
 [offline retention](../sync/offline-and-retention.md).
+
+Stored document contracts include typed `v.assetRef` fields. A photo-bearing
+table can therefore be queried directly as a live feed; the reference arrives
+as its opaque asset-id string. Keep the typed reference on the row that owns
+its sharing and GC semantics instead of maintaining a second string copy or a
+side table for live delivery (see [Assets](../backend/assets.md#put-typed-photos-directly-in-a-live-feed)).
 
 ## Subscribe
 

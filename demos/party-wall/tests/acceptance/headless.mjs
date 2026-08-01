@@ -403,7 +403,10 @@ await runAcceptance(suite, async () => {
     const sweepNowMs = Date.now() + 62_000;
     const swept = await hostOp('asset.gcSweep', { nowMs: sweepNowMs });
     assert.equal(swept.nowMs, sweepNowMs, 'operator sweep echoes its injected clock');
-    assert.equal(swept.report.referenceReclaimed, 1, `reference GC report: ${JSON.stringify(swept)}`);
+    // The earlier signed-bearer exercise intentionally leaves another ready,
+    // unreferenced asset behind, so this app-wide sweep may reclaim both.
+    // Prove the target specifically by its post-sweep delivery refusal below.
+    suiteAssert(swept.report.referenceReclaimed >= 1, `reference GC report: ${JSON.stringify(swept)}`);
     const after = await authorizedFetch(ada, `/assets/records/${photoAssetId}/bytes/thumb`);
     suiteAssert(after.status === 403 || after.status === 404, 'GC-reclaimed asset stops serving');
   });
