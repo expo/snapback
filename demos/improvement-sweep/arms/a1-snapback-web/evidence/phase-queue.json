@@ -1,0 +1,37 @@
+{
+  "phase": "queue",
+  "pid": 60820,
+  "ok": true,
+  "rqsStoreInfo": {
+    "source": "default",
+    "implementation": "file",
+    "durable": true,
+    "reason": null
+  },
+  "queuedCreate": {
+    "queued": true,
+    "clientMutationId": "cm_77df4a216bbc41f283460d4facad9b75",
+    "sequence": 1
+  },
+  "queuedUpdate": {
+    "queued": true,
+    "clientMutationId": "cm_2d3b078e412040f2aed4a3b0de76cdfb",
+    "sequence": 2
+  },
+  "outboxDiagnostics": [
+    {
+      "at": 1785581294802,
+      "code": "SNAPBACK_OFFLINE_MUTATION_QUEUED",
+      "mutation": "createRecord",
+      "clientMutationId": "cm_77df4a216bbc41f283460d4facad9b75",
+      "sequence": 1
+    },
+    {
+      "at": 1785581294807,
+      "code": "SNAPBACK_OFFLINE_MUTATION_QUEUED",
+      "mutation": "updateRecord",
+      "clientMutationId": "cm_2d3b078e412040f2aed4a3b0de76cdfb",
+      "sequence": 2
+    }
+  ]
+}

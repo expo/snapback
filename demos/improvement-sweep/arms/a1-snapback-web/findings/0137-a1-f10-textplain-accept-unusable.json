@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "findingId": "0137-a1-f10-textplain-accept-unusable",
+  "dimension": "asset-lifecycle-and-contract-fidelity",
+  "observation": {
+    "description": "An accept list containing text/plain is effectively unusable: finalization detects the content type from bytes, and plain text detects as application/octet-stream, so a text file uploaded under a { mediaTypes: ['text/plain', ...] } intent refuses at finalize with SNAPBACK_ASSET_MEDIA_TYPE_UNSUPPORTED ('detected content type application/octet-stream is outside the intent's accept list'). The intent authoring layer accepts the declaration without warning. This arm switched its fixture to a PDF (magic-detectable) to proceed.",
+    "evidence": [
+      "demos/improvement-sweep/arms/a1-snapback-web/evidence/app/acceptance.a1.mjs (A1-04 PDF note)"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Frozen storage arms trust declared content types (with their own risks); Snapback's detect-from-bytes is the safer design but needs either a text detector or a generation-time refusal of undetectable accept entries.",
+    "source": "frozen-0102",
+    "sourceDate": "2026-07-28",
+    "reference": "diaries/0030-partiful-backend-bakeoff.diary.md"
+  },
+  "classification": "defect",
+  "mustNotRegress": "Detection-from-bytes as the authority over declared content types.",
+  "smallestCoherentFix": "Detect valid UTF-8/ASCII text as text/plain (bounded sniff), or refuse at generation any accept entry the detector can never produce, naming it.",
+  "acceptanceWitness": "A .txt upload under a text/plain intent finalizes ready, or the intent refuses at generation with a named diagnostic.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a1-textplain-accept-unusable.md"
+  },
+  "stopClass": false,
+  "budgetFinding": false
+}

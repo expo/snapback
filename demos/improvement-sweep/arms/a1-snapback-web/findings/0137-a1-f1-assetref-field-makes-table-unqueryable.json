@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "findingId": "0137-a1-f1-assetref-field-makes-table-unqueryable",
+  "dimension": "asset-lifecycle-and-contract-fidelity",
+  "observation": {
+    "description": "On packaged 0.1.7, any table carrying a v.assetRef field cannot be returned by ANY query: the result-contract compiler (@expo/snapback-codegen/result-contracts.mjs) maps String/Boolean/Integer/Real/Principal/RelationIncarnation/Id/Json and throws 'unsupported result validator' for AssetRef, so both defineLiveQuery({table:'records'}) and defineJsLiveQuery(results.documents('records')) refuse at generation with SNAPBACK_HANDLER_RESULT_CONTRACT_INVALID ({\"AssetRef\":{}} and the restricted form alike). The guide's assets page teaches v.assetRef attachment on ordinary tables; the obvious next step — querying that table — is inexpressible. Workaround used by this arm: move the typed reference to a side table no query returns and carry a plain-string asset id on the queryable row.",
+    "evidence": [
+      "demos/improvement-sweep/arms/a1-snapback-web/evidence/app/schema.mjs (recordAttachments side table + finding note)",
+      "demos/improvement-sweep/arms/a1-snapback-web/evidence/app/functions.mjs (listRecords note)"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Frozen Firebase/Supabase evidence stores file references as ordinary row fields (storage path strings/URLs) that flow through every query; no frozen competitor separates reference typing from queryability.",
+    "source": "frozen-0102",
+    "sourceDate": "2026-07-28",
+    "reference": "diaries/0030-partiful-backend-bakeoff.diary.md (storage reference handling)"
+  },
+  "classification": "defect",
+  "mustNotRegress": "The commit-boundary verification itself (raw id-shaped strings into assetRef fields must keep failing closed).",
+  "smallestCoherentFix": "Add an AssetRef mapping to the result-contract compiler (id-shaped scalar with asset provenance), with a packaged-closure conformance test that live-queries a table carrying an assetRef field.",
+  "acceptanceWitness": "A fresh external scaffold declares v.assetRef on a synced table and both a declarative and a JS live query over that table pass codegen and return rows on the public closure.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a1-assetref-field-makes-table-unqueryable.md"
+  },
+  "stopClass": false,
+  "budgetFinding": false
+}

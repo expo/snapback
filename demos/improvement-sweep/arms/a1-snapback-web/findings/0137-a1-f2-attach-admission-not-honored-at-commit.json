@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "findingId": "0137-a1-f2-attach-admission-not-honored-at-commit",
+  "dimension": "asset-lifecycle-and-contract-fidelity",
+  "observation": {
+    "description": "Asset row attachment is impossible on packaged 0.1.7: ctx.assets.attach(assetId, { upload }) succeeds in the handler (host call runs, returns the canonical asset id — identical to the finalize-returned id), but EVERY subsequent write of that value into a v.assetRef field fails the commit with SNAPBACK_ASSET_REF_UNVERIFIED ('written without a ctx.assets.attach admission'). Isolated across four variants: restricted and unrestricted field forms, writing the attach return value and the raw input id, and a minimal single-write mutation whose only effect is the admitted insert. A mutation that calls attach and writes NO assetRef field commits fine, so the admission is registered but never visible to the commit validator. Consequences chained: the via-references sharing declaration is unreachable (delivery stays owner-only), and delete-refusal-while-referenced cannot be exercised. This is the arm's one check-level FAIL (A1-04).",
+    "evidence": [
+      "demos/improvement-sweep/arms/a1-snapback-web/evidence/app/probe-attach.mjs (four-variant isolation)",
+      "demos/improvement-sweep/arms/a1-snapback-web/evidence/scenario-evidence.json (A1-04 attachDefect)",
+      "demos/improvement-sweep/arms/a1-snapback-web/evidence/report.json (A1-04 fail)"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "The frozen Firebase Partiful arm attached Storage objects to rows as plain fields with rules-checked reads — no admission step to break. Snapback's admission design is stronger on paper (commit-boundary provenance) but currently blocks the entire attachment feature on the public closure.",
+    "source": "frozen-0102",
+    "sourceDate": "2026-07-28",
+    "reference": "diaries/0030-partiful-backend-bakeoff.diary.md"
+  },
+  "classification": "defect",
+  "mustNotRegress": "Commit-boundary refusal of unadmitted assetRef writes, and attach's owner/intent validation (SNAPBACK_ASSET_ATTACH_DENIED / _INTENT_MISMATCH).",
+  "smallestCoherentFix": "Make the transaction-scoped admission the host registers during ctx.assets.attach visible to the commit validator for the same invocation's buffered writes, with a packaged-closure conformance test that runs the guide's own createPhoto-shaped mutation end-to-end.",
+  "acceptanceWitness": "The guide's attach snippet (insert with attachment: await ctx.assets.attach(...)) commits on a fresh external scaffold against the public closure, the reference edge appears, and delete-while-referenced refuses.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a1-attach-admission-not-honored-at-commit.md"
+  },
+  "stopClass": false,
+  "budgetFinding": false
+}

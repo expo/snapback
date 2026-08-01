@@ -1,0 +1,57 @@
+{
+  "phase": "cold",
+  "pid": 60805,
+  "ok": true,
+  "transport": {
+    "disabled": true,
+    "error": {
+      "message": "fetch failed",
+      "code": null,
+      "name": "TypeError"
+    }
+  },
+  "rqsStoreInfo": {
+    "source": "default",
+    "implementation": "file",
+    "durable": true,
+    "reason": null
+  },
+  "sites": {
+    "rows": [
+      {
+        "_id": "site_pump_house_8",
+        "name": "Pump house 8"
+      },
+      {
+        "_id": "site_site_a12",
+        "name": "Site A 12"
+      },
+      {
+        "_id": "site_substation_25",
+        "name": "Substation 25"
+      }
+    ],
+    "version": 12,
+    "freshness": "retained",
+    "connection": "stale",
+    "retention": {
+      "retainable": true,
+      "code": null,
+      "reason": "offline boot from verified persisted entry",
+      "store": {
+        "source": "default",
+        "implementation": "file",
+        "durable": true,
+        "reason": null
+      }
+    }
+  },
+  "protectedRecords": {
+    "resolved": false,
+    "error": {
+      "message": "fetch failed",
+      "code": null,
+      "name": "TypeError"
+    }
+  }
+}

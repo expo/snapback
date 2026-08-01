@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "findingId": "0137-a1-f9-versioned-seed-sessions-custody-recipe",
+  "dimension": "acceptance-and-fixture-loop",
+  "observation": {
+    "description": "Running the versioned-seed reset (the fix for the A2-f7 raw-reset wedge) against a sessions-mode app took three undocumented discoveries: (1) an adminToken-only client cannot offer the auth-client protocol ('authClientProtocol v1 requires browser, agent, or explicit external-bearer custody'), so the admin client must ALSO carry a session bearer via createExternalSessionClient(url, { bearerToken, adminToken }); (2) previewVersionedSeed/resetInstallVersionedSeed default requestedMode to dev, so a sessions app refuses with SNAPBACK_SEED_CROSS_MODE_UNSUPPORTED until requestedMode:'sessions' is passed explicitly on every call; (3) the active expectedDataVersionStream is discovered from preview.current.dataVersionStream, which no guide page shows. Once known, the loop is excellent: reset-install restored the literal seed with a receipt (operation, outcome, resetDeletedRows, dataVersionStream) and the next snapback dev start accepted the database — no SNAPBACK_SEED_NONEMPTY_UNTRACKED wedge.",
+    "evidence": [
+      "demos/improvement-sweep/arms/a1-snapback-web/evidence/app/acceptance.a1.mjs (A1-13)",
+      "demos/improvement-sweep/arms/a1-snapback-web/evidence/scenario-evidence.json (A1-13 cleanupReceipt)"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Not competitor-comparable — the versioned-seed lifecycle is a Snapback differentiator once reachable; frozen arms hand-rolled cleanup scripts.",
+    "source": "none-available",
+    "sourceDate": "2026-08-01"
+  },
+  "classification": "guide-gap",
+  "mustNotRegress": "The reset-install receipt and the predecessor-stream gate (exact {state:'present',value} matching).",
+  "smallestCoherentFix": "A sessions-mode versioned-reset snippet in the acceptance or versioned-seeds guide page: external-bearer+admin client construction, requestedMode:'sessions', preview-discovered stream; ideally default requestedMode from the active app mode instead of dev.",
+  "acceptanceWitness": "A cold agent reading the versioned-seeds page resets a sessions-mode app to its literal seed on the first try, and the next dev start accepts the database.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a1-guide-gap-versioned-seed-sessions-recipe.md"
+  },
+  "stopClass": false,
+  "budgetFinding": false
+}

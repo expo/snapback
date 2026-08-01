@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "findingId": "0137-a1-f8-schema-module-asset-intent-silently-ignored",
+  "dimension": "asset-lifecycle-and-contract-fidelity",
+  "observation": {
+    "description": "A defineAssetUpload intent exported from the SCHEMA module is silently dropped by 0.1.7 codegen: generation succeeds, the summary counts no asset intent, api.mjs carries no upload reference, and a handler's ctx.assets.attach(assetId, { upload: 'name' }) naming the missing intent also passes generation. The guide's asset authoring snippets (sourced from asset-upload-authoring.test.mjs) show the intent exported beside defineSchema in one module, so colocating them is the natural reading. Moving the export to the functions module makes everything appear. Codegen is otherwise excellent at failing closed with named diagnostics; this silent drop is the outlier.",
+    "evidence": [
+      "demos/improvement-sweep/arms/a1-snapback-web/evidence/app/functions.mjs (relocated intent + note)",
+      "demos/improvement-sweep/arms/a1-snapback-web/evidence/app/schema.mjs"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Not competitor-comparable — a codegen discovery-surface trap.",
+    "source": "none-available",
+    "sourceDate": "2026-08-01"
+  },
+  "classification": "defect",
+  "mustNotRegress": "Fail-closed generation diagnostics elsewhere (named codes with positions).",
+  "smallestCoherentFix": "Either discover intents from the schema module too, or refuse generation when an attach references an undeclared intent (and when a defineAssetUpload export is found where it cannot be collected), naming the module.",
+  "acceptanceWitness": "Declaring the intent in schema.mjs either works or fails generation with a named diagnostic; ctx.assets.attach against an unknown intent name refuses at generation.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a1-schema-module-asset-intent-silently-ignored.md"
+  },
+  "stopClass": false,
+  "budgetFinding": false
+}

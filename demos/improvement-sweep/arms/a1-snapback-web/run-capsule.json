@@ -1,0 +1,229 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "arm": {
+    "contract": "a1",
+    "armKind": "snapback-web",
+    "platform": "web",
+    "provider": "snapback",
+    "attemptId": "a1-snapback-web-darwin-arm64-20260801"
+  },
+  "packageVersions": {
+    "@expo/snapback-cli": "0.1.7",
+    "@expo/snapback-app-cli": "0.1.7",
+    "@expo/snapback-client": "0.1.7",
+    "@expo/snapback-codegen": "0.1.7",
+    "@expo/snapback-contract": "0.1.7",
+    "@expo/snapback-react": "0.1.7",
+    "@expo/snapback-vite": "0.1.7",
+    "@expo/snapback-runtime-darwin-arm64": "0.1.7",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "vite": "8.2.0",
+    "typescript": "5.9.3"
+  },
+  "environment": {
+    "host": "macOS (Darwin 25.5.0), arm64",
+    "node": "24.18.0 (volta)",
+    "bun": "1.3.12",
+    "registry": "https://registry.npmjs.org",
+    "externalDirectory": "session scratchpad sweep-a1/consumer/notebook-app — outside any Snapback checkout; scaffolded by `snapback new notebook-app --template react`, then the frozen neutral-web shell merged in as the UI (notebook view wired live, other five views static)",
+    "sanctionedDocumentation": [
+      "the shipped Snapback guide (index, capabilities, offline-and-retention, assets, queries, mutations, scoped-roles, sessions-and-principals, protecting-data, headless, react, acceptance, versioned-seeds, snapshot-bundles)",
+      "installed public package bytes under node_modules (product the consumer receives)",
+      "prior 0137 arm records (G1 capsule, A2 capsule/diary/findings) for known defects and the persona recipe — program records, not product documentation"
+    ],
+    "authMode": "sessions (email-code provider; dev mode was rejected because its client-asserted userId would make every negative check vacuous)",
+    "offlineHarness": "cold legs run as separate node child processes sharing one arm-owned durable file store via SNAPBACK_CLIENT_RQS_DIR; orchestrator clients run rqsStore:null so all durable-store evidence belongs to the child phases"
+  },
+  "budget": {
+    "class": "deep",
+    "ceilings": { "activeHours": 8, "toolCalls": 400 },
+    "wallClock": {
+      "orientationStart": "2026-08-01T09:55:00Z",
+      "externalBuildStart": "2026-08-01T10:13:54Z",
+      "finalGreenVerification": "2026-08-01T10:48:18Z",
+      "activeBuildMinutes": 35,
+      "orientationMinutes": 19,
+      "recordsPhase": "10:49Z onward (findings, tickets, capsule, diary, freeze/ref checks, rebase, commit)"
+    },
+    "toolCalls": {
+      "throughFinalVerification": 118,
+      "recordsPhaseEstimate": "~55 additional",
+      "note": "counted from the session transcript; well under the 400-call deep ceiling including records"
+    },
+    "ceilingExceeded": false
+  },
+  "actors": {
+    "builder": "Claude (Fable 5), LLP 0137 Stage 2 second diaried sweep arm (A1), external-consumer posture",
+    "personas": {
+      "alice": "alice@sweep-a1.test (workspace host; offline/queue persona)",
+      "bob": "bob@sweep-a1.test (invited member; second device bob3 for A1-09)",
+      "mallory": "mallory@sweep-a1.test (authenticated outsider)"
+    },
+    "principalDerivation": "server-minted sessions via email-code exchange; principals are server UUIDs, never client-asserted"
+  },
+  "targets": {
+    "kind": "fresh-isolated-local",
+    "targetProfile": "local-dev-sqlite-ibex",
+    "appId": "notebook-app",
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:06bb9cc9860caac7a2ec6bcd54e1b5dcdca474d6ab6fddc13d97a81a959fb7ac",
+    "database": "app-local .snapback/dev.sqlite3, deleted before each suite run so the supervisor creates a fresh managed database and installs the versioned seed",
+    "serverUrl": "http://127.0.0.1:4289",
+    "port": 4289,
+    "portDiscipline": "runtime 4287-4387 scan; 4287 held by an unrelated fleet server (untouched), 4288 (the A2 arm's port) guard-blocked by the suite during spawn, 4420 asserted never used",
+    "runtimeBinary": "node_modules/@expo/snapback-runtime-darwin-arm64/bin/snapback, sha256 6c5c956750edc1be016823824bf5e28a3e969810aed6d7299cf5f593fa2023fe (identical to the A2 arm's 0.1.7 publication)",
+    "durableStore": "arm-owned a1-rqs-store/ via SNAPBACK_CLIENT_RQS_DIR (default resolution, source:'default', implementation:'file', durable:true); origin identity origin:http://127.0.0.1:4289",
+    "hostedTarget": "none — A1 is a local-target contract"
+  },
+  "milestones": {
+    "closureInstalled": "2026-08-01T10:14:04Z (npm, 13 packages, ~5s)",
+    "scaffolded": "2026-08-01T10:15Z (snapback new --template react + bun install 605ms)",
+    "backendAuthored": "2026-08-01T10:15-10:22Z (5 tables incl. membership + asset side table, 14 operations; codegen fail-closed iterations on result contracts and assetRef)",
+    "firstServerLoaded": "2026-08-01T10:22Z (snapback dev, generated-and-loaded)",
+    "firstRead": "2026-08-01T10:24Z (session mint + listSites)",
+    "firstMutation": "2026-08-01T10:24Z (createWorkspace bootstrap)",
+    "verifiedRealtime": "2026-08-01T10:29Z (A1-09 second-device live convergence; earlier runs' live handles)",
+    "localAcceptance13Checks": "2026-08-01T10:48:18Z (10 pass + 1 gap + 1 expected-refusal + 1 fail, expectedChecks=13 enforced; full suite 6.6s)",
+    "uiTypecheckAndBuild": "2026-08-01T10:46Z (tsc --noEmit clean; vite build ok)",
+    "reactRuntimeSmoke": "2026-08-01T10:48:02Z (ui-smoke green: sites=3, workspace bootstrap, live record delivery into the React store)",
+    "hostedUrl": "not-applicable (local contract)",
+    "cleanup": "2026-08-01T10:49Z (dev child stopped via stdin close, ready file removed by supervisor, port 4289 free, no arm processes; unrelated 4287 fleet server untouched)"
+  },
+  "assistanceEvents": [
+    {
+      "elapsedMs": 120000,
+      "kind": "prior-arm-records-plus-packaged-bytes",
+      "reason": "the sessions test-persona recipe (mailbox route, x-snapback-impersonation-capability carrier, external-bearer construction) is still undocumented",
+      "informationSupplied": "reused the recipe the A2 arm derived from installed @expo/snapback-cli comparator bytes",
+      "equivalentOpportunityOffered": "same bytes ship to every public consumer; already filed as finding 0137-a2-f6 (not re-filed)",
+      "postureBreak": false
+    },
+    {
+      "elapsedMs": 600000,
+      "kind": "undocumented-package-bytes",
+      "reason": "the offline guide page never shows how a query becomes authority-independent/retainable; the handle refused retention for even a public table",
+      "informationSupplied": "read installed @expo/snapback-codegen/define.mjs: auth/'public' + authorityIndependent + retainable query-spec flags; read @expo/snapback-client rqs-store-default.mjs for SNAPBACK_CLIENT_RQS_DIR keying and index.mjs for handle freshness/retention facts",
+      "equivalentOpportunityOffered": "same bytes ship to every public consumer; filed as finding 0137-a1-f4",
+      "postureBreak": false
+    },
+    {
+      "elapsedMs": 480000,
+      "kind": "undocumented-package-bytes",
+      "reason": "diagnosing the sessions-mode asset upload failure and the attach commit refusal",
+      "informationSupplied": "read installed @expo/snapback-client/assets.mjs (headerless raw fetches; attempt/TUS/finalize wire shapes) and runtime binary strings (attach admission machinery)",
+      "equivalentOpportunityOffered": "same bytes ship to every public consumer; filed as findings 0137-a1-f2/f3",
+      "postureBreak": false
+    },
+    {
+      "elapsedMs": 240000,
+      "kind": "undocumented-package-bytes",
+      "reason": "authLogout refused external-bearer custody and the versioned-seed methods refused admin-only custody; neither recipe is documented",
+      "informationSupplied": "read @expo/snapback-client index.mjs custody gates and @expo/snapback-contract auth-coordinator.d.mts (AuthCoordinator + createMemoryAuthCustodyStorage headless construction)",
+      "equivalentOpportunityOffered": "same bytes ship to every public consumer; filed as finding 0137-a1-f9 (seed recipe); coordinator construction recorded in the diary",
+      "postureBreak": false
+    }
+  ],
+  "postureBreaks": [],
+  "commands": [
+    "npm install --save-exact @expo/snapback-{cli,app-cli,client,codegen,contract,react,vite}@0.1.7",
+    "snapback new notebook-app --template react && bun install",
+    "snapback generate snapback (x8 over the arm; fail-closed diagnostics on 4)",
+    "node acceptance.a1.mjs (13-check suite; owns its dev server; spawns 5 cold child phases; guard-blocks port 4288 during spawn)",
+    "node probe-membership.mjs / probe-attach.mjs (defect isolation probes)",
+    "tsc --noEmit && vite build",
+    "node ui-smoke.mjs (React provider runtime proof)"
+  ],
+  "scenarioResults": [
+    { "id": "A1-01-SEED", "result": "pass", "evidencePaths": ["evidence/report.json", "evidence/scenario-evidence.json"], "note": "versioned seed installs exactly 3 literal site rows on a fresh managed database; 3 distinct authenticated principals; second client observes the same snapshot/version" },
+    { "id": "A1-02-WORKSPACE", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "bootstrap host seat + invite/accept; Mallory read AND stream subscribe both SNAPBACK_AUTH_PERMISSION_DENIED (requireRole idiom; the declarative membership idiom filters instead — finding f7)" },
+    { "id": "A1-03-RECORDS", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "create/edit/assign/due-date/reorder/state transitions each observed authoritatively from the second client; position-with-_id-tiebreak order invariant held after every transition; settlement envelopes recorded" },
+    { "id": "A1-04-ATTACHMENTS", "result": "fail", "evidencePaths": ["evidence/scenario-evidence.json", "evidence/app/probe-attach.mjs"], "note": "upload (authenticated raw attempt/TUS/finalize), private-strict owner delivery with content-hash match, outsider denial, and delete+post-delete denial all verified — but row attachment is impossible on 0.1.7 (SNAPBACK_ASSET_REF_UNVERIFIED, finding f2); packaged asset client cannot authenticate on sessions (f3)" },
+    { "id": "A1-05-COLD-RESTART", "result": "gap", "evidencePaths": ["evidence/phase-cold.json", "evidence/scenario-evidence.json"], "note": "genuinely cold process, transport refused: public sites render retained (freshness 'retained', connection 'stale', reason 'offline boot from verified persisted entry') but the protected notebook records cannot present (documented sync.offline-js-arm-protected GAP; A2 finding f8 cited, not re-filed)" },
+    { "id": "A1-06-RETAINED-READS", "result": "expected-refusal", "evidencePaths": ["evidence/phase-warm.json", "evidence/phase-cold.json"], "note": "protected handle carries the exact documented refusal (SNAPBACK_RETENTION_NOT_RETAINABLE + reason + store facts); rqsEligible handle retainable:true; freshness axis honest ('retained' offline, 'current' after reconnect)" },
+    { "id": "A1-07-QUEUED-DURABILITY", "result": "pass", "evidencePaths": ["evidence/phase-queue.json", "evidence/phase-queue-inspect.json"], "note": "offline create+update queue durably under external-bearer sessions custody ({queued:true, clientMutationId, sequence 1,2}); both survive a process restart while still offline (outboxRecords length 2, pending); no remote commit pre-replay (verified in A1-09); D3 probe recorded (finding f6)" },
+    { "id": "A1-08-CONFLICT", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "two-actor concurrent same-field edits: both commit with distinct versions, later commit version wins deterministically, both revisions visible; offline-vs-online conflict settles by commit order (replayed intent wins the field) — outcome visible and deterministic in both shapes" },
+    { "id": "A1-09-RECONNECT", "result": "pass", "evidencePaths": ["evidence/phase-reconnect.json", "evidence/scenario-evidence.json"], "note": "replay {replayed:2, failed:0, remaining:0} in sequence order; second drain no-op; exactly one committed row for the queued create (unique clientKey + settlement); second device observes the replayed create live; retained sites settle to 'current'" },
+    { "id": "A1-10-AUTH-LOSS", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "established protected live handle blanks after seat removal (self transition; admin kick remains the known A2-f4 gap); post-revocation commit not delivered; fresh read denied; durable store contains zero protected bytes (sentinel grep)" },
+    { "id": "A1-11-LOGOUT", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "coordinator-custody client (headless AuthCoordinator + memory custody storage): authLogout exact 204, established handle blanks, post-logout probe denied, no protected bytes durable; external-bearer custody deliberately cannot authLogout (recorded in diary)" },
+    { "id": "A1-12-EXPORT", "result": "pass", "evidencePaths": ["evidence/export.a1.json", "evidence/scenario-evidence.json"], "note": "membership-gated export query; byte-identical across reruns (sha256 20a91a0116fa…) and stable across a full reset/replay cycle; recordCount matches the authoritative read" },
+    { "id": "A1-13-CLEANUP", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "versioned reset-install (external-bearer+admin custody, requestedMode sessions, preview-discovered stream) deleted exactly the arm's 10 rows and restored the literal seed; post-cleanup negative: workspace query denied for a fresh session; no other process, port, or store touched; avoids the A2-f7 raw-reset wedge (recipe gap filed as f9)" }
+  ],
+  "expectedCheckCount": 13,
+  "findings": [
+    "0137-a1-f1-assetref-field-makes-table-unqueryable",
+    "0137-a1-f2-attach-admission-not-honored-at-commit",
+    "0137-a1-f3-packaged-asset-client-cannot-authenticate-sessions",
+    "0137-a1-f4-retainability-opt-in-undocumented",
+    "0137-a1-f5-react-arm-no-offline-surface",
+    "0137-a1-f6-pending-outbox-blanks-retained-render",
+    "0137-a1-f7-membership-filter-vs-deny-split",
+    "0137-a1-f8-schema-module-asset-intent-silently-ignored",
+    "0137-a1-f9-versioned-seed-sessions-custody-recipe",
+    "0137-a1-f10-textplain-accept-unusable"
+  ],
+  "differentiators": [
+    {
+      "observation": "Refuse-with-clarity retention: the protected handle carries a frozen retention fact (retainable:false, exact code, prose reason, resolved store facts) instead of silently acting local-first, and the durable store provably never holds protected bytes (sentinel grep across the offline lifecycle). The frozen Firebase arm persists protected rows in the browser cache with no equivalent custody statement.",
+      "mustNotRegress": "Protected rows never cold-retained without lease custody, and the refusal stays coded on the handle.",
+      "referenceEvidence": "evidence/phase-warm.json, evidence/scenario-evidence.json A1-10/A1-11 vs diaries/0027 (Firebase persistentLocalCache)"
+    },
+    {
+      "observation": "Durable offline outbox under REAL sessions custody: client-minted clientMutationId + monotonic sequence at queue time, survival across a genuine process restart, ordered exactly-once replay ({replayed:2,failed:0,remaining:0}), idempotent re-drain, and machine-checkable single-commit proof — richer settlement evidence than any frozen arm surfaced.",
+      "mustNotRegress": "Queue identity minted at enqueue, sequence-ordered drain, settlement-ledger dedupe on redelivery.",
+      "referenceEvidence": "evidence/phase-queue.json, evidence/phase-reconnect.json, scenario-evidence.json A1-09"
+    },
+    {
+      "observation": "Versioned-seed reset-install as cleanup: a receipted, predecessor-stream-gated reset restored the literal seed (resetDeletedRows:10) and the next dev start accepted the database — deterministic acceptance loops without hand-rolled cleanup scripts (frozen arms all hand-rolled).",
+      "mustNotRegress": "The reset receipt and the exact expectedDataVersionStream gate.",
+      "referenceEvidence": "scenario-evidence.json A1-13"
+    },
+    {
+      "observation": "Deterministic export: byte-identical exports across reruns AND across a full reset/reseed/replay cycle (same sha256), for free from deterministic ordering + canonical projection.",
+      "mustNotRegress": "Stable field ordering and server-authoritative row order feeding the export.",
+      "referenceEvidence": "evidence/export.a1.json, report.json A1-12"
+    },
+    {
+      "observation": "The whole 13-check suite — two dev-server stop/start cycles, five cold child processes, a destructive versioned reset — runs in 6.6 seconds; iteration speed was never the bottleneck.",
+      "mustNotRegress": "Machine-readable dev lifecycle (ready descriptor + snapback.dev.v1 events + stdin-close stop) that makes suites own their servers.",
+      "referenceEvidence": "evidence/report.json (startedAt/finishedAt, per-check ms)"
+    },
+    {
+      "observation": "Uniform non-disclosing denial on read AND subscribe for the outsider (same code, both paths), consistent with the A2 arm — the strongest negative-contract shape in the sweep so far.",
+      "mustNotRegress": "Byte-uniform SNAPBACK_AUTH_PERMISSION_DENIED on protected read and subscribe.",
+      "referenceEvidence": "scenario-evidence.json A1-02"
+    }
+  ],
+  "inventory": {
+    "authored": {
+      "backend": "snapback/schema.mjs (90 lines), snapback/functions.mjs (307), snapback/seed.json (10)",
+      "ui": "src/App.tsx (243, neutral shell + wired notebook view), src/main.tsx (139, sessions sign-in boot)",
+      "acceptance": "acceptance.a1.mjs (~700, 13 checks + own harness), phases/*.mjs (5 cold-process phases + common, ~230 total), ui-smoke.mjs (140)",
+      "probes": "probe-membership.mjs, probe-attach.mjs (defect isolation, retained in evidence/app)"
+    },
+    "scaffolded": "react template (12 files) from snapback new",
+    "generated": "55 codegen files, 14 operations, inputsHash 06bb9cc9…",
+    "glue": "recordAttachments side table forced by finding f1 (assetRef unqueryable); no gateway, poller, or normalization layer",
+    "evidenceRetained": [
+      "evidence/report.json",
+      "evidence/scenario-evidence.json",
+      "evidence/phase-{warm,cold,queue,queue-inspect,reconnect}.json",
+      "evidence/export.a1.json",
+      "evidence/app/*"
+    ]
+  },
+  "attribution": {
+    "transport": "managed WebSocket stream (transport:'stream') for live queries; retained cold-boot render served from the durable file store (freshness 'retained', connection 'stale') — never relabeled live; poll() never used as evidence",
+    "authority": "server-authoritative sessions mode: server-minted principals, requireRole membership gates on every protected operation, revocation-active live barriers, coordinator-custody logout; dev userId assertion never used",
+    "settlement": "structured mutation envelopes plus the LLP 0043 M2 outbox: queued intents carry client-minted identity and settle by ordered replay exactly once; re-drain proven no-op; app-level unique clientKey adds a second idempotency witness"
+  },
+  "stopDefects": [],
+  "cleanup": {
+    "processes": "suite and smokes stop their own spawned dev child via stdin close and verify exit; no processes under the arm's app directory after the final run",
+    "listeners": "port 4289 free at arm end (ready file removed by the supervisor); 4420 never used; 4288 guard-blocked, never adopted; the unrelated fleet server on 4287 observed and deliberately untouched",
+    "unrelatedState": "nothing outside the arm-owned app directory and a1-rqs-store touched; ~/.snapback/rqs kept clean by rqsStore:null orchestrator clients and the arm-scoped SNAPBACK_CLIENT_RQS_DIR",
+    "database": "arm-owned .snapback/dev.sqlite3 reset to the literal versioned seed by A1-13 (receipted), then left in the session-isolated scratchpad; no secrets copied into any record",
+    "externalDirectory": "scratchpad sweep-a1/consumer/notebook-app retained as the working area; durable evidence copied into this arms/ directory"
+  },
+  "result": "complete"
+}

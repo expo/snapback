@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "findingId": "0137-a1-f4-retainability-opt-in-undocumented",
+  "dimension": "retained-offline-and-reconnect-settlement",
+  "observation": {
+    "description": "In a sessions-mode app, a plain declarative live query over a public table (no auth gate, no membership, no authScopeField) is still treated as authority-scoped: the handle reports retention {retainable:false, code:SNAPBACK_RETENTION_NOT_RETAINABLE} and nothing ever persists — the shipped sync.offline-js-arm cold-boot claim silently never engages for the whole app. The opt-in that makes a query rqsEligible is declaring auth:'public' + authorityIndependent:true (+ retainable:true) on the query, learned from packaged define.mjs bytes. The offline guide page (sync/offline-and-retention.md) says 'authority-independent live queries' retain but never shows how a query becomes authority-independent; 'retainable' appears nowhere in the guide as an author-facing flag; the only authorityIndependent example lives in the unrelated snapshot-bundles page. A consumer building the guide's own offline story cannot find the declaration that turns it on.",
+    "evidence": [
+      "demos/improvement-sweep/arms/a1-snapback-web/evidence/phase-warm.json (pre-fix run retained in git history; final run shows sites retainable:true after the flags)",
+      "demos/improvement-sweep/arms/a1-snapback-web/evidence/app/functions.mjs (listSites opt-in comment)",
+      "demos/improvement-sweep/arms/a1-snapback-web/evidence/phase-cold.json (retained boot proof once declared)"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Firebase's offline persistence is one client-construction decision (persistentLocalCache) covering every query including protected ones; the frozen Diary 0027 Firebase arm passed durable cold offline boot with no per-query declarations.",
+    "source": "frozen-0102",
+    "sourceDate": "2026-07-28",
+    "reference": "diaries/0027-todo-backend-bakeoff.diary.md (Firebase calibration, completed)"
+  },
+  "classification": "guide-gap",
+  "mustNotRegress": "The refuse-with-clarity handle facts (retention.code/reason naming the boundary) — the docs fix must not paper over the honest refusal.",
+  "smallestCoherentFix": "Teach the retainability opt-in on the offline page (and the queries page's declarative spec table): which flags make a query rqsEligible, what each implies, and a CI-verified snippet whose handle reports retainable:true.",
+  "acceptanceWitness": "A cold agent reading only guide/sync/offline-and-retention.md authors a sessions-mode app whose public reference query cold-retains on the first try.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a1-guide-gap-retainability-opt-in.md"
+  },
+  "stopClass": false,
+  "budgetFinding": false
+}

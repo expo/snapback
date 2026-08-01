@@ -1,0 +1,10 @@
+{
+  "seedVersion": "2026-08-01.a1.1",
+  "tables": {
+    "sites": [
+      { "_id": "site_pump_house_8", "name": "Pump house 8", "region": "north", "hazardClass": "B" },
+      { "_id": "site_site_a12", "name": "Site A 12", "region": "east", "hazardClass": "A" },
+      { "_id": "site_substation_25", "name": "Substation 25", "region": "north", "hazardClass": "C" }
+    ]
+  }
+}

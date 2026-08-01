@@ -1,0 +1,27 @@
+{
+  "phase": "queue-inspect",
+  "pid": 60835,
+  "ok": true,
+  "outbox": [
+    {
+      "sequence": 1,
+      "function": "createRecord",
+      "clientMutationId": null,
+      "state": "pending"
+    },
+    {
+      "sequence": 2,
+      "function": "updateRecord",
+      "clientMutationId": null,
+      "state": "pending"
+    }
+  ],
+  "d3Probe": {
+    "resolved": false,
+    "error": {
+      "message": "fetch failed",
+      "code": null,
+      "name": "TypeError"
+    }
+  }
+}

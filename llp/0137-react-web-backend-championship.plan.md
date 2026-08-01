@@ -613,3 +613,47 @@ settlement envelope making keyed retries provably effect-free. This
 status note is a dated amendment inside the freeze boundary; the freeze
 was re-verified (and re-frozen for this plan digest) with the sweep's own
 scripts in the landing commit.
+
+A1 (Stage 2, second diaried sweep arm — snapback-web, deep budget)
+executed 2026-08-01 and **completed**: all 13 frozen checks ran
+(expectedChecks enforced) with **10 pass, 1 contract-sanctioned GAP
+(A1-05 cold-boot protected render — the owned `sync.offline-js-arm-protected`
+gap, A2-f8 cited not re-filed), 1 expected-refusal (A1-06: the documented
+`SNAPBACK_RETENTION_NOT_RETAINABLE` fact fired exactly, carried on the
+handle), 1 fail (A1-04: asset row attachment impossible on 0.1.7), 0
+Stop**, in sessions mode against the public 0.1.7 closure, with the
+offline legs run as genuinely cold child processes over an arm-owned
+durable store. The local-first floor's shipped half held under real
+sessions custody: durable offline queue (client-minted identity, monotonic
+sequence), restart survival while offline, ordered exactly-once replay
+(`{replayed:2,failed:0,remaining:0}`, no-op re-drain), second-device live
+convergence, and honest retained cold boot (`freshness:'retained'`,
+`connection:'stale'`) for the authority-independent subset. Budget
+actuals: ~54 active minutes (19 orientation + 35 build) and ~118
+build-phase tool calls against the 8h/400 deep ceilings (~175 with
+records); zero posture breaks; four assistance events (packaged-bytes
+reads, each converted into a finding, plus A2's persona recipe cited to
+f6). Capsule, evidence, phase outputs, probes, and app sources:
+`demos/improvement-sweep/arms/a1-snapback-web/`; diary:
+`diaries/0043-a1-offline-notebook-sweep.diary.md`. Ten findings filed
+(`0137-a1-f1..f10`, tickets `issues/20260801-0137-a1-*.md`): the headline
+is the asset stack — an `assetRef` field makes its table unqueryable
+(no AssetRef result-contract mapping), `ctx.assets.attach` admission never
+reaches the commit validator (`SNAPBACK_ASSET_REF_UNVERIFIED` on every
+variant; row attachment impossible on the public closure), and the
+packaged asset client sends no bearer/protocol offer (sessions uploads
+impossible) — plus the offline floor's reachability trio: the
+retainability opt-in (`auth:'public'`/`authorityIndependent`/`retainable`)
+is undocumented so sessions apps get zero offline by default, the React
+arm projects no freshness/retention/outbox facts at all, and the LLP 0090
+D3 rule means any queued intent blanks the retained render on the next
+offline relaunch (filed as a design question against the frozen
+Firebase/InstantDB bar, which renders cached rows plus queued writes
+together). Differentiator watch (protect while fixing): refuse-with-
+clarity retention facts with provably zero protected bytes at rest,
+queue identity + ordered exactly-once drain, receipted versioned-seed
+reset-install cleanup, byte-identical deterministic export, uniform
+non-disclosing denials on read and subscribe, and the 6.6-second
+full-suite loop. This status note is a dated amendment inside the freeze
+boundary; the freeze was re-verified (and re-frozen for this plan digest)
+with the sweep's own scripts in the landing commit.

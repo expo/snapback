@@ -1,0 +1,507 @@
+{
+  "A1-01": {
+    "targetIdentity": {
+      "serverUrl": "http://127.0.0.1:4289",
+      "port": 4289,
+      "runtime": null,
+      "buildStamp": null,
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:06bb9cc9860caac7a2ec6bcd54e1b5dcdca474d6ab6fddc13d97a81a959fb7ac",
+      "appId": "notebook-app",
+      "authMode": "sessions"
+    },
+    "seedReceipt": {
+      "seedVersion": "2026-08-01.a1.1",
+      "artifactSeedVersion": "2026-08-01.a1.1",
+      "artifactDigest": "sha256:0d68e81fdba13fb7cc1250a94e06464fc9a30cfa356daedf66a8ca954ac7d4ff",
+      "installedByDevSupervisor": true
+    },
+    "authoritativeCounts": {
+      "sites": 3,
+      "version": 1
+    },
+    "personas": {
+      "alice": "019fbcf0-4d25-7f60-be45-b3279870d6dd",
+      "bob": "019fbcf0-4d38-7c98-a7d1-6a36462ae99a",
+      "mallory": "019fbcf0-4d48-7be0-9433-b0824abb43e7"
+    }
+  },
+  "A1-02": {
+    "workspaceId": "019fbcf0-4d6d-7571-82bf-4431dbc16b25",
+    "actorAttribution": {
+      "host": "019fbcf0-4d25-7f60-be45-b3279870d6dd",
+      "member": "019fbcf0-4d38-7c98-a7d1-6a36462ae99a",
+      "recordsCreatedBy": "alice (session-derived principal, never client-asserted)"
+    },
+    "negativeRead": "SNAPBACK_AUTH_PERMISSION_DENIED",
+    "negativeSubscription": "SNAPBACK_AUTH_PERMISSION_DENIED"
+  },
+  "A1-03": {
+    "transitions": [
+      {
+        "label": "edit",
+        "order": [
+          "a1-r1",
+          "a1-r2",
+          "a1-r3"
+        ],
+        "version": 8
+      },
+      {
+        "label": "assign",
+        "order": [
+          "a1-r1",
+          "a1-r2",
+          "a1-r3"
+        ],
+        "version": 9
+      },
+      {
+        "label": "due",
+        "order": [
+          "a1-r1",
+          "a1-r2",
+          "a1-r3"
+        ],
+        "version": 10
+      },
+      {
+        "label": "reorder",
+        "order": [
+          "a1-r1",
+          "a1-r3",
+          "a1-r2"
+        ],
+        "version": 11
+      },
+      {
+        "label": "state",
+        "order": [
+          "a1-r1",
+          "a1-r3",
+          "a1-r2"
+        ],
+        "version": 12
+      }
+    ],
+    "settlement": {
+      "edit": {
+        "version": 8,
+        "changed_count": 1,
+        "result": 2,
+        "ctx_ledger": {
+          "version": 1,
+          "ids": [],
+          "now": 1785581293071
+        },
+        "receipt": {
+          "kind": "mutation",
+          "mutationId": "mut_019fbcf04e0f73d3b7fe60b5af164099",
+          "mutation": "updateRecord",
+          "outcome": "confirmed",
+          "rollbackReason": null,
+          "affectedTables": [
+            "records"
+          ],
+          "snapshotVersion": 8,
+          "transport": "http",
+          "correlation": null,
+          "receivedAtMs": 1785581293082
+        }
+      },
+      "assign": {
+        "version": 9,
+        "changed_count": 1,
+        "result": true,
+        "ctx_ledger": {
+          "version": 1,
+          "ids": [],
+          "now": 1785581293104
+        },
+        "receipt": {
+          "kind": "mutation",
+          "mutationId": "mut_019fbcf04e307532b0527f5bc1261e59",
+          "mutation": "assignRecord",
+          "outcome": "confirmed",
+          "rollbackReason": null,
+          "affectedTables": [
+            "records"
+          ],
+          "snapshotVersion": 9,
+          "transport": "http",
+          "correlation": null,
+          "receivedAtMs": 1785581293115
+        }
+      },
+      "due": {
+        "version": 10,
+        "changed_count": 1,
+        "result": true,
+        "ctx_ledger": {
+          "version": 1,
+          "ids": [],
+          "now": 1785581293138
+        },
+        "receipt": {
+          "kind": "mutation",
+          "mutationId": "mut_019fbcf04e527100a9eb39dc93417a2a",
+          "mutation": "setDueDate",
+          "outcome": "confirmed",
+          "rollbackReason": null,
+          "affectedTables": [
+            "records"
+          ],
+          "snapshotVersion": 10,
+          "transport": "http",
+          "correlation": null,
+          "receivedAtMs": 1785581293147
+        }
+      },
+      "reorder": {
+        "version": 11,
+        "changed_count": 1,
+        "result": true,
+        "ctx_ledger": {
+          "version": 1,
+          "ids": [],
+          "now": 1785581293172
+        },
+        "receipt": {
+          "kind": "mutation",
+          "mutationId": "mut_019fbcf04e7472f0b44e06846e6393f7",
+          "mutation": "reorderRecord",
+          "outcome": "confirmed",
+          "rollbackReason": null,
+          "affectedTables": [
+            "records"
+          ],
+          "snapshotVersion": 11,
+          "transport": "http",
+          "correlation": null,
+          "receivedAtMs": 1785581293182
+        }
+      },
+      "done": {
+        "version": 12,
+        "changed_count": 1,
+        "result": 3,
+        "ctx_ledger": {
+          "version": 1,
+          "ids": [],
+          "now": 1785581293205
+        },
+        "receipt": {
+          "kind": "mutation",
+          "mutationId": "mut_019fbcf04e957483b3b8d46d59534ccf",
+          "mutation": "updateRecord",
+          "outcome": "confirmed",
+          "rollbackReason": null,
+          "affectedTables": [
+            "records"
+          ],
+          "snapshotVersion": 12,
+          "transport": "http",
+          "correlation": null,
+          "receivedAtMs": 1785581293216
+        }
+      }
+    }
+  },
+  "A1-04": {
+    "objectIdentity": {
+      "assetId": "019fbcf0-4ebd-7800-83fa-3a5c576e3aaa",
+      "integrityBasis": "end-to-end-verified",
+      "totalBytes": 139
+    },
+    "contentHash": "8917466f18453ca49b5ce03af79424b5996c45fa9b942e1762472ba21c344137",
+    "authority": {
+      "owner": 200,
+      "memberWithoutReference": 403,
+      "outsider": 403
+    },
+    "attachDefect": {
+      "committed": false,
+      "code": "SNAPBACK_ASSET_REF_UNVERIFIED"
+    },
+    "deleteProof": {
+      "delete": 200,
+      "postDeleteRead": 404
+    },
+    "uploadPath": "authenticated raw attempt/TUS/finalize (packaged SnapbackAssetClient cannot authenticate on sessions mode)"
+  },
+  "A1-05": {
+    "coldClient": {
+      "warmPid": 60589,
+      "coldPid": 60805
+    },
+    "transportDisabled": {
+      "disabled": true,
+      "error": {
+        "message": "fetch failed",
+        "code": null,
+        "name": "TypeError"
+      }
+    },
+    "retainedOrigin": {
+      "rows": [
+        {
+          "_id": "site_pump_house_8",
+          "name": "Pump house 8"
+        },
+        {
+          "_id": "site_site_a12",
+          "name": "Site A 12"
+        },
+        {
+          "_id": "site_substation_25",
+          "name": "Substation 25"
+        }
+      ],
+      "version": 12,
+      "freshness": "retained",
+      "connection": "stale",
+      "retention": {
+        "retainable": true,
+        "code": null,
+        "reason": "offline boot from verified persisted entry",
+        "store": {
+          "source": "default",
+          "implementation": "file",
+          "durable": true,
+          "reason": null
+        }
+      }
+    },
+    "protectedRecordsOffline": {
+      "resolved": false,
+      "error": {
+        "message": "fetch failed",
+        "code": null,
+        "name": "TypeError"
+      }
+    }
+  },
+  "A1-06": {
+    "onlineProtectedRetentionFact": {
+      "retainable": false,
+      "code": "SNAPBACK_RETENTION_NOT_RETAINABLE",
+      "reason": "authority-scoped query: retained display requires the LLP 0043/0053 lease machinery (Contract arm); protected queries are never cold-retained on this arm",
+      "store": {
+        "source": "default",
+        "implementation": "file",
+        "durable": true,
+        "reason": null
+      }
+    },
+    "onlineSitesRetentionFact": {
+      "retainable": true,
+      "code": null,
+      "reason": null,
+      "store": {
+        "source": "default",
+        "implementation": "file",
+        "durable": true,
+        "reason": null
+      }
+    },
+    "offlineProtectedOutcome": {
+      "resolved": false,
+      "error": {
+        "message": "fetch failed",
+        "code": null,
+        "name": "TypeError"
+      }
+    },
+    "freshnessAxis": {
+      "offline": "retained",
+      "connection": "stale"
+    }
+  },
+  "A1-07": {
+    "offlineProof": "server stopped since A1-05; phase transport probe refused",
+    "queued": {
+      "create": {
+        "queued": true,
+        "clientMutationId": "cm_77df4a216bbc41f283460d4facad9b75",
+        "sequence": 1
+      },
+      "update": {
+        "queued": true,
+        "clientMutationId": "cm_2d3b078e412040f2aed4a3b0de76cdfb",
+        "sequence": 2
+      }
+    },
+    "restartPersistence": [
+      {
+        "sequence": 1,
+        "function": "createRecord",
+        "clientMutationId": null,
+        "state": "pending"
+      },
+      {
+        "sequence": 2,
+        "function": "updateRecord",
+        "clientMutationId": null,
+        "state": "pending"
+      }
+    ],
+    "outboxRuleProbe": {
+      "resolved": false,
+      "error": {
+        "message": "fetch failed",
+        "code": null,
+        "name": "TypeError"
+      }
+    },
+    "noRemoteCommit": "verified: a1-q1 absent pre-replay (rows=3)"
+  },
+  "A1-08": {
+    "twoActorBarrier": "distinct authenticated sessions (alice2/bob2), Promise.allSettled concurrent dispatch",
+    "authoritativeOutcome": {
+      "settled": [
+        {
+          "version": 14,
+          "changed_count": 1,
+          "result": 5,
+          "ctx_ledger": {
+            "version": 1,
+            "ids": [],
+            "now": 1785581295896
+          },
+          "receipt": {
+            "kind": "mutation",
+            "mutationId": "mut_019fbcf05918720384b5b9e3909ee245",
+            "mutation": "updateRecord",
+            "outcome": "confirmed",
+            "rollbackReason": null,
+            "affectedTables": [
+              "records"
+            ],
+            "snapshotVersion": 14,
+            "transport": "http",
+            "correlation": null,
+            "receivedAtMs": 1785581295906
+          }
+        },
+        {
+          "version": 13,
+          "changed_count": 1,
+          "result": 4,
+          "ctx_ledger": {
+            "version": 1,
+            "ids": [],
+            "now": 1785581295795
+          },
+          "receipt": {
+            "kind": "mutation",
+            "mutationId": "mut_019fbcf058b379b297d85ad653d10421",
+            "mutation": "updateRecord",
+            "outcome": "confirmed",
+            "rollbackReason": null,
+            "affectedTables": [
+              "records"
+            ],
+            "snapshotVersion": 13,
+            "transport": "http",
+            "correlation": null,
+            "receivedAtMs": 1785581295814
+          }
+        }
+      ],
+      "rejected": [],
+      "outcome": "both committed; commit-order winner=alice (versions 14,13)",
+      "finalTitle": "North fence — Alice pass",
+      "revision": 5
+    },
+    "clientReconciliation": "both clients converge to the same authoritative row via independent reads",
+    "offlineOnlineConflictSetup": {
+      "bobEditVersion": 15
+    },
+    "offlineOnlineConflictOutcome": {
+      "finalNotes": "offline note from Alice (queued)",
+      "revision": 5,
+      "rule": "replayed intent commits after the online edit; last commit wins the field; both commits visible as revisions"
+    }
+  },
+  "A1-09": {
+    "settlement": {
+      "replay": {
+        "replayed": 2,
+        "failed": 0,
+        "remaining": 0,
+        "stopped": false
+      },
+      "replayAgain": {
+        "replayed": 0,
+        "failed": 0,
+        "remaining": 0,
+        "stopped": false
+      }
+    },
+    "authoritativeCounts": {
+      "records": 4,
+      "q1Rows": 1
+    },
+    "noDuplicates": true,
+    "secondDeviceConvergence": [
+      "",
+      "a1-r1,a1-r3,a1-r2,a1-q1",
+      ""
+    ],
+    "sitesFreshnessSettled": {
+      "rows": 3,
+      "freshness": "current",
+      "connection": "live"
+    }
+  },
+  "A1-10": {
+    "authorityChange": "member seat removed (self transition; admin kick is a known v1 gap, 0137-a2-f4)",
+    "alreadyConnectedClient": {
+      "rowsBefore": 4,
+      "rowsAfter": 0,
+      "blanked": true
+    },
+    "postRevocationDelivery": "not delivered",
+    "freshReadDenial": "SNAPBACK_AUTH_PERMISSION_DENIED",
+    "retainedStoreInspection": {
+      "files": 1,
+      "bytes": 1945,
+      "sentinelHits": 0
+    }
+  },
+  "A1-11": {
+    "logoutBarrier": {
+      "rowsBefore": 5,
+      "rowsAfter": 0,
+      "exact204": true
+    },
+    "postLogoutProbe": "SNAPBACK_AUTH_PERMISSION_DENIED",
+    "retainedStoreInspection": {
+      "files": 1,
+      "sentinelHits": 0
+    }
+  },
+  "A1-12": {
+    "exportReceipt": {
+      "formatVersion": "a1-export.v1",
+      "recordCount": 5
+    },
+    "contentHash": "20a91a0116fa0c35ef48e371dd33b1d03ade12a2af8747b015bf57c09b28144c",
+    "authoritativeCounts": {
+      "records": 5
+    }
+  },
+  "A1-13": {
+    "targetBoundPlan": "versioned reset-install scoped to this suite-owned dev database; no other process, port, or store touched",
+    "cleanupReceipt": {
+      "operation": "reset-install",
+      "outcome": "reset-installed",
+      "seedVersion": "2026-08-01.a1.1",
+      "resetDeletedRows": 10,
+      "dataVersionStream": "019fbcf0-6156-72d2-8fcc-c9ea75e5903b"
+    },
+    "postCleanupNegative": {
+      "workspaceQuery": "SNAPBACK_AUTH_PERMISSION_DENIED",
+      "sites": 3
+    }
+  }
+}

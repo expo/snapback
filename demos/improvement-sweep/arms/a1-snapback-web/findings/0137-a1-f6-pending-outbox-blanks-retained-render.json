@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "findingId": "0137-a1-f6-pending-outbox-blanks-retained-render",
+  "dimension": "retained-offline-and-reconnect-settlement",
+  "observation": {
+    "description": "The LLP 0090 D3 outbox rule ('a relaunch with pending intent renders nothing ahead of the full resync') means that as soon as ANY mutation is queued offline, a cold relaunch while still offline renders nothing at all — including previously retained authority-independent rows that rendered fine before the queue existed. Observed directly: the same sites query that cold-booted retained (freshness:'retained', 3 rows) in phase-cold throws the raw connectivity TypeError in the D3 probe once two intents are pending. For the field-notebook shape this is close to a product contradiction: capture-offline-then-reboot is the core scenario, and the act of capturing offline is exactly what disables the retained render on the next boot. The rule is documented and deliberate (no local execution, so no optimistic overlay can be proven) — this finding asks for a product answer, not a correctness fix: either a designed 'retained rows + pending-intent banner' presentation that stays honest without local execution, or an explicit guide statement that offline capture and retained render are mutually exclusive on this arm today.",
+    "evidence": [
+      "demos/improvement-sweep/arms/a1-snapback-web/evidence/phase-cold.json (retained render before queueing)",
+      "demos/improvement-sweep/arms/a1-snapback-web/evidence/phase-queue-inspect.json (d3Probe: resolved:false, fetch failed, outbox length 2)"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Firebase and InstantDB both render cached rows AND queued local writes together after an offline relaunch (frozen Diary 0027: durable cold offline boot plus queued offline create/update passed for both) — the exact combination this rule forecloses.",
+    "source": "frozen-0102",
+    "sourceDate": "2026-07-28",
+    "reference": "diaries/0027-todo-backend-bakeoff.diary.md (Firebase/InstantDB offline outcomes)"
+  },
+  "classification": "design-question",
+  "mustNotRegress": "The honesty invariant behind D3: never render an optimistic overlay the arm cannot derive, and never relabel retained rows as live.",
+  "smallestCoherentFix": "A designed presentation for relaunch-with-pending-intent (e.g. retained rows marked 'retained' plus an explicit unsettled-intent banner, still no fabricated overlay), or a documented mutual-exclusion statement in the offline guide page so builders can design around it.",
+  "acceptanceWitness": "Either a cold offline relaunch with one queued intent renders retained rows plus an explicit pending-intent fact on the handle, or the offline page states the exclusion and the capability row scopes the claim.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a1-pending-outbox-blanks-retained-render.md"
+  },
+  "stopClass": false,
+  "budgetFinding": false
+}

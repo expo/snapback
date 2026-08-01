@@ -1,0 +1,95 @@
+{
+  "schemaVersion": "sweep-a1.acceptance.v1",
+  "title": "LLP 0137 A1 snapback-web acceptance",
+  "startedAt": "2026-08-01T10:48:11.440Z",
+  "finishedAt": "2026-08-01T10:48:18.076Z",
+  "expectedChecks": 13,
+  "observedChecks": 13,
+  "tally": {
+    "pass": 10,
+    "gap": 1,
+    "fail": 1,
+    "expected-refusal": 1
+  },
+  "results": [
+    {
+      "id": "A1-01-SEED",
+      "result": "pass",
+      "ms": 16,
+      "note": "seed exact (3 sites @v1); 3 distinct principals"
+    },
+    {
+      "id": "A1-02-WORKSPACE",
+      "result": "pass",
+      "ms": 172,
+      "note": "host+member read; outsider read AND subscribe uniformly denied"
+    },
+    {
+      "id": "A1-03-RECORDS",
+      "result": "pass",
+      "ms": 165,
+      "note": "create/edit/assign/due/reorder/state all authoritative with stable order"
+    },
+    {
+      "id": "A1-04-ATTACHMENTS",
+      "result": "fail",
+      "ms": 64,
+      "note": "upload/strict delivery/delete verified, but record attachment is impossible on 0.1.7: SNAPBACK_ASSET_REF_UNVERIFIED (defect finding filed)"
+    },
+    {
+      "id": "A1-05-COLD-RESTART",
+      "result": "gap",
+      "ms": 1426,
+      "note": "cold boot renders retained public sites (3 rows, freshness=retained, connection=stale) but the protected notebook records are absent by the documented JS-arm boundary"
+    },
+    {
+      "id": "A1-06-RETAINED-READS",
+      "result": "expected-refusal",
+      "ms": 0,
+      "note": "protected retention refuses with SNAPBACK_RETENTION_NOT_RETAINABLE carried on the handle; retained public reads carry freshness=retained honestly"
+    },
+    {
+      "id": "A1-07-QUEUED-DURABILITY",
+      "result": "pass",
+      "ms": 150,
+      "note": "2 intents queued (cm_77df4…, seq 1,2), durable across restart while offline"
+    },
+    {
+      "id": "A1-08-CONFLICT",
+      "result": "pass",
+      "ms": 1086,
+      "note": "both committed; commit-order winner=alice (versions 14,13)"
+    },
+    {
+      "id": "A1-09-RECONNECT",
+      "result": "pass",
+      "ms": 258,
+      "note": "replay {replayed:2,failed:0,remaining:0}; re-drain no-op; single a1-q1 row; second device converged live"
+    },
+    {
+      "id": "A1-10-AUTH-LOSS",
+      "result": "pass",
+      "ms": 1625,
+      "note": "established handle blanked; later commit withheld; fresh read denied; store holds no protected bytes (1 files)"
+    },
+    {
+      "id": "A1-11-LOGOUT",
+      "result": "pass",
+      "ms": 81,
+      "note": "logout 204; established handle blanked; post-logout probe SNAPBACK_AUTH_PERMISSION_DENIED; no protected bytes durable"
+    },
+    {
+      "id": "A1-12-EXPORT",
+      "result": "pass",
+      "ms": 61,
+      "note": "deterministic export (5 records, sha256 20a91a0116fa…)"
+    },
+    {
+      "id": "A1-13-CLEANUP",
+      "result": "pass",
+      "ms": 59,
+      "note": "versioned reset-install (deleted 10 rows); literal seed restored; workspace retired (SNAPBACK_AUTH_PERMISSION_DENIED)"
+    }
+  ],
+  "exitCode": 1
+}

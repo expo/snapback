@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "findingId": "0137-a1-f3-packaged-asset-client-cannot-authenticate-sessions",
+  "dimension": "asset-lifecycle-and-contract-fidelity",
+  "observation": {
+    "description": "The packaged SnapbackAssetClient (@expo/snapback-client/assets — the guide's 'framework-neutral upload task is client.assets.start') builds its own raw fetches for attempt creation, TUS HEAD/PATCH, and finalize with only content-type plus an optional x-snapback-dev-user header. It never carries the wrapped client's bearer or the x-snapback-auth-client-protocol offer, so on a sessions-mode server every upload fails at attempt creation with SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED. The client is dev-mode-only in practice. The same lifecycle succeeds when driven with authenticated raw requests (this arm's A1-04), so the server side is fine.",
+    "evidence": [
+      "demos/improvement-sweep/arms/a1-snapback-web/evidence/scenario-evidence.json (A1-04 uploadPath)",
+      "demos/improvement-sweep/arms/a1-snapback-web/evidence/app/acceptance.a1.mjs (authenticated raw attempt/TUS/finalize)"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Firebase's Storage SDK carries the signed-in user's auth on every upload transparently; an upload surface that cannot authenticate is below the frozen bar for any provider.",
+    "source": "frozen-0102",
+    "sourceDate": "2026-07-28",
+    "reference": "diaries/0030-partiful-backend-bakeoff.diary.md (authenticated image upload)"
+  },
+  "classification": "defect",
+  "mustNotRegress": "The task-store hygiene (no bearer/staging material persisted in resume facts) — fix the request headers, not the persisted-fact set.",
+  "smallestCoherentFix": "Route SnapbackAssetClient requests through the wrapped client's authenticated transport (bearer + protocol offers), keeping x-snapback-dev-user for dev custody, with a sessions-mode packaged-closure upload conformance test.",
+  "acceptanceWitness": "createAssetClient(sessionsClient).start(...) reaches status 'ready' against a sessions-mode local server on the public closure.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a1-packaged-asset-client-cannot-authenticate-sessions.md"
+  },
+  "stopClass": false,
+  "budgetFinding": false
+}

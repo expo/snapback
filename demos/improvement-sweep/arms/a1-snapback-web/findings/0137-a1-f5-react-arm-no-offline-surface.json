@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "findingId": "0137-a1-f5-react-arm-no-offline-surface",
+  "dimension": "retained-offline-and-reconnect-settlement",
+  "observation": {
+    "description": "@expo/snapback-react 0.1.7 exposes no offline surface at all: the exported hooks/observers (useSnapbackQuery/Queries/Mutation/Connection/Presence, observeSnapbackQueries/Presence) carry rows, status, and the connection axis, but no freshness ('retained' vs 'current'), no retention fact, and no outbox/queued-mutation state — grep of the packaged index.mjs finds zero occurrences of freshness/retention/outbox/queued. A React field-notebook cannot render the documented honest freshness state or a queued-changes badge from the first-party arm; this arm's shell wires the freshness-state chip to connection status with a finding comment. The headless client carries all of these facts (handle.freshness, handle.retention, rqsStoreInfo, replayQueuedMutations, outboxDiagnostics), so the projection is missing, not the substrate.",
+    "evidence": [
+      "demos/improvement-sweep/arms/a1-snapback-web/evidence/app/App.tsx (offline honesty note + freshness-state wiring)",
+      "demos/improvement-sweep/arms/a1-snapback-web/evidence/phase-cold.json (the handle-level facts the hooks do not project)"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Firebase exposes SnapshotMetadata.fromCache on every snapshot, so a React view renders cache-vs-server honestly with no extra machinery; the frozen Firebase arm surfaced it. InstantDB's React hooks return offline-first state transparently.",
+    "source": "frozen-0102",
+    "sourceDate": "2026-07-28",
+    "reference": "diaries/0027-todo-backend-bakeoff.diary.md (Firebase/InstantDB offline passes)"
+  },
+  "classification": "capability",
+  "mustNotRegress": "The connection axis honesty already surfaced by useSnapbackConnection, and the headless handle facts the projection would ride.",
+  "smallestCoherentFix": "Project freshness/retention onto the query hook result (per-query) and add an outbox hook (queued count + replay state) over the existing client facts, with a packaged-closure test that cold-boots a provider offline and reads freshness:'retained' from the hook.",
+  "acceptanceWitness": "A React component renders 'Retained' from useSnapbackQuery's own result during an offline cold boot and a queued-changes count after an offline mutation, on the public closure.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a1-react-arm-no-offline-surface.md"
+  },
+  "stopClass": false,
+  "budgetFinding": false
+}

@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "findingId": "0137-a1-f7-membership-filter-vs-deny-split",
+  "dimension": "authorization-model",
+  "observation": {
+    "description": "The two membership idioms have silently different negative semantics. A declarative live query with membership: [table.hasRole(membershipResource.arg('workspaceId'), 'host', 'member')] RESOLVES for a non-member with zero rows (filter semantics; probe: alice sees 1 row, mallory resolves with 0). A JS handler using ctx.permissions.<m>.requireRole REFUSES with the uniform SNAPBACK_AUTH_PERMISSION_DENIED. Neither discloses data, but a builder switching between idioms silently changes the outsider contract from 'empty notebook' to 'denied', which changes UI behavior, cache/retention classification, and what a probing outsider learns (an empty result confirms the endpoint exists and accepts the id shape). Nothing in scoped-roles.md states the filter-vs-deny distinction.",
+    "evidence": [
+      "demos/improvement-sweep/arms/a1-snapback-web/evidence/app/probe-membership.mjs",
+      "demos/improvement-sweep/arms/a1-snapback-web/evidence/app/functions.mjs (listRecords comment)"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Firestore security rules deny (permission error) rather than filter; Supabase RLS filters (empty result) rather than denies — both frozen arms documented which contract they give. Snapback currently gives both, chosen implicitly by authoring idiom.",
+    "source": "frozen-0102",
+    "sourceDate": "2026-07-28",
+    "reference": "diaries/0027-todo-backend-bakeoff.diary.md (outsider semantics per provider)"
+  },
+  "classification": "guide-gap",
+  "mustNotRegress": "Non-disclosure in both idioms (no rows, no existence details in either negative shape).",
+  "smallestCoherentFix": "State the filter-vs-deny semantics of declarative membership predicates versus requireRole in scoped-roles.md, with guidance on when each is the right product contract.",
+  "acceptanceWitness": "scoped-roles.md names both negative shapes and a CI-verified snippet demonstrates each.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a1-guide-gap-membership-filter-vs-deny.md"
+  },
+  "stopClass": false,
+  "budgetFinding": false
+}
