@@ -1,11 +1,12 @@
 # LLP 0093: The documented client protocol and first-party native clients
 
 **Type:** RFC
-**Status:** Review
+**Status:** Implemented
 **Systems:** Wire Protocol, Client SDK, Realtime, Live Queries, Native Clients, Guide
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-24
-**Revised:** 2026-07-26 (v0.11 — Partitime clean-room corrections; see
+**Revised:** 2026-08-01 (v0.12 — ratified Implemented by the author; see
+Revision history) 2026-07-26 (v0.11 — Partitime clean-room corrections; see
 Revision history)
 **Related:** LLP 0008, LLP 0012, LLP 0013, LLP 0031, LLP 0034, LLP 0043, LLP 0049, LLP 0051, LLP 0053, LLP 0059, LLP 0064, LLP 0075, LLP 0077, LLP 0082, LLP 0084, LLP 0090, LLP 0091, LLP 0092
 
@@ -864,5 +865,23 @@ version carrier (bound at `/connection/open`; see D1).
   bridge, required observable `superseded`/`supersessionRefusal`
   reconnect witnesses, and expanded the P-1 corpus obligation to the
   multi-step CurrentAsOf and authorization-invalidation transitions.
+
+- **v0.12 (2026-08-01) — ratified: Status → Implemented.** Author
+  ratification (Charlie, 2026-08-01), recorded with the landed evidence
+  verified against the tree: the P-0..P-3 delivery Specs exist as LLP 0094
+  (Review), LLP 0095 (Draft), and LLP 0096 (Draft); the P-0..P-3 execution
+  tickets are filed and closed (ten `issues/closed/20260725-0093-p*` files,
+  including the four P-2 spec-defect ledger entries); the D4 Swift proving
+  client is landed at `clients/swift/SnapbackClient` (client core + both
+  local lanes; this document's P-2 status records all 10 seeded corpus
+  fixtures passing and the 13-check live harness green against the todo
+  backend, and the harness has since adopted fixture-format v3,
+  `4494d557`); D1/D5 publication shipped as
+  `guide/protocol/client-protocol.md` plus the `clients.protocol`
+  capability row (witness: `ClientStateMachine` in the Swift client) and
+  the `clients.non-js` / `clients.poll-hosted` GAP rows. Statuses of the
+  delivery Specs are their own review loops and are not changed by this
+  ratification; `live/hosted` and the iOS proving host remain open work
+  under those documents' own trackers.
 
 Review artifacts: `llp/reviews/0093-client-protocol-and-native-clients.{fable,codex}.md`.

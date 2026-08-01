@@ -1,6 +1,6 @@
 # File and drive the LLP 0093 rollout (P-0..P-3), including the minimal-client recipe
 
-**Status:** Open (author-gated: ratification only)
+**Status:** Resolved (2026-08-01; ratified Implemented)
 **Impact:** 5
 **Urgency:** 4
 **Ease:** 2
@@ -64,3 +64,25 @@ src/server.rs). Remaining: one author line ratifying or parking LLP 0093
 (header still Review — the inline 'Status (2026-07-26): landed.' line is
 about the guide, not ratification; ideally decided together with 0094,
 also Review).
+
+---
+
+**Status:** Resolved (2026-08-01)
+
+The sole remaining done-when item — the author decision — is recorded:
+Charlie ratified LLP 0093 on 2026-08-01 and the document is now **Status:
+Implemented** (v0.12 revision entry carries the tree-verified evidence).
+Every other done-when item was already verified complete by the 2026-07-30
+and 2026-08-01 triage notes above and re-confirmed at closure:
+
+- P-0..P-3 filed as LLP 0094 (Review) / 0095 (Draft) / 0096 (Draft) plus
+  ten closed execution tickets (`issues/closed/20260725-0093-p*`), with
+  the recipe and dev-mode posture riding P-0 (LLP 0094 §0A.6).
+- `guide/protocol/client-protocol.md` shipped with CI-verified snippets;
+  `guide/capabilities.md` carries `clients.protocol` (shipped; witness
+  `ClientStateMachine` in clients/swift/SnapbackClient) and the
+  `clients.non-js` / `clients.poll-hosted` GAP rows 0093 D5 requires.
+
+Residual work (`live/hosted` lane, iOS proving host, 0094/0095/0096's own
+review loops, `issues/20260726-0093-mutation-wire-artifact-identity.md`)
+is tracked by those documents and tickets, not this rollout ticket.
