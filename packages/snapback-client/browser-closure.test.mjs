@@ -24,11 +24,18 @@ const result = await build({
 });
 const bundled = result.outputFiles[0].text;
 assert.ok(bundled.length > 0, 'the browser bundle must not be empty');
-const builtinReference = bundled.match(/^.*\bnode:.*$/mu);
+const builtinReference = bundled.match(
+  /(?:\bfrom\s*|\bimport\s*(?:\(\s*)?|\brequire\s*\(\s*)['"]node:[^'"]+/u,
+);
 assert.equal(
   builtinReference,
   null,
   `the client root browser closure references a Node builtin: ${builtinReference?.[0]?.trim()}`,
+);
+assert.doesNotMatch(
+  'process.getBuiltinModule("node:crypto")',
+  /(?:\bfrom\s*|\bimport\s*(?:\(\s*)?|\brequire\s*\(\s*)['"]node:[^'"]+/u,
+  'capability-gated process.getBuiltinModule lookups are not imports',
 );
 
 console.log('browser-closure.test.mjs passed');
