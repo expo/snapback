@@ -121,3 +121,39 @@ Revise LLP 0100 and keep it `Draft`:
 4. Run a fresh Codex-family re-review after the revision.
 
 The filesystem was read-only, so I could not persist the required LLP 0005 artifact. This review should be saved as `llp/reviews/0100-membership-addressed-operations-and-pages.codex.md` with the appropriate provenance header.
+
+## Round 2 — 2026-08-01
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model `gpt-5.6-sol`
+**Reasoning effort:** CLI default (`medium` per CLI banner)
+**Date:** 2026-08-01
+**Redaction:** not redacted
+**Method:** round-2 delta — reviewer given its own Round 1, instructed to verify v0.3's resolutions of its six round-1 items (landed `_snapback.myMemberships`, §8a/§8b routing with pinned interfaces, §5 cursor-custody restatement, callable-only decision, composed family witness) and check the changed text only for fresh defects; read-only sandbox in a fresh worktree of origin/main at ee66e20f, blind to this RFC's fable artifact
+**Target SHA-256:** `5261cce83b62a478f25b076205733fac12bd6971b6fce3c37ec1fbd255520dfd`
+**Instruction SHA-256:** `1c37beaba736e7e748345992ec389a862beaabb90ffead13c414b0aad3a2b3c6`
+**Status:** completed (first attempt, no retry needed)
+
+### Verbatim review
+
+## Round-2 delta verdict: NOT READY
+
+Target SHA-256 verified: `5261cce83b62a478f25b076205733fac12bd6971b6fce3c37ec1fbd255520dfd`. I read the required Codex round 1 and did not read the Fable artifact. `./ref-check --verbose` passes.
+
+1. **A2 self-listing — RESOLVED.** `_snapback.myMemberships` exists at src/local.rs:2863, returns caller-only rows, and LLP 0056's dated amendment pins its live grant/removal behavior.
+
+2. **Membership search — NOT YET RESOLVED.** Routing to LLP 0073 with a pinned, fail-closed interface is sufficient in principle at this review bar, but §8a has not pinned how the resource is supplied: `SearchRequestV1` has no resource argument, while the proposed variant only names `resourceField` yet binds a singular "resource value." It must choose either a required resource equality/argument carrier or canonical multi-seat partition traversal. It should also distinguish stale-continuation refusal from a fresh post-revocation empty search.
+
+3. **Seed/reset — PARTIALLY RESOLVED.** The current refusal and existing `MembershipWriter::Seed` carrier are verified, and the atomic reset contract is adequately routed, but §8b lines 624–626 incorrectly assigns reset's incarnation consequences to event 1 "exactly like a kick." LLP 0056 says reset/import carry event-3/declared-restore incarnation semantics; ordinary membership writes are event 1.
+
+4. **Cursor custody — RESOLVED.** §5 now accurately distinguishes inherited custody from five new binding groups, defines pair identity, maps the implementation seams, and requires component-wise negatives.
+
+5. **Callable-only shape — RESOLVED.** Ordinary non-subscribable `Query` emission is explicit and correctly distinguished from the owned helper.
+
+6. **Composed family witness — RESOLVED.** The single-declaration scenario and honest fail-closed placeholder rows satisfy the requested integration witness.
+
+Next step: repair §8a's resource/continuation contract and §8b's event-1 versus event-3 semantics, then run a narrow round-3 delta review. No implementation is needed to reach READY.
+
+The sandbox is read-only, so I could not append this round to the Codex review artifact.
+
+*(Runner note: the verbatim body above is unaltered except that the reviewer's two file citations in items 1 and 3 — emitted as absolute paths into the disposable review worktree — are rendered as plain `src/local.rs:2863` and `§8b lines 624–626` references to avoid dead worktree links; raw output is preserved in the session capture.)*
