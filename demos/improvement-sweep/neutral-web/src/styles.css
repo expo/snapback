@@ -1,0 +1,87 @@
+:root {
+  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #18201d;
+  background: #eceee8;
+  font-synthesis: none;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 1024px; min-height: 100vh; }
+button, input { font: inherit; }
+button { color: inherit; }
+
+.app-frame { display: grid; grid-template-columns: 150px 1fr; min-height: 100vh; }
+.rail { padding: 24px 14px; background: #17231f; color: #dfe8e2; display: flex; flex-direction: column; gap: 8px; }
+.mark { width: 42px; height: 42px; margin: 0 8px 24px; border-radius: 13px; display: grid; place-items: center; background: #d8ff70; color: #17231f; font-weight: 900; }
+.rail-button, .nav-row { border: 0; background: transparent; text-align: left; border-radius: 9px; padding: 10px 12px; cursor: pointer; }
+.rail-button { color: #aebbb4; text-transform: capitalize; }
+.rail-button:hover, .rail-button.active { background: #293a34; color: white; }
+main { padding: 24px 28px 40px; }
+.topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; }
+h1, h2, h3, p { margin-top: 0; }
+h1 { margin-bottom: 0; font-size: 30px; letter-spacing: -0.04em; }
+h2 { margin-bottom: 0; letter-spacing: -0.03em; }
+.eyebrow, .section-label { margin-bottom: 5px; color: #69736e; font-size: 11px; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; }
+.status-row { display: flex; align-items: center; gap: 12px; }
+.status { background: #dff6df; color: #24622e; padding: 7px 11px; border-radius: 999px; font-size: 13px; }
+.status.stale { background: #f6eddf; color: #7a5a24; }
+.avatar, .mini-avatar { border: 0; border-radius: 50%; background: #ffb86c; display: grid; place-items: center; font-weight: 800; }
+.avatar { width: 38px; height: 38px; }
+.workspace { min-height: calc(100vh - 116px); }
+.panel { background: #f9faf6; border: 1px solid #dfe3db; border-radius: 16px; box-shadow: 0 12px 30px rgba(38, 48, 43, .05); }
+.two-column { display: grid; grid-template-columns: 220px minmax(600px, 1fr); gap: 14px; }
+.list-nav { padding: 16px 10px; display: flex; flex-direction: column; gap: 4px; }
+.primary { border: 0; border-radius: 9px; padding: 10px 14px; background: #22372f; color: white; font-weight: 750; cursor: pointer; }
+.list-nav .primary { margin-bottom: 10px; }
+.nav-row:hover, .nav-row.selected { background: #e9ede5; }
+.content-panel { padding: 24px; }
+.section-heading { display: flex; justify-content: space-between; align-items: center; padding-bottom: 18px; border-bottom: 1px solid #e1e5dd; }
+.section-heading input { padding: 9px 12px; border: 1px solid #ccd2c8; border-radius: 9px; background: white; }
+.task-row { display: grid; grid-template-columns: 28px 1fr 28px; align-items: center; gap: 10px; padding: 15px 4px; border-bottom: 1px solid #e5e8e1; }
+.task-row span { display: block; margin-top: 4px; color: #727b76; font-size: 13px; }
+.check { width: 20px; height: 20px; border: 1px solid #aab3ad; border-radius: 6px; background: white; }
+.check.checked { background: #8fcf58; box-shadow: inset 0 0 0 4px white; }
+.grab { border: 0; background: transparent; color: #8a928e; }
+.offline-note { margin-top: 18px; color: #63716a; font-size: 13px; }
+.chat-grid { display: grid; grid-template-columns: 210px minmax(520px, 1fr) 190px; gap: 14px; }
+.chat-panel { display: grid; grid-template-rows: auto 1fr auto; }
+.messages { padding: 20px 0; }
+.messages article { display: flex; gap: 10px; margin-bottom: 22px; }
+.messages article p { line-height: 1.5; }
+.messages strong { display: block; }
+.messages time { color: #87908b; font-size: 12px; margin-left: 5px; font-weight: 500; }
+.mini-avatar { width: 34px; height: 34px; flex: 0 0 auto; }
+.mini-avatar.blue { background: #9bd3ff; }
+.typing { color: #777f7b; font-size: 13px; }
+.composer { color: #69736e; font-size: 12px; }
+.composer input { display: block; width: 100%; margin-top: 6px; padding: 13px 14px; border-radius: 11px; border: 1px solid #cbd2c8; background: white; }
+.member-panel { padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+.muted { color: #89928d; }
+.issue-row { width: 100%; display: grid; grid-template-columns: 70px 1fr 120px 80px; align-items: center; gap: 14px; padding: 16px 8px; border: 0; border-bottom: 1px solid #e3e6df; background: transparent; text-align: left; }
+.pill { justify-self: start; padding: 5px 8px; border-radius: 999px; background: #edf0ea; font-size: 12px; }
+.event-grid { display: grid; grid-template-columns: minmax(520px, 1.4fr) minmax(300px, .6fr); gap: 14px; }
+.event-card { overflow: hidden; }
+.event-art { min-height: 390px; display: grid; place-items: center; background: radial-gradient(circle at 20% 20%, #ffe98d, transparent 30%), linear-gradient(145deg, #ff8f70, #c965a8 55%, #524e9b); color: white; text-align: center; font-size: 54px; font-weight: 950; line-height: .9; letter-spacing: -.07em; }
+.event-copy, .event-side { padding: 24px; }
+.rsvp-row { display: flex; gap: 8px; margin-top: 20px; }
+.rsvp-row button, .citations button { border: 1px solid #cbd2c8; background: white; border-radius: 9px; padding: 9px 12px; }
+.capacity { height: 8px; margin: 8px 0 26px; overflow: hidden; border-radius: 99px; background: #e3e6df; }
+.capacity span { display: block; height: 100%; background: #e2795e; }
+.event-side .primary { width: 100%; margin: 10px 0 28px; }
+.research-grid { display: grid; grid-template-columns: 240px minmax(600px, 1fr); gap: 14px; }
+.research-panel { display: flex; flex-direction: column; }
+.question, .answer { max-width: 680px; padding: 16px 18px; margin-top: 18px; border-radius: 14px; }
+.question { align-self: flex-end; background: #e4ebdf; }
+.answer { background: white; border: 1px solid #dfe3db; }
+.answer p { line-height: 1.55; }
+.citations { display: flex; gap: 7px; }
+.progress { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 22px 0 auto; }
+.progress span { height: 5px; background: #dce1d9; border-radius: 99px; }
+.progress span.complete { background: #7eaf5e; }
+
+@media (max-width: 1100px) {
+  .app-frame { grid-template-columns: 120px 1fr; }
+  main { padding-left: 18px; padding-right: 18px; }
+  .member-panel { display: none; }
+  .chat-grid { grid-template-columns: 190px 1fr; }
+}

@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "contract": "a6",
+  "name": "Operations and workflow ledger",
+  "exercises": "bounded composition and background work",
+  "lineage": "new — sequence allocation, claims, and settlement receipts (LLP 0133, LLP 0135) had no 0102 counterpart",
+  "lineageDiaries": [],
+  "budgetClass": "deep",
+  "consumers": ["snapback-web", "probe"],
+  "expectedCheckCount": 10,
+  "scenarios": [
+    {
+      "id": "A6-01-SEED",
+      "fact": "Exact customers, jobs, steps, assignees, statuses, sequence numbers, activity, and personas exist.",
+      "planBullet": "customers, jobs, steps, assignees, status, sequence numbers, and activity",
+      "kernel": true,
+      "evidence": ["target-identity", "authoritative-counts", "seed-receipt"]
+    },
+    {
+      "id": "A6-02-SEQUENCE",
+      "fact": "A human-visible sequence number is allocated transactionally, without gaps or duplicates under contention.",
+      "planBullet": "transactional allocation of a human-visible sequence",
+      "evidence": ["two-actor-barrier", "sequence-receipt", "authoritative-order"]
+    },
+    {
+      "id": "A6-03-BOUNDED",
+      "fact": "Child lists stay bounded and aggregate dashboard counts match the authoritative store.",
+      "planBullet": "bounded child lists and aggregate dashboard counts",
+      "evidence": ["bounded-query-inventory", "aggregate-proof", "authoritative-counts"]
+    },
+    {
+      "id": "A6-04-SCHEDULING",
+      "fact": "A one-off transactional schedule and a recurring maintenance schedule both run with inspectable receipts.",
+      "planBullet": "one-off transactional scheduling and recurring maintenance",
+      "evidence": ["schedule-identity", "run-receipt", "recurrence-proof"]
+    },
+    {
+      "id": "A6-05-ATTEMPTS",
+      "fact": "Claim, retry, timeout, and cancellation each leave append-only attempt receipts.",
+      "planBullet": "claim, retry, timeout, cancellation, and append-only attempt receipts",
+      "evidence": ["attempt-ledger", "append-only-proof", "state-machine-records"]
+    },
+    {
+      "id": "A6-06-DISPATCH",
+      "fact": "External dispatch is idempotent with inspectable settlement.",
+      "planBullet": "idempotent external dispatch with inspectable settlement",
+      "evidence": ["dedupe-key", "provider-boundary", "terminal-settlement"]
+    },
+    {
+      "id": "A6-07-FENCING",
+      "fact": "Concurrent claims resolve to one owner and ownership fencing rejects the loser's late writes.",
+      "planBullet": "concurrent claims and ownership fencing",
+      "evidence": ["two-actor-barrier", "fence-receipt", "authoritative-outcome"]
+    },
+    {
+      "id": "A6-08-DASHBOARD",
+      "fact": "The operational dashboard updates live with range filters through the attributed path.",
+      "planBullet": "live operational dashboard with range filters",
+      "evidence": ["second-client", "transport-attribution", "range-filter-proof"]
+    },
+    {
+      "id": "A6-09-EXPORT-RESTORE",
+      "fact": "Export and restore round-trip the ledger with verified counts.",
+      "planBullet": "export, restore, and cleanup evidence",
+      "evidence": ["export-receipt", "restore-receipt", "authoritative-counts"]
+    },
+    {
+      "id": "A6-10-CLEANUP",
+      "fact": "Only exact fresh targets or the arm-owned namespace are cleaned up; unrelated baseline state is preserved.",
+      "planBullet": "export, restore, and cleanup evidence",
+      "kernel": true,
+      "evidence": ["target-bound-plan", "cleanup-receipt", "post-cleanup-negative"]
+    }
+  ]
+}

@@ -1,0 +1,218 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "frozenAt": "2026-08-01T08:56:37.752Z",
+  "gate": "g0-sweep-freeze",
+  "snapbackRevisionFrozen": false,
+  "aggregateSha256": "e111b0da0f28fe20f97bb66ac3ecd31063d7f5b797b35756ce9f00849c7161bf",
+  "artifacts": [
+    {
+      "path": "demos/improvement-sweep/README.md",
+      "bytes": 4610,
+      "sha256": "94558b80314e2ea63b750c2e37c0db709a25039452cda3cd8c1a4cb452c98ed2"
+    },
+    {
+      "path": "demos/improvement-sweep/neutral-expo/App.tsx",
+      "bytes": 6252,
+      "sha256": "fcc326ebb0b289ab2e8d805c9ef8d5903af80c2059213957707cac1fb4c5a7da"
+    },
+    {
+      "path": "demos/improvement-sweep/neutral-expo/app.json",
+      "bytes": 486,
+      "sha256": "9df25061a5495cea8051ba653d768db2f65dff2a8a7bef6f53dcac82555c0ef1"
+    },
+    {
+      "path": "demos/improvement-sweep/neutral-expo/index.ts",
+      "bytes": 104,
+      "sha256": "45984ac9a353795953599decc0976d21b41ec16ac3e6de3bc3f961d08b5cd505"
+    },
+    {
+      "path": "demos/improvement-sweep/neutral-expo/package-lock.json",
+      "bytes": 226777,
+      "sha256": "7f405e2734b089e97973dae27823429cc49739eb5ef1353fd1e180fcd468fc62"
+    },
+    {
+      "path": "demos/improvement-sweep/neutral-expo/package.json",
+      "bytes": 475,
+      "sha256": "bf4915f9b0280d66bfdea1b9b6d6ea52cc548c7fb80ad9e7ecb1d0cf2a4faf2c"
+    },
+    {
+      "path": "demos/improvement-sweep/neutral-expo/tsconfig.json",
+      "bytes": 130,
+      "sha256": "39e994ef6b25c038e01205dec7c7ef58edc3148680f3581b9c164668416a8025"
+    },
+    {
+      "path": "demos/improvement-sweep/neutral-web/index.html",
+      "bytes": 367,
+      "sha256": "d3be2fed761105eedb4159f54f5eb59b087150695932fc6c793014362e2adda9"
+    },
+    {
+      "path": "demos/improvement-sweep/neutral-web/package-lock.json",
+      "bytes": 43581,
+      "sha256": "3e9906fbc568f0256b48200ea4241c3c58ec2116aa97850a82641837f1fd1b70"
+    },
+    {
+      "path": "demos/improvement-sweep/neutral-web/package.json",
+      "bytes": 433,
+      "sha256": "177cde88c47cd9fac944720ace1ce9a4f13247637802f82256942c7bb06df340"
+    },
+    {
+      "path": "demos/improvement-sweep/neutral-web/src/App.tsx",
+      "bytes": 11774,
+      "sha256": "3fe19acfa9e4a8dbd94c175d2a0ae55ca58c7059971e2dd386dcafa86b83d7e4"
+    },
+    {
+      "path": "demos/improvement-sweep/neutral-web/src/main.tsx",
+      "bytes": 236,
+      "sha256": "a6bcae9c4f04d6ff36406b2966379834342b41b08b83ba7bd0334712d6cf87f0"
+    },
+    {
+      "path": "demos/improvement-sweep/neutral-web/src/styles.css",
+      "bytes": 6241,
+      "sha256": "ae3756ab4cf2eac85de772942b00e80fccf8755f0b7d97f642222e42a9925fed"
+    },
+    {
+      "path": "demos/improvement-sweep/neutral-web/src/vite-env.d.ts",
+      "bytes": 38,
+      "sha256": "65996936fbb042915f7b74a200fcdde7e410f32a669b1ab9597cfaa4b0faddb5"
+    },
+    {
+      "path": "demos/improvement-sweep/neutral-web/tsconfig.json",
+      "bytes": 599,
+      "sha256": "1f454a39d3bbbab94bef5010d59ddf313740d13bd02a40b49397c9b5f4155805"
+    },
+    {
+      "path": "demos/improvement-sweep/neutral-web/vite.config.ts",
+      "bytes": 136,
+      "sha256": "eca485c281977125366d4800553256e419f364984e615f75a2d2bae54f7857fd"
+    },
+    {
+      "path": "demos/improvement-sweep/package.json",
+      "bytes": 433,
+      "sha256": "d4943564c38d9098eb5572db922a73386a7ae87c2f0991521234ea55d5a6a537"
+    },
+    {
+      "path": "demos/improvement-sweep/protocol/arm-matrix.v1.json",
+      "bytes": 3491,
+      "sha256": "5581184efb011b9b780490c814c76094a9745a56d1fc61c23faa6e513410a93d"
+    },
+    {
+      "path": "demos/improvement-sweep/protocol/assistance-policy.v1.json",
+      "bytes": 2650,
+      "sha256": "eabc904a958bbaf25aab1b9f757c7da00531df80dbd219999bcd908db0cf2525"
+    },
+    {
+      "path": "demos/improvement-sweep/protocol/contracts/a1-field-notebook.v1.json",
+      "bytes": 4493,
+      "sha256": "572acf95d428d07b2eada23fb5d92450f29c71ba19532a7eb3c819293f783f0f"
+    },
+    {
+      "path": "demos/improvement-sweep/protocol/contracts/a2-chat-presence.v1.json",
+      "bytes": 5022,
+      "sha256": "b3f163852d68fc73496cd86a38e4e7fdbca4db06498ff9b10e5d8d68fa398281"
+    },
+    {
+      "path": "demos/improvement-sweep/protocol/contracts/a3-issue-board.v1.json",
+      "bytes": 5102,
+      "sha256": "487db114b260213644de5f84a6c3977a61c06ab9ced588c4b2e310e2fc77ff06"
+    },
+    {
+      "path": "demos/improvement-sweep/protocol/contracts/a4-event-invitation.v1.json",
+      "bytes": 4646,
+      "sha256": "c7c1ed6cadfe547f0341c6db98de0ab83dc931e70981f50699f572433a371f68"
+    },
+    {
+      "path": "demos/improvement-sweep/protocol/contracts/a5-research-room.v1.json",
+      "bytes": 5188,
+      "sha256": "bfdce61d1bf54194b764e38c3a5e2245e03bc607509d55c09fc8b82ad61ca577"
+    },
+    {
+      "path": "demos/improvement-sweep/protocol/contracts/a6-operations-ledger.v1.json",
+      "bytes": 3566,
+      "sha256": "f7b959b416d16ac575b2a5cf3b917726538c075bdb8a16974a56c2a42b423e0e"
+    },
+    {
+      "path": "demos/improvement-sweep/protocol/credentials-health.v1.json",
+      "bytes": 2626,
+      "sha256": "6cf23b188e58954716d86c171c9c8529d2d20588e6e595aac41e0fc074119c21"
+    },
+    {
+      "path": "demos/improvement-sweep/protocol/environment.v1.json",
+      "bytes": 1537,
+      "sha256": "190711b19ee0a6461993738616197c5f9fa00b881cedfe8609f447a10f61790d"
+    },
+    {
+      "path": "demos/improvement-sweep/protocol/expo-receipt.v1.json",
+      "bytes": 2420,
+      "sha256": "93e9a44ce56df1ab98640cb2efb6df90d2fcd5955cb4a4baab66625d5f6f02fc"
+    },
+    {
+      "path": "demos/improvement-sweep/protocol/kernel.v1.json",
+      "bytes": 2313,
+      "sha256": "8de99077080f5196ea032646daafff564dc1f1750192633d84ca9b33e8af8e73"
+    },
+    {
+      "path": "demos/improvement-sweep/protocol/probe-policy.md",
+      "bytes": 2528,
+      "sha256": "b2644fbbcf35ed584e952f8af63202a0f522b146555748da37b1a30e78fed358"
+    },
+    {
+      "path": "demos/improvement-sweep/protocol/protocol.v1.json",
+      "bytes": 4860,
+      "sha256": "69ad27f2cce1bb6fb051138f892d186fa6d745653c2a4184cf6d6bc0c463f7ff"
+    },
+    {
+      "path": "demos/improvement-sweep/protocol/schemas/expo-receipt.v1.schema.json",
+      "bytes": 2818,
+      "sha256": "95b9577a1a15b7987f10bda8299c2f84ab8cdc06c0b0a9f65cd9bb12202265ea"
+    },
+    {
+      "path": "demos/improvement-sweep/protocol/schemas/finding.v1.schema.json",
+      "bytes": 3787,
+      "sha256": "d9683da3c669c11a7a84a4e3c1b8f57d7985dc314ee0d6381ebde0ec42543002"
+    },
+    {
+      "path": "demos/improvement-sweep/protocol/schemas/run-capsule.v1.schema.json",
+      "bytes": 4991,
+      "sha256": "26a209fa6ab6ede0c8b2b44483c726d0be667a4457f7663e52a6dcc7bae9af99"
+    },
+    {
+      "path": "demos/improvement-sweep/protocol/target-lifecycle.v1.json",
+      "bytes": 1768,
+      "sha256": "898d7ac0372ba07d2c8e5096ec81f0d8681da5b8c89faecbf6f1f4b9186a2793"
+    },
+    {
+      "path": "demos/improvement-sweep/scripts/freeze-boundary.mjs",
+      "bytes": 754,
+      "sha256": "0367df313d079229104d5c0b6e9aaf9d8081649136c7683f0dd3569f73235e97"
+    },
+    {
+      "path": "demos/improvement-sweep/scripts/freeze-boundary.test.mjs",
+      "bytes": 996,
+      "sha256": "72ebe12ed2637d71bef2dbcac3cbb330e3aad9df44e44f3fa1680b7dc9d9d1ff"
+    },
+    {
+      "path": "demos/improvement-sweep/scripts/preflight-credentials.mjs",
+      "bytes": 5967,
+      "sha256": "952536b28adc284cb0abd33da21999249edc0f3a1884c5d763bfb2107bbb67c2"
+    },
+    {
+      "path": "demos/improvement-sweep/scripts/verify-freeze.mjs",
+      "bytes": 20240,
+      "sha256": "64377196283c6c77474dc5856adf36a8dcdba8f59c0c9d4571a22639c123f890"
+    },
+    {
+      "path": "llp/0137-react-web-backend-championship.plan.md",
+      "bytes": 29322,
+      "sha256": "53b76458c8a64706e9203c02a9b5a6ba715f64fb91622a0a76272fa6e9ba6e86"
+    }
+  ],
+  "appendOnlyArtifacts": [],
+  "appendOnlyNote": "Diaries are created when each application's first arm begins (LLP 0137 diary protocol); the freeze adds their append-only prefixes prospectively at that point via a dated amendment.",
+  "liveOutputDirectories": [
+    "arms",
+    "probes",
+    "receipts",
+    "reports"
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "gate": "g2-fair-target-access",
+  "inheritedFrom": "LLP 0102 2026-07-28 target-access amendment, adopted by LLP 0137 G2",
+  "isolation": {
+    "freshLocalTargetPerArm": true,
+    "freshHostedTargetPreferred": true,
+    "sharedHostedTargetAllowed": true,
+    "uniqueNamespacePerArm": true,
+    "namespaceDerivation": "provider, contract, stage, and attempt id",
+    "baselinePreservationRequiredForSharedTargets": true,
+    "reuseAcrossProviders": false,
+    "reuseOfNamespaces": false
+  },
+  "sharedTargetRules": [
+    "Before any shared-target write, retain a redacted baseline inventory and prove that every planned mutation and cleanup operation is namespace-scoped.",
+    "Cleanup removes only arm-owned records, functions, files, schedules, auth principals, and configuration; the shared target itself is never deleted.",
+    "A post-cleanup probe must prove the arm namespace absent and the unrelated baseline unchanged; if the provider cannot support that proof, record a cleanup GAP and do not perform the unsafe operation.",
+    "Shared-target history, warm state, unknown plan, and noisy-neighbor effects are disclosed; performance and cost from such a target are not compared as if isolated."
+  ],
+  "hostedUnavailable": "Missing hosted access is an explicit GAP finding, never an invented local equivalent. The arm proceeds on the ordinary local or emulator path with lowered target-identity, deployment, operations, cost, and artifact-reproducibility confidence.",
+  "forbidden": [
+    "deleting a shared target",
+    "reusing a namespace",
+    "reusing a target between providers",
+    "letting a broad cleanup command infer its target",
+    "unresolved target variables"
+  ]
+}

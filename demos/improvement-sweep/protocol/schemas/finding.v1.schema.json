@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "snapback.improvement-sweep.finding.v1",
+  "title": "Improvement sweep gap-ledger finding",
+  "description": "One entry in the sweep's gap ledger. Mirrors LLP 0137's seven required statements per finding, organized under the ten ledger dimensions.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "protocolId",
+    "findingId",
+    "dimension",
+    "observation",
+    "competitorOutcome",
+    "classification",
+    "mustNotRegress",
+    "smallestCoherentFix",
+    "acceptanceWitness",
+    "owner"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "protocolId": { "const": "llp-0137-improvement-sweep-v1" },
+    "findingId": { "type": "string", "minLength": 1 },
+    "dimension": {
+      "enum": [
+        "installed-product-first-hour",
+        "typescript-inference-and-contract-fidelity",
+        "react-reactivity-and-lifecycle",
+        "relational-composition-and-aggregates",
+        "retained-offline-and-reconnect-settlement",
+        "authorization-and-revocation",
+        "conflicts-jobs-effects-and-ambiguity",
+        "assets-search-vector-and-notifications",
+        "hosted-deployment-and-operations",
+        "diagnostics-docs-agent-usability-and-escape-hatches"
+      ]
+    },
+    "observation": {
+      "type": "object",
+      "required": ["description", "evidence"],
+      "properties": {
+        "description": { "type": "string", "minLength": 1 },
+        "evidence": {
+          "type": "array",
+          "description": "Diary and capsule evidence references.",
+          "items": { "type": "string" },
+          "minItems": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "competitorOutcome": {
+      "type": "object",
+      "required": ["description", "source", "sourceDate"],
+      "properties": {
+        "description": { "type": "string", "minLength": 1 },
+        "source": { "enum": ["frozen-0102", "frozen-0115", "official-docs", "probe", "none-available"] },
+        "sourceDate": { "type": "string", "minLength": 1 },
+        "staleFlag": { "type": "boolean" },
+        "reference": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "classification": {
+      "enum": [
+        "defect",
+        "capability",
+        "experience",
+        "documentation",
+        "operations",
+        "maturity",
+        "benchmark-only",
+        "deliberate-non-goal"
+      ]
+    },
+    "mustNotRegress": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The Snapback property that must not regress while fixing it."
+    },
+    "smallestCoherentFix": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The smallest coherent Snapback-native improvement outcome — matched through Snapback's authority, settlement, local-first, target, and capability model, never a competitor-shaped subsystem."
+    },
+    "acceptanceWitness": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The acceptance witness that would prove the improvement."
+    },
+    "owner": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": {
+          "enum": [
+            "immediate-repair",
+            "filesystem-issue",
+            "existing-llp",
+            "new-llp",
+            "explicit-refusal"
+          ]
+        },
+        "reference": {
+          "type": "string",
+          "description": "Ticket path, LLP number, or commit reference."
+        }
+      },
+      "additionalProperties": false
+    },
+    "stopClass": { "type": "boolean" },
+    "budgetFinding": {
+      "type": "boolean",
+      "description": "True when the finding records a budget-ceiling breach and what consumed the time."
+    }
+  },
+  "additionalProperties": false
+}

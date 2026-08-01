@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "Improvement Sweep Neutral Shell",
+    "slug": "improvement-sweep-neutral-shell",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "scheme": "sweepshell",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "dev.snapback.improvementsweep.shell"
+    },
+    "android": {
+      "package": "dev.snapback.improvementsweep.shell",
+      "edgeToEdgeEnabled": true
+    }
+  }
+}

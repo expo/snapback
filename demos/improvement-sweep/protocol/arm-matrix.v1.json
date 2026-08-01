@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "note": "Phase 1 planned arms and their expected check counts. Snapback web arms are committed; probes are demand-driven under the frozen probe policy (guidance rows are not commitments); Track B and Track C follow their gates. No arm here is a championship arm.",
+  "expectedCheckCounts": {
+    "a1": 13,
+    "a2": 12,
+    "a3": 12,
+    "a4": 11,
+    "a5": 13,
+    "a6": 10
+  },
+  "snapbackWebArms": [
+    { "contract": "a2", "order": 1, "budgetClass": "calibration" },
+    { "contract": "a1", "order": 2, "budgetClass": "deep" },
+    { "contract": "a3", "order": 3, "budgetClass": "deep" },
+    { "contract": "a4", "order": 4, "budgetClass": "deep" },
+    { "contract": "a5", "order": 5, "budgetClass": "deep" },
+    { "contract": "a6", "order": 6, "budgetClass": "deep" }
+  ],
+  "probeGuidance": [
+    { "provider": "firebase", "contract": "a1", "focus": "retained offline" },
+    { "provider": "convex", "contract": "a5", "focus": "functions, scheduling, vector" },
+    { "provider": "convex", "contract": "a6", "focus": "functions, scheduling" },
+    { "provider": "supabase", "contract": "a5", "focus": "storage, pgvector, search" },
+    { "provider": "instantdb", "contract": "a1", "focus": "compact React offline ergonomics" },
+    { "provider": "instantdb", "contract": "a2", "focus": "compact React room ergonomics" },
+    { "provider": "spacetimedb", "contract": "a6", "focus": "transactional reducers" }
+  ],
+  "probeRules": {
+    "status": "guidance-not-commitment",
+    "justification": "see protocol/probe-policy.md (frozen verbatim)",
+    "timebox": "deep-arm ceiling",
+    "budgetClass": "deep",
+    "expectedCheckCountRule": "a full-contract probe uses the contract's expected check count; a bounded-slice probe declares its slice's scenario subset and expected check count in its capsule before work starts"
+  },
+  "trackB": {
+    "gate": "g3",
+    "contracts": ["a1", "a4"],
+    "platforms": ["expo-ios", "expo-android"],
+    "receiptsIndependent": true,
+    "receiptManifest": "protocol/expo-receipt.v1.json",
+    "mobileReferenceProbe": "firebase (under the frozen probe policy only)",
+    "notes": [
+      "A Snapback Expo arm may use the supported local bridge from a simulator or emulator; hosted availability is recorded as a GAP finding, never an invented local equivalence.",
+      "Simulator and emulator receipts qualify for the sweep; physical-device receipts are a separately reported production-support gate.",
+      "Mobile findings are frozen before Exact results are revealed."
+    ]
+  },
+  "trackC": {
+    "gate": "g3",
+    "contract": "a1",
+    "surfaces": ["contract-web", "exact-native-ios", "exact-native-android"],
+    "claimRules": "LLP 0064 exactly: Contract/web claims only what its provider and acceptance receipt prove; exact-native/ios and exact-native/android are independent profiles; an Online result does not imply local-first Parity; Parity requires generated local execution, retained reads, a durable ordered queue, replay/rebase, authority fencing, reconnect convergence, and release-artifact exclusion of server implementation.",
+    "unreadyRule": "If the Exact Native surface is not ready when the sweep completes, Track C records an honest program GAP and remains a separate successor gate; the sweep report is never delayed for it. No polling gateway, Contract-on-Hermes instrument, or React Native carrier substitutes for an Exact Native profile."
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "manifestId": "llp-0137-expo-receipt-v1",
+  "source": "LLP 0137, Track B — Expo sweep (each receipt must record)",
+  "expectedCheckCount": 12,
+  "checks": [
+    {
+      "id": "EXPO-01-IDENTITIES",
+      "fact": "Exact Expo SDK, React Native, backend client, OS, device/simulator, and build artifact identities are recorded."
+    },
+    {
+      "id": "EXPO-02-LAUNCH",
+      "fact": "Clean release or development-client launch through the supported path."
+    },
+    {
+      "id": "EXPO-03-NATIVE-AUTH",
+      "fact": "Native auth entry and deep-link return where the app requires it."
+    },
+    {
+      "id": "EXPO-04-REALTIME",
+      "fact": "Initial authoritative data and a second-device realtime transition."
+    },
+    {
+      "id": "EXPO-05-LIFECYCLE",
+      "fact": "Background, suspension, foreground, network loss, and reconnect behavior."
+    },
+    {
+      "id": "EXPO-06-COLD-RESTART",
+      "fact": "Cold process restart and protected retained state where claimed."
+    },
+    {
+      "id": "EXPO-07-QUEUE",
+      "fact": "Queued mutation settlement and rollback where claimed."
+    },
+    {
+      "id": "EXPO-08-FILES",
+      "fact": "File selection/upload for A4."
+    },
+    {
+      "id": "EXPO-09-PUSH",
+      "fact": "Push-notification boundary or explicit GAP for A4."
+    },
+    {
+      "id": "EXPO-10-AUTHORITY-ROTATION",
+      "fact": "Authority rotation/logout and predecessor-data retirement."
+    },
+    {
+      "id": "EXPO-11-TEARDOWN",
+      "fact": "Teardown of processes, credentials, projects/namespaces, and test data."
+    },
+    {
+      "id": "EXPO-12-INDEPENDENCE",
+      "fact": "The receipt claims one platform only: an iOS pass does not establish Android behavior, or vice versa, under LLP 0064."
+    }
+  ],
+  "contractApplicability": {
+    "a1": ["EXPO-01-IDENTITIES", "EXPO-02-LAUNCH", "EXPO-03-NATIVE-AUTH", "EXPO-04-REALTIME", "EXPO-05-LIFECYCLE", "EXPO-06-COLD-RESTART", "EXPO-07-QUEUE", "EXPO-10-AUTHORITY-ROTATION", "EXPO-11-TEARDOWN", "EXPO-12-INDEPENDENCE"],
+    "a4": ["EXPO-01-IDENTITIES", "EXPO-02-LAUNCH", "EXPO-03-NATIVE-AUTH", "EXPO-04-REALTIME", "EXPO-05-LIFECYCLE", "EXPO-06-COLD-RESTART", "EXPO-07-QUEUE", "EXPO-08-FILES", "EXPO-09-PUSH", "EXPO-10-AUTHORITY-ROTATION", "EXPO-11-TEARDOWN", "EXPO-12-INDEPENDENCE"]
+  },
+  "expectedCheckCountByContract": {
+    "a1": 10,
+    "a4": 12
+  }
+}

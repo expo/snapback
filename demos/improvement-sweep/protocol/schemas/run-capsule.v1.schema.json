@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "snapback.improvement-sweep.run-capsule.v1",
+  "title": "Improvement sweep run capsule",
+  "description": "One machine-readable capsule per arm or probe. Required by LLP 0137's diary and evidence protocol: expected check count, target identity, cleanup proof, and transport/authority/settlement attribution.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "protocolId",
+    "arm",
+    "packageVersions",
+    "environment",
+    "budget",
+    "actors",
+    "targets",
+    "milestones",
+    "assistanceEvents",
+    "postureBreaks",
+    "commands",
+    "scenarioResults",
+    "expectedCheckCount",
+    "findings",
+    "differentiators",
+    "inventory",
+    "attribution",
+    "stopDefects",
+    "cleanup",
+    "result"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "protocolId": { "const": "llp-0137-improvement-sweep-v1" },
+    "arm": {
+      "type": "object",
+      "required": ["contract", "armKind", "platform", "provider", "attemptId"],
+      "properties": {
+        "contract": { "enum": ["a1", "a2", "a3", "a4", "a5", "a6"] },
+        "armKind": { "enum": ["snapback-web", "probe", "snapback-expo", "exact", "untimed-extension"] },
+        "platform": { "enum": ["web", "expo-ios", "expo-android", "contract-web", "exact-native-ios", "exact-native-android"] },
+        "provider": { "enum": ["snapback", "convex", "supabase", "firebase", "instantdb", "spacetimedb"] },
+        "attemptId": { "type": "string", "minLength": 1 },
+        "probeSlice": {
+          "type": "object",
+          "description": "Bounded-slice probes only: declared before work starts.",
+          "required": ["scenarioIds", "triggeringFinding"],
+          "properties": {
+            "scenarioIds": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+            "triggeringFinding": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "packageVersions": {
+      "type": "object",
+      "description": "Exact package versions the arm ran against (Phase 1 does not freeze a Snapback revision; every capsule pins its own).",
+      "minProperties": 1
+    },
+    "environment": { "type": "object" },
+    "budget": { "type": "object" },
+    "actors": { "type": "object" },
+    "targets": { "type": "object" },
+    "milestones": { "type": "object" },
+    "assistanceEvents": { "type": "array" },
+    "postureBreaks": {
+      "type": "array",
+      "description": "Every place the builder was forced to break the external-consumer posture; each entry names the finding it filed.",
+      "items": {
+        "type": "object",
+        "required": ["description", "findingId"],
+        "properties": {
+          "description": { "type": "string", "minLength": 1 },
+          "findingId": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": false
+      }
+    },
+    "commands": { "type": "array" },
+    "scenarioResults": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "result"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "result": { "enum": ["pass", "gap", "fail", "unavailable", "expected-refusal", "stop", "skip"] },
+          "evidencePaths": { "type": "array", "items": { "type": "string" } },
+          "note": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "expectedCheckCount": { "type": "integer", "minimum": 1 },
+    "findings": {
+      "type": "array",
+      "description": "Finding ids filed by this arm (see finding.v1.schema.json).",
+      "items": { "type": "string" }
+    },
+    "differentiators": {
+      "type": "array",
+      "description": "Differentiator watch: what Snapback did better than the reference evidence and what must not regress.",
+      "items": {
+        "type": "object",
+        "required": ["observation", "mustNotRegress"],
+        "properties": {
+          "observation": { "type": "string", "minLength": 1 },
+          "mustNotRegress": { "type": "string", "minLength": 1 },
+          "referenceEvidence": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "inventory": {
+      "type": "object",
+      "description": "Authored, generated, policy, test, configuration, and glue inventories."
+    },
+    "attribution": {
+      "type": "object",
+      "required": ["transport", "authority", "settlement"],
+      "properties": {
+        "transport": { "type": "string", "minLength": 1 },
+        "authority": { "type": "string", "minLength": 1 },
+        "settlement": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": true
+    },
+    "stopDefects": { "type": "array" },
+    "cleanup": { "type": "object" },
+    "result": { "enum": ["pending", "complete", "timeboxed", "blocked", "stopped"] }
+  },
+  "additionalProperties": false
+}

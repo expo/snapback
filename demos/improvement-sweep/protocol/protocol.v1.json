@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "status": "g0-frozen",
+  "frozenAt": "2026-08-01",
+  "authority": "llp/0137-react-web-backend-championship.plan.md",
+  "phase": "phase-1-improvement-sweep",
+  "purpose": "Surface everything that would make Snapback better. Phase 1 produces findings, diaries, and a gap ledger — no backend ranking, no composite, no win/lose claims.",
+  "contracts": ["a1", "a2", "a3", "a4", "a5", "a6"],
+  "webSweepOrder": ["a2", "a1", "a3", "a4", "a5", "a6"],
+  "webSweepOrderRationale": "Ascending ambition, chosen for learning, not fairness — early cheap arms shake out harness and packaging findings before the deep arms spend budget on them. Phase 1 has no randomized provider ordering; atomic rounds are a Phase 2 control.",
+  "snapbackRevision": {
+    "frozen": false,
+    "rationale": "Phase 1 does not freeze a Snapback revision — that is Phase 2's control (LLP 0137, G0). The revision moves as fixes land between arms; every arm's diary and capsule record the exact public package versions the arm ran against, so arms are honest but not rank-comparable by design."
+  },
+  "externalConsumerPosture": {
+    "required": true,
+    "sanctionedDocumentation": ["the shipped Snapback guide", "public docs"],
+    "rules": [
+      "No Snapback checkout, no repository-relative imports, no knowledge unavailable to a public npm user.",
+      "Every place the builder is forced to break this posture is itself a finding."
+    ]
+  },
+  "fixLoop": {
+    "findingsFiledContinuously": true,
+    "fixesMayLandBetweenArms": true,
+    "armRestartOnFix": false,
+    "reVerificationAppendsDatedEntry": true
+  },
+  "timedBudgets": {
+    "calibration": { "activeMinutes": 240, "toolCalls": 200 },
+    "deep": { "activeMinutes": 480, "toolCalls": 400 },
+    "role": "instruments-not-scores",
+    "note": "LLP 0102's ceilings are recorded and act as circuit breakers, but exceeding one is a finding to file (with what consumed the time), not a score to protect. A blocked arm records its blocker and moves on. Probes are timeboxed at the deep-arm ceiling."
+  },
+  "budgetClassByContract": {
+    "a1": "deep",
+    "a2": "calibration",
+    "a3": "deep",
+    "a4": "deep",
+    "a5": "deep",
+    "a6": "deep"
+  },
+  "personas": {
+    "alice": "authorized owner or member",
+    "bob": "authorized second member",
+    "mallory": "outsider"
+  },
+  "gates": {
+    "g0": "sweep freeze — this artifact tree and its digest",
+    "g1": "public @expo/snapback-* package consumption qualification; no diaried Snapback arm starts before it passes; failure returns to LLP 0041/0115 CV-1",
+    "g2": "fair target access — prefer fresh isolated targets; shared hosted targets follow LLP 0102's namespace, baseline, scoped-cleanup, and confidence rules; missing hosted access is an explicit GAP finding, never an invented local equivalent",
+    "g3": "platform honesty — Expo arms only after the recommended React Native path and required build mode are pinned; Exact only against LLP 0064 profiles and receipt rules"
+  },
+  "hardRules": {
+    "sharedBackendAbstraction": false,
+    "providerNativePath": true,
+    "pollingCountsAsRealtimePush": false,
+    "optimisticUiCountsAsAuthority": false,
+    "cachedSeedCountsAsOfflineMutation": false,
+    "renderedExpoScreenCountsAsOsLifecycleProof": false,
+    "gapsCountAsPasses": false,
+    "phase1ProducesRanking": false,
+    "phase1ArmsRelabeledAsChampionshipArms": false,
+    "probesProduceRankingClaims": false,
+    "findingsSoftenedBecauseProductIsOurs": false,
+    "diariedArmRequiresG1Pass": true,
+    "diariedArmRequiresMatchingFreezeDigest": true
+  },
+  "gapLedgerDimensions": [
+    "installed-product first hour",
+    "TypeScript inference and contract fidelity",
+    "React reactivity and lifecycle",
+    "relational composition and aggregates",
+    "retained offline and reconnect settlement",
+    "authorization and revocation",
+    "conflicts, jobs, effects, and ambiguity",
+    "assets, text search, vector retrieval, and notifications",
+    "hosted deployment and operations",
+    "diagnostics, documentation, agent usability, and ecosystem escape hatches"
+  ],
+  "stopClasses": [
+    "cross-user-disclosure",
+    "secret-exposure",
+    "destructive-cleanup",
+    "false-capability-claim",
+    "late-effect-after-confirmed-cancellation"
+  ],
+  "diaryProtocol": {
+    "oneDiaryPerApplication": true,
+    "createdWhenFirstArmBegins": true,
+    "entriesImmutable": true,
+    "correctionsAppendErratum": true,
+    "exactExerciseGetsOwnDiary": true,
+    "capsuleRequired": true
+  },
+  "deferred": {
+    "phase2Championship": "preserved in LLP 0137 (Phase 2 section); blocked on the dry-well trigger; its own G0 freezes the Snapback revision, atomic rounds, randomized provider order, and scoring",
+    "stage7": "deferred per Charlie's 2026-08-01 directive"
+  }
+}

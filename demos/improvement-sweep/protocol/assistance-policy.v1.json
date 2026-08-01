@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "policyId": "llp-0137-external-consumer-assistance-v1",
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "posture": "Snapback arms run as an external npm consumer. The shipped guide and public docs are the only sanctioned Snapback documentation. Probes use official provider paths and documentation.",
+  "allowedWithoutEvent": [
+    "frozen contract manifests, kernel, and neutral shells",
+    "the shipped Snapback guide and public Snapback docs",
+    "official competitor provider documentation and starter templates (probes)",
+    "preflighted credentials for the frozen target modes",
+    "ordinary shell, filesystem, browser, simulator/emulator, and test tools"
+  ],
+  "mustRecordAsAssistanceEvent": [
+    "Snapback repository source inspection (also files a posture-break finding)",
+    "repository-relative imports or checkout-local artifacts (also a posture-break finding)",
+    "undocumented examples not reachable from the shipped guide or public docs",
+    "community answers",
+    "human help",
+    "provider support intervention",
+    "credential repair after an arm's timed window starts",
+    "implementation knowledge imported into a probe from a Snapback arm, or between probe providers"
+  ],
+  "forbidden": [
+    "softening, omitting, or reclassifying a finding because the product under test is ours",
+    "rewriting an earlier diary entry (corrections append a dated erratum)",
+    "changing acceptance IDs after an arm's evidence exists",
+    "hiding a gateway, poller, or normalization layer in the neutral shells",
+    "counting polling as push, optimistic UI as authority, cached seed as an offline mutation, or a rendered Expo screen as an OS lifecycle proof",
+    "re-labeling a Phase 1 arm or probe as a Phase 2 championship arm"
+  ],
+  "fixLoop": {
+    "findingsFiledContinuously": "filesystem tickets, or LLPs per LLP 0137's synthesis ownership rules",
+    "fixesMayLandBetweenArms": true,
+    "armNotRestartedByFix": true,
+    "reVerification": "a later re-verification of the affected acceptance facts appends a dated entry",
+    "capsulePinsPackageVersions": true
+  },
+  "budgets": {
+    "role": "instruments-not-scores",
+    "exceedingCeilingIsAFinding": true,
+    "blockedArmRecordsBlockerAndMovesOn": true
+  },
+  "differentiatorWatch": "Each arm also records what Snapback did better than the reference evidence and what must not regress; the sweep protects these while the gaps close.",
+  "humanIntervention": {
+    "expectedAfterPreflight": false,
+    "requiredFields": [
+      "elapsedMs",
+      "reason",
+      "informationSupplied",
+      "equivalentOpportunityOffered"
+    ]
+  }
+}

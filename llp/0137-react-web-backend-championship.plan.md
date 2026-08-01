@@ -546,3 +546,11 @@ Draft. Planning, review, shell construction, and verifier work may proceed.
 Diaried sweep execution is blocked on G0 and G1, the public terminal-package
 qualification. Phase 2 is additionally blocked on the dry-well trigger. No
 backend, mobile, or Exact ranking is claimed by this document.
+
+G0 (Stage 0, the sweep freeze) executed 2026-08-01: the frozen contracts,
+kernel, neutral React and Expo shells, verbatim probe policy, evidence
+schemas, expected-check-count manifests, assistance policy, target-lifecycle
+rules, and names-only credentials preflight are retained under
+`demos/improvement-sweep/`, digest-bound by `protocol/freeze.v1.json` and
+verified by `scripts/verify-freeze.mjs`. Phase 1 froze no Snapback revision,
+per this gate. Diaried sweep execution remains blocked on G1.

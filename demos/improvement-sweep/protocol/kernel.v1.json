@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "kernelId": "llp-0137-acceptance-kernel-v1",
+  "inheritedFrom": "LLP 0102 cross-application acceptance kernel, via LLP 0137's contract lineage and evidence conventions",
+  "everyArmRetains": [
+    "deterministic setup, seed, and cleanup",
+    "at least two named authenticated actors plus an outsider",
+    "one actor-specific positive transition and one cross-user negative",
+    "authoritative data observed independently of the initiating UI",
+    "realtime transport attribution: push, poll, local optimistic state, or unsupported",
+    "disconnect, reconnect, and stale-data behavior",
+    "operation settlement, including retry or ambiguity where applicable",
+    "exact backend/project/deployment identity",
+    "expected check count, so a vacuous pass fails",
+    "command exit status and structured failure classification",
+    "explicit skips and nonclaims",
+    "exact package versions the arm ran against",
+    "assistance events and external-consumer posture breaks",
+    "what Snapback did better than the reference evidence and what must not regress"
+  ],
+  "nonEvidence": [
+    "A rendered update alone does not prove backend state, push delivery, auth, or settlement.",
+    "Polling does not count as native push.",
+    "Optimistic UI does not count as authority.",
+    "A cached seed does not count as an offline mutation.",
+    "Client animation does not count as authoritative streaming.",
+    "Seeded state does not prove a mutation.",
+    "A rendered Expo screen does not count as an OS lifecycle proof."
+  ],
+  "stopRule": "Any cross-user data disclosure, secret exposure, destructive cleanup against an unrelated target, false capability claim, or late effect after a confirmed cancellation is a Stop-class defect. Metric work pauses until the defect is understood. Failed attempts, security Stops, credential incidents, and builder mistakes are preserved with correct attribution.",
+  "performanceRule": "Performance observations follow LLP 0035 and support only the workload actually measured.",
+  "milestones": [
+    "time to install",
+    "time to first read",
+    "time to first mutation",
+    "time to verified realtime",
+    "time to local acceptance",
+    "time to hosted URL",
+    "time to cleanup"
+  ]
+}

@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "contract": "a3",
+  "name": "Collaborative issue and planning board",
+  "exercises": "relational and React composition",
+  "lineage": "0102 Linear-shaped application (Diary 0029)",
+  "lineageDiaries": ["diaries/0029-linear-backend-bakeoff.diary.md"],
+  "lineageAcceptanceManifest": "demos/backend-bakeoff/protocol/acceptance/linear.v1.json",
+  "budgetClass": "deep",
+  "consumers": ["snapback-web", "probe"],
+  "expectedCheckCount": 12,
+  "scenarios": [
+    {
+      "id": "A3-01-SEED",
+      "fact": "Exact production-shaped organizations, teams, projects, issues, labels, comments, activity, and personas exist.",
+      "planBullet": "organizations, teams, projects, issues, labels, comments, and activity",
+      "kernel": true,
+      "lineageAncestors": ["LINEAR-01-SEED"],
+      "evidence": ["target-identity", "authoritative-counts", "seed-receipt"]
+    },
+    {
+      "id": "A3-02-ROLES",
+      "fact": "Owner, member, and guest each receive their distinct allowed views and writes.",
+      "planBullet": "owner, member, guest, and outsider policy",
+      "lineageAncestors": ["LINEAR-02-AUTHORITY"],
+      "evidence": ["positive-role-matrix", "actor-attribution"]
+    },
+    {
+      "id": "A3-03-OUTSIDER",
+      "fact": "The outsider cannot read, subscribe to, or write organization data.",
+      "planBullet": "owner, member, guest, and outsider policy",
+      "lineageAncestors": ["LINEAR-02-AUTHORITY"],
+      "evidence": ["negative-read", "negative-subscription", "negative-write"]
+    },
+    {
+      "id": "A3-04-QUERIES",
+      "fact": "Indexed filters, ranges, deterministic ordering, and stable nonduplicating pagination hold over the seed.",
+      "planBullet": "indexed filters, ranges, ordering, pagination, and full-text search",
+      "lineageAncestors": ["LINEAR-03-FILTERS", "LINEAR-04-PAGINATION"],
+      "evidence": ["query-plan-or-index-proof", "authoritative-expected-set", "cursor-values", "page-union"]
+    },
+    {
+      "id": "A3-05-SEARCH",
+      "fact": "Full-text issue search uses the ordinary supported path or records an explicit GAP.",
+      "planBullet": "indexed filters, ranges, ordering, pagination, and full-text search",
+      "lineageAncestors": ["LINEAR-09-SEARCH"],
+      "evidence": ["index-or-service-identity", "authoritative-results", "nonclaim-if-gap"]
+    },
+    {
+      "id": "A3-06-DETAIL",
+      "fact": "Issue detail composes related project, assignee, labels, comments, activity, and bounded aggregates.",
+      "planBullet": "issue detail composed from related records and bounded aggregates",
+      "lineageAncestors": ["LINEAR-05-DETAIL"],
+      "evidence": ["authoritative-related-ids", "bounded-query-inventory", "aggregate-proof"]
+    },
+    {
+      "id": "A3-07-OPTIMISTIC",
+      "fact": "Status, assignee, priority, and board-position updates apply optimistically and reconcile authoritatively.",
+      "planBullet": "optimistic status, assignee, priority, and board-position updates",
+      "lineageAncestors": ["LINEAR-06-OPTIMISTIC"],
+      "evidence": ["optimistic-state-attribution", "settlement", "authoritative-state"]
+    },
+    {
+      "id": "A3-08-CONFLICT",
+      "fact": "Concurrent moves receive documented semantic conflict handling with a deterministic outcome.",
+      "planBullet": "concurrent moves and semantic conflict handling",
+      "lineageAncestors": ["LINEAR-07-CONFLICT"],
+      "evidence": ["two-actor-barrier", "authoritative-outcome", "client-reconciliation"]
+    },
+    {
+      "id": "A3-09-LIVE",
+      "fact": "Comments, activity, counts, and search update live where claimed, through the attributed native path.",
+      "planBullet": "live comments, activity, counts, and search where claimed",
+      "lineageAncestors": ["LINEAR-08-LIVE"],
+      "evidence": ["second-client", "transport-attribution", "authority", "nonclaim-if-gap"]
+    },
+    {
+      "id": "A3-10-EVOLUTION",
+      "fact": "One schema evolution lands over the production-shaped seed without losing data.",
+      "planBullet": "one schema evolution over production-shaped seed data",
+      "lineageAncestors": ["LINEAR-11-MIGRATION"],
+      "evidence": ["before-counts", "migration-receipt", "after-counts", "index-proof"]
+    },
+    {
+      "id": "A3-11-REACT-SURFACE",
+      "fact": "At least one registered multi-query React surface renders the board; a headless-only acceptance client does not satisfy this.",
+      "planBullet": "at least one registered multi-query React surface rather than a headless-only acceptance client",
+      "lineageAncestors": [],
+      "evidence": ["registered-surface-proof", "multi-query-inventory", "render-evidence"]
+    },
+    {
+      "id": "A3-12-CLEANUP",
+      "fact": "Only exact fresh targets or the arm-owned namespace are cleaned up; unrelated baseline state is preserved.",
+      "planBullet": "(kernel) deterministic setup, seed, and cleanup",
+      "kernel": true,
+      "lineageAncestors": ["LINEAR-14-CLEANUP"],
+      "evidence": ["target-bound-plan", "cleanup-receipt", "post-cleanup-negative"]
+    }
+  ]
+}

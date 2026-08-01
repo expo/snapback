@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "contract": "a2",
+  "name": "Group chat and presence",
+  "exercises": "append-heavy realtime and transient state",
+  "lineage": "0102 chat application (Diary 0028; Snapback rerun Diary 0034)",
+  "lineageDiaries": [
+    "diaries/0028-chat-backend-bakeoff.diary.md",
+    "diaries/0034-campfire-main-rerun.diary.md"
+  ],
+  "lineageAcceptanceManifest": "demos/backend-bakeoff/protocol/acceptance/chat.v1.json",
+  "budgetClass": "calibration",
+  "consumers": ["snapback-web", "probe"],
+  "expectedCheckCount": 12,
+  "scenarios": [
+    {
+      "id": "A2-01-SEED",
+      "fact": "Exact channels, messages, and the three personas exist in the fresh target or arm-isolated namespace.",
+      "planBullet": "(kernel) deterministic setup, seed, and cleanup",
+      "kernel": true,
+      "lineageAncestors": ["CHAT-01-SEED"],
+      "evidence": ["target-identity", "authoritative-counts", "seed-receipt"]
+    },
+    {
+      "id": "A2-02-CHANNELS",
+      "fact": "Members join authorized public and private channels; Mallory cannot read or subscribe to a private channel.",
+      "planBullet": "public and private channels with membership revocation",
+      "lineageAncestors": ["CHAT-02-AUTHORITY"],
+      "evidence": ["actor-attribution", "negative-read", "negative-subscription"]
+    },
+    {
+      "id": "A2-03-HISTORY",
+      "fact": "History pages through stable cursors with deterministic server-authoritative message ordering.",
+      "planBullet": "stable cursor history and deterministic message ordering",
+      "lineageAncestors": ["CHAT-03-SEND", "CHAT-05-PAGINATION"],
+      "evidence": ["cursor-values", "page-union", "authoritative-order", "server-fields"]
+    },
+    {
+      "id": "A2-04-REALTIME",
+      "fact": "A second client observes a committed message through attributed authoritative realtime delivery.",
+      "planBullet": "authoritative realtime delivery to a second client",
+      "lineageAncestors": ["CHAT-04-PUSH"],
+      "evidence": ["second-client", "transport-attribution", "no-product-polling"]
+    },
+    {
+      "id": "A2-05-EPHEMERAL",
+      "fact": "Typing and presence travel a genuinely ephemeral path where supported, or record an explicit GAP.",
+      "planBullet": "typing and presence through a genuinely ephemeral path where supported",
+      "lineageAncestors": ["CHAT-06-TYPING", "CHAT-07-PRESENCE"],
+      "evidence": ["transport-attribution", "durability-inspection", "expiry", "nonclaim-if-gap"]
+    },
+    {
+      "id": "A2-06-UNREAD",
+      "fact": "Unread state remains correct across two clients.",
+      "planBullet": "unread state across two clients",
+      "lineageAncestors": ["CHAT-10-UNREAD"],
+      "evidence": ["two-clients", "authoritative-marker", "reconnect"]
+    },
+    {
+      "id": "A2-07-RECONNECT",
+      "fact": "Disconnect, reconnect, and resnapshot restore the authoritative channel view without duplication.",
+      "planBullet": "disconnect, reconnect, and resnapshot without duplication",
+      "lineageAncestors": ["CHAT-08-RECONNECT"],
+      "evidence": ["disconnect-proof", "authoritative-counts", "no-duplicates"]
+    },
+    {
+      "id": "A2-08-RETAINED",
+      "fact": "Previously loaded history remains readable offline where supported, or records an explicit GAP.",
+      "planBullet": "retained history where supported",
+      "lineageAncestors": ["CHAT-09-OFFLINE-HISTORY"],
+      "evidence": ["cold-client", "transport-disabled", "retained-origin", "nonclaim-if-gap"]
+    },
+    {
+      "id": "A2-09-CONCURRENT",
+      "fact": "Concurrent sends preserve both messages with deterministic order, and retry is idempotent.",
+      "planBullet": "concurrent sends and idempotent retry",
+      "lineageAncestors": ["CHAT-11-CONCURRENT-SEND"],
+      "evidence": ["two-actor-barrier", "authoritative-order", "no-loss", "dedupe-key"]
+    },
+    {
+      "id": "A2-10-REVOCATION",
+      "fact": "Membership revocation stops future protected delivery to an already-connected client.",
+      "planBullet": "public and private channels with membership revocation",
+      "lineageAncestors": ["CHAT-12-LOGOUT", "CHAT-13-REVOKE"],
+      "evidence": ["authority-change", "already-connected-client", "negative-delivery"]
+    },
+    {
+      "id": "A2-11-PRESENCE-DURABILITY",
+      "fact": "Presence produces zero durable write amplification where that is claimed, verified against the store.",
+      "planBullet": "zero durable amplification for presence where claimed",
+      "lineageAncestors": [],
+      "evidence": ["durability-inspection", "authoritative-counts", "nonclaim-if-gap"]
+    },
+    {
+      "id": "A2-12-CLEANUP",
+      "fact": "Only exact fresh targets or the arm-owned namespace are cleaned up; unrelated baseline state is preserved.",
+      "planBullet": "(kernel) deterministic setup, seed, and cleanup",
+      "kernel": true,
+      "lineageAncestors": ["CHAT-15-CLEANUP"],
+      "evidence": ["target-bound-plan", "cleanup-receipt", "post-cleanup-negative"]
+    }
+  ]
+}

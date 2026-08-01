@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "snapback.improvement-sweep.expo-receipt.v1",
+  "title": "Improvement sweep Expo platform receipt",
+  "description": "One receipt per platform per Track B arm. iOS and Android receipts are independent (LLP 0064); one never stands in for the other.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "protocolId",
+    "arm",
+    "identities",
+    "checkResults",
+    "expectedCheckCount",
+    "deviceClass",
+    "cleanup",
+    "result"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "protocolId": { "const": "llp-0137-improvement-sweep-v1" },
+    "arm": {
+      "type": "object",
+      "required": ["contract", "platform", "provider", "attemptId"],
+      "properties": {
+        "contract": { "enum": ["a1", "a4"] },
+        "platform": { "enum": ["expo-ios", "expo-android"] },
+        "provider": { "enum": ["snapback", "firebase"] },
+        "attemptId": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "identities": {
+      "type": "object",
+      "required": ["expoSdk", "reactNative", "backendClient", "os", "device", "buildArtifact"],
+      "properties": {
+        "expoSdk": { "type": "string", "minLength": 1 },
+        "reactNative": { "type": "string", "minLength": 1 },
+        "backendClient": { "type": "string", "minLength": 1 },
+        "os": { "type": "string", "minLength": 1 },
+        "device": { "type": "string", "minLength": 1 },
+        "buildArtifact": { "type": "string", "minLength": 1 },
+        "buildMode": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "checkResults": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "result"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^EXPO-" },
+          "result": { "enum": ["pass", "gap", "fail", "unavailable", "expected-refusal", "stop", "skip"] },
+          "evidencePaths": { "type": "array", "items": { "type": "string" } },
+          "note": { "type": "string" }
+        },
+        "additionalProperties": false
+      },
+      "minItems": 1
+    },
+    "expectedCheckCount": { "type": "integer", "minimum": 1 },
+    "deviceClass": {
+      "enum": ["simulator", "emulator", "physical-device"],
+      "description": "Simulator and emulator receipts qualify for the sweep; physical-device receipts are a separately reported production-support gate."
+    },
+    "hostedAvailability": {
+      "type": "string",
+      "description": "GAP finding reference when hosted availability is missing; never an invented local equivalence."
+    },
+    "cleanup": { "type": "object" },
+    "result": { "enum": ["pending", "complete", "timeboxed", "blocked", "stopped"] }
+  },
+  "additionalProperties": false
+}

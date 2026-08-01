@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "contract": "a5",
+  "name": "Collaborative AI research room",
+  "exercises": "files, retrieval, and long-running effects",
+  "lineage": "0102 research-room application (Diary 0031)",
+  "lineageDiaries": ["diaries/0031-research-room-backend-bakeoff.diary.md"],
+  "lineageAcceptanceManifest": "demos/backend-bakeoff/protocol/acceptance/research-room.v1.json",
+  "budgetClass": "deep",
+  "consumers": ["snapback-web", "probe"],
+  "expectedCheckCount": 13,
+  "scenarios": [
+    {
+      "id": "A5-01-SEED",
+      "fact": "Exact rooms, sources, embeddings fixture, and personas exist in the fresh target or arm-isolated namespace.",
+      "planBullet": "(kernel) deterministic setup, seed, and cleanup",
+      "kernel": true,
+      "lineageAncestors": ["RESEARCH-01-SEED"],
+      "evidence": ["target-identity", "authoritative-counts", "seed-receipt"]
+    },
+    {
+      "id": "A5-02-SOURCES",
+      "fact": "Authorized source-file upload, metadata, download, and deletion preserve ownership and authority.",
+      "planBullet": "authorized source-file upload, metadata, download, and deletion",
+      "lineageAncestors": ["RESEARCH-02-FILES"],
+      "evidence": ["object-identity", "content-hash", "authority", "delete-proof"]
+    },
+    {
+      "id": "A5-03-OUTSIDER",
+      "fact": "The outsider cannot retrieve sources, search results, questions, answers, or progress.",
+      "planBullet": "keyword and vector retrieval with outsider denial",
+      "lineageAncestors": ["RESEARCH-03-OUTSIDER"],
+      "evidence": ["negative-file", "negative-query", "negative-subscription"]
+    },
+    {
+      "id": "A5-04-KEYWORD",
+      "fact": "Keyword retrieval returns the frozen expected source set.",
+      "planBullet": "keyword and vector retrieval with outsider denial",
+      "lineageAncestors": ["RESEARCH-04-KEYWORD"],
+      "evidence": ["index-or-query-proof", "authoritative-results"]
+    },
+    {
+      "id": "A5-05-VECTOR",
+      "fact": "Vector retrieval uses the ordinary supported path or records an explicit GAP.",
+      "planBullet": "keyword and vector retrieval with outsider denial",
+      "lineageAncestors": ["RESEARCH-05-SEMANTIC"],
+      "evidence": ["vector-path-identity", "deterministic-results", "nonclaim-if-gap"]
+    },
+    {
+      "id": "A5-06-PROGRESS",
+      "fact": "A question streams multiple durable authoritative progress updates before terminal completion.",
+      "planBullet": "streamed durable progress before terminal completion",
+      "lineageAncestors": ["RESEARCH-06-PROGRESS"],
+      "evidence": ["durable-sequence", "transport-attribution", "terminal-order"]
+    },
+    {
+      "id": "A5-07-CITATIONS",
+      "fact": "The answer retains valid citations to authorized source records.",
+      "planBullet": "answer citations to source records",
+      "lineageAncestors": ["RESEARCH-07-CITATIONS"],
+      "evidence": ["authoritative-answer", "source-id-validation", "authority"]
+    },
+    {
+      "id": "A5-08-CANCEL",
+      "fact": "Confirmed cancellation fences every late durable patch.",
+      "planBullet": "cancellation fencing against late durable patches",
+      "lineageAncestors": ["RESEARCH-09-CANCEL"],
+      "evidence": ["cancel-settlement", "late-attempt-injection", "authoritative-log"]
+    },
+    {
+      "id": "A5-09-RETRY",
+      "fact": "Retry is idempotent and duplicates neither questions nor answers.",
+      "planBullet": "idempotent retry without duplicate questions or answers",
+      "lineageAncestors": ["RESEARCH-10-RETRY"],
+      "evidence": ["dedupe-key", "attempt-ledger", "authoritative-counts"]
+    },
+    {
+      "id": "A5-10-OUTCOMES",
+      "fact": "Complete, failed, cancelled, timed-out, and ambiguous outcomes remain distinct.",
+      "planBullet": "distinct complete, failed, cancelled, timed-out, and ambiguous outcomes",
+      "lineageAncestors": ["RESEARCH-11-OUTCOMES"],
+      "evidence": ["fault-injection", "state-machine-records", "settlement"]
+    },
+    {
+      "id": "A5-11-OBSERVER",
+      "fact": "A second member observes the progress live through the attributed path.",
+      "planBullet": "a second member observing progress live",
+      "lineageAncestors": ["RESEARCH-08-COLLABORATOR"],
+      "evidence": ["second-client", "transport-attribution", "authority"]
+    },
+    {
+      "id": "A5-12-REFRESH",
+      "fact": "A scheduled external refresh runs with server-side secret custody; secrets stay out of clients, logs, and receipts.",
+      "planBullet": "scheduled external refresh with server-side secret custody",
+      "lineageAncestors": ["RESEARCH-12-SCHEDULE", "RESEARCH-13-SECRETS"],
+      "evidence": ["schedule-identity", "run-receipt", "canary-secret-scan", "redacted-config-proof"]
+    },
+    {
+      "id": "A5-13-CLEANUP",
+      "fact": "Only exact fresh targets or arm-owned records, files, schedules, and secrets are retired; unrelated baseline state is preserved.",
+      "planBullet": "(kernel) deterministic setup, seed, and cleanup",
+      "kernel": true,
+      "lineageAncestors": ["RESEARCH-15-CLEANUP"],
+      "evidence": ["target-bound-plan", "cleanup-receipt", "post-cleanup-negative"]
+    }
+  ]
+}

@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "contract": "a1",
+  "name": "Offline field notebook",
+  "exercises": "the local-first floor",
+  "lineage": "new — the LLP 0129 local-first floor had no 0102 counterpart",
+  "lineageDiaries": [],
+  "budgetClass": "deep",
+  "consumers": ["snapback-web", "probe", "snapback-expo", "exact"],
+  "expectedCheckCount": 13,
+  "scenarios": [
+    {
+      "id": "A1-01-SEED",
+      "fact": "Exact deterministic dataset and the three personas exist in the fresh target or arm-isolated namespace.",
+      "planBullet": "deterministic seed, export, and cleanup",
+      "kernel": true,
+      "evidence": ["target-identity", "authoritative-counts", "seed-receipt"]
+    },
+    {
+      "id": "A1-02-WORKSPACE",
+      "fact": "Alice and Bob read the authenticated team workspace; Mallory cannot read or subscribe to it.",
+      "planBullet": "authenticated team workspaces and outsider denial",
+      "evidence": ["actor-attribution", "authoritative-read", "negative-read", "negative-subscription"]
+    },
+    {
+      "id": "A1-03-RECORDS",
+      "fact": "Structured records carry assignments, stable ordering, and due dates through create, edit, and reorder transitions.",
+      "planBullet": "structured records, assignments, ordering, due dates, and attachments",
+      "evidence": ["authoritative-after-each-transition", "order-invariants", "settlement"]
+    },
+    {
+      "id": "A1-04-ATTACHMENTS",
+      "fact": "A record attachment is uploaded, authorized, delivered, and deleted.",
+      "planBullet": "structured records, assignments, ordering, due dates, and attachments",
+      "evidence": ["object-identity", "content-hash", "authority", "delete-proof"]
+    },
+    {
+      "id": "A1-05-COLD-RESTART",
+      "fact": "A previously opened client cold-restarts the browser with the backend unreachable and presents the notebook.",
+      "planBullet": "cold browser restart with the backend unreachable",
+      "evidence": ["cold-client", "transport-disabled", "retained-origin"]
+    },
+    {
+      "id": "A1-06-RETAINED-READS",
+      "fact": "Retained protected reads carry an honest freshness state while the backend is unreachable.",
+      "planBullet": "retained protected reads with honest freshness state",
+      "evidence": ["retained-origin", "freshness-state", "authority"]
+    },
+    {
+      "id": "A1-07-QUEUED-DURABILITY",
+      "fact": "Queued create and update operations survive a client restart while still offline.",
+      "planBullet": "durable queued create and update operations across restart",
+      "evidence": ["offline-proof", "queue-inspection", "restart-persistence", "no-remote-commit"]
+    },
+    {
+      "id": "A1-08-CONFLICT",
+      "fact": "Concurrent conflicting edits produce a visible deterministic outcome.",
+      "planBullet": "concurrent conflicting edits with a visible deterministic outcome",
+      "evidence": ["two-actor-barrier", "authoritative-outcome", "client-reconciliation"]
+    },
+    {
+      "id": "A1-09-RECONNECT",
+      "fact": "Reconnect settles the queued work exactly once, without duplication.",
+      "planBullet": "reconnect settlement without duplication",
+      "evidence": ["settlement", "authoritative-counts", "no-duplicates"]
+    },
+    {
+      "id": "A1-10-AUTH-LOSS",
+      "fact": "Authorization loss retires protected local state per the documented contract.",
+      "planBullet": "authorization loss and logout retirement of protected local state",
+      "evidence": ["authority-change", "already-connected-client", "retained-store-inspection"]
+    },
+    {
+      "id": "A1-11-LOGOUT",
+      "fact": "Logout retires protected local state per the documented contract.",
+      "planBullet": "authorization loss and logout retirement of protected local state",
+      "evidence": ["logout-barrier", "post-logout-probe", "retained-store-inspection"]
+    },
+    {
+      "id": "A1-12-EXPORT",
+      "fact": "A deterministic export of the workspace is produced and verified.",
+      "planBullet": "deterministic seed, export, and cleanup",
+      "evidence": ["export-receipt", "content-hash", "authoritative-counts"]
+    },
+    {
+      "id": "A1-13-CLEANUP",
+      "fact": "Only exact fresh targets or the arm-owned namespace are cleaned up; unrelated baseline state is preserved.",
+      "planBullet": "deterministic seed, export, and cleanup",
+      "kernel": true,
+      "evidence": ["target-bound-plan", "cleanup-receipt", "post-cleanup-negative"]
+    }
+  ]
+}

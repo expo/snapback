@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "contract": "a4",
+  "name": "Event and invitation application",
+  "exercises": "broad product services",
+  "lineage": "0102 Partiful-shaped application (Diary 0030)",
+  "lineageDiaries": ["diaries/0030-partiful-backend-bakeoff.diary.md"],
+  "lineageAcceptanceManifest": "demos/backend-bakeoff/protocol/acceptance/partiful.v1.json",
+  "budgetClass": "deep",
+  "consumers": ["snapback-web", "probe", "snapback-expo"],
+  "expectedCheckCount": 11,
+  "scenarios": [
+    {
+      "id": "A4-01-SEED",
+      "fact": "Exact events, guests, capacity fixture, and personas exist in the fresh target or arm-isolated namespace.",
+      "planBullet": "(kernel) deterministic setup, seed, and cleanup",
+      "kernel": true,
+      "lineageAncestors": ["PARTY-01-SEED"],
+      "evidence": ["target-identity", "authoritative-counts", "seed-receipt"]
+    },
+    {
+      "id": "A4-02-PREVIEW",
+      "fact": "The public preview excludes private host controls and private data.",
+      "planBullet": "public preview with private host controls",
+      "lineageAncestors": ["PARTY-02-PUBLIC-PRIVATE"],
+      "evidence": ["anonymous-read", "field-boundary", "negative-private-read"]
+    },
+    {
+      "id": "A4-03-ROLES",
+      "fact": "Host, cohost, guest, and outsider have distinct read/write authority.",
+      "planBullet": "host, cohost, guest, and outsider authority",
+      "lineageAncestors": ["PARTY-04-ROLES"],
+      "evidence": ["positive-role-matrix", "negative-role-matrix"]
+    },
+    {
+      "id": "A4-04-INVITE",
+      "fact": "A guest enters through an invitation and its deep link, and the entry is attributed.",
+      "planBullet": "invitation and deep-link entry",
+      "lineageAncestors": ["PARTY-03-INVITE-RSVP"],
+      "evidence": ["invitation-attribution", "deep-link-entry", "settlement"]
+    },
+    {
+      "id": "A4-05-CAPACITY",
+      "fact": "RSVP with plus-one counts cannot overbook capacity under concurrent contention.",
+      "planBullet": "RSVP plus-one capacity enforced under contention",
+      "lineageAncestors": ["PARTY-06-CAPACITY"],
+      "evidence": ["two-actor-barrier", "settlement", "authoritative-count"]
+    },
+    {
+      "id": "A4-06-LIVE",
+      "fact": "Wall posts, guest counts, and presence update live on a second client through the attributed path.",
+      "planBullet": "live wall posts, guest counts, and presence",
+      "lineageAncestors": ["PARTY-07-LIVE-BURST"],
+      "evidence": ["second-client", "transport-attribution", "authoritative-count"]
+    },
+    {
+      "id": "A4-07-ASSETS",
+      "fact": "An authenticated image is uploaded, produces its rendition, and is delivered to authorized viewers.",
+      "planBullet": "authenticated image upload, rendition, delivery, deletion, and revocation",
+      "lineageAncestors": ["PARTY-08-ASSET"],
+      "evidence": ["object-identity", "rendition-identity", "authorization", "content-hash"]
+    },
+    {
+      "id": "A4-08-ASSET-REVOCATION",
+      "fact": "Image deletion and authority revocation stop further delivery, including to previously authorized viewers.",
+      "planBullet": "authenticated image upload, rendition, delivery, deletion, and revocation",
+      "lineageAncestors": ["PARTY-08-ASSET", "PARTY-12-REVOCATION"],
+      "evidence": ["delete-proof", "authority-change", "negative-delivery"]
+    },
+    {
+      "id": "A4-09-REMINDER",
+      "fact": "A scheduled reminder produces one inspectable, idempotent delivery attempt.",
+      "planBullet": "scheduled reminder with an inspectable, idempotent delivery attempt",
+      "lineageAncestors": ["PARTY-09-SCHEDULE"],
+      "evidence": ["schedule-identity", "run-receipt", "dedupe-key"]
+    },
+    {
+      "id": "A4-10-EFFECT",
+      "fact": "One external notification effect retries without duplication and keeps an ambiguous outcome distinct and safely retryable.",
+      "planBullet": "one external notification effect with retry and ambiguous-outcome handling",
+      "lineageAncestors": ["PARTY-10-EFFECT-RETRY", "PARTY-11-EFFECT-AMBIGUOUS"],
+      "evidence": ["attempt-ledger", "provider-boundary", "fault-injection", "ambiguous-state", "terminal-settlement"]
+    },
+    {
+      "id": "A4-11-CLEANUP",
+      "fact": "Data, files, schedules, identities, and configuration are deterministically cleaned up; unrelated baseline state is preserved.",
+      "planBullet": "deterministic cleanup of data, files, schedules, identities, and config",
+      "kernel": true,
+      "lineageAncestors": ["PARTY-15-CLEANUP"],
+      "evidence": ["target-bound-plan", "cleanup-receipt", "post-cleanup-negative"]
+    }
+  ]
+}

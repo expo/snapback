@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "capturedAt": "2026-08-01",
+  "machine": {
+    "hostname": "Charlies-MacBook-Pro.local",
+    "hardwareModel": "Mac17,6",
+    "cpu": "Apple M5 Max",
+    "architecture": "arm64",
+    "memoryBytes": 137438953472,
+    "os": "macOS 26.5.2",
+    "osBuild": "25F84",
+    "kernel": "Darwin 25.5.0"
+  },
+  "runtime": {
+    "node": "24.18.0",
+    "nodeSource": "volta"
+  },
+  "agent": {
+    "surface": "Claude Code",
+    "modelFamily": "Claude (Fable 5)",
+    "exactBuild": "claude-fable-5",
+    "reasoningSetting": "runtime-not-exposed",
+    "toolConfiguration": [
+      "filesystem",
+      "shell",
+      "web-primary-sources"
+    ],
+    "freshContextPerArm": true
+  },
+  "snapbackRevision": {
+    "frozen": false,
+    "note": "Phase 1 does not freeze a Snapback revision (LLP 0137 G0); the fields below are informational context only, never an arm control. Arms record the exact public @expo/snapback-* package versions they ran against in their capsules.",
+    "informationalCommitAtG0": "f9679cf4860f080bab465d5770b8d6e04b77c1aa"
+  },
+  "knownG0Notes": [
+    "The G0 freeze was produced in an isolated git worktree; the informational commit is the worktree HEAD at freeze time.",
+    "The neutral web shell was installed and built (tsc -b && vite build) under node 24.18.0 before freezing.",
+    "The neutral Expo shell was installed and typechecked (tsc --noEmit) under node 24.18.0 before freezing; a device build is a Track B/G3 concern, not a G0 artifact."
+  ]
+}
