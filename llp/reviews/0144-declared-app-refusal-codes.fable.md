@@ -322,3 +322,164 @@ the floor (MATERIAL-4), and sweep the details. None of this disturbs the
 recommended composition — A2+A3/B3/D2/F1-lean all survive; the revision is
 about completeness of the option record, which is this document's entire
 commission. One round, then a second family pass on the delta.
+
+
+## Round 2 — 2026-08-01 (delta review of v2)
+
+**Reviewer family:** Claude Fable
+**Provider / runtime:** Anthropic Claude Code, `claude-fable-5`, non-author session (same session as round 1)
+**Effort:** session-inherited
+**Date:** 2026-08-01
+**Method:** delta review of v2 against the round-1 findings ledger; every
+claimed resolution re-verified against the tree, the new per-host floor
+restatement and Cloudflare parity ticket independently verified
+(Codex-territory content checked for truth only, no codex artifact read),
+and all newly added text swept for fresh defects.
+**Target:** `llp/0144-declared-app-refusal-codes.rfc.md` (638 lines, Draft, v2)
+**Target SHA-256:** `6eb359517530cd222f05ce69a32149789f0e98910527c6506b4e25fbb67d5dda`
+**Repo revision at review start:** origin/main `9224c01a`
+**Tool uses:** 15
+**Status:** completed
+**Verdict:** NOT READY (one focused sentence-level round; the option
+space itself is now in good shape)
+
+## Verbatim review
+
+## Overall assessment
+
+**Verdict: NOT READY** — for one fresh material defect in the newly
+restated floor, plus three details. Everything else landed.
+
+The v2 revision is high quality. All four of my round-1 MATERIALs are
+genuinely resolved — not paraphrased away — and the four details are
+swept (one partially, see DETAIL-R2-1). The new per-host floor
+restatement and the Cloudflare parity ticket read true against
+`cloudflare/src`: I independently confirmed `classifyHandlerPlatformFailure`
+(cloudflare/src/platform-errors.js:80–93) returns every non-platform
+failure unchanged — including a decoded `appCode`/`appDetails` claim from
+`parseHandlerEnvelope` (consumed at cloudflare/src/coordinator.js:3718) —
+and that no admission implementation or `refusals` reference exists
+anywhere under `cloudflare/src/`, so an undeclared `ctx.refuse` really
+does survive on that host. The ticket's named Rust test exists
+(`application_refusal_is_admitted_only_when_declared`,
+src/runtime.rs:4172), and the "no JS- or Cloudflare-side
+application-refusal test exists anywhere" claim verifies (no test files
+in `packages/snapback-harness/` at all; zero hits under
+`cloudflare/test/` and `tests/`).
+
+But the corrected floor is still one engine leg short, and the error is
+in freshly written text: admission is not a property of "the Rust host" —
+it is a property of the Rust host's *Ibex leg only*.
+
+## Fresh findings (v2 text)
+
+**MATERIAL-R2-1 — The per-host floor restatement is itself overstated:
+the local workerd-v8 twin leg bypasses admission, so the hole is
+per-engine-leg, not per-host — and the repair program inherits the
+miss.**
+§Floor facts 3–4, the parity ticket, §Recommended composition step 0.
+`run_ibex_handler_with_context_until` (src/runtime.rs:2655) routes
+queries and mutations to the workerd twin when
+`SNAPBACK_HANDLER_BACKEND=workerd-v8` is selected
+(src/workerd_exec.rs:74–82; excluded for actions only, :2665–2668) and
+**returns at :2682 — before the single `admit_declared_refusal` call
+site at :2726, which only the Ibex leg reaches**.
+`run_handler_workerd` itself ends in plain `parse_handler_output`
+(src/workerd_exec.rs:874) with no admission, and there is no other
+admission call site in the tree (the only non-test caller of
+`admit_declared_refusal` is :2726). So on the *local Rust host* under
+the twin backend, a claimed `SNAPBACK_APP_REFUSAL` — declared or not —
+passes to the caller with its app-authored bytes, exactly the defect
+class floor fact 3 attributes to the Cloudflare host alone. The twin is
+opt-in (default Ibex) and primarily the LLP 0048 parity harness — but
+that is precisely the aggravation: the twin exists to prove
+engine-parity, and this is an engine-parity divergence sitting inside
+it. Consequences for the v2 text: floor fact 3's "fail-closed by
+construction *on that host*" is false as stated; floor fact 4's "only
+the Rust host then adjudicates the claim" should read "only the Rust
+host's Ibex leg"; the parity ticket's fix shape (Cloudflare-side
+admission) is scoped one leg short — the structural fix is to hoist
+admission out of the engine legs into the engine-neutral completion
+path (the workerd branch's early return at :2682 skips only admission;
+`denial_witness`/`stream_refusal` restoration are action-scoped and
+actions never take the twin branch, so admission is the only orphan);
+and step 0 plus the floor-repair witness should cover the triad on
+**three** surfaces (Ibex leg, twin leg, Cloudflare host), not two.
+Resolution: one sentence-level pass over floor facts 3–4, widen the
+ticket (or file the twin-leg sibling), extend step 0's triad, and note
+the hoist as the fix shape.
+
+**DETAIL-R2-1 — A2 still carries "(the 0094-gap ticket's ask)" after
+§Motivating evidence downgraded that citation to analogy.**
+§Axis A2 vs §Motivating evidence. v2's motivating-evidence text now
+correctly says the enumerability framing "is this RFC's extrapolation …
+an analogy, not the ticket's recorded ask", but Axis A2 (line ~212)
+still asserts the ask directly — the round-1 detail was applied in one
+place and not the other. Same sweep should re-argue A2's "single
+enumerable registry" line against floor fact 6 in place (only OQ5
+carries the caveat today): enumerable to codegen consumers is not
+enumerable to the clean-room client while the public descriptor drops
+`refusals`.
+
+**DETAIL-R2-2 — I3 is stated in the indicative and is now contradicted
+twice by the RFC's own floor.** "Any path that does not deliberately
+carry the declared set folds every claim" is aspiration, not fact, on
+the Cloudflare host (floor fact 3) and on the twin leg (MATERIAL-R2-1).
+Rephrase normatively — "must fold" — so the invariant reads as the
+obligation the repair restores rather than a description the floor
+section itself refutes.
+
+**DETAIL-R2-3 — B3's value-free validation note has no stated wire
+location, and C1's "no envelope-schema change" quietly depends on the
+answer.** D2's discriminated pair makes `detailsDropped` a typed
+discriminant the *client* must be able to compute, which means the
+dropped-payload marker must cross the wire somewhere (presumably a
+diagnostic-details field). That is smaller than C2's `appCode`
+promotion, but it is not nothing: either name the carrier (a
+`detailsDropped: true` / note field inside `appDetails`-adjacent
+diagnostic details, fixture-pinned in class 1) or soften C1's claim to
+"no envelope-schema change beyond the B3 marker".
+
+## Round-1 findings ledger
+
+- **M1 (as-built Axis F + observation half): RESOLVED.** Axis F now
+  opens with the read-out total-collapse determination (citation chain
+  reproduced accurately), splits observation (FO-1/2/3, all three
+  genuinely distinct) from transport, sketches the F1 refusal-witness
+  state machine faithfully to the `restore_denial_witness` precedent
+  (exact-match restore, caught-refusal invalidation, single-witness
+  rule), and pulls the fold-always pinning test to step 0. F3's
+  distinct-field spelling (`refusalExposure`) properly avoids mutating
+  A1's settled grammar.
+- **M2 (disclosure): RESOLVED.** Axis I with I-1/I-2/I-3, invariant I7,
+  and a witness; I-2's schemas-as-disclosure-allowlist argument is a
+  real addition, and I-3 stays honestly advisory.
+- **M3 (fixture scope + divergence): RESOLVED.** The
+  no-completion-envelope-class fact is recorded, the three fixture
+  classes are correctly separated by authority, the 16-code divergence
+  list matches my round-1 enumeration exactly, and OQ8 asks for the
+  ruling. The new "Rust-side tests only (direct and served-path)"
+  claim verifies (src/runtime.rs:4172;
+  `declared_application_refusal_round_trips_and_undeclared_folds`,
+  src/local.rs — in-process `LocalSnapback` end-to-end, "served" per
+  that test's own doc comment).
+- **M4 (public-descriptor omission): RESOLVED with residue.** Floor
+  fact 6 records it with the right anchors; OQ5/OQ6 re-argue against
+  the real baseline; the A2 in-place residual is DETAIL-R2-1.
+- **Details D1–D4: RESOLVED** (LLP 0061 in Related and LLP 0070's Axis
+  E adjacency named — `lastErrorCode` verifies at src/jobs.rs:158; OQ4
+  rewritten over the verified fragments with the ruling kept open; C
+  witness reworded to decoded judgments; D3↔A6 cross-reference closes
+  the loop). The Axis E ownership rewording also verifies: LLP 0133 is
+  Accepted, and its §element-1 text explicitly leaves refusal typing
+  and quarantine/resync disposition to other owners ("not decided
+  here", llp/0133:575–583).
+
+## Recommended next step
+
+Revise and stay Draft: apply MATERIAL-R2-1 (floor facts 3–4 sentence
+fixes, ticket widened to the twin leg or a sibling filed, step 0 triad
+on three surfaces, hoist-the-admission fix shape) and the three
+details. That is a small, mechanical round; nothing in the option
+space, the recommendation, or the open questions needs to move. After
+it, this reviewer expects READY.
