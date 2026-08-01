@@ -5,7 +5,11 @@
 **Systems:** API, Storage, Runtime, Sync, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-30 (Diary 0039 dated alignment: structured collection
+**Revised:** 2026-08-01 (implicit collection completeness: a JS
+`ctx.db.query(...).collect()` that reaches the portable 1,024-row cap now
+refuses with `SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED`; authors must use
+server-side ordering plus explicit `take(n)` when they intend a bounded
+prefix). 2026-07-30 (Diary 0039 dated alignment: structured collection
 validators for arguments and stored fields are a named spec hole to be filled
 by a new owned Spec under this RFC's portability rules, per LLP 0115 CV-4 —
 see §Dated alignment: structured collection validators); 2026-07-27 (LLP 0108 amendment: JS handlers may be colocated as
@@ -226,6 +230,13 @@ possible and fall back to correct in-process evaluation only when needed. If a
 query cannot be executed efficiently or portably, the API should make that
 visible to agents through diagnostics rather than silently becoming a production
 footgun.
+
+`collect()` is portability-bounded, not an unbounded table materializer. A JS
+handler that omits `take(n)` and receives exactly the portable 1,024-row ceiling
+cannot prove whether that prefix is complete, so it fails closed with
+`SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED`. An explicit `take(n)` acknowledges
+prefix semantics; ordering and filtering that determine the prefix must be in
+the query builder before `collect()`, not applied in JavaScript afterward.
 
 The default shape should be index-first for unbounded tables. `filter` should be
 a structured predicate expression, not an arbitrary JavaScript callback, and

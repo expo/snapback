@@ -9,7 +9,7 @@ examples: [demos/todo, demos/todo-v2, demos/signal-desk]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-27
+reviewed: 2026-08-01
 reviewed-commit: HEAD
 ---
 
@@ -117,6 +117,33 @@ The returned `version` is an exact integer in
 `0..=Number.MAX_SAFE_INTEGER`. A malformed, negative, or out-of-range durable
 cursor fails closed instead of being rounded, wrapped, or replaced with zero.
 
+## Bound every collection intentionally
+
+`ctx.db.query(...).collect()` is not an unbounded table scan. Without an
+explicit `.take(n)`, it may return at most 1,024 rows. If it reaches that
+ceiling, Snapback refuses the invocation with
+`SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED`: the runtime cannot prove whether the
+1,024 rows are the complete result or a truncated prefix.
+
+Put the filters and ordering that define the desired window on the server, then
+declare its size:
+
+```js fragment reason="portable bounded query pattern"
+const latest = await ctx.db
+  .query('events')
+  .withIndex('by_fleet_severity_page')
+  .eq('fleetId', args.fleetId)
+  .eq('severity', 'critical')
+  .order('pageKey', 'desc')
+  .take(100)
+  .collect();
+```
+
+An explicit `.take(1_024)` is allowed and means “this bounded prefix is
+intentional”; it does not claim the whole predicate has only 1,024 matches.
+Do not collect a large prefix and then sort or filter it in JavaScript to infer
+the global top rows—the omitted rows may contain the actual winners.
+
 ## Scope on the server
 
 Put authorization predicates in the query, not in client arguments or UI
@@ -140,6 +167,8 @@ polling contract. See [live queries](../realtime/live-queries.md).
   in the query predicate.
 - **Do not omit an available index.** A declarative `index` or JS
   `withIndex` makes the intended lookup explicit and portable.
+- **Do not sort or filter after an implicit `collect()` to infer a global
+  result.** Push the operation into the query builder and declare `.take(n)`.
 - **Do not mark every query live.** Ordinary queries stay ordinary; opt into
   live delivery only when the UI needs subscription semantics.
 - **Do not return a stored row under `results.records`.** Use

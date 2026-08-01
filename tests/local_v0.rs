@@ -3890,6 +3890,102 @@ globalThis.__snapbackHandlers = {
     assert_eq!(output.rows, vec![json!(2)]);
 }
 
+#[test]
+fn handler_collect_refuses_the_implicit_ceiling_and_supports_an_explicit_prefix() {
+    const SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async implicitTail(ctx) {
+    const rows = await ctx.db.query('todos').withIndex('by_user').eq('userId', 'u').collect();
+    rows.sort((left, right) => right.rank - left.rank);
+    return rows.slice(0, 1);
+  },
+  async explicitTail(ctx) {
+    return await ctx.db
+      .query('todos')
+      .withIndex('by_user')
+      .eq('userId', 'u')
+      .order('rank', 'desc')
+      .take(1)
+      .collect();
+  }
+};
+"#;
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.apply_schema(todo_schema()).expect("schema");
+    let mut functions = FunctionManifest::default();
+    for name in ["implicitTail", "explicitTail"] {
+        let mut function = FunctionDefinition::new(
+            name,
+            FunctionKind::Query,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: SOURCE.to_owned(),
+                export: name.to_owned(),
+            }),
+        );
+        function.required_capabilities = vec!["ibex_ctx_db_host_bridge".to_owned()];
+        function.read_set_summary.primary_table = Some("todos".to_owned());
+        function.read_set_summary.tables = vec!["todos".to_owned()];
+        function.read_set_summary.mode = Some("handlerDeclared".to_owned());
+        functions.functions.push(function);
+    }
+    snapback.load_functions(functions);
+    let rows = (0..1_025)
+        .map(|rank| {
+            Map::from_iter([
+                ("_id".to_owned(), json!(format!("todo-{rank:04}"))),
+                ("title".to_owned(), json!(format!("todo {rank}"))),
+                ("completed".to_owned(), json!(false)),
+                ("rank".to_owned(), json!(rank)),
+                ("userId".to_owned(), json!("u")),
+            ])
+        })
+        .collect();
+    snapback
+        .seed(SeedData {
+            tables: BTreeMap::from([("todos".to_owned(), rows)]),
+        })
+        .expect("seed over-cap table");
+
+    let error = snapback
+        .invoke_query("implicitTail", input(json!({}), "u"))
+        .expect_err("an implicit 1,024-row prefix cannot masquerade as complete");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED"
+    );
+
+    let output = snapback
+        .invoke_query("explicitTail", input(json!({}), "u"))
+        .expect("an explicitly ordered and bounded prefix is intentional");
+    assert_eq!(output.rows.len(), 1);
+    assert_eq!(output.rows[0]["rank"], 1_024);
+
+    snapback.reset().expect("reset over-cap fixture");
+    let exactly_at_cap = (0..1_024)
+        .map(|rank| {
+            Map::from_iter([
+                ("_id".to_owned(), json!(format!("todo-{rank:04}"))),
+                ("title".to_owned(), json!(format!("todo {rank}"))),
+                ("completed".to_owned(), json!(false)),
+                ("rank".to_owned(), json!(rank)),
+                ("userId".to_owned(), json!("u")),
+            ])
+        })
+        .collect();
+    snapback
+        .seed(SeedData {
+            tables: BTreeMap::from([("todos".to_owned(), exactly_at_cap)]),
+        })
+        .expect("seed exactly-at-cap table");
+    let error = snapback
+        .invoke_query("implicitTail", input(json!({}), "u"))
+        .expect_err("exactly 1,024 rows must conservatively require an explicit limit");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED"
+    );
+}
+
 const RYW_HANDLER_SOURCE: &str = r#"
 globalThis.__snapbackHandlers = {
   async listTodos(ctx) {

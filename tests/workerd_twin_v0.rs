@@ -12,17 +12,18 @@
 // integration-test crates need their own allow under clippy 1.94+.
 #![allow(clippy::result_large_err)]
 
-use serde_json::{Value, json};
+use serde_json::{Map, Value, json};
 use snapback::local::LocalSnapback;
 use snapback::manifest::{
     AuthInput, FieldManifest, FieldType, FunctionDefinition, FunctionKind, FunctionManifest,
-    FunctionRuntime, HandlerInput, IbexModule, SchemaManifest, TableManifest,
+    FunctionRuntime, HandlerInput, IbexModule, SchemaManifest, SeedData, TableManifest,
 };
 use snapback::workerd_exec::{
     HandlerBackend, HostCallTestMode, InvokeAuthTestMode, detect_workerd_binary,
     with_forced_backend, with_host_call_test_mode, with_invoke_auth_test_mode,
     with_wall_clock_timeout_ms,
 };
+use std::collections::BTreeMap;
 
 const TWIN_MODULE_SOURCE: &str = include_str!("conformance/twin-corpus.handlers.js");
 
@@ -204,6 +205,7 @@ fn functions() -> FunctionManifest {
             define("addItem", FunctionKind::Mutation),
             define("listItems", FunctionKind::Query),
             define("queryLimitValidation", FunctionKind::Query),
+            define("implicitLimitProbe", FunctionKind::Query),
             define("firstItem", FunctionKind::Query),
             define("readYourWrites", FunctionKind::Mutation),
             define("patchAndDelete", FunctionKind::Mutation),
@@ -410,6 +412,36 @@ fn query_limit_edge_values_fail_with_the_portable_diagnostic_on_both_engines() {
         })
         .unwrap_or_else(|error| panic!("{backend:?} query-limit validation failed: {error}"));
         assert_eq!(output.rows, expected, "{backend:?}");
+    }
+}
+
+#[test]
+fn implicit_collection_limit_refusal_is_engine_neutral() {
+    require_workerd!();
+    for backend in [HandlerBackend::Ibex, HandlerBackend::WorkerdV8] {
+        let mut snapback = configured();
+        let rows = (0..1_025)
+            .map(|rank| {
+                Map::from_iter([
+                    ("_id".to_owned(), json!(format!("item-{rank:04}"))),
+                    ("label".to_owned(), json!(format!("item {rank}"))),
+                    ("rank".to_owned(), json!(rank)),
+                ])
+            })
+            .collect();
+        snapback
+            .seed(SeedData {
+                tables: BTreeMap::from([("items".to_owned(), rows)]),
+            })
+            .expect("seed over-cap twin fixture");
+        let error = with_forced_backend(backend, || {
+            snapback.invoke_query("implicitLimitProbe", input(json!({})))
+        })
+        .expect_err("implicit collection at the portable cap must fail closed");
+        assert_eq!(
+            error.diagnostic.code, "SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED",
+            "{backend:?} must preserve the completeness refusal across its handler envelope"
+        );
     }
 }
 

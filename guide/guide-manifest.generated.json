@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "e790311100b09f6be1f43c766f9f93bf815a893f"
+    "commit": "4e0802787855d57aaca3ac01b08d90fa009598dc"
   },
   "nav": {
     ".": [
@@ -759,9 +759,9 @@
         "demos/todo-v2",
         "demos/signal-desk"
       ],
-      "reviewed": "2026-07-27",
+      "reviewed": "2026-08-01",
       "reviewedCommit": "HEAD",
-      "sha256": "847907eb1ec2d439188961dbf8d315ff93ce3ffd04c80aead2cae9eec0014f9e",
+      "sha256": "e788f4f4bbeb5f5d82c5f3df5bf4d920459ae2b8cf50630d09290c9765b6b9e1",
       "snippets": [
         {
           "lang": "js",
@@ -772,6 +772,10 @@
           "lang": "js",
           "class": "transcluded",
           "source": "demos/signal-desk/snapback/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "fragment"
         }
       ]
     },
@@ -2281,5 +2285,5 @@
     "routes": 86,
     "hostOps": 28
   },
-  "contentHash": "757a1562e6d5c5a94889670bd07246b9c5f0d742fbda61303697a6b315f6a720"
+  "contentHash": "1c7628ca3ff44193cab2d8a4a581e0a331150ec7d58b3e2161aeefe889fda34b"
 }

@@ -3490,6 +3490,7 @@ fn handler_envelope_code(code: &str) -> &str {
         | "SNAPBACK_QUERY_FILTER_BINDINGS_EXCEEDED"
         | "SNAPBACK_QUERY_FILTER_VALUE_INVALID"
         | "SNAPBACK_QUERY_IN_ITEMS_EXCEEDED"
+        | "SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED"
         | "SNAPBACK_QUERY_LIMIT_INVALID" => code,
         code if code.starts_with("SNAPBACK_HANDLER_HOST_CALL_") => code,
         _ => "SNAPBACK_HANDLER_FAILED",

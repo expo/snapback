@@ -33,6 +33,11 @@ globalThis.__snapbackHandlers = {
     }
     return [{ codes: codes }];
   },
+  async implicitLimitProbe(ctx) {
+    var rows = await ctx.db.query('items').collect();
+    rows.sort(function(left, right) { return right.rank - left.rank; });
+    return rows.slice(0, 1);
+  },
   async firstItem(ctx) {
     var row = await ctx.db.query('items').order('rank', 'asc').first();
     return row ? [row] : [];

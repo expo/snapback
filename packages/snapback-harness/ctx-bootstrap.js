@@ -573,6 +573,9 @@
     }
     function makeBuilder(table) {
       var plan = { table: table, filters: [], order: [], limit: QUERY_MAX_LIMIT, indexed_by: null };
+      // @ref LLP 0004#ctxdb-contract — reaching the portable cap without an
+      // explicit take cannot silently claim the predicate was complete.
+      var explicitLimit = false;
       var filterBindings = 0;
       var inItems = 0;
       function appendFilter(filter, addedBindings) {
@@ -629,6 +632,7 @@
             throw snapbackError("SNAPBACK_QUERY_LIMIT_INVALID", "query limit must be a non-negative safe integer no greater than " + QUERY_MAX_LIMIT);
           }
           plan.limit = limit;
+          explicitLimit = true;
           return builder;
         },
         // The host boundary is engine-shaped: synchronous FFI on Ibex, an
@@ -636,10 +640,19 @@
         // unwrap either shape from one source, so handlers `await` both.
         collect: function() {
           var output = host("db.query", { plan: plan });
-          if (output && typeof output.then === "function") {
-            return output.then(function(resolved) { return resolved.rows; });
+          function collectRows(resolved) {
+            if (!explicitLimit && resolved.rows.length === QUERY_MAX_LIMIT) {
+              throw snapbackError(
+                "SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED",
+                "query collect reached the implicit 1024-row cap; add order(...).take(n) for an intentional bounded prefix"
+              );
+            }
+            return resolved.rows;
           }
-          return output.rows;
+          if (output && typeof output.then === "function") {
+            return output.then(collectRows);
+          }
+          return collectRows(output);
         },
         first: function() {
           var firstPlan = {
