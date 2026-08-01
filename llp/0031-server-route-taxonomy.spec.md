@@ -1183,6 +1183,16 @@ The rotation operator surface is not a route: `asset.rotateSigningKey`
 joins the LLP 0024 host-operation registry beside the other `asset.*`
 operations (AdminWrite, NonProd).
 
+*Dated addition (2026-07-31, author-approved — LLP 0044 §Delivery
+profiles dated note):* the two URL-authority serve lanes above
+(`/assets/signed/{id}/{variant}`, `/assets/public/{id}/{variant}`) are
+exempt from the sessions-mode auth-client protocol-offer requirement —
+plain `<img src>`/CDN/pasted-link consumers can send no custom headers,
+and these lanes negotiate nothing. The exemption is the closed
+`pasteable_delivery_route` predicate (structural properties AND the
+explicit path pair, so no future public route inherits it by shape);
+issuance and strict delivery keep the offer discipline.
+
 ## Dated amendment: versioned seed route family (2026-07-27)
 
 LLP 0109 registers

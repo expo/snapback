@@ -38,6 +38,29 @@ export const fileUpload = defineAssetUpload({
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
 
+// The pasteable-delivery pair (LLP 0044 §Delivery profiles, dated note
+// 2026-07-31): a public-immutable cover and a private-signed share, both
+// strip-declared images with the primary as the only rendition.
+export const coverUpload = defineAssetUpload({
+  args: {},
+  auth: 'authenticated',
+  accept: { mediaTypes: ['image/png'], maxBytes: 1_000_000 },
+  delivery: { kind: 'public-immutable' },
+  access: { read: 'via-references' },
+  image: { location: 'strip' },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+
+export const shareUpload = defineAssetUpload({
+  args: {},
+  auth: 'authenticated',
+  accept: { mediaTypes: ['image/png'], maxBytes: 1_000_000 },
+  delivery: { kind: 'private-signed' },
+  access: { read: 'owner-only' },
+  image: { location: 'strip' },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+
 export const createWorkspace = defineJsMutation({
   auth: 'authenticated',
   args: { name: v.string() },

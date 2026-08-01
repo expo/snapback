@@ -493,6 +493,43 @@ try {
   sessionsStore.dispose();
   checks.sessionsLiveDelivers = true;
 
+  // Vector 11 — pasteable delivery (LLP 0044 §Delivery profiles, dated note
+  // 2026-07-31): on the public alias and the signed serve lane the URL is
+  // the entire authority, so a raw fetch with ZERO Snapback headers must
+  // serve — that is what <img src>, CDN pulls, and pasted share links can
+  // send. Strict delivery keeps the sessions protocol-offer discipline.
+  const cover = await uploadReady(ada, adaAssets, redPng(8), api.coverUpload);
+  const publicPlain = await fetch(
+    `${sessionsServer.baseUrl}/assets/public/${encodeURIComponent(cover.assetId)}/primary`,
+  );
+  assert.equal(publicPlain.status, 200, 'headerless public GET serves');
+  assert.equal(
+    publicPlain.headers.get('cache-control'),
+    'public, max-age=31536000, immutable',
+  );
+  assert.equal(publicPlain.headers.get('content-type'), 'image/png');
+  const share = await uploadReady(ada, adaAssets, redPng(8), api.shareUpload);
+  const issuanceResponse = await fetch(
+    `${sessionsServer.baseUrl}/assets/records/${encodeURIComponent(share.assetId)}/signed-url`,
+    {
+      method: 'POST',
+      headers: { ...custody(ada), 'content-type': 'application/json' },
+      body: JSON.stringify({ variant: 'primary' }),
+    },
+  );
+  const issuanceBody = await issuanceResponse.json();
+  assert.equal(issuanceResponse.status, 200, JSON.stringify(issuanceBody));
+  const signedPlain = await fetch(`${sessionsServer.baseUrl}${issuanceBody.url}`);
+  assert.equal(signedPlain.status, 200, 'headerless signed GET serves within the TTL');
+  const strictPlain = await fetch(
+    adaAssets.deliveryUrl(first.assetId, { variant: 'thumb' }),
+  );
+  assert.ok(
+    strictPlain.status >= 400,
+    'strict delivery without the protocol offer keeps refusing',
+  );
+  checks.pasteableDeliveryHeaderless = true;
+
   // --------------------------------------------------------------------- dev
   // The live-frame leg: dev mode is the lane where the reserved projection
   // establishes, and host-ops is the lane with real dev per-user authority.

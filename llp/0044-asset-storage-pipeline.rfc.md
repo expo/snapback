@@ -1033,6 +1033,22 @@ The signing key is instance-owned system material, not an app-declared LLP
 0036 grant. It lives in the system store with a documented rotation path and
 never appears in client references, receipts, or diagnostics.
 
+> **Dated note — pasteable delivery lanes (2026-07-31, author-approved).**
+> The public alias and the signed serve lane are exempt from the
+> sessions-mode auth-client protocol-offer requirement. On these two
+> routes the URL is the entire authority — the public alias carries no
+> credential by design, and the signed lane's query token is the
+> credential — while the protocol offer exists to version
+> invalidation-capable protocol clients. Plain `<img src>` consumers,
+> CDN pulls, and pasted share links can send no custom headers and
+> negotiate nothing, so requiring the offer there defeated both
+> profiles' declared purpose without protecting anything (found by the
+> Party Wall diary, finding 7). The exemption is a closed route set
+> asserted together with its structural properties
+> (`pasteable_delivery_route` in the server's route policy); signed-URL
+> **issuance**, strict delivery, and every other asset route keep the
+> protocol-offer discipline unchanged.
+
 #### `private-strict`
 
 Every byte/range request passes through a Snapback-authorized delivery route.
