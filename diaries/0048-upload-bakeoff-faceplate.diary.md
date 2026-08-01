@@ -195,3 +195,64 @@ sharpest Snapback deficit: ceremony — PocketBase needed *zero authored
 backend files* against our three plus codegen, and its on-the-fly
 thumb parameter has no Snapback equivalent (variants are pre-declared).
 Both findings go to the synthesis.
+
+## 2026-08-01 — Round 2, Snapback arm rerun (fresh-context builder)
+
+Purpose: measure whether the post-round-1 fix wave helped. Method: a
+fresh-context builder (no diary/issue/round-1-arm access; guide +
+workspace packages only — the same package surface as round 1, so
+like-for-like) rebuilt this app's Snapback arm against the frozen
+checklist; a full-context verifier reran its driver end to end and
+wrote this entry. Builder commit `5a28881d`; arm
+`demos/upload-bakeoff/faceplate/snapback-r2/`.
+
+**Verification: confirmed.** Driver rerun 8/8, exit 0. Spot-checks held
+in the verifier's own run: GPS fixture in `hasGpsExif=true` → served
+`false`; `Cache-Control: no-store, private` on strict bytes; explicit
+DELETE → bytes 404.
+
+**Wall-clock: ~40 min → ~10.5 min (≈4×).** Round 1 lost roughly half
+its time to frictions; round 2's first codegen attempt succeeded with
+zero diagnostics at 3:47, first serve at 7:40, final 8/8 at 8:10 —
+essentially friction-free authoring.
+
+**Round-1 frictions, dispositioned:**
+- **F1 (hand-guessed delivery URLs) — GONE.** The builder went straight
+  to the documented delivery route; the assets guide page (landed with
+  the docs sweeps) now carries the paved path prominently.
+- **F2 (protocol-header-before-auth surprise) — GONE as a friction.**
+  The behavior is unchanged by design; round 2 hit the same 400 in
+  check 7 and recorded it as the *documented* private-strict posture
+  rather than a surprise — the documentation, not the server, changed.
+- **F3 (conformance-suite spelunking for the result envelope) — GONE.**
+  No out-of-guide reading was needed anywhere in the build.
+- **F4 (hand-rolled JPEG refused) — GONE,** partly by process: round 2
+  was told the shared GPS instrument exists. The hostile-input refusal
+  it hit in round 1 remains correct behavior.
+
+**New frictions (3, none product-defect):** one environmental — the
+server-lifecycle kit refused a binary whose health commit mismatched
+the dirty worktree (`SNAPBACK_SERVER_LAUNCH_FAILED`), with a recovery
+record handing the exact `SNAPBACK_SERVER_BINARY` override, which
+worked verbatim (good diagnostics; the packaged-readiness-receipt
+ticket's territory) — and two self-inflicted builder slips (a relative
+path, an evidence-ordering conflation), recorded as builder variance.
+
+**Measurement notes.** (1) Ceremony: round 1 counted 6 coarse concepts;
+round 2's finer ledger counted 18 distinct concepts to check 2 — a
+counting-granularity difference, not a regression; the 18-item list is
+the better instrument and is exactly what the in-flight ceremony-floor
+amendment targets. (2) Replace semantics: round 1 measured the
+*other-user* 403 after replacement (edge removal revoking
+via-references); round 2 measured *owner* retention of the orphaned
+old asset (owner-only fallback) plus `referenceGc`-undeclared
+persistence and explicit-delete 404 — different angles on the same
+designed behavior, both correct. (3) Pasteability: check 7 exercises
+the strict default, deliberately non-pasteable and unchanged; the fix
+wave's pasteable lanes apply to public/signed delivery, which this
+checklist does not exercise.
+
+**Verdict for this app: the fix wave helped, materially.** All four
+round-1 frictions are gone, authoring time dropped ~4×, and the only
+platform friction left was environmental with a self-describing
+recovery.
