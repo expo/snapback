@@ -40,6 +40,27 @@ pub const ASSET_APP_LOGICAL_QUOTA_BYTES: u64 = 4 * 1024 * 1024 * 1024;
 /// assets are not free (LLP 0044 §Deduplication/quotas).
 pub const ASSET_MIN_ACCOUNTING_UNIT_BYTES: u64 = 4096;
 pub const ASSET_MAX_CHUNK_BYTES: u64 = 8 * 1024 * 1024;
+// @ref LLP 0044#ceremony-floor-and-bounded-on-demand-widths-dated-amendment-2026-08-01 —
+//   `?width=N` normalizes UP this fixed ladder, bounding the on-demand
+//   variant space per asset; renditions materialize once and serve
+//   immutably. The ceiling is a declared capability fact.
+pub const ASSET_ON_DEMAND_WIDTH_LADDER: [u64; 13] = [
+    16, 32, 64, 96, 128, 192, 256, 384, 512, 768, 1024, 1536, 2048,
+];
+pub const ASSET_ON_DEMAND_MAX_WIDTH_PX: u64 = 2048;
+
+/// Ladder-normalize a requested on-demand width: the first ladder member
+/// >= the request, or None above the ceiling.
+pub fn normalize_on_demand_width(requested: u64) -> Option<u64> {
+    if requested == 0 || requested > ASSET_ON_DEMAND_MAX_WIDTH_PX {
+        return None;
+    }
+    ASSET_ON_DEMAND_WIDTH_LADDER
+        .iter()
+        .copied()
+        .find(|step| *step >= requested)
+}
+
 pub const ASSET_TUS_VERSION: &str = "1.0.0";
 /// The checksum algorithms the TUS lane accepts on `Upload-Checksum`.
 pub const ASSET_TUS_CHECKSUM_ALGORITHMS: [&str; 1] = ["sha256"];
@@ -654,6 +675,11 @@ pub struct AssetSignedUrlIssueRequestV1 {
     /// absent.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ttl_ms: Option<u64>,
+    /// On-demand ladder width (LLP 0044 §Ceremony floor): when present the
+    /// issuance resolves and materializes the ladder rendition, then signs
+    /// that concrete variant — `variant` is superseded.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub width_px: Option<u64>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -2999,6 +3025,11 @@ pub struct AssetImageFactsV1 {
     pub max_metadata_bytes: u64,
     pub step_time_budget_ms: u64,
     pub max_output_bytes: u64,
+    /// The bounded on-demand width ladder (LLP 0044 §Ceremony floor,
+    /// 2026-08-01): `?width=N` normalizes up this ladder and materializes
+    /// once through the ordinary rendition machinery.
+    pub on_demand_width_ladder: Vec<u64>,
+    pub on_demand_max_width_px: u64,
 }
 
 impl AssetImageFactsV1 {
@@ -3019,6 +3050,8 @@ impl AssetImageFactsV1 {
             max_metadata_bytes: ceilings.max_metadata_bytes,
             step_time_budget_ms: ceilings.step_time_budget_ms,
             max_output_bytes: ceilings.max_output_bytes,
+            on_demand_width_ladder: ASSET_ON_DEMAND_WIDTH_LADDER.to_vec(),
+            on_demand_max_width_px: ASSET_ON_DEMAND_MAX_WIDTH_PX,
         }
     }
 }
@@ -3604,6 +3637,18 @@ pub fn schema_registrations() -> Vec<(&'static str, Value)> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn on_demand_width_normalizes_up_the_ladder_and_bounds() {
+        use super::normalize_on_demand_width as norm;
+        assert_eq!(norm(1), Some(16));
+        assert_eq!(norm(16), Some(16));
+        assert_eq!(norm(100), Some(128));
+        assert_eq!(norm(129), Some(192));
+        assert_eq!(norm(2048), Some(2048));
+        assert_eq!(norm(2049), None);
+        assert_eq!(norm(0), None);
+    }
+
     use super::*;
     use rusqlite::Connection;
 

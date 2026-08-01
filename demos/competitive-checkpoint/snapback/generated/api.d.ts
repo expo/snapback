@@ -132,5 +132,6 @@ export interface GeneratedApi {
 }
 export declare const ephemeral: GeneratedEphemeral;
 export declare const groups: GeneratedQueryGroups;
+export declare const defaults: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
 export declare const api: GeneratedApi;
 export default api;

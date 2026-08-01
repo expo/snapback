@@ -15,6 +15,15 @@
     },
     "variant": {
       "type": "string"
+    },
+    "widthPx": {
+      "description": "On-demand ladder width (LLP 0044 §Ceremony floor): when present the\nissuance resolves and materializes the ladder rendition, then signs\nthat concrete variant — `variant` is superseded.",
+      "format": "uint64",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
     }
   },
   "required": [

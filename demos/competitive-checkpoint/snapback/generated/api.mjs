@@ -3,6 +3,8 @@
 export const ephemeral = Object.freeze({});
 /** @type {import('./api.d.ts').GeneratedQueryGroups} */
 export const groups = Object.freeze({});
+/** @type {Readonly<Record<string, Readonly<Record<string, unknown>>>>} */
+export const defaults = Object.freeze({});
 /** @type {import('./api.d.ts').GeneratedApi} */
 export const api = Object.freeze({
   "applyReplyProgress": {

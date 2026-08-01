@@ -1,0 +1,228 @@
+{
+  "appId": "fixtures",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "auth": {
+    "mode": "sessions"
+  },
+  "ephemeralCollections": [],
+  "generatedAt": 0,
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:2f9fb831da26ccce4a286773e2e0d23be7cd4d616b376ae39149c02eef4f5ceb",
+  "portabilityFlags": [],
+  "requiredCapabilities": [
+    "auth.sessions.v1"
+  ],
+  "schemaHash": "snapback.v1:sessions:schema:sha256:97d18f49bf3cec40c42fad04fcd3695a9d4f731be0e43f2ce74de88ee34924e1",
+  "schemaVersion": "snapback.v1",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "name",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "createdBy",
+          "optional": false
+        }
+      ],
+      "indexes": [],
+      "name": "workspaces",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "workspaces"
+            }
+          },
+          "name": "workspaceId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "userId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "role",
+          "optional": false
+        }
+      ],
+      "indexes": [],
+      "membership": {
+        "bootstrapRole": "owner",
+        "id": "workspaceMembers",
+        "lastHolder": {
+          "protect": "owner"
+        },
+        "principal": "userId",
+        "provenance": "full",
+        "resource": "workspaceId",
+        "resourceTable": "workspaces",
+        "role": "role",
+        "roles": [
+          "owner",
+          "member"
+        ],
+        "scope": "resource",
+        "transitions": [
+          {
+            "by": [
+              "owner"
+            ],
+            "op": "insert",
+            "target": "other",
+            "to": [
+              "member"
+            ]
+          },
+          {
+            "by": [
+              "self"
+            ],
+            "from": [
+              "member"
+            ],
+            "op": "remove",
+            "target": "self"
+          }
+        ]
+      },
+      "name": "workspaceMembers",
+      "syncable": false
+    },
+    {
+      "assetSharing": {
+        "kind": "membership",
+        "membership": "workspaceMembers"
+      },
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "workspaces"
+            }
+          },
+          "name": "workspaceId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "authorId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "body",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "AssetRef": {
+              "upload": "photoUpload"
+            }
+          },
+          "name": "photo",
+          "optional": true
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "workspaceId"
+          ],
+          "name": "by_workspace"
+        }
+      ],
+      "name": "notes",
+      "syncable": true
+    },
+    {
+      "assetSharing": {
+        "field": "ownerId",
+        "kind": "owner"
+      },
+      "fields": [
+        {
+          "field_type": "Principal",
+          "name": "ownerId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "caption",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "AssetRef": {
+              "upload": "photoUpload"
+            }
+          },
+          "name": "image",
+          "optional": true
+        }
+      ],
+      "indexes": [],
+      "name": "photos",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "Principal",
+          "name": "ownerId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "title",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "AssetRef": {
+              "upload": "photoUpload"
+            }
+          },
+          "name": "attachment",
+          "optional": true
+        }
+      ],
+      "indexes": [],
+      "name": "mixedDocs",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "Principal",
+          "name": "ownerId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "title",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "AssetRef": {}
+          },
+          "name": "attachment",
+          "optional": true
+        }
+      ],
+      "indexes": [],
+      "name": "openDocs",
+      "syncable": true
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

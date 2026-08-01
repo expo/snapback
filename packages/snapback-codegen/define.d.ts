@@ -56,7 +56,7 @@ export declare const v: {
     spec: { foreignKeyField: ForeignKey; parentTable: Parent },
   ): Validator<string, { readonly RelationIncarnation: { readonly foreignKeyField: ForeignKey; readonly parentTable: Parent } }, false>;
   assetRef<const Upload extends string = string>(
-    options?: { upload?: Upload },
+    options?: { upload?: Upload | null },
   ): Validator<string, { readonly AssetRef: { readonly upload?: Upload } }, false>;
   boolean(): Validator<boolean, 'Boolean', false>;
   integer(options?: { min?: number; max?: number }): Validator<number, 'Integer', false>;

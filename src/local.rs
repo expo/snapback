@@ -8770,6 +8770,158 @@ impl LocalSnapback {
     /// Every request — ordinary or range — re-authorizes through the
     /// declared read-access policy; nothing about a previous grant is
     /// cached (LLP 0044 §Delivery profiles, `private-strict`).
+    /// Authorization/readiness probe shared by the on-demand width path:
+    /// the same refusals `asset_deliver` produces, with no bytes touched —
+    /// materialization must never run for a caller delivery would refuse.
+    fn asset_strict_read_probe(
+        &mut self,
+        authority: &PreparedAuthority,
+        asset_id: &str,
+    ) -> SnapbackResult<()> {
+        use crate::assets;
+        let caller = Self::asset_caller_principal(authority);
+        let schema = self.db.schema().clone();
+        self.db.asset_transaction(|tx| {
+            let asset = assets::load_asset(tx, asset_id)?.ok_or_else(asset_unknown(asset_id))?;
+            if asset.availability == assets::AssetAvailability::Deleted {
+                return Err(asset_unknown(asset_id)());
+            }
+            let decision =
+                crate::storage::asset_read_authorized(&schema, tx, caller.as_deref(), &asset)?;
+            if !decision.authorized {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_ASSET_FORBIDDEN",
+                    "assets",
+                    "this asset is not readable by the caller",
+                ));
+            }
+            if asset.availability != assets::AssetAvailability::Ready {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_ASSET_NOT_READY",
+                    "assets",
+                    "the asset has no deliverable bytes yet",
+                ));
+            }
+            Ok(())
+        })
+    }
+
+    // @ref LLP 0044#ceremony-floor-and-bounded-on-demand-widths-dated-amendment-2026-08-01 —
+    //   `?width=N` resolves to a ladder rendition, materialized exactly once
+    //   through the ordinary publication machinery; callers authorize BEFORE
+    //   resolving so unauthorized requests never trigger processing.
+    pub(crate) fn asset_resolve_width_variant(
+        &mut self,
+        asset_id: &str,
+        requested_width: u64,
+    ) -> SnapbackResult<String> {
+        use crate::assets;
+        if !self.asset_image_finalization_enabled() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_WIDTH_UNSUPPORTED",
+                "assets",
+                "on-demand widths require the image-finalization capability",
+            ));
+        }
+        let Some(width) = assets::normalize_on_demand_width(requested_width) else {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_WIDTH_ABOVE_CEILING",
+                "assets",
+                format!(
+                    "width {requested_width} exceeds the declared on-demand ceiling {}",
+                    assets::ASSET_ON_DEMAND_MAX_WIDTH_PX
+                ),
+            ));
+        };
+        let key = format!("w{width}");
+        let already = self.db.asset_transaction(|tx| {
+            Ok(assets::load_rendition_by_variant(tx, asset_id, &key)?
+                .filter(|r| r.state == assets::AssetRenditionState::Ready)
+                .is_some())
+        })?;
+        if already {
+            return Ok(key);
+        }
+        let app_id = self.functions.app_id.clone();
+        let app_quota = self.asset_app_quota();
+        let store = self.asset_store_obj()?;
+        let (primary_key, content_type) = self.db.asset_transaction(|tx| {
+            let asset = assets::load_asset(tx, asset_id)?.ok_or_else(asset_unknown(asset_id))?;
+            let rendition_id = asset.primary_rendition_id.as_deref().ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_NOT_READY",
+                    "assets",
+                    "the asset has no primary rendition to derive from",
+                )
+            })?;
+            let primary = assets::load_rendition(tx, rendition_id)?.ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_RECORD_INVALID",
+                    "assets",
+                    "the primary rendition record is missing",
+                )
+            })?;
+            let blob = assets::load_blob_live(tx, &primary.blob_id)?
+                .filter(|blob| !blob.condemned)
+                .map(|blob| blob.record)
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                        "assets",
+                        "the primary blob is not available",
+                    )
+                })?;
+            Ok((blob.physical_key, blob.detected_content_type))
+        })?;
+        let canonical_bytes =
+            store.read(crate::assets_store::AssetObjectRef::Blob(&primary_key))?;
+        let variant = crate::manifest::AssetImageVariant {
+            key: key.clone(),
+            width,
+            required: false,
+        };
+        let prepared = self.asset_prepare_variant(
+            store.as_ref(),
+            &app_id,
+            &canonical_bytes,
+            &content_type,
+            &variant,
+            1,
+        )?;
+        let now_ms = now_millis();
+        self.db.asset_transaction(|tx| {
+            match asset_commit_prepared_variant(tx, &app_id, asset_id, &prepared, app_quota, now_ms)?
+            {
+                AssetVariantCommit::Committed { rendition_id, .. } => {
+                    assets::write_receipt(
+                        tx,
+                        &asset_receipt(
+                            asset_id,
+                            assets::AssetReceiptEventV1::RenditionProduced,
+                            asset_id,
+                            None,
+                            now_ms,
+                            serde_json::json!({
+                                "renditionId": rendition_id,
+                                "variantKey": prepared.key,
+                                "onDemand": true,
+                            }),
+                        ),
+                    )?;
+                    Ok(())
+                }
+                AssetVariantCommit::QuotaRefused => Err(SnapbackError::error(
+                    "SNAPBACK_ASSET_QUOTA_EXCEEDED",
+                    "assets",
+                    "materializing the requested width would exceed the app quota",
+                )),
+                // Concurrent firsts converge on one winner.
+                AssetVariantCommit::AlreadyCurrent | AssetVariantCommit::StaleLost => Ok(()),
+            }
+        })?;
+        Ok(key)
+    }
+
     pub(crate) fn asset_deliver(
         &mut self,
         authority: &PreparedAuthority,
@@ -8777,13 +8929,19 @@ impl LocalSnapback {
         variant: &str,
         range_header: Option<&str>,
         max_width: Option<u64>,
+        width: Option<u64>,
     ) -> SnapbackResult<AssetDeliveryOutcome> {
         use crate::assets;
+        let variant = if let Some(requested) = width {
+            self.asset_strict_read_probe(authority, asset_id)?;
+            self.asset_resolve_width_variant(asset_id, requested)?
+        } else {
+            variant.to_owned()
+        };
         let caller = Self::asset_caller_principal(authority);
         let schema = self.db.schema().clone();
         let store = self.asset_store_obj()?;
         let now = now_millis();
-        let variant = variant.to_owned();
         let range_header = range_header.map(str::to_owned);
         self.db.asset_transaction(|tx| {
             let asset = assets::load_asset(tx, asset_id)?.ok_or_else(asset_unknown(asset_id))?;
@@ -8984,6 +9142,44 @@ impl LocalSnapback {
                 "signed issuance binds one concrete variant; resolve best before issuing",
             ));
         }
+        // On-demand width (LLP 0044 §Ceremony floor): authorize first via
+        // the probe transaction below, resolve/materialize the ladder
+        // rendition, then sign that concrete variant.
+        let issued_variant = if let Some(requested) = request.width_px {
+            let schema_probe = schema.clone();
+            let caller_probe = caller.clone();
+            self.db.asset_transaction(|tx| {
+                let asset =
+                    assets::load_asset(tx, asset_id)?.ok_or_else(asset_unknown(asset_id))?;
+                if asset.availability == assets::AssetAvailability::Deleted {
+                    return Err(asset_unknown(asset_id)());
+                }
+                if asset.delivery_profile != assets::AssetDeliveryProfile::PrivateSigned {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_ASSET_DELIVERY_PROFILE_UNSUPPORTED",
+                        "assets",
+                        "this asset's declared delivery profile does not issue signed URLs",
+                    ));
+                }
+                let decision = crate::storage::asset_read_authorized(
+                    &schema_probe,
+                    tx,
+                    caller_probe.as_deref(),
+                    &asset,
+                )?;
+                if !decision.authorized {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_ASSET_FORBIDDEN",
+                        "assets",
+                        "this asset is not readable by the caller",
+                    ));
+                }
+                Ok(())
+            })?;
+            self.asset_resolve_width_variant(asset_id, requested)?
+        } else {
+            request.variant.clone()
+        };
         self.db.asset_transaction(|tx| {
             let asset = assets::load_asset(tx, asset_id)?.ok_or_else(asset_unknown(asset_id))?;
             if asset.availability == assets::AssetAvailability::Deleted {
@@ -9018,7 +9214,7 @@ impl LocalSnapback {
             let token = assets::mint_signed_url_token(
                 &key,
                 asset_id,
-                &request.variant,
+                &issued_variant,
                 grantee,
                 asset.lifecycle_generation,
                 expires_at_ms,
@@ -9032,7 +9228,7 @@ impl LocalSnapback {
                     None,
                     now,
                     serde_json::json!({
-                        "variant": request.variant,
+                        "variant": issued_variant,
                         "expiresAtMs": expires_at_ms,
                     }),
                 ),
@@ -9040,9 +9236,9 @@ impl LocalSnapback {
             Ok(assets::AssetSignedUrlIssueResponseV1 {
                 url: format!(
                     "/assets/signed/{asset_id}/{}?token={token}",
-                    request.variant
+                    issued_variant
                 ),
-                variant: request.variant.clone(),
+                variant: issued_variant.clone(),
                 expires_at_ms,
             })
         })
@@ -9134,11 +9330,29 @@ impl LocalSnapback {
         asset_id: &str,
         variant: &str,
         range_header: Option<&str>,
+        width: Option<u64>,
     ) -> SnapbackResult<AssetDeliveryOutcome> {
         use crate::assets;
+        let variant = if let Some(requested) = width {
+            // Public-profile check first (masked), then resolve: anonymous
+            // requests on non-public assets must never trigger
+            // materialization or learn existence.
+            self.db.asset_transaction(|tx| {
+                let masked = asset_unknown(asset_id);
+                let asset = assets::load_asset(tx, asset_id)?.ok_or_else(&masked)?;
+                if asset.availability != assets::AssetAvailability::Ready
+                    || asset.delivery_profile != assets::AssetDeliveryProfile::PublicImmutable
+                {
+                    return Err(masked());
+                }
+                Ok(())
+            })?;
+            self.asset_resolve_width_variant(asset_id, requested)?
+        } else {
+            variant.to_owned()
+        };
         let store = self.asset_store_obj()?;
         let now = now_millis();
-        let variant = variant.to_owned();
         let range_header = range_header.map(str::to_owned);
         self.db.asset_transaction(|tx| {
             let masked = asset_unknown(asset_id);
@@ -28580,6 +28794,73 @@ globalThis.__snapbackHandlers = {
     }
 
     // -----------------------------------------------------------------
+    // Bounded on-demand widths (LLP 0044 §Ceremony floor, 2026-08-01).
+    // -----------------------------------------------------------------
+
+    #[test]
+    fn asset_on_demand_width_materializes_once_and_refuses_honestly() {
+        let mut snapback = asset_variant_snapback(
+            crate::manifest::AssetLocationPolicy::Strip,
+            vec![asset_variant("display", 192, false)],
+        );
+        let fixture = crate::assets_image::fixtures::plain_jpeg(200, 150);
+        let created = asset_upload(&mut snapback, "user_a", &fixture, true);
+        asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None).expect("publishes");
+        let asset_id = created.task.asset_id.clone();
+        let authority = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+
+        // ?width=100 ladder-normalizes to w128 and materializes once.
+        let outcome = snapback
+            .asset_deliver(&authority, &asset_id, "primary", None, None, Some(100))
+            .expect("width delivers");
+        let crate::local::AssetDeliveryOutcome::Content(first) = outcome else {
+            panic!("expected content");
+        };
+        assert!(first.total_length > 0);
+        let w128 = asset_rendition_for(&mut snapback, &asset_id, "w128")
+            .expect("ladder rendition materialized");
+        assert_eq!(w128.state, crate::assets::AssetRenditionState::Ready);
+        assert_eq!(w128.media_facts.as_ref().unwrap()["width"], 128);
+
+        // Second request serves the SAME rendition — materialized once.
+        let again = snapback
+            .asset_deliver(&authority, &asset_id, "primary", None, None, Some(100))
+            .expect("width serves again");
+        let crate::local::AssetDeliveryOutcome::Content(second) = again else {
+            panic!("expected content");
+        };
+        assert_eq!(second.total_length, first.total_length);
+        let still = asset_rendition_for(&mut snapback, &asset_id, "w128").expect("still there");
+        assert_eq!(still.rendition_id, w128.rendition_id, "no re-materialization");
+
+        // Above the declared ceiling: structured refusal, nothing made.
+        let above = snapback
+            .asset_deliver(&authority, &asset_id, "primary", None, None, Some(4096))
+            .expect_err("above-ceiling width refuses");
+        assert_eq!(above.diagnostic.code, "SNAPBACK_ASSET_WIDTH_ABOVE_CEILING");
+
+        // Foreign caller: authorization precedes materialization — the
+        // probe refuses and no ladder rendition appears.
+        let outsider = asset_dev_authority(&snapback, "user_b", InvocationSource::HttpQuery);
+        let denied = snapback
+            .asset_deliver(&outsider, &asset_id, "primary", None, None, Some(64))
+            .expect_err("outsider width refuses");
+        assert_eq!(denied.diagnostic.code, "SNAPBACK_ASSET_FORBIDDEN");
+        assert!(
+            asset_rendition_for(&mut snapback, &asset_id, "w64").is_none(),
+            "unauthorized requests never materialize"
+        );
+
+        // With the image-finalization gate off, ?width refuses entirely.
+        snapback.set_asset_image_finalization_override(false);
+        let gated = snapback
+            .asset_deliver(&authority, &asset_id, "primary", None, None, Some(64))
+            .expect_err("gate-off width refuses");
+        snapback.set_asset_image_finalization_override(true);
+        assert_eq!(gated.diagnostic.code, "SNAPBACK_ASSET_WIDTH_UNSUPPORTED");
+    }
+
+    // -----------------------------------------------------------------
     // Strict delivery and the deletion/GC sweeps (tickets L1-09/L1-10).
     // -----------------------------------------------------------------
 
@@ -28652,7 +28933,7 @@ globalThis.__snapbackHandlers = {
         assert!(by_key.total_length > 0);
         let authority = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
         let pick = |snapback: &mut LocalSnapback, bound: u64| match snapback
-            .asset_deliver(&authority, &asset_id, "best", None, Some(bound))
+            .asset_deliver(&authority, &asset_id, "best", None, Some(bound), None)
             .expect("best delivers")
         {
             crate::local::AssetDeliveryOutcome::Content(delivery) => delivery.content_type,
@@ -28662,13 +28943,13 @@ globalThis.__snapbackHandlers = {
         // the narrowest available.
         assert_eq!(pick(&mut snapback, 48), "image/jpeg");
         let best_48 = snapback
-            .asset_deliver(&authority, &asset_id, "best", None, Some(48))
+            .asset_deliver(&authority, &asset_id, "best", None, Some(48), None)
             .expect("best 48");
         let best_20 = snapback
-            .asset_deliver(&authority, &asset_id, "best", None, Some(20))
+            .asset_deliver(&authority, &asset_id, "best", None, Some(20), None)
             .expect("best 20");
         let best_8 = snapback
-            .asset_deliver(&authority, &asset_id, "best", None, Some(8))
+            .asset_deliver(&authority, &asset_id, "best", None, Some(8), None)
             .expect("best 8");
         let width_of = |outcome: &crate::local::AssetDeliveryOutcome| match outcome {
             crate::local::AssetDeliveryOutcome::Content(delivery) => delivery.total_length,
@@ -28895,6 +29176,7 @@ globalThis.__snapbackHandlers = {
                 crate::assets::AssetSignedUrlIssueRequestV1 {
                     variant: "primary".to_owned(),
                     ttl_ms: None,
+                    width_px: None,
                 },
             )
             .expect_err("foreign issuance refuses");
@@ -28909,6 +29191,7 @@ globalThis.__snapbackHandlers = {
                 crate::assets::AssetSignedUrlIssueRequestV1 {
                     variant: "primary".to_owned(),
                     ttl_ms: Some(crate::assets::ASSET_SIGNED_URL_MAX_TTL_MS + 1),
+                    width_px: None,
                 },
             )
             .expect_err("over-max ttl refuses");
@@ -28920,6 +29203,7 @@ globalThis.__snapbackHandlers = {
                 crate::assets::AssetSignedUrlIssueRequestV1 {
                     variant: "best".to_owned(),
                     ttl_ms: None,
+                    width_px: None,
                 },
             )
             .expect_err("best is unsignable");
@@ -28934,6 +29218,7 @@ globalThis.__snapbackHandlers = {
                 crate::assets::AssetSignedUrlIssueRequestV1 {
                     variant: "primary".to_owned(),
                     ttl_ms: None,
+                    width_px: None,
                 },
             )
             .expect_err("strict assets do not issue signed URLs");
@@ -28951,6 +29236,7 @@ globalThis.__snapbackHandlers = {
                 crate::assets::AssetSignedUrlIssueRequestV1 {
                     variant: "primary".to_owned(),
                     ttl_ms: None,
+                    width_px: None,
                 },
             )
             .expect("owner issuance");
@@ -29029,6 +29315,7 @@ globalThis.__snapbackHandlers = {
                     crate::assets::AssetSignedUrlIssueRequestV1 {
                         variant: "primary".to_owned(),
                         ttl_ms: None,
+                        width_px: None,
                     },
                 )
                 .expect("issuance")
@@ -29095,7 +29382,7 @@ globalThis.__snapbackHandlers = {
         let asset_id = asset_ready_under_intent(&mut snapback, "user_a", &bytes, "publicUpload");
 
         let served = match snapback
-            .asset_deliver_public(&asset_id, "primary", None)
+            .asset_deliver_public(&asset_id, "primary", None, None)
             .expect("public serves with no credential")
         {
             crate::local::AssetDeliveryOutcome::Content(delivery) => *delivery,
@@ -29105,7 +29392,7 @@ globalThis.__snapbackHandlers = {
         assert_eq!(served.cache_control, "public, max-age=31536000, immutable");
         assert!(served.etag.starts_with("\"r-"));
         let ranged = snapback
-            .asset_deliver_public(&asset_id, "primary", Some("bytes=-5"))
+            .asset_deliver_public(&asset_id, "primary", Some("bytes=-5"), None)
             .expect("public suffix range serves");
         assert!(matches!(
             ranged,
@@ -29117,7 +29404,7 @@ globalThis.__snapbackHandlers = {
         // all mask — the public lane is never an existence oracle.
         let strict_asset = asset_ready(&mut snapback, "user_a", b"strict-bytes");
         let masked = snapback
-            .asset_deliver_public(&strict_asset, "primary", None)
+            .asset_deliver_public(&strict_asset, "primary", None, None)
             .expect_err("strict asset masks on the public lane");
         assert_eq!(masked.diagnostic.code, "SNAPBACK_ASSET_UNKNOWN");
         let creator = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
@@ -29128,12 +29415,12 @@ globalThis.__snapbackHandlers = {
             .asset_attempt_create(&creator, pending_request)
             .expect("pending attempt");
         let masked_pending = snapback
-            .asset_deliver_public(&pending.task.asset_id, "primary", None)
+            .asset_deliver_public(&pending.task.asset_id, "primary", None, None)
             .expect_err("pending masks on the public lane");
         assert_eq!(masked_pending.diagnostic.code, "SNAPBACK_ASSET_UNKNOWN");
         snapback.asset_delete(&creator, &asset_id).expect("delete");
         let masked_deleted = snapback
-            .asset_deliver_public(&asset_id, "primary", None)
+            .asset_deliver_public(&asset_id, "primary", None, None)
             .expect_err("delete stops future canonical access");
         assert_eq!(masked_deleted.diagnostic.code, "SNAPBACK_ASSET_UNKNOWN");
 
@@ -29156,7 +29443,7 @@ globalThis.__snapbackHandlers = {
         range: Option<&str>,
     ) -> SnapbackResult<crate::local::AssetDelivery> {
         let authority = asset_dev_authority(snapback, user, InvocationSource::HttpQuery);
-        match snapback.asset_deliver(&authority, asset_id, variant, range, None)? {
+        match snapback.asset_deliver(&authority, asset_id, variant, range, None, None)? {
             crate::local::AssetDeliveryOutcome::Content(delivery) => Ok(*delivery),
             crate::local::AssetDeliveryOutcome::Unsatisfiable { total_length } => {
                 Err(SnapbackError::error(
@@ -29232,6 +29519,7 @@ globalThis.__snapbackHandlers = {
                 &asset_id,
                 "primary",
                 Some("bytes=999999-"),
+                None,
                 None,
             )
             .expect("outcome resolves")

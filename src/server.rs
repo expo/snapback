@@ -18534,8 +18534,11 @@ async fn asset_deliver_route(
         .map(str::to_owned);
     // The declarative best-variant bound (LLP 0044): `best?maxWidth=N`.
     let max_width = query.get("maxWidth").and_then(|value| value.parse::<u64>().ok());
+    // Bounded on-demand widths (LLP 0044 §Ceremony floor): `?width=N`
+    // ladder-normalizes and materializes once, after authorization.
+    let width = query.get("width").and_then(|value| value.parse::<u64>().ok());
     let outcome = with_snapback(&state, move |snapback| {
-        snapback.asset_deliver(&authority, &id, &variant, range_header.as_deref(), max_width)
+        snapback.asset_deliver(&authority, &id, &variant, range_header.as_deref(), max_width, width)
     })
     .await?;
     stream_asset_delivery(outcome).await
@@ -18665,14 +18668,16 @@ async fn asset_deliver_signed_route(
 async fn asset_deliver_public_route(
     State(state): State<SharedSnapback>,
     Path((id, variant)): Path<(String, String)>,
+    Query(query): Query<std::collections::HashMap<String, String>>,
     headers: HeaderMap,
 ) -> Result<Response, ApiError> {
     let range_header = headers
         .get(header::RANGE)
         .and_then(|value| value.to_str().ok())
         .map(str::to_owned);
+    let width = query.get("width").and_then(|value| value.parse::<u64>().ok());
     let outcome = with_snapback(&state, move |snapback| {
-        snapback.asset_deliver_public(&id, &variant, range_header.as_deref())
+        snapback.asset_deliver_public(&id, &variant, range_header.as_deref(), width)
     })
     .await?;
     stream_asset_delivery(outcome).await
@@ -22694,6 +22699,11 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_ASSET_VIDEO_BOUNDS_EXCEEDED"
         | "SNAPBACK_ASSET_VIDEO_PARSE_FAILED"
         | "SNAPBACK_ASSET_VIDEO_STRIP_UNSUPPORTED"
+        // Bounded on-demand widths (LLP 0044 §Ceremony floor): a width the
+        // ladder cannot admit, or a target without the rewriting fact —
+        // both client-fixable by a different request.
+        | "SNAPBACK_ASSET_WIDTH_ABOVE_CEILING"
+        | "SNAPBACK_ASSET_WIDTH_UNSUPPORTED"
         // LLP 0109 §17: fixture bytes did not publish under the declared
         // intent — content-unprocessable, same class as the media refusals.
         | "SNAPBACK_ASSET_SEED_FIXTURE_REJECTED" => StatusCode::UNPROCESSABLE_ENTITY,
@@ -36932,6 +36942,8 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_ASSET_VIDEO_BOUNDS_EXCEEDED",
         "SNAPBACK_ASSET_VIDEO_PARSE_FAILED",
         "SNAPBACK_ASSET_VIDEO_STRIP_UNSUPPORTED",
+        "SNAPBACK_ASSET_WIDTH_ABOVE_CEILING",
+        "SNAPBACK_ASSET_WIDTH_UNSUPPORTED",
         "SNAPBACK_ASSET_LOCATION_POLICY_UNSUPPORTED",
         "SNAPBACK_ASSET_DELIVERY_PROFILE_UNSUPPORTED",
         "SNAPBACK_ASSET_SEED_FIXTURE_REJECTED",

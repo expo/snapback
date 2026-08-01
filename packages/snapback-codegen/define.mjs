@@ -304,14 +304,21 @@ export const v = {
    * `ctx.assets.attach`. */
   assetRef: (options = {}) => {
     assertKnownSpecFields(options, 'v.assetRef() options', new Set(['upload']));
-    if (options.upload !== undefined) {
+    if (options.upload !== undefined && options.upload !== null) {
       assert(
         typeof options.upload === 'string' && options.upload.length > 0,
-        'v.assetRef() upload must name an upload-intent binding',
+        'v.assetRef() upload must name an upload-intent binding, or be null for an unrestricted handler-attach-only field',
       );
     }
+    // LLP 0044 §Ceremony floor (2026-08-01): omitted upload derives a
+    // generated default intent at generation; the explicit `upload: null`
+    // keeps the prior unrestricted handler-attach-only semantics. The
+    // marker never reaches the schema manifest — codegen consumes it.
     return validator({
-      AssetRef: { ...(options.upload !== undefined ? { upload: options.upload } : {}) },
+      AssetRef: {
+        ...(typeof options.upload === 'string' ? { upload: options.upload } : {}),
+        ...(options.upload === null ? { unrestricted: true } : {}),
+      },
     }, 'string');
   },
   boolean: () => validator('Boolean', 'boolean'),

@@ -1,0 +1,19 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/fixtures/createPhoto.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "assetId": {
+      "type": "string"
+    },
+    "caption": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "caption",
+    "assetId"
+  ],
+  "title": "fixtures:createPhoto arguments",
+  "type": "object"
+}

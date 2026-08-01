@@ -2360,9 +2360,44 @@ export async function generateInProcess(backendDir, options = {}) {
     const assetCallbackContractHash = argsContractHash(
       effectiveArgsContract({ event: v.string(), assetId: v.string(), facts: v.json() }),
     );
+    // @ref LLP 0044#ceremony-floor-and-bounded-on-demand-widths-dated-amendment-2026-08-01 —
+    //   a bare v.assetRef() derives a generated default intent from its
+    //   table/field placement; `upload: null` (the `unrestricted` marker)
+    //   keeps the prior handler-attach-only shape. Derived defs ride the
+    //   ordinary intent loop below so strip/delivery admission, policy
+    //   hashing, and emission are byte-identical with explicit intents.
+    const DERIVED_DEFAULT_PREFIX = '_assets.default.';
+    const DERIVED_DEFAULT_AUTHORIZER_SOURCE =
+      'export const defaultAuthorizer = async (ctx) => ({ owner: ctx.auth.userId });\n';
+    for (const table of Object.values(tables)) {
+      for (const tableField of table.fields ?? []) {
+        const ref = tableField.field_type?.AssetRef;
+        if (!ref) continue;
+        if (ref.unrestricted) {
+          delete ref.unrestricted;
+          continue;
+        }
+        if (ref.upload !== undefined) continue;
+        const derivedName = `${DERIVED_DEFAULT_PREFIX}${table.name}.${tableField.name}`;
+        ref.upload = derivedName;
+        assetUploadDefs.push({
+          exportName: derivedName,
+          def: {
+            auth: 'authenticated',
+            reads: [],
+            accept: { mediaTypes: ['image/jpeg', 'image/png'], maxBytes: 10_000_000 },
+            delivery: { kind: 'private-strict' },
+            access: { read: 'owner-only' },
+            image: { location: 'strip' },
+            __derivedDefaultSource: DERIVED_DEFAULT_AUTHORIZER_SOURCE,
+          },
+        });
+      }
+    }
     const seenIntents = new Set();
     for (const { exportName, def } of assetUploadDefs) {
-      if (!IDENT.test(exportName) || RESERVED_WORDS.has(exportName)) {
+      const derivedDefault = typeof def.__derivedDefaultSource === 'string';
+      if (!derivedDefault && (!IDENT.test(exportName) || RESERVED_WORDS.has(exportName))) {
         err('SCHEMA_INVALID_IDENTIFIER', 'asset', `invalid asset upload intent identifier ${exportName}`, { intent: exportName });
         continue;
       }
@@ -2470,7 +2505,14 @@ export async function generateInProcess(backendDir, options = {}) {
       // Restriction targets: every v.assetRef({ upload }) must name a
       // declared intent; collected here so the check covers all intents.
       let resolvedAuthorizer;
-      if (def.authorize !== undefined) {
+      if (typeof def.__derivedDefaultSource === 'string') {
+        resolvedAuthorizer = {
+          source: def.__derivedDefaultSource,
+          exportName: 'defaultAuthorizer',
+          handlerForm: 'module',
+          sourceSpan: null,
+        };
+      } else if (def.authorize !== undefined) {
         const extracted = inlineExtraction.handlers.get(exportName);
         const marker = def.authorize?.__snapbackInlineHandlerMarker;
         if (!extracted || marker !== extracted.token) {
@@ -6641,8 +6683,17 @@ function renderAssetUploadReferences(appId, assetUploadIntents, functionsModule)
 
 function renderApiModule(appId, functions, functionsModule, ephemeralCollections, routesManifest, assetUploadIntents = []) {
   const refs = dict();
+  // Derived default intents also project as api.defaults.<table>.<field>
+  // so the zero-ceremony flow reads naturally (LLP 0044 §Ceremony floor).
+  const defaultRefs = dict();
   for (const reference of renderAssetUploadReferences(appId, assetUploadIntents, functionsModule)) {
     refs[reference.name] = reference;
+    if (reference.name.startsWith('_assets.default.')) {
+      const [tableName, fieldName] = reference.name.slice('_assets.default.'.length).split('.');
+      if (tableName && fieldName) {
+        (defaultRefs[tableName] ??= dict())[fieldName] = reference;
+      }
+    }
   }
   for (const fn of functions) {
     refs[fn.name] = {
@@ -6694,6 +6745,8 @@ function renderApiModule(appId, functions, functionsModule, ephemeralCollections
     `export const ephemeral = Object.freeze(${stableJson(ephemeralRefs)});\n` +
     `/** @type {import('./api.d.ts').GeneratedQueryGroups} */\n` +
     `export const groups = Object.freeze(${stableJson(groupRefs)});\n` +
+    `/** @type {Readonly<Record<string, Readonly<Record<string, unknown>>>>} */\n` +
+    `export const defaults = Object.freeze(${stableJson(defaultRefs)});\n` +
     `/** @type {import('./api.d.ts').GeneratedApi} */\n` +
     `export const api = Object.freeze(${stableJson(refs)});\n` +
     `export default api;\n`;
@@ -6963,6 +7016,10 @@ function renderApiTypes(
   lines.push('}');
   lines.push('export declare const ephemeral: GeneratedEphemeral;');
   lines.push('export declare const groups: GeneratedQueryGroups;');
+  // Derived default upload intents (LLP 0044 §Ceremony floor) project as
+  // defaults.<table>.<field>; reference objects share the upload-reference
+  // shape the client validates at runtime.
+  lines.push('export declare const defaults: Readonly<Record<string, Readonly<Record<string, unknown>>>>;');
   lines.push('export declare const api: GeneratedApi;');
   lines.push('export default api;');
   return lines.join('\n') + '\n';

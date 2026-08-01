@@ -669,8 +669,20 @@ export class SnapbackAssetClient {
    * variant key addresses one declared rendition. Authorization stays
    * per-request at the server — the URL carries no bearer authority.
    */
-  deliveryUrl(assetId, { variant = 'best', maxWidth = null } = {}) {
+  deliveryUrl(assetId, { variant = 'best', maxWidth = null, width = null } = {}) {
     const base = `${this.#client.baseUrl}/assets/records/${encodeURIComponent(assetId)}/bytes/${encodeURIComponent(variant)}`;
+    // Bounded on-demand widths (LLP 0044 §Ceremony floor): `width`
+    // ladder-normalizes server-side and materializes the rendition once;
+    // mutually exclusive with the `best` declared-variant selector.
+    if (width !== null) {
+      if (!Number.isSafeInteger(width) || width <= 0) {
+        throw new TypeError('deliveryUrl width must be a positive integer');
+      }
+      if (variant === 'best') {
+        throw new TypeError('deliveryUrl width and the best selector are mutually exclusive');
+      }
+      return `${base}?width=${width}`;
+    }
     if (variant === 'best') {
       if (!Number.isSafeInteger(maxWidth) || maxWidth <= 0) {
         throw new TypeError('deliveryUrl best selection requires a positive integer maxWidth');

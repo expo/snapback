@@ -1,0 +1,19 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/fixtures/createMixedPlan.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "assetId": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "title",
+    "assetId"
+  ],
+  "title": "fixtures:createMixedPlan arguments",
+  "type": "object"
+}

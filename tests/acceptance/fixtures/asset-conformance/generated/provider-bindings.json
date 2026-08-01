@@ -1,0 +1,191 @@
+{
+  "artifactKind": "providerBindingMetadata",
+  "bindings": {
+    "actions": [],
+    "ephemeral": [],
+    "mutations": [
+      {
+        "argumentsType": "{ \"userId\": string; \"workspaceId\": string }",
+        "effects": {
+          "invalidates": [
+            "workspaceMembers"
+          ],
+          "writes": [
+            "workspaceMembers"
+          ]
+        },
+        "name": "addMember",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "unknown"
+      },
+      {
+        "argumentsType": "{ \"id\": string }",
+        "effects": {
+          "invalidates": [
+            "photos"
+          ],
+          "writes": [
+            "photos"
+          ]
+        },
+        "name": "clearPhoto",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "unknown"
+      },
+      {
+        "argumentsType": "{ \"assetId\": string; \"title\": string }",
+        "effects": {
+          "invalidates": [
+            "mixedDocs"
+          ],
+          "writes": [
+            "mixedDocs"
+          ]
+        },
+        "name": "createMixedPlan",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        },
+        "resultType": "unknown"
+      },
+      {
+        "argumentsType": "{ \"assetId\": string; \"body\": string; \"workspaceId\": string }",
+        "effects": {
+          "invalidates": [
+            "notes"
+          ],
+          "writes": [
+            "notes"
+          ]
+        },
+        "name": "createNotePlan",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        },
+        "resultType": "unknown"
+      },
+      {
+        "argumentsType": "{ \"assetId\": string; \"title\": string }",
+        "effects": {
+          "invalidates": [
+            "openDocs"
+          ],
+          "writes": [
+            "openDocs"
+          ]
+        },
+        "name": "createOpenDocPlan",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        },
+        "resultType": "unknown"
+      },
+      {
+        "argumentsType": "{ \"assetId\": string; \"caption\": string }",
+        "effects": {
+          "invalidates": [
+            "photos"
+          ],
+          "writes": [
+            "photos"
+          ]
+        },
+        "name": "createPhoto",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "unknown"
+      },
+      {
+        "argumentsType": "{ \"assetId\": string; \"caption\": string }",
+        "effects": {
+          "invalidates": [
+            "photos"
+          ],
+          "writes": [
+            "photos"
+          ]
+        },
+        "name": "createPhotoPlan",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        },
+        "resultType": "unknown"
+      },
+      {
+        "argumentsType": "{ \"name\": string }",
+        "effects": {
+          "invalidates": [
+            "workspaces",
+            "workspaceMembers"
+          ],
+          "writes": [
+            "workspaces",
+            "workspaceMembers"
+          ]
+        },
+        "name": "createWorkspace",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "unknown"
+      },
+      {
+        "argumentsType": "{ \"assetId\": string; \"caption\": string }",
+        "effects": {
+          "invalidates": [
+            "photos"
+          ],
+          "writes": [
+            "photos"
+          ]
+        },
+        "name": "forgePhoto",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "unknown"
+      },
+      {
+        "argumentsType": "{ \"workspaceId\": string }",
+        "effects": {
+          "invalidates": [
+            "workspaceMembers"
+          ],
+          "writes": [
+            "workspaceMembers"
+          ]
+        },
+        "name": "leaveWorkspace",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "unknown"
+      }
+    ],
+    "queries": []
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v1"
+  },
+  "schemaVersion": "provider-binding-metadata.v1",
+  "source": {
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:2f9fb831da26ccce4a286773e2e0d23be7cd4d616b376ae39149c02eef4f5ceb",
+    "introspectionSchemaVersion": "provider-introspection.v1"
+  }
+}

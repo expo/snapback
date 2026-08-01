@@ -96,7 +96,7 @@ export declare class SnapbackAssetClient {
   watch(assetId: string, options?: { userId?: string | null; connectionId?: string }): unknown;
   deliveryUrl(
     assetId: string,
-    options?: { variant?: string; maxWidth?: number | null },
+    options?: { variant?: string; maxWidth?: number | null; width?: number | null },
   ): string;
   watchStore(
     assetId: string,

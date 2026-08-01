@@ -35,3 +35,23 @@ this bakeoff's measurements as the evidence base. Neither is a defect.
 
 Evidence: diaries/0048-upload-bakeoff-faceplate.diary.md (pocketbase
 arm + App A wrap); demos/upload-bakeoff/reports/summary.md.
+
+---
+
+**RESOLVED 2026-08-01 — author-ruled ("go ahead and make both of those
+changes"), designed and implemented.** LLP 0044 §Ceremony floor and
+bounded on-demand widths (dated amendment) + the 0007 companion note
+carry the design. Implemented: bare `v.assetRef()` derives a generated
+default intent (strict/strip/owner-only, `_assets.default.<table>.<field>`,
+ordinary manifest identity, `defaults.<table>.<field>` api projection;
+`upload: null` preserves unrestricted semantics — the conformance
+fixture's deliberate case now spells it); `?width=N` on strict and
+public delivery plus `widthPx` on signed issuance ladder-normalizes
+(13 steps ≤ 2048, declared facts) and materializes once through the
+ordinary publication machinery with authorization-before-materialization
+probes. Tests: codegen derivation/null/strip-refusal cases; Rust ladder
+unit + e2e (materialize-once, above-ceiling, foreign-caller
+no-materialize, gate-off refusal). New minimal avatar ceremony: **one
+schema field + one attach line** (was 3 files + 6 concepts; PocketBase's
+zero-file bar remains ahead on account of codegen itself, recorded
+honestly). Guide quickstart updated with the minimal path.

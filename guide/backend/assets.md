@@ -30,6 +30,46 @@ under a Snapback-owned lifecycle — upload, trusted finalization, typed
 attachment, authorized delivery, deletion — and your tables hold only a
 typed reference.
 
+## The minimal path: one field, one attach line
+
+The simplest case needs no upload intent at all. A bare `v.assetRef()`
+field derives a generated **default intent** — strict delivery, GPS
+stripped, owner-only reads, JPEG/PNG up to 10 MB — with a stable identity
+in the manifest like any explicit intent (LLP 0044 §Ceremony floor):
+
+```js fragment reason="minimal-path schema shape; the authoring suite verifies derivation"
+// schema.mjs — the whole backend declaration for an avatar:
+profiles: defineTable({
+  ownerId: v.principal(),
+  avatar: v.optional(v.assetRef()),
+}).sync(),
+```
+
+Upload under the derived reference (`defaults.<table>.<field>` in the
+generated api), then attach in any ordinary mutation:
+
+```js fragment reason="client flow over the derived reference; conformance covers the transport"
+import { defaults } from './snapback/generated/api.mjs';
+const task = client.assets.start({ upload: defaults.profiles.avatar, file });
+// in a mutation handler:
+//   { avatar: await ctx.assets.attach(args.assetId) }
+```
+
+Sized thumbnails need no declared variants either — request any width and
+the ladder rendition materializes once, then serves immutably:
+
+```js fragment reason="width selector URL shape; the Rust e2e verifies materialization"
+assets.deliveryUrl(assetId, { variant: 'primary', width: 128 });
+// → /assets/records/<id>/bytes/primary?width=128 (ladder-normalized)
+```
+
+That is the whole ceremony: **one schema field plus one attach line.**
+Declare an explicit intent (below) when you need different bounds, media
+types, sharing, variants, callbacks, or delivery profiles — the derived
+default is the paved floor, not the ceiling. The prior unrestricted
+bare-field semantics keep the explicit spelling
+`v.assetRef({ upload: null })`.
+
 ## Declare the upload intent and the reference field
 
 Upload authorization and policy are declared in source and compiled into a
@@ -135,7 +175,13 @@ edge, seed fixture, and live-feed row together:
 through the declared read-access policy, responses carry
 `Cache-Control: private, no-store`, HTTP ranges work for media playback,
 and active-content types are never served inline. Revoking access or
-deleting the asset denies the next request.
+deleting the asset denies the next request. Two sizing selectors ride
+the byte routes: `best?maxWidth=N` picks the largest *declared* variant
+within the bound, and `?width=N` ladder-normalizes to a bounded
+on-demand rendition (materialized once under the image ceilings, then
+immutable; refused above the declared 2048 ceiling or without the
+image-finalization fact). Signed issuance accepts `widthPx` the same
+way and signs the concrete ladder variant.
 
 Intents may instead declare `delivery: { kind: 'public-immutable' }`
 (ready renditions on `GET /assets/public/{id}/{variant}` with

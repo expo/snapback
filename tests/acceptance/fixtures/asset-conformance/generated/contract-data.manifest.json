@@ -1,0 +1,420 @@
+{
+  "artifactKind": "contractDataManifest",
+  "bundleHash": "snapback.v1:sessions:function:sha256:24a08d9d2e048304388f0ff047f2ff77fb734f47d73554d9787c7be1560955aa",
+  "capabilities": {
+    "branchableFixtures": false,
+    "derivedOptimisticOverlays": true,
+    "forceStates": true,
+    "headlessBoot": true,
+    "initialSnapshot": true,
+    "localReplica": false,
+    "offlineReplay": false,
+    "optimisticMutations": true,
+    "rowSyncState": true,
+    "serverRunnableQueries": true,
+    "subscriptions": true
+  },
+  "ephemeral": {},
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:2f9fb831da26ccce4a286773e2e0d23be7cd4d616b376ae39149c02eef4f5ceb",
+  "manifestVersion": 2,
+  "mutations": {
+    "addMember": {
+      "argOrder": [
+        "workspaceId",
+        "userId"
+      ],
+      "args": {
+        "userId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "workspaceId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:7fd4b159214366f06365950428581020b84601ac1cfb18d5fed54dd8d0d2c1d6",
+      "implementationHash": "sha256:b2aa9656acc794a6b0a913f7a7aeb09db97db8dd38b1476593bcd09711a62837",
+      "invalidates": [
+        "workspaceMembers"
+      ],
+      "name": "addMember",
+      "optimistic": false,
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "serverRunnable": true,
+      "writes": [
+        "workspaceMembers"
+      ]
+    },
+    "clearPhoto": {
+      "argOrder": [
+        "id"
+      ],
+      "args": {
+        "id": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:ca67c710f648a629d1cb092bceab13599722f02a42745c33175f491af06a3539",
+      "implementationHash": "sha256:27077933d7ee2aeaad287285a87af61b9d5434de27808db2dc809f9d642d1cbb",
+      "invalidates": [
+        "photos"
+      ],
+      "name": "clearPhoto",
+      "optimistic": false,
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "serverRunnable": true,
+      "writes": [
+        "photos"
+      ]
+    },
+    "createMixedPlan": {
+      "argOrder": [
+        "title",
+        "assetId"
+      ],
+      "args": {
+        "assetId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "title": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:bd2410f6f08c81bdb7611842f46a91546d6102e314c22adf8ac24173383ed7ac",
+      "implementationHash": "sha256:c8ab6d775909aeb43f74d473aa1adb78dfc5927dccc6ba7b8185eb55834df836",
+      "invalidates": [
+        "mixedDocs"
+      ],
+      "name": "createMixedPlan",
+      "optimistic": true,
+      "plan": {
+        "return_value": {
+          "Binding": "id"
+        },
+        "steps": [
+          {
+            "Insert": {
+              "bind_id_as": "id",
+              "table": "mixedDocs",
+              "values": {
+                "attachment": {
+                  "Arg": "assetId"
+                },
+                "ownerId": "AuthUserId",
+                "title": {
+                  "Arg": "title"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "serverRunnable": true,
+      "writes": [
+        "mixedDocs"
+      ]
+    },
+    "createNotePlan": {
+      "argOrder": [
+        "workspaceId",
+        "body",
+        "assetId"
+      ],
+      "args": {
+        "assetId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "body": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "workspaceId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:0996814ece23a2327989c2d65eda23627fff64291b1e5358704990c66a1cc7b6",
+      "implementationHash": "sha256:34ac94d40e011fdc666be9348a2cadcd189b0f9e538ad0f42ba3a67815955f27",
+      "invalidates": [
+        "notes"
+      ],
+      "name": "createNotePlan",
+      "optimistic": true,
+      "plan": {
+        "return_value": {
+          "Binding": "id"
+        },
+        "steps": [
+          {
+            "Insert": {
+              "bind_id_as": "id",
+              "table": "notes",
+              "values": {
+                "authorId": "AuthUserId",
+                "body": {
+                  "Arg": "body"
+                },
+                "photo": {
+                  "Arg": "assetId"
+                },
+                "workspaceId": {
+                  "Arg": "workspaceId"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "serverRunnable": true,
+      "writes": [
+        "notes"
+      ]
+    },
+    "createOpenDocPlan": {
+      "argOrder": [
+        "title",
+        "assetId"
+      ],
+      "args": {
+        "assetId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "title": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:bd2410f6f08c81bdb7611842f46a91546d6102e314c22adf8ac24173383ed7ac",
+      "implementationHash": "sha256:906faba05842d2f6ce3b544775e3d1e2368a3ff0c923130e7faf466cb595f138",
+      "invalidates": [
+        "openDocs"
+      ],
+      "name": "createOpenDocPlan",
+      "optimistic": true,
+      "plan": {
+        "return_value": {
+          "Binding": "id"
+        },
+        "steps": [
+          {
+            "Insert": {
+              "bind_id_as": "id",
+              "table": "openDocs",
+              "values": {
+                "attachment": {
+                  "Arg": "assetId"
+                },
+                "ownerId": "AuthUserId",
+                "title": {
+                  "Arg": "title"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "serverRunnable": true,
+      "writes": [
+        "openDocs"
+      ]
+    },
+    "createPhoto": {
+      "argOrder": [
+        "caption",
+        "assetId"
+      ],
+      "args": {
+        "assetId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "caption": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:8f0a63b50f2cc4d9aee241ff37e9f3e0a91e536ca7f058be2641f73598be030f",
+      "implementationHash": "sha256:24206a9e0dd7a18451c38a2b35ffbf8e8bc6e9474bc55d060c22746467a1beef",
+      "invalidates": [
+        "photos"
+      ],
+      "name": "createPhoto",
+      "optimistic": false,
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "serverRunnable": true,
+      "writes": [
+        "photos"
+      ]
+    },
+    "createPhotoPlan": {
+      "argOrder": [
+        "caption",
+        "assetId"
+      ],
+      "args": {
+        "assetId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "caption": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:8f0a63b50f2cc4d9aee241ff37e9f3e0a91e536ca7f058be2641f73598be030f",
+      "implementationHash": "sha256:e983163e27b698db93e0b7977f77735b8c95f044dd6d235a051b2d7d256f4f9d",
+      "invalidates": [
+        "photos"
+      ],
+      "name": "createPhotoPlan",
+      "optimistic": true,
+      "plan": {
+        "return_value": {
+          "Binding": "id"
+        },
+        "steps": [
+          {
+            "Insert": {
+              "bind_id_as": "id",
+              "table": "photos",
+              "values": {
+                "caption": {
+                  "Arg": "caption"
+                },
+                "image": {
+                  "Arg": "assetId"
+                },
+                "ownerId": "AuthUserId"
+              }
+            }
+          }
+        ]
+      },
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "serverRunnable": true,
+      "writes": [
+        "photos"
+      ]
+    },
+    "createWorkspace": {
+      "argOrder": [
+        "name"
+      ],
+      "args": {
+        "name": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:cf32b5ef0a7af7a40594ca003f2a1fcc7dd1f7516184c439e8e405d176c458d4",
+      "implementationHash": "sha256:151d09f635493ca4f6dd79148563d1ac98f9e11592435707bdc551e656570eb9",
+      "invalidates": [
+        "workspaces",
+        "workspaceMembers"
+      ],
+      "name": "createWorkspace",
+      "optimistic": false,
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "serverRunnable": true,
+      "writes": [
+        "workspaces",
+        "workspaceMembers"
+      ]
+    },
+    "forgePhoto": {
+      "argOrder": [
+        "caption",
+        "assetId"
+      ],
+      "args": {
+        "assetId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "caption": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:8f0a63b50f2cc4d9aee241ff37e9f3e0a91e536ca7f058be2641f73598be030f",
+      "implementationHash": "sha256:facba1fc80008bc2d98690d99a42382704a1b8327e69d52ba7117c0cfc523c58",
+      "invalidates": [
+        "photos"
+      ],
+      "name": "forgePhoto",
+      "optimistic": false,
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "serverRunnable": true,
+      "writes": [
+        "photos"
+      ]
+    },
+    "leaveWorkspace": {
+      "argOrder": [
+        "workspaceId"
+      ],
+      "args": {
+        "workspaceId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:7acf7f3e4aff848544e5e42c8d78f9c3d0ff54b2bbca08dd0903313c402649c3",
+      "implementationHash": "sha256:48e9bdca5ce7b9e0405293c6db526f50b484b54df9db0e3c329f4bfb7473c93f",
+      "invalidates": [
+        "workspaceMembers"
+      ],
+      "name": "leaveWorkspace",
+      "optimistic": false,
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "serverRunnable": true,
+      "writes": [
+        "workspaceMembers"
+      ]
+    }
+  },
+  "provider": "snapback",
+  "queries": {},
+  "receipts": "mutation+subscription",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:97d18f49bf3cec40c42fad04fcd3695a9d4f731be0e43f2ce74de88ee34924e1",
+  "schemaVersion": "snapback.v1"
+}

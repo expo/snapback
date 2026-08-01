@@ -1,0 +1,23 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/fixtures/createNotePlan.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "assetId": {
+      "type": "string"
+    },
+    "body": {
+      "type": "string"
+    },
+    "workspaceId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "workspaceId",
+    "body",
+    "assetId"
+  ],
+  "title": "fixtures:createNotePlan arguments",
+  "type": "object"
+}

@@ -53,7 +53,7 @@ export default defineSchema(
     openDocs: defineTable({
       ownerId: v.principal(),
       title: v.string(),
-      attachment: v.optional(v.assetRef()),
+      attachment: v.optional(v.assetRef({ upload: null })),
     }).sync(),
   },
   { auth: { mode: 'sessions' } },

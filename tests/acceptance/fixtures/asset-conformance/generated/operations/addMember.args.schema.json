@@ -1,0 +1,19 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/fixtures/addMember.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "userId": {
+      "type": "string"
+    },
+    "workspaceId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "workspaceId",
+    "userId"
+  ],
+  "title": "fixtures:addMember arguments",
+  "type": "object"
+}

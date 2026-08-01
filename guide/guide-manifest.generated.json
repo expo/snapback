@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "346bfbe3e3151ec0ae2693755b49b3d204d15b63"
+    "commit": "3ec180fd443713ea8f035751d34c6c3214198d0d"
   },
   "nav": {
     ".": [
@@ -664,8 +664,20 @@
       ],
       "reviewed": "2026-07-31",
       "reviewedCommit": "HEAD",
-      "sha256": "ce2e352c3a721e0fb20df08ab687d94d839e2a63c4e36a3d0ad5d64fd724a3a3",
+      "sha256": "dc5debcaa4f45082e9065db48928b51d0170c3751a1fcefd46b70e5f70104f2b",
       "snippets": [
+        {
+          "lang": "js",
+          "class": "fragment"
+        },
+        {
+          "lang": "js",
+          "class": "fragment"
+        },
+        {
+          "lang": "js",
+          "class": "fragment"
+        },
         {
           "lang": "js",
           "class": "transcluded",
@@ -1061,7 +1073,7 @@
       ],
       "reviewed": "2026-07-27",
       "reviewedCommit": "HEAD",
-      "sha256": "50dc481c30fb6b7cc0f873fe93575c577bf09fd321e382320f8d3d51345bcd17",
+      "sha256": "343ddf967db08e59352116049acb04bd67e914eaecde6862f55ca7f5b8cd7dc8",
       "snippets": [
         {
           "lang": "js",
@@ -1142,7 +1154,7 @@
       ],
       "reviewed": "2026-07-31",
       "reviewedCommit": "HEAD",
-      "sha256": "7d39e58a59b6670e7992699ca0a46d7b03f2416c463398e02dd46f1f9346fbbb",
+      "sha256": "682835ff836ecea5444c1081619c619d1ec6133e65ee297a99954a3a6c03c6b8",
       "snippets": []
     },
     "meta.capabilities": {
@@ -1168,7 +1180,7 @@
       "examples": [],
       "reviewed": "2026-08-01",
       "reviewedCommit": "HEAD",
-      "sha256": "6c478cbb4db179af0102002adecc39ab3a8de2277060da1e9584ed842a93d338",
+      "sha256": "bcfe335cdca04d049126b62a406647c93fa9f60ccaf4419f602ad93b6edbfc72",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2456,5 +2468,5 @@
     "routes": 86,
     "hostOps": 29
   },
-  "contentHash": "1e1bf952f6363f2c5f310be55590646071c39bcbb4c881e35b170b2990045310"
+  "contentHash": "fe48f83bb1f88cb6ea5bd7840c5d12b9b0fc7a9d647f00c9851d347a4c4cfde7"
 }

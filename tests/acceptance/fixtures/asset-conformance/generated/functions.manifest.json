@@ -1,0 +1,1192 @@
+{
+  "acknowledgedExperimentalCapabilities": [
+    "args_contract_v1",
+    "result_contract_v1"
+  ],
+  "appId": "fixtures",
+  "artifactKind": "functionManifest",
+  "assetUploadIntents": [
+    {
+      "accept": {
+        "maxBytes": 32000000,
+        "mediaTypes": [
+          "application/octet-stream"
+        ]
+      },
+      "access": {
+        "read": "owner-only"
+      },
+      "argsContractHash": "sha256:32fbef7c7e86bc9f4d07b56724204c069ccbe6cf53f6b9846cdd09d50918165e",
+      "authRequirement": "authenticated",
+      "declaredReads": [],
+      "delivery": {
+        "kind": "private-strict"
+      },
+      "exportedName": "bulkUpload",
+      "handlerForm": "inline",
+      "id": "fixtures:bulkUpload",
+      "implementationHash": "sha256:0ec287e823f70a51a73e19fb20f2309039efa519651b7e218a6a7d1451565974",
+      "intentPolicyHash": "sha256:6eb6bdd673951d3f8c6648eb2379585e70fd4ff7cd7e6798a1959e82dde210e7",
+      "name": "bulkUpload",
+      "runtime": {
+        "IbexModule": {
+          "export": "bulkUpload",
+          "source": "globalThis.__snapbackHandlers = { \"bulkUpload\": (async (ctx) => ({ owner: ctx.auth.userId })) };\n"
+        }
+      },
+      "sourceSpan": {
+        "column": 14,
+        "file": "functions.mjs",
+        "line": 50
+      }
+    },
+    {
+      "accept": {
+        "maxBytes": 1000000,
+        "mediaTypes": [
+          "image/png"
+        ]
+      },
+      "access": {
+        "read": "via-references"
+      },
+      "argsContractHash": "sha256:32fbef7c7e86bc9f4d07b56724204c069ccbe6cf53f6b9846cdd09d50918165e",
+      "authRequirement": "authenticated",
+      "declaredReads": [],
+      "delivery": {
+        "kind": "public-immutable"
+      },
+      "exportedName": "coverUpload",
+      "handlerForm": "inline",
+      "id": "fixtures:coverUpload",
+      "image": {
+        "location": "strip"
+      },
+      "implementationHash": "sha256:5f5860b22d26ea607063b11740e2ee1bb87513c0e6ae21632f170e691bea2519",
+      "intentPolicyHash": "sha256:84283e5384d91faaf7f9d5f12f57d2347654d8e0568c8650ccfc135fa11c6b34",
+      "name": "coverUpload",
+      "runtime": {
+        "IbexModule": {
+          "export": "coverUpload",
+          "source": "globalThis.__snapbackHandlers = { \"coverUpload\": (async (ctx) => ({ owner: ctx.auth.userId })) };\n"
+        }
+      },
+      "sourceSpan": {
+        "column": 14,
+        "file": "functions.mjs",
+        "line": 63
+      }
+    },
+    {
+      "accept": {
+        "maxBytes": 100000,
+        "mediaTypes": [
+          "application/octet-stream",
+          "application/zip"
+        ]
+      },
+      "access": {
+        "read": "owner-only"
+      },
+      "argsContractHash": "sha256:32fbef7c7e86bc9f4d07b56724204c069ccbe6cf53f6b9846cdd09d50918165e",
+      "authRequirement": "authenticated",
+      "declaredReads": [],
+      "delivery": {
+        "kind": "private-strict"
+      },
+      "exportedName": "fileUpload",
+      "handlerForm": "inline",
+      "id": "fixtures:fileUpload",
+      "implementationHash": "sha256:10ac37bef75d95306494bed53d7fa0cf792692c3da04b4c61cf1d17070e2eaed",
+      "intentPolicyHash": "sha256:1b8f012edc6ba3428a9b485672be4fcc51380dd78be7f2d90c598c50770cd906",
+      "name": "fileUpload",
+      "runtime": {
+        "IbexModule": {
+          "export": "fileUpload",
+          "source": "globalThis.__snapbackHandlers = { \"fileUpload\": (async (ctx) => ({ owner: ctx.auth.userId })) };\n"
+        }
+      },
+      "sourceSpan": {
+        "column": 14,
+        "file": "functions.mjs",
+        "line": 38
+      }
+    },
+    {
+      "accept": {
+        "maxBytes": 1000000,
+        "mediaTypes": [
+          "image/jpeg",
+          "image/png"
+        ]
+      },
+      "access": {
+        "read": "via-references"
+      },
+      "argsContractHash": "sha256:32fbef7c7e86bc9f4d07b56724204c069ccbe6cf53f6b9846cdd09d50918165e",
+      "authRequirement": "authenticated",
+      "declaredReads": [],
+      "delivery": {
+        "kind": "private-strict"
+      },
+      "exportedName": "photoUpload",
+      "handlerForm": "inline",
+      "id": "fixtures:photoUpload",
+      "image": {
+        "location": "strip",
+        "variants": [
+          {
+            "key": "thumb",
+            "required": true,
+            "width": 4
+          },
+          {
+            "key": "display",
+            "required": true,
+            "width": 8
+          }
+        ]
+      },
+      "implementationHash": "sha256:3d44ad25cdf1a395db379e468c634fcf5a4de944b80fbeeb24472426bd62fee8",
+      "intentPolicyHash": "sha256:e25859995af5cc7f027231a4be10f15a6a2ee213fe04c42bd37b8e7bde25f87a",
+      "name": "photoUpload",
+      "runtime": {
+        "IbexModule": {
+          "export": "photoUpload",
+          "source": "globalThis.__snapbackHandlers = { \"photoUpload\": (async (ctx) => ({ owner: ctx.auth.userId })) };\n"
+        }
+      },
+      "sourceSpan": {
+        "column": 14,
+        "file": "functions.mjs",
+        "line": 29
+      }
+    },
+    {
+      "accept": {
+        "maxBytes": 1000000,
+        "mediaTypes": [
+          "image/png"
+        ]
+      },
+      "access": {
+        "read": "owner-only"
+      },
+      "argsContractHash": "sha256:32fbef7c7e86bc9f4d07b56724204c069ccbe6cf53f6b9846cdd09d50918165e",
+      "authRequirement": "authenticated",
+      "declaredReads": [],
+      "delivery": {
+        "kind": "private-signed"
+      },
+      "exportedName": "shareUpload",
+      "handlerForm": "inline",
+      "id": "fixtures:shareUpload",
+      "image": {
+        "location": "strip"
+      },
+      "implementationHash": "sha256:b0190ee5566333762870b2909d3ce47f7388a178e0c58e905f44ce125bc9af9c",
+      "intentPolicyHash": "sha256:e4e65798f462ed9563f7ae0b4275df630b9be7c0d3619c5c8f9e2b212154bd6a",
+      "name": "shareUpload",
+      "runtime": {
+        "IbexModule": {
+          "export": "shareUpload",
+          "source": "globalThis.__snapbackHandlers = { \"shareUpload\": (async (ctx) => ({ owner: ctx.auth.userId })) };\n"
+        }
+      },
+      "sourceSpan": {
+        "column": 14,
+        "file": "functions.mjs",
+        "line": 73
+      }
+    }
+  ],
+  "bundleHash": "snapback.v1:sessions:function:sha256:24a08d9d2e048304388f0ff047f2ff77fb734f47d73554d9787c7be1560955aa",
+  "config": [],
+  "cronJobs": [],
+  "functions": [
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "workspaces"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "value": {
+              "kind": "principal"
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:7fd4b159214366f06365950428581020b84601ac1cfb18d5fed54dd8d0d2c1d6",
+      "authRequirement": "authenticated",
+      "authorityCreating": true,
+      "bundleEntrypoint": "addMember",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "workspaceMembers"
+          }
+        ]
+      },
+      "exportedName": "addMember",
+      "handlerForm": "module",
+      "id": "fixtures:addMember",
+      "implementationHash": "sha256:b2aa9656acc794a6b0a913f7a7aeb09db97db8dd38b1476593bcd09711a62837",
+      "kind": "Mutation",
+      "name": "addMember",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "runtime": {
+        "IbexModule": {
+          "export": "addMember",
+          "source": "// Asset conformance fixture handlers. `createPhoto` is the guide's\n// transcluded attach example; `forgePhoto` proves the commit hook refuses a\n// raw id-shaped string on the handler path.\nglobalThis.__snapbackHandlers = {\n  async createWorkspace(ctx, args) {\n    return await ctx.membership.workspaceMembers.bootstrap({\n      name: String(args.name ?? '').trim(),\n      createdBy: ctx.auth.userId,\n    });\n  },\n\n  async addMember(ctx, args) {\n    return await ctx.membership.workspaceMembers.insert({\n      workspaceId: args.workspaceId,\n      userId: args.userId,\n      role: 'member',\n    });\n  },\n\n  async leaveWorkspace(ctx, args) {\n    await ctx.membership.workspaceMembers.removeSelf(args.workspaceId);\n    return null;\n  },\n\n  async createPhoto(ctx, args) {\n    return await ctx.db.insert('photos', {\n      ownerId: ctx.auth.userId,\n      caption: String(args.caption ?? '').trim(),\n      image: await ctx.assets.attach(args.assetId, { upload: 'photoUpload' }),\n    });\n  },\n\n  async clearPhoto(ctx, args) {\n    await ctx.db.patch('photos', args.id, { image: null });\n    return null;\n  },\n\n  async forgePhoto(ctx, args) {\n    // Deliberately no attach: the raw string must fail the commit with\n    // SNAPBACK_ASSET_REF_UNVERIFIED (LLP 0044 §Typed references).\n    return await ctx.db.insert('photos', {\n      ownerId: ctx.auth.userId,\n      caption: String(args.caption ?? '').trim(),\n      image: args.assetId,\n    });\n  },\n\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "workspaceMembers",
+        "tables": [
+          "workspaceMembers"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "id",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "photos"
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:ca67c710f648a629d1cb092bceab13599722f02a42745c33175f491af06a3539",
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "clearPhoto",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "photos"
+          }
+        ]
+      },
+      "exportedName": "clearPhoto",
+      "handlerForm": "module",
+      "id": "fixtures:clearPhoto",
+      "implementationHash": "sha256:27077933d7ee2aeaad287285a87af61b9d5434de27808db2dc809f9d642d1cbb",
+      "kind": "Mutation",
+      "name": "clearPhoto",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "runtime": {
+        "IbexModule": {
+          "export": "clearPhoto",
+          "source": "// Asset conformance fixture handlers. `createPhoto` is the guide's\n// transcluded attach example; `forgePhoto` proves the commit hook refuses a\n// raw id-shaped string on the handler path.\nglobalThis.__snapbackHandlers = {\n  async createWorkspace(ctx, args) {\n    return await ctx.membership.workspaceMembers.bootstrap({\n      name: String(args.name ?? '').trim(),\n      createdBy: ctx.auth.userId,\n    });\n  },\n\n  async addMember(ctx, args) {\n    return await ctx.membership.workspaceMembers.insert({\n      workspaceId: args.workspaceId,\n      userId: args.userId,\n      role: 'member',\n    });\n  },\n\n  async leaveWorkspace(ctx, args) {\n    await ctx.membership.workspaceMembers.removeSelf(args.workspaceId);\n    return null;\n  },\n\n  async createPhoto(ctx, args) {\n    return await ctx.db.insert('photos', {\n      ownerId: ctx.auth.userId,\n      caption: String(args.caption ?? '').trim(),\n      image: await ctx.assets.attach(args.assetId, { upload: 'photoUpload' }),\n    });\n  },\n\n  async clearPhoto(ctx, args) {\n    await ctx.db.patch('photos', args.id, { image: null });\n    return null;\n  },\n\n  async forgePhoto(ctx, args) {\n    // Deliberately no attach: the raw string must fail the commit with\n    // SNAPBACK_ASSET_REF_UNVERIFIED (LLP 0044 §Typed references).\n    return await ctx.db.insert('photos', {\n      ownerId: ctx.auth.userId,\n      caption: String(args.caption ?? '').trim(),\n      image: args.assetId,\n    });\n  },\n\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "photos",
+        "tables": [
+          "photos"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "title",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "assetId",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:bd2410f6f08c81bdb7611842f46a91546d6102e314c22adf8ac24173383ed7ac",
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "createMixedPlan",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "insert"
+            ],
+            "table": "mixedDocs"
+          }
+        ]
+      },
+      "exportedName": "createMixedPlan",
+      "handlerForm": "plan",
+      "id": "fixtures:createMixedPlan",
+      "implementationHash": "sha256:c8ab6d775909aeb43f74d473aa1adb78dfc5927dccc6ba7b8185eb55834df836",
+      "kind": "Mutation",
+      "name": "createMixedPlan",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "runtime": {
+        "HostPlan": {
+          "Mutation": {
+            "return_value": {
+              "Binding": "id"
+            },
+            "steps": [
+              {
+                "Insert": {
+                  "bind_id_as": "id",
+                  "table": "mixedDocs",
+                  "values": {
+                    "attachment": {
+                      "Arg": "assetId"
+                    },
+                    "ownerId": "AuthUserId",
+                    "title": {
+                      "Arg": "title"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "mixedDocs",
+        "tables": [
+          "mixedDocs"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "workspaces"
+            }
+          },
+          {
+            "name": "body",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "assetId",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:0996814ece23a2327989c2d65eda23627fff64291b1e5358704990c66a1cc7b6",
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "createNotePlan",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "insert"
+            ],
+            "table": "notes"
+          }
+        ]
+      },
+      "exportedName": "createNotePlan",
+      "handlerForm": "plan",
+      "id": "fixtures:createNotePlan",
+      "implementationHash": "sha256:34ac94d40e011fdc666be9348a2cadcd189b0f9e538ad0f42ba3a67815955f27",
+      "kind": "Mutation",
+      "name": "createNotePlan",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "runtime": {
+        "HostPlan": {
+          "Mutation": {
+            "return_value": {
+              "Binding": "id"
+            },
+            "steps": [
+              {
+                "Insert": {
+                  "bind_id_as": "id",
+                  "table": "notes",
+                  "values": {
+                    "authorId": "AuthUserId",
+                    "body": {
+                      "Arg": "body"
+                    },
+                    "photo": {
+                      "Arg": "assetId"
+                    },
+                    "workspaceId": {
+                      "Arg": "workspaceId"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "notes",
+        "tables": [
+          "notes"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "title",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "assetId",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:bd2410f6f08c81bdb7611842f46a91546d6102e314c22adf8ac24173383ed7ac",
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "createOpenDocPlan",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "insert"
+            ],
+            "table": "openDocs"
+          }
+        ]
+      },
+      "exportedName": "createOpenDocPlan",
+      "handlerForm": "plan",
+      "id": "fixtures:createOpenDocPlan",
+      "implementationHash": "sha256:906faba05842d2f6ce3b544775e3d1e2368a3ff0c923130e7faf466cb595f138",
+      "kind": "Mutation",
+      "name": "createOpenDocPlan",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "runtime": {
+        "HostPlan": {
+          "Mutation": {
+            "return_value": {
+              "Binding": "id"
+            },
+            "steps": [
+              {
+                "Insert": {
+                  "bind_id_as": "id",
+                  "table": "openDocs",
+                  "values": {
+                    "attachment": {
+                      "Arg": "assetId"
+                    },
+                    "ownerId": "AuthUserId",
+                    "title": {
+                      "Arg": "title"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "openDocs",
+        "tables": [
+          "openDocs"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "caption",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "assetId",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:8f0a63b50f2cc4d9aee241ff37e9f3e0a91e536ca7f058be2641f73598be030f",
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "createPhoto",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "photos"
+          }
+        ]
+      },
+      "exportedName": "createPhoto",
+      "handlerForm": "module",
+      "id": "fixtures:createPhoto",
+      "implementationHash": "sha256:24206a9e0dd7a18451c38a2b35ffbf8e8bc6e9474bc55d060c22746467a1beef",
+      "kind": "Mutation",
+      "name": "createPhoto",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "runtime": {
+        "IbexModule": {
+          "export": "createPhoto",
+          "source": "// Asset conformance fixture handlers. `createPhoto` is the guide's\n// transcluded attach example; `forgePhoto` proves the commit hook refuses a\n// raw id-shaped string on the handler path.\nglobalThis.__snapbackHandlers = {\n  async createWorkspace(ctx, args) {\n    return await ctx.membership.workspaceMembers.bootstrap({\n      name: String(args.name ?? '').trim(),\n      createdBy: ctx.auth.userId,\n    });\n  },\n\n  async addMember(ctx, args) {\n    return await ctx.membership.workspaceMembers.insert({\n      workspaceId: args.workspaceId,\n      userId: args.userId,\n      role: 'member',\n    });\n  },\n\n  async leaveWorkspace(ctx, args) {\n    await ctx.membership.workspaceMembers.removeSelf(args.workspaceId);\n    return null;\n  },\n\n  async createPhoto(ctx, args) {\n    return await ctx.db.insert('photos', {\n      ownerId: ctx.auth.userId,\n      caption: String(args.caption ?? '').trim(),\n      image: await ctx.assets.attach(args.assetId, { upload: 'photoUpload' }),\n    });\n  },\n\n  async clearPhoto(ctx, args) {\n    await ctx.db.patch('photos', args.id, { image: null });\n    return null;\n  },\n\n  async forgePhoto(ctx, args) {\n    // Deliberately no attach: the raw string must fail the commit with\n    // SNAPBACK_ASSET_REF_UNVERIFIED (LLP 0044 §Typed references).\n    return await ctx.db.insert('photos', {\n      ownerId: ctx.auth.userId,\n      caption: String(args.caption ?? '').trim(),\n      image: args.assetId,\n    });\n  },\n\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "photos",
+        "tables": [
+          "photos"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "caption",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "assetId",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:8f0a63b50f2cc4d9aee241ff37e9f3e0a91e536ca7f058be2641f73598be030f",
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "createPhotoPlan",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "insert"
+            ],
+            "table": "photos"
+          }
+        ]
+      },
+      "exportedName": "createPhotoPlan",
+      "handlerForm": "plan",
+      "id": "fixtures:createPhotoPlan",
+      "implementationHash": "sha256:e983163e27b698db93e0b7977f77735b8c95f044dd6d235a051b2d7d256f4f9d",
+      "kind": "Mutation",
+      "name": "createPhotoPlan",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "runtime": {
+        "HostPlan": {
+          "Mutation": {
+            "return_value": {
+              "Binding": "id"
+            },
+            "steps": [
+              {
+                "Insert": {
+                  "bind_id_as": "id",
+                  "table": "photos",
+                  "values": {
+                    "caption": {
+                      "Arg": "caption"
+                    },
+                    "image": {
+                      "Arg": "assetId"
+                    },
+                    "ownerId": "AuthUserId"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "photos",
+        "tables": [
+          "photos"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "name",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:cf32b5ef0a7af7a40594ca003f2a1fcc7dd1f7516184c439e8e405d176c458d4",
+      "authRequirement": "authenticated",
+      "authorityCreating": true,
+      "bundleEntrypoint": "createWorkspace",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "workspaceMembers"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "workspaces"
+          }
+        ]
+      },
+      "exportedName": "createWorkspace",
+      "handlerForm": "module",
+      "id": "fixtures:createWorkspace",
+      "implementationHash": "sha256:151d09f635493ca4f6dd79148563d1ac98f9e11592435707bdc551e656570eb9",
+      "kind": "Mutation",
+      "name": "createWorkspace",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "runtime": {
+        "IbexModule": {
+          "export": "createWorkspace",
+          "source": "// Asset conformance fixture handlers. `createPhoto` is the guide's\n// transcluded attach example; `forgePhoto` proves the commit hook refuses a\n// raw id-shaped string on the handler path.\nglobalThis.__snapbackHandlers = {\n  async createWorkspace(ctx, args) {\n    return await ctx.membership.workspaceMembers.bootstrap({\n      name: String(args.name ?? '').trim(),\n      createdBy: ctx.auth.userId,\n    });\n  },\n\n  async addMember(ctx, args) {\n    return await ctx.membership.workspaceMembers.insert({\n      workspaceId: args.workspaceId,\n      userId: args.userId,\n      role: 'member',\n    });\n  },\n\n  async leaveWorkspace(ctx, args) {\n    await ctx.membership.workspaceMembers.removeSelf(args.workspaceId);\n    return null;\n  },\n\n  async createPhoto(ctx, args) {\n    return await ctx.db.insert('photos', {\n      ownerId: ctx.auth.userId,\n      caption: String(args.caption ?? '').trim(),\n      image: await ctx.assets.attach(args.assetId, { upload: 'photoUpload' }),\n    });\n  },\n\n  async clearPhoto(ctx, args) {\n    await ctx.db.patch('photos', args.id, { image: null });\n    return null;\n  },\n\n  async forgePhoto(ctx, args) {\n    // Deliberately no attach: the raw string must fail the commit with\n    // SNAPBACK_ASSET_REF_UNVERIFIED (LLP 0044 §Typed references).\n    return await ctx.db.insert('photos', {\n      ownerId: ctx.auth.userId,\n      caption: String(args.caption ?? '').trim(),\n      image: args.assetId,\n    });\n  },\n\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "workspaces",
+        "tables": [
+          "workspaces",
+          "workspaceMembers"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "caption",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "assetId",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:8f0a63b50f2cc4d9aee241ff37e9f3e0a91e536ca7f058be2641f73598be030f",
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "forgePhoto",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "photos"
+          }
+        ]
+      },
+      "exportedName": "forgePhoto",
+      "handlerForm": "module",
+      "id": "fixtures:forgePhoto",
+      "implementationHash": "sha256:facba1fc80008bc2d98690d99a42382704a1b8327e69d52ba7117c0cfc523c58",
+      "kind": "Mutation",
+      "name": "forgePhoto",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "runtime": {
+        "IbexModule": {
+          "export": "forgePhoto",
+          "source": "// Asset conformance fixture handlers. `createPhoto` is the guide's\n// transcluded attach example; `forgePhoto` proves the commit hook refuses a\n// raw id-shaped string on the handler path.\nglobalThis.__snapbackHandlers = {\n  async createWorkspace(ctx, args) {\n    return await ctx.membership.workspaceMembers.bootstrap({\n      name: String(args.name ?? '').trim(),\n      createdBy: ctx.auth.userId,\n    });\n  },\n\n  async addMember(ctx, args) {\n    return await ctx.membership.workspaceMembers.insert({\n      workspaceId: args.workspaceId,\n      userId: args.userId,\n      role: 'member',\n    });\n  },\n\n  async leaveWorkspace(ctx, args) {\n    await ctx.membership.workspaceMembers.removeSelf(args.workspaceId);\n    return null;\n  },\n\n  async createPhoto(ctx, args) {\n    return await ctx.db.insert('photos', {\n      ownerId: ctx.auth.userId,\n      caption: String(args.caption ?? '').trim(),\n      image: await ctx.assets.attach(args.assetId, { upload: 'photoUpload' }),\n    });\n  },\n\n  async clearPhoto(ctx, args) {\n    await ctx.db.patch('photos', args.id, { image: null });\n    return null;\n  },\n\n  async forgePhoto(ctx, args) {\n    // Deliberately no attach: the raw string must fail the commit with\n    // SNAPBACK_ASSET_REF_UNVERIFIED (LLP 0044 §Typed references).\n    return await ctx.db.insert('photos', {\n      ownerId: ctx.auth.userId,\n      caption: String(args.caption ?? '').trim(),\n      image: args.assetId,\n    });\n  },\n\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "photos",
+        "tables": [
+          "photos"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "workspaces"
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:7acf7f3e4aff848544e5e42c8d78f9c3d0ff54b2bbca08dd0903313c402649c3",
+      "authRequirement": "authenticated",
+      "authorityCreating": true,
+      "bundleEntrypoint": "leaveWorkspace",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "workspaceMembers"
+          }
+        ]
+      },
+      "exportedName": "leaveWorkspace",
+      "handlerForm": "module",
+      "id": "fixtures:leaveWorkspace",
+      "implementationHash": "sha256:48e9bdca5ce7b9e0405293c6db526f50b484b54df9db0e3c329f4bfb7473c93f",
+      "kind": "Mutation",
+      "name": "leaveWorkspace",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "runtime": {
+        "IbexModule": {
+          "export": "leaveWorkspace",
+          "source": "// Asset conformance fixture handlers. `createPhoto` is the guide's\n// transcluded attach example; `forgePhoto` proves the commit hook refuses a\n// raw id-shaped string on the handler path.\nglobalThis.__snapbackHandlers = {\n  async createWorkspace(ctx, args) {\n    return await ctx.membership.workspaceMembers.bootstrap({\n      name: String(args.name ?? '').trim(),\n      createdBy: ctx.auth.userId,\n    });\n  },\n\n  async addMember(ctx, args) {\n    return await ctx.membership.workspaceMembers.insert({\n      workspaceId: args.workspaceId,\n      userId: args.userId,\n      role: 'member',\n    });\n  },\n\n  async leaveWorkspace(ctx, args) {\n    await ctx.membership.workspaceMembers.removeSelf(args.workspaceId);\n    return null;\n  },\n\n  async createPhoto(ctx, args) {\n    return await ctx.db.insert('photos', {\n      ownerId: ctx.auth.userId,\n      caption: String(args.caption ?? '').trim(),\n      image: await ctx.assets.attach(args.assetId, { upload: 'photoUpload' }),\n    });\n  },\n\n  async clearPhoto(ctx, args) {\n    await ctx.db.patch('photos', args.id, { image: null });\n    return null;\n  },\n\n  async forgePhoto(ctx, args) {\n    // Deliberately no attach: the raw string must fail the commit with\n    // SNAPBACK_ASSET_REF_UNVERIFIED (LLP 0044 §Typed references).\n    return await ctx.db.insert('photos', {\n      ownerId: ctx.auth.userId,\n      caption: String(args.caption ?? '').trim(),\n      image: args.assetId,\n    });\n  },\n\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "workspaceMembers",
+        "tables": [
+          "workspaceMembers"
+        ]
+      }
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:2f9fb831da26ccce4a286773e2e0d23be7cd4d616b376ae39149c02eef4f5ceb",
+  "schemaVersion": "snapback.v1",
+  "unsupportedDependencyDiagnostics": [
+    {
+      "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+      "details": {
+        "function": "addMember"
+      },
+      "message": "addMember: no precise result contract was declared; runtime enforcement is limited to the general result budget",
+      "severity": "info",
+      "subsystem": "function"
+    },
+    {
+      "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+      "details": {
+        "function": "clearPhoto"
+      },
+      "message": "clearPhoto: no precise result contract was declared; runtime enforcement is limited to the general result budget",
+      "severity": "info",
+      "subsystem": "function"
+    },
+    {
+      "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+      "details": {
+        "function": "createMixedPlan"
+      },
+      "message": "createMixedPlan: no precise result contract was declared; runtime enforcement is limited to the general result budget",
+      "severity": "info",
+      "subsystem": "function"
+    },
+    {
+      "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+      "details": {
+        "function": "createNotePlan"
+      },
+      "message": "createNotePlan: no precise result contract was declared; runtime enforcement is limited to the general result budget",
+      "severity": "info",
+      "subsystem": "function"
+    },
+    {
+      "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+      "details": {
+        "function": "createOpenDocPlan"
+      },
+      "message": "createOpenDocPlan: no precise result contract was declared; runtime enforcement is limited to the general result budget",
+      "severity": "info",
+      "subsystem": "function"
+    },
+    {
+      "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+      "details": {
+        "function": "createPhoto"
+      },
+      "message": "createPhoto: no precise result contract was declared; runtime enforcement is limited to the general result budget",
+      "severity": "info",
+      "subsystem": "function"
+    },
+    {
+      "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+      "details": {
+        "function": "createPhotoPlan"
+      },
+      "message": "createPhotoPlan: no precise result contract was declared; runtime enforcement is limited to the general result budget",
+      "severity": "info",
+      "subsystem": "function"
+    },
+    {
+      "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+      "details": {
+        "function": "createWorkspace"
+      },
+      "message": "createWorkspace: no precise result contract was declared; runtime enforcement is limited to the general result budget",
+      "severity": "info",
+      "subsystem": "function"
+    },
+    {
+      "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+      "details": {
+        "function": "forgePhoto"
+      },
+      "message": "forgePhoto: no precise result contract was declared; runtime enforcement is limited to the general result budget",
+      "severity": "info",
+      "subsystem": "function"
+    },
+    {
+      "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+      "details": {
+        "function": "leaveWorkspace"
+      },
+      "message": "leaveWorkspace: no precise result contract was declared; runtime enforcement is limited to the general result budget",
+      "severity": "info",
+      "subsystem": "function"
+    },
+    {
+      "code": "SNAPBACK_ASSET_SHARING_UNDECLARED",
+      "details": {
+        "intent": "coverUpload",
+        "tables": [
+          "openDocs"
+        ]
+      },
+      "message": "coverUpload: via-references assets reachable from tables without an assetSharing declaration confer no read authority there (owner-only fallback): openDocs",
+      "severity": "warning",
+      "subsystem": "asset"
+    },
+    {
+      "code": "SNAPBACK_ASSET_SHARING_UNDECLARED",
+      "details": {
+        "intent": "photoUpload",
+        "tables": [
+          "mixedDocs",
+          "openDocs"
+        ]
+      },
+      "message": "photoUpload: via-references assets reachable from tables without an assetSharing declaration confer no read authority there (owner-only fallback): mixedDocs, openDocs",
+      "severity": "warning",
+      "subsystem": "asset"
+    }
+  ]
+}

@@ -300,6 +300,20 @@
           "minimum": 0,
           "type": "integer"
         },
+        "onDemandMaxWidthPx": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "onDemandWidthLadder": {
+          "description": "The bounded on-demand width ladder (LLP 0044 §Ceremony floor,\n2026-08-01): `?width=N` normalizes up this ladder and materializes\nonce through the ordinary rendition machinery.",
+          "items": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "array"
+        },
         "placeholderAlgorithm": {
           "type": "string"
         },
@@ -324,7 +338,9 @@
         "ratioFloorBytes",
         "maxMetadataBytes",
         "stepTimeBudgetMs",
-        "maxOutputBytes"
+        "maxOutputBytes",
+        "onDemandWidthLadder",
+        "onDemandMaxWidthPx"
       ],
       "type": "object"
     },

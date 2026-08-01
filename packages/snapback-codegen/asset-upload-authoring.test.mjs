@@ -54,8 +54,24 @@ export const avatarUpload = defineAssetUpload({
   const { dir, result } = await runCase({ schema, functions });
   assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
   const manifest = JSON.parse(readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8'));
-  assert.equal(manifest.assetUploadIntents.length, 1);
-  const intent = manifest.assetUploadIntents[0];
+  // LLP 0044 §Ceremony floor: the bare `attachment` field derives a default
+  // intent beside the explicit one.
+  assert.equal(manifest.assetUploadIntents.length, 2);
+  const derived = manifest.assetUploadIntents.find(
+    (candidate) => candidate.name === '_assets.default.profiles.attachment',
+  );
+  assert.ok(derived, 'bare v.assetRef() derives a default intent');
+  assert.equal(derived.delivery.kind, 'private-strict');
+  assert.equal(derived.access.read, 'owner-only');
+  assert.deepEqual(derived.image, { location: 'strip' });
+  assert.deepEqual(derived.accept.mediaTypes, ['image/jpeg', 'image/png']);
+  assert.equal(derived.authRequirement, 'authenticated');
+  assert.equal(derived.handlerForm, 'module');
+  assert.equal(derived.runtime.IbexModule.export, 'defaultAuthorizer');
+  assert.match(derived.intentPolicyHash, /^sha256:[0-9a-f]{64}$/);
+  const intent = manifest.assetUploadIntents.find(
+    (candidate) => candidate.name === 'avatarUpload',
+  );
   assert.equal(intent.name, 'avatarUpload');
   assert.match(intent.id, /:avatarUpload$/);
   assert.match(intent.intentPolicyHash, /^sha256:[0-9a-f]{64}$/);
@@ -76,11 +92,22 @@ export const avatarUpload = defineAssetUpload({
   assert.deepEqual(avatar.field_type, { AssetRef: { upload: 'avatarUpload' } });
   assert.equal(avatar.optional, true);
   const attachment = profiles.fields.find((field) => field.name === 'attachment');
-  assert.deepEqual(attachment.field_type, { AssetRef: {} });
+  // The bare field is rewritten to its derived default restriction.
+  assert.deepEqual(attachment.field_type, {
+    AssetRef: { upload: '_assets.default.profiles.attachment' },
+  });
 
   const api = readFileSync(join(dir, 'generated', 'api.mjs'), 'utf8');
   assert.ok(api.includes('"artifactKind": "assetUploadReference"'), 'api.mjs carries the upload reference');
   assert.ok(api.includes('"intentPolicyHash"'));
+  assert.ok(
+    api.includes('export const defaults ='),
+    'api.mjs exposes the defaults subtree',
+  );
+  assert.ok(
+    api.includes('"_assets.default.profiles.attachment"'),
+    'the derived reference is present',
+  );
   // Sharing declared: no undeclared-sharing warning.
   assert.equal(codes(result).includes('SNAPBACK_ASSET_SHARING_UNDECLARED'), false);
 }
@@ -93,7 +120,7 @@ import { defineSchema, defineTable, v } from '${defineUrl}';
 export default defineSchema({
   posts: defineTable({
     authorId: v.principal(),
-    attachment: v.optional(v.assetRef()),
+    attachment: v.optional(v.assetRef({ upload: 'attachmentUpload' })),
   }).sync(),
 });
 `;
@@ -572,4 +599,37 @@ export default defineSchema({
     `named diagnostic present: ${JSON.stringify(codes(result))}`,
   );
   console.log('schema-module intent refusal assertions pass');
+}
+
+// --- ceremony amendment: upload:null stays unrestricted; derived strip
+// refuses off-local (LLP 0044 §Ceremony floor, 2026-08-01) ----------------
+
+{
+  const schema = `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({
+  docs: defineTable({ file: v.optional(v.assetRef({ upload: null })) }).sync(),
+});
+`;
+  const { dir, result } = await runCase({ schema, functions: '' });
+  assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+  const manifest = JSON.parse(readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8'));
+  assert.equal(manifest.assetUploadIntents ?? undefined, undefined, 'upload: null derives nothing');
+  const schemaManifest = JSON.parse(readFileSync(join(dir, 'generated', 'schema.manifest.json'), 'utf8'));
+  const file = schemaManifest.tables.find((t) => t.name === 'docs').fields.find((f) => f.name === 'file');
+  assert.deepEqual(file.field_type, { AssetRef: {} }, 'unrestricted marker never reaches the manifest');
+  console.log('upload:null unrestricted assertions pass');
+}
+
+{
+  const schema = `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({
+  posts: defineTable({ photo: v.optional(v.assetRef()) }).sync(),
+});
+`;
+  const { result } = await runCase({ schema, functions: '', targetProfile: 'remote-service-sqlite-ibex' });
+  assert.equal(result.ok, false, 'derived strip intent must refuse without image finalization');
+  assert.ok(codes(result).includes('SNAPBACK_ASSET_INTENT_LOCATION_STRIP_UNSUPPORTED'));
+  console.log('derived-default strip refusal assertions pass');
 }

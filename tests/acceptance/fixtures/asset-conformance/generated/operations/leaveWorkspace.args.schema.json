@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/fixtures/leaveWorkspace.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "workspaceId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "workspaceId"
+  ],
+  "title": "fixtures:leaveWorkspace arguments",
+  "type": "object"
+}
