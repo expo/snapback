@@ -164,7 +164,7 @@ await runAcceptance(suite, async () => {
   let clientB;
   let handleB;
   const updatesB = [];
-  await suite.check('cold relaunch with the backend down renders retained rows (Diary 0027 comparator)', async () => {
+  await suite.check('fresh client instance (same process) with the backend down renders retained rows (Diary 0027 comparator)', async () => {
     clientB = openClient();
     handleB = await clientB.liveQuery('dashboardMetrics', {
       connectionId: 'offline-arm-b',
@@ -304,7 +304,7 @@ await runAcceptance(suite, async () => {
   handleB.dispose();
   await closeClient(clientB);
 
-  await suite.check('cold relaunch after restart renders retained rows first, then settles current', async () => {
+  await suite.check('fresh client instance (same process) after restart renders retained rows first, then settles current', async () => {
     const clientC = openClient();
     const updates = [];
     const handleC = await clientC.liveQuery('dashboardMetrics', {

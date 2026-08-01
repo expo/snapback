@@ -150,6 +150,33 @@ failed load, malformed query result, non-committing mutation, missing live row,
 shutdown failure, or cleanup failure remains the first structured error and
 cannot be converted into a green file-presence check.
 
+## Report the runtime's own readiness identity
+
+`doctor` proves the whole loop. When you want just the runtime's identity —
+"which binary is this, and does its handler VM come up in the restricted
+no-eval posture?" — ask the binary directly:
+
+```sh
+snapback runtime-qualify
+```
+
+It prints a `snapback.runtime-qualify.v1` result carrying the VM profile
+(`restricted-no-eval-handler-vm`), `ok`, and the binary's build stamp. It
+creates the same VM every JS handler uses, so a mismatched Hermes framework
+or a runtime/glue contract skew fails here rather than at the first handler
+invocation. This is the identity to quote in a bug report or a packaged
+consumer's readiness note.
+
+The result is printed, not persisted: packaged installs carry no
+`runtime-readiness.json` receipt today, and the repo-side digest-bound receipt
+that doctor re-verifies is a source-checkout artifact
+([LLP 0010](repo:llp/0010-agent-dx-and-acceptance.spec.md)). Persisting a
+consumer-side receipt under the app's managed `.snapback/` state is
+[an open item](repo:issues/20260801-0137-g1-guide-gap-packaged-runtime-readiness-receipt.md);
+until it lands, retain the command's output if you need evidence. Doctor's
+live six-boundary qualification stays authoritative either way — a receipt
+would complement it, never replace it.
+
 ## Preserve the first useful failure
 
 Acceptance harnesses must fail during setup instead of reporting a vacuous

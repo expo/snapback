@@ -762,6 +762,103 @@ gated non-production session-mint host operation and the first-party client
 adopts the resulting bearer with exact protocol offers. Neither path is a
 hosted-production auth claim.
 
+## Mint test personas: the complete local recipe
+
+A sessions-mode acceptance suite needs two or more genuine principals. The
+mailbox above is admin-gated **and** impersonation-gated; both carriers are
+required, and both are local-only. The complete loop — client construction,
+code request, mailbox read, exchange — is:
+
+```js source=demos/party-wall/tests/acceptance/headless.mjs
+    const client = new SnapbackClient(server.baseUrl, {
+      authCoordinator: coordinator,
+      authInvalidationProtocol: 1,
+      authorityDescriptorProtocol: 1,
+      authorizedLeaseProtocol: 1,
+      clientStoreId: `pw-${email.split('@')[0]}`,
+    });
+    const requested = await client.authRequestCode(email);
+    const mailboxResponse = await fetch(
+      `${server.baseUrl}/_snapback/api/auth/mailbox?challengeId=${encodeURIComponent(requested.challengeId)}`,
+      {
+        headers: {
+          'x-snapback-admin-token': server.adminToken,
+          'x-snapback-impersonation-capability': server.impersonationCapability,
+        },
+      },
+    );
+    const mailbox = await mailboxResponse.json();
+    assert.equal(mailboxResponse.status, 200, JSON.stringify(mailbox));
+    const credential = await client.authExchange({
+      challengeId: requested.challengeId,
+      code: mailbox.code,
+    });
+```
+
+The two carriers, exactly:
+
+| Carrier | Header | Where it comes from |
+| --- | --- | --- |
+| Admin token | `x-snapback-admin-token` | the dev server's admin token |
+| Impersonation capability | `x-snapback-impersonation-capability` | the `impersonation` field of the server's `dev.ready.json` startup sidecar |
+
+`SNAPBACK_AUTH_IMPERSONATION_REQUIRED` means the second header is missing.
+Call each persona's loop once per email; the returned
+`credential.session.userId` is the server-issued principal id.
+
+**Custody boundaries.** The mailbox route, the admin token, and the
+impersonation capability are local-test material. None may enter browser or
+native bundles, committed fixtures, or logs. A production deployment refuses
+the route outright — the recipe is a test path, not an auth design.
+
+An already-authenticated **headless** client (one that obtained a bearer some
+other way, such as an identity broker) is constructed with
+`createExternalSessionClient(baseUrl, { bearerToken })`; a bare
+`authClientProtocol: 1` construction without declared custody is refused.
+
+## Read public data anonymously
+
+A sessions-mode app often has a public surface — an event preview, a shared
+link — that must read *without* a signed-in principal. Bare clients are
+refused (`SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED`) because the v1 profile
+requires declared custody. The paved path declares **anonymous-public**
+custody, which sends the protocol offer with no credential:
+
+```js source=packages/snapback-client/app-data.test.mjs
+    const anonymous = new SnapbackClient(baseUrl, { custody: 'anonymous-public', adminToken: null });
+```
+
+The custody is mutually exclusive with browser, agent, and external-bearer
+custody: passing a bearer alongside it throws rather than silently
+downgrading, so no caller-selected identity can be smuggled through the
+anonymous path. Anonymous clients read `public` queries only; protected
+queries refuse exactly as they do for a signed-out browser.
+
+## Reset invalidates sessions and reissues principals
+
+`app.reset` advances the auth boundary. Two consequences an author hits
+immediately:
+
+- **Existing sessions stop working.** Any bearer minted before the reset
+  fails with `SNAPBACK_AUTH_REQUIRED`. Mint personas *after* the reset.
+- **Reminted identities are new principals.** The same local email resolves
+  to a *different* server-issued `userId` after a reset. Principal ids are
+  therefore never stable fixture values: a seeded row naming a pre-reset id
+  points at an identity that no longer exists.
+
+So do not seed membership or ownership rows with captured principal ids in
+sessions mode. Seed the *resources*, then have each authenticated persona
+join through the declared membership surface —
+`ctx.membership.<declaration>.bootstrap(...)` for the first owner, then
+owner-authorized insertion for the rest (see
+[scoped roles](./scoped-roles.md)). The server owns both the resource ids and
+the principal ids, which is what makes the fixture deterministic in the only
+sense that survives a reset.
+
+Dev-mode principals are different: they are client-asserted and stable across
+resets, which is why the dev authoring loop can seed them directly. Do not
+carry that habit into sessions mode.
+
 ## Queries are scoped by the server, not by arguments
 
 A protected query takes **no owner argument**. Its filter compares the stored
@@ -1285,6 +1382,27 @@ public details `{ kind: 'role' }`. It reveals neither whether the resource nor
 membership exists. The denial is host-owned and remains terminal even if app
 JavaScript catches the thrown error. Actions have no transactional read set,
 so `ctx.permissions` is deliberately unavailable there.
+
+## Choose between filtering and denying
+
+The two gates above give an outsider **different observable outcomes**, and
+the choice is a product decision, not an implementation detail:
+
+| Idiom | Outsider sees | Use when |
+| --- | --- | --- |
+| Declarative `membership:` on a query (see [Gate a query with the declaration](#gate-a-query-with-the-declaration)) | an empty result, indistinguishable from "nothing here yet" | the surface is a list or feed that should simply be empty for non-members |
+| `ctx.permissions.<declaration>.requireRole(...)` in a handler | `SNAPBACK_AUTH_PERMISSION_DENIED` | the caller is acting on a specific resource and a silent no-op would be a lie |
+
+Neither discloses data: the declarative filter never returns rows the caller
+may not see, and the denial carries invariant public details. What differs is
+what a probing outsider can *confirm* — a denial confirms the operation
+exists and was refused, an empty result confirms nothing — and what the UI
+must do: an empty list renders naturally, whereas a swallowed denial on a
+write path silently loses the user's work.
+
+Pick per surface, and be deliberate when converting one to the other: moving
+a read from a declarative query into a handler that calls `requireRole`
+changes the outsider contract even though both are secure.
 
 ## Change membership through generated methods
 
@@ -1862,6 +1980,43 @@ An explicit `.take(1_024)` is allowed and means “this bounded prefix is
 intentional”; it does not claim the whole predicate has only 1,024 matches.
 Do not collect a large prefix and then sort or filter it in JavaScript to infer
 the global top rows—the omitted rows may contain the actual winners.
+
+### The complete builder chain
+
+`ctx.db.query(table)` accepts exactly these verbs, in any order after
+`.withIndex(name)`:
+
+| Verb | Meaning |
+| --- | --- |
+| `.eq(field, value)` | equality |
+| `.in(field, [values])` | membership in a bounded set |
+| `.lt(field, value)` / `.lte(field, value)` | strictly-less / less-or-equal |
+| `.gt(field, value)` / `.gte(field, value)` | strictly-greater / greater-or-equal |
+| `.order(field, 'asc' \| 'desc')` | server-side ordering |
+| `.take(n)` | the declared bound |
+| `.collect()` / `.first()` | execute |
+
+The range verbs are what make **keyset pagination** expressible for any
+visibility the query already enforces: carry the last row's ordering value as
+the cursor and ask for the next bounded window.
+
+```js fragment reason="keyset page pattern over an existing bounded query"
+const page = await ctx.db
+  .query('messages')
+  .withIndex('by_channel')
+  .eq('channelId', args.channelId)
+  .gt('_version', args.afterVersion ?? 0)
+  .order('_version', 'asc')
+  .take(20)
+  .collect();
+```
+
+Do not collect the whole partition and slice it in JavaScript — that is
+O(partition) per page and reaches the implicit ceiling on a busy channel.
+(`defineOwnedKeysetPages` generates this shape for *owner*-scoped history;
+the chain above is how you page anything else.) A verb outside this table
+refuses during generation with a named diagnostic rather than failing at
+runtime.
 
 ## Scope on the server
 
@@ -2951,6 +3106,36 @@ terminal-auth fact (`{ terminated, code, authorityDisposition, atMs }`), and
 (fresh sign-in or explicit custody replacement, which clears the fact)
 instead of retrying. Suites that reset mid-run must plan to re-authenticate
 every persona afterwards.
+
+## Run the loop against a sessions-mode app
+
+The seed lifecycle is admin-gated, so on a dev-mode app an admin-token client
+is enough. A **sessions-mode** app needs three additional facts, each of which
+is a refusal if you miss it:
+
+1. **The admin client must also carry a session bearer.** An admin-token-only
+   client cannot offer the auth-client protocol, which sessions mode requires.
+   Construct it as
+   `createExternalSessionClient(url, { bearerToken, adminToken })` — a persona
+   bearer minted through the
+   [test-persona recipe](../auth/sessions-and-principals.md#mint-test-personas-the-complete-local-recipe)
+   plus the admin token for the seed routes.
+2. **Pass `requestedMode: 'sessions'` on every seed call.** The seed methods
+   default to `dev` and refuse a sessions app with
+   `SNAPBACK_SEED_CROSS_MODE_UNSUPPORTED` until the mode is stated
+   explicitly. The refusal is deliberate: a cross-mode install would seed
+   identities the running app cannot authenticate.
+3. **Take `expectedDataVersionStream` from the preview.** The active stream is
+   `preview.current.dataVersionStream`; a stale value from an earlier run
+   refuses as a historical operation.
+
+With those three, `resetInstallVersionedSeed` is the paved sessions reset: it
+leaves the database in a state the next `snapback dev` accepts, unlike a raw
+database wipe, which strands the seed identity. Remember that the reset
+invalidates every bearer minted before it, including the one that performed
+it — mint personas *after* the install, and never seed captured principal ids
+(see
+[reset invalidates sessions](../auth/sessions-and-principals.md#reset-invalidates-sessions-and-reissues-principals)).
 
 ## Interpret refusals
 
@@ -5778,6 +5963,33 @@ permission to expose development auth on a non-loopback listener. Each OS must
 run its own build, lifecycle, reconnect, and artifact-exclusion checks; neither
 receipt can substitute for the other.
 
+## Witness a deep link on the simulator
+
+An invitation or share flow returns to the app through a custom scheme, and
+the acceptance loop above has no deep-link leg by default. Two facts save a
+silent timeout:
+
+1. **The first open of a custom scheme raises an OS confirmation dialog**
+   (`Open in "<app>"?`). That is an iOS product fact — a real user answers it
+   once per scheme — and no headless `simctl` surface can answer it. The URL
+   event never reaches the app, and a director/witness run simply times out
+   with no diagnostic.
+2. **Pre-approve the scheme for headless runs.** With the device *shut down*,
+   write the scheme approval into the simulator's launch-services preferences:
+
+```sh
+# device shut down; key is CoreSimulatorBridge-->{scheme}, value is the bundle id
+plutil -replace "com.apple.CoreSimulator.CoreSimulatorBridge-->myapp" \
+  -string com.example.myapp \
+  ~/Library/Developer/CoreSimulator/Devices/<UDID>/data/Library/Preferences/com.apple.launchservices.schemeapproval.plist
+```
+
+Then boot, install, and `xcrun simctl openurl <UDID> "myapp://invite/<token>"`;
+the React Native `Linking` listener fires and the in-app redemption is
+witnessable like any other step. Keep the scheme registration itself in the
+app config (`expo.scheme`) — the pre-approval only substitutes for the human
+tap, and only on a simulator you control.
+
 ## Handle native reconnect honestly
 
 React Native WebSockets may emit `error` without the browser-style follow-up
@@ -6816,6 +7028,24 @@ Inline v1 is deliberately self-contained: it does not capture imports,
 sibling helpers, or outer constants, so put all application logic and locals
 inside the direct handler expression. Class syntax, dynamic import, `eval`,
 and `Function` are refused during generation.
+
+### What the subset refuses, and the standard rewrites
+
+Every refusal below happens at generation with a file/line/column, never at
+runtime:
+
+| Refused | Diagnostic gist | Standard rewrite |
+| --- | --- | --- |
+| Dynamic computed member access (`s[i]`, `vec[slot] += d`) | `dynamic computed member access is outside inline_handler_v1` | walk strings with `charAt`/`charCodeAt`; update slots with `arr.map((v, i) => i === slot ? v + d : v)` |
+| Sibling capture (imports, outer consts, helper functions) | free identifier outside the allowlist | inline the logic, or declare the helper *inside* the handler body |
+| An empty `writes: []` on `defineJsMutation` | `defineJsMutation requires declared writes` | declare the tables the mutation may write, even if a given path writes none |
+| A query verb outside the builder | `<verb> is not a query-builder verb` | use the [documented chain](../backend/queries.md#the-complete-builder-chain) |
+| Class syntax, `this`/`super`, dynamic `import`, `eval`, `Function` | named per construct | restructure as plain functions and values |
+
+What **is** available, and needs no ceremony: `JSON.stringify`/`JSON.parse`,
+`Math`, `String.fromCharCode`, template literals, arrow helpers declared
+inside the handler body, ordinary array methods (`map`, `filter`, `reduce`,
+`slice`, `sort`), and destructuring with static names.
 [Queries](../backend/queries.md) covers the capture limits; the governing
 spec is
 [LLP 0108](repo:llp/0108-inline-handlers-and-result-contracts.spec.md).
@@ -7046,13 +7276,20 @@ developer-loop CLI packages. Clean GitHub-hosted machines on both supported
 runtime tuples installed that exact closure and passed the original
 `todo-contract` scaffold/generate/dev/watch proof.
 
-Do not infer that the public `0.1.0` bytes contain every surface described by
-the current source tree. In particular, the current React scaffold depends on
-`@expo/snapback-vite`, and its retained cold proof is a staged, clean-source
-checkpoint on macOS/arm64 with a real Chromium journey. `@expo/snapback-vite`, the
-current React starter, the current versioned-seed integration, and the Linux
-run of that expanded starter still need one newly versioned public closure
-before this page can call the React command a public-registry path.
+The `@expo/snapback-*` **0.1.7** closure (publication ledger
+`terminal-package-publication-0.1.7-fdd49db8.json`) carries the complete
+public React path: `snapback new --template react`, `bun install`,
+`snapback generate`, a strict typecheck, `vite build`, the `snapback dev`
+lifecycle, template live acceptance with real handler execution, and a clean
+stop — proven from a clean external directory by the LLP 0137 G1
+qualification arm
+(`demos/improvement-sweep/arms/g1-public-package-qualification/`). Treat that
+version as the public-registry React path.
+
+Still do not infer that a published closure contains every surface in the
+current source tree: source lands continuously, and a packaged consumer has
+whatever the newest published version froze. When a page describes a surface
+newer than the newest closure, it says so.
 
 On each supported tuple the mapped runtime package carries the prebuilt server
 and Hermes runtime. `doctor` first launches that relocated binary with
@@ -7138,6 +7375,30 @@ A raw `ERR_MODULE_NOT_FOUND` for `acorn`, `esbuild`, or `typescript` means the
 source checkout has not completed the pinned install above. It is a contributor
 environment failure, not an application diagnostic. Packaged
 `snapback generate` installs these as ordinary package dependencies.
+
+## Evolve a table that already has data
+
+Adding an **optional** field to a populated table is an ordinary edit, not a
+migration ceremony: change the schema and let the running `snapback dev`
+watch reload pick it up. The reload evolves the catalog in place, and live
+handles may stay attached while it happens — a subscriber does not have to be
+torn down first.
+
+What matters is *where* you do it. Stop the server, regenerate, and restart,
+and a sessions-mode app refuses with
+`SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH`, whose details carry the expected
+and observed deployment identities: the settled deployment's startup carrier
+no longer matches the artifacts on disk. The recovery is the running-server
+path above — evolve through the watch reload rather than through a restart.
+
+Additive changes (new optional fields, new tables, new indexes) are what this
+loop supports. Destructive changes — dropping a field, tightening an optional
+field to required, changing a field's type — are refused by the conservative
+applier; they need the reviewed migration path
+([LLP 0081](repo:llp/0081-reviewed-storage-evolution-and-migrations.rfc.md)),
+not a redeploy. Seeded data is separate again: a changed seed identity reports
+`SNAPBACK_SEED_MIGRATION_REQUIRED` and is resolved on the
+[versioned seeds](../backend/versioned-seeds.md) page, not here.
 
 ## 3. Run the acceptance suite
 
@@ -7370,6 +7631,35 @@ and verification—never value bytes:
 deployment value. `verify` invokes the entry's declared action probe and
 records only its outcome. Config survives `app.reset` because reset owns app
 data, not deployment custody.
+
+### The callable routes
+
+The repo kit's `configApi` helper above is a thin wrapper. Consumers outside
+this repository call the routes directly. Every one is admin-gated
+(`x-snapback-admin-token`), and the three value-carrying writes additionally
+require a loopback bind — a non-loopback plaintext bind refuses with
+`SNAPBACK_CONFIG_TRANSIT_RULE`, and an SSH tunnel to the instance is the
+blessed remote path.
+
+| Operation | Request | Body |
+| --- | --- | --- |
+| status | `GET /_snapback/api/config/status` | — |
+| set | `POST /_snapback/api/config/set` | `{ "entry": "<name>", "value": "<string>" }` |
+| set (pool) | `POST /_snapback/api/config/set` | `{ "entry": "<name>", "values": ["a", "b"], "append": true }` |
+| unset | `POST /_snapback/api/config/unset` | `{ "entry": "<name>" }` |
+| verify | `POST /_snapback/api/config/verify` | `{ "entry": "<name>" }` |
+
+Exactly one of `value` or `values` must be present: sending both, neither, or
+the plausible-but-wrong `{ entry, member }` spelling refuses with
+`SNAPBACK_CONFIG_VALUE_INVALID` ("provide exactly one of value or values").
+Values are strings; a nested object is a deserialization error, not a config
+diagnostic. `append: true` adds pool members, `append: false` (the default)
+replaces the entry.
+
+The write responses carry the new generation and set-state; they never carry
+value bytes, and neither does `status`, the diagnostics ring, or any log
+line. Pass values in the request body — never in argv, where a process list
+would leak them.
 
 ## Read through a granted handle
 
@@ -7689,6 +7979,33 @@ fresh temporary database and an owned ready descriptor. A path mismatch,
 failed load, malformed query result, non-committing mutation, missing live row,
 shutdown failure, or cleanup failure remains the first structured error and
 cannot be converted into a green file-presence check.
+
+## Report the runtime's own readiness identity
+
+`doctor` proves the whole loop. When you want just the runtime's identity —
+"which binary is this, and does its handler VM come up in the restricted
+no-eval posture?" — ask the binary directly:
+
+```sh
+snapback runtime-qualify
+```
+
+It prints a `snapback.runtime-qualify.v1` result carrying the VM profile
+(`restricted-no-eval-handler-vm`), `ok`, and the binary's build stamp. It
+creates the same VM every JS handler uses, so a mismatched Hermes framework
+or a runtime/glue contract skew fails here rather than at the first handler
+invocation. This is the identity to quote in a bug report or a packaged
+consumer's readiness note.
+
+The result is printed, not persisted: packaged installs carry no
+`runtime-readiness.json` receipt today, and the repo-side digest-bound receipt
+that doctor re-verifies is a source-checkout artifact
+([LLP 0010](repo:llp/0010-agent-dx-and-acceptance.spec.md)). Persisting a
+consumer-side receipt under the app's managed `.snapback/` state is
+[an open item](repo:issues/20260801-0137-g1-guide-gap-packaged-runtime-readiness-receipt.md);
+until it lands, retain the command's output if you need evidence. Doctor's
+live six-boundary qualification stays authoritative either way — a receipt
+would complement it, never replace it.
 
 ## Preserve the first useful failure
 

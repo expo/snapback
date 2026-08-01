@@ -20,3 +20,7 @@ undocumented. The A4 arm probed them out:
 The custody behavior itself is excellent once reached. File under LLP
 0061 §5: a guide subsection (or `snapback config` CLI verbs) should give
 the consumer-callable shapes, with a guide check exercising them.
+
+---
+
+**RESOLVED 2026-08-01 (fix-wave docs sweep).** Same section (guide/operating/secrets-and-config.md §"The callable routes"): consumer-callable shapes for status/set/unset/verify verified against src/server.rs, including the `{entry, member}` mis-spelling that produces SNAPBACK_CONFIG_VALUE_INVALID.

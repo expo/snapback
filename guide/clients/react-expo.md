@@ -167,6 +167,33 @@ permission to expose development auth on a non-loopback listener. Each OS must
 run its own build, lifecycle, reconnect, and artifact-exclusion checks; neither
 receipt can substitute for the other.
 
+## Witness a deep link on the simulator
+
+An invitation or share flow returns to the app through a custom scheme, and
+the acceptance loop above has no deep-link leg by default. Two facts save a
+silent timeout:
+
+1. **The first open of a custom scheme raises an OS confirmation dialog**
+   (`Open in "<app>"?`). That is an iOS product fact — a real user answers it
+   once per scheme — and no headless `simctl` surface can answer it. The URL
+   event never reaches the app, and a director/witness run simply times out
+   with no diagnostic.
+2. **Pre-approve the scheme for headless runs.** With the device *shut down*,
+   write the scheme approval into the simulator's launch-services preferences:
+
+```sh
+# device shut down; key is CoreSimulatorBridge-->{scheme}, value is the bundle id
+plutil -replace "com.apple.CoreSimulator.CoreSimulatorBridge-->myapp" \
+  -string com.example.myapp \
+  ~/Library/Developer/CoreSimulator/Devices/<UDID>/data/Library/Preferences/com.apple.launchservices.schemeapproval.plist
+```
+
+Then boot, install, and `xcrun simctl openurl <UDID> "myapp://invite/<token>"`;
+the React Native `Linking` listener fires and the in-app redemption is
+witnessable like any other step. Keep the scheme registration itself in the
+app config (`expo.scheme`) — the pre-approval only substitutes for the human
+tap, and only on a simulator you control.
+
 ## Handle native reconnect honestly
 
 React Native WebSockets may emit `error` without the browser-style follow-up

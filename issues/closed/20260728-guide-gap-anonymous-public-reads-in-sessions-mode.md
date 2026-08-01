@@ -41,3 +41,7 @@ application.
 - `guide/auth/sessions-and-principals.md` and `guide/clients/headless.md` link
   that example; and
 - no caller-selected identity can be smuggled through the anonymous path.
+
+---
+
+**RESOLVED 2026-08-01 (fix-wave docs sweep).** guide/auth/sessions-and-principals.md §"Read public data anonymously" documents the `custody: 'anonymous-public'` construction Lane α landed, transcluded from the CI-exercised packages/snapback-client/app-data.test.mjs, including the mutual exclusivity with bearer custody that prevents smuggling a caller-selected identity.

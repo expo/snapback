@@ -202,6 +202,27 @@ membership exists. The denial is host-owned and remains terminal even if app
 JavaScript catches the thrown error. Actions have no transactional read set,
 so `ctx.permissions` is deliberately unavailable there.
 
+## Choose between filtering and denying
+
+The two gates above give an outsider **different observable outcomes**, and
+the choice is a product decision, not an implementation detail:
+
+| Idiom | Outsider sees | Use when |
+| --- | --- | --- |
+| Declarative `membership:` on a query (see [Gate a query with the declaration](#gate-a-query-with-the-declaration)) | an empty result, indistinguishable from "nothing here yet" | the surface is a list or feed that should simply be empty for non-members |
+| `ctx.permissions.<declaration>.requireRole(...)` in a handler | `SNAPBACK_AUTH_PERMISSION_DENIED` | the caller is acting on a specific resource and a silent no-op would be a lie |
+
+Neither discloses data: the declarative filter never returns rows the caller
+may not see, and the denial carries invariant public details. What differs is
+what a probing outsider can *confirm* — a denial confirms the operation
+exists and was refused, an empty result confirms nothing — and what the UI
+must do: an empty list renders naturally, whereas a swallowed denial on a
+write path silently loses the user's work.
+
+Pick per surface, and be deliberate when converting one to the other: moving
+a read from a declarative query into a handler that calls `requireRole`
+changes the outsider contract even though both are secure.
+
 ## Change membership through generated methods
 
 Only mutation handlers receive `ctx.membership`. Its `insert`, id-addressed

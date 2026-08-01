@@ -129,6 +129,25 @@ const OBJECT_REFLECTION_METHODS = new Set([
   'setPrototypeOf',
 ]);
 
+// The query builder the handler runtime actually implements
+// (packages/snapback-harness/ctx-bootstrap.js). A verb outside this set is a
+// generation-time refusal with a named site rather than a runtime
+// "undefined is not a function" (0137 A2-f5).
+const QUERY_BUILDER_VERBS = new Set([
+  'withIndex',
+  'withSearchIndex',
+  'eq',
+  'in',
+  'lt',
+  'lte',
+  'gt',
+  'gte',
+  'order',
+  'take',
+  'collect',
+  'first',
+]);
+
 function staticString(node, checker = null, boundary = null, seen = new Set()) {
   if (!node) return null;
   if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
@@ -187,6 +206,35 @@ function staticMemberName(node, checker, boundary) {
   if (ts.isPropertyAccessExpression(node)) return node.name.text;
   if (ts.isElementAccessExpression(node)) {
     return staticString(node.argumentExpression, checker, boundary);
+  }
+  return null;
+}
+
+// Walk back from a call's callee to the chain root; a chain rooted at
+// `ctx.db.query(...)` may use only QUERY_BUILDER_VERBS.
+function queryChainProblem(node) {
+  if (!ts.isCallExpression(node) || !ts.isPropertyAccessExpression(node.expression)) {
+    return null;
+  }
+  const verb = node.expression.name.text;
+  if (QUERY_BUILDER_VERBS.has(verb)) return null;
+  let current = node.expression.expression;
+  while (ts.isCallExpression(current) && ts.isPropertyAccessExpression(current.expression)) {
+    const link = current.expression.name.text;
+    if (link === 'query') {
+      const receiver = current.expression.expression;
+      const rootedAtCtxDb = ts.isPropertyAccessExpression(receiver)
+        && receiver.name.text === 'db'
+        && ts.isIdentifier(receiver.expression)
+        && receiver.expression.text === 'ctx';
+      if (rootedAtCtxDb) {
+        return `${verb} is not a query-builder verb in inline_handler_v1 `
+          + `(use eq, in, lt, lte, gt, gte, order, take, collect, or first)`;
+      }
+      return null;
+    }
+    if (!QUERY_BUILDER_VERBS.has(link)) return null;
+    current = current.expression.expression;
   }
   return null;
 }
@@ -382,6 +430,10 @@ function selfContainedProblems(expression, checker, sourceFile) {
       if (reason) {
         forbidden.push({ node, reason });
       }
+    }
+    const chainReason = queryChainProblem(node);
+    if (chainReason) {
+      forbidden.push({ node, reason: chainReason });
     }
     const assignmentReason = destructuringAssignmentProblem(node, checker, expression);
     if (assignmentReason) {

@@ -35,3 +35,21 @@ complements it, never replaces it.
 
 An external consumer can produce and re-verify a digest-bound readiness
 receipt via a guide-documented command.
+
+---
+
+**2026-08-01 (fix-wave docs sweep) — ask 1 done, ask 2 still open.**
+`snapback runtime-qualify` is now documented at
+`guide/operating/diagnostics.md` §"Report the runtime's own readiness
+identity": what it prints (`snapback.runtime-qualify.v1`, the
+`restricted-no-eval-handler-vm` profile, `ok`, the build stamp), why it is
+the identity to quote, and that it creates the same VM every JS handler uses
+so a Hermes/glue skew fails there rather than at first invocation. The page
+also states honestly that the result is **printed, not persisted**, that
+packaged installs carry no receipt, and links back to this ticket for that
+half.
+
+Remaining: ask 2 — `runtime-qualify --persist` (or doctor) writing the
+digest-bound receipt under the app's managed `.snapback/` state, never inside
+read-only `node_modules`. That is code, not documentation; this ticket stays
+open for it.

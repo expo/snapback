@@ -2441,14 +2441,14 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         ),
         _ => None,
     };
-    if secret_read_proof_root.is_some() {
-        if let (Some(target), Some(path)) =
-            (ready_target.as_mut(), secret_read_root_file.as_deref())
-        {
-            // Descriptor-scoped custody: the proof root is removed with the
-            // descriptor and the impersonation sidecar at shutdown (0137 G1).
-            target.adopt_secret_read_root_sibling(path)?;
-        }
+    if let (true, Some(target), Some(path)) = (
+        secret_read_proof_root.is_some(),
+        ready_target.as_mut(),
+        secret_read_root_file.as_deref(),
+    ) {
+        // Descriptor-scoped custody: the proof root is removed with the
+        // descriptor and the impersonation sidecar at shutdown (0137 G1).
+        target.adopt_secret_read_root_sibling(path)?;
     }
     let secret_read_process_prerequisites =
         ready_target.is_some() && token_configured && secret_read_proof_root.is_some();

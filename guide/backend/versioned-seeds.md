@@ -114,6 +114,36 @@ terminal-auth fact (`{ terminated, code, authorityDisposition, atMs }`), and
 instead of retrying. Suites that reset mid-run must plan to re-authenticate
 every persona afterwards.
 
+## Run the loop against a sessions-mode app
+
+The seed lifecycle is admin-gated, so on a dev-mode app an admin-token client
+is enough. A **sessions-mode** app needs three additional facts, each of which
+is a refusal if you miss it:
+
+1. **The admin client must also carry a session bearer.** An admin-token-only
+   client cannot offer the auth-client protocol, which sessions mode requires.
+   Construct it as
+   `createExternalSessionClient(url, { bearerToken, adminToken })` — a persona
+   bearer minted through the
+   [test-persona recipe](../auth/sessions-and-principals.md#mint-test-personas-the-complete-local-recipe)
+   plus the admin token for the seed routes.
+2. **Pass `requestedMode: 'sessions'` on every seed call.** The seed methods
+   default to `dev` and refuse a sessions app with
+   `SNAPBACK_SEED_CROSS_MODE_UNSUPPORTED` until the mode is stated
+   explicitly. The refusal is deliberate: a cross-mode install would seed
+   identities the running app cannot authenticate.
+3. **Take `expectedDataVersionStream` from the preview.** The active stream is
+   `preview.current.dataVersionStream`; a stale value from an earlier run
+   refuses as a historical operation.
+
+With those three, `resetInstallVersionedSeed` is the paved sessions reset: it
+leaves the database in a state the next `snapback dev` accepts, unlike a raw
+database wipe, which strands the seed identity. Remember that the reset
+invalidates every bearer minted before it, including the one that performed
+it — mint personas *after* the install, and never seed captured principal ids
+(see
+[reset invalidates sessions](../auth/sessions-and-principals.md#reset-invalidates-sessions-and-reissues-principals)).
+
 ## Interpret refusals
 
 - `SNAPBACK_SEED_MIGRATION_REQUIRED`: migrate, or explicitly reset-install.

@@ -55,13 +55,20 @@ developer-loop CLI packages. Clean GitHub-hosted machines on both supported
 runtime tuples installed that exact closure and passed the original
 `todo-contract` scaffold/generate/dev/watch proof.
 
-Do not infer that the public `0.1.0` bytes contain every surface described by
-the current source tree. In particular, the current React scaffold depends on
-`@expo/snapback-vite`, and its retained cold proof is a staged, clean-source
-checkpoint on macOS/arm64 with a real Chromium journey. `@expo/snapback-vite`, the
-current React starter, the current versioned-seed integration, and the Linux
-run of that expanded starter still need one newly versioned public closure
-before this page can call the React command a public-registry path.
+The `@expo/snapback-*` **0.1.7** closure (publication ledger
+`terminal-package-publication-0.1.7-fdd49db8.json`) carries the complete
+public React path: `snapback new --template react`, `bun install`,
+`snapback generate`, a strict typecheck, `vite build`, the `snapback dev`
+lifecycle, template live acceptance with real handler execution, and a clean
+stop — proven from a clean external directory by the LLP 0137 G1
+qualification arm
+(`demos/improvement-sweep/arms/g1-public-package-qualification/`). Treat that
+version as the public-registry React path.
+
+Still do not infer that a published closure contains every surface in the
+current source tree: source lands continuously, and a packaged consumer has
+whatever the newest published version froze. When a page describes a surface
+newer than the newest closure, it says so.
 
 On each supported tuple the mapped runtime package carries the prebuilt server
 and Hermes runtime. `doctor` first launches that relocated binary with
@@ -147,6 +154,30 @@ A raw `ERR_MODULE_NOT_FOUND` for `acorn`, `esbuild`, or `typescript` means the
 source checkout has not completed the pinned install above. It is a contributor
 environment failure, not an application diagnostic. Packaged
 `snapback generate` installs these as ordinary package dependencies.
+
+## Evolve a table that already has data
+
+Adding an **optional** field to a populated table is an ordinary edit, not a
+migration ceremony: change the schema and let the running `snapback dev`
+watch reload pick it up. The reload evolves the catalog in place, and live
+handles may stay attached while it happens — a subscriber does not have to be
+torn down first.
+
+What matters is *where* you do it. Stop the server, regenerate, and restart,
+and a sessions-mode app refuses with
+`SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH`, whose details carry the expected
+and observed deployment identities: the settled deployment's startup carrier
+no longer matches the artifacts on disk. The recovery is the running-server
+path above — evolve through the watch reload rather than through a restart.
+
+Additive changes (new optional fields, new tables, new indexes) are what this
+loop supports. Destructive changes — dropping a field, tightening an optional
+field to required, changing a field's type — are refused by the conservative
+applier; they need the reviewed migration path
+([LLP 0081](repo:llp/0081-reviewed-storage-evolution-and-migrations.rfc.md)),
+not a redeploy. Seeded data is separate again: a changed seed identity reports
+`SNAPBACK_SEED_MIGRATION_REQUIRED` and is resolved on the
+[versioned seeds](../backend/versioned-seeds.md) page, not here.
 
 ## 3. Run the acceptance suite
 

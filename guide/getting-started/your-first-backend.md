@@ -170,6 +170,24 @@ Inline v1 is deliberately self-contained: it does not capture imports,
 sibling helpers, or outer constants, so put all application logic and locals
 inside the direct handler expression. Class syntax, dynamic import, `eval`,
 and `Function` are refused during generation.
+
+### What the subset refuses, and the standard rewrites
+
+Every refusal below happens at generation with a file/line/column, never at
+runtime:
+
+| Refused | Diagnostic gist | Standard rewrite |
+| --- | --- | --- |
+| Dynamic computed member access (`s[i]`, `vec[slot] += d`) | `dynamic computed member access is outside inline_handler_v1` | walk strings with `charAt`/`charCodeAt`; update slots with `arr.map((v, i) => i === slot ? v + d : v)` |
+| Sibling capture (imports, outer consts, helper functions) | free identifier outside the allowlist | inline the logic, or declare the helper *inside* the handler body |
+| An empty `writes: []` on `defineJsMutation` | `defineJsMutation requires declared writes` | declare the tables the mutation may write, even if a given path writes none |
+| A query verb outside the builder | `<verb> is not a query-builder verb` | use the [documented chain](../backend/queries.md#the-complete-builder-chain) |
+| Class syntax, `this`/`super`, dynamic `import`, `eval`, `Function` | named per construct | restructure as plain functions and values |
+
+What **is** available, and needs no ceremony: `JSON.stringify`/`JSON.parse`,
+`Math`, `String.fromCharCode`, template literals, arrow helpers declared
+inside the handler body, ordinary array methods (`map`, `filter`, `reduce`,
+`slice`, `sort`), and destructuring with static names.
 [Queries](../backend/queries.md) covers the capture limits; the governing
 spec is
 [LLP 0108](repo:llp/0108-inline-handlers-and-result-contracts.spec.md).

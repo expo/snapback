@@ -50,3 +50,19 @@ A hard-terminated client subprocess against the durable file store would prove
 the process-restart element on one carrier cheaply, without waiting for the
 browser harness in
 `issues/20260801-js-arm-integrated-authenticated-restart-witness.md`.
+
+---
+
+**2026-08-01 (fix-wave docs sweep) — residue 1 done, residue 2 routed.**
+Residue 1 is cleared: the same-process check labels in
+`demos/public-dashboard/tests/acceptance/offline-local-first.mjs` now read
+"fresh client instance (same process) …" instead of "cold relaunch", and the
+retained `offline-acceptance-report.json` was updated in the same change, so
+no artifact carries the withdrawn word.
+
+Residue 2 is deliberately **not** actioned here: the "cold process"
+Contract-arm claim in LLP 0043 and LLP 0053 is an amendment to those
+documents, and per LLP 0129 constraint 7 it belongs to their owners — either
+reword to "fresh wrappers over retained state in one process" or land a
+genuinely process-isolated witness. This ticket stays open for that
+adjudication.

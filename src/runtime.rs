@@ -690,7 +690,10 @@ pub(crate) struct RuntimeGuard {
     runtime: *mut HermesRuntimeOpaque,
     interrupt: Arc<RuntimeInterrupt>,
     /// The strict capability context this VM claimed at construction. Retained
-    /// so posture regressions can prove the claim actually happened.
+    /// so posture regressions can prove the claim actually happened; the
+    /// accessor below is exercised only by those tests, so a non-test build
+    /// sees the field as unread.
+    #[cfg_attr(not(test), allow(dead_code))]
     host_context_id: u64,
 }
 

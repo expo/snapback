@@ -66,6 +66,35 @@ deployment value. `verify` invokes the entry's declared action probe and
 records only its outcome. Config survives `app.reset` because reset owns app
 data, not deployment custody.
 
+### The callable routes
+
+The repo kit's `configApi` helper above is a thin wrapper. Consumers outside
+this repository call the routes directly. Every one is admin-gated
+(`x-snapback-admin-token`), and the three value-carrying writes additionally
+require a loopback bind — a non-loopback plaintext bind refuses with
+`SNAPBACK_CONFIG_TRANSIT_RULE`, and an SSH tunnel to the instance is the
+blessed remote path.
+
+| Operation | Request | Body |
+| --- | --- | --- |
+| status | `GET /_snapback/api/config/status` | — |
+| set | `POST /_snapback/api/config/set` | `{ "entry": "<name>", "value": "<string>" }` |
+| set (pool) | `POST /_snapback/api/config/set` | `{ "entry": "<name>", "values": ["a", "b"], "append": true }` |
+| unset | `POST /_snapback/api/config/unset` | `{ "entry": "<name>" }` |
+| verify | `POST /_snapback/api/config/verify` | `{ "entry": "<name>" }` |
+
+Exactly one of `value` or `values` must be present: sending both, neither, or
+the plausible-but-wrong `{ entry, member }` spelling refuses with
+`SNAPBACK_CONFIG_VALUE_INVALID` ("provide exactly one of value or values").
+Values are strings; a nested object is a deserialization error, not a config
+diagnostic. `append: true` adds pool members, `append: false` (the default)
+replaces the entry.
+
+The write responses carry the new generation and set-state; they never carry
+value bytes, and neither does `status`, the diagnostics ring, or any log
+line. Pass values in the request body — never in argv, where a process list
+would leak them.
+
 ## Read through a granted handle
 
 An action names entries in `uses`, then reads `ctx.secrets.get(name)` for the

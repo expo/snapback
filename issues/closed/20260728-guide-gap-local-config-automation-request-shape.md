@@ -38,3 +38,7 @@ that is not the local target journey described by the operating page.
 - a clean local demo can set and inspect declared config using only the Guide;
 - the example is exercised by `node scripts/check-guide.mjs`; and
 - no config value appears in argv, logs, status output, or committed fixtures.
+
+---
+
+**RESOLVED 2026-08-01 (fix-wave docs sweep).** guide/operating/secrets-and-config.md §"The callable routes" gives the four routes with exact bodies, the value/values exclusivity refusal, append-vs-replace semantics, the loopback transit rule, and the never-in-argv custody boundary.

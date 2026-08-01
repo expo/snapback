@@ -14,3 +14,7 @@ What a cold consumer cannot learn from the guide today:
 The arm learned the recipe from packaged `@expo/snapback-cli/comparator-profile.mjs` bytes (recorded assistance event in the run capsule). Once known it is genuinely better than the frozen competitor baseline: three bearer-backed personas in ~100ms each versus Convex's custom-JWT issuer ceremony.
 
 Ask: one guide section (auth/sessions-and-principals or testing/acceptance) with the complete persona recipe and exact header names, plus the diagnostic naming its expected carrier. Witness: a cold agent mints two personas and passes a cross-principal check from the guide alone.
+
+---
+
+**RESOLVED 2026-08-01 (fix-wave docs sweep).** Same section as the mailbox-fixture ticket (guide/auth/sessions-and-principals.md §"Mint test personas"): exact header names, the sidecar carrier for `SNAPBACK_AUTH_IMPERSONATION_REQUIRED`, and the `createExternalSessionClient(baseUrl, { bearerToken })` construction for an already-authenticated headless client.

@@ -48,3 +48,7 @@ Evidence:
   server-issued principals; and
 - the capability index points sessions-mode membership seeding to the paved
   bootstrap path.
+
+---
+
+**RESOLVED 2026-08-01 (fix-wave docs sweep).** guide/auth/sessions-and-principals.md §"Reset invalidates sessions and reissues principals" states both consequences (pre-reset bearers fail; reminted identities are new principals), directs sessions-mode fixtures to authenticated resource bootstrap instead of captured principal ids, and distinguishes reset-stable dev principals. Cross-linked from guide/backend/versioned-seeds.md §"Run the loop against a sessions-mode app".

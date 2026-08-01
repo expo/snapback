@@ -30,3 +30,7 @@ simulator runs, and a witnessed redeem-from-URL example.
 Witness: a guide snippet-check (or the next Expo arm) drives an OS-level
 deep link through simctl into a witnessed in-app redemption using only
 guide-documented steps.
+
+---
+
+**RESOLVED 2026-08-01 (fix-wave docs sweep).** guide/clients/react-expo.md §"Witness a deep link on the simulator" carries the OS confirmation-dialog product fact, the shut-down schemeapproval plist pre-authorization recipe with the exact key form, and the simctl openurl → Linking-listener witness path, with the scheme registration kept in app config.

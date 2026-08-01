@@ -29,3 +29,7 @@ subsection stating what is refused (dynamic computed member access, free
 identifiers outside the allowlist, sibling capture, empty writes) with the
 standard rewrites, and what is allowed — CI-verified per guide
 conventions.
+
+---
+
+**RESOLVED 2026-08-01 (fix-wave docs sweep).** guide/getting-started/your-first-backend.md §"What the subset refuses, and the standard rewrites" tables every refusal the A5 arm hit (dynamic computed member access, sibling capture, empty writes, non-builder query verbs, class/eval/Function) with the standard rewrites, and states what IS allowed (JSON, Math, String.fromCharCode, template literals, in-body arrow helpers, ordinary array methods) — the previously undocumented half.

@@ -82,6 +82,103 @@ gated non-production session-mint host operation and the first-party client
 adopts the resulting bearer with exact protocol offers. Neither path is a
 hosted-production auth claim.
 
+## Mint test personas: the complete local recipe
+
+A sessions-mode acceptance suite needs two or more genuine principals. The
+mailbox above is admin-gated **and** impersonation-gated; both carriers are
+required, and both are local-only. The complete loop — client construction,
+code request, mailbox read, exchange — is:
+
+```js source=demos/party-wall/tests/acceptance/headless.mjs
+    const client = new SnapbackClient(server.baseUrl, {
+      authCoordinator: coordinator,
+      authInvalidationProtocol: 1,
+      authorityDescriptorProtocol: 1,
+      authorizedLeaseProtocol: 1,
+      clientStoreId: `pw-${email.split('@')[0]}`,
+    });
+    const requested = await client.authRequestCode(email);
+    const mailboxResponse = await fetch(
+      `${server.baseUrl}/_snapback/api/auth/mailbox?challengeId=${encodeURIComponent(requested.challengeId)}`,
+      {
+        headers: {
+          'x-snapback-admin-token': server.adminToken,
+          'x-snapback-impersonation-capability': server.impersonationCapability,
+        },
+      },
+    );
+    const mailbox = await mailboxResponse.json();
+    assert.equal(mailboxResponse.status, 200, JSON.stringify(mailbox));
+    const credential = await client.authExchange({
+      challengeId: requested.challengeId,
+      code: mailbox.code,
+    });
+```
+
+The two carriers, exactly:
+
+| Carrier | Header | Where it comes from |
+| --- | --- | --- |
+| Admin token | `x-snapback-admin-token` | the dev server's admin token |
+| Impersonation capability | `x-snapback-impersonation-capability` | the `impersonation` field of the server's `dev.ready.json` startup sidecar |
+
+`SNAPBACK_AUTH_IMPERSONATION_REQUIRED` means the second header is missing.
+Call each persona's loop once per email; the returned
+`credential.session.userId` is the server-issued principal id.
+
+**Custody boundaries.** The mailbox route, the admin token, and the
+impersonation capability are local-test material. None may enter browser or
+native bundles, committed fixtures, or logs. A production deployment refuses
+the route outright — the recipe is a test path, not an auth design.
+
+An already-authenticated **headless** client (one that obtained a bearer some
+other way, such as an identity broker) is constructed with
+`createExternalSessionClient(baseUrl, { bearerToken })`; a bare
+`authClientProtocol: 1` construction without declared custody is refused.
+
+## Read public data anonymously
+
+A sessions-mode app often has a public surface — an event preview, a shared
+link — that must read *without* a signed-in principal. Bare clients are
+refused (`SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED`) because the v1 profile
+requires declared custody. The paved path declares **anonymous-public**
+custody, which sends the protocol offer with no credential:
+
+```js source=packages/snapback-client/app-data.test.mjs
+    const anonymous = new SnapbackClient(baseUrl, { custody: 'anonymous-public', adminToken: null });
+```
+
+The custody is mutually exclusive with browser, agent, and external-bearer
+custody: passing a bearer alongside it throws rather than silently
+downgrading, so no caller-selected identity can be smuggled through the
+anonymous path. Anonymous clients read `public` queries only; protected
+queries refuse exactly as they do for a signed-out browser.
+
+## Reset invalidates sessions and reissues principals
+
+`app.reset` advances the auth boundary. Two consequences an author hits
+immediately:
+
+- **Existing sessions stop working.** Any bearer minted before the reset
+  fails with `SNAPBACK_AUTH_REQUIRED`. Mint personas *after* the reset.
+- **Reminted identities are new principals.** The same local email resolves
+  to a *different* server-issued `userId` after a reset. Principal ids are
+  therefore never stable fixture values: a seeded row naming a pre-reset id
+  points at an identity that no longer exists.
+
+So do not seed membership or ownership rows with captured principal ids in
+sessions mode. Seed the *resources*, then have each authenticated persona
+join through the declared membership surface —
+`ctx.membership.<declaration>.bootstrap(...)` for the first owner, then
+owner-authorized insertion for the rest (see
+[scoped roles](./scoped-roles.md)). The server owns both the resource ids and
+the principal ids, which is what makes the fixture deterministic in the only
+sense that survives a reset.
+
+Dev-mode principals are different: they are client-asserted and stable across
+resets, which is why the dev authoring loop can seed them directly. Do not
+carry that habit into sessions mode.
+
 ## Queries are scoped by the server, not by arguments
 
 A protected query takes **no owner argument**. Its filter compares the stored

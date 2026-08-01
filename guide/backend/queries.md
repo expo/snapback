@@ -144,6 +144,43 @@ intentional”; it does not claim the whole predicate has only 1,024 matches.
 Do not collect a large prefix and then sort or filter it in JavaScript to infer
 the global top rows—the omitted rows may contain the actual winners.
 
+### The complete builder chain
+
+`ctx.db.query(table)` accepts exactly these verbs, in any order after
+`.withIndex(name)`:
+
+| Verb | Meaning |
+| --- | --- |
+| `.eq(field, value)` | equality |
+| `.in(field, [values])` | membership in a bounded set |
+| `.lt(field, value)` / `.lte(field, value)` | strictly-less / less-or-equal |
+| `.gt(field, value)` / `.gte(field, value)` | strictly-greater / greater-or-equal |
+| `.order(field, 'asc' \| 'desc')` | server-side ordering |
+| `.take(n)` | the declared bound |
+| `.collect()` / `.first()` | execute |
+
+The range verbs are what make **keyset pagination** expressible for any
+visibility the query already enforces: carry the last row's ordering value as
+the cursor and ask for the next bounded window.
+
+```js fragment reason="keyset page pattern over an existing bounded query"
+const page = await ctx.db
+  .query('messages')
+  .withIndex('by_channel')
+  .eq('channelId', args.channelId)
+  .gt('_version', args.afterVersion ?? 0)
+  .order('_version', 'asc')
+  .take(20)
+  .collect();
+```
+
+Do not collect the whole partition and slice it in JavaScript — that is
+O(partition) per page and reaches the implicit ceiling on a busy channel.
+(`defineOwnedKeysetPages` generates this shape for *owner*-scoped history;
+the chain above is how you page anything else.) A verb outside this table
+refuses during generation with a named diagnostic rather than failing at
+runtime.
+
 ## Scope on the server
 
 Put authorization predicates in the query, not in client arguments or UI

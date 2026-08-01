@@ -37,3 +37,7 @@ alias story to a clearly-labeled lineage note; update `reviewed:` metadata.
 
 Page claims match a rerun of the G1 external smoke against the pinned
 closure version the page names.
+
+---
+
+**RESOLVED 2026-08-01 (fix-wave docs sweep).** guide/getting-started/the-authoring-loop.md now names the 0.1.7 @expo/snapback-* closure as the public-registry React path, citing the publication ledger and the G1 qualification arm, and demotes the alias lineage; the stale hedge is gone. The general do-not-infer caution is kept in a version-honest form.

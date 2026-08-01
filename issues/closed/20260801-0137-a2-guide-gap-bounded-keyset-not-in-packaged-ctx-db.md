@@ -25,3 +25,7 @@ handoff/execution item) delivers them to external consumers. Remaining
 open asks: (2) codegen static validation of the chain so an unsupported
 verb refuses at generation with a named diagnostic, and (3) the guide's
 "Inside a JS handler" complete-chain documentation — both still owed.
+
+---
+
+**RESOLVED 2026-08-01 (fix-wave docs sweep).** Asks 2 and 3 landed. Ask 2: codegen now statically validates the builder chain — an unsupported verb refuses at generation ("<verb> is not a query-builder verb in inline_handler_v1") instead of failing at runtime as "undefined is not a function" (packages/snapback-codegen/inline-handlers.mjs `queryChainProblem`, regression + positive keyset case in authoring-validation.test.mjs). Ask 3: guide/backend/queries.md §"The complete builder chain" tables every verb (eq/in/lt/lte/gt/gte/order/take/collect/first) with the keyset-page pattern and the do-not-collect-then-slice warning. Ask 1 (packaged 0.1.7 absence) rides the release refresh per the 2026-08-01 annotation above.

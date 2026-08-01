@@ -42,3 +42,7 @@ fixture that observes those boundaries.
 - the example is exercised by `node scripts/check-guide.mjs`; and
 - no mailbox, impersonation capability, or session bearer enters browser code,
   logs, or committed evidence.
+
+---
+
+**RESOLVED 2026-08-01 (fix-wave docs sweep).** The complete local persona recipe — client construction, code request, admin+impersonation-gated mailbox read, exchange — is transcluded from the CI-exercised `demos/party-wall/tests/acceptance/headless.mjs` at guide/auth/sessions-and-principals.md §"Mint test personas: the complete local recipe", with both carrier headers named in a table, the `dev.ready.json` sidecar source of the impersonation capability, and the custody boundaries adjacent.

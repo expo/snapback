@@ -1017,6 +1017,53 @@ export default defineSchema({
   )));
 }
 
+// 0137 A2-f5: an unsupported query-builder verb refuses at generation with a
+// named site instead of failing at runtime as "undefined is not a function".
+{
+  const diagnostics = await invalidCase({
+    functions: `
+import { defineJsQuery, results, v } from '${defineUrl}';
+export const listTodos = defineJsQuery({
+  args: {},
+  reads: ['todos'],
+  result: results.documents('todos'),
+  handler: async (ctx) => await ctx.db
+    .query('todos')
+    .withIndex('by_creation')
+    .limit(5)
+    .collect(),
+});
+`,
+  });
+  assert(
+    diagnostics.some((diagnostic) => /limit is not a query-builder verb/.test(
+      `${diagnostic.message ?? ''} ${JSON.stringify(diagnostic.details ?? {})}`,
+    )),
+    `expected a query-builder verb refusal, got ${JSON.stringify(diagnostics)}`,
+  );
+}
+
+// The supported range/keyset chain still generates.
+{
+  await validCase({
+    functions: `
+import { defineJsQuery, results, v } from '${defineUrl}';
+export const pageTodos = defineJsQuery({
+  args: { after: v.string() },
+  reads: ['todos'],
+  result: results.documents('todos'),
+  handler: async (ctx, args) => await ctx.db
+    .query('todos')
+    .withIndex('by_creation')
+    .gt('_id', args.after)
+    .order('_id', 'asc')
+    .take(20)
+    .collect(),
+});
+`,
+  });
+}
+
 for (const dir of dirs) rmSync(dir, { recursive: true, force: true });
 
 console.log('authoring-validation.test.mjs: all cases passed');

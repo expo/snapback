@@ -18,3 +18,7 @@ database).
 
 Fix shape: a sessions-mode reset snippet in the versioned-seeds or acceptance
 page; ideally default `requestedMode` from the active app mode.
+
+---
+
+**RESOLVED 2026-08-01 (fix-wave docs sweep).** guide/backend/versioned-seeds.md §"Run the loop against a sessions-mode app" documents all three discoveries: the bearer+adminToken client construction, the explicit `requestedMode: 'sessions'` (with why the default refuses), and `preview.current.dataVersionStream` as the expected stream, plus the reset/identity consequence.

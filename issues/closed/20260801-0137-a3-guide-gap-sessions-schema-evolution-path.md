@@ -28,3 +28,7 @@ and the stop/regenerate/restart refusal now surfaces
 deployment identities and a recovery naming the running-server evolution
 path (issues/closed/20260801-0137-a3-restart-evolution-refusal-misattributed-diagnostic.md).
 The page should teach the working path, not the workaround.
+
+---
+
+**RESOLVED 2026-08-01 (fix-wave docs sweep).** guide/getting-started/the-authoring-loop.md §"Evolve a table that already has data" teaches the working path per the between-arms update: additive evolution through the running watch reload (live handles may stay attached — the caveat is gone), SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH as the stop/restart refusal with its recovery, and the destructive/seed cases routed to LLP 0081 and versioned-seeds.

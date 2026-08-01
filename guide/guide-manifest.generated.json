@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "68b30e1a86443de8073ea62a2322ef3c878cc2c2"
+    "commit": "2f3cd960c7fbf4010ab32ad2d42e4d15bb44af1c"
   },
   "nav": {
     ".": [
@@ -402,7 +402,7 @@
       ],
       "reviewed": "2026-07-31",
       "reviewedCommit": "HEAD",
-      "sha256": "815795fc8bdb4f9d8c99a0241e245dd49aaa3e1eb7ba7a7e7ece40a92eb6ab6b",
+      "sha256": "c233a472f2929973badda7248ccc0f8c149e1f009c9168138f19f11a8176f03f",
       "snippets": [
         {
           "lang": "js",
@@ -469,7 +469,7 @@
       ],
       "reviewed": "2026-07-26",
       "reviewedCommit": "HEAD",
-      "sha256": "ea54992efdb64d7da25703b3317ffd0dbdd56218769ca2721fc5d1edbfed2f57",
+      "sha256": "a64c8ac4c99e2829980e73d6875f4f10b4f63670855b199b13a69245b7d928fe",
       "snippets": [
         {
           "lang": "js",
@@ -484,6 +484,16 @@
           "lang": "js",
           "class": "transcluded",
           "source": "demos/card-game/tests/acceptance/authority-scope.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/party-wall/tests/acceptance/headless.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-client/app-data.test.mjs"
         },
         {
           "lang": "js",
@@ -852,7 +862,7 @@
       ],
       "reviewed": "2026-08-01",
       "reviewedCommit": "HEAD",
-      "sha256": "e788f4f4bbeb5f5d82c5f3df5bf4d920459ae2b8cf50630d09290c9765b6b9e1",
+      "sha256": "d0fa588421c6cf6896277ae61c02c5797e9ea9017cc729891fb0e482dbf9aa5f",
       "snippets": [
         {
           "lang": "js",
@@ -863,6 +873,10 @@
           "lang": "js",
           "class": "transcluded",
           "source": "demos/signal-desk/snapback/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "fragment"
         },
         {
           "lang": "js",
@@ -1113,7 +1127,7 @@
       ],
       "reviewed": "2026-07-31",
       "reviewedCommit": "HEAD",
-      "sha256": "c3d2bdbb957d32a388ed468448722bbce06eab2e8e380bddefb55bec5af32679",
+      "sha256": "682835ff836ecea5444c1081619c619d1ec6133e65ee297a99954a3a6c03c6b8",
       "snippets": []
     },
     "meta.capabilities": {
@@ -1357,7 +1371,7 @@
       ],
       "reviewed": "2026-08-01",
       "reviewedCommit": "HEAD",
-      "sha256": "c516178ce01f6f4002bd908a79810a8c8ca637ee487858521a815dc69ddea7b0",
+      "sha256": "8ad267ba63b4da84ca826da02297e8f43dcdff92ca806f093b90f3173a9073f4",
       "snippets": [
         {
           "lang": "ts",
@@ -1647,7 +1661,7 @@
       ],
       "reviewed": "2026-07-28",
       "reviewedCommit": "HEAD",
-      "sha256": "7a28c53d8a9c8d8f62263550c535d148fa4ef6d51eec19ab04e737ae117c9689",
+      "sha256": "6bfb12a8c112a67f2dbc4d04c31058a8c5b5ed71ba030f70bca094419ffdc279",
       "snippets": []
     },
     "getting-started.your-first-backend": {
@@ -1684,7 +1698,7 @@
       ],
       "reviewed": "2026-07-31",
       "reviewedCommit": "HEAD",
-      "sha256": "48fca1c6a5e64ce3378ac768267ea7c2c747e8df041996b563ca8588fa1f136f",
+      "sha256": "3010f20abc8b92dd2945e586e0b0bad2dd50491e8aa685837926fe97f16aac4d",
       "snippets": [
         {
           "lang": "js",
@@ -1830,7 +1844,7 @@
       ],
       "reviewed": "2026-07-27",
       "reviewedCommit": "8399da34f8bdebb2776395ee5751b57c2bd2e71f",
-      "sha256": "e1f8a92ffbb9e48bc75b7be51bcb88cb0215b239776ba948d277638ad42eba4d",
+      "sha256": "54863d3b6847bec9b1da7d1436a9b008bdbf1b16bc56f76a5d29aa085224dcb5",
       "snippets": [
         {
           "lang": "js",
@@ -1895,7 +1909,7 @@
       ],
       "reviewed": "2026-07-17",
       "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
-      "sha256": "43831618191fbb3f4020146105bc620b7d5ba4dcf73449434de83861fc4a7b37",
+      "sha256": "d6646bfb12022f57e7660319261171eb9c27b28145ee3b118f9aea757d37c6a1",
       "snippets": [
         {
           "lang": "js",
@@ -2416,5 +2430,5 @@
     "routes": 86,
     "hostOps": 29
   },
-  "contentHash": "eb4d232604e30da9837e0538882d4501087d7a5c9ca67550b8f1600db90675c6"
+  "contentHash": "92ec2a0eb7c5f0215f10251a1ea71f528ac054dbe1e48ea56a7a00f8ff9e2100"
 }

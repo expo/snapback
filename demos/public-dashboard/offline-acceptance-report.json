@@ -31,7 +31,7 @@
       }
     },
     {
-      "name": "cold relaunch with the backend down renders retained rows (Diary 0027 comparator)",
+      "name": "fresh client instance (same process) with the backend down renders retained rows (Diary 0027 comparator)",
       "ok": true,
       "details": {
         "firstFrame": {
@@ -141,7 +141,7 @@
       }
     },
     {
-      "name": "cold relaunch after restart renders retained rows first, then settles current",
+      "name": "fresh client instance (same process) after restart renders retained rows first, then settles current",
       "ok": true,
       "details": {
         "updateKinds": [

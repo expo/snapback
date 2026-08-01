@@ -16,3 +16,7 @@ Probe: demos/improvement-sweep/arms/a1-snapback-web/evidence/app/probe-membershi
 
 Fix shape: document both negative shapes in scoped-roles.md with guidance on
 when each is the right product contract.
+
+---
+
+**RESOLVED 2026-08-01 (fix-wave docs sweep).** guide/auth/scoped-roles.md §"Choose between filtering and denying" tables both negative shapes (empty result vs SNAPBACK_AUTH_PERMISSION_DENIED), states what each lets a probing outsider confirm, and gives the per-surface guidance plus the conversion warning.
