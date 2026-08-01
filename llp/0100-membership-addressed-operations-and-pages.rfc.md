@@ -1,11 +1,17 @@
 # LLP 0100: Membership-addressed operations and pages
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Review
 **Systems:** Memberships, Authorization, Query planning, Pagination, Code generation, Live Queries, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-26
-**Revised:** 2026-08-01 (v0.4, applying the round-2 delta verdicts — Fable
+**Revised:** 2026-08-01 (loop CONVERGED dual-family READY — Fable round 2,
+Codex round 3, zero unresolved concerns; review artifacts
+reviews/0100-membership-addressed-operations-and-pages.{fable,codex}.md.
+Status advances Draft -> Review. Full acceptance honors this RFC's own
+ratification boundary: LLP 0056 reaching Accepted, or an explicit
+composed-parent ruling by the author — pending that, the converged text
+is the stable review baseline.) 2026-08-01 (v0.4, applying the round-2 delta verdicts — Fable
 READY, Codex NOT READY on two text-fixable residuals; both round-2
 artifacts:
 `llp/reviews/0100-membership-addressed-operations-and-pages.fable.md`
