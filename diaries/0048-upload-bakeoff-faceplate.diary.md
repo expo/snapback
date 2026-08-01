@@ -53,3 +53,39 @@ Frictions, as hit:
 Ceremony count (concepts a newcomer must hold): 6 — table, assetRef
 field, assetSharing declaration, upload intent, attach-in-mutation,
 sessions auth. Steps: 3 authored files → codegen → server → client task.
+
+## 2026-08-01 — pocketbase, arm 2, PASS (evidence complete; posture findings)
+
+v0.39.10 darwin_arm64 from the official release (binary gitignored, URL +
+version recorded). Wall-clock ~25 min including the download. Zero
+authored backend files: the built-in `users` auth collection already has
+an `avatar` file field — this is the provider's own paved avatar path,
+and it shows. Ceremony is the field's floor: download binary → superuser
+upsert → serve → four REST calls.
+
+Evidence highlights (`pocketbase/run.mjs`):
+- **check 4 (GPS): the original serves with GPS intact** — and combined
+  with check 7 (**signed-out fetch = 200**; files are public-by-URL
+  unless a field is marked `protected`), the default avatar flow lets an
+  anonymous fetcher read the uploader's location from the served bytes.
+  The `?thumb=100x100` re-encode drops EXIF (measured), so the leak is
+  specifically the original URL — which is exactly the URL the record
+  JSON hands out. Neither the field editor nor the docs surface EXIF
+  anywhere I hit. This is the sharpest privacy-default contrast with the
+  Snapback arm and it costs the user nothing to hit.
+- **check 6:** replace deletes the old file from disk — old URL 404s
+  immediately. Cleanest orphan story measured so far (Snapback: bytes
+  retained under GC policy but *authority* revoked transactionally;
+  PocketBase: bytes gone, but note anyone who saved the URL had free
+  access until the moment of replacement).
+- **check 5:** `cache-control: max-age=2592000, stale-while-revalidate=86400`
+  — genuinely CDN/browser-friendly, the pasteability winner so far; the
+  new-filename-per-upload scheme makes the cache posture safe.
+- On-the-fly thumbs by URL parameter with no declaration anywhere is a
+  DX delight (contrast: Snapback pre-declares variants in the intent;
+  Supabase gates transforms by plan).
+
+Posture summary: best-in-class ceremony and delivery ergonomics;
+weakest measured privacy defaults (public-by-URL + EXIF passthrough).
+The `protected` flag + file-token flow exists but is opt-in and
+per-field; the default is the measured behavior.
