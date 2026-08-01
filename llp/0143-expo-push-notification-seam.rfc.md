@@ -6,14 +6,59 @@
 Deployment, Testing, Documentation
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-01
-**Revised:** 2026-08-01 (initial draft, commissioned as ballot item 5 from
-the LLP 0137 Track B findings; direction decided by the author the same
-day: an integration seam to Expo's push service — option (a) — not a
+**Revised:** 2026-08-01 (v2, round-1 dual-family reconciliation — both
+NOT READY; artifacts in
+`llp/reviews/0143-expo-push-notification-seam.{fable,codex}.md`, each
+against v1 sha256 `16ec3b56…`. Every material point verified against the
+tree or the Expo documentation and applied; none refuted, one applied
+with a nuance. Dispositions — Fable c1 (ambiguous-retry can
+double-deliver): applied; D3 now forbids auto-retry of `ambiguous`,
+scopes at-most-once to the handoff attempt, and records the
+device-duplicate risk normatively. Fable c2 + Codex m4 (installation
+identity absent on the carrier): applied; D1 promotes it from open
+question to a named dependency with a default proposal (seam-minted id
+persisted beside auth custody; the landed B1 RN durable-store arm is the
+plausible carrier), scoped by app/EAS project identity. Fable c3
+(multi-principal same token): applied as a normative single-owner rule.
+Fable c4 (payload privacy): applied. Fable c5 (pacing): applied in D2.
+Fable c6 (simulator overbreadth): applied; per-OS scoping recorded,
+uniform fixture kept as a determinism choice. Fable c7 (ledger read
+contract on the packaged closure): applied to D6. Fable c8 (a4-f5 gate
+legibility): applied to D5. Codex m1 (Expo API corrections): applied —
+token object shape (`ExpoPushToken.data`), `projectId`
+optional-but-recommended, `DeviceNotRegistered` in tickets AND receipts,
+a request/ticket/receipt outcome matrix replacing the "4xx retryable"
+prose, receipt timing pinned to Expo's ~15-minute check guidance and
+~24-hour clearing; the v1 `InvalidCredentials` receipt claim was correct
+for provider-credential failures and is kept in the matrix beside the
+request-level `UNAUTHORIZED` case Codex identified (nuance recorded).
+Codex m2 (crash-safe attempt protocol): applied; D3 defines durable
+reservation, claim fencing, payload binding, divergent-key refusal,
+settlement, and recovery at each of the four crash points. Codex m3
+(per-message ledger): applied; the ledger is normalized into intent
+chain / batch attempt / per-token message rows with aggregate state as a
+derived projection; D5 rewritten accordingly. Codex m5 (authority
+composition with the shipped scheduling slice): applied; verified
+against LLP 0070 (v1 `ctx.jobs.enqueue` is mutation-produced and
+executes callees as system authority; `producerPrincipal` is provenance
+only) — D2 now defines three trigger modes and a capture-then-revalidate
+recipient-authorization rule with execution-time audience resolution.
+Codex m6 (activation/read contracts, endpoint exfiltration): applied;
+D6 defines the source declaration and manifest shape, and D2 pins the
+production endpoint with operator-owned, test-profile-only, loopback
+overrides. Codex m7 (a1expo-f5 gate breadth): applied; D4 states the
+full hosted conjunction from the ticket. Codex s8 (never-claims
+completeness, "invitations sent"): applied. Codex d9 (receipt cadence
+and 1,000-id chunking): applied. Status remains Draft.)
+2026-08-01 (initial draft, commissioned as ballot item 5 from the LLP
+0137 Track B findings; direction decided by the author the same day: an
+integration seam to Expo's push service — option (a) — not a
 first-class Snapback delivery capability)
-**Related:** LLP 0000, LLP 0027, LLP 0028, LLP 0036, LLP 0045, LLP 0049,
-LLP 0053, LLP 0055, LLP 0064, LLP 0070, LLP 0102, LLP 0137,
-issues/20260801-0137-a4expo-f1-no-mobile-push-boundary.md,
+**Related:** LLP 0000, LLP 0027, LLP 0028, LLP 0036, LLP 0039, LLP 0045,
+LLP 0049, LLP 0053, LLP 0055, LLP 0064, LLP 0070, LLP 0102, LLP 0137,
+issues/closed/20260801-0137-a4expo-f1-no-mobile-push-boundary.md,
 issues/20260801-0137-a4-outbound-notification-effects-unauthorable.md,
+issues/20260801-0137-a1expo-f5-hosted-mobile-gap.md,
 issues/20260728-guide-gap-assets-and-notifications-capability-rows.md
 
 ## Summary
@@ -33,26 +78,31 @@ fan-out — behind one HTTP API that Expo apps get device tokens for with
 one call. Snapback's half is the part that matches its existing
 differentiators: **custody** (push tokens are bearer-shaped secrets that
 must never sit in app-readable rows), **authorization** (who may send,
-to whom, under which config grant), and **honest receipts** (what was
-handed to Expo, when, for which token identity — never a delivery
-claim).
+to whom, under which trigger mode and config grant), and **honest
+receipts** (what was handed to Expo, when, for which token identity —
+never a delivery claim, and never an at-most-once-display claim the
+provider protocol cannot support).
 
 The seam is three pieces:
 
 1. a platform-owned **device-token registry** written from the client
    (`expo-notifications` token in, principal + installation custody
-   inside, retirement wired to logout/terminal auth and to Expo's
-   `DeviceNotRegistered` receipts);
+   inside, a single-owner rule per token bytes, retirement wired to
+   session end, to token rotation, and to `DeviceNotRegistered` at
+   either provider stage);
 2. a **send lane for actions** (`ctx.push.send`) that resolves
-   principals to tokens inside the host, posts to the Expo push API over
-   the landed `ctx.fetch`/`host.fetch` egress seam under a declared
-   config grant, and never exposes token bytes to handler code; and
-3. a **handoff ledger** in Snapback's honesty-surface style: per-send
-   attempt rows recorded at time T with token identity and dedupe key,
-   upgraded by Expo's two-stage ticket/receipt protocol, with terminal
-   facts named for what they are (`handed-to-expo`, `expo-accepted`,
-   `expo-error`, `ambiguous`) and an explicit never-claims list
-   (delivery, display, read, OS permission state).
+   audiences to tokens inside the host at execution time, posts to the
+   Expo push API over the landed `ctx.fetch`/`host.fetch` egress seam
+   under a declared config grant, paces chunked fan-out, and never
+   exposes token bytes to handler code — with recipient authorization
+   defined per trigger mode, because the shipped scheduling slice runs
+   deferred callees as system authority; and
+3. a **handoff ledger** normalized to Expo's actual protocol: a
+   dedupe-keyed intent chain, per-POST batch attempts, and per-token
+   message rows carrying ticket and receipt outcomes, driven by a
+   crash-safe reserve/claim/settle protocol, named in Snapback's
+   honesty-surface style (`handed-to-expo`, `expo-accepted`,
+   `expo-error`, `ambiguous`) with an explicit never-claims list.
 
 LLP 0045 (notifications outbox) remains the owner of the eventual
 first-class notifications capability; its first slice is email-first and
@@ -78,15 +128,20 @@ lift it without a second migration.
   receipt manifest demands "push-notification boundary or explicit GAP"
   for every A4 Expo arm. This RFC defines what a non-GAP answer looks
   like.
-- **The pieces this seam composes with have landed.** The
-  `ctx.fetch` → `host.fetch` action egress seam is in the runtime
-  (src/runtime.rs, LLP 0049 §Action Egress); declared config grants
-  exist (LLP 0036 `uses` + `ctx.secrets`); deferred and scheduled sends
-  have owners (LLP 0070 `runAfter` first slice, LLP 0028 cron actions);
-  client terminal-auth facts have a recorded pattern
-  (`authTerminalStatus`/`subscribeAuthTerminal` in the packaged client);
-  and LLP 0053 owns authorization invalidation semantics that token
-  retirement must respect.
+- **The pieces this seam composes with have landed — with one corrected
+  claim.** The `ctx.fetch` → `host.fetch` action egress seam is in the
+  runtime (src/runtime.rs, LLP 0049 §Action Egress); declared config
+  grants exist (LLP 0036 `uses` + `ctx.secrets`); cron actions exist
+  (LLP 0028); the shipped one-off scheduling surface is the
+  mutation-produced `ctx.jobs.enqueue` whose v1 executes callees as
+  **system authority** with `producerPrincipal` as provenance only
+  (LLP 0070) — D2 designs around that fact rather than assuming
+  inherited user authority; client terminal-auth facts have a recorded
+  pattern on main (`authTerminalStatus`/`subscribeAuthTerminal`; the
+  packaged 0.1.7 closure carries only the `handleTerminalAuthLoss`
+  choke point); LLP 0039 owns session-end authority transitions and
+  LLP 0053 owns permission-revocation invalidation — token retirement
+  binds to both, on the correct side of that division.
 
 ## Current state (as built)
 
@@ -106,27 +161,37 @@ lift it without a second migration.
   scaffolding "around a boundary that does not exist" (a4expo-f1).
 - The Expo surfaces this seam integrates, cited as they actually are:
   - `expo-notifications` on the device:
-    `getExpoPushTokenAsync({ projectId })` returns an
-    `ExponentPushToken[...]` string (an EAS project id is required in
-    current SDKs); `requestPermissionsAsync()` owns the OS permission
-    prompt; neither is a Snapback surface and this RFC does not wrap the
-    permission flow.
+    `getExpoPushTokenAsync({ projectId? })` resolves to an
+    `ExpoPushToken` object whose `.data` field is the
+    `ExponentPushToken[...]` string; `projectId` is optional in the API
+    (it defaults from the app's Expo/EAS configuration) and explicitly
+    recommended. `requestPermissionsAsync()` owns the OS permission
+    prompt, and `addPushTokenListener` reports token rotation while the
+    app runs. None of these is a Snapback surface; this RFC wraps
+    registration only, never the permission flow.
   - Send: `POST https://exp.host/--/api/v2/push/send` accepts one
     message or an array (up to 100 per request) of
-    `{ to, title, body, data, ... }` and returns per-message **tickets**
-    (`{ status: "ok", id }` or `{ status: "error", details }`). An
-    optional `Authorization: Bearer <access token>` header applies when
-    the Expo account enables enhanced push security.
+    `{ to, title, body, data, ... }` and returns per-message
+    **tickets** (`{ status: "ok", id }` or `{ status: "error",
+    details }`). Ticket errors include `DeviceNotRegistered` — the
+    token-retirement signal can arrive at the ticket stage, not only in
+    receipts. An `Authorization: Bearer <access token>` header applies
+    when the Expo account enables enhanced push security; omitting it
+    then fails at the request level (`UNAUTHORIZED`), before any ticket
+    exists.
   - Receipts: `POST https://exp.host/--/api/v2/push/getReceipts` with
-    `{ ids: [...] }` returns per-ticket **receipts** — `ok` means Expo
-    handed the message to APNs/FCM; `error` carries
-    `details.error` codes such as `DeviceNotRegistered`,
-    `MessageTooBig`, `MessageRateExceeded`, `InvalidCredentials`.
-    `DeviceNotRegistered` is the documented signal to stop using a
-    token.
+    `{ ids: [...] }` (up to 1,000 ids per request) returns per-ticket
+    **receipts** — `ok` means Expo handed the message to APNs/FCM;
+    `error` carries `details.error` codes such as `DeviceNotRegistered`,
+    `MessageTooBig`, `MessageRateExceeded`, and `InvalidCredentials`
+    (the app's APNs/FCM push credentials held by Expo are invalid — a
+    provider-credential fact, distinct from the request-level
+    `UNAUTHORIZED` above). Expo recommends checking receipts about 15
+    minutes after sending and clears them after roughly 24 hours.
   - Neither tickets nor receipts ever report device delivery, display,
-    or read. That boundary is Expo's, and this seam inherits it
-    honestly rather than papering over it.
+    or read. Expo's handoff is best-effort and carries no server-side
+    idempotency: re-posting the same logical message is a new message
+    to the device. The seam inherits both limits honestly (D3).
 
 ## Design
 
@@ -153,33 +218,74 @@ Everything below is inside that frame.
 can address that device (modulo the account's enhanced-security
 setting). They therefore never enter ordinary app tables.
 
-- A platform-owned **push-token registry** (working name
-  `pushTokens`), keyed by `(principal, installation)`:
-  - written only through a dedicated client surface
-    (`client.push.registerToken(token)` → a host-mediated registration
-    op), never by app mutations;
-  - readable by **no** query surface, generated or JS — the registry has
-    no result contract; `ctx.push.send` resolves it host-side;
-  - `installation` identity is the client-store identity the packaged
-    client already mints (the RQS/client-store id), so one principal on
-    two devices holds two rows and logout on one device retires one
-    (open question 2 pins the exact identity).
-- **Retirement lanes:**
-  - explicit unregister (`client.push.unregisterToken()`);
-  - terminal auth loss: the client records the terminal fact at the
-    `handleTerminalAuthLoss` choke point (`authTerminalStatus`
-    pattern); server-side, session logout/invalidation (LLP 0053)
-    retires the `(principal, installation)` rows minted under that
-    session's custody;
-  - provider-driven: a `DeviceNotRegistered` receipt retires the token
-    row and annotates it with the receipt identity (D3);
-  - re-registration after retirement is an ordinary insert — token
-    registration is idempotent per `(principal, installation)` with
-    last-write-wins on the token bytes.
-- Token bytes at rest are deployment-custody data, stored outside seed
-  artifacts and export surfaces; `snapback` operator inspection prints
-  registry cardinalities and retirement facts, never token bytes (the
-  config `status` discipline from LLP 0036 applied to tokens).
+**D1a. The registry and its key.** A platform-owned push-token registry
+(working name `pushTokens`), keyed by
+`(appScope, principal, installation)`:
+
+- `appScope` binds the registration to the app/EAS project identity the
+  token was minted for; two Expo projects (or incompatible token
+  domains) never share rows.
+- `installation` is a **named dependency, not a naming choice** (this
+  supersedes v1's OQ2 framing): no suitable identity exists today. On
+  the Expo carrier there was no durable client store at all until the
+  B1 RN durable-RQS-store arm landed on main (expo-file-system files
+  adapter), and the packaged client's `clientStoreId` is
+  caller-supplied while web defaults are origin-keyed — none of these
+  is installation-shaped custody. Default proposal: the seam mints an
+  opaque installation id at first registration and persists it beside
+  the client's auth custody (not in the RQS cache, whose reset
+  semantics are data-shaped, though the B1 files adapter is the
+  plausible on-device carrier for the same persistence). A store reset
+  or reinstall that loses the id yields a fresh installation; the
+  stale row is retired by the single-owner rule below, by rotation, by
+  session end, or by `DeviceNotRegistered` — stale rows are bounded,
+  not accumulated. Open question 2 now asks only for the identity's
+  final home and reset semantics, not whether it exists.
+- Registration is idempotent per key with last-write-wins on token
+  bytes, and each registration records the session/authority
+  generation that performed it (D1c).
+
+**D1b. Single-owner rule (normative).** Token bytes have at most one
+live row. Registering token bytes already held by another principal's
+live row retires the predecessor row in the same transaction (a device
+that switches users stops receiving the previous user's sends). Without
+this rule, a send addressed to principal A would display on a device
+currently signed in as B, including whatever the app put in `data`.
+
+**D1c. Retirement lanes.**
+
+- explicit unregister (`client.push.unregisterToken()`);
+- **session end** (logout, expiry, admin session revocation): these are
+  LLP 0039 authority transitions, not LLP 0053 authorization events —
+  the client deletes its retained state through the AuthCoordinator
+  path, and server-side the registry rows recorded under that session's
+  authority generation are retired transactionally in the same
+  session-end commit. A concurrent re-registration from a *different*
+  live session of the same principal is keyed to its own generation and
+  survives; a re-registration racing its own session's logout loses
+  (generation fencing decides, never wall clock);
+- **permission revocation** (LLP 0053's admin verb — "remove this user
+  from every group") does not by itself retire tokens: the principal
+  still exists and may hold app-independent authority. Whether an app
+  wants send-audience membership to gate at resolution time is exactly
+  what execution-time audience resolution (D2c) provides;
+- **token rotation:** the client surface subscribes
+  `addPushTokenListener` and re-registers the rolled token under the
+  same `(appScope, principal, installation)` key; the old bytes are
+  replaced atomically. Rotation while backgrounded is caught by the
+  next foreground registration refresh;
+- **provider-driven:** `DeviceNotRegistered` at *either* stage — push
+  ticket or receipt — retires the row and annotates it with the
+  ticket/receipt identity (D3).
+
+**D1d. Custody at rest and in diagnostics.** Token bytes are
+deployment-custody data, stored outside seed artifacts and export
+surfaces. Operator inspection prints registry cardinalities and
+retirement facts, never token bytes (the LLP 0036 `status` discipline
+applied to tokens). Provider responses are never persisted raw: Expo
+ticket error *messages* can echo the token, so the ledger persists an
+**allowlist** — status, ticket/receipt id, enumerated `details.error`
+code, and enumerated sub-codes — and drops free-text provider prose.
 
 ### D2. The send lane
 
@@ -187,154 +293,299 @@ Sends happen **from actions**, composing with the landed egress seam —
 but apps do not hand-roll the Expo POST, because that would require
 handing them token bytes.
 
-- `ctx.push.send({ to, title, body, data?, dedupeKey })` where `to`
-  names **principals** (or a declared audience shape, e.g. "all
-  registered installations of these principals"), never raw tokens.
-  The host resolves principals → tokens from the registry, chunks into
-  ≤100-message Expo requests, and performs the POST over the same
-  `host.fetch` boundary actions already use — so the deployment's
-  egress opt-in (`SNAPBACK_OUTBOUND_ACTIONS`) and the action wall-clock
-  watchdog govern it unchanged.
-- The Expo access token (enhanced push security) is a declared config
-  entry (working name `expoPushAccessToken`, `required: false`) granted
-  to the seam via the action's `uses` — LLP 0036 custody, redacting
-  handles, never in source or seed.
-- **Authorization:** `ctx.push.send` is available only inside actions
-  (and cron-run actions), inheriting the action's server-resolved
-  authority; the app's own role gates (the A4 pattern: a nested
-  mutation's `requireRole` before the send) remain the product-level
-  policy. The seam adds one platform rule: a send may address only
-  principals the deployment knows — there is no arbitrary-token spray
-  surface.
-- **Deferred and scheduled sends** compose by construction: LLP 0070's
-  `runAfter` targets actions, LLP 0028's cron targets actions, and this
-  is an action-side surface. An RSVP-deadline reminder is a cron action
-  calling `ctx.push.send`; a "send in an hour" is `runAfter`.
-- `dedupeKey` is required. One key = at most one handoff attempt chain
-  (D3); retries under the same key are attempt-seq increments, matching
-  the A4 arms' ledger idiom and Expo's own guidance to retry
-  server-side errors without duplicating messages.
+**D2a. Surface.** `ctx.push.send({ to, title, body, data?, dedupeKey })`
+where `to` names a declared audience (D2c), never raw tokens. The host
+resolves the audience to registry rows, chunks into ≤100-message Expo
+requests, and performs the POST over the same `host.fetch` boundary
+actions already use — the deployment's egress opt-in
+(`SNAPBACK_OUTBOUND_ACTIONS`) and the action wall-clock watchdog govern
+it unchanged. The platform paces chunk submission (serial per attempt,
+bounded burst across attempts) and treats rate-class provider outcomes
+as retryable with backoff (D3e); pacing limits are published manifest
+facts, not tunables hidden in prose.
 
-### D3. The handoff ledger (receipts and honesty)
+**D2b. Trigger modes and authority (corrected against the shipped
+scheduling slice).** Verified: LLP 0070's v1 `ctx.jobs.enqueue` is
+produced from mutations and executes callees as the same system
+authority cron actions use; `producerPrincipal` is provenance only.
+There is no shipped action-side `runAfter` that inherits user
+authority. The seam therefore defines three modes rather than implying
+inheritance:
 
-Expo's protocol is two-stage and this seam records both stages without
-ever inflating them:
+1. **Immediate, client-triggered:** a client-invoked action calls
+   `ctx.push.send`; nested mutations inherit the action's
+   server-resolved (user) authority, and the app's product-level gate
+   (the A4 idiom: `requireRole` in a nested mutation *before* the
+   send) runs as that user.
+2. **Cron/system:** a cron action sends under system authority; the
+   product-level gate is the audience declaration itself (D2c) plus
+   the app's own due-scan logic, exactly as the A4 reminder leg works.
+3. **Deferred (`ctx.jobs.enqueue` from an authorized mutation):** the
+   producing mutation runs as the user and is where recipient
+   authorization happens; the job's action later executes as system
+   authority. The seam makes this honest with **capture then
+   revalidate**: the producing mutation captures a narrow send grant —
+   the declared audience reference and its arguments, bound to the
+   dedupe key, recorded with `producerPrincipal` provenance — and at
+   execution time the system-authority action may send only through
+   that captured grant, with the audience *re-resolved* at send time
+   (D2c). No captured grant, no deferred send; arbitrary principal-id
+   lists are not a deferred-send audience.
 
-- **Attempt row at time T** (the moment of the Expo POST): dedupe key,
-  attempt seq, target token identities (as registry row ids / digests —
-  not token bytes), message-size class, and the request outcome:
-  per-message ticket `{ok, id}` or ticket error. State:
-  `handed-to-expo` (tickets held) or `failed` (transport/4xx — safely
-  retryable) or `ambiguous` (no response — the A4-10 discipline:
-  never silently failed, never claimed sent).
-- **Receipt upgrade:** a bounded poll (the cron machinery LLP 0045
-  already pins for its runner; suite-driven tick in tests) calls
-  `getReceipts` for held ticket ids and upgrades attempts to
-  `expo-accepted` (receipt ok — handed to APNs/FCM) or `expo-error`
-  (receipt error, code retained; `DeviceNotRegistered` additionally
-  fires D1 retirement). Tickets with no receipt inside the poll window
-  settle `ambiguous` with the window recorded.
-- **Naming is the honesty surface.** Fields say `handedToExpoAt`,
-  `expoAcceptedAt`, `expoErrorCode` — there is no `deliveredAt` anywhere
-  in this seam. The ledger is queryable by the app through a declared
-  read surface (host/cohost-shaped in A4 terms) so a product can render
-  "invitations sent" honestly.
-- **Never-claims list (normative):** the seam does not and will not
-  claim device delivery, notification display, read/interaction state,
-  or OS permission state. The guide page for this seam must carry this
-  list verbatim; a wrapper that renames `expo-accepted` to "delivered"
-  is the exact dishonesty this design exists to prevent.
+**D2c. Audiences (normative).** `to` is a **declared audience
+resolver** — a generated, declaration-checked reference (e.g. "the
+registered installations of these explicit principals" or, per open
+question 8, "members of membership resource R with roles …") — not an
+arbitrary id list at execution time. Resolution always happens
+host-side **at execution time**, never at enqueue time: this is the
+rule that makes deferred sends respect retirement, the single-owner
+rule, and membership changes between enqueue and send. A resolver that
+yields zero rows records a zero-target attempt (D5 step 5), which is a
+fact, not an error.
+
+**D2d. Config custody and endpoint pinning.** The Expo access token
+(enhanced push security) is a declared config entry (working name
+`expoPushAccessToken`, `required: false`) granted via `uses` — LLP 0036
+custody, redacting handles, never in source or seed. The provider
+endpoint is **pinned to Expo's production endpoint**. Because the
+endpoint receives bearer-shaped tokens, an endpoint override is a
+token-exfiltration lever: overrides are operator-owned deployment
+custody, honored only on local/test target profiles, refused when
+non-loopback, and never expressible through app arguments or app
+config. The A4 arms' argument-passed `providerUrl` idiom is exactly
+what this seam must not reproduce.
+
+**D2e. Payload privacy (normative).** Title, body, and `data` transit
+Expo and APNs/FCM in plaintext as far as Snapback can observe. The
+seam's guide page must state that protected row data does not belong in
+push payloads; the recommended shape is an opaque reference the app
+resolves through its authorized read surfaces on open. The seam does
+not scan payloads; it states the boundary.
+
+### D3. The handoff ledger (receipts, honesty, and crash safety)
+
+**D3a. Normalized shape (per-message, not aggregate).** Expo's protocol
+is per-message; one scalar attempt state cannot carry a batch whose
+tickets and receipts diverge. The ledger is three levels:
+
+- **Intent chain** — one per dedupe key: the captured payload binding,
+  audience reference, trigger mode, attempt count, and a *derived*
+  aggregate projection for product UI;
+- **Batch attempt** — one per Expo POST (≤100 messages): request
+  outcome, HTTP class, timing;
+- **Message row** — one per (attempt, token identity): ticket outcome,
+  ticket id, receipt outcome, enumerated error codes, retirement
+  effect. Ticket ids, receipt state, error classification, and token
+  retirement live here; nothing aggregate ever overwrites them.
+
+**D3b. Crash-safe protocol.** "Record at the moment of the POST" is not
+a protocol. The seam's send path is reserve → claim → transmit →
+settle, all durable:
+
+1. **Reserve:** the intent chain and this attempt's message rows are
+   committed (state `reserved`, payload and resolved audience bound to
+   the dedupe key) *before* any bytes leave the host. Reusing a dedupe
+   key with a divergent payload or audience reference refuses.
+2. **Claim:** a single fenced owner claims the attempt (the LLP 0070
+   lease idiom); a crashed owner's lease expires and recovery finds a
+   `reserved`/`claimed` attempt with no ticket rows.
+3. **Transmit:** the Expo POST(s) run under the claim.
+4. **Settle:** ticket outcomes are written per message row; the batch
+   attempt records the request outcome.
+
+Crash recovery by point: before reserve — nothing exists, the send
+never happened; after reserve, before transmit — recovery re-drives
+the claimed attempt (no bytes were sent; safe); after Expo accepted
+bytes, before ticket persistence — recovery finds a transmitted-but-
+unsettled attempt and settles it `ambiguous` (bytes may have reached
+Expo; tickets are lost); mid-batch ticket persistence — message rows
+settle individually, and unsettled rows in a batch whose response was
+lost settle `ambiguous`.
+
+**D3c. Ambiguity and duplicates (normative honesty).** Expo has no
+server-side idempotency; the dedupe key exists only in Snapback's
+ledger. Therefore:
+
+- at-most-once is claimed **per handoff attempt**, never per device
+  display;
+- `ambiguous` attempts are **never auto-retried**. An explicit
+  re-drive (operator or app-initiated) is a new attempt under the same
+  intent chain, and the ledger records on it that the previous attempt
+  was ambiguous — i.e. **the device may receive the notification
+  twice**. This sentence, or its equivalent, is normative for the
+  guide page;
+- `failed` attempts with a retryable class (D3e) may auto-retry under
+  backoff, because no bytes were accepted.
+
+**D3d. Receipt upgrade.** A bounded poll (the cron machinery LLP 0045
+already pins for its runner; suite-driven tick in tests) collects held
+ticket ids in ≤1,000-id `getReceipts` chunks, first poll ~15 minutes
+after handoff (Expo's guidance), on a bounded retry schedule inside
+Expo's ~24-hour receipt window. Message rows upgrade to `expo-accepted`
+(receipt ok — handed to APNs/FCM) or `expo-error` (enumerated code
+retained; `DeviceNotRegistered` additionally fires D1 retirement).
+Ticket ids with no receipt when the window closes settle
+`ambiguous-receipt` with the window recorded. Ledger retention is the
+seam's own declared limit (D6), independent of Expo's clearing.
+
+**D3e. Outcome matrix (normative).** Request level: HTTP 400
+(malformed) → `failed-permanent`, no retry; `UNAUTHORIZED` (enhanced
+security without a valid bearer) → `failed-config`, no retry until the
+config generation changes; HTTP 429 → `failed-retryable` with backoff;
+HTTP 5xx → `failed-retryable` with backoff; transport error/timeout →
+`ambiguous` (D3c). Ticket level (per message): `ok` →
+`handed-to-expo`, receipt pending; `DeviceNotRegistered` → terminal for
+that token + registry retirement; other enumerated ticket errors
+(e.g. `MessageTooBig`) → `failed-permanent` for that message. Receipt
+level: `ok` → `expo-accepted`; `DeviceNotRegistered` → `expo-error` +
+retirement; `InvalidCredentials` → `expo-error-config`
+(operator-facing: Expo's stored APNs/FCM credentials for the app are
+invalid); `MessageRateExceeded` → `expo-error-rate`, retryable as a new
+attempt under pacing; no receipt in window → `ambiguous-receipt`. In
+every cell the persisted diagnostic is the allowlisted code (D1d),
+never provider prose.
+
+**D3f. Naming is the honesty surface.** Fields say `handedToExpoAt`,
+`expoAcceptedAt`, `expoErrorCode` — there is no `deliveredAt` anywhere
+in this seam.
+
+**Never-claims list (normative, extended).** The seam does not and will
+not claim: device delivery; notification display; read or interaction
+state; OS permission state; exactly-once sending or duplicate
+suppression (D3c); ordering across recipients or across intents;
+delivery latency, availability, or any SLA; continued token validity or
+current registration beyond the recorded retirement facts. UI
+projections built on the ledger must preserve the
+handed/accepted/error/ambiguous vocabulary; a product string like
+"invitations sent" is product copy, not a fact this seam backs, and the
+guide page must say so. The guide page carries this list verbatim.
 
 ### D4. Capability identity and target availability
 
 - New manifest capability (working id `notifications.expoPushSeam`),
   distinct from LLP 0045's `notifications` boolean, which stays `false`
   until the outbox ships. The capability row lists the three surfaces
-  (registry, send lane, ledger) and the never-claims list.
-- **Local target:** full seam, with the Expo endpoint overridable to a
-  suite-owned fixture (the A4 arms' scripted-provider idiom) so
-  acceptance runs offline and deterministic; `EXPO-09-PUSH` flips from
-  GAP to a witnessed boundary on the simulator (Expo push tokens are not
-  obtainable on simulators, so the acceptance registers a fixture token
-  through the same documented client surface — the boundary and ledger
-  are the witnessed facts, per the a4expo-f1 fix shape).
-- **Hosted target:** reported Missing until the hosted executor lane can
-  hold the config grant and egress (`a1expo-f5` is the gate); no
-  invented local equivalence, per LLP 0064's honesty rules.
+  (registry, send lane, ledger), the pacing and retention facts, and
+  the never-claims list.
+- **Local target:** full seam, with the Expo endpoint overridable only
+  as D2d allows (operator-owned, test-profile, loopback) so acceptance
+  runs offline and deterministic; `EXPO-09-PUSH` flips from GAP to a
+  witnessed boundary. Platform scoping, stated precisely: iOS
+  simulators cannot mint Expo push tokens; Android emulators with Play
+  services generally can. The acceptance nevertheless uses the fixture
+  token path uniformly on both — a deliberate determinism choice, so
+  the witnessed facts are the boundary and the ledger, not Google's
+  emulator image (per the a4expo-f1 fix shape).
+- **Hosted target:** reported Missing until the full conjunction the
+  `a1expo-f5` ticket actually describes holds — hosted
+  sessions/native-auth entry (the Cloudflare arm exposes no sessions
+  routes; the capture mailbox and `auth.mintSession` are
+  non-production), authenticated registry operations over that entry,
+  provider config custody on the hosted profile, action egress, a
+  durable receipt-poll home, and a hosted conformance receipt. Config
+  and egress alone (v1's phrasing) are not the gate; without hosted
+  native auth, authenticated token registration cannot exist. No
+  invented local equivalence, per LLP 0064.
 
 ### D5. A4 contract fit
 
 The acceptance shape for the "tell my guests" leg, written against this
-seam (and intended as the packaged-closure conformance test):
+seam (and intended as the packaged-closure conformance test). Sequencing
+note: step 4's refusal witness cannot pass while `a4-f5`
+(SNAPBACK_AUTH_PERMISSION_DENIED collapsing to SNAPBACK_HANDLER_FAILED
+through the action boundary) is unfixed — that ticket is an explicit
+gate of this witness, not a footnote.
 
 1. simulator app registers a token through the documented client
-   surface (fixture token on simulator);
+   surface (fixture token, per D4);
 2. an RSVP change triggers a host action; `ctx.push.send` with a dedupe
-   key produces exactly one attempt row (`handed-to-expo`) against the
-   fixture endpoint, recorded at T with token identity;
-3. the receipt poll upgrades it (`expo-accepted`), and a scripted
-   `DeviceNotRegistered` receipt on a second send retires that token in
-   the registry;
+   key produces one intent chain, one batch attempt, and one message
+   row per registered installation (`handed-to-expo`) against the
+   fixture endpoint, each recorded at T with token identity;
+3. the receipt poll upgrades the message rows (`expo-accepted`); a
+   scripted `DeviceNotRegistered` — exercised once as a ticket error
+   and once as a receipt error — retires the affected token in the
+   registry both ways;
 4. a re-run under the same dedupe key is a receipted no-op; an
-   unauthorized principal's send refuses with the platform auth code
-   (which must survive the action boundary — `a4-f5` is a dependency of
-   this witness);
+   `ambiguous` attempt (scripted socket drop) is not auto-retried, and
+   its explicit re-drive records the duplicate risk; an unauthorized
+   principal's send refuses with the platform auth code (gated on
+   `a4-f5`);
 5. logout retires the installation's tokens; a subsequent send to that
-   principal records zero targets rather than a stale handoff.
+   principal records a zero-target attempt rather than a stale handoff.
 
-### D6. Migration and the no-op posture
+### D6. Activation, migration, and the no-op posture
 
-- Apps that declare nothing push-shaped pay nothing: no registry, no
-  ledger tables, no manifest row, no runtime cost. The seam is
-  strictly additive and the capability manifest is the discovery
-  surface.
+- **Activation is a declaration, not an ambient.** The seam exists in a
+  deployment only when the app's source declares it (working shape:
+  `definePushSeam({ appScope, audiences, uses, ledger: { retention },
+  read: { auth } })`). The declaration generates the manifest row, the
+  registry and ledger stores, the audience resolvers (D2c), the config
+  grant binding, and the ledger read projection. Apps that declare
+  nothing push-shaped pay nothing: no registry, no ledger, no manifest
+  row, no runtime cost.
+- **The ledger read surface is a generated, declaration-checked
+  projection** (host/cohost-shaped auth in A4 terms), privacy-bounded
+  to lifecycle facts (states, timestamps, enumerated codes, token-row
+  ids — never token bytes, payloads, or provider prose), and —
+  learning from `0137-a1-f1`, where a platform-typed field made its
+  table unqueryable on the packaged closure — its result contract must
+  be expressible and conformance-tested **on the packaged closure**,
+  not only in-repo. That requirement joins the absorption commitment
+  below.
 - The naive app-authored bridge (action + `ctx.fetch` + app-table
   tokens) remains *possible* on current main. The guide should
   document it only as an explicitly-warned interim recipe (token
-  custody and retirement hazards named) or not at all — open question
-  5; this RFC's position is that the seam, not the recipe, is the
-  documented path.
+  custody, retirement, and endpoint hazards named) or not at all —
+  open question 5; this RFC's position is that the seam, not the
+  recipe, is the documented path.
 - **Absorption into LLP 0045:** the outbox's durable intent lifecycle
   (enqueue, authorize, dedupe, retry, deliver) maps onto this seam's
   ledger one-to-one (intent ≈ dedupe-key chain; delivery attempt ≈
-  attempt row; provider adapter ≈ the Expo POST + receipt poll). When
-  0045's push slice arrives, this seam becomes its Expo provider
-  adapter and the `notifications.expoPushSeam` capability folds into
-  the first-class row. The RFC commits to not inventing ledger fields
-  0045's lifecycle cannot carry.
+  batch attempt + message rows; provider adapter ≈ the Expo POST +
+  receipt poll). When 0045's push slice arrives, this seam becomes its
+  Expo provider adapter and the `notifications.expoPushSeam` capability
+  folds into the first-class row. The RFC commits to not inventing
+  ledger fields 0045's lifecycle cannot carry, and to keeping the
+  ledger's read contract packaged-closure-expressible.
 
 ## Consequences
 
 - `EXPO-09-PUSH` gains a witnessable non-GAP answer on the local
   target; the A4 contract's mobile "tell my guests" leg becomes
   implementable end-to-end (send-side) without claiming what Expo does
-  not report.
+  not report — including the duplicate-on-ambiguous-re-drive fact the
+  provider protocol makes unavoidable.
 - Token custody moves from "whatever the app does" to a platform
-  surface with retirement wired to the auth lifecycle — the part FCM
-  reference apps routinely get wrong.
-- Two honest limits stay visible: hosted remains Missing until the
-  hosted lane exists, and nothing anywhere claims delivery. Products
-  that need read receipts or delivery SLAs need a different provider
-  relationship, and the capability row says so.
+  surface with a single-owner rule and retirement wired to the auth
+  lifecycle on the correct side of the 0039/0053 division — the parts
+  FCM reference apps routinely get wrong.
+- Deferred sends are honest about authority: captured narrow grants
+  plus execution-time audience resolution, instead of pretending the
+  shipped system-authority job lane inherits the user.
+- Two honest limits stay visible: hosted remains Missing until the full
+  `a1expo-f5` conjunction holds, and nothing anywhere claims delivery.
+  Products that need read receipts or delivery SLAs need a different
+  provider relationship, and the capability row says so.
 - LLP 0045's scope is unchanged; this RFC adds a provider-shaped
   down-payment it can absorb.
 
 ## Open questions
 
 1. Surface naming: `ctx.push` vs `ctx.notifications.expo`; capability id
-   `notifications.expoPushSeam` vs a `push.*` family. (Guide and
-   manifest naming review.)
-2. The exact installation identity for registry keying: the packaged
-   client's store id, the RQS resume identity, or a new
-   installation-scoped id minted at registration — and what happens on
-   store reset.
-3. Receipt-poll cadence, window, and retention on the local target; who
-   drives it on hosted once that lane exists (Expo recommends checking
-   receipts within roughly a day — pin the window).
-4. Config entry naming and required-ness for the Expo access token;
-   whether the seam should refuse sends when the account requires
-   enhanced security and the grant is absent, or attempt and record the
-   `InvalidCredentials` receipt.
+   `notifications.expoPushSeam` vs a `push.*` family; `definePushSeam`
+   vs folding into a future `defineNotifications`. (Guide and manifest
+   naming review.)
+2. The installation identity's final home and reset semantics (its
+   existence is now a D1a dependency with a default proposal): minted
+   beside auth custody vs carried by the B1 RN durable-store files
+   adapter; what a custody wipe does to the id; whether web carriers
+   get installation identities or web registration is out of v1 scope.
+3. Receipt-poll ownership on hosted once that lane exists; and whether
+   the local poll's schedule belongs in the manifest next to pacing.
+4. Config posture when the Expo account requires enhanced security and
+   the grant is absent: refuse at send (this RFC's lean) vs attempt and
+   record the request-level `UNAUTHORIZED` as `failed-config`.
 5. Whether to document the interim app-authored bridge recipe with
    warnings before the seam ships, or hold the guide silent until the
    seam is the story (guide-gap tickets 20260728 and a4expo-f1 both
@@ -343,11 +594,15 @@ seam (and intended as the packaged-closure conformance test):
    independently (this RFC's assumption) or ride the outbox's first
    provider-adapter milestone?
 7. Should the acceptance kit ship the fake-Expo fixture (tickets +
-   receipts + scripted `DeviceNotRegistered`) as a shared harness, the
-   way the A4 arms shipped scripted providers ad hoc?
-8. Audience shapes for `to`: principals only, or also declared groups
-   (e.g. a membership resource — "all seated guests of event X")
-   resolved host-side; the A4 fit wants the latter eventually.
+   receipts + scripted ticket-stage and receipt-stage
+   `DeviceNotRegistered` + socket-drop ambiguity) as a shared harness,
+   the way the A4 arms shipped scripted providers ad hoc?
+8. Audience-resolver vocabulary beyond explicit principals: membership
+   resources ("all seated guests of event X with role guest") resolved
+   host-side at execution time; which membership shapes are declarable
+   in v1, and how a resolver's own authorization is declared.
+9. Whether `expo-error-rate` receipts should feed back into the pacing
+   facts (adaptive pacing) or stay a static published limit in v1.
 
 ## Prior art
 
@@ -355,14 +610,27 @@ seam (and intended as the packaged-closure conformance test):
   defers push token lifecycle; open question "what is the first push
   provider and how are device tokens modeled?" — this RFC is that
   answer's Expo-shaped half.
+- **LLP 0070** — durable background work: the shipped
+  mutation-produced `ctx.jobs.enqueue` slice, its system-authority
+  execution and `producerPrincipal` provenance, and the lease/claim
+  idiom D3b borrows.
+- **LLP 0039 / LLP 0053** — session-end authority transitions vs
+  permission-revocation invalidation; D1c's retirement lanes sit on
+  that division rather than blending it.
 - **LLP 0137 / Diary 0045 Track B entry** — the motivating evidence:
   `a4expo-f1` (this gap), `a4-f1` (egress hole, fixed on main),
-  `a4-f5` (auth-code collapse through actions, a dependency of D5),
-  `a1expo-f5` (hosted mobile gap, the D4 hosted gate).
-- **Expo push service** — `expo-notifications` token acquisition, the
-  `exp.host` send + receipts HTTP API, and its explicit
-  tickets-then-receipts, no-delivery-claim contract, which this seam
-  mirrors rather than hides.
+  `a4-f5` (auth-code collapse through actions, an explicit D5 gate),
+  `a1expo-f3` (the missing on-device durable store behind the
+  installation-identity dependency), `a1expo-f5` (the full hosted
+  conjunction in D4).
+- **Expo push service** — `expo-notifications` token acquisition
+  (`ExpoPushToken.data`, optional-but-recommended `projectId`,
+  `addPushTokenListener` rotation), the `exp.host` send + receipts
+  HTTP API (100-message sends, 1,000-id receipt reads, ~15-minute
+  receipt guidance, ~24-hour clearing), and its explicit
+  tickets-then-receipts, best-effort, no-idempotency,
+  no-delivery-claim contract, which this seam mirrors rather than
+  hides.
 - **Firebase Cloud Messaging** — the reference bar for "push is a core
   mobile feature": token registration, send APIs, topic fan-out; also
   the reference for what honest receipts cannot promise (FCM likewise
