@@ -8674,6 +8674,22 @@ export class SnapbackClient {
         if (state === 'lost') {
           streamedSinceSubscribe = false;
           emitEstablishedOnce(); // transport settled: poll fallback
+          // Unconfirmed-resume self-heal (0137 A1-Expo f7, the permanent
+          // public-blanking mechanism): a token-seeded subscribe can be
+          // answered without a snapshot (rung 1/2 "answer pending"), holding
+          // whatever rows the handle already had until CurrentAsOf/replay
+          // confirms. If the socket dies BEFORE confirmation, those held
+          // rows were never proved current — and re-seeding the next
+          // subscribe from the same token can re-present a poisoned (blank)
+          // hold forever on a cycling carrier. Drop the unconfirmed token:
+          // the fresh subscribe then requests a full snapshot (rung 3) and
+          // re-primes rows authoritatively within one cycle. Freshness
+          // honestly returns to 'retained' for the held presentation.
+          if (pendingResumeConfirmation) {
+            pendingResumeConfirmation = false;
+            handle.rqsResume = null;
+            if (handle.freshness === 'current') handle.freshness = 'retained';
+          }
           // EVERY loss requires a fresh subscribe (ENG-23428): the server
           // registers the stream task at upgrade completion, before any
           // frame, and its teardown runs disconnect — dropping this
@@ -9646,6 +9662,7 @@ class LiveStreamManager {
         senderFrameTimer.unref?.();
       }
       this.open = true;
+      this.openedAtMs = Date.now();
       this.attempts = 0;
       this.lastActivityMs = Date.now();
       this.#startHeartbeat();
@@ -9682,6 +9699,7 @@ class LiveStreamManager {
       }
       await this.#receiveFrame(ws, frame);
     });
+    let errorEventSeen = false;
     const onLoss = (event) => {
       clearTimeout(connectTimer);
       releaseSenderFlight();
@@ -9689,17 +9707,26 @@ class LiveStreamManager {
         this.#closeForAuthClose(ws);
         return;
       }
-      this.#loseSocket(ws, new Error(`Snapback live stream lost: ${url}`));
+      this.#loseSocket(ws, new Error(`Snapback live stream lost: ${url}`), {
+        closeCode: typeof event?.code === 'number' ? event.code : null,
+        closeReason: typeof event?.reason === 'string' && event.reason !== ''
+          ? event.reason
+          : null,
+        errorPreceded: errorEventSeen,
+      });
     };
     ws.addEventListener('close', onLoss, { once: true });
     ws.addEventListener('error', () => {
+      errorEventSeen = true;
       releaseSenderFlight();
       // Browser and undici sockets normally follow `error` with `close`, but
       // React Native may report a refused upgrade only as `error`. Waiting for
       // a close that never comes wedges the manager with a non-open socket and
       // prevents grant refresh after a server restart. #loseSocket is
       // idempotent, so the usual later close event is harmless.
-      this.#loseSocket(ws, new Error(`Snapback live stream errored: ${url}`));
+      this.#loseSocket(ws, new Error(`Snapback live stream errored: ${url}`), {
+        errorPreceded: true,
+      });
     });
   }
 
@@ -9732,9 +9759,16 @@ class LiveStreamManager {
   // check but enters CLOSING; treating that as immediate loss prevents an
   // orphaned correlated request and starts bounded reconnect without waiting
   // for a later close event that a custom implementation may never deliver.
-  #loseSocket(ws, error) {
+  #loseSocket(ws, error, lossDetail = {}) {
     if (this.ws !== ws) return;
     const wasOpen = this.open;
+    // Loss forensics for carrier diagnosis (0137 A1-Expo f7): the close
+    // code/reason, whether an `error` event preceded, and how long the
+    // socket had been open split an RN-stack death from a server close or a
+    // never-opened upgrade refusal without a simulator attached.
+    const sinceOpenMs = wasOpen && typeof this.openedAtMs === 'number'
+      ? Math.max(0, Date.now() - this.openedAtMs)
+      : null;
     this.open = false;
     this.ws = null;
     this.#stopHeartbeat();
@@ -9758,7 +9792,13 @@ class LiveStreamManager {
     // outbox. Consumers must hear about every such loss to know a fresh
     // subscribe is needed; swallowing retry failures left handles
     // fake-healthy on a destroyed outbox.
-    this.#emitState('lost', { wasOpen });
+    this.#emitState('lost', {
+      wasOpen,
+      sinceOpenMs,
+      closeCode: lossDetail.closeCode ?? null,
+      closeReason: lossDetail.closeReason ?? null,
+      errorPreceded: lossDetail.errorPreceded === true,
+    });
     this.#scheduleReconnect();
   }
 

@@ -95,3 +95,34 @@ intact throughout. Consistent with the suspicion that the retainable-query
 re-prime path over the memory store is implicated in the A1 cycling, not
 the socket/heartbeat as such. Evidence:
 demos/improvement-sweep/arms/a4-snapback-expo-ios/evidence/witness-events.json (connection transitions).
+
+---
+
+**2026-08-01 (fix-wave Lane β2) — partial: the carrier-agnostic halves
+landed; the loop's owner identification remains simulator-gated.**
+
+Landed in this milestone:
+1. **The loss-detail instrumentation this ticket's fix-lane analysis
+   recommended** — the stream manager's `lost` state detail now carries
+   `closeCode`, `closeReason`, `errorPreceded`, and `sinceOpenMs`
+   (additive; `#loseSocket` threads them from the close/error listeners).
+   The next A1-Expo arm rerun can split an RN-stack `error`-only death
+   from a server close from an upgrade refusal directly from the witness
+   timeline.
+2. **The permanent-blanking self-heal** — the analysis's prime suspect
+   mechanism is now closed carrier-agnostically: on socket loss while a
+   token-seeded resume is still unconfirmed (`pendingResumeConfirmation`),
+   the client drops the unconfirmed token and demotes freshness
+   `current → retained`, so the next subscribe requests a full snapshot
+   and re-primes rows within one cycle instead of re-presenting a
+   poisoned blank hold forever. Evidence: full client suite green over
+   the change (the socket-loss leg has no isolated fake-WS test — the
+   scripted-wire harness covers the poll lane; the stream-lane witness is
+   the arm rerun this instrumentation exists for).
+
+Still open (unchanged): identifying the ~2s cycle's owner needs the
+simulator rerun with the new loss detail; the 60s-idle-hold Expo receipt
+gate waits on that identification, per the fix-lane recommendation. The
+A4-arm narrowing (retainable re-prime implicated, not the socket) is
+consistent with the self-heal above materially improving the A1 symptom
+even before the loop's owner is found.

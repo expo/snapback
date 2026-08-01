@@ -38,3 +38,12 @@ guide/clients/react-expo.md documents the memory-store consequence honestly
 (no cold-boot retention claim, `client.rqsStoreInfo` as the renderable
 fact). This ticket stays open as the sweep-side witness holder until the
 adapter ticket closes.
+
+---
+
+**Triage correction (2026-08-01, fix-wave Lane β2):** the fix-now ranking
+was wrong — this is a DESIGN item explicitly owned by
+`issues/20260725-rqs-native-ondevice-adapter.md` (the LLP 0129 on-device
+adapter), as the cross-reference above already records. No implementation
+here; the ticket stays open as the sweep-side witness holder per its own
+routing. Removed from the fix-wave's executable set.
