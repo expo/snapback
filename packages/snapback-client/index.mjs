@@ -104,25 +104,11 @@ export {
 } from './rqs-preload.mjs';
 import { resolveDefaultRqsStore } from './rqs-store-default.mjs';
 
-// Connectivity classification for the LLP 0043 M2 queue path: transport
-// PROVENANCE, not constructor identity (0137 A1-Expo f2). The primary signal
-// is `fetchDispatchFailed` — stamped by sanitizeTransportError exactly where
-// the fetch dispatch itself rejected, i.e. no Response was ever produced (no
-// HTTP status, no server diagnostic, no receipt). WHATWG runtimes reject
-// with TypeError there, but Expo/RN fetch rejects connection failures with a
-// plain Error, so class identity alone silently disabled the queue on that
-// carrier. The `instanceof TypeError` arm remains for errors that reach this
-// predicate without crossing the stamped boundary. Caller-owned aborts and
-// deadline expiries are not outages; anything the server answered —
-// refusals, conflicts, rejections — is NOT connectivity and is never queued.
-const CONNECTIVITY_EXCLUDED_ERROR_NAMES = new Set(['AbortError', 'TimeoutError']);
-const isConnectivityFailureError = (error) => (
-  (error?.fetchDispatchFailed === true || error instanceof TypeError)
-  && !CONNECTIVITY_EXCLUDED_ERROR_NAMES.has(error?.name)
-  && error?.status === undefined
-  && error?.diagnostic === undefined
-  && error?.receipt === undefined
-);
+// Connectivity classification (transport provenance, 0137 A1-Expo f2) now
+// lives in outbox-shared.mjs so the binding-receipt path in react-binding.mjs
+// — which cannot import this module without a cycle — applies the exact same
+// rule. sanitizeTransportError below still owns the provenance stamp.
+import { isConnectivityFailureError } from './outbox-shared.mjs';
 
 // ---------------------------------------------------------------------------
 // D1 freshness + reconnect policy (LLP 0034 §2.2/§2.3; Exact LLP 0284 §2.2).

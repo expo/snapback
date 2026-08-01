@@ -317,11 +317,15 @@ export interface PreparedReactBinding {
     bundleHash: string;
     inputsHash: string | null;
   }>;
+  /** Preparation provenance: 'deployment' when the live inspection admitted
+   * the manifest; 'persisted-receipt' when a connectivity failure fell back
+   * to the digest-bound offline binding receipt (LLP 0114 dated amendment). */
+  readonly source: 'deployment' | 'persisted-receipt';
   readonly authMode: AuthMode | null;
   readonly routeManifestHash: string;
   readonly registeredBundleAvailable: boolean;
   readonly functionCatalogDigest: string;
-  readonly capabilityDigest: string;
+  readonly capabilityDigest: string | null;
   readonly references: Readonly<Record<string, SnapbackFunctionReference>>;
   readonly ephemeral: Readonly<Record<string, SnapbackEphemeralReference>>;
   readonly groups: Readonly<Record<string, SnapbackQueryGroupReference>>;

@@ -5,7 +5,13 @@
 **Systems:** React, React/Expo, Client integration, Live Queries, Ephemeral state, Code generation, Sync, Auth, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-01 (authorization-denial projection: a server-answered
+**Revised:** 2026-08-01 (offline binding receipt: online preparation persists
+a digest-bound receipt of the admitted generated manifest + deployment
+identity into the persisted RQS store, and a transport-provenance
+connectivity failure at prepare time re-runs the complete admission against
+that persisted identity — making the process-cold offline boot reachable for
+external consumers; `binding.source` names the provenance; see the dated
+section). 2026-08-01 (authorization-denial projection: a server-answered
 denial on a handle's fresh subscribe — e.g. a bearer custody transition to a
 lesser-privileged successor, 0137 A1-Expo f4 — publishes the `error` variant
 with the denial diagnostic instead of an empty `ready`; an `error` snapshot
@@ -1330,3 +1336,37 @@ failures are answered denials; the denied handle stays parked and the next
 authority transition fresh-subscribes it. Regression witnesses:
 `packages/snapback-client/bearer-rotation.test.mjs` and
 `packages/snapback-react/authorization-denial.test.mjs`.
+
+### Offline binding receipt (dated amendment 2026-08-01)
+
+The 0.1.8 re-verification (issues/20260801-0137-reverify-react-cold-boot-
+binding-requires-server.md) showed the process-cold offline boot was
+unreachable for an external consumer: `prepareReactBinding` awaited
+`Promise.all([inspect, authSession])`, so a cold process with the backend
+unreachable threw `fetch failed` before a provider existed — while the
+LLP 0129 Phase 0 client machinery below it (verified persisted entries,
+retained rendering, offline-boot survival) was already capable of rendering.
+
+Online preparation now persists a **binding receipt** into the client's
+persisted RQS store (feature-detected optional store methods;
+availability-only, never failing preparation): the digest of the exact
+normalized generated manifest the admission proved equal to the deployment,
+plus the deployment identity, route-manifest hash, auth mode, capability
+digest, and registered-bundle availability that admission computed. When a
+later preparation's inspect/session fetch fails with a transport-provenance
+connectivity error (and ONLY then — a server-answered refusal is never
+masked), the client re-runs the complete admission against the persisted
+identity: digest equality proves the presented generated manifest is
+byte-identical to the one the online admission proved equal to the deployed
+manifest, so the deployed view IS the generated manifest and every per-item
+check re-runs unchanged. The prepared binding names its provenance:
+`binding.source` is `'deployment' | 'persisted-receipt'`.
+
+The asynchronous-admission rule of this spec is unchanged: admission
+completes (against the persisted identity) before a synchronous provider is
+constructed. A drifted generated manifest never adopts the receipt (digest
+mismatch falls through to the original connectivity error), and the
+user-switch custody wipe drops the receipt with the rest of the store.
+Regression witness: `packages/snapback-react/cold-boot-binding.test.mjs`
+(real client over a scripted wire; warmed store; cold offline process
+reaches a ready provider rendering `freshness: 'retained'` rows).

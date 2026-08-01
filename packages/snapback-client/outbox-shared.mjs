@@ -22,6 +22,28 @@ export const OUTBOX_MAX_RECORDS = 1024;
 export const OUTBOX_MAX_RECORD_BYTES = 262_144; // 256 KiB serialized
 export const OUTBOX_MAX_PENDING_ACKS = 4096;
 
+// Connectivity classification shared by the LLP 0043 M2 queue path and the
+// offline binding-receipt path (react-binding.mjs, which cannot import
+// index.mjs without a cycle): transport PROVENANCE, not constructor identity
+// (0137 A1-Expo f2). The primary signal is `fetchDispatchFailed` — stamped
+// by index.mjs's sanitizeTransportError exactly where the fetch dispatch
+// itself rejected, i.e. no Response was ever produced (no HTTP status, no
+// server diagnostic, no receipt). WHATWG runtimes reject with TypeError
+// there, but Expo/RN fetch rejects connection failures with a plain Error,
+// so class identity alone silently disabled the queue on that carrier. The
+// `instanceof TypeError` arm remains for errors that reach this predicate
+// without crossing the stamped boundary. Caller-owned aborts and deadline
+// expiries are not outages; anything the server answered — refusals,
+// conflicts, rejections — is NOT connectivity and is never queued.
+const CONNECTIVITY_EXCLUDED_ERROR_NAMES = new Set(['AbortError', 'TimeoutError']);
+export const isConnectivityFailureError = (error) => (
+  (error?.fetchDispatchFailed === true || error instanceof TypeError)
+  && !CONNECTIVITY_EXCLUDED_ERROR_NAMES.has(error?.name)
+  && error?.status === undefined
+  && error?.diagnostic === undefined
+  && error?.receipt === undefined
+);
+
 const REPLAY_OPAQUE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/;
 
 function outboxError(code, message, details = {}) {

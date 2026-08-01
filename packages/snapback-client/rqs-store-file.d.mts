@@ -37,3 +37,18 @@ export function createFileRqsResumeStore(options: {
 }): RqsResumeStore;
 
 export declare const RQS_FILE_STORE_FORMAT_V1: 'snapback-rqs-store-file.v1';
+
+export declare const RQS_STORE_GC_DEFAULT_MAX_AGE_MS: number;
+
+/** Directory janitor for the shared default state directory: unlinks sibling
+ * per-origin blobs (and their stale locks) that are provably abandoned —
+ * never the caller's own identity, a live holder's blob, pending queued
+ * intent, corrupt bytes, or anything younger than `maxAgeMs`. Availability
+ * only; failures skip the candidate. */
+export declare function sweepStaleRqsBlobs(options: {
+  readonly directory: string;
+  readonly files?: RqsFilesAdapter;
+  readonly keepIdentity?: string | number | null;
+  readonly maxAgeMs?: number;
+  readonly now?: () => number;
+}): Promise<{ swept: number; kept: number }>;

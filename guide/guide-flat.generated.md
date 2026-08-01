@@ -5445,6 +5445,17 @@ provider borrows the client; `provider.dispose()` drains provider-owned
 subscriptions, rooms, stores, listeners, timers, connection grant, socket
 demand, and its auth-barrier participant.
 
+Preparation also works process-cold offline: a successful online
+preparation persists a digest-bound **binding receipt** into the client's
+persisted RQS store, and when a later prepare's inspect/session fetch fails
+by connectivity (server unreachable — never a server-answered refusal), the
+same admission re-runs against the persisted identity for a byte-identical
+generated manifest. The binding names its provenance as
+`binding.source: 'deployment' | 'persisted-receipt'`, so an offline cold
+boot reaches a provider that renders retained rows (see
+[offline retention](../sync/offline-and-retention.md)). A drifted generated
+manifest never adopts the receipt.
+
 ## Bind a generated query
 
 Pass a generated operation reference and its exact arguments. The reference

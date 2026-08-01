@@ -113,3 +113,158 @@ test('membershipWitnessOfRows is exact, sorted, capped, and fail-closed (unit)',
   // Mint-refusable rows (missing id) fail closed to null.
   assert.equal(membershipWitnessOfRows([{ v: 1 }], digestOfRows('mset1', [])), null);
 });
+
+// --- interim Node-carrier receipt (LLP 0129 super-refine round-1 gap;
+// --- issues/20260801-guide-gap-js-arm-browser-indexeddb-proof.md third half):
+// --- the auth-scoped retention refusal SNAPBACK_RETENTION_NOT_RETAINABLE —
+// --- the refusal LLP 0053's retainability invariant actually governs — was
+// --- produced in index.mjs and asserted by no test on any carrier. This
+// --- pins it on the Node carrier: an auth-scoped subscription names WHY it
+// --- will never render cold, and nothing persists.
+test('an auth-scoped subscription refuses retention with SNAPBACK_RETENTION_NOT_RETAINABLE and persists nothing', async (t) => {
+  const previousFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = previousFetch; });
+  const { SnapbackClient } = await import('./index.mjs');
+  const { createMemoryRqsResumeStore } = await import('./rqs-store-memory.mjs');
+  const INCARNATION = '018f0d90-7b11-7a22-8c33-445566778899';
+  const issuerId = {
+    authorizationIncarnation: INCARNATION,
+    bootSequence: 7,
+    bootNonce: 'ABCDEFGHIJKLMNOPQRSTUV',
+  };
+  const authorization = { incarnation: INCARNATION, epoch: 4 };
+  const handshake = {
+    protocolVersion: 1,
+    serverStartupNonce: 'startup-retention-refusal',
+    authorizationStreamIncarnation: INCARNATION,
+    transitionGeneration: 1,
+    activeMode: 'sessions',
+    desiredMode: 'sessions',
+    modeState: 'settled',
+    appDataAvailability: 'available',
+    quarantineCode: null,
+    clientProtocols: {
+      authClient: 1,
+      authInvalidation: 1,
+      authorityDescriptor: null,
+      authorizedLease: null,
+    },
+    availability: {
+      onlineRequestResponse: { available: true, reason: null },
+      authScopedLive: { available: true, minimumAuthInvalidationProtocol: 1, reason: null },
+      retainedReads: {
+        available: false,
+        minimumAuthInvalidationProtocol: 1,
+        minimumAuthorizedLeaseProtocol: 1,
+        reason: null,
+      },
+      queuedReplay: {
+        available: false,
+        minimumAuthorityDescriptorProtocol: 1,
+        reason: null,
+      },
+    },
+    provider: { key: 'email-code', available: true },
+    transports: ['bearer'],
+    authority: { userId: 'user_ret', sessionId: 'session_ret', isAuthenticated: true },
+    authorityDescriptor: {
+      descriptorVersion: 1,
+      authorityInstanceId: INCARNATION,
+      sessionGeneration: 1,
+    },
+    authorizedLease: null,
+  };
+  const witnessData = { versionStream: 'stream-ret', minCommitVersion: 3 };
+  globalThis.fetch = async (url, init = {}) => {
+    const path = new URL(url).pathname;
+    if (path === '/auth/session') return Response.json(handshake);
+    if (path === '/connection/open') {
+      return Response.json({
+        connectionId: 'granted-retention-refusal',
+        connectionToken: 'sct_retention_refusal',
+        wireVersion: 'snapback.v1',
+        authorizationInvalidation: {
+          protocolVersion: 1,
+          issuerId,
+          connectionGeneration: 2,
+          authorization,
+          versionStream: 'stream-ret',
+        },
+      });
+    }
+    if (path === '/live/secrets/subscribe') {
+      const body = JSON.parse(init.body);
+      const scopeId = {
+        kind: 'subscription',
+        issuerId,
+        namespace: body.authorizationNamespace,
+        scopeSequence: 1,
+        connectionGeneration: 2,
+        subscriptionId: 'sub_retention_refusal',
+      };
+      const obligation = {
+        protocolVersion: 1,
+        scopeId,
+        revision: 1,
+        maxDisposition: 'quarantine',
+        witness: { authorization, data: witnessData },
+        retryEpisodeId: null,
+        ownerContinuityId: 'owner_retention_refusal',
+      };
+      return Response.json({
+        subscription_id: 'sub_retention_refusal',
+        snapshot: { version: 3, rows: [{ _id: 'secret-1', owner: 'user_ret' }] },
+        permission_epochs: {},
+        authorizationScope: scopeId,
+        authorizationInvalidation: {
+          obligation,
+          resolution: {
+            protocolVersion: 1,
+            kind: 'snapshot',
+            scopeId,
+            revision: 1,
+            witness: obligation.witness,
+            maxDisposition: 'quarantine',
+            ackToken: 'ack_retention_1',
+            ownerContinuityId: 'owner_retention_refusal',
+          },
+        },
+      });
+    }
+    if (path === '/live/authorization-invalidation/acknowledge') {
+      return Response.json({ outcome: 'discharged' });
+    }
+    if (path === '/live/secrets/unsubscribe') {
+      const body = JSON.parse(init.body);
+      return Response.json({ subscription_id: body.subscription_id, disposed: true });
+    }
+    throw new Error(`unexpected retention-refusal request: ${path}`);
+  };
+  const store = createMemoryRqsResumeStore();
+  const client = new SnapbackClient('http://retention-refusal.test', {
+    bearerToken: 'session-retention-refusal',
+    authInvalidationProtocol: 1,
+    clientStoreId: 'store_retention_refusal',
+    rqsStore: store,
+  });
+  const handle = await client.liveQuery('secrets', {
+    connectionId: 'c-ret',
+    transport: 'poll',
+    pollCadenceMs: 60_000,
+  });
+  assert.deepEqual(handle.rows, [{ _id: 'secret-1', owner: 'user_ret' }]);
+  assert.equal(handle.retention?.retainable, false, 'auth-scoped rows are never retainable on this arm');
+  assert.equal(
+    handle.retention?.code,
+    'SNAPBACK_RETENTION_NOT_RETAINABLE',
+    'the refusal names the LLP 0053 retainability invariant, not a generic ineligibility',
+  );
+  assert.match(
+    String(handle.retention?.reason ?? ''),
+    /lease/iu,
+    'the refusal names the missing lease machinery',
+  );
+  await handle.flushResumeState();
+  assert.equal((await store.inspection()).entries, 0, 'nothing persisted for the auth-scoped subscription');
+  handle.dispose();
+});

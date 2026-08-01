@@ -54,3 +54,42 @@ Node/file/public half + open browser/React/authorized half) or is held whole.
 That answer determines whether this witness is a conjunct of the **SD-5 Phase 0
 gate**, of the **Phase 0 exit criteria**, or both. Until it is answered, a
 public-browser-only witness must not be treated as advancing the phase.
+
+## Backlog Lane C assessment (2026-08-01) — prerequisite-gated, no witness landable yet
+
+Scoped for implementation in the clear-the-backlog Lane C pass and found
+**triple-gated**; recording the dependency order so the next owner starts at
+the front:
+
+1. **No standards-real browser harness exists.** The sibling ticket
+   (issues/20260801-guide-gap-js-arm-browser-indexeddb-proof.md) is still
+   open; the only retained Phase 0 acceptance is same-process/Node/file. The
+   browser-process-termination + same-profile-restart infrastructure this
+   witness needs has no owner-built precedent in the repo — it must be built
+   first (or jointly), and the public-query browser witness is the natural
+   staging step before the authenticated one.
+2. **Authorized retained rows do not exist on the JS arm.** The witness's
+   center — lease-valid retained AUTHORIZED rows across restart — requires
+   LLP 0043 M1 lease custody on the JS arm
+   (issues/20260731-js-arm-lease-custody-and-sessions-outbox.md leg 1),
+   which remains unimplemented; protected queries still refuse retention
+   with SNAPBACK_RETENTION_NOT_RETAINABLE (now positively asserted by a
+   Node-carrier receipt landed in this lane — the interim receipt the
+   sibling ticket asked for). Until leg 1 lands there is nothing
+   authorized to retain, so the conjunction cannot be witnessed.
+3. **LLP 0129 §Open questions 7 is still an open author decision** on
+   whether Phase 0's gate splits; this ticket's own text binds how any
+   witness counts to that answer.
+
+One adjacent piece DID land in this lane: the cold-boot binding receipt
+(issues/20260801-0137-reverify-react-cold-boot-binding-requires-server.md)
+removed the prepare-time server round-trip, so the future witness's
+"offline restart reaches a provider" leg is now real client behavior rather
+than a fake-client shortcut.
+
+Recommended order for the eventual owner: browser harness with the PUBLIC
+query witness (closes the sibling ticket) → M1 lease custody (leg 1) →
+extend the same harness run with the authenticated/authorized conjunction
+and close this ticket. Not started here: implementing any of those halves
+out of order would produce exactly the partial witnesses this ticket exists
+to reject.

@@ -145,6 +145,49 @@ test('commit/load roundtrip is atomic {rows, meta, token} and clears in-progress
   await store.close();
 });
 
+test('React binding receipt is detached, bounded, writer-gated, uncounted, and cleared by wipe', async () => {
+  const indexedDB = new IDBFactory();
+  const lockManager = createLockManagerDouble();
+  const { store: writerTab } = await makeStore({ indexedDB, lockManager });
+  const { store: readerTab } = await makeStore({ indexedDB, lockManager });
+  assert.equal(await writerTab.loadReactBindingReceipt(), null, 'absent receipt reads null');
+
+  const receipt = { binding: 'todos:list', authorityMode: 'anonymous', nested: { version: 1 } };
+  assert.equal(await writerTab.commitReactBindingReceipt(receipt), true);
+  receipt.nested.version = 99;
+  const loaded = await writerTab.loadReactBindingReceipt();
+  assert.deepEqual(loaded, {
+    binding: 'todos:list',
+    authorityMode: 'anonymous',
+    nested: { version: 1 },
+  });
+  loaded.nested.version = 2;
+  assert.equal((await writerTab.loadReactBindingReceipt()).nested.version, 1, 'loads are detached');
+
+  assert.equal(await readerTab.commitReactBindingReceipt({ binding: 'refused' }), false);
+  assert.equal((await readerTab.loadReactBindingReceipt()).binding, 'todos:list');
+  assert.equal(await writerTab.commitReactBindingReceipt(null), false);
+  assert.equal(await writerTab.commitReactBindingReceipt('not-an-object'), false);
+  assert.equal(await writerTab.commitReactBindingReceipt([]), false);
+  assert.equal(
+    await writerTab.commitReactBindingReceipt({ payload: 'x'.repeat(64 * 1024) }),
+    false,
+    'serialized receipts over 64 KiB are refused without replacing the prior receipt',
+  );
+  assert.equal((await writerTab.loadReactBindingReceipt()).binding, 'todos:list');
+  assert.deepEqual(
+    { entries: (await writerTab.inspection()).entries, bytes: (await writerTab.inspection()).bytes },
+    { entries: 0, bytes: 0 },
+    'receipt metadata is excluded from entry inspection accounting',
+  );
+
+  assert.equal(await writerTab.wipe(), true);
+  assert.equal(await writerTab.loadReactBindingReceipt(), null);
+  await writerTab.close();
+  await tick();
+  await readerTab.close();
+});
+
 test('an entry found in-progress at relaunch is refused (interrupted delta sequence)', async () => {
   const { store } = await makeStore();
   const key = rqsEntryKey('listCells', {});

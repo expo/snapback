@@ -17,7 +17,11 @@
 //      restart-safe claim may be made over it).
 
 import { createIndexedDbRqsResumeStore } from './rqs-store.mjs';
-import { createFileRqsResumeStore } from './rqs-store-file.mjs';
+import {
+  createFileRqsResumeStore,
+  RQS_STORE_GC_DEFAULT_MAX_AGE_MS,
+  sweepStaleRqsBlobs,
+} from './rqs-store-file.mjs';
 import { createMemoryRqsResumeStore } from './rqs-store-memory.mjs';
 
 const env = (name) => {
@@ -87,11 +91,28 @@ export function resolveDefaultRqsStore({ baseUrl } = {}) {
       ?? (home ? `${home}/.snapback/rqs` : null);
     if (directory) {
       try {
-        return {
-          store: createFileRqsResumeStore({
+        const store = createFileRqsResumeStore({
+          directory,
+          identity: originIdentity(baseUrl),
+        });
+        // Directory hygiene: dead-origin blobs (ephemeral test ports) would
+        // otherwise accumulate forever under the shared state directory.
+        // Fire-and-forget, availability-only; the sweep keeps anything held
+        // by a live process, holding pending queued intent, corrupt, or
+        // younger than the age floor. SNAPBACK_CLIENT_RQS_GC=off disables;
+        // SNAPBACK_CLIENT_RQS_GC_MAX_AGE_MS overrides the 30-day floor.
+        if (env('SNAPBACK_CLIENT_RQS_GC') !== 'off') {
+          const configuredAge = Number(env('SNAPBACK_CLIENT_RQS_GC_MAX_AGE_MS'));
+          void sweepStaleRqsBlobs({
             directory,
-            identity: originIdentity(baseUrl),
-          }),
+            keepIdentity: originIdentity(baseUrl),
+            maxAgeMs: Number.isSafeInteger(configuredAge) && configuredAge > 0
+              ? configuredAge
+              : RQS_STORE_GC_DEFAULT_MAX_AGE_MS,
+          }).catch(() => {});
+        }
+        return {
+          store,
           info: Object.freeze({
             source: 'default',
             implementation: 'file',

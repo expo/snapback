@@ -8,6 +8,13 @@ export const RQS_STORE_DATABASE_NAME: string;
 export const RQS_STORE_MAX_BYTES: number;
 export const RQS_STORE_MAX_ENTRIES: number;
 export const RQS_TOKEN_MAX_BYTES: number;
+export const RQS_REACT_BINDING_RECEIPT_MAX_BYTES: number;
+
+/** Returns a detached, JSON-serializable receipt within the store limit, or
+ * null when the input is not an acceptable receipt record. */
+export function prepareReactBindingReceipt(
+  receipt: unknown,
+): Record<string, unknown> | null;
 
 /** Canonical authority-independent persisted-entry key for one subscription
  * (query name + JCS args); null when the args cannot canonicalize. */
@@ -109,6 +116,12 @@ export interface RqsResumeStore {
   isWriter(): boolean;
   whenLockSettled(): Promise<void>;
   outboxEmpty(): Promise<boolean>;
+  /** Optional metadata slot used to prepare React bindings while offline. */
+  loadReactBindingReceipt?(): Promise<Readonly<Record<string, unknown>> | null>;
+  /** Writer-gated replacement of the optional React binding receipt. */
+  commitReactBindingReceipt?(
+    receipt: Readonly<Record<string, unknown>>,
+  ): Promise<boolean>;
   /** Raw persisted record — callers MUST verify with
    * `verifyPersistedResumeEntry` before trusting it. */
   load(key: string): Promise<RqsPersistedResumeRecord | null>;

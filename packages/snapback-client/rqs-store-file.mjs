@@ -51,6 +51,7 @@ import { hex, sha256 } from './rqs.mjs';
 import {
   RQS_STORE_MAX_BYTES,
   RQS_STORE_MAX_ENTRIES,
+  prepareReactBindingReceipt,
   rqsEntryRecordBytes,
   rqsEvictionOrder,
 } from './rqs-store.mjs';
@@ -316,7 +317,9 @@ export function createFileRqsResumeStore({
   const readState = async () => {
     if (corrupt) throw corruptError(blobPath);
     const raw = await files.readFile(blobPath);
-    if (raw === null) return { entries: {}, outbox: emptyOutboxState() };
+    if (raw === null) {
+      return { entries: {}, outbox: emptyOutboxState(), reactBindingReceipt: null };
+    }
     let parsed = null;
     try {
       parsed = JSON.parse(raw);
@@ -331,7 +334,7 @@ export function createFileRqsResumeStore({
     if (entriesValid && parsed.format === RQS_FILE_STORE_FORMAT_V1) {
       // In-place v1 migration: entries preserved, empty outbox (v1 stores
       // held no queue, so nothing can be silently dropped).
-      return { entries: parsed.entries, outbox: emptyOutboxState() };
+      return { entries: parsed.entries, outbox: emptyOutboxState(), reactBindingReceipt: null };
     }
     const outboxValid = entriesValid && validateOutboxState(parsed.outbox) !== null;
     if (!entriesValid || parsed.format !== RQS_FILE_STORE_FORMAT || !outboxValid) {
@@ -340,7 +343,13 @@ export function createFileRqsResumeStore({
       corrupt = true;
       throw corruptError(blobPath);
     }
-    return { entries: parsed.entries, outbox: parsed.outbox };
+    return {
+      entries: parsed.entries,
+      outbox: parsed.outbox,
+      // Optional metadata never weakens the fail-closed entry/outbox reader:
+      // absent or independently invalid receipt bytes simply mean no receipt.
+      reactBindingReceipt: prepareReactBindingReceipt(parsed.reactBindingReceipt),
+    };
   };
 
   // Atomic replace: temp write + rename lands the entry, its bookkeeping,
@@ -351,6 +360,9 @@ export function createFileRqsResumeStore({
       format: RQS_FILE_STORE_FORMAT,
       entries: state.entries,
       outbox: validateOutboxState(state.outbox) ?? emptyOutboxState(),
+      ...(state.reactBindingReceipt === null
+        ? {}
+        : { reactBindingReceipt: state.reactBindingReceipt }),
     }));
     await files.rename(tmpPath, blobPath);
   };
@@ -476,6 +488,35 @@ export function createFileRqsResumeStore({
       return serialized(async () => (await outboxWrite(
         (outbox) => outboxOps.confirmAcks(outbox, ids),
       )).result);
+    },
+
+    /// Optional offline React binding-preparation metadata. It shares the
+    /// blob's atomic temp-write+rename path but is not an RQS entry.
+    async loadReactBindingReceipt() {
+      requireOpen();
+      return serialized(async () => {
+        await acquireLock();
+        const receipt = (await readState()).reactBindingReceipt;
+        return receipt === null ? null : structuredClone(receipt);
+      });
+    },
+
+    async commitReactBindingReceipt(receipt) {
+      requireOpen();
+      return serialized(async () => {
+        await acquireLock();
+        if (!writer || corrupt) return false;
+        const stored = prepareReactBindingReceipt(receipt);
+        if (stored === null) return false;
+        let state;
+        try {
+          state = await readState();
+        } catch {
+          return false;
+        }
+        await writeState({ ...state, reactBindingReceipt: stored });
+        return true;
+      });
     },
 
     /// Read one persisted entry (reader or writer — reading is how a second
@@ -692,4 +733,111 @@ export function createFileRqsResumeStore({
       });
     },
   };
+}
+
+// ---------------------------------------------------------------------------
+// Directory janitor (issues/20260731-js-arm-lease-custody-and-sessions-outbox
+// leg 3): the default node store keys blobs and locks by server origin, so
+// dead origins (ephemeral test ports) accumulate per-origin blobs forever.
+// This sweep unlinks sibling blobs that are provably abandoned:
+//
+//   - never the caller's own identity slug;
+//   - never a blob whose lock is held by a live process (in this process or
+//     any other, per the same DK-9 liveness verdict acquireLock uses);
+//   - never a blob holding PENDING queued intent (exactly-once discipline:
+//     queued mutations are dropped only by the explicit drop-and-mark-failed
+//     path, not a janitor);
+//   - never unreadable/corrupt bytes (the DK-9 corruption posture: original
+//     bytes are evidence, an explicit wipe() is the only reset);
+//   - only when the newest recorded activity (entry savedAt/resumedAt,
+//     outbox enqueuedAt, binding-receipt savedAt) is older than maxAgeMs.
+//
+// Availability-only: every failure skips the candidate; the sweep never
+// throws past its own boundary.
+export const RQS_STORE_GC_DEFAULT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+
+export async function sweepStaleRqsBlobs({
+  directory,
+  files = createNodeFilesAdapter(),
+  keepIdentity = null,
+  maxAgeMs = RQS_STORE_GC_DEFAULT_MAX_AGE_MS,
+  now = () => Date.now(),
+} = {}) {
+  const summary = { swept: 0, kept: 0 };
+  if (typeof directory !== 'string' || directory.length === 0) return summary;
+  const sep = directory.endsWith('/') ? '' : '/';
+  const keepName = keepIdentity === null
+    ? null
+    : `${BLOB_PREFIX}${identitySlug(keepIdentity)}${BLOB_SUFFIX}`;
+  let names = [];
+  try {
+    names = (await files.readdir(directory)) ?? [];
+  } catch {
+    return summary;
+  }
+  for (const name of names) {
+    if (!BLOB_FILE_PATTERN.test(name) || name === keepName) continue;
+    const blobPath = `${directory}${sep}${name}`;
+    const lockPath = `${directory}${sep}${name.slice(0, -BLOB_SUFFIX.length)}${LOCK_SUFFIX}`;
+    try {
+      if (heldLocks.has(lockPath)) {
+        summary.kept += 1;
+        continue; // live sibling instance in this process
+      }
+      let lockIsStale = true;
+      const rawLock = await files.readFile(lockPath);
+      if (rawLock !== null) {
+        let holder = null;
+        try {
+          holder = JSON.parse(rawLock);
+        } catch {
+          holder = null;
+        }
+        const holderPid = Number.isSafeInteger(holder?.pid) ? holder.pid : null;
+        lockIsStale = holderPid === null || files.processAlive(holderPid) !== true;
+        if (!lockIsStale) {
+          summary.kept += 1;
+          continue; // held by a live foreign process
+        }
+      }
+      const rawBlob = await files.readFile(blobPath);
+      if (rawBlob === null) continue;
+      let parsed = null;
+      try {
+        parsed = JSON.parse(rawBlob);
+      } catch {
+        summary.kept += 1;
+        continue; // corrupt bytes are evidence, never janitor droppings
+      }
+      const outbox = validateOutboxState(parsed?.outbox);
+      if (outbox !== null && pendingOutboxRecords(outbox).length > 0) {
+        summary.kept += 1;
+        continue; // queued intent is never silently discarded
+      }
+      let lastActivityMs = 0;
+      const consider = (value) => {
+        if (Number.isSafeInteger(value) && value > lastActivityMs) lastActivityMs = value;
+      };
+      for (const record of Object.values(parsed?.entries ?? {})) {
+        consider(record?.savedAt);
+        consider(record?.resumedAt);
+      }
+      if (outbox !== null) {
+        for (const record of allOutboxRecords(outbox)) consider(record?.enqueuedAt);
+      }
+      consider(parsed?.reactBindingReceipt?.savedAt);
+      if (now() - lastActivityMs <= maxAgeMs) {
+        summary.kept += 1;
+        continue;
+      }
+      await files.unlink(blobPath);
+      if (rawLock !== null && lockIsStale) {
+        try { await files.unlink(lockPath); } catch { /* best-effort */ }
+      }
+      summary.swept += 1;
+    } catch {
+      summary.kept += 1; // any surprise keeps the candidate
+    }
+  }
+  return summary;
 }

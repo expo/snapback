@@ -7,6 +7,7 @@ import {
   rowsMatchDigest,
   sha256 as sha256PureJs,
 } from './rqs.mjs';
+import { isConnectivityFailureError } from './outbox-shared.mjs';
 
 // @ref LLP 0114#prepared-binding-and-provider-ownership — asynchronous
 // deployment admission is completed before a synchronous React provider may
@@ -202,17 +203,100 @@ function groupResponseArgsMatch(mapping, params, actual) {
   });
 }
 
+// --- Offline binding receipt (cold-boot preparation without a server) -------
+//
+// Online preparation proves generated === deployed against the live
+// inspection. The receipt records THAT conclusion, digest-bound to the exact
+// generated manifest it admitted, so a genuinely cold process with the
+// backend unreachable can re-run the same admission against the persisted
+// identity instead of the wire — the missing half of the LLP 0129 Phase 0
+// offline cold boot (the tab-goes-offline shape already worked; the
+// process-cold shape died in Promise.all([inspect, session]) with `fetch
+// failed` before a provider existed). Adoption is fail-closed: only a
+// transport-provenance connectivity failure falls back (a server-ANSWERED
+// refusal stays loud), and only for a byte-identical generated manifest.
+const BINDING_RECEIPT_FORMAT_VERSION = 1;
+
+async function adoptPersistedBindingReceipt(client, generated, cause) {
+  if (!isConnectivityFailureError(cause)) return null;
+  const store = client.rqsStore;
+  if (typeof store?.loadReactBindingReceipt !== 'function') return null;
+  let receipt = null;
+  try {
+    receipt = await store.loadReactBindingReceipt();
+  } catch {
+    return null; // availability-only: fall through to the connectivity error
+  }
+  if (
+    !receipt
+    || typeof receipt !== 'object'
+    || receipt.formatVersion !== BINDING_RECEIPT_FORMAT_VERSION
+    || receipt.appId !== generated.functions.appId
+    || typeof receipt.generatedManifestDigest !== 'string'
+    || !receipt.deployment
+    || typeof receipt.deployment !== 'object'
+    || receipt.generatedManifestDigest !== await sha256Canonical(generated)
+  ) return null;
+  // The digest equality above proves the presented generated manifest is
+  // byte-identical to the one online admission proved equal to the
+  // deployment — so the deployed view IS the generated manifest, and every
+  // per-item admission check below re-runs against it unchanged.
+  const inspection = {
+    targetProfileId: receipt.deployment.targetProfileId,
+    target: receipt.deployment.target,
+    functions: generated.functions,
+    schema: generated.schema === null
+      ? (receipt.deployment.schemaHash == null
+        ? null
+        : { schemaHash: receipt.deployment.schemaHash })
+      : {
+        schemaHash: receipt.deployment.schemaHash,
+        ephemeralCollections: generated.schema.ephemeralCollections,
+      },
+    routeManifestHash: receipt.routeManifestHash,
+    capabilityManifest: null,
+  };
+  return {
+    inspection,
+    session: receipt.authMode == null ? null : { activeMode: receipt.authMode },
+    receiptFacts: {
+      deployment: receipt.deployment,
+      capabilityDigest: receipt.capabilityDigest ?? null,
+      registeredBundleAvailable: receipt.registeredBundleAvailable === true,
+    },
+  };
+}
+
+function persistBindingReceipt(client, receipt) {
+  const store = client.rqsStore;
+  if (typeof store?.commitReactBindingReceipt !== 'function') return;
+  // Availability-only: a store that cannot persist the receipt (reader
+  // instance, quota, closed) never fails the online preparation.
+  void Promise.resolve(store.commitReactBindingReceipt(receipt)).catch(() => {});
+}
+
 export async function prepareReactBindingForClient(client, options = {}) {
   if (!client || typeof client.inspect !== 'function' || typeof client.liveQuery !== 'function') {
     throw new TypeError('prepareReactBinding requires a SnapbackClient');
   }
   const generated = normalizedManifest(options.generatedManifest);
-  const [inspection, session] = await Promise.all([
-    client.inspect(),
-    typeof client.authSession === 'function'
-      ? client.authSession()
-      : Promise.resolve(null),
-  ]);
+  let inspection;
+  let session;
+  let source = 'deployment';
+  let receiptFacts = null;
+  try {
+    [inspection, session] = await Promise.all([
+      client.inspect(),
+      typeof client.authSession === 'function'
+        ? client.authSession()
+        : Promise.resolve(null),
+    ]);
+  } catch (error) {
+    const adopted = await adoptPersistedBindingReceipt(client, generated, error);
+    if (!adopted) throw error;
+    ({ inspection, session, receiptFacts } = adopted);
+    source = 'persisted-receipt';
+  }
   const deployed = inspection?.functions;
   if (
     deployed?.appId !== generated.functions.appId
@@ -476,12 +560,19 @@ export async function prepareReactBindingForClient(client, options = {}) {
   Object.freeze(ephemeralReferences);
   Object.freeze(queryGroups);
   const functionCatalogDigest = await sha256Canonical(Object.values(references));
-  const capabilityDigest = await sha256Canonical(inspection.capabilityManifest);
-  const registeredBundleAvailable = Array.isArray(
-    inspection.capabilityManifest?.supportedCapabilities,
-  ) && inspection.capabilityManifest.supportedCapabilities.includes(
-    REGISTERED_BUNDLE_CAPABILITY,
-  );
+  // On the receipt path the live capability manifest is not available; the
+  // receipt carries the digest and availability fact the online admission
+  // computed from it.
+  const capabilityDigest = receiptFacts
+    ? receiptFacts.capabilityDigest
+    : await sha256Canonical(inspection.capabilityManifest);
+  const registeredBundleAvailable = receiptFacts
+    ? receiptFacts.registeredBundleAvailable
+    : Array.isArray(
+      inspection.capabilityManifest?.supportedCapabilities,
+    ) && inspection.capabilityManifest.supportedCapabilities.includes(
+      REGISTERED_BUNDLE_CAPABILITY,
+    );
   if (generated.capabilityManifest) {
     const declaredProfile = generated.capabilityManifest.targetProfileId;
     if (declaredProfile && declaredProfile !== inspection.targetProfileId) {
@@ -492,17 +583,39 @@ export async function prepareReactBindingForClient(client, options = {}) {
       );
     }
   }
-  const deploymentIdentity = Object.freeze({
-    targetProfileId: inspection.targetProfileId,
-    target: inspection.target,
-    schemaHash: inspection.schema?.schemaHash ?? null,
-    bundleHash: deployed.bundleHash,
-    inputsHash: deployed.inputsHash ?? null,
-  });
+  // The receipt persists the online deployment identity verbatim (the
+  // generated manifest may not carry inputsHash, which only the live
+  // inspection knows).
+  const deploymentIdentity = Object.freeze(receiptFacts
+    ? { ...receiptFacts.deployment }
+    : {
+      targetProfileId: inspection.targetProfileId,
+      target: inspection.target,
+      schemaHash: inspection.schema?.schemaHash ?? null,
+      bundleHash: deployed.bundleHash,
+      inputsHash: deployed.inputsHash ?? null,
+    });
+  if (source === 'deployment') {
+    persistBindingReceipt(client, {
+      formatVersion: BINDING_RECEIPT_FORMAT_VERSION,
+      appId: generated.functions.appId,
+      generatedManifestDigest: await sha256Canonical(generated),
+      deployment: { ...deploymentIdentity },
+      routeManifestHash,
+      authMode: session?.activeMode ?? null,
+      registeredBundleAvailable,
+      capabilityDigest,
+      savedAt: Date.now(),
+    });
+  }
   const binding = {
     appId: generated.functions.appId,
     profile: inspection.targetProfileId,
     deploymentIdentity,
+    // Preparation provenance (refuse-with-clarity): 'deployment' when the
+    // live inspection admitted the manifest; 'persisted-receipt' when a
+    // connectivity failure fell back to the digest-bound offline receipt.
+    source,
     authMode: session?.activeMode ?? null,
     routeManifestHash,
     registeredBundleAvailable,

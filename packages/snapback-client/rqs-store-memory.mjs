@@ -16,7 +16,13 @@ import {
   pendingAcknowledgementsFor,
   pendingOutboxRecords,
 } from './outbox-shared.mjs';
-import { rqsEntryRecordBytes, rqsEvictionOrder, RQS_STORE_MAX_BYTES, RQS_STORE_MAX_ENTRIES } from './rqs-store.mjs';
+import {
+  prepareReactBindingReceipt,
+  rqsEntryRecordBytes,
+  rqsEvictionOrder,
+  RQS_STORE_MAX_BYTES,
+  RQS_STORE_MAX_ENTRIES,
+} from './rqs-store.mjs';
 
 export function createMemoryRqsResumeStore({
   now = () => Date.now(),
@@ -26,6 +32,7 @@ export function createMemoryRqsResumeStore({
 } = {}) {
   const entries = new Map();
   let outbox = emptyOutboxState();
+  let reactBindingReceipt = null;
   let closed = false;
 
   const requireOpen = () => {
@@ -60,6 +67,19 @@ export function createMemoryRqsResumeStore({
       requireOpen();
       if (relaunchOutboxEmpty !== null && (await relaunchOutboxEmpty()) !== true) return false;
       return pendingOutboxRecords(outbox).length === 0;
+    },
+
+    async loadReactBindingReceipt() {
+      requireOpen();
+      return reactBindingReceipt === null ? null : structuredClone(reactBindingReceipt);
+    },
+
+    async commitReactBindingReceipt(receipt) {
+      requireWriter();
+      const stored = prepareReactBindingReceipt(receipt);
+      if (stored === null) return false;
+      reactBindingReceipt = stored;
+      return true;
     },
 
     async load(key) {
@@ -131,6 +151,7 @@ export function createMemoryRqsResumeStore({
       requireOpen();
       entries.clear();
       outbox = emptyOutboxState();
+      reactBindingReceipt = null;
       return true;
     },
 

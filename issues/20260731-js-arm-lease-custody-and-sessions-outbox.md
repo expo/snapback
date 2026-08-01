@@ -53,3 +53,49 @@ gap ledger names this ticket the owner of
 0137-a2-f8-retained-protected-history-gap; the retention refusal
 (SNAPBACK_RETENTION_NOT_RETAINABLE) still stands in
 packages/snapback-client/index.mjs.
+
+## Backlog Lane C progress + honest narrowing (2026-08-01)
+
+**Leg 3 (default-store directory hygiene): RESOLVED.**
+`sweepStaleRqsBlobs` landed in `packages/snapback-client/rqs-store-file.mjs`
+and is wired fire-and-forget into `resolveDefaultRqsStore`'s node arm
+(`SNAPBACK_CLIENT_RQS_GC=off` disables;
+`SNAPBACK_CLIENT_RQS_GC_MAX_AGE_MS` overrides the 30-day floor). The sweep
+is fail-closed on everything that matters: never the caller's own origin,
+never a blob whose lock a live process holds (same DK-9 liveness verdict as
+acquireLock), never PENDING queued intent (exactly-once discipline), never
+corrupt bytes (the DK-9 evidence posture), and only past the age floor
+measured from recorded activity (entry savedAt/resumedAt, outbox
+enqueuedAt, binding-receipt savedAt). Unit coverage in
+`rqs-store-file.test.mjs` (swept/kept matrix + idempotence).
+
+**Leg 1 interim receipt landed:** the LLP 0129 super-refine's round-1 gap —
+`SNAPBACK_RETENTION_NOT_RETAINABLE` produced but asserted by NO test on any
+carrier — is closed on the Node carrier: `rqs-resume.test.mjs` now pins an
+auth-scoped subscription (full LLP 0053 scope/invalidation shape over a
+protocol-enabled client) refusing retention with that exact code, naming
+the lease machinery in its reason, and persisting nothing.
+
+**Legs 1 and 2 stay open — scoped out of this lane deliberately, not
+silently.** Both are LLP 0053/0043-governed custody protocol work, not
+composition chores:
+
+- Leg 1 (M1 lease custody) means bringing the format-6 client-store
+  discipline — query-authorization namespaces, composite witnesses, signed
+  `AuthorizedLease` custody, equality-expiry deletion-before-render — into
+  `@expo/snapback-client`'s store arms and its subscribe/render path. The
+  composition seam is real (the client already imports
+  `@expo/snapback-contract/client-store`), but the render-gating and expiry
+  semantics need their own design pass + acceptance rows
+  (the LLP 0043 cold-process lease legs named above), and the integrated
+  authenticated-restart witness
+  (issues/20260801-js-arm-integrated-authenticated-restart-witness.md)
+  depends on this leg — see the dependency order recorded there.
+- Leg 2 (sessions-custody queue) is an explicit LLP 0043 §Auth posture
+  decision: capture-at-enqueue authority descriptors + strand-on-change, or
+  a recorded permanent boundary with the Contract arm as the sessions
+  offline carrier. Either outcome needs the design recorded first; a lane
+  implementation without it would guess the custody semantics.
+
+Next owner: leg 1 with its acceptance rows first (it unblocks the
+restart-witness conjunction), then leg 2's decision.

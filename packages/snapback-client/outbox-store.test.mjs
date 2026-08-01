@@ -90,6 +90,28 @@ test('memory arm carries the outbox contract', async () => {
   await store.close();
 });
 
+test('memory arm carries the optional React binding receipt outside entry accounting', async () => {
+  const store = createMemoryRqsResumeStore();
+  assert.equal(await store.loadReactBindingReceipt(), null);
+  const receipt = { binding: 'todos:list', nested: { version: 1 } };
+  assert.equal(await store.commitReactBindingReceipt(receipt), true);
+  receipt.nested.version = 99;
+  const loaded = await store.loadReactBindingReceipt();
+  assert.deepEqual(loaded, { binding: 'todos:list', nested: { version: 1 } });
+  loaded.nested.version = 2;
+  assert.equal((await store.loadReactBindingReceipt()).nested.version, 1, 'loads are detached');
+  assert.equal(await store.commitReactBindingReceipt(null), false);
+  assert.equal(await store.commitReactBindingReceipt('not-an-object'), false);
+  assert.equal(await store.commitReactBindingReceipt([]), false);
+  assert.equal(await store.commitReactBindingReceipt({ payload: 'x'.repeat(64 * 1024) }), false);
+  assert.equal((await store.loadReactBindingReceipt()).binding, 'todos:list');
+  const inspection = await store.inspection();
+  assert.deepEqual({ entries: inspection.entries, bytes: inspection.bytes }, { entries: 0, bytes: 0 });
+  await store.wipe();
+  assert.equal(await store.loadReactBindingReceipt(), null);
+  await store.close();
+});
+
 test('indexeddb arm carries the outbox contract atomically', async () => {
   const store = createIndexedDbRqsResumeStore({
     indexedDB: new IDBFactory(),

@@ -23,6 +23,7 @@ import {
   RQS_FILE_STORE_FORMAT,
   createFileRqsResumeStore,
   createNodeFilesAdapter,
+  sweepStaleRqsBlobs,
 } from './rqs-store-file.mjs';
 
 const ROWS = [{ _id: 'a', title: 'first' }, { _id: 'b', title: 'second' }];
@@ -104,6 +105,59 @@ test('commit/load roundtrip is atomic {rows, meta, token} and clears in-progress
   const raw = JSON.parse(await readFile(await blobPathIn(directory), 'utf8'));
   assert.equal(raw.format, RQS_FILE_STORE_FORMAT);
   await store.close();
+});
+
+test('React binding receipt is atomic, detached, bounded, uncounted, writer-gated, and durable', async (t) => {
+  const directory = await makeDirectory(t);
+  const { store } = await makeStore(t, { directory });
+  assert.equal(await store.loadReactBindingReceipt(), null, 'a blob without the optional field reads null');
+
+  const receipt = { binding: 'todos:list', authorityMode: 'anonymous', nested: { version: 1 } };
+  assert.equal(await store.commitReactBindingReceipt(receipt), true);
+  receipt.nested.version = 99;
+  const loaded = await store.loadReactBindingReceipt();
+  assert.deepEqual(loaded, {
+    binding: 'todos:list',
+    authorityMode: 'anonymous',
+    nested: { version: 1 },
+  });
+  loaded.nested.version = 2;
+  assert.equal((await store.loadReactBindingReceipt()).nested.version, 1, 'loads are detached');
+
+  const blob = JSON.parse(await readFile(await blobPathIn(directory), 'utf8'));
+  assert.deepEqual(blob.reactBindingReceipt, {
+    binding: 'todos:list',
+    authorityMode: 'anonymous',
+    nested: { version: 1 },
+  });
+  const inspection = await store.inspection();
+  assert.deepEqual(
+    { entries: inspection.entries, bytes: inspection.bytes },
+    { entries: 0, bytes: 0 },
+    'receipt metadata is excluded from entry inspection accounting',
+  );
+
+  const { store: reader } = await makeStore(t, { directory });
+  assert.equal(reader.isWriter(), false);
+  assert.equal(await reader.commitReactBindingReceipt({ binding: 'refused' }), false);
+  assert.equal((await reader.loadReactBindingReceipt()).binding, 'todos:list');
+  assert.equal(await store.commitReactBindingReceipt(null), false);
+  assert.equal(await store.commitReactBindingReceipt(42), false);
+  assert.equal(await store.commitReactBindingReceipt([]), false);
+  assert.equal(
+    await store.commitReactBindingReceipt({ payload: 'x'.repeat(64 * 1024) }),
+    false,
+    'serialized receipts over 64 KiB are refused without replacing the prior receipt',
+  );
+  assert.equal((await store.loadReactBindingReceipt()).binding, 'todos:list');
+  await reader.close();
+  await store.close();
+
+  const { store: reopened } = await makeStore(t, { directory });
+  assert.equal((await reopened.loadReactBindingReceipt()).binding, 'todos:list', 'receipt survives reopen');
+  assert.equal(await reopened.wipe(), true);
+  assert.equal(await reopened.loadReactBindingReceipt(), null, 'user-switch wipe clears receipt metadata');
+  await reopened.close();
 });
 
 test('an entry found in-progress at relaunch is refused (interrupted delta sequence)', async (t) => {
@@ -335,4 +389,67 @@ test('defaults, construction validation, and the structural outbox hook', async 
   const { store: withOutbox } = await makeStore(t, { relaunchOutboxEmpty: () => false });
   assert.equal(await withOutbox.outboxEmpty(), false);
   await withOutbox.close();
+});
+
+test('sweepStaleRqsBlobs unlinks only provably abandoned sibling origins', async (t) => {
+  const directory = await makeDirectory(t);
+  const old = Date.now() - 90 * 24 * 60 * 60 * 1000;
+
+  // Abandoned dead origin: old entry, no lock, no pending intent -> swept.
+  const { store: dead } = await makeStore(t, {
+    directory,
+    identity: 'origin-dead-1',
+    now: () => old,
+  });
+  await dead.commit(rqsEntryKey('cells', {}), makeEntry());
+  await dead.close();
+
+  // Fresh sibling origin: recent activity -> kept.
+  const { store: fresh } = await makeStore(t, {
+    directory,
+    identity: 'origin-fresh-2',
+  });
+  await fresh.commit(rqsEntryKey('cells', {}), makeEntry());
+  await fresh.close();
+
+  // Old origin holding PENDING queued intent -> kept (exactly-once).
+  const { store: queued } = await makeStore(t, {
+    directory,
+    identity: 'origin-queued-3',
+    now: () => old,
+  });
+  await queued.outboxEnqueue({ id: 'cm-stale', function: 'createThing' });
+  await queued.close();
+
+  // Corrupt sibling bytes -> kept (evidence, never janitor droppings).
+  const corruptName = 'rqs-id-deadbeefdeadbeefdeadbeefdeadbeef.v1.json';
+  await writeFile(join(directory, corruptName), 'not json {', 'utf8');
+
+  // The caller's own identity is never a candidate even when old.
+  const { store: own } = await makeStore(t, {
+    directory,
+    identity: 'origin-own-4',
+    now: () => old,
+  });
+  await own.commit(rqsEntryKey('cells', {}), makeEntry());
+  await own.close();
+
+  const summary = await sweepStaleRqsBlobs({
+    directory,
+    keepIdentity: 'origin-own-4',
+  });
+  assert.equal(summary.swept, 1, 'exactly the abandoned dead origin was swept');
+  const names = await readdir(directory);
+  assert.equal(
+    names.filter((name) => name.endsWith('.v1.json')).length,
+    4,
+    'fresh + queued + corrupt + own survive; only the dead origin is gone',
+  );
+
+  // Idempotent: a second sweep finds nothing new to do.
+  const again = await sweepStaleRqsBlobs({
+    directory,
+    keepIdentity: 'origin-own-4',
+  });
+  assert.equal(again.swept, 0);
 });
