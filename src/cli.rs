@@ -956,6 +956,28 @@ pub enum AssetsCommand {
         #[command(flatten)]
         target: TargetArgs,
     },
+    /// asset.exportCut — write the consistent-cut manifest and every
+    /// referenced blob object, digest-verified, into an empty directory.
+    ExportCut {
+        #[command(flatten)]
+        target: TargetArgs,
+        /// Absolute path of an empty (or absent) export directory.
+        #[arg(long)]
+        dir: String,
+    },
+    /// asset.importCut — validate an export directory (refuse-partial);
+    /// with --apply, restore it onto an empty asset state (requires
+    /// SNAPBACK_ASSET_IMPORT_EXPERIMENTAL=1 server-side).
+    ImportCut {
+        #[command(flatten)]
+        target: TargetArgs,
+        /// Absolute path of the export directory to validate or apply.
+        #[arg(long)]
+        dir: String,
+        /// Apply the validated cut (empty-target restore).
+        #[arg(long)]
+        apply: bool,
+    },
     /// asset.ensureSeedFixture — idempotent LLP 0109 SS17 fixture ingestion
     /// through the ordinary trusted upload path; a matching mapping is
     /// reused, changed bytes ingest a new asset and repoint the mapping.
@@ -1148,6 +1170,14 @@ pub async fn run_from_env() -> anyhow::Result<()> {
             AssetsCommand::RotateSigningKey { target } => host_op_via_http(
                 &target,
                 json!({ "operation": "asset.rotateSigningKey" }),
+            ),
+            AssetsCommand::ExportCut { target, dir } => host_op_via_http(
+                &target,
+                json!({ "operation": "asset.exportCut", "input": { "dir": dir } }),
+            ),
+            AssetsCommand::ImportCut { target, dir, apply } => host_op_via_http(
+                &target,
+                json!({ "operation": "asset.importCut", "input": { "dir": dir, "apply": apply } }),
             ),
             AssetsCommand::EnsureSeedFixture {
                 target,

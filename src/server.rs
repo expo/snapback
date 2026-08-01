@@ -14084,6 +14084,36 @@ pub fn operation_registry() -> Vec<OperationSpec> {
                 response_sensitivity: None,
             },
         ),
+        // LLP 0044 consistent-cut export/import (2026-07-31): admin-write
+        // operator surface like the rest of the asset family; export writes
+        // an operator-chosen directory and import applies only under the
+        // experimental acknowledgement.
+        host(
+            "host_ops.asset.exportCut",
+            RoutePolicy::AdminWrite,
+            EffectPolicy::None,
+            SessionModeOverlay {
+                path_policy: None,
+                credential_resolution: None,
+                invocation_authority: Some(InvocationAuthority::AnonymousAdminBypass),
+                legacy_body_policy: Some(LegacyBodyPolicy::Rejected),
+                effect_policy: None,
+                response_sensitivity: None,
+            },
+        ),
+        host(
+            "host_ops.asset.importCut",
+            RoutePolicy::AdminWrite,
+            EffectPolicy::None,
+            SessionModeOverlay {
+                path_policy: None,
+                credential_resolution: None,
+                invocation_authority: Some(InvocationAuthority::AnonymousAdminBypass),
+                legacy_body_policy: Some(LegacyBodyPolicy::Rejected),
+                effect_policy: None,
+                response_sensitivity: None,
+            },
+        ),
         host(
             "host_ops.asset.inspect",
             RoutePolicy::AdminWrite,
@@ -14557,6 +14587,8 @@ pub(crate) fn host_ops_operation_spec(
         "asset.retry" => "host_ops.asset.retry",
         "asset.delete" => "host_ops.asset.delete",
         "asset.rotateSigningKey" => "host_ops.asset.rotateSigningKey",
+        "asset.exportCut" => "host_ops.asset.exportCut",
+        "asset.importCut" => "host_ops.asset.importCut",
         // @ref LLP 0024#http-projection — pinned-unbuilt and CLI-only
         // operations resolve to registered AdminWrite policies so an
         // authenticated request reaches the structured UNIMPLEMENTED /
@@ -36405,6 +36437,19 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_ASSET_STORE_UNQUALIFIED",
         "SNAPBACK_ASSET_STORE_KEY_INVALID",
         "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+        // W2h consistent-cut export/import: these surface only through the
+        // admin host-ops envelope (ok:false, HTTP 200), so they ride the
+        // reviewed default-500 inventory like the other asset host-op
+        // codes; SNAPBACK_ASSET_IMPORT_EXPERIMENTAL is the env-var literal
+        // in the SNAPBACK_ASSET_RUNNER_DISABLED idiom.
+        "SNAPBACK_ASSET_EXPORT_BLOB_MISSING",
+        "SNAPBACK_ASSET_EXPORT_TARGET_INVALID",
+        "SNAPBACK_ASSET_IMPORT_DIGEST_MISMATCH",
+        "SNAPBACK_ASSET_IMPORT_EXPERIMENTAL",
+        "SNAPBACK_ASSET_IMPORT_EXPERIMENTAL_REQUIRED",
+        "SNAPBACK_ASSET_IMPORT_INCOMPLETE",
+        "SNAPBACK_ASSET_IMPORT_MANIFEST_INVALID",
+        "SNAPBACK_ASSET_IMPORT_TARGET_NOT_EMPTY",
         "SNAPBACK_ASSET_TEST_CRASH",
         "SNAPBACK_ASSET_TEST_TRANSIENT",
         "SNAPBACK_ASSET_TRANSITION_INVALID",

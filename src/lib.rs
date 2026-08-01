@@ -9,6 +9,7 @@ pub mod admin;
 pub mod admin_impersonation;
 pub mod admin_secret_read;
 pub mod assets;
+pub mod assets_cut;
 pub mod assets_image;
 pub mod assets_s3;
 pub mod assets_store;

@@ -53,6 +53,21 @@
           "const": "intent-artifact-reclaimed",
           "description": "A superseded intent generation's retained authorizer artifact was\nreclaimed after its last open attempt terminated (intent-scoped;\nno `asset_id`).",
           "type": "string"
+        },
+        {
+          "const": "cut-exported",
+          "description": "A consistent cut was exported (app-scoped bookkeeping; no\n`asset_id`). Details carry the cut summary, never paths outside the\noperator-chosen directory.",
+          "type": "string"
+        },
+        {
+          "const": "cut-import-validated",
+          "description": "An export directory validated (manifest digest + every blob object).",
+          "type": "string"
+        },
+        {
+          "const": "cut-imported",
+          "description": "A validated cut was applied onto an empty asset state under the\nexperimental acknowledgement (app-scoped; no `asset_id`).",
+          "type": "string"
         }
       ]
     }

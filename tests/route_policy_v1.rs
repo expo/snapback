@@ -925,6 +925,8 @@ fn operation_registry_is_exhaustive_and_bound_to_registered_carriers() {
             "host_ops.asset.put",
             "host_ops.asset.retry",
             "host_ops.asset.rotateSigningKey",
+            "host_ops.asset.exportCut",
+            "host_ops.asset.importCut",
             "host_ops.app.reset",
             "host_ops.app.seed.clear.v1",
             "host_ops.app.seed.ensure.v1",

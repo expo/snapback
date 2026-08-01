@@ -12,6 +12,11 @@
       "public-immutable"
     ],
     "digestAlgorithm": "sha256",
+    "export": {
+      "cutExport": true,
+      "importApply": "experimental",
+      "importValidation": true
+    },
     "image": {
       "capabilityIds": [
         "asset_image_finalization_v1",
@@ -46,7 +51,7 @@
     "maxOpenAttemptsPerPrincipal": 8,
     "minAccountingUnitBytes": 4096,
     "missing": [
-      "asset-backup-export",
+      "asset-byte-backup",
       "asset-custom-read-authorizers",
       "asset-deferred-length"
     ],

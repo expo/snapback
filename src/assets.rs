@@ -716,6 +716,15 @@ pub enum AssetReceiptEventV1 {
     /// no `asset_id`).
     IntentArtifactReclaimed,
     WorkAmbiguous,
+    /// A consistent cut was exported (app-scoped bookkeeping; no
+    /// `asset_id`). Details carry the cut summary, never paths outside the
+    /// operator-chosen directory.
+    CutExported,
+    /// An export directory validated (manifest digest + every blob object).
+    CutImportValidated,
+    /// A validated cut was applied onto an empty asset state under the
+    /// experimental acknowledgement (app-scoped; no `asset_id`).
+    CutImported,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -3067,6 +3076,11 @@ pub struct AssetTargetFactsV1 {
     /// the install transaction. `false` is the honest Missing report.
     #[serde(default)]
     pub seed_asset_fixtures: bool,
+    /// Consistent-cut export/import (LLP 0044, dated design addition
+    /// 2026-07-31): what this target proves. `None` is the honest Missing
+    /// report.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub export: Option<AssetExportFactsV1>,
     /// Every listed limit above is `Enforced` on this target; a limit a
     /// target cannot enforce must move to this graded list instead of
     /// silently keeping the field.
@@ -3114,14 +3128,32 @@ impl AssetTargetFactsV1 {
             }),
             lifecycle_callbacks: vec!["ready".to_owned(), "rejected".to_owned()],
             seed_asset_fixtures: true,
+            export: Some(AssetExportFactsV1 {
+                cut_export: true,
+                import_validation: true,
+                import_apply: "experimental".to_owned(),
+            }),
             advisory_limits: Vec::new(),
             missing: vec![
-                "asset-backup-export".to_owned(),
+                "asset-byte-backup".to_owned(),
                 "asset-custom-read-authorizers".to_owned(),
                 "asset-deferred-length".to_owned(),
             ],
         }
     }
+}
+
+/// Consistent-cut export/import facts: cut export and import validation are
+/// implemented claims; `import_apply` stays `"experimental"` until the
+/// restore epoch machinery graduates (the flag-gated posture). Byte-level
+/// snapshot backup remains a `missing` entry — this block claims the
+/// logical cut only.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AssetExportFactsV1 {
+    pub cut_export: bool,
+    pub import_validation: bool,
+    pub import_apply: String,
 }
 
 /// The reference-GC facts block (LLP 0044 §Capability facts: the
@@ -3522,6 +3554,10 @@ pub fn schema_registrations() -> Vec<(&'static str, Value)> {
         ("asset.rendition-record.schema.json", schema_of::<AssetRenditionRecordV1>()),
         ("asset.publication-record.schema.json", schema_of::<AssetPublicationRecordV1>()),
         ("asset.work-row.schema.json", schema_of::<AssetWorkRowV1>()),
+        (
+            "asset.cut-manifest.schema.json",
+            schema_of::<crate::assets_cut::AssetCutManifestV1>(),
+        ),
     ]
 }
 

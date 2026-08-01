@@ -2547,6 +2547,7 @@ pub struct LocalSnapback {
     /// image-pipeline capability flip, only tests enable it.
     asset_image_finalization_override: Option<bool>,
     asset_video_finalization_override: Option<bool>,
+    asset_import_experimental_override: Option<bool>,
     asset_quota_override: Option<u64>,
     functions: FunctionManifest,
     // Complete pairs proven by this process. Durable deployment identities
@@ -5313,6 +5314,20 @@ impl LocalSnapback {
         self.asset_video_finalization_override = Some(enabled);
     }
 
+    /// The experimental acknowledgement for cut-import application: the
+    /// env var in production, the override in tests (env mutation is
+    /// process-global and would race parallel tests).
+    pub(crate) fn asset_import_experimental_acknowledged(&self) -> bool {
+        self.asset_import_experimental_override.unwrap_or_else(|| {
+            std::env::var("SNAPBACK_ASSET_IMPORT_EXPERIMENTAL").as_deref() == Ok("1")
+        })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn set_asset_import_experimental_override(&mut self, enabled: bool) {
+        self.asset_import_experimental_override = Some(enabled);
+    }
+
     /// The app's reference-GC opt-in, admitted only where the declared
     /// target facts carry the reference-GC block: `None` disables the sweep
     /// entirely (LLP 0044 §Deletion — opt-in, never a default).
@@ -6271,12 +6286,229 @@ impl LocalSnapback {
             // an operator action that invalidates every outstanding signed
             // URL; takes no input and returns no key identity.
             "asset.rotateSigningKey" => self.asset_rotate_signing_key(),
+            // LLP 0044 consistent-cut export/import (dated design addition
+            // 2026-07-31): admin operator surface, no impersonation
+            // semantics — the cut is app-scoped system state.
+            "asset.exportCut" => self.asset_host_export_cut(input),
+            "asset.importCut" => self.asset_host_import_cut(input),
             _ => Err(SnapbackError::error(
                 "SNAPBACK_ASSET_HOST_OP_UNKNOWN",
                 "assets",
                 format!("unknown asset host operation {operation}"),
             )),
         }
+    }
+
+    fn asset_host_export_cut(&mut self, input: Option<&Value>) -> SnapbackResult<Value> {
+        use crate::assets_cut as cut;
+        #[derive(serde::Deserialize)]
+        #[serde(deny_unknown_fields, rename_all = "camelCase")]
+        struct ExportCutInput {
+            dir: String,
+        }
+        let parsed: ExportCutInput = asset_host_input(input, "asset.exportCut")?;
+        let dir = std::path::PathBuf::from(&parsed.dir);
+        if !dir.is_absolute() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_EXPORT_TARGET_INVALID",
+                "assets",
+                "export dir must be an absolute path",
+            ));
+        }
+        std::fs::create_dir_all(&dir).map_err(|error| {
+            SnapbackError::error(
+                "SNAPBACK_ASSET_EXPORT_TARGET_INVALID",
+                "assets",
+                format!("cannot create export dir: {error}"),
+            )
+        })?;
+        let occupied = std::fs::read_dir(&dir)
+            .map_err(|error| {
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_EXPORT_TARGET_INVALID",
+                    "assets",
+                    format!("cannot read export dir: {error}"),
+                )
+            })?
+            .next()
+            .is_some();
+        if occupied {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_EXPORT_TARGET_INVALID",
+                "assets",
+                "export dir must be empty",
+            ));
+        }
+        let app_id = self.db.schema().app_id.clone();
+        let now = now_millis();
+        // One read transaction: the rows, the referenced blob set, and the
+        // head commit version are one consistent picture (the cut witness).
+        let capture = self.db.asset_transaction(|tx| {
+            let version = crate::storage::current_version_on(tx)?;
+            cut::capture_cut(tx, &app_id, version, now)
+        })?;
+        // Blob objects copy after the row capture closes: blobs are
+        // immutable, so a captured object can only disappear via GC — which
+        // fails the export whole rather than shipping a partial component.
+        let store = self.asset_store_obj()?;
+        let blob_root = dir.join(cut::ASSET_CUT_BLOB_DIR);
+        std::fs::create_dir_all(&blob_root).map_err(|error| {
+            SnapbackError::error(
+                "SNAPBACK_ASSET_EXPORT_TARGET_INVALID",
+                "assets",
+                format!("cannot create blob dir: {error}"),
+            )
+        })?;
+        for (entry, key) in capture.manifest.blobs.iter().zip(&capture.blob_keys) {
+            let bytes = store
+                .read(crate::assets_store::AssetObjectRef::Blob(key))
+                .map_err(|error| {
+                    SnapbackError::error(
+                        "SNAPBACK_ASSET_EXPORT_BLOB_MISSING",
+                        "assets",
+                        format!(
+                            "blob {} is unreadable from the store: {}",
+                            entry.blob_id, error.diagnostic.message
+                        ),
+                    )
+                })?;
+            let path = dir.join(&entry.object_path);
+            std::fs::write(&path, &bytes).map_err(|error| {
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_EXPORT_TARGET_INVALID",
+                    "assets",
+                    format!("cannot write blob object: {error}"),
+                )
+            })?;
+            let observed = crate::assets_store::hash_path(&path)?;
+            if observed.digest != entry.digest || observed.byte_length != entry.byte_length {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_ASSET_EXPORT_BLOB_MISSING",
+                    "assets",
+                    format!(
+                        "blob {} failed digest verification after copy",
+                        entry.blob_id
+                    ),
+                ));
+            }
+        }
+        let manifest_json =
+            serde_json::to_string_pretty(&capture.manifest).expect("manifest serializes");
+        std::fs::write(dir.join(cut::ASSET_CUT_MANIFEST_FILE), manifest_json).map_err(|error| {
+            SnapbackError::error(
+                "SNAPBACK_ASSET_EXPORT_TARGET_INVALID",
+                "assets",
+                format!("cannot write manifest: {error}"),
+            )
+        })?;
+        let summary = cut::validation_summary(&capture.manifest);
+        self.db.asset_transaction(|tx| {
+            crate::assets::write_receipt(
+                tx,
+                &crate::assets::AssetReceiptV1 {
+                    receipt_id: uuid::Uuid::now_v7().to_string(),
+                    operation_lineage: "asset-cut-export".to_owned(),
+                    event: crate::assets::AssetReceiptEventV1::CutExported,
+                    asset_id: None,
+                    attempt_id: None,
+                    at_ms: now,
+                    details: summary.clone(),
+                },
+            )
+        })?;
+        Ok(serde_json::json!({ "dir": parsed.dir, "cut": summary }))
+    }
+
+    fn asset_host_import_cut(&mut self, input: Option<&Value>) -> SnapbackResult<Value> {
+        use crate::assets_cut as cut;
+        #[derive(serde::Deserialize)]
+        #[serde(deny_unknown_fields, rename_all = "camelCase")]
+        struct ImportCutInput {
+            dir: String,
+            #[serde(default)]
+            apply: bool,
+        }
+        let parsed: ImportCutInput = asset_host_input(input, "asset.importCut")?;
+        let dir = std::path::PathBuf::from(&parsed.dir);
+        // Refuse-partial validation: manifest digest plus every blob object.
+        let manifest = cut::validate_export_dir(&dir)?;
+        let app_id = self.db.schema().app_id.clone();
+        if manifest.app_id != app_id {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_IMPORT_MANIFEST_INVALID",
+                "assets",
+                format!(
+                    "cut belongs to app {} but this instance is {}",
+                    manifest.app_id, app_id
+                ),
+            ));
+        }
+        let now = now_millis();
+        let summary = cut::validation_summary(&manifest);
+        if !parsed.apply {
+            self.db.asset_transaction(|tx| {
+                crate::assets::write_receipt(
+                    tx,
+                    &crate::assets::AssetReceiptV1 {
+                        receipt_id: uuid::Uuid::now_v7().to_string(),
+                        operation_lineage: "asset-cut-import".to_owned(),
+                        event: crate::assets::AssetReceiptEventV1::CutImportValidated,
+                        asset_id: None,
+                        attempt_id: None,
+                        at_ms: now,
+                        details: summary.clone(),
+                    },
+                )
+            })?;
+            return Ok(serde_json::json!({ "applied": false, "cut": summary }));
+        }
+        // Application is the experimental half: empty-target restore only,
+        // behind the explicit acknowledgement (LLP 0044 dated design
+        // addition 2026-07-31 — the restore-epoch machinery graduates with
+        // evidence, not by default).
+        if !self.asset_import_experimental_acknowledged() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_IMPORT_EXPERIMENTAL_REQUIRED",
+                "assets",
+                "importCut apply requires SNAPBACK_ASSET_IMPORT_EXPERIMENTAL=1",
+            ));
+        }
+        let store = self.asset_store_obj()?;
+        // Objects land first under fresh opaque keys (idempotent puts);
+        // the row transaction follows. A failure between the two leaves
+        // orphaned objects that reset/wipe reclaims — the experimental
+        // posture accepts that in exchange for never referencing an object
+        // that is not durably present.
+        let mut fresh_keys = Vec::with_capacity(manifest.blobs.len());
+        for entry in &manifest.blobs {
+            let bytes = std::fs::read(dir.join(&entry.object_path)).map_err(|error| {
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_IMPORT_INCOMPLETE",
+                    "assets",
+                    format!("blob object {} is unreadable: {error}", entry.object_path),
+                )
+            })?;
+            let key = uuid::Uuid::now_v7().to_string();
+            store.put_blob_idempotent(&key, &bytes)?;
+            fresh_keys.push(key);
+        }
+        let store_kind = store.kind().to_owned();
+        self.db.asset_transaction(|tx| {
+            cut::apply_cut(tx, &manifest, &fresh_keys, &store_kind, now)?;
+            crate::assets::write_receipt(
+                tx,
+                &crate::assets::AssetReceiptV1 {
+                    receipt_id: uuid::Uuid::now_v7().to_string(),
+                    operation_lineage: "asset-cut-import".to_owned(),
+                    event: crate::assets::AssetReceiptEventV1::CutImported,
+                    asset_id: None,
+                    attempt_id: None,
+                    at_ms: now,
+                    details: summary.clone(),
+                },
+            )
+        })?;
+        Ok(serde_json::json!({ "applied": true, "cut": summary }))
     }
 
     fn asset_host_authority(
@@ -16205,6 +16437,7 @@ impl LocalSnapback {
             asset_memory_store_root: std::sync::OnceLock::new(),
             asset_image_finalization_override: None,
             asset_video_finalization_override: None,
+            asset_import_experimental_override: None,
             asset_quota_override: None,
             functions: FunctionManifest::default(),
             preflighted_artifact_pairs: VecDeque::new(),
@@ -23087,6 +23320,207 @@ globalThis.__snapbackHandlers = {
             "intent manifest must load: {diagnostics:?}"
         );
         snapback
+    }
+
+    #[test]
+    fn asset_cut_exports_and_restores_onto_an_empty_instance() {
+        let scratch = tempfile::tempdir().expect("tempdir");
+        let export_dir = scratch.path().join("cut");
+        let export_dir_str = export_dir.to_string_lossy().into_owned();
+
+        let mut source = asset_profile_snapback();
+        let kept =
+            asset_ready_under_intent(&mut source, "alice", b"cut bytes one", "signedUpload");
+        let doomed =
+            asset_ready_under_intent(&mut source, "alice", b"cut bytes two", "publicUpload");
+        let deleter = asset_dev_authority(&source, "alice", InvocationSource::HttpQuery);
+        source.asset_delete(&deleter, &doomed).expect("delete tombstones");
+        let source_generation = source
+            .db
+            .asset_transaction(|tx| crate::assets::load_asset(tx, &kept))
+            .expect("load")
+            .expect("kept exists")
+            .lifecycle_generation;
+
+        let exported = source
+            .asset_host_op(
+                "asset.exportCut",
+                Some(&serde_json::json!({ "dir": export_dir_str })),
+                None,
+                ServerProfile::Dev,
+            )
+            .expect("export succeeds");
+        assert_eq!(exported["cut"]["assetCount"], 1);
+        assert_eq!(exported["cut"]["tombstoneCount"], 1);
+        assert!(exported["cut"]["blobCount"].as_u64().unwrap() >= 1);
+
+        // Export receipts: the instance-scoped CutExported event landed.
+        let receipt_events: Vec<String> = source
+            .db
+            .asset_transaction(|tx| {
+                let mut statement = tx
+                    .prepare("SELECT record_json FROM _snapback_asset_receipts_v1")
+                    .expect("prepare");
+                let rows = statement
+                    .query_map([], |row| row.get::<_, String>(0))
+                    .expect("query");
+                Ok(rows
+                    .filter_map(|row| row.ok())
+                    .filter(|json| json.contains("cut-exported"))
+                    .collect())
+            })
+            .expect("receipts");
+        assert!(!receipt_events.is_empty(), "CutExported receipt written");
+
+        let mut restored = asset_profile_snapback();
+        let validated = restored
+            .asset_host_op(
+                "asset.importCut",
+                Some(&serde_json::json!({ "dir": export_dir_str })),
+                None,
+                ServerProfile::Dev,
+            )
+            .expect("validate succeeds");
+        assert_eq!(validated["applied"], false);
+
+        let refused = restored
+            .asset_host_op(
+                "asset.importCut",
+                Some(&serde_json::json!({ "dir": export_dir_str, "apply": true })),
+                None,
+                ServerProfile::Dev,
+            )
+            .expect_err("apply without acknowledgement refuses");
+        assert_eq!(
+            refused.diagnostic.code,
+            "SNAPBACK_ASSET_IMPORT_EXPERIMENTAL_REQUIRED"
+        );
+
+        restored.set_asset_import_experimental_override(true);
+        let applied = restored
+            .asset_host_op(
+                "asset.importCut",
+                Some(&serde_json::json!({ "dir": export_dir_str, "apply": true })),
+                None,
+                ServerProfile::Dev,
+            )
+            .expect("apply succeeds");
+        assert_eq!(applied["applied"], true);
+
+        // Restore-epoch fence: the imported generation is the exported one
+        // plus one, and the tombstone stayed dead.
+        let (restored_record, tombstone) = restored
+            .db
+            .asset_transaction(|tx| {
+                Ok((
+                    crate::assets::load_asset(tx, &kept)?.expect("kept restored"),
+                    crate::assets::load_asset(tx, &doomed)?.expect("tombstone restored"),
+                ))
+            })
+            .expect("load restored");
+        assert_eq!(
+            restored_record.lifecycle_generation,
+            source_generation + 1,
+            "restore bumps the lifecycle generation"
+        );
+        assert_eq!(
+            tombstone.availability,
+            crate::assets::AssetAvailability::Deleted
+        );
+
+        // The restored asset serves real bytes through ordinary delivery.
+        let delivered = asset_deliver_content(&mut restored, "alice", &kept, "primary", None)
+            .expect("restored asset delivers");
+        assert_eq!(delivered.total_length, b"cut bytes one".len() as u64);
+
+        // A second apply refuses: the target is no longer empty.
+        let occupied = restored
+            .asset_host_op(
+                "asset.importCut",
+                Some(&serde_json::json!({ "dir": export_dir_str, "apply": true })),
+                None,
+                ServerProfile::Dev,
+            )
+            .expect_err("non-empty target refuses");
+        assert_eq!(
+            occupied.diagnostic.code,
+            "SNAPBACK_ASSET_IMPORT_TARGET_NOT_EMPTY"
+        );
+    }
+
+    #[test]
+    fn asset_cut_import_refuses_missing_and_tampered_blob_objects() {
+        let scratch = tempfile::tempdir().expect("tempdir");
+        let export_dir = scratch.path().join("cut");
+        let export_dir_str = export_dir.to_string_lossy().into_owned();
+
+        let mut source = asset_profile_snapback();
+        asset_ready_under_intent(&mut source, "alice", b"tamper target", "signedUpload");
+        source
+            .asset_host_op(
+                "asset.exportCut",
+                Some(&serde_json::json!({ "dir": export_dir_str })),
+                None,
+                ServerProfile::Dev,
+            )
+            .expect("export succeeds");
+
+        let blob_dir = export_dir.join(crate::assets_cut::ASSET_CUT_BLOB_DIR);
+        let blob_file = std::fs::read_dir(&blob_dir)
+            .expect("blob dir")
+            .next()
+            .expect("one blob")
+            .expect("entry")
+            .path();
+
+        // Tampered bytes: digest mismatch refuses before any row lands.
+        let original = std::fs::read(&blob_file).expect("read blob");
+        let mut tampered = original.clone();
+        tampered.push(0xAA);
+        std::fs::write(&blob_file, &tampered).expect("tamper");
+        let mut restored = asset_profile_snapback();
+        restored.set_asset_import_experimental_override(true);
+        let mismatch = restored
+            .asset_host_op(
+                "asset.importCut",
+                Some(&serde_json::json!({ "dir": export_dir_str, "apply": true })),
+                None,
+                ServerProfile::Dev,
+            )
+            .expect_err("tampered blob refuses");
+        assert_eq!(
+            mismatch.diagnostic.code,
+            "SNAPBACK_ASSET_IMPORT_DIGEST_MISMATCH"
+        );
+
+        // Missing object: refuse-partial.
+        std::fs::remove_file(&blob_file).expect("remove blob");
+        let incomplete = restored
+            .asset_host_op(
+                "asset.importCut",
+                Some(&serde_json::json!({ "dir": export_dir_str })),
+                None,
+                ServerProfile::Dev,
+            )
+            .expect_err("missing blob refuses");
+        assert_eq!(
+            incomplete.diagnostic.code,
+            "SNAPBACK_ASSET_IMPORT_INCOMPLETE"
+        );
+
+        // Nothing landed on the refused instance.
+        let empty = restored
+            .db
+            .asset_transaction(|tx| {
+                tx.query_row(
+                    "SELECT COUNT(*) FROM _snapback_asset_records_v1",
+                    [],
+                    |row| row.get::<_, u64>(0),
+                )
+                .map_err(crate::diagnostic::SnapbackError::from)
+            })
+            .expect("count");
+        assert_eq!(empty, 0, "refuse-partial lands no rows");
     }
 
     fn asset_dev_authority(

@@ -1,0 +1,344 @@
+{
+  "$defs": {
+    "AssetAvailability": {
+      "enum": [
+        "pending",
+        "ready",
+        "rejected",
+        "deleted"
+      ],
+      "type": "string"
+    },
+    "AssetCutAssetV1": {
+      "additionalProperties": false,
+      "description": "One exported asset: the record plus the ready renditions that carry its\ncontent. Only `ready` assets appear here; everything else is transient\nor a tombstone.",
+      "properties": {
+        "record": {
+          "$ref": "#/$defs/AssetRecordV1"
+        },
+        "renditions": {
+          "items": {
+            "$ref": "#/$defs/AssetRenditionRecordV1"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "record",
+        "renditions"
+      ],
+      "type": "object"
+    },
+    "AssetCutBlobV1": {
+      "additionalProperties": false,
+      "description": "One referenced blob object, digest-addressed in the export directory.\nThe physical store key deliberately does not appear: keys are opaque and\ninstance-local; import mints fresh ones.",
+      "properties": {
+        "blobId": {
+          "type": "string"
+        },
+        "byteLength": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "canonicalizationPolicy": {
+          "type": "string"
+        },
+        "detectedContentType": {
+          "type": "string"
+        },
+        "digest": {
+          "type": "string"
+        },
+        "digestAlgorithm": {
+          "type": "string"
+        },
+        "objectPath": {
+          "description": "Export-relative object path (`blobs/sha256/<hex>`).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "blobId",
+        "digestAlgorithm",
+        "digest",
+        "byteLength",
+        "detectedContentType",
+        "canonicalizationPolicy",
+        "objectPath"
+      ],
+      "type": "object"
+    },
+    "AssetCutQuotaV1": {
+      "additionalProperties": false,
+      "properties": {
+        "readyAssetCount": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "settledLogicalBytes": {
+          "description": "Settled logical bytes at the cut (the app quota contract's number).",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "settledLogicalBytes",
+        "readyAssetCount"
+      ],
+      "type": "object"
+    },
+    "AssetCutTombstoneV1": {
+      "additionalProperties": false,
+      "description": "A deleted asset carried so import cannot resurrect it: the id and the\ngeneration it died at.",
+      "properties": {
+        "assetId": {
+          "type": "string"
+        },
+        "deletedAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "lifecycleGeneration": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "assetId",
+        "lifecycleGeneration"
+      ],
+      "type": "object"
+    },
+    "AssetDeliveryProfile": {
+      "enum": [
+        "public-immutable",
+        "private-signed",
+        "private-strict"
+      ],
+      "type": "string"
+    },
+    "AssetReadAccessPolicy": {
+      "enum": [
+        "owner-only",
+        "via-references"
+      ],
+      "type": "string"
+    },
+    "AssetRecordV1": {
+      "additionalProperties": false,
+      "properties": {
+        "appId": {
+          "type": "string"
+        },
+        "assetId": {
+          "type": "string"
+        },
+        "availability": {
+          "$ref": "#/$defs/AssetAvailability"
+        },
+        "createdAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "deletedAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "deliveryProfile": {
+          "$ref": "#/$defs/AssetDeliveryProfile"
+        },
+        "intentId": {
+          "type": "string"
+        },
+        "intentName": {
+          "default": "",
+          "description": "The intent's exported binding name — what a `v.assetRef` field\nrestriction names, so commit-boundary admission can compare without\nresolving the function manifest inside the storage layer.",
+          "type": "string"
+        },
+        "intentPolicyHash": {
+          "description": "Hash of the declared accept/delivery/access/processing facts the asset\nwas admitted under; pairs with `policy_generation`.",
+          "type": "string"
+        },
+        "lifecycleGeneration": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "ownerPrincipal": {
+          "type": "string"
+        },
+        "policyGeneration": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "primaryRenditionId": {
+          "description": "Primary bytes are represented exclusively by the `primary` rendition\nrecord — there is no second asset-to-blob edge, so blob references and\nquota charges count the primary exactly once.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "readAccess": {
+          "$ref": "#/$defs/AssetReadAccessPolicy"
+        },
+        "updatedAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "assetId",
+        "appId",
+        "intentId",
+        "intentPolicyHash",
+        "policyGeneration",
+        "ownerPrincipal",
+        "deliveryProfile",
+        "readAccess",
+        "availability",
+        "lifecycleGeneration",
+        "createdAtMs",
+        "updatedAtMs"
+      ],
+      "type": "object"
+    },
+    "AssetRenditionRecordV1": {
+      "additionalProperties": false,
+      "properties": {
+        "assetId": {
+          "type": "string"
+        },
+        "blobId": {
+          "type": "string"
+        },
+        "createdAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "failure": true,
+        "mediaFacts": true,
+        "recipe": {
+          "type": "string"
+        },
+        "recipeVersion": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "renditionId": {
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/AssetRenditionState"
+        },
+        "updatedAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "variantKey": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "renditionId",
+        "assetId",
+        "variantKey",
+        "blobId",
+        "state",
+        "recipe",
+        "recipeVersion",
+        "createdAtMs",
+        "updatedAtMs"
+      ],
+      "type": "object"
+    },
+    "AssetRenditionState": {
+      "enum": [
+        "pending",
+        "ready",
+        "failed",
+        "superseded",
+        "retired"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/asset.cut-manifest.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The consistent-cut manifest — the asset component of a logical export.",
+  "properties": {
+    "appId": {
+      "type": "string"
+    },
+    "assets": {
+      "items": {
+        "$ref": "#/$defs/AssetCutAssetV1"
+      },
+      "type": "array"
+    },
+    "blobs": {
+      "items": {
+        "$ref": "#/$defs/AssetCutBlobV1"
+      },
+      "type": "array"
+    },
+    "capturedAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "cutVersion": {
+      "description": "The storage head commit version observed inside the capture\ntransaction — the cut's consistency witness.",
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "formatVersion": {
+      "type": "string"
+    },
+    "manifestDigest": {
+      "description": "Tagged SHA-256 over the canonical (JCS) manifest body with this field\nabsent; domain `snapback:asset-cut:v1\\n`.",
+      "type": "string"
+    },
+    "quota": {
+      "$ref": "#/$defs/AssetCutQuotaV1"
+    },
+    "tombstones": {
+      "items": {
+        "$ref": "#/$defs/AssetCutTombstoneV1"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "formatVersion",
+    "appId",
+    "cutVersion",
+    "capturedAtMs",
+    "assets",
+    "tombstones",
+    "blobs",
+    "quota",
+    "manifestDigest"
+  ],
+  "title": "AssetCutManifestV1",
+  "type": "object"
+}
