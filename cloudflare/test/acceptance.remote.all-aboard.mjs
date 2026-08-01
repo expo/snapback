@@ -15,6 +15,7 @@
 import fs from 'node:fs';
 import { SnapbackClient } from '../../demos/_kit/client.mjs';
 import { cloudflareClientOptions } from '../client-options.mjs';
+import { classifyRouteEstimateOutcome } from './route-outage-witness.mjs';
 
 const BASE = (process.env.SNAPBACK_PROOF_URL || '').replace(/\/$/, '');
 const ADMIN_TOKEN = process.env.SNAPBACK_ADMIN_TOKEN || '';
@@ -322,14 +323,35 @@ async function main() {
   // An action-timeout envelope is ok:false with a diagnostic and NO result
   // (observed live during an ORS outage, 2026-07-25): the detail must not
   // dereference result unconditionally or the suite crashes with a TypeError
-  // instead of failing this check cleanly. The condition itself is unchanged.
-  check(
-    'directions key usage returns a live route estimate',
-    route.ok === true && route.result?.source === 'openrouteservice' && route.result.minutes > 0,
-    route.result
-      ? `${route.result.source}, ${route.result.minutes}min${route.result.error ? ` — ${route.result.error}` : ''}`
-      : `no result: ${route.diagnostic?.code || JSON.stringify(route)}`
-  );
+  // instead of failing this check cleanly.
+  //
+  // Author decision (2026-08-01, finding 2 of the outage-fragility ticket):
+  // when the worker's own egress PROVES OpenRouteService itself is down —
+  // the fallback carrying an upstream 5xx from the ORS host, with the
+  // directions key already config-attested as set by the earlier suite-fatal
+  // check — record the outage and skip instead of hard-failing the suite.
+  // Our-side failures (4xx from ORS) and ambiguous results (timeouts,
+  // transport errors, non-ORS 5xx) still hard-fail: a fallback result proves
+  // nothing about the directions key, so there is no soft-pass here — the
+  // skip is a recorded outage, never evidence.
+  const routeOutcome = classifyRouteEstimateOutcome(route, {
+    directionsKeyAttested: dirDecl.state === 'set',
+  });
+  if (routeOutcome.verdict === 'skip-provider-outage') {
+    checks += 1;
+    evidence.push({
+      label: 'directions key usage returns a live route estimate',
+      detail: routeOutcome.witness,
+      skipped: 'provider-outage',
+    });
+    console.log(`ok ${checks} - directions key usage returns a live route estimate # SKIP ${routeOutcome.witness}`);
+  } else {
+    check(
+      'directions key usage returns a live route estimate',
+      routeOutcome.verdict === 'pass',
+      routeOutcome.witness
+    );
+  }
 
   // --- eviction surrogate + rehydration ------------------------------------
   const evict = await fetch(`${BASE}/_snapback/api/object/evict`, { method: 'POST', headers: { 'x-snapback-admin-token': ADMIN_TOKEN } });

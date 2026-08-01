@@ -1,6 +1,6 @@
 # all-aboard remote acceptance: directions check depends on OpenRouteService being up
 
-**Status:** Open
+**Status:** Resolved (2026-08-01)
 **Impact:** 3
 **Urgency:** 3
 **Ease:** 4
@@ -53,3 +53,34 @@ since. The only remaining content is finding 2's author decision: keep the
 hard-fail on ORS outage as-is, or add a soft-pass gated on (upstream
 5xx/timeout AND config-check-attested ORS key) at the cost of weakening the
 key-usage evidence. Author-gated; no agent work remains.
+
+## Resolution (2026-08-01)
+
+**Author decision (Charlie, 2026-08-01): the narrow carve-out.** When the
+check can PROVE from the worker's own egress that OpenRouteService itself
+is down — a provider-level outage witness, not our error — record the
+outage and skip; our-side failures keep hard-failing; and the ticket's own
+warning stands: no soft-pass on ambiguous results (there is no "honest
+zero" here — a fallback result proves nothing about the directions key, so
+the skip is a recorded outage, never evidence).
+
+**Implementation.** `cloudflare/test/route-outage-witness.mjs` classifies
+one deployed `routeEstimate` envelope: the ONLY skip verdict is a
+`haversine-fallback` result whose recorded egress error is an upstream 5xx
+from `https://api.openrouteservice.org/` (the exact `fetchJson` error shape
+in `demos/all-aboard/snapback/handlers.mjs`) AND the directions key was
+already config-attested `set` by the earlier suite-fatal attestation check.
+4xx from ORS (our key/request), `SNAPBACK_ACTION_TIMEOUT` envelopes,
+transport-level errors, and 5xx from any other host all remain hard fails.
+`cloudflare/test/acceptance.remote.all-aboard.mjs` uses the classifier: a
+witnessed outage records a counted `# SKIP` check with the witness in the
+evidence JSON (`skipped: 'provider-outage'`); every other verdict flows
+through the unchanged hard-fail `check()`.
+
+**Witness.** `cloudflare/test/route-outage-witness-tests.mjs` (wired into
+the canonical local-suite manifest as a gate) pins all the decision's
+legs: live estimate → pass; ORS-host 5xx with attested key → recorded
+skip; the same 5xx without attestation → fail; ORS 401 (our bug) → fail;
+timeout envelope (ambiguous) → fail; transport error (ambiguous) → fail;
+non-ORS 5xx → fail. Finding 1 (the detail-template crash) was already
+landed in `7f67f3b4`.

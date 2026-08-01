@@ -23,6 +23,7 @@ export const EXPECTED_LOCAL_SUITE_IDS = Object.freeze([
   'acceptance-wire-version',
   'config-set',
   'cron-utils',
+  'route-outage-witness-tests',
   'deploy-script',
   'deployment-identity',
   'index-scaling',
@@ -31,7 +32,7 @@ export const EXPECTED_LOCAL_SUITE_IDS = Object.freeze([
   'wire-schema-gate',
 ]);
 
-export const EXPECTED_LOCAL_SUITE_CHECKS = 25;
+export const EXPECTED_LOCAL_SUITE_CHECKS = 26;
 
 export const LOCAL_SUITES = Object.freeze([
   { id: 'compatibility', file: 'scripts/cf-check-compat', runtime: 'direct' },
@@ -132,6 +133,15 @@ export const LOCAL_SUITES = Object.freeze([
     evidence: ['cloudflare cron-utils tests: strict-next arithmetic'],
   },
   {
+    // Author decision 2026-08-01 (all-aboard routeEstimate outage
+    // fragility, finding 2): the remote directions check may record-and-skip
+    // only on a worker-egress-proven ORS outage; this suite pins the
+    // classifier's proven-skip / our-bug-fail / ambiguous-fail behavior.
+    id: 'route-outage-witness-tests',
+    file: 'cloudflare/test/route-outage-witness-tests.mjs',
+    evidence: ['cloudflare route-outage-witness tests: proven-outage skip, our-bug fail, ambiguous fail'],
+  },
+  {
     id: 'deploy-script',
     file: 'cloudflare/test/deploy-script.mjs',
     evidence: ['cloudflare deploy-script acceptance: mixed bootstrap, rollback, and admin-secret states passed'],
@@ -195,6 +205,8 @@ export const TEST_FILE_CLASSIFICATIONS = Object.freeze([
   ['measure.mjs', 'benchmark-non-gating'],
   ['measure.remote.mjs', 'remote-credentialed'],
   ['proof-runtime.mjs', 'helper'],
+  ['route-outage-witness.mjs', 'helper'],
+  ['route-outage-witness-tests.mjs', 'gate'],
   ['proof-runtime-preflight.mjs', 'gate'],
   ['twin-engine.mjs', 'protocol-child-of-cargo-twin'],
   ['validate-idle-measurement.mjs', 'gate'],
