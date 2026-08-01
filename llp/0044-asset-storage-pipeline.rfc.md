@@ -5,7 +5,12 @@
 **Systems:** Assets, Storage, API, Security, Auth, Runtime, Deployment, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-31, image-pipeline kickoff (author decisions: the
+**Revised:** 2026-07-31, consistent-cut design addition (W2h): the asset
+component of a logical export is designed — cut manifest, refuse-partial
+import, restore-epoch fencing — with the local export slice and import
+validation implemented, restore application gated experimental, and the
+backup/export nonclaim regraded honestly (asset-byte snapshot backup stays
+Missing). Prior, same day, image-pipeline kickoff (author decisions: the
 pure-Rust `image` crate + `kamadak-exif` for v1 with a recorded
 more-robust-library revisit trigger — HEIC coverage, rendition
 throughput, or video finalization reopens it; ThumbHash as the single
@@ -1357,13 +1362,14 @@ hosted support. R2 evidence does not automatically qualify Tigris or S3.
 
 #### Explicit v1 nonclaims
 
-Reported as Missing on every v1 target, so the manifest never implies them:
-asset-byte backup/restore and logical export/import (LLP 0007's component
-boundaries apply; restoring metadata without the matching blob cut or bytes
-without tombstones is exactly the corruption a future consistent-cut design
-must prevent — until it exists, the fact is Missing, not assumed);
-`asset-video-finalization` (video metadata rewriting); custom read
-authorizers; deferred-length transfer.
+Reported as Missing on every v1 target, so the manifest never implies
+them: asset-byte snapshot backup (`asset-byte-backup` — the byte-level
+contract in LLP 0007's two-contract vocabulary; the *logical* cut
+export/import is now designed and graded in §Consistent-cut
+export/import: cut export and import validation implemented on local,
+restore application experimental); custom read authorizers;
+deferred-length transfer. (`asset-video-finalization` left this list
+with W2d.)
 
 #### Later capabilities
 
@@ -1423,6 +1429,60 @@ Authority follows the ordinary host-ops/impersonation rules. The CLI never
 turns a file path into admin bypass implicitly. Inspection prints stable
 diagnostics, receipts, rendition lineage, reference count, and quota facts so
 an agent can close its own loop without opening a browser.
+
+### Consistent-cut export/import (dated design addition, 2026-07-31)
+
+The "future consistent-cut design" the v1 nonclaim deferred to, authored
+as part of the completion program (W2h). This is the **asset component of
+a logical export** in LLP 0007's two-contract vocabulary — the logical
+portable bundle side, not the byte-level snapshot (which remains a
+nonclaim below).
+
+**The cut.** A cut is one consistent picture, captured inside a single
+read transaction at a pinned storage head version (the cut's consistency
+witness): the `ready` asset records with their `ready` renditions; the
+tombstone set (deleted assets as id + lifecycle generation, so import can
+never resurrect them); each referenced immutable blob exactly once,
+digest-addressed; and the settled-quota snapshot. The cut **names its
+exclusions**, per 0007's rule for logical bundles: in-flight upload
+attempts, pending/rejected assets, and staging bytes are transient
+transfer state and are not content; reverse-reference edges derive from
+app rows, belong to the app-data component, and rebuild when app rows
+import through the complete-cut admission; superseded/retired rendition
+lineage is bookkeeping, not content. The manifest
+(`AssetCutManifestV1`, `snapback.asset-cut.v1`, committed schema) carries
+a tagged canonical digest over its own body, and every blob object is
+written digest-addressed beside it and verified after copy — blobs are
+immutable, so copying after the row capture closes is sound, and a
+GC-condemned object failing the copy fails the export whole rather than
+shipping a partial component.
+
+**Import.** Refuse-partial is the contract: the manifest digest and
+every blob object verify before any row lands — a missing object,
+digest mismatch, or tampered manifest refuses with nothing applied.
+Application is the restore posture: it applies only onto an **empty
+asset state**, mints fresh opaque physical keys (keys never travel),
+imports tombstones as deleted rows, and bumps every lifecycle
+generation past the manifest's — the **restore-epoch fence**. Signed
+URLs validate by recomputing against the current lifecycle generation
+(§Delivery profiles), so a bearer URL minted against the exporting
+instance can never validate against the restored one; this falls out of
+the W2b design rather than needing new machinery. The `v.assetRef`
+import refusal (§Typed references) stays for partial/legacy paths;
+the complete-cut path is the one admission route, and the app-data
+component's row import remains its own (0007-owned) design.
+
+**Honest grading.** Cut export and import validation are implemented for
+the local target (capability facts `export.cutExport` /
+`export.importValidation`); restore application ships gated behind an
+explicit experimental acknowledgment (`export.importApply:
+"experimental"`) until the restore-epoch machinery carries acceptance
+evidence under a real app-data import; and byte-level snapshot backup
+remains a Missing nonclaim — this design deliberately does not claim it.
+A proposed companion line for LLP 0007's export section — that the asset
+component participates in logical export under its component-boundary
+rule (both components or neither) — is recorded here for 0007's owner to
+absorb rather than edited into 0007 by this program.
 
 ## Non-goals
 
@@ -1946,3 +2006,20 @@ refuses as unqualified without the explicit experimental acknowledgment,
 and `issues/20260731-0044-s3-qualification-drill.md` carries the runnable
 MinIO/R2/Tigris recipe plus the activation order (dev-lane fact → S3
 attempt routes → per-provider drills, R2 first per LLP 0014).
+
+### Implementation status: consistent-cut export/import (2026-07-31, W2h)
+
+The design above is implemented for the local target: `asset.exportCut`
+writes the manifest plus digest-verified blob objects from one pinned
+read transaction; `asset.importCut` validates refuse-partial and, under
+`SNAPBACK_ASSET_IMPORT_EXPERIMENTAL=1`, restores onto an empty asset
+state with fresh opaque keys, epoch-bumped generations, and imported
+tombstones (`src/assets_cut.rs`, host-ops + `snapback assets
+export-cut/import-cut`, receipts `CutExported` /
+`CutImportValidated` / `CutImported`). The e2e suite proves the round
+trip (restored bytes serve through ordinary delivery), the epoch fence,
+tombstone persistence, non-empty-target refusal, and refuse-partial with
+zero rows landed on tampered or incomplete directories. Still designed-
+only: restore under a real app-data import (the complete-cut admission
+end to end) — the experimental gate stays until that evidence exists.
+Byte-level snapshot backup remains Missing.

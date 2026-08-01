@@ -148,3 +148,14 @@ background loop.
 | S3-compatible protocol logic validated without a network, signature-independently | `assets_s3::tests` 6/6 against the in-process fake that re-derives SigV4 from received request materials (never the store's signer) and enforces bucket semantics: idempotent publication via `If-None-Match` (412 convergence), streamed hash/head/len probes, fs-mirroring range semantics (`416 → empty` past EOF), native multipart create/presign-part/complete/abort with presigned-URL expiry + tamper refusal against an injected clock, prefix-scoped wipe isolation between two instances sharing a bucket, and payload/header tamper refusal on header-authenticated requests. |
 | The S3 lane's client instructions are frozen ahead of the routes | `AssetS3TransferInstructionV1` / `AssetS3TransferPartV1` (`schemas/asset.s3-instruction.schema.json`, drift-gated) — presigned part PUTs direct to the store, completion always through Snapback admission. |
 | Store-parameter honesty | No live endpoint qualified ⇒ no target claims the S3 store: `assetLifecycleStores` stays `["local-fs"]`, `SNAPBACK_ASSET_STORE=s3` refuses `SNAPBACK_ASSET_STORE_UNQUALIFIED` absent the explicit experimental acknowledgment, and the env-gated `s3_store_live_endpoint_qualification` suite skips honestly. The runnable MinIO/R2/Tigris recipe and activation order live in `issues/20260731-0044-s3-qualification-drill.md`. |
+
+## W2h — consistent-cut export/import
+
+| Claim | Evidence |
+| --- | --- |
+| One-transaction cut capture at a pinned head version; ready assets + ready renditions + tombstones + digest-addressed blobs + quota snapshot | `asset_cut_exports_and_restores_onto_an_empty_instance` (export summary counts; tombstone carried) plus `assets_cut::tests` (deterministic tagged manifest digest, tamper-evident) |
+| Export verifies every copied object against the recorded digest | the export path re-hashes each written object (`SNAPBACK_ASSET_EXPORT_BLOB_MISSING` on mismatch), exercised by the tamper test's export precondition |
+| Refuse-partial import: manifest digest + every blob object verify before any row lands | `asset_cut_import_refuses_missing_and_tampered_blob_objects` (digest mismatch, missing object, zero rows landed) and `assets_cut::tests::validate_export_dir_refuses_partial_and_tampered_components` |
+| Restore-epoch fence + tombstone non-resurrection + empty-target-only + experimental gate | `asset_cut_exports_and_restores_onto_an_empty_instance`: generation = manifest+1, tombstone stays deleted, second apply refuses `SNAPBACK_ASSET_IMPORT_TARGET_NOT_EMPTY`, apply without acknowledgment refuses `SNAPBACK_ASSET_IMPORT_EXPERIMENTAL_REQUIRED`, restored bytes serve through ordinary delivery |
+| Honest grading | local facts declare `export: {cutExport, importValidation, importApply: "experimental"}`; `asset-byte-backup` stays in `missing`; no other target declares the block |
+
