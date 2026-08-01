@@ -152,3 +152,71 @@ dropped via cleanup.sql; the security-definer helper dropped with them).
 PocketBase and Snapback arms were fully local; Firebase touched only
 namespaced auth users (removed) and attempted namespaced doc writes
 (denied).
+
+## 2026-08-01 — Round 2, Snapback arm rerun (fresh-context builder)
+
+Purpose: measure whether the post-round-1 fix wave helped. Method: a
+fresh-context builder (no diary/issue/round-1-arm access, and — unlike
+round 1 — no `demos/party-wall` access either: it authored the entire
+membership/sharing/live backend from the guide alone) rebuilt this
+app's Snapback arm against the frozen checklist; a full-context
+verifier reran its driver end to end and wrote this entry. Builder
+commit `78120ce4`; arm `demos/upload-bakeoff/party-wall/snapback-r2/`.
+
+**Verification: confirmed.** Driver rerun 8/8, exit 0 in the verifier's
+own run. Spot-checks held: leave → live blank pushed in 17 ms as an
+`authorization_quarantine` frame (builder observed 19 ms — ordinary
+variance) with bytes 200→403 on the next request; delete left the live
+feed in 14 ms; the GPS-tagged upload served thumb and primary bytes
+GPS-free.
+
+**Headline: 8/8 on the first driver attempt, fresh-authored, ~10 min.**
+Round 1's Snapback arm copied its backend verbatim from
+`demos/party-wall` (disclosed at the time — round 1 measured nothing
+about authoring this backend); round 2's builder wrote schema,
+membership grammar, sharing declaration, upload intent, and six
+operations from the guide in 4:42 to a first-attempt-clean codegen and
+~8:30 to a fully green checklist. Zero failed codegen runs, zero failed
+driver runs, zero product diagnostics hit in anger. The freshness
+confound therefore cuts the opposite way from a normal rerun: the
+*stronger* condition (no prior backend, no repo context) produced the
+*better* result.
+
+**Latency vs round 1:** burst visibility 30–36 ms post→visible /
+43–49 ms upload→visible (round 1: 20–22 ms `live_replace` deliveries —
+different measurement points, same order of magnitude); revocation
+blank 17–19 ms vs 18 ms; delete 14 ms vs 18 ms. No regression; the
+witnessed lane (`authorization_snapshot`/`authorization_quarantine`)
+now carries the auth-scoped feed end to end.
+
+**Round-1 frictions, dispositioned:** both round-1 stumbles (the
+`credential.session.userId` path guess and raw delivery-URL guessing)
+are **GONE** — the sessions persona recipe and the assets §Deliver
+routes landed in the docs sweep, and the builder minted three personas
+and fetched bytes without a single wrong guess.
+
+**New frictions (all docs-shaped, none product):** (1) the assets page
+named a `client.assets.start` accessor that does not exist — the real
+surface is `createAssetClient(client)` from the `/assets` entry (guide
+fixed in this entry's landing); (2) the one-boot
+`startServer({ startupArtifacts, captureImpersonationCapability })`
+provisioning form was undocumented — found only inside a transcluded
+example (sessions guide now documents it); (3) byte-identical burst
+fixtures silently dedup to one blob — by design, now documented with
+byte-distinct fixture guidance, alongside the also-undocumented-but-true
+attach-before-ready behavior the builder verified by experiment;
+(4) the live-queries page's `meta.kind` list omitted the witnessed-lane
+kinds (`authorization_snapshot`/`authorization_quarantine`) that
+membership-gated feeds actually deliver (page fixed); (5) signed-out
+byte fetches return 400-before-401 by protocol-offer design — real,
+kept as an open docs ticket
+(`issues/20260801-guide-gap-signed-out-byte-fetch-is-400.md`).
+Environmental, not product: the dirty-checkout binary-identity skip
+cost a 33 s cargo first boot (same class as faceplate round 2; the
+recovery is self-describing).
+
+**Verdict for App B: the fix wave helped decisively.** Both round-1
+frictions eliminated; a strictly harder authoring condition produced a
+first-attempt-green build in a quarter of round 1's wall-clock; every
+new finding is documentation, and four of the five were fixed in this
+same landing.

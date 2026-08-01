@@ -125,6 +125,16 @@ canonical digest, dedups within the app, and publishes atomically. The
 asset id is stable from creation — an expired attempt's authorized
 successor keeps it.
 
+Dedup is by canonical bytes, by design: uploading byte-identical files
+twice in one app yields two assets sharing one stored blob (each still
+consumes logical quota). Two consequences worth knowing when you batch:
+a burst of *identical* test images collapses to one set of stored bytes
+— make fixtures byte-distinct (a unique comment segment suffices) when
+your test needs distinct blobs; and attachment does not wait for
+publication — `ctx.assets.attach` admits a `pending` asset (the
+optimistic path), so you can attach in the same flow that started the
+upload and let live readiness catch up.
+
 Attach the asset to a row in an ordinary mutation:
 
 ```js source=tests/acceptance/fixtures/asset-conformance/handlers.mjs
@@ -272,9 +282,12 @@ and the explicit Missing nonclaims — backup/export, video finalization,
 custom read authorizers, deferred length) live in
 `schemas/capability.manifest.local-dev-sqlite-ibex.json` under `assets`.
 Live no-polling readiness ships as the reserved `_snapback.assetRecord`
-projection (subscribe via the headless client's `watch`/`watchStore`), and
-the framework-neutral upload task is `client.assets.start` in
-`@expo/snapback-client`; the React/Expo hook and renderer are
+projection (subscribe via the asset client's `watch`/`watchStore`), and
+the framework-neutral upload task comes from the `@expo/snapback-client/assets`
+entry: `createAssetClient(client)` wraps your `SnapbackClient`, and
+`createAssetClient(client).start({ upload, args, file })` is the task
+(there is no `client.assets` accessor on `SnapbackClient` itself); the
+React/Expo hook and renderer are
 `useSnapbackAssetUpload` / `useSnapbackAssetImage` in
 `@expo/snapback-react`, and the real-server JS conformance vectors are
 `tests/acceptance/asset-conformance-v1.mjs`.

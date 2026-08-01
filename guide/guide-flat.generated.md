@@ -751,6 +751,23 @@ data until restart; provisioning an already-settled sessions deployment is
 idempotent but still crosses the same authorization gate. Do not hand-write a
 `fetch('/app/ensure', ...)` substitute.
 
+For tests and headless suites there is a one-boot form that skips the
+provision-then-restart dance entirely: the server-lifecycle kit accepts
+the generated startup artifacts directly, so the process comes up already
+settled in sessions mode with the impersonation capability captured for
+mailbox reads:
+
+```js fragment reason="paths and artifacts are app inputs"
+const server = await startServer({
+  startupArtifacts,                 // the generated sessions artifacts
+  captureImpersonationCapability: true,
+});
+```
+
+This is the form the acceptance suites use (`demos/_kit/server-process.mjs`);
+prefer it over provision-plus-restart whenever the suite owns the server
+process.
+
 ## Sign in: email code → session credential
 
 The client requests a code and exchanges it. In tests, the code is read
@@ -3393,6 +3410,16 @@ canonical digest, dedups within the app, and publishes atomically. The
 asset id is stable from creation — an expired attempt's authorized
 successor keeps it.
 
+Dedup is by canonical bytes, by design: uploading byte-identical files
+twice in one app yields two assets sharing one stored blob (each still
+consumes logical quota). Two consequences worth knowing when you batch:
+a burst of *identical* test images collapses to one set of stored bytes
+— make fixtures byte-distinct (a unique comment segment suffices) when
+your test needs distinct blobs; and attachment does not wait for
+publication — `ctx.assets.attach` admits a `pending` asset (the
+optimistic path), so you can attach in the same flow that started the
+upload and let live readiness catch up.
+
 Attach the asset to a row in an ordinary mutation:
 
 ```js source=tests/acceptance/fixtures/asset-conformance/handlers.mjs
@@ -3540,9 +3567,12 @@ and the explicit Missing nonclaims — backup/export, video finalization,
 custom read authorizers, deferred length) live in
 `schemas/capability.manifest.local-dev-sqlite-ibex.json` under `assets`.
 Live no-polling readiness ships as the reserved `_snapback.assetRecord`
-projection (subscribe via the headless client's `watch`/`watchStore`), and
-the framework-neutral upload task is `client.assets.start` in
-`@expo/snapback-client`; the React/Expo hook and renderer are
+projection (subscribe via the asset client's `watch`/`watchStore`), and
+the framework-neutral upload task comes from the `@expo/snapback-client/assets`
+entry: `createAssetClient(client)` wraps your `SnapbackClient`, and
+`createAssetClient(client).start({ upload, args, file })` is the task
+(there is no `client.assets` accessor on `SnapbackClient` itself); the
+React/Expo hook and renderer are
 `useSnapbackAssetUpload` / `useSnapbackAssetImage` in
 `@expo/snapback-react`, and the real-server JS conformance vectors are
 `tests/acceptance/asset-conformance-v1.mjs`.
@@ -8713,7 +8743,14 @@ result) or `live_delta` (incremental add/remove — the analyzable
 unordered/filtered subset gets deltas; ordered queries fall back to
 replace; LLP 0008 §DK-3). `resync_required` tells the client to
 re-snapshot; `authorization_invalidation` is the auth barrier
-([protecting data](../auth/protecting-data.md)). A subscription
+([protecting data](../auth/protecting-data.md)). Auth-scoped
+subscriptions — anything gated by a membership predicate or another
+protected-query input — deliver through the witnessed lane instead of
+the plain kinds: expect `authorization_snapshot` (an auth-verified
+result snapshot) and `authorization_quarantine` (the result blanked at
+a governed boundary, e.g. when the caller leaves the membership). A
+membership-gated feed never sees a bare `live_replace`; handle all
+four kinds. A subscription
 asserts on delta kinds like this:
 
 ```js source=demos/_kit/tests/live-delta-e2e.mjs

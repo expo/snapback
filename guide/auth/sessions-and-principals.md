@@ -55,6 +55,23 @@ data until restart; provisioning an already-settled sessions deployment is
 idempotent but still crosses the same authorization gate. Do not hand-write a
 `fetch('/app/ensure', ...)` substitute.
 
+For tests and headless suites there is a one-boot form that skips the
+provision-then-restart dance entirely: the server-lifecycle kit accepts
+the generated startup artifacts directly, so the process comes up already
+settled in sessions mode with the impersonation capability captured for
+mailbox reads:
+
+```js fragment reason="paths and artifacts are app inputs"
+const server = await startServer({
+  startupArtifacts,                 // the generated sessions artifacts
+  captureImpersonationCapability: true,
+});
+```
+
+This is the form the acceptance suites use (`demos/_kit/server-process.mjs`);
+prefer it over provision-plus-restart whenever the suite owns the server
+process.
+
 ## Sign in: email code → session credential
 
 The client requests a code and exchanges it. In tests, the code is read

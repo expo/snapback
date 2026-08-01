@@ -111,7 +111,14 @@ result) or `live_delta` (incremental add/remove — the analyzable
 unordered/filtered subset gets deltas; ordered queries fall back to
 replace; LLP 0008 §DK-3). `resync_required` tells the client to
 re-snapshot; `authorization_invalidation` is the auth barrier
-([protecting data](../auth/protecting-data.md)). A subscription
+([protecting data](../auth/protecting-data.md)). Auth-scoped
+subscriptions — anything gated by a membership predicate or another
+protected-query input — deliver through the witnessed lane instead of
+the plain kinds: expect `authorization_snapshot` (an auth-verified
+result snapshot) and `authorization_quarantine` (the result blanked at
+a governed boundary, e.g. when the caller leaves the membership). A
+membership-gated feed never sees a bare `live_replace`; handle all
+four kinds. A subscription
 asserts on delta kinds like this:
 
 ```js source=demos/_kit/tests/live-delta-e2e.mjs
