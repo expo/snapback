@@ -601,7 +601,7 @@ export function defineChannelBResumeSuite({ arm, createContext }) {
     await store.close();
   });
 
-  suiteTest('a non-empty relaunch outbox suppresses resumeFromToken and retained render (LLP 0090 D3 outbox rule)', async (ctx) => {
+  suiteTest('a non-empty relaunch outbox suppresses resumeFromToken but still renders retained pre-intent rows (LLP 0090 D3 outbox rule, 2026-08-01 rendering note)', async (ctx) => {
     const store1 = await ctx.makeStore();
     await populateStore(store1);
     await store1.close();
@@ -616,8 +616,15 @@ export function defineChannelBResumeSuite({ arm, createContext }) {
     };
     const client = makeClient(store2);
     const { handle, updates } = await openQuery(client);
-    assert.notEqual(updates[0]?.detail.kind, 'persisted', 'nothing renders ahead of the 0043 resync');
-    assert.equal(handle.version, 9);
+    // The retained render survives (marked, pre-intent, with the explicit
+    // pending-intent fact); only the resume PROTOCOL is suppressed — the
+    // token is withheld and the wire takes full-resync-then-ordered-replay.
+    assert.equal(updates[0]?.detail.kind, 'persisted', 'retained rows render ahead of the resync');
+    assert.equal(updates[0]?.detail.freshness, 'retained');
+    assert(updates[0]?.detail.pendingIntents >= 1, 'the persisted frame names its pending intent');
+    assert(handle.pendingIntentsAtSeed >= 1, 'the handle carries the pending-intent-at-seed fact');
+    assert.equal(handle.version, 9, 'the full snapshot settles the handle');
+    assert.equal(handle.freshness, 'current');
     handle.dispose();
     await store2.close();
   });

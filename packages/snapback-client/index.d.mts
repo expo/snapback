@@ -221,12 +221,32 @@ export const search: Readonly<{
   all(...clauses: readonly (SearchClauseV1 | readonly SearchClauseV1[])[]): SearchQueryAstV1;
 }>;
 
+/** Refuse-with-clarity retainability classification (LLP 0129 Phase 0 /
+ * LLP 0053's retainability invariant): a non-retainable subscription names
+ * WHY it will never render cold instead of silently acting online. */
+export interface LiveQueryRetention {
+  readonly retainable: boolean;
+  readonly code: string | null;
+  readonly reason: string | null;
+  readonly store: RqsStoreInfo;
+}
+
 export interface LiveQueryHandle<Rows> {
   subscriptionId: string | null;
   version: number;
   rows: Rows;
   readonly connection: 'connecting' | 'live' | 'polling' | 'stale' | 'disconnected';
   readonly paused: boolean;
+  /** Channel B freshness (LLP 0090 D1): rows from persistence/preload are
+   * 'retained' until an authoritative answer makes them 'current'; null
+   * while nothing authoritative-or-retained is held. */
+  readonly freshness: 'retained' | 'current' | null;
+  /** Retainability fact; null until the first subscribe classifies it. */
+  readonly retention: LiveQueryRetention | null;
+  /** Pending queued intents at retained-seed time (LLP 0090 D3 dated note,
+   * 2026-08-01): non-zero means the retained rows are pre-intent. The live
+   * queue state is `client.outboxStatus()`, not this boot-scoped fact. */
+  readonly pendingIntentsAtSeed: number;
   poll(): Promise<Rows>;
   pause(): Promise<void>;
   resume(): Promise<void>;
@@ -452,6 +472,16 @@ export interface OutboxReplayOutcome {
   readonly failed: number;
   readonly remaining: number;
   readonly stopped?: boolean;
+}
+
+/** Live outbox facts (pure projection of the durable store's records plus
+ * the single-flight drain flag). `supported: false` means this client
+ * resolved no outbox-capable store. */
+export interface OutboxStatus {
+  readonly supported: boolean;
+  readonly pending: number;
+  readonly failed: number;
+  readonly replaying: boolean;
 }
 
 export type AuthMode = 'dev' | 'sessions';
@@ -722,6 +752,11 @@ export class SnapbackClient {
   readonly rqsStoreInfo: RqsStoreInfo;
   /** Drain the durable outbox in sequence order (single-flight). */
   replayQueuedMutations(): Promise<OutboxReplayOutcome>;
+  /** Live queued-intent facts for UI projection (LLP 0114 React arm). */
+  outboxStatus(): Promise<OutboxStatus>;
+  /** Fires after every outbox transition (queue/replay/settle-failure) and
+   * around each drain; returns the unsubscribe. Listeners observe only. */
+  subscribeOutbox(listener: () => void): () => void;
   /** Structured LLP 0043 M2 queue/replay diagnostics (bounded ring). */
   readonly outboxDiagnostics: readonly Record<string, unknown>[];
   action<Ref extends FunctionRef<'Action'>>(

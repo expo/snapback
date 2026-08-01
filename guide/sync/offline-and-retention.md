@@ -4,13 +4,13 @@ id: sync.offline-and-retention
 order: 1
 audience: agent-first
 capabilities: [sync.offline, sync.offline-js-arm]
-authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0129-local-first-program.plan.md, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/outbox-store.test.mjs]
-examples: [demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashboard, packages/snapback-contract/agent-authority-contract.test.mjs]
+authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0129-local-first-program.plan.md, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-react/index.mjs]
+examples: [demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashboard, packages/snapback-contract/agent-authority-contract.test.mjs, packages/snapback-react/offline.test.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-31
-reviewed-commit: 8299c6ddb1c9019c08a72545c8e74998aeb2b5f5
+reviewed: 2026-08-01
+reviewed-commit: HEAD
 ---
 
 # Offline retention and mutation replay
@@ -54,9 +54,15 @@ fallback elsewhere, reporting the resolved implementation and durability on
   ledger returns the original result on duplicate delivery, and a refused
   replay is dropped and marked failed, visible in `outboxRecords()`.
 - **No `Parity` claim.** This arm runs no local execution, so the queued
-  path is Online-class retention/replay under LLP 0043's proof rule; a
-  relaunch with pending intent renders nothing ahead of the full resync
-  (LLP 0090's outbox rule).
+  path is Online-class retention/replay under LLP 0043's proof rule. A
+  relaunch with pending intent still renders the retained rows — marked
+  `retained`, **pre-intent** (the queued writes are not overlaid; there is
+  no local execution to derive them), with `handle.pendingIntentsAtSeed`
+  naming the queued count — while the resume token is withheld: reconnect
+  takes full resync, then ordered replay (LLP 0090's outbox rule and its
+  2026-08-01 rendering note). Render the queued-changes state next to the
+  retained rows from `client.outboxStatus()` (React:
+  `useSnapbackOutbox()`), never by faking the rows themselves.
 
 ```js source=packages/snapback-client/outbox-store.test.mjs
   // Offline: fetch refuses at the transport (TypeError, like undici).
@@ -77,6 +83,85 @@ fallback elsewhere, reporting the resolved implementation and durability on
     'replay is ordered by sequence and keeps the minted durable identity',
   );
 ```
+
+## Opt a live query into cold retention (`rqsEligible`)
+
+Cold retention is **per-query and opt-in by declaration** — a Snapback app
+gets ZERO offline retention until at least one live query declares
+eligibility. The default is refuse-with-clarity, not silent persistence: in
+a sessions-mode app even a plain declarative live query over a table with no
+private rows is authority-scoped by default, its handle reports
+`retention: { retainable: false, code: 'SNAPBACK_RETENTION_NOT_RETAINABLE' }`,
+and nothing ever persists — so the cold-boot claims above silently never
+engage until you declare the opt-in below.
+
+The opt-in is two declaration facts on a **declarative** live query
+(`defineLiveQuery`):
+
+- `auth: 'public'` — the query is invocable without a resolved user;
+- `authorityIndependent: true` — the trusted declaration that the complete
+  result is identical for every caller. Codegen accepts it only on a public,
+  ambient-free plan; it is refused on queries with `authScopeField`,
+  `membership`, `authUserId()` filters, or time/randomness reads.
+
+From those facts plus the closed-inputs proof (single-table plan whose read
+summary equals the plan's table), the server derives the `rqsEligible`
+predicate and mints resume tokens — there is no authored `rqsEligible`
+field, and a query failing the proof is simply not eligible, never a load
+error (LLP 0090). The eligible query in the public-dashboard demo:
+
+```js source=demos/public-dashboard/snapback/functions.mjs
+export const dashboardMetrics = defineLiveQuery({
+  table: 'metrics',
+  args: { dashboardId: v.string() },
+  filter: [eq('dashboardId', arg('dashboardId'))],
+  order: [asc('label')],
+  index: 'by_dashboard',
+  auth: 'public',
+  authorityIndependent: true,
+  publicInline: true,
+});
+```
+
+(`publicInline: true` is the separate snapshot-inlining disclosure
+permission for HTML boot — see
+[snapshot bundles](../realtime/snapshot-bundles.md) — and is **not**
+required for retention.)
+
+The handle tells you whether the opt-in took: `handle.retention` is the
+refuse-with-clarity classification, and an eligible query holds a
+server-minted resume token:
+
+```js source=demos/public-dashboard/tests/acceptance/offline-local-first.mjs
+    assertEqual(handleA.freshness, 'current', 'fresh subscribe is authoritative');
+    assert(handleA.retention?.retainable === true, 'eligible query classified retainable');
+    assert(handleA.rqsResume?.token, 'server minted a resume token');
+```
+
+A query that does not qualify names why instead of silently acting online:
+
+```js source=demos/public-dashboard/tests/acceptance/offline-local-first.mjs
+      assertEqual(feed.retention?.retainable, false, 'refused retainability');
+      assertEqual(feed.retention?.code, 'SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE', 'refusal code');
+```
+
+The refusal codes: `SNAPBACK_RETENTION_NOT_RETAINABLE` (authority-scoped —
+protected retention is the lease machinery's, below),
+`SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE` (the server minted no token: not an
+authority-independent closed-inputs declarative query), and
+`SNAPBACK_RETENTION_STORE_DISABLED` (eligible, but this client opted out of
+persistence).
+
+Two neighbors that are **not** this opt-in:
+
+- `defineJsLiveQuery` handlers are never `rqsEligible` — an opaque JS
+  handler cannot carry the closed-inputs proof, so JS live queries stay
+  online-only on this arm regardless of `auth`.
+- `retainable: true` is the *lease-class* opt-in — AuthorizedLease-backed
+  retention of protected, user-scoped results under LLP 0053's custody
+  rules, shipped on the Contract arm (see
+  [hidden hands](../recipes/hidden-hands.md)). Declaring it does not make a
+  protected query cold-retain on the JS arm.
 
 ## Enable the complete client-store contract
 

@@ -309,4 +309,70 @@ test('replay drop-and-mark-failed on server refusal, pending kept on connectivit
   );
 });
 
+test('outboxStatus and subscribeOutbox project the queue facts (LLP 0114 React-arm seam)', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createMemoryRqsResumeStore();
+  const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
+
+  // No outbox-capable store -> supported: false, never a guessed empty queue.
+  const disabled = new SnapbackClient('http://127.0.0.1:9', { rqsStore: null });
+  assert.deepEqual(
+    { ...(await disabled.outboxStatus()) },
+    { supported: false, pending: 0, failed: 0, replaying: false },
+  );
+
+  const events = [];
+  const unsubscribe = client.subscribeOutbox(() => events.push('event'));
+  assert.deepEqual(
+    { ...(await client.outboxStatus()) },
+    { supported: true, pending: 0, failed: 0, replaying: false },
+  );
+
+  // Queue two intents offline: each transition notifies subscribers.
+  globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
+  const a = await client.mutate('createThing', { args: { n: 1 } });
+  await client.mutate('createThing', { args: { n: 2 } });
+  assert(events.length >= 2, 'queue transitions notified subscribers');
+  assert.deepEqual(
+    { ...(await client.outboxStatus()) },
+    { supported: true, pending: 2, failed: 0, replaying: false },
+  );
+
+  // Replay: first record refused (drop-and-mark-failed), second settles.
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    if (calls === 1) {
+      return Response.json(
+        {
+          diagnostic: { code: 'SNAPBACK_MUTATION_CONFLICT', message: 'conflict' },
+          receipt: { kind: 'mutation', outcome: 'REJECTED', mutationId: a.clientMutationId },
+        },
+        { status: 409 },
+      );
+    }
+    return Response.json({ result: { ok: true }, version: 3 });
+  };
+  const drained = events.length;
+  const replayTask = client.replayQueuedMutations();
+  assert.equal(
+    (await client.outboxStatus()).replaying,
+    true,
+    'the single-flight drain is visible while it runs',
+  );
+  await replayTask;
+  assert(events.length > drained, 'replay transitions notified subscribers');
+  assert.deepEqual(
+    { ...(await client.outboxStatus()) },
+    { supported: true, pending: 0, failed: 1, replaying: false },
+    'failed records stay visible; settled records leave the counts',
+  );
+
+  unsubscribe();
+  const afterUnsubscribe = events.length;
+  globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
+  await client.mutate('createThing', { args: { n: 3 } });
+  assert.equal(events.length, afterUnsubscribe, 'unsubscribed listeners hear nothing');
+});
+
 console.log('snapback client outbox store tests pass');

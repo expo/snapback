@@ -5,7 +5,8 @@
 **Systems:** Sync, Realtime, API, Client integration, Deployment, Auth
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-24
-**Revised:** 2026-07-31 (LLP 0129 Phase 0 amendment — see Revision
+**Revised:** 2026-08-01 (D3 outbox rendering note — see Revision history);
+2026-07-31 (LLP 0129 Phase 0 amendment — see Revision
 history); 2026-07-25 (step-5 native implementation amendment — see
 Revision history); 2026-07-24 (v0.6 — see Revision history)
 **Related:** LLP 0008, LLP 0011, LLP 0022, LLP 0031, LLP 0034, LLP 0039, LLP 0043, LLP 0051, LLP 0053, LLP 0060, LLP 0063, LLP 0074, LLP 0076, LLP 0077, LLP 0082, LLP 0083, LLP 0086
@@ -23,6 +24,7 @@ Revision history); 2026-07-24 (v0.6 — see Revision history)
 - **Implementation amendment** (2026-07-24, ENG-25455/commit 04b8828e) — three step-4 findings reconciled without design change: (1) D2/0C are silent on where the deploy-time-compiled Cloudflare arm's eligibility facts come from — that arm has no codegen/ensure lane and its pre-existing handlers are opaque JS, so eligibility there derives from compiled HostPlan facts evaluated natively (single-table, closed-inputs subset), per the dated LLP 0092 amendment; a literal reading of this RFC would have made the step-4 eligible set empty. (2) D1.2's "the single coordinator DO serializes reads naturally" is precise only under the invocation mutex — handler queries await across the isolate seam, so DO single-threading alone is not the serialization cut; step 4 held the invariant by evaluating eligible entries natively without awaits. (3) D2's response-mechanics phrasing assumes the serving seam controls compression; on Workers the runtime owns content-encoding, satisfied by handing identity bytes to the runtime. Registered here so the RFC's next revision absorbs them; normative details live in the LLP 0091/0092 dated amendments.
 - **Implementation amendment** (2026-07-25, ENG-25456, step-5 native half) — Channel B's native arm landed as the DK-9 file-backed store (`packages/snapback-client/rqs-store-file.mjs`), with three findings registered without design change. (1) **What DK-9's surface actually is:** LLP 0008 DK-9's implemented code surface is the LLP 0043 contract-layer store's `{read, write, withExclusive}` adapter seam (`packages/snapback-contract/client-store.mjs`, memory + localStorage) — there was no pre-existing native/SQLite implementation, and the RQS store is a separate bounded artifact with its own entry contract consumed store-agnostically by the client. "Rides DK-9" therefore lands as riding DK-9's *discipline* (store-agnostic interface, single-connection mutex serialization, atomic transactions, corrupt-bytes-preserved fail-closed posture, in-memory-degradation honesty) on the RQS entry contract, not as literally stacking on the 0043 lease store — which D3 already requires to remain a separate, untouched artifact. D3's "SQLite or files" is exercised on the files side; a SQLite backing swaps in behind the same injected files/adapter seam without observable change. (2) **Single-writer without Web Locks:** the D3 web multi-tab ownership role is replaced by an exclusively created on-disk lock file plus same-process registry with liveness-based (never lease-based) staleness; normative detail in LLP 0091's step-5 native amendment, which also pins the OQ2 cadence/budget values (web numbers unchanged; host-lifecycle flush; constrained processes never persist). (3) **Q4 baseline noted:** the v1 at-rest posture for the native store is OS-level protection (app-container isolation plus platform disk encryption); the store adds no encryption of its own and Q4 stays open. The step-5 acceptance list runs identically on both arms from one store-parameterized suite (`rqs-resume-suite.mjs`, 18 tests per arm) plus 11 native store-unit obligations; the on-device (React Native/Hermes files-adapter injection and device-harness proof) remainder is tracked in `issues/20260725-rqs-native-ondevice-adapter.md`.
 - **Implementation amendment** (2026-07-31, LLP 0129 Phase 0, wave-1 lane C5) — three deltas registered without design change. (1) **Default-on Channel B:** the opt-in `rqsStore` seam becomes the client default (`resolveDefaultRqsStore`: IndexedDB on web, the step-5 file store on node, in-memory fallback; `client.rqsStoreInfo` reports the DK-9 degradation fact; `rqsStore: null` / `SNAPBACK_CLIENT_RQS_STORE=off` opt out). (2) **The outbox rule gains a real subject and wider enforcement:** the RQS store arms now carry the LLP 0043 M2 queued-intent outbox (`outbox-shared.mjs`; store format v2 with fail-closed v1 migration and IndexedDB database version 2), `outboxEmpty()` answers from the store's own pending queue, and the D3 rule — a non-empty outbox never resumes — is enforced on **every** fresh subscribe, not only relaunch seeding: an in-session reconnect holding a token but pending intent drops the token, takes the full snapshot, and only then replays (delta-resume-with-pending stays the deferred milestone). (3) **Cold-boot offline survival:** a relaunch that seeded a verified persisted entry and then loses the fresh subscribe to a *connectivity* refusal keeps the handle alive rendering retained rows (connection `'stale'`, bounded-backoff re-entry) instead of failing the boot — retained display stays under 0043's never-presented-as-current rule; every non-connectivity refusal still fails loudly. Proof: `demos/public-dashboard/tests/acceptance/offline-local-first.mjs`.
+- **Implementation amendment (D3 outbox rendering note)** (2026-08-01, sweep finding 0137-a1-f6) — the D3 outbox rule is clarified as a protocol rule, not a display rule: a relaunch with pending queued intent now renders the verified persisted rows marked `retained` (pre-intent, no fabricated overlay, `handle.pendingIntentsAtSeed` naming the queued count) while the resume token is withheld entirely, so `resumeFromToken` is still never sent with a non-empty outbox and reconnect still takes the 0043 full-resync-then-ordered-replay path. The prior implementation's blank-on-pending-outbox posture is retired as an over-application that made offline capture and retained render mutually exclusive. Normative text in the D3 dated note; proof in `rqs-resume-suite.mjs` (both arms) and the offline acceptance. In the same landing, the LLP 0114 React arm gained its projection of the existing client facts (per-query `freshness`/`retention` on the hook result, `useSnapbackOutbox`/`observeSnapbackOutbox` over `client.outboxStatus()`/`subscribeOutbox`) — surfacing only, no new claims (sweep finding 0137-a1-f5).
 
 ## Summary
 
@@ -713,6 +715,28 @@ explicitly deferred third milestone. v1 keeps that boundary: a relaunching
 client with a non-empty mutation outbox does not send `resumeFromToken`; it
 takes the 0043 path (full resync, then replay). Composing resume with a
 pending outbox is milestone-3 work co-owned by LLP 0043.
+
+> **Outbox rendering note (2026-08-01, sweep finding 0137-a1-f6).** The
+> outbox rule is a *protocol* rule, not a display rule. The first JS-arm
+> implementation over-applied it by also blanking the retained render
+> whenever the outbox was non-empty, which made offline capture and retained
+> render mutually exclusive: queuing a write offline disabled the next
+> boot's retained frame — nearly a product contradiction for capture-offline
+> shapes, and exactly the combination the frozen Firebase/InstantDB bar
+> renders together (Diary 0027). The arm now keeps the render while keeping
+> the rule: a relaunch with pending intent renders the verified persisted
+> rows marked `retained` — explicitly PRE-intent, with no optimistic overlay
+> of the queued writes (this arm has no local execution to derive one) and
+> the explicit pending-intent fact `handle.pendingIntentsAtSeed` naming the
+> queued count (live queue state is `client.outboxStatus()`) — while the
+> resume token is withheld entirely: the handle holds none, `resumeFromToken`
+> is never sent, and reconnect takes the unchanged 0043 path (full resync,
+> then ordered replay). Every D3 honesty invariant stands: retained is never
+> presented as current, no overlay is fabricated, and a non-empty outbox
+> still never resumes. Proof: the outbox-rule case in
+> `packages/snapback-client/rqs-resume-suite.mjs` (both store arms) and the
+> pending-intent relaunch check in
+> `demos/public-dashboard/tests/acceptance/offline-local-first.mjs`.
 
 **Web multi-tab ownership.** Persisted snapshots/tokens live inside the
 existing Web-Lock-serialized same-origin store discipline (LLP 0008; LLP

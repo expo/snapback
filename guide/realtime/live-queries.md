@@ -45,6 +45,12 @@ export const listTodos = defineJsLiveQuery({
 (see [auth](../auth/sessions-and-principals.md)). Subscribing to a non-live
 function fails with `SNAPBACK_FUNCTION_NOT_LIVE`.
 
+Offline cold retention is a separate per-query opt-in: `auth: 'public'` +
+`authorityIndependent: true` on a declarative live query makes it
+`rqsEligible`; without the declaration nothing persists and the handle's
+`retention` fact names the refusal. The full recipe is in
+[offline retention](../sync/offline-and-retention.md).
+
 ## Subscribe
 
 `client.liveQuery(ref, options)` returns a handle with the snapshot already

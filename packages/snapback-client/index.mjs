@@ -1655,6 +1655,7 @@ export class SnapbackClient {
     this.__outboxReplayTask = null;
     this.__outboxReplayScheduled = false;
     this.__outboxDiagnostics = [];
+    this.__outboxListeners = new Set();
     if (typeof strictWireVersion !== 'boolean') {
       throw new TypeError('strictWireVersion must be boolean');
     }
@@ -5032,10 +5033,59 @@ export class SnapbackClient {
   #recordOutboxDiagnostic(diagnostic) {
     this.__outboxDiagnostics.push(Object.freeze({ at: Date.now(), ...diagnostic }));
     if (this.__outboxDiagnostics.length > 256) this.__outboxDiagnostics.shift();
+    this.#notifyOutboxListeners();
   }
 
   get outboxDiagnostics() {
     return [...this.__outboxDiagnostics];
+  }
+
+  #notifyOutboxListeners() {
+    for (const listener of [...this.__outboxListeners]) {
+      try { listener(); } catch { /* observation cannot own the queue */ }
+    }
+  }
+
+  /// Live outbox facts for UI projection (the LLP 0114 React arm's
+  /// queued-changes surface — LLP 0129 Phase 0). Pure projection of the
+  /// durable store's own records plus the single-flight drain flag: no new
+  /// claims, and an unreadable store reports zero counts rather than
+  /// guessing. `supported: false` means this client resolved no
+  /// outbox-capable store (disabled, custody-fenced, or incapable).
+  async outboxStatus() {
+    let store = null;
+    try { store = this.#offlineQueueStore(); } catch { store = null; }
+    if (!store) {
+      return Object.freeze({ supported: false, pending: 0, failed: 0, replaying: false });
+    }
+    let pending = 0;
+    let failed = 0;
+    try {
+      const records = typeof store.outboxRecords === 'function'
+        ? await store.outboxRecords()
+        : await store.outboxPending();
+      for (const record of records) {
+        if (record?.status === 'failed') failed += 1;
+        else pending += 1;
+      }
+    } catch { /* counts stay zero; the store remains the authority */ }
+    return Object.freeze({
+      supported: true,
+      pending,
+      failed,
+      replaying: this.__outboxReplayTask !== null,
+    });
+  }
+
+  /// Notification seam for outbox projections: fires after every recorded
+  /// outbox transition (queue, replay, settle-failure) and around each
+  /// single-flight drain. Listeners observe; they never own queue state.
+  subscribeOutbox(listener) {
+    if (typeof listener !== 'function') {
+      throw new TypeError('subscribeOutbox requires a listener function');
+    }
+    this.__outboxListeners.add(listener);
+    return () => { this.__outboxListeners.delete(listener); };
   }
 
   /// Durable enqueue of one refused-by-connectivity mutation intent.
@@ -5096,8 +5146,10 @@ export class SnapbackClient {
     if (this.__outboxReplayTask) return this.__outboxReplayTask;
     const task = this.#replayOutboxOnce().finally(() => {
       if (this.__outboxReplayTask === task) this.__outboxReplayTask = null;
+      this.#notifyOutboxListeners();
     });
     this.__outboxReplayTask = task;
+    this.#notifyOutboxListeners();
     return task;
   }
 
@@ -6672,6 +6724,13 @@ export class SnapbackClient {
       // record. Refuse-with-clarity — a non-retainable subscription names
       // WHY it will never render cold instead of silently acting online.
       retention: null,
+      // Explicit pending-intent fact (LLP 0090 D3 dated note, 2026-08-01):
+      // when a relaunch seeds retained rows while the durable outbox holds
+      // queued intent, this records how many intents were pending at seed
+      // time — the retained rows are PRE-intent and the UI must say so.
+      // 0 whenever the seed ran with an empty outbox (or never ran). The
+      // live queue state is client.outboxStatus(), not this boot-scoped fact.
+      pendingIntentsAtSeed: 0,
       authorizationDisposition: 'retain',
       get connection() {
         return connection;
@@ -6832,6 +6891,15 @@ export class SnapbackClient {
     // fresh subscribe carry the token (§0B.4 dispatch rule 2).
     const seedFromResumeState = async () => {
       let persisted = null;
+      // LLP 0090 D3 outbox rule (LLP 0043 milestone boundary), rendering-side
+      // presentation per the D3 dated note (2026-08-01): a relaunching client
+      // with a non-empty mutation outbox never holds or sends a resume token
+      // — reconnect takes the full-resync-then-ordered-replay path — but the
+      // verified retained rows still RENDER, marked 'retained' with the
+      // explicit pending-intent fact below. The rows are pre-intent: no
+      // optimistic overlay of queued writes is derived (no local execution),
+      // and retained display stays under 0043's never-current rule.
+      let pendingIntentsAtSeed = 0;
       if (resumeStore && resumeStoreKey) {
         let entry = null;
         try { entry = await resumeStore.load(resumeStoreKey); } catch { entry = null; }
@@ -6848,10 +6916,13 @@ export class SnapbackClient {
           let outboxEmpty = false;
           try { outboxEmpty = (await resumeStore.outboxEmpty()) === true; } catch { outboxEmpty = false; }
           if (!outboxEmpty) {
-            // LLP 0090 D3 outbox rule (LLP 0043 milestone boundary): a
-            // relaunching client with a non-empty mutation outbox sends no
-            // resumeFromToken and renders nothing ahead of the full resync.
-            persisted = null;
+            // An unreadable outbox counts as pending (fail closed to the
+            // full-resync path); the count is best-effort display honesty.
+            try {
+              pendingIntentsAtSeed = Math.max(1, (await resumeStore.outboxPending()).length);
+            } catch {
+              pendingIntentsAtSeed = 1;
+            }
           }
         }
       }
@@ -6877,14 +6948,20 @@ export class SnapbackClient {
       if (!winner || disposed) return;
       handle.rows = winner.rows;
       handle.version = winner.resume.meta.version;
-      handle.rqsResume = winner.resume;
+      // D3: a non-empty outbox never resumes. With pending intent the handle
+      // withholds the token entirely (the fresh subscribe takes the full
+      // snapshot; replay drains only after it completes), so the retained
+      // render can never turn into a resume attempt.
+      handle.rqsResume = pendingIntentsAtSeed > 0 ? null : winner.resume;
       handle.freshness = 'retained';
+      handle.pendingIntentsAtSeed = pendingIntentsAtSeed;
       seededFromResumeState = winner === persisted;
       deliverAuthorityObservation(() => {
         onUpdate?.(handle.rows, {
           version: handle.version,
           kind: 'persisted',
           freshness: 'retained',
+          ...(pendingIntentsAtSeed > 0 ? { pendingIntents: pendingIntentsAtSeed } : {}),
         });
       });
     };

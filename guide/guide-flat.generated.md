@@ -62,7 +62,7 @@ with the Snapback label and `guide-gap` in the title.
 | realtime.ephemeral | Typed ephemeral rooms: presence, cursors, TTL | presence, cursors, rooms, ephemeral | local | shipped | route /ephemeral/publish | llp/0013 | realtime/ephemeral-state.md |
 | realtime.snapshot-bundles | Resumable-query snapshot bundles: one request evaluates a served route-manifest entry's queries at one commit with per-query resume tokens; register mode arms the pending-registration owner; `defineRoutes` + `publicInline` feed the Channel A inlined web boot (`snapbackChannelA` in packages/snapback-vite) with anonymous reads for publicInline-class routes; on the Cloudflare arm the routes manifest compiles into the Worker, the gateway serves Channel A HTML, and the coordinator answers read-mode bundles + token resume (register mode Cloudflare: deferred) | bundle, preload, resumable snapshots, boot, RQS, inlined HTML, routes manifest | local, cloudflare | partial | route /app/bundle | llp/0090, llp/0092 | realtime/snapshot-bundles.md |
 | sync.offline | Retained queries, outbox, replay, optimistic overlays (Contract arm: lease-bounded protected retention, derived overlays, `Parity` under LLP 0043's proof rule) | offline, sync, local-first, outbox | local | shipped | route /outbox/{connection_id} | llp/0043, llp/0052 | sync/offline-and-retention.md |
-| sync.offline-js-arm | JS/React arm (LLP 0129 Phase 0): default persisted client cache (IndexedDB/file, in-memory fallback) with cold-boot retained render for the rqsEligible subset, durable LLP 0043 M2 outbox with client-minted mutation ids, and ordered exactly-once replay on reconnect; protected/auth-scoped queries refuse retention with a named reason; no local execution, so no `Parity` claim | offline browser, cold boot, restart-safe queue, IndexedDB, default persistence | local | shipped | `resolveDefaultRqsStore` in packages/snapback-client/rqs-store-default.mjs | llp/0043, llp/0090, llp/0129 | sync/offline-and-retention.md |
+| sync.offline-js-arm | JS/React arm (LLP 0129 Phase 0): default persisted client cache (IndexedDB/file, in-memory fallback) with cold-boot retained render for the rqsEligible subset — a per-query declaration opt-in (`auth: 'public'` + `authorityIndependent: true`; nothing retains until declared), durable LLP 0043 M2 outbox with client-minted mutation ids, ordered exactly-once replay on reconnect, and a relaunch-with-pending-intent that renders retained pre-intent rows with the token withheld (LLP 0090 D3 rendering note) plus `outboxStatus`/`useSnapbackOutbox` projection; protected/auth-scoped queries refuse retention with a named reason; no local execution, so no `Parity` claim | offline browser, cold boot, restart-safe queue, IndexedDB, default persistence, retainability opt-in, pending intent render | local | shipped | `resolveDefaultRqsStore` in packages/snapback-client/rqs-store-default.mjs | llp/0043, llp/0090, llp/0129 | sync/offline-and-retention.md |
 | sync.offline-js-arm-protected | Lease-bounded protected retention (LLP 0043 M1 custody) on the JS/React arm — the Contract arm ships it; this arm does not yet | offline auth browser, lease js | none | design-only | llp/0129-local-first-program.plan.md (Phase 0 status note; no shipped witness) | llp/0043, llp/0053, llp/0129 | GAP (owner: Charlie, review: 2026-08-31; issue: issues/20260731-js-arm-lease-custody-and-sessions-outbox.md) |
 | auth.sessions | Server-minted sessions; email-code login; server-derived principals | login, signin, identity, session | local | shipped | route /auth/exchange | llp/0039, llp/0057, llp/0059 | auth/sessions-and-principals.md |
 | auth.external-identity-broker | Adopt a session minted by a trusted server-side identity broker; dev/test/demo host operation only | native login, external identity, broker, adopted bearer | local | partial | `createExternalSessionClient` in packages/snapback-client/index.mjs | llp/0024, llp/0057, llp/0096 | auth/native-apps.md |
@@ -86,7 +86,7 @@ with the Snapback label and `guide-gap` in the title.
 | clients.contract-keyed-scopes | Binding-time keyed Contract queries with dedup, refcounts, and authority fencing | dynamic query, query args, dedup, selection | local | shipped | `createKeyedSnapbackContractProvider` in packages/snapback-contract/keyed-provider.mjs | llp/0034, llp/0063 | clients/contract-adapter.md |
 | clients.mutation-outcomes | Raw provider settlement facts plus Exact three-fact mutation projection | mutation state, timeout, retry, receipt, ambiguity | local | shipped | `partitime.step1-mutation-projection.v1` in demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs | llp/0043, llp/0063 | clients/contract-adapter.md |
 | clients.optimistic-overlays | Derived optimistic mutations + reconciliation | optimistic, overlays, latency | local | shipped | `deriveOptimisticReducer` in packages/snapback-contract/index.mjs | llp/0052 | clients/contract-adapter.md |
-| clients.react | Prepared React provider over one headless store/transport seam: exact generated single/grouped live queries, capability-gated route-group references with one-commit register-mode adoption, explicit live fallback, attach-deadline recovery, sessions authorization adoption, result-validated optimistic mutation rebase/rollback, local managed connection-keyed presence, aggregate connection state, Strict Mode/HMR sharing, complete cleanup, and retained Signal Desk receipts | react, hooks, useSyncExternalStore, result inference, typed mutation, optimistic rollback, presence, query groups, bundle prime, registered bundle, hmr | local | shipped | `useSnapbackQueries` in packages/snapback-react/index.d.mts | llp/0012, llp/0064, llp/0074, llp/0090, llp/0101, llp/0114, llp/0106, llp/0107 | clients/react.md |
+| clients.react | Prepared React provider over one headless store/transport seam: exact generated single/grouped live queries, capability-gated route-group references with one-commit register-mode adoption, explicit live fallback, attach-deadline recovery, sessions authorization adoption, result-validated optimistic mutation rebase/rollback, local managed connection-keyed presence, aggregate connection state, per-query `freshness`/`retention` offline facts with the `useSnapbackOutbox` queued-intent projection, Strict Mode/HMR sharing, complete cleanup, and retained Signal Desk receipts | react, hooks, useSyncExternalStore, result inference, typed mutation, optimistic rollback, presence, query groups, bundle prime, registered bundle, hmr, offline freshness, outbox badge | local | shipped | `useSnapbackOutbox` in packages/snapback-react/index.d.mts | llp/0012, llp/0064, llp/0074, llp/0090, llp/0101, llp/0114, llp/0106, llp/0107, llp/0129 | clients/react.md |
 | clients.react-expo | React Expo Online surface; independent Android and iOS implementation evidence | react native, expo, android, ios, mobile | local | shipped | `profileId` in demos/partiful-matrix/tests/acceptance/native-react-expo.mjs | llp/0012, llp/0064 | clients/react-expo.md |
 | operating.server-lifecycle | Start/reuse/stop servers safely; ports; provenance; crash detection | run server, ports, bindPortExactly, lifecycle, watchdog, crash, prebuilt binary, seed reset | local | shipped | `startServer` in demos/_kit/server-process.mjs | llp/0010, llp/0030 | testing/acceptance.md |
 | operating.packaged-dev-loop | Install a native runtime; scaffold, generate, doctor, and watch/load through one CLI. The current packed React/Vite starter and inferred sessions startup pass locally, but the expanded React closure is not yet the byte-verified public `0.1.0` closure. | install, new app, react starter, vite, dev, one command, watch, sessions startup, packaged runtime | local | partial | `runDev` in packages/snapback-cli/index.mjs | llp/0041, llp/0058, llp/0114, llp/0103 | getting-started/the-authoring-loop.md |
@@ -4728,11 +4728,11 @@ order: 2
 audience: agent-first
 capabilities: [clients.react]
 authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0112-generated-query-group-bundle-adoption.spec.md, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-contract/result-contract-validator.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/exact-result-types.fixture.ts]
-examples: [packages/snapback-cli/templates/react, demos/signal-desk/src/backends/snapback.ts, demos/signal-desk/tests/react.mjs, demos/signal-desk/acceptance/results/react-presence.v1.json, packages/snapback-react/package.test.mjs, packages/snapback-react/optimistic.test.mjs, packages/snapback-react/presence.test.mjs, packages/snapback-react/exact-result-types.fixture.ts]
+examples: [packages/snapback-cli/templates/react, demos/signal-desk/src/backends/snapback.ts, demos/signal-desk/tests/react.mjs, demos/signal-desk/acceptance/results/react-presence.v1.json, packages/snapback-react/package.test.mjs, packages/snapback-react/optimistic.test.mjs, packages/snapback-react/presence.test.mjs, packages/snapback-react/offline.test.mjs, packages/snapback-react/exact-result-types.fixture.ts]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-27
+reviewed: 2026-08-01
 reviewed-commit: HEAD
 ---
 
@@ -4792,7 +4792,15 @@ if (query.status === 'ready' || query.status === 'refreshing') {
   `undefined`;
 - `connection`: `idle | connecting | live | polling | stale | disconnected |
   closed | error`;
-- `error`: a structured diagnostic for `error`, otherwise `null`.
+- `error`: a structured diagnostic for `error`, otherwise `null`;
+- `freshness`: `unknown | retained | current` — `retained` rows came from
+  the persisted cache (an offline cold boot) and are never presented as
+  settled: a retained frame keeps `status: 'refreshing'` even on a live
+  connection until the authoritative answer makes it `current`;
+- `retention`: the headless handle's refuse-with-clarity retainability fact
+  (`{ retainable, code, reason, store }`, `null` until classified) — see
+  [offline retention](../sync/offline-and-retention.md) for the opt-in that
+  makes a query retainable.
 
 Same-reference, same-argument siblings under one provider share one store and
 one upstream subscription while retaining independent React consumers.
@@ -4958,9 +4966,43 @@ can supersede exactly one predecessor only when the updating group uniquely
 owns it; shared or multi-entry saturated replacement refuses without changing
 the old group.
 
-This is an Online projection. It does not claim local handler execution,
-durable offline queueing, or Parity merely because it can retain data while a
-connection is stale.
+This is an Online projection. It does not claim local handler execution or
+Parity merely because it can retain data while a connection is stale.
+
+## Render offline facts honestly
+
+The hooks project the headless client's own offline facts — they surface,
+never invent. An offline cold boot of a retainable query renders its
+persisted rows with `freshness: 'retained'` and `status: 'refreshing'`
+(never `'ready'`), holding the `stale` connection axis, and settles to
+`freshness: 'current'` when the authoritative answer arrives:
+
+```js source=packages/snapback-react/offline.test.mjs
+  await act(async () => {
+    handle.seedRetained(RETAINED_ROWS);
+    handle.surviveOffline();
+    await flush();
+  });
+  assert.equal(latest.freshness, 'retained');
+  assert.equal(latest.status, 'refreshing');
+  assert.equal(latest.connection, 'stale');
+  assert.equal(latest.retention?.retainable, true);
+```
+
+`useSnapbackOutbox()` projects the durable queued-intent state
+(LLP 0043 M2): `{ status, supported, pending, failed, replaying }` plus a
+`replay()` action that drains through the client's single-flight
+`replayQueuedMutations()`. Render a queued-changes badge from it next to
+retained rows — the retained rows themselves stay **pre-intent** (this arm
+runs no local execution, so queued writes are never fabricated into the
+frame; LLP 0090 D3's rendering note). A client without the projection seam
+refuses with `SNAPBACK_REACT_OUTBOX_UNSUPPORTED` instead of reporting a
+false empty queue. `observeSnapbackOutbox(provider, listener)` is the
+framework-neutral twin for acceptance adapters.
+
+An optimistic mutation projection still requires a **current authoritative**
+store: installing an optimistic layer over a retained-only frame refuses
+with `SNAPBACK_REACT_OPTIMISTIC_STORE_MISSING`.
 
 The retained Signal Desk receipt at
 `demos/signal-desk/acceptance/results/react-presence.v1.json` proves two
@@ -7430,6 +7472,12 @@ export const listTodos = defineJsLiveQuery({
 (see [auth](../auth/sessions-and-principals.md)). Subscribing to a non-live
 function fails with `SNAPBACK_FUNCTION_NOT_LIVE`.
 
+Offline cold retention is a separate per-query opt-in: `auth: 'public'` +
+`authorityIndependent: true` on a declarative live query makes it
+`rqsEligible`; without the declaration nothing persists and the handle's
+`retention` fact names the refusal. The full recipe is in
+[offline retention](../sync/offline-and-retention.md).
+
 ## Subscribe
 
 `client.liveQuery(ref, options)` returns a handle with the snapshot already
@@ -8088,13 +8136,13 @@ id: sync.offline-and-retention
 order: 1
 audience: agent-first
 capabilities: [sync.offline, sync.offline-js-arm]
-authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0129-local-first-program.plan.md, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/outbox-store.test.mjs]
-examples: [demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashboard, packages/snapback-contract/agent-authority-contract.test.mjs]
+authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0129-local-first-program.plan.md, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-react/index.mjs]
+examples: [demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashboard, packages/snapback-contract/agent-authority-contract.test.mjs, packages/snapback-react/offline.test.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-31
-reviewed-commit: 8299c6ddb1c9019c08a72545c8e74998aeb2b5f5
+reviewed: 2026-08-01
+reviewed-commit: HEAD
 ---
 
 # Offline retention and mutation replay
@@ -8138,9 +8186,15 @@ fallback elsewhere, reporting the resolved implementation and durability on
   ledger returns the original result on duplicate delivery, and a refused
   replay is dropped and marked failed, visible in `outboxRecords()`.
 - **No `Parity` claim.** This arm runs no local execution, so the queued
-  path is Online-class retention/replay under LLP 0043's proof rule; a
-  relaunch with pending intent renders nothing ahead of the full resync
-  (LLP 0090's outbox rule).
+  path is Online-class retention/replay under LLP 0043's proof rule. A
+  relaunch with pending intent still renders the retained rows — marked
+  `retained`, **pre-intent** (the queued writes are not overlaid; there is
+  no local execution to derive them), with `handle.pendingIntentsAtSeed`
+  naming the queued count — while the resume token is withheld: reconnect
+  takes full resync, then ordered replay (LLP 0090's outbox rule and its
+  2026-08-01 rendering note). Render the queued-changes state next to the
+  retained rows from `client.outboxStatus()` (React:
+  `useSnapbackOutbox()`), never by faking the rows themselves.
 
 ```js source=packages/snapback-client/outbox-store.test.mjs
   // Offline: fetch refuses at the transport (TypeError, like undici).
@@ -8161,6 +8215,85 @@ fallback elsewhere, reporting the resolved implementation and durability on
     'replay is ordered by sequence and keeps the minted durable identity',
   );
 ```
+
+## Opt a live query into cold retention (`rqsEligible`)
+
+Cold retention is **per-query and opt-in by declaration** — a Snapback app
+gets ZERO offline retention until at least one live query declares
+eligibility. The default is refuse-with-clarity, not silent persistence: in
+a sessions-mode app even a plain declarative live query over a table with no
+private rows is authority-scoped by default, its handle reports
+`retention: { retainable: false, code: 'SNAPBACK_RETENTION_NOT_RETAINABLE' }`,
+and nothing ever persists — so the cold-boot claims above silently never
+engage until you declare the opt-in below.
+
+The opt-in is two declaration facts on a **declarative** live query
+(`defineLiveQuery`):
+
+- `auth: 'public'` — the query is invocable without a resolved user;
+- `authorityIndependent: true` — the trusted declaration that the complete
+  result is identical for every caller. Codegen accepts it only on a public,
+  ambient-free plan; it is refused on queries with `authScopeField`,
+  `membership`, `authUserId()` filters, or time/randomness reads.
+
+From those facts plus the closed-inputs proof (single-table plan whose read
+summary equals the plan's table), the server derives the `rqsEligible`
+predicate and mints resume tokens — there is no authored `rqsEligible`
+field, and a query failing the proof is simply not eligible, never a load
+error (LLP 0090). The eligible query in the public-dashboard demo:
+
+```js source=demos/public-dashboard/snapback/functions.mjs
+export const dashboardMetrics = defineLiveQuery({
+  table: 'metrics',
+  args: { dashboardId: v.string() },
+  filter: [eq('dashboardId', arg('dashboardId'))],
+  order: [asc('label')],
+  index: 'by_dashboard',
+  auth: 'public',
+  authorityIndependent: true,
+  publicInline: true,
+});
+```
+
+(`publicInline: true` is the separate snapshot-inlining disclosure
+permission for HTML boot — see
+[snapshot bundles](../realtime/snapshot-bundles.md) — and is **not**
+required for retention.)
+
+The handle tells you whether the opt-in took: `handle.retention` is the
+refuse-with-clarity classification, and an eligible query holds a
+server-minted resume token:
+
+```js source=demos/public-dashboard/tests/acceptance/offline-local-first.mjs
+    assertEqual(handleA.freshness, 'current', 'fresh subscribe is authoritative');
+    assert(handleA.retention?.retainable === true, 'eligible query classified retainable');
+    assert(handleA.rqsResume?.token, 'server minted a resume token');
+```
+
+A query that does not qualify names why instead of silently acting online:
+
+```js source=demos/public-dashboard/tests/acceptance/offline-local-first.mjs
+      assertEqual(feed.retention?.retainable, false, 'refused retainability');
+      assertEqual(feed.retention?.code, 'SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE', 'refusal code');
+```
+
+The refusal codes: `SNAPBACK_RETENTION_NOT_RETAINABLE` (authority-scoped —
+protected retention is the lease machinery's, below),
+`SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE` (the server minted no token: not an
+authority-independent closed-inputs declarative query), and
+`SNAPBACK_RETENTION_STORE_DISABLED` (eligible, but this client opted out of
+persistence).
+
+Two neighbors that are **not** this opt-in:
+
+- `defineJsLiveQuery` handlers are never `rqsEligible` — an opaque JS
+  handler cannot carry the closed-inputs proof, so JS live queries stay
+  online-only on this arm regardless of `auth`.
+- `retainable: true` is the *lease-class* opt-in — AuthorizedLease-backed
+  retention of protected, user-scoped results under LLP 0053's custody
+  rules, shipped on the Contract arm (see
+  [hidden hands](../recipes/hidden-hands.md)). Declaring it does not make a
+  protected query cold-retain on the JS arm.
 
 ## Enable the complete client-store contract
 

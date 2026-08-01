@@ -5,11 +5,11 @@ order: 2
 audience: agent-first
 capabilities: [clients.react]
 authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0112-generated-query-group-bundle-adoption.spec.md, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-contract/result-contract-validator.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/exact-result-types.fixture.ts]
-examples: [packages/snapback-cli/templates/react, demos/signal-desk/src/backends/snapback.ts, demos/signal-desk/tests/react.mjs, demos/signal-desk/acceptance/results/react-presence.v1.json, packages/snapback-react/package.test.mjs, packages/snapback-react/optimistic.test.mjs, packages/snapback-react/presence.test.mjs, packages/snapback-react/exact-result-types.fixture.ts]
+examples: [packages/snapback-cli/templates/react, demos/signal-desk/src/backends/snapback.ts, demos/signal-desk/tests/react.mjs, demos/signal-desk/acceptance/results/react-presence.v1.json, packages/snapback-react/package.test.mjs, packages/snapback-react/optimistic.test.mjs, packages/snapback-react/presence.test.mjs, packages/snapback-react/offline.test.mjs, packages/snapback-react/exact-result-types.fixture.ts]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-27
+reviewed: 2026-08-01
 reviewed-commit: HEAD
 ---
 
@@ -69,7 +69,15 @@ if (query.status === 'ready' || query.status === 'refreshing') {
   `undefined`;
 - `connection`: `idle | connecting | live | polling | stale | disconnected |
   closed | error`;
-- `error`: a structured diagnostic for `error`, otherwise `null`.
+- `error`: a structured diagnostic for `error`, otherwise `null`;
+- `freshness`: `unknown | retained | current` — `retained` rows came from
+  the persisted cache (an offline cold boot) and are never presented as
+  settled: a retained frame keeps `status: 'refreshing'` even on a live
+  connection until the authoritative answer makes it `current`;
+- `retention`: the headless handle's refuse-with-clarity retainability fact
+  (`{ retainable, code, reason, store }`, `null` until classified) — see
+  [offline retention](../sync/offline-and-retention.md) for the opt-in that
+  makes a query retainable.
 
 Same-reference, same-argument siblings under one provider share one store and
 one upstream subscription while retaining independent React consumers.
@@ -235,9 +243,43 @@ can supersede exactly one predecessor only when the updating group uniquely
 owns it; shared or multi-entry saturated replacement refuses without changing
 the old group.
 
-This is an Online projection. It does not claim local handler execution,
-durable offline queueing, or Parity merely because it can retain data while a
-connection is stale.
+This is an Online projection. It does not claim local handler execution or
+Parity merely because it can retain data while a connection is stale.
+
+## Render offline facts honestly
+
+The hooks project the headless client's own offline facts — they surface,
+never invent. An offline cold boot of a retainable query renders its
+persisted rows with `freshness: 'retained'` and `status: 'refreshing'`
+(never `'ready'`), holding the `stale` connection axis, and settles to
+`freshness: 'current'` when the authoritative answer arrives:
+
+```js source=packages/snapback-react/offline.test.mjs
+  await act(async () => {
+    handle.seedRetained(RETAINED_ROWS);
+    handle.surviveOffline();
+    await flush();
+  });
+  assert.equal(latest.freshness, 'retained');
+  assert.equal(latest.status, 'refreshing');
+  assert.equal(latest.connection, 'stale');
+  assert.equal(latest.retention?.retainable, true);
+```
+
+`useSnapbackOutbox()` projects the durable queued-intent state
+(LLP 0043 M2): `{ status, supported, pending, failed, replaying }` plus a
+`replay()` action that drains through the client's single-flight
+`replayQueuedMutations()`. Render a queued-changes badge from it next to
+retained rows — the retained rows themselves stay **pre-intent** (this arm
+runs no local execution, so queued writes are never fabricated into the
+frame; LLP 0090 D3's rendering note). A client without the projection seam
+refuses with `SNAPBACK_REACT_OUTBOX_UNSUPPORTED` instead of reporting a
+false empty queue. `observeSnapbackOutbox(provider, listener)` is the
+framework-neutral twin for acceptance adapters.
+
+An optimistic mutation projection still requires a **current authoritative**
+store: installing an optimistic layer over a retained-only frame refuses
+with `SNAPBACK_REACT_OPTIMISTIC_STORE_MISSING`.
 
 The retained Signal Desk receipt at
 `demos/signal-desk/acceptance/results/react-presence.v1.json` proves two

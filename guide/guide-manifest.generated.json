@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "4e0802787855d57aaca3ac01b08d90fa009598dc"
+    "commit": "8bf7228d66a83814d9ca8faeea6bc5526f3e7cd2"
   },
   "nav": {
     ".": [
@@ -1045,7 +1045,7 @@
       "examples": [],
       "reviewed": "2026-07-27",
       "reviewedCommit": "8399da34f8bdebb2776395ee5751b57c2bd2e71f",
-      "sha256": "abdf0ea1551a0e26a85cff4ee031e904348d4b528151eca787587583bcebb738",
+      "sha256": "4a104ccfc221c1b3c927f9985c9e1b28956e6c8ca87c6151efed6eb3be677ed7",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1304,11 +1304,12 @@
         "packages/snapback-react/package.test.mjs",
         "packages/snapback-react/optimistic.test.mjs",
         "packages/snapback-react/presence.test.mjs",
+        "packages/snapback-react/offline.test.mjs",
         "packages/snapback-react/exact-result-types.fixture.ts"
       ],
-      "reviewed": "2026-07-27",
+      "reviewed": "2026-08-01",
       "reviewedCommit": "HEAD",
-      "sha256": "fbbd3a930aff9b4d1f6aeaf5b10be5ef51100983a4be9712798bd7544e076a24",
+      "sha256": "014fb489fea84b53ffbda2aa6fdc79ee5877213d882d9ee26a6f50412227fb00",
       "snippets": [
         {
           "lang": "ts",
@@ -1338,6 +1339,11 @@
         {
           "lang": "ts",
           "class": "fragment"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-react/offline.test.mjs"
         }
       ]
     },
@@ -1904,7 +1910,7 @@
       ],
       "reviewed": "2026-07-17",
       "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
-      "sha256": "c19ce78bea4f4fdddca0930c4292635589792c46d69ce84b65b7a4bcbff65212",
+      "sha256": "b7999efbeb85f7e575b6e9d8f5550a00c6ef38893e5d8beb108aa863517e6ded",
       "snippets": [
         {
           "lang": "js",
@@ -2108,21 +2114,24 @@
         "llp/0043-offline-replay-retention.rfc.md",
         "llp/0052-contract-update-economy-and-host-state.rfc.md",
         "llp/0055-agent-principals-and-scoped-grants.rfc.md",
+        "llp/0090-resumable-query-snapshots.rfc.md",
         "llp/0129-local-first-program.plan.md",
         "packages/snapback-contract/index.mjs",
         "packages/snapback-contract/offline-replay.test.mjs",
         "packages/snapback-client/index.mjs",
-        "packages/snapback-client/outbox-store.test.mjs"
+        "packages/snapback-client/outbox-store.test.mjs",
+        "packages/snapback-react/index.mjs"
       ],
       "examples": [
         "demos/card-game",
         "demos/todo-v2/surfaces/contract",
         "demos/public-dashboard",
-        "packages/snapback-contract/agent-authority-contract.test.mjs"
+        "packages/snapback-contract/agent-authority-contract.test.mjs",
+        "packages/snapback-react/offline.test.mjs"
       ],
-      "reviewed": "2026-07-31",
-      "reviewedCommit": "8299c6ddb1c9019c08a72545c8e74998aeb2b5f5",
-      "sha256": "0aee0faf52197a0b535aaedc3f64976d20243f0f70153809365c813a508472a4",
+      "reviewed": "2026-08-01",
+      "reviewedCommit": "HEAD",
+      "sha256": "1886e453f012328576dad86024b3ff1fe952b65157878f7b4db3748fbaafa09b",
       "snippets": [
         {
           "lang": "js",
@@ -2133,6 +2142,21 @@
           "lang": "js",
           "class": "transcluded",
           "source": "packages/snapback-client/outbox-store.test.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/public-dashboard/snapback/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/public-dashboard/tests/acceptance/offline-local-first.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/public-dashboard/tests/acceptance/offline-local-first.mjs"
         },
         {
           "lang": "js",
@@ -2285,5 +2309,5 @@
     "routes": 86,
     "hostOps": 28
   },
-  "contentHash": "1c7628ca3ff44193cab2d8a4a581e0a331150ec7d58b3e2161aeefe889fda34b"
+  "contentHash": "2ceae0e01b79c7a2714afd0ab344908092524eaae873fcf1a1c2a49375e5a7b2"
 }

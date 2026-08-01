@@ -11,14 +11,17 @@
 //      through the LLP 0043 M2 outbox;
 //   3. the retainability boundary refused with clarity (LLP 0053): a
 //      non-eligible query names WHY it will not act local-first;
-//   4. the LLP 0090 D3 outbox rule: a relaunch with pending intent renders
-//      nothing ahead of the full resync.
+//   4. the LLP 0090 D3 outbox rule with its 2026-08-01 rendering-side note:
+//      a relaunch with pending intent still renders the retained PRE-intent
+//      rows (marked, with the explicit pending-intent fact) while the resume
+//      token is withheld — replay stays full-resync-first.
 //
 // @ref LLP 0043#milestone-2-queued-mutation-replay — ordered replay under a
 //   client-minted durable identity; duplicate delivery returns the original
 //   settlement (exactly-once).
 // @ref LLP 0090#d3-channel-b--persisted-device-snapshot — render-first from
-//   the persisted entry; a non-empty outbox never resumes.
+//   the persisted entry; a non-empty outbox never resumes (the retained
+//   render survives, token withheld — the dated rendering note).
 
 import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -188,18 +191,41 @@ await runAcceptance(suite, async () => {
     return { queuedCreate, queuedUpdate };
   });
 
-  // ---- LLP 0090 D3 outbox rule ----
-  await suite.check('a relaunch with pending intent renders nothing ahead of the full resync (outbox rule)', async () => {
+  // ---- LLP 0090 D3 outbox rule (2026-08-01 rendering-side note) ----
+  await suite.check('a relaunch with pending intent renders retained pre-intent rows and withholds the resume token (outbox rule)', async () => {
+    // The D3 protocol rule is untouched: a non-empty outbox never resumes —
+    // the handle holds NO token and reconnect takes full-resync-then-ordered-
+    // replay. What the rendering-side note adds: the verified retained rows
+    // still render, marked 'retained', with the explicit pending-intent fact,
+    // and WITHOUT the queued writes (pre-intent rows, no fabricated overlay)
+    // — the frozen Diary 0027 field-notebook scenario.
     const bystander = new SnapbackClient(server.baseUrl, server.clientOptions);
     try {
-      await bystander.liveQuery('dashboardMetrics', {
+      const handle = await bystander.liveQuery('dashboardMetrics', {
         connectionId: 'offline-arm-rule',
         args: { dashboardId: 'ops' },
       });
-      throw new Error('expected the offline relaunch with a pending outbox to refuse');
-    } catch (error) {
-      assert(error instanceof TypeError, `connectivity refusal expected, got: ${error?.message}`);
-      return { refused: true };
+      try {
+        assertEqual(handle.freshness, 'retained', 'retained render survives the pending outbox');
+        assertEqual(handle.connection, 'stale', 'offline boot holds at the stale axis');
+        assertEqual(handle.pendingIntentsAtSeed, 2, 'the explicit pending-intent fact is on the handle');
+        assertEqual(handle.rqsResume, null, 'the resume token is withheld (D3: a non-empty outbox never resumes)');
+        assertEqual(
+          handle.rows.map(({ label }) => label),
+          ['latency_ms', 'uptime_pct'],
+          'rows are pre-intent: the queued create/update are NOT overlaid',
+        );
+        const uptime = handle.rows.find((row) => row.label === 'uptime_pct');
+        assert(uptime.value !== 98, 'the queued update value is not fabricated into the retained frame');
+        return {
+          freshness: handle.freshness,
+          pendingIntentsAtSeed: handle.pendingIntentsAtSeed,
+          connection: handle.connection,
+        };
+      } finally {
+        handle.dispose();
+        await handle.settled?.();
+      }
     } finally {
       await bystander.rqsStore?.close?.();
     }

@@ -3,6 +3,8 @@ import type {
   FunctionResult,
   EphemeralScope,
   EphemeralValue,
+  LiveQueryRetention,
+  OutboxReplayOutcome,
   PreparedReactQueryGroup,
   PreparedReactBinding,
   QueryGroupEntries,
@@ -28,12 +30,21 @@ export type SnapbackConnection =
   | 'closed'
   | 'error';
 
+/** Channel B freshness axis (LLP 0090 D1 / LLP 0114): 'retained' rows come
+ * from persistence/preload and are never presented as settled; 'current'
+ * rows are authoritative; 'unknown' means no rows are held. */
+export type SnapbackFreshness = 'unknown' | 'retained' | 'current';
+
+/** Refuse-with-clarity retainability fact, surfaced from the headless
+ * handle (LLP 0129 Phase 0); null until the subscription is classified. */
+export type SnapbackRetention = LiveQueryRetention;
+
 export type QueryState<Result> =
-  | Readonly<{ status: 'pending'; data: undefined; error: null; connection: SnapbackConnection }>
-  | Readonly<{ status: 'ready'; data: Result; error: null; connection: SnapbackConnection }>
-  | Readonly<{ status: 'refreshing'; data: Result; error: null; connection: SnapbackConnection }>
-  | Readonly<{ status: 'error'; data: undefined; error: SnapbackDiagnostic; connection: SnapbackConnection }>
-  | Readonly<{ status: 'skipped'; data: undefined; error: null; connection: SnapbackConnection }>;
+  | Readonly<{ status: 'pending'; data: undefined; error: null; connection: SnapbackConnection; freshness: 'unknown'; retention: SnapbackRetention | null }>
+  | Readonly<{ status: 'ready'; data: Result; error: null; connection: SnapbackConnection; freshness: 'current'; retention: SnapbackRetention | null }>
+  | Readonly<{ status: 'refreshing'; data: Result; error: null; connection: SnapbackConnection; freshness: 'retained' | 'current'; retention: SnapbackRetention | null }>
+  | Readonly<{ status: 'error'; data: undefined; error: SnapbackDiagnostic; connection: SnapbackConnection; freshness: 'unknown'; retention: SnapbackRetention | null }>
+  | Readonly<{ status: 'skipped'; data: undefined; error: null; connection: SnapbackConnection; freshness: 'unknown'; retention: null }>;
 
 export type QueryReference<
   Name extends string = string,
@@ -245,6 +256,30 @@ export type SnapbackConnectionState = Readonly<{
 }>;
 
 export function useSnapbackConnection(): SnapbackConnectionState;
+
+/** Projection of the headless client's queued-intent facts (LLP 0043 M2 /
+ * LLP 0129 Phase 0): 'loading' until the first durable-store read lands. */
+export type SnapbackOutboxState =
+  | Readonly<{ status: 'loading'; supported: false; pending: 0; failed: 0; replaying: false }>
+  | Readonly<{ status: 'ready'; supported: boolean; pending: number; failed: number; replaying: boolean }>;
+
+export type SnapbackOutboxHandle = SnapbackOutboxState & Readonly<{
+  /** Drain the durable outbox in sequence order (the client's single-flight
+   * replayQueuedMutations; full-resync-before-replay stays client-owned). */
+  replay(): Promise<OutboxReplayOutcome>;
+}>;
+
+export function useSnapbackOutbox(): SnapbackOutboxHandle;
+
+export interface SnapbackOutboxObserver {
+  snapshot(): SnapbackOutboxState;
+  replay(): Promise<OutboxReplayOutcome>;
+  dispose(): void;
+}
+export function observeSnapbackOutbox(
+  provider: SnapbackReactProvider,
+  listener: (state: SnapbackOutboxState) => void,
+): SnapbackOutboxObserver;
 export function useEphemeralRepublisher(
   reference: string,
   callback: (context: Readonly<{

@@ -98,6 +98,8 @@ function pending(connection = 'idle') {
     data: undefined,
     error: null,
     connection,
+    freshness: 'unknown',
+    retention: null,
   });
 }
 
@@ -106,6 +108,8 @@ const SKIPPED = Object.freeze({
   data: undefined,
   error: null,
   connection: 'idle',
+  freshness: 'unknown',
+  retention: null,
 });
 const SERVER_PENDING = pending();
 const PRESENCE_SERVER_PENDING = Object.freeze({
@@ -172,13 +176,25 @@ function normalizeConnection(value, detail = {}) {
   return 'disconnected';
 }
 
-function queryStateForConnection(snapshot, connection, detail = {}) {
+// Latest retainability classification from the live handle (LLP 0129
+// Phase 0 refuse-with-clarity fact; frozen on the headless handle). Facts
+// are surfaced, never synthesized: null stays null until the client
+// classifies the subscription.
+function captureRetention(store) {
+  const retention = store.handle?.current?.retention ?? null;
+  if (retention !== null) store.retention = retention;
+}
+
+function queryStateForConnection(store, connection, detail = {}) {
+  const snapshot = store.snapshot;
   if (connection === 'error') {
     return Object.freeze({
       status: 'error',
       data: undefined,
       error: serializeError(detail.error ?? new Error('live query connection failed')),
       connection,
+      freshness: 'unknown',
+      retention: store.retention,
     });
   }
   if (connection === 'closed') {
@@ -187,14 +203,23 @@ function queryStateForConnection(snapshot, connection, detail = {}) {
       data: undefined,
       error: diagnostic('SNAPBACK_REACT_PROVIDER_CLOSED', 'React provider is closed'),
       connection,
+      freshness: 'unknown',
+      retention: store.retention,
     });
   }
   if (snapshot.status === 'ready' || snapshot.status === 'refreshing') {
     return Object.freeze({
-      status: connection === 'live' ? 'ready' : 'refreshing',
+      // Retained rows are never presented as settled: 'ready' requires both
+      // a live connection AND authoritative freshness (LLP 0043's
+      // never-presented-as-current rule projected onto the status axis).
+      status: connection === 'live' && snapshot.freshness !== 'retained'
+        ? 'ready'
+        : 'refreshing',
       data: snapshot.data,
       error: null,
       connection,
+      freshness: snapshot.freshness,
+      retention: store.retention,
     });
   }
   return pending(connection);
@@ -482,9 +507,32 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     return rows;
   };
 
+  // Channel B retained delivery (LLP 0090 D3 / LLP 0114 freshness axis): a
+  // persisted/preloaded frame renders marked 'retained' — status stays
+  // 'refreshing', never 'ready' — WITHOUT advancing the authoritative
+  // revision, so optimistic admission still requires a current authoritative
+  // store and no layer retirement can key on a retained frame. Queued-intent
+  // state is the outbox surface (useSnapbackOutbox); the retained frame never
+  // fabricates an overlay for it.
+  const publishRetained = (store, rows, generation = store.generation) => {
+    store.authoritativeData = validateResultContract(store.resultContract, rows);
+    store.freshness = 'retained';
+    captureRetention(store);
+    publish(store, Object.freeze({
+      status: 'refreshing',
+      data: store.authoritativeData,
+      error: null,
+      connection: normalizeConnection(store.handle?.current?.connection ?? 'connecting'),
+      freshness: 'retained',
+      retention: store.retention,
+    }), generation);
+  };
+
   const publishAuthoritative = (store, rows, generation = store.generation) => {
     store.authoritativeRevision += 1;
     store.authoritativeData = validateResultContract(store.resultContract, rows);
+    store.freshness = 'current';
+    captureRetention(store);
     for (const layer of store.optimisticLayers) {
       if (!layer.confirmed) continue;
       try {
@@ -515,6 +563,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       data: materializeStore(store),
       error: null,
       connection: normalizeConnection(store.handle?.current?.connection ?? 'live'),
+      freshness: 'current',
+      retention: store.retention,
     }), generation);
   };
 
@@ -522,7 +572,11 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     store.generation += 1;
     const handle = store.handle;
     store.handle = null;
-    if (blank) store.snapshot = pending('idle');
+    if (blank) {
+      store.snapshot = pending('idle');
+      store.freshness = 'unknown';
+      store.retention = null;
+    }
     if (handle) {
       try { handle.dispose(); } catch (error) { recordDiagnostic(error); }
       allHandles.add(handle);
@@ -549,6 +603,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     }
     const generation = ++store.generation;
     store.snapshot = pending('connecting');
+    store.freshness = 'unknown';
     let handle;
     handle = client.startLiveQuery(store.reference, {
       connectionId,
@@ -567,19 +622,24 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       ...(store.registeredSubscription === null
         ? {}
         : { registeredSubscription: store.registeredSubscription }),
-      onUpdate(rows) {
+      onUpdate(rows, detail) {
         if (store.blockedPreparedPublication) return;
         if (store.unadoptedSubscriptionId !== null) {
           unadoptedPreparedSubscriptions.delete(store.unadoptedSubscriptionId);
           store.unadoptedSubscriptionId = null;
         }
+        if (detail?.freshness === 'retained') {
+          publishRetained(store, rows ?? [], generation);
+          return;
+        }
         publishAuthoritative(store, rows ?? [], generation);
       },
       onConnectionChange(connection, detail) {
         const normalized = normalizeConnection(connection, detail);
+        captureRetention(store);
         publish(
           store,
-          queryStateForConnection(store.snapshot, normalized, detail),
+          queryStateForConnection(store, normalized, detail),
           generation,
         );
       },
@@ -596,7 +656,27 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         store.unadoptedSubscriptionId = null;
       }
       if (store.snapshot.status === 'pending' && Array.isArray(handle.current?.rows)) {
-        publishAuthoritative(store, handle.current.rows, generation);
+        // A handle that established holding only retained rows (offline boot
+        // survival — LLP 0129 Phase 0) must not have them republished as
+        // authoritative here.
+        if (handle.current.freshness === 'retained') {
+          publishRetained(store, handle.current.rows, generation);
+        } else {
+          publishAuthoritative(store, handle.current.rows, generation);
+        }
+        return;
+      }
+      // The retainability classification lands on the handle only once the
+      // subscribe settles; refresh an already-published snapshot with it.
+      captureRetention(store);
+      if (
+        (store.snapshot.status === 'ready' || store.snapshot.status === 'refreshing')
+        && store.snapshot.retention !== store.retention
+      ) {
+        publish(store, Object.freeze({
+          ...store.snapshot,
+          retention: store.retention,
+        }), generation);
       }
     }, (error) => {
       if (store.generation !== generation || store.handle !== handle) return;
@@ -615,6 +695,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         data: undefined,
         error: serializeError(error),
         connection: 'error',
+        freshness: 'unknown',
+        retention: store.retention,
       }), generation);
     });
     void handle.settled().finally(() => allHandles.delete(handle));
@@ -649,6 +731,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       resultContract: descriptor.resultContract,
       authoritativeData: Object.freeze([]),
       authoritativeRevision: 0,
+      freshness: 'unknown',
+      retention: null,
       optimisticLayers: [],
       pendingMutations: new Map(),
       pins: 0,
@@ -672,6 +756,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       data: materializeStore(store),
       error: null,
       connection: normalizeConnection(store.handle?.current?.connection ?? 'live'),
+      freshness: store.freshness,
+      retention: store.retention,
     }));
   };
 
@@ -771,6 +857,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       data: initialProjection,
       error: null,
       connection: normalizeConnection(store.handle?.current?.connection ?? 'live'),
+      freshness: store.freshness,
+      retention: store.retention,
     }));
 
     try {
@@ -1619,6 +1707,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       for (const store of stores.values()) {
         store.generation += 1;
         store.snapshot = pending('idle');
+        store.freshness = 'unknown';
+        store.retention = null;
         for (const listener of [...store.listeners.values()]) {
           try { listener(); } catch { /* observational */ }
         }
@@ -2130,6 +2220,125 @@ export async function invokeSnapbackMutation(providerValue, reference, args, opt
   const provider = assertProvider(providerValue);
   const admitted = admittedReactReference(provider.binding, reference, 'Mutation');
   return provider.registry.runMutation(admitted, args, options.optimistic ?? null);
+}
+
+// ---------------------------------------------------------------------------
+// Outbox (LLP 0043 M2 queue on the JS arm — LLP 0129 Phase 0). The React
+// projection of the headless client's OWN facts: `outboxStatus()` counts and
+// the `subscribeOutbox` seam. The hook surfaces queued/failed/replaying
+// state; it never derives an overlay, reorders replay, or claims settlement
+// — LLP 0090 D3's full-resync-before-replay ordering stays entirely the
+// headless client's.
+
+const OUTBOX_LOADING = Object.freeze({
+  status: 'loading',
+  supported: false,
+  pending: 0,
+  failed: 0,
+  replaying: false,
+});
+
+const outboxStores = new WeakMap();
+
+function outboxStoreFor(provider) {
+  let store = outboxStores.get(provider);
+  if (store) return store;
+  const client = preparedReactBindingClient(provider.binding);
+  if (
+    typeof client.outboxStatus !== 'function'
+    || typeof client.subscribeOutbox !== 'function'
+    || typeof client.replayQueuedMutations !== 'function'
+  ) {
+    // Capability honesty (LLP 0114): a client without the projection seam
+    // refuses — reporting `supported: false` for a client whose queue state
+    // is merely unreadable would be a false claim.
+    throw diagnosticError(
+      'SNAPBACK_REACT_OUTBOX_UNSUPPORTED',
+      'the bound client does not expose the outbox projection surface',
+    );
+  }
+  const listeners = new Set();
+  let snapshot = OUTBOX_LOADING;
+  let refreshing = false;
+  let dirty = false;
+  let clientOff = null;
+  const notify = () => {
+    for (const listener of [...listeners]) {
+      try { listener(); } catch { /* observational */ }
+    }
+  };
+  const refresh = () => {
+    if (refreshing) {
+      dirty = true;
+      return;
+    }
+    refreshing = true;
+    void client.outboxStatus().then((status) => {
+      snapshot = Object.freeze({ status: 'ready', ...status });
+      notify();
+    }).catch(() => { /* the durable store stays the authority */ }).finally(() => {
+      refreshing = false;
+      if (dirty) {
+        dirty = false;
+        refresh();
+      }
+    });
+  };
+  store = {
+    getSnapshot: () => snapshot,
+    subscribe(listener) {
+      listeners.add(listener);
+      if (clientOff === null) {
+        clientOff = client.subscribeOutbox(refresh);
+        refresh();
+      }
+      return () => {
+        listeners.delete(listener);
+        if (listeners.size === 0 && clientOff !== null) {
+          clientOff();
+          clientOff = null;
+        }
+      };
+    },
+    async replay() {
+      const outcome = await client.replayQueuedMutations();
+      refresh();
+      return outcome;
+    },
+  };
+  outboxStores.set(provider, store);
+  return store;
+}
+
+export function useSnapbackOutbox() {
+  const provider = useProvider();
+  const store = useMemo(() => outboxStoreFor(provider), [provider]);
+  const state = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+  return useMemo(
+    () => Object.freeze({ ...state, replay: store.replay }),
+    [state, store],
+  );
+}
+
+/// Framework-neutral outbox observer (the observeSnapbackQueries pattern):
+/// acceptance adapters read the exact same projection the hook renders.
+export function observeSnapbackOutbox(providerValue, listener) {
+  const provider = assertProvider(providerValue);
+  const store = outboxStoreFor(provider);
+  let closed = false;
+  const off = store.subscribe(() => {
+    if (!closed) listener(store.getSnapshot());
+  });
+  listener(store.getSnapshot());
+  return Object.freeze({
+    snapshot: () => store.getSnapshot(),
+    replay: () => store.replay(),
+    dispose() {
+      if (closed) return;
+      closed = true;
+      off();
+    },
+  });
 }
 
 // ---------------------------------------------------------------------------
