@@ -5,7 +5,51 @@
 **Systems:** Memberships, Authorization, Query planning, Pagination, Code generation, Live Queries, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-26
-**Revised:** 2026-07-30 (v0.2, responding to the first cross-family review
+**Revised:** 2026-08-01 (v0.3, the verify-then-fix pass applying the merged
+round-1 findings of the author-directed loop. Both round-1 artifacts:
+`llp/reviews/0100-membership-addressed-operations-and-pages.fable.md`
+(2026-08-01 section) and
+`llp/reviews/0100-membership-addressed-operations-and-pages.codex.md`
+(2026-08-01), both NOT READY on target
+`4ba87d1dad15c956b0311adec57befe517e83c03c445ba4a458cdda70228b43b`.
+Dispositions, each verified against the tree at `444eaeb9`:
+**Codex 1 / Fable 3** (self-membership listing) — resolved outside this
+RFC by `_snapback.myMemberships` (landed `67da515f`,
+src/local.rs `MY_MEMBERSHIPS_LIVE_FUNCTION`; LLP 0056 dated amendment
+2026-08-01, which explicitly leaves this RFC's two surfaces here); §1's
+stale baseline refreshed and cross-referenced. Fable 3's suggestion to
+cite the projection in the §1 disclosure argument is **not adopted, with
+evidence**: the projection returns only the caller's *own* rows (LLP 0056
+amendment text), so it implies nothing about a removal target and cannot
+strengthen that argument.
+**Codex 2 / Fable 1** (membership-visible search) — routed with named
+owner and interface, §8a: an LLP 0073 dated amendment adding a third
+`SearchVisibilityV1` variant (src/search/types.rs), obligations pinned.
+**Codex 3 / Fable 2** (trusted membership seed/reset) — routed with named
+owner and interface, §8b: the LLP 0109 × LLP 0056 lane admitting fixture
+seats through the existing `MembershipWriter::Seed` carrier
+(src/storage.rs); §1's trusted-migration/import sentence reconciled with
+the fact that the receipted lane refuses memberships today.
+**Codex 4 / Fable 4** (cursor custody) — §5 restated as an explicit delta
+over the current `standard_pattern_cursor_binding`
+(src/local.rs:21370–21415): inherited members and new members enumerated,
+pair identity defined, and the implementation bridge mapping every new
+member to its current-tree source added; §Acceptance gains the
+per-component binding-mutation schedule including the cross-resource
+resource-value negative.
+**Codex 5** — callable-only shape decided: the helper emits ordinary
+`Query` definitions, a stated delta from the owned helper's
+`defineLiveQuery`+`defaultLive:false` emission (§4).
+**Codex 6** — the composed membership-family witness added to
+§Acceptance. **Fable 5** — §3 companion-write idempotence named a guide
+obligation with an acceptance row. **Fable 6** — §4 positioned against
+LLP 0110's `bounded_children_v1`; LLP 0110 joins Related. **Fable 7** —
+LLP 0131 composition sentence in §7. **Fable 8** — the `lastHolder`
+totality proof extended through LLP 0056's expired-but-authorized edge,
+with an acceptance schedule. **Fable 9** — the `myMemberships` seat-drop
+joins the product receipt. **Fable 10** — OQ1 decided: `removePrincipal`.
+No other reviewer point rejected.)
+2026-07-30 (v0.2, responding to the first cross-family review
 (`llp/reviews/0100-membership-addressed-operations-and-pages.fable.md`):
 Major 1 decided by the author — option (a), the non-disclosure claim is
 scoped to the byte-level result and the authorization-version observable is
@@ -18,7 +62,8 @@ boundaries join Open questions (§5); Minor 4 — adapter custody clearing
 acknowledged as receipt-enforced convention (§6); plus the review's
 composability and probe-negative suggestions (§2, §Acceptance).)
 2026-07-26 (initial draft)
-**Related:** LLP 0004, LLP 0007, LLP 0008, LLP 0037, LLP 0053, LLP 0055, LLP 0056, LLP 0063, LLP 0065
+**Related:** LLP 0004, LLP 0007, LLP 0008, LLP 0037, LLP 0053, LLP 0055,
+LLP 0056, LLP 0063, LLP 0065, LLP 0073, LLP 0109, LLP 0110, LLP 0131
 
 ## Summary
 
@@ -44,6 +89,14 @@ silently broadens either parent. LLP 0056 explicitly leaves other-principal
 addressing unavailable under the private v1 roster. LLP 0065 explicitly
 requires membership-based pagination to receive its own profile and negative
 acceptance cases.
+
+Since v0.3 this RFC also records the **membership-composition family
+boundary** the LLP 0137 sweep evidence demands: the two sibling
+compositions this document does not design — membership-visible search
+visibility and the trusted membership seed/reset lane — are routed to
+named owners with their interfaces pinned (§8), not left silent. The
+third sweep case, self-membership listing, is resolved outside this RFC
+by `_snapback.myMemberships` (§1).
 
 ## Motivation
 
@@ -90,9 +143,27 @@ This RFC adds no membership read, list, lookup, row-id, or application-visible
 existence result.
 
 `ctx.permissions` remains the only imperative membership check and returns no
-membership fact. Declarative `memberOf` / `hasRole` predicates remain the only
-query-side membership surface. The existing id-addressed membership methods
-remain trusted migration/import mechanisms, not an ordinary application path.
+membership fact. On the query side the baseline has two surfaces *(refreshed
+2026-08-01 — the tree moved under v0.2)*: the declarative `memberOf` /
+`hasRole` predicates, and the reserved, declaration-owned self-projection
+`_snapback.myMemberships` (landed 2026-08-01, `67da515f`;
+`MY_MEMBERSHIPS_LIVE_FUNCTION`, src/local.rs; recorded by LLP 0056's dated
+amendment of the same date). The projection returns only the **caller's
+own** seats — `{id, resource, role, sinceMs}` — and discloses nothing about
+any other principal, not even existence, so the private-roster posture holds
+by construction. It resolves the 0137 A2 "list the caller's resources" case
+outside this RFC, and the 0056 amendment explicitly leaves this RFC's two
+surfaces to this RFC; this document adds no further read.
+
+The existing id-addressed membership methods remain trusted
+migration/import mechanisms, not an ordinary application path. One honest
+qualification *(v0.3)*: the receipted trusted-import lane an application
+actually has — the LLP 0109 versioned seed — refuses membership rows
+outright today (`SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED`,
+src/storage.rs `validate_versioned_seed_request`), so "trusted
+migration/import" currently names only the unreceipted id-addressed
+methods. Closing that gap is the routed seed/reset lane of §8b, owned by
+LLP 0109 × LLP 0056, not by this RFC.
 
 The two new surfaces disclose only:
 
@@ -171,6 +242,16 @@ holder, and removing the target cannot empty the protected set. The ordinary
 commit-stage `lastHolder` check still runs; this restriction prevents its
 result from becoming a hidden-role oracle on the new surface.
 
+The proof holds through LLP 0056's expiry edge *(v0.3, recording the
+verified argument)*: 0056's expiry sweep skips a protected final holder —
+protection wins over expiry, and the row stays live,
+**expired-but-authorized**, until the app seats a replacement. An
+expired-but-authorized caller therefore still occupies the protected set,
+so removing the target still cannot empty it; and a caller whose expired
+row was actually swept (a non-final holder) no longer resolves to any
+role and is refused at step 3 of §3, before target lookup, like any other
+unauthorized caller. §Acceptance schedules this edge explicitly.
+
 Codegen emits:
 
 ```ts
@@ -219,7 +300,14 @@ cannot observe which branch ran, so companion writes must be written to be
 correct in both — the same idempotence the identical `null` result already
 demands), performs no membership write, records no transition (the
 provenance stream records transitions, and none occurred), and advances no
-authorization version — the §1-scoped disclosure. A **well-formed principal
+authorization version — the §1-scoped disclosure. The both-branches
+companion-write contract is a real application-correctness trap — a
+companion write that decrements a member count or appends a "removed" feed
+event on the assumption the target was present corrupts product state on
+the absent-target no-op — so it is a **guide obligation** with the same
+standing §5 gives the page-key idiom (LLP 0061): the command's guide page
+documents the branch-insensitive companion-write pattern the day the
+command lands, and §Acceptance carries its row. A **well-formed principal
 that names no user at all** takes exactly this branch: argument validation
 is shape-only and consults no user table, so the removal surface cannot
 become a user-directory existence probe.
@@ -268,6 +356,17 @@ Its stable facts are:
 - retained/offline: false; and
 - authority-independent: false.
 
+`live: false` is an emission decision, not just a capability fact *(decided
+v0.3)*: the helper emits ordinary **`Query`** definitions that cannot be
+subscribed at all. This is a deliberate delta from the owned helper's
+current emission — `defineOwnedKeysetPages` builds its pair through
+`defineLiveQuery` with `defaultLive: false`
+(packages/snapback-codegen/standard-patterns.mjs), leaving them
+subscription-capable — because a subscribable historical page here would be
+exactly the per-visited-page authorization-sensitive subscription this
+section rules out below. The capability claim is consistent: callable-only,
+no `live_replace`, no `live_delta`.
+
 Every option object is closed. The declaration must be resource-scoped. The
 resource argument and row field must carry the exact nominal resource type
 owned by the membership declaration. `roles` is a non-empty canonical subset
@@ -286,6 +385,19 @@ nor membership existence. A later grant is observed by a fresh first-page
 invocation. The product's separate current-room `live_replace` query owns live
 grant/revocation updates; historical pages do not create one authorization-
 sensitive subscription per visited page.
+
+This profile is not LLP 0110's `bounded_children_v1`, and the two compose
+rather than compete *(v0.3, positioning)*. The bounded-children profile is
+a **live-oriented**, parent-visibility-shaped surface: one visible parent
+row authorizes a bounded, index-ordered child page whose delivery rides the
+live machinery under protected relation incarnations. This helper is a
+**callable keyset continuation**: visibility is a membership seat rather
+than parent-row visibility, traversal is caller-driven through an opaque
+custody-bound cursor rather than a delivered window, and nothing here is
+subscribable. A board-shaped product uses both — `bounded_children_v1` (or
+the current-room `live_replace` query) for the live window, this helper for
+bounded historical traversal — under the same membership declaration.
+LLP 0110 joins Related for this boundary.
 
 ### 5. Index and continuation contract
 
@@ -311,25 +423,80 @@ age; current authorization and membership are still checked on every
 presentation, so the age is a staleness backstop rather than an authorization
 lease.
 
-For this profile the binding digest covers:
+The binding digest for this profile **extends** the existing
+standard-pattern custody contract; it does not merely match it *(restated
+v0.3 — the v0.2 phrasing overstated the current binding)*. What exists
+today is `standard_pattern_cursor_binding` (src/local.rs:21370–21415),
+whose digest covers: app id, helper id, profile id, table, exact index,
+order, limit, the serialized shared filter **shapes** (with symbolic
+`Arg` references, not argument values), the caller authority fingerprint,
+and the caller's per-user permission-scope epoch. Deployment/database
+generation is bound by **custody**, not digest: the `sbpc1` envelope is
+MACed under the instance keyring, so a cursor cannot cross instances. The
+runtime's profile registry currently admits only `owned-keyset-pages.v1`
+(src/local.rs:21331).
 
-- application authority domain;
-- the first/next pair identity;
-- helper and profile ids;
-- table, exact index, order, direction, limit, cursor field, and serialized
-  shared plan;
-- normalized non-cursor arguments, including the exact resource id;
-- membership declaration stable id, resource field/argument, and role set;
-- caller authority fingerprint;
-- current global authorization pair `{incarnation, epoch}` and data version
-  stream, plus every declared scoped permission epoch the plan consumes;
-- exact active function/schema artifact identity and target profile; and
-- deployment/database generation through the instance MAC keyring, matching the
-  existing standard-pattern cursor custody contract.
+**Inherited members** (already in the digest or custody today): app
+authority domain; helper and profile ids; table, exact index, order,
+direction, limit, cursor field, and serialized shared plan shapes; caller
+authority fingerprint; consumed per-user permission-scope epochs;
+instance keyring custody.
 
-The first and next definitions differ only by the strict boundary filter, which
-is excluded from the shared pair digest. Any other difference changes the
-binding.
+**New members this profile requires.** The first is load-bearing here in a
+way it is not for the owner profile — the owner partition rides the auth
+fingerprint, while the membership partition rides argument values — and
+the rest close staleness classes §5 claims that the current digest does
+not deliver:
+
+- **normalized non-cursor argument values, including the exact resource
+  id.** Without the concrete resource value in the digest, a cursor minted
+  for room A verifies for room B: the shared filter shape
+  `resourceField == arg(resourceArg)` is identical for every room. Source:
+  the LLP 0131-validated `input.args`, normalized over the declared
+  argument order, after ingress validation
+  (`validate_function_args`, src/local.rs).
+- **the membership declaration stable id, resource field/argument, and
+  canonical role set** (generation-time facts carried on the standard
+  pattern).
+- **the current global authorization pair `{incarnation, epoch}`.** The
+  per-user permission-scope epochs bound today are explicitly *not* this:
+  they are the legacy compatibility resync map, while LLP 0053's durable
+  global `AuthorizationVersion` advances in the storage transaction hook
+  (src/local.rs:11035–11038; `AuthorizationVersion`, src/storage.rs:272,
+  read via the auth-stream snapshot readers). Membership writes advance
+  the global pair, so stale-membership refusal requires binding it.
+- **the data-version stream** (`strict_current_data_version_stream`,
+  src/seed_identity.rs; rotated by reset — src/storage.rs), so a cursor
+  cannot survive a receipted reset-install even if epochs coincide.
+- **exact active function/schema artifact identity and target profile**
+  (the instance's loaded schema hash and function publication generation),
+  so a cursor cannot survive an artifact swap that changes plan meaning.
+
+**Pair identity is the digest, not the names**: the generated first/next
+functions share one binding because the strict boundary filter — cursor
+field, `Gt`/`Lt`, `Arg` value — is excluded from the shared-plan member
+(exactly the exclusion the current binding already implements), and every
+other member above is identical for the pair. Any other difference between
+first and next changes the binding; first/next interchangeability is
+precisely this exclusion and nothing more.
+
+**Implementation bridge** *(v0.3, closing the gap between §5's guarantees
+and implementation-order step 4)* — following the old step 4 literally
+would not have established the stale-membership or artifact-identity
+guarantees. The generalization must:
+
+1. admit `membership-keyset-pages.v1` in the profile registry
+   (src/local.rs:21331 today refuses everything but the owned helper);
+2. extend the binding-digest builder with the five new-member groups above,
+   each read from the seams named there (validated args; standard-pattern
+   membership facts; the durable `AuthorizationVersion` snapshot — not the
+   permission-epoch map; the current data-version stream; the active
+   artifact identity); and
+3. keep the envelope, keyring custody, and the uniform
+   `SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID` refusal byte-identical.
+
+§Acceptance mutates each binding component independently and requires the
+uniform refusal before candidate-row evaluation.
 
 The server verifies size, shape, key id, MAC, age, app, binding, boundary type,
 current authority, global authorization pair, and every consumed scoped
@@ -393,6 +560,80 @@ future plan nodes fail generation or admission. The local target is the only
 positive v1 adapter. Hosted, Cloudflare, retained, and incremental capability
 facts remain explicit gaps.
 
+The "exact first/next argument and result schemas" line now comes largely
+for free *(v0.3)*: LLP 0131 (Accepted) makes every v2-generated function
+carry a `FunctionArgsContractV1` descriptor under the app-wide
+`args_contract_v1` requirement, and `resourceArg` (an id) plus the
+optional cursor argument are directly expressible in that descriptor
+vocabulary. The generated pair and any function containing
+`removePrincipal` ride that lane; this RFC adds no bespoke argument-schema
+machinery, and §5's normalized-argument binding member reads the same
+validated ingress.
+
+### 8. The membership-composition family: routed sibling surfaces
+
+The LLP 0137 sweep made the membership-composition *family* the unit of
+evidence. Two ticketed cases sit in this family but are deliberately not
+designed here; per this loop's bar each is **routed with a named owner and
+a named interface**, so narrowness is a decision rather than an accident
+of drafting date. In both cases the fail-closed status quo is verified:
+nothing partial can ship while the owner works.
+
+**8a. Membership-visible search visibility — owner: LLP 0073 (dated
+amendment).** Today's search visibility union is closed to exactly
+`public-read` and `owner` (`SearchVisibilityV1`, src/search/types.rs;
+enforced again at authoring time in
+packages/snapback-codegen/define.mjs), so the ticketed org-wide
+member-visible search
+(`issues/20260801-0137-a3-search-visibility-cannot-express-membership.md`)
+is inexpressible and fails generation — fail-closed, never approximated.
+The owning change is a third pushdown-compilable visibility variant in
+LLP 0073's own contract, which already carries the visibility-partition
+shape in its identity: `{ kind: 'membership', declaration, resourceField,
+roles }`, partitioned by the caller's seat rather than `owner:{subject}`.
+The interface obligations this RFC pins for that amendment, in its own
+vocabulary: the declaration-bound seat resolution and the posting/source-
+row recheck execute in one snapshot; an outsider's result is empty and
+byte-identical to the nonexistent-resource result; revocation zeroes the
+next search; the search continuation's identity gains the same
+authorization binding §5 defines (global pair, declaration facts, resource
+value); and member/outsider/revoked acceptance cases are mandatory. What
+this RFC contributes is the semantic vocabulary — the membership predicate
+as executable visibility authority — and the custody delta of §5; the
+search-side carrier, posting pipeline, and scoring surface belong to
+LLP 0073. Deferral is safe because the union is closed: no membership
+search behavior can exist until the amendment lands whole.
+
+**8b. Trusted membership seed/reset — owner: LLP 0109 (dated amendment),
+composed with LLP 0056.** Today the sessions-mode versioned seed refuses
+any artifact that names a membership table
+(`SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED`,
+`validate_versioned_seed_request`, src/storage.rs), so a receipted reset
+restores app data while every runtime seat survives — reset cannot retire
+authority
+(`issues/20260801-0137-a3-membership-not-seedable-cleanup-cannot-retire-authority.md`).
+The carrier already exists: LLP 0056's
+closed writer enumeration includes `MembershipWriter::Seed` and
+`MembershipWriter::Import` (src/storage.rs), currently unreachable from
+the receipted lane. The interface obligations this RFC pins for the 0109
+amendment: fixture seats are admitted only through `MembershipWriter::Seed`
+under full declaration validation (principal identity shape, declared role
+vocabulary, nominal resource type, `lastHolder` and final-state validation
+in the declaration's own order); named membership tables become legal
+reset targets; reset deletes runtime seats and restores fixture seats
+atomically in one receipted operation whose authorization-version and
+incarnation consequences are LLP 0056 event 1, exactly like a user-
+authored kick; replay/idempotence follows LLP 0109's existing receipt
+discipline; and the mandatory witness is the ticket's own: a runtime-only
+principal provably loses authority after reset while fixture seats
+survive. §1's trusted-migration/import sentence is reconciled above: the
+receipted trusted lane refusing memberships is a named gap with this named
+owner, not an implied capability.
+
+Neither routing is a scope change to this RFC's two designed surfaces;
+both compose with them through the same declaration, and the composed
+family witness in §Acceptance names the join points.
+
 ## Team Chat adoption
 
 After semantic acceptance and implementation conformance:
@@ -438,6 +679,17 @@ LLPs 0071–0073, or claim hosted completeness.
 - Present-row, absent-row, concurrent insert, concurrent role change,
   concurrent self-leave, and replay schedules prove the captured point/range
   dependency and writer carrier.
+- The expired-but-authorized edge (LLP 0056's sweep-skipped protected final
+  holder) is scheduled explicitly: such a caller invokes `removePrincipal`
+  against a present member and an absent pair; both admit under the
+  caller's still-live role with uniform results, the protected set never
+  empties, and a caller whose expired non-final row was actually swept
+  receives the invariant role denial before target lookup.
+- Companion application writes are branch-insensitive (the §3 guide
+  obligation): the same mutation run against a present target and an
+  absent target leaves companion product state consistent — no member
+  count, feed event, or display row diverges by branch beyond what the
+  membership write itself changes.
 - Protected live queries and rooms blank/quarantine before forbidden delivery;
   stale callbacks, queued writes, retained rows, and old cursors cannot cross
   the authority generation.
@@ -457,6 +709,16 @@ LLPs 0071–0073, or claim hosted completeness.
 - Malformed, raw-boundary, cross-pair, cross-room, cross-principal, cross-app,
   cross-instance, expired, and post-membership-change cursors return one
   byte-identical invalid-cursor response.
+- The §5 binding is proven component-wise: a schedule mutates each binding
+  member independently — resource-id argument value, another non-cursor
+  argument value, declaration stable id, role set, authority fingerprint,
+  global authorization pair, data-version stream (via reset), artifact
+  identity (via regenerate-and-swap), helper/profile id — and every
+  mutation yields the uniform refusal **before candidate-row evaluation**.
+  The cross-resource case is explicit: because the shared filter shape is
+  identical for every resource, only the bound resource **value** refuses
+  a room-A cursor presented for room B; an implementation that omits the
+  value from the digest fails this row.
 - Removal between page one and page two invalidates the cursor before
   candidate-row evaluation; rejoin does not revive it.
 - A first page before membership is empty; a fresh first page after grant
@@ -476,14 +738,43 @@ The Team Chat headless, React, and Contract suites must each prove:
 2. immediate loss of protected room/history/send authority;
 3. no delivery after the removal boundary and no accumulated historical page
    rows surviving in product custody;
-4. three-page room-history traversal by a member;
-5. cross-user/cross-room/stale cursor refusal; and
-6. no regression to invitation, self-accept, self-leave, fan-out, or unread
+4. the removed member's `_snapback.myMemberships` subscription drops the
+   seat at the same authorization cut that blanks the room — the third
+   witness beside room-blank and cursor-refusal (LLP 0056's machinery;
+   asserted here as product-visible coherence of one cut);
+5. three-page room-history traversal by a member;
+6. cross-user/cross-room/stale cursor refusal; and
+7. no regression to invitation, self-accept, self-leave, fan-out, or unread
    state.
 
 The receipt records the Snapback revision, generated artifact hashes, target
 profile, exact pressure-profile row, and all refusal codes. It is a local
 semantic witness only and cannot by itself promote `STEP6.CHAT`.
+
+### Composed family witness
+
+Beyond the per-surface suites, one **composed acceptance witness** (the
+LLP 0137 §P1 shape) proves that a single membership declaration — one
+`roomMembers`-class declaration, no authorization mirrors anywhere —
+drives, in one scenario run:
+
+1. self-listing through `_snapback.myMemberships` (seat appears on grant,
+   drops at the removal cut);
+2. the protected live room (`live_replace` blank/quarantine at the cut);
+3. membership keyset pages (traversal while seated; uniform cursor refusal
+   after the cut; rejoin does not revive);
+4. principal-addressed removal (the cut's cause, with provenance and the
+   §1-scoped disclosure asserted); and
+5. the two routed surfaces at their join points **once their owners land**:
+   membership-visible search returns results while seated and zero after
+   the cut (LLP 0073 amendment), and a receipted reset retires the
+   runtime seat while fixture seats survive (LLP 0109 amendment). Until
+   those land, the witness records the fail-closed refusals
+   (generation-time visibility refusal; seed-lane refusal) as the honest
+   placeholder rows rather than skipping silently.
+
+The witness is one scenario, not five isolated suites: the same
+declaration, the same principals, one authorization timeline.
 
 ## Implementation order
 
@@ -492,9 +783,12 @@ semantic witness only and cannot by itself promote `STEP6.CHAT`.
 2. Add the closed manifest facts and generation negatives.
 3. Land `removePrincipal` host command, captures, writer-carrier propagation,
    provenance, invalidation, and adversarial storage/runtime tests.
-4. Generalize the existing standard-pattern cursor binding for normalized
-   non-cursor arguments and the membership profile; retain the same envelope
-   and uniform refusal.
+4. Generalize the existing standard-pattern cursor binding per §5's
+   implementation bridge: admit the new profile in the registry, add the
+   five new binding-member groups from their named seams (validated
+   argument values, declaration facts, durable global
+   `AuthorizationVersion`, data-version stream, artifact identity), and
+   retain the same envelope and byte-identical uniform refusal.
 5. Add the generated helper, runtime ceiling, pure/SQLite/cursor/invalidation
    conformance suite, and guide updates.
 6. Adopt both surfaces in Team Chat, regenerate artifacts, update its diary and
@@ -504,9 +798,10 @@ semantic witness only and cannot by itself promote `STEP6.CHAT`.
 
 ## Open questions
 
-1. Should the first accepted version call the command `removePrincipal` or
-   `removeOther`? This draft uses the former because the argument is the public
-   address while `target: "other"` remains a host-derived policy fact.
+1. *Decided (2026-08-01, v0.3, per both round-1 reviews endorsing the
+   draft's own rationale):* the command is `removePrincipal`. The argument
+   is the public address, while `target: "other"` remains a host-derived
+   policy fact; `removeOther` would name the policy, not the argument.
 2. Should a later profile admit principal-addressed role change? It needs a
    non-oracular total transition analogous to this RFC; v1 deliberately does
    not.
