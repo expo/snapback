@@ -67,6 +67,24 @@ function handlerWith(statement) {
   return `// scanner location prelude\n${statement}\nglobalThis.__snapbackHandlers = { async probe() { return {}; } };\n`;
 }
 
+// 0137 a4-f1: an inline-form action whose handler performs a global fetch.
+// Admission must follow the same SNAPBACK_OUTBOUND_ACTIONS seam the module
+// scanner applies; before the fix the inline allowlist had no egress
+// awareness and this refused with SNAPBACK_INLINE_HANDLER_FREE_IDENTIFIER
+// even under the opt-in.
+const inlineFetchActionFunctions = `
+import { defineAction, results, v } from '${defineUrl}';
+export const notify = defineAction({
+  args: { url: v.string() },
+  handler: async (ctx, args) => {
+    const response = await fetch(args.url);
+    return { ok: response !== null };
+  },
+  result: results.value(v.object({ ok: v.boolean() })),
+  writes: [],
+});
+`;
+
 {
   const diagnostics = await invalidCase({
     schema: `
@@ -437,9 +455,13 @@ const unsupportedHandlerCases = [
 ];
 
 const ambientRepair = new Map([
-  ['BUNDLE_UNSUPPORTED_TIMER', /do not wait on ambient timers/],
-  ['BUNDLE_UNSUPPORTED_RANDOM', /use ctx\.runtime\.id\(\) for a fresh identifier/],
-  ['BUNDLE_UNSUPPORTED_TIME', /use ctx\.runtime\.now\(\) for a trusted integer timestamp/],
+  ['BUNDLE_UNSUPPORTED_TIMER', [/do not wait on ambient timers/, /guide\/backend\/trusted-runtime-values\.md/]],
+  ['BUNDLE_UNSUPPORTED_RANDOM', [/use ctx\.runtime\.id\(\) for a fresh identifier/, /guide\/backend\/trusted-runtime-values\.md/]],
+  ['BUNDLE_UNSUPPORTED_TIME', [/use ctx\.runtime\.now\(\) for a trusted integer timestamp/, /guide\/backend\/trusted-runtime-values\.md/]],
+  // 0137 a4-f1: the export refusal must name the closed-script registration
+  // contract, or the module form dead-ends between this diagnostic and the
+  // runtime's SNAPBACK_HANDLER_EXPORT_MISSING.
+  ['BUNDLE_UNSUPPORTED_EXPORT', [/globalThis\.__snapbackHandlers/, /guide\/backend\/actions-and-fetch\.md/]],
 ]);
 
 for (const [statement, code, token, column] of unsupportedHandlerCases) {
@@ -454,13 +476,8 @@ for (const [statement, code, token, column] of unsupportedHandlerCases) {
     { file: 'handler.mjs', line: 2, column },
     `${statement}: authored source span drifted`,
   );
-  if (ambientRepair.has(code)) {
-    assert.match(hit.message, ambientRepair.get(code), `${statement}: expected an actionable repair`);
-    assert.match(
-      hit.message,
-      /guide\/backend\/trusted-runtime-values\.md/,
-      `${statement}: expected guide routing`,
-    );
+  for (const pattern of ambientRepair.get(code) ?? []) {
+    assert.match(hit.message, pattern, `${statement}: expected an actionable repair with guide routing`);
   }
 }
 
@@ -636,9 +653,33 @@ globalThis.__snapbackHandlers = { async probe() { return {}; } };
   }
   assert.equal(codes.has('BUNDLE_UNSUPPORTED_FETCH'), false, 'egress should allow fetch authoring');
   assert.equal(codes.has('BUNDLE_UNSUPPORTED_TIMER'), false, 'egress should allow timer authoring');
+
+  // 0137 a4-f1: with egress opted in, the INLINE action form admits a global
+  // fetch reference exactly like the module-form scanner above.
+  await validCase({ functions: inlineFetchActionFunctions });
 } finally {
   if (previousOutboundActions === undefined) delete process.env.SNAPBACK_OUTBOUND_ACTIONS;
   else process.env.SNAPBACK_OUTBOUND_ACTIONS = previousOutboundActions;
+}
+
+// Default posture pin: without the opt-in, the same inline fetch reference
+// still refuses at extraction — the egress seam is opt-in at both forms.
+{
+  const savedEgress = process.env.SNAPBACK_OUTBOUND_ACTIONS;
+  delete process.env.SNAPBACK_OUTBOUND_ACTIONS;
+  try {
+    const diagnostics = await invalidCase({ functions: inlineFetchActionFunctions });
+    assert(
+      diagnostics.some((diagnostic) => (
+        diagnostic.code === 'SNAPBACK_INLINE_HANDLER_FREE_IDENTIFIER'
+        && (diagnostic.identifiers ?? []).includes('fetch')
+      )),
+      `inline fetch without the egress opt-in must refuse: ${JSON.stringify(diagnostics)}`,
+    );
+  } finally {
+    if (savedEgress === undefined) delete process.env.SNAPBACK_OUTBOUND_ACTIONS;
+    else process.env.SNAPBACK_OUTBOUND_ACTIONS = savedEgress;
+  }
 }
 
 // ---------------------------------------------------------------------------

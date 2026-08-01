@@ -5060,6 +5060,15 @@ function unsupportedAmbientDependencyMessage(code, token) {
   if (code === 'BUNDLE_UNSUPPORTED_TIMER') {
     return `unsupported ambient dependency ${token}; do not wait on ambient timers in this handler—use ctx.runtime.now() only when you need a trusted timestamp (${guide})`;
   }
+  if (code === 'BUNDLE_UNSUPPORTED_EXPORT') {
+    // The 0137 A4 arm dead-ended between this refusal and the runtime's
+    // SNAPBACK_HANDLER_EXPORT_MISSING because neither named the actual
+    // contract: handler source files are closed scripts, and the loader
+    // resolves `exportName` on `globalThis.__snapbackHandlers`.
+    return `handler source files are closed scripts, not ES modules; remove the ${token} and register the `
+      + 'function on globalThis.__snapbackHandlers = { <exportName>: async (ctx, args) => { ... } } '
+      + '(guide/backend/actions-and-fetch.md#the-handler-file-is-a-closed-script)';
+  }
   return `unsupported ambient dependency ${token}`;
 }
 

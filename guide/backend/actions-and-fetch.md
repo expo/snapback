@@ -4,12 +4,12 @@ id: backend.actions-and-fetch
 order: 3
 audience: agent-first
 capabilities: [backend.actions]
-authorities: [llp/0004-application-data-api.rfc.md, llp/0009-code-execution-security.rfc.md, llp/0036-app-secrets-and-config.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0076-bounded-streamed-actions.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-harness/ctx-bootstrap.js, src/server.rs, demos/all-aboard/snapback/functions.mjs, demos/all-aboard/snapback/handlers.mjs, demos/all-aboard/tests/acceptance/egress.mjs, demos/competitive-checkpoint/tests/acceptance/local-streaming.mjs]
+authorities: [llp/0004-application-data-api.rfc.md, llp/0009-code-execution-security.rfc.md, llp/0036-app-secrets-and-config.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0076-bounded-streamed-actions.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-harness/ctx-bootstrap.js, src/server.rs, demos/all-aboard/snapback/functions.mjs, demos/all-aboard/snapback/handlers.mjs, demos/all-aboard/tests/egress-probe/functions.mjs, demos/all-aboard/tests/egress-probe/handlers.mjs, demos/all-aboard/tests/acceptance/egress.mjs, demos/competitive-checkpoint/tests/acceptance/local-streaming.mjs]
 examples: [demos/all-aboard, demos/competitive-checkpoint]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-29
+reviewed: 2026-08-01
 reviewed-commit: HEAD
 ---
 
@@ -51,6 +51,73 @@ export const refreshFeed = defineAction({
 and `ctx.secrets` refuses an entry the action was not granted. Declare values
 and configure deployments as described in
 [secrets and config](../operating/secrets-and-config.md).
+
+## The handler file is a closed script
+
+The file named by `js.source` is **not an ES module**: it is a closed
+single-file script, and `exportName` resolves against a registration object
+the file assigns to `globalThis.__snapbackHandlers`. An ES `export`
+statement refuses at generation (`BUNDLE_UNSUPPORTED_EXPORT`), and a file
+that never registers the name fails at load with
+`SNAPBACK_HANDLER_EXPORT_MISSING`. The CI-executed egress conformance
+fixture is the canonical shape — declaration:
+
+```js source=demos/all-aboard/tests/egress-probe/functions.mjs
+export const notifyDelivery = defineAction({
+  args: { url: v.string() },
+  js: { source: 'handlers.mjs', exportName: 'notifyDelivery' },
+  result: results.value(v.object({ delivered: v.boolean() })),
+  writes: ['deliveries'],
+});
+```
+
+and the handler file's registration, performing a real outbound fetch and
+committing the response through a named mutation:
+
+```js source=demos/all-aboard/tests/egress-probe/handlers.mjs
+globalThis.__snapbackHandlers = {
+  // Canonical module-form fetching action: outbound fetch against a local
+  // provider, response committed durably through a named mutation.
+  async notifyDelivery(ctx, args) {
+    const response = await fetch(args.url);
+    const body = await response.text();
+    if (response.status !== 200) {
+      throw new Error('delivery provider refused: ' + response.status);
+    }
+    await ctx.runMutation('recordDelivery', { url: args.url, body });
+    return { delivered: true };
+  },
+```
+
+Several handlers can share one file: register each `exportName` as another
+key on the same object.
+
+### The inline form
+
+An action may instead carry its handler inline as a self-contained
+`handler:` function expression (LLP 0108). Under the same
+`SNAPBACK_OUTBOUND_ACTIONS` opt-in, an inline action handler may reference
+the global `fetch`:
+
+```js source=demos/all-aboard/tests/egress-probe/functions.mjs
+export const notifyInline = defineAction({
+  args: { url: v.string() },
+  handler: async (ctx, args) => {
+    const response = await fetch(args.url);
+    const body = await response.text();
+    return { delivered: response.status === 200 && body.length > 0 };
+  },
+  result: results.value(v.object({ delivered: v.boolean() })),
+  writes: [],
+});
+```
+
+On the local target, actions call the **global** `fetch` — `ctx.fetch` is
+the hosted host-mediated fetch operation (secret placement slots resolve at
+the host boundary) and is deliberately not implemented on the local host;
+calling it there refuses with a `SNAPBACK_HANDLER_HOST_CALL_UNKNOWN`
+diagnostic that routes back here. `ctx.fetchStream` works on both targets
+([streamed actions](./streamed-actions.md)).
 
 For the partial local agent-auth slice, codegen also derives
 `authorityCreating: true` when an action or mutation declares a write to a

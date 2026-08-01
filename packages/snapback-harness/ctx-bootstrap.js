@@ -1104,7 +1104,14 @@
     var handlers = g.__snapbackHandlers || {};
     var handler = handlers[name];
     if (typeof handler !== "function") {
-      throw snapbackError("SNAPBACK_HANDLER_EXPORT_MISSING", name);
+      // Name the registration contract: handler source files are closed
+      // scripts, and `exportName` resolves here — not via ES exports. Without
+      // this steering the authoring loop dead-ends between codegen's
+      // BUNDLE_UNSUPPORTED_EXPORT and this refusal (0137 a4-f1).
+      throw snapbackError(
+        "SNAPBACK_HANDLER_EXPORT_MISSING",
+        name + " is not registered; the handler source file must assign globalThis.__snapbackHandlers = { " + name + ": async (ctx, args) => { ... } } (ES exports are refused at generation)"
+      );
     }
     var previousActionFetchHost = activeActionFetchHost;
     if (mode === "action" && hostCallFn === ibexHostCall) {

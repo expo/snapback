@@ -10,7 +10,22 @@
 // depends on a listener, so it still performs no external network I/O.
 const EGRESS_PROBE_URL = 'http://127.0.0.1:65534/none';
 
+// The handler file is a closed script, not an ES module: `exportName`
+// resolves against this registration object, and ES `export` statements are
+// refused at generation (guide/backend/actions-and-fetch.md, 0137 a4-f1).
 globalThis.__snapbackHandlers = {
+  // Canonical module-form fetching action: outbound fetch against a local
+  // provider, response committed durably through a named mutation.
+  async notifyDelivery(ctx, args) {
+    const response = await fetch(args.url);
+    const body = await response.text();
+    if (response.status !== 200) {
+      throw new Error('delivery provider refused: ' + response.status);
+    }
+    await ctx.runMutation('recordDelivery', { url: args.url, body });
+    return { delivered: true };
+  },
+
   async egressProbe(ctx) {
     let fetchState;
     try {

@@ -2002,6 +2002,19 @@ impl<'a> IbexHostContext<'a> {
                     }
                 }
             }
+            // `ctx.fetch` is the HOSTED host-mediated fetch op (LLP 0049
+            // §Action Egress, implemented by the workerd coordinator). The
+            // local Ibex host deliberately does not fall back to ambient
+            // fetch for it (see ctx-bootstrap.js), but the refusal must name
+            // the local alternative instead of dead-ending as an anonymous
+            // unknown op (0137 a4-f1).
+            "host.fetch" => Err(SnapbackError::error(
+                "SNAPBACK_HANDLER_HOST_CALL_UNKNOWN",
+                "runtime",
+                "ctx.fetch (host.fetch) is not implemented on this host; on the local target an \
+                 outbound-enabled action calls the global fetch directly \
+                 (guide/backend/actions-and-fetch.md)",
+            )),
             _ => Err(SnapbackError::error(
                 "SNAPBACK_HANDLER_HOST_CALL_UNKNOWN",
                 "runtime",
@@ -2552,7 +2565,11 @@ pub(crate) fn prepare_ibex_module(
           const handlers = globalThis.__snapbackHandlers;
           if (handlers === null || typeof handlers !== 'object'
               || typeof handlers[{export}] !== 'function') {{
-            throw new Error('SNAPBACK_HANDLER_EXPORT_MISSING');
+            throw new Error('SNAPBACK_HANDLER_EXPORT_MISSING: ' + {export}
+              + ' is not registered; the handler source file must assign'
+              + ' globalThis.__snapbackHandlers = {{ ' + {export}
+              + ': async (ctx, args) => {{ ... }} }}'
+              + ' (ES exports are refused at generation)');
           }}
           return true;
         }})()"#,
@@ -2575,7 +2592,9 @@ pub(crate) fn prepare_ibex_module(
         return Err(SnapbackError::error(
             "SNAPBACK_HANDLER_EXPORT_MISSING",
             "runtime",
-            "prepared handler export did not resolve to a callable function",
+            "prepared handler export did not resolve to a callable function; the handler \
+             source file must assign it on globalThis.__snapbackHandlers = { <exportName>: \
+             async (ctx, args) => { ... } } (ES exports are refused at generation)",
         ));
     }
     Ok(())

@@ -5,7 +5,11 @@
 **Systems:** Authoring, Code generation, Runtime, Data API, Client integration, Contract, Security, Artifacts, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-07-31 (same-file helper sharing absorbed as normative text —
+**Revised:** 2026-08-01 (0137 a4-f1: §Admission rules gains the dated egress
+seam note — with SNAPBACK_OUTBOUND_ACTIONS set at generation, `fetch` is an
+admitted global in inline handler/helper analysis, mirroring the module-form
+scanner; timers stay excluded; runtime remains the security boundary.)
+2026-07-31 (same-file helper sharing absorbed as normative text —
 the landed move-2 mechanism (LLP 0115 CV-7; LLP 0118 option 1a; LLP 0127
 decision 6; commit `4d72c407`) is specified in §Same-file helper sharing at
 the end of this document: same-file lexical graph scope, lazy admission with
@@ -894,6 +898,22 @@ level). The stable helper refusal codes:
 - `SNAPBACK_INLINE_HELPER_CYCLE` — mutual helper recursion; and
 - `SNAPBACK_INLINE_HELPER_INADMISSIBLE` — a reference to a duplicate,
   bodyless, or unnamed top-level function declaration.
+
+**Egress seam (dated note, 2026-08-01 — 0137 a4-f1).** The globals
+allowlist honors the same `SNAPBACK_OUTBOUND_ACTIONS` opt-in the module-form
+scanner (`scanUnsupportedHandlerSource`) applies: with the opt-in set at
+generation, `fetch` is an admitted global in inline handler and helper
+analysis, so an outbound action is authorable in the inline form. This is
+the existing codegen DX relaxation, not a security decision — the runtime
+remains the boundary that denies fetch by handler kind and by the runtime
+half of the opt-in (LLP 0027 / LLP 0009). Ambient timers remain excluded
+from the inline allowlist even under the opt-in (waiting inside a handler
+stays out of inline v1); the final bundled-bytes rescan already admitted
+both under the seam, so this aligns extraction with the rescan for `fetch`
+only. Before this note the inline allowlist had no egress awareness at all,
+which — combined with the undocumented closed-script registration contract
+of the module form — left outbound actions unauthorable from the packaged
+closure (issues/20260801-0137-a4-outbound-notification-effects-unauthorable.md).
 
 ### Emission: resolve-and-splice
 

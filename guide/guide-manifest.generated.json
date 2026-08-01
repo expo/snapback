@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "8bf7228d66a83814d9ca8faeea6bc5526f3e7cd2"
+    "commit": "da25ab3826f15302d9e19052ce81d2b0513adfcc"
   },
   "nav": {
     ".": [
@@ -539,12 +539,15 @@
         "llp/0036-app-secrets-and-config.rfc.md",
         "llp/0055-agent-principals-and-scoped-grants.rfc.md",
         "llp/0076-bounded-streamed-actions.rfc.md",
+        "llp/0108-inline-handlers-and-result-contracts.spec.md",
         "packages/snapback-codegen/define.mjs",
         "packages/snapback-codegen/index.mjs",
         "packages/snapback-harness/ctx-bootstrap.js",
         "src/server.rs",
         "demos/all-aboard/snapback/functions.mjs",
         "demos/all-aboard/snapback/handlers.mjs",
+        "demos/all-aboard/tests/egress-probe/functions.mjs",
+        "demos/all-aboard/tests/egress-probe/handlers.mjs",
         "demos/all-aboard/tests/acceptance/egress.mjs",
         "demos/competitive-checkpoint/tests/acceptance/local-streaming.mjs"
       ],
@@ -552,14 +555,29 @@
         "demos/all-aboard",
         "demos/competitive-checkpoint"
       ],
-      "reviewed": "2026-07-29",
+      "reviewed": "2026-08-01",
       "reviewedCommit": "HEAD",
-      "sha256": "64c4ef3340a0901f1b5db28467f440f86b5389a4e2489b90a8fcc10adac2ec79",
+      "sha256": "e22cbf52496cb884a2689cce3ca5bcb04bde7309f0d66df1664ba84c10aaab3b",
       "snippets": [
         {
           "lang": "js",
           "class": "transcluded",
           "source": "demos/all-aboard/snapback/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/all-aboard/tests/egress-probe/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/all-aboard/tests/egress-probe/handlers.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/all-aboard/tests/egress-probe/functions.mjs"
         },
         {
           "lang": "js",
@@ -2309,5 +2327,5 @@
     "routes": 86,
     "hostOps": 28
   },
-  "contentHash": "2ceae0e01b79c7a2714afd0ab344908092524eaae873fcf1a1c2a49375e5a7b2"
+  "contentHash": "16c48dcf3cccd67e74e34380d083f0a2192e72a4c1436f86ab2e13397b0b092f"
 }

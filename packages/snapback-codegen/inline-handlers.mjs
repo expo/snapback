@@ -30,6 +30,19 @@ const inlineHandlerPropertyFor = (builderName) => (
   builderName === 'defineAssetUpload' ? 'authorize' : 'handler'
 );
 
+// Outbound action egress is the same opt-in DX relaxation the module-form
+// scanner applies (`egressAllowedAtCodegen` in index.mjs): with
+// SNAPBACK_OUTBOUND_ACTIONS set at generation, `fetch` is an admitted global
+// here exactly as it is in `scanUnsupportedHandlerSource`, and the runtime —
+// not codegen — remains the security boundary that still denies fetch by
+// handler kind (LLP 0027 / LLP 0009). Without the opt-in the inline form
+// refuses `fetch` at extraction, mirroring BUNDLE_UNSUPPORTED_FETCH.
+// @ref LLP 0108#admission-rules — dated 2026-08-01 note: the egress seam
+// applies to inline extraction, not only the final bundled-bytes rescan.
+function inlineEgressAllowedAtCodegen() {
+  return /^(1|true)$/i.test(process.env.SNAPBACK_OUTBOUND_ACTIONS || '');
+}
+
 const ALLOWED_GLOBALS = new Set([
   'Array',
   'BigInt',
@@ -415,7 +428,10 @@ function selfContainedProblems(expression, checker, sourceFile) {
             inadmissibleSeen.add(node.text);
             inadmissibleRefs.push({ node, name: node.text, reason: classification.reason });
           }
-        } else if (!ALLOWED_GLOBALS.has(node.text)) {
+        } else if (
+          !ALLOWED_GLOBALS.has(node.text)
+          && !(node.text === 'fetch' && inlineEgressAllowedAtCodegen())
+        ) {
           referenced.add(node.text);
           if (classification?.kind === 'top-level-binding') {
             freeTopLevel.set(node.text, classification.declarationKind);

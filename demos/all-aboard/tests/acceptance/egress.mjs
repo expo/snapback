@@ -18,6 +18,7 @@
 // Run: node demos/all-aboard/tests/acceptance/egress.mjs
 
 import { readFileSync } from 'node:fs';
+import { createServer } from 'node:http';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -51,11 +52,11 @@ async function startApi(extraEnv) {
 
 const adminHeaders = (server) => ({ 'x-snapback-admin-token': server.adminToken });
 
-async function runAction(server, name) {
+async function runAction(server, name, args = {}) {
   const res = await fetch(`${server.baseUrl}/_snapback/api/functions/${name}/run`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', ...adminHeaders(server) },
-    body: JSON.stringify({ args: {}, read_set: [] }),
+    body: JSON.stringify({ args, read_set: [] }),
   });
   if (!res.ok) throw new Error(`run ${name} failed: ${res.status} ${await res.text()}`);
   return res.json();
@@ -75,6 +76,7 @@ async function configApi(server, method, path, body) {
 
 const suite = createSuite('all-aboard egress seam + config v1 (LLP 0036)');
 const servers = [];
+const providers = [];
 
 // runAcceptance (ENG-22486) surfaces a setup throw and exits nonzero on a
 // zero-check run — previously a pre-check failure here exited "PASS — 0/0".
@@ -99,6 +101,37 @@ await runAcceptance(suite, async () => {
     assertEqual(result.result.fetchState, 'available', 'fetch is un-denied for the action class');
     assertEqual(result.result.config.rotatingExposed, 'key-a', 'first invocation gets the first pool member');
     return { fetchState: result.result.fetchState };
+  });
+
+  // 0137 a4-f1 conformance: a fetching action must be authorable and
+  // executable end to end in BOTH forms — module form (closed-script
+  // globalThis.__snapbackHandlers registration) and inline `handler:` form —
+  // against a real local HTTP provider, with the module form committing the
+  // response through a named mutation.
+  const provider = createServer((req, res) => {
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ delivered: true, path: req.url }));
+  });
+  await new Promise((ready) => provider.listen(0, '127.0.0.1', ready));
+  providers.push(provider);
+  const providerUrl = `http://127.0.0.1:${provider.address().port}/notify`;
+
+  await suite.check('a module-form action fetches a local provider and commits the response', async () => {
+    const result = await runAction(on, 'notifyDelivery', { url: providerUrl });
+    assert(result.ok, `notifyDelivery failed: ${JSON.stringify(result.diagnostic)}`);
+    assertEqual(result.result.delivered, true, 'action reports the delivery');
+    const { rows } = await dbOn.query('listDeliveries', {});
+    assert(
+      rows.some((row) => row.url === providerUrl && /"delivered":true/.test(row.body)),
+      `mutation must commit the fetched response, got ${JSON.stringify(rows)}`,
+    );
+    return { url: providerUrl, committed: rows.length };
+  });
+
+  await suite.check('an inline-form action performs the same outbound fetch', async () => {
+    const result = await runAction(on, 'notifyInline', { url: providerUrl });
+    assert(result.ok, `notifyInline failed: ${JSON.stringify(result.diagnostic)}`);
+    assertEqual(result.result.delivered, true, 'inline action reports the delivery');
   });
 
   await suite.check('granted handles rotate the imported pool across invocations', async () => {
@@ -205,6 +238,7 @@ await runAcceptance(suite, async () => {
   });
 }, {
   cleanups: [async () => {
+    for (const provider of providers.splice(0)) provider.close();
     await Promise.allSettled(servers.splice(0).reverse().map((server) => server.stop()));
   }],
 });
