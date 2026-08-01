@@ -321,6 +321,98 @@ pub struct AssetRenditionRecordV1 {
     pub failure: Option<Value>,
 }
 
+/// One rendition, as a client may see it: variant identity, readiness, and
+/// safe dimensions — never blob identity or recipe internals.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct AssetRenditionSummaryV1 {
+    pub variant: String,
+    pub ready: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub width: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub height: Option<u64>,
+}
+
+/// The authorized client view of one asset record — the shape both
+/// `GET /assets/records/{id}` and the reserved `_snapback.assetRecord` live
+/// projection serve. Safe metadata only: never blob keys, staging
+/// identifiers, physical paths, or admission material (LLP 0044
+/// §Receipts, diagnostics, and inspection).
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct AssetRecordClientViewV1 {
+    pub asset_id: String,
+    pub availability: AssetAvailability,
+    pub delivery_profile: AssetDeliveryProfile,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub primary_rendition_id: Option<String>,
+    pub lifecycle_generation: u64,
+    pub created_at_ms: u64,
+    pub updated_at_ms: u64,
+    pub renditions: Vec<AssetRenditionSummaryV1>,
+    /// The primary rendition's typed media facts (placeholder, dominant
+    /// color, dimensions, detected media type, …) as stored — already safe
+    /// by construction, since finalization writes only typed facts here.
+    pub media: Value,
+}
+
+/// Build the client view inside an asset transaction. The caller has already
+/// passed `asset_read_authorized`; this only shapes what an authorized
+/// reader may see.
+pub fn asset_record_client_view(
+    tx: &Transaction<'_>,
+    asset: &AssetRecordV1,
+) -> SnapbackResult<AssetRecordClientViewV1> {
+    let renditions = renditions_for_asset(tx, &asset.asset_id)?;
+    let mut summaries = Vec::new();
+    let mut media = serde_json::Map::new();
+    for rendition in &renditions {
+        if rendition.state == AssetRenditionState::Retired
+            || rendition.state == AssetRenditionState::Superseded
+        {
+            continue;
+        }
+        let dimension = |key: &str| {
+            rendition
+                .media_facts
+                .as_ref()
+                .and_then(|facts| facts.get(key))
+                .and_then(Value::as_u64)
+        };
+        summaries.push(AssetRenditionSummaryV1 {
+            variant: rendition.variant_key.clone(),
+            ready: rendition.state == AssetRenditionState::Ready,
+            width: dimension("width"),
+            height: dimension("height"),
+        });
+        if asset.primary_rendition_id.as_deref() == Some(rendition.rendition_id.as_str()) {
+            if let Some(facts) = rendition.media_facts.as_ref().and_then(Value::as_object) {
+                media.extend(facts.iter().map(|(k, v)| (k.clone(), v.clone())));
+            }
+            if rendition.state == AssetRenditionState::Ready {
+                if let Some(blob) = load_blob(tx, &rendition.blob_id)? {
+                    media.insert(
+                        "mediaType".to_owned(),
+                        blob.detected_content_type.clone().into(),
+                    );
+                }
+            }
+        }
+    }
+    Ok(AssetRecordClientViewV1 {
+        asset_id: asset.asset_id.clone(),
+        availability: asset.availability,
+        delivery_profile: asset.delivery_profile,
+        primary_rendition_id: asset.primary_rendition_id.clone(),
+        lifecycle_generation: asset.lifecycle_generation,
+        created_at_ms: asset.created_at_ms,
+        updated_at_ms: asset.updated_at_ms,
+        renditions: summaries,
+        media: Value::Object(media),
+    })
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct AssetReferenceEdgeV1 {
@@ -3424,6 +3516,7 @@ pub fn schema_registrations() -> Vec<(&'static str, Value)> {
         ("asset.receipt.schema.json", schema_of::<AssetReceiptV1>()),
         ("asset.refusal-detail.schema.json", schema_of::<AssetRefusalDetailV1>()),
         ("asset.record.schema.json", schema_of::<AssetRecordV1>()),
+        ("asset.record-view.schema.json", schema_of::<AssetRecordClientViewV1>()),
         ("asset.attempt-record.schema.json", schema_of::<AssetAttemptRecordV1>()),
         ("asset.blob-record.schema.json", schema_of::<AssetBlobRecordV1>()),
         ("asset.rendition-record.schema.json", schema_of::<AssetRenditionRecordV1>()),

@@ -1,0 +1,111 @@
+{
+  "$defs": {
+    "AssetAvailability": {
+      "enum": [
+        "pending",
+        "ready",
+        "rejected",
+        "deleted"
+      ],
+      "type": "string"
+    },
+    "AssetDeliveryProfile": {
+      "enum": [
+        "public-immutable",
+        "private-signed",
+        "private-strict"
+      ],
+      "type": "string"
+    },
+    "AssetRenditionSummaryV1": {
+      "additionalProperties": false,
+      "description": "One rendition, as a client may see it: variant identity, readiness, and\nsafe dimensions — never blob identity or recipe internals.",
+      "properties": {
+        "height": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "ready": {
+          "type": "boolean"
+        },
+        "variant": {
+          "type": "string"
+        },
+        "width": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "variant",
+        "ready"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/asset.record-view.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The authorized client view of one asset record — the shape both\n`GET /assets/records/{id}` and the reserved `_snapback.assetRecord` live\nprojection serve. Safe metadata only: never blob keys, staging\nidentifiers, physical paths, or admission material (LLP 0044\n§Receipts, diagnostics, and inspection).",
+  "properties": {
+    "assetId": {
+      "type": "string"
+    },
+    "availability": {
+      "$ref": "#/$defs/AssetAvailability"
+    },
+    "createdAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "deliveryProfile": {
+      "$ref": "#/$defs/AssetDeliveryProfile"
+    },
+    "lifecycleGeneration": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "media": {
+      "description": "The primary rendition's typed media facts (placeholder, dominant\ncolor, dimensions, detected media type, …) as stored — already safe\nby construction, since finalization writes only typed facts here."
+    },
+    "primaryRenditionId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "renditions": {
+      "items": {
+        "$ref": "#/$defs/AssetRenditionSummaryV1"
+      },
+      "type": "array"
+    },
+    "updatedAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "assetId",
+    "availability",
+    "deliveryProfile",
+    "lifecycleGeneration",
+    "createdAtMs",
+    "updatedAtMs",
+    "renditions",
+    "media"
+  ],
+  "title": "AssetRecordClientViewV1",
+  "type": "object"
+}

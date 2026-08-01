@@ -5912,15 +5912,8 @@ impl LocalSnapback {
                     "this asset is not readable by the caller",
                 ));
             }
-            Ok(serde_json::json!({
-                "assetId": asset.asset_id,
-                "availability": asset.availability,
-                "deliveryProfile": asset.delivery_profile,
-                "primaryRenditionId": asset.primary_rendition_id,
-                "lifecycleGeneration": asset.lifecycle_generation,
-                "createdAtMs": asset.created_at_ms,
-                "updatedAtMs": asset.updated_at_ms,
-            }))
+            let view = crate::assets::asset_record_client_view(tx, &asset)?;
+            Ok(serde_json::to_value(view).expect("client view serializes"))
         })
     }
 
@@ -5959,6 +5952,7 @@ impl LocalSnapback {
                 });
                 return Ok((Vec::new(), dependencies));
             };
+            let view = crate::assets::asset_record_client_view(tx, &asset)?;
             dependencies.push(CapturedReadDependency {
                 kind: CapturedReadKind::Row,
                 table: Some(ASSET_RECORDS_LIVE_TABLE.to_owned()),
@@ -5967,10 +5961,17 @@ impl LocalSnapback {
                 predicate: None,
                 rows: Vec::new(),
                 field: None,
+                // The dependency value is the delivery fingerprint: rendition
+                // summaries and primary media facts ride it so a rendition
+                // arrival (a ThumbHash landing, a variant turning ready)
+                // moves the vector and re-publishes even though the asset
+                // row itself did not change.
                 value: Some(serde_json::json!({
-                    "availability": asset.availability,
-                    "updatedAtMs": asset.updated_at_ms,
-                    "primaryRenditionId": asset.primary_rendition_id,
+                    "availability": view.availability,
+                    "updatedAtMs": view.updated_at_ms,
+                    "primaryRenditionId": view.primary_rendition_id,
+                    "renditions": view.renditions,
+                    "media": view.media,
                 })),
                 order: None,
                 limit: None,
@@ -5984,15 +5985,7 @@ impl LocalSnapback {
             // live view (LLP 0044 §Deletion), exactly like a denial.
             let deleted = asset.availability == crate::assets::AssetAvailability::Deleted;
             let rows = if decision.authorized && !deleted {
-                vec![serde_json::json!({
-                    "assetId": asset.asset_id,
-                    "availability": asset.availability,
-                    "deliveryProfile": asset.delivery_profile,
-                    "primaryRenditionId": asset.primary_rendition_id,
-                    "lifecycleGeneration": asset.lifecycle_generation,
-                    "createdAtMs": asset.created_at_ms,
-                    "updatedAtMs": asset.updated_at_ms,
-                })]
+                vec![serde_json::to_value(view).expect("client view serializes")]
             } else {
                 Vec::new()
             };
@@ -26224,6 +26217,86 @@ globalThis.__snapbackHandlers = {
                 .expect("primary rendition"))
             })
             .expect("rendition")
+    }
+
+    /// The client record view (inspect + live projection) exposes rendition
+    /// summaries and the primary's media facts — the Lane-1 gap: without
+    /// them a client cannot obtain the ThumbHash the renderer ladder shows.
+    #[test]
+    fn asset_record_view_exposes_renditions_and_media_facts() {
+        let fixture = crate::assets_image::fixtures::jpeg_with_gps_exif(48, 32, 6);
+        let mut snapback =
+            asset_image_snapback(crate::manifest::AssetLocationPolicy::Strip, 64 * 1024);
+        let created = asset_upload(&mut snapback, "user_a", &fixture, true);
+        asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
+            .expect("strip publishes");
+
+        let authority = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+        let view = snapback
+            .asset_record_inspect(&authority, &created.task.asset_id)
+            .expect("authorized inspect");
+        let renditions = view["renditions"].as_array().expect("rendition summaries");
+        assert!(
+            renditions.iter().any(|summary| {
+                summary["variant"] == "primary"
+                    && summary["ready"] == true
+                    && summary["width"].as_u64() == Some(32)
+                    && summary["height"].as_u64() == Some(48)
+            }),
+            "primary summary with dimensions: {renditions:?}"
+        );
+        assert_eq!(view["media"]["placeholder"]["algo"], "thumbhash.v1");
+        assert_eq!(view["media"]["mediaType"], "image/jpeg");
+        assert!(view["media"]["dominantColor"]
+            .as_str()
+            .expect("dominant color")
+            .starts_with('#'));
+        // Never the physical side: no blob keys or staging identifiers.
+        assert!(view.get("physicalKey").is_none());
+        assert!(view["media"].get("stagingKey").is_none());
+    }
+
+    /// A rendition landing moves the projection's delivery fingerprint even
+    /// though the asset row is unchanged — a subscriber hears about the
+    /// ThumbHash without polling.
+    #[test]
+    fn asset_record_projection_fingerprint_moves_when_renditions_land() {
+        let fixture = crate::assets_image::fixtures::jpeg_with_gps_exif(48, 32, 6);
+        let mut snapback =
+            asset_image_snapback(crate::manifest::AssetLocationPolicy::Strip, 64 * 1024);
+        let created = asset_upload(&mut snapback, "user_a", &fixture, true);
+
+        let fingerprint = |deps: &[crate::storage::CapturedReadDependency]| {
+            deps.iter()
+                .find(|dep| {
+                    dep.kind == crate::storage::CapturedReadKind::Row
+                        && dep.table.as_deref() == Some(super::ASSET_RECORDS_LIVE_TABLE)
+                })
+                .and_then(|dep| dep.value.clone())
+                .expect("synthetic record dependency")
+        };
+        let (pending_rows, pending_deps) = snapback
+            .asset_record_projection(Some("user_a"), &created.task.asset_id)
+            .expect("pending projection");
+        assert_eq!(pending_rows.len(), 1, "owner sees the pending record");
+        assert_eq!(
+            pending_rows[0]["renditions"].as_array().map(Vec::len),
+            Some(0),
+            "no renditions before finalization"
+        );
+
+        asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
+            .expect("strip publishes");
+        let (ready_rows, ready_deps) = snapback
+            .asset_record_projection(Some("user_a"), &created.task.asset_id)
+            .expect("ready projection");
+        assert_eq!(ready_rows.len(), 1);
+        assert_eq!(ready_rows[0]["media"]["placeholder"]["algo"], "thumbhash.v1");
+        assert_ne!(
+            fingerprint(&pending_deps),
+            fingerprint(&ready_deps),
+            "the rendition arrival moves the delivery fingerprint"
+        );
     }
 
     #[test]
