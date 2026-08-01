@@ -18254,45 +18254,40 @@ async fn stream_asset_delivery(
         crate::local::AssetDeliveryOutcome::Content(delivery) => delivery,
     };
 
-    let mut file = tokio::fs::File::open(&delivery.file_path)
-        .await
-        .map_err(|error| {
-            ApiError::from(SnapbackError::error(
-                "SNAPBACK_ASSET_STORE_UNAVAILABLE",
-                "assets",
-                format!("cannot open blob object: {error}"),
-            ))
-        })?;
-    if delivery.window_start > 0 {
-        use tokio::io::AsyncSeekExt;
-        file.seek(std::io::SeekFrom::Start(delivery.window_start))
-            .await
-            .map_err(|error| {
-                ApiError::from(SnapbackError::error(
-                    "SNAPBACK_ASSET_STORE_UNAVAILABLE",
-                    "assets",
-                    format!("cannot seek blob object: {error}"),
-                ))
-            })?;
-    }
+    // Store-agnostic streaming: bounded chunk reads through the AssetStore
+    // seam, off the async runtime via spawn_blocking (fs today, ranged S3
+    // GETs on an object store).
+    let store = delivery.store.clone();
+    let blob_key = delivery.blob_key.clone();
     let stream = futures_util::stream::try_unfold(
-        (file, delivery.window_length),
-        |(mut file, remaining)| async move {
+        (store, blob_key, delivery.window_start, delivery.window_length),
+        |(store, blob_key, position, remaining)| async move {
             if remaining == 0 {
                 return Ok(None);
             }
             let take = remaining.min(crate::assets::ASSET_DELIVERY_CHUNK_BYTES as u64) as usize;
-            let mut buffer = vec![0u8; take];
-            use tokio::io::AsyncReadExt;
-            let read = file.read(&mut buffer).await?;
-            if read == 0 {
+            let (chunk, store, blob_key) = tokio::task::spawn_blocking(move || {
+                let chunk = store.read_chunk(
+                    crate::assets_store::AssetObjectRef::Blob(&blob_key),
+                    position,
+                    take,
+                );
+                (chunk, store, blob_key)
+            })
+            .await
+            .map_err(|error| std::io::Error::other(format!("stream task failed: {error}")))?;
+            let chunk = chunk.map_err(|error| std::io::Error::other(error.to_string()))?;
+            if chunk.is_empty() {
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::UnexpectedEof,
                     "blob object shorter than its record",
                 ));
             }
-            buffer.truncate(read);
-            Ok(Some((Bytes::from(buffer), (file, remaining - read as u64))))
+            let read = chunk.len() as u64;
+            Ok(Some((
+                Bytes::from(chunk),
+                (store, blob_key, position + read, remaining - read),
+            )))
         },
     );
 

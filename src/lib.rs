@@ -10,6 +10,8 @@ pub mod admin_impersonation;
 pub mod admin_secret_read;
 pub mod assets;
 pub mod assets_image;
+pub mod assets_s3;
+pub mod assets_store;
 pub mod assets_video;
 pub mod auth;
 pub mod bench;

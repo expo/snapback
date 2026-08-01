@@ -4296,7 +4296,7 @@ impl LocalSnapback {
         // Asset tables cleared inside the reset transaction; the store's
         // files are unreferenced by construction now (LLP 0109 §17).
         // Best-effort like other post-commit staging cleanup.
-        if let Ok(store) = self.asset_store() {
+        if let Ok(store) = self.asset_store_obj() {
             let _ = store.wipe_all();
         }
         committed.receipt
@@ -4318,7 +4318,7 @@ impl LocalSnapback {
         );
         // Asset tables cleared inside the reset transaction; wipe the now
         // unreferenced store files (LLP 0109 §17), best-effort.
-        if let Ok(store) = self.asset_store() {
+        if let Ok(store) = self.asset_store_obj() {
             let _ = store.wipe_all();
         }
         committed.seeded
@@ -5358,6 +5358,35 @@ impl LocalSnapback {
         self.asset_quota_override = Some(quota);
     }
 
+    /// The store-agnostic seam every production asset path uses. Selection
+    /// is deployment configuration: `SNAPBACK_ASSET_STORE=s3` chooses the
+    /// S3-compatible store — which refuses until a live qualification has
+    /// run (see the qualification-drill ticket) unless the experimental
+    /// override acknowledges the unqualified posture. Default: local-fs.
+    pub(crate) fn asset_store_obj(
+        &self,
+    ) -> SnapbackResult<std::sync::Arc<dyn crate::assets_store::AssetStore>> {
+        match std::env::var("SNAPBACK_ASSET_STORE").as_deref() {
+            Ok("s3") => {
+                if std::env::var("SNAPBACK_ASSET_S3_EXPERIMENTAL").as_deref() != Ok("1") {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_ASSET_STORE_UNQUALIFIED",
+                        "assets",
+                        "the s3-compatible store has no qualified target yet; \
+                         set SNAPBACK_ASSET_S3_EXPERIMENTAL=1 to acknowledge \
+                         an unqualified development posture",
+                    ));
+                }
+                let config = crate::assets_s3::AssetS3Config::from_env()?;
+                Ok(std::sync::Arc::new(crate::assets_s3::AssetS3Store::new(
+                    config,
+                    Box::new(crate::assets_s3::UreqTransport),
+                )))
+            }
+            _ => Ok(std::sync::Arc::new(self.asset_store()?)),
+        }
+    }
+
     pub(crate) fn asset_store(&self) -> SnapbackResult<crate::assets::AssetFsStore> {
         // File-backed instances root the store beside the database; memory
         // instances (tests, --memory) mint a per-instance temp root — the
@@ -5554,7 +5583,7 @@ impl LocalSnapback {
         let witness = serde_json::to_value(&run.read_dependencies).unwrap_or_default();
         let app_id = self.functions.app_id.clone();
         let now = now_millis();
-        let store = self.asset_store()?;
+        let store = self.asset_store_obj()?;
         let app_quota = self.asset_app_quota();
 
         let intent_artifact_json = serde_json::to_string(&intent).map_err(|error| {
@@ -5759,7 +5788,7 @@ impl LocalSnapback {
             // Store-side fencing: the superseded attempt's staging object is
             // removed so late bytes have nowhere to land. Idempotent; a crash
             // here leaves an orphan the attempt-GC sweep reclaims.
-            store.delete_staging(&predecessor.staging_key)?;
+            store.delete_staging_pair(&predecessor.staging_key)?;
         }
         let task = asset_task_state(&attempt, None);
         Ok(crate::assets::AssetAttemptCreateResponseV1 {
@@ -5833,7 +5862,7 @@ impl LocalSnapback {
             Ok((attempt, expired_staging))
         })?;
         if let Some(staging_key) = expired_staging {
-            self.asset_store()?.delete_staging(&staging_key)?;
+            self.asset_store_obj()?.delete_staging_pair(&staging_key)?;
         }
         Ok(attempt)
     }
@@ -6718,7 +6747,7 @@ impl LocalSnapback {
             }
             Ok((attempt, asset))
         })?;
-        self.asset_store()?.delete_staging(&attempt.staging_key)?;
+        self.asset_store_obj()?.delete_staging_pair(&attempt.staging_key)?;
         Ok(asset_task_state(&attempt, asset.as_ref()))
     }
 
@@ -6796,9 +6825,8 @@ impl LocalSnapback {
         // Append at the verified offset. Write-then-record: bytes land in
         // restricted staging before the acknowledged offset moves, so a
         // crash between the two re-receives the tail chunk idempotently.
-        let store = self.asset_store()?;
-        let path = store.staging_path(&attempt.staging_key)?;
-        asset_append_staging_chunk(&path, offset, chunk)?;
+        let store = self.asset_store_obj()?;
+        store.append_staging(&attempt.staging_key, offset, chunk)?;
 
         let now = now_millis();
         let attempt = self.db.asset_transaction(|tx| {
@@ -6867,7 +6895,7 @@ impl LocalSnapback {
     /// crash here converge via the ordinary maintenance pass.
     fn asset_prepare_variant(
         &mut self,
-        store: &crate::assets::AssetFsStore,
+        store: &dyn crate::assets_store::AssetStore,
         app_id: &str,
         canonical_bytes: &[u8],
         content_type: &str,
@@ -6890,19 +6918,11 @@ impl LocalSnapback {
             record
         };
         self.db.asset_transaction(|tx| assets::insert_publication(tx, &publication))?;
-        let object_path = store.blob_path(&publication.planned_key)?;
-        if !object_path.exists() {
-            std::fs::write(&object_path, &rendered).map_err(|error| {
-                SnapbackError::error(
-                    "SNAPBACK_ASSET_STORE_UNAVAILABLE",
-                    "assets",
-                    format!("cannot publish variant object: {error}"),
-                )
-            })?;
-        }
-        let copied = asset_hash_staging(&object_path)?;
+        store.put_blob_idempotent(&publication.planned_key, &rendered)?;
+        let copied =
+            store.hash(crate::assets_store::AssetObjectRef::Blob(&publication.planned_key))?;
         if copied.digest != digest || copied.byte_length != rendered.len() as u64 {
-            let _ = std::fs::remove_file(&object_path);
+            let _ = store.delete_blob(&publication.planned_key);
             return Err(SnapbackError::error(
                 "SNAPBACK_ASSET_STORE_UNAVAILABLE",
                 "assets",
@@ -7044,9 +7064,9 @@ impl LocalSnapback {
 
         // Byte verification over restricted staging: exact length, canonical
         // SHA-256 digest, trusted detection from bytes.
-        let store = self.asset_store()?;
-        let staging_path = store.staging_path(&attempt.staging_key)?;
-        let staged = asset_hash_staging(&staging_path)?;
+        let store = self.asset_store_obj()?;
+        let staged =
+            store.hash(crate::assets_store::AssetObjectRef::Staging(&attempt.staging_key))?;
         if staged.byte_length != attempt.declared_length {
             return self.asset_fail_attempt(
                 &attempt,
@@ -7127,33 +7147,20 @@ impl LocalSnapback {
             // (never transcoding); the blanked file is the canonical byte
             // stream, under its own policy tag so strip and retain video
             // can never alias in blob identity.
-            let source = std::fs::read(&staging_path).map_err(|error| {
-                SnapbackError::error(
-                    "SNAPBACK_ASSET_STORE_UNAVAILABLE",
-                    "assets",
-                    format!("cannot read staging for canonicalization: {error}"),
-                )
-            })?;
+            let source = store
+                .read(crate::assets_store::AssetObjectRef::Staging(&attempt.staging_key))?;
             match crate::assets_video::canonicalize_strip_video(
                 &source,
                 &crate::assets_video::ASSET_VIDEO_CEILINGS_LOCAL_V1,
             ) {
                 Ok(outcome) => {
-                    let canonical_path =
-                        store.canonical_staging_path(&attempt.staging_key)?;
-                    std::fs::write(&canonical_path, &outcome.canonical).map_err(
-                        |error| {
-                            SnapbackError::error(
-                                "SNAPBACK_ASSET_STORE_UNAVAILABLE",
-                                "assets",
-                                format!("cannot stage canonical rewrite: {error}"),
-                            )
-                        },
+                    store.write_canonical(&attempt.staging_key, &outcome.canonical)?;
+                    let hashed = store.hash(
+                        crate::assets_store::AssetObjectRef::Canonical(&attempt.staging_key),
                     )?;
-                    let hashed = asset_hash_staging(&canonical_path)?;
                     asset_insert_video_facts(&mut image_media_facts, &outcome.facts);
                     AssetCanonicalBytes {
-                        path: canonical_path,
+                        object: AssetCanonicalObject::Canonical(attempt.staging_key.clone()),
                         digest: hashed.digest,
                         byte_length: hashed.byte_length,
                         policy: assets::ASSET_CANONICALIZATION_STRIP_VIDEO_V1,
@@ -7172,31 +7179,18 @@ impl LocalSnapback {
                 }
             }
         } else if strip_declared {
-            let source = std::fs::read(&staging_path).map_err(|error| {
-                SnapbackError::error(
-                    "SNAPBACK_ASSET_STORE_UNAVAILABLE",
-                    "assets",
-                    format!("cannot read staging for canonicalization: {error}"),
-                )
-            })?;
+            let source = store
+                .read(crate::assets_store::AssetObjectRef::Staging(&attempt.staging_key))?;
             match crate::assets_image::canonicalize_strip(
                 &source,
                 detected,
                 &crate::assets_image::ASSET_IMAGE_CEILINGS_LOCAL_V1,
             ) {
                 Ok(outcome) => {
-                    let canonical_path =
-                        store.canonical_staging_path(&attempt.staging_key)?;
-                    std::fs::write(&canonical_path, &outcome.canonical).map_err(
-                        |error| {
-                            SnapbackError::error(
-                                "SNAPBACK_ASSET_STORE_UNAVAILABLE",
-                                "assets",
-                                format!("cannot stage canonical rewrite: {error}"),
-                            )
-                        },
+                    store.write_canonical(&attempt.staging_key, &outcome.canonical)?;
+                    let hashed = store.hash(
+                        crate::assets_store::AssetObjectRef::Canonical(&attempt.staging_key),
                     )?;
-                    let hashed = asset_hash_staging(&canonical_path)?;
                     if let Some(orientation) = outcome.safe_exif.orientation {
                         image_media_facts
                             .insert("orientationApplied".into(), orientation.into());
@@ -7208,7 +7202,7 @@ impl LocalSnapback {
                     image_media_facts.insert("height".into(), outcome.height.into());
                     asset_insert_derived_facts(&mut image_media_facts, &outcome.derived);
                     AssetCanonicalBytes {
-                        path: canonical_path,
+                        object: AssetCanonicalObject::Canonical(attempt.staging_key.clone()),
                         digest: hashed.digest,
                         byte_length: hashed.byte_length,
                         policy: assets::ASSET_CANONICALIZATION_STRIP_IMAGE_V1,
@@ -7236,13 +7230,9 @@ impl LocalSnapback {
                 && self.asset_image_finalization_enabled()
                 && matches!(detected, "image/jpeg" | "image/png")
             {
-                let source = std::fs::read(&staging_path).map_err(|error| {
-                    SnapbackError::error(
-                        "SNAPBACK_ASSET_STORE_UNAVAILABLE",
-                        "assets",
-                        format!("cannot read staging for inspection: {error}"),
-                    )
-                })?;
+                let source = store.read(
+                    crate::assets_store::AssetObjectRef::Staging(&attempt.staging_key),
+                )?;
                 match crate::assets_image::inspect_image(
                     &source,
                     detected,
@@ -7281,13 +7271,9 @@ impl LocalSnapback {
                 // duration/dimensions — and a hostile container refuses
                 // deterministically, exactly like strip: the video claim
                 // covers both policies or neither.
-                let source = std::fs::read(&staging_path).map_err(|error| {
-                    SnapbackError::error(
-                        "SNAPBACK_ASSET_STORE_UNAVAILABLE",
-                        "assets",
-                        format!("cannot read staging for inspection: {error}"),
-                    )
-                })?;
+                let source = store.read(
+                    crate::assets_store::AssetObjectRef::Staging(&attempt.staging_key),
+                )?;
                 match crate::assets_video::inspect_video(
                     &source,
                     &crate::assets_video::ASSET_VIDEO_CEILINGS_LOCAL_V1,
@@ -7305,7 +7291,7 @@ impl LocalSnapback {
                 }
             }
             AssetCanonicalBytes {
-                path: staging_path.clone(),
+                object: AssetCanonicalObject::Staging(attempt.staging_key.clone()),
                 digest: staged.digest.clone(),
                 byte_length: staged.byte_length,
                 policy: assets::ASSET_CANONICALIZATION_NONE,
@@ -7400,19 +7386,12 @@ impl LocalSnapback {
         // Phase B — idempotent object put: copy staging to the recorded
         // opaque key and verify the copy by digest before anything durable
         // points at it.
-        let blob_path = store.blob_path(&publication.planned_key)?;
-        if !blob_path.exists() {
-            std::fs::copy(&canonical.path, &blob_path).map_err(|error| {
-                SnapbackError::error(
-                    "SNAPBACK_ASSET_STORE_UNAVAILABLE",
-                    "assets",
-                    format!("cannot publish canonical object: {error}"),
-                )
-            })?;
-        }
-        let copied = asset_hash_staging(&blob_path)?;
+        let canonical_bytes = store.read(canonical.object.as_ref())?;
+        store.put_blob_idempotent(&publication.planned_key, &canonical_bytes)?;
+        let copied =
+            store.hash(crate::assets_store::AssetObjectRef::Blob(&publication.planned_key))?;
         if copied.digest != digest || copied.byte_length != canonical.byte_length {
-            let _ = std::fs::remove_file(&blob_path);
+            let _ = store.delete_blob(&publication.planned_key);
             return Err(SnapbackError::error(
                 "SNAPBACK_ASSET_STORE_UNAVAILABLE",
                 "assets",
@@ -7466,16 +7445,10 @@ impl LocalSnapback {
         let app_quota = self.asset_app_quota();
         let mut prepared_required: Vec<AssetPreparedVariant> = Vec::new();
         if variants_enabled {
-            let canonical_bytes = std::fs::read(&canonical.path).map_err(|error| {
-                SnapbackError::error(
-                    "SNAPBACK_ASSET_STORE_UNAVAILABLE",
-                    "assets",
-                    format!("cannot read canonical bytes for variants: {error}"),
-                )
-            })?;
+            let canonical_bytes = store.read(canonical.object.as_ref())?;
             for variant in declared_variants.iter().filter(|variant| variant.required) {
                 match self.asset_prepare_variant(
-                    &store,
+                    store.as_ref(),
                     &app_id,
                     &canonical_bytes,
                     detected,
@@ -7975,12 +7948,10 @@ impl LocalSnapback {
         // Step 9 — staging cleanup after the publication committed; the
         // reused path also removes its own now-condemned object. Both are
         // idempotent, and the reconciliation sweep backstops a crash here.
-        store.delete_staging(&final_attempt.staging_key)?;
+        store.delete_staging_pair(&final_attempt.staging_key)?;
         if reused {
-            let path = store.blob_path(&publication.planned_key)?;
-            match std::fs::remove_file(&path) {
+            match store.delete_blob(&publication.planned_key) {
                 Ok(()) => {}
-                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
                 Err(error) => {
                     return Err(SnapbackError::error(
                         "SNAPBACK_ASSET_STORE_UNAVAILABLE",
@@ -8110,7 +8081,7 @@ impl LocalSnapback {
             }
             Ok(record.staging_key.clone())
         })?;
-        self.asset_store()?.delete_staging(&staging_key)?;
+        self.asset_store_obj()?.delete_staging_pair(&staging_key)?;
         Err(refusal)
     }
 
@@ -8128,7 +8099,7 @@ impl LocalSnapback {
         now_ms: u64,
     ) -> SnapbackResult<AssetPublicationMaintenanceReport> {
         use crate::assets as assets;
-        let store = self.asset_store()?;
+        let store = self.asset_store_obj()?;
         let mut report = AssetPublicationMaintenanceReport::default();
 
         // Planned records: probe the recorded key.
@@ -8145,9 +8116,11 @@ impl LocalSnapback {
                     .map(Option::flatten)
             })?;
             let re_drivable = attempt.as_ref().is_some_and(|a| a.state.is_current());
-            let object_path = store.blob_path(&record.planned_key)?;
-            let object_verifies = object_path.exists()
-                && asset_hash_staging(&object_path)
+            let object =
+                crate::assets_store::AssetObjectRef::Blob(&record.planned_key);
+            let object_verifies = store.exists(object)?
+                && store
+                    .hash(object)
                     .map(|hashed| hashed.digest == record.digest)
                     .unwrap_or(false);
             if object_verifies {
@@ -8175,9 +8148,9 @@ impl LocalSnapback {
                 continue;
             }
             if !re_drivable {
-                if object_path.exists() {
+                if store.exists(object)? {
                     // The object exists but does not verify: a torn put.
-                    std::fs::remove_file(&object_path).ok();
+                    store.delete_blob(&record.planned_key).ok();
                     report.objects_deleted += 1;
                 }
                 let asset_id = attempt.as_ref().map(|a| a.asset_id.clone());
@@ -8248,7 +8221,7 @@ impl LocalSnapback {
             .db
             .asset_transaction(|tx| assets::publications_in_state(tx, assets::AssetPublicationState::Condemned))?;
         for record in condemned {
-            let object_path = store.blob_path(&record.planned_key)?;
+            let object = crate::assets_store::AssetObjectRef::Blob(&record.planned_key);
             // Never delete an object a live blob row owns (the reused-path
             // convergence shares digests, not keys, so this is exact).
             let owned_by_blob = self.db.asset_transaction(|tx| {
@@ -8262,14 +8235,8 @@ impl LocalSnapback {
                     .unwrap_or(0)
                     > 0)
             })?;
-            if object_path.exists() && !owned_by_blob {
-                std::fs::remove_file(&object_path).map_err(|error| {
-                    SnapbackError::error(
-                        "SNAPBACK_ASSET_STORE_UNAVAILABLE",
-                        "assets",
-                        format!("cannot delete condemned object: {error}"),
-                    )
-                })?;
+            if store.exists(object)? && !owned_by_blob {
+                store.delete_blob(&record.planned_key)?;
                 report.objects_deleted += 1;
             }
             self.db.asset_transaction(|tx| {
@@ -8334,7 +8301,7 @@ impl LocalSnapback {
         use crate::assets as assets;
         let caller = Self::asset_caller_principal(authority);
         let schema = self.db.schema().clone();
-        let store = self.asset_store()?;
+        let store = self.asset_store_obj()?;
         let now = now_millis();
         let variant = variant.to_owned();
         let range_header = range_header.map(str::to_owned);
@@ -8382,7 +8349,7 @@ impl LocalSnapback {
     #[allow(clippy::too_many_arguments)]
     fn asset_deliver_from(
         tx: &rusqlite::Transaction<'_>,
-        store: &crate::assets::AssetFsStore,
+        store: &std::sync::Arc<dyn crate::assets_store::AssetStore>,
         asset: &crate::assets::AssetRecordV1,
         variant: &str,
         max_width: Option<u64>,
@@ -8489,7 +8456,8 @@ impl LocalSnapback {
                 format!("inline; filename=\"{filename}\"")
             };
             Ok(AssetDeliveryOutcome::Content(Box::new(AssetDelivery {
-                file_path: store.blob_path(&blob.physical_key)?,
+                store: store.clone(),
+                blob_key: blob.physical_key.clone(),
                 window_start,
                 window_length,
                 total_length: blob.byte_length,
@@ -8613,7 +8581,7 @@ impl LocalSnapback {
         range_header: Option<&str>,
     ) -> SnapbackResult<AssetDeliveryOutcome> {
         use crate::assets as assets;
-        let store = self.asset_store()?;
+        let store = self.asset_store_obj()?;
         let now = now_millis();
         let variant = variant.to_owned();
         let token = token.to_owned();
@@ -8690,7 +8658,7 @@ impl LocalSnapback {
         range_header: Option<&str>,
     ) -> SnapbackResult<AssetDeliveryOutcome> {
         use crate::assets as assets;
-        let store = self.asset_store()?;
+        let store = self.asset_store_obj()?;
         let now = now_millis();
         let variant = variant.to_owned();
         let range_header = range_header.map(str::to_owned);
@@ -8789,7 +8757,7 @@ impl LocalSnapback {
             Ok(staging)
         })?;
         if let Some(staging_key) = fenced_staging {
-            self.asset_store()?.delete_staging(&staging_key)?;
+            self.asset_store_obj()?.delete_staging_pair(&staging_key)?;
         }
         self.db.asset_transaction(|tx| {
             let asset = assets::load_asset(tx, asset_id)?.ok_or_else(asset_unknown(asset_id))?;
@@ -8808,7 +8776,7 @@ impl LocalSnapback {
     #[allow(dead_code)] // scheduled by the L1-11 runner; exercised in tests.
     pub(crate) fn asset_gc_sweep(&mut self, now_ms: u64) -> SnapbackResult<AssetGcReport> {
         use crate::assets as assets;
-        let store = self.asset_store()?;
+        let store = self.asset_store_obj()?;
         let mut report = AssetGcReport::default();
         let mut reclaimed_asset_ids: Vec<String> = Vec::new();
 
@@ -8836,7 +8804,7 @@ impl LocalSnapback {
                     ),
                 )
             })?;
-            store.delete_staging(&attempt.staging_key)?;
+            store.delete_staging_pair(&attempt.staging_key)?;
             report.expired_attempts += 1;
         }
 
@@ -8848,7 +8816,7 @@ impl LocalSnapback {
             .collect();
         for key in store.list_staging_keys()? {
             if !live.contains(&key) {
-                store.delete_staging(&key)?;
+                store.delete_staging_pair(&key)?;
                 report.staging_orphans_removed += 1;
             }
         }
@@ -8879,7 +8847,7 @@ impl LocalSnapback {
                 Ok(staging)
             })?;
             if let Some(staging_key) = staging {
-                store.delete_staging(&staging_key)?;
+                store.delete_staging_pair(&staging_key)?;
             }
             report.pending_reclaimed += 1;
             reclaimed_asset_ids.push(asset.asset_id.clone());
@@ -8985,15 +8953,8 @@ impl LocalSnapback {
             }
         }
         for blob in self.db.asset_transaction(assets::condemned_blobs)? {
-            let path = store.blob_path(&blob.physical_key)?;
-            if path.exists() {
-                std::fs::remove_file(&path).map_err(|error| {
-                    SnapbackError::error(
-                        "SNAPBACK_ASSET_STORE_UNAVAILABLE",
-                        "assets",
-                        format!("cannot delete condemned blob object: {error}"),
-                    )
-                })?;
+            if store.exists(crate::assets_store::AssetObjectRef::Blob(&blob.physical_key))? {
+                store.delete_blob(&blob.physical_key)?;
                 report.blob_objects_deleted += 1;
             }
             self.db.asset_transaction(|tx| {
@@ -9285,7 +9246,7 @@ impl LocalSnapback {
             // this asset, and Done means none remain (satisfied-by-sweep is
             // the same observation).
             assets::ASSET_WORK_KIND_CONDEMNED_CLEANUP => {
-                let store = self.asset_store()?;
+                let store = self.asset_store_obj()?;
                 let condemned = self.db.asset_transaction(|tx| {
                     assets::publications_in_state(
                         tx,
@@ -9296,15 +9257,10 @@ impl LocalSnapback {
                     .iter()
                     .filter(|record| record.attempt_id.as_deref() == row.attempt_id.as_deref())
                 {
-                    let path = store.blob_path(&record.planned_key)?;
-                    if path.exists() {
-                        std::fs::remove_file(&path).map_err(|error| {
-                            SnapbackError::error(
-                                "SNAPBACK_ASSET_STORE_UNAVAILABLE",
-                                "assets",
-                                format!("condemned object delete failed: {error}"),
-                            )
-                        })?;
+                    if store.exists(crate::assets_store::AssetObjectRef::Blob(
+                        &record.planned_key,
+                    ))? {
+                        store.delete_blob(&record.planned_key)?;
                     }
                 }
                 let _ = now_ms;
@@ -9426,7 +9382,7 @@ impl LocalSnapback {
                     .unwrap_or(1);
                 let app_id = self.functions.app_id.clone();
                 let app_quota = self.asset_app_quota();
-                let store = self.asset_store()?;
+                let store = self.asset_store_obj()?;
                 let asset_id = row.asset_id.clone();
 
                 let already = self.db.asset_transaction(|tx| {
@@ -9476,21 +9432,15 @@ impl LocalSnapback {
                         })?;
                     Ok(blob.physical_key)
                 })?;
-                let canonical_bytes = std::fs::read(store.blob_path(&primary_key)?)
-                    .map_err(|error| {
-                        SnapbackError::error(
-                            "SNAPBACK_ASSET_STORE_UNAVAILABLE",
-                            "assets",
-                            format!("cannot read the canonical object: {error}"),
-                        )
-                    })?;
+                let canonical_bytes = store
+                    .read(crate::assets_store::AssetObjectRef::Blob(&primary_key))?;
                 let variant = crate::manifest::AssetImageVariant {
                     key: key.clone(),
                     width,
                     required: false,
                 };
                 let prepared = match self.asset_prepare_variant(
-                    &store,
+                    store.as_ref(),
                     &app_id,
                     &canonical_bytes,
                     &content_type,
@@ -22040,10 +21990,30 @@ fn elapsed_ms(started: Instant) -> u64 {
 /// and the policy that produced them (LLP 0044: dedup and delivery operate
 /// on canonical bytes, never the raw upload when a rewrite applies).
 struct AssetCanonicalBytes {
-    path: std::path::PathBuf,
+    object: AssetCanonicalObject,
     digest: String,
     byte_length: u64,
     policy: &'static str,
+}
+
+/// Which staged object carries the canonical bytes: the raw upload (no
+/// rewrite applied) or the canonical rewrite staged beside it.
+enum AssetCanonicalObject {
+    Staging(String),
+    Canonical(String),
+}
+
+impl AssetCanonicalObject {
+    fn as_ref(&self) -> crate::assets_store::AssetObjectRef<'_> {
+        match self {
+            AssetCanonicalObject::Staging(key) => {
+                crate::assets_store::AssetObjectRef::Staging(key)
+            }
+            AssetCanonicalObject::Canonical(key) => {
+                crate::assets_store::AssetObjectRef::Canonical(key)
+            }
+        }
+    }
 }
 
 /// The versioned placeholder field plus dominant color, one shape for every
@@ -22115,9 +22085,9 @@ pub(crate) struct AssetPublicationMaintenanceReport {
 /// cache posture is the profile's: strict is `private, no-store`, signed is
 /// `private` bounded by the remaining bearer window, public-immutable is the
 /// immutable year (LLP 0044 §Delivery profiles).
-#[derive(Debug)]
 pub(crate) struct AssetDelivery {
-    pub file_path: std::path::PathBuf,
+    pub store: std::sync::Arc<dyn crate::assets_store::AssetStore>,
+    pub blob_key: String,
     pub window_start: u64,
     pub window_length: u64,
     pub total_length: u64,
@@ -22126,6 +22096,23 @@ pub(crate) struct AssetDelivery {
     pub disposition: String,
     pub cache_control: String,
     pub partial: bool,
+}
+
+impl std::fmt::Debug for AssetDelivery {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AssetDelivery")
+            .field("store", &self.store.kind())
+            .field("blob_key", &self.blob_key)
+            .field("window_start", &self.window_start)
+            .field("window_length", &self.window_length)
+            .field("total_length", &self.total_length)
+            .field("content_type", &self.content_type)
+            .field("etag", &self.etag)
+            .field("disposition", &self.disposition)
+            .field("cache_control", &self.cache_control)
+            .field("partial", &self.partial)
+            .finish()
+    }
 }
 
 #[derive(Debug)]
@@ -27259,13 +27246,14 @@ globalThis.__snapbackHandlers = {
     }
 
     fn asset_window_bytes(delivery: &crate::local::AssetDelivery) -> Vec<u8> {
-        use std::io::{Read, Seek};
-        let mut file = std::fs::File::open(&delivery.file_path).expect("blob object opens");
-        file.seek(std::io::SeekFrom::Start(delivery.window_start))
-            .expect("seek");
-        let mut bytes = vec![0u8; delivery.window_length as usize];
-        file.read_exact(&mut bytes).expect("window reads");
-        bytes
+        delivery
+            .store
+            .read_chunk(
+                crate::assets_store::AssetObjectRef::Blob(&delivery.blob_key),
+                delivery.window_start,
+                delivery.window_length as usize,
+            )
+            .expect("window reads")
     }
 
     #[test]
