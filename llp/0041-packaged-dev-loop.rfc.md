@@ -1,5 +1,13 @@
 # LLP 0041: Packaged developer loop
 
+**Type:** RFC
+**Status:** Review
+**Systems:** Developer experience, Tooling, Build, Client integration, Demo apps, Testing
+**Author:** Charlie Cheever / Codex
+**Date:** 2026-07-07
+
+**Revised (first-publication bootstrap lineage):** 2026-08-01 (see §First-publication `latest` bootstrap lineage: "record and move on" — no bootstrap path built; 0.1.7's npm-auto-`latest` first publish recorded as dated lineage.)
+
 **Revised (decision-9 scope migration):** 2026-07-31 (see §Decision-9 terminal-scope migration.)
 
 **Revised (public closure published):** 2026-07-26 (the complete decided
@@ -33,11 +41,6 @@ stable per-boundary codes. Its first real run found and fixed the macOS
 fencing. The packed external proof now requires the full vertical result;
 public npm and independent-machine gates remain open.)
 
-**Type:** RFC
-**Status:** Review
-**Systems:** Developer experience, Tooling, Build, Client integration, Demo apps, Testing
-**Author:** Charlie Cheever / Codex
-**Date:** 2026-07-07
 **Revised:** 2026-07-30 (Diary 0039 external-adoption evidence: the rerun
 ran on sibling-checkout imports three days after `0.1.0` went public; the
 `demos/_kit` helpers every arm imports, and the admin client Dispatch's
@@ -1108,9 +1111,28 @@ ledger, no platform proofs, no candidate tag, and no publication-authority
 lease record — the promotion-machinery record for this version is the note
 you are reading plus the retained dry-run ledger. The open leased-promotion
 defects (issues/20260801-promote-v3-lease-pin-refuses-v4.md and
-issues/20260801-first-latest-promotion-no-distinct-prior-root.md) are
+issues/closed/20260801-first-latest-promotion-no-distinct-prior-root.md —
+the latter now closed by the bootstrap-lineage decision below) are
 untouched by this decision and still gate the ceremony machinery whenever
 it next runs.
+
+## First-publication `latest` bootstrap lineage (2026-08-01)
+
+Author decision (Charlie, 2026-08-01): **record and move on.** No bootstrap
+path is built into the leased-promotion machinery for the degenerate
+first-publication case. The dated lineage record for the terminal scope's
+first default vector is this paragraph: `latest: 0.1.7` on all nine
+`@expo/snapback-*` packages was assigned by the npm registry itself at
+first-ever publication (npm auto-assigns `latest` on a package's first
+publish even under a non-default `--tag`; observed read-only 2026-08-01,
+`issues/closed/20260801-first-latest-promotion-no-distinct-prior-root.md`),
+not by any leased promotion — and the 2026-08-01 fast-path publication
+above then moved `latest` to 0.1.8, so every future leased promotion under
+these names has a genuine distinct prior root and the machinery's
+distinct-prior-root preflight refusal stands unmodified as designed. The
+degenerate case can recur only for a future brand-new package name added
+to the closure; if and when that happens, the bootstrap path gets designed
+then, against that publication's facts, rather than speculatively now.
 
 ## Status
 

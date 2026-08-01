@@ -1,6 +1,6 @@
 # First terminal-scope `latest` promotion has no distinct prior root — npm already assigned `latest` at first publish
 
-**Status:** Open
+**Status:** Resolved (2026-08-01; author decision: record and move on)
 **Impact:** 5
 **Urgency:** 4
 **Ease:** 2
@@ -99,3 +99,23 @@ ticket stays OPEN as the bootstrap-lineage author decision for the ceremony
 machinery; note the fast-path publication also means the next leased
 promotion (0.1.9+) WILL have a distinct prior root (0.1.8), so option (iii)
 resolves itself naturally once the v3-pin ticket is fixed.
+
+## Resolution (2026-08-01) — RESOLVED by author decision: record and move on
+
+Author decision (Charlie, 2026-08-01): none of options (i)/(ii) — **no
+bootstrap path is built**. The registry fact (npm auto-assigns `latest` on
+a package's first-ever publish, even under a non-default `--tag`) is
+recorded as dated lineage in LLP 0041 §First-publication `latest`
+bootstrap lineage (2026-08-01), beside the fast-path section. The
+2026-08-01 fast-path publication of 0.1.8 already means every future
+leased promotion under the current nine names has a genuine distinct
+prior root, so the machinery's distinct-prior-root preflight refusal
+stands unmodified as designed. The degenerate case can recur only when a
+future brand-new package name joins the closure; the bootstrap path gets
+designed at that point, against that publication's facts.
+
+The standup prerequisites recorded above (committed ledger at a pushed
+clean HEAD; HTTPS-only authority origin) remain live guidance for the
+first executed leased promotion, and
+`issues/20260801-promote-v3-lease-pin-refuses-v4.md` still gates any
+promotion at all — both unaffected by this closure.
