@@ -1,0 +1,59 @@
+{
+  "arm": "firebase",
+  "posture": "Local Emulator Suite (hosted Storage not provisioned on the probe project — 404 on both bucket hosts)",
+  "startedAt": "2026-08-01T16:32:37.039Z",
+  "steps": {
+    "interrupt": {
+      "plannedDropAtBytes": 60106257,
+      "transferredBeforeDrop": 66846720,
+      "sdkBytesCounted": 66846787,
+      "error": "storage/canceled",
+      "resumeMechanism": "uploadBytesResumable session; SDK-managed, but the session handle is not exposed for cross-process resume"
+    },
+    "bigUpload": {
+      "wallMsTotal": 2921,
+      "wallMsResumeLeg": 645,
+      "fileBytes": 120212515,
+      "bytesOnSecondAttempt": 120212582,
+      "bytesRetransmitted": 120212582,
+      "totalBytesBothAttempts": 187059369,
+      "requests": 24
+    },
+    "integrity": {
+      "sourceSha256": "6f821fe4d57acae58fa3da2b1981fa1207d2f652a64552badc792eb960e1c829",
+      "storedSha256": "6f821fe4d57acae58fa3da2b1981fa1207d2f652a64552badc792eb960e1c829",
+      "matches": true,
+      "providerDeclaredMd5": "aCUBEy9CJBy52Yl7bW+FRg==",
+      "size": 120212515
+    },
+    "range": {
+      "status": 206,
+      "contentRange": "bytes 100-4099/549153",
+      "bytes": 4000,
+      "suffixStatus": 206,
+      "suffixContentRange": "bytes 548129-549152/549153",
+      "cacheControl": ""
+    },
+    "share": {
+      "headerlessServeStatus": 200,
+      "ttlMechanism": "getDownloadURL() returns a long-lived tokened URL; no TTL. Signed URLs with expiry exist only via the Admin SDK/GCS, not the client SDK",
+      "revocation": "rotate/revoke the download token or delete the object; rules do not gate a tokened URL"
+    },
+    "deletion": {
+      "outstandingUrlAfterDelete": 404,
+      "referenceTracking": "none; Firestore rows referencing the path dangle"
+    },
+    "geoPrivacy": {
+      "digestUnchanged": true,
+      "note": "unchanged ⇒ location metadata served verbatim (Extensions could resize images; no video metadata surface)"
+    },
+    "limits": {
+      "docs": "Firebase Storage: 5 TiB max object; resumable sessions valid 1 week; emulator posture here",
+      "emulator": "firebase-tools emulators:start --only storage, port 9299"
+    },
+    "cleanup": {
+      "note": "emulator storage is ephemeral; arm objects deleted explicitly"
+    }
+  },
+  "finishedAt": "2026-08-01T16:32:40.301Z"
+}

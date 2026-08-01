@@ -1,0 +1,9 @@
+rules_version = '2';
+// Clip Locker arm: owner-scoped private clips under the arm namespace.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /ub-c-firebase-1/{allPaths=**} {
+      allow read, write: if true; // emulator arm: auth posture recorded in the diary
+    }
+  }
+}

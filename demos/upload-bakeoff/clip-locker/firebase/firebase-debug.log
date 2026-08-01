@@ -1,0 +1,45 @@
+[debug] [2026-08-01T16:31:21.270Z] ----------------------------------------------------------------------
+[debug] [2026-08-01T16:31:21.271Z] Command:       /opt/homebrew/Cellar/node/25.9.0_3/bin/node /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/bunx-501-firebase-tools@latest/node_modules/.bin/firebase emulators:start --only storage --project snapback-probe
+[debug] [2026-08-01T16:31:21.271Z] CLI Version:   15.25.1
+[debug] [2026-08-01T16:31:21.271Z] Platform:      darwin
+[debug] [2026-08-01T16:31:21.271Z] Node Version:  v25.9.0
+[debug] [2026-08-01T16:31:21.271Z] Detected Agent: claude-code_2-1-220_agent
+[debug] [2026-08-01T16:31:21.271Z] Time:          Sat Aug 01 2026 09:31:21 GMT-0700 (Pacific Daylight Time)
+[debug] [2026-08-01T16:31:21.271Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-08-01T16:31:21.664Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] Failed to authenticate, have you run firebase login?
+[warn] ⚠  emulators: You are not currently authenticated so some features may not work correctly. Please run firebase login to authenticate the CLI. 
+[debug] [2026-08-01T16:31:21.714Z] openjdk version "21.0.12" 2026-07-21
+
+[debug] [2026-08-01T16:31:21.714Z] OpenJDK Runtime Environment Homebrew (build 21.0.12)
+OpenJDK 64-Bit Server VM Homebrew (build 21.0.12, mixed mode, sharing)
+
+[debug] [2026-08-01T16:31:21.716Z] Parsed Java major version: 21
+[info] i  emulators: Starting emulators: storage {"metadata":{"emulator":{"name":"hub"},"message":"Starting emulators: storage"}}
+[debug] [2026-08-01T16:31:22.237Z] [logging] Logging Emulator only supports listening on one address (127.0.0.1). Not listening on ::1
+[debug] [2026-08-01T16:31:22.237Z] assigned listening specs for emulators {"user":{"storage":[{"address":"127.0.0.1","family":"IPv4","port":9299}],"hub":[{"address":"127.0.0.1","family":"IPv4","port":4410},{"address":"::1","family":"IPv6","port":4410}],"logging":[{"address":"127.0.0.1","family":"IPv4","port":4510}]},"metadata":{"message":"assigned listening specs for emulators"}}
+[debug] [2026-08-01T16:31:22.239Z] Write emulator hub locator at /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/hub-snapback-probe.json
+[info] i  storage: downloading cloud-storage-rules-runtime-v1.1.3.jar... {"metadata":{"emulator":{"name":"storage"},"message":"downloading cloud-storage-rules-runtime-v1.1.3.jar..."}}
+[debug] [2026-08-01T16:31:22.255Z] >>> [apiv2][query] GET https://storage.googleapis.com/firebase-preview-drop/emulator/cloud-storage-rules-runtime-v1.1.3.jar 
+[debug] [2026-08-01T16:31:22.421Z] <<< [apiv2][status] GET https://storage.googleapis.com/firebase-preview-drop/emulator/cloud-storage-rules-runtime-v1.1.3.jar 200
+[debug] [2026-08-01T16:31:22.421Z] <<< [apiv2][body] GET https://storage.googleapis.com/firebase-preview-drop/emulator/cloud-storage-rules-runtime-v1.1.3.jar [stream]
+[debug] [2026-08-01T16:31:26.450Z] Ignoring unsupported arg: port {"metadata":{"emulator":{"name":"storage"},"message":"Ignoring unsupported arg: port"}}
+[debug] [2026-08-01T16:31:26.838Z] Temp file directory for storage emulator: /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/firebase/storage/blobs {"metadata":{"emulator":{"name":"storage"},"message":"Temp file directory for storage emulator: /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/firebase/storage/blobs"}}
+[warn] ⚠  emulators: The Emulator UI is not starting because none of the running emulators have a UI component. {"metadata":{"emulator":{"name":"hub"},"message":"The Emulator UI is not starting because none of the running emulators have a UI component."}}
+[debug] [2026-08-01T16:31:26.849Z] Could not find VSCode notification endpoint: TypeError: fetch failed. If you are not running the Firebase SQL Connect VSCode extension, this is expected and not an issue.
+[info] 
+┌─────────────────────────────────────────────────────────────┐
+│ ✔  All emulators ready! It is now safe to connect your app. │
+└─────────────────────────────────────────────────────────────┘
+
+┌──────────┬────────────────┐
+│ Emulator │ Host:Port      │
+├──────────┼────────────────┤
+│ Storage  │ 127.0.0.1:9299 │
+└──────────┴────────────────┘
+  Emulator Hub host: 127.0.0.1 port: 4410
+  Other reserved ports: 4510
+
+Issues? Report them at https://github.com/firebase/firebase-tools/issues and attach the *-debug.log files.
+ 

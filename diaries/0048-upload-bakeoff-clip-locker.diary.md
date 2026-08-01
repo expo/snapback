@@ -196,3 +196,58 @@ capability-header nulls and the cleanup absence proof.
 ### Outcome
 All checklist items measured; `convex/results.json` carries receipts,
 including the provider sha256 and the suffix-range 500.
+
+## 2026-08-01 — firebase, round 1, PASS (emulator posture, confidence lowered)
+
+### Environment
+- **Hosted Storage is not provisioned** on the `snapback-probe` project:
+  both `snapback-probe.firebasestorage.app` and `…appspot.com` return
+  404 to the REST API, and resumable session creation 404s. Per LLP
+  0102's target-access amendment this is environment/credential
+  evidence, not a product fact; the arm ran the official local path —
+  Local Emulator Suite (`firebase-tools emulators:start --only storage`,
+  Java 21 via Homebrew, port 9299 because Lane α's emulator already held
+  9199). Target-identity, deployment, operations, and cost confidence
+  are lowered; protocol/API-shape facts are unaffected.
+
+### Headline numbers
+- 120 MB uploads fine; the SDK chunks it (24 requests observed).
+- **Interruption cost the whole file.** `uploadBytesResumable` is a real
+  resumable session *within one task object*, but the second attempt
+  re-sent 120,212,582 bytes — 187 MB total across both attempts. The
+  session handle is not exposed, so a new process (or a reloaded page
+  with a fresh `Blob`) cannot continue the old session: the resumability
+  is in-process only. That is a materially weaker guarantee than TUS,
+  and it is not what "resumable uploads" suggests.
+- Integrity: provider-declared **md5** in metadata (weaker than
+  Convex's sha256, still better than nothing); downloaded digest matched.
+- Range: 206 with correct `content-range`, suffix ranges honored
+  (Convex's suffix bug is absent here), empty `cache-control`.
+- Share: `getDownloadURL()` is a long-lived tokened URL — **no TTL**;
+  expiring signed URLs exist only through the Admin SDK/GCS path, not
+  the client SDK. Deletion kills the URL (404). No reference tracking.
+- **GPS: served back verbatim.** Image resizing exists as an Extension;
+  video metadata has no surface.
+
+### What felt good
+- The emulator is genuinely good: one command, real rules evaluation,
+  and it made the "hosted not provisioned" blocker a non-event for
+  API-shape evidence. No competitor in this bakeoff matched that
+  local-fidelity story (Snapback's local target is the same idea, and
+  it is telling that these two are the ones with one).
+- Rules files are readable and colocated; the mental model (path
+  patterns + conditions) is easy to teach.
+
+### What felt bad or frustrating
+1. The resumable-in-name-only ceiling above — the single most
+   surprising finding of the arm.
+2. Two emulator instances on one machine collide on fixed default ports;
+   Lane α's run forced mine to 9299 (a bakeoff-method note, not a
+   product defect, but it would bite two developers on one laptop too).
+3. Storage must be explicitly enabled per project; the failure mode for
+   a not-yet-enabled bucket is a bare 404 with no hint.
+
+### Outcome
+All checklist items measured under the emulator posture;
+`firebase/results.json` carries receipts including the md5 metadata and
+the 187 MB two-attempt total.

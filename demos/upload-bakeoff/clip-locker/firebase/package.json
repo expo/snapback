@@ -1,0 +1,8 @@
+{
+  "name": "clip-locker-firebase-arm",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "firebase": "^12.17.0"
+  }
+}
