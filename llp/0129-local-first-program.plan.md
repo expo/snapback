@@ -5,9 +5,200 @@
 **Systems:** Sync, Storage, Runtime, Client integration, Auth, Wire Protocol, Realtime, Packaging, Testing, Documentation, Competitive evaluation
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-07-31 (wave-1 state refresh: lane C5 landed on main
+**Revised:** 2026-08-01 (v0.8, super-refine round 6 — Fable READY,
+Codex NOT READY, the third split; the loop closed here with the
+fixable residue applied and the author-owned residue routed, not
+silently settled. **Gate 6's sandbox list was literally wrong** and is
+rebuilt: v0.5's "the retained query store, the outbox, the IR plan and
+its ledger, and nothing else" omitted mutation arguments and the
+operation artifact, so no arg-bearing Candidate A could execute and
+Candidate C — an app-authored mutator, not an IR plan — could not exist
+at all, while gate 6 binds every candidate. The frozen surface now
+bounds *ambient* capability and enumerates ordinary execution inputs
+against LLP 0051 D5 and LLP 0133. **The protected `N/A` language** is
+narrowed to the protected-*retention* recommendation scope, with
+gate-7 applicability determined exclusively by 7(a)–(d), closing a
+reading under which "protected cases are N/A" could waive required
+authority tests. **Exit criterion 3's element-5 harness** is raised
+from activation *carriage* to conformance on both executions plus
+mismatch refusal/quarantine/resync, with the normative consequence
+stated: criterion 3 cannot pass and no same-code claim may ship until
+element 5 has an owner (§Open questions 11). Two dangling obligations
+are ticketed rather than left as prose:
+`issues/20260801-js-arm-integrated-authenticated-restart-witness.md`
+(the authenticated React/browser/full-process-restart conjunction that
+neither existing ticket forces into one run) and
+`issues/20260801-cold-process-claim-vocabulary-collision.md` (retained
+receipts and LLP 0043/0053 still say "cold process" for a same-process
+proof — an amendment those owners must make, not this Plan). Details:
+the Notebook no-restart claim scoped to the Snapback arm, since the
+Replicache control *did* execute a concurrent rebase; the SD-5 clause
+rephrased so it cannot be quoted against SD-5's own text; §Open
+questions reordered 9–11; the safety/workload vocabulary opener
+aligned with the typed-field split; and the guide's refused-replay
+sentence narrowed to the store contract, disclosing that the client's
+refusal wiring is untested.)
+2026-08-01 (v0.7, super-refine round 5 — **both families
+NOT READY**; Fable found one material, Codex three blocking and five
+material. **Self-inflicted contradictions from v0.6, both repaired:**
+the least-power selection rule contradicted B's coherence ceilings in
+Outcome 0's own case (ii), recommending Outcome 2 where the ceilings
+mandate Outcome 0 — the rule now includes each outcome's own
+conditions; and the Phase 0 block withdrew the cold-boot claim in one
+paragraph and re-asserted it three lines later ("claimed at
+file-store/headless reach") — the beat is now **not claimed at any
+reach**, with the guide prose and the acceptance header's "cold boot"
+wording corrected to match. **Constraint 7:** v0.6 said this Plan
+"SUSPENDS" SD-5, which would be amending a rule LLP 0130 owns; it is
+reframed as invoking SD-5's existing scope-change escalation, with any
+change to the rule itself left to a dated LLP 0130 amendment only the
+author can make. **Safety, verified against owners:** gate 7(b) had
+flattened LLP 0053's shrink obligation to "the resnapshot carries it,"
+dropping the durable level-triggered obligation and its ACK-at-or-after
+-causing-version discharge — restored, because without it a lost
+removal leaves forbidden rows visible indefinitely; lease expiry
+removed from (b)'s proof list (it is (c)'s); and the public-data-only
+`N/A` narrowed hard, since LLP 0053 defines auth-scoped fail-closed
+("undeclared means auth-scoped") and LLP 0080 keeps even all-public-read
+relational plans auth-scoped, so "the lab uses public data" never
+licenses `N/A` on (b). **Decision quality:** the misattribution
+taxonomy gains candidate-implementation defect, harness/evidence
+defect, environmental, ambiguous-frozen-fact, and unresolved — none of
+which may detect the trigger, each producing Outcome 0 plus a sealed
+rerun — because the three-way partition had no home for failure modes
+this program has already experienced; gates 2 and 9 are partitioned on
+commit-versus-visibility so the Fleet result cannot be argued into
+either; and the workload and safety status vocabularies are split into
+separate typed fields. **Ledger row 7's "unbuilt … no client caller"
+was stale** and is re-scoped to the LLP 0008 journal-delta path, left
+open pending a dated wire-path verification rather than marked landed
+on a reading. New §Open questions 10–11 route two more author-owned
+residues: what Candidate B actually is and who owns it — without a
+frozen B language, two failed B attempts cannot support Outcome 3 —
+and who owns execution-identity element 5's store-semantics profile and
+mismatch disposition.)
+2026-08-01 (v0.6, super-refine round 4 — Fable READY,
+Codex NOT READY, a second split; this revision answers Codex's residue
+and Fable's details. **Evidence-strength corrections, both verified in
+the tree before applying:** the Phase 0 "cold boot" is a *same-process*
+client/store re-instantiation (`closeClient` then `openClient` in one
+Node process, with only the server stopped), so criterion 1's
+process-restart element is unproven on *every* carrier, not just the
+browser; and Notebook's restart/rebase findings are immediate
+`suite.gap(...)` declarations plus a source audit, not executed runs —
+the bakeoff never restarted the pending client or introduced a
+concurrent edit. **Withdrawn:** the "known pin" preclassification of
+workload 3's speculative-restart gap. Both reviewers checked LLP 0090
+and it does not refuse speculative reconstruction — D3 pins a *resume*
+rule with composition deferred to milestone 3, which is the
+missing-shared-mechanism class if anything; preclassifying it as a pin
+would have suppressed a real Candidate A deficiency, so no gap is
+preclassified and a pin now requires an owning document to adopt the
+prohibition before freeze. **Safety:** the public-data-only `N/A`
+branch was unsafe — absence of protected retention does not imply
+absence of authority-bound queues, overlays, or public retained rows,
+and LLP 0039 requires authority transitions to delete retained rows and
+queued mutations, so case (a) now always runs when an authenticated
+client is in scope; cases (b)/(c) are made mutually exclusive on lease
+expiry; and (d)'s resnapshot is scoped to auth-scoped subscriptions
+rather than any authenticated session. **Consistency:** one status
+vocabulary with fixed eligibility effects (`FAIL` and `GAP` both
+disqualify); Outcome 0 surfaced in §Candidate outcomes so the
+four-state set is visible where the outcomes are defined; Outcome 3
+now requires two independent failed B attempts, matching the proof
+rule that previously contradicted it. **Advancement:** SD-5
+auto-advance is suspended for Phase 1 pending §Open questions 8 —
+blocking only the lab left a premature-advance path on an
+evaluator-only gate. **Closure map:** exit criterion 2 adds M1
+implementation, protected-row promotion, and one *integrated*
+authenticated React/browser/full-process-restart witness, since the two
+existing tickets can both close without proving criterion 1's
+conjunction. Guide corrections landed with it: the capability row states
+the resolver's real prerequisites and fallbacks, and refused-replay
+evidence is reattributed to the package unit test that actually covers
+it.)
+2026-08-01 (v0.5, super-refine round 3 — Fable READY,
+Codex NOT READY, so the loop did not converge and this revision answers
+Codex's residue. **Safety, both verified against owners before
+applying:** gate 7(b) used "retirement," a disposition LLP 0053 does
+not have — the connected case now carries 0053's actual rule, "coarse
+events quarantine; only proof deletes," split into matcher-mediated
+delivery, coarse-event `quarantine`, and proof-backed `delete`, with
+the public-data-only dispositions stated; gate 6 no longer says
+external effects "degrade" (no owning document defines a degraded local
+external effect — LLP 0133 excludes action replay and LLP 0126 pins
+them impossible offline), and instead denies them through a declared,
+frozen candidate sandbox with negative tests. **Decision quality:**
+Outcome 0 added, because "exactly one of three outcomes" was not total
+(a pin-collision-only failure, or an expressive-but-incoherent B, fit
+none of 1–3); a proof-of-inexpressibility rule added, since the trigger
+rests on a universal claim the protocol had no way to establish — one
+valid A implementation defeats it, both independent attempts must fail
+the same fact with sealed per-builder evidence, the missing primitive
+must be named and owner-validated, B gets the same standard, and
+authoring-time figures are descriptive only given the fixed A→B→C
+ordering; a misattribution log classifies every A gap as IR-inherent,
+pin-collision, or missing shared mechanism. **Feasibility:** the lab may
+not be scheduled before §Open questions 8 is answered, and the
+Outcome-2 freeze carve-out widens to every mechanism an accepted owning
+document already requires as substrate (lane-L id-map delivery
+specifically), closing a circularity where the freeze forbade what
+Candidate A needs. **Completion:** the four mandatory measurements are
+bound to phases and to the completion boundary instead of floating; and
+the collision between "no falsifiable criterion, no exit" and "Phase 2a
+must execute for completion" is stated rather than papered over —
+completion is unreachable until §Open questions 9 is answered.
+Out-of-document corrections landed with it: the guide stops crediting
+the untested `SNAPBACK_RETENTION_NOT_RETAINABLE` refusal to the
+headless witness, the acceptance script's header stops calling itself a
+self-advancing SD-5 gate, and LLP 0133's §Status is reconciled to its
+Accepted metadata.)
+2026-08-01 (v0.4, super-refine rounds 1–2 — artifacts
+`reviews/0129-local-first-program.fable.md`,
+`reviews/0129-local-first-program.codex.md`, journal
+`reviews/0129-local-first-program.super-refine.md`. Round 2 returned
+NOT READY from both families and forced these corrections. **Claims:**
+Phase 0's "carry the retention/replay `Parity` claims" was wrong on its
+face — LLP 0043 pins that no local execution means no parity claim, so
+Phase 0's claims are `Online`-class and the wording is withdrawn; the
+Plan and `guide/capabilities.md` now use the same maturity word
+(`partial`) for `sync.offline-js-arm`; exit criterion 2 names its
+literal terminal row set. **Contradictions removed:** the Phase 0 gate
+disposition read both "is CLEARED" and "NOT CLEARED" — one disposition
+now stands (implementation lane landed; Phase 0's gate NOT met; the
+phase has not exited), with the split-or-hold choice routed to the
+author as §Open questions 7; the decision lab no longer implies the
+successor rerun is a prerequisite; and Phase 1's IR overlays are carved
+out of the Outcome-2 freeze that would otherwise forbid the very
+surface Candidate A needs. **Safety:** safety gate 7 splits into LLP
+0053's four distinct authority cases (logout deletes, connected
+revocation retires, disconnected is lease-bounded, reconnect
+resnapshots) instead of one conflated "authority loss" row; the Fleet
+standing nonclaim is re-diagnosed and moved to gate 9 — all 1,000
+writes were durable, the defect was an implicit 1,024-row query prefix,
+remediated by `b52e3b9c`. **Decision quality:** Candidate B gains
+preregistered coherence ceilings so the recorded burden evidence can
+affect the recommendation; trigger detection distinguishes IR
+insufficiency from collision with an owned policy pin (LLP 0090 D3
+named); Outcome 3 is renamed to name the lab's act as a recommendation.
+New §Open questions 7–9 route the three author-owned residues: Phase
+0's gate disposition, whether Phase 1's D5-only gate is sufficient for
+what Phase 1 promises, and Phase 2a's non-falsifiable exit.)
+2026-08-01 (Phase 0 evidence correction: the retained 9-check
+acceptance proves the headless JS/Node-file carrier, not React, standards-real
+IndexedDB, or browser-process restart; the browser half of the gate remains
+open and guide claims are narrowed.) 2026-08-01 (Option-C empirical decision protocol: the
+Snapback/Zero/Replicache bakeoff detected credible browser-write
+expressiveness pressure, not the recorded OQ4 trigger; after the Phase 1 IR
+evaluator passes its sizing and D5 gates, a frozen three-workload browser lab
+may compare the shared-IR rung, constrained typed extension points, and
+Replicache-class app-authored client mutators under safety gates, real
+IndexedDB crash/restart evidence, authoring/runtime measurements, and an
+author-only dated admission artifact.) 2026-07-31 (wave-1 state refresh: lane C5 landed on main
 (`2a7bf058`/`e416fb89`/`b53c28fd`) and the
-Phase 0 evidence gate is recorded CLEARED under SD-5, with the
+Phase 0 evidence gate is recorded CLEARED under SD-5 **(this
+disposition is WITHDRAWN — superseded by v0.4/v0.5; the gate is NOT
+met and Phase 0 has not exited)**, with the
 lease-custody/sessions-queue remainders ticketed and holding exit
 criterion 2's `auth.authorized-leases` half open at program level;
 ledger row 1 UN-GATED — the owning settlement Spec landed as LLP
@@ -69,7 +260,7 @@ now cite its landed v0.6, whose open question 8 is the decision
 registry of record.) 2026-07-30 (initial draft, directed by the author
 the day LLP 0127 was Accepted; drafted with 0127's open decisions 2
 and 10 deliberately unmade — see §Decision posture)
-**Related:** LLP 0003, LLP 0008, LLP 0012, LLP 0013, LLP 0034, LLP 0043, LLP 0051, LLP 0053, LLP 0059, LLP 0070, LLP 0073, LLP 0074, LLP 0080, LLP 0081, LLP 0084, LLP 0090, LLP 0093, LLP 0107, LLP 0108, LLP 0110, LLP 0111, LLP 0112, LLP 0113, LLP 0114, LLP 0115, LLP 0116, LLP 0118, LLP 0119, LLP 0123, LLP 0125, LLP 0126, LLP 0127, LLP 0130
+**Related:** LLP 0003, LLP 0008, LLP 0012, LLP 0013, LLP 0034, LLP 0043, LLP 0051, LLP 0053, LLP 0059, LLP 0070, LLP 0073, LLP 0074, LLP 0080, LLP 0081, LLP 0084, LLP 0090, LLP 0093, LLP 0107, LLP 0108, LLP 0110, LLP 0111, LLP 0112, LLP 0113, LLP 0114, LLP 0115, LLP 0116, LLP 0118, LLP 0119, LLP 0123, LLP 0125, LLP 0126, LLP 0127, LLP 0130, LLP 0133, LLP 0138
 
 ## Summary
 
@@ -216,11 +407,18 @@ pass; gate failure or scope change escalates.
 arm the diaries score and LLP 0074 names as the graduation path.*
 Absorb the shipped LLP 0043 lanes into the scored arm: persist the
 client cache by default via the shipped `rqsStore` seam; wire the
-opt-in resume stores (LLP 0090's token path) into `@snapback/client`
+opt-in resume stores (LLP 0090's token path) into `@expo/snapback-client`
 and the LLP 0114 hooks; wire M1 leases and the M2 outbox; mint
 `clientMutationId` client-side against the existing settlement
-ledger; carry the retention/replay `Parity` claims under LLP 0043's
-proof rule. Reach is bounded by design: protected opaque queries stay
+ledger; carry the retention/replay claims under LLP 0043's
+proof rule — which for this phase means **`Online`-class** claims, not
+`Parity`: LLP 0043 pins "no local execution means no
+local-first/parity claim," reports `Parity` "only for a
+store-configured surface whose complete mutation set is locally
+IR-derivable," and Phase 0 ships no local execution (v0.4 correction;
+the earlier "`Parity` claims" wording was wrong on its face and is
+withdrawn). `Parity` first becomes reachable at Phase 1, and only then
+under exit criterion 3's ledger gate. Reach is bounded by design: protected opaque queries stay
 non-retainable under LLP 0053's retainability invariant ("Retainable
 ⇒ declared authorization dependence ⇒ enumerated events"), so cold
 retention comes to the declared/analyzable subset. The version-based
@@ -236,8 +434,14 @@ the chosen arm (0126 option A's gate).
 > `packages/snapback-client` and proven by a new diary-grade harness
 > acceptance, `demos/public-dashboard/tests/acceptance/
 > offline-local-first.mjs` (9 non-vacuous checks against the real
-> server, registered in the workout inventory). Landed: (1) default
-> `rqsStore` persistence — IndexedDB (browser) / durable file (node) /
+> server, registered in the workout inventory). **Evidence correction
+> (2026-08-01):** that acceptance is a headless Node/file-store carrier; it
+> does not run React, standards-real IndexedDB, or a browser-process restart.
+> It proves the JS/Node-file slice, while the browser/React/IndexedDB claim
+> remains a GAP tracked in
+> `issues/20260801-guide-gap-js-arm-browser-indexeddb-proof.md`. Landed: (1) default
+> `rqsStore` persistence — IndexedDB **plus Web Locks** (browser; the
+> resolver requires both and degrades otherwise) / durable file (node) /
 > in-memory fallback, resolution and durability reported on
 > `client.rqsStoreInfo` (DK-9); (2) the LLP 0090 token path rides the
 > default store, and a cold boot with a verified persisted entry now
@@ -250,9 +454,10 @@ the chosen arm (0126 option A's gate).
 > subscribe, not only relaunch seeding; (4) the retainability boundary
 > refused with clarity per LLP 0053 (`handle.retention` names the
 > refusal; protected/opaque queries never silently act local-first);
-> (5) arm-scoped guide claims: `sync.offline-js-arm` (shipped, gated
-> on the acceptance) and `sync.offline-js-arm-protected` (explicit
-> GAP). Environment honesty: with no local execution and no
+> (5) arm-scoped guide claims: `sync.offline-js-arm` (maturity
+> `partial`, gated on the acceptance at the reach the proof-scope
+> correction below records) and `sync.offline-js-arm-protected`
+> (explicit GAP). Environment honesty: with no local execution and no
 > id-bearing optimistic derivation on this arm, a queued intent
 > usually captures no `{generatedIds}` ledger; a caller-supplied
 > `ctxLedger` is transmitted verbatim per the 0008 accept pin, and
@@ -263,14 +468,99 @@ the chosen arm (0126 option A's gate).
 > `auth.authorized-leases` half is therefore still open) and the
 > sessions-custody queue leg (the JS-arm outbox covers
 > dev/external-bearer custody; session-fenced clients defer to the
-> Contract arm). Gate disposition (2026-07-31, under SD-5): the
-> Phase 0 evidence gate — the diary-grade offline acceptance on the
-> chosen arm — is CLEARED; the lane landed on main with the named
-> acceptance green (9/9) and registered in the workout inventory.
-> The ticketed remainders hold exit criterion 2's
-> `auth.authorized-leases` half open — a program-exit matter, not
-> this phase's gate. Phase 1 is un-blocked on Phase 0's side; its
-> own preconditions (the IR-evaluator sizing spike) stand.
+> Contract arm). **Gate disposition — restated v0.4 to remove a
+> contradiction both round-2 reviewers caught (the block previously
+> read both "is CLEARED" and "NOT CLEARED").** The single disposition
+> that now stands: Phase 0's *implementation lane* LANDED on main with
+> its named acceptance green (9/9) and registered in the workout
+> inventory, but **Phase 0's evidence gate is NOT met and Phase 0 has
+> not exited.** The gate is "a diary-grade offline acceptance rerun on
+> **the chosen arm**," and the chosen arm is the JS/**React browser**
+> arm (decision 2); the retained run is Node/file/headless over public
+> queries, so it does not discharge the gate as written. Two further
+> gaps in the same direction: exit criterion 1 asks for an
+> *authenticated* shell and *authorized* rows after restart, and this
+> acceptance proves neither; and M1 lease custody, a named Phase 0
+> deliverable, is ticketed rather than shipped. No later decision may
+> cite this Node run as React/IndexedDB restart evidence, and SD-5's
+> self-advancing rule does not fire, because its precondition (gate
+> success) has not occurred.
+>
+> Consequences, stated rather than implied. (a) Phase 1 is **not**
+> advanced by Phase 0. Under §Phases' standing rule the phase numbers
+> order resourcing and "are not a strict dependency chain beyond the
+> gates named," so Phase 1 may be started independently — but that is
+> the non-dependency rule doing the work, not a Phase 0 exit, and
+> Phase 1's own preconditions (the IR-evaluator sizing spike) stand
+> either way. (b) Whether to split the Phase 0 gate into a landed
+> Node/file/public half and an open browser/React/authorized half, or
+> to hold the whole gate open until the browser witness lands, is an
+> **author disposition** this Plan does not make for itself; §Open
+> questions 7 records it. (c) §Open questions 5's pre-start
+> owner/timebox requirement was not satisfied for Phase 0 before it
+> started; that is recorded here as a fact, and any retrospective
+> exception is likewise the author's to date and record.
+>
+> **Proof-scope correction (2026-08-01, v0.4 — super-refine round 1,
+> Codex concern 2; verified against the tree before recording).** The
+> claims above must be read at exactly the acceptance's reach, per
+> constraint 2 and exit criterion 4. What the named suite actually
+> proves: the **node/durable-file** store arm (it sets
+> `SNAPBACK_CLIENT_RQS_DIR` and asserts
+> `rqsStoreInfo.implementation === 'file'`), against a headless
+> client, for **public `rqsEligible`** queries; its one refusal check
+> is a non-eligible public query
+> (`SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE`). Three things item (1),
+> item (4), and the `sync.offline-js-arm` guide row could be read to
+> claim are **not** proven by it: (a) the browser IndexedDB arm —
+> implemented and covered by `fake-indexeddb` unit tests
+> (`packages/snapback-client/rqs-store.test.mjs`,
+> `rqs-resume.test.mjs`, `outbox-store.test.mjs`), never by a
+> standards-real browser, which is exactly the carrier class LLP 0138
+> recorded as its own evidence GAP; (b) the LLP 0114 React surface —
+> **updated at landing, 2026-08-01:** a concurrent session landed
+> `packages/snapback-react/offline.test.mjs`, which does exercise the
+> hook's `freshness`/`retention` axis, so the round-1 finding that *no*
+> React test touched retention is superseded. What remains unproven is
+> narrower and still real: that test drives a **stub transport**, not a
+> real server and not a browser, so the React surface is covered at the
+> binding level only — no standards-real IndexedDB, no browser-process
+> restart, no end-to-end React path; (c) the **protected/auth-scoped**
+> refusal —
+> `SNAPBACK_RETENTION_NOT_RETAINABLE` is produced in
+> `packages/snapback-client/index.mjs` and asserted by no test —
+> which means the browser witness cannot merely avoid "borrowing the
+> Node result" for that fact; there is no Node result to borrow. The
+> guide row is narrowed to match in the same landing and all three
+> gaps are ticketed in
+> `issues/20260801-guide-gap-js-arm-browser-indexeddb-proof.md`.
+> **"Cold boot" is the wrong word for what runs (v0.6, round 4).** The
+> suite disposes the handle, calls `closeClient(clientA)`, stops the
+> server, and constructs `clientB` — **in the same Node process**. That
+> proves fresh client and store *instances* reading persisted bytes with
+> the backend unreachable, which is real and is the Diary 0027
+> comparator's shape, but it is **not** a client-process restart.
+> Exit criterion 1 asks for a full process/browser restart, so that
+> element is unproven at *any* carrier today, not merely at the browser
+> carrier. Wherever this block says "cold boot" or "cold relaunch,"
+> read: same-process client/store re-instantiation against a durable
+> file store. A real witness needs either a client subprocess with hard
+> termination or the browser-carrier harness the ticket describes.
+>
+> Consequence for criterion 1 (restated v0.7 — v0.6 still said "the
+> cold-boot beat is claimed at file-store/headless reach," which
+> re-asserted three lines later exactly the claim the paragraph above
+> withdraws): **the cold-boot beat is not claimed at any reach.** No
+> full client-process restart has been proven on any carrier, and
+> criterion 1 additionally wants an authenticated shell and authorized
+> rows, which this suite does not exercise either. What is claimed is
+> narrower and true: retained render from a durable file store, by a
+> fresh client instance in the same process, with the backend
+> unreachable. The integrated witness exit criterion 2 names is what
+> would establish the beat. A
+> third ticketed remainder, recorded here for completeness: the
+> lease-custody ticket also carries unbounded per-origin
+> default-store blob accumulation.
 
 **Phase 1 — The shared IR rung.** *Staging confirmed by decision 2;
 IR-rung-first resourcing puts this phase before either ladder
@@ -287,6 +577,33 @@ first design this phase's claims hit.
 Owners: LLP 0051 (IR, ctx ledger, conformance), LLP 0043 (claim
 rule). *Evidence gate:* the IR-evaluator sizing spike (0126 finding
 11: nothing is measured) plus the D5 corpus passing on both sides.
+
+> **This phase's gate is escalated to the author under SD-5's own
+> scope-change clause, pending §Open questions 8 (v0.6; reframed v0.7
+> — the v0.6 wording said this Plan "SUSPENDS" SD-5, which would be
+> this Plan amending a rule LLP 0130 owns, in violation of its own
+> constraint 7. It does not. SD-5 escalates on gate failure *or scope
+> change*, and discovering that the named gate does not cover the
+> phase's promised scope is exactly a scope change; this Plan is
+> invoking that clause, not rewriting it. If the author prefers the
+> rule itself to change, that lands as a dated LLP 0130 amendment,
+> which only the author can make.)** Round 4 found a reachable
+> premature-advance
+> path: SD-5 advances a phase when its named gate passes, this phase's
+> named gate is sizing + D5, and OQ8 records that sizing + D5 omit the
+> settlement/id-mapping, partial-read admission, schema/identity
+> fencing, receipt projection, browser store/outbox, and React
+> presentation that the phase's own promised end-to-end behavior needs.
+> Blocking only the decision lab on OQ8 was not enough — Phase 1 could
+> still self-advance on an evaluator-only gate. Until the author
+> answers OQ8 (one gate or two, and which one SD-5 keys off), Phase 1
+> does not auto-advance; while that scope-change escalation is pending, a passing gate is
+> presented to the author rather than auto-advancing (phrased this way in
+> v0.8 so the clause cannot be quoted against SD-5's own "gate success does
+> not escalate" — the escalating event is the standing scope change, not the
+> gate passing). This suspends an advancement rule, never a claim rule:
+> exit criterion 3 and the owner-landing ledger already bar the
+> `Parity` claim independently.
 
 **Phase 2a — Browser ladder.** WASM handler artifacts (LLP 0051 D3)
 for logic past the IR; full-runtime WASM only behind its named
@@ -328,8 +645,10 @@ NOT admitted — same-by-convention dual implementations are the drift
 the content address exists to remove — and it is held behind a named
 trigger: admit only if the IR rung proves insufficient for
 browser-side write expressiveness after measurement. This Plan
-schedules nothing for it; §Open questions 4 records the trigger
-wording.
+schedules no product phase for it. The decision-grade lab in §Option-C
+empirical decision protocol is the only conditional work, and it cannot start
+until that section's prerequisites and §Open questions 5's owner/timebox rule
+are satisfied. §Open questions 4 records the trigger wording.
 
 ## The owner-landing ledger
 
@@ -412,9 +731,20 @@ designed but unbuilt. Proposed owners are proposals (constraint 7).
    confirmations in 0043/0053 that locally executed results render
    only under lease-valid retained state.
 7. **The version-based delta-resume consumer** (designed in LLP 0008
-   §Retention and Resume, unbuilt — the journal floor and
-   `resume_requires_resnapshot` have no client caller). A prerequisite
-   of every rung's wire surface; owners LLP 0008/0090/0093. LLP 0090's
+   §Retention and Resume). **Status re-scoped 2026-08-01 (v0.7) — the
+   flat "unbuilt … no client caller" wording was stale, and both
+   round-5 reviewers caught it.** What ships: LLP 0090's token-resume
+   ladder, which LLP 0008 itself names as this consumer's widening —
+   the client sends `resumeFromToken` and consumes the rung answers,
+   and `journal_resume_requires_resnapshot` has a server-side caller
+   (`src/local.rs`). What this row still tracks, at its honest reach:
+   the LLP 0008 **journal-delta** path specifically, and the exact
+   `rqsEligible`/`mset1` boundary of what the shipped ladder covers.
+   That boundary has not been verified end to end by this loop, so the
+   row stays open pending a **dated verification note against the wire
+   path** rather than being marked landed on a reviewer's reading or
+   this Plan's. LLP 0127 carries the same stale "unbuilt" assertion and
+   needs the same reconciliation. Owners LLP 0008/0090/0093. LLP 0090's
    outbox rule stands: a non-empty outbox never resumes — full resync,
    then replay.
 
@@ -434,26 +764,69 @@ in this form does not exit.
    the Snapback arm. Scope honesty: claimed for the retainable subset
    only; protected opaque queries stay out by design (LLP 0053).
 2. **Arm claim parity.** The retention/replay claims on the JS/React
-   arm match the Contract arm's: the guide capability rows
-   `sync.offline` and `auth.authorized-leases` report shipped for the
-   JS/React arm on the local target under exactly LLP 0043's proof
-   rule. Structural deliverable, named in v0.3: today
-   `guide/capabilities.md` carries one arm-agnostic row per
-   capability, so the arm-scoped claim rows this criterion reads do
-   not exist yet — Phase 0 delivers them (per-arm rows or an arm
-   column, landing under LLP 0061's guide conventions with LLP 0043's
-   proof rule as the row-level gate); the criterion is executable
-   only once that structure exists. Falsified by any claim row on the
+   arm match the Contract arm's. **The literal terminal row set
+   (named v0.4, because v0.3 named the Contract-arm rows and then
+   switched to JS-specific ones, leaving no executable target):** this
+   criterion is met when `sync.offline-js-arm` reports `shipped`,
+   `sync.offline-js-arm-protected` reports `shipped`, and
+   `auth.authorized-leases` carries a JS-arm row reporting `shipped` —
+   all three on the local target under exactly LLP 0043's proof rule.
+   Structural deliverable, named in v0.3 and **partly landed
+   (restated v0.4)**: `guide/capabilities.md` now carries the
+   arm-scoped rows `sync.offline-js-arm` (maturity **`partial`** — the
+   narrowed reach recorded in the Phase 0 proof-scope correction; the
+   Plan and the row use the same word by v0.4, having disagreed in
+   v0.4's first draft) and
+   `sync.offline-js-arm-protected` (explicit GAP), so the per-arm row
+   structure exists for the retention half. The exact remaining
+   closure: `auth.authorized-leases` is still one arm-agnostic row
+   with no JS-arm split; `sync.offline-js-arm`'s reach must widen
+   from the same-process/file-store/public-query slice its acceptance
+   proves to the browser-IndexedDB, React-surface,
+   protected-refusal, and **full client-process restart** coverage this
+   criterion reads; **LLP 0043 M1 lease custody must actually be
+   implemented on this arm** and `sync.offline-js-arm-protected`
+   promoted off its GAP row (v0.6 — the v0.4 closure list named neither,
+   though the Phase 0 status says M1 is unshipped, so a reader could
+   have thought two ticket closures sufficed); and **one integrated
+   witness** must cover the authenticated React/browser/full-process
+   -restart scenario together, because the two existing tickets can each
+   close without ever proving criterion 1's conjunction — the browser
+   ticket proves a public React/IndexedDB restart plus protected
+   refusal, the lease ticket permits a headless witness, and neither
+   requires authenticated shell **and** authorized rows **and** a real
+   process restart in one run. That integrated witness is now ticketed
+   (v0.8):
+   `issues/20260801-js-arm-integrated-authenticated-restart-witness.md`.
+   Whether it is a conjunct of the SD-5 Phase 0 gate, of the Phase 0
+   exit criteria, or both follows from §Open questions 7; until that is
+   answered, a public-browser-only witness must not be treated as
+   advancing the phase. All of it lands under
+   LLP 0061's guide conventions with LLP 0043's proof rule as the
+   row-level gate; the criterion is executable per-row as each row's
+   proof set exists. Falsified by any claim row on the
    JS arm lacking the Contract arm's proof set (durable store,
    complete retained identity, local IR-derivability where `Parity`
-   is claimed).
+   is claimed) — including a row whose stated reach exceeds the
+   acceptance that gates it.
 3. **Tuple harness before any same-code claim.** Before the program
    asserts "same code both sides" anywhere, each execution-identity
    element has a per-element test harness: hash equality (element 1),
    attestation checks (element 2), the D5 conformance corpus passing
    on both executors (element 3), ledger record/replay (element 4),
-   and an activation-carry check in the settlement submission
-   (element 5). Falsified by a same-code claim shipped with any
+   and, for element 5, **conformance on both executions plus mismatch
+   refusal/quarantine/resync tests** (raised in v0.8; the v0.3 wording asked
+   only for "an activation-carry check in the settlement submission," and
+   carriage proves neither store-semantic compatibility nor safe behavior on a
+   schema/artifact mismatch — LLP 0133 is explicit that the activation travels
+   as an untrusted claim, that mismatch must be detectable, and that silently
+   settling as matched is forbidden). **Normative consequence, stated plainly:
+   criterion 3 cannot pass today and no same-code or `Parity`-by-construction
+   claim may ship**, because element 5 has no owner for its store-semantics
+   profile and mismatch disposition — §Open questions 11 routes that to the
+   author, and safety gate 5 makes the same closure a decision-lab
+   prerequisite, so the lab's prerequisite list is complete only once OQ11 is
+   answered alongside OQ8. Falsified by a same-code claim shipped with any
    element untested.
 4. **Claims equal acceptance.** Every phase's capability claims match
    exactly what its acceptance proves — no phase ships a manifest or
@@ -481,11 +854,26 @@ is **complete** when all authorized phases — 0, 1, 2a, and 2b —
 have executed with their named evidence gates passed and their
 binding criteria met, and the Option F rider's disposition is
 stated: either landed behind its acceptance-script gate or declined
-by a dated note in this Plan. The mobile spike sits outside the
-completion boundary by construction (a question, not a lane; its
-disposition is OQ-grade, not phase-grade). A phase the program
+by a dated note in this Plan, **plus** retained artifacts for the four
+mandatory measurements §Measurement binds. The mobile spike and the
+Option-C decision lab sit outside the
+completion boundary by construction (questions, not lanes; their
+dispositions are OQ-grade, not phase-grade). A phase the program
 abandons rather than executes exits only by a dated author decision
 recorded here, naming successor authority if the scope moves.
+
+**Completion is currently unreachable, and that is a fact rather than
+an oversight (v0.5).** Two of this section's own rules collide: a phase
+that cannot state its exit criterion in falsifiable form does not exit,
+and completion requires Phase 2a to have executed with its gate passed
+— but Phase 2a's gate is "the WASM assessment, dated," which names no
+pass/fail condition and no artifact. Both rules stand; the consequence
+is that **program completion cannot be declared until §Open questions 9
+is answered**, either by giving Phase 2a a falsifiable
+artifact/threshold exit or by reclassifying it as conditional research
+outside this boundary. The Plan will not pick for the author, and it
+will not paper over the collision by quietly relaxing the
+falsifiability rule.
 
 ## Measurement
 
@@ -517,7 +905,655 @@ The named empirical questions from LLP 0126 this program must answer
 - the WASM assessment — size, performance, feasibility (0126 OQ5,
   Phase 2a's gate);
 - the mobile spike with named success criteria (0126 OQ10);
-- resume-storm behavior at reconnect scale (0126 §Hosted topology).
+- resume-storm behavior at reconnect scale (0126 §Hosted topology);
+- the Option-C decision lab (§Option-C empirical decision protocol) —
+  the program's second-largest planned measurement by scope, behind the
+  successor rerun,
+  and the only one whose output is a decision recommendation rather
+  than a number. **The successor rerun is not a prerequisite for it**
+  (v0.4 clarification: "after the successor rerun" ranks size, not
+  sequence); §When the lab can run states the prerequisites
+  exhaustively **as of this revision** — §Open questions 8's resolution
+  may extend them, and the same dated revision that answers it updates
+  that list.
+
+Two of the entries above are **conditional research, not completion
+requirements** (v0.4, reconciling this list against §Exit criteria's
+completion boundary, which excludes both): the mobile spike and the
+Option-C decision lab. Both stay listed here because they are the
+program's named empirical questions; neither gates program completion.
+
+**"Must answer" now binds (v0.5).** The other four — client-store
+footprint and replica-hydration cost, local-execution latency against
+settlement latency, the WASM assessment, and resume-storm behavior at
+reconnect scale — were called mandatory while nothing in §Exit
+criteria's completion boundary named them, so the program could have
+declared itself complete without answering them. Each is hereby bound:
+the WASM assessment is Phase 2a's gate; the store-footprint and
+latency measurements are Phase 1's deliverables alongside its gate;
+resume-storm behavior binds Phase 2a. Each needs a named artifact and
+a target, and program completion additionally requires that all four
+have retained artifacts. Whether each also needs a pass/fail threshold
+rather than a recorded number is part of §Open questions 9's
+falsifiability question.
+
+## Option-C empirical decision protocol
+
+This section turns open question 4's trigger into a pre-registered experiment.
+It does **not** admit Option C or detect the OQ4 trigger. LLP 0138's synthesis
+requested this reconsideration and phrased its own evidence as one that
+"appears to satisfy LLP 0129's condition for reconsidering" client mutators;
+**this section is that request's answer, and it supersedes that phrasing** —
+the condition for *reconsidering* is met, the OQ4 trigger is not detected, and
+nothing about admission follows (v0.5, after both round-3 reviewers flagged
+the summary sentence as citable out of context). The 2026-08-01
+Snapback/Zero/Replicache bakeoff (LLP 0138) detected credible browser-write
+expressiveness pressure: Kanban's move duplicated one transformation,
+Calendar's server-ID optimistic create needed an application-local pending
+sidecar, and Notebook — **by declared GAP and source audit, not by an executed
+run** (v0.6 precision fix: `fn.stretch-offline-restart` and
+`fn.stretch-concurrent-rebase` are immediate `suite.gap(...)` declarations; the
+**Snapback arm's** run never restarted the pending client or introduced a
+concurrent remote edit, though the React source genuinely lacks both surfaces.
+Scope matters here, corrected v0.8: the **Replicache control** *did* introduce
+a concurrent remote edit and executed its rebase as a PASS, so this is a claim
+about the Snapback arm, not about the bakeoff as a whole) — neither
+reconstructed speculative UI after restart nor
+exposed a typed semantic-conflict surface. That evidence is sufficient to
+specify the decision lab. It does not prove standards-real-browser restart
+failure. The trigger itself remains undetected until Candidate A runs against
+the frozen facts and meets §Trigger detection and recommendation rule.
+
+The question is deliberately narrow:
+
+> Can the shared mutation-IR rung, possibly with constrained typed extension
+> points that preserve one authoritative operation, express the browser-local
+> write experiences Snapback needs? If not, does a Replicache-class
+> app-authored client mutator solve the missing cases without weakening server
+> authority, replay, revocation, or execution identity enough to justify its
+> drift surface?
+
+### Candidate outcomes
+
+The lab records exactly one of **four** states: the three recommendations
+below, or **Outcome 0 — no recommendation** (defined in §Trigger detection and
+recommendation rule, for the states where none of 1–3 is justified). Only the
+author can adopt a recommendation.
+
+1. **IR sufficient — Option C remains not admitted.** The mutation IR derives
+   useful optimistic and offline behavior for every frozen workload without
+   application-authored duplicate mutation semantics.
+2. **IR plus constrained typed extensions — Option C remains not admitted.**
+   The IR remains the operation authority, but the public surface gains only
+   narrowly typed mechanisms proven necessary by the lab, such as provisional
+   identity presentation, settlement mapping, or application-defined conflict
+   rendering. An extension cannot write arbitrary local rows, override server
+   settlement, or replace the IR operation.
+3. **Recommend bounded Option-C admission.** (The heading names the
+   lab's act, which is a recommendation; only the author admits — ER-1.)
+   At least one required
+   workload is inexpressible through both the IR and constrained extensions,
+   while an app-authored client mutator passes every safety gate and produces a
+   material user/DX improvement. Admission must define its deterministic input
+   surface, local store powers, rebase lifecycle, schema/version fencing,
+   diagnostics, bounded-custody ceilings, and claim vocabulary; “run arbitrary
+   client code” is not an acceptable contract.
+
+The least powerful outcome whose candidate passes every required workload,
+every applicable gate, **and every additional condition that outcome's own
+recommendation rule imposes** — for Outcome 2 that includes staying within B's
+preregistered coherence ceilings — becomes the
+program's recommendation; only the author may adopt or reject it. Source
+brevity or lower local latency cannot promote a candidate past a safety gate.
+
+### Frozen workloads
+
+Before implementing any candidate, the author or a named product authority
+approves which facts are genuinely must-have behavior. Then freeze one
+provider-neutral acceptance manifest per workload, including check IDs,
+fixtures, actors, network/crash profiles, expected evidence, cleanup, and Stop
+classes.
+
+1. **Latency Kanban — ordinary optimistic update.** Move one row immediately;
+   issue twenty rapid moves; reject a locked row; race two revisions; preserve
+   unrelated optimistic layers; distinguish input-to-paint, server result, and
+   independent-observer convergence. This is the common-path test: a solution
+   that needs application-authored duplicate logic here has not earned the IR
+   premise.
+2. **Contention Calendar — optimistic create with canonical identity.** Render
+   a provisional reservation when the server mints the canonical row ID; race
+   two clients for one unique slot; map exactly one intent to one canonical
+   row; visibly correct the loser; retry an ambiguous delivery without a
+   duplicate. The provisional item must participate in the same typed
+   query-derived ordering, filtering, and count lifecycle as authoritative
+   reservations; an application-owned parallel collection does not pass this
+   composability fact even when honestly labeled. No candidate may forge a
+   branded authoritative ID or pretend a provisional ID is canonical.
+3. **Field Notebook — durable restart and semantic rebase.** Queue a create and
+   update; terminate the browser process while authority is unreachable;
+   restart from durable client state; render retained and speculative state
+   with distinct labels; pull a concurrent remote edit; rebase or surface a
+   typed conflict containing enough application data to resolve it; settle
+   exactly once. This is the discriminator: a same-session memory-store
+   demonstration does not count.
+
+The workloads reuse LLP 0138's facts where possible, but the decision lab has
+its own frozen manifests, fresh check-ID namespaces, and evidence. A later
+implementation may not weaken a check because one candidate cannot pass it.
+
+### When the lab can run
+
+The lab is not runnable at this revision. Candidate A requires the Phase 1
+browser-safe mutation-IR evaluator to complete the sizing spike and pass LLP
+0051 D5's conformance corpus on both the server and browser sides at pinned
+identities. A spike-only evaluator that has not passed D5 cannot stand in for
+Candidate A, because the lab would then be measuring missing implementation
+rather than the IR rung's expressive limit.
+
+Before manifests freeze, the author must record a named owner and timebox in a
+dated revision here or a single repository filesystem ticket, following §Open
+questions 5. Evidence will live under
+`demos/local-first-option-c-decision/`, with digests and environment identity
+in the retained run capsules; chronological experience goes in newly numbered
+`diaries/` entries. **§Open questions 8 must be answered before the lab is
+scheduled** (v0.5): until the shared substrate Candidate A depends on is
+either landed or explicitly bounded, a Candidate A failure cannot be
+attributed to the IR rung, and the prerequisites above are the list as of
+this revision rather than a settled one. Until the evaluator, owner, and timebox gates are all
+satisfied, the protocol is design state rather than scheduled execution.
+Once those gates are satisfied it is a conditional decision workstream after
+Phase 1, not a shipping phase. It does not gate Phase 2a or program completion
+unless the author records a later dated change to those boundaries.
+
+### Interaction with intervening product work
+
+Work that does not change browser-write expressiveness may proceed while the
+lab is pending: relational query planning and custody inspection, query
+completeness, stable application-error payloads, guide improvements, and other
+authority-preserving correctness fixes do not wait for this decision.
+Outcome-2-shaped public surfaces do wait: shared/generated optimistic
+transforms, provisional/canonical identity settlement, semantic conflict
+hooks, or any other constrained client-write extension may be prototyped only
+inside decision evidence and may not ship as a public capability before the
+lab reports and its owning design is admitted through the normal LLP process.
+
+**Explicit carve-out (v0.4, widened v0.5 after round 3 found the narrow
+version still circular):** the freeze does not reach any mechanism LLP 0133
+already requires as shared substrate — in particular **lane-L id-map delivery
+and logical-mint mapping**, which the accepted Spec mandates and which
+Candidate A cannot run without, even though "provisional/canonical identity
+settlement" reads like Outcome-2 territory. The distinction is ownership, not
+shape: a mechanism an accepted owning document already requires is substrate;
+a mechanism this lab would invent to extend the public authoring surface is
+Outcome-2 work. Likewise, Phase 1's
+D5-qualified mutation-IR evaluator and the IR-derived optimistic overlays it
+produces are **not** an Outcome-2 surface and are **not** frozen by this rule.
+They are Candidate A — the thing the lab exists to measure — and the lab
+cannot start until they exist. The freeze binds *application-authored or
+app-extensible* client-write surfaces layered on top of the IR, never the IR
+rung itself.
+
+If a relevant public surface nevertheless lands before manifest freeze, the
+lab records it as a dated baseline change and freezes against that version. If
+it lands after freeze, every affected candidate and workload is re-frozen and
+rerun; evidence may not silently compare different product baselines. This
+rule prevents the protocol from blocking unrelated DX/correctness work without
+letting Candidate B arrive by incremental fait accompli.
+
+### Candidate implementations
+
+Run candidates in increasing order of authority surface.
+
+**Candidate A — shared IR only.** The server mutation remains the sole authored
+operation. A browser-safe evaluator derives the optimistic overlay from the
+content-addressed mutation IR. The browser records deterministic host answers
+as labeled claims and the server re-derives authoritative values under LLP
+0133; the server does not consume client claims as authority.
+Unsupported operations fail at build/admission time with a closed reason; they
+do not silently fall back to a handwritten reducer.
+
+**Candidate B — IR plus constrained extensions.** Implement only after A has a
+retained inexpressibility result. Each extension must name the exact frozen
+fact it unlocks and remain subordinate to the IR. Candidate examples, not
+pre-decisions:
+
+- a typed `clientIntentId`/provisional reference that maps to a server-minted
+  canonical ID at settlement;
+- a pure presentation mapper over the IR-derived overlay;
+- a typed conflict renderer/resolver that consumes authoritative and pending
+  values but cannot declare settlement; or
+- an explicit degradation result for trusted time, identity, or unavailable
+  host answers.
+
+**Candidate C — app-authored client mutator.** Start only after B leaves a
+retained inexpressibility result. For Outcome 3 evidence, implement C across all
+three workloads and run the common safety suite, not only the fact that blocked
+B. It may speculatively transform the bounded local query store and replay
+after a fresh snapshot, but the server re-executes the authoritative mutation
+independently. The candidate is a non-shipping prototype and must make
+duplication and drift visible in source and evidence rather than hiding them
+behind a shared adapter.
+
+No candidate shares a lowest-common-denominator backend abstraction. Neutral
+fixture and UI code may be shared; provider state machines and authored
+mutation logic remain countable. Candidate B/C prototypes do not define public
+product contracts. Any recommended shippable mechanism must amend its existing
+owner (including LLP 0008, 0051, 0053, or 0133 as applicable) or land a new
+owned Spec before implementation or capability claims.
+
+### Required carrier and fault matrix
+
+The acceptance carrier is a standards-real browser with durable IndexedDB, not
+Node memory storage or `fake-indexeddb`. The harness controls a real browser
+process (for example through Playwright/CDP), kills that process rather than
+merely closing an in-page store, and restarts offline against the same browser
+profile. Each candidate runs, at minimum:
+
+- warm connected use and cold first hydration;
+- transport loss before input, after local paint, during submission, after
+  server commit but before acknowledgement, and during pull/resnapshot;
+- full tab and browser-process termination, then offline restart;
+- reconnect requiring a fresh full snapshot before pending replay;
+- concurrent remote update of the same semantic field;
+- schema/operation identity change while pending work exists;
+- each of safety gate 7's four authority cases run separately — session
+  logout/expiry/user switch, connected permission revocation, disconnected
+  lease-bounded expiry, and reconnect resnapshot — while retained or pending
+  state exists;
+- origin storage eviction / quota pressure, with the harness's
+  `navigator.storage.persist()` posture recorded;
+- two tabs on one browser profile contending for the store (the fault LLP
+  0090's single-writer/Web Locks discipline exists for, and one
+  `fake-indexeddb` structurally cannot show);
+- duplicate delivery and lost acknowledgement; and
+- independent-observer convergence after every terminal outcome.
+
+If the protected JS-arm authorized-lease capability has shipped when the lab
+freezes, at least one run uses protected retainable data. Otherwise the matrix
+marks **only the protected-retention recommendation scope** `N/A` (narrowed in
+v0.8 — "protected cases" was undefined and could be read as waiving gate-7
+authority tests, which it never licenses): the lab remains public-data-only,
+protected local
+mutation/retention is a hard nonclaim, and no recommendation can include that
+scope until a later owned conformance gate passes. **Gate-7 applicability is
+determined exclusively by gate 7(a)–(d)'s own rules**, including the authority
+transitions that apply to any authenticated client over public data; nothing
+in this paragraph waives them, and every `N/A` anywhere in the matrix names the
+exact scope it excludes. The public-query result may
+not stand in for protected evidence. Hostile-device byte erasure remains a
+nonclaim.
+
+### Safety gates
+
+Every candidate must pass every gate applicable to its frozen scope. **Safety rows use one
+vocabulary wherever they appear; workload checks keep their own (v0.6 unified
+the safety half, v0.8 states the split):** safety rows take `PASS`,
+`FAIL`, `GAP`, or `N/A`. Their eligibility effects are fixed — every
+applicable row must be `PASS`; **`FAIL` and `GAP` both make the candidate
+ineligible** (a gate with no evidence is not a gate that passed); `N/A` is
+permitted only for a capability excluded from the recommendation boundary,
+never for missing evidence inside it, and every `N/A` names the scope it
+excludes. A single applicable non-`PASS` makes a candidate ineligible,
+regardless of ergonomics. Frozen-workload *checks* keep their own
+`PASS`/`GAP`/`FAIL` reporting, where a `GAP` is an unproved behavior rather
+than an automatic disqualification — but a workload `GAP` on a must-have fact
+still blocks the outcome that fact supports.
+
+1. **Authority:** local output is always labeled speculative; only server
+   re-execution can settle it.
+2. **Atomicity and idempotence (partition sharpened v0.7):** a
+   claimed-successful intent's authoritative effects **commit** atomically and
+   idempotently, exactly once; rejection or rollback cannot strand a partial
+   authoritative write. Whether those committed effects are then **visible**
+   to a query — completeness, truncation, staleness — is **gate 9's**
+   territory, not this one. The two gates previously overlapped on the word
+   "visible," which is why the Fleet result below could be argued into either;
+   the partition is now unambiguous, and a candidate is scored against exactly
+   one of them per failure.
+3. **Conflict honesty:** semantic conflicts are explicit closed outcomes, not
+   silent last-write-wins unless that policy is the declared one in force.
+   Note the baseline this gate sits on: LLP 0008 pins field-level
+   last-write-wins with delete-wins as the **v1 default**, so the gate is not
+   a demand that every operation opt in — it is a demand that a candidate
+   never present a *semantic* conflict (one the workload's frozen facts name
+   as needing resolution) as a silently merged success. Any candidate that
+   wants per-operation conflict declaration is proposing a change to 0008's
+   default and must say so in its evidence.
+4. **Replay order:** a non-empty outbox performs full resync before ordered
+   replay; resume never skips that barrier.
+5. **Identity:** source/IR/runtime/store/schema identities fence local
+   execution and replay; stale code cannot settle under a new operation by
+   name alone.
+6. **Trusted inputs, and the candidate sandbox (v0.5).** Server time, canonical
+   IDs, authorization, and global uniqueness re-derive at settlement per LLP
+   0133; the client cannot mint authority by prediction. **External effects are
+   not "degraded" — they are denied.** LLP 0133 excludes action replay and LLP
+   0126 pins actions and external effects as impossible offline and never
+   automatically replayed, so no owning document defines a degraded local
+   external effect and this Plan will not invent one.
+
+   **The frozen surface bounds *ambient* capability, not ordinary execution
+   inputs (corrected v0.8).** v0.5's "the retained query store, the outbox, the
+   IR plan and its ledger, and nothing else" was read literally by round 6 and
+   it is wrong: it omitted mutation arguments and the operation artifact, so no
+   arg-bearing Candidate A could execute, and Candidate C — whose defining
+   artifact is an app-authored mutator rather than an IR plan — could not exist
+   at all, while gate 6 binds every candidate. The declared inputs, frozen with
+   the manifests and conforming to the owning contracts (LLP 0051 D5 requires
+   schema, initial rows, an IR plan **or module**, arguments, ledger, and
+   principal; LLP 0133 treats explicit application arguments as legitimate
+   validated data): the schema and store snapshot; the operation artifact
+   appropriate to that candidate (an IR plan for A, the IR plus its declared
+   extensions for B, the app-authored mutator for C); validated mutation
+   arguments; a bounded client-visible principal/context projection, explicitly
+   labeled non-authoritative; the outbox; and the recorded deterministic
+   host-answer ledger.
+
+   **Denied to every candidate:** network, action invocation, ambient clock or
+   randomness outside the ledger, and any undeclared host capability. The lab
+   runs **negative sandbox tests** proving each denial, and a candidate that
+   reaches an ambient capability fails gate 6
+   outright. Any broader local capability must land in an owning design first.
+7. **Revocation — four cases with LLP 0053's own disposition names (split in
+   v0.4; disposition names corrected in v0.5 after round 3 found 7(b) using a
+   word LLP 0053 does not use).** Each case has its own expected disposition,
+   and a candidate that satisfies one by doing another's thing fails:
+   (a) **session logout / expiry / user switch** — an *authority transition*,
+   not an authorization event (LLP 0053: "Not on this list, and deliberately
+   so: session revocation"); the disposition is client-wide **`delete`** (LLP
+   0039's rule, grant-scoped for multi-grant agent clients per LLP 0055);
+   (b) **connected permission change** — LLP 0053's rule is "**coarse events
+   quarantine; only proof deletes**," and it has three distinct paths, not one:
+   matcher-mediated shrinking delivery — **and v0.7 imports the obligation
+   machinery v0.5/v0.6 flattened into "the resnapshot carries it," which
+   dropped the load-bearing security property**: every auth-scoped result
+   shrink raises a **durable, level-triggered delivery obligation**, carried by
+   an exact remove delta or a conservative replacement, and discharged **only
+   on acknowledgement of a snapshot at or after the causing version**. Without
+   the ACK-backed discharge a lost removal leaves forbidden rows visible
+   indefinitely, which is precisely the hole LLP 0053 §Obligations exists to
+   close, so the lab tests the obligation's durability and its ACK discharge,
+   not merely that a resnapshot eventually happened; every ordinary
+   coarse/out-of-band permission or activation
+   revocation → **`quarantine`** (hide from render immediately, block reads,
+   preserve suspended, release only on a satisfying superseding snapshot);
+   and **`delete`** only on proof — typed `SNAPBACK_AUTH_PERMISSION_DENIED`
+   or a superseding snapshot proving access is gone. (Lease expiry without
+   revalidation is also a `delete` producer in LLP 0053, but it belongs to
+   case (c) and is **removed from (b)'s list in v0.7**, so a lab operator
+   scoring the matrix cannot count one lease-expiry delete as a (b) pass.)
+   A candidate that deletes on a coarse event fails this gate:
+   that was attempt four's bug, and LLP 0053 corrected it precisely because
+   routine membership churn would otherwise destroy every client's retained
+   data;
+   (c) **disconnected authorization change** — undiscoverable by construction;
+   the unexpired `AuthorizedLease` is the bound, and fail-closed expiry to
+   `delete` is the only correct behavior. A candidate is never asked to detect
+   an offline revocation, and a lab check that demands it is malformed;
+   (d) **reconnect** — every auth-scoped reconnect requires a fresh
+   resnapshot before release or deletion, and pending work never bypasses the
+   execution-time authorization check.
+   *Under the public-data-only branch* — **narrowed in v0.6; the v0.5 rule was
+   unsafe.** `N/A` is **not** licensed merely because the protected capability
+   row is unshipped. Absence of protected-query retention does not imply
+   absence of authority-bound state: an authenticated client in a public-data
+   lab still holds queued intents, optimistic overlays, and public retained
+   rows, and LLP 0039 requires authenticated→anonymous and
+   authenticated→different-user transitions to delete retained rows *and*
+   queued mutations. So: **whenever an authenticated client is in scope, case
+   (a) runs** — including its pending-outbox half — and `N/A` is available only
+   when the frozen recommendation scope contains no authority-bound retained
+   rows, overlays, or outbox work at all (e.g. a wholly anonymous
+   configuration). **Case (b) is `N/A` only when the frozen scope proves no
+   subscription or result is auth-scoped or permission-dependent — which is a
+   high bar, not a default (v0.7):** LLP 0053 defines auth-scoped fail-closed
+   ("every subscription is auth-scoped unless its function is explicitly
+   declared `authorityIndependent`; undeclared means auth-scoped"), and LLP
+   0080 keeps even all-`public-read` relational plans auth-scoped in v1. "The
+   lab uses public data" is therefore *not* sufficient to `N/A` case (b).
+   Case (c) is `N/A` only when there is no lease-backed retained auth state.
+   When either is `N/A`, the recommendation scope narrows accordingly, and the
+   artifact names the exclusion. Cases (b) and (c) are
+   mutually exclusive on their shared producer: **lease expiry without
+   revalidation belongs to (c)**,
+   the disconnected case, and is not also a (b) producer. Case (d)'s
+   reconnect-resnapshot obligation is scoped to **auth-scoped subscriptions**,
+   which is narrower than v0.5's "any authenticated session"; the separate
+   full-resync-before-replay barrier for pending work comes from LLP 0043/0090
+   and is gate 4's, not gate 7's.
+8. **Bounded custody:** queries, overlays, outbox entries, replay attempts, and
+   conflict materialization have explicit resource ceilings and observable
+   cleanup.
+9. **No false completion:** partial query materialization, interrupted replay,
+   and pending acknowledgement remain visibly incomplete.
+
+Candidate C's duplicated application-authored semantics can never earn the
+same-code `Parity` claim merely by passing this experiment. Its maximum claim
+from this lab is LLP 0126's `Online` plus explicitly labeled speculation; any
+stronger vocabulary needs an independently owned and accepted design.
+
+Standing nonclaim, corrected in v0.4 and filed under **gate 9**, not gate 2
+(both round-2 reviewers caught the original as stale): LLP 0138 retained one
+primary Snapback FAIL in its immutable v1 receipt — a 1,000-row burst mutation
+reported success while neither a fresh authoritative query nor the active live
+result observed the changes. Exact-fixture follow-up **falsified the
+atomicity/visibility reading**: all 1,000 writes were durable, and the defect
+was an implicit 1,024-row query prefix silently treated as complete before
+application-side ordering (LLP 0138's 2026-08-01 Revised header and §Status).
+That is false completion — gate 9's territory — and it is **remediated**:
+`b52e3b9c` ("fix(query): refuse implicit result truncation") landed
+`SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED` with regressions in `tests/local_v0.rs`
+and `tests/workerd_twin_v0.rs`, closed as
+`issues/closed/20260801-fleet-query-implicit-limit.md`, and the v2 remediation
+receipt reads 7 PASS / 1 GAP / 0 FAIL. What survives as a nonclaim: the v1
+receipt stays immutable evidence, and gate-9 passes inside this lab's three
+frozen workloads are evidence about those workloads only — never a general
+query-completeness claim for the product. No standing gate-2 nonclaim is
+asserted, because no current evidence supports one.
+
+(This remediation is also the worked example of §Interaction with intervening
+product work: an authority-preserving correctness fix that proceeds while the
+lab is pending, and that a freeze would record as a dated baseline change.)
+
+Cross-candidate performance numbers are invalid unless machine, browser,
+fixture, warmup, network profile, target class, and measurement code are
+identical.
+
+### Measurements and diaries
+
+For each workload/candidate record raw evidence plus:
+
+- frozen workload checks as PASS/GAP/FAIL (a required must-have fact never
+  accepts `N/A`) and safety rows as PASS/GAP/FAIL/N/A, in **separate typed
+  fields** (v0.7 — one combined enum blurred the two vocabularies §Safety
+  gates keeps distinct), with Stop-class failures
+  controlling and each N/A naming the excluded recommendation scope;
+- authored product files, lines, concepts, duplicated transformation lines,
+  and provider-specific escape hatches;
+- time to first correct implementation and assistance events;
+- input-to-local-paint, server result, and observer convergence as separate
+  distributions (warmup plus at least twenty retained samples; median and
+  nearest-rank p95 — at n=20 that is the 19th value, so any p95 entering a
+  cross-candidate comparison is labeled indicative unless the sample floor is
+  raised for that comparison);
+- browser bundle delta, evaluator startup, cold hydration, IndexedDB bytes,
+  retained query rows/bytes, pending-intent bytes, and peak attributable
+  memory;
+- crash/restart recovery time and replay count;
+- number and quality of build-time refusals, runtime diagnostics, and
+  application-visible terminal outcomes; and
+- one chronological diary per workload that freezes the first attempt and
+  appends remediation rather than rewriting it.
+
+The minimum role assignment is two independent builders plus one non-building
+evidence reviewer. Both builders attempt Candidate A across all three frozen
+workloads before seeing the other's diary. If B or C runs, assignments are
+crossed so no candidate is represented only by the builder who designed its
+surface; the same assistance budget applies to every candidate. The reviewer
+freezes the contract before implementation and adjudicates classifications
+without editing product code. Assistance is disclosed rather than normalized
+away.
+
+### Trigger detection and recommendation rule
+
+The recorded trigger is **detected** when Candidate A cannot express a frozen
+required fact without one of these disqualifying workarounds:
+
+- duplicating the mutation transformation in application React/client code;
+- forging or weakening authoritative identity/type distinctions;
+- failing a frozen query-composability fact by keeping provisional items in an
+  application-owned parallel collection, even when that sidecar is honest;
+- omitting durable restart/rebase behavior required by the workload;
+- broadening the deterministic host-answer surface solely for one app; or
+- passing only by weakening a safety, carrier, or evidence requirement.
+
+**Separating IR insufficiency from a missing shared mechanism (v0.5).** The
+same attribution discipline applies, and this is the hazard §Open questions 8
+names: Candidate A is the IR evaluator *plus* the shared substrate it needs to
+run at all — lane-L settlement and id mapping, partial-read admission, schema
+and identity fencing, receipt projection, the browser store/outbox, and the
+React presentation path. A gap attributable to any of those being unlanded is
+**missing implementation, not trigger detection**, and must be recorded as
+such. The lab keeps a **misattribution log**: every Candidate A gap classified
+as exactly one of {IR-inherent, pin-collision, missing shared mechanism,
+**candidate-implementation defect, harness/evidence defect, environmental,
+ambiguous frozen fact, unresolved**} — the last five added in v0.7, because
+the three-way partition had no home for the failure modes this program has
+actually experienced (the bakeoff misread fulfilled Zero error results, and
+Fleet's first diagnosis was reversed by exact-fixture investigation), and two
+independent builders can share one defective evaluator, settlement
+integration, store, or React path. **None of the added five can detect the
+trigger.** Each produces Outcome 0 and requires repair plus a fresh sealed
+rerun; "unresolved" is an allowed terminal state and is never resolved toward
+detection by default. Each classification carries
+the test applied and the owner who validated it. Because that substrate is
+partly unbuilt today, the lab may not be scheduled before §Open questions 8 is
+answered — otherwise it measures absence and feeds a false negative into an
+Option-C recommendation.
+
+**Separating IR insufficiency from collision with an owned pin (v0.4;
+the worked example withdrawn in v0.6).** When
+a Candidate A gap coincides with a deliberate policy pin rather than an
+expressive limit, the evidence must say which it is, or the trigger measures
+the wrong thing.
+
+*No gap is preclassified as a pin.* v0.4 named workload 3's
+speculative-restart-render gap as a known pin, on the strength of Diary 0046's
+phrasing that "the JS arm deliberately refuses persisted speculative render
+while an outbox is pending (LLP 0090 D3)." **Both round-4 reviewers checked
+LLP 0090 and it does not say that.** What D3 pins is a *resume* rule — "a
+relaunching client with a non-empty mutation outbox does not send
+`resumeFromToken`; it takes the 0043 path (full resync, then replay).
+Composing resume with a pending outbox is milestone-3 work co-owned by LLP
+0043." That is a deferred-composition boundary, not a prohibition on restoring
+a distinctly labeled speculative overlay; LLP 0043 M2 even carries local
+optimistic patch metadata. The render behavior is an implementation
+consequence of the v1 milestone boundary, which puts the gap in the
+*missing shared mechanism* class if anywhere. Preclassifying it as a pin would
+have suppressed a legitimate Candidate A deficiency before the attribution
+test ran, so the classification is left to the lab and its owner-validation
+step. A gap counts as a pin collision only if an owning document explicitly
+adopts the prohibition **before** the experiment freezes.
+
+For any candidate pin collision the lab must record whether
+Candidate A could express the fact under a relaxed presentation policy; if it
+could, the finding is a proposed dated amendment to the owning document (LLP
+0090 here), **not** trigger detection. The trigger is about the IR rung's
+expressive reach and nothing else.
+
+Trigger detection starts Candidate B; it does not admit C. Recommend Outcome 2
+when constrained extensions cover every detected A gap, pass every gate, and
+stay within B's preregistered coherence ceilings.
+
+**B's coherence ceilings (added v0.4; without them Outcome 2 wins
+automatically and the burden metrics the lab collects cannot affect the
+recommendation, so an incoherent pile of extensions would beat a bounded C
+contract).** Freeze the exact numbers with the manifests, before
+implementation. B is no longer "constrained," and the lab must say so in its
+recommendation, when any of these is exceeded: the count of distinct public
+extension mechanisms; the share of extensions unlocking exactly one frozen
+fact for exactly one workload (app-specificity); authored product lines and
+concepts relative to Candidate A; browser bundle delta; or the number of
+extension-specific diagnostics an author must learn. Exceeding a ceiling does
+not by itself recommend Outcome 3 — every Outcome 3 condition below still
+binds, and the least-power default still governs — but it does bar a silent
+Outcome 2, and it obliges the lab to report B as an incoherent-surface result
+and hand the author an explicit comparison against the bounded C contract.
+
+Recommend Outcome 3 only when all of the following are true:
+
+1. at least one must-have fact remains inexpressible after **two independent B
+   attempts fail the same fact** (v0.6: "a concrete B attempt," singular,
+   contradicted the proof rule below, which holds B to A's standard), with the
+   missing expressive power named and owner-validated;
+2. Candidate C passes every safety gate on all three workloads, including real
+   crash/restart and every authority scope included in the recommendation;
+3. C materially improves the blocked workload rather than merely reducing
+   lines — it removes the inexpressibility and does not add a worse drift,
+   custody, or diagnostic burden; and
+4. the proposed bounded C contract is reviewable as a product surface, with no
+   undeclared arbitrary-code or client-authority escape hatch.
+
+**Outcome 0 — no recommendation (added v0.5; the "exactly one of three
+outcomes" claim was not total).** At least two reachable states fit none of
+outcomes 1–3: (i) Candidate A's only failure is attributable to an owned
+policy pin or an unlanded shared mechanism, so it is not trigger detection,
+Outcome 1 is not yet demonstrated, and 2–3 are unjustified; (ii) Candidate B
+expresses every fact but exceeds its coherence ceilings, so Outcome 2 is
+barred while Outcome 3's condition 1 (remaining inexpressibility) is false. In
+any such state the lab records **Outcome 0**: no Option-C recommendation, the
+current authority decision stands unchanged, and the artifact names what would
+have to change — an owner-policy amendment, a landed shared mechanism, a
+repaired protocol, or a narrower follow-up. Outcome 0 does not close the lab;
+a rerun requires the named change plus a fresh dated owner/timebox record.
+
+If evidence is mixed, retain the current decision and run a narrower follow-up;
+uncertainty never defaults to the more powerful authority surface.
+
+**What counts as proof of inexpressibility (added v0.5).** "Candidate A cannot
+express fact F" is a universal claim, and the protocol previously had no rule
+for establishing one. The controlling rules:
+
+- **One valid implementation defeats the claim.** If either builder produces a
+  Candidate A that passes F within the gates, F is expressible — full stop,
+  regardless of the other builder's failure or of how much harder it was.
+- **Both independent attempts must fail the same fact**, in separate source
+  trees, with per-builder × per-workload × per-attempt evidence sealed before
+  the diaries are compared. A single failure is a builder result, not a
+  language result.
+- **The failure must name the missing primitive** — which admitted IR or
+  profile capability would have expressed F — and the relevant owner (LLP 0051
+  for IR/conformance, LLP 0080/0110 for profiles) must validate that
+  classification. An unnamed "we couldn't find a way" is not a finding.
+- **Candidate B gets the same standard** before Outcome 3 may be recommended:
+  a single concrete B attempt is not enough to establish that B is
+  inexpressive.
+- **Ordering bias is disclosed, not normalized away.** Candidates always run
+  A→B→C, so later candidates inherit workload and harness familiarity;
+  authoring-time and assistance figures are therefore **descriptive only** and
+  may not by themselves move the recommendation between outcomes. Runtime
+  comparisons additionally preregister their sampling unit, clean-profile
+  repetitions, and pooling rule, or they are descriptive too.
+
+### Decision artifact and ownership
+
+The lab produces an immutable evidence directory, three diaries, a
+dimension-separated comparison, and a proposed dated amendment to this
+section. That amendment records evidence and disposition, not a shippable
+product contract. It must name:
+
+- the exact candidate, bounded recommendation scope, and owning documents that
+  would have to accept its product design;
+- every safety-gate result, N/A scope, and remaining nonclaim;
+- what happens to Option C (`not admitted` or `admitted within <boundary>`);
+- the source commit, target, browser, store, and evidence digests; and
+- follow-up owners for implementation, guide, migration, and conformance.
+
+The program may declare the trigger detected and recommend an outcome. Per LLP
+0130 ER-1, **only the author can record the admission decision**. Until that
+dated amendment lands, Option C remains not admitted and no implementation may
+ship a capability claim for it. Even after a disposition, product work waits
+for the owning RFC/Spec changes named by the amendment.
 
 ## Cross-gates with LLP 0115
 
@@ -577,9 +1613,10 @@ scope; both were adjudicated 2026-07-30 and no longer gate this Plan
 4. **Option-C trigger wording — RECORDED (v0.2, decision 2).** The
    named trigger, verbatim: admit option C only if the IR rung proves
    insufficient for browser-side write expressiveness after
-   measurement. Residue, still open: who observes the measurement and
-   where a dated admission decision would be recorded if the trigger
-   ever fires. LLP 0130 ER-1 (2026-07-31) reserves the admission: the
+   measurement. The Option-C empirical decision protocol now defines who
+   observes the measurement and where the dated recommendation/admission
+   amendment is recorded; its owner and timebox remain gated by open question
+   5. LLP 0130 ER-1 (2026-07-31) reserves the admission: the
    program may detect the trigger, but admitting option C is the
    author's call alone — no standing decision covers it. (0127's
    earlier phrasing — C "available if demand for
@@ -592,3 +1629,69 @@ scope; both were adjudicated 2026-07-30 and no longer gate this Plan
 6. **The ephemeral no-sync pin.** Does the proposed LLP 0013
    amendment (0126 OQ8; constraint 4) land with Phase 0 or
    independently, and who writes it?
+7. **Phase 0's gate disposition — OPEN (v0.4, raised by round 2).**
+   Phase 0's implementation lane landed, but its evidence gate reads
+   "a diary-grade offline acceptance rerun on **the chosen arm**" and
+   the chosen arm is the JS/React *browser* arm, while the retained
+   acceptance is Node/file/headless over public queries — and exit
+   criterion 1 additionally wants an authenticated shell and
+   authorized rows. Does the gate **split** into a landed
+   Node/file/public half plus an open browser/React/authorized half,
+   or does the **whole** gate stay open until the browser witness
+   (`issues/20260801-guide-gap-js-arm-browser-indexeddb-proof.md`)
+   lands? Either answer is defensible; only the author can pick,
+   because SD-5's self-advancing rule keys off it. Related: whether
+   Phase 0's missing pre-start owner/timebox (question 5) gets a dated
+   retrospective exception.
+8. **Is Phase 1's gate sufficient for what Phase 1 promises? — OPEN
+   (v0.4, raised by round 2).** Phase 1's named gate is the
+   IR-evaluator sizing spike plus the LLP 0051 D5 corpus passing on
+   both sides. But the phase promises local optimistic overlays and
+   honest `Parity`, and `Parity` needs mechanisms D5 does not
+   exercise: lane-L settlement and id mapping (LLP 0133 is *accepted
+   design*, not landed implementation — it delegates receipt wire
+   shape, queue/lease mechanics, and schema-at-capture to other
+   owners), partial-read admission (ledger row 2), schema/identity
+   fencing (row 3), receipt projection (row 4), and the browser
+   store/outbox and React presentation paths. Exit criterion 3 and
+   the ledger already bar the *claim*; the open question is whether
+   the *gate* should be split into evaluator/conformance and
+   end-to-end shipping slices so SD-5 cannot advance the phase on D5
+   alone. Consequence for the decision lab: Candidate A cannot be
+   called inexpressive until these shared mechanisms exist, or the lab
+   measures missing implementation instead of the IR rung's reach.
+9. **Phase 2a's exit is not falsifiable — OPEN (v0.4, raised by round
+   2).** §Exit criteria says a phase that cannot state its criterion
+   in falsifiable form does not exit, and program completion requires
+   Phase 2a to have executed; but Phase 2a's only gate is "the WASM
+   assessment, dated," which names no pass/fail condition and no
+   artifact. Either give Phase 2a a falsifiable artifact/conformance
+   exit, or reclassify it as an assessment whose disposition is an
+   author call like the Option F rider's — and say which in the
+   completion boundary.
+10. **What is Candidate B, exactly, and who owns it? — OPEN (v0.7,
+    raised by round 5).** Outcome 3 requires that a fact be
+    inexpressible after B, but B is currently an open-ended list of
+    *example* extensions, and its coherence ceilings bound counts and
+    costs rather than semantics. Two failed B implementations
+    therefore support "two preregistered B designs failed," not "every
+    permitted B design is inexpressive" — and no owner exists who could
+    validate the stronger claim. Before B is tested, someone must
+    freeze its typed inputs and outputs, its allowed computation and
+    effects, its composition rules, its explicit prohibition on
+    duplicated mutation semantics, and its adjudicating owner. Until
+    that exists, the lab can reach Outcome 0 or 1 but not a sound
+    Outcome 3.
+11. **Who owns execution-identity element 5? — OPEN (v0.7, raised by
+    round 5).** Exit criterion 3 asks only for "an activation-carry
+    check in the settlement submission" for element 5 (store semantics
+    and schema epoch). Carriage proves neither store-semantic
+    compatibility nor safe behavior on mismatch, and LLP 0133 is
+    explicit that the activation travels as an untrusted claim whose
+    mismatch disposition is owned elsewhere and must never settle
+    silently as matched. Ledger row 5 proposes owners for the other
+    elements but leaves element 5's store-semantics profile and
+    mismatch disposition unowned. Criterion 3's element-5 harness
+    should become conformance on both executions plus mismatch
+    refusal/quarantine/resync tests — but naming that owner is the
+    author's call.

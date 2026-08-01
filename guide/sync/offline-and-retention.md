@@ -8,7 +8,7 @@ authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update
 examples: [demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashboard, packages/snapback-contract/agent-authority-contract.test.mjs, packages/snapback-react/offline.test.mjs]
 status: current
 targets: [local]
-maturity: shipped
+maturity: partial
 reviewed: 2026-08-01
 reviewed-commit: HEAD
 ---
@@ -31,19 +31,33 @@ riding it) persists its cache **by default**: the client resolves an
 IndexedDB store in browsers, a durable file store on node, and an in-memory
 fallback elsewhere, reporting the resolved implementation and durability on
 `client.rqsStoreInfo` (pass `rqsStore: null` or set
-`SNAPBACK_CLIENT_RQS_STORE=off` to opt out). What that buys, each proven by
-`demos/public-dashboard/tests/acceptance/offline-local-first.mjs`:
+`SNAPBACK_CLIENT_RQS_STORE=off` to opt out).
 
-- **Cold-boot retained render for the rqsEligible subset.** A relaunch —
+The implementation surface includes all three carriers, but the retained
+`demos/public-dashboard/tests/acceptance/offline-local-first.mjs` witness runs
+headlessly on Node and forces the file store. It does **not** certify React,
+standards-real IndexedDB, or a full browser-process restart. Those browser
+facts remain an evidence GAP under
+`issues/20260801-guide-gap-js-arm-browser-indexeddb-proof.md`; do not infer
+them from the Node receipt. The headless witness proves:
+
+- **Retained render for the rqsEligible subset on the Node/file
+  carrier, by a fresh client instance in the same process.** (Not a
+  "cold boot": the witness closes one client and constructs another
+  without restarting the process. No full client-process restart is
+  proven on any carrier — see the GAP ticket above.) A fresh client —
   including with the backend unreachable — renders the persisted rows of
   authority-independent live queries first, marked
   `freshness: 'retained'`, then settles to `'current'` on reconnect
-  (LLP 0090 Channel B). Protected/auth-scoped and opaque queries are NOT
-  retainable on this arm: the handle's `retention` fact names the refusal
-  (`SNAPBACK_RETENTION_NOT_RETAINABLE`,
-  `SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE`) instead of silently acting
-  local-first — LLP 0053's retainability invariant is the boundary, and
-  lease-bounded protected retention remains the Contract arm's.
+  (LLP 0090 Channel B). Non-`rqsEligible` queries are NOT retainable: the
+  handle's `retention` fact names the refusal
+  (`SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE`) instead of silently acting
+  local-first. **Not proven by this witness:** the protected/auth-scoped
+  and opaque refusal (`SNAPBACK_RETENTION_NOT_RETAINABLE`) is implemented
+  but asserted by no test on any carrier — LLP 0053's retainability
+  invariant is the intended boundary, and the evidence for it is a GAP
+  under the ticket above. Lease-bounded protected retention remains the
+  Contract arm's.
 - **A durable LLP 0043 M2 outbox.** A mutation refused by connectivity is
   queued durably under a client-minted `clientMutationId` (protocol-lane
   identity) with a monotonic local sequence, and returns
@@ -51,8 +65,13 @@ fallback elsewhere, reporting the resolved implementation and durability on
 - **Ordered exactly-once replay.** After reconnect completes a fresh
   authoritative snapshot (full resync first — LLP 0008 §Mutation Replay),
   the client drains the queue in sequence order; the server's settlement
-  ledger returns the original result on duplicate delivery, and a refused
-  replay is dropped and marked failed, visible in `outboxRecords()`.
+  ledger returns the original result on duplicate delivery. (A refused
+  replay is dropped and marked failed, visible in `outboxRecords()`. The
+  *store's* drop-and-mark-failed contract is covered by the package unit
+  test `packages/snapback-client/outbox-store.test.mjs`; the client
+  wiring that maps a server refusal onto it — emitting
+  `SNAPBACK_OFFLINE_MUTATION_REPLAY_FAILED` — is asserted by no test, and
+  neither is covered by the headless acceptance above.)
 - **No `Parity` claim.** This arm runs no local execution, so the queued
   path is Online-class retention/replay under LLP 0043's proof rule. A
   relaunch with pending intent still renders the retained rows — marked

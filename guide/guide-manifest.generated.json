@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "c94b251b248339e45288151a24fd815324e50516"
+    "commit": "4a7bc08fcdfb99d9843595512245dca2bd618c46"
   },
   "nav": {
     ".": [
@@ -1119,9 +1119,9 @@
         "packages/snapback-react/index.mjs"
       ],
       "examples": [],
-      "reviewed": "2026-07-27",
-      "reviewedCommit": "8399da34f8bdebb2776395ee5751b57c2bd2e71f",
-      "sha256": "35627bf0963e57f6bc7324b06dc267cae783e6a5e7cda7373fe26e3bcf96afc5",
+      "reviewed": "2026-08-01",
+      "reviewedCommit": "HEAD",
+      "sha256": "f184bde86a3891b5bf2f90572c3ff4adbea4a281cfdea1873283e19c4a2abf2b",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2181,7 +2181,7 @@
       "targets": [
         "local"
       ],
-      "maturity": "shipped",
+      "maturity": "partial",
       "capabilities": [
         "sync.offline",
         "sync.offline-js-arm"
@@ -2207,7 +2207,7 @@
       ],
       "reviewed": "2026-08-01",
       "reviewedCommit": "HEAD",
-      "sha256": "1886e453f012328576dad86024b3ff1fe952b65157878f7b4db3748fbaafa09b",
+      "sha256": "e2285ab2152b7f823aa98cc46246369ad8af69128a751a265956eaf9d59cf466",
       "snippets": [
         {
           "lang": "js",
@@ -2368,7 +2368,6 @@
       "realtime.live-queries",
       "realtime.snapshot-bundles",
       "sync.offline",
-      "sync.offline-js-arm",
       "testing.acceptance"
     ],
     "gaps": [
@@ -2378,6 +2377,7 @@
       "backend.write-activity-v1",
       "clients.non-js",
       "clients.poll-hosted",
+      "sync.offline-js-arm",
       "sync.offline-js-arm-protected"
     ]
   },
@@ -2385,5 +2385,5 @@
     "routes": 86,
     "hostOps": 28
   },
-  "contentHash": "b1b620c02f4d5c56a9a6d9d81e97efc98118fad2c605ccb0e5cd215457c660d9"
+  "contentHash": "b4d1b4ede664b31e9cc499bdbd662c974d1e411833ffd246b1e413d77b605a38"
 }

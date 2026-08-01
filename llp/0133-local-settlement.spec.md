@@ -724,7 +724,11 @@ handlers may execute locally (row 2's territory).
 
 ## Status
 
-Draft (2026-07-31). Authored as LLP 0129 ledger row 1's owning Spec
+**Accepted (2026-07-31)** under LLP 0130 SD-4 after a dual-family review
+loop; the metadata header is authoritative and this section previously
+lagged it at `Draft` (corrected 2026-08-01, found by the LLP 0129
+super-refine round 3).
+Authored as LLP 0129 ledger row 1's owning Spec
 under the author's decided policy (0127 decision 10, adjudicated
 2026-07-30; registry LLP 0115 open question 8). Landing un-gates
 ledger row 1; rows 2–5 still gate any `Parity`-by-construction claim

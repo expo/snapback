@@ -1,11 +1,20 @@
 // Public-dashboard demo — diary-grade offline acceptance on the JS arm
-// (LLP 0129 Phase 0 evidence gate, self-advancing under LLP 0130 SD-5).
+// (LLP 0129 Phase 0 evidence, Node/durable-file carrier over public
+// rqsEligible queries. NOT the full Phase 0 gate: that reads "a diary-grade
+// offline acceptance rerun on the chosen arm," and the chosen arm is the
+// JS/React *browser* arm. This suite exercises no React surface, no
+// standards-real IndexedDB, no browser-process restart, and no auth-scoped
+// retention refusal, so LLP 0130 SD-5's self-advancing rule does not fire on
+// it — see LLP 0129 §Phases, "Proof-scope correction," and
+// issues/20260801-guide-gap-js-arm-browser-indexeddb-proof.md.)
 //
 // The comparator is Diary 0027's measured Convex cold-boot GAP: a reopened
 // browser with the backend down "yielded no authenticated application shell
 // and zero retained query rows." This suite proves, on the scored JS arm
 // with its DEFAULT persistence paths (no injected store):
-//   1. cold boot with data (the retainable rqsEligible subset) after server
+//   1. retained render with data (the retainable rqsEligible subset) by a
+//      FRESH CLIENT INSTANCE IN THE SAME PROCESS — not a cold boot; this
+//      suite never restarts the client process — after server
 //      restart + client relaunch — including with the backend unreachable;
 //   2. warm-session offline create/update settling exactly-once on resume
 //      through the LLP 0043 M2 outbox;
