@@ -230,10 +230,13 @@ export async function prepareReactBindingForClient(client, options = {}) {
   const resultContractsById = new Map();
   const queryArtifactsById = new Map();
   const authorityIndependentById = new Map();
-  // Generated function references belong to the public generated-artifact
-  // grammar (`snapback.v0` today), while the admitted function manifest may
-  // use the sessions carrier grammar (`snapback.v1`). The capability manifest
-  // carries the former and keeps prepared refs byte-identical to api.mjs.
+  // Generated references (function, query-group, and ephemeral collection)
+  // belong to the public generated-artifact grammar (`snapback.v0` today),
+  // while the admitted manifests may use the sessions carrier grammar
+  // (`snapback.v1`). The capability manifest carries the former and keeps
+  // every prepared reference byte-identical to api.mjs — admission compares
+  // references canonically and fail-closed, so a carrier-grammar stamp here
+  // would reject every generated `api.ephemeral.*` reference (0137 A2 f2).
   const referenceSchemaVersion = generated.capabilityManifest?.schemaVersion
     ?? generated.functions.schemaVersion;
   for (const definition of generated.functions.functions) {
@@ -337,7 +340,9 @@ export async function prepareReactBindingForClient(client, options = {}) {
       }
       const reference = Object.freeze({
         artifactKind: 'ephemeralCollectionReference',
-        schemaVersion: generated.schema.schemaVersion,
+        // Reference grammar, not the schema manifest's carrier grammar — see
+        // referenceSchemaVersion above: api.ephemeral.* must admit unchanged.
+        schemaVersion: referenceSchemaVersion,
         appId: generated.schema.appId,
         id: `${generated.schema.appId}:ephemeral:${definition.name}`,
         name: definition.name,

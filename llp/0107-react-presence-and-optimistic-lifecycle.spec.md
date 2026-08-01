@@ -5,7 +5,12 @@
 **Systems:** React, React/Expo, Ephemeral state, Client integration, Realtime, Auth, Mutation settlement, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-07-27 (implementation reconciliation: the negotiated expiry
+**Revised:** 2026-08-01 (0137 A2 f1/f2 fixes: room readiness is adopted from
+the proven level of an already-open managed socket instead of waiting for a
+fresh `'open'` edge, and the prepared binding reconstructs every generated
+reference — ephemeral included — in the public reference grammar so
+`api.ephemeral.*` admits; see the implementation journal).
+2026-07-27 (implementation reconciliation: the negotiated expiry
 carrier, shared result validator, provider-owned presence and optimistic
 stores, generated admission descriptors, Signal Desk migration, package
 suites, guide, and exact ten-check retained receipt are complete; hosted
@@ -289,6 +294,27 @@ Implemented on 2026-07-27 as one projection across:
   single authoritative optimistic query-store ledger; and
 - `demos/signal-desk/src/backends/snapback.ts` for the removal of manual
   presence heartbeat/overlay and optimistic rollback glue.
+
+2026-08-01 (LLP 0137 A2 findings f1/f2, `@expo/snapback-*` 0.1.7): two
+defects made the documented React presence path unreachable and were fixed at
+their layers. (f1) `startEphemeralRoom` tracked connection state only through
+`LiveStreamManager.onState` transitions, so a provider whose live queries had
+already opened the managed socket saw no fresh `'open'` edge and wedged at
+`connection: 'connecting'` / `status: 'stale'` forever while deltas still
+arrived; the room now adopts the proven readiness level after
+`waitUntilReady` resolves (connection events are level-triggered per §Resync,
+authority, and lifecycle — an edge-only view of an already-open socket is not
+an admissible readiness proof). Regression: `ephemeral-room.test.mjs`
+pre-opened-socket scenario, with the test fake corrected to the real
+transition-only `onState` contract. (f2) `prepareReactBinding` reconstructed
+ephemeral collection references with the schema manifest's carrier grammar
+(`snapback.v1` on sessions apps) while generated `api.mjs` stamps the public
+reference grammar (`snapback.v0`), so the fail-closed canonical admission
+rejected every `api.ephemeral.*` reference with
+`SNAPBACK_REACT_REFERENCE_INVALID`; the binding now stamps all reconstructed
+references (function, query-group, ephemeral) with the one reference grammar,
+keeping them byte-identical to `api.mjs` and the comparison strict.
+Regression: `presence.test.mjs` sessions-grammar admission scenario.
 
 The package suites cover descriptor/refusal typing, old/new expiry negotiation,
 room sharing and cleanup, optimistic ordering/rebase/selective rollback, and

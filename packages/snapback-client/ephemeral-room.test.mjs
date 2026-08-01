@@ -35,21 +35,34 @@ function overlay() {
   };
 }
 
-function fake({ protocol = 1, subscribe = async () => overlay() } = {}) {
+function fake({ protocol = 1, subscribe = async () => overlay(), alreadyOpen = false } = {}) {
   let unsubscribes = 0;
   let managerListeners = 0;
+  // Mirror the real LiveStreamManager contract: onState delivers transitions
+  // only — registration never replays the current level. An `alreadyOpen`
+  // manager models a socket whose demand another consumer (live queries)
+  // already owns: isOpen() is true from the start and no fresh 'open' edge
+  // will ever fire (0137 A2 f1).
+  let open = alreadyOpen;
   const manager = {
     onState(listener) {
       managerListeners += 1;
       manager.listener = listener;
-      listener('open');
+      if (!alreadyOpen) {
+        open = true;
+        listener('open');
+      }
       return () => {
         managerListeners -= 1;
         manager.listener = null;
       };
     },
+    isOpen() { return open; },
     async waitUntilReady() {},
-    emit(state) { manager.listener?.(state); },
+    emit(state) {
+      open = state === 'open';
+      manager.listener?.(state);
+    },
   };
   return {
     liveStreamManager() { return manager; },
@@ -154,4 +167,31 @@ replacement.dispose();
 await replacement.settled();
 assert.equal(replacementFake.inspection().unsubscribes, 1);
 
-console.log('ephemeral-room.test.mjs: negotiation, immediate handle, late cleanup, and settlement pass');
+// Regression (0137 A2 f1): a provider whose live queries already opened the
+// managed socket starts the presence room against an already-open manager.
+// No 'open' transition will ever fire, so the room must adopt the proven
+// readiness level instead of wedging at connection 'connecting'/status
+// 'stale' with remote deltas still arriving.
+const preOpenedFake = fake({ alreadyOpen: true });
+const preOpened = SnapbackClient.prototype.startEphemeralRoom.call(
+  preOpenedFake,
+  admitted,
+  { roomId: 'one' },
+);
+await preOpened.started();
+assert.equal(preOpened.getSnapshot().connection, 'live');
+assert.equal(preOpened.getSnapshot().status, 'ready');
+await preOpened.publish({ name: 'Ada' });
+// Loss and reconnect on the shared socket still resynchronize the room.
+preOpenedFake.emitManager('lost');
+assert.equal(preOpened.getSnapshot().status, 'stale');
+preOpenedFake.emitManager('open');
+while (preOpened.getSnapshot().status !== 'ready') {
+  await new Promise((resolve) => setImmediate(resolve));
+}
+assert.equal(preOpened.getSnapshot().connection, 'live');
+preOpened.dispose();
+await preOpened.settled();
+assert.equal(preOpenedFake.inspection().managerListeners, 0);
+
+console.log('ephemeral-room.test.mjs: negotiation, immediate handle, late cleanup, pre-opened socket readiness, and settlement pass');

@@ -5747,6 +5747,17 @@ export class SnapbackClient {
           throw error;
         }
         await bounded(manager.waitUntilReady({ timeoutMs: 5_000 }), 'socket readiness');
+        // A managed socket that live-query demand already opened emits no
+        // further state transition, so a room that only tracked 'open' edges
+        // would report 'connecting'/'stale' forever (0137 A2 f1). Readiness
+        // was just proven for the current generation: adopt the level.
+        // @ref LLP 0107#resync-authority-and-lifecycle — connection events
+        // are level-triggered; an edge-only view of an already-open socket
+        // is not an admissible readiness proof.
+        if (manager.isOpen() && currentConnection !== 'live') {
+          currentConnection = 'live';
+          publishSnapshot({ connection: currentConnection }, expectedGeneration);
+        }
         const next = await bounded(
           this.subscribeEphemeral(ref, { connectionId, scope }),
           'ephemeral subscribe',

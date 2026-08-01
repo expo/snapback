@@ -62,7 +62,7 @@ const capabilityManifest = Object.freeze({
   supportedCapabilities: ['live_subscriptions'],
 });
 
-function fakeClient(profile = 'local-dev-sqlite-ibex') {
+function fakeClient(profile = 'local-dev-sqlite-ibex', deployment = { schema, functions }) {
   let starts = 0;
   let publishes = 0;
   let deletes = 0;
@@ -74,8 +74,8 @@ function fakeClient(profile = 'local-dev-sqlite-ibex') {
       return {
         targetProfileId: profile,
         target: profile,
-        schema,
-        functions,
+        schema: deployment.schema,
+        functions: deployment.functions,
         capabilityManifest: { ...capabilityManifest, targetProfileId: profile },
       };
     },
@@ -280,4 +280,63 @@ assert.equal(hosted.inspection().starts, 0, 'hosted refusal performs no room wor
 await hostedObserver.dispose();
 await hostedProvider.dispose();
 
-console.log('presence.test.mjs: shared rooms, managed intent, conflicts, refusal, and cleanup pass');
+// Regression (0137 A2 f2): sessions-mode manifests carry the carrier grammar
+// (`snapback.v1`) while generated api.mjs stamps every reference with the
+// public reference grammar (`snapback.v0`). The binding must reconstruct its
+// ephemeral references in the reference grammar so the documented
+// `api.ephemeral.<name>` path admits unchanged — fail-closed canonical
+// comparison intact.
+const sessionsSchema = Object.freeze({ ...schema, schemaVersion: 'snapback.v1' });
+const sessionsFunctions = Object.freeze({ ...functions, schemaVersion: 'snapback.v1' });
+const sessionsClient = fakeClient('local-dev-sqlite-ibex', {
+  schema: sessionsSchema,
+  functions: sessionsFunctions,
+});
+const sessionsBinding = await prepareReactBindingForClient(sessionsClient, {
+  generatedManifest: {
+    functions: sessionsFunctions,
+    schema: sessionsSchema,
+    capabilityManifest,
+  },
+});
+// Byte-for-byte the reference codegen's renderApiModule emits for this
+// collection on a sessions app.
+const generatedApiReference = Object.freeze({
+  artifactKind: 'ephemeralCollectionReference',
+  schemaVersion: 'snapback.v0',
+  appId: 'presence-fixture',
+  id: 'presence-fixture:ephemeral:presence',
+  name: 'presence',
+  keyMode: 'Connection',
+  scopeFields: ['roomId'],
+  routingFields: ['roomId'],
+  defaultTtlMs: 1_000,
+  maxTtlMs: 5_000,
+  maxValueBytes: 128,
+  publishRate: { sustainedHz: 4, burst: 8 },
+  deliveryMode: 'latest',
+});
+assert.deepEqual(
+  JSON.parse(JSON.stringify(sessionsBinding.ephemeral.presence)),
+  JSON.parse(JSON.stringify(generatedApiReference)),
+  'binding.ephemeral.* must stay byte-identical to the generated api.ephemeral.* reference',
+);
+const sessionsProvider = createSnapbackReactProvider(sessionsBinding, {
+  connectionId: 'presence-sessions',
+});
+const sessionsObserver = observeSnapbackPresence(
+  sessionsProvider,
+  generatedApiReference,
+  { scope: { roomId: 'one' }, value: skip },
+  () => {},
+);
+await flush();
+assert.equal(
+  sessionsObserver.snapshot().status,
+  'ready',
+  'the generated api.ephemeral reference must be admitted on a sessions binding',
+);
+await sessionsObserver.dispose();
+await sessionsProvider.dispose();
+
+console.log('presence.test.mjs: shared rooms, managed intent, conflicts, refusal, api-reference admission, and cleanup pass');
