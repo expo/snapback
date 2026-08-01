@@ -79,7 +79,7 @@ export declare class SnapbackAssetClient {
   );
   taskStoreKey(options: { userId?: string | null; assetId: string }): string;
   start(options: {
-    upload: AssetUploadReferenceLike | string;
+    upload: AssetUploadReferenceLike;
     args?: Record<string, unknown>;
     file: AssetFileLike;
     userId?: string | null;

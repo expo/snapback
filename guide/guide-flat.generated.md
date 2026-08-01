@@ -3300,15 +3300,18 @@ reviewed-commit: HEAD
 
 # Assets
 
-> **Local target only.** `asset_lifecycle_v1` and the image pipeline
+> **Local target only.** `asset_lifecycle_v1`, the image pipeline
 > (`asset_image_pipeline_v1` — GPS stripping, declared renditions,
-> ThumbHash placeholders, dominant color) both ship on the local target
+> ThumbHash placeholders, dominant color), and video location
+> finalization (`asset_video_finalization_v1` — MP4/QuickTime location
+> atoms blanked in place, no transcoding) all ship on the local target
 > with the filesystem store, TUS resumable transfer, and
-> `private-strict` delivery. A `location: "strip"` **image** intent
-> admits and publishes here; a strip-declared **video** intent still
-> refuses at generation everywhere (`asset-video-finalization` is a
-> declared Missing nonclaim). Hosted targets report the whole capability
-> Missing.
+> `private-strict` delivery. Location-bearing media require an explicit
+> `location` declaration either way: a `"strip"` **image or video**
+> intent admits and publishes here with location metadata provably
+> absent from served bytes; `"retain"` preserves the source bytes
+> identically and records the choice in lifecycle evidence. Hosted
+> targets report the whole capability Missing.
 
 Use an asset when your app stores a file: bytes live outside document rows
 under a Snapback-owned lifecycle — upload, trusted finalization, typed
@@ -3539,6 +3542,15 @@ snapback assets retry <asset-id> --url http://127.0.0.1:4287
 snapback assets gc-sweep --now-ms 1785484800000 --url http://127.0.0.1:4287
 snapback assets delete <asset-id> --user user_a --url http://127.0.0.1:4287
 ```
+
+Deletion is two truths, both deliberate: bytes die at the origin
+immediately (delivery 404s on the next request), while the metadata row
+lingers as a declared `availability: "deleted"` tombstone through its
+retention window (default seven days — a GC sweep will not purge it
+early). The tombstone is what lets clients and reverse-reference repair
+observe *that* something was deleted rather than never existing; do not
+read a 200 metadata response with `deleted` availability as a failed
+delete.
 
 `put` uploads chunk-checksummed and finalizes end-to-end verified.
 `inspect` prints the lifecycle — availability, receipts, quota, reference
@@ -8277,6 +8289,17 @@ to obtain the executable's independently embedded commit, dirty state, crate
 version, and build profile; older binaries that predate the command may still
 be classified runnable via `--help`, but their actual stamp remains honestly
 unknown.
+
+A dirty worktree triggers the same posture at server spawn: the kit skips
+a prebuilt `target/debug/snapback` it cannot verify against a committed
+identity ("this checkout is dirty or has no committed identity") and
+falls back to the `cargo run` rung, which costs a rebuild-check on every
+boot (~30 s). That is provenance working as designed, not a fault. If
+you accept the local binary knowingly — a test loop on an intentionally
+dirty tree — the sanctioned escape is the same explicit override the
+diagnostic quotes: `SNAPBACK_SERVER_BINARY=<path>`. The override's
+unpinned identity stays visible in the spawn record, so acceptance is
+always a recorded choice, never an ambient default.
 
 When `SNAPBACK_IBEX_RUNTIME_LINK_FAILED` names compatibility symbols such as
 `ex_hermes_create_no_eval`, do not delete Cargo output or rebuild Hermes

@@ -5,7 +5,12 @@
 **Systems:** Assets, Storage, Client integration, Testing, Research
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-01
-**Revised:** 2026-08-01, later same day (synthesis landed: §Findings
+**Revised:** 2026-08-01, round-2 addendum (remediation-effect rerun:
+fresh-context Snapback rebuilds against the frozen checklists — 8 of 10
+round-1 frictions gone with fix attributions, 25/25 checks, the
+chunk-ceiling defect confirmed dead at untouched defaults; six guide
+fixes + one client fix landed from the new harvest, three tickets).
+Prior, same day (synthesis landed: §Findings
 filled from diaries 0048/0048-clip-locker/0049 and the per-arm receipts;
 summary at `demos/upload-bakeoff/reports/summary.md`; steal-and-fix
 tickets filed; program ticket closed). Initial same day (commissioned by Charlie: "do a bakeoff
@@ -162,12 +167,35 @@ enablement (arm code complete, recorded access-gapped); Supabase's
 120 MB refusal is a project-plan fact. Untested contenders named in the
 summary: Uploadthing, Mux, Appwrite, R2-hosted, Firebase-hosted.
 
+### Round-2 addendum (2026-08-01, later same day)
+
+Charlie directed a remediation-effect rerun ("I want to see if all the
+stuff we did helped"): the three Snapback arms rebuilt by
+fresh-context builders against the frozen checklists, competitor
+round-1 measurements standing. Verdict, evidence-cited in
+`demos/upload-bakeoff/reports/round2/delta-summary.md` and the three
+diaries' dated round-2 entries: **eight of the ten round-1 Snapback
+frictions are gone** (each attributed to a named fix), one not
+exercised (ticketed, not assumed), one persists by design; all 25
+checklist items passed under the stronger condition (fresh builders,
+no repository context, guide-only); the flagship chunk-ceiling defect
+is confirmed dead at untouched defaults (9/9 on a 120 MB upload,
+byte-exact resume). Ten new stumbles harvested: six guide fixes and
+one client fix landed in the same round, three ticketed (one
+author-facing: the video location policy's `image:` block naming).
+Ceremony-count methodology drift between rounds is recorded; the
+ceremony-floor amendment landed after these builds and is the next
+round's measurement target.
+
 ## Status
 
 Active; commissioned 2026-08-01; all three apps built and landed same
 day (16 working arms + 3 access-gapped postures recorded); synthesis
 landed 2026-08-01 (`demos/upload-bakeoff/reports/summary.md` +
-§Findings above). Remaining live value: the access-gapped arms are
+§Findings above); the round-2 remediation-effect rerun landed later
+the same day (§Round-2 addendum — the fixes helped, measured).
+Remaining live value: the access-gapped arms are
 runnable the moment access exists (R2 enablement, Firebase Blaze, or
-Uploadthing/Mux credentials), and the steal-and-fix tickets carry the
-program's Snapback follow-ups.
+Uploadthing/Mux credentials), the steal-and-fix tickets carry the
+program's Snapback follow-ups, and a 0.1.8-closure round would close
+the packaged-surface confound both rounds share.

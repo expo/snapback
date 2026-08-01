@@ -128,6 +128,17 @@ version, and build profile; older binaries that predate the command may still
 be classified runnable via `--help`, but their actual stamp remains honestly
 unknown.
 
+A dirty worktree triggers the same posture at server spawn: the kit skips
+a prebuilt `target/debug/snapback` it cannot verify against a committed
+identity ("this checkout is dirty or has no committed identity") and
+falls back to the `cargo run` rung, which costs a rebuild-check on every
+boot (~30 s). That is provenance working as designed, not a fault. If
+you accept the local binary knowingly — a test loop on an intentionally
+dirty tree — the sanctioned escape is the same explicit override the
+diagnostic quotes: `SNAPBACK_SERVER_BINARY=<path>`. The override's
+unpinned identity stays visible in the spawn record, so acceptance is
+always a recorded choice, never an ambient default.
+
 When `SNAPBACK_IBEX_RUNTIME_LINK_FAILED` names compatibility symbols such as
 `ex_hermes_create_no_eval`, do not delete Cargo output or rebuild Hermes
 blindly. Run the recorded bootstrap command. If the record also names a

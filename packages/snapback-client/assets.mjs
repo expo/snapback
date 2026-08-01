@@ -186,7 +186,11 @@ function assertFileLike(file) {
 
 function intentIdentity(upload) {
   if (typeof upload === 'string') {
-    return { intentId: upload, intentPolicyHash: null };
+    // A bare intent name can never satisfy the server's admission DTO —
+    // the generated reference carries the required intentPolicyHash.
+    throw new TypeError(
+      `start requires the generated upload reference (api.${upload}), not the intent name string — the reference carries the policy identity the server admits against`,
+    );
   }
   if (
     upload
@@ -196,7 +200,7 @@ function intentIdentity(upload) {
     return { intentId: upload.name, intentPolicyHash: upload.intentPolicyHash ?? null };
   }
   throw new TypeError(
-    'start requires a generated asset upload reference (or its intent name)',
+    'start requires a generated asset upload reference',
   );
 }
 

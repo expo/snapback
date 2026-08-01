@@ -19,6 +19,11 @@ import {
 } from './assets.mjs';
 
 const CHUNK = 8;
+const AVATAR_UPLOAD_REF = Object.freeze({
+  artifactKind: 'assetUploadReference',
+  name: 'avatarUpload',
+  intentPolicyHash: 'sha256:test-policy',
+});
 
 function makeFile(bytes, { name = 'pic.jpg', type = 'image/jpeg' } = {}) {
   const buffer = Buffer.from(bytes);
@@ -191,7 +196,7 @@ const client = { baseUrl, subscribeLive: () => {} };
   const file = makeFile(payload);
   const seen = [];
   const task = assets.start({
-    upload: 'avatarUpload',
+    upload: AVATAR_UPLOAD_REF,
     file,
     userId: 'user_a',
     declaredFilename: 'pic.jpg',
@@ -233,7 +238,7 @@ const client = { baseUrl, subscribeLive: () => {} };
   const assets = new SnapbackAssetClient(client, { taskStore: store, chunkBytes: CHUNK });
   // Pause after the first chunk so the fact persists mid-transfer.
   const file = makeFile('0123456789abcdef01234567');
-  const task = assets.start({ upload: 'avatarUpload', file, userId: 'user_b' });
+  const task = assets.start({ upload: AVATAR_UPLOAD_REF, file, userId: 'user_b' });
   await new Promise((resolve) => {
     const unsubscribe = task.subscribe((snapshot) => {
       if (snapshot.bytesTransferred >= CHUNK) {
@@ -282,7 +287,7 @@ const client = { baseUrl, subscribeLive: () => {} };
 {
   const assets = new SnapbackAssetClient(client, { chunkBytes: CHUNK });
   const file = makeFile('retry-payload-bytes-here');
-  const task = assets.start({ upload: 'avatarUpload', file, userId: 'user_c' });
+  const task = assets.start({ upload: AVATAR_UPLOAD_REF, file, userId: 'user_c' });
   const first = await task.done;
   assert.equal(first.status, 'ready');
   const successor = await task.retry();
@@ -303,7 +308,7 @@ const client = { baseUrl, subscribeLive: () => {} };
   Object.defineProperty(file, 'size', { value: undefined });
   let failed;
   try {
-    assets.start({ upload: 'avatarUpload', file, userId: 'user_d' });
+    assets.start({ upload: AVATAR_UPLOAD_REF, file, userId: 'user_d' });
     failed = false;
   } catch (error) {
     failed = error instanceof TypeError;
@@ -557,6 +562,17 @@ const client = { baseUrl, subscribeLive: () => {} };
 }
 
 server.closeAllConnections?.(); server.close();
+// A bare intent-name string refuses client-side with the reference guidance
+// (the server DTO requires the reference's intentPolicyHash; a form that can
+// never succeed server-side must not get as far as the wire).
+{
+  const assets = new SnapbackAssetClient(client, { taskStore: null });
+  assert.throws(
+    () => assets.start({ upload: 'avatarUpload', file: makeFile('x'), userId: 'user_e' }),
+    /generated upload reference \(api\.avatarUpload\)/,
+  );
+}
+
 console.log('assets.test.mjs passed');
 process.exit(0);
 

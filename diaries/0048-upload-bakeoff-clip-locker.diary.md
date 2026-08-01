@@ -374,3 +374,53 @@ receipts. Binary and `pb_data/` are gitignored.
    default config cannot upload a 120 MB file today.
 3. Consider a documented "storage limits" surface: three of five arms
    made me discover limits by failing.
+
+## 2026-08-01 — Round 2, Snapback arm (fresh-context rebuild)
+
+Verified independently: the round-2 driver reran 9/9 in the
+coordinator's own hands (resume re-transmitted 57,297,955 bytes —
+exactly the unacknowledged remainder of 120,212,515 after the kill at
+62,914,560; retain-GPS source and served digests byte-identical;
+signed URL served bare → 401 after TTL → 404 after deletion).
+
+**The flagship answer: round 1's defect class is gone at untouched
+defaults.** Round 1's Snapback arm could not upload the 120 MB file at
+default configuration — the policy gate's 2 MiB inspection ceiling
+413'd the client's own 4 MiB chunks, and the arm shipped only after
+manual chunk tuning. Round 2's fresh builder, forbidden from tuning,
+went 9/9 in 13m08s from an empty directory: the fix (`60a83597`) plus
+the limits preflight held in the wild — 29 checksummed PATCHes at the
+4 MiB default under the server's advertised 8 MiB ceiling, preflighted
+in the attempt-create response and on every TUS response header.
+
+Frictions vs round 1: **F1 GONE** (the chunk-ceiling defect — fix
+`60a83597`, verified by this rebuild's untouched defaults); **F2 GONE**
+(the stream-race `fetch failed` noise died with the 413 surface);
+**F3 not exercised** (the fresh builder never reached for
+`ctx.db.update`; the underlying gap — no validation of unknown
+`ctx.db` members — remains real by inspection and is now ticketed:
+`issues/20260801-codegen-ctx-db-member-validation.md`); **F4 persists
+by design** (handler ceremony unchanged; the builder's ledger records
+it without complaint).
+
+New round-2 stumbles and their dispositions: the video location policy
+living under a block named `image` → author-facing naming ticket
+(`20260801-0044-video-location-policy-under-image-block.md`); the
+client's string-intent form, which could never satisfy the server's
+admission DTO → removed from the client (typing + a structured
+client-side refusal naming the generated reference; the host-op
+name-by-string surface is unaffected and correct); the guide's stale
+claim that video strip "refuses at generation everywhere" → corrected
+(the manifest has declared `asset_video_finalization_v1` since the
+completion wave; the builder's probe was right and the page was
+wrong); tombstone-after-delete semantics → documented on the assets
+page (bytes die immediately, metadata tombstones through retention —
+deliberate, now stated); the dirty-checkout boot tax → documented on
+the diagnostics page (provenance skip working as designed, with the
+recorded `SNAPBACK_SERVER_BINARY` acceptance path).
+
+Confounds, disclosed: workspace packages + the `cargo run` rung (same
+surface as round 1 — like-for-like), fresh-vs-experienced authorship
+cutting the strong way (round 2's builder knew nothing and still beat
+round 1's wall-clock), and ~29 s per boot of dirty-checkout tax in
+every timing that includes a server start.
