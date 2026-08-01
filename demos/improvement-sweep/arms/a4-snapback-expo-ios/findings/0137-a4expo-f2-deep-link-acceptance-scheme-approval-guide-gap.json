@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "stopClass": false,
+  "budgetFinding": false,
+  "findingId": "0137-a4expo-f2-deep-link-acceptance-scheme-approval-guide-gap",
+  "dimension": "diagnostics-docs-agent-usability-and-escape-hatches",
+  "observation": {
+    "description": "The Track B receipt requires 'native auth entry and deep-link return where the app requires it', and an invitation product's deep link is exactly that - but the sanctioned mobile acceptance recipe (guide clients/react-expo.md's director/witness loop) has no deep-link leg, and the naive headless path silently does nothing: `simctl openurl` on a custom scheme's first open raises the iOS 'Open in \"<app>\"?' confirmation dialog, which no headless simctl surface can answer, so the URL event never reaches the app and the acceptance run times out with zero diagnostics. The working recipe this arm had to discover: pre-approve the scheme in the simulator's data/Library/Preferences/com.apple.launchservices.schemeapproval.plist (key 'com.apple.CoreSimulator.CoreSimulatorBridge-->{scheme}' -> bundle id, written while the device is shut down), after which openurl delivers and the RN Linking listener fires. The dialog itself is an OS product fact (a real user answers it once per scheme); the finding is the missing guide recipe for driving the deep-link leg in headless mobile acceptance.",
+    "evidence": [
+      "demos/improvement-sweep/arms/a4-snapback-expo-ios/evidence/run-ios.mjs (pre-run hygiene block, EXPO-03 deep-link leg)",
+      "demos/improvement-sweep/arms/a4-snapback-expo-ios/evidence/scenario-evidence.json (EXPO-03 deepLink.osConfirmationDialog)",
+      "guide/clients/react-expo.md (no deep-link acceptance leg)"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Mobile test harnesses that drive deep links headlessly (Detox, Appium) document the same iOS confirmation dialog and ship first-party workarounds for it; Expo's own docs cover deep-link testing with the dialog caveat.",
+    "source": "official-docs",
+    "sourceDate": "2026-08-01"
+  },
+  "classification": "documentation",
+  "mustNotRegress": "The witness-collector acceptance shape itself (loopback director, product facts witnessed on-device) - the deep-link leg should join it, not replace it.",
+  "smallestCoherentFix": "A deep-link section on the Expo guide page (or the acceptance page's mobile appendix): scheme registration recap, the one-time OS confirmation fact, the schemeapproval pre-authorization recipe for headless simulator runs, and a witnessed redeem-from-URL example.",
+  "acceptanceWitness": "A guide snippet-check (or the next Expo arm) drives an OS-level deep link through simctl into a witnessed in-app redemption using only guide-documented steps.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a4expo-f2-guide-gap-deep-link-scheme-approval.md"
+  }
+}

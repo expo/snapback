@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "stopClass": false,
+  "budgetFinding": false,
+  "findingId": "0137-a4expo-f1-no-mobile-push-notification-boundary",
+  "dimension": "assets-search-vector-and-notifications",
+  "observation": {
+    "description": "There is no push-notification boundary for a mobile Snapback app on 0.1.7, in the mobile-specific sense the EXPO-09 receipt check asks about: no device-token registration surface anywhere in the packaged closure, no APNs/FCM or expo-notifications integration (or even a mention) in the guide, and the generated capability manifest ships notifications:false. The generic gap is already owned (the guide capability index carries backend.notifications as design-only with an explicit notifications gap, LLP 0045), but the mobile carrier adds two compounding blockers this finding pins: (1) even the app-authored bridge - an action posting to a push provider - is unauthorable on packaged 0.1.7 because the outbound effect lane is broken (0137-a4-f1; the plain ctx.fetch fix landed on main at 117dcae2 AFTER the 0.1.7 publication and is not in this arm's pinned packages), and (2) with no hosted mobile path (0137-a1expo-f5) there is nowhere a production push relay could run. An event product's 'tell my guests' moment therefore has no product lane at all on mobile; the A4 backend's notifyIntents/notifyAttempts ledger is application code around a boundary that does not exist.",
+    "evidence": [
+      "demos/improvement-sweep/arms/a4-snapback-expo-ios/evidence/scenario-evidence.json (EXPO-09)",
+      "guide/capabilities.md (backend.notifications row: design-only, explicit notifications gap)",
+      "demos/improvement-sweep/arms/a4-snapback-web/findings/0137-a4-f1-outbound-notification-effects-unauthorable.json"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Firebase ships Cloud Messaging as a first-class mobile product: device-token registration, APNs/FCM delivery, and server-side send APIs are documented core features of the RN/mobile SDK surface.",
+    "source": "official-docs",
+    "sourceDate": "2026-08-01"
+  },
+  "classification": "maturity",
+  "mustNotRegress": "The honest capability manifest (notifications:false) and the app-side intent/attempt ledger pattern's ambiguity discipline - when a push boundary ships, ambiguous provider outcomes must stay distinct and retryable rather than being silently absorbed.",
+  "smallestCoherentFix": "Sequenced behind the owners: first the outbound action lane on the packaged closure (a4-f1, already fixed on main), then a documented device-token registration + provider-relay recipe (expo-notifications or raw APNs/FCM) as the guide's mobile notification page, with the first-class notifications capability (LLP 0045) as the eventual product boundary.",
+  "acceptanceWitness": "An Expo simulator app registers a push token through a documented Snapback path and an RSVP change produces one inspectable delivery attempt at a push provider boundary (simulator receipt may stub APNs; the boundary and ledger are the witnessed facts).",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a4expo-f1-no-mobile-push-boundary.md"
+  }
+}

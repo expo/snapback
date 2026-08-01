@@ -1,0 +1,339 @@
+{
+  "EXPO-02": {
+    "buildMode": "Release (expo run:ios --configuration Release, embedded bundle; no Metro attached)",
+    "launchPath": "xcrun simctl launch of the expo-built release artifact (guide clients/react-expo.md acceptance shape)",
+    "pid": "dev.snapback.improvementsweep.shell: 15595",
+    "bootEvent": {
+      "receivedAt": 1785600569106,
+      "at": 1785600569102,
+      "type": "boot",
+      "serverUrl": "http://127.0.0.1:4297",
+      "hadStoredBearer": false,
+      "initialUrl": null,
+      "platform": "ios",
+      "platformVersion": "26.3.1",
+      "hermes": true
+    },
+    "webCryptoPrerequisite": "consumer crypto polyfill required before any Snapback import (finding 0137-a1expo-f1, cited — not re-filed)",
+    "screenshot": "/private/tmp/claude-501/-Users-ccheever-projects-snapback/163679b8-1eab-4c5a-ac51-7e3d350c9b61/scratchpad/sweep-a4-expo/consumer/event-app/expo-acceptance/evidence/shot-00-signed-out.png"
+  },
+  "EXPO-01": {
+    "expoSdk": "57.0.9",
+    "reactNative": "0.86.2",
+    "react": "19.2.3",
+    "backendClient": "@expo/snapback-client 0.1.7 + @expo/snapback-react 0.1.7 (public npm, immutable 0.1.7)",
+    "os": "iOS 26.3 simulator runtime (device ios 26.3.1)",
+    "device": "iPhone 17 Pro simulator E0E49A2F-54A7-4355-8EB4-D52138E3361B",
+    "hostXcode": "Xcode 26.6 Build version 17F113",
+    "hermes": true,
+    "buildArtifact": {
+      "path": "/Users/ccheever/Library/Developer/Xcode/DerivedData/ImprovementSweepNeutralShell-cpxjojrsjwclmlhaweidvrxgrifj/Build/Products/Release-iphonesimulator/ImprovementSweepNeutralShell.app",
+      "binarySha256": "d2fcb80ae449631912e4d4ae4db55953e670de4883294fd44ec46d263fb32a94",
+      "bundleId": "dev.snapback.improvementsweep.shell"
+    },
+    "backend": {
+      "server": "http://127.0.0.1:4297",
+      "appId": "event-app",
+      "targetProfile": "local-dev-sqlite-ibex (fresh isolated, arm-owned)",
+      "backendSources": "schema/functions/seed adopted verbatim from the a4-snapback-web arm records (assistance event)"
+    }
+  },
+  "EXPO-03": {
+    "shape": "in-app email-code entry (guide auth/native-apps.md shape 1): /auth/request-code and /auth/exchange executed on-device; code relayed by the director as the user",
+    "deepLink": {
+      "url": "sweepshell://invite?code=INV-HOST-2214 via simctl openurl (OS-level deep link into the running app)",
+      "osConfirmationDialog": "iOS asks Open in \"<app>\"? on a custom scheme's first open; headless runs pre-approve via the simulator schemeapproval plist (test infrastructure) — a real user answers it once",
+      "parsedCode": "INV-HOST-2214",
+      "settlement": {
+        "eventId": "evt_lantern",
+        "role": "host",
+        "inviteCode": "INV-HOST-2214",
+        "invitedByName": "fixture",
+        "enteredVia": "deep-link"
+      },
+      "rosterAttribution": {
+        "name": "Hana",
+        "enteredVia": "deep-link",
+        "invitedByName": "fixture",
+        "status": "invited"
+      },
+      "inviteConsumed": true,
+      "replayRefusal": "SNAPBACK_HANDLER_FAILED"
+    },
+    "userId": "019fbe16-737c-728d-a8c1-0f4a670eed8b",
+    "screenshot": "/private/tmp/claude-501/-Users-ccheever-projects-snapback/163679b8-1eab-4c5a-ac51-7e3d350c9b61/scratchpad/sweep-a4-expo/consumer/event-app/expo-acceptance/evidence/shot-01-authed-host-via-deeplink.png"
+  },
+  "EXPO-04": {
+    "initial": {
+      "goingSeats": 6,
+      "capacity": 12,
+      "wallPosts": 3,
+      "privateAddressRendered": true
+    },
+    "independentAuthoritative": {
+      "goingSeats": 6,
+      "wallPosts": 3
+    },
+    "anonymousBoundary": {
+      "status": 200,
+      "addressAbsent": true,
+      "fields": [
+        "slug",
+        "title",
+        "startsAt",
+        "city",
+        "blurb",
+        "capacity",
+        "goingSeats",
+        "spotsLeft",
+        "hasFlyer"
+      ]
+    },
+    "outsiderDenial": "SNAPBACK_AUTH_PERMISSION_DENIED",
+    "transitions": {
+      "wallPost": {
+        "latencyMsUpperBound": 122,
+        "authorPrincipal": "019fbe15-e92d-71c8-bbf5-7eba90b08b61"
+      },
+      "seatCount": {
+        "latencyMsUpperBound": 122,
+        "goingSeats": 7
+      }
+    },
+    "transport": "server push over the client stream transport (witness events carry the on-device row state); steady-state caveat 0137-a1expo-f7 cited",
+    "screenshot": "/private/tmp/claude-501/-Users-ccheever-projects-snapback/163679b8-1eab-4c5a-ac51-7e3d350c9b61/scratchpad/sweep-a4-expo/consumer/event-app/expo-acceptance/evidence/shot-02-realtime-after-gil.png"
+  },
+  "EXPO-07": {
+    "defaultOfflineBehavior": "mutate failed on device: {\"message\":\"fetch failed: UnexpectedException: Could not connect to the server. (at ExpoModulesCore/Promise.swift:56)\",\"code\":null,\"name\":\"Error\"}",
+    "rqsStoreInfo": {
+      "source": "default",
+      "implementation": "memory",
+      "durable": false,
+      "reason": "no-durable-backend"
+    },
+    "queueOptInOutcome": {
+      "error": "queueClientMutate failed on device: {\"message\":\"fetch failed: UnexpectedException: Could not connect to the server. (at ExpoModulesCore/Promise.swift:56)\",\"code\":null,\"name\":\"Error\"}"
+    },
+    "noGhostSettlement": {
+      "preWall": 4,
+      "postWall": 4
+    },
+    "refusalRollback": "mutate failed on device: {\"message\":\"SNAPBACK_HANDLER_FAILED: JavaScript handler failed\",\"code\":\"SNAPBACK_HANDLER_FAILED\",\"name\":\"Error\"}",
+    "claimBoundary": "guide clients/react-expo.md: the Expo path is an Online surface and does not claim the durable queue — nonclaim honored; the opt-in non-engagement is finding 0137-a1expo-f2 (cited, re-verified on this arm) and the missing durable store arm is 0137-a1expo-f3 (cited)",
+    "screenshot": "/private/tmp/claude-501/-Users-ccheever-projects-snapback/163679b8-1eab-4c5a-ac51-7e3d350c9b61/scratchpad/sweep-a4-expo/consumer/event-app/expo-acceptance/evidence/shot-03-queue-not-engaged.png"
+  },
+  "EXPO-05": {
+    "appStateEvents": [
+      {
+        "at": 1785600576086,
+        "state": "inactive"
+      },
+      {
+        "at": 1785600577785,
+        "state": "background"
+      },
+      {
+        "at": 1785600578581,
+        "state": "active"
+      }
+    ],
+    "backgroundedVia": "simctl launch com.apple.Preferences (guide clients/react-expo.md backgrounding shape)",
+    "backgroundEvent": {
+      "state": "inactive"
+    },
+    "foregroundCatchUp": {
+      "bodySeen": "Posted while the host phone was backgrounded"
+    },
+    "networkLoss": {
+      "connectionFact": "stale",
+      "wallRetained": 5,
+      "neverRelabeledLive": true
+    },
+    "reconnect": {
+      "connectionFact": "live",
+      "freshCommitObserved": true
+    },
+    "screenshots": {
+      "foreground": "/private/tmp/claude-501/-Users-ccheever-projects-snapback/163679b8-1eab-4c5a-ac51-7e3d350c9b61/scratchpad/sweep-a4-expo/consumer/event-app/expo-acceptance/evidence/shot-04-foreground-caught-up.png",
+      "stale": "/private/tmp/claude-501/-Users-ccheever-projects-snapback/163679b8-1eab-4c5a-ac51-7e3d350c9b61/scratchpad/sweep-a4-expo/consumer/event-app/expo-acceptance/evidence/shot-05-network-loss-stale.png"
+    }
+  },
+  "EXPO-06": {
+    "coldRestart": "simctl terminate + launch with the backend origin refusing",
+    "storedBearerSurvived": true,
+    "restoreError": {
+      "message": "fetch failed: UnexpectedException: Could not connect to the server. (at ExpoModulesCore/Promise.swift:56)",
+      "code": null,
+      "name": "Error"
+    },
+    "headlessProbe": {
+      "rqsStoreInfo": {
+        "source": "default",
+        "implementation": "memory",
+        "durable": false,
+        "reason": "no-durable-backend"
+      },
+      "previewError": {
+        "message": "fetch failed: UnexpectedException: Could not connect to the server. (at ExpoModulesCore/Promise.swift:56)",
+        "code": null,
+        "name": "Error"
+      }
+    },
+    "retainedStateClaim": "NOT CLAIMED on this carrier: guide clients/react-expo.md declares the Expo path an Online surface with no local-first claim; the client rqs default store resolves to the in-memory arm on React Native (finding 0137-a1expo-f3, cited — not re-filed), so no cold-boot retained render is claimable",
+    "recovery": {
+      "sessionRestored": true,
+      "afterMs": 3084
+    },
+    "screenshots": {
+      "offline": "/private/tmp/claude-501/-Users-ccheever-projects-snapback/163679b8-1eab-4c5a-ac51-7e3d350c9b61/scratchpad/sweep-a4-expo/consumer/event-app/expo-acceptance/evidence/shot-06-cold-restart-offline-locked.png",
+      "recovered": "/private/tmp/claude-501/-Users-ccheever-projects-snapback/163679b8-1eab-4c5a-ac51-7e3d350c9b61/scratchpad/sweep-a4-expo/consumer/event-app/expo-acceptance/evidence/shot-07-cold-restart-recovered.png"
+    }
+  },
+  "EXPO-08": {
+    "selection": "deterministic PNG fixture delivered to the app by the director; the app treats it as the selected file (no interactive picker drivable headlessly on the simulator — recorded honestly)",
+    "uploadPath": "on-device raw attempt/TUS/finalize over expo/fetch (packaged client exposes no upload helper — 0137-a1-f3 cited); Uint8Array TUS body + sha256 upload-checksum computed on-device via the f1 polyfill",
+    "uploaded": {
+      "assetId": "019fbe16-bc87-7d03-892a-bc44ce983aa3",
+      "tusStatus": 204,
+      "availability": "ready"
+    },
+    "contentIdentity": {
+      "uploadedSha256": "85bc76228376fbfb351b39100bb50612948fdc2684bedb67a81564be441239f0",
+      "primarySha256": "f5c0506480b426993e296bb1eb1098def8dc6de421d0ffe4dba370488dedd85a",
+      "primaryEqualsUploaded": false,
+      "stableAcrossReads": true,
+      "note": "strip re-encodes canonical bytes (same fact the a4-web arm recorded); identity is the stable served digest"
+    },
+    "strictDelivery": {
+      "primary": {
+        "status": 200,
+        "cacheControl": "no-store, private"
+      },
+      "card": {
+        "status": 200,
+        "contentType": "image/png",
+        "sha256": "f5c0506480b426993e296bb1eb1098def8dc6de421d0ffe4dba370488dedd85a"
+      },
+      "thumb": {
+        "status": 200,
+        "contentType": "image/png"
+      }
+    },
+    "nativeRender": {
+      "outcome": "loaded",
+      "detail": null,
+      "path": "RN <Image source={{uri, headers}}> against the strict per-request-authorized byte lane"
+    },
+    "publicBoundary": {
+      "hasFlyer": true,
+      "anonymousByteRead": 403
+    },
+    "nonOwnerHole": {
+      "attachProbe": "mutate failed on device: {\"message\":\"SNAPBACK_ASSET_REF_UNVERIFIED: eventFlyers.image was written without a ctx.assets.a",
+      "seatedGuestStrictRead": 403,
+      "owned": "no non-owner viewer authorizable on 0.1.7: typed attach refuses (0137-a1-f2, re-verified here), membership assetSharing unreachable, pasteable lanes unimplemented (0137-a4-f3); the ctx.fetch/effects fixes on main (117dcae2) are post-0.1.7 and NOT in this arm's pinned packages"
+    },
+    "screenshot": "/private/tmp/claude-501/-Users-ccheever-projects-snapback/163679b8-1eab-4c5a-ac51-7e3d350c9b61/scratchpad/sweep-a4-expo/consumer/event-app/expo-acceptance/evidence/shot-08-flyer-rendered.png"
+  },
+  "EXPO-09": {
+    "boundary": "none on 0.1.7 — explicit GAP",
+    "capabilityManifest": {
+      "notifications": false
+    },
+    "owners": [
+      "guide/capabilities.md backend.notifications row: design-only, explicit notifications gap (issues/20260728-guide-gap-assets-and-notifications-capability-rows.md, llp/0045)",
+      "0137-a4-f1 (outbound notification effects unauthorable on packaged 0.1.7; fixes on main at 117dcae2/7437e6e0 are post-publication)",
+      "0137-a1expo-f5 (no hosted mobile path, so no production push relay either)"
+    ],
+    "newFinding": "0137-a4expo-f1-no-mobile-push-notification-boundary (the mobile-specific fact: no device-token registration or APNs/FCM/expo-notifications lane exists in the packaged closure or guide)",
+    "applicationLedger": "the A4 app-authored notifyIntents/notifyAttempts ledger exists in this backend (adopted from the web arm) but is application code, not a product push boundary; its provider call is unreachable on 0.1.7 (a4-f1)"
+  },
+  "EXPO-10": {
+    "rotation": {
+      "to": "outsider (max, no seat) via the documented explicit replacement-bearer transition",
+      "predecessorRowsBlanked": true,
+      "successorOutcome": "refreshing",
+      "lifecycleFailures": {
+        "message": "external bearer custody transition completed with lifecycle failures",
+        "errors": [
+          {
+            "message": "SNAPBACK_AUTH_PERMISSION_DENIED: role requirement not satisfied",
+            "code": "SNAPBACK_AUTH_PERMISSION_DENIED",
+            "name": "Error"
+          },
+          {
+            "message": "SNAPBACK_AUTH_PERMISSION_DENIED: role requirement not satisfied",
+            "code": "SNAPBACK_AUTH_PERMISSION_DENIED",
+            "name": "Error"
+          },
+          {
+            "message": "SNAPBACK_AUTH_PERMISSION_DENIED: role requirement not satisfied",
+            "code": "SNAPBACK_AUTH_PERMISSION_DENIED",
+            "name": "Error"
+          }
+        ]
+      },
+      "rotateBackLifecycleFailures": null
+    },
+    "rotateBackRecovered": false,
+    "rotateBackFacts": {
+      "error": "timeout: rows return under restored authority",
+      "lastSnapshot": {
+        "connection": "disconnected",
+        "eventView": {
+          "status": "ready",
+          "error": null,
+          "rows": 0
+        },
+        "wall": {
+          "status": "ready",
+          "error": null,
+          "rows": 0
+        }
+      }
+    },
+    "owned": "finding 0137-a1expo-f4 (cited, re-verified on this arm — not re-filed): the downgrade transition rejects with AggregateError although custody completes, the successor denial never reaches the hook, and rotate-back does not re-subscribe attached handles",
+    "logout": {
+      "witnessed": true,
+      "rowsBlanked": true
+    },
+    "retirement": {
+      "keychainCleared": true,
+      "relaunchPhase": "signed-out",
+      "deviceAtRest": "no durable client store exists on this carrier (in-memory rqs arm, f3) and the app-owned keychain entry is deleted on logout — no protected bytes at rest"
+    },
+    "screenshots": {
+      "rotated": "/private/tmp/claude-501/-Users-ccheever-projects-snapback/163679b8-1eab-4c5a-ac51-7e3d350c9b61/scratchpad/sweep-a4-expo/consumer/event-app/expo-acceptance/evidence/shot-09-rotated-to-outsider.png",
+      "loggedOut": "/private/tmp/claude-501/-Users-ccheever-projects-snapback/163679b8-1eab-4c5a-ac51-7e3d350c9b61/scratchpad/sweep-a4-expo/consumer/event-app/expo-acceptance/evidence/shot-10-logged-out.png",
+      "relaunch": "/private/tmp/claude-501/-Users-ccheever-projects-snapback/163679b8-1eab-4c5a-ac51-7e3d350c9b61/scratchpad/sweep-a4-expo/consumer/event-app/expo-acceptance/evidence/shot-11-post-logout-relaunch.png"
+    }
+  },
+  "EXPO-11": {
+    "app": "terminated and uninstalled (container removed; keychain entry already cleared by the in-run logout)",
+    "simulator": "shutdown E0E49A2F-54A7-4355-8EB4-D52138E3361B (booted by this run's build/launch path)",
+    "server": "snapback dev stopped; origin refuses",
+    "flyer": {
+      "deleteStatus": 200,
+      "postDeleteRead": 404
+    },
+    "seats": "hana/cora/gil self-removed (membership unseedable/unresettable — 0137-a3-f1 cited)",
+    "seedReceipt": {
+      "operation": "reset-install",
+      "outcome": "reset-installed",
+      "seedVersion": "a4-events.2026-08-01.2",
+      "resetDeletedRows": 20
+    },
+    "postCleanupNegative": {
+      "guestEventView": "SNAPBACK_AUTH_PERMISSION_DENIED",
+      "preview": {
+        "goingSeats": 6,
+        "hasFlyer": false
+      }
+    },
+    "credentials": "session bearers retired by the reset-install stream transition; admin/impersonation token files remain dev-local inside the arm-owned external directory only"
+  },
+  "EXPO-12": {
+    "claim": "expo-ios simulator only. Nothing in this receipt establishes Android behavior (LLP 0064); the android arm is an honest not-run GAP with the same blocker the a1-expo arm recorded (cited): the host has no JDK, so expo run:android/gradle cannot execute.",
+    "jdk": "absent"
+  }
+}

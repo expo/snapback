@@ -57,3 +57,16 @@ Docs: guide/sync/offline-and-retention.md prose; LLP 0043 dated Revised note.
 Witness satisfied (node projection of the carrier shape): offline mutate
 under an Expo-shaped rejection returns `{queued:true, clientMutationId,
 sequence}` and replays exactly once.
+
+---
+
+**2026-08-01 (A4 Expo arm re-verification, pinned pre-fix packages):** the
+second Track B arm (A4 events) ran against the published 0.1.7 closure,
+which predates this fix lane, and reproduced the pre-fix behavior
+unchanged on-device: an `offlineQueue: true` postWall against a stopped
+origin surfaced the raw Expo fetch Error and queued nothing; no ghost
+settlement (wall count unchanged, clientKey never committed). Recorded
+here after the resolution for the longitudinal ledger — it confirms the
+defect on the publication this fix has not yet reached, not a regression
+of the fix. Evidence:
+demos/improvement-sweep/arms/a4-snapback-expo-ios/evidence/scenario-evidence.json (EXPO-07).

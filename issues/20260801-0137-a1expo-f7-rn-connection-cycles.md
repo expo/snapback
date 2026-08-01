@@ -83,3 +83,15 @@ instrumentation (small, additive), rerun the A1-Expo arm to capture close
 code/reason + sinceOpenMs, then decide between the RN-stack workaround and
 a server-side idle policy fix. The 60s-idle-hold Expo receipt gate from the
 fix shape should be added only once the loop's owner is identified.
+
+---
+
+**2026-08-01 (A4 Expo arm narrowing):** the indefinite ~2s cycling did NOT
+reproduce on the A4 arm, whose on-device surface is three protected live
+queries and NO retainable public query: one spontaneous live→stale→live
+cycle (~3-7s) appeared shortly after subscribe, then the connection held
+`live` for a 16s idle stretch until the deliberate rotation leg, with rows
+intact throughout. Consistent with the suspicion that the retainable-query
+re-prime path over the memory store is implicated in the A1 cycling, not
+the socket/heartbeat as such. Evidence:
+demos/improvement-sweep/arms/a4-snapback-expo-ios/evidence/witness-events.json (connection transitions).

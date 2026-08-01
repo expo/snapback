@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "arm": {
+    "contract": "a4",
+    "platform": "expo-ios",
+    "provider": "snapback",
+    "attemptId": "a4-expo-ios-20260801"
+  },
+  "expectedChecks": 12,
+  "ranChecks": 12,
+  "results": [
+    {
+      "id": "EXPO-02-LAUNCH",
+      "result": "pass",
+      "ms": 1930,
+      "note": "release artifact launched clean (pid dev.snapback.improvementsweep.shell: 15595); signed-out boot witnessed; f1 polyfill prerequisite cited"
+    },
+    {
+      "id": "EXPO-01-IDENTITIES",
+      "result": "pass",
+      "ms": 375,
+      "note": "expo 57.0.9 / RN 0.86.2 / client 0.1.7 / iOS 26.3.1 sim / sha d2fcb80ae449…"
+    },
+    {
+      "id": "EXPO-03-NATIVE-AUTH",
+      "result": "pass",
+      "ms": 960,
+      "note": "on-device email-code exchange minted 019fbe16…; OS deep link redeemed the host invite (attributed enteredVia=deep-link, invite consumed, replay SNAPBACK_HANDLER_FAILED)"
+    },
+    {
+      "id": "EXPO-04-REALTIME",
+      "result": "pass",
+      "ms": 716,
+      "note": "seeded 6/12 + 3 wall posts rendered + address member-only; outsider SNAPBACK_AUTH_PERMISSION_DENIED; gil wall post ≤122ms and seat count ≤122ms after settlement"
+    },
+    {
+      "id": "EXPO-07-QUEUE",
+      "result": "gap",
+      "ms": 2704,
+      "note": "queue unclaimed on this carrier and the opt-in did not engage (f2 re-verified: queueClientMutate failed on device: {\"message\":\"fetch failed…); no ghost settlement (wall 4); online refusal structured"
+    },
+    {
+      "id": "EXPO-05-LIFECYCLE",
+      "result": "pass",
+      "ms": 8671,
+      "note": "background/foreground witnessed (inactive→active, missed wall post caught up); network loss → stale with 5 posts retained; reconnect → live with fresh commit"
+    },
+    {
+      "id": "EXPO-06-COLD-RESTART",
+      "result": "gap",
+      "ms": 5705,
+      "note": "cold restart clean (bearer survived via app keychain custody; binding refuses offline: fetch failed: UnexpectedException: Could not connect to the server. (at ExpoModulesCore/Promise.swift:56)); retained render unclaimed on this carrier (rqs store=memory, durable=false) → GAP per f3 (cited); auto-recovered when backend returned"
+    },
+    {
+      "id": "EXPO-08-FILES",
+      "result": "pass",
+      "ms": 15970,
+      "note": "on-device upload → ready (asset 019fbe16-bc8…); served primary digest stable (strip re-encodes canonical bytes, a4-web fact); card+thumb renditions on-device; native Image loaded; anonymous bytes refused (403); non-owner hole re-verified (attach: mutate failed on device: {\"message\":\"SNA…, guest read 403)"
+    },
+    {
+      "id": "EXPO-09-PUSH",
+      "result": "gap",
+      "ms": 1,
+      "note": "no push-notification boundary on 0.1.7 (capability row design-only; no device-token/APNs lane in the packaged closure; app-authored bridge blocked by a4-f1) — explicit GAP, new mobile-scoped finding filed"
+    },
+    {
+      "id": "EXPO-10-AUTHORITY-ROTATION",
+      "result": "fail",
+      "ms": 34076,
+      "note": "rotation blanked predecessor rows (successor denial refreshing; lifecycle-failures AggregateError observed); rotate-back DID NOT recover (f4 re-verified: disconnected); logout blanked + cleared keychain; relaunch boots signed-out"
+    },
+    {
+      "id": "EXPO-11-TEARDOWN",
+      "result": "pass",
+      "ms": 4446,
+      "note": "app uninstalled, sim shutdown, server stopped; flyer deleted (200→404); seats self-removed; reset-install deleted 20 rows; fresh session denied (SNAPBACK_AUTH_PERMISSION_DENIED)"
+    },
+    {
+      "id": "EXPO-12-INDEPENDENCE",
+      "result": "pass",
+      "ms": 21,
+      "note": "receipt claims iOS simulator only; android honest not-run (JDK absent, re-verified; a1-expo disposition cited)"
+    }
+  ],
+  "milestones": {
+    "suiteStart": "2026-08-01T16:08:53.137Z",
+    "serverSpawned": "2026-08-01T16:08:53.148Z",
+    "serverReady": "2026-08-01T16:08:54.786Z",
+    "appInstalled": "2026-08-01T16:09:27.851Z",
+    "authStart": "2026-08-01T16:09:30.158Z",
+    "verifiedRealtime": "2026-08-01T16:09:31.571Z",
+    "flyerUploadStart": "2026-08-01T16:09:48.914Z",
+    "localAcceptance": "2026-08-01T16:10:38.961Z",
+    "cleanup": "2026-08-01T16:10:43.407Z"
+  }
+}

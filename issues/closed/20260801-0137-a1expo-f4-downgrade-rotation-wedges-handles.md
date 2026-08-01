@@ -80,3 +80,18 @@ LLP 0114 dated amendment (authorization-denial projection).
 Witness satisfied: rotate alice→mallory→alice over live queries — transition
 resolves, denial renderable in between (handle fact + hook error state),
 alice's rows re-render live afterwards with no process restart.
+
+---
+
+**2026-08-01 (A4 Expo arm re-verification, pinned pre-fix packages):** the
+second Track B arm (A4 events) ran against the published 0.1.7 closure,
+which predates this fix lane, and reproduced the pre-fix behavior
+unchanged on-device: rotating the on-device host to a seatless outsider
+rejected with the lifecycle-failures AggregateError (custody completed,
+predecessor rows blanked, successor denial never on the hook — query left
+`refreshing`), and rotate-back never re-subscribed (connection wedged
+`disconnected`, queries presenting ready/0 rows until process exit; logout
+and retirement legs clean). Recorded here after the resolution for the
+longitudinal ledger — it confirms the defect on the publication this fix
+has not yet reached, not a regression of the fix. Evidence:
+demos/improvement-sweep/arms/a4-snapback-expo-ios/evidence/scenario-evidence.json (EXPO-10).

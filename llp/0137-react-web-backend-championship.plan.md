@@ -5,7 +5,7 @@
 **Systems:** Competitive evaluation, Demo applications, React, React/Expo, Exact Native, Developer experience, Data modeling, Realtime, Offline sync, Auth, Assets, Search, Actions, Scheduled work, Deployment, Operations, Testing, Documentation
 **Author:** Charlie Cheever / Codex / Claude
 **Date:** 2026-07-31
-**Revised:** 2026-08-01 (Track B A1 Expo iOS arm status note: first Expo sweep arm complete — 7 pass / 2 GAP / 1 evidenced-defect fail on the 10 a1-applicable EXPO checks, iOS simulator, release build, G3 pin honored; findings 0137-a1expo-f1..f7 filed (WebCrypto prerequisite, queue cannot engage on Expo fetch errors, no on-device durable store, downgrade-rotation wedge, hosted mobile GAP, react-expo guide-gap, RN connection cycling); android honest not-run (no JDK); freeze re-verified). 2026-08-01 (A6 arm status note: sixth and final diaried web sweep arm complete — 10 pass / 0 GAP / 0 fail, the sweep's first fully green arm; findings 0137-a6-f1..f3 filed (defineJobStatusQuery boot refusal; jobs/secret-read custody guide-gap; reset-install strands live clients); jobs_one_off_v1 core verified end to end externally; freeze re-verified). 2026-08-01 (A5 arm status note: fifth diaried sweep arm complete — 11 pass / 1 GAP / 1 evidenced-defect fail; findings 0137-a5-f1..f3 filed; the Diary 0031 sessions+streamed-actions blocker verified reversed on the packaged closure; freeze re-verified). 2026-08-01 (A4 arm status note: fourth diaried sweep arm complete — 9 pass / 2 evidenced-defect fails / 0 GAP; findings 0137-a4-f1..f7 filed; freeze re-verified). 2026-08-01 (A2 arm status note: first diaried sweep arm complete — 11 pass / 1 GAP / 0 fail; findings 0137-a2-f1..f8 filed; freeze re-verified). 2026-07-31 (v3 purpose inversion per Charlie's direction: the program now exists to surface what would make Snapback better, not to prove Snapback is better — that proof is deferred until the improvement well runs dry. Phase 1 is a Snapback-first improvement sweep over all six contracts as an external npm consumer, with a mid-program fix loop, frozen-evidence-first competitor referencing, and demand-driven fresh probes; the symmetric championship — core/extension matrix, composite, ranking controls — is preserved compactly as deferred Phase 2 behind a dry-well trigger. Ranking-fairness controls that obstruct improvement, chiefly the single frozen Snapback revision and atomic rounds, move to Phase 2; honesty controls stay). 2026-07-31 (v2 efficiency restructure: sixteen-arm symmetric core over A1–A4 plus five extension arms; contract lineage to LLP 0102 with a zero-new-arm longitudinal comparison; atomic per-contract rounds; Track B baseline + checkpoint; former open questions 1–5 resolved). 2026-07-31 (refine pass: challenger gate unified; composite comparability scoped; Track B eligibility rule; cross-references verified). 2026-07-31 (initial draft: a four-backend React-web championship, a separately scored Expo validation, a Snapback-only Exact Native graduation exercise, and selective specialist challengers, all gated on public-package consumption)
+**Revised:** 2026-08-01 (Track B A4 Expo iOS arm status note: second and final planned Expo sweep arm complete — 8 pass / 3 GAP / 1 evidenced-defect fail on the 12 a4-applicable EXPO checks, iOS simulator, release build, G3 pin honored; the A4 deep-link invitation entry exercised as a real OS-level deep link; on-device flyer upload/rendition/strict-delivery/native-render proven (owner lane; the a1-f2/a4-f3 non-owner hole re-verified on 0.1.7 — the 117dcae2 main fixes are post-publication); findings 0137-a4expo-f1 (no mobile push boundary) and 0137-a4expo-f2 (deep-link scheme-approval guide-gap) filed; a1expo-f2/f4 re-verified and f7 narrowed via dated ticket appends; android honest not-run (JDK absence re-verified); freeze re-verified). 2026-08-01 (Track B A1 Expo iOS arm status note: first Expo sweep arm complete — 7 pass / 2 GAP / 1 evidenced-defect fail on the 10 a1-applicable EXPO checks, iOS simulator, release build, G3 pin honored; findings 0137-a1expo-f1..f7 filed (WebCrypto prerequisite, queue cannot engage on Expo fetch errors, no on-device durable store, downgrade-rotation wedge, hosted mobile GAP, react-expo guide-gap, RN connection cycling); android honest not-run (no JDK); freeze re-verified). 2026-08-01 (A6 arm status note: sixth and final diaried web sweep arm complete — 10 pass / 0 GAP / 0 fail, the sweep's first fully green arm; findings 0137-a6-f1..f3 filed (defineJobStatusQuery boot refusal; jobs/secret-read custody guide-gap; reset-install strands live clients); jobs_one_off_v1 core verified end to end externally; freeze re-verified). 2026-08-01 (A5 arm status note: fifth diaried sweep arm complete — 11 pass / 1 GAP / 1 evidenced-defect fail; findings 0137-a5-f1..f3 filed; the Diary 0031 sessions+streamed-actions blocker verified reversed on the packaged closure; freeze re-verified). 2026-08-01 (A4 arm status note: fourth diaried sweep arm complete — 9 pass / 2 evidenced-defect fails / 0 GAP; findings 0137-a4-f1..f7 filed; freeze re-verified). 2026-08-01 (A2 arm status note: first diaried sweep arm complete — 11 pass / 1 GAP / 0 fail; findings 0137-a2-f1..f8 filed; freeze re-verified). 2026-07-31 (v3 purpose inversion per Charlie's direction: the program now exists to surface what would make Snapback better, not to prove Snapback is better — that proof is deferred until the improvement well runs dry. Phase 1 is a Snapback-first improvement sweep over all six contracts as an external npm consumer, with a mid-program fix loop, frozen-evidence-first competitor referencing, and demand-driven fresh probes; the symmetric championship — core/extension matrix, composite, ranking controls — is preserved compactly as deferred Phase 2 behind a dry-well trigger. Ranking-fairness controls that obstruct improvement, chiefly the single frozen Snapback revision and atomic rounds, move to Phase 2; honesty controls stay). 2026-07-31 (v2 efficiency restructure: sixteen-arm symmetric core over A1–A4 plus five extension arms; contract lineage to LLP 0102 with a zero-new-arm longitudinal comparison; atomic per-contract rounds; Track B baseline + checkpoint; former open questions 1–5 resolved). 2026-07-31 (refine pass: challenger gate unified; composite comparability scoped; Track B eligibility rule; cross-references verified). 2026-07-31 (initial draft: a four-backend React-web championship, a separately scored Expo validation, a Snapback-only Exact Native graduation exercise, and selective specialist challengers, all gated on public-package consumption)
 **Related:** LLP 0000, LLP 0010, LLP 0015, LLP 0016, LLP 0035, LLP 0041, LLP 0044, LLP 0064, LLP 0074, LLP 0093, LLP 0102, LLP 0103, LLP 0105, LLP 0107, LLP 0114, LLP 0115, LLP 0129, LLP 0130, LLP 0132, LLP 0133, LLP 0135, LLP 0136, Diary 0027–0039
 
 ## Summary
@@ -951,3 +951,67 @@ rotation ordering, bundler-safe packaging, and the 61-second receipt
 loop. This status note is a dated amendment inside the freeze boundary;
 the freeze was re-verified (and re-frozen for this plan digest) with the
 sweep's own scripts in the landing commit.
+
+Track B — A4 Expo iOS (Stage 4, second and final planned Expo sweep arm —
+snapback-expo, deep budget) executed 2026-08-01 and **completed**: all 12
+a4-applicable frozen EXPO checks ran (expectedChecks enforced from the
+expo-receipt manifest) with **8 pass, 3 GAP, 1 evidenced-defect fail,
+0 Stop** on the same iPhone 17 Pro simulator (iOS 26.3), release build,
+public 0.1.7 closure from a clean external directory, sessions mode with
+the email-code exchange executed on-device, backend sources adopted
+verbatim from the a4-snapback-web arm, and the supported local bridge per
+the frozen Track B rule. The a1-expo arm's recipes prepaid the carrier
+tax (polyfill, harness, custody, driver skeleton): one native build,
+~27 minutes install → green receipt, 110-second suite. New ground this
+arm proved: the **A4 invitation deep link as a real OS-level flow**
+(`simctl openurl` → running release app → one authority-creating
+redemption settling `{role, inviteCode, invitedByName,
+enteredVia:'deep-link'}`, invite consumed, replay refused, roster
+attribution independently verified) and the **image pipeline from the
+phone** (on-device raw TUS upload with on-device sha256, async card/thumb
+renditions, strict no-store per-request-authorized delivery read back
+on-device, the RN `Image` component rendering through the authorized byte
+lane, and a served canonical digest byte-identical to the web arm's for
+the same fixture). Second-device wall posts and recomputed seat counts
+rendered on-device in ≤122ms. The GAPs: EXPO-06/EXPO-07 (the mobile
+local-first floor, owned by 0137-a1expo-f3/f2 — f2 re-verified here) and
+EXPO-09 (**no push-notification boundary on 0.1.7** — capability manifest
+`notifications:false`, no device-token/APNs/expo-notifications lane in
+closure or guide, and the app-authored bridge unauthorable because the
+outbound effect lane is broken on the pinned packages; the `ctx.fetch`
+fix `117dcae2` is post-publication main). The fail is EXPO-10: the
+0137-a1expo-f4 rotation wedge reproduced unchanged (downgrade rotation
+rejects with the lifecycle-failures AggregateError, the successor denial
+never reaches the hook, rotate-back never re-subscribes — this arm's
+wedge shape presents queries `ready` with zero rows under a
+`disconnected` connection); logout and predecessor-data retirement
+passed. The a1-f2/a4-f3 non-owner asset hole was re-verified from the
+device (typed attach `SNAPBACK_ASSET_REF_UNVERIFIED`, seated-guest strict
+read 403): the on-device flyer render is owner-only until the
+asset-sharing chain closes. Two findings filed (`0137-a4expo-f1..f2`,
+tickets `issues/20260801-0137-a4expo-*.md`): the mobile push-boundary GAP
+and the deep-link scheme-approval guide-gap (iOS's one-time 'Open in?'
+dialog silently defeats headless `simctl openurl`; the working
+schemeapproval-plist pre-authorization recipe is knowledge the guide
+should carry). Dated re-verification/narrowing notes appended to the
+a1expo f2/f4/f7 tickets — notably **f7 narrowed**: the indefinite ~2s
+connection cycling did not reproduce on this all-protected-query surface
+(no retainable public query), consistent with the retainable re-prime
+suspicion. Android: honest not-run GAP (JDK absence re-verified live); no
+android receipt is minted (LLP 0064). Physical-device: not-run,
+separately reported production gate. Budget actuals: ~23 min orientation
++ ~27 min build (single release build; three receipt-driver iterations)
+and ~55 build-phase tool calls against the 8h/400 deep ceilings; zero
+posture breaks; two assistance events (prior-arm program-records
+adoption; the OS-level schemeapproval discovery, converted into finding
+a4expo-f2). Receipt, capsule, evidence (screenshots incl. the on-device
+flyer render, witness-event stream), and app sources:
+`demos/improvement-sweep/arms/a4-snapback-expo-ios/`; diary: Track B
+entry appended to `diaries/0045-a4-events-sweep.diary.md`.
+Differentiator watch (protect while fixing): the atomic deep-link
+redemption settlement, ≤122ms second-device push under the heavier A4
+queries, cross-carrier canonical content identity, the uniform denial
+surface (anonymous projection, outsider, anonymous bytes, post-rotation,
+post-cleanup), and the 110-second receipt loop. This status note is a
+dated amendment inside the freeze boundary; the freeze was re-verified
+with the sweep's own scripts in the landing commit.

@@ -1,0 +1,184 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "arm": {
+    "contract": "a4",
+    "armKind": "snapback-expo",
+    "platform": "expo-ios",
+    "provider": "snapback",
+    "attemptId": "a4-expo-ios-20260801"
+  },
+  "packageVersions": {
+    "@expo/snapback-cli": "0.1.7",
+    "@expo/snapback-app-cli": "0.1.7",
+    "@expo/snapback-client": "0.1.7",
+    "@expo/snapback-codegen": "0.1.7",
+    "@expo/snapback-contract": "0.1.7",
+    "@expo/snapback-react": "0.1.7",
+    "@expo/snapback-runtime-darwin-arm64": "0.1.7",
+    "expo": "57.0.9",
+    "react-native": "0.86.2",
+    "react": "19.2.3",
+    "expo-secure-store": "57.0.1",
+    "expo-crypto": "57.0.1 (consumer workaround for finding 0137-a1expo-f1)",
+    "expo-status-bar": "57.0.1",
+    "typescript": "6.0.3 (app) / 5.9.3 (backend scaffold)"
+  },
+  "environment": {
+    "host": "macOS (Darwin 25.5.0), arm64; Xcode 26.6 (17F113); volta node 24.18.0 for all backend/orchestrator processes; bun 1.3.12 installs",
+    "registry": "https://registry.npmjs.org",
+    "externalDirectory": "session scratchpad sweep-a4-expo/consumer — outside any Snapback checkout; backend scaffolded by `snapback new event-app --template react`; Expo app built from the frozen neutral-expo shell pins with the EVENT view wired live (notebook view left static — the mirror of the a1-expo arm)",
+    "g3Pin": "recorded BEFORE arm work, inherited verbatim from the a1-expo arm's pin (cited): Expo SDK 57.0.9 / RN 0.86.2 / React 19.2.3 (frozen neutral-expo shell pins); provider-recommended RN path per guide clients/react-expo.md — same @expo/snapback-client + generated refs + @expo/snapback-react hook as web, Online surface, local target; build mode = native RELEASE simulator build (expo run:ios --configuration Release), the guide's evidenced carrier mode; iOS simulator device class",
+    "simulator": "iPhone 17 Pro (E0E49A2F-54A7-4355-8EB4-D52138E3361B), iOS 26.3 runtime, Hermes on-device",
+    "harness": "loopback director/witness-collector on 127.0.0.1:4611 (the guide's own acceptance shape: test infrastructure, not a production endpoint design); app posts lifecycle/query-state/deep-link/flyer witness events and executes director commands; snapback dev on 4297 with guard listeners holding 4287-4296 so restarts land on the same origin (a1-expo owns 4294/4610, web arms own 4288-4291, 4420 never used)",
+    "sanctionedDocumentation": [
+      "the shipped Snapback guide (index, clients/react-expo, clients/react, auth/native-apps, capabilities — the backend.notifications GAP row)",
+      "prior 0137 arm records (a1-snapback-expo-ios capsule/receipt/findings/app sources; a4-snapback-web capsule/diary/findings/acceptance sources) — program records, cited not re-derived"
+    ],
+    "authMode": "sessions (email-code provider executed ON-DEVICE for hana; membership entry through seeded invite rows; the host seat claimed through a REAL OS deep link)"
+  },
+  "budget": {
+    "class": "deep",
+    "ceilings": { "activeHours": 8, "toolCalls": 400 },
+    "wallClock": {
+      "orientationStart": "2026-08-01T15:20:00Z (approx; required reading: LLP 0137 Track B/G3, expo receipt manifest, assistance policy, a1-expo capsule+findings+recipes, a4-web capsule+backend, diary 0043 Track B entry)",
+      "externalBuildStart": "2026-08-01T15:43:19Z (clean npm install of the 0.1.7 closure)",
+      "finalGreenReceiptRun": "2026-08-01T16:10:43Z (12/12 checks, 110s suite wall)",
+      "orientationMinutes": 23,
+      "activeBuildMinutes": 27,
+      "recordsPhase": "16:11Z onward (findings, tickets, receipt, capsule, diary, LLP status, freeze/ref checks, rebase, commit)",
+      "note": "single release build (~5 min incl. prebuild+pods — no defect-workaround rebuilds needed this time: the f1 polyfill and f4 handling were adopted from the a1-expo recipes); three receipt-driver iterations (deep-link OS dialog discovery, rendition-poll fix, note-honesty fix)"
+    },
+    "toolCalls": {
+      "throughFinalVerification": 55,
+      "recordsPhaseEstimate": "~35 additional",
+      "note": "counted from the session transcript; well under the 400-call deep ceiling including records"
+    },
+    "ceilingExceeded": false
+  },
+  "actors": {
+    "builder": "Claude (Fable 5), LLP 0137 Stage 4 second Track B arm (A4 on Expo iOS), external-consumer posture",
+    "personas": {
+      "hana": "hana@sweep-a4expo.test (on-device app user; host via the OS deep-link invite INV-HOST-2214)",
+      "cora": "cora@sweep-a4expo.test (cohost via seeded invite; host-side independent verification client)",
+      "gil": "gil@sweep-a4expo.test (guest via seeded invite; second device: host-side protocol client over the same public package)",
+      "max": "max@sweep-a4expo.test (authenticated outsider, no seat; rotation successor)"
+    },
+    "principalDerivation": "server-minted sessions via email-code exchange executed ON-DEVICE for hana; principals are server UUIDs, never client-asserted"
+  },
+  "targets": {
+    "kind": "fresh-isolated-local",
+    "targetProfile": "local-dev-sqlite-ibex",
+    "appId": "event-app",
+    "server": "http://127.0.0.1:4297 (snapback dev, ready-descriptor lifecycle, stdin-close stop; env SNAPBACK_OUTBOUND_ACTIONS=1 + SNAPBACK_CRON_DISABLED=1 as the web arm pinned)",
+    "seedIdentity": "a4-events.2026-08-01.2 (byte-identical to the a4-web arm's seed; fresh managed database per run so the supervisor installs it cleanly)",
+    "hostedAvailability": "GAP — finding 0137-a1expo-f5 cited; supported local bridge from the simulator used per the frozen Track B rule, never an invented hosted equivalence",
+    "backendSources": "schema.mjs/functions.mjs/seed.json adopted verbatim from the a4-snapback-web arm records (same contract, same backend; this arm evidences the mobile carrier)"
+  },
+  "milestones": {
+    "closureInstalled": "2026-08-01T15:43:22Z (npm, 12 packages, ~3s)",
+    "backendGenerated": "2026-08-01T15:45Z (snapback generate: 10 tables, 21 operations, 74 files — identical to the web arm)",
+    "expoAppAuthored": "2026-08-01T15:45-15:55Z (frozen shell event view wired + deep-link redemption + on-device upload module + harness/session custody adopted from a1-expo)",
+    "typecheckClean": "2026-08-01T15:55Z (tsc --noEmit, after two typed-array/BodyInit casts)",
+    "releaseBuild": "2026-08-01T15:57-16:02Z (expo prebuild + pod install + expo run:ios Release; single build, no defect rebuilds)",
+    "firstReceiptRun": "2026-08-01T16:03Z (deep link silently undelivered — iOS scheme-confirmation dialog discovered via screenshot; finding a4expo-f2)",
+    "secondReceiptRun": "2026-08-01T16:05Z (deep link + full event flow green; card rendition 404 — async rendition generation, poll added per the web arm's shape)",
+    "finalReceiptRun": "2026-08-01T16:08:53Z suiteStart → 16:10:43Z cleanup (110s wall: launch, auth+deep-link, realtime, queue window, lifecycle, cold restart, on-device flyer, rotation, teardown)",
+    "timeToLocalAcceptance": "~27 minutes install → 12/12 receipt checks (single native build; the a1-expo recipes removed the two rebuild cycles that arm paid for)",
+    "timeToHostedUrl": "n/a — hosted mobile availability is the cited a1expo-f5 GAP",
+    "cleanup": "2026-08-01T16:10:43Z (receipted reset-install + flyer delete + seat self-removals + sim shutdown + server stop)"
+  },
+  "assistanceEvents": [
+    {
+      "kind": "prior-arm-program-records",
+      "description": "Backend schema.mjs/functions.mjs/seed.json adopted verbatim from the a4-snapback-web arm (same contract); the WebCrypto polyfill, director/witness harness, session-custody module, dev-server lifecycle, email-code mint recipe, and receipt-driver skeleton adopted from the a1-snapback-expo-ios arm records; the raw attempt/TUS/finalize upload recipe and deterministic PNG fixture from the a4-web acceptance sources. Program records, cited not re-derived.",
+      "reference": "demos/improvement-sweep/arms/a1-snapback-expo-ios/, demos/improvement-sweep/arms/a4-snapback-web/, diaries/0043 (Track B entry), diaries/0045 (web entry)"
+    },
+    {
+      "kind": "undocumented-probe",
+      "description": "OS-level (not Snapback-bytes) discovery: the silently-dead deep link was diagnosed by screenshotting the simulator (iOS 'Open in?' confirmation dialog) and the headless pre-approval recipe was derived by inspecting the simulator's com.apple.launchservices.schemeapproval.plist; converted into finding 0137-a4expo-f2 (guide-gap) rather than remaining private knowledge",
+      "reference": "findings/0137-a4expo-f2-deep-link-acceptance-scheme-approval-guide-gap.json"
+    }
+  ],
+  "postureBreaks": [],
+  "commands": [
+    "npm install --save-exact @expo/snapback-{cli,app-cli,client,codegen,contract,react}@0.1.7 (clean external dir)",
+    "snapback new event-app --template react; bun install; SNAPBACK_OUTBOUND_ACTIONS=1 snapback generate snapback",
+    "expo prebuild --platform ios; expo run:ios --configuration Release --device <UDID> --no-bundler (single build)",
+    "node expo-acceptance/run-ios.mjs (12-check director/witness receipt driver: simctl install/launch/terminate/openurl/keychain-reset/screenshot/uninstall/shutdown + schemeapproval pre-authorization; snapback dev spawn/stop ×4 across the offline windows)"
+  ],
+  "scenarioResults": [
+    { "id": "EXPO-01-IDENTITIES", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "all identities recorded" },
+    { "id": "EXPO-02-LAUNCH", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json", "evidence/shot-00-signed-out.png"], "note": "clean release launch; f1 polyfill prerequisite cited" },
+    { "id": "EXPO-03-NATIVE-AUTH", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json", "evidence/shot-01-authed-host-via-deeplink.png"], "note": "on-device email-code entry + REAL OS deep-link invite redemption (attributed, consumed, replay refused); scheme-dialog guide-gap filed (a4expo-f2)" },
+    { "id": "EXPO-04-REALTIME", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json", "evidence/shot-02-realtime-after-gil.png"], "note": "≤122ms second-device wall + seat-count pushes; outsider denied; f7 cycling did not reproduce (narrowing appended)" },
+    { "id": "EXPO-05-LIFECYCLE", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json", "evidence/shot-04-foreground-caught-up.png", "evidence/shot-05-network-loss-stale.png"], "note": "background/foreground catch-up; honest network-loss facts; reconnect" },
+    { "id": "EXPO-06-COLD-RESTART", "result": "gap", "evidencePaths": ["evidence/scenario-evidence.json", "evidence/shot-06-cold-restart-offline-locked.png"], "note": "clean cold restart + 3.1s self-heal; retained render unclaimed on this carrier (f3 cited)" },
+    { "id": "EXPO-07-QUEUE", "result": "gap", "evidencePaths": ["evidence/scenario-evidence.json", "evidence/shot-03-queue-not-engaged.png"], "note": "queue unclaimed AND opt-in cannot engage (f2 re-verified); no ghost settlement" },
+    { "id": "EXPO-08-FILES", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json", "evidence/shot-08-flyer-rendered.png"], "note": "on-device upload → ready; renditions + strict no-store delivery + RN Image render on-device; non-owner hole cited (a1-f2/a4-f3, main fixes not in 0.1.7)" },
+    { "id": "EXPO-09-PUSH", "result": "gap", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "explicit GAP; new mobile-scoped finding a4expo-f1" },
+    { "id": "EXPO-10-AUTHORITY-ROTATION", "result": "fail", "evidencePaths": ["evidence/scenario-evidence.json", "evidence/shot-09-rotated-to-outsider.png"], "note": "evidenced defect f4 re-verified: downgrade rotation wedges live handles, rotate-back never re-subscribes; logout + retirement correct" },
+    { "id": "EXPO-11-TEARDOWN", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "flyer deleted; seats self-removed; receipted reset-install; sim shutdown" },
+    { "id": "EXPO-12-INDEPENDENCE", "result": "pass", "evidencePaths": ["evidence/report.json"], "note": "iOS-only claim; android honest not-run (JDK absent, re-verified)" }
+  ],
+  "expectedCheckCount": 12,
+  "findings": [
+    "0137-a4expo-f1-no-mobile-push-notification-boundary",
+    "0137-a4expo-f2-deep-link-acceptance-scheme-approval-guide-gap"
+  ],
+  "reVerifications": [
+    "0137-a1expo-f2 reproduced unchanged (offline opt-in queue cannot engage on the Expo fetch error class) — dated note appended to its ticket",
+    "0137-a1expo-f4 reproduced unchanged (downgrade rotation wedges live handles; rotate-back never re-subscribes; queries present ready/0 under a disconnected connection) — dated note appended",
+    "0137-a1expo-f7 NARROWED (the indefinite ~2s cycling did not reproduce on an all-protected-query surface with no retainable public query; one early spontaneous cycle then a 16s stable live hold) — dated note appended",
+    "0137-a1-f2 SNAPBACK_ASSET_REF_UNVERIFIED typed-attach refusal reproduced from the device; 0137-a4-f3 seated-guest strict read 403 reproduced (the 117dcae2/7437e6e0 main fixes are post-0.1.7 and absent from the pinned packages)"
+  ],
+  "differentiators": [
+    {
+      "observation": "The A4 invitation deep link is a REAL native product flow on this carrier: an OS-level sweepshell:// link delivered by iOS into the running app redeemed the invite through one authority-creating mutation — seat + consumed invite + attributed RSVP ({role, inviteCode, invitedByName, enteredVia:'deep-link'}) in a single settlement, verified independently on the roster",
+      "mustNotRegress": "Atomic attributed invitation entry composing with OS deep-link delivery; the replay refusal on consumed codes",
+      "referenceEvidence": "evidence/scenario-evidence.json EXPO-03; a4-web capsule A4-04"
+    },
+    {
+      "observation": "Committed second-device facts reached the phone in ≤122ms (wall post and recomputed seat count, both witnessed on-device against the settlement envelope) — an order of magnitude inside interactive tolerance for an event wall",
+      "mustNotRegress": "Sub-200ms second-device delivery on the local target while the RN carrier defects (f4/f7 family) are fixed",
+      "referenceEvidence": "evidence/scenario-evidence.json EXPO-04; a1-expo capsule (33-42ms on the lighter A1 queries)"
+    },
+    {
+      "observation": "The image pipeline is real ON THE PHONE on the packaged closure: on-device raw TUS upload with an on-device sha256 checksum, async card/thumb renditions, strict per-request-authorized no-store delivery read back on-device, the RN Image component rendering through the authorized byte lane, and a served canonical digest byte-identical to the web arm's for the same fixture — cross-carrier content identity",
+      "mustNotRegress": "private-strict semantics (per-request re-auth, no-store) and deterministic canonical re-encoding across carriers",
+      "referenceEvidence": "evidence/scenario-evidence.json EXPO-08 (primarySha256 f5c05064… = a4-web A4-07); evidence/shot-08-flyer-rendered.png"
+    },
+    {
+      "observation": "Uniform non-disclosing denials held on-device across every negative lane this contract has: anonymous projection excludes the address byte-wise, outsider read/subscribe denied, anonymous asset bytes 403, post-rotation successor denied, post-cleanup fresh session denied",
+      "mustNotRegress": "The uniform denial surface while f4's rotation lifecycle is repaired",
+      "referenceEvidence": "evidence/scenario-evidence.json EXPO-04/EXPO-08/EXPO-10/EXPO-11"
+    },
+    {
+      "observation": "The receipted deterministic cleanup composes across resource kinds from a mobile harness: asset delete (200→404), membership self-removal, versioned reset-install (20 rows) restoring the literal capacity fixture, all inside a 110-second full-receipt loop",
+      "mustNotRegress": "Deterministic receipted cleanup and the fast acceptance loop on device-carrier suites",
+      "referenceEvidence": "evidence/report.json milestones; evidence/scenario-evidence.json EXPO-11"
+    }
+  ],
+  "inventory": {
+    "authored": "Expo app: App.tsx (~700 lines incl. director/witness executor, deep-link redemption, wired event view with live flyer Image), src/upload.ts (150, on-device TUS via expo/fetch), src/config.ts (20), src/session.ts (40); adopted from a1-expo: src/harness.ts (110), src/crypto-polyfill.ts (45, f1 workaround); host orchestrator expo-acceptance/run-ios.mjs (~900, adapted from the a1-expo driver)",
+    "generated": "snapback generate: api.mjs/api.d.ts + schema/functions/capability manifests (copied into the app), 74 codegen files on the backend",
+    "adopted": "backend schema.mjs (176 lines), functions.mjs (845), seed.json (168) — verbatim from the a4-snapback-web arm records (assistance event 1)",
+    "policy": "eventMembers scoped-role declaration + requireRole guards (adopted); app-side: expo-secure-store bearer custody",
+    "test": "the 12-check receipt driver with director/witness protocol; deterministic PNG fixture shared with the web arm",
+    "configuration": "release build config via expo prebuild defaults; no Metro config needed (bundler-safe closure); simulator schemeapproval pre-authorization as pre-run hygiene (a4expo-f2)"
+  },
+  "attribution": {
+    "transport": "server push over the client stream transport (WebSocket) to the device for live deliveries (≤122ms measured against settlement); HTTP for mutate/settlement envelopes and the raw asset lanes; no polling was counted as push; connection axis held live through a 16s idle stretch (f7 narrowing) and wedged disconnected only under the f4 rotation defect",
+    "authority": "server-derived sessions principals under external-bearer custody held on-device (app keychain via expo-secure-store); the host seat minted by an OS deep-link redemption through the by:['none'] self-insert transition; admin/impersonation custody host-side only; dev-mode identity assertion never used",
+    "settlement": "settlement envelopes on every mutate observed on-device (deep-link redemption settlement carried the attribution receipt); offline queue settlement NOT exercised on this carrier — the opt-in cannot engage (f2 cited) and no durable store exists (f3 cited); no-ghost-settlement proven instead (wall count unchanged, no offline clientKey committed)"
+  },
+  "stopDefects": [],
+  "cleanup": {
+    "app": "terminated + uninstalled; app keychain entry cleared by in-run logout (simctl keychain reset + schemeapproval pre-authorization as pre-run hygiene)",
+    "simulator": "shutdown E0E49A2F-54A7-4355-8EB4-D52138E3361B (verified no booted devices post-run)",
+    "server": "snapback dev stopped via stdin-close (origin verified refusing); port guards 4287-4296 released; no listeners on 4297/4611/8081 post-run",
+    "data": "flyer asset deleted (200→404); seats self-removed; receipted versioned reset-install (reset-installed, 20 rows) restored the literal capacity fixture (anonymous preview 6/12, hasFlyer=false); post-cleanup fresh-session read denied",
+    "credentials": "session bearers retired by the reset-install stream transition; admin/impersonation token files remain dev-local inside the arm-owned external scratchpad directory only; nothing copied into the repository"
+  },
+  "result": "complete"
+}

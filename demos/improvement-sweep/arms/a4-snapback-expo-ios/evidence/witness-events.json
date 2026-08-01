@@ -1,0 +1,4503 @@
+[
+  {
+    "receivedAt": 1785600569106,
+    "at": 1785600569102,
+    "type": "boot",
+    "serverUrl": "http://127.0.0.1:4297",
+    "hadStoredBearer": false,
+    "initialUrl": null,
+    "platform": "ios",
+    "platformVersion": "26.3.1",
+    "hermes": true
+  },
+  {
+    "receivedAt": 1785600570325,
+    "at": 1785600570322,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "idle"
+      },
+      "eventView": {
+        "status": "skipped",
+        "error": null,
+        "rows": null
+      },
+      "wall": {
+        "status": "skipped",
+        "error": null,
+        "rows": null
+      },
+      "guests": {
+        "status": "skipped",
+        "error": null,
+        "rows": null
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600570610,
+    "at": 1785600570607,
+    "type": "deep-link-received",
+    "url": "sweepshell://invite?code=INV-HOST-2214",
+    "code": "INV-HOST-2214",
+    "origin": "event"
+  },
+  {
+    "receivedAt": 1785600570649,
+    "at": 1785600570642,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "idle"
+      },
+      "eventView": {
+        "status": "pending",
+        "error": null,
+        "rows": null
+      },
+      "wall": {
+        "status": "pending",
+        "error": null,
+        "rows": null
+      },
+      "guests": {
+        "status": "pending",
+        "error": null,
+        "rows": null
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600570650,
+    "at": 1785600570644,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "connecting"
+      },
+      "eventView": {
+        "status": "pending",
+        "error": null,
+        "rows": null
+      },
+      "wall": {
+        "status": "pending",
+        "error": null,
+        "rows": null
+      },
+      "guests": {
+        "status": "pending",
+        "error": null,
+        "rows": null
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600570651,
+    "at": 1785600570645,
+    "type": "deep-link-redeemed",
+    "code": "INV-HOST-2214",
+    "settlement": {
+      "version": 4,
+      "changed_count": 3,
+      "result": {
+        "eventId": "evt_lantern",
+        "role": "host",
+        "inviteCode": "INV-HOST-2214",
+        "invitedByName": "fixture",
+        "enteredVia": "deep-link"
+      },
+      "ctx_ledger": {
+        "version": 1,
+        "ids": [
+          "019fbe16-750a-7840-9d2f-c24511d032a9"
+        ],
+        "now": 1785600570616
+      },
+      "receipt": {
+        "kind": "mutation",
+        "mutationId": "mut_019fbe1674f874c3a3ef0b873cc75807",
+        "mutation": "redeemInvite",
+        "outcome": "confirmed",
+        "rollbackReason": null,
+        "affectedTables": [
+          "invites",
+          "rsvps",
+          "eventMembers"
+        ],
+        "snapshotVersion": 4,
+        "transport": "http",
+        "correlation": null,
+        "receivedAtMs": 1785600570637
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600570692,
+    "at": 1785600570689,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "connecting"
+      },
+      "eventView": {
+        "status": "pending",
+        "error": null,
+        "rows": null
+      },
+      "wall": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "seq": 1,
+            "authorName": "Pia",
+            "authorId": null,
+            "body": "Bringing dessert!"
+          },
+          {
+            "seq": 2,
+            "authorName": "Quinn",
+            "authorId": null,
+            "body": "Anyone driving from the Mission?"
+          },
+          {
+            "seq": 3,
+            "authorName": "Rae",
+            "authorId": null,
+            "body": "I can bring a projector for the slideshow."
+          }
+        ]
+      },
+      "guests": {
+        "status": "pending",
+        "error": null,
+        "rows": null
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600570755,
+    "at": 1785600570751,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "connecting"
+      },
+      "eventView": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "title": "Lantern Supper Club",
+            "city": "Oakland, California",
+            "privateAddress": "482 Alcatraz Ave, backyard gate code 7311",
+            "capacity": 12,
+            "goingSeats": 6,
+            "goingCount": 3,
+            "maybeCount": 1,
+            "flyerAssetId": ""
+          }
+        ]
+      },
+      "wall": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "seq": 1,
+            "authorName": "Pia",
+            "authorId": null,
+            "body": "Bringing dessert!"
+          },
+          {
+            "seq": 2,
+            "authorName": "Quinn",
+            "authorId": null,
+            "body": "Anyone driving from the Mission?"
+          },
+          {
+            "seq": 3,
+            "authorName": "Rae",
+            "authorId": null,
+            "body": "I can bring a projector for the slideshow."
+          }
+        ]
+      },
+      "guests": {
+        "status": "pending",
+        "error": null,
+        "rows": null
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600570788,
+    "at": 1785600570785,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "live"
+      },
+      "eventView": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "title": "Lantern Supper Club",
+            "city": "Oakland, California",
+            "privateAddress": "482 Alcatraz Ave, backyard gate code 7311",
+            "capacity": 12,
+            "goingSeats": 6,
+            "goingCount": 3,
+            "maybeCount": 1,
+            "flyerAssetId": ""
+          }
+        ]
+      },
+      "wall": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "seq": 1,
+            "authorName": "Pia",
+            "authorId": null,
+            "body": "Bringing dessert!"
+          },
+          {
+            "seq": 2,
+            "authorName": "Quinn",
+            "authorId": null,
+            "body": "Anyone driving from the Mission?"
+          },
+          {
+            "seq": 3,
+            "authorName": "Rae",
+            "authorId": null,
+            "body": "I can bring a projector for the slideshow."
+          }
+        ]
+      },
+      "guests": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "name": "Pia",
+            "status": "going",
+            "plusOnes": 1,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Quinn",
+            "status": "going",
+            "plusOnes": 2,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Rae",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Sam",
+            "status": "maybe",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Tess",
+            "status": "declined",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Cora",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Gil",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Hana",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "fixture",
+            "enteredVia": "deep-link"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600571376,
+    "at": 1785600571373,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "live"
+      },
+      "eventView": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "title": "Lantern Supper Club",
+            "city": "Oakland, California",
+            "privateAddress": "482 Alcatraz Ave, backyard gate code 7311",
+            "capacity": 12,
+            "goingSeats": 6,
+            "goingCount": 3,
+            "maybeCount": 1,
+            "flyerAssetId": ""
+          }
+        ]
+      },
+      "wall": {
+        "status": "ready",
+        "error": null,
+        "rows": []
+      },
+      "guests": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "name": "Pia",
+            "status": "going",
+            "plusOnes": 1,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Quinn",
+            "status": "going",
+            "plusOnes": 2,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Rae",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Sam",
+            "status": "maybe",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Tess",
+            "status": "declined",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Cora",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Gil",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Hana",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "fixture",
+            "enteredVia": "deep-link"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600571379,
+    "at": 1785600571376,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "live"
+      },
+      "eventView": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "title": "Lantern Supper Club",
+            "city": "Oakland, California",
+            "privateAddress": "482 Alcatraz Ave, backyard gate code 7311",
+            "capacity": 12,
+            "goingSeats": 6,
+            "goingCount": 3,
+            "maybeCount": 1,
+            "flyerAssetId": ""
+          }
+        ]
+      },
+      "wall": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "seq": 1,
+            "authorName": "Pia",
+            "authorId": null,
+            "body": "Bringing dessert!"
+          },
+          {
+            "seq": 2,
+            "authorName": "Quinn",
+            "authorId": null,
+            "body": "Anyone driving from the Mission?"
+          },
+          {
+            "seq": 3,
+            "authorName": "Rae",
+            "authorId": null,
+            "body": "I can bring a projector for the slideshow."
+          },
+          {
+            "seq": 4,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Rolling in from Temescal — anyone need a ride?"
+          }
+        ]
+      },
+      "guests": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "name": "Pia",
+            "status": "going",
+            "plusOnes": 1,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Quinn",
+            "status": "going",
+            "plusOnes": 2,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Rae",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Sam",
+            "status": "maybe",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Tess",
+            "status": "declined",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Cora",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Gil",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Hana",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "fixture",
+            "enteredVia": "deep-link"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600571381,
+    "at": 1785600571379,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "live"
+      },
+      "eventView": {
+        "status": "ready",
+        "error": null,
+        "rows": []
+      },
+      "wall": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "seq": 1,
+            "authorName": "Pia",
+            "authorId": null,
+            "body": "Bringing dessert!"
+          },
+          {
+            "seq": 2,
+            "authorName": "Quinn",
+            "authorId": null,
+            "body": "Anyone driving from the Mission?"
+          },
+          {
+            "seq": 3,
+            "authorName": "Rae",
+            "authorId": null,
+            "body": "I can bring a projector for the slideshow."
+          },
+          {
+            "seq": 4,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Rolling in from Temescal — anyone need a ride?"
+          }
+        ]
+      },
+      "guests": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "name": "Pia",
+            "status": "going",
+            "plusOnes": 1,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Quinn",
+            "status": "going",
+            "plusOnes": 2,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Rae",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Sam",
+            "status": "maybe",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Tess",
+            "status": "declined",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Cora",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Gil",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Hana",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "fixture",
+            "enteredVia": "deep-link"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600571382,
+    "at": 1785600571380,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "live"
+      },
+      "eventView": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "title": "Lantern Supper Club",
+            "city": "Oakland, California",
+            "privateAddress": "482 Alcatraz Ave, backyard gate code 7311",
+            "capacity": 12,
+            "goingSeats": 6,
+            "goingCount": 3,
+            "maybeCount": 1,
+            "flyerAssetId": ""
+          }
+        ]
+      },
+      "wall": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "seq": 1,
+            "authorName": "Pia",
+            "authorId": null,
+            "body": "Bringing dessert!"
+          },
+          {
+            "seq": 2,
+            "authorName": "Quinn",
+            "authorId": null,
+            "body": "Anyone driving from the Mission?"
+          },
+          {
+            "seq": 3,
+            "authorName": "Rae",
+            "authorId": null,
+            "body": "I can bring a projector for the slideshow."
+          },
+          {
+            "seq": 4,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Rolling in from Temescal — anyone need a ride?"
+          }
+        ]
+      },
+      "guests": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "name": "Pia",
+            "status": "going",
+            "plusOnes": 1,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Quinn",
+            "status": "going",
+            "plusOnes": 2,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Rae",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Sam",
+            "status": "maybe",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Tess",
+            "status": "declined",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Cora",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Gil",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Hana",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "fixture",
+            "enteredVia": "deep-link"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600571533,
+    "at": 1785600571531,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "live"
+      },
+      "eventView": {
+        "status": "ready",
+        "error": null,
+        "rows": []
+      },
+      "wall": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "seq": 1,
+            "authorName": "Pia",
+            "authorId": null,
+            "body": "Bringing dessert!"
+          },
+          {
+            "seq": 2,
+            "authorName": "Quinn",
+            "authorId": null,
+            "body": "Anyone driving from the Mission?"
+          },
+          {
+            "seq": 3,
+            "authorName": "Rae",
+            "authorId": null,
+            "body": "I can bring a projector for the slideshow."
+          },
+          {
+            "seq": 4,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Rolling in from Temescal — anyone need a ride?"
+          }
+        ]
+      },
+      "guests": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "name": "Pia",
+            "status": "going",
+            "plusOnes": 1,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Quinn",
+            "status": "going",
+            "plusOnes": 2,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Rae",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Sam",
+            "status": "maybe",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Tess",
+            "status": "declined",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Cora",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Gil",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Hana",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "fixture",
+            "enteredVia": "deep-link"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600571536,
+    "at": 1785600571533,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "live"
+      },
+      "eventView": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "title": "Lantern Supper Club",
+            "city": "Oakland, California",
+            "privateAddress": "482 Alcatraz Ave, backyard gate code 7311",
+            "capacity": 12,
+            "goingSeats": 7,
+            "goingCount": 4,
+            "maybeCount": 1,
+            "flyerAssetId": ""
+          }
+        ]
+      },
+      "wall": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "seq": 1,
+            "authorName": "Pia",
+            "authorId": null,
+            "body": "Bringing dessert!"
+          },
+          {
+            "seq": 2,
+            "authorName": "Quinn",
+            "authorId": null,
+            "body": "Anyone driving from the Mission?"
+          },
+          {
+            "seq": 3,
+            "authorName": "Rae",
+            "authorId": null,
+            "body": "I can bring a projector for the slideshow."
+          },
+          {
+            "seq": 4,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Rolling in from Temescal — anyone need a ride?"
+          }
+        ]
+      },
+      "guests": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "name": "Pia",
+            "status": "going",
+            "plusOnes": 1,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Quinn",
+            "status": "going",
+            "plusOnes": 2,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Rae",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Sam",
+            "status": "maybe",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Tess",
+            "status": "declined",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Cora",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Gil",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Hana",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "fixture",
+            "enteredVia": "deep-link"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600571538,
+    "at": 1785600571536,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "live"
+      },
+      "eventView": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "title": "Lantern Supper Club",
+            "city": "Oakland, California",
+            "privateAddress": "482 Alcatraz Ave, backyard gate code 7311",
+            "capacity": 12,
+            "goingSeats": 7,
+            "goingCount": 4,
+            "maybeCount": 1,
+            "flyerAssetId": ""
+          }
+        ]
+      },
+      "wall": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "seq": 1,
+            "authorName": "Pia",
+            "authorId": null,
+            "body": "Bringing dessert!"
+          },
+          {
+            "seq": 2,
+            "authorName": "Quinn",
+            "authorId": null,
+            "body": "Anyone driving from the Mission?"
+          },
+          {
+            "seq": 3,
+            "authorName": "Rae",
+            "authorId": null,
+            "body": "I can bring a projector for the slideshow."
+          },
+          {
+            "seq": 4,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Rolling in from Temescal — anyone need a ride?"
+          }
+        ]
+      },
+      "guests": {
+        "status": "ready",
+        "error": null,
+        "rows": []
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600571539,
+    "at": 1785600571538,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "live"
+      },
+      "eventView": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "title": "Lantern Supper Club",
+            "city": "Oakland, California",
+            "privateAddress": "482 Alcatraz Ave, backyard gate code 7311",
+            "capacity": 12,
+            "goingSeats": 7,
+            "goingCount": 4,
+            "maybeCount": 1,
+            "flyerAssetId": ""
+          }
+        ]
+      },
+      "wall": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "seq": 1,
+            "authorName": "Pia",
+            "authorId": null,
+            "body": "Bringing dessert!"
+          },
+          {
+            "seq": 2,
+            "authorName": "Quinn",
+            "authorId": null,
+            "body": "Anyone driving from the Mission?"
+          },
+          {
+            "seq": 3,
+            "authorName": "Rae",
+            "authorId": null,
+            "body": "I can bring a projector for the slideshow."
+          },
+          {
+            "seq": 4,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Rolling in from Temescal — anyone need a ride?"
+          }
+        ]
+      },
+      "guests": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "name": "Pia",
+            "status": "going",
+            "plusOnes": 1,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Quinn",
+            "status": "going",
+            "plusOnes": 2,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Rae",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Sam",
+            "status": "maybe",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Tess",
+            "status": "declined",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Cora",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Gil",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Hana",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "fixture",
+            "enteredVia": "deep-link"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600571950,
+    "at": 1785600571949,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "stale"
+      },
+      "eventView": {
+        "status": "refreshing",
+        "error": null,
+        "rows": [
+          {
+            "title": "Lantern Supper Club",
+            "city": "Oakland, California",
+            "privateAddress": "482 Alcatraz Ave, backyard gate code 7311",
+            "capacity": 12,
+            "goingSeats": 7,
+            "goingCount": 4,
+            "maybeCount": 1,
+            "flyerAssetId": ""
+          }
+        ]
+      },
+      "wall": {
+        "status": "refreshing",
+        "error": null,
+        "rows": [
+          {
+            "seq": 1,
+            "authorName": "Pia",
+            "authorId": null,
+            "body": "Bringing dessert!"
+          },
+          {
+            "seq": 2,
+            "authorName": "Quinn",
+            "authorId": null,
+            "body": "Anyone driving from the Mission?"
+          },
+          {
+            "seq": 3,
+            "authorName": "Rae",
+            "authorId": null,
+            "body": "I can bring a projector for the slideshow."
+          },
+          {
+            "seq": 4,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Rolling in from Temescal — anyone need a ride?"
+          }
+        ]
+      },
+      "guests": {
+        "status": "refreshing",
+        "error": null,
+        "rows": [
+          {
+            "name": "Pia",
+            "status": "going",
+            "plusOnes": 1,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Quinn",
+            "status": "going",
+            "plusOnes": 2,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Rae",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Sam",
+            "status": "maybe",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Tess",
+            "status": "declined",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Cora",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Gil",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Hana",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "fixture",
+            "enteredVia": "deep-link"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600575776,
+    "at": 1785600575773,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "connecting"
+      },
+      "eventView": {
+        "status": "refreshing",
+        "error": null,
+        "rows": [
+          {
+            "title": "Lantern Supper Club",
+            "city": "Oakland, California",
+            "privateAddress": "482 Alcatraz Ave, backyard gate code 7311",
+            "capacity": 12,
+            "goingSeats": 7,
+            "goingCount": 4,
+            "maybeCount": 1,
+            "flyerAssetId": ""
+          }
+        ]
+      },
+      "wall": {
+        "status": "refreshing",
+        "error": null,
+        "rows": [
+          {
+            "seq": 1,
+            "authorName": "Pia",
+            "authorId": null,
+            "body": "Bringing dessert!"
+          },
+          {
+            "seq": 2,
+            "authorName": "Quinn",
+            "authorId": null,
+            "body": "Anyone driving from the Mission?"
+          },
+          {
+            "seq": 3,
+            "authorName": "Rae",
+            "authorId": null,
+            "body": "I can bring a projector for the slideshow."
+          },
+          {
+            "seq": 4,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Rolling in from Temescal — anyone need a ride?"
+          }
+        ]
+      },
+      "guests": {
+        "status": "refreshing",
+        "error": null,
+        "rows": [
+          {
+            "name": "Pia",
+            "status": "going",
+            "plusOnes": 1,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Quinn",
+            "status": "going",
+            "plusOnes": 2,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Rae",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Sam",
+            "status": "maybe",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Tess",
+            "status": "declined",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Cora",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Gil",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Hana",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "fixture",
+            "enteredVia": "deep-link"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600575810,
+    "at": 1785600575808,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "connecting"
+      },
+      "eventView": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "title": "Lantern Supper Club",
+            "city": "Oakland, California",
+            "privateAddress": "482 Alcatraz Ave, backyard gate code 7311",
+            "capacity": 12,
+            "goingSeats": 7,
+            "goingCount": 4,
+            "maybeCount": 1,
+            "flyerAssetId": ""
+          }
+        ]
+      },
+      "wall": {
+        "status": "refreshing",
+        "error": null,
+        "rows": [
+          {
+            "seq": 1,
+            "authorName": "Pia",
+            "authorId": null,
+            "body": "Bringing dessert!"
+          },
+          {
+            "seq": 2,
+            "authorName": "Quinn",
+            "authorId": null,
+            "body": "Anyone driving from the Mission?"
+          },
+          {
+            "seq": 3,
+            "authorName": "Rae",
+            "authorId": null,
+            "body": "I can bring a projector for the slideshow."
+          },
+          {
+            "seq": 4,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Rolling in from Temescal — anyone need a ride?"
+          }
+        ]
+      },
+      "guests": {
+        "status": "refreshing",
+        "error": null,
+        "rows": [
+          {
+            "name": "Pia",
+            "status": "going",
+            "plusOnes": 1,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Quinn",
+            "status": "going",
+            "plusOnes": 2,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Rae",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Sam",
+            "status": "maybe",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Tess",
+            "status": "declined",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Cora",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Gil",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Hana",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "fixture",
+            "enteredVia": "deep-link"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600575831,
+    "at": 1785600575829,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "connecting"
+      },
+      "eventView": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "title": "Lantern Supper Club",
+            "city": "Oakland, California",
+            "privateAddress": "482 Alcatraz Ave, backyard gate code 7311",
+            "capacity": 12,
+            "goingSeats": 7,
+            "goingCount": 4,
+            "maybeCount": 1,
+            "flyerAssetId": ""
+          }
+        ]
+      },
+      "wall": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "seq": 1,
+            "authorName": "Pia",
+            "authorId": null,
+            "body": "Bringing dessert!"
+          },
+          {
+            "seq": 2,
+            "authorName": "Quinn",
+            "authorId": null,
+            "body": "Anyone driving from the Mission?"
+          },
+          {
+            "seq": 3,
+            "authorName": "Rae",
+            "authorId": null,
+            "body": "I can bring a projector for the slideshow."
+          },
+          {
+            "seq": 4,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Rolling in from Temescal — anyone need a ride?"
+          }
+        ]
+      },
+      "guests": {
+        "status": "refreshing",
+        "error": null,
+        "rows": [
+          {
+            "name": "Pia",
+            "status": "going",
+            "plusOnes": 1,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Quinn",
+            "status": "going",
+            "plusOnes": 2,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Rae",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Sam",
+            "status": "maybe",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Tess",
+            "status": "declined",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Cora",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Gil",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Hana",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "fixture",
+            "enteredVia": "deep-link"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600575847,
+    "at": 1785600575845,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "connecting"
+      },
+      "eventView": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "title": "Lantern Supper Club",
+            "city": "Oakland, California",
+            "privateAddress": "482 Alcatraz Ave, backyard gate code 7311",
+            "capacity": 12,
+            "goingSeats": 7,
+            "goingCount": 4,
+            "maybeCount": 1,
+            "flyerAssetId": ""
+          }
+        ]
+      },
+      "wall": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "seq": 1,
+            "authorName": "Pia",
+            "authorId": null,
+            "body": "Bringing dessert!"
+          },
+          {
+            "seq": 2,
+            "authorName": "Quinn",
+            "authorId": null,
+            "body": "Anyone driving from the Mission?"
+          },
+          {
+            "seq": 3,
+            "authorName": "Rae",
+            "authorId": null,
+            "body": "I can bring a projector for the slideshow."
+          },
+          {
+            "seq": 4,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Rolling in from Temescal — anyone need a ride?"
+          }
+        ]
+      },
+      "guests": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "name": "Pia",
+            "status": "going",
+            "plusOnes": 1,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Quinn",
+            "status": "going",
+            "plusOnes": 2,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Rae",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Sam",
+            "status": "maybe",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Tess",
+            "status": "declined",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Cora",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Gil",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Hana",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "fixture",
+            "enteredVia": "deep-link"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600575853,
+    "at": 1785600575847,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "live"
+      },
+      "eventView": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "title": "Lantern Supper Club",
+            "city": "Oakland, California",
+            "privateAddress": "482 Alcatraz Ave, backyard gate code 7311",
+            "capacity": 12,
+            "goingSeats": 7,
+            "goingCount": 4,
+            "maybeCount": 1,
+            "flyerAssetId": ""
+          }
+        ]
+      },
+      "wall": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "seq": 1,
+            "authorName": "Pia",
+            "authorId": null,
+            "body": "Bringing dessert!"
+          },
+          {
+            "seq": 2,
+            "authorName": "Quinn",
+            "authorId": null,
+            "body": "Anyone driving from the Mission?"
+          },
+          {
+            "seq": 3,
+            "authorName": "Rae",
+            "authorId": null,
+            "body": "I can bring a projector for the slideshow."
+          },
+          {
+            "seq": 4,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Rolling in from Temescal — anyone need a ride?"
+          }
+        ]
+      },
+      "guests": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "name": "Pia",
+            "status": "going",
+            "plusOnes": 1,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Quinn",
+            "status": "going",
+            "plusOnes": 2,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Rae",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Sam",
+            "status": "maybe",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Tess",
+            "status": "declined",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Cora",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Gil",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Hana",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "fixture",
+            "enteredVia": "deep-link"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600576204,
+    "at": 1785600576086,
+    "type": "app-state",
+    "state": "inactive"
+  },
+  {
+    "receivedAt": 1785600576371,
+    "at": 1785600576368,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "live"
+      },
+      "eventView": {
+        "status": "ready",
+        "error": null,
+        "rows": []
+      },
+      "wall": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "seq": 1,
+            "authorName": "Pia",
+            "authorId": null,
+            "body": "Bringing dessert!"
+          },
+          {
+            "seq": 2,
+            "authorName": "Quinn",
+            "authorId": null,
+            "body": "Anyone driving from the Mission?"
+          },
+          {
+            "seq": 3,
+            "authorName": "Rae",
+            "authorId": null,
+            "body": "I can bring a projector for the slideshow."
+          },
+          {
+            "seq": 4,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Rolling in from Temescal — anyone need a ride?"
+          }
+        ]
+      },
+      "guests": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "name": "Pia",
+            "status": "going",
+            "plusOnes": 1,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Quinn",
+            "status": "going",
+            "plusOnes": 2,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Rae",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Sam",
+            "status": "maybe",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Tess",
+            "status": "declined",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Cora",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Gil",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Hana",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "fixture",
+            "enteredVia": "deep-link"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600576375,
+    "at": 1785600576370,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "live"
+      },
+      "eventView": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "title": "Lantern Supper Club",
+            "city": "Oakland, California",
+            "privateAddress": "482 Alcatraz Ave, backyard gate code 7311",
+            "capacity": 12,
+            "goingSeats": 7,
+            "goingCount": 4,
+            "maybeCount": 1,
+            "flyerAssetId": ""
+          }
+        ]
+      },
+      "wall": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "seq": 1,
+            "authorName": "Pia",
+            "authorId": null,
+            "body": "Bringing dessert!"
+          },
+          {
+            "seq": 2,
+            "authorName": "Quinn",
+            "authorId": null,
+            "body": "Anyone driving from the Mission?"
+          },
+          {
+            "seq": 3,
+            "authorName": "Rae",
+            "authorId": null,
+            "body": "I can bring a projector for the slideshow."
+          },
+          {
+            "seq": 4,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Rolling in from Temescal — anyone need a ride?"
+          }
+        ]
+      },
+      "guests": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "name": "Pia",
+            "status": "going",
+            "plusOnes": 1,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Quinn",
+            "status": "going",
+            "plusOnes": 2,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Rae",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Sam",
+            "status": "maybe",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Tess",
+            "status": "declined",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Cora",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Gil",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Hana",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "fixture",
+            "enteredVia": "deep-link"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600576376,
+    "at": 1785600576373,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "live"
+      },
+      "eventView": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "title": "Lantern Supper Club",
+            "city": "Oakland, California",
+            "privateAddress": "482 Alcatraz Ave, backyard gate code 7311",
+            "capacity": 12,
+            "goingSeats": 7,
+            "goingCount": 4,
+            "maybeCount": 1,
+            "flyerAssetId": ""
+          }
+        ]
+      },
+      "wall": {
+        "status": "ready",
+        "error": null,
+        "rows": []
+      },
+      "guests": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "name": "Pia",
+            "status": "going",
+            "plusOnes": 1,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Quinn",
+            "status": "going",
+            "plusOnes": 2,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Rae",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Sam",
+            "status": "maybe",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Tess",
+            "status": "declined",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Cora",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Gil",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Hana",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "fixture",
+            "enteredVia": "deep-link"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600576377,
+    "at": 1785600576375,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "live"
+      },
+      "eventView": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "title": "Lantern Supper Club",
+            "city": "Oakland, California",
+            "privateAddress": "482 Alcatraz Ave, backyard gate code 7311",
+            "capacity": 12,
+            "goingSeats": 7,
+            "goingCount": 4,
+            "maybeCount": 1,
+            "flyerAssetId": ""
+          }
+        ]
+      },
+      "wall": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "seq": 1,
+            "authorName": "Pia",
+            "authorId": null,
+            "body": "Bringing dessert!"
+          },
+          {
+            "seq": 2,
+            "authorName": "Quinn",
+            "authorId": null,
+            "body": "Anyone driving from the Mission?"
+          },
+          {
+            "seq": 3,
+            "authorName": "Rae",
+            "authorId": null,
+            "body": "I can bring a projector for the slideshow."
+          },
+          {
+            "seq": 4,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Rolling in from Temescal — anyone need a ride?"
+          },
+          {
+            "seq": 5,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Posted while the host phone was backgrounded"
+          }
+        ]
+      },
+      "guests": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "name": "Pia",
+            "status": "going",
+            "plusOnes": 1,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Quinn",
+            "status": "going",
+            "plusOnes": 2,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Rae",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Sam",
+            "status": "maybe",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Tess",
+            "status": "declined",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Cora",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Gil",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Hana",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "fixture",
+            "enteredVia": "deep-link"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600577788,
+    "at": 1785600577785,
+    "type": "app-state",
+    "state": "background"
+  },
+  {
+    "receivedAt": 1785600578583,
+    "at": 1785600578581,
+    "type": "app-state",
+    "state": "active"
+  },
+  {
+    "receivedAt": 1785600578918,
+    "at": 1785600578916,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "stale"
+      },
+      "eventView": {
+        "status": "refreshing",
+        "error": null,
+        "rows": [
+          {
+            "title": "Lantern Supper Club",
+            "city": "Oakland, California",
+            "privateAddress": "482 Alcatraz Ave, backyard gate code 7311",
+            "capacity": 12,
+            "goingSeats": 7,
+            "goingCount": 4,
+            "maybeCount": 1,
+            "flyerAssetId": ""
+          }
+        ]
+      },
+      "wall": {
+        "status": "refreshing",
+        "error": null,
+        "rows": [
+          {
+            "seq": 1,
+            "authorName": "Pia",
+            "authorId": null,
+            "body": "Bringing dessert!"
+          },
+          {
+            "seq": 2,
+            "authorName": "Quinn",
+            "authorId": null,
+            "body": "Anyone driving from the Mission?"
+          },
+          {
+            "seq": 3,
+            "authorName": "Rae",
+            "authorId": null,
+            "body": "I can bring a projector for the slideshow."
+          },
+          {
+            "seq": 4,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Rolling in from Temescal — anyone need a ride?"
+          },
+          {
+            "seq": 5,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Posted while the host phone was backgrounded"
+          }
+        ]
+      },
+      "guests": {
+        "status": "refreshing",
+        "error": null,
+        "rows": [
+          {
+            "name": "Pia",
+            "status": "going",
+            "plusOnes": 1,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Quinn",
+            "status": "going",
+            "plusOnes": 2,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Rae",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Sam",
+            "status": "maybe",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Tess",
+            "status": "declined",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Cora",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Gil",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Hana",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "fixture",
+            "enteredVia": "deep-link"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600582764,
+    "at": 1785600582761,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "connecting"
+      },
+      "eventView": {
+        "status": "refreshing",
+        "error": null,
+        "rows": [
+          {
+            "title": "Lantern Supper Club",
+            "city": "Oakland, California",
+            "privateAddress": "482 Alcatraz Ave, backyard gate code 7311",
+            "capacity": 12,
+            "goingSeats": 7,
+            "goingCount": 4,
+            "maybeCount": 1,
+            "flyerAssetId": ""
+          }
+        ]
+      },
+      "wall": {
+        "status": "refreshing",
+        "error": null,
+        "rows": [
+          {
+            "seq": 1,
+            "authorName": "Pia",
+            "authorId": null,
+            "body": "Bringing dessert!"
+          },
+          {
+            "seq": 2,
+            "authorName": "Quinn",
+            "authorId": null,
+            "body": "Anyone driving from the Mission?"
+          },
+          {
+            "seq": 3,
+            "authorName": "Rae",
+            "authorId": null,
+            "body": "I can bring a projector for the slideshow."
+          },
+          {
+            "seq": 4,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Rolling in from Temescal — anyone need a ride?"
+          },
+          {
+            "seq": 5,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Posted while the host phone was backgrounded"
+          }
+        ]
+      },
+      "guests": {
+        "status": "refreshing",
+        "error": null,
+        "rows": [
+          {
+            "name": "Pia",
+            "status": "going",
+            "plusOnes": 1,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Quinn",
+            "status": "going",
+            "plusOnes": 2,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Rae",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Sam",
+            "status": "maybe",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Tess",
+            "status": "declined",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Cora",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Gil",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Hana",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "fixture",
+            "enteredVia": "deep-link"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600582824,
+    "at": 1785600582823,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "connecting"
+      },
+      "eventView": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "title": "Lantern Supper Club",
+            "city": "Oakland, California",
+            "privateAddress": "482 Alcatraz Ave, backyard gate code 7311",
+            "capacity": 12,
+            "goingSeats": 7,
+            "goingCount": 4,
+            "maybeCount": 1,
+            "flyerAssetId": ""
+          }
+        ]
+      },
+      "wall": {
+        "status": "refreshing",
+        "error": null,
+        "rows": [
+          {
+            "seq": 1,
+            "authorName": "Pia",
+            "authorId": null,
+            "body": "Bringing dessert!"
+          },
+          {
+            "seq": 2,
+            "authorName": "Quinn",
+            "authorId": null,
+            "body": "Anyone driving from the Mission?"
+          },
+          {
+            "seq": 3,
+            "authorName": "Rae",
+            "authorId": null,
+            "body": "I can bring a projector for the slideshow."
+          },
+          {
+            "seq": 4,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Rolling in from Temescal — anyone need a ride?"
+          },
+          {
+            "seq": 5,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Posted while the host phone was backgrounded"
+          }
+        ]
+      },
+      "guests": {
+        "status": "refreshing",
+        "error": null,
+        "rows": [
+          {
+            "name": "Pia",
+            "status": "going",
+            "plusOnes": 1,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Quinn",
+            "status": "going",
+            "plusOnes": 2,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Rae",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Sam",
+            "status": "maybe",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Tess",
+            "status": "declined",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Cora",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Gil",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Hana",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "fixture",
+            "enteredVia": "deep-link"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600582845,
+    "at": 1785600582843,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "connecting"
+      },
+      "eventView": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "title": "Lantern Supper Club",
+            "city": "Oakland, California",
+            "privateAddress": "482 Alcatraz Ave, backyard gate code 7311",
+            "capacity": 12,
+            "goingSeats": 7,
+            "goingCount": 4,
+            "maybeCount": 1,
+            "flyerAssetId": ""
+          }
+        ]
+      },
+      "wall": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "seq": 1,
+            "authorName": "Pia",
+            "authorId": null,
+            "body": "Bringing dessert!"
+          },
+          {
+            "seq": 2,
+            "authorName": "Quinn",
+            "authorId": null,
+            "body": "Anyone driving from the Mission?"
+          },
+          {
+            "seq": 3,
+            "authorName": "Rae",
+            "authorId": null,
+            "body": "I can bring a projector for the slideshow."
+          },
+          {
+            "seq": 4,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Rolling in from Temescal — anyone need a ride?"
+          },
+          {
+            "seq": 5,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Posted while the host phone was backgrounded"
+          }
+        ]
+      },
+      "guests": {
+        "status": "refreshing",
+        "error": null,
+        "rows": [
+          {
+            "name": "Pia",
+            "status": "going",
+            "plusOnes": 1,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Quinn",
+            "status": "going",
+            "plusOnes": 2,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Rae",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Sam",
+            "status": "maybe",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Tess",
+            "status": "declined",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Cora",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Gil",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Hana",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "fixture",
+            "enteredVia": "deep-link"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600582867,
+    "at": 1785600582865,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "connecting"
+      },
+      "eventView": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "title": "Lantern Supper Club",
+            "city": "Oakland, California",
+            "privateAddress": "482 Alcatraz Ave, backyard gate code 7311",
+            "capacity": 12,
+            "goingSeats": 7,
+            "goingCount": 4,
+            "maybeCount": 1,
+            "flyerAssetId": ""
+          }
+        ]
+      },
+      "wall": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "seq": 1,
+            "authorName": "Pia",
+            "authorId": null,
+            "body": "Bringing dessert!"
+          },
+          {
+            "seq": 2,
+            "authorName": "Quinn",
+            "authorId": null,
+            "body": "Anyone driving from the Mission?"
+          },
+          {
+            "seq": 3,
+            "authorName": "Rae",
+            "authorId": null,
+            "body": "I can bring a projector for the slideshow."
+          },
+          {
+            "seq": 4,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Rolling in from Temescal — anyone need a ride?"
+          },
+          {
+            "seq": 5,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Posted while the host phone was backgrounded"
+          }
+        ]
+      },
+      "guests": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "name": "Pia",
+            "status": "going",
+            "plusOnes": 1,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Quinn",
+            "status": "going",
+            "plusOnes": 2,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Rae",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Sam",
+            "status": "maybe",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Tess",
+            "status": "declined",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Cora",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Gil",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Hana",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "fixture",
+            "enteredVia": "deep-link"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600582871,
+    "at": 1785600582868,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "live"
+      },
+      "eventView": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "title": "Lantern Supper Club",
+            "city": "Oakland, California",
+            "privateAddress": "482 Alcatraz Ave, backyard gate code 7311",
+            "capacity": 12,
+            "goingSeats": 7,
+            "goingCount": 4,
+            "maybeCount": 1,
+            "flyerAssetId": ""
+          }
+        ]
+      },
+      "wall": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "seq": 1,
+            "authorName": "Pia",
+            "authorId": null,
+            "body": "Bringing dessert!"
+          },
+          {
+            "seq": 2,
+            "authorName": "Quinn",
+            "authorId": null,
+            "body": "Anyone driving from the Mission?"
+          },
+          {
+            "seq": 3,
+            "authorName": "Rae",
+            "authorId": null,
+            "body": "I can bring a projector for the slideshow."
+          },
+          {
+            "seq": 4,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Rolling in from Temescal — anyone need a ride?"
+          },
+          {
+            "seq": 5,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Posted while the host phone was backgrounded"
+          }
+        ]
+      },
+      "guests": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "name": "Pia",
+            "status": "going",
+            "plusOnes": 1,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Quinn",
+            "status": "going",
+            "plusOnes": 2,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Rae",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Sam",
+            "status": "maybe",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Tess",
+            "status": "declined",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Cora",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Gil",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Hana",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "fixture",
+            "enteredVia": "deep-link"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600583167,
+    "at": 1785600583163,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "live"
+      },
+      "eventView": {
+        "status": "ready",
+        "error": null,
+        "rows": []
+      },
+      "wall": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "seq": 1,
+            "authorName": "Pia",
+            "authorId": null,
+            "body": "Bringing dessert!"
+          },
+          {
+            "seq": 2,
+            "authorName": "Quinn",
+            "authorId": null,
+            "body": "Anyone driving from the Mission?"
+          },
+          {
+            "seq": 3,
+            "authorName": "Rae",
+            "authorId": null,
+            "body": "I can bring a projector for the slideshow."
+          },
+          {
+            "seq": 4,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Rolling in from Temescal — anyone need a ride?"
+          },
+          {
+            "seq": 5,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Posted while the host phone was backgrounded"
+          }
+        ]
+      },
+      "guests": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "name": "Pia",
+            "status": "going",
+            "plusOnes": 1,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Quinn",
+            "status": "going",
+            "plusOnes": 2,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Rae",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Sam",
+            "status": "maybe",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Tess",
+            "status": "declined",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Cora",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Gil",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Hana",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "fixture",
+            "enteredVia": "deep-link"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600583169,
+    "at": 1785600583165,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "live"
+      },
+      "eventView": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "title": "Lantern Supper Club",
+            "city": "Oakland, California",
+            "privateAddress": "482 Alcatraz Ave, backyard gate code 7311",
+            "capacity": 12,
+            "goingSeats": 7,
+            "goingCount": 4,
+            "maybeCount": 1,
+            "flyerAssetId": ""
+          }
+        ]
+      },
+      "wall": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "seq": 1,
+            "authorName": "Pia",
+            "authorId": null,
+            "body": "Bringing dessert!"
+          },
+          {
+            "seq": 2,
+            "authorName": "Quinn",
+            "authorId": null,
+            "body": "Anyone driving from the Mission?"
+          },
+          {
+            "seq": 3,
+            "authorName": "Rae",
+            "authorId": null,
+            "body": "I can bring a projector for the slideshow."
+          },
+          {
+            "seq": 4,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Rolling in from Temescal — anyone need a ride?"
+          },
+          {
+            "seq": 5,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Posted while the host phone was backgrounded"
+          }
+        ]
+      },
+      "guests": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "name": "Pia",
+            "status": "going",
+            "plusOnes": 1,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Quinn",
+            "status": "going",
+            "plusOnes": 2,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Rae",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Sam",
+            "status": "maybe",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Tess",
+            "status": "declined",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Cora",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Gil",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Hana",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "fixture",
+            "enteredVia": "deep-link"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600583171,
+    "at": 1785600583168,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "live"
+      },
+      "eventView": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "title": "Lantern Supper Club",
+            "city": "Oakland, California",
+            "privateAddress": "482 Alcatraz Ave, backyard gate code 7311",
+            "capacity": 12,
+            "goingSeats": 7,
+            "goingCount": 4,
+            "maybeCount": 1,
+            "flyerAssetId": ""
+          }
+        ]
+      },
+      "wall": {
+        "status": "ready",
+        "error": null,
+        "rows": []
+      },
+      "guests": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "name": "Pia",
+            "status": "going",
+            "plusOnes": 1,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Quinn",
+            "status": "going",
+            "plusOnes": 2,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Rae",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Sam",
+            "status": "maybe",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Tess",
+            "status": "declined",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Cora",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Gil",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Hana",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "fixture",
+            "enteredVia": "deep-link"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600583173,
+    "at": 1785600583171,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "live"
+      },
+      "eventView": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "title": "Lantern Supper Club",
+            "city": "Oakland, California",
+            "privateAddress": "482 Alcatraz Ave, backyard gate code 7311",
+            "capacity": 12,
+            "goingSeats": 7,
+            "goingCount": 4,
+            "maybeCount": 1,
+            "flyerAssetId": ""
+          }
+        ]
+      },
+      "wall": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "seq": 1,
+            "authorName": "Pia",
+            "authorId": null,
+            "body": "Bringing dessert!"
+          },
+          {
+            "seq": 2,
+            "authorName": "Quinn",
+            "authorId": null,
+            "body": "Anyone driving from the Mission?"
+          },
+          {
+            "seq": 3,
+            "authorName": "Rae",
+            "authorId": null,
+            "body": "I can bring a projector for the slideshow."
+          },
+          {
+            "seq": 4,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Rolling in from Temescal — anyone need a ride?"
+          },
+          {
+            "seq": 5,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Posted while the host phone was backgrounded"
+          },
+          {
+            "seq": 6,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Back online — see everyone Saturday!"
+          }
+        ]
+      },
+      "guests": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "name": "Pia",
+            "status": "going",
+            "plusOnes": 1,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Quinn",
+            "status": "going",
+            "plusOnes": 2,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Rae",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Sam",
+            "status": "maybe",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Tess",
+            "status": "declined",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Cora",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Gil",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Hana",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "fixture",
+            "enteredVia": "deep-link"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600583477,
+    "at": 1785600583475,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "stale"
+      },
+      "eventView": {
+        "status": "refreshing",
+        "error": null,
+        "rows": [
+          {
+            "title": "Lantern Supper Club",
+            "city": "Oakland, California",
+            "privateAddress": "482 Alcatraz Ave, backyard gate code 7311",
+            "capacity": 12,
+            "goingSeats": 7,
+            "goingCount": 4,
+            "maybeCount": 1,
+            "flyerAssetId": ""
+          }
+        ]
+      },
+      "wall": {
+        "status": "refreshing",
+        "error": null,
+        "rows": [
+          {
+            "seq": 1,
+            "authorName": "Pia",
+            "authorId": null,
+            "body": "Bringing dessert!"
+          },
+          {
+            "seq": 2,
+            "authorName": "Quinn",
+            "authorId": null,
+            "body": "Anyone driving from the Mission?"
+          },
+          {
+            "seq": 3,
+            "authorName": "Rae",
+            "authorId": null,
+            "body": "I can bring a projector for the slideshow."
+          },
+          {
+            "seq": 4,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Rolling in from Temescal — anyone need a ride?"
+          },
+          {
+            "seq": 5,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Posted while the host phone was backgrounded"
+          },
+          {
+            "seq": 6,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Back online — see everyone Saturday!"
+          }
+        ]
+      },
+      "guests": {
+        "status": "refreshing",
+        "error": null,
+        "rows": [
+          {
+            "name": "Pia",
+            "status": "going",
+            "plusOnes": 1,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Quinn",
+            "status": "going",
+            "plusOnes": 2,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Rae",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Sam",
+            "status": "maybe",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Tess",
+            "status": "declined",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Cora",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Gil",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Hana",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "fixture",
+            "enteredVia": "deep-link"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600585508,
+    "at": 1785600585499,
+    "type": "boot",
+    "serverUrl": "http://127.0.0.1:4297",
+    "hadStoredBearer": true,
+    "initialUrl": null,
+    "platform": "ios",
+    "platformVersion": "26.3.1",
+    "hermes": true
+  },
+  {
+    "receivedAt": 1785600585520,
+    "at": 1785600585518,
+    "type": "cold-boot-offline",
+    "restoreError": {
+      "message": "fetch failed: UnexpectedException: Could not connect to the server. (at ExpoModulesCore/Promise.swift:56)",
+      "code": null,
+      "name": "Error"
+    },
+    "headlessProbe": {
+      "rqsStoreInfo": {
+        "source": "default",
+        "implementation": "memory",
+        "durable": false,
+        "reason": "no-durable-backend"
+      },
+      "previewError": {
+        "message": "fetch failed: UnexpectedException: Could not connect to the server. (at ExpoModulesCore/Promise.swift:56)",
+        "code": null,
+        "name": "Error"
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600588592,
+    "at": 1785600588590,
+    "type": "session-restored",
+    "userId": "019fbe16-737c-728d-a8c1-0f4a670eed8b",
+    "after": "offline-cold-boot"
+  },
+  {
+    "receivedAt": 1785600588601,
+    "at": 1785600588594,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "idle"
+      },
+      "eventView": {
+        "status": "pending",
+        "error": null,
+        "rows": null
+      },
+      "wall": {
+        "status": "pending",
+        "error": null,
+        "rows": null
+      },
+      "guests": {
+        "status": "pending",
+        "error": null,
+        "rows": null
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600588601,
+    "at": 1785600588595,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "connecting"
+      },
+      "eventView": {
+        "status": "pending",
+        "error": null,
+        "rows": null
+      },
+      "wall": {
+        "status": "pending",
+        "error": null,
+        "rows": null
+      },
+      "guests": {
+        "status": "pending",
+        "error": null,
+        "rows": null
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600588650,
+    "at": 1785600588648,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "connecting"
+      },
+      "eventView": {
+        "status": "pending",
+        "error": null,
+        "rows": null
+      },
+      "wall": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "seq": 1,
+            "authorName": "Pia",
+            "authorId": null,
+            "body": "Bringing dessert!"
+          },
+          {
+            "seq": 2,
+            "authorName": "Quinn",
+            "authorId": null,
+            "body": "Anyone driving from the Mission?"
+          },
+          {
+            "seq": 3,
+            "authorName": "Rae",
+            "authorId": null,
+            "body": "I can bring a projector for the slideshow."
+          },
+          {
+            "seq": 4,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Rolling in from Temescal — anyone need a ride?"
+          },
+          {
+            "seq": 5,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Posted while the host phone was backgrounded"
+          },
+          {
+            "seq": 6,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Back online — see everyone Saturday!"
+          }
+        ]
+      },
+      "guests": {
+        "status": "pending",
+        "error": null,
+        "rows": null
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600588916,
+    "at": 1785600588668,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "connecting"
+      },
+      "eventView": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "title": "Lantern Supper Club",
+            "city": "Oakland, California",
+            "privateAddress": "482 Alcatraz Ave, backyard gate code 7311",
+            "capacity": 12,
+            "goingSeats": 7,
+            "goingCount": 4,
+            "maybeCount": 1,
+            "flyerAssetId": ""
+          }
+        ]
+      },
+      "wall": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "seq": 1,
+            "authorName": "Pia",
+            "authorId": null,
+            "body": "Bringing dessert!"
+          },
+          {
+            "seq": 2,
+            "authorName": "Quinn",
+            "authorId": null,
+            "body": "Anyone driving from the Mission?"
+          },
+          {
+            "seq": 3,
+            "authorName": "Rae",
+            "authorId": null,
+            "body": "I can bring a projector for the slideshow."
+          },
+          {
+            "seq": 4,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Rolling in from Temescal — anyone need a ride?"
+          },
+          {
+            "seq": 5,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Posted while the host phone was backgrounded"
+          },
+          {
+            "seq": 6,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Back online — see everyone Saturday!"
+          }
+        ]
+      },
+      "guests": {
+        "status": "pending",
+        "error": null,
+        "rows": null
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600588916,
+    "at": 1785600588687,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "live"
+      },
+      "eventView": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "title": "Lantern Supper Club",
+            "city": "Oakland, California",
+            "privateAddress": "482 Alcatraz Ave, backyard gate code 7311",
+            "capacity": 12,
+            "goingSeats": 7,
+            "goingCount": 4,
+            "maybeCount": 1,
+            "flyerAssetId": ""
+          }
+        ]
+      },
+      "wall": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "seq": 1,
+            "authorName": "Pia",
+            "authorId": null,
+            "body": "Bringing dessert!"
+          },
+          {
+            "seq": 2,
+            "authorName": "Quinn",
+            "authorId": null,
+            "body": "Anyone driving from the Mission?"
+          },
+          {
+            "seq": 3,
+            "authorName": "Rae",
+            "authorId": null,
+            "body": "I can bring a projector for the slideshow."
+          },
+          {
+            "seq": 4,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Rolling in from Temescal — anyone need a ride?"
+          },
+          {
+            "seq": 5,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Posted while the host phone was backgrounded"
+          },
+          {
+            "seq": 6,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Back online — see everyone Saturday!"
+          }
+        ]
+      },
+      "guests": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "name": "Pia",
+            "status": "going",
+            "plusOnes": 1,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Quinn",
+            "status": "going",
+            "plusOnes": 2,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Rae",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Sam",
+            "status": "maybe",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Tess",
+            "status": "declined",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Cora",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Gil",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Hana",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "fixture",
+            "enteredVia": "deep-link"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600602591,
+    "at": 1785600602589,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "live"
+      },
+      "eventView": {
+        "status": "ready",
+        "error": null,
+        "rows": []
+      },
+      "wall": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "seq": 1,
+            "authorName": "Pia",
+            "authorId": null,
+            "body": "Bringing dessert!"
+          },
+          {
+            "seq": 2,
+            "authorName": "Quinn",
+            "authorId": null,
+            "body": "Anyone driving from the Mission?"
+          },
+          {
+            "seq": 3,
+            "authorName": "Rae",
+            "authorId": null,
+            "body": "I can bring a projector for the slideshow."
+          },
+          {
+            "seq": 4,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Rolling in from Temescal — anyone need a ride?"
+          },
+          {
+            "seq": 5,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Posted while the host phone was backgrounded"
+          },
+          {
+            "seq": 6,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Back online — see everyone Saturday!"
+          }
+        ]
+      },
+      "guests": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "name": "Pia",
+            "status": "going",
+            "plusOnes": 1,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Quinn",
+            "status": "going",
+            "plusOnes": 2,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Rae",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Sam",
+            "status": "maybe",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Tess",
+            "status": "declined",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Cora",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Gil",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Hana",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "fixture",
+            "enteredVia": "deep-link"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600602595,
+    "at": 1785600602592,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "live"
+      },
+      "eventView": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "title": "Lantern Supper Club",
+            "city": "Oakland, California",
+            "privateAddress": "482 Alcatraz Ave, backyard gate code 7311",
+            "capacity": 12,
+            "goingSeats": 7,
+            "goingCount": 4,
+            "maybeCount": 1,
+            "flyerAssetId": "019fbe16-bc87-7d03-892a-bc44ce983aa3"
+          }
+        ]
+      },
+      "wall": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "seq": 1,
+            "authorName": "Pia",
+            "authorId": null,
+            "body": "Bringing dessert!"
+          },
+          {
+            "seq": 2,
+            "authorName": "Quinn",
+            "authorId": null,
+            "body": "Anyone driving from the Mission?"
+          },
+          {
+            "seq": 3,
+            "authorName": "Rae",
+            "authorId": null,
+            "body": "I can bring a projector for the slideshow."
+          },
+          {
+            "seq": 4,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Rolling in from Temescal — anyone need a ride?"
+          },
+          {
+            "seq": 5,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Posted while the host phone was backgrounded"
+          },
+          {
+            "seq": 6,
+            "authorName": "Gil",
+            "authorId": "019fbe15-e92d-71c8-bbf5-7eba90b08b61",
+            "body": "Back online — see everyone Saturday!"
+          }
+        ]
+      },
+      "guests": {
+        "status": "ready",
+        "error": null,
+        "rows": [
+          {
+            "name": "Pia",
+            "status": "going",
+            "plusOnes": 1,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Quinn",
+            "status": "going",
+            "plusOnes": 2,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Rae",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Sam",
+            "status": "maybe",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Tess",
+            "status": "declined",
+            "plusOnes": 0,
+            "invitedByName": "Cora",
+            "enteredVia": "seed"
+          },
+          {
+            "name": "Cora",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Gil",
+            "status": "going",
+            "plusOnes": 0,
+            "invitedByName": "Hana",
+            "enteredVia": "code"
+          },
+          {
+            "name": "Hana",
+            "status": "invited",
+            "plusOnes": 0,
+            "invitedByName": "fixture",
+            "enteredVia": "deep-link"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600602626,
+    "at": 1785600602617,
+    "type": "flyer-image",
+    "outcome": "loaded",
+    "assetId": "019fbe16-bc87-7d03-892a-bc44ce983aa3"
+  },
+  {
+    "receivedAt": 1785600604939,
+    "at": 1785600604937,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "disconnected"
+      },
+      "eventView": {
+        "status": "ready",
+        "error": null,
+        "rows": []
+      },
+      "wall": {
+        "status": "ready",
+        "error": null,
+        "rows": []
+      },
+      "guests": {
+        "status": "ready",
+        "error": null,
+        "rows": []
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600604957,
+    "at": 1785600604954,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "connecting"
+      },
+      "eventView": {
+        "status": "refreshing",
+        "error": null,
+        "rows": []
+      },
+      "wall": {
+        "status": "refreshing",
+        "error": null,
+        "rows": []
+      },
+      "guests": {
+        "status": "refreshing",
+        "error": null,
+        "rows": []
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600604989,
+    "at": 1785600604987,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "disconnected"
+      },
+      "eventView": {
+        "status": "refreshing",
+        "error": null,
+        "rows": []
+      },
+      "wall": {
+        "status": "refreshing",
+        "error": null,
+        "rows": []
+      },
+      "guests": {
+        "status": "refreshing",
+        "error": null,
+        "rows": []
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600605028,
+    "at": 1785600605023,
+    "type": "bearer-rotation-lifecycle-failures",
+    "facts": {
+      "message": "external bearer custody transition completed with lifecycle failures",
+      "errors": [
+        {
+          "message": "SNAPBACK_AUTH_PERMISSION_DENIED: role requirement not satisfied",
+          "code": "SNAPBACK_AUTH_PERMISSION_DENIED",
+          "name": "Error"
+        },
+        {
+          "message": "SNAPBACK_AUTH_PERMISSION_DENIED: role requirement not satisfied",
+          "code": "SNAPBACK_AUTH_PERMISSION_DENIED",
+          "name": "Error"
+        },
+        {
+          "message": "SNAPBACK_AUTH_PERMISSION_DENIED: role requirement not satisfied",
+          "code": "SNAPBACK_AUTH_PERMISSION_DENIED",
+          "name": "Error"
+        }
+      ]
+    }
+  },
+  {
+    "receivedAt": 1785600605032,
+    "at": 1785600605030,
+    "type": "bearer-rotated",
+    "from": "019fbe16-737c-728d-a8c1-0f4a670eed8b",
+    "to": "019fbe15-e94c-73ca-8b76-b07cd1d6c525"
+  },
+  {
+    "receivedAt": 1785600605565,
+    "at": 1785600605564,
+    "type": "state",
+    "name": "event",
+    "snapshot": {
+      "connection": {
+        "status": "disconnected"
+      },
+      "eventView": {
+        "status": "ready",
+        "error": null,
+        "rows": []
+      },
+      "wall": {
+        "status": "ready",
+        "error": null,
+        "rows": []
+      },
+      "guests": {
+        "status": "ready",
+        "error": null,
+        "rows": []
+      }
+    }
+  },
+  {
+    "receivedAt": 1785600605569,
+    "at": 1785600605567,
+    "type": "bearer-rotated",
+    "from": "019fbe15-e94c-73ca-8b76-b07cd1d6c525",
+    "to": "019fbe16-737c-728d-a8c1-0f4a670eed8b"
+  },
+  {
+    "receivedAt": 1785600635662,
+    "at": 1785600635660,
+    "type": "logout",
+    "userId": "019fbe16-737c-728d-a8c1-0f4a670eed8b"
+  },
+  {
+    "receivedAt": 1785600638427,
+    "at": 1785600638426,
+    "type": "boot",
+    "serverUrl": "http://127.0.0.1:4297",
+    "hadStoredBearer": false,
+    "initialUrl": null,
+    "platform": "ios",
+    "platformVersion": "26.3.1",
+    "hermes": true
+  }
+]

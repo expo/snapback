@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "arm": {
+    "contract": "a4",
+    "platform": "expo-ios",
+    "provider": "snapback",
+    "attemptId": "a4-expo-ios-20260801"
+  },
+  "identities": {
+    "expoSdk": "57.0.9",
+    "reactNative": "0.86.2",
+    "backendClient": "@expo/snapback-client 0.1.7 + @expo/snapback-react 0.1.7 (public npm registry, immutable versions; react 19.2.3, expo-secure-store 57.0.1, expo-crypto 57.0.1 consumer workaround per 0137-a1expo-f1, typescript 6.0.3)",
+    "os": "iOS 26.3 simulator runtime (Platform.Version 26.3.1); host macOS Darwin 25.5.0 arm64, Xcode 26.6 (17F113)",
+    "device": "iPhone 17 Pro simulator E0E49A2F-54A7-4355-8EB4-D52138E3361B",
+    "buildArtifact": "ImprovementSweepNeutralShell.app (bundle dev.snapback.improvementsweep.shell), binary sha256 d2fcb80ae449631912e4d4ae4db55953e670de4883294fd44ec46d263fb32a94, embedded release bundle (no Metro attached at run time)",
+    "buildMode": "Release — expo run:ios --configuration Release --no-bundler (G3 pin: the guide's evidenced carrier mode, release build on simulator; Hermes engine confirmed on-device)",
+    "backendServer": "snapback dev local target http://127.0.0.1:4297 (local-dev-sqlite-ibex, fresh isolated, arm-owned; appId event-app; backend sources adopted verbatim from the a4-snapback-web arm)",
+    "hermes": true
+  },
+  "checkResults": [
+    {
+      "id": "EXPO-01-IDENTITIES",
+      "result": "pass",
+      "evidencePaths": ["evidence/scenario-evidence.json#EXPO-01", "evidence/report.json"],
+      "note": "Expo 57.0.9 / RN 0.86.2 / client 0.1.7 / iOS 26.3.1 sim / release artifact sha d2fcb80ae449…; all identities recorded."
+    },
+    {
+      "id": "EXPO-02-LAUNCH",
+      "result": "pass",
+      "evidencePaths": ["evidence/scenario-evidence.json#EXPO-02", "evidence/shot-00-signed-out.png"],
+      "note": "Clean release launch through the supported path (expo run:ios artifact via simctl); fresh signed-out boot witnessed on-device. The consumer WebCrypto polyfill remains the prerequisite (0137-a1expo-f1, cited — not re-filed)."
+    },
+    {
+      "id": "EXPO-03-NATIVE-AUTH",
+      "result": "pass",
+      "evidencePaths": ["evidence/scenario-evidence.json#EXPO-03", "evidence/shot-01-authed-host-via-deeplink.png"],
+      "note": "In-app email-code entry (guide auth/native-apps.md shape 1) executed on-device; deep-link return exercised FOR REAL on this contract: simctl openurl delivered sweepshell://invite?code=INV-HOST-2214 to the running app, which redeemed it through the authority-creating mutation — settlement {role host, enteredVia deep-link}, roster attribution verified independently, invite consumed, replay by another principal refused. Headless caveat: iOS's one-time scheme-confirmation dialog must be pre-approved in the simulator schemeapproval plist (finding 0137-a4expo-f2, guide-gap)."
+    },
+    {
+      "id": "EXPO-04-REALTIME",
+      "result": "pass",
+      "evidencePaths": ["evidence/scenario-evidence.json#EXPO-04", "evidence/shot-02-realtime-after-gil.png", "evidence/witness-events.json"],
+      "note": "Seeded event rendered authoritative on-device (6/12 seats, 3 wall posts, member-only address) and independently verified; anonymous preview excludes the address; outsider denied (SNAPBACK_AUTH_PERMISSION_DENIED). Second-device transitions over server push: gil's wall post visible on-device ≤122ms and his RSVP raised the on-device seat count to 7/12 ≤122ms after settlement, wall author attributed to the server principal. a1expo-f7's indefinite connection cycling did NOT reproduce on this all-protected-query surface (one early spontaneous cycle, then a 16s stable live hold — narrowing note appended to the f7 ticket)."
+    },
+    {
+      "id": "EXPO-05-LIFECYCLE",
+      "result": "pass",
+      "evidencePaths": ["evidence/scenario-evidence.json#EXPO-05", "evidence/shot-04-foreground-caught-up.png", "evidence/shot-05-network-loss-stale.png"],
+      "note": "Background via Settings launch (inactive witnessed), second-device wall post while backgrounded caught up on foreground; network loss (origin refusing) left rendered posts retained under a non-live connection fact, never relabeled live; reconnect returned live and a fresh commit flowed."
+    },
+    {
+      "id": "EXPO-06-COLD-RESTART",
+      "result": "gap",
+      "evidencePaths": ["evidence/scenario-evidence.json#EXPO-06", "evidence/shot-06-cold-restart-offline-locked.png", "evidence/shot-07-cold-restart-recovered.png"],
+      "note": "Cold process restart with the backend unreachable is clean (app-keychain bearer survived; honest 'backend unreachable' state; self-healed to the authoritative render 3.1s after the origin returned). Protected retained state is NOT CLAIMED on this carrier (Online surface; default rqs store resolves to the in-memory arm, durable:false) — GAP owned by 0137-a1expo-f3 (cited, not re-filed)."
+    },
+    {
+      "id": "EXPO-07-QUEUE",
+      "result": "gap",
+      "evidencePaths": ["evidence/scenario-evidence.json#EXPO-07", "evidence/shot-03-queue-not-engaged.png"],
+      "note": "Queue unclaimed on this carrier (Online surface) and the documented offlineQueue opt-in still cannot engage: the offline postWall surfaced the raw Expo fetch Error (plain Error, not TypeError) and queued nothing — 0137-a1expo-f2 re-verified on this arm (dated note appended to the ticket, not re-filed). No ghost settlement (wall count unchanged, no offline clientKey ever committed); online server-refused RSVP surfaced structured."
+    },
+    {
+      "id": "EXPO-08-FILES",
+      "result": "pass",
+      "evidencePaths": ["evidence/scenario-evidence.json#EXPO-08", "evidence/shot-08-flyer-rendered.png"],
+      "note": "File selection/upload proven from the device: deterministic PNG treated as the selected file, uploaded on-device over the raw attempt/TUS/finalize recipe (expo/fetch Uint8Array body + on-device sha256 checksum; the packaged client still ships no upload helper — 0137-a1-f3 cited), published ready; card/thumb renditions and the strict no-store primary read back on-device (served digest stable across reads and byte-identical to the a4-web arm's for the same fixture — strip re-encodes canonical bytes); the RN Image component rendered the flyer through the per-request-authorized byte lane (witnessed onLoad + screenshot); anonymous byte read refused; public preview hasFlyer=true. The non-owner hole persists on 0.1.7 and is cited, not re-filed: typed attach refuses SNAPBACK_ASSET_REF_UNVERIFIED (0137-a1-f2) and a seated guest's strict read is 403 (0137-a4-f3); the post-0.1.7 main fixes (117dcae2) are not in this arm's pinned packages."
+    },
+    {
+      "id": "EXPO-09-PUSH",
+      "result": "gap",
+      "evidencePaths": ["evidence/scenario-evidence.json#EXPO-09"],
+      "note": "Explicit GAP: no push-notification boundary on 0.1.7 — capability manifest notifications:false, no device-token/APNs/FCM/expo-notifications lane in the packaged closure or guide, and the app-authored bridge is unauthorable because the outbound effect lane is broken on the pinned packages (0137-a4-f1; main fix 117dcae2 post-publication). Mobile-scoped finding filed: 0137-a4expo-f1."
+    },
+    {
+      "id": "EXPO-10-AUTHORITY-ROTATION",
+      "result": "fail",
+      "evidencePaths": ["evidence/scenario-evidence.json#EXPO-10", "evidence/shot-09-rotated-to-outsider.png", "evidence/shot-10-logged-out.png", "evidence/shot-11-post-logout-relaunch.png"],
+      "note": "Evidenced defect, re-verified 0137-a1expo-f4 (cited; dated note appended to the ticket, not re-filed): rotation to a seatless outsider blanked predecessor rows (correct) but rejected with the lifecycle-failures AggregateError while the successor denial never reached the hook (query left 'refreshing'), and rotate-back to the original authority never re-subscribed — connection wedged 'disconnected' with queries presenting ready/0 rows until process exit. Logout and retirement are correct: rows blanked, app keychain custody cleared, relaunch boots signed-out with no predecessor data at rest (no durable client store on this carrier)."
+    },
+    {
+      "id": "EXPO-11-TEARDOWN",
+      "result": "pass",
+      "evidencePaths": ["evidence/scenario-evidence.json#EXPO-11"],
+      "note": "App terminated and uninstalled; simulator shut down; snapback dev stopped (origin refuses); flyer asset deleted (200 → next read 404); seats self-removed (membership unseedable/unresettable — 0137-a3-f1 cited); receipted versioned reset-install (reset-installed, 20 rows deleted, literal fixture restored: anonymous preview 6/12 with hasFlyer=false) and a fresh session's protected read denied post-cleanup."
+    },
+    {
+      "id": "EXPO-12-INDEPENDENCE",
+      "result": "pass",
+      "evidencePaths": ["evidence/report.json"],
+      "note": "This receipt claims expo-ios simulator only (LLP 0064). Android: honest not-run — the JDK absence the a1-expo arm recorded was re-verified live (/usr/libexec/java_home fails), so expo run:android/gradle cannot execute; no android receipt is minted."
+    }
+  ],
+  "expectedCheckCount": 12,
+  "deviceClass": "simulator",
+  "hostedAvailability": "GAP — finding 0137-a1expo-f5 (cited, not re-filed): no hosted sessions/native-auth path for mobile on 0.1.7; the supported local bridge from the simulator was used per the frozen Track B rule, never an invented hosted equivalence",
+  "cleanup": {
+    "app": "terminated + uninstalled; keychain entry cleared by in-run logout (pre-run hygiene: simctl keychain reset + schemeapproval pre-authorization, both simulator test infrastructure)",
+    "simulator": "shutdown E0E49A2F-54A7-4355-8EB4-D52138E3361B (verified no booted devices post-run)",
+    "server": "snapback dev stopped; port 4297 refusing; guards on 4287-4296 released; director 4611 closed",
+    "data": "flyer asset deleted; seats self-removed; receipted versioned reset-install restored the literal capacity fixture; post-cleanup fresh-session read denied",
+    "physicalDevice": "not-run — physical-device receipts are a separately reported production-support gate (frozen protocol rule)"
+  },
+  "result": "complete"
+}

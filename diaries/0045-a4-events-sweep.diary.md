@@ -188,3 +188,146 @@ arm I would most confidently ship.
    attributed invitation entry, per-request asset re-authorization,
    the exact public-projection boundary, zero-amplification presence,
    the deterministic scheduler seam, and the 17.7s full-suite loop.
+
+## 2026-08-01 — Track B: the same contract on Expo iOS (snapback-expo arm)
+
+**Arm:** snapback-expo, expo-ios, external consumer, public 0.1.7 closure
+**Capsule/receipt:** `demos/improvement-sweep/arms/a4-snapback-expo-ios/`
+**Result:** 8 pass / 3 GAP / 1 fail / 0 Stop, expectedChecks=12 enforced
+(EXPO manifest, a4 applicability); android = honest not-run (JDK absence
+re-verified live; the a1-expo disposition cited). Simulator receipt;
+physical-device remains a separately reported production gate, not-run.
+
+### Setup and the G3 pin
+
+Same pin as the a1-expo arm (cited): frozen neutral-expo shell versions
+(Expo SDK 57.0.9 / RN 0.86.2 / React 19.2.3), the guide's documented RN
+path (Online surface, local target only), native **release** simulator
+build. Clean external directory; backend (schema/functions/seed) adopted
+verbatim from this diary's web arm — Track B's job is the carrier. This
+time the carrier tax was mostly prepaid: the a1-expo arm's crypto
+polyfill (f1), harness, session-custody module, and driver skeleton
+transplanted directly, so the arm needed **one** native build and reached
+a green 12-check receipt ~27 minutes after `npm install`, with the
+110-second suite driving launch, on-device auth, an OS deep link, live
+deliveries, offline windows, an on-device flyer upload, rotation, and
+receipted cleanup.
+
+### What felt good
+
+- **The invitation deep link is real on this carrier.** `simctl openurl`
+  delivered `sweepshell://invite?code=INV-HOST-2214` into the running
+  release app; ~40 lines of consumer code (a `Linking` listener + the
+  same `redeemInvite` mutation the web arm used) turned it into an
+  attributed seat — one settlement carrying `{role, inviteCode,
+  invitedByName, enteredVia:'deep-link'}`, the invite consumed, replay
+  refused, roster attribution independently verified. Partiful's core
+  entry flow, on a phone, atomically.
+- **Live event facts hit the phone in ≤122ms.** Gil's wall post and his
+  recomputed seat count (6/12 → 7/12) both rendered on-device ≤122ms
+  after settlement, author attributed to the server principal. Heavier
+  queries than A1's (the guestEventView recomputes seats server-side) and
+  still an order of magnitude inside interactive tolerance.
+- **The image pipeline works from the phone.** On-device raw TUS upload
+  (expo/fetch + an on-device sha256 checksum via the f1 polyfill),
+  async card/thumb renditions polled ready, strict no-store delivery read
+  back on-device, and — the satisfying part — the RN `Image` component
+  rendering the flyer straight off the per-request-authorized byte lane
+  with bearer headers. The served canonical digest is byte-identical to
+  the web arm's for the same fixture: cross-carrier content identity.
+- **The connection axis behaved this time (f7 narrowing).** No indefinite
+  ~2s cycling: one spontaneous early cycle, then a 16-second stable
+  `live` hold with rows intact. This arm has no retainable public query —
+  exactly the component a1-f7 suspected. Narrowing note appended to the
+  ticket.
+- **Cleanup composes across resource kinds from a mobile harness:** asset
+  delete (200 → 404), membership self-removal, receipted reset-install
+  restoring the literal 6/12 fixture, simulator shutdown — all inside the
+  110s loop, all receipted.
+
+### What felt bad or hard
+
+- **The deep link died in silence first (new guide-gap, a4expo-f2).** The
+  first receipt run timed out with zero diagnostics: iOS raises a
+  one-time 'Open in "<app>"?' dialog for a custom scheme's first open,
+  no headless simctl surface can tap it, and nothing in the guide's
+  mobile acceptance recipe mentions the dialog or the workaround (the
+  simulator's `schemeapproval` plist, written while the device is shut
+  down). A screenshot was the only debugger. The Track B receipt
+  *requires* a deep-link leg; the sanctioned recipe cannot drive one.
+- **"Tell my guests" still has no lane, and on mobile it is doubly dead
+  (new finding, a4expo-f1).** The web arm's headline (a4-f1: outbound
+  effects unauthorable) still holds on the pinned 0.1.7 packages — the
+  `ctx.fetch` fix (117dcae2) landed on main *after* the publication — and
+  the mobile carrier stacks two more walls on top: no push-notification
+  boundary anywhere (capability manifest `notifications:false`, no
+  device-token/APNs/expo-notifications story in closure or guide) and no
+  hosted path a production relay could run behind (a1expo-f5). The
+  notifyIntents ledger this backend carries is scaffolding around a
+  boundary that does not exist.
+- **The flyer still cannot be shown to a guest (re-verified, cited).**
+  Typed attach refuses `SNAPBACK_ASSET_REF_UNVERIFIED` from the device
+  exactly as from node (a1-f2), the seated guest's strict read is 403,
+  and the pasteable lanes remain unimplemented (a4-f3) — so the arm's
+  beautiful on-device flyer render is owner-only theater. Same one-step-
+  from-the-point dead-end the web arm recorded, now with a phone in hand.
+- **Rotation still wedges the client (f4 re-verified).** Downgrade
+  rotation to the seatless outsider: custody completes but rejects with
+  the lifecycle-failures AggregateError, the denial never reaches the
+  hook, and rotate-back never re-subscribes — connection `disconnected`,
+  queries presenting `ready`/0 rows until process death. On this arm the
+  wedge shape was `ready`-with-zero-rows, which is *blanked data labeled
+  ready* — arguably worse than A1's `live`-labeled variant.
+- **The offline queue still cannot engage (f2 re-verified)** — the
+  documented opt-in surfaced the raw Expo fetch `Error` and queued
+  nothing; no ghost settlement, at least, and the online refusal path
+  stayed structured.
+- Papercuts: the invite-replay refusal surfaces as generic
+  `SNAPBACK_HANDLER_FAILED` (the a3-f3 collapse, again); renditions are
+  generated asynchronously and 404 until ready with no availability hint
+  on the byte lane (the web arm's poll idiom was the fix); typed-array
+  generics under TypeScript 6 needed two `BufferSource`/`BodyInit` casts
+  around WebCrypto and expo/fetch.
+
+### Longitudinal vs the web A4 arm (same day, same backend)
+
+- **Carried over intact:** the seeded capacity fixture, role matrix,
+  anonymous projection boundary (address absent byte-wise from the
+  preview while the member view renders it), attributed atomic invitation
+  entry, live wall/count delivery, strict asset delivery with stable
+  canonical digest, receipted cleanup.
+- **Better here:** the deep link is an OS-level product fact, not a URL
+  parse; the flyer renders in a native Image through the authorized lane.
+- **Worse here:** everything the a1-expo arm already charged to the
+  carrier — no durable store (f3), no engageable queue (f2), the
+  rotation wedge (f4) — plus the push GAP being mobile-fatal for this
+  contract's notification story.
+
+### Would I choose it (for this app, on mobile, today)?
+
+**No — same verdict as the web arm, with the second hole now
+load-bearing.** An event product on a phone is invitations (works,
+beautifully), a flyer (renders for its owner only — a1-f2/a4-f3), and
+"tell my guests" (no effect lane on 0.1.7, no push boundary at all,
+nothing hosted to relay through). The first of those three is the best
+mobile invitation flow I have tested; the other two are walls. Close the
+asset-sharing chain and the a4-f1-family egress hole (already fixed on
+main), ship the durable-store arm and the rotation fix, and this carrier
+becomes genuinely shippable for this contract — the data core (sessions
+custody, membership, settlement envelopes, ≤122ms push, uniform denials)
+already is.
+
+### Lessons for Snapback (mobile edition)
+
+1. The guide's mobile acceptance recipe needs a deep-link leg, including
+   the iOS scheme-confirmation dialog and the headless pre-approval
+   recipe (a4expo-f2).
+2. A push-notification boundary — even just documented device-token +
+   provider-relay scaffolding — is table stakes for any invitation-shaped
+   mobile product (a4expo-f1); sequence it behind the outbound-action fix
+   that already exists on main.
+3. The asset byte lane could state rendition availability instead of a
+   bare 404 while variants generate.
+4. Protect while fixing: the atomic deep-link redemption settlement, the
+   ≤122ms second-device push, cross-carrier canonical content identity,
+   the uniform denial surface, and the 110-second full-receipt loop.
