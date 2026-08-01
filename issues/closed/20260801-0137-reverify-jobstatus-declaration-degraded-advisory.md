@@ -33,4 +33,23 @@ zero degraded advisories, or the advisory names why jobStatus is exempt.
 
 ## Resolution
 
-Open.
+Fixed (2026-08-01, backlog lane P) on the design-true arm of the fix shape:
+codegen now knows the generated job-status plan carries its own complete
+result contract. effectiveResultContract
+(packages/snapback-codegen/result-contracts.mjs) emits the exact
+platform-owned projection for HostPlan.JobStatusQuery — the fifteen
+JobStatusRow::to_row_value fields, the five-state lifecycle literal union,
+and nullable terminal/error/producer-snapshot fields — instead of falling
+through to `unknown`. The degraded advisory therefore does not fire (the
+contract is genuinely complete, not merely exempted), generated api.d.ts
+types the rows precisely (lifecycle literal union instead of unknown rows),
+and provider introspection carries concrete result rows. Queries are not
+runtime-enforced against result contracts (all ten validate_handler_result
+sites are mutation/action paths), so no serving-path behavior changes.
+
+Witness: jobs-authoring.test.mjs now asserts the records contract shape,
+the exact field/state vectors, zero SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED
+diagnostics for jobStatus, and the literal-union api.d.ts emission — the
+guide declaration generates with zero degraded advisories. Codegen suite
+green; check-generated-artifacts clean (no committed backend declares
+defineJobStatusQuery).
