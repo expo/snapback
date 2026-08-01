@@ -67,3 +67,14 @@ ruling), then implementation.
 - last-holder and bootstrap invariants remain unchanged; and
 - the Team Chat pressure app exercises owner removal through a complete UI and
   executable target receipt.
+
+**Progress 2026-08-01 (fix-wave Lane β).** The 0137 A2 arm independently
+re-found this gap (`issues/20260801-0137-a2-no-admin-revocation-of-another-member.md`)
+and proposed the same smallest fix. Triage confirmed the two tickets are one
+item and both remain gated on LLP 0100's ratification. An implementation of
+the *naive* shape was built and reverted during triage because it violated
+two of 0100's decided properties — the opt-in `principalAddressedWrites`
+declaration (implicit availability would widen every existing app's write
+surface) and present/absent indistinguishability (the obvious host-side
+resolution makes the private roster enumerable by probing). Both tickets now
+cross-reference; neither should be picked up independently of 0100.
