@@ -45,3 +45,38 @@ appears only in src/migration.rs (migration state), not on the handler
 wire. Interim mitigations verified real: SNAPBACK_MIGRATION_UPGRADE_
 REQUIRED (src/local.rs, src/server.rs), 5e244bf9 resync-before-replay,
 cea20de7 wire-version offer.
+
+## Scoping note (2026-08-01, backlog lane P) — read, verified, not landed here
+
+Re-verified open at 367e8c57 and sharpened the landing shape; deliberately
+NOT implemented in this batch lane because it is a full protocol tranche
+that needs its own lane with a complete proof cycle (Rust wire + committed
+schema regen + both first-party clients + fixture corpus + LLP 0093/0081
+amendments), and a partial landing would ship an incoherent wire contract.
+
+Verified facts that bound the implementation:
+
+- The absence is exactly as triaged: `schemas/mutation.input.schema.json`
+  carries `read_set`/`generatedIds` but no artifact-identity field; the
+  committed schema is drift-gated by `tests/artifact_schemas_v0.rs`
+  (accept/reject vectors at lines ~517-569), so the schema change and its
+  vectors land together.
+- The client-side identity source needs a design decision the implementer
+  must record: the JS client already RECEIVES the server's
+  `deploymentIdentity` (schemaHash/bundleHash/inputsHash) through the
+  auth/session handshake projection
+  (packages/snapback-client/index.mjs `projectDeploymentIdentity`), but
+  echoing a handshake-learned value back proves nothing about the
+  artifact the CLIENT was generated against. The wire field must carry
+  build-time artifact identity (Contract-store/generated-api provenance),
+  which today is not embedded in client-consumed generated output — so the
+  change reaches codegen emission surface as well.
+- The field must ride behind the LLP 0094 wire-version negotiation
+  (cea20de7): the floor gate can only REQUIRE it at/after a negotiated
+  version; before that it is present-if-sent advisory evidence. The gate
+  itself extends the successor-only floor in src/local.rs (the
+  SNAPBACK_MIGRATION_UPGRADE_REQUIRED family) for read-set-free mutations.
+- Interim mitigations re-verified still present at 367e8c57
+  (SNAPBACK_MIGRATION_UPGRADE_REQUIRED refusal family, 5e244bf9
+  resync-before-replay, artifact privacy boundary in the JS Contract
+  store).
