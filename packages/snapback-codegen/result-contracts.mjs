@@ -530,7 +530,7 @@ function legacyRows(validator) {
   };
 }
 
-// @ref LLP 0070#the-first-slice — the declared job-status query serves the
+// @ref LLP 0070#inspection-audit-and-recovery — the declared job-status query serves the
 // Rust-owned lifecycle projection (`JobStatusRow::to_row_value` in
 // src/jobs.rs); its shape is platform-complete by construction and
 // `defineJobStatusQuery` deliberately refuses authored result contracts.
