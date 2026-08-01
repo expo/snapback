@@ -5,7 +5,14 @@
 **Systems:** Authoring, Code generation, App provisioning, Storage, Schema evolution, Auth, Inspection, Client integration, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-07-31 (LLP 0044 completion-program amendment: the
+**Revised:** 2026-08-01 (§18 dated amendment: the §8 membership fixture
+lane lands, commissioned by LLP 0100 §8b — fixture seats through the
+`MembershipWriter::Seed` writer with per-row provenance, membership
+tables as legal seed/reset targets, the first-landing
+`SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED` narrowing retired, and
+the §6.3 reset cut delivering runtime-seat retirement with
+event-3/declared-restore incarnation semantics per LLP 0056.)
+2026-07-31 (LLP 0044 completion-program amendment: the
 separately versioned `SeedAssetFixturesV1` sibling artifact with JCS
 digest identity, file custody with no artifact-borne bytes, idempotent
 `asset.ensureSeedFixture` ingestion through the trusted path, the
@@ -1683,3 +1690,67 @@ ingestion, which managed tooling surfaces before any seed effect.
 `assetFixtures` against a server without the fact fails closed under the
 existing deny-unknown-member discipline, which is the intended
 negotiation.
+
+## 18. Dated amendment: the membership fixture lane lands (2026-08-01)
+
+**Commissioning authority:** LLP 0100 §8b, which routed the trusted
+membership seed/reset case here as this document's composition with
+LLP 0056, after the LLP 0137 A3 arm evidenced the gap
+(`issues/20260801-0137-a3-membership-not-seedable-cleanup-cannot-retire-authority.md`,
+finding a3-f1): with membership tables refused at the seed boundary, the
+arm had to **choreograph per-persona self-removal (`leaveOrg` × 3) before
+every receipted reset** and re-redeem a restored invite afterwards to earn
+a seat back — cleanup choreography standing in for the missing lane, while
+a receipted reset could not retire authority a fixture never established.
+
+This amendment records the landing of §8's already-specified contract and
+retires the first-landing narrowing:
+
+- **The refusal is retired.** §15.2's first-landing rule — "a
+  sessions-mode seed that targets membership-protected tables refuses
+  `SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED`" — and that code's row
+  in §9's first-landing list no longer describe the implementation. A
+  named membership table (empty or fixture-bearing) is a legal seed and
+  reset target in both modes. Unknown tables still refuse; nothing else
+  in §2.3's validation order changed.
+- **Fixture seats enter through the seed writer.** §8's bulk
+  `MembershipWriter::Seed` primitive is now real on the install path:
+  every fixture row on a membership table is stamped with per-row `seed`
+  writer provenance in the same transaction
+  (`seed_rows_into_transaction`, src/storage.rs). Host-managed provenance
+  columns are not app-declared fields, so a fixture row that names one
+  refuses as an undeclared field — spoofing fails closed.
+- **Validation is the §8 stack, unchanged.** The same-transaction
+  activation scan (`validate_membership_activation`) enforces the closed
+  role vocabulary, non-null axes, `(principal, resource)` uniqueness,
+  resource referential integrity, and the `lastHolder`
+  eligible-holder-per-live-resource invariant (in sessions mode through
+  the catalog-eligibility predicate, honoring §8's
+  catalog-precedes-membership-seed ordering). Any violation refuses the
+  whole install; the transition matrix is not consulted — seed is a
+  privileged non-invocation writer class (LLP 0056), and no transition
+  records are synthesized.
+- **Reset retires runtime authority in the §6.3 cut.** The reset's
+  deletion set already spans every application table, membership tables
+  included; with fixture seats installable, the §6.3 single transaction
+  now delivers the complete witness: every runtime seat deleted, exactly
+  the fixture seats restored, and the authorization consequence carried
+  by the rotated stream incarnation at epoch 0 —
+  **event-3/declared-restore semantics per LLP 0056's taxonomy, one
+  incarnation cut, never a stream of per-row event-1 kicks** (the
+  classification LLP 0100 v0.4 corrected and this landing honors).
+- **Witnesses.** `versioned_seed_membership_fixture_lane_installs_resets_`
+  `and_retires_runtime_authority` (install + provenance +
+  fixture-authority-is-real + one-cut reset + runtime-only principal
+  denied + fixture authority surviving),
+  `versioned_seed_membership_fixture_lane_fails_closed`
+  (out-of-vocabulary role; provenance spoof), and
+  `versioned_seed_conformance_empty_target_and_sessions_membership_lane`
+  (sessions-mode admission of a named membership table; undeclared table
+  still refused) — src/storage.rs and src/seed_identity.rs. The
+  conformance manifest case `sessions-membership-refusal` is renamed
+  `sessions-membership-fixture-lane` with the new witnessed semantics.
+
+The guide's versioned-seeds page documents the lane; product bootstrap
+remains the generated membership `bootstrap()` method — the fixture lane
+is for seeds, resets, and test personas, not an application write path.

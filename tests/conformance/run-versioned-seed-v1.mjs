@@ -67,7 +67,7 @@ const expectedCaseIds = new Set([
   'crash-before-commit-zero-effects',
   'response-loss-replay-one-effect',
   'empty-array-target-occupancy',
-  'sessions-membership-refusal',
+  'sessions-membership-fixture-lane',
   'effect-bound-1024',
   'effect-bound-1025-refusal',
   'hosted-compiled-seed',

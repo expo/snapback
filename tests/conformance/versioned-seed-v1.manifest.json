@@ -150,7 +150,7 @@
       "status": "required"
     },
     {
-      "id": "sessions-membership-refusal",
+      "id": "sessions-membership-fixture-lane",
       "runner": "auth",
       "entrypoint": "tests/conformance/versioned-seed-v1-case.mjs",
       "expectedAssertions": 1,

@@ -5,7 +5,12 @@
 **Systems:** Auth, Sync, Storage, API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-13
-**Revised:** 2026-08-01 (declaration-owned self-projection: the reserved
+**Revised:** 2026-08-01 (the receipted trusted-import lane — see the
+dated amendment: fixture seats through the `Seed` writer class in the
+LLP 0109 versioned seed, reset retiring runtime seats under this
+document's event-3/declared-restore taxonomy; commissioned by LLP 0100
+§8b, closes the 0137 A3 seed/reset finding).
+2026-08-01 (declaration-owned self-projection: the reserved
 native live query `_snapback.myMemberships` lists the caller's own seats
 with pinned empty-range capture — see the dated amendment; closes the
 0137 A2 roster-mirror finding). 2026-07-21 (delivery-lane boundary enforced in code: `live_delta`
@@ -1826,6 +1831,50 @@ so the private-roster rule holds by construction. The two adjacent A2/A3
 findings (principal-addressed removal, resource-partitioned keyset
 pages) remain governed by LLP 0100 and are deliberately **not** part of
 this amendment.
+
+## Dated amendment: the receipted trusted-import lane (2026-08-01)
+
+Recorded per LLP 0100 §8b (the routed seed/reset composition this
+document co-owns with LLP 0109) and the LLP 0137 A3 finding
+(`issues/20260801-0137-a3-membership-not-seedable-cleanup-cannot-retire-authority.md`):
+this document has always reserved id-addressed membership methods for
+"trusted migration/import contexts", but the one *receipted* trusted
+context an application has — the LLP 0109 versioned seed — refused
+membership tables outright, so a fixture could not establish authority
+and a receipted reset could not retire it (the A3 arm choreographed
+per-persona self-removal before every reset as a workaround).
+
+The lane now exists, and it is this document's writer-class doctrine made
+receipted:
+
+- Fixture seats install only through the **`Seed` writer class** of the
+  closed writer enumeration — a privileged non-invocation writer: it
+  never evaluates the transition matrix, stamps per-row `seed`
+  provenance through the same host-managed columns every writer uses,
+  and synthesizes no transition records (a restore is not a stream of
+  kicks). The private-roster posture is untouched: fixture rows are
+  authored data entering a governed host lane, not an application read
+  or write surface.
+- The activation invariants this document pins — closed vocabulary,
+  non-null axes, pair uniqueness, resource referential integrity,
+  `lastHolder` with the LLP 0055 eligibility predicate — gate the whole
+  install transaction, in sessions mode only after the provider catalog
+  can satisfy eligibility (LLP 0109 §8's ordering).
+- A versioned **reset-install retires every runtime seat and restores
+  exactly the fixture seats in one transaction**, and its authorization
+  consequence is the rotated stream incarnation at epoch 0 — the
+  **event-3/declared-restore** class of this document's taxonomy,
+  exactly as pinned ("reset/import carry event-3/declared-restore
+  incarnation semantics"), never per-row event 1. A principal holding a
+  runtime-only seat provably loses authority at that cut; fixture
+  authority survives and keeps exercising the unchanged transition
+  matrix.
+
+Witnesses live with LLP 0109's §18 amendment (src/storage.rs
+`versioned_seed_membership_fixture_lane_*`); the §1-adjacent guide page
+(`guide/backend/versioned-seeds.md`) documents the lane and its
+boundary: product bootstrap remains `bootstrap()` under a real
+principal.
 
 ## Status
 

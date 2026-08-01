@@ -3123,15 +3123,32 @@ Named tables count as targets even when their seed arrays are empty. Occupied
 targets without an active identity refuse as nonempty or partially untracked
 data. This prevents Snapback from silently adopting a legacy database.
 
-## Bootstrap protected membership resources at runtime
+## Seed membership fixture seats through the declared lane
 
-The first sessions-mode versioned-seed lane does not seed membership rows or
-membership-protected resource tables. It refuses the artifact before writing
-with `SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED`, even when the named
-membership table has an empty row list. Seed ordinary, unprotected app data
-only after the sessions catalog is active; create protected resources through
-the generated membership `bootstrap()` method after a real principal signs in.
-That method establishes the resource and initial holder atomically.
+Versioned seeds may name membership tables and install **fixture seats**
+(LLP 0100 §8b's routed lane, owned by LLP 0109 §8's dated amendment). The
+first-landing refusal (`SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED`) is
+retired: a named membership table — empty or with fixture rows — is a legal
+seed target and reset target. The lane is declaration-checked, never raw:
+
+- fixture seats enter through the host's seed writer and carry per-row
+  `seed` provenance; a fixture row that names a host-managed provenance
+  column refuses as an undeclared field;
+- the same-transaction activation scan enforces the closed role vocabulary,
+  non-null axes, `(principal, resource)` uniqueness, resource referential
+  integrity, and — under `lastHolder` — an eligible protected holder per
+  live resource, refusing the **whole** install otherwise;
+- a **reset-install retires every runtime seat and restores exactly the
+  fixture seats in the same one-transaction cut** that rotates the
+  data-version stream and the authorization incarnation
+  (declared-restore semantics — one incarnation cut, never a stream of
+  per-row kicks), so a principal holding a runtime-only seat is provably
+  denied afterwards while fixture authority survives.
+
+Runtime bootstrap is unchanged: product flows still create protected
+resources through the generated membership `bootstrap()` method under a
+real principal — the fixture lane is for seeds, resets, and test personas,
+not an application write path.
 
 Trusted dev/import tooling has a separate governed membership writer. In that
 lane, a `lastHolder`-protected resource and an eligible holder must appear in

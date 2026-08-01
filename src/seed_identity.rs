@@ -1036,7 +1036,7 @@ mod tests {
     }
 
     #[test]
-    fn versioned_seed_conformance_empty_target_and_sessions_membership_refuse() {
+    fn versioned_seed_conformance_empty_target_and_sessions_membership_lane() {
         let mut occupied = crate::storage::LocalDatabase::memory().expect("occupied database");
         occupied
             .apply_schema(todo_schema())
@@ -1064,6 +1064,13 @@ mod tests {
             .unwrap_err();
         assert_eq!(refused.diagnostic.code, "SNAPBACK_SEED_NONEMPTY_UNTRACKED");
 
+        // The declared membership fixture lane (LLP 0109 §8; LLP 0100 §8b):
+        // a sessions-mode artifact may NAME a membership table — the
+        // first-landing SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED
+        // narrowing is retired (dated 0109 amendment, 2026-08-01). Naming an
+        // empty membership table validates; row-level admission is enforced
+        // by the same-transaction activation scan, witnessed in the storage
+        // membership-write suite.
         let sessions: crate::manifest::SchemaManifest = serde_json::from_str(include_str!(
             "../demos/rbac/snapback/generated/schema.manifest.json"
         ))
@@ -1077,15 +1084,29 @@ mod tests {
         };
         membership_artifact.seed_digest =
             artifact_digest(&membership_artifact).expect("membership digest");
-        let refusal = crate::storage::validate_versioned_seed_request(
+        crate::storage::validate_versioned_seed_request(
             &sessions,
             crate::manifest::AuthMode::Sessions,
             Some(&membership_artifact),
         )
-        .unwrap_err();
-        assert_eq!(
-            refusal.diagnostic.code,
-            "SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED"
-        );
+        .expect("a named membership table is a legal fixture/reset target");
+
+        // Unknown tables still refuse: the lift is declaration-scoped, not
+        // a general widening.
+        let mut unknown_artifact = SeedArtifactV1 {
+            format_version: SEED_ARTIFACT_FORMAT_V1.to_owned(),
+            app_id: sessions.app_id.clone(),
+            seed_version: "unknown-table".to_owned(),
+            seed_digest: String::new(),
+            tables: std::collections::BTreeMap::from([("nope".to_owned(), Vec::new())]),
+        };
+        unknown_artifact.seed_digest =
+            artifact_digest(&unknown_artifact).expect("unknown digest");
+        crate::storage::validate_versioned_seed_request(
+            &sessions,
+            crate::manifest::AuthMode::Sessions,
+            Some(&unknown_artifact),
+        )
+        .expect_err("an undeclared table stays refused");
     }
 }

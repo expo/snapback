@@ -1082,14 +1082,17 @@ pub(crate) fn validate_versioned_seed_request(
             ));
         }
         for table_name in artifact.tables.keys() {
-            let table = schema_table(schema, table_name)?;
-            if requested_mode == AuthMode::Sessions && table.membership.is_some() {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED",
-                    "seed",
-                    "sessions-mode versioned seed cannot install membership rows",
-                ));
-            }
+            // Membership tables are admitted through the declared fixture
+            // lane (LLP 0109 §8, commissioned by LLP 0100 §8b): fixture
+            // seats install under the seed writer with per-row provenance
+            // stamping, and the same-transaction activation scan enforces
+            // vocabulary, axes, uniqueness, referential integrity, and
+            // lastHolder eligibility. The first-landing
+            // SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED narrowing is
+            // retired (dated 0109 amendment, 2026-08-01); unknown tables
+            // still refuse here.
+            // @ref LLP 0109#8-authorization-and-authority-bearing-rows
+            let _ = schema_table(schema, table_name)?;
         }
     }
     Ok(())
@@ -11677,6 +11680,23 @@ fn seed_rows_into_transaction(
             };
             let changed_fields = changed_field_names(&row);
             let document = insert_document(tx, table, &id, &row, version, now_ms)?;
+            // Fixture seats carry the seed writer's provenance per row
+            // (LLP 0109 §8's bulk MembershipWriter::Seed primitive; the
+            // 0100 §8b routed lane). The declared provenance columns are
+            // host-managed and not app-declared fields, so a fixture row
+            // that tries to spoof them already refused in insert_document.
+            // @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default —
+            //   seed is a privileged non-invocation writer class: no
+            //   transition matrix, no transition record (a restore is not a
+            //   stream of kicks), provenance stamped.
+            if table.membership.is_some() {
+                write_membership_creation_provenance(
+                    tx,
+                    table,
+                    &id,
+                    Some(&MembershipWriter::Seed),
+                )?;
+            }
             record_change(
                 tx,
                 version,
@@ -22931,6 +22951,263 @@ mod membership_write_tests {
         let result =
             remove_principal(&mut db, "alice", &event_id, "bob").expect("absent no-op");
         assert_eq!(result, Value::Null);
+    }
+
+    // LLP 0100 §8b / LLP 0109 §8: the declared membership fixture lane. A
+    // versioned seed naming a membership table installs fixture seats through
+    // the seed writer with per-row provenance; a reset-install retires every
+    // runtime seat and restores exactly the fixture seats in ONE cut whose
+    // authorization consequence is the rotated incarnation
+    // (declared-restore/event-3 semantics — never a stream of per-row kicks);
+    // and a runtime-only principal provably loses authority across the reset
+    // while fixture authority survives.
+    #[test]
+    fn versioned_seed_membership_fixture_lane_installs_resets_and_retires_runtime_authority() {
+        use crate::auth::coordinator::AuthCoordinator;
+        use crate::auth::session_projection::{
+            AuthorizationStreamRecord, ProjectionSource, SessionProjection,
+        };
+        use crate::seed_identity::{
+            ExpectedDataVersionStreamV1, InstallSeedRequestV1, ResetSeedRequestV1,
+            SEED_ARTIFACT_FORMAT_V1, SEED_INSTALL_REQUEST_FORMAT_V1, SEED_RESET_REQUEST_FORMAT_V1,
+            SeedArtifactV1, SeedEnsureResultV1, SeedResetOperationV1, artifact_digest,
+        };
+        use std::sync::Arc;
+        use std::time::Instant;
+
+        let mut schema = principal_addressed_schema();
+        schema.schema_hash = Some("membership-fixture-lane".to_owned());
+        let app_id = schema.app_id.clone();
+        let mut db = ready_db_with_schema(schema);
+
+        let seat = |principal: &str, role: &str| {
+            Map::from_iter([
+                ("eventId".to_owned(), json!("evt_fixture")),
+                ("userId".to_owned(), json!(principal)),
+                ("role".to_owned(), json!(role)),
+            ])
+        };
+        let make_artifact = |version: &str, seats: Vec<Map<String, Value>>| {
+            let mut artifact = SeedArtifactV1 {
+                format_version: SEED_ARTIFACT_FORMAT_V1.to_owned(),
+                app_id: app_id.clone(),
+                seed_version: version.to_owned(),
+                seed_digest: String::new(),
+                tables: BTreeMap::from([
+                    (
+                        "events".to_owned(),
+                        vec![Map::from_iter([
+                            ("_id".to_owned(), json!("evt_fixture")),
+                            ("title".to_owned(), json!("fixture party")),
+                        ])],
+                    ),
+                    ("event_members".to_owned(), seats),
+                ]),
+            };
+            artifact.seed_digest = artifact_digest(&artifact).expect("artifact digest");
+            artifact
+        };
+
+        // Install: fixture seats enter through the declared lane.
+        let artifact = make_artifact(
+            "fixture-v1",
+            vec![seat("alice", "host"), seat("carol", "guest")],
+        );
+        let installed = db
+            .ensure_versioned_seed(InstallSeedRequestV1 {
+                format_version: SEED_INSTALL_REQUEST_FORMAT_V1.to_owned(),
+                operation_id: "01982c7a-7c00-7000-8000-000000000301".to_owned(),
+                artifact: artifact.clone(),
+                requested_mode: AuthMode::Dev,
+                asset_fixtures: None,
+            })
+            .expect("membership fixture seed installs");
+        let SeedEnsureResultV1::Installed { receipt } = installed else {
+            panic!("fresh fixture seed must install");
+        };
+
+        // Per-row seed-writer provenance is stamped (LLP 0109 §8).
+        let actor: String = db
+            .conn
+            .query_row(
+                "SELECT grantedByActor FROM event_members WHERE userId = 'alice'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("provenance stamped");
+        assert_eq!(actor, "seed", "fixture seats carry the seed writer tag");
+
+        // Fixture-established authority is real authority: the seeded host
+        // exercises the ordinary transition matrix.
+        invite(&mut db, "alice", "evt_fixture", "bob");
+        let bob_row = member_id(&db, "evt_fixture", "bob");
+        set_role(&mut db, "bob", &bob_row, "guest").expect("bob accepts");
+
+        // Reset-install: one cut — every runtime seat retired, exactly the
+        // fixture seats restored, the authorization incarnation rotated.
+        let before = crate::storage::authorization_version_on(&db.conn)
+            .expect("version before reset");
+        let incarnation = db
+            .ensure_authorization_stream_incarnation()
+            .expect("authorization stream");
+        let source = ProjectionSource {
+            authorization_stream_value: AuthorizationStreamRecord::new(incarnation)
+                .encode_bytes()
+                .expect("stream record"),
+            restore_declaration_id: None,
+            users: Vec::new(),
+            identities: Vec::new(),
+            sessions: Vec::new(),
+            superseded_tokens: Vec::new(),
+        };
+        let projection = SessionProjection::rebuild_with_fresh_startup_id(
+            source,
+            now_millis(),
+            Instant::now(),
+        )
+        .expect("session projection");
+        let coordinator = Arc::new(AuthCoordinator::new(projection).expect("coordinator"));
+        let carrier = coordinator
+            .premark_stream_reset_if_drained()
+            .expect("reset carrier");
+        let attempt = db.attempt_versioned_seed_reset_with_authorization_stream(
+            ResetSeedRequestV1 {
+                format_version: SEED_RESET_REQUEST_FORMAT_V1.to_owned(),
+                operation_id: "01982c7a-7c00-7000-8000-000000000302".to_owned(),
+                operation: SeedResetOperationV1::ResetInstall,
+                requested_mode: AuthMode::Dev,
+                expected_data_version_stream: ExpectedDataVersionStreamV1::Present {
+                    value: receipt.data_version_stream.clone(),
+                },
+                artifact: Some(artifact),
+            },
+            carrier.predecessor(),
+            carrier.successor(),
+        );
+        let (_, reset_receipt) = coordinator
+            .finish_stream_reset(carrier, attempt)
+            .expect("reset-install commits");
+        assert_ne!(
+            reset_receipt.data_version_stream, receipt.data_version_stream,
+            "the reset rotates the data-version stream"
+        );
+
+        // Runtime seat retired; fixture seats restored exactly.
+        let bob_count: i64 = db
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM event_members WHERE userId = 'bob'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("count");
+        assert_eq!(bob_count, 0, "the runtime-only seat is retired");
+        let restored: i64 = db
+            .conn
+            .query_row("SELECT COUNT(*) FROM event_members", [], |row| row.get(0))
+            .expect("count");
+        assert_eq!(restored, 2, "exactly the fixture seats are restored");
+
+        // Declared-restore incarnation semantics: one rotated incarnation at
+        // epoch 0 — not a stream of per-row event-1 kicks.
+        let after = crate::storage::authorization_version_on(&db.conn)
+            .expect("version after reset");
+        assert_ne!(
+            after.incarnation, before.incarnation,
+            "the reset rotates the authorization incarnation"
+        );
+        assert_eq!(after.epoch, 0, "the successor incarnation starts at epoch 0");
+
+        // The runtime-only principal provably lost authority; fixture
+        // authority survives the same cut.
+        let denied = db
+            .plan_membership_remove_principal(
+                &user("bob"),
+                "event_members",
+                Some("evt_fixture"),
+                "carol",
+            )
+            .expect_err("the runtime-only principal holds nothing after reset");
+        assert_eq!(
+            denied.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_TRANSITION_DENIED"
+        );
+        remove_principal(&mut db, "alice", "evt_fixture", "carol")
+            .expect("fixture authority survives the reset");
+    }
+
+    // The fixture lane stays declaration-checked: an out-of-vocabulary role
+    // refuses the whole install, and a fixture row cannot spoof the
+    // host-managed provenance columns.
+    #[test]
+    fn versioned_seed_membership_fixture_lane_fails_closed() {
+        use crate::seed_identity::{
+            InstallSeedRequestV1, SEED_ARTIFACT_FORMAT_V1, SEED_INSTALL_REQUEST_FORMAT_V1,
+            SeedArtifactV1, artifact_digest,
+        };
+
+        let install = |rows: Vec<Map<String, Value>>, operation_id: &str| {
+            let mut schema = principal_addressed_schema();
+            schema.schema_hash = Some("membership-fixture-negative".to_owned());
+            let app_id = schema.app_id.clone();
+            let mut db = ready_db_with_schema(schema);
+            let mut artifact = SeedArtifactV1 {
+                format_version: SEED_ARTIFACT_FORMAT_V1.to_owned(),
+                app_id,
+                seed_version: "fixture-negative".to_owned(),
+                seed_digest: String::new(),
+                tables: BTreeMap::from([
+                    (
+                        "events".to_owned(),
+                        vec![Map::from_iter([
+                            ("_id".to_owned(), json!("evt_fixture")),
+                            ("title".to_owned(), json!("fixture")),
+                        ])],
+                    ),
+                    ("event_members".to_owned(), rows),
+                ]),
+            };
+            artifact.seed_digest = artifact_digest(&artifact).expect("digest");
+            db.ensure_versioned_seed(InstallSeedRequestV1 {
+                format_version: SEED_INSTALL_REQUEST_FORMAT_V1.to_owned(),
+                operation_id: operation_id.to_owned(),
+                artifact,
+                requested_mode: AuthMode::Dev,
+                asset_fixtures: None,
+            })
+            .map(|_| ())
+        };
+
+        let unknown_role = install(
+            vec![Map::from_iter([
+                ("eventId".to_owned(), json!("evt_fixture")),
+                ("userId".to_owned(), json!("alice")),
+                ("role".to_owned(), json!("emperor")),
+            ])],
+            "01982c7a-7c00-7000-8000-000000000303",
+        )
+        .expect_err("out-of-vocabulary fixture role refuses the install");
+        assert!(
+            unknown_role.diagnostic.code.starts_with("SNAPBACK_MEMBERSHIP"),
+            "declaration validation refuses: {}",
+            unknown_role.diagnostic.code
+        );
+
+        let spoofed = install(
+            vec![Map::from_iter([
+                ("eventId".to_owned(), json!("evt_fixture")),
+                ("userId".to_owned(), json!("alice")),
+                ("role".to_owned(), json!("host")),
+                ("grantedByActor".to_owned(), json!("mallory")),
+            ])],
+            "01982c7a-7c00-7000-8000-000000000304",
+        )
+        .expect_err("host-managed provenance columns cannot be spoofed");
+        let code = spoofed.diagnostic.code.as_str();
+        assert!(
+            code.contains("UNKNOWN") || code.contains("FIELD"),
+            "the spoofed column refuses as undeclared: {code}"
+        );
     }
 
     #[derive(Clone, Copy, Debug)]

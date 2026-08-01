@@ -50,7 +50,7 @@ const cases = [
   'crash-before-commit-zero-effects',
   'response-loss-replay-one-effect',
   'empty-array-target-occupancy',
-  'sessions-membership-refusal',
+  'sessions-membership-fixture-lane',
   'effect-bound-1024',
   'effect-bound-1025-refusal',
 ];
@@ -653,11 +653,17 @@ try {
   check('crash-before-commit-zero-effects', true,
     'fault case proves predecessor row and identity remain active');
   check('empty-array-target-occupancy',
-    rustOutput.includes('versioned_seed_conformance_empty_target_and_sessions_membership_refuse'),
+    rustOutput.includes('versioned_seed_conformance_empty_target_and_sessions_membership_lane'),
   'empty-array named target occupancy case executed');
-  check('sessions-membership-refusal',
-    rustOutput.includes('versioned_seed_conformance_empty_target_and_sessions_membership_refuse'),
-  'sessions membership bootstrap refusal case executed');
+  // LLP 0100 §8b / LLP 0109 §8 (dated amendment 2026-08-01): the declared
+  // membership fixture lane replaced the first-landing refusal. The case id
+  // keeps its slot; the witnessed behavior is now admission + fixture
+  // install/reset/retire + fail-closed row validation.
+  check('sessions-membership-fixture-lane',
+    rustOutput.includes('versioned_seed_conformance_empty_target_and_sessions_membership_lane')
+      && rustOutput.includes('versioned_seed_membership_fixture_lane_installs_resets_and_retires_runtime_authority')
+      && rustOutput.includes('versioned_seed_membership_fixture_lane_fails_closed'),
+  'membership fixture lane cases executed (admission, install/reset/retire witness, fail-closed)');
   check('effect-bound-1024',
     rustOutput.includes('versioned_seed_conformance_effect_boundaries_and_migration_refusal'),
   '1024-effect success case executed');
