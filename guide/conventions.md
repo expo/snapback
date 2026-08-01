@@ -153,6 +153,22 @@ either generated file when stale. At server compile time, `build.rs` restamps
 the embedded manifest's `buildIdentity.commit` to the exact binary build; the
 checked source manifest remains the corpus-generation record.
 
+## Running the checks in a fresh tree
+
+`node scripts/check-guide.mjs` is the docs-only fast path; the local proof
+runs the same checks. Snippet verification reads sources on disk, and some
+cited sources are gitignored codegen outputs
+(`demos/*/snapback/generated/*`), so a fresh checkout or worktree fails
+with "snippet source does not exist" — plus a consequent stale-manifest
+error — until demo codegen has run. That failure is the checker being
+honest, not the corpus being broken. In a fresh tree, run
+`bun install --frozen-lockfile`, then `scripts/check-generated-artifacts`
+(node-only; regenerates every committed backend and verifies the committed
+review manifests), or just the per-demo codegen for the demos the failing
+snippets cite, e.g.
+`node packages/snapback-codegen/index.mjs demos/todo-v2/snapback`.
+Regeneration writes only gitignored paths; the tracked tree stays clean.
+
 ## Freshness
 
 Warning-only, but sound: the checker reports pages whose `authorities:`
