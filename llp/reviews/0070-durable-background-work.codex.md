@@ -124,3 +124,33 @@ Next step: fix the boundary sentence, copy the literal digest-plus-`maxAttempts`
 I could not append this round to the Codex review artifact because the workspace is read-only.
 
 *(Runner note: the two file citations above were emitted as absolute paths into the disposable review worktree and are mechanically rewritten to the equivalent /Users/ccheever/projects/snapback/ paths; raw output is preserved in the session capture.)*
+
+## Round 3 — 2026-08-01
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model `gpt-5.6-sol`
+**Reasoning effort:** CLI default (`medium` per CLI banner)
+**Date:** 2026-08-01
+**Redaction:** not redacted
+**Method:** round-3 targeted closing check — reviewer given its own Rounds 1–2, instructed to verify v3's application of its three round-2 residuals (boundary scoped to §First slice as shipped, literal idempotency tuple in §Semantics + guide digest equality, A6-04 single-run wording) and the changed text only for fresh defects; read-only sandbox in a fresh worktree of origin/main at 73e5c96a, blind to this RFC's fable artifact
+**Target SHA-256:** `87e3ea0bcb63012d64c6ccadc4b2b2d498ebacbbc5b1c142bb5fc9fda6c7479d`
+**Instruction SHA-256:** `f25262db121f6166e1ecac83dd72a849ab39ed43553b24720ceb0877a6ab725f`
+**Status:** completed (first attempt, no retry needed)
+
+### Verbatim review
+
+Verified SHA-256 `87e3ea0bcb63012d64c6ccadc4b2b2d498ebacbbc5b1c142bb5fc9fda6c7479d`. I did not read `.fable.md`.
+
+**Verdict: READY**
+
+1. **Boundary — resolved.** It now limits shipped normativity exclusively to [§First slice as shipped](/Users/ccheever/projects/snapback/llp/0070-durable-background-work.rfc.md:414); the over-claim is gone.
+
+2. **Idempotency — resolved.** Shipped semantics, §Semantics, and the [guide](/Users/ccheever/projects/snapback/guide/backend/jobs.md:57) consistently specify canonical-args SHA-256 digest plus `maxAttempts`, excluding `delayMs`/`availableAt`.
+
+3. **A6-04 — resolved.** It reports one observed execution and no repeat-drain rerun, explicitly disclaiming exactly-once effects.
+
+No fresh defect in the changed text and no further material Codex concern.
+
+**Next step:** append this round to the Codex review artifact, then the author may decide the RFC’s status transition. I made no artifact edit because this workspace is read-only.
+
+*(Runner note: the two file citations above were emitted as absolute paths into the disposable review worktree and are mechanically rewritten to the equivalent /Users/ccheever/projects/snapback/ paths; raw output is preserved in the session capture.)*
