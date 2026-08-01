@@ -6276,6 +6276,19 @@ impl LocalSnapback {
             "asset.inspect" => self.asset_host_inspect(input, user_id),
             "asset.list" => self.asset_host_list(input),
             "asset.retry" => self.asset_host_retry(input),
+            // @ref LLP 0044#deletion-retention-and-garbage-collection — the
+            // operator drives the one canonical sweep with an injected clock;
+            // the sweep retains the same per-reclamation semantic receipts as
+            // the background runner.
+            "asset.gcSweep" => {
+                let parsed: AssetHostGcSweepInput = asset_host_input(input, operation)?;
+                crate::manifest::validate_portable_timestamp_millis(parsed.now_ms)?;
+                let report = self.asset_gc_sweep(parsed.now_ms)?;
+                Ok(serde_json::json!({
+                    "nowMs": parsed.now_ms,
+                    "report": report,
+                }))
+            }
             "asset.delete" => {
                 let parsed: AssetHostIdInput = asset_host_input(input, operation)?;
                 let authority =
@@ -22326,7 +22339,8 @@ enum AssetPublishOutcome {
     WitnessMoved,
 }
 
-#[derive(Debug, Default, PartialEq, Eq)]
+#[derive(Debug, Default, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 #[allow(dead_code)]
 pub(crate) struct AssetPublicationMaintenanceReport {
     pub staged: u64,
@@ -22386,7 +22400,8 @@ pub(crate) struct AssetRunnerReport {
     pub cancelled: u64,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 #[allow(dead_code)]
 pub(crate) struct AssetGcReport {
     pub expired_attempts: u64,
@@ -22443,6 +22458,12 @@ struct AssetHostEnsureSeedFixtureInput {
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 struct AssetHostIdInput {
     asset_id: String,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+struct AssetHostGcSweepInput {
+    now_ms: u64,
 }
 
 #[derive(Default, serde::Deserialize)]
@@ -24258,6 +24279,77 @@ globalThis.__snapbackHandlers = {
                 || reclaimed.unwrap().availability
                     == crate::assets::AssetAvailability::Deleted,
             "detached asset reclaimed"
+        );
+    }
+
+    #[test]
+    fn asset_gc_sweep_host_op_uses_injected_clock_and_receipts_reclamation() {
+        const GRACE_MS: u64 = 60_000;
+        let mut snapback = asset_reference_gc_snapback(GRACE_MS);
+        let asset_id = asset_ready(&mut snapback, "user_a", b"operator-gc");
+        let now_ms = now_millis().saturating_add(GRACE_MS * 2);
+
+        let swept = snapback
+            .asset_host_op(
+                "asset.gcSweep",
+                Some(&serde_json::json!({ "nowMs": now_ms })),
+                None,
+                ServerProfile::Dev,
+            )
+            .expect("operator sweep");
+        assert_eq!(swept["nowMs"], serde_json::json!(now_ms));
+        assert_eq!(swept["report"]["referenceReclaimed"], serde_json::json!(1));
+        assert_eq!(swept["report"]["publication"]["staged"], serde_json::json!(0));
+
+        let receipts = asset_receipts_with_policy(&mut snapback, &asset_id, "reference-gc");
+        assert_eq!(receipts.len(), 1, "reclamation is semantically receipted");
+        assert_eq!(receipts[0]["graceMs"], serde_json::json!(GRACE_MS));
+
+        // Host operations do not retain a response-replay ledger. The sweep
+        // itself is fenced/idempotent: re-driving the identical deterministic
+        // input cannot reclaim or receipt the same asset twice.
+        let replay = snapback
+            .asset_host_op(
+                "asset.gcSweep",
+                Some(&serde_json::json!({ "nowMs": now_ms })),
+                None,
+                ServerProfile::Dev,
+            )
+            .expect("identical sweep re-drive");
+        assert_eq!(replay["report"]["referenceReclaimed"], serde_json::json!(0));
+        assert_eq!(
+            asset_receipts_with_policy(&mut snapback, &asset_id, "reference-gc").len(),
+            1
+        );
+
+        let ambient_clock = snapback
+            .asset_host_op("asset.gcSweep", None, None, ServerProfile::Dev)
+            .expect_err("the operator must inject nowMs");
+        assert_eq!(ambient_clock.diagnostic.code, "SNAPBACK_HOST_OP_INPUT_MISSING");
+
+        let out_of_range = snapback
+            .asset_host_op(
+                "asset.gcSweep",
+                Some(&serde_json::json!({
+                    "nowMs": crate::manifest::PORTABLE_TIMESTAMP_MAX_MS + 1,
+                })),
+                None,
+                ServerProfile::Dev,
+            )
+            .expect_err("non-portable clock refused");
+        assert_eq!(out_of_range.diagnostic.code, "SNAPBACK_TIMESTAMP_OUT_OF_RANGE");
+
+        let open_shape = snapback
+            .asset_host_op(
+                "asset.gcSweep",
+                Some(&serde_json::json!({ "nowMs": now_ms, "force": true })),
+                None,
+                ServerProfile::Dev,
+            )
+            .expect_err("unknown input siblings refused");
+        assert_eq!(
+            open_shape.diagnostic.code,
+            "SNAPBACK_ASSET_HOST_OP_INPUT_INVALID"
         );
     }
 

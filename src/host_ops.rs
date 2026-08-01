@@ -1257,7 +1257,7 @@ pub(crate) fn execute_host_op_with_profile_and_authority(
         // any envelope.
         "asset.put" | "asset.ensureSeedFixture" | "asset.inspect" | "asset.list"
         | "asset.exportCut" | "asset.importCut"
-        | "asset.retry" | "asset.delete"
+        | "asset.retry" | "asset.gcSweep" | "asset.delete"
         | "asset.rotateSigningKey" => {
             let outcome = snapback.asset_host_op(
                 &operation,

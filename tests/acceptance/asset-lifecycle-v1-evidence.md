@@ -98,7 +98,7 @@ background loop.
 
 | Acceptance row | Evidence |
 |---|---|
-| CLI/inspection uploads, inspects, retries, explains — no byte samples/staging keys/bearer URLs | `asset_host_ops_round_trip_put_inspect_list_retry_delete`, `asset_host_ops_refuse_bad_input_and_ride_the_envelope`; `snapback assets` subcommands ride the same operations over `post_host_op`. |
+| CLI/inspection uploads, inspects, retries, sweeps GC, explains — no byte samples/staging keys/bearer URLs | `asset_host_ops_round_trip_put_inspect_list_retry_delete`, `asset_gc_sweep_host_op_uses_injected_clock_and_receipts_reclamation`, `asset_host_ops_refuse_bad_input_and_ride_the_envelope`; `snapback assets` subcommands ride the same operations over `post_host_op`. |
 | Manifest distinguishes composites, store parameter, profiles, grades, ceilings; nonclaims Missing | `tests/capability_v0.rs` (committed manifests: local claims `asset_lifecycle_v1`, `asset_image_finalization_v1`, and `asset_image_pipeline_v1` with `local-fs`, `private-strict`, and the Enforced image ceilings block; served/workerd/Cloudflare withhold all three; the `missing` nonclaims list is present, never omitted). |
 
 ## Image pipeline (`asset-image-pipeline-v1`, local target)
@@ -116,7 +116,7 @@ background loop.
 
 | Acceptance row | Evidence |
 |---|---|
-| Reference GC reclaims only unreferenced ready assets past the app-declared grace; receipts name policy and grace window | `asset_reference_gc_reclaims_only_unreferenced_ready_past_grace` — never-attached clock starts at publication, referenced sibling survives, detach starts the clock, re-attach clears it (a racing attachment always wins), reclamation receipt carries `policy: reference-gc` + `graceMs`. |
+| Reference GC reclaims only unreferenced ready assets past the app-declared grace; receipts name policy and grace window | `asset_reference_gc_reclaims_only_unreferenced_ready_past_grace` — never-attached clock starts at publication, referenced sibling survives, detach starts the clock, re-attach clears it (a racing attachment always wins), reclamation receipt carries `policy: reference-gc` + `graceMs`. `asset_gc_sweep_host_op_uses_injected_clock_and_receipts_reclamation` and Party Wall's headless acceptance drive the same sweep on demand through admin-gated `asset.gcSweep`. |
 | Opt-in means opt-in | `asset_reference_gc_disabled_schema_never_reclaims` — no schema declaration, nothing reclaims at any horizon. |
 | Enabling warns about unprotected fields; grace bounds Enforced | `asset-upload-authoring.test.mjs` W2c cases — the `SNAPBACK_ASSET_REFERENCE_GC_UNPROTECTED_FIELDS` warning lists json fields (and the no-typed-fields case), out-of-bounds grace refuses (`GRACE_INVALID`), a target without the facts refuses (`UNSUPPORTED`); `asset_reference_gc_v1` + grace bounds in the committed local manifest (`tests/capability_v0.rs`), withheld elsewhere. |
 | Declared callbacks invoked idempotently under retry; failure never touches the asset | `asset_lifecycle_callback_invokes_idempotently_and_isolates_failure` — ready enqueues transactionally with the transition, the runner invokes the declared mutation with typed facts under the owner's authority, a re-driven duplicate never doubles the observable effect (client-mutation-ledger idempotency key `asset-cb:{asset}:{event}:{generation}`), a throwing callback retries toward its ceiling while the asset stays Ready. |
@@ -158,4 +158,3 @@ background loop.
 | Refuse-partial import: manifest digest + every blob object verify before any row lands | `asset_cut_import_refuses_missing_and_tampered_blob_objects` (digest mismatch, missing object, zero rows landed) and `assets_cut::tests::validate_export_dir_refuses_partial_and_tampered_components` |
 | Restore-epoch fence + tombstone non-resurrection + empty-target-only + experimental gate | `asset_cut_exports_and_restores_onto_an_empty_instance`: generation = manifest+1, tombstone stays deleted, second apply refuses `SNAPBACK_ASSET_IMPORT_TARGET_NOT_EMPTY`, apply without acknowledgment refuses `SNAPBACK_ASSET_IMPORT_EXPERIMENTAL_REQUIRED`, restored bytes serve through ordinary delivery |
 | Honest grading | local facts declare `export: {cutExport, importValidation, importApply: "experimental"}`; `asset-byte-backup` stays in `missing`; no other target declares the block |
-

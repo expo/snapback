@@ -920,6 +920,7 @@ fn operation_registry_is_exhaustive_and_bound_to_registered_carriers() {
             "host_ops.app.inspect",
             "host_ops.asset.delete",
             "host_ops.asset.ensureSeedFixture",
+            "host_ops.asset.gcSweep",
             "host_ops.asset.inspect",
             "host_ops.asset.list",
             "host_ops.asset.put",

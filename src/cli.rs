@@ -974,6 +974,16 @@ pub enum AssetsCommand {
         target: TargetArgs,
         asset_id: String,
     },
+    /// asset.gcSweep — run all asset reclamation and publication-maintenance
+    /// classes at an explicit portable millisecond timestamp.
+    GcSweep {
+        #[command(flatten)]
+        target: TargetArgs,
+        /// Injected Unix time in milliseconds; required so operator and
+        /// acceptance runs are deterministic.
+        #[arg(long)]
+        now_ms: u64,
+    },
     /// asset.rotateSigningKey — retire every signing key and mint a fresh
     /// one; every outstanding signed URL stops validating.
     RotateSigningKey {
@@ -1190,6 +1200,10 @@ pub async fn run_from_env() -> anyhow::Result<()> {
             AssetsCommand::Retry { target, asset_id } => host_op_via_http(
                 &target,
                 json!({ "operation": "asset.retry", "input": { "assetId": asset_id } }),
+            ),
+            AssetsCommand::GcSweep { target, now_ms } => host_op_via_http(
+                &target,
+                json!({ "operation": "asset.gcSweep", "input": { "nowMs": now_ms } }),
             ),
             AssetsCommand::RotateSigningKey { target } => host_op_via_http(
                 &target,
@@ -4456,7 +4470,7 @@ fn describe_ports(ports: &[u16]) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        Args, AuthCommand, AuthConstructionFailure, AuthCoordinatorReadinessReceipt,
+        Args, AssetsCommand, AuthCommand, AuthConstructionFailure, AuthCoordinatorReadinessReceipt,
         AuthProgramConstructionReceipts, BEFORE_STARTUP_TARGET_RESERVATION, Cli, HostCommand,
         ManagedPath, ReadyFileTarget, ResolvedHttpTarget, TargetArgs, bind_first_available,
         bind_listener, managed_startup_paths, mint_secret_read_via_http, parse_run_args,
@@ -5469,6 +5483,39 @@ mod tests {
                 "--admin-inspect",
             ])
             .is_ok()
+        );
+    }
+
+    #[test]
+    fn asset_gc_sweep_cli_requires_and_preserves_the_injected_clock() {
+        let parsed = Cli::parse_from([
+            "snapback",
+            "assets",
+            "gc-sweep",
+            "--now-ms",
+            "1785484800000",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        match parsed.command {
+            Some(HostCommand::Assets {
+                command: AssetsCommand::GcSweep { target, now_ms },
+            }) => {
+                assert_eq!(now_ms, 1_785_484_800_000);
+                assert_eq!(target.url.as_deref(), Some("http://127.0.0.1:4287"));
+            }
+            other => panic!("expected asset gc-sweep command, got {other:?}"),
+        }
+        assert!(
+            Cli::try_parse_from([
+                "snapback",
+                "assets",
+                "gc-sweep",
+                "--url",
+                "http://127.0.0.1:4287",
+            ])
+            .is_err(),
+            "gc-sweep must never fall back to the ambient wall clock"
         );
     }
 

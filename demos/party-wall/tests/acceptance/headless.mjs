@@ -6,7 +6,8 @@
 // variants and attaches it through the canonical `ctx.assets.attach` handler,
 // the wall updates live, membership joins grant `via-references` reads and
 // leaves revoke them, covers deliver public-immutable, signed URLs act as
-// bounded bearers, and deletion walks the referenced-refusal → cascade path.
+// bounded bearers, and deletion walks the referenced-refusal → receipted
+// on-demand reference-GC path.
 
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs';
@@ -391,7 +392,7 @@ await runAcceptance(suite, async () => {
     assert.equal(refused.status, 409, `referenced delete must 409, got ${refused.status}: ${JSON.stringify(body)}`);
   });
 
-  await suite.check('deleting the post clears the edge; the asset then deletes and stops serving', async () => {
+  await suite.check('deleting the post clears the edge; an on-demand GC sweep reclaims the photo', async () => {
     const posts = await ada.client.liveQuery(api.eventWall, {
       connectionId: 'ada_wall_2',
       args: { eventId },
@@ -399,13 +400,12 @@ await runAcceptance(suite, async () => {
     });
     const postId = posts.rows[0]._id;
     await mutate(ada, api.deletePost, { postId });
-    // Reference GC (graceMs 61s) would reclaim this asset on the runner's
-    // sweep; the runner is disabled for determinism, so the demo proves the
-    // edge-cleared state by the now-admissible explicit delete instead.
-    const deleted = await authorizedFetch(ada, `/assets/records/${photoAssetId}`, { method: 'DELETE' });
-    assert.equal(deleted.status, 200, 'unreferenced delete succeeds');
+    const sweepNowMs = Date.now() + 62_000;
+    const swept = await hostOp('asset.gcSweep', { nowMs: sweepNowMs });
+    assert.equal(swept.nowMs, sweepNowMs, 'operator sweep echoes its injected clock');
+    assert.equal(swept.report.referenceReclaimed, 1, `reference GC report: ${JSON.stringify(swept)}`);
     const after = await authorizedFetch(ada, `/assets/records/${photoAssetId}/bytes/thumb`);
-    suiteAssert(after.status === 403 || after.status === 404, 'deleted asset stops serving');
+    suiteAssert(after.status === 403 || after.status === 404, 'GC-reclaimed asset stops serving');
   });
 });
 

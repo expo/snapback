@@ -195,6 +195,7 @@ snapback assets put photo.pdf --upload avatarUpload --user user_a --url http://1
 snapback assets inspect <asset-id> --url http://127.0.0.1:4287
 snapback assets list --state ready --url http://127.0.0.1:4287
 snapback assets retry <asset-id> --url http://127.0.0.1:4287
+snapback assets gc-sweep --now-ms 1785484800000 --url http://127.0.0.1:4287
 snapback assets delete <asset-id> --user user_a --url http://127.0.0.1:4287
 ```
 
@@ -202,11 +203,19 @@ snapback assets delete <asset-id> --user user_a --url http://127.0.0.1:4287
 `inspect` prints the lifecycle — availability, receipts, quota, reference
 edges, runner claims — and never byte samples, staging keys, or bearer
 URLs. `retry` re-drives pending publication/ledger work under the
-generation fence; it never reopens a terminal attempt.
+generation fence; it never reopens a terminal attempt. `gc-sweep` requires
+an explicit portable Unix-millisecond clock and runs the same attempt,
+pending-asset, reference, tombstone, blob, retained-intent-artifact, and
+publication cleanup as the background runner. Its report echoes `nowMs`;
+each semantic reclamation keeps the ordinary asset lifecycle receipt.
 
 Background maintenance (finalization re-drives, GC sweeps, publication
 reconciliation) runs on the asset runner; set
-`SNAPBACK_ASSET_RUNNER_DISABLED=1` to drive it deterministically in tests.
+`SNAPBACK_ASSET_RUNNER_DISABLED=1` to drive it deterministically in tests,
+then invoke `asset.gcSweep` (or the CLI command above) with the suite's
+chosen clock. Host operations do not keep a response replay ledger; the sweep
+itself is idempotent, and each reclaimed asset receives its canonical
+`reference-gc` lifecycle receipt exactly once.
 
 ## Evidence and limits
 

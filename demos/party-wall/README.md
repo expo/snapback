@@ -43,7 +43,13 @@ VITE_SNAPBACK_ADMIN_TOKEN=<the server's admin token> bun install && bun run dev
 snapback assets list --state ready
 snapback assets inspect <asset-id>   # lifecycle, receipts, quota, edges —
                                      # never staging keys or bearer URLs
+snapback assets gc-sweep --now-ms <after-the-61s-grace-in-unix-ms>
 ```
+
+The on-demand sweep is the deterministic version of the demo's product
+moment: after a post is deleted and its typed reference edge disappears, run
+the sweep beyond the 61-second grace and the photo is reclaimed with a
+`reference-gc` lifecycle receipt.
 
 ## Acceptance
 

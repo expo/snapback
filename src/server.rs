@@ -14330,6 +14330,22 @@ pub fn operation_registry() -> Vec<OperationSpec> {
                 response_sensitivity: None,
             },
         ),
+        // LLP 0044 §Deletion, retention, and garbage collection: the
+        // deterministic operator sweep uses the same admin-write posture and
+        // receipted GC engine as background maintenance.
+        host(
+            "host_ops.asset.gcSweep",
+            RoutePolicy::AdminWrite,
+            EffectPolicy::None,
+            SessionModeOverlay {
+                path_policy: None,
+                credential_resolution: None,
+                invocation_authority: Some(InvocationAuthority::AnonymousAdminBypass),
+                legacy_body_policy: Some(LegacyBodyPolicy::Rejected),
+                effect_policy: None,
+                response_sensitivity: None,
+            },
+        ),
         host(
             "host_ops.asset.delete",
             RoutePolicy::AdminWrite,
@@ -14762,6 +14778,7 @@ pub(crate) fn host_ops_operation_spec(
         "asset.inspect" => "host_ops.asset.inspect",
         "asset.list" => "host_ops.asset.list",
         "asset.retry" => "host_ops.asset.retry",
+        "asset.gcSweep" => "host_ops.asset.gcSweep",
         "asset.delete" => "host_ops.asset.delete",
         "asset.rotateSigningKey" => "host_ops.asset.rotateSigningKey",
         "asset.exportCut" => "host_ops.asset.exportCut",
@@ -32253,6 +32270,66 @@ globalThis.__snapbackHandlers = {
         let inspect = response_json(inspect).await;
         assert_eq!(inspect["ok"], true, "{inspect}");
         assert_eq!(inspect["data"]["recentInvocations"], json!([]), "{inspect}");
+    }
+
+    #[tokio::test]
+    async fn asset_gc_sweep_host_operation_is_admin_gated_and_clock_explicit() {
+        let (router, _) = auth_http_fixture(PolicyAuthMode::Dev);
+        let host_op = |body: serde_json::Value, admin: Option<&str>| {
+            auth_http_request(
+                "POST",
+                "/_snapback/api/host-ops",
+                serde_json::to_vec(&body).unwrap(),
+                true,
+                admin,
+                None,
+            )
+        };
+
+        let unauthorized = router
+            .clone()
+            .oneshot(host_op(
+                json!({ "operation": "asset.gcSweep", "input": { "nowMs": 42 } }),
+                None,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(unauthorized.status(), StatusCode::UNAUTHORIZED);
+
+        let authorized = router
+            .clone()
+            .oneshot(host_op(
+                json!({
+                    "operation": "asset.gcSweep",
+                    "requestId": "gc-sweep-42",
+                    "input": { "nowMs": 42 },
+                }),
+                Some("auth-http-admin"),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(authorized.status(), StatusCode::OK);
+        let authorized = response_json(authorized).await;
+        assert_eq!(authorized["ok"], true, "{authorized}");
+        assert_eq!(authorized["requestId"], "gc-sweep-42");
+        assert_eq!(authorized["data"]["nowMs"], 42);
+        assert_eq!(authorized["data"]["report"]["referenceReclaimed"], 0);
+        assert_eq!(authorized["authority"]["adminBypass"], true);
+
+        let missing_clock = router
+            .oneshot(host_op(
+                json!({ "operation": "asset.gcSweep" }),
+                Some("auth-http-admin"),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(missing_clock.status(), StatusCode::OK);
+        let missing_clock = response_json(missing_clock).await;
+        assert_eq!(missing_clock["ok"], false);
+        assert_eq!(
+            missing_clock["diagnostics"][0]["code"],
+            "SNAPBACK_HOST_OP_INPUT_MISSING"
+        );
     }
 
     /// @ref LLP 0042#diagnostics-reading--an-appinspect-extension-not-a-new-operation —
