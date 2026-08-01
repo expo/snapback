@@ -56,8 +56,8 @@ The complete options vocabulary:
   (`SNAPBACK_JOB_DELAY_INVALID` beyond it).
 - `idempotencyKey` — 1..200 bytes, scoped to (queue, action); the same key
   under a different action is a different scope and creates an independent
-  job. Re-enqueueing with the same key, byte-identical canonical args, and
-  the same `maxAttempts` returns the existing job with
+  job. Re-enqueueing with the same key, an equal canonical-args SHA-256
+  digest, and the same `maxAttempts` returns the existing job with
   `deduplicated: true` (a different `delayMs` does not break identity —
   the existing job keeps its original `availableAt`); divergent args or
   attempt policy under the same key fails

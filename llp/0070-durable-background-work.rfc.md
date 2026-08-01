@@ -5,7 +5,17 @@
 **Systems:** Background work, Actions, Webhooks, Cron, Storage, Runtime, Auth, Secrets, Deployment, Admin, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-08-01 (v2, round-1 review application: both round-1
+**Revised:** 2026-08-01 (v3, Codex round-2 application: the shipped/future
+boundary block now scopes its normative-shipped claim to §First slice as
+shipped precisely, instead of "everything above" — which had wrongly
+encompassed the Summary's future-subsystem prose; the §Semantics enqueue
+rule repeats the literal idempotency tuple (canonical-args SHA-256 digest
+plus `maxAttempts`, with `delayMs`/`availableAt` excluded) rather than the
+looser "attempt policy" gloss, and the guide's "byte-identical canonical
+args" is corrected to digest equality; the A6-04 evidence row states "one
+observed execution and no rerun on a repeat drain — a single-run
+observation, not an exactly-once-effects claim". Status stays Draft.)
+2026-08-01 (v2, round-1 review application: both round-1
 reviews applied — Fable READY with five minor findings, Codex NOT READY
 with three material and two lesser. Codex M1: idempotency scope and
 equivalence settled to what `src/jobs.rs`/`src/runtime.rs` actually do —
@@ -122,9 +132,11 @@ boot-admission fix. The executable evidence maps as follows:
   public 0.1.7 closure;
   `demos/improvement-sweep/arms/a6-snapback-web/run-capsule.json`):
   transactional enqueue, the bounded `enqueues` receipt fact, producer
-  association, injected-clock drain with exactly-once execution, and the
-  admin lane — while the declared job-status query boot-refused on that
-  closure (the a6-f1 defect 01ddd8e2 fixed).
+  association, the injected-clock drain (one observed execution and no
+  rerun on a repeat drain — a single-run observation, not an
+  exactly-once-effects claim), and the admin lane — while the declared
+  job-status query boot-refused on that closure (the a6-f1 defect
+  01ddd8e2 fixed).
 - **RV-A6-F1** (0.1.8 re-verification;
   `demos/improvement-sweep/arms/reverify-0.1.8/run-capsule.json`): the
   job-status boot fix verified externally — the declaring app boots and
@@ -399,10 +411,12 @@ refuses the id, which admits schema-level target capabilities only.
 
 ---
 
-**Shipped/future boundary.** Everything above this line describes the
-implemented surface and is normative for it. Everything below —
-§Semantics through §Decisions still requiring ratification — is the
-proposed complete future contract of this Draft RFC, written in
+**Shipped/future boundary.** The section **§First slice as shipped**
+(above) — and only that section — describes the implemented surface and
+is normative for it; the Summary and target-profile prose before it
+describe the proposed subsystem, not shipped behavior. Everything below
+this line — §Semantics through §Decisions still requiring ratification —
+is the proposed complete future contract of this Draft RFC, written in
 present-tense contract language as RFC convention, and is **unshipped
 unless §First slice as shipped explicitly states otherwise**. Where a
 sentence below and the shipped section differ (admission wording,
@@ -438,13 +452,14 @@ queue-admission epoch admits both its artifact and the job's producer ABI.
 A mutation calls `ctx.jobs.enqueue(reference, args, options)`. Validation and
 insertion occur in the same database transaction as the mutation's ordinary
 writes. If that transaction rolls back, no job exists. Idempotency keys are
-scoped to `(queue, action)`: within one scope, an identical intent (the
-canonical-args digest plus attempt policy) returns the existing job, while
-divergent reuse of the same key fails as
-`SNAPBACK_JOB_IDEMPOTENCY_KEY_REUSED`; the same key under a different
-action is a different scope and creates an independent job. The exact
-shipped tuple — including the deliberate exclusion of the delay from the
-identity fingerprint and the commit-time race code — is §First slice as
+scoped to `(queue, action)`. Within one scope, an enqueue is identical —
+and returns the existing job — exactly when the canonical-args SHA-256
+digest **and** `maxAttempts` both match; `delayMs` (and the derived
+absolute `availableAt`) is excluded from the identity fingerprint.
+Divergent reuse of the same key — digest or `maxAttempts` differs — fails
+as `SNAPBACK_JOB_IDEMPOTENCY_KEY_REUSED`; the same key under a different
+action is a different scope and creates an independent job. The identical
+commit-time race code and the resolution ordering are §First slice as
 shipped, idempotency-key semantics.
 
 The first profile admits manifest-declared actions only — in both runtime
