@@ -64,5 +64,68 @@ biased toward it, which makes the frictions below more credible, not less.
   lists uncovered tables.
 - GPS stripping needed zero demo code. The privacy story is free.
 
-*(Entry continues at landing with the suite outcome, the React arm, and
-the comparisons.)*
+## Findings, continued (the suite and the browser found more)
+
+6. **Seeded resources under a protected membership need their holder
+   seeded too.** The versioned-seed install refused my seeded event with
+   `SNAPBACK_MEMBERSHIP_ACTIVATION_UNPROTECTED_RESOURCE` until the seed
+   also carried the host's `eventMembers` row. The protection is *right*
+   (no orphaned resources), and seeding roster rows turned out to be
+   admitted — but nothing taught me that; I expected the raw-write refusal
+   handlers get. One guide sentence would have saved the round trip.
+   Related: the seed-version evidence ledger (`SNAPBACK_SEED_VERSION_
+   REUSED` when I edited seed bytes under one version) was a pleasant
+   surprise — 0109's discipline catching exactly the mistake I made.
+
+7. **Sessions mode gates every request behind the auth-client protocol
+   header — including "public" URLs.** `public-immutable` covers and
+   `private-signed` bearer links both 400 without
+   `x-snapback-auth-client-protocol: 1`. That breaks the pasteability that
+   is these profiles' whole story: no plain `<img src>` from another
+   origin, no CDN pull, no share-link-in-an-email. The suite sends the
+   header to prove the lanes; the product gap is filed. Similarly, there
+   is no browser-safe sessions sign-in for demos — Party Wall's web arm
+   reads the dev mailbox with the admin token in a Vite env var, which is
+   fine for a trusted-local demo and unacceptable as the story.
+
+8. **The asset client couldn't bundle for the browser.** First real
+   `vite build` of any demo over the headless client:
+   `"createHash" is not exported` — the per-chunk checksums used
+   `node:crypto`. Fixed in this landing (incremental FIPS 180-4 fallback,
+   cross-checked against node:crypto by the package test), but it says
+   something that five waves of Node-side tests never opened a bundler.
+   Demos are the integration test Node suites cannot be.
+
+## What Just Worked (final)
+
+Everything in the mid-build list held, plus: the whole
+grant/revoke/never-member matrix passed on the first run that reached it —
+the sharing model needed zero debugging, ever, across the entire build;
+the referenced-delete refusal and cascade behaved exactly as specified on
+first contact; the ThumbHash placeholder arrived server-side with no demo
+code; and the dev-sibling trick (regenerate the same app with dev auth)
+took ten lines because codegen is a callable library.
+
+## Compared honestly
+
+Against Convex (the 0116–0127 baseline): Snapback's upload ergonomics are
+better (one task vs. generateUploadUrl choreography), and nothing in
+Convex approaches the sharing model — file ACLs there are handler
+convention. But Convex would never have hit findings 1 or 8: its file ids
+are plain strings in documents (feeds just work) and its client always ran
+in browsers. Snapback's stricter model bought real privacy and real
+authorization; the price is that the common shapes (a feed with photos, a
+pasteable public URL) currently need workarounds a Convex developer would
+never meet. Supabase Storage sits in between: RLS-adjacent policies exist
+but live in a second system with its own policy language; Snapback's
+one-declaration sharing is genuinely nicer *when the tables cooperate*.
+
+## Verdict
+
+The pipeline's core is excellent and the demo proves it end to end on a
+real server. The remaining distance to "feels effortless" is concentrated
+in four places: AssetRef in live-query result contracts (finding 1), the
+sessions header on public/signed lanes (finding 7), a browser sign-in
+story (finding 7), and the guide teaching the membership/seed patterns
+(findings 2, 6). Tickets filed for each; none is structural.
+

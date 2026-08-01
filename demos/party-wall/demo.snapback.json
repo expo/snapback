@@ -1,0 +1,76 @@
+{
+  "id": "party-wall",
+  "title": "Party Wall — a photos wall for events",
+  "description": "The first demo consumer of the full LLP 0044 asset pipeline: strip-declared photo uploads with required variants publish through trusted finalization, attach to wall posts via the canonical ctx.assets.attach handler, share exactly along event membership (join grants, leave revokes) through via-references, deliver strictly with ranges, plus public-immutable covers, signed-bearer share links, referenced-delete refusal → cascade, reference GC, and seed photo fixtures through the trusted path.",
+  "artifactSchemaVersion": "snapback.v0",
+  "targetProfile": "local-dev-sqlite-ibex",
+  "systems": ["Assets", "Storage", "RBAC", "Auth", "Codegen", "Realtime", "Testing", "Clients"],
+  "requiredCapabilities": {
+    "storageEngine": "sqlite",
+    "runtimeEngine": "ibex",
+    "authMode": "sessions",
+    "assetLifecycle": true,
+    "assetImagePipeline": true,
+    "assetDeliveryProfiles": ["private-strict", "private-signed", "public-immutable"],
+    "assetReferenceGc": true,
+    "seedAssetFixtures": true,
+    "membershipDeclarations": true,
+    "liveSubscriptions": true
+  },
+  "backend": {
+    "source": "snapback/schema.mjs + snapback/functions.mjs + snapback/handlers.mjs + snapback/seed.json + snapback/seed-assets.json",
+    "codegen": "node packages/snapback-codegen/index.mjs demos/party-wall/snapback",
+    "generated": [
+      "snapback/generated/schema.manifest.json",
+      "snapback/generated/functions.manifest.json",
+      "snapback/generated/capability.manifest.json",
+      "snapback/generated/contract-data.manifest.json",
+      "snapback/generated/seed.artifact.json",
+      "snapback/generated/seed.asset-fixtures.artifact.json",
+      "snapback/generated/api.mjs",
+      "snapback/generated/api.d.ts",
+      "snapback/generated/package.json",
+      "snapback/generated/artifacts.json"
+    ],
+    "stalenessPolicy": "committed; regenerate with codegen; freshness tracked by artifacts.json inputsHash"
+  },
+  "surfaces": {
+    "headless": {
+      "requirement": "required",
+      "buildTargets": [],
+      "runner": "node demos/party-wall/tests/acceptance/headless.mjs",
+      "toolchain": "node>=24, cargo"
+    },
+    "react": {
+      "requirement": "integration",
+      "buildTargets": ["web"],
+      "runner": "node demos/party-wall/tests/acceptance/react-build.mjs",
+      "toolchain": "node>=24, bun"
+    }
+  },
+  "acceptanceChecks": {
+    "headless": [
+      "seed fixtures ingest through the trusted finalization path on a dev sibling and resolve $assetFixture placeholders into rows",
+      "a host uploads a GPS-strippable photo to ready with the required thumb variant and a server ThumbHash",
+      "the canonical handler ctx.assets.attach lands the post on the membership-gated live wall",
+      "joining an event grants via-references reads and strict delivery; leaving revokes; never-members see nothing",
+      "the event cover publishes public-immutable and serves without a session (protocol header caveat recorded)",
+      "signed URLs issue for the private-signed intent as bounded bearers; strict photos refuse issuance",
+      "explicit delete refuses while a post references the photo; deleting the post clears the edge and the cascade completes"
+    ],
+    "react": [
+      "the browser arm builds over the real workspace packages and generated api (full walkthrough is manual per README; browser sessions sign-in is a recorded gap)"
+    ]
+  },
+  "capabilityGaps": [
+    "live queries cannot return tables containing v.assetRef fields (result-contract gap) — the wall uses the split posts/photoShares workaround",
+    "dev-mode asset HTTP resolves anonymous, so per-user asset flows require sessions custody; the browser sign-in flow uses the dev mailbox with an admin token (trusted-local only)",
+    "sessions-mode servers require the auth-client protocol header on every request, including public-immutable and signed URLs — public links are not yet plain-pasteable",
+    "no operator verb drives the reference-GC sweep deterministically; the suite proves the edge-cleared state via explicit delete instead"
+  ],
+  "notClaiming": [
+    "hosted target support (local-dev only)",
+    "video walls (photo intents only; video finalization exists but is not exercised here)",
+    "share links for existing strict photos (delivery policy follows the asset; sharing uses a separate private-signed intent)"
+  ]
+}

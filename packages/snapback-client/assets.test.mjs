@@ -547,3 +547,24 @@ const client = { baseUrl, subscribeLive: () => {} };
 server.closeAllConnections?.(); server.close();
 console.log('assets.test.mjs passed');
 process.exit(0);
+
+// Browser-digest fallback: the incremental FIPS 180-4 implementation must
+// match node:crypto exactly across boundary lengths (diary 0041 finding 8).
+test('incremental sha256 fallback matches node:crypto', async () => {
+  const { createHash: nodeCreateHash, randomBytes } = await import('node:crypto');
+  const { __testIncrementalSha256 } = await import('./assets.mjs');
+  for (const length of [0, 1, 55, 56, 57, 63, 64, 65, 127, 128, 1000, 65536]) {
+    const bytes = length === 0 ? new Uint8Array(0) : new Uint8Array(randomBytes(length));
+    const expected = nodeCreateHash('sha256').update(bytes).digest('hex');
+    const fallback = new __testIncrementalSha256();
+    // split the update across uneven chunks to exercise block boundaries
+    fallback.update(bytes.subarray(0, Math.floor(length / 3)));
+    fallback.update(bytes.subarray(Math.floor(length / 3)));
+    assert.equal(fallback.digest('hex'), expected, `length ${length}`);
+    assert.equal(
+      new __testIncrementalSha256().update(bytes).digest('base64'),
+      nodeCreateHash('sha256').update(bytes).digest('base64'),
+      `base64 length ${length}`,
+    );
+  }
+});
