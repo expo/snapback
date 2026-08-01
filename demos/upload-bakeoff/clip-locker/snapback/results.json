@@ -1,0 +1,154 @@
+{
+  "arm": "snapback",
+  "startedAt": "2026-08-01T16:15:15.202Z",
+  "steps": {
+    "boot": {
+      "wallMs": 26294,
+      "ceremony": "schema+intent+2 mutations, codegen, server boot, session mint"
+    },
+    "interrupt": {
+      "plannedDropAtBytes": 60106257,
+      "transferredBeforeDrop": 58720256,
+      "taskStatusAfterDrop": "failed"
+    },
+    "bigUpload": {
+      "wallMsTotal": 17400,
+      "wallMsResumeLeg": 15064,
+      "fileBytes": 120212515,
+      "patchBytesTotal": 120212515,
+      "bytesRetransmitted": 0,
+      "patches": 58,
+      "integrityBasis": "end-to-end-verified",
+      "assetId": "019fbe1c-1e01-7d13-a70f-290f92875e33"
+    },
+    "integrity": {
+      "sourceSha256": "6f821fe4d57acae58fa3da2b1981fa1207d2f652a64552badc792eb960e1c829",
+      "storedSha256": "6f821fe4d57acae58fa3da2b1981fa1207d2f652a64552badc792eb960e1c829",
+      "matches": true,
+      "note": "strip-declared video: canonical bytes may lawfully differ if location atoms were blanked; big fixture carries no location, so digests must match"
+    },
+    "range": {
+      "status": 206,
+      "contentRange": "bytes 100-4099/549153",
+      "bytes": 4000,
+      "suffixStatus": 206,
+      "suffixContentRange": "bytes 548129-549152/549153",
+      "cacheControl": "no-store, private"
+    },
+    "share": {
+      "headerlessServeStatus": 200,
+      "afterTtlStatus": 401,
+      "ttlMsRequested": 1500
+    },
+    "deletion": {
+      "referencedDeleteStatus": 409,
+      "referencedDeleteCode": null,
+      "deleteAfterClearStatus": 200,
+      "outstandingSignedUrlAfterDelete": 404,
+      "newIssuanceAfterDelete": 404,
+      "note": "outstanding signed URL dies at origin because validation recomputes the lifecycle generation"
+    },
+    "geoPrivacy": {
+      "outcome": "ready",
+      "servedBytes": 549188,
+      "sourceBytes": 549188,
+      "digestChanged": true,
+      "servedPath": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/clip-locker-snapback-OYKpIP/geo-served.mp4"
+    },
+    "limits": {
+      "source": "schemas/capability.manifest.local-dev-sqlite-ibex.json (server-declared)",
+      "assets": {
+        "advisoryLimits": [],
+        "appLogicalQuotaBytes": 4294967296,
+        "attemptTtlMs": 21600000,
+        "capabilityId": "asset_lifecycle_v1",
+        "deliveryProfiles": [
+          "private-strict",
+          "private-signed",
+          "public-immutable"
+        ],
+        "digestAlgorithm": "sha256",
+        "export": {
+          "cutExport": true,
+          "importApply": "experimental",
+          "importValidation": true
+        },
+        "image": {
+          "capabilityIds": [
+            "asset_image_finalization_v1",
+            "asset_image_pipeline_v1"
+          ],
+          "formats": [
+            "image/jpeg",
+            "image/png"
+          ],
+          "maxDecompressionRatio": 500,
+          "maxDimension": 16384,
+          "maxMetadataBytes": 1048576,
+          "maxOutputBytes": 67108864,
+          "maxPixels": 50000000,
+          "placeholderAlgorithm": "thumbhash.v1",
+          "ratioFloorBytes": 16777216,
+          "stepTimeBudgetMs": 10000
+        },
+        "integrityGrades": [
+          "end-to-end-verified",
+          "received-bytes-canonical"
+        ],
+        "lifecycleCallbacks": [
+          "ready",
+          "rejected"
+        ],
+        "lifecycleStores": [
+          "local-fs"
+        ],
+        "maxChunkBytes": 8388608,
+        "maxOpenAttemptsPerApp": 64,
+        "maxOpenAttemptsPerPrincipal": 8,
+        "minAccountingUnitBytes": 4096,
+        "missing": [
+          "asset-byte-backup",
+          "asset-custom-read-authorizers",
+          "asset-deferred-length"
+        ],
+        "pendingGraceMs": 86400000,
+        "publicationRetentionMs": 604800000,
+        "referenceGc": {
+          "capabilityId": "asset_reference_gc_v1",
+          "graceMaxMs": 2592000000,
+          "graceMinMs": 60000
+        },
+        "resumableLane": "tus-1.0.0",
+        "seedAssetFixtures": true,
+        "signedUrlDefaultTtlMs": 900000,
+        "signedUrlMaxTtlMs": 86400000,
+        "tombstoneRetentionMs": 604800000,
+        "video": {
+          "capabilityIds": [
+            "asset_video_finalization_v1"
+          ],
+          "containerBrands": [
+            "isom",
+            "iso2",
+            "mp41",
+            "mp42",
+            "avc1",
+            "qt"
+          ],
+          "formats": [
+            "video/mp4",
+            "video/quicktime"
+          ],
+          "maxBoxCount": 65536,
+          "maxBoxDepth": 16,
+          "maxMetadataBytes": 4194304,
+          "maxParseBytes": 268435456,
+          "stepTimeBudgetMs": 10000
+        },
+        "workLeaseMs": 60000,
+        "workRetryCeiling": 5
+      }
+    }
+  },
+  "finishedAt": "2026-08-01T16:16:01.617Z"
+}
