@@ -29,3 +29,17 @@ from a tree ≥ 5ed6d6b9 (which carries every packaged-asset fix:
 cb608f7b-lineage attach admissions, f9679cf4 pasteable lanes, 0aba0280
 sessions custody, 60a83597 chunk gate); then the leased default-tag
 promotion. The three closed packaged tickets reference this handoff.
+
+---
+
+**RESOLVED 2026-08-01 (fix-wave review pass): satisfied by the 0.1.8
+publish.** The promotion lane published 0.1.8 fast-path from main
+`5d5c6b71` — exactly the tree this ticket named as the minimum (≥
+`5ed6d6b9` was the fix-wave ask for the *wave's* commits; the packaged-
+asset class itself was fixed at `5d5c6b71` and is therefore fully
+retired for external consumers). The 0137 session's external-consumer
+re-verification (`demos/improvement-sweep/arms/reverify-0.1.8/`,
+57ed8200) confirms 21/22 facts pass with 0 regressions; the one gap is
+a 0137-lane item (a1-f5 cold-offline boot), not asset-class. The
+fix-wave commits landed after `5d5c6b71` ride the next ordinary cut —
+no special action required.

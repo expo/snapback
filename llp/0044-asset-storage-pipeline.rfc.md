@@ -5,7 +5,7 @@
 **Systems:** Assets, Storage, API, Security, Auth, Runtime, Deployment, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-31, bounded-array withdrawal (author decision,
+**Revised:** 2026-08-01 (post-bakeoff fix-wave implementation note under §Status; release-refresh handoff closed as satisfied by the 0.1.8 publish). Prior: 2026-07-31, bounded-array withdrawal (author decision,
 Charlie): `v.array(v.assetRef(...))` is withdrawn from the typed-reference
 schema nodes — the portable vocabulary ships no array table fields, and
 multi-asset relationships take the child-row (LLP 0110 bounded-children)
@@ -2048,3 +2048,26 @@ zero rows landed on tampered or incomplete directories. Still designed-
 only: restore under a real app-data import (the complete-cut admission
 end to end) — the experimental gate stays until that evidence exists.
 Byte-level snapshot backup remains Missing.
+
+### Implementation status: post-bakeoff fix wave (2026-08-01)
+
+The triage-driven fix wave landed across two lanes and a review pass
+(β1 `e84b0570`/`26a9334c`, α `0b641288`/`5ed6d6b9`/`ef1141fe`/
+`1e337b4f`, β2 `67da515f`/`ed8ee876`, docs `cdca8280`): the per-VM
+strict host context (every VM now claims the Enforce-mode context —
+previously only the first VM on the installing thread had it), declared
+application refusals (`ctx.refuse` with a manifest-declared closed set;
+undeclared claims fold with payloads dropped), the schema-module
+definition refusals, the small-S sweep (anonymous-public custody,
+generation-time accept refusals, canonical digest + integrity grade on
+the record surfaces, chunk-narrowing limits preflight, honest
+diagnostics), `_snapback.myMemberships`, the Expo poisoned-resume fix
+with loss forensics, nine guide pages, and thirty-four ticket
+resolutions audited at tip by the review pass (full gates green:
+1570 lib tests, conformance 18/18, Party Wall 12/12). Routed rather
+than fixed, deliberately: principal-addressed membership writes and
+partition-visible keyset pages await LLP 0100's ratification; the RN
+durable store belongs to the LLP 0129 adapter lane; sessions callback
+authority awaits its 0055-style design. The packaged-surface staleness
+class is retired: 0.1.8 published from `5d5c6b71` and externally
+re-verified by the 0137 sweep (21/22, no regressions).
