@@ -1,0 +1,83 @@
+{
+  "arm": "supabase",
+  "namespace": "ub-c-supabase-1",
+  "startedAt": "2026-08-01T16:22:10.481Z",
+  "steps": {
+    "baseline": {
+      "bucketCount": 1,
+      "namespacePresent": true,
+      "error": null
+    },
+    "boot": {
+      "wallMs": 327,
+      "created": "ok"
+    },
+    "tusCapabilities": {
+      "status": 200,
+      "tusVersion": null,
+      "tusExtension": null,
+      "tusMaxSize": null,
+      "tusChecksum": null
+    },
+    "interrupt": {
+      "plannedDropAtBytes": 60106257,
+      "transferredBeforeDrop": 0,
+      "error": "tus: unexpected response while creating upload, originated from request (method: POST, url: https://dpwkaipvmkdatimrbrxk.supabase.co/storage/v1/upload/resumable, response code: 413, response text: Max"
+    },
+    "bigUpload": {
+      "wallMsTotal": 367,
+      "wallMsResumeLeg": 167,
+      "fileBytes": 120212515,
+      "patchBytesTotal": 0,
+      "bytesRetransmitted": -120212515,
+      "patches": 0,
+      "error": "tus: unexpected response while creating upload, originated from request (method: POST, url: https://dpwkaipvmkdatimrbrxk.supabase.co/storage/v1/upload/resumable, response code: 413, response text: Maximum size exceeded\n, request id: n/a)"
+    },
+    "cappedResumability": {
+      "sanctionedContinuation": "uploadUrl-from-first-attempt",
+      "fileBytes": 41943040,
+      "droppedAt": 20971520,
+      "transferredBeforeDrop": 18874368,
+      "patchBytesTotal": 41943040,
+      "bytesRetransmitted": 0,
+      "patches": 7,
+      "wallMsResumeLeg": 17004,
+      "error": null
+    },
+    "range": {
+      "status": 206,
+      "contentRange": "bytes 100-4099/549153",
+      "bytes": 4000,
+      "suffixStatus": 206,
+      "suffixContentRange": "bytes 548129-549152/549153",
+      "cacheControl": null
+    },
+    "share": {
+      "headerlessServeStatus": 200,
+      "afterTtlStatus": 400,
+      "ttlSecondsRequested": 2,
+      "revocationApi": "none documented for outstanding signed URLs short of object deletion/key rotation"
+    },
+    "deletion": {
+      "deleteError": null,
+      "outstandingSignedUrlAfterDelete": 400,
+      "note": "no reference tracking: app-database rows pointing at the object are the app problem"
+    },
+    "geoPrivacy": {
+      "digestUnchanged": true,
+      "note": "digest unchanged ⇒ location metadata served back verbatim (no server-side stripping surface exists)"
+    },
+    "limits": {
+      "tusMaxSize": null,
+      "bucketFileSizeLimit": "150MB set at creation; global project cap governs (Free plan default 50MB unless raised — observed outcome above is the truth)",
+      "docs": "https://supabase.com/docs/guides/storage/uploads/resumable-uploads (6MB fixed chunk)"
+    },
+    "cleanup": {
+      "deleteBucket": "ok",
+      "namespaceAbsent": true,
+      "bucketCountAfter": 0,
+      "baselineCountUnchanged": false
+    }
+  },
+  "finishedAt": "2026-08-01T16:22:55.295Z"
+}

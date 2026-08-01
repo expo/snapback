@@ -76,3 +76,65 @@ All nine checklist items pass; `snapback/results.json` carries the
 receipts; limits recorded from the server-declared capability manifest
 (4 GiB app quota, 8 MiB chunk fact — see finding 1, 6 h attempt TTL,
 three delivery profiles, sha256, export facts).
+
+## 2026-08-01 — supabase, round 1, PASS-with-gaps (shared project, namespaced)
+
+### Environment
+- Shared project `snapback-partiful-matrix` (plan unknown to the arm;
+  disclosed per the 0102 amendment), `@supabase/supabase-js` +
+  `tus-js-client` (their documented resumable path), namespace
+  `ub-c-supabase-1`, baseline recorded, cleanup proven absent at exit.
+
+### Milestones and headline numbers
+- Bucket + first object: sub-second ceremony once auth worked — the
+  storage API is genuinely small.
+- **120 MB refused up front**: TUS create → 413 "Maximum size exceeded"
+  (project-level cap governs; our 150 MB `fileSizeLimit` at bucket
+  creation was itself refused as "The object exceeded the maximum
+  allowed size"). Shared-target/plan evidence, not universal truth —
+  but the pricing-cliff shape is real: the cap is a project setting,
+  and the failure arrives only at upload time.
+- **Resumability truth, 40 MB leg (under the cap): 0 bytes
+  re-transmitted** with the sanctioned `uploadUrl` continuation —
+  their TUS is byte-exact, 6 MiB fixed chunks, resume leg 17.0 s.
+  **But the naive path re-sent 100 % of the file**: with in-memory
+  sources, `findPreviousUploads()` finds nothing (no fingerprint), so
+  continuation custody — storing `upload.url` yourself — is entirely
+  the app's job. Snapback's client ships that custody
+  (`resumePersisted`); here it is homework the docs don't emphasize.
+- Range: real 206 with correct `content-range`; `cache-control` absent
+  on the signed lane.
+- Share: signed URL serves headerless; after 2 s TTL → 400; after
+  object delete an outstanding URL → 400 (dies at origin — good);
+  **no revocation API** for outstanding URLs short of deletion.
+- **GPS: served back verbatim** (digest unchanged). No server-side
+  metadata surface exists; location privacy is entirely the client's
+  problem.
+- Integrity: no server-declared digest surface on this path; the TUS
+  OPTIONS response exposes **no** `Tus-Extension`/`Tus-Max-Size`/
+  checksum headers at all — capability transparency is poor; you learn
+  limits by hitting them.
+
+### What felt bad or frustrating
+1. **New-style key vs. their own TUS endpoint**: `sb_secret_…` as
+   `authorization: Bearer` → 400 "Invalid Compact JWS"; the same key in
+   the `apikey` header works. tus-js-client sends `authorization`, so
+   the documented client + current keys fail out of the box; nothing in
+   the error says "use apikey".
+2. Limits opacity: three different size ceilings (global project cap,
+   bucket `fileSizeLimit`, TUS max) with three different error shapes,
+   none discoverable before the attempt.
+3. `emptyBucket()` left objects the delete then tripped on;
+   list-and-remove was needed for a provable cleanup.
+
+### What felt good
+- The API surface is small and orthogonal; RLS-era muscle memory
+  transfers; signed-URL death-at-origin after delete is better than the
+  bearer-forever many CDNs give you.
+- TUS interop at all is real: any TUS client works, which is more open
+  than a bespoke protocol.
+
+### Outcome
+Checklist: big-file leg capped by plan (recorded), all other items
+measured; `supabase/results.json` carries receipts including the TUS
+capability-header nulls and the cleanup absence proof.
