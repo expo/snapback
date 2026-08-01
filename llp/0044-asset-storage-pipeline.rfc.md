@@ -5,7 +5,14 @@
 **Systems:** Assets, Storage, API, Security, Auth, Runtime, Deployment, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-08-01 (post-bakeoff fix-wave implementation note under §Status; release-refresh handoff closed as satisfied by the 0.1.8 publish). Prior: 2026-07-31, bounded-array withdrawal (author decision,
+**Revised:** 2026-08-01, later same day (ceremony floor + bounded
+on-demand widths, ruled by the author on the LLP 0139 bakeoff evidence —
+§Ceremony floor and bounded on-demand widths: bare `v.assetRef()` derives
+a generated default intent (strict/strip/owner-only, manifest-visible,
+`{upload: null}` preserving the prior unrestricted semantics), and the
+dynamic-transform non-goal is superseded by ladder-bounded on-demand
+rendition materialization under the existing ceilings). Prior:
+2026-08-01 (post-bakeoff fix-wave implementation note under §Status; release-refresh handoff closed as satisfied by the 0.1.8 publish). Prior: 2026-07-31, bounded-array withdrawal (author decision,
 Charlie): `v.array(v.assetRef(...))` is withdrawn from the typed-reference
 schema nodes — the portable vocabulary ships no array table fields, and
 multi-asset relationships take the child-row (LLP 0110 bounded-children)
@@ -898,10 +905,13 @@ commit boundary itself performs the admission**: it derives the full
 admission check (intent identity, owner and attachment policy, lifecycle
 generation, availability) from the field's schema-declared `v.assetRef`
 intent restriction and runs it under the path's own authority inside the
-committing transaction. A `v.assetRef` field *without* a declared intent
-restriction is therefore attachable only through handler-side `attach`;
-host plans and system paths refuse it, since the commit boundary has no
-declared intent to check against. The flagship ordinary-mutation
+committing transaction. Per the 2026-08-01 ceremony amendment, a bare
+`v.assetRef()` field derives a default intent and therefore carries a
+restriction like any explicitly restricted field; only the explicit
+`v.assetRef({upload: null})` spelling is restriction-less, and *that*
+shape is attachable only through handler-side `attach` — host plans and
+system paths refuse it, since the commit boundary has no declared intent
+to check against. The flagship ordinary-mutation
 attachment works on both shapes: a handler mutation via `attach`, a
 host-plan mutation via the schema-derived commit-boundary admission. Logical import of rows carrying `v.assetRef` fields refuses
 while the export/import capability is a declared Missing nonclaim — an
@@ -1377,7 +1387,11 @@ is a client-distribution claim, not part of this target composite — a
 server proves renditions; an SDK proves rendering. This should follow the
 lifecycle slice closely; it is the media experience that makes the arm
 excellent rather than merely adequate, and it is what admits default-policy
-image intents.
+image intents. Per the 2026-08-01 dated amendment it also carries the
+on-demand width facts: the ladder, the per-intent ceiling, and
+inline-materialization support. Derived default intents are a
+codegen-side fact (`assetDefaultIntents`), not a target fact — every
+target sees them as ordinary intents.
 
 #### Store and delivery profile facts
 
@@ -1510,11 +1524,78 @@ component participates in logical export under its component-boundary
 rule (both components or neither) — is recorded here for 0007's owner to
 absorb rather than edited into 0007 by this program.
 
+### Ceremony floor and bounded on-demand widths (dated amendment, 2026-08-01)
+
+Ruled by the author (Charlie, 2026-08-01, on the LLP 0139 bakeoff's
+evidence ticket: "Yes, fine to amend 0044 and whatever to change our
+design plans to handle this better. Go ahead and make both of those
+changes."). The evidence: PocketBase served an avatar with zero authored
+backend files and sized thumbnails by URL parameter
+(`diaries/0048-upload-bakeoff-faceplate.diary.md`, App A wrap;
+`demos/upload-bakeoff/reports/summary.md`, ceremony and media-pipeline
+axes) — the two measured DX losses in a field Snapback otherwise led.
+Both changes preserve the generated-facts model; neither weakens a privacy
+or capability-honesty rule.
+
+**1. The derived default intent.** A bare `v.assetRef()` field — no
+`upload` restriction — now *derives* a generated default upload intent
+from its placement: stable derived id (`_assets.default.<table>.<field>`,
+outside the exported-binding namespace), `auth: "authenticated"`,
+`accept` = the trusted-detectable strippable image set (`image/jpeg`,
+`image/png`) with a 10 MB bound, `delivery: private-strict`,
+`location: "strip"`, `access: owner-only`, default attachment policy, and
+a canonical codegen-emitted authorizer whose output is
+`{owner: ctx.auth.userId}`. The derived intent is an ordinary generated
+intent in every respect — manifest-visible with a stable policy hash and
+policy generations, target-refusable, escalatable — so the field is
+semantically `v.assetRef({upload: "<derived id>"})`: the commit-boundary
+admission works on every write path (host plans included, which
+previously refused restriction-less fields), and the location-policy rule
+applies unchanged (a lifecycle-only target refuses the default intent's
+strip media exactly like an explicit one). `defineAssetUpload` remains
+the escalation path and overrides nothing implicitly: a field naming an
+explicit intent uses it, full stop. The rare
+any-intent-handler-attach-only field keeps an explicit spelling,
+`v.assetRef({upload: null})`, preserving the prior bare-field semantics
+for apps that genuinely want cross-intent fields; **this amendment
+changes the meaning of bare `v.assetRef()`** at the next generation, and
+records that consequence rather than smuggling it.
+
+**2. Bounded on-demand widths.** §Non-goals' dynamic-transform deferral
+said reopen with evidence; the bakeoff supplied it. Admitted, bounded,
+inside the declared vocabulary: image delivery accepts `?width=N` where
+N ≤ the intent's declared on-demand ceiling (default 2048); N normalizes
+UP to a fixed 13-step ladder (16, 32, 64, 96, 128, 192, 256, 384, 512,
+768, 1024, 1536, 2048), so the variant space per asset is bounded and
+cache-keyed by real renditions, never a free transform proxy. A missing
+ladder rendition materializes once, inline, from the nearest larger
+pre-materialized variant or the primary — through the existing
+render/publication machinery under the existing decode/output/step
+ceilings, never upscaled, quota-settled like any rendition — then serves
+immutably forever (rendition-id ETags; `public-immutable` URLs stay
+honestly immutable per materialized rendition; `private-strict` stays
+no-store). Ceiling, ladder, and inline-materialization support are
+capability facts on the `asset-image-pipeline-v1` composite; a target
+without image finalization refuses `?width=` exactly as it refuses strip
+intents. Declared variants remain available and are preferred as
+materialization sources; with on-demand widths, the *default* intent
+declares no variants at all — sizing is the ladder's job.
+
+Consequence for the ceremony count: the minimal avatar path is now one
+schema field plus one `ctx.assets.attach` line in an ordinary mutation —
+the upload intent, variants, and policy ceremony all collapse into
+derived defaults, with every fact still generated, manifest-visible, and
+target-honest.
+
 ## Non-goals
 
 - CDN product design or a promise of globally optimal media delivery.
-- Dynamic `?w=400&fmt=webp` on-demand transforms; v1 uses immutable
-  pre-materialized renditions.
+- ~~Dynamic `?w=400&fmt=webp` on-demand transforms~~ — superseded
+  2026-08-01 by §Ceremony floor and bounded on-demand widths: the
+  bounded ladder admission (evidence-based, per the deferral's own
+  reopen condition). A free-form transform proxy (arbitrary dimensions,
+  format negotiation, effects) remains a non-goal; on-demand
+  *materialization of ladder renditions* is admitted design.
 - A transcoding preset/codec/ladder product.
 - Arbitrary app-authored byte-processing handlers in the initial image
   capability.
@@ -1551,6 +1632,22 @@ Intents and admission:
   `asset-image-finalization`; a strip-declared video intent refuses on
   every v1 target; an explicit retain-location intent admits and produces
   distinct policy evidence.
+- A bare `v.assetRef()` field derives its default intent: the manifest
+  carries the derived intent with a stable id and policy hash; the
+  end-to-end avatar flow (schema field → upload under the derived intent
+  → handler attach → strict delivery) works with no `defineAssetUpload`
+  authored; host-plan writes to the bare field admit via the
+  schema-derived commit-boundary check; `v.assetRef({upload: null})`
+  preserves the prior handler-attach-only unrestricted semantics; a
+  field naming an explicit intent is unaffected.
+- `?width=N` delivery normalizes N up the declared ladder, serves an
+  existing ladder rendition immutably, materializes a missing one
+  exactly once (concurrent first requests converge; ceilings and quota
+  enforced with structured refusals; never upscales), refuses N above
+  the declared ceiling, and refuses entirely on targets without
+  `asset-image-finalization`; `public-immutable` width URLs carry
+  immutable cache headers per materialized rendition and
+  `private-strict` width responses stay no-store.
 
 Client task and SDKs:
 

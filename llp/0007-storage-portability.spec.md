@@ -5,7 +5,11 @@
 **Systems:** Storage, API, Runtime, Sync, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-31, later same day (bounded-array withdrawal, author
+**Revised:** 2026-08-01 (LLP 0044 ceremony amendment companion: bare
+`v.assetRef()` derives a generated default intent — restricted-to-default
+on every write path; `upload: null` keeps the prior unrestricted
+handler-attach-only semantics; dated note inside the v.assetRef
+amendment). Prior: 2026-07-31, later same day (bounded-array withdrawal, author
 decision by Charlie: the `v.array(v.assetRef(...))` placement the LLP 0044
 companion amendment froze is withdrawn — no array table fields exist in
 the shipped portable vocabulary; child rows are the paved multi-asset
@@ -683,11 +687,19 @@ same logical app behavior on at least:
 
 **`v.assetRef` joins the portable field vocabulary.** Spelling, in the
 closed validator set of `packages/snapback-codegen/define.mjs`:
-`v.assetRef(options?: { upload?: string })`, where `upload` names the
-exported upload-intent binding whose assets the field admits; omitted, the
-field is unrestricted and attachable only through handler-side
-`ctx.assets.attach` (LLP 0044 §Typed references). Placements are explicit
-schema nodes: bare and `v.optional(v.assetRef(...))`.
+`v.assetRef(options?: { upload?: string | null })`, where `upload` names
+the exported upload-intent binding whose assets the field admits.
+Placements are explicit schema nodes: bare and
+`v.optional(v.assetRef(...))`.
+
+> Amended 2026-08-01 (LLP 0044 §Ceremony floor, author-ruled): a bare
+> `v.assetRef()` — `upload` omitted — now derives a generated default
+> intent from its table/field placement (stable id
+> `_assets.default.<table>.<field>`; strict delivery, strip, owner-only;
+> manifest-visible like any intent), so the field behaves as
+> restricted-to-its-default on every write path. The prior
+> unrestricted, handler-attach-only semantics keep the explicit spelling
+> `upload: null`.
 
 > Amended 2026-07-31, later same day (author decision, Charlie): the
 > bounded-array placement `v.array(v.assetRef(...), { maxItems })` this
