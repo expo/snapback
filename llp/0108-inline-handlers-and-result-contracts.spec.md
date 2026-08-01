@@ -5,7 +5,7 @@
 **Systems:** Authoring, Code generation, Runtime, Data API, Client integration, Contract, Security, Artifacts, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-01 (0137 a4-f1: §Admission rules gains the dated egress
+**Revised:** 2026-08-01, later same day (declared application refusals: `ctx.refuse` plus a manifest-declared closed code set, admitted only when declared and folded to the generic failure otherwise, carried as `appCode`/`appDetails` beside the platform code on both envelope decoders); 2026-08-01 (0137 a4-f1: §Admission rules gains the dated egress
 seam note — with SNAPBACK_OUTBOUND_ACTIONS set at generation, `fetch` is an
 admitted global in inline handler/helper analysis, mirroring the module-form
 scanner; timers stay excluded; runtime remains the security boundary.)
@@ -965,3 +965,49 @@ LLP 0009's stated condition), and any enforcement of declared reads/writes
 as ceilings. The invariants are unchanged: closed content-addressed graph,
 no `Function.prototype.toString()` authority, no runtime capture inference,
 no ambient checkout access.
+
+## Declared application refusals
+
+*(2026-08-01, normative.)* Every handler-raised semantic refusal previously collapsed to the single
+generic code `SNAPBACK_HANDLER_FAILED`: a stale-revision conflict, a consumed
+invite, and a validation error were indistinguishable, and the acceptance
+clients in two independent bakeoffs had to key their reconciliation branches
+on message prose (LLP 0137 A3 f3; `issues/closed/20260801-0137-a3-no-structured-app-refusal-codes.md`).
+Host refusals are an exemplary coded vocabulary; app semantics had none.
+
+The channel is **declared**, because a thrown code cannot type itself. LLP
+0053's pinned rule stands unchanged — a thrown object, returned envelope,
+adapter string, or forged `{code: …}` is untyped — so the declaration, not
+the throw, is what admits a code:
+
+- **Authoring.** A function declares a closed set: `refusals: ['STALE_MOVE',
+  'INVITE_CONSUMED']`. Codegen validates the vocabulary (1–64 characters,
+  `A-Z0-9_`, no duplicates, at most 64 per function) and refuses the reserved
+  `SNAPBACK_` prefix, so an app code can never be confused with a platform
+  diagnostic on any surface that renders both. The manifest carries the set
+  (`FunctionDefinition.refusals`) and manifest load re-validates it.
+- **Raising.** `ctx.refuse(code, details?)` throws a branded error whose
+  claimed app code and JSON-safe details ride the completion envelope beside
+  the platform code `SNAPBACK_APP_REFUSAL`.
+- **Admission.** The host admits the claim only when the invoked function
+  declared that code, and folds anything else — undeclared, forged, or a
+  bare `SNAPBACK_APP_REFUSAL` claim with no app code — to
+  `SNAPBACK_HANDLER_FAILED`, **dropping the app payload with it**. The
+  declaration set is carried host-side from the prepared invocation and is
+  empty by default, so any path that does not deliberately carry it folds
+  every claim: fail-closed by construction.
+- **Surface.** The refusal arrives as the platform code
+  `SNAPBACK_APP_REFUSAL` with `appCode` and `appDetails` in its diagnostic
+  details — a namespaced field beside the platform code, never replacing it,
+  and never able to mask a `SNAPBACK_*` denial. Both envelope decoders (Rust
+  `handler_envelope_code`, JS `envelope.mjs`) treat it identically.
+
+Host denials are unaffected: they stay terminal, unmaskable, and outside this
+channel. A declared refusal is an ordinary handler failure for effect
+purposes — a refusing mutation commits nothing, exactly as before.
+
+**Deliberately deferred**, and not implied by this channel: retry and
+quarantine dispositions for declared refusals (they participate in none
+today); i18n or user-facing message contracts (`appDetails` is app-owned
+JSON); a platform-wide refusal taxonomy; and refusal declarations
+participating in result-contract hashes.

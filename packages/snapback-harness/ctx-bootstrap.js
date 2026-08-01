@@ -768,8 +768,31 @@
       db.get = readonlyDenied("get");
       db.query = readonlyDenied("query");
     }
+    // Declared application refusals (LLP 0108 §Declared application refusals).
+    // The thrown code is *claimed*, never trusted: the host admits `appCode`
+    // only when the invoked function declares it, and folds anything else to
+    // SNAPBACK_HANDLER_FAILED. Details are ordinary JSON validated host-side.
+    var refuse = function(appCode, details) {
+      var error = snapbackError(
+        "SNAPBACK_APP_REFUSAL",
+        typeof appCode === "string" ? appCode : "application refusal"
+      );
+      try {
+        trustedDefineProperty(error, "__snapbackAppCode", {
+          value: typeof appCode === "string" ? appCode : null
+        });
+        trustedDefineProperty(error, "__snapbackAppDetails", {
+          value: details === undefined ? null : details
+        });
+      } catch (_) {
+        error.__snapbackAppCode = typeof appCode === "string" ? appCode : null;
+        error.__snapbackAppDetails = details === undefined ? null : details;
+      }
+      throw error;
+    };
     var ctx = {
       auth: auth,
+      refuse: refuse,
       // @ref LLP 0055#principal-kinds —
       // both conjuncts are load-bearing: kind alone admits delegation, while
       // actor absence alone admits autonomous agents.
@@ -1175,6 +1198,25 @@
       var code = typeof rawCode === "string" ? rawCode : null;
       var message = "handler failure could not be safely inspected";
       try { message = __snapbackSafeString(error && error.message || error); } catch (_) {}
+      // A declared application refusal carries its claimed app code and JSON
+      // details beside the platform code. Both stay claims: the host admits
+      // them only against the function's declared refusal set.
+      var appCode = null;
+      var appDetails = null;
+      try { appCode = error && error.__snapbackAppCode; } catch (_) {}
+      try { appDetails = error && error.__snapbackAppDetails; } catch (_) {}
+      if (code === "SNAPBACK_APP_REFUSAL" && typeof appCode === "string") {
+        var encodedDetails = trustedJsonStringify(
+          appDetails === undefined ? null : appDetails,
+          __snapbackJsonReplacer
+        );
+        if (encodedDetails === undefined) encodedDetails = "null";
+        return '{"r":{"__snapbackOk":false,"code":' +
+          trustedJsonStringify(code) + ',"message":' +
+          trustedJsonStringify(message, __snapbackJsonReplacer) + ',"appCode":' +
+          trustedJsonStringify(appCode) + ',"appDetails":' +
+          encodedDetails + '}}';
+      }
       // Build the trusted outer envelope from separately encoded primitives.
       // A handler may poison Object.prototype.toJSON; serializing a plain
       // envelope object here would let that inherited hook turn a thrown

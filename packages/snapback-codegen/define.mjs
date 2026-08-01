@@ -42,7 +42,7 @@ const AUTHORIZATION_DIMENSIONS = new Set([
 ]);
 const QUERY_SPEC_FIELDS = new Set([
   'table', 'args', 'filter', 'order', 'limit', 'index', 'defaultLive',
-  'auth', 'authorityIndependent', 'publicInline', 'retainable',
+  'auth', 'authorityIndependent', 'publicInline', 'retainable', 'refusals',
   'authScopeField', 'membership', 'standardPattern',
 ]);
 
@@ -63,7 +63,7 @@ function normalizeStandardPattern(spec, kind) {
 }
 const JS_QUERY_SPEC_FIELDS = new Set([
   'args', 'source', 'exportName', 'handler', 'reads', 'result', 'authScopeField',
-  'defaultLive', 'auth', 'authorityIndependent', 'retainable',
+  'defaultLive', 'auth', 'authorityIndependent', 'retainable', 'refusals',
   'authorizationDependence',
 ]);
 const TARGET_CAPABILITIES = new Set([
@@ -151,6 +151,30 @@ function authoredFunctionAuth(spec, kind) {
     assert(typeof spec.retainable === 'boolean', `${kind} retainable must be boolean`);
     assert(kind === 'Query' || kind === 'LiveQuery', `${kind} cannot be retainable`);
     fields.retainable = spec.retainable;
+  }
+  // @ref LLP 0108#declared-application-refusals — the declaration is what
+  //   makes an app-thrown code typed; an undeclared throw stays generic.
+  if (spec.refusals !== undefined) {
+    assert(Array.isArray(spec.refusals), `${kind} refusals must be an array`);
+    assert(spec.refusals.length <= 64, `${kind} declares more than 64 refusals`);
+    const seenRefusals = new Set();
+    for (const code of spec.refusals) {
+      assert(
+        typeof code === 'string' && code.length > 0 && code.length <= 64,
+        `${kind} refusal codes must be 1..=64 character strings`,
+      );
+      assert(
+        !code.startsWith('SNAPBACK_'),
+        `${kind} refusal ${code} must not use the reserved SNAPBACK_ namespace`,
+      );
+      assert(
+        /^[A-Z0-9_]+$/.test(code),
+        `${kind} refusal ${code} must be A-Z, 0-9, and underscore`,
+      );
+      assert(!seenRefusals.has(code), `${kind} declares duplicate refusal ${code}`);
+      seenRefusals.add(code);
+    }
+    fields.refusals = [...spec.refusals];
   }
   if (spec.authorizationDependence !== undefined) {
     assert(kind === 'Query' || kind === 'LiveQuery', `${kind} cannot declare authorizationDependence`);

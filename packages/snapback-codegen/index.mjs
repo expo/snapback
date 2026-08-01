@@ -4397,6 +4397,7 @@ function authoredFunctionManifestFields(def, declaredWrites = [], tables = {}) {
     ...(def.publicInline === true ? { publicInline: true } : {}),
     ...(authorityCreating ? { authorityCreating: true } : {}),
     ...(def.retainable === true ? { retainable: true } : {}),
+    ...(Array.isArray(def.refusals) && def.refusals.length > 0 ? { refusals: [...def.refusals] } : {}),
     ...(Array.isArray(def.authorizationDependence)
       ? { authorizationDependence: [...def.authorizationDependence] }
       : {}),
@@ -4831,6 +4832,7 @@ function decorateFunctions(appId, functions) {
       ...(fn.publicInline === true ? { publicInline: true } : {}),
       ...(fn.authorityCreating === true ? { authorityCreating: true } : {}),
       ...(fn.retainable === true ? { retainable: true } : {}),
+      ...(Array.isArray(fn.refusals) && fn.refusals.length > 0 ? { refusals: [...fn.refusals] } : {}),
       ...(Array.isArray(fn.authorizationDependence) && fn.authorizationDependence.length > 0
         ? { authorizationDependence: fn.authorizationDependence }
         : {}),

@@ -2952,6 +2952,13 @@
             "tables": []
           }
         },
+        "refusals": {
+          "description": "Closed set of application refusal codes this function may raise through\n`ctx.refuse`. The declaration is what makes an app-minted code typed: a\nthrown code outside this set folds to `SNAPBACK_HANDLER_FAILED`, so a\nforged claim can never mint semantics the author did not declare.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
         "requiredCapabilities": {
           "default": [],
           "items": {

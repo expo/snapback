@@ -348,6 +348,7 @@ impl RuntimeManager {
             ),
             true,
         )?;
+        invocation.declared_refusals = prepared.declared_refusals().to_vec();
         let result = run_ibex_handler_with_context(module, &mut invocation, pool);
         // A terminal role denial fails the (dry-run) mutation and never commits,
         // preserving the trusted brand regardless of a handler catch.
@@ -430,6 +431,7 @@ pub(crate) fn execute_ibex_mutation_prepared(
         ),
         true,
     )?;
+    invocation.declared_refusals = prepared.declared_refusals().to_vec();
     let result = run_ibex_handler_with_context_until(module, &mut invocation, pool, deadline);
     // A terminal role denial fails the mutation before commit and preserves the
     // trusted brand regardless of a handler catch (LLP 0056 M3).
@@ -485,6 +487,7 @@ pub(crate) fn run_ibex_query_with_reads_prepared(
         false,
     )?;
     invocation.protected_query_profile = protected_query_profile;
+    invocation.declared_refusals = prepared.declared_refusals().to_vec();
     // The shipped DK-4 reset does not restore module lexical/imported state.
     // Protected queries therefore take a fresh realm even if a caller
     // accidentally supplies the warm pool.
@@ -558,6 +561,7 @@ pub(crate) fn run_ibex_asset_authorizer_prepared(
         false,
     )?;
     invocation.protected_query_profile = true;
+    invocation.declared_refusals = prepared.declared_refusals().to_vec();
     let value = run_ibex_handler_with_context(module, &mut invocation, None);
     if let Some(denial) = invocation.take_terminal_denial() {
         return Err(denial);
@@ -1076,6 +1080,10 @@ pub(crate) struct IbexHostContext<'a> {
     /// Default-deny input registry for auth-scoped live and retained queries.
     /// This bit is host-owned and cannot be changed by handler code.
     protected_query_profile: bool,
+    /// Declared application refusal codes for the invoked function. Host-owned
+    /// and empty by default, so any path that does not deliberately carry the
+    /// declaration folds every claimed `appCode` (LLP 0108).
+    declared_refusals: Vec<String>,
     writes: Vec<BufferedWrite>,
     /// Buffered `ctx.jobs.enqueue` intents (LLP 0070's first slice). Like
     /// `writes`, these are effects of the mutation transaction: they commit
@@ -1184,6 +1192,7 @@ impl<'a> IbexHostContext<'a> {
                 IbexInvocationMode::Query
             },
             protected_query_profile: false,
+            declared_refusals: Vec::new(),
             writes: Vec::new(),
             job_enqueues: Vec::new(),
             asset_admissions: Vec::new(),
@@ -1241,6 +1250,7 @@ impl<'a> IbexHostContext<'a> {
             admission,
             mode: IbexInvocationMode::Action,
             protected_query_profile: false,
+            declared_refusals: Vec::new(),
             writes: Vec::new(),
             job_enqueues: Vec::new(),
             asset_admissions: Vec::new(),
@@ -2710,6 +2720,7 @@ fn run_ibex_handler_with_context_until(
         return Err(unhandled_rejection_error(module, rejections));
     }
     let (result, claimed_code) = parse_handler_output_with_claim(module, output);
+    let result = admit_declared_refusal(&invocation.declared_refusals, result);
     let result = restore_denial_witness(invocation, claimed_code.as_deref(), result);
     restore_stream_refusal(invocation, result)
 }
@@ -3081,6 +3092,43 @@ pub(crate) fn unhandled_rejection_error(
 /// the settle wrapper always tags, so an untagged `r` proves nothing about
 /// settlement and fails closed too, matching the JS decoder in
 /// `packages/snapback-harness/envelope.mjs` (ENG-23603).
+/// Admit a claimed application refusal only when the invoked function declared
+/// its code (LLP 0108 §Declared application refusals). The claim arrives inside
+/// the handler envelope, so it is untrusted exactly like any other handler
+/// output: the *declaration* is what types it. An undeclared or forged code —
+/// including one that mimics a platform diagnostic — folds to the generic
+/// handler failure, and the app payload is dropped with it.
+fn admit_declared_refusal(
+    declared: &[String],
+    result: SnapbackResult<Value>,
+) -> SnapbackResult<Value> {
+    let Err(error) = result else {
+        return result;
+    };
+    if error.diagnostic.code != "SNAPBACK_APP_REFUSAL" {
+        return Err(error);
+    }
+    let claimed = error
+        .diagnostic
+        .details
+        .get("appCode")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_owned();
+    if claimed.is_empty() || !declared.iter().any(|code| code == &claimed) {
+        return Err(SnapbackError::error(
+            "SNAPBACK_HANDLER_FAILED",
+            "runtime",
+            "JavaScript handler failed",
+        )
+        .with_details(json!({
+            "function": error.diagnostic.details.get("function").cloned().unwrap_or(Value::Null),
+            "message": "handler raised an undeclared application refusal",
+        })));
+    }
+    Err(error)
+}
+
 pub(crate) fn parse_handler_output(module: &IbexModule, output: String) -> SnapbackResult<Value> {
     parse_handler_output_with_claim(module, output).0
 }
@@ -3118,6 +3166,28 @@ pub(crate) fn parse_handler_output_with_claim(
             .get("message")
             .and_then(Value::as_str)
             .unwrap_or("JavaScript handler failed");
+        // A claimed application refusal carries its app code and JSON details
+        // through to `admit_declared_refusal`, which drops both unless the
+        // function declared the code (LLP 0108).
+        if code == "SNAPBACK_APP_REFUSAL" {
+            let app_code = object.get("appCode").and_then(Value::as_str);
+            if let Some(app_code) = app_code {
+                return (
+                    Err(SnapbackError::error(
+                        code,
+                        "runtime",
+                        "application refusal",
+                    )
+                    .with_details(json!({
+                        "function": module.export,
+                        "message": message,
+                        "appCode": app_code,
+                        "appDetails": object.get("appDetails").cloned().unwrap_or(Value::Null),
+                    }))),
+                    claimed,
+                );
+            }
+        }
         return (
             Err(
                 SnapbackError::error(code, "runtime", "JavaScript handler failed").with_details(
@@ -3764,7 +3834,11 @@ fn handler_envelope_code(code: &str) -> &str {
         | "SNAPBACK_QUERY_FILTER_VALUE_INVALID"
         | "SNAPBACK_QUERY_IN_ITEMS_EXCEEDED"
         | "SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED"
-        | "SNAPBACK_QUERY_LIMIT_INVALID" => code,
+        | "SNAPBACK_QUERY_LIMIT_INVALID"
+        // A claimed application refusal survives the fold only far enough to
+        // reach `admit_declared_refusal`, which drops it unless the function
+        // declared the carried app code (LLP 0108).
+        | "SNAPBACK_APP_REFUSAL" => code,
         code if code.starts_with("SNAPBACK_HANDLER_HOST_CALL_") => code,
         _ => "SNAPBACK_HANDLER_FAILED",
     }
@@ -4085,6 +4159,57 @@ mod parse_handler_output_tests {
     fn parse(output: &str) -> Result<Value, String> {
         parse_handler_output(&module(), output.to_owned())
             .map_err(|error| error.diagnostic.code.clone())
+    }
+
+    /// @ref LLP 0108#declared-application-refusals — the declaration types the
+    /// claim. An app code the function declared survives with its payload; an
+    /// undeclared or forged one folds to the generic failure and its payload
+    /// is dropped, so a handler can never mint semantics it did not declare.
+    #[test]
+    fn application_refusal_is_admitted_only_when_declared() {
+        let envelope = r#"{"r":{"__snapbackOk":false,"code":"SNAPBACK_APP_REFUSAL","message":"STALE_MOVE","appCode":"STALE_MOVE","appDetails":{"expected":1,"actual":2}}}"#;
+        let declared = vec!["STALE_MOVE".to_owned(), "INVITE_CONSUMED".to_owned()];
+
+        let admitted = super::admit_declared_refusal(
+            &declared,
+            parse_handler_output(&module(), envelope.to_owned()),
+        )
+        .expect_err("refusal is an error");
+        assert_eq!(admitted.diagnostic.code, "SNAPBACK_APP_REFUSAL");
+        assert_eq!(admitted.diagnostic.details["appCode"], "STALE_MOVE");
+        assert_eq!(admitted.diagnostic.details["appDetails"]["expected"], 1);
+
+        // Undeclared on this function: folds, payload dropped.
+        let folded = super::admit_declared_refusal(
+            &["INVITE_CONSUMED".to_owned()],
+            parse_handler_output(&module(), envelope.to_owned()),
+        )
+        .expect_err("undeclared refusal is an error");
+        assert_eq!(folded.diagnostic.code, "SNAPBACK_HANDLER_FAILED");
+        assert!(folded.diagnostic.details.get("appCode").is_none());
+        assert!(folded.diagnostic.details.get("appDetails").is_none());
+
+        // No declaration at all — the default for every path that does not
+        // deliberately carry the manifest's set.
+        let undeclared = super::admit_declared_refusal(
+            &[],
+            parse_handler_output(&module(), envelope.to_owned()),
+        )
+        .expect_err("undeclared refusal is an error");
+        assert_eq!(undeclared.diagnostic.code, "SNAPBACK_HANDLER_FAILED");
+
+        // A handler that claims the platform envelope code without an app code
+        // gets the ordinary generic failure, never a typed refusal.
+        let forged = super::admit_declared_refusal(
+            &declared,
+            parse_handler_output(
+                &module(),
+                r#"{"r":{"__snapbackOk":false,"code":"SNAPBACK_APP_REFUSAL","message":"nope"}}"#
+                    .to_owned(),
+            ),
+        )
+        .expect_err("forged refusal is an error");
+        assert_eq!(forged.diagnostic.code, "SNAPBACK_HANDLER_FAILED");
     }
 
     #[test]

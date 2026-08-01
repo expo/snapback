@@ -1208,6 +1208,12 @@ pub struct PreparedInvocation {
     /// authority from a grant-wide list.
     matched_grant_scope: Option<ResolvedGrantScope>,
     invocation_id: String,
+    /// The function's declared application refusal codes, carried from the
+    /// manifest so the envelope decoder can admit a claimed `appCode` only
+    /// when the author declared it. An empty set folds every claim.
+    ///
+    /// @ref LLP 0108#declared-application-refusals
+    declared_refusals: Vec<String>,
 }
 
 impl PreparedInvocation {
@@ -1237,6 +1243,11 @@ impl PreparedInvocation {
 
     pub fn invocation_id(&self) -> &str {
         &self.invocation_id
+    }
+
+    /// Declared application refusal codes for this function (LLP 0108).
+    pub(crate) fn declared_refusals(&self) -> &[String] {
+        &self.declared_refusals
     }
 
     pub fn admission_lease(&self) -> &AdmissionLease {
@@ -1528,6 +1539,7 @@ impl InvocationGate {
             authority_creating_consent,
             matched_grant_scope,
             invocation_id: format!("inv_{}", Uuid::now_v7().simple()),
+            declared_refusals: function.refusals.clone(),
         })
     }
 }

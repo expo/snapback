@@ -1222,6 +1222,7 @@ impl FunctionManifest {
             validate_effect_ceiling(function)?;
             validate_result_contract_definition(function)?;
             validate_args_contract_definition(function)?;
+            validate_declared_refusals(function)?;
 
             if self.schema_version == SNAPBACK_SESSIONS_SCHEMA_VERSION {
                 validate_known_v1_capabilities(
@@ -2133,6 +2134,55 @@ fn validate_authority_independent(function: &FunctionDefinition) -> SnapbackResu
 /// `authority_independent` set means the declaration validated). v1 keeps the
 /// narrower rule fail-closed: no consumer exists for a
 /// public-but-authority-dependent inline query.
+/// Application refusal codes live in their own namespace and are a closed,
+/// declared set. The vocabulary is deliberately narrow — screaming snake case,
+/// bounded count and length — so an app code can never be confused with a
+/// platform `SNAPBACK_*` diagnostic on any surface that renders both.
+///
+/// @ref LLP 0108#declared-application-refusals
+const MAX_DECLARED_REFUSALS: usize = 64;
+const MAX_REFUSAL_CODE_LEN: usize = 64;
+
+fn validate_declared_refusals(function: &FunctionDefinition) -> SnapbackResult<()> {
+    if function.refusals.is_empty() {
+        return Ok(());
+    }
+    let invalid = |reason: &str, code: &str| {
+        Err(SnapbackError::error(
+            "SNAPBACK_FUNCTION_REFUSAL_DECLARATION_INVALID",
+            "runtime",
+            format!("function {} declares an invalid refusal: {reason}", function.name),
+        )
+        .with_details(serde_json::json!({
+            "function": function.name,
+            "refusal": code,
+            "reason": reason,
+        })))
+    };
+    if function.refusals.len() > MAX_DECLARED_REFUSALS {
+        return invalid("more than 64 declared refusals", "");
+    }
+    let mut seen = std::collections::BTreeSet::new();
+    for code in &function.refusals {
+        if code.is_empty() || code.len() > MAX_REFUSAL_CODE_LEN {
+            return invalid("code must be 1..=64 characters", code);
+        }
+        if code.starts_with("SNAPBACK_") {
+            return invalid("code must not use the reserved SNAPBACK_ namespace", code);
+        }
+        if !code
+            .bytes()
+            .all(|byte| byte.is_ascii_uppercase() || byte.is_ascii_digit() || byte == b'_')
+        {
+            return invalid("code must be A-Z, 0-9, and underscore", code);
+        }
+        if !seen.insert(code.as_str()) {
+            return invalid("duplicate declared refusal", code);
+        }
+    }
+    Ok(())
+}
+
 fn validate_public_inline(function: &FunctionDefinition) -> SnapbackResult<()> {
     if !function.public_inline || function.authority_independent {
         return Ok(());
@@ -3647,6 +3697,15 @@ pub struct FunctionDefinition {
     ///   explicit capability, never inferred from live/callable status.
     #[serde(default, skip_serializing_if = "is_false")]
     pub retainable: bool,
+    /// Closed set of application refusal codes this function may raise through
+    /// `ctx.refuse`. The declaration is what makes an app-minted code typed: a
+    /// thrown code outside this set folds to `SNAPBACK_HANDLER_FAILED`, so a
+    /// forged claim can never mint semantics the author did not declare.
+    // @ref LLP 0108#declared-application-refusals — app codes live in their
+    //   own namespace and can never collide with or mask `SNAPBACK_*`. Keep
+    //   this reference out of the generated JSON Schema description.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub refusals: Vec<String>,
     /// Closed authority dimensions used by this result. Codegen derives the
     /// HostPlan value from `AuthUserId`/`authScopeField`; opaque JavaScript is
     /// never upgraded merely because an author writes `userId` here.
@@ -3721,6 +3780,7 @@ impl FunctionDefinition {
             public_inline: false,
             authority_creating: false,
             retainable: false,
+            refusals: Vec::new(),
             authorization_dependence: Vec::new(),
             syncability_class: Some(syncability_class.to_owned()),
             read_set_summary: DependencySummary::default(),
@@ -4519,6 +4579,10 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             public_inline,
             authority_creating,
             retainable,
+            // Declared app-refusal vocabulary is an authoring contract the
+            // generated client already carries; the public identity
+            // descriptor does not restate it.
+            refusals: _,
             authorization_dependence,
             syncability_class,
             read_set_summary,

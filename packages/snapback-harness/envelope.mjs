@@ -52,6 +52,11 @@ const PASSTHROUGH_CODES = new Set([
   'SNAPBACK_TEST_CRON_ACTION_INTERRUPTED',
   'SNAPBACK_HOST_FETCH_RESPONSE_TOO_LARGE',
   'SNAPBACK_HOST_FETCH_RESPONSE_INVALID_UTF8',
+  // A claimed application refusal survives the fold only so the host can
+  // admit it against the function's declared set; an undeclared code is
+  // dropped there, exactly as in admit_declared_refusal (src/runtime.rs).
+  // @ref LLP 0108#declared-application-refusals
+  'SNAPBACK_APP_REFUSAL',
 ]);
 
 export function handlerEnvelopeCode(code) {
@@ -79,11 +84,19 @@ export function parseHandlerEnvelope(envelope) {
         return { ok: true, value: r.value === undefined ? null : r.value };
       }
       if (r.__snapbackOk === false) {
-        return {
+        const code = handlerEnvelopeCode(typeof r.code === 'string' ? r.code : null);
+        const decoded = {
           ok: false,
-          code: handlerEnvelopeCode(typeof r.code === 'string' ? r.code : null),
+          code,
           message: typeof r.message === 'string' ? r.message : 'JavaScript handler failed',
         };
+        // Claims, not facts: the host admits these only against the declared
+        // refusal set (LLP 0108).
+        if (code === 'SNAPBACK_APP_REFUSAL' && typeof r.appCode === 'string') {
+          decoded.appCode = r.appCode;
+          decoded.appDetails = r.appDetails === undefined ? null : r.appDetails;
+        }
+        return decoded;
       }
     }
   }

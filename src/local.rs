@@ -24427,6 +24427,82 @@ globalThis.__snapbackHandlers = {
         assert!(committed, "the attachment-committed receipt lands");
     }
 
+    const APP_REFUSAL_SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async declaredRefusal(ctx, args) {
+    ctx.refuse('STALE_MOVE', { expected: 1, actual: args.revision });
+  },
+  async undeclaredRefusal(ctx) {
+    ctx.refuse('SOMETHING_ELSE', { hidden: 'payload' });
+  }
+};
+"#;
+
+    /// @ref LLP 0108#declared-application-refusals — end to end through the
+    /// real served mutation path: a declared code arrives typed with its
+    /// payload; an undeclared one folds to the generic failure and its
+    /// payload never reaches the caller.
+    #[test]
+    fn declared_application_refusal_round_trips_and_undeclared_folds() {
+        let mut snapback = LocalSnapback::memory().expect("memory snapback");
+        let refusal_fn = |name: &str, refusals: Vec<String>| {
+            let mut definition = FunctionDefinition::new(
+                name,
+                FunctionKind::Mutation,
+                FunctionRuntime::IbexModule(IbexModule {
+                    source: APP_REFUSAL_SOURCE.to_owned(),
+                    export: name.to_owned(),
+                }),
+            );
+            definition.refusals = refusals;
+            definition
+        };
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![
+                refusal_fn("declaredRefusal", vec!["STALE_MOVE".to_owned()]),
+                refusal_fn("undeclaredRefusal", vec!["STALE_MOVE".to_owned()]),
+            ],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "refusal manifest must load: {diagnostics:?}"
+        );
+
+        let invoke = |snapback: &mut LocalSnapback, name: &str| {
+            snapback
+                .invoke_mutation_recording(
+                    name,
+                    HandlerInput {
+                        args: serde_json::json!({ "revision": 2 }),
+                        ..Default::default()
+                    },
+                )
+                .0
+                .expect_err("handler refuses")
+        };
+
+        let declared = invoke(&mut snapback, "declaredRefusal");
+        assert_eq!(declared.diagnostic.code, "SNAPBACK_APP_REFUSAL");
+        assert_eq!(declared.diagnostic.details["appCode"], "STALE_MOVE");
+        assert_eq!(declared.diagnostic.details["appDetails"]["actual"], 2);
+
+        let undeclared = invoke(&mut snapback, "undeclaredRefusal");
+        assert_eq!(undeclared.diagnostic.code, "SNAPBACK_HANDLER_FAILED");
+        assert!(
+            undeclared.diagnostic.details.get("appCode").is_none(),
+            "an undeclared code never reaches the caller"
+        );
+        assert!(
+            !serde_json::to_string(&undeclared.diagnostic.details)
+                .expect("details serialize")
+                .contains("hidden"),
+            "an undeclared refusal's payload is dropped"
+        );
+    }
+
     const ASSET_CALLBACK_SOURCE: &str = r#"
 globalThis.__snapbackHandlers = {
   async onAssetReady(ctx, args) {
