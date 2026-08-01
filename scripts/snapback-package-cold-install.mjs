@@ -1209,6 +1209,22 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceIdentity) {
     }
     fail(`${label}: timed out\n${output()}`);
   };
+  const fetchWhenReachable = async (url, label, timeoutMs = 60_000) => {
+    const deadline = Date.now() + timeoutMs;
+    let lastError;
+    while (Date.now() < deadline) {
+      try {
+        return await fetch(url);
+      } catch (error) {
+        lastError = error;
+      }
+      if (child.exitCode !== null) {
+        fail(`${label}: one-command starter exited ${child.exitCode}\n${output()}`);
+      }
+      await new Promise((resolveWait) => setTimeout(resolveWait, 50));
+    }
+    fail(`${label}: timed out (${lastError?.message ?? 'connection refused'})\n${output()}`);
+  };
   try {
     await waitFor(
       (text) => text.includes('"state":"client-started"'),
@@ -1218,7 +1234,10 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceIdentity) {
       extractViteClientOrigin,
       'one-command starter Vite origin',
     );
-    const htmlResponse = await fetch(origin);
+    const htmlResponse = await fetchWhenReachable(
+      origin,
+      'one-command starter HTTP listener',
+    );
     const html = await htmlResponse.text();
     if (!htmlResponse.ok || !html.includes('/src/main.tsx')) {
       fail(`one-command starter did not serve its React entry: ${htmlResponse.status}`);
@@ -2807,7 +2826,12 @@ await build({
 
   run(process.execPath, ['bundle.mjs'], { cwd: appRoot });
   const browserBundle = readFileSync(join(appRoot, 'dist', 'browser-entry.js'), 'utf8');
-  if (/\bnode:/.test(browserBundle)) fail('browser adapter bundle contains a Node builtin import');
+  const nodeBuiltinImport = browserBundle.match(
+    /(?:\bfrom\s*|\bimport\s*(?:\(\s*)?|\brequire\s*\(\s*)['"]node:[^'"]+/u,
+  );
+  if (nodeBuiltinImport) {
+    fail(`browser adapter bundle contains a Node builtin import: ${nodeBuiltinImport[0]}`);
+  }
 
   const tree = JSON.parse(run('npm', ['ls', '--all', '--json'], { cwd: appRoot }));
   const cleanMachine = process.env.GITHUB_ACTIONS === 'true'
