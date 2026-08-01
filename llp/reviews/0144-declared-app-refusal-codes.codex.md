@@ -111,3 +111,31 @@ Next step: revise F1 with an unforgeable per-host-call correlation token or equi
 The read-only workspace prevented appending this round to the Codex review artifact. Also, I did not open the 0144 Fable review, though a broad search inadvertently exposed one metadata-only match from it; none of its review content informed this verdict.
 
 *(Runner note: the single file citation above was emitted as an absolute path into the disposable review worktree and is mechanically rewritten to the equivalent /Users/ccheever/projects/snapback/ path; raw output is preserved in the session capture.)*
+
+## Round 3 — 2026-08-01
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model `gpt-5.6-sol`
+**Reasoning effort:** CLI default (`medium` per CLI banner)
+**Date:** 2026-08-01
+**Redaction:** not redacted
+**Method:** round-3 targeted — reviewer given its own Rounds 1–2, instructed to verify v3's F1 correlation-token witness design (host-minted, FFI-crossing, shim-branded, consumed-once) plus sanity-check the Fable-territory per-engine-leg floor matrix and widened parity ticket, and check the changed text only for fresh defects; read-only sandbox in a fresh worktree of origin/main at b0bf4594, blind to this RFC's fable artifact
+**Target SHA-256:** `32883649da568d641ad0b14fb4d67619e9c544190c9e1ac7fb198e6c7bfcb535`
+**Instruction SHA-256:** `2c14574ac45d36079eb09cfaa343d90beb424c4c217897495a4bff205be9fc19`
+**Status:** completed (first attempt, no retry needed)
+
+### Verbatim review
+
+Verified SHA-256: `32883649da568d641ad0b14fb4d67619e9c544190c9e1ac7fb198e6c7bfcb535`. I did not read the `.fable.md`.
+
+Verdict: **NOT READY**
+
+- **F1 witness restoration — NOT RESOLVED:** the host-minted token fixes code-only matching, but “branded onto the thrown error” does not prevent caught handler code from copying/replaying that token onto a later error; require a non-extractable identity binding, such as a shim-private `WeakMap` keyed by the exact error object. Additionally, FO-3 claims zero FFI change and a host-internal token while F1 requires that token to cross the FFI and be echoed, so FO-3+F1 remains contradictory ([LLP 0144](/Users/ccheever/projects/snapback/llp/0144-declared-app-refusal-codes.rfc.md:491)).
+- **Per-engine-leg floor matrix — READY:** the three-surface matrix and hoisted-admission fix accurately match the current control flow.
+- **Widened parity ticket — should-fix:** the widening is correct, but its unchanged introduction still says admission covers the “Rust host” and is “true per-host”; both should say the local Ibex engine leg/per-engine-leg ([ticket](/Users/ccheever/projects/snapback/issues/20260801-0144-cloudflare-host-lacks-app-refusal-admission.md:10)).
+
+Next step: pin a non-replayable error-identity mechanism, state FO-3+F1 as incompatible or admit its required FFI carrier, clean up the ticket’s stale wording, then request a narrow round-4 check.
+
+The read-only workspace prevented appending this round to the Codex review artifact.
+
+*(Runner note: the two citations above were emitted as absolute paths into the disposable review worktree and are mechanically rewritten to the equivalent /Users/ccheever/projects/snapback/ paths; raw output is preserved in the session capture.)*

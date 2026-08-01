@@ -194,3 +194,34 @@ Verified SHA-256: `35f0a6e2fd8ff29e9aae13fa1453725c3c894ea2b6be4012d2ef5180feab7
 **Next step:** Revise D3b’s durable transmit boundary, make immediate authorization host-enforced, correct the rotation/API details and `MessageTooBig` classification, then run another Codex delta review against the new hash.
 
 I could not append this round-two section to the review artifact because the workspace is read-only.
+
+## Round 3 — 2026-08-01
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model `gpt-5.6-sol`
+**Reasoning effort:** CLI default (`medium` per CLI banner)
+**Date:** 2026-08-01
+**Redaction:** not redacted
+**Method:** round-3 targeted — reviewer given its own Rounds 1–2, instructed to verify v3's application of its round-2 residuals (M2 durable transmitting marker, M4 DevicePushToken rotation + appScope + GC, M5 host-evaluated authorize clause in all three trigger modes, MessageTooBig receipt-stage reclassification, pinned poll schedule, message-row ownership) and the changed text only for fresh defects; read-only sandbox in a fresh worktree of origin/main at b0bf4594, blind to this RFC's fable artifact
+**Target SHA-256:** `019659ae8fb9f94178571dd8d64c90123363e3ce6724512d9d61ce517c0ffbb9`
+**Instruction SHA-256:** `acc9b1b3c5f4e9e3f64342945081a577b9935a33bc4fa8eebd2c57c48582603d`
+**Status:** completed (first attempt, no retry needed)
+
+### Verbatim review
+
+## Verdict: READY
+
+Verified SHA-256: `019659ae8fb9f94178571dd8d64c90123363e3ce6724512d9d61ce517c0ffbb9`. Reviewed the v2→v3 changes and required [Codex rounds 1–2](/Users/ccheever/projects/snapback/llp/reviews/0143-expo-push-notification-seam.codex.md); did not read `.fable.md`.
+
+1. **M2 crash safety — PASS:** The durable pre-I/O `transmitting` marker now cleanly separates safe recovery from ambiguous transmission and forbids automatic re-drive after the boundary.
+2. **M4 custody — PASS:** Native `DevicePushToken` rotation triggers Expo-token reacquisition, `appScope` is pinned, and declared idle-retention GC covers stranded rows. This matches Expo’s token API. [Expo Notifications API](https://docs.expo.dev/versions/v56.0.0/sdk/notifications/)
+3. **M5 authority — PASS:** Every audience resolver now carries host-enforced authorization across immediate, system, and deferred modes; `requireRole` is correctly defense-in-depth.
+4. **MessageTooBig — PASS:** Correctly classified as a receipt-stage error. [Expo error documentation](https://docs.expo.dev/push-notifications/sending-notifications/#errors)
+5. **Receipt cadence — PASS:** Initial delay, exponential progression, four-hour cap, seven-poll maximum, and 24-hour outer window are implementation-defining.
+6. **Message/batch ownership — PASS:** Every message row belongs to exactly one batch attempt, with re-drives creating new rows.
+
+No fresh defects found in the changed text.
+
+**Next step:** Append this round-three result to the Codex review artifact, then the author may move LLP 0143 from `Draft` to `Accepted`. I could not append it because this workspace is read-only.
+
+*(Runner note: the single artifact citation above was emitted as an absolute path into the disposable review worktree and is mechanically rewritten to the equivalent /Users/ccheever/projects/snapback/ path; raw output is preserved in the session capture.)*
