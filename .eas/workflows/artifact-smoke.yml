@@ -1,7 +1,7 @@
 name: artifact-smoke
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 jobs:
   produce:
