@@ -390,13 +390,13 @@ pub fn asset_record_client_view(
             if let Some(facts) = rendition.media_facts.as_ref().and_then(Value::as_object) {
                 media.extend(facts.iter().map(|(k, v)| (k.clone(), v.clone())));
             }
-            if rendition.state == AssetRenditionState::Ready {
-                if let Some(blob) = load_blob(tx, &rendition.blob_id)? {
-                    media.insert(
-                        "mediaType".to_owned(),
-                        blob.detected_content_type.clone().into(),
-                    );
-                }
+            if rendition.state == AssetRenditionState::Ready
+                && let Some(blob) = load_blob(tx, &rendition.blob_id)?
+            {
+                media.insert(
+                    "mediaType".to_owned(),
+                    blob.detected_content_type.clone().into(),
+                );
             }
         }
     }

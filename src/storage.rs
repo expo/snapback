@@ -4251,6 +4251,7 @@ impl LocalDatabase {
     /// back instead of committed. The JS-tier half of execute-and-discard —
     /// the handler already ran against the buffered ctx; this answers what
     /// its writes would do without keeping them.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn dry_run_buffered_writes(
         &mut self,
         input: &HandlerInput,
