@@ -3775,6 +3775,17 @@
           "description": "Name of the non-null principal-axis field (`v.principal()`).",
           "type": "string"
         },
+        "principalAddressedWrites": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MembershipPrincipalAddressedWrites"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Explicit opt-in to principal-addressed writes (LLP 0100 §2). Absent\nmeans the generated `removePrincipal` surface does not exist for this\ndeclaration; presence requires at least one total other-principal\nremoval transition at activation. Closed: v1 admits only\n`{ remove: true }`."
+        },
         "provenance": {
           "anyOf": [
             {
@@ -3865,6 +3876,19 @@
       "required": [
         "declaration",
         "resource"
+      ],
+      "type": "object"
+    },
+    "MembershipPrincipalAddressedWrites": {
+      "additionalProperties": false,
+      "description": "`principalAddressedWrites: { remove: true }` — the closed opt-in for the\ngenerated principal-addressed removal command (LLP 0100 §2). The object\nis closed and v1 admits only `remove: true`: false, unknown operations,\nand unknown fields fail activation, and no principal-addressed `setRole`,\n`patch`, or read is implied.\n\n@ref LLP 0100#2-opting-into-principal-addressed-removal — activation\n  additionally requires at least one total other-principal removal\n  transition, and under `lastHolder` every carrier caller role must be\n  the protected role (the hidden-role-oracle closure).",
+      "properties": {
+        "remove": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "remove"
       ],
       "type": "object"
     },

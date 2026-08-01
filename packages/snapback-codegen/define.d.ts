@@ -358,6 +358,15 @@ export type MembershipTransition =
   | { op: 'remove'; by: MembershipRole[]; target: MembershipTarget; from?: MembershipRole[] }
   | { op: 'patch'; by: MembershipRole[]; target: MembershipTarget; from?: MembershipRole[]; fields: string[] };
 
+/**
+ * The closed opt-in for the generated principal-addressed removal command
+ * (LLP 0100 §2). V1 admits only `{ remove: true }`; activation requires at
+ * least one TOTAL other-principal removal transition (`op: 'remove'`,
+ * `target: 'other'`, `from` omitted) whose caller classes are full
+ * non-pending roles — and, under `lastHolder`, exactly the protected role.
+ */
+export interface MembershipPrincipalAddressedWrites { remove: true }
+
 export interface ResourceMembershipSpec {
   id?: string;
   scope?: 'resource';
@@ -372,6 +381,7 @@ export interface ResourceMembershipSpec {
   incidental?: readonly string[];
   provenance?: 'creation' | 'full';
   transitions?: readonly MembershipTransition[];
+  principalAddressedWrites?: MembershipPrincipalAddressedWrites;
 }
 
 export interface AppMembershipSpec extends Omit<ResourceMembershipSpec, 'scope' | 'resource' | 'bootstrapRole' | 'lastHolder'> {

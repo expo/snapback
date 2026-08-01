@@ -99,6 +99,7 @@ fn schema() -> SchemaManifest {
                 }],
                 scope: MembershipScope::App,
                 resource_table: None,
+                principal_addressed_writes: None,
             }),
             asset_sharing: None,
         }],

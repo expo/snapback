@@ -48,3 +48,42 @@ src/storage.rs, and the planners already enforce authorization unchanged.
 
 Blocked on: LLP 0100 ratification (its own gate), then implementation with
 the opt-in declaration and the indistinguishability rule.
+
+---
+
+**Status:** Resolved (2026-08-01, LLP 0100 M1 implementation lane)
+
+**Resolution.** LLP 0100 was Accepted 2026-08-01 (explicit composed-parent
+ruling, ballot item 2) and the M1 core-operations lane implements exactly
+the decided shape this ticket routed to — with both properties the naive
+build-and-revert violated now load-bearing and tested:
+
+1. *Opt-in declaration:* `principalAddressedWrites: { remove: true }`
+   (closed; validated at codegen AND schema activation —
+   `SNAPBACK_MEMBERSHIP_PRINCIPAL_ADDRESSED_INVALID` family in
+   src/storage.rs `validate_membership_declaration`; total-carrier,
+   pending-class, and lastHolder-consistency refusals). Without it the
+   host refuses `SNAPBACK_MEMBERSHIP_PRINCIPAL_ADDRESSED_UNDECLARED` —
+   no implicit widening of any existing app's write surface.
+2. *Present/absent indistinguishability:* the planner
+   (`plan_membership_remove_principal`, src/storage.rs) returns the
+   identical `null` for present and absent targets, captures BOTH
+   lookups, refuses unauthorized callers with the invariant
+   `SNAPBACK_MEMBERSHIP_TRANSITION_DENIED` before any target lookup
+   (byte-identical across target presence — tested), and the absent
+   no-op advances no authorization version (the §1-scoped disclosure,
+   asserted against the durable global `AuthorizationVersion`).
+
+The ticket's witness shape is delivered: the removed member's
+`_snapback.myMemberships` subscription drops the seat at the removal cut
+(src/local.rs `remove_principal_drops_the_seat_from_my_memberships_at_the_cut`,
+driven end to end through an authored JS mutation and
+`ctx.membership.<decl>.removePrincipal`), the unauthorized caller gets
+the uniform role denial, and the id-addressed surface stays closed.
+Suites: src/storage.rs `remove_principal_*` + activation tests,
+tests/membership_principal_addressed_v0.rs (full JS path incl.
+branch-insensitive companion writes), rbac-authoring.test.mjs
+(generation positives/negatives + typed `removePrincipal` emission).
+Guide: guide/auth/scoped-roles.md "Remove another principal" section.
+The Team Chat product receipt remains with the sibling ticket's residual
+(step-6 adoption).

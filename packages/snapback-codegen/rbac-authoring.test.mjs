@@ -467,6 +467,87 @@ ctx.membership.eventMembers.patch(memberId, { role: 'host' });
     ], { cwd: dir, stdio: 'pipe' });
   }
 
+  // LLP 0100 §2: principalAddressedWrites — closed option, total-carrier
+  // activation, lastHolder consistency, and the generated removePrincipal
+  // typing (only when declared; result is always Promise<null>).
+  {
+    const principalAddressedSchema = ({
+      option = '{ remove: true }',
+      transitions = "[{ op: 'remove', by: ['host'], target: 'other' }]",
+    } = {}) => `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+
+export const eventMembers = defineTable({
+  eventId: v.id('events'),
+  userId: v.principal(),
+  role: v.string(),
+}).membership({
+  id: 'eventMembers',
+  principal: 'userId',
+  resource: 'eventId',
+  role: 'role',
+  roles: ['host', 'guest'],
+  pendingRoles: ['invited'],
+  bootstrapRole: 'host',
+  lastHolder: { protect: 'host' },
+  provenance: 'full',
+  principalAddressedWrites: ${option},
+  transitions: ${transitions},
+});
+
+export default defineSchema({
+  events: defineTable({ title: v.string() }),
+  organizations: defineTable({ name: v.string() }),
+  eventNotes: defineTable({ eventId: v.id('events'), body: v.string() }),
+  eventMembers,
+}, { auth: { mode: 'sessions' } });
+`;
+
+    const { dir, result } = await run('export {};\n', principalAddressedSchema());
+    assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+    const schemaManifest = JSON.parse(readFileSync(join(dir, 'generated', 'schema.manifest.json'), 'utf8'));
+    const members = schemaManifest.tables.find(({ name }) => name === 'eventMembers');
+    assert.deepEqual(
+      members.membership.principalAddressedWrites,
+      { remove: true },
+      'the manifest carries the closed opt-in',
+    );
+    const apiTypes = readFileSync(join(dir, 'generated', 'api.d.ts'), 'utf8');
+    assert(
+      apiTypes.includes("removePrincipal(resource: Id<'events'>, principal: string): Promise<null>"),
+      'the declared option emits the typed removePrincipal command',
+    );
+
+    // Without the option the method is not emitted at all.
+    const closed = await run('export {};\n', principalAddressedSchema({ option: 'undefined' }));
+    assert.equal(closed.result.ok, true, JSON.stringify(closed.result.diagnostics));
+    const closedTypes = readFileSync(join(closed.dir, 'generated', 'api.d.ts'), 'utf8');
+    assert(
+      !closedTypes.includes('removePrincipal'),
+      'no opt-in, no principal-addressed surface',
+    );
+
+    // Generation negatives: remove:false, unknown option fields, no total
+    // carrier (partial from coverage), pending carrier class, and a carrier
+    // class inconsistent with lastHolder.
+    for (const [label, variant] of [
+      ['remove: false', { option: '{ remove: false }' }],
+      ['unknown option field', { option: '{ remove: true, setRole: true }' }],
+      ['partial from coverage only', {
+        transitions: "[{ op: 'remove', by: ['host'], target: 'other', from: ['guest'] }]",
+      }],
+      ['pending carrier class', {
+        transitions: "[{ op: 'remove', by: ['invited'], target: 'other' }]",
+      }],
+      ['carrier class inconsistent with lastHolder', {
+        transitions: "[{ op: 'remove', by: ['guest'], target: 'other' }]",
+      }],
+    ]) {
+      const { result } = await run('export {};\n', principalAddressedSchema(variant));
+      assert.equal(result.ok, false, `${label} unexpectedly generated`);
+    }
+  }
+
   console.log('rbac-authoring.test.mjs: all cases passed');
 } finally {
   for (const dir of dirs) rmSync(dir, { recursive: true, force: true });

@@ -570,6 +570,22 @@ pub struct MembershipLastHolder {
     pub protect: String,
 }
 
+/// `principalAddressedWrites: { remove: true }` — the closed opt-in for the
+/// generated principal-addressed removal command (LLP 0100 §2). The object
+/// is closed and v1 admits only `remove: true`: false, unknown operations,
+/// and unknown fields fail activation, and no principal-addressed `setRole`,
+/// `patch`, or read is implied.
+///
+/// @ref LLP 0100#2-opting-into-principal-addressed-removal — activation
+///   additionally requires at least one total other-principal removal
+///   transition, and under `lastHolder` every carrier caller role must be
+///   the protected role (the hidden-role-oracle closure).
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct MembershipPrincipalAddressedWrites {
+    pub remove: bool,
+}
+
 /// `expiry: { field, onExpiry }` — a time-bounded membership materialized by
 /// the host-bound sweep. In v1 the only `onExpiry` effect is `remove`: with no
 /// declared role ordering the host cannot prove any downgrade is
@@ -728,6 +744,18 @@ pub struct MembershipManifest {
     /// executed at the central membership write seam.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub transitions: Vec<MembershipTransition>,
+    /// Explicit opt-in to principal-addressed writes (LLP 0100 §2). Absent
+    /// means the generated `removePrincipal` surface does not exist for this
+    /// declaration; presence requires at least one total other-principal
+    /// removal transition at activation. Closed: v1 admits only
+    /// `{ remove: true }`.
+    #[serde(
+        default,
+        rename = "principalAddressedWrites",
+        alias = "principal_addressed_writes",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub principal_addressed_writes: Option<MembershipPrincipalAddressedWrites>,
     #[serde(default)]
     pub scope: MembershipScope,
     /// The resource table the `resource` axis references (`v.id("events")`).

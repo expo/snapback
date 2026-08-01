@@ -23195,6 +23195,7 @@ mod tests {
                     transitions: Vec::new(),
                     scope: MembershipScope::App,
                     resource_table: None,
+                    principal_addressed_writes: None,
                 }),
                 asset_sharing: None,
             }],
@@ -23282,6 +23283,7 @@ mod tests {
                 transitions: Vec::new(),
                 scope: MembershipScope::Resource,
                 resource_table: Some("events".to_owned()),
+                principal_addressed_writes: None,
             }),
             asset_sharing: None,
         };
@@ -25457,6 +25459,145 @@ globalThis.__snapbackHandlers = {
         assert_eq!(rows.len(), 0, "deletion blanks the record projection");
     }
 
+    /// LLP 0100 receipt witness: the removed member's `_snapback.myMemberships`
+    /// subscription drops the seat at the same authorization cut the
+    /// principal-addressed removal commits — the product-visible coherence of
+    /// one cut (0056's machinery, driven here by the NEW addressing mode
+    /// end to end through an authored JS mutation), while the absent-target
+    /// no-op delivers nothing.
+    #[test]
+    fn remove_principal_drops_the_seat_from_my_memberships_at_the_cut() {
+        let mut snapback = my_memberships_snapback_with_removal();
+        seed_membership_row(&mut snapback, "seat_owner", "chan1", "user_a", "owner");
+        seed_membership_row(&mut snapback, "seat_b", "chan1", "user_b", "member");
+        // Advance the storage head past the seeded row versions so the
+        // membership planners' managed-version validation sees a
+        // committed-history-consistent table.
+        asset_handler_commit(
+            &mut snapback,
+            "user_a",
+            vec![crate::storage::BufferedWrite::Insert {
+                table: "notes".to_owned(),
+                id: "note_seed".to_owned(),
+                values: serde_json::Map::from_iter([(
+                    "body".to_owned(),
+                    json!("advance head"),
+                )]),
+            }],
+            Vec::new(),
+        )
+        .expect("head-advancing commit");
+
+        let b = snapback
+            .subscribe_live(
+                MY_MEMBERSHIPS_LIVE_FUNCTION,
+                memberships_live_input("conn-b", Some("user_b")),
+            )
+            .expect("target subscribes");
+        assert_eq!(b.snapshot.expect("rows").rows.len(), 1, "one seat before");
+
+        // The owner removes user_b through the principal-addressed command.
+        let output = snapback
+            .invoke_mutation(
+                "ownerRemove",
+                HandlerInput {
+                    args: json!({ "channelId": "chan1", "principal": "user_b" }),
+                    auth: crate::manifest::AuthInput {
+                        user_id: Some("user_a".to_owned()),
+                        principal: Some("user_a".to_owned()),
+                        ..crate::manifest::AuthInput::default()
+                    },
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("owner removes member");
+        assert_eq!(output.result, Value::Null, "the public result is null");
+
+        let rows = asset_last_replace_rows(&mut snapback, "conn-b");
+        assert_eq!(
+            rows.len(),
+            0,
+            "the seat drops from myMemberships at the removal cut"
+        );
+
+        // The absent-target no-op delivers nothing further to the target.
+        snapback
+            .invoke_mutation(
+                "ownerRemove",
+                HandlerInput {
+                    args: json!({ "channelId": "chan1", "principal": "user_b" }),
+                    auth: crate::manifest::AuthInput {
+                        user_id: Some("user_a".to_owned()),
+                        principal: Some("user_a".to_owned()),
+                        ..crate::manifest::AuthInput::default()
+                    },
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("absent-target no-op");
+        let frames = rqs_drained_envelopes(&mut snapback, "conn-b");
+        assert!(
+            frames.iter().all(|frame| frame["kind"] != "live_replace"),
+            "the no-op delivers no seat change: {frames:?}"
+        );
+    }
+
+    /// The myMemberships fixture plus the LLP 0100 opt-in and an authored
+    /// removal mutation over the real ctx.membership bridge.
+    fn my_memberships_snapback_with_removal() -> LocalSnapback {
+        let mut snapback = my_memberships_snapback();
+        let schema_patch = {
+            let mut schema = snapback.db.schema().clone();
+            let membership = schema
+                .tables
+                .iter_mut()
+                .find(|table| table.name == "channel_members")
+                .and_then(|table| table.membership.as_mut())
+                .expect("membership declaration");
+            membership.transitions.push(crate::manifest::MembershipTransition {
+                op: crate::manifest::MembershipOp::Remove,
+                by: vec!["owner".to_owned()],
+                target: crate::manifest::MembershipTarget::Other,
+                from: None,
+                to: None,
+                fields: None,
+            });
+            membership.principal_addressed_writes =
+                Some(crate::manifest::MembershipPrincipalAddressedWrites { remove: true });
+            schema
+        };
+        snapback
+            .db
+            .apply_schema(schema_patch)
+            .expect("apply removal opt-in");
+        let mut function = FunctionDefinition::new(
+            "ownerRemove",
+            FunctionKind::Mutation,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: "globalThis.__snapbackHandlers = {\
+                     async ownerRemove(ctx, args) {\
+                       return await ctx.membership.channelSeats.removePrincipal(\
+                         args.channelId, args.principal);\
+                     } };"
+                    .to_owned(),
+                export: "ownerRemove".to_owned(),
+            }),
+        );
+        function.auth_requirement = Some(crate::manifest::AuthRequirement::Authenticated);
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![function],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.severity
+                    != crate::diagnostic::DiagnosticSeverity::Error),
+            "removal fixture must install: {diagnostics:?}"
+        );
+        snapback
+    }
+
     fn my_memberships_snapback() -> LocalSnapback {
         let mut snapback = asset_test_snapback();
         let schema = SchemaManifest {
@@ -25533,6 +25674,7 @@ globalThis.__snapbackHandlers = {
                         transitions: Vec::new(),
                         scope: crate::manifest::MembershipScope::Resource,
                         resource_table: Some("channels".to_owned()),
+                        principal_addressed_writes: None,
                     }),
                     asset_sharing: None,
                 },

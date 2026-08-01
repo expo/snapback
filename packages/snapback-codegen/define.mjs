@@ -131,7 +131,7 @@ const ASSET_SHARING_KINDS = new Set(['public-read', 'owner', 'membership']);
 const MEMBERSHIP_FIELDS = new Set([
   'id', 'principal', 'resource', 'role', 'roles', 'pendingRoles',
   'bootstrapRole', 'lastHolder', 'expiry', 'incidental', 'provenance',
-  'transitions', 'scope',
+  'transitions', 'scope', 'principalAddressedWrites',
 ]);
 const MEMBERSHIP_TRANSITION_FIELDS = new Set([
   'op', 'by', 'target', 'from', 'to', 'fields',
@@ -531,6 +531,44 @@ function normalizeMembership(spec) {
     };
   });
 
+  // Principal-addressed writes (LLP 0100 §2): closed opt-in, and activation
+  // requires at least one TOTAL other-principal removal transition — `from`
+  // omitted (partial coverage would make removal a hidden-role oracle),
+  // every carrier caller class a full non-pending role, and under lastHolder
+  // exactly the protected role (an admitted caller is itself a protected
+  // holder, so removal can never empty the protected set).
+  let principalAddressedWrites;
+  if (spec.principalAddressedWrites !== undefined) {
+    exactObject(spec.principalAddressedWrites, 'membership() principalAddressedWrites', new Set(['remove']));
+    assert(
+      spec.principalAddressedWrites.remove === true,
+      'membership() principalAddressedWrites admits only { remove: true } in v1',
+    );
+    const carriers = transitions.filter((transition) => (
+      transition.op === 'remove' && transition.target === 'other' && transition.from === undefined
+    ));
+    assert(
+      carriers.length > 0,
+      'membership() principalAddressedWrites.remove requires at least one total other-principal '
+        + 'removal transition ({ op: "remove", target: "other" } with from omitted)',
+    );
+    for (const carrier of carriers) {
+      for (const caller of carrier.by) {
+        assert(
+          roles.includes(caller),
+          `membership() principalAddressedWrites: carrier caller class ${caller} must be a full, non-pending declared role`,
+        );
+        if (lastHolder) {
+          assert(
+            caller === lastHolder.protect,
+            `membership() principalAddressedWrites: carrier caller class ${caller} must be the lastHolder-protected role ${lastHolder.protect}`,
+          );
+        }
+      }
+    }
+    principalAddressedWrites = { remove: true };
+  }
+
   return {
     ...(spec.id !== undefined ? { id: spec.id } : {}),
     principal: spec.principal,
@@ -545,6 +583,7 @@ function normalizeMembership(spec) {
     ...(spec.provenance !== undefined ? { provenance: spec.provenance } : {}),
     transitions,
     scope,
+    ...(principalAddressedWrites ? { principalAddressedWrites } : {}),
   };
 }
 

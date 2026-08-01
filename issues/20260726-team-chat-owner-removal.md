@@ -78,3 +78,29 @@ declaration (implicit availability would widen every existing app's write
 surface) and present/absent indistinguishability (the obvious host-side
 resolution makes the private roster enumerable by probing). Both tickets now
 cross-reference; neither should be picked up independently of 0100.
+
+---
+
+**NARROWED 2026-08-01 (LLP 0100 Accepted; M1 core operations LANDED).**
+The semantic gap this ticket names is closed: LLP 0100 was Accepted by the
+explicit composed-parent ruling (ballot item 2), and the M1 lane landed
+`principalAddressedWrites` + generated
+`ctx.membership.<decl>.removePrincipal(resource, principal)` end to end —
+codegen option validation and typed emission (rbac-authoring.test.mjs),
+schema-activation carrier contract (total transition, pending/lastHolder
+rules), the host command with the RFC's exact refusal ordering and
+present/absent `null` indistinguishability, captured absence with
+commit-time invalidation, the expired-but-authorized lastHolder edge, and
+the `_snapback.myMemberships` seat-drop receipt at the cut. Acceptance
+items 1–6 of this ticket's list are covered by
+src/storage.rs `remove_principal_*` tests,
+tests/membership_principal_addressed_v0.rs, and
+src/local.rs `remove_principal_drops_the_seat_from_my_memberships_at_the_cut`;
+the sibling A2 ticket is closed on this evidence.
+
+**Remaining (this ticket stays open, narrowed to product adoption):** the
+final acceptance item only — `team-chat/local-pressure-v0` adopts
+`principalAddressedWrites.remove` on `roomMembers`, exercises owner
+removal through the complete UI, and lands the headless/React/Contract
+product receipts (LLP 0100 §Team Chat adoption, implementation-order
+step 6). The M2 pages lane and the composed family witness join there.

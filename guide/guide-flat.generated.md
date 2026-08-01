@@ -72,7 +72,7 @@ with the Snapback label and `guide-gap` in the title.
 | auth.target-honesty | Per-target auth claims and non-claims; readiness reporting | hosted auth, production auth | all | shipped | `AuthProgramReadiness` in src/auth/mode.rs | llp/0060 | auth/targets.md |
 | auth.sender-constrained-browser | Hosted-only non-extractable browser custody, HTTP/WebSocket sender proofs, nonce rotation, and replay refusal; no current adapter has positive admission | DPoP, browser key, credential theft, hosted sessions | single-instance-container-vm | partial | `HostedBrowserSnapbackClient` in packages/snapback-client/hosted-browser.mjs | llp/0077, llp/0060 | auth/targets.md |
 | auth.agent-principals | Agent principals and scoped grants | agent auth, grants, pairing | local | shipped | route /auth/agents/pair | llp/0055 | auth/agent-principals.md |
-| auth.scoped-roles | Scoped roles and memberships | roles, permissions, membership | local | shipped | `membership(spec)` in packages/snapback-codegen/define.mjs | llp/0056 | auth/scoped-roles.md |
+| auth.scoped-roles | Scoped roles and memberships | roles, membership, kick, removePrincipal | local | shipped | `membership(spec)` in packages/snapback-codegen/define.mjs | llp/0056, llp/0100 | auth/scoped-roles.md |
 | clients.headless | The framework-neutral client (SnapbackClient) | http client, node client, sdk | local | shipped | `SnapbackClient` in packages/snapback-client/index.mjs | llp/0012 | clients/headless.md |
 | clients.protocol | Versioned route/envelope/lifecycle contract and language-neutral conformance corpus | wire protocol, native client, conformance, snapback.v1 | local | shipped | `ClientStateMachine` in clients/swift/SnapbackClient/Sources/SnapbackClient/StateMachine.swift | llp/0093, llp/0094, llp/0095, llp/0096 | protocol/client-protocol.md |
 | clients.swift | SwiftPM protocol client for iOS/macOS; poll/local and live/local with session auth | swift, swiftui, ios, macos | local | partial | `SnapbackClient` in clients/swift/SnapbackClient/Sources/SnapbackClient/SnapbackClient.swift | llp/0064, llp/0093 | clients/swift.md |
@@ -1201,7 +1201,7 @@ id: auth.scoped-roles
 order: 3
 audience: agent-first
 capabilities: [auth.scoped-roles]
-authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, src/manifest.rs, src/membership_rules.rs, src/runtime.rs, src/storage.rs, demos/rbac/tests/acceptance/rbac.mjs, demos/shindig/snapback/schema.mjs, demos/shindig/snapback/functions.mjs]
+authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0100-membership-addressed-operations-and-pages.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, src/manifest.rs, src/membership_rules.rs, src/runtime.rs, src/storage.rs, demos/rbac/tests/acceptance/rbac.mjs, demos/shindig/snapback/schema.mjs, demos/shindig/snapback/functions.mjs, tests/membership_principal_addressed_v0.rs]
 examples: [demos/rbac, demos/shindig, packages/snapback-codegen/rbac-authoring.test.mjs]
 status: current
 targets: [local]
@@ -1233,15 +1233,18 @@ them, ask whether one exists, or obtain their row ids, and `insert` returns
 id-addressed `setRole`, `remove`, and `patch` in ordinary app handlers. The
 methods exist for trusted migration/import contexts that already possess a
 row id; the private app surface does not mint one. Do not source-dive for an
-escape hatch—the absence is the security contract.
+escape hatch—the absence is the security contract. The one other-targeted
+write an app can reach is the explicit `principalAddressedWrites` removal
+opt-in below, which addresses a principal, never a row.
 
 | Operation under the private v1 posture | Reachable app path |
 | --- | --- |
 | create a resource plus its first holder | `bootstrap(...)` (resource scope) |
 | add self or another principal | declared `insert` transition; returns no row id |
 | accept/decline/change/remove the caller's own seat | `setSelfRole`, `removeSelf`, or `patchSelf` |
-| administrator changes/removes/patches another existing seat | foreclosed: requires a private row id |
-| read/list/sync the roster or test another seat's existence | foreclosed: use `memberOf`/`hasRole` semi-joins or `requireRole` |
+| remove another principal (kick) | `removePrincipal(resource, principal)` — requires the explicit `principalAddressedWrites` opt-in (below) |
+| administrator changes/patches another existing seat | foreclosed: requires a private row id |
+| read/list/sync the roster or test another seat's existence | foreclosed: use `memberOf`/`hasRole` semi-joins, `requireRole`, or the caller's own `_snapback.myMemberships` |
 
 For invitations, keep the pending invitation in an ordinary app-data table
 whose privacy policy fits the product. The invitee consumes that record and
@@ -1500,6 +1503,70 @@ separately authorized mutations and keep application-visible setup state or
 stable business keys so each step is idempotent. Each mutation remains atomic;
 the multi-call workflow is not one transaction. Do not catch the batch refusal
 and pretend the earlier commands committed.
+
+## Remove another principal with `removePrincipal` (explicit opt-in)
+
+Principal-addressed removal (LLP 0100) is the one other-targeted membership
+write reachable from app code, and it is closed by default. A declaration
+opts in explicitly, and activation requires at least one **total**
+other-principal removal transition — `from` omitted, so the transition
+covers every declared and pending target role (per-role coverage would let
+removal success/refusal read back a hidden role):
+
+```js fragment reason="authoring shape; runtime witnesses live in tests/membership_principal_addressed_v0.rs"
+.membership({
+  // existing fields...
+  principalAddressedWrites: { remove: true },
+  transitions: [
+    // Total: `from` omitted covers every declared and pending role.
+    { op: 'remove', by: ['owner'], target: 'other' },
+  ],
+})
+```
+
+Generation refuses `remove: false`, unknown option fields, a declaration
+with only partial (`from`-bearing) other-removes, pending or `none` carrier
+caller classes, and — under `lastHolder` — any carrier caller class other
+than the protected role (an admitted caller is then itself a protected
+holder, so removing the target can never empty the protected set; the
+commit-stage `lastHolder` check still runs but cannot become an oracle).
+
+The generated command takes the public address, never a roster id:
+
+```js fragment reason="handler shape; the same call is exercised end to end by tests/membership_principal_addressed_v0.rs"
+async ownerRemove(ctx, args) {
+  const result = await ctx.membership.roomMembers.removePrincipal(
+    args.roomId, args.targetPrincipal);
+  // Companion writes commit on BOTH branches — see the obligation below.
+  await ctx.db.insert('auditTrail', { roomId: args.roomId, kind: 'kick' });
+  return result; // always null
+}
+```
+
+What the command discloses is deliberately narrow:
+
+- The result is **always `null`** — present target removed or absent pair
+  proved, byte-identically. It never returns `removed`, `missing`, a role,
+  a row id, or a count. A well-formed principal that names no user takes
+  the absent branch: argument validation is shape-only.
+- An unauthorized caller gets the invariant
+  `SNAPBACK_MEMBERSHIP_TRANSITION_DENIED` **before any target lookup**, and
+  the denial is identical whether the target exists or not.
+- Targeting yourself is the typed misuse
+  `SNAPBACK_MEMBERSHIP_TARGET_SELF`; self-removal remains `removeSelf`.
+- The one accepted observable for **authorized** callers: a present-target
+  removal is an authorization event (the global version advances; the
+  removed member's protected queries blank and their
+  `_snapback.myMemberships` seat drops at that cut), while the absent
+  no-op advances nothing.
+
+**Companion writes must be branch-insensitive.** The mutation's ordinary
+`ctx.db` writes commit on both the present and the absent branch — the
+application cannot observe which branch ran. A companion write that
+decrements a member count or appends a "removed" feed event on the
+assumption the target was present corrupts product state on the no-op.
+Write companions that are correct in both branches (an attempt log, an
+idempotent display patch), or derive display state from a query instead.
 
 ## Keep the authorization composition seams aligned
 

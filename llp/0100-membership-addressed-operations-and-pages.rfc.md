@@ -5,7 +5,17 @@
 **Systems:** Memberships, Authorization, Query planning, Pagination, Code generation, Live Queries, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-26
-**Revised:** 2026-08-01 (ACCEPTED by explicit composed-parent ruling: the
+**Revised:** 2026-08-01 (M1 core operations LANDED: §§1–3 implemented on
+the local target — `principalAddressedWrites` activation with the carrier
+contract (codegen + `validate_membership_declaration`), the generated
+`removePrincipal` command with the §3 refusal ordering, captured
+present/absent lookups, the exact no-op commit, typed emission, and the
+`myMemberships` seat-drop receipt; acceptance rows witnessed in
+src/storage.rs, tests/membership_principal_addressed_v0.rs, src/local.rs,
+and rbac-authoring.test.mjs; guide section landed
+(guide/auth/scoped-roles.md). §§4–6 pages, Team Chat adoption, and the
+composed family witness remain open lanes — Status stays Accepted.)
+2026-08-01 (ACCEPTED by explicit composed-parent ruling: the
 author's 2026-08-01 ballot, verbatim item 2, "ruling: accept" — the
 explicit maintainer ruling this RFC's own §Status and ratification
 boundary names as the alternative to LLP 0056 (still Review) reaching

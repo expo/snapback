@@ -1868,6 +1868,19 @@ impl<'a> IbexHostContext<'a> {
                         ),
                         Value::Null,
                     ),
+                    // @ref LLP 0100#3-host-resolution-and-linearization — the
+                    // app supplies only (resource, principal); everything else
+                    // is host-derived, and the declaration opt-in plus the
+                    // full refusal ordering live in the storage planner.
+                    "removePrincipal" => (
+                        BufferedMembershipCommand::remove_principal(
+                            writer,
+                            table,
+                            optional_nullable_string(&args, "resource")?,
+                            required_string(&args, "principal")?,
+                        ),
+                        Value::Null,
+                    ),
                     _ => {
                         return Err(SnapbackError::error(
                             "SNAPBACK_MEMBERSHIP_OPERATION_INVALID",
@@ -4371,6 +4384,7 @@ mod membership_bridge_tests {
                         }],
                         scope: MembershipScope::App,
                         resource_table: None,
+                        principal_addressed_writes: None,
                     }),
                     asset_sharing: None,
                 },
@@ -4447,6 +4461,7 @@ mod membership_bridge_tests {
                         transitions: Vec::new(),
                         scope: MembershipScope::Resource,
                         resource_table: Some("events".to_owned()),
+                        principal_addressed_writes: None,
                     }),
                     asset_sharing: None,
                 },

@@ -595,6 +595,7 @@ mod tests {
             transitions: Vec::new(),
             scope: crate::manifest::MembershipScope::Resource,
             resource_table: Some("events".to_owned()),
+            principal_addressed_writes: None,
         }
     }
 
@@ -1058,6 +1059,7 @@ mod tests {
                 transitions: Vec::new(),
                 scope,
                 resource_table: resource_scoped.then(|| "events".to_owned()),
+                principal_addressed_writes: None,
             }),
             asset_sharing: None,
         }

@@ -22915,6 +22915,16 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_MEMBERSHIP_TARGET_MISSING"
         | "SNAPBACK_MEMBERSHIP_PATCH_AXIS"
         | "SNAPBACK_MEMBERSHIP_NOT_DECLARED"
+        // @ref LLP 0100#3-host-resolution-and-linearization — the
+        //   principal-addressed removal's typed misuses are author input:
+        //   the closed-by-default surface used without its opt-in, an
+        //   activation-invalid declaration, a shape-invalid principal, and
+        //   the self target (self-removal remains removeSelf). The
+        //   authorization refusal stays the invariant TRANSITION_DENIED.
+        | "SNAPBACK_MEMBERSHIP_PRINCIPAL_ADDRESSED_UNDECLARED"
+        | "SNAPBACK_MEMBERSHIP_PRINCIPAL_ADDRESSED_INVALID"
+        | "SNAPBACK_MEMBERSHIP_PRINCIPAL_INVALID"
+        | "SNAPBACK_MEMBERSHIP_TARGET_SELF"
         | "SNAPBACK_MEMBERSHIP_NO_BOOTSTRAP_ROLE"
         | "SNAPBACK_MEMBERSHIP_BOOTSTRAP_RESOURCE_MISMATCH"
         | "SNAPBACK_MEMBERSHIP_BOOTSTRAP_APP_SCOPE"
@@ -36291,6 +36301,12 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_MEMBERSHIP_TARGET_MISSING",
         "SNAPBACK_MEMBERSHIP_PATCH_AXIS",
         "SNAPBACK_MEMBERSHIP_NOT_DECLARED",
+        // LLP 0100 principal-addressed removal typed misuses (author input;
+        // the authorization refusal stays TRANSITION_DENIED above).
+        "SNAPBACK_MEMBERSHIP_PRINCIPAL_ADDRESSED_UNDECLARED",
+        "SNAPBACK_MEMBERSHIP_PRINCIPAL_ADDRESSED_INVALID",
+        "SNAPBACK_MEMBERSHIP_PRINCIPAL_INVALID",
+        "SNAPBACK_MEMBERSHIP_TARGET_SELF",
         "SNAPBACK_MEMBERSHIP_NO_BOOTSTRAP_ROLE",
         "SNAPBACK_MEMBERSHIP_BOOTSTRAP_RESOURCE_MISMATCH",
         "SNAPBACK_MEMBERSHIP_BOOTSTRAP_APP_SCOPE",

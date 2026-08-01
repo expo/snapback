@@ -66,6 +66,7 @@ fn base_membership() -> MembershipManifest {
         transitions: vec![],
         scope: MembershipScope::Resource,
         resource_table: Some("events".to_owned()),
+        principal_addressed_writes: None,
     }
 }
 

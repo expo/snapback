@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "39a1f651fe71d471b1594920fe682a2fea00ea6c"
+    "commit": "bd6219ee03d0dc3f07942f0df65690e043b5f382"
   },
   "nav": {
     ".": [
@@ -385,6 +385,7 @@
       ],
       "authorities": [
         "llp/0056-scoped-roles-and-memberships.rfc.md",
+        "llp/0100-membership-addressed-operations-and-pages.rfc.md",
         "packages/snapback-codegen/define.mjs",
         "packages/snapback-codegen/index.mjs",
         "src/manifest.rs",
@@ -393,7 +394,8 @@
         "src/storage.rs",
         "demos/rbac/tests/acceptance/rbac.mjs",
         "demos/shindig/snapback/schema.mjs",
-        "demos/shindig/snapback/functions.mjs"
+        "demos/shindig/snapback/functions.mjs",
+        "tests/membership_principal_addressed_v0.rs"
       ],
       "examples": [
         "demos/rbac",
@@ -402,7 +404,7 @@
       ],
       "reviewed": "2026-07-31",
       "reviewedCommit": "HEAD",
-      "sha256": "c233a472f2929973badda7248ccc0f8c149e1f009c9168138f19f11a8176f03f",
+      "sha256": "2657a1c9dbc82713845da5ce488f68430bed67c40fecee8e5277a8122084eae6",
       "snippets": [
         {
           "lang": "js",
@@ -438,6 +440,14 @@
           "lang": "js",
           "class": "transcluded",
           "source": "demos/rbac/snapback/handlers.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "fragment"
+        },
+        {
+          "lang": "js",
+          "class": "fragment"
         }
       ]
     },
@@ -1152,7 +1162,7 @@
       "examples": [],
       "reviewed": "2026-08-01",
       "reviewedCommit": "HEAD",
-      "sha256": "ef59508c758e18b9f75ba30402461bd8fb7ca66e94f4220044e27f8c0211c827",
+      "sha256": "7286d775b9b0933490cbf0500ec5d3a0d3d4f7c2f929c3788014ffb0cf2ff991",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2440,5 +2450,5 @@
     "routes": 86,
     "hostOps": 29
   },
-  "contentHash": "290b95f631514572c892309b7bbd6a32ed3521bc1674684ea53f3549faf2f834"
+  "contentHash": "2155848a42a16dd2036334cb187a375d29ba4695507c732bc68419b340038697"
 }

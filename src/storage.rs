@@ -8645,6 +8645,78 @@ fn validate_membership_declaration(
         }
     }
 
+    // --- Principal-addressed writes activation (LLP 0100 §2). The option is
+    //     closed (v1 admits only `remove: true`) and activates only when at
+    //     least one transition is a TOTAL other-principal removal: `from`
+    //     omitted so no per-role asymmetry can read back a hidden role, and
+    //     every carrier caller class a full (non-pending) declared role.
+    //     Under `lastHolder`, every carrier caller role must be the protected
+    //     role, so an admitted caller is itself a protected holder and the
+    //     commit-stage check can never fire as an oracle on this surface.
+    // @ref LLP 0100#2-opting-into-principal-addressed-removal — totality is
+    //   load-bearing: partial coverage would make removal success/refusal a
+    //   hidden-role oracle.
+    if let Some(paw) = &membership.principal_addressed_writes {
+        let paw_error = |message: String| {
+            membership_error(
+                "SNAPBACK_MEMBERSHIP_PRINCIPAL_ADDRESSED_INVALID",
+                &table.name,
+                &declaration,
+                message,
+            )
+        };
+        if !paw.remove {
+            return Err(paw_error(
+                "principalAddressedWrites admits only { remove: true } in v1; remove: false is \
+                 refused rather than ignored"
+                    .to_owned(),
+            ));
+        }
+        let carriers: Vec<_> = membership
+            .transitions
+            .iter()
+            .filter(|transition| {
+                transition.op == MembershipOp::Remove
+                    && transition.target == MembershipTarget::Other
+                    && transition.from.is_none()
+            })
+            .collect();
+        if carriers.is_empty() {
+            return Err(paw_error(
+                "principalAddressedWrites.remove requires at least one total other-principal \
+                 removal transition (op remove, target other, from omitted); partial `from` \
+                 coverage cannot carry a principal-addressed removal"
+                    .to_owned(),
+            ));
+        }
+        let pending: BTreeSet<&str> = membership
+            .pending_roles
+            .iter()
+            .flatten()
+            .map(String::as_str)
+            .collect();
+        for transition in &carriers {
+            for by in &transition.by {
+                if pending.contains(by.as_str()) {
+                    return Err(paw_error(format!(
+                        "total other-principal removal caller class {by:?} is a pending role; \
+                         carriers admit only full declaration roles"
+                    )));
+                }
+                if let Some(last_holder) = &membership.last_holder
+                    && by != &last_holder.protect
+                {
+                    return Err(paw_error(format!(
+                        "total other-principal removal caller class {by:?} must be the \
+                         lastHolder-protected role {:?}: an admitted caller must itself be a \
+                         protected holder so removal cannot empty the protected set",
+                        last_holder.protect
+                    )));
+                }
+            }
+        }
+    }
+
     // --- Reserve the generated unique index's physical name so a user index
     //     cannot silently collide with it. ---
     for (index_name, _) in [
@@ -12128,6 +12200,10 @@ enum BufferedMembershipOp {
         resource: Option<String>,
         values: Map<String, Value>,
     },
+    RemovePrincipal {
+        resource: Option<String>,
+        principal: String,
+    },
 }
 
 impl BufferedMembershipCommand {
@@ -12228,6 +12304,22 @@ impl BufferedMembershipCommand {
             writer,
             table,
             op: BufferedMembershipOp::PatchSelf { resource, values },
+        }
+    }
+
+    pub(crate) fn remove_principal(
+        writer: MembershipWriter,
+        table: String,
+        resource: Option<String>,
+        principal: String,
+    ) -> Self {
+        Self {
+            writer,
+            table,
+            op: BufferedMembershipOp::RemovePrincipal {
+                resource,
+                principal,
+            },
         }
     }
 }
@@ -12351,6 +12443,29 @@ fn read_caller_role_with_dependency(
     resource: Option<&str>,
     principal: &str,
 ) -> SnapbackResult<(Option<String>, CapturedReadDependency)> {
+    let (pair, dependency) =
+        read_membership_pair_with_dependency(conn, table, membership, resource, principal)?;
+    Ok((pair.map(|(_, role)| role), dependency))
+}
+
+/// Resolve one `(principal, resource)` pair to its row id and role, with a
+/// captured dependency covering BOTH outcomes: a present lookup captures the
+/// exact matched row and role; an absent lookup probes the whole vocabulary so
+/// any later membership for the pair invalidates the absence witness. The
+/// returned id stays inside the host (LLP 0056's private-roster posture) —
+/// callers feed it into the unchanged target-row planners, never to the app.
+///
+/// @ref LLP 0100#3-host-resolution-and-linearization — both present and
+///   absent target lookups are captured, so a concurrent insert, remove, or
+///   role change invalidates the command's read set before companion writes
+///   can commit against a stale result.
+fn read_membership_pair_with_dependency(
+    conn: &Connection,
+    table: &TableManifest,
+    membership: &MembershipManifest,
+    resource: Option<&str>,
+    principal: &str,
+) -> SnapbackResult<(Option<(String, String)>, CapturedReadDependency)> {
     with_pinned_read_snapshot(conn, |conn| {
         let head = current_version_on(conn)?;
         validate_managed_row_versions(conn, table, head)?;
@@ -12392,8 +12507,8 @@ fn read_caller_role_with_dependency(
         // id would still match a probe over the declaration's whole vocabulary.
         // An absent lookup deliberately probes the whole vocabulary so any later
         // caller membership invalidates the `none` witness.
-        let caller_role = row.as_ref().map(|(_, role)| role.clone());
-        let roles = caller_role.clone().map_or_else(
+        let matched_role = row.as_ref().map(|(_, role)| role.clone());
+        let roles = matched_role.clone().map_or_else(
             || membership.vocabulary().map(str::to_owned).collect(),
             |role| vec![role],
         );
@@ -12417,7 +12532,7 @@ fn read_caller_role_with_dependency(
             .unwrap_or_default();
         let dependency =
             crate::membership_rules::membership_capture_dependency(&probe, head, matching_ids)?;
-        Ok((caller_role, dependency))
+        Ok((row, dependency))
     })
 }
 
@@ -12635,6 +12750,15 @@ impl LocalDatabase {
                             values,
                         )?
                     }
+                    BufferedMembershipOp::RemovePrincipal {
+                        resource,
+                        principal,
+                    } => self.plan_membership_remove_principal(
+                        &command.writer,
+                        &command.table,
+                        resource.as_deref(),
+                        &principal,
+                    )?,
                 };
                 Ok(AuthorizedMembershipPlan::user_transition(
                     command.writer,
@@ -13071,6 +13195,141 @@ impl LocalDatabase {
                 result: Value::Null,
                 skipped_protected: Vec::new(),
             })
+        })
+    }
+
+    /// Plan the principal-addressed removal command (LLP 0100 §3). The host
+    /// receives only `(declaration, resource?, targetPrincipal)`; row id,
+    /// role, caller class, and writer authority stay host-derived. The
+    /// refusal ordering is the RFC's disclosure calculus, exactly: option
+    /// check, shape-only argument validation, caller-role admission against
+    /// the TOTAL other-remove carriers (the invariant transition denial,
+    /// before any target lookup), the self-target refusal, then host-side
+    /// target resolution. A present target feeds the unchanged target-row
+    /// removal planner; an absent target is an idempotent no-op that commits
+    /// only its captured absence dependency — no membership write, no
+    /// transition record, no authorization-version advance (the §1-scoped
+    /// disclosure). Both branches return the identical `null`.
+    ///
+    /// @ref LLP 0100#3-host-resolution-and-linearization — refusal order,
+    ///   captured present/absent lookups, and the exact no-op commit.
+    pub fn plan_membership_remove_principal(
+        &self,
+        writer: &MembershipWriter,
+        table: &str,
+        resource: Option<&str>,
+        principal: &str,
+    ) -> SnapbackResult<MembershipPlan> {
+        with_pinned_read_snapshot(&self.conn, |_conn| {
+            let schema = self.schema.clone();
+            let (table_manifest, membership) = resolve_membership_decl(&schema, table)?;
+            // Opt-in declaration (defense in depth behind codegen: a
+            // hand-authored manifest without the option gets the same
+            // refusal the typed surface's absence implies).
+            if !membership
+                .principal_addressed_writes
+                .as_ref()
+                .is_some_and(|paw| paw.remove)
+            {
+                return Err(membership_refusal(
+                    "SNAPBACK_MEMBERSHIP_PRINCIPAL_ADDRESSED_UNDECLARED",
+                    "this declaration does not opt into principalAddressedWrites.remove; \
+                     principal-addressed removal is closed by default",
+                ));
+            }
+            // Step 1: shape-only argument validation. No user table is
+            // consulted — a well-formed principal that names no user takes
+            // the absent-pair no-op below, so this surface cannot become a
+            // user-directory existence probe.
+            if principal.is_empty() {
+                return Err(membership_refusal(
+                    "SNAPBACK_MEMBERSHIP_PRINCIPAL_INVALID",
+                    "removePrincipal requires a non-empty principal id",
+                ));
+            }
+            match (&membership.resource, resource) {
+                (Some(_), None) => {
+                    return Err(membership_refusal(
+                        "SNAPBACK_MEMBERSHIP_RESOURCE_MISSING",
+                        "resource-scoped principal-addressed removal requires a resource id",
+                    ));
+                }
+                (None, Some(_)) => {
+                    return Err(membership_refusal(
+                        "SNAPBACK_MEMBERSHIP_RESOURCE_UNEXPECTED",
+                        "app-scoped principal-addressed removal does not accept a resource id",
+                    ));
+                }
+                _ => {}
+            }
+            let effective = self.require_effective_principal(writer)?;
+            // Steps 2–3: resolve the caller's role and refuse a caller whose
+            // role matches no TOTAL other-principal removal transition, with
+            // the invariant denial — before the self check and before any
+            // target lookup, so an unauthorized caller never triggers a
+            // membership probe and learns nothing target-shaped.
+            let (caller_role, caller_dependency) = read_caller_role_with_dependency(
+                &self.conn,
+                table_manifest,
+                membership,
+                resource,
+                effective,
+            )?;
+            let class = match caller_role {
+                Some(role) => MembershipCallerClass::Role(role),
+                None => MembershipCallerClass::None,
+            };
+            let admitted = membership.transitions.iter().any(|transition| {
+                transition.op == MembershipOp::Remove
+                    && transition.target == MembershipTarget::Other
+                    && transition.from.is_none()
+                    && transition.by.iter().any(|by| by == class.token())
+            });
+            if !admitted {
+                return Err(transition_denied(
+                    MembershipOp::Remove,
+                    class.token(),
+                    MembershipTarget::Other,
+                ));
+            }
+            // Step 4: self-removal remains removeSelf. Typed misuse, refused
+            // before target lookup (the caller already knows this fact).
+            if principal == effective {
+                return Err(membership_refusal(
+                    "SNAPBACK_MEMBERSHIP_TARGET_SELF",
+                    "removePrincipal targets another principal; self-removal remains removeSelf",
+                ));
+            }
+            // Step 5: host-side target resolution, captured in both branches.
+            let (target, target_dependency) = read_membership_pair_with_dependency(
+                &self.conn,
+                table_manifest,
+                membership,
+                resource,
+                principal,
+            )?;
+            match target {
+                Some((member_id, _role)) => {
+                    // Step 6a: the unchanged target-row removal planner owns
+                    // the transition re-check, the target-row capture, and
+                    // the lastHolder departure guard.
+                    let mut plan = self.plan_membership_remove(writer, table, &member_id)?;
+                    plan.read_dependencies.push(target_dependency);
+                    Ok(plan)
+                }
+                None => Ok(MembershipPlan {
+                    // Step 6b: the idempotent no-op. Zero membership writes:
+                    // commit carries only the captured absence and caller
+                    // dependencies (plus the mutation's ordinary companion
+                    // writes, which ride the same commit outside this plan),
+                    // records no transition, and advances no authorization
+                    // version.
+                    writes: Vec::new(),
+                    read_dependencies: vec![caller_dependency, target_dependency],
+                    result: Value::Null,
+                    skipped_protected: Vec::new(),
+                }),
+            }
         })
     }
 
@@ -21499,6 +21758,7 @@ mod guarded_commit_tests {
 #[cfg(test)]
 mod membership_write_tests {
     use super::*;
+    use crate::manifest::MembershipTransition;
 
     fn membership_schema() -> SchemaManifest {
         let string = |name: &str, optional: bool| FieldManifest {
@@ -21647,6 +21907,7 @@ mod membership_write_tests {
                         ],
                         scope: MembershipScope::Resource,
                         resource_table: Some("events".to_owned()),
+                        principal_addressed_writes: None,
                     }),
                     asset_sharing: None,
                 },
@@ -22323,6 +22584,341 @@ mod membership_write_tests {
         set_role(db, host, &mid, "host").expect("promote host");
     }
 
+    /// The membership fixture with the LLP 0100 §2 opt-in: a TOTAL
+    /// other-principal removal carrier (`from` omitted) whose caller class is
+    /// the lastHolder-protected role, plus `principalAddressedWrites`.
+    fn principal_addressed_schema() -> SchemaManifest {
+        let mut schema = membership_schema();
+        let membership = schema
+            .tables
+            .iter_mut()
+            .find(|table| table.name == "event_members")
+            .and_then(|table| table.membership.as_mut())
+            .expect("membership fixture");
+        membership.transitions.push(MembershipTransition {
+            op: MembershipOp::Remove,
+            by: vec!["host".to_owned()],
+            target: MembershipTarget::Other,
+            from: None,
+            to: None,
+            fields: None,
+        });
+        membership.principal_addressed_writes =
+            Some(crate::manifest::MembershipPrincipalAddressedWrites { remove: true });
+        schema
+    }
+
+    fn seat_guest(db: &mut LocalDatabase, host: &str, event_id: &str, target: &str) {
+        invite(db, host, event_id, target);
+        let mid = member_id(db, event_id, target);
+        set_role(db, target, &mid, "guest").expect("accept invite");
+    }
+
+    fn remove_principal(
+        db: &mut LocalDatabase,
+        caller: &str,
+        event_id: &str,
+        principal: &str,
+    ) -> SnapbackResult<Value> {
+        let writer = user(caller);
+        let plan = db.plan_membership_remove_principal(
+            &writer,
+            "event_members",
+            Some(event_id),
+            principal,
+        )?;
+        let result = plan.result.clone();
+        db.commit_membership_plan(&writer, plan)?;
+        Ok(result)
+    }
+
+    // LLP 0100 §2 activation: the option is closed and the carrier contract
+    // is validated at schema apply — remove:false, missing total carriers,
+    // pending caller classes, and lastHolder-inconsistent carriers refuse.
+    #[test]
+    fn principal_addressed_activation_validates_the_carrier_contract() {
+        let mutate = |change: &dyn Fn(&mut MembershipManifest)| {
+            let mut schema = principal_addressed_schema();
+            let membership = schema
+                .tables
+                .iter_mut()
+                .find(|table| table.name == "event_members")
+                .and_then(|table| table.membership.as_mut())
+                .expect("membership fixture");
+            change(membership);
+            let mut db = LocalDatabase::memory().expect("memory database");
+            db.activate_current_auth_catalog().expect("auth catalog");
+            db.apply_schema(schema).map(|_| ())
+        };
+
+        // The valid fixture activates.
+        mutate(&|_| {}).expect("valid principal-addressed declaration activates");
+
+        // remove: false is refused rather than ignored.
+        let error = mutate(&|membership| {
+            membership.principal_addressed_writes =
+                Some(crate::manifest::MembershipPrincipalAddressedWrites { remove: false });
+        })
+        .expect_err("remove: false refuses");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_PRINCIPAL_ADDRESSED_INVALID"
+        );
+
+        // Partial `from` coverage cannot carry the option: dropping the total
+        // carrier leaves only the base schema's partial other-remove.
+        let error = mutate(&|membership| {
+            membership
+                .transitions
+                .retain(|transition| transition.from.is_some() || transition.op != MembershipOp::Remove
+                    || transition.target != MembershipTarget::Other);
+        })
+        .expect_err("no total carrier refuses");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_PRINCIPAL_ADDRESSED_INVALID"
+        );
+
+        // A pending caller class on a carrier is refused.
+        let error = mutate(&|membership| {
+            membership.transitions.push(MembershipTransition {
+                op: MembershipOp::Remove,
+                by: vec!["invited".to_owned()],
+                target: MembershipTarget::Other,
+                from: None,
+                to: None,
+                fields: None,
+            });
+        })
+        .expect_err("pending carrier class refuses");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_PRINCIPAL_ADDRESSED_INVALID"
+        );
+
+        // Under lastHolder every carrier caller role must be the protected
+        // role — an admitted caller is itself a protected holder.
+        let error = mutate(&|membership| {
+            membership.transitions.push(MembershipTransition {
+                op: MembershipOp::Remove,
+                by: vec!["cohost".to_owned()],
+                target: MembershipTarget::Other,
+                from: None,
+                to: None,
+                fields: None,
+            });
+        })
+        .expect_err("non-protected carrier class refuses under lastHolder");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_PRINCIPAL_ADDRESSED_INVALID"
+        );
+    }
+
+    // LLP 0100 §§1/3: identical `null` for present and absent targets; the
+    // present-target removal advances the durable global authorization
+    // version (event 1) while the absent-target no-op advances nothing —
+    // exactly the §1-scoped disclosure and nothing else.
+    #[test]
+    fn remove_principal_is_identical_null_with_the_scoped_epoch_disclosure() {
+        let mut db = ready_db_with_schema(principal_addressed_schema());
+        let (event_id, _host_id) = create_event(&mut db, "alice");
+        seat_guest(&mut db, "alice", &event_id, "bob");
+
+        let before = crate::storage::authorization_version_on(&db.conn)
+            .expect("version before present removal");
+        let result =
+            remove_principal(&mut db, "alice", &event_id, "bob").expect("present removal");
+        assert_eq!(result, Value::Null, "present-target result is null");
+        assert_eq!(
+            db.conn
+                .query_row(
+                    "SELECT COUNT(*) FROM event_members WHERE userId = 'bob'",
+                    [],
+                    |row| row.get::<_, i64>(0),
+                )
+                .expect("count"),
+            0,
+            "the seat is gone"
+        );
+        let after_present = crate::storage::authorization_version_on(&db.conn)
+            .expect("version after present removal");
+        assert!(
+            after_present.epoch > before.epoch
+                || after_present.incarnation != before.incarnation,
+            "a committed membership write is authorization event 1"
+        );
+
+        // The now-absent pair: byte-identical null, no version advance.
+        let result =
+            remove_principal(&mut db, "alice", &event_id, "bob").expect("absent no-op");
+        assert_eq!(result, Value::Null, "absent-target result is the same null");
+        let after_absent = crate::storage::authorization_version_on(&db.conn)
+            .expect("version after absent no-op");
+        assert_eq!(
+            after_absent, after_present,
+            "the absent-target no-op advances no authorization version"
+        );
+
+        // A well-formed principal that names no user at all takes the same
+        // branch: no user-directory probe, same null, no advance.
+        let result = remove_principal(&mut db, "alice", &event_id, "ghost_principal")
+            .expect("nonexistent principal no-op");
+        assert_eq!(result, Value::Null);
+        assert_eq!(
+            crate::storage::authorization_version_on(&db.conn).expect("version"),
+            after_present,
+        );
+    }
+
+    // LLP 0100 §3 refusal order: unauthorized callers receive the invariant
+    // transition denial BEFORE any target lookup — byte-identical whether the
+    // target exists or not — the self target is a typed misuse, argument
+    // validation is shape-only, and the surface is closed by default.
+    #[test]
+    fn remove_principal_refusals_are_ordered_and_non_disclosing() {
+        let mut db = ready_db_with_schema(principal_addressed_schema());
+        let (event_id, _) = create_event(&mut db, "alice");
+        seat_guest(&mut db, "alice", &event_id, "bob");
+        seat_guest(&mut db, "alice", &event_id, "carol");
+
+        // A guest caller: invariant denial, identical for a present target
+        // (bob) and an absent one (nobody) — no membership probe happened.
+        let writer = user("carol");
+        let present = db
+            .plan_membership_remove_principal(&writer, "event_members", Some(&event_id), "bob")
+            .expect_err("guest caller denied");
+        let absent = db
+            .plan_membership_remove_principal(&writer, "event_members", Some(&event_id), "nobody")
+            .expect_err("guest caller denied on absent target too");
+        assert_eq!(present.diagnostic.code, "SNAPBACK_MEMBERSHIP_TRANSITION_DENIED");
+        assert_eq!(
+            (present.diagnostic.code.clone(), present.diagnostic.message.clone()),
+            (absent.diagnostic.code.clone(), absent.diagnostic.message.clone()),
+            "the denial is byte-identical across target presence"
+        );
+
+        // A caller with no row at all (class none): same invariant denial.
+        let outsider = db
+            .plan_membership_remove_principal(
+                &user("mallory"),
+                "event_members",
+                Some(&event_id),
+                "bob",
+            )
+            .expect_err("outsider denied");
+        assert_eq!(outsider.diagnostic.code, "SNAPBACK_MEMBERSHIP_TRANSITION_DENIED");
+
+        // Self-removal remains removeSelf: typed misuse, before target lookup.
+        let this_is_me = db
+            .plan_membership_remove_principal(
+                &user("alice"),
+                "event_members",
+                Some(&event_id),
+                "alice",
+            )
+            .expect_err("self target refuses");
+        assert_eq!(this_is_me.diagnostic.code, "SNAPBACK_MEMBERSHIP_TARGET_SELF");
+
+        // Shape-only argument validation.
+        let empty = db
+            .plan_membership_remove_principal(&user("alice"), "event_members", Some(&event_id), "")
+            .expect_err("empty principal refuses");
+        assert_eq!(empty.diagnostic.code, "SNAPBACK_MEMBERSHIP_PRINCIPAL_INVALID");
+        let missing_resource = db
+            .plan_membership_remove_principal(&user("alice"), "event_members", None, "bob")
+            .expect_err("resource-scoped removal needs a resource");
+        assert_eq!(
+            missing_resource.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_RESOURCE_MISSING"
+        );
+
+        // Closed by default: without the opt-in the surface does not exist,
+        // even for the host caller class.
+        let mut undeclared = ready_db();
+        let (undeclared_event, _) = create_event(&mut undeclared, "alice");
+        let closed = undeclared
+            .plan_membership_remove_principal(
+                &user("alice"),
+                "event_members",
+                Some(&undeclared_event),
+                "bob",
+            )
+            .expect_err("undeclared option refuses");
+        assert_eq!(
+            closed.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_PRINCIPAL_ADDRESSED_UNDECLARED"
+        );
+    }
+
+    // LLP 0100 §3: both present and absent lookups are captured, so a
+    // concurrent insert invalidates the no-op's read set before companion
+    // writes can commit against a stale absence.
+    #[test]
+    fn remove_principal_no_op_absence_capture_invalidates_on_concurrent_insert() {
+        let mut db = ready_db_with_schema(principal_addressed_schema());
+        let (event_id, _) = create_event(&mut db, "alice");
+
+        let writer = user("alice");
+        let stale = db
+            .plan_membership_remove_principal(&writer, "event_members", Some(&event_id), "bob")
+            .expect("absent-target plan");
+        assert!(stale.writes.is_empty(), "the no-op plans zero writes");
+        assert!(
+            !stale.read_dependencies.is_empty(),
+            "the no-op captures its absence witness"
+        );
+
+        // bob joins between plan and commit: the captured absence is stale.
+        seat_guest(&mut db, "alice", &event_id, "bob");
+        let error = db
+            .commit_membership_plan(&writer, stale)
+            .expect_err("stale absence capture must not commit");
+        assert!(
+            error.diagnostic.code.contains("CONFLICT")
+                || error.diagnostic.code.contains("READ_SET")
+                || error.diagnostic.code.contains("INVALID"),
+            "commit-time read-set validation refuses the stale no-op: {}",
+            error.diagnostic.code
+        );
+    }
+
+    // LLP 0100 §2 + §Acceptance: the expired-but-authorized edge. 0056's
+    // sweep-skipped protected holder stays live, so an expired host still
+    // occupies the protected set: removal of the other host admits, commits,
+    // and the protected set never empties; the absent branch is uniform.
+    #[test]
+    fn remove_principal_expired_but_authorized_holder_edge_is_uniform() {
+        let mut db = ready_db_with_schema(principal_addressed_schema());
+        let (event_id, _) = create_event(&mut db, "alice");
+        promote_to_host(&mut db, "alice", &event_id, "bob");
+
+        // Expire ALICE's row through the declared host patch transition
+        // (fields: ["expiresAt"]) — bob, a host, patches alice's expiry into
+        // the past. The row stays live: protection wins over expiry.
+        let alice_row = member_id(&db, &event_id, "alice");
+        let mut values = Map::new();
+        values.insert("expiresAt".to_owned(), json!(1));
+        let plan = db
+            .plan_membership_patch(&user("bob"), "event_members", &alice_row, values)
+            .expect("expiry patch plan");
+        db.commit_membership_plan(&user("bob"), plan)
+            .expect("expiry patch commit");
+
+        // Expired-but-authorized alice removes the other protected holder:
+        // admitted under her still-live role; her own (expired) row is the
+        // surviving protected holder, so lastHolder cannot strand.
+        let result =
+            remove_principal(&mut db, "alice", &event_id, "bob").expect("present removal");
+        assert_eq!(result, Value::Null);
+        assert!(role_of(&db, &alice_row).is_some(), "alice's row survives");
+
+        // The absent branch is uniform for the same caller.
+        let result =
+            remove_principal(&mut db, "alice", &event_id, "bob").expect("absent no-op");
+        assert_eq!(result, Value::Null);
+    }
+
     #[derive(Clone, Copy, Debug)]
     enum CallerAuthorityOperation {
         Insert,
@@ -22823,6 +23419,7 @@ mod membership_write_tests {
                     transitions: Vec::new(),
                     scope: MembershipScope::App,
                     resource_table: None,
+                    principal_addressed_writes: None,
                 }),
                 asset_sharing: None,
             }],

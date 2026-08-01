@@ -1119,6 +1119,18 @@
                       resource: resource === undefined ? null : resource,
                       values: values || {}
                     });
+                  },
+                  removePrincipal: function(resource, principal) {
+                    if (arguments.length === 1) {
+                      principal = resource;
+                      resource = null;
+                    }
+                    return host("membership.write", {
+                      declaration: declaration,
+                      operation: "removePrincipal",
+                      resource: resource === undefined ? null : resource,
+                      principal: principal
+                    });
                   }
                 };
               }

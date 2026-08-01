@@ -6747,7 +6747,20 @@ function renderApiTypes(
           const resourceType = resourceTable ? `Id<'${resourceTable}'>` : 'string';
           return `setSelfRole(resource: ${resourceType}, role: ${typeName}Role): Promise<unknown>; removeSelf(resource: ${resourceType}): Promise<unknown>; patchSelf(resource: ${resourceType}, values: ${typeName}Patch): Promise<unknown>; `;
         })();
-    membershipMembers.push(`  ${declaration}: { ${bootstrapMethod}insert(values: ${typeName}Insert): Promise<unknown>; ${selfMethods}setRole(memberId: Id<'${tableName}'>, role: ${typeName}Role): Promise<unknown>; remove(memberId: Id<'${tableName}'>): Promise<unknown>; patch(memberId: Id<'${tableName}'>, values: ${typeName}Patch): Promise<unknown> };`);
+    // @ref LLP 0100#2-opting-into-principal-addressed-removal — codegen emits
+    // removePrincipal only when the declaration opts in; the result is always
+    // Promise<null> (never removed/missing/role/id/count).
+    let principalAddressedMethods = '';
+    if (membership.principalAddressedWrites?.remove === true) {
+      if (membership.scope === 'app') {
+        principalAddressedMethods = 'removePrincipal(principal: string): Promise<null>; ';
+      } else {
+        const resourceTable = idFieldTypeTable(table.fields?.[membership.resource]?.fieldType);
+        const resourceType = resourceTable ? `Id<'${resourceTable}'>` : 'string';
+        principalAddressedMethods = `removePrincipal(resource: ${resourceType}, principal: string): Promise<null>; `;
+      }
+    }
+    membershipMembers.push(`  ${declaration}: { ${bootstrapMethod}insert(values: ${typeName}Insert): Promise<unknown>; ${selfMethods}${principalAddressedMethods}setRole(memberId: Id<'${tableName}'>, role: ${typeName}Role): Promise<unknown>; remove(memberId: Id<'${tableName}'>): Promise<unknown>; patch(memberId: Id<'${tableName}'>, values: ${typeName}Patch): Promise<unknown> };`);
   }
   lines.push(...membershipAliases);
   lines.push('export interface GeneratedMembership {');
