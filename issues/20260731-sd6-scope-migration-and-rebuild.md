@@ -125,3 +125,62 @@ the publish used an org-scoped granular token; the `latest` tag is
 untouched. STILL OPEN on this ticket: the leased promotion (moving
 `latest`; needs the publication-authority lease) and work item 2,
 slice 5-rebuild from the published artifacts.
+
+## Execution record — leased promotion standup (2026-08-01, promotion/5-rebuild lane)
+
+The first-time standup of the leased default-tag promotion was
+attempted under Charlie's 2026-08-01 authorization and HALTED at
+preflight by two deterministic fail-closed validation refusals,
+reported per the lane's no-workarounds-on-validation rule rather
+than edited around. NOT EXECUTED as a result: the promotion, the
+authority standup, and the proof-matrix dispatch (work item 2).
+
+Decisive registry observation first (read-only `npm view`,
+2026-08-01): all nine `@expo/snapback-*` packages ALREADY carry
+`latest: 0.1.7` beside `bakeoff-0-1-7-fdd49db8abf1: 0.1.7`. npm
+assigns `latest` at a package's first-ever publication even under a
+non-default `--tag` (the behavior `validatePriorDependencyAlias`'s
+docstring anticipates); the 2026-08-01 publish verified the
+candidate tag without observing `latest`. The material goal of the
+promotion — the default vector at 0.1.7 — therefore already holds,
+and only the leased lineage + promotion-bound proof matrix are
+missing.
+
+The two refusals (verbatim strings, both firing in promote's
+preflight before authority acquisition and before any registry
+mutation):
+
+1. `snapback-promote: promotion requires a v3 lease bound to prior
+   default closure evidence` — `scripts/snapback-promote.mjs:205`
+   pins the v3 lease generation while the migrated authority issues
+   only v4; every issuable lease is refused, and a v3 lease cannot
+   exist for the terminal name table. Filed as
+   `issues/20260801-promote-v3-lease-pin-refuses-v4.md` (P0; the
+   pin predates the migration and was not bumped by `add06902`).
+2. `snapback-promote: latest-root proof preflight refused:
+   latest-root proof has no distinct signed prior CLI root` — with
+   the observed prior vector all-`0.1.7`, the bootstrap case
+   (prior == new) is categorically refused by `loadLatestProofPlan`
+   and the proof-plan/barrier machinery. Filed with the standup
+   prerequisites (committed+pushed ledger home for the proof plan;
+   HTTPS-only authority origin needing local TLS termination) and
+   the author decision on bootstrap lineage as
+   `issues/20260801-first-latest-promotion-no-distinct-prior-root.md`.
+
+External state: ZERO mutations by this lane — npm untouched (reads
+only), no GitHub dispatch, no authority process started, no lease
+requested or issued, and `~/.snapback-publication-authority/` was
+deliberately NOT created so no permanent custody exists containing a
+doomed (unacquirable-then-expired) first lease. Input-side
+validation that creates no lineage ran green: the candidate ledger
+`~/snapback-release-ledgers/candidate-ledger-0.1.7-fdd49db8.json`
+revalidates (`validateCandidateLedger` OK; sha256 `d64d6bce…`;
+scopePreset `identity`).
+
+LLP 0115 CV-1 remains UNSATISFIED — no external rebuild ran; work
+item 2 stays open. Unblocking order: fix the v3 pin (P0 ticket),
+decide the bootstrap-lineage question (author decision ticket),
+land the candidate ledger at a committed home on a pushed ref, then
+either execute the first leased promotion (0.1.8+ with a genuine
+prior) or dispatch the 5-rebuild matrix standalone per the decided
+option.
