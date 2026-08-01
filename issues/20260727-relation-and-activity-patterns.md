@@ -147,3 +147,13 @@ public-package GAP separately from the positive contributor-source carrier.
 This closes the package overclaim defect without claiming the missing signed
 attestation. The ticket remains open for its separately gated hosted
 publication and any later positive public-package attestation implementation.
+
+## Triage freshness note (2026-08-01 sweep)
+
+Disposition unchanged since 2026-07-28: LLP 0110/0113 remain Review
+(author acceptance is the gate); packages still withhold both
+capabilities (5ce6781a 'withhold relation capabilities in packages');
+the repo-local publication receipt exists
+(tests/conformance/relation-activity-publication-v1.receipt.json). No
+0137 arm changed this — A3 f7 cites the same LLP 0110/0131 shape as
+still unbuilt.

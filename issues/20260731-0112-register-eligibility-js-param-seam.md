@@ -61,3 +61,13 @@ conformance fixtures (fake clients) never cross the served admission, which
 is why the seam survived LLP 0112's acceptance suite. A regression test that
 runs a `$param` JS-child route through a real `ensureApp` would pin whichever
 rule wins.
+
+## Triage freshness note (2026-08-01 sweep)
+
+Still open as of 64505bab: neither the fix-wave α1 sweep (5ed6d6b9)
+nor the 0137 sweep touched compileRoutesManifest
+(packages/snapback-codegen/index.mjs:4731-4748) or the server's
+function_route_arg_types empty-map return for non-HostPlan runtimes
+(src/bundle.rs:427-435). The option-1 (server learns JS arg types) vs
+option-2 (codegen narrows) decision is still unmade; the Campfire
+declarative workaround still stands.

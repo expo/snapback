@@ -41,3 +41,15 @@ Acceptance for leg 1 should extend
 `demos/public-dashboard/tests/acceptance/offline-local-first.mjs` (or a
 sessions-mode sibling) with the LLP 0043 cold-process lease rows: lease-valid
 retained display, equality expiry, delete-before-render on mismatch.
+
+## Triage freshness note (2026-08-01 sweep)
+
+Still valid; package names updated: the workspace renamed to
+@expo/snapback-* (22ef5079), and @expo/snapback-contract/client-store is
+ALREADY imported by the client (index.mjs:16-20, for
+createClientMutationId/retainedQueryKey/stableJson) — leg 1 is a
+widening of an existing composition seam, not a new dependency. The 0137
+gap ledger names this ticket the owner of
+0137-a2-f8-retained-protected-history-gap; the retention refusal
+(SNAPBACK_RETENTION_NOT_RETAINABLE) still stands in
+packages/snapback-client/index.mjs.

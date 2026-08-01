@@ -20,3 +20,14 @@ working app (schema+permissions+code loaded, one generated function invocation
 succeeds). **Blocked:** LLP 0089 must exist and pass review first (it is being
 drafted under this batch); hosted half additionally waits on LLP 0087 Phase 2
 prerequisites. L-sized; needs its own docket entry when unblocked.
+
+## Triage freshness note (2026-08-01 sweep)
+
+Still valid; text updated: LLP 0089 now EXISTS
+(llp/0089-agent-provisioning-surface.rfc.md, authored 2026-07-23) but is
+still Draft with zero review artifacts, so the live blocker is narrower
+than written: 0089 review + the LLP 0082 evidence gate. Also note LLP
+0105 (Accepted 2026-07-28) records 0089 as contract authority with
+Universe/hosted as implementation authority for hosted operations — the
+hosted half's shape moved since this ticket was filed. No provisioning
+surface exists in code (profile gating only, src/cli.rs).

@@ -64,3 +64,16 @@ the opposite of agent custody's.
   in argv, env, logs, or output (planted-secret test).
 - Login challenge codes and addresses pass the same planted-secret and
   no-second-hop redirect suite; no accepted code channel is argv or env.
+
+## Triage note (2026-08-01 sweep) — likely superseded, pending program decision
+
+The 2026-08-01 triage sweep found this ticket's premise re-decided:
+the human-session path for non-browser protocol clients landed as
+non-custodial bearer injection — createExternalSessionClient
+(packages/snapback-client/index.mjs, @ref LLP 0096 §2), explicitly
+mutually exclusive with coordinator/agent custody — and LLP 0096 pins
+external session-bearer adoption and the trusted identity-broker seam
+separately. The file-backed Node custody store this ticket designs was
+never built. Recommended disposition: close as superseded when Charlie
+rules on the app-cli program's shelving (see the sweep report); left
+open only so the program decision is taken once, on the whole family.

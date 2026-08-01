@@ -87,3 +87,15 @@ connection `stale`, and a sentinel grep shows no protected bytes at rest.
 The rewritten guide/clients/react-expo.md now documents the memory-store
 consequence with a pointer here; keep that page in the update set when the
 adapter lands.
+
+## Triage freshness note (2026-08-01 sweep)
+
+Still valid and now item 3 of the prioritized 0.1.8+ improvement
+program (demos/improvement-sweep/reports/sweep-report.md §4 — 'the
+single change that makes Track B's A1 contract meetable').
+issues/20260801-0137-a1expo-f3-no-durable-on-device-store.md is the
+sweep-side witness holder for the SAME item — split ownership, not a
+competing design. The a1expo-f2 fix (e1f9ac49) narrowed the residual:
+the M2 queue now engages on Expo, so what remains is the durable store
+arm (restart durability + cold-boot retained render). The store ladder
+still excludes RN (packages/snapback-client/rqs-store-default.mjs:83).

@@ -35,3 +35,13 @@ resync-before-replay settlement). The LLP 0094 wire-version negotiation
 surface needed to introduce the field compatibly has landed (cea20de7).
 Large — Rust wire + committed schemas + both first-party clients + fixture
 corpus + two LLP amendments.
+
+## Triage freshness note (2026-08-01 sweep)
+
+Still valid; landing sites named for precision: the mutation input
+schema (schemas/mutation.input.schema.json) carries read_set and
+generatedIds but no artifact-identity/schemaHash field; schemaHash
+appears only in src/migration.rs (migration state), not on the handler
+wire. Interim mitigations verified real: SNAPBACK_MIGRATION_UPGRADE_
+REQUIRED (src/local.rs, src/server.rs), 5e244bf9 resync-before-replay,
+cea20de7 wire-version offer.

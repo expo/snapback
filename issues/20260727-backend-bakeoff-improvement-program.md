@@ -108,3 +108,15 @@ is held back by the bakeoff rerun.
   ephemeral semantics.
 - `./ref-check --verbose`, `node scripts/check-guide.mjs`, the relevant package
   suites, the full local proof, and an independent final review pass are green.
+
+## Triage freshness note (2026-08-01 sweep)
+
+Still valid as the index of exactly four hosted/publication
+residual rows (20260726-0072-fly-adapter, 20260727-relation-and-
+activity, 20260727-hosted-ephemeral-parity, 20260728-hosted-lifecycle-
+carrier) — all four still open. The '0.1.1 closure' revalidation note is
+two releases stale (0.1.7 then 0.1.8 published, 253cb838, ledger
+fastpath-ledger-0.1.8-5d5c6b7183af). The newer program index is
+demos/improvement-sweep/reports/sweep-report.md §4 +
+gap-ledger.v1.json; that ledger deliberately indexes only the 54 LLP
+0137 findings, so this ticket remains the owner of these four rows.

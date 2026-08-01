@@ -46,3 +46,13 @@ release-qualified closure.
    capability advertisement.
 6. Only then may the per-operation availability registry advance from
    `disabled`.
+
+## Triage freshness note (2026-08-01 sweep)
+
+Still valid. Since filing: the workspace scope rename (22ef5079)
+moved the mirrors to @expo/snapback-*, and 0.1.8 published the disabled
+lifecycle registry — 'the packaged CLI reports availability disabled'
+(packages/snapback-cli/hosted-control.mjs:95-96, blockerCode
+SNAPBACK_HOSTED_LIFECYCLE_CARRIER_INCOMPLETE) is now a public-registry
+fact, raising the bar on resolution criterion 6. LLP 0111 is Review
+(revised 2026-07-30, decision pending).

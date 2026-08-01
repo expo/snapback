@@ -70,3 +70,12 @@ choices still require author input. Timed runs remain blocked.
 - **Run capsule:** the content-addressed neutral prompt bytes, both scaffold tree
   digests, harness/analysis digests, machine image, hardware/network policy,
   exact package integrities, provider/region/plan, and credential preconditions.
+
+## Triage freshness note (2026-08-01 sweep)
+
+Author-gated; 6 of 8 pins landed via amendment v0.9 (assistance
+policy, frontend hosting boundary, application auth, comparator local
+leg, statistics, metric definitions — all now status pinned/pinnedBy
+v0.9). Remaining: rubric scoring anchors + run capsule (the latter still
+carrying the two absent credential preconditions: a Convex account and
+the shared Cloudflare Pages token).

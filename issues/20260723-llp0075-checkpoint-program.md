@@ -1,6 +1,6 @@
 # LLP 0075 Convex checkpoint protocol — pre-rerun program (index)
 
-**Status:** Open
+**Status:** Open (author-gated; two pins remain)
 **Impact:** 4
 **Urgency:** 4
 **Ease:** 1
@@ -72,3 +72,13 @@ unpinned-blocks-timed-runs gates in
 demos/competitive-checkpoint/acceptance/protocol.v0.json survive intact and
 no timed two-arm sample has run. No agent-executable work remains in this
 umbrella.
+
+## Triage freshness note (2026-08-01 sweep)
+
+Author-gated, and the progress text is stale: amendment v0.9
+(2026-07-30) pinned most gates — only TWO unpinned-blocks-timed-runs
+entries remain (evidenceConfidence.scoringAnchors and runCapsule;
+demos/competitive-checkpoint/acceptance/protocol.v0.json:122, 274, 356).
+Amendments now run v0.1–v0.9. No timed two-arm sample has run (results
+dir holds none). Not superseded by LLP 0102/0115/0137: LLP 0102 §93
+explicitly leaves 0075's fixture, margins, and adjudication to 0075.

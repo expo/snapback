@@ -102,3 +102,15 @@ fault matrix, control-plane custody for approvals and rehearsal receipts
 (closing the custody residuals above as spec), the remote-vs-local corpus
 split, and the G1→G2→G3 gate ladder. The custody residuals section above
 stays as the historical record; its normative home is now LLP 0099.
+
+## Triage freshness note (2026-08-01 sweep)
+
+Still valid, header stale: LLP 0099 is now Review (not Draft),
+revised 2026-07-28 with the 'First hosted executor decisions' section —
+slice 1 is complete as this ticket's own record says. G1 remains unmet:
+0099 §Gates still says 'none is claimed today', and the Fly driver still
+declares the four control-plane capability gaps with every lifecycle-v2
+op refusing SNAPBACK_HOSTED_LIFECYCLE_CARRIER_INCOMPLETE
+(packages/snapback-cli/adapters/fly-machines-vm-driver.mjs). Commit
+89d95cff staged the runtime artifact as release-manifest FACTS only —
+staging, not the carrier.

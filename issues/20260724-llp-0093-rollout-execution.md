@@ -1,6 +1,6 @@
 # File and drive the LLP 0093 rollout (P-0..P-3), including the minimal-client recipe
 
-**Status:** Open
+**Status:** Open (author-gated: ratification only)
 **Impact:** 5
 **Urgency:** 4
 **Ease:** 2
@@ -53,3 +53,14 @@ clients.poll-hosted GAP rows. The sole remaining item is the author
 decision: ratify LLP 0093 (Review → Accepted/Implemented, ideally together
 with 0094 and the 0095/0096 Drafts) or explicitly park it. Once recorded,
 this ticket closes with a one-line resolution.
+
+## Triage freshness note (2026-08-01 sweep)
+
+Everything executable landed: guide/protocol/client-protocol.md
+shipped, capability rows carry clients.protocol + the non-js/poll-hosted
+GAPs, P-0..P-4 tickets closed, and the hosted-root /_snapback/*
+migration landed (cloudflare/src/gateway.js §LLP 0094 0A.3; mirrored in
+src/server.rs). Remaining: one author line ratifying or parking LLP 0093
+(header still Review — the inline 'Status (2026-07-26): landed.' line is
+about the guide, not ratification; ideally decided together with 0094,
+also Review).

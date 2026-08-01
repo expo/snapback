@@ -66,3 +66,19 @@ exact package/bundle identities through the supported helper, then stop. The
 helper's final receipt reports no process, listener, impersonation carrier, or
 secret-read sidecar. No repository-relative import, sibling checkout, or
 manual host dependency extraction is present.
+
+## Triage freshness note (2026-08-01 sweep) — 3 of 6 bullets landed
+
+Landed since filing: (bullet 1) ./online ships types
+(packages/snapback-client/package.json → online.d.mts, guarded by
+scripts/check-package-export-types.mjs; closed via
+issues/closed/20260730-move5-runtime-qual-and-types-sweep.md); (bullet
+3) .secret-read-root teardown fixed
+(issues/closed/20260801-0137-g1-orphaned-secret-read-root-sidecar.md);
+(bullet 6) the staged-only closure is superseded by the public 0.1.7 and
+0.1.8 publications (253cb838). Still open: the packaged
+readiness/identity half (now owned by issues/20260801-0137-g1-guide-gap-
+packaged-runtime-readiness-receipt.md), the Linux host-prep bullet, and
+the inode-predicate refusal bullet. Note sweep-report.md lists
+'external-package lifecycle' among the frozen-epoch verdicts REVERSED on
+the merits — the ticket's framing predates that.

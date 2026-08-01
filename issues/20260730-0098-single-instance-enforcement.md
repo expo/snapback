@@ -29,3 +29,12 @@ Scope:
 
 Out of scope: the drill deployment (keeps its documented posture and bounded
 deploy downtime), and any change to the §5 health-withdrawal path.
+
+## Triage freshness note (2026-08-01 sweep)
+
+Still valid and agent-executable (D3 was already Charlie's
+decision). LLP 0098 remains Draft, so its §8 negative-ledger row cannot
+be filed until the spec advances; no Machines-count admission check
+exists in src/ (only the singleInstanceContainerVm deploy-profile field,
+src/deploy.rs:104). Work stays latent until a production globallyFenced
+profile exists — only the drill profile does today.

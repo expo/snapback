@@ -35,3 +35,13 @@ registered-implementation plus process-live egress predicate.
 - `demos/backend-bakeoff/arms/research-room/snapback/receipts/sessions-stream-admission-defect.v1.json`
 - `src/local.rs`
 - `src/manifest.rs`
+
+## Triage freshness note (2026-08-01 sweep) — scope narrowed
+
+Largely landed since filing: one constructor
+(CapabilityManifest::local_v0_instance, src/manifest.rs) is now called
+by all four serving sites (src/local.rs:3497, 3689, 5183, 11562), so the
+Problem statement overstates the current tree. Remaining residuals only:
+(1) the post-construction vm_lifecycle warm-VM override is duplicated
+verbatim at src/local.rs:5191 and :11567; (2) no cross-seam capability
+parity test exists. Close if those two are judged out of scope.

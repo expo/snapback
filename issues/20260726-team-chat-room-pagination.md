@@ -1,6 +1,6 @@
 # Team Chat needs membership-scoped opaque room-history pagination
 
-**Status:** Open
+**Status:** Open (author-gated on LLP 0100 ratification)
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 2
@@ -65,3 +65,13 @@ negative. Gate: author revision + ratification, then implementation.
 - the query is index-served with a preregistered work/page bound; and
 - the Team Chat pressure app uses the surface through headless and complete UI
   receipts.
+
+## Triage freshness note (2026-08-01 sweep)
+
+Author-gated with its sibling: the 0137 A3 arm independently
+re-found this gap (issues/20260801-0137-a3-keyset-pages-owner-partition-
+only.md names this ticket as blocked with it under LLP 0100 §4), and
+sweep-report.md §4 item 6 folds both into the membership-expressiveness
+one-decision batch. LLP 0100 is still Draft;
+defineMembershipKeysetPages exists only in the RFC. demos/team-chat
+still uses defineOwnedKeysetPages.
