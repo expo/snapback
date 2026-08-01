@@ -8210,7 +8210,11 @@ fn system_route_registrations() -> Vec<RegisteredRoute> {
                 ResponseSensitivity::SensitiveApplicationData,
             )
             .with_effect(EffectPolicy::OperationSpecific),
-            post(host_ops_handler),
+            // The route bound admits the same declared byte envelope as the
+            // host-ops peek limit (asset.put / seed-fixture base64 inputs);
+            // coarse admin authorization still precedes any body read.
+            post(host_ops_handler)
+                .layer(DefaultBodyLimit::max(POLICY_BODY_PEEK_LIMIT_HOST_OPS)),
         ),
         RegisteredRoute::new(
             write(
@@ -8357,6 +8361,14 @@ pub(crate) fn static_public_content_security_policy<'a>(
 }
 
 const POLICY_BODY_PEEK_LIMIT: usize = 2 * 1024 * 1024;
+/// Host-op inputs may legitimately carry a declared-chunk-sized byte payload
+/// as base64 (`asset.put`, `asset.ensureSeedFixture`), which the generic peek
+/// bound would refuse before the operation ever ran. The host-ops lane peeks
+/// under this envelope instead — sized to the declared chunk capability fact
+/// in base64 plus headroom — and only after the route's coarse admin
+/// authorization has already accepted the caller.
+const POLICY_BODY_PEEK_LIMIT_HOST_OPS: usize =
+    (crate::assets::ASSET_MAX_CHUNK_BYTES as usize * 4).div_ceil(3) + 64 * 1024;
 
 /// Find a legacy authority field without mistaking ordinary app arguments
 /// (which may legitimately contain columns named `user_id`) for transport
@@ -8406,9 +8418,10 @@ fn body_auth_unsupported(field: &str) -> ApiError {
 
 async fn peek_policy_json_body(
     request: Request<Body>,
+    limit: usize,
 ) -> Result<(Request<Body>, Option<Value>), ApiError> {
     let (parts, body) = request.into_parts();
-    let bytes = to_bytes(body, POLICY_BODY_PEEK_LIMIT)
+    let bytes = to_bytes(body, limit)
         .await
         .map_err(|error| {
             SnapbackError::error(
@@ -8417,7 +8430,7 @@ async fn peek_policy_json_body(
                 "request body exceeded the policy-gate inspection limit",
             )
             .with_details(json!({
-                "limitBytes": POLICY_BODY_PEEK_LIMIT,
+                "limitBytes": limit,
                 "error": error.to_string(),
             }))
         })?;
@@ -10832,7 +10845,20 @@ async fn enforce_registered_route_policy(
 
     let connection_id_in_body = effective.path_policy == RoutePolicy::ConnectionAuth
         && connection_id_from_request_path(request.uri().path()).is_none();
-    let inspect_body = effective.legacy_body_policy == LegacyBodyPolicy::Rejected
+    // The TUS PATCH body is an opaque `application/offset+octet-stream`
+    // chunk: never policy-inspectable JSON and never a transport-auth
+    // carrier — authority resolves from headers and session lineage, and the
+    // peek's JSON parse of chunk bytes always yielded `None`. Inspecting it
+    // had exactly one effect: the peek bound capped real chunks at 2 MiB and
+    // made the declared `ASSET_MAX_CHUNK_BYTES` capability fact unreachable
+    // (found by the LLP 0139 bakeoff's first real 120 MB upload). The
+    // exemption is method-and-path exact — the JSON-shaped AssetTransfer
+    // siblings (attempt inspect/cancel, TUS HEAD/DELETE) keep body
+    // inspection — and ingest stays bounded in the handler by the chunk
+    // fact, refused as the classified media-bounds 413.
+    let opaque_transfer_body = spec.path == "/assets/tus/{id}" && spec.method == "PATCH";
+    let inspect_body = !opaque_transfer_body
+        && (effective.legacy_body_policy == LegacyBodyPolicy::Rejected
         || connection_id_in_body
         || operation_deferred
         || matches!(spec.path, "/auth/request-code" | "/auth/exchange")
@@ -10843,12 +10869,17 @@ async fn enforce_registered_route_policy(
                 InvocationSource::AuthRefresh | InvocationSource::AuthLogout
             )
         })
-        || effective.effect_policy == EffectPolicy::SecretReadMintProof;
+        || effective.effect_policy == EffectPolicy::SecretReadMintProof);
     let connection_open_bearer = (spec.path == "/connection/open")
         .then(|| OwnedPresentedSessionBearer::from_headers(request.headers()));
     let mut policy_body = None;
     if inspect_body {
-        match peek_policy_json_body(request).await {
+        let policy_peek_limit = if spec.path == "/_snapback/api/host-ops" {
+            POLICY_BODY_PEEK_LIMIT_HOST_OPS
+        } else {
+            POLICY_BODY_PEEK_LIMIT
+        };
+        match peek_policy_json_body(request, policy_peek_limit).await {
             Ok((rebuilt, body)) => {
                 request = rebuilt;
                 policy_body = body;
@@ -18373,9 +18404,29 @@ async fn asset_tus_patch_route(
     Extension(authority): Extension<PreparedAuthority>,
     Path(id): Path<String>,
     headers: HeaderMap,
-    body: Bytes,
+    body: Body,
 ) -> Result<Response, ApiError> {
     require_tus_version(&headers)?;
+    // The chunk bound is enforced here as a classified diagnostic rather
+    // than by an extractor layer, whose plain 413 the reviewed-response
+    // classifier would truthfully report as an unclassified 500.
+    let body = to_bytes(
+        body,
+        crate::assets::ASSET_MAX_CHUNK_BYTES as usize + 16 * 1024,
+    )
+    .await
+    .map_err(|_| {
+        ApiError::from(
+            SnapbackError::error(
+                "SNAPBACK_ASSET_MEDIA_BOUNDS_EXCEEDED",
+                "assets",
+                "the TUS chunk exceeds the declared maximum chunk size",
+            )
+            .with_details(json!({
+                "maxChunkBytes": crate::assets::ASSET_MAX_CHUNK_BYTES,
+            })),
+        )
+    })?;
     let content_type = headers
         .get(header::CONTENT_TYPE)
         .and_then(|value| value.to_str().ok())

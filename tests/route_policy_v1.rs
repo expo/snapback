@@ -1797,6 +1797,19 @@ async fn sessions_runtime_rejects_body_auth_on_every_http_ingress() {
                 .oneshot(request)
                 .await
                 .expect("sessions HTTP body-auth probe");
+            // The TUS PATCH body is exempt from policy inspection (opaque
+            // chunk bytes, never a JSON transport-auth carrier). The
+            // invariant holds fail-closed there instead: a JSON-shaped body
+            // dies on the TUS version precondition before anything could
+            // interpret it, so client body-auth fields are never honored.
+            if route.method == "PATCH" && route.path == "/assets/tus/{id}" {
+                assert_eq!(
+                    response.status(),
+                    StatusCode::PRECONDITION_FAILED,
+                    "{field}: a JSON body on the opaque TUS lane must die on                      the TUS precondition, never reach authority resolution"
+                );
+                continue;
+            }
             assert_eq!(
                 response.status(),
                 StatusCode::BAD_REQUEST,
@@ -2959,3 +2972,172 @@ async fn incomplete_chunked_body_cannot_starve_auth_mode_quiescence() {
 
     server.abort();
 }
+
+/// The LLP 0139 bakeoff's first real 120 MB upload found the policy gate's
+/// 2 MiB inspection bound refusing the asset client's default 4 MiB TUS
+/// chunk, making the declared `ASSET_MAX_CHUNK_BYTES` capability fact
+/// unreachable. TUS bodies are opaque non-JSON chunk bytes and are exempt
+/// from body inspection; ingest stays bounded by the route's own limit.
+#[tokio::test]
+async fn tus_patch_streams_declared_chunks_past_the_policy_gate() {
+    let router = app(sessions_runtime(bound_loopback_state(
+        LocalSnapback::memory().expect("in-memory TUS chunk policy instance"),
+    )));
+
+    // A declared-max chunk must pass the gate: whatever refusal follows is an
+    // auth/attempt refusal from the handler stack, never the peek's
+    // SNAPBACK_VALUE_TOO_LARGE 413.
+    let chunk = vec![0u8; snapback::assets::ASSET_MAX_CHUNK_BYTES as usize];
+    let request = Request::builder()
+        .method("PATCH")
+        .uri("/assets/tus/policy_probe")
+        .header("content-type", "application/offset+octet-stream")
+        .header("tus-resumable", "1.0.0")
+        .header("upload-offset", "0")
+        .body(Body::from(chunk))
+        .expect("build declared-max TUS chunk probe");
+    let response = router
+        .clone()
+        .oneshot(request)
+        .await
+        .expect("declared-max TUS chunk probe");
+    assert_ne!(
+        response.status(),
+        StatusCode::PAYLOAD_TOO_LARGE,
+        "a declared-max TUS chunk must not trip a body-size refusal"
+    );
+    let code = diagnostic_code(response).await;
+    assert_ne!(
+        code, "SNAPBACK_VALUE_TOO_LARGE",
+        "the policy peek must not inspect opaque TUS chunk bodies"
+    );
+
+    // On the dev lane the request reaches body extraction, where the route's
+    // own `DefaultBodyLimit` is the chunk bound: a declared-max chunk reads
+    // through to the handler (which then refuses the unknown attempt), while
+    // an over-bound body 413s at the extractor. (On the sessions lane above,
+    // header auth refuses before the body is ever read, so the bound cannot
+    // be observed unauthenticated.)
+    let dev_router = app(bound_loopback_state(runner_fixture()));
+    let chunk = vec![0u8; snapback::assets::ASSET_MAX_CHUNK_BYTES as usize];
+    let request = Request::builder()
+        .method("PATCH")
+        .uri("/assets/tus/policy_probe")
+        .header("content-type", "application/offset+octet-stream")
+        .header("tus-resumable", "1.0.0")
+        .header("upload-offset", "0")
+        .header("x-snapback-dev-user", "policy-probe")
+        .body(Body::from(chunk))
+        .expect("build dev declared-max TUS chunk probe");
+    let response = dev_router
+        .clone()
+        .oneshot(request)
+        .await
+        .expect("dev declared-max TUS chunk probe");
+    assert_ne!(
+        response.status(),
+        StatusCode::PAYLOAD_TOO_LARGE,
+        "a declared-max chunk must reach the handler on the dev lane"
+    );
+    let code = diagnostic_code(response).await;
+    assert_ne!(
+        code, "SNAPBACK_VALUE_TOO_LARGE",
+        "the dev lane must not inspect opaque TUS chunk bodies either"
+    );
+
+    let oversized = vec![0u8; snapback::assets::ASSET_MAX_CHUNK_BYTES as usize + 16 * 1024 + 1];
+    let request = Request::builder()
+        .method("PATCH")
+        .uri("/assets/tus/policy_probe")
+        .header("content-type", "application/offset+octet-stream")
+        .header("tus-resumable", "1.0.0")
+        .header("upload-offset", "0")
+        .header("x-snapback-dev-user", "policy-probe")
+        .body(Body::from(oversized))
+        .expect("build oversized TUS chunk probe");
+    let response = dev_router
+        .oneshot(request)
+        .await
+        .expect("oversized TUS chunk probe");
+    assert_eq!(
+        response.status(),
+        StatusCode::PAYLOAD_TOO_LARGE,
+        "the TUS route limit must still bound ingest at body extraction"
+    );
+    assert_eq!(
+        diagnostic_code(response).await,
+        "SNAPBACK_ASSET_MEDIA_BOUNDS_EXCEEDED",
+        "the over-bound chunk refusal must be the classified diagnostic"
+    );
+}
+
+/// Host-op inputs may carry declared-chunk-sized bytes as base64
+/// (`asset.put`, `asset.ensureSeedFixture`); the host-ops lane peeks under
+/// the widened envelope after coarse admin authorization instead of the
+/// generic 2 MiB inspection bound.
+#[tokio::test]
+async fn host_ops_peek_admits_declared_byte_envelopes() {
+    let state = AppState::from_snapback(runner_fixture(), exposed_context("sekrit"));
+    let router = app(state);
+
+    // ~4.1 MiB of base64 payload inside an unknown operation: over the old
+    // generic bound, comfortably under the host-ops envelope. The refusal
+    // must come from operation resolution, not the peek.
+    let blob = "A".repeat(4 * 1024 * 1024 + 128 * 1024);
+    let mut probe = request(
+        "POST",
+        "/_snapback/api/host-ops",
+        Some(json!({
+            "operation": "asset.policyProbeUnknown",
+            "input": { "bytesBase64": blob },
+        })),
+    );
+    probe.headers_mut().insert(
+        "x-snapback-admin-token",
+        "sekrit".parse().expect("admin token header"),
+    );
+    let response = router
+        .clone()
+        .oneshot(probe)
+        .await
+        .expect("host-ops wide-envelope probe");
+    assert_ne!(
+        response.status(),
+        StatusCode::PAYLOAD_TOO_LARGE,
+        "a declared byte envelope must not trip the host-ops body bound"
+    );
+    let code = diagnostic_code(response).await;
+    assert_ne!(
+        code, "SNAPBACK_VALUE_TOO_LARGE",
+        "the host-ops peek must admit the declared byte envelope"
+    );
+
+    // Beyond the envelope, the widened bound still refuses.
+    let oversized = "A".repeat(POLICY_HOST_OPS_PROBE_OVER_LIMIT);
+    let mut probe = request(
+        "POST",
+        "/_snapback/api/host-ops",
+        Some(json!({
+            "operation": "asset.policyProbeUnknown",
+            "input": { "bytesBase64": oversized },
+        })),
+    );
+    probe.headers_mut().insert(
+        "x-snapback-admin-token",
+        "sekrit".parse().expect("admin token header"),
+    );
+    let response = router
+        .oneshot(probe)
+        .await
+        .expect("host-ops over-envelope probe");
+    assert_eq!(
+        response.status(),
+        StatusCode::PAYLOAD_TOO_LARGE,
+        "the host-ops envelope must still bound ingest"
+    );
+}
+
+/// Base64 payload size that pushes the host-ops JSON body past the widened
+/// peek/route envelope (chunk fact × 4/3 + 64 KiB).
+const POLICY_HOST_OPS_PROBE_OVER_LIMIT: usize =
+    (8 * 1024 * 1024 * 4) / 3 + 64 * 1024 + 128 * 1024;

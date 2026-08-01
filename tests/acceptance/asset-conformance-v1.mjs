@@ -240,6 +240,17 @@ try {
   // the Rust suites and the cross-decoder package test.)
   checks.uploadEndToEndVerified = true;
 
+  // Vector 1c — the client's real default chunk size against the real
+  // server: ~10 MB over three 4 MiB chunks. The policy gate's 2 MiB
+  // inspection bound once refused exactly this (the 64-byte suite chunks
+  // masked it); default-config uploads must stay covered at real sizes.
+  const defaultChunkAssets = new SnapbackAssetClient(ada.client);
+  const bulk = new Uint8Array(10 * 1024 * 1024 + 4097);
+  for (let i = 0; i < bulk.length; i += 4096) bulk[i] = (i / 4096) % 251;
+  const bulkReady = await uploadReady(ada, defaultChunkAssets, bulk, api.bulkUpload);
+  assert.equal(bulkReady.integrityBasis, 'end-to-end-verified');
+  checks.defaultChunkUpload = true;
+
   // Vector 2 — interrupted transfer resumes from the acknowledged offset
   // through a fresh client sharing only the persisted resume facts.
   const sharedStore = createMemoryAssetTaskStore();

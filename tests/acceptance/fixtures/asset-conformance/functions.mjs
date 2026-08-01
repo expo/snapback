@@ -38,6 +38,18 @@ export const fileUpload = defineAssetUpload({
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
 
+// Large enough to force several default-size (4 MiB) TUS chunks: the
+// defaults-vs-limits drift the 2 MiB policy-peek regression hid behind
+// 64-byte suite chunks (issues/closed/20260801-0044-policy-gate-caps-tus-chunks.md).
+export const bulkUpload = defineAssetUpload({
+  args: {},
+  auth: 'authenticated',
+  accept: { mediaTypes: ['application/octet-stream'], maxBytes: 32_000_000 },
+  delivery: { kind: 'private-strict' },
+  access: { read: 'owner-only' },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+
 // The pasteable-delivery pair (LLP 0044 §Delivery profiles, dated note
 // 2026-07-31): a public-immutable cover and a private-signed share, both
 // strip-declared images with the primary as the only rendition.
