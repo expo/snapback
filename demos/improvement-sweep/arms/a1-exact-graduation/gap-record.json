@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "recordKind": "track-c-gap-record",
+  "arm": {
+    "contract": "a1",
+    "armKind": "exact",
+    "attemptId": "a1-exact-graduation-20260801",
+    "surfaces": ["contract-web", "exact-native-ios", "exact-native-android"]
+  },
+  "assessedAt": "2026-08-01",
+  "verdict": "not-ready",
+  "readinessAssessment": {
+    "question": "Can the frozen A1 field-notebook contract graduate across Contract/web, exact-native/ios, and exact-native/android today (LLP 0137 Track C; LLP 0064 claim rules)?",
+    "surfaceState": {
+      "contract-web": {
+        "status": "available-not-run",
+        "evidence": "@expo/snapback-contract is in the public 0.1.7 closure; codegen emits per-function Contract binding modules (the A1 backend's generated/contract/ exists); guide/clients/contract-adapter.md is shipped with examples. Not run: Track C is one three-surface exercise and two of three surfaces are unready — the plan records the program GAP rather than a partial run and never delays the sweep report."
+      },
+      "exact-native-ios": {
+        "status": "not-ready-for-this-app",
+        "evidence": "A Parity receipt EXISTS for the Partitime workload only: exact repo docs/reports/exact-native/partitime-ios.json (recordedAt 2026-07-21T00:46:26Z, profileId exact-native/ios, all twelve LLP 0064 Parity facts), imported by demos/partiful-matrix/tests/acceptance/step2-exact-native.mjs, which hardcodes the partitime receipt path and claim ids (STEP2.CONTRACT_IOS_PARITY, workload partitime.web-3x4+apple-native-2x2x4.v1). Nothing app-agnostic exists to carry A1."
+      },
+      "exact-native-android": {
+        "status": "not-ready-for-this-app",
+        "evidence": "Same shape: docs/reports/exact-native/partitime-android.json (2026-07-21), Partitime-specific carrier and import gate."
+      }
+    },
+    "unreadyGates": [
+      {
+        "gate": "G-C1 plan-tier expressibility",
+        "detail": "The A1 backend (adopted by the frozen web arm and this sweep's Expo arm) is 11 JS mutations + 2 JS live queries built on ctx.membership.* (bootstrap/insert/setSelfRole/removeSelf), ctx.permissions.*.requireRole, unique-index idempotent create, revision-bump patches, and ctx.assets.attach. The Exact Native Parity surface executes generated declarative plans; LLP 0064 §4 rules server-only JS handlers inadmissible for deterministic local execution (Partitime reached Parity by replacing its one JS handler with a declarative plan). The exact-side Rust codegen (packages/snapback-client-core/codegen/generate.mjs) contains zero support for membership declarations or JS-handler operations (0 references; partitime_generated.rs likewise), so A1's auth/membership shape is inexpressible in today's portable plan tier.",
+        "citations": ["llp/0064-native-client-surfaces.rfc.md §4", "~/projects/exact/packages/snapback-client-core/codegen/generate.mjs", "demos/improvement-sweep/arms/a1-snapback-web/evidence/app/functions.mjs"]
+      },
+      {
+        "gate": "G-C2 stale Snapback authority pin",
+        "detail": "The generated Rust app modules in the exact repo pin Snapback authority b79c695f (2026-07-20, 'feat(partitime): make RSVP natively replayable') — an entire productization epoch behind the public 0.1.7 closure the sweep runs against (membership tables, sessions custody surfaces, and the packaged client all postdate the pin). Receipts are frozen at exact revisions e94e50e5 (receipt) / 5a6ec229 (source), 2026-07-21.",
+        "citations": ["~/projects/exact/packages/snapback-client-core/src/partitime_generated.rs (header pin)", "demos/partiful-matrix/acceptance/results/step2-exact-native-ios.json"]
+      },
+      {
+        "gate": "G-C3 no app-agnostic onboarding path",
+        "detail": "Per-app artifacts are vendored into snapback-client-core/artifacts/{partitime,todo-v2,todo-v2-remote-service}; each carried app needs a hand-composed carrier crate (exact-partitime-carrier, 634-line lib.rs over exact_snapback_provider + vendored manifests) and an app-named capture harness (scripts/capture-exact-partitime-native.mjs); the Snapback-side gate imports only the Partitime receipt paths. Onboarding A1 means: vendor its generated artifacts, extend and re-run the exact-side Rust codegen, author an a1 carrier crate, author per-OS capture, and add an A1 import gate — a build-the-surface project, not a run.",
+        "citations": ["~/projects/exact/packages/exact-partitime-carrier/src/lib.rs", "~/projects/exact/scripts/capture-exact-partitime-native.mjs", "demos/partiful-matrix/tests/acceptance/step2-exact-native.mjs"]
+      },
+      {
+        "gate": "G-C4 contract-fact coverage (attachments + sessions custody)",
+        "detail": "A1-04 attachments: the native carrier has no asset surface, and the asset stack is defective even on the public web closure (findings 0137-a1-f1/f2/f3: assetRef makes tables unqueryable, attach admission refused at commit, asset client cannot authenticate sessions). A1's sessions-mode custody has no exact-native story: the Partitime carrier authenticated with a demo AuthCapability and a baked carrier secret, not the sessions email-code/external-bearer custody the frozen A1 arms run under (LLP 0059/0060 custody rules).",
+        "citations": ["demos/improvement-sweep/arms/a1-snapback-web/findings/", "~/projects/exact/packages/exact-partitime-carrier/src/lib.rs (AuthCapability construction)"]
+      }
+    ],
+    "explicitNonSubstitutes": "Per LLP 0137 Track C and LLP 0064: no polling gateway, Contract-on-Hermes instrument, or React Native carrier substitutes for an Exact Native profile — in particular this sweep's own a1-snapback-expo-ios Online-surface receipt does NOT stand in for exact-native/ios, and the Partitime Parity receipts do not transfer to the A1 workload or to any other app."
+  },
+  "successorGateConditions": [
+    "exact-side Rust codegen (or Snapback codegen emitting portable plans) covers the A1 operation tier: membership declaration + role guards + unique-key idempotent create + revision patches",
+    "Snapback authority pin advanced to a 0.1.7-era revision with regenerated app modules",
+    "an a1 carrier crate + per-OS capture producing docs/reports/exact-native/a1-{ios,android}.json receipts with the full LLP 0064 Parity fact set, plus a Snapback-side import gate for the A1 workload (or an app-agnostic generalization of all three)",
+    "a native asset surface for A1-04 and a sessions-custody story for the native carrier (after the web-closure asset defects 0137-a1-f1/f2/f3 are fixed)",
+    "then: run the three-surface exercise with its own diary and capsule at demos/improvement-sweep/arms/a1-exact-graduation/ under LLP 0064's independent per-OS receipts"
+  ],
+  "ticket": "issues/20260801-0137-track-c-exact-unready-gate.md",
+  "result": "blocked"
+}
