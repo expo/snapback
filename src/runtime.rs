@@ -994,6 +994,21 @@ pub(crate) struct IbexHostContext<'a> {
     /// outer result-assembly restores this trusted representation; a handler
     /// that forges a stream code without a recorded refusal gets no details.
     stream_refusal: Option<SnapbackError>,
+    /// A **trusted** `SNAPBACK_AUTH_PERMISSION_DENIED` produced by a host
+    /// call inside an ACTION (a nested mutation's requireRole/RLS denial
+    /// crossing `action.runMutation`), recorded out-of-band (0137 a4-f5 /
+    /// a3-f3 family). LLP 0053 pins that a forged `{code: ...}` from handler
+    /// JS must stay untyped, so the envelope decoder folds the claimed code
+    /// to `SNAPBACK_HANDLER_FAILED`; when the handler's failure CLAIMS this
+    /// code AND this witness exists, the outer result-assembly surfaces the
+    /// recorded trusted denial with its uniform bytes instead. A claim with
+    /// no witness stays folded (forgery); a witness with a different final
+    /// failure is not restored (the handler caught the denial and failed
+    /// for its own reason); a handler that catches and succeeds succeeds —
+    /// unlike `terminal_denial`, this is not terminalizing, because the
+    /// denied nested mutation already committed nothing and an action may
+    /// legitimately take an alternative path.
+    denial_witness: Option<SnapbackError>,
 }
 
 /// Replay-mode cursor over a supplied ctx-answer ledger (LLP 0051 D1).
@@ -1051,6 +1066,7 @@ impl<'a> IbexHostContext<'a> {
             replay,
             terminal_denial: None,
             stream_refusal: None,
+            denial_witness: None,
         })
     }
 
@@ -1107,6 +1123,7 @@ impl<'a> IbexHostContext<'a> {
             replay: None,
             terminal_denial: None,
             stream_refusal: None,
+            denial_witness: None,
         })
     }
 
@@ -2411,6 +2428,16 @@ pub(crate) fn dispatch_host_call(
     {
         ctx.stream_refusal = Some(error.clone());
     }
+    // 0137 a4-f5: a trusted platform denial produced inside an action (a
+    // nested mutation refusing across `action.runMutation`) is recorded so
+    // the typed code can survive the action boundary without letting a
+    // handler-forged `{code: ...}` become typed (LLP 0053's rule).
+    if let Err(error) = &result
+        && ctx.mode == IbexInvocationMode::Action
+        && error.diagnostic.code == "SNAPBACK_AUTH_PERMISSION_DENIED"
+    {
+        ctx.denial_witness = Some(error.clone());
+    }
     if let Some(args) = traced_args {
         HOST_CALL_TRACE.with(|slot| {
             if let Some(trace) = slot.borrow_mut().as_mut() {
@@ -2513,7 +2540,36 @@ fn run_ibex_handler_with_context_until(
     if !rejections.is_empty() {
         return Err(unhandled_rejection_error(module, rejections));
     }
-    restore_stream_refusal(invocation, parse_handler_output(module, output))
+    let (result, claimed_code) = parse_handler_output_with_claim(module, output);
+    let result = restore_denial_witness(invocation, claimed_code.as_deref(), result);
+    restore_stream_refusal(invocation, result)
+}
+
+/// Surface the host-recorded trusted `SNAPBACK_AUTH_PERMISSION_DENIED`
+/// through the action boundary (0137 a4-f5). The uniform-denial rules
+/// (LLP 0053) require a handler-forged `{code: ...}` to stay untyped, so the
+/// envelope decoder folds the claimed code to `SNAPBACK_HANDLER_FAILED`;
+/// only when the failing handler's claim matches a denial the host itself
+/// produced during this invocation is the recorded trusted error — with its
+/// uniform, non-disclosing bytes — restored. A witness whose invocation
+/// fails with a DIFFERENT claim is not restored (the handler caught the
+/// denial and failed on its own terms), and a caught denial followed by
+/// success stays success: the denied nested mutation committed nothing, and
+/// unlike `terminal_denial` this seam is deliberately non-terminalizing.
+fn restore_denial_witness(
+    invocation: &mut IbexHostContext<'_>,
+    claimed_code: Option<&str>,
+    result: SnapbackResult<Value>,
+) -> SnapbackResult<Value> {
+    match result {
+        Err(error) if claimed_code == Some("SNAPBACK_AUTH_PERMISSION_DENIED") => {
+            match invocation.denial_witness.take() {
+                Some(witness) => Err(witness),
+                None => Err(error),
+            }
+        }
+        other => other,
+    }
 }
 
 /// Restore the host-built structured stream refusal when the handler's final
@@ -2857,6 +2913,18 @@ pub(crate) fn unhandled_rejection_error(
 /// settlement and fails closed too, matching the JS decoder in
 /// `packages/snapback-harness/envelope.mjs` (ENG-23603).
 pub(crate) fn parse_handler_output(module: &IbexModule, output: String) -> SnapbackResult<Value> {
+    parse_handler_output_with_claim(module, output).0
+}
+
+/// [`parse_handler_output`] plus the RAW (pre-fold) claimed code from a
+/// not-ok envelope. The claim is handler-controlled bytes — it is only
+/// meaningful when corroborated by a host-recorded witness (0137 a4-f5,
+/// `restore_denial_witness`); the returned error itself always carries the
+/// folded public code.
+pub(crate) fn parse_handler_output_with_claim(
+    module: &IbexModule,
+    output: String,
+) -> (SnapbackResult<Value>, Option<String>) {
     if let Ok(Value::Object(mut envelope)) = serde_json::from_str(&output)
         && envelope.len() == 1
         && let Some(result) = envelope.remove("r")
@@ -2864,35 +2932,47 @@ pub(crate) fn parse_handler_output(module: &IbexModule, output: String) -> Snapb
         && let Some(ok) = object.get("__snapbackOk").and_then(Value::as_bool)
     {
         if ok {
-            return Ok(object.get("value").cloned().unwrap_or(Value::Null));
+            return (
+                Ok(object.get("value").cloned().unwrap_or(Value::Null)),
+                None,
+            );
         }
-        let code = object
+        let claimed = object
             .get("code")
             .and_then(Value::as_str)
+            .map(str::to_owned);
+        let code = claimed
+            .as_deref()
             .map(handler_envelope_code)
             .unwrap_or("SNAPBACK_HANDLER_FAILED");
         let message = object
             .get("message")
             .and_then(Value::as_str)
             .unwrap_or("JavaScript handler failed");
-        return Err(
-            SnapbackError::error(code, "runtime", "JavaScript handler failed").with_details(
-                json!({
-                    "function": module.export,
-                    "message": message,
-                }),
+        return (
+            Err(
+                SnapbackError::error(code, "runtime", "JavaScript handler failed").with_details(
+                    json!({
+                        "function": module.export,
+                        "message": message,
+                    }),
+                ),
             ),
+            claimed,
         );
     }
-    Err(SnapbackError::error(
-        "SNAPBACK_HANDLER_DID_NOT_SETTLE",
-        "runtime",
-        "handler promise never settled — the invocation produced no result and committed no writes",
+    (
+        Err(SnapbackError::error(
+            "SNAPBACK_HANDLER_DID_NOT_SETTLE",
+            "runtime",
+            "handler promise never settled — the invocation produced no result and committed no writes",
+        )
+        .with_details(json!({
+            "function": module.export,
+            "output": output,
+        }))),
+        None,
     )
-    .with_details(json!({
-        "function": module.export,
-        "output": output,
-    })))
 }
 
 pub(crate) fn eval(

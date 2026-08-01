@@ -5,7 +5,21 @@
 **Systems:** Sync, Realtime, Auth, Storage, API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-12
-**Revised:** 2026-07-31 (LLP 0044 companion classification: asset
+**Revised:** 2026-08-01 (0137 a4-f5 witness-gated action pass-through: a
+nested mutation's trusted `SNAPBACK_AUTH_PERMISSION_DENIED` now survives
+the ACTION boundary via a host-recorded denial witness
+(`denial_witness` + `restore_denial_witness`, src/runtime.rs) — when the
+failing action's claimed envelope code matches a denial the host itself
+produced during that invocation, the surfaced diagnostic is the recorded
+trusted error with its uniform bytes. The forged-code rule is unchanged: a
+handler-forged `{code: ...}` has no witness and still folds to
+`SNAPBACK_HANDLER_FAILED`; the envelope decoder allowlist gains no auth
+code, and the trusted-producer enumeration is unchanged — this surfaces an
+EXISTING trusted denial across one hop rather than minting a new producer.
+Non-terminalizing by design: the denied nested mutation committed nothing,
+so an action that catches and recovers still succeeds. Local/Ibex leg
+only; the workerd/DO coordinator leg is an open parity ticket. No contract
+change; Status stays Accepted.) 2026-07-31 (LLP 0044 companion classification: asset
 read-authorization inputs admitted — the asset-readable predicate node in
 the 0056 idiom with pinned empty-result capture over the reverse-edge
 index; intent activation is event 2 and operator revocation event 4; the
