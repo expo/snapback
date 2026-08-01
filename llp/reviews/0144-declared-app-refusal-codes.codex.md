@@ -139,3 +139,29 @@ Next step: pin a non-replayable error-identity mechanism, state FO-3+F1 as incom
 The read-only workspace prevented appending this round to the Codex review artifact.
 
 *(Runner note: the two citations above were emitted as absolute paths into the disposable review worktree and are mechanically rewritten to the equivalent /Users/ccheever/projects/snapback/ paths; raw output is preserved in the session capture.)*
+
+## Round 4 — 2026-08-01
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model `gpt-5.6-sol`
+**Reasoning effort:** CLI default (`medium` per CLI banner)
+**Date:** 2026-08-01
+**Redaction:** not redacted
+**Method:** round-4 targeted closing check — reviewer given its own Rounds 1–3, instructed to verify v4's application of its round-3 residuals (shim-private WeakMap identity binding for the correlation token, FO-3 corrected to zero handler-visible surface with F1's FFI carrier admitted under any FO option, per-engine-leg ticket wording) and the changed text only for fresh defects; read-only sandbox in a fresh worktree of origin/main at 7368bc8d, blind to this RFC's fable artifact
+**Target SHA-256:** `c66ca650034a717b01b3ee96270ccdc314106f628f079430a75dd2bea04445a9`
+**Instruction SHA-256:** `94c12fa03c6960b4d54b79aa1b479bef9baebc86d18f4128c1203ec6f5938e7a`
+**Status:** completed (first attempt, no retry needed)
+
+### Verbatim review
+
+Verified SHA-256: `c66ca650034a717b01b3ee96270ccdc314106f628f079430a75dd2bea04445a9`. I did not read the `.fable.md`.
+
+Verdict: **READY**
+
+1. **READY** — The shim-private exact-object identity map makes the token non-extractable and non-transferable; copying codes or token-shaped strings cannot trigger restoration, while rethrowing the original bound object intentionally propagates that refusal.
+2. **READY** — FO-3 now promises zero handler-visible surface, while correctly admitting F1’s shim-private structured FFI carrier under every FO choice.
+3. **READY** — The parity ticket consistently scopes admission and the remaining gaps per engine leg.
+
+No fresh defects found in the changed text.
+
+Next step: record this round in the Codex review artifact, then the author may advance LLP 0144 from Draft to Review/Accepted as appropriate.
