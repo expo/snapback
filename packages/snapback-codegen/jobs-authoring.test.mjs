@@ -128,6 +128,48 @@ export const jobStatus = defineJobStatusQuery({ auth: 'authenticated' });
     'the jobs surface stays experimental while LLP 0070 is Draft (claim boundary)',
   );
 
+  // The platform owns the job-status projection completely
+  // (JobStatusRow::to_row_value in src/jobs.rs), and defineJobStatusQuery
+  // refuses authored result contracts — so the generated contract must be
+  // the precise platform shape, never `unknown`, and generation must not
+  // advise the author to declare a result the surface refuses
+  // (issues/closed/20260801-0137-reverify-jobstatus-declaration-degraded-advisory.md:
+  // the guide says "Declaring it is the whole authoring step").
+  assert.equal(
+    jobStatus.resultContract.kind,
+    'records',
+    'the declared job-status query carries the complete platform-owned projection',
+  );
+  assert.deepEqual(
+    jobStatus.resultContract.record.fields.map(({ name }) => name),
+    [
+      '_id', 'jobId', 'queue', 'action', 'state', 'availableAtMs',
+      'enqueuedAtMs', 'attemptCount', 'maxAttempts', 'stateVersion',
+      'terminalAtMs', 'lastErrorCode', 'producerMutationId',
+      'producerSnapshotVersion', 'producerFunction',
+    ],
+    'the contract fields mirror JobStatusRow::to_row_value exactly',
+  );
+  assert.deepEqual(
+    jobStatus.resultContract.record.fields
+      .find(({ name }) => name === 'state').value.variants
+      .map(({ value }) => value),
+    ['pending', 'claimed', 'succeeded', 'dead', 'cancelled'],
+    'the state union mirrors JobState exactly',
+  );
+  assert.ok(
+    !result.diagnostics.some((diagnostic) => (
+      diagnostic.code === 'SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED'
+      && (diagnostic.details?.function ?? diagnostic.function) === 'jobStatus'
+    )),
+    'declaring the job-status query draws no degraded-result advisory',
+  );
+  assert.match(
+    readFileSync(join(dir, 'generated', 'api.d.ts'), 'utf8'),
+    /"pending" \| "claimed" \| "succeeded" \| "dead" \| "cancelled"/u,
+    'the generated types carry the precise lifecycle states, not unknown rows',
+  );
+
   // Mutations that merely enqueue need no extra declaration: the paved
   // default queue is zero-ceremony (LLP 0121 open question 1).
   const scheduler = manifest.functions.find((fn) => fn.name === 'scheduleEvent');

@@ -530,6 +530,50 @@ function legacyRows(validator) {
   };
 }
 
+// @ref LLP 0070#the-first-slice — the declared job-status query serves the
+// Rust-owned lifecycle projection (`JobStatusRow::to_row_value` in
+// src/jobs.rs); its shape is platform-complete by construction and
+// `defineJobStatusQuery` deliberately refuses authored result contracts.
+// Emitting the exact projection here keeps the generated types, provider
+// introspection, and manifest contract precise and prevents the
+// degraded-result advisory from asking authors for a declaration the
+// surface refuses to accept
+// (issues/closed/20260801-0137-reverify-jobstatus-declaration-degraded-advisory.md).
+const nullable = (value) => scalar('union', { variants: [scalar('null'), value] });
+
+function jobStatusRowsValue() {
+  const jobString = () => scalar('string', { maxBytes: RESULT_MAX_STRING_BYTES });
+  const jobInteger = () => scalar('integer', { min: 0, max: JS_SAFE_INTEGER });
+  const field = (name, value) => ({ name, required: true, value });
+  return {
+    kind: 'records',
+    record: {
+      kind: 'object',
+      allowExtra: false,
+      fields: [
+        field('_id', jobString()),
+        field('jobId', jobString()),
+        field('queue', jobString()),
+        field('action', jobString()),
+        field('state', scalar('union', {
+          variants: ['pending', 'claimed', 'succeeded', 'dead', 'cancelled']
+            .map((state) => scalar('literal', { value: state })),
+        })),
+        field('availableAtMs', jobInteger()),
+        field('enqueuedAtMs', jobInteger()),
+        field('attemptCount', jobInteger()),
+        field('maxAttempts', jobInteger()),
+        field('stateVersion', jobInteger()),
+        field('terminalAtMs', nullable(jobInteger())),
+        field('lastErrorCode', nullable(jobString())),
+        field('producerMutationId', jobString()),
+        field('producerSnapshotVersion', nullable(jobInteger())),
+        field('producerFunction', jobString()),
+      ],
+    },
+  };
+}
+
 export function effectiveResultContract({
   def,
   functionKind,
@@ -563,6 +607,12 @@ export function effectiveResultContract({
   }
   if (functionKind === 'Query' && runtime?.HostPlan?.SearchQuery) {
     return validateEffectiveResultContract(searchRowsValue(runtime, tables));
+  }
+  if (
+    (functionKind === 'Query' || functionKind === 'LiveQuery')
+    && runtime?.HostPlan?.JobStatusQuery
+  ) {
+    return validateEffectiveResultContract(jobStatusRowsValue());
   }
   const returnedDocument = runtime?.HostPlan?.Mutation?.return_value?.Document?.table;
   if (functionKind === 'Mutation' && returnedDocument) {
