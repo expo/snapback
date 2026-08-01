@@ -82,3 +82,27 @@ packaged-runtime-readiness-receipt.md), the Linux host-prep bullet, and
 the inode-predicate refusal bullet. Note sweep-report.md lists
 'external-package lifecycle' among the frozen-epoch verdicts REVERSED on
 the merits — the ticket's framing predates that.
+
+## Narrowing (2026-08-01, backlog lane P) — bullet 5 fixed; 2 remain
+
+Of the three bullets the 2026-08-01 sweep left open:
+
+- **Inode-predicate refusal bullet: FIXED.** Secure startup-artifact
+  refusals now identify the failed inode predicate without disclosing
+  contents. `src/secure_file.rs` names the observed kind for non-regular
+  files, observed-vs-effective uid for ownership, observed octal mode
+  against the required 0600 (or clear group/other-write bits for
+  executable artifacts), and the observed hard-link count; the extended-ACL
+  refusals already named their predicate. The packaged lifecycle's JS
+  surface (`managedAdminToken`, packages/snapback-cli/index.mjs) reports
+  the observed mode and the exact failed predicate list on its
+  owner-only-carrier refusal. Witness: `cargo test --lib secure_file`
+  (10/10) and `--lib owner_only` (9/9); cli package suite green.
+- **Packaged readiness/identity helper half: owned elsewhere** —
+  issues/20260801-0137-g1-guide-gap-packaged-runtime-readiness-receipt.md
+  carries it; it is no longer tracked by this ticket.
+- **Linux host-prep bullet: still open, needs a Linux lane.** Removing the
+  lane-local ICU/curl development files, exact Hermes patching, and
+  explicit Volta binding from fresh-host preparation is Linux
+  runtime-packaging work that cannot be exercised from a macOS lane; this
+  is now the ticket's only remaining scope.

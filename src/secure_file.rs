@@ -28,6 +28,29 @@ fn open_existing(path: &Path, writable: bool) -> io::Result<File> {
     Ok(file)
 }
 
+/// Human-readable inode kind for refusal diagnostics. Metadata only — a
+/// refused artifact's predicate must be identifiable without exposing bytes.
+#[cfg(unix)]
+fn file_type_description(file_type: std::fs::FileType) -> &'static str {
+    use std::os::unix::fs::FileTypeExt as _;
+
+    if file_type.is_dir() {
+        "a directory"
+    } else if file_type.is_symlink() {
+        "a symbolic link"
+    } else if file_type.is_fifo() {
+        "a FIFO"
+    } else if file_type.is_socket() {
+        "a socket"
+    } else if file_type.is_block_device() {
+        "a block device"
+    } else if file_type.is_char_device() {
+        "a character device"
+    } else {
+        "an unrecognized non-regular file"
+    }
+}
+
 #[cfg(unix)]
 fn validate_open_file(file: &File) -> io::Result<()> {
     use std::os::unix::fs::MetadataExt as _;
@@ -36,7 +59,10 @@ fn validate_open_file(file: &File) -> io::Result<()> {
     if !metadata.file_type().is_file() {
         return Err(io::Error::new(
             io::ErrorKind::PermissionDenied,
-            "secret path is not a regular file",
+            format!(
+                "secret path is {}, not a regular file",
+                file_type_description(metadata.file_type())
+            ),
         ));
     }
     // SAFETY: geteuid has no preconditions and only reads process identity.
@@ -44,7 +70,10 @@ fn validate_open_file(file: &File) -> io::Result<()> {
     if metadata.uid() != effective_uid {
         return Err(io::Error::new(
             io::ErrorKind::PermissionDenied,
-            "secret file is not owned by the effective user",
+            format!(
+                "secret file is owned by uid {}, not the effective uid {effective_uid}",
+                metadata.uid()
+            ),
         ));
     }
     Ok(())
@@ -56,16 +85,27 @@ fn validate_open_file_strict(file: &File) -> io::Result<()> {
 
     validate_open_file(file)?;
     let metadata = file.metadata()?;
+    // Refusals name the failed inode predicate — observed mode, ownership,
+    // link count, or ACL state — without disclosing contents: an operator
+    // must be able to repair a refused startup artifact from the diagnostic
+    // alone (issues/20260729-external-package-lifecycle-gaps.md).
     if metadata.permissions().mode() & 0o777 != 0o600 {
         return Err(io::Error::new(
             io::ErrorKind::PermissionDenied,
-            "secret file mode is not exactly owner read/write",
+            format!(
+                "secret file mode {:04o} is not exactly owner read/write (0600); \
+                 group/other permission bits must be clear",
+                metadata.permissions().mode() & 0o7777
+            ),
         ));
     }
     if metadata.nlink() != 1 {
         return Err(io::Error::new(
             io::ErrorKind::PermissionDenied,
-            "secret file must have exactly one hard link",
+            format!(
+                "secret file has {} hard links; exactly one is required",
+                metadata.nlink()
+            ),
         ));
     }
     validate_no_extended_acl(file)?;
@@ -367,26 +407,40 @@ fn validate_trusted_executable_descriptor(file: &File) -> io::Result<()> {
     if !metadata.file_type().is_file() {
         return Err(io::Error::new(
             io::ErrorKind::PermissionDenied,
-            "executable artifact is not a regular file",
+            format!(
+                "executable artifact is {}, not a regular file",
+                file_type_description(metadata.file_type())
+            ),
         ));
     }
     // SAFETY: geteuid has no preconditions and reads process identity only.
-    if metadata.uid() != unsafe { libc::geteuid() } {
+    let effective_uid = unsafe { libc::geteuid() };
+    if metadata.uid() != effective_uid {
         return Err(io::Error::new(
             io::ErrorKind::PermissionDenied,
-            "executable artifact is not owned by the effective user",
+            format!(
+                "executable artifact is owned by uid {}, not the effective uid {effective_uid}",
+                metadata.uid()
+            ),
         ));
     }
     if metadata.mode() & 0o022 != 0 {
         return Err(io::Error::new(
             io::ErrorKind::PermissionDenied,
-            "executable artifact is writable by group or other",
+            format!(
+                "executable artifact mode {:04o} grants group or other write; \
+                 those bits must be clear",
+                metadata.mode() & 0o7777
+            ),
         ));
     }
     if metadata.nlink() != 1 {
         return Err(io::Error::new(
             io::ErrorKind::PermissionDenied,
-            "executable artifact must have exactly one hard link",
+            format!(
+                "executable artifact has {} hard links; exactly one is required",
+                metadata.nlink()
+            ),
         ));
     }
     // Conservatively reject every persisted access ACL. That is stronger than

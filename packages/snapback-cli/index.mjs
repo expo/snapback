@@ -1572,10 +1572,25 @@ export function managedAdminToken(descriptor, database) {
     throw error;
   }
   if (!metadata.isFile() || metadata.isSymbolicLink() || (metadata.mode & 0o077) !== 0) {
+    // The refusal names the failed inode predicate — observed type and mode
+    // — without disclosing contents, so an operator can repair the artifact
+    // from the diagnostic alone
+    // (issues/20260729-external-package-lifecycle-gaps.md).
+    const failedPredicates = [
+      ...(metadata.isFile() ? [] : ['not-a-regular-file']),
+      ...(metadata.isSymbolicLink() ? ['symbolic-link'] : []),
+      ...((metadata.mode & 0o077) !== 0 ? ['group-or-other-permission-bits'] : []),
+    ];
     throw diagnosticError(
       'SNAPBACK_DEV_ADMIN_TOKEN_FILE_INVALID',
-      'the managed database admin-token carrier must be an owner-only regular file',
-      { path: expected },
+      'the managed database admin-token carrier must be an owner-only regular '
+        + `file: observed mode ${(metadata.mode & 0o7777).toString(8).padStart(4, '0')} `
+        + `failed [${failedPredicates.join(', ')}]`,
+      {
+        path: expected,
+        observedMode: (metadata.mode & 0o7777).toString(8).padStart(4, '0'),
+        failedPredicates,
+      },
     );
   }
   const token = readFileSync(expected, 'utf8').trim();
