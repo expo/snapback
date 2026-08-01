@@ -13608,6 +13608,31 @@ pub struct BoundSnapbackApp {
     router: Router,
 }
 
+/// Disable Nagle on every connection this server accepts. Axum does not do
+/// this for you, and a realtime push server must: a small WebSocket frame
+/// written while an earlier small frame is still unACKed otherwise sits in
+/// the kernel until the peer's delayed-ACK timer fires — ~40ms on Linux even
+/// over loopback, which is exactly the stall that made the packaged
+/// comparator's presence-witness miss its post-drain assertion on linux-x64
+/// while identical bytes passed on macOS. Live-lane latency is a product
+/// property (the comparator measures it), so the option is set at the one
+/// seam that owns every accepted network connection. A failed setsockopt on
+/// one connection degrades only that connection's latency and must never
+/// abort the accept loop.
+///
+/// @ref LLP 0020#phase-4-upgrade-realtime-from-v0-outbox-to-app-grade-live-delivery
+///   — push-transport latency posture: accepted sockets disable Nagle (dated
+///   2026-07-31 implementation note).
+fn nodelay_listener(
+    listener: tokio::net::TcpListener,
+) -> axum::serve::TapIo<tokio::net::TcpListener, fn(&mut tokio::net::TcpStream)> {
+    use axum::serve::ListenerExt as _;
+    fn set_nodelay(stream: &mut tokio::net::TcpStream) {
+        let _ = stream.set_nodelay(true);
+    }
+    listener.tap_io(set_nodelay as fn(&mut tokio::net::TcpStream))
+}
+
 impl BoundSnapbackApp {
     pub fn local_addr(&self) -> std::io::Result<std::net::SocketAddr> {
         self.listener.local_addr()
@@ -13615,7 +13640,7 @@ impl BoundSnapbackApp {
 
     pub async fn serve(self) -> std::io::Result<()> {
         axum::serve(
-            self.listener,
+            nodelay_listener(self.listener),
             self.router
                 .into_make_service_with_connect_info::<std::net::SocketAddr>(),
         )
@@ -13627,7 +13652,7 @@ impl BoundSnapbackApp {
         F: Future<Output = ()> + Send + 'static,
     {
         axum::serve(
-            self.listener,
+            nodelay_listener(self.listener),
             self.router
                 .into_make_service_with_connect_info::<std::net::SocketAddr>(),
         )
@@ -43288,6 +43313,144 @@ globalThis.__snapbackHandlers = {
         })
         .await
         .expect("retired socket must terminate instead of draining");
+        server.abort();
+    }
+
+    /// Accepted-socket transport regression: every connection the bound
+    /// server accepts must carry TCP_NODELAY. With Nagle left enabled, a
+    /// small live frame written while an earlier small frame (here the
+    /// `live_ping` pong) is still unACKed waits in the kernel for the peer's
+    /// delayed-ACK timer — ~40ms on Linux even over loopback. That stall is
+    /// exactly the linux-x64 qualified-package-staging failure: the packaged
+    /// comparator's presence witness was published and written to the wire
+    /// ~2ms after publish, but arrived ~38ms later, after the post-drain
+    /// assertion had already run (macOS delayed-ACK behavior let identical
+    /// bytes pass). Each sample re-arms the unACKed-write condition with a
+    /// ping/pong, then measures enqueue→arrival for a pushed frame; the
+    /// median must stay far below the delayed-ACK floor. On the defective
+    /// listener the median sits at the ~40ms delayed-ACK floor on Linux; a
+    /// scheduling hiccup can slow one sample, never the median.
+    #[tokio::test]
+    async fn accepted_live_socket_delivers_small_frames_without_nagle_delay() {
+        let state = crate::admin::AppState::detached(
+            LocalSnapback::memory().expect("in-memory nodelay socket state"),
+        );
+        let registry = state.connections.clone();
+        let ephemeral = state.ephemeral.clone();
+        let grant = registry
+            .open(Some("nodelay_socket".to_owned()), None, true)
+            .expect("socket grant");
+
+        let listener = TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind nodelay test server");
+        let address = listener.local_addr().expect("nodelay test server address");
+        let server = tokio::spawn(async move {
+            super::app(state)
+                .bind(listener)
+                .expect("bind nodelay socket test app")
+                .serve()
+                .await
+                .expect("serve nodelay socket test");
+        });
+
+        use tokio_tungstenite::tungstenite::client::IntoClientRequest as _;
+        let mut request = format!("ws://{address}/live/{}/stream", grant.connection_id)
+            .into_client_request()
+            .expect("websocket request");
+        request.headers_mut().insert(
+            header::SEC_WEBSOCKET_PROTOCOL,
+            super::LIVE_STREAM_SUBPROTOCOL
+                .parse()
+                .expect("wire-version subprotocol offer"),
+        );
+        request.headers_mut().insert(
+            "x-snapback-connection-token",
+            grant
+                .connection_token
+                .parse()
+                .expect("connection token header"),
+        );
+        let (mut socket, _) = tokio_tungstenite::connect_async(request)
+            .await
+            .expect("connect authorized socket");
+        // Quiet the client side so only the server's socket posture is
+        // measured: with the client's own Nagle disabled, each ping segment
+        // leaves immediately and the sole delay candidate is the server's
+        // pushed frame stalling behind its unACKed pong.
+        if let tokio_tungstenite::MaybeTlsStream::Plain(stream) = socket.get_mut() {
+            stream.set_nodelay(true).expect("client TCP_NODELAY");
+        }
+        let notifier = ephemeral.delivery_notifier();
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while !notifier.is_registered(&grant.connection_id) {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("live stream registered its notifier");
+
+        let mut samples = Vec::new();
+        for index in 0..8_u32 {
+            // Arm the Nagle condition: elicit one small server write (the
+            // pong) that the client will not ACK until its delayed-ACK timer
+            // fires, because the trigger below arrives in-process rather
+            // than over this socket.
+            socket
+                .send(tokio_tungstenite::tungstenite::Message::Text(
+                    json!({ "type": "ping", "requestId": format!("nagle_{index}") })
+                        .to_string()
+                        .into(),
+                ))
+                .await
+                .expect("send live_ping");
+            tokio::time::timeout(Duration::from_secs(2), async {
+                loop {
+                    let frame = socket
+                        .next()
+                        .await
+                        .expect("pong frame present")
+                        .expect("pong frame readable");
+                    if let tokio_tungstenite::tungstenite::Message::Text(text) = frame
+                        && text.contains(&format!("nagle_{index}"))
+                    {
+                        break;
+                    }
+                }
+            })
+            .await
+            .expect("live_ping answered");
+
+            let started = Instant::now();
+            ephemeral.enqueue_durable_for_test(
+                &grant.connection_id,
+                format!(r#"{{"kind":"nagle-probe-{index}"}}"#).into_bytes(),
+            );
+            tokio::time::timeout(Duration::from_secs(2), async {
+                loop {
+                    let frame = socket
+                        .next()
+                        .await
+                        .expect("probe frame present")
+                        .expect("probe frame readable");
+                    if let tokio_tungstenite::tungstenite::Message::Text(text) = frame
+                        && text.contains(&format!("nagle-probe-{index}"))
+                    {
+                        break;
+                    }
+                }
+            })
+            .await
+            .expect("pushed probe frame delivered");
+            samples.push(started.elapsed());
+        }
+        samples.sort();
+        let median = samples[samples.len() / 2];
+        assert!(
+            median < Duration::from_millis(25),
+            "small pushed frames stalled behind Nagle/delayed-ACK; \
+             accepted sockets must set TCP_NODELAY (samples: {samples:?})"
+        );
         server.abort();
     }
 

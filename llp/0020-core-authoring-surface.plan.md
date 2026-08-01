@@ -5,7 +5,7 @@
 **Systems:** API, Runtime, Sync, Realtime, Client integration, Developer experience, Testing, Security
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-27
-**Revised:** 2026-07-20 (Phase 0's v0 contract set is ratified against a retained aggregate receipt under LLP 0063 Step 0; the overall Plan remains Draft because the open Phase 4 design is unchanged). 2026-07-17 (compatibility permission epochs are explicitly JavaScript-safe, capacity-check every mutation commit seam, and refuse before durable work when exhausted). 2026-07-09 (LLP 0051 D2 / ENG-23893: the "`HostPlan` is an internal bridge" invariant is amended in place — the mutation IR returns to first-class as the data-tier's default for the common mutation, authored via the typed builder; raw plan objects remain non-authoring); previously 2026-07-01 (LLP 0032 R1 batch verification: Phases 0–4 largely shipped, but §Remaining Phase 4 design — dependency vocabulary and auth epochs — is still open, so status honestly stays Draft; parts of that remaining work are now scheduled by LLP 0032 E4/P4; 2026-06-27: Phase 4 equality, `In`, range/boundary matcher, WebSocket push, permission-epoch resync, and retained reconnect/resume epoch gate slices; review revisions; see `llp/reviews/0020-core-authoring-surface.claude.md` and `llp/reviews/0020-core-authoring-surface.gpt-5.md`)
+**Revised:** 2026-07-31 (Phase 4 push transport: accepted sockets set `TCP_NODELAY` — Linux delayed-ACK/Nagle stalled small pushed frames ~40ms and deterministically failed the linux-x64 staged-proof presence witness; see the dated Phase 4 implementation note). 2026-07-20 (Phase 0's v0 contract set is ratified against a retained aggregate receipt under LLP 0063 Step 0; the overall Plan remains Draft because the open Phase 4 design is unchanged). 2026-07-17 (compatibility permission epochs are explicitly JavaScript-safe, capacity-check every mutation commit seam, and refuse before durable work when exhausted). 2026-07-09 (LLP 0051 D2 / ENG-23893: the "`HostPlan` is an internal bridge" invariant is amended in place — the mutation IR returns to first-class as the data-tier's default for the common mutation, authored via the typed builder; raw plan objects remain non-authoring); previously 2026-07-01 (LLP 0032 R1 batch verification: Phases 0–4 largely shipped, but §Remaining Phase 4 design — dependency vocabulary and auth epochs — is still open, so status honestly stays Draft; parts of that remaining work are now scheduled by LLP 0032 E4/P4; 2026-06-27: Phase 4 equality, `In`, range/boundary matcher, WebSocket push, permission-epoch resync, and retained reconnect/resume epoch gate slices; review revisions; see `llp/reviews/0020-core-authoring-surface.claude.md` and `llp/reviews/0020-core-authoring-surface.gpt-5.md`)
 **Related:** LLP 0003, LLP 0004, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0015, LLP 0016, LLP 0018, LLP 0019, LLP 0021, LLP 0063, Diary 0001
 
 ## Summary
@@ -364,6 +364,22 @@ every query predicate proves disjoint. Previously an Ibex live query that did
 `ctx.db.get` and folded the row into its result went permanently stale when
 only that row changed, because the gate filtered captured reads to `Query`
 dependencies before deciding to skip.
+
+Implementation note, 2026-07-31 (linux-x64 qualified-package-staging repair):
+the bound server now sets `TCP_NODELAY` on every accepted connection
+(`nodelay_listener` in `BoundSnapbackApp::serve` /
+`serve_with_graceful_shutdown`). Axum does not set it, and with Nagle enabled
+a small pushed WebSocket frame written while an earlier small frame is still
+unACKed waits for the peer's delayed-ACK timer — ~40ms on Linux even over
+loopback. The packaged comparator's presence-disconnect witness surfaced
+this: the ephemeral delta was on the wire ~2ms after publish but reached the
+client ~38ms later, after the post-drain assertion, deterministically failing
+the linux-x64 staged proof while identical bytes passed on macOS. Push-lane
+latency is a product property (the comparator and every presence UI measure
+it), so the option belongs at the accept seam, not in test tolerances; the
+`accepted_live_socket_delivers_small_frames_without_nagle_delay` regression
+pins it with a median-latency witness that sits at the delayed-ACK floor on
+the defective listener.
 
 #### Remaining Phase 4 design: dependency vocabulary and auth epochs
 
