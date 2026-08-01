@@ -39,3 +39,40 @@ export function parseSeedSourceV1(bytes: Uint8Array | string, appId?: string): P
 
 /** Canonical (sorted-key) JSON of a seed artifact plus a trailing newline. */
 export function canonicalSeedArtifactJson(artifact: unknown): string;
+
+// --- LLP 0109 §17: seed asset fixtures ------------------------------------
+
+export const SEED_ASSET_FIXTURES_FORMAT_V1: 'snapback.seed-asset-fixtures.v1';
+
+export interface SeedAssetFixtureV1 {
+  readonly id: string;
+  readonly upload: string;
+  readonly file: string;
+  readonly mediaType: string;
+  readonly sourceDigest: `sha256:${string}`;
+}
+
+export interface SeedAssetFixturesV1 {
+  readonly formatVersion: 'snapback.seed-asset-fixtures.v1';
+  readonly appId: string;
+  readonly fixturesDigest: `sha256:${string}`;
+  readonly fixtures: readonly SeedAssetFixtureV1[];
+}
+
+/** Domain-separated digest over the canonical JSON of the fixtures body. */
+export function seedAssetFixturesDigest(body: unknown): `sha256:${string}`;
+
+/**
+ * `source` is the authored seed-assets.json; `sourceDigests` maps each
+ * fixture's declared file path to the sha256 hex of its committed bytes
+ * (the caller reads files under its own capability discipline — this
+ * module never touches the filesystem).
+ */
+export function buildSeedAssetFixturesV1(
+  source: unknown,
+  appId: string,
+  sourceDigests: ReadonlyMap<string, string>,
+): SeedAssetFixturesV1;
+
+/** Canonical (sorted-key) JSON of a fixtures artifact plus a trailing newline. */
+export function canonicalSeedAssetFixturesJson(artifact: unknown): string;

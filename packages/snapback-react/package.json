@@ -7,6 +7,7 @@
     "README.md",
     "index.d.mts",
     "index.mjs",
+    "thumbhash.d.mts",
     "thumbhash.mjs"
   ],
   "exports": {
@@ -15,6 +16,7 @@
       "import": "./index.mjs"
     },
     "./thumbhash": {
+      "types": "./thumbhash.d.mts",
       "import": "./thumbhash.mjs"
     },
     "./package.json": "./package.json"

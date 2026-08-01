@@ -114,3 +114,11 @@ export declare function createAssetClient(
   client: ConstructorParameters<typeof SnapbackAssetClient>[0],
   options?: ConstructorParameters<typeof SnapbackAssetClient>[1],
 ): SnapbackAssetClient;
+
+/** Test-only export: the browser digest fallback, cross-checked against
+ * node:crypto by the package test. Not part of the client surface. */
+export declare class __testIncrementalSha256 {
+  update(bytes: Uint8Array | ArrayLike<number>): void;
+  digestBytes(): Uint8Array;
+  digest(encoding?: 'hex' | 'base64'): string | Uint8Array;
+}
