@@ -8685,6 +8685,31 @@ fn auth_app_data_refusal(spec: RouteSpec, runtime: &AppState) -> Option<Snapback
     None
 }
 
+/// The pasteable asset-delivery lanes (LLP 0044 §Delivery profiles, dated
+/// note 2026-07-31, author-approved). On these two routes the URL itself is
+/// the entire authority — the public alias serves static-public bytes with
+/// no credential, and the signed lane's query token is the credential —
+/// while the auth-client protocol offer exists to version invalidation-
+/// capable protocol clients. Plain `<img src>`, CDN pulls, and pasted
+/// share links cannot send custom headers and negotiate nothing, so
+/// requiring the offer here defeats the profiles' declared purpose without
+/// protecting anything. The predicate asserts the structural properties
+/// AND the closed path set: a future public route does not inherit the
+/// exemption by shape alone.
+fn pasteable_delivery_route(spec: RouteSpec) -> bool {
+    spec.class == RouteClass::AppData
+        && spec.policy == RoutePolicy::Public
+        && spec.invocation_authority == InvocationAuthority::None
+        && matches!(
+            spec.credential_resolution,
+            CredentialResolution::SignedUrlToken | CredentialResolution::None
+        )
+        && matches!(
+            spec.path,
+            "/assets/signed/{id}/{variant}" | "/assets/public/{id}/{variant}"
+        )
+}
+
 fn session_online_protocol_refusal(
     spec: RouteSpec,
     runtime: &AppState,
@@ -8693,6 +8718,7 @@ fn session_online_protocol_refusal(
     if spec.class != RouteClass::AppData
         || auth_diagnostic_app_route(spec.path)
         || spec.path == "/app/ensure"
+        || pasteable_delivery_route(spec)
         || runtime.auth_mode_state().active != crate::manifest::AuthMode::Sessions
     {
         return None;
@@ -27568,6 +27594,56 @@ globalThis.__snapbackHandlers = {
              does not offer the exact supported auth-client protocol (on a WebSocket \
              upgrade, offer the `snapback.auth-client.1` subprotocol instead)"
         );
+    }
+
+    #[tokio::test]
+    async fn pasteable_delivery_lanes_skip_the_sessions_protocol_offer() {
+        // LLP 0044 §Delivery profiles, dated note 2026-07-31: the public
+        // alias and the signed serve lane are URL-authority routes a plain
+        // `<img src>`/CDN/pasted link must be able to fetch — no custom
+        // headers. Strict delivery and every other asset route keep the
+        // offer discipline.
+        let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+        let state = state
+            .with_auth_runtime_facts(
+                settled_sessions_state(),
+                AuthProgramReadiness::new(true, true, true, true, false, false, false),
+            )
+            .expect("install sessions fixture");
+        let spec_for = |method: &str, path: &str| {
+            route_registry()
+                .into_iter()
+                .find(|spec| spec.method == method && spec.path == path)
+                .unwrap_or_else(|| panic!("registered route {method} {path}"))
+        };
+        let headerless = HeaderMap::new();
+
+        for path in ["/assets/public/{id}/{variant}", "/assets/signed/{id}/{variant}"] {
+            let spec = spec_for("GET", path);
+            assert!(
+                super::pasteable_delivery_route(spec),
+                "{path} is a pasteable delivery lane"
+            );
+            assert!(
+                super::session_online_protocol_refusal(spec, &state, &headerless).is_none(),
+                "{path} must serve without the auth-client protocol offer"
+            );
+        }
+
+        let strict = spec_for("GET", "/assets/records/{id}/bytes/{variant}");
+        assert!(!super::pasteable_delivery_route(strict));
+        let refusal = super::session_online_protocol_refusal(strict, &state, &headerless)
+            .expect("strict delivery keeps the protocol-offer discipline");
+        assert_eq!(
+            refusal.diagnostic.code,
+            "SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED"
+        );
+        let issuance = spec_for("POST", "/assets/records/{id}/signed-url");
+        assert!(
+            !super::pasteable_delivery_route(issuance),
+            "signed-URL issuance is per-request authorized, never pasteable"
+        );
+        assert!(super::session_online_protocol_refusal(issuance, &state, &headerless).is_some());
     }
 
     #[tokio::test]
