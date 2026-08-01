@@ -8,7 +8,7 @@ host's workerd-v8 twin leg is a second unadmitted surface — see below)
 application refusals", LLP 0053
 
 The LLP 0108 declared-refusal first slice is admission-gated only on the
-Rust host: `admit_declared_refusal` (src/runtime.rs:3104) folds
+local Ibex engine leg: `admit_declared_refusal` (src/runtime.rs:3104) folds
 undeclared, forged, and bare `SNAPBACK_APP_REFUSAL` claims to
 `SNAPBACK_HANDLER_FAILED` against the prepared invocation's declared
 set. The JS envelope decoder is deliberately claims-only — its own
@@ -26,7 +26,8 @@ Consequence: on the Cloudflare host an **undeclared** `ctx.refuse`
 survives to the caller with its app-authored bytes, violating the
 channel's fail-closed invariant (LLP 0144 I1/I3) and the LLP 0053
 symmetry (a code admitted with no corroborating declaration). LLP 0108's
-"fail-closed by construction" is true per-host, not cross-host.
+"fail-closed by construction" is true per-engine-leg, not per-host and
+not cross-host.
 
 **Widening (2026-08-01, LLP 0144 round-2).** The gap is an engine-leg
 gap, not just a host gap. The only `admit_declared_refusal` call site

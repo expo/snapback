@@ -6,7 +6,22 @@
 Authoring, Contract, Diagnostics, Guide, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-01
-**Revised:** 2026-08-01 (v3, round-2 verify-then-fix: the floor's
+**Revised:** 2026-08-01 (v4, round-3 narrow fixes: per Codex R3, the
+F1 correlation token's shim-side binding is now non-extractable — a
+token branded as an error property would be handler-copyable, so the
+`host()` shim holds token-to-error in a shim-private identity map
+(WeakMap keyed by the exact error object) and the settle encoder emits
+it only by object identity, making replay ≡ rethrow and
+catch-invalidation structural (no binding on a replaced error, no
+token on the final envelope, no restore) — and the FO-3 contradiction
+is resolved by admitting F1's carrier requirement into FO-3's
+description: "unobservable" narrows handler-visible surface only, the
+structured FFI token carrier still crosses under F1, shim-private.
+Parity-ticket wording aligned to per-engine-leg. Per Fable R3's
+details: the explicit catch-invalidation bookkeeping rule is dropped
+as implicit under the token design, and OQ1's echo now names both the
+union grammar and the wire carrier key. Status stays Draft; a narrow
+Codex round 4 closes.) 2026-08-01 (v3, round-2 verify-then-fix: the floor's
 admission story narrowed again after Fable M-R2-1 proved it short an
 ENGINE LEG, not just a host — the only `admit_declared_refusal` call
 site is the local Ibex leg (src/runtime.rs:2726) and the workerd-v8
@@ -482,7 +497,11 @@ message string), so catch-`STALE_MOVE`-and-recover logic cannot be
 written. Options: FO-1 carry `appCode`/`appDetails` across the
 host-call boundary in the structured error (both FFI legs); FO-2 a
 witness-side read surface (the handler asks the host what the last
-nested refusal was); FO-3 leave unobservable (interior refusals are for
+nested refusal was); FO-3 leave unobservable to handler code —
+interior refusals stay hidden from the wrapping action's JS, though
+pairing FO-3 with F1 still requires F1's structured FFI token carrier,
+kept shim-private per the identity-binding rule (interior refusals are
+for
 callers, not for wrapping actions). No option existed in v1; this half
 is new and open (OQ2).
 
@@ -494,24 +513,32 @@ is new and open (OQ2).
   `denial_witness`, and the action's envelope restores it. The fact is
   host-recorded, not handler bytes, so I1 holds. The state machine must
   be pinned before this is adoptable: the witness is recorded only for
-  an *admitted* interior refusal; it is **invalidated when the action's
-  JS catches the error and continues** (a caught-and-handled refusal
-  must not resurrect); an unrelated subsequent failure restores
-  nothing; and at most one witness is live per invocation (last-write
-  or first-write must be chosen and tested). **Restoration matching
-  must key on an unforgeable per-host-call correlation token, not on
-  the code**: code-only matching (the `restore_denial_witness`
-  exact-match rule) is insufficient here, because a handler that
-  catches an interior `STALE_MOVE` and later fails with its own
-  same-`appCode` claim would resurrect the stale witnessed details
-  onto an unrelated failure. The host mints the token when it records
-  the witness at `dispatch_host_call`, returns it in the structured
-  FFI error (a small structured addition to the `-` response either
-  way — the bare `"CODE: message"` string cannot carry it), the
-  `host()` shim brands it onto the thrown error, and the settle
-  encoder echoes it; restore fires only on token match, and the token
-  is consumed on restore or invalidation. Handler bytes can copy a
-  code; they cannot mint the token.
+  an *admitted* interior refusal; an unrelated subsequent failure
+  restores nothing; and at most one witness is live per invocation
+  (last-write or first-write must be chosen and tested).
+  **Restoration matching must key on an unforgeable per-host-call
+  correlation token, not on the code**: code-only matching (the
+  `restore_denial_witness` exact-match rule) is insufficient here,
+  because a handler that catches an interior `STALE_MOVE` and later
+  fails with its own same-`appCode` claim would resurrect the stale
+  witnessed details onto an unrelated failure. The host mints the
+  token when it records the witness at `dispatch_host_call` and
+  returns it in the structured FFI error (a small structured addition
+  to the `-` response either way — the bare `"CODE: message"` string
+  cannot carry it). **The shim-side binding must be non-extractable**:
+  a token branded as an error property would itself be handler-copyable
+  bytes — caught handler code could transfer it onto a later error —
+  so the `host()` shim instead records token-to-error in a
+  shim-private map keyed by the **exact error object's identity**
+  (WeakMap or equivalent; handler code can neither read nor transfer
+  it), and the settle encoder emits the token only by looking up the
+  identity of the very object it is serializing. Only rethrowing the
+  same object carries the token — **replay is rethrow**, so
+  catch-invalidation needs no separate bookkeeping: a caught-and-
+  replaced error simply has no binding, no token reaches the final
+  envelope, and no restore fires. Restore fires only on token match
+  and consumes the token. Handler bytes can copy a code and even a
+  token-shaped string; neither mints an identity binding.
 - **F2.** Boundary re-admission: each crossing re-checks the code
   against the *crossing* function's declaration, so an action must also
   declare `STALE_MOVE` to let it out. Fail-closed at every layer, at
@@ -533,10 +560,13 @@ invalidation follows from the catch; FO-2 (witness-side read) must
 consume or mark the **same** witness the transport half would restore —
 one authority, so an observed-then-rethrown refusal cannot restore
 twice and an observed-then-swallowed one restores never; FO-3
-(unobservable) keeps the token internal to the host and is the only
-FO-option with zero FFI surface change. Choosing F1 without any
-FO-option still requires the token's structured FFI addition; choosing
-FO-1 gets it for free.
+(unobservable to handler code) is the only FO-option that adds **zero
+handler-visible surface** — but it does not spare the FFI: under F1
+the structured token carrier still crosses both directions, held in
+the shim-private identity binding, so "unobservable" narrows what
+handler code can read, never what the transport needs. Choosing F1
+under any FO-option — or none — requires the token's structured FFI
+addition; choosing FO-1 gets it for free.
 
 The draft leans F1-by-witness for mutations-inside-actions with F3's
 opt-out considered, and takes no position yet on F-observation. The
@@ -659,7 +689,8 @@ target, staged:
   *ingress* gate firing before effects on every call; A3 validation is
   an *egress* check on the rare path in production — different
   economics justify different strictness. The ruling also fixes D2's
-  union grammar (the discriminated pair exists only under B3).
+  union grammar and the wire carrier key (the discriminated pair and
+  `appDetailsDropped` exist only under B3).
 - **OQ2 (action boundary).** The as-built half is answered in Axis F
   (fold always; `appCode` never crosses the FFI). What remains open:
   F-transport's mechanism choice (F1-by-witness with the sketched
@@ -715,8 +746,10 @@ target, staged:
   stays `SNAPBACK_HANDLER_FAILED` and is absent from the union.
 - F: the nested-mutation-inside-action composition surfaces the
   declared refusal per the OQ2 rulings (transport and observation) in
-  an end-to-end served test, including the caught-refusal
-  witness-invalidated case.
+  an end-to-end served test, including the caught-and-replaced case
+  (no identity binding on the final error, so no token reaches the
+  envelope and nothing restores) and the same-`appCode` non-replay
+  case.
 - G: the guide mutations page teaches `ctx.refuse` beside the
   result-object pattern with CI-verified snippets, and the capability
   index row flips from GAP.
