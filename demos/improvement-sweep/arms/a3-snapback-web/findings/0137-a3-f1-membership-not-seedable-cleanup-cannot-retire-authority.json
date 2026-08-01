@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "findingId": "0137-a3-f1-membership-not-seedable-cleanup-cannot-retire-authority",
+  "dimension": "authorization-and-revocation",
+  "observation": {
+    "description": "A membership-backed table cannot participate in the versioned seed at all: naming orgMembers with an EMPTY row array refuses at install with SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED ('sessions-mode versioned seed cannot install membership rows'). Because unnamed tables are not reset targets, a versioned reset-install restores every data table to the literal fixture while every membership seat SURVIVES the reset — the fixture reset cannot retire authority, and a fixture cannot establish it. The arm's cleanup had to choreograph per-persona self-removal (leaveOrg × 3) before the receipted reset, and post-reset verification had to re-redeem a restored invite to earn a seat back.",
+    "evidence": [
+      "demos/improvement-sweep/arms/a3-snapback-web/evidence/scenario-evidence.json (A3-12 targetBoundPlan and postCleanupNegative)",
+      "demos/improvement-sweep/arms/a3-snapback-web/evidence/app/acceptance.a3.mjs (A3-12-CLEANUP)",
+      "diaries/0044-a3-planning-board-sweep.diary.md (seed probe)"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Frozen Convex Linear-arm evidence seeds memberships as ordinary rows in the same fixture as app data, so a fixture reset restores both data and authority in one deterministic operation.",
+    "source": "frozen-0102",
+    "sourceDate": "2026-07-28",
+    "reference": "diaries/0029-linear-backend-bakeoff.diary.md (LINEAR-01 seed shape)"
+  },
+  "classification": "capability",
+  "mustNotRegress": "Membership rows never enter through raw writes; the private-roster posture and the transition matrix stay the only authority-creating paths at the app surface.",
+  "smallestCoherentFix": "A declaration-checked trusted-import lane for the versioned seed: seed rows for a membership table are admitted only when they satisfy the declared roles (an explicitly marked fixture context, mirroring the 'trusted migration/import context' the scoped-roles design already reserves), and named membership tables become reset targets so a reset-install retires runtime seats.",
+  "acceptanceWitness": "A seed naming a membership table with fixture seats installs on a fresh sessions database; a reset-install deletes runtime seats and restores exactly the fixture seats; a principal holding a runtime-only seat is denied after the reset.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a3-membership-not-seedable-cleanup-cannot-retire-authority.md"
+  },
+  "stopClass": false,
+  "budgetFinding": false
+}

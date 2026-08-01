@@ -1,0 +1,376 @@
+{
+  "A3-01": {
+    "targetIdentity": {
+      "serverUrl": "http://127.0.0.1:4290",
+      "port": 4290,
+      "appId": "board-app",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:fca1195148d3b8123884ffb64f3b19dabd53160c85824117f4514eb4362edb4e",
+      "authMode": "sessions",
+      "runtime": null
+    },
+    "authoritativeCounts": {
+      "issues": {
+        "total": 14,
+        "todo": 5,
+        "inProgress": 4,
+        "review": 2,
+        "done": 3,
+        "urgent": 3
+      },
+      "teams": 2,
+      "projects": 3,
+      "labels": 4,
+      "commentsOnIss142": 3,
+      "activity": 18
+    },
+    "seedReceipt": {
+      "seedVersion": "a3-board.2026-08-01.1",
+      "dataVersionStream": "019fbd21-8d2d-7a43-b48b-a66c93615bb0",
+      "artifactDigest": null
+    },
+    "personas": {
+      "alice": "owner",
+      "bob": "member",
+      "gwen": "guest",
+      "mallory": "outsider (authenticated, no seat)"
+    }
+  },
+  "A3-02": {
+    "positiveRoleMatrix": {
+      "owner": {
+        "createProject": "allowed",
+        "createLabel": "allowed"
+      },
+      "member": {
+        "createIssue": "allowed",
+        "moveIssue": "allowed",
+        "createProject": "SNAPBACK_AUTH_PERMISSION_DENIED"
+      },
+      "guest": {
+        "read": "allowed",
+        "comment": "allowed",
+        "createIssue": "SNAPBACK_AUTH_PERMISSION_DENIED",
+        "moveIssue": "SNAPBACK_AUTH_PERMISSION_DENIED"
+      }
+    },
+    "actorAttribution": {
+      "gwenComment": {
+        "actorId": "019fbd21-8d78-7eac-a995-c292113d8959",
+        "matches": "gwen session principal"
+      },
+      "bobCreate": {
+        "actorId": "019fbd21-8d6a-7069-8bf8-f67bc1029bfc",
+        "matches": "bob session principal"
+      }
+    },
+    "artifactsCreated": {
+      "projectId": {
+        "version": 5,
+        "changed_count": 1,
+        "result": "019fbd21-8e1c-7842-9bdb-07c984313a1d",
+        "ctx_ledger": {
+          "version": 1,
+          "ids": [
+            "019fbd21-8e1c-7842-9bdb-07c984313a1d"
+          ],
+          "now": 1785584520725
+        },
+        "receipt": {
+          "kind": "mutation",
+          "mutationId": "mut_019fbd218e157681a7d6129aca1262fd",
+          "mutation": "createProject",
+          "outcome": "confirmed",
+          "rollbackReason": null,
+          "affectedTables": [
+            "projects"
+          ],
+          "snapshotVersion": 5,
+          "transport": "http",
+          "correlation": null,
+          "receivedAtMs": 1785584520734
+        }
+      },
+      "labelId": {
+        "version": 6,
+        "changed_count": 1,
+        "result": "019fbd21-8e2e-7603-9e0f-0e871ee1f29e",
+        "ctx_ledger": {
+          "version": 1,
+          "ids": [
+            "019fbd21-8e2e-7603-9e0f-0e871ee1f29e"
+          ],
+          "now": 1785584520742
+        },
+        "receipt": {
+          "kind": "mutation",
+          "mutationId": "mut_019fbd218e2679538a59483316d2e1fa",
+          "mutation": "createLabel",
+          "outcome": "confirmed",
+          "rollbackReason": null,
+          "affectedTables": [
+            "labels"
+          ],
+          "snapshotVersion": 6,
+          "transport": "http",
+          "correlation": null,
+          "receivedAtMs": 1785584520751
+        }
+      },
+      "bobIssue": {
+        "issueId": "019fbd21-8e3f-75a3-add5-899e36946ab0",
+        "identifier": "ISS-151"
+      }
+    }
+  },
+  "A3-03": {
+    "negativeMatrix": {
+      "read": "SNAPBACK_AUTH_PERMISSION_DENIED",
+      "detail": "SNAPBACK_AUTH_PERMISSION_DENIED",
+      "directory": "SNAPBACK_AUTH_PERMISSION_DENIED",
+      "writeComment": "SNAPBACK_AUTH_PERMISSION_DENIED",
+      "writeMove": "SNAPBACK_AUTH_PERMISSION_DENIED",
+      "subscribe": "SNAPBACK_AUTH_PERMISSION_DENIED"
+    },
+    "badInviteRefusal": "SNAPBACK_HANDLER_FAILED",
+    "outsiderSearch": {
+      "items": 0,
+      "note": "owner-partition search; no org rows disclosed"
+    }
+  },
+  "A3-04": {
+    "indexProof": {
+      "columnIssues": "by_org_status_position (declared withIndex, eq orgId + eq status, take 200)",
+      "issuesUpdatedInRange": "by_org_updated (declarative filter eq + gteFilter + lteFilter, order asc updatedAt)",
+      "myIssuesPages": "by_assignee_page_key unique (generated defineOwnedKeysetPages, owner partition)",
+      "pageIssues": "by_org_page_key unique (app-level keyset; chain lacks a strict-gt verb — 0137-a2-f5)"
+    },
+    "cursorValues": {
+      "firstPageCursor": "sbpc1.sbrq_XuN6zE0X4Zb3seGEpJ7RBg.eyJhcHAiOiJib2FyZC1hcHAiLCJiaW5kaW5nIjoic2hhMjU2OmQwOGQ5ODhjOWMyNDdkNWYxODA1ZWM0NDIxMTdiNDRjYzBlM2IzZTM5ODhlMWQ3NjYyYTgyYzljYzVlZjNjZjUiLCJib3VuZGFyeSI6InBrXzE0MCIsImlzc3VlZEF0IjoxNzg1NTg0NTIxMTU3fQ.zWS3mNne7YqGy4MHCkbH2RvwjrjsWC-OOwLNg9oYH5w",
+      "secondPageCursor": "sbpc1.sbrq_XuN6zE0X4Zb3seGEpJ7RBg.eyJhcHAiOiJib2FyZC1hcHAiLCJiaW5kaW5nIjoic2hhMjU2OmQwOGQ5ODhjOWMyNDdkNWYxODA1ZWM0NDIxMTdiNDRjYzBlM2IzZTM5ODhlMWQ3NjYyYTgyYzljYzVlZjNjZjUiLCJib3VuZGFyeSI6InBrXzE0NiIsImlzc3VlZEF0IjoxNzg1NTg0NTIxMTk2fQ.qSaO2eO-J4pJ0uh_s1ZVbuvR4x35VR8eWFq5e6-6oZQ",
+      "terminal": null
+    },
+    "pageUnion": {
+      "supportedPath": [
+        "iss_137",
+        "iss_139",
+        "iss_140",
+        "iss_142",
+        "iss_144",
+        "iss_146",
+        "iss_148"
+      ],
+      "orgWidePages": 4,
+      "orgWideRows": 16
+    },
+    "refusals": {
+      "malformedCursor": "SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID",
+      "crossOwnerCursor": "SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID"
+    },
+    "interleavedMutations": [
+      "bob createIssue ISS-152",
+      "alice moveIssue iss_144 (position only; cursor field untouched)"
+    ]
+  },
+  "A3-05": {
+    "indexIdentity": {
+      "searchIndex": "search_issues",
+      "semanticVersion": "a3-board-issues.v1",
+      "visibility": "owner(assigneeId)"
+    },
+    "authoritativeResults": {
+      "term": {
+        "query": "pagination",
+        "rowId": "iss_142",
+        "score": 800
+      },
+      "prefix": {
+        "query": "tombst*",
+        "rowId": "iss_137"
+      },
+      "partitionNegative": {
+        "aliceForeignText": 0,
+        "bobSameText": 0
+      }
+    },
+    "gap": {
+      "nonclaim": "org-wide member-visible issue search is NOT claimed: v1 search visibility accepts owner or public-read only; membership/relation-derived partitions are documented as not accepted, and public-read would disclose org data to outsiders",
+      "finding": "0137-a3-f2-search-visibility-cannot-express-membership"
+    }
+  },
+  "A3-06": {
+    "relatedIds": {
+      "project": "proj_sync",
+      "team": "team_platform",
+      "assigneeId": "019fbd21-8d5a-754f-a167-2502e8767da6",
+      "labels": [
+        "bug",
+        "performance"
+      ]
+    },
+    "boundedQueryInventory": [
+      "get issues[issueId]",
+      "get projects[projectId]",
+      "get teams[teamId]",
+      "issueLabels by_issue take 32 (+ per-edge label get)",
+      "comments by_issue_seq take 50",
+      "activity by_issue_seq take 50"
+    ],
+    "aggregateProof": {
+      "detail": {
+        "commentCount": 4,
+        "activityCount": 5,
+        "labelCount": 2
+      },
+      "independent": {
+        "comments": 4,
+        "activity": 5
+      }
+    }
+  },
+  "A3-07": {
+    "optimisticAttribution": {
+      "surface": "invokeSnapbackMutation optimistic projection over the provider-owned columnIssues store",
+      "overlayVisibleBeforeSettlementMs": 51,
+      "timeline": {
+        "invokedAt": 1785584521372,
+        "optimisticSeenAt": 1785584521372,
+        "settledAt": 1785584521423,
+        "authoritativeAt": 1785584521423
+      }
+    },
+    "settlement": {
+      "unwrappedResult": 3
+    },
+    "authoritativeState": {
+      "inProgressCount": 5,
+      "iss146Position": 50
+    },
+    "scopeNote": "status+board-position exercised through the optimistic React path; assignee and priority updates verified authoritatively in A3-04/A3-02 via mutation envelopes and live deliveries"
+  },
+  "A3-08": {
+    "twoActorBarrier": "Promise.allSettled from two authenticated sessions, both naming expectedRevision 1",
+    "semantics": "documented compare-and-move: a move names the revision it observed; a stale revision refuses and the mover rebases",
+    "authoritativeOutcome": {
+      "winnerPosition": 1111,
+      "midRevision": 2,
+      "finalRevision": 3,
+      "finalPosition": 2222
+    },
+    "loserRefusal": {
+      "code": "SNAPBACK_HANDLER_FAILED",
+      "message": "stale move: revision 2, expected 1"
+    },
+    "clientReconciliation": "loser re-read the authoritative detail (revision 2) and reissued; second commit visible as a distinct activity row"
+  },
+  "A3-09": {
+    "secondClient": "bob (independent authenticated session) with three concurrent stream handles",
+    "transportAttribution": {
+      "connection": "live",
+      "transport": "stream",
+      "commentDeliveryMs": 107,
+      "aggregateDeliveryMs": 80
+    },
+    "authority": "handle rows equal an independent third-session snapshot; activity rows carry the server-minted actor principal",
+    "searchNonclaim": {
+      "subscribeRefusal": "SNAPBACK_FUNCTION_NOT_LIVE",
+      "note": "search is a documented non-live query; live search is not claimed"
+    }
+  },
+  "A3-10": {
+    "beforeCounts": {
+      "aggregates": {
+        "total": 17,
+        "todo": 7,
+        "inProgress": 5,
+        "review": 2,
+        "done": 3,
+        "urgent": 3
+      },
+      "issues": 17,
+      "commentsIss142": 5
+    },
+    "migrationReceipt": {
+      "kind": "additive schema evolution through the documented live dev loop (optional issues.dueAt + by_org_due index + setDueDate/dueSoon operations); no restart, sessions and live handles preserved",
+      "v1InputsHash": "snapback.v1:sessions:inputs:sha256:fca1195148d3b8123884ffb64f3b19dabd53160c85824117f4514eb4362edb4e",
+      "v2InputsHash": "snapback.v1:sessions:inputs:sha256:2b52459ccdd6e4c5d8e4fff023f5966233a04d497fc4317961559f8d4fe9d315",
+      "watchReload": "watch reload: {\"schemaVersion\":\"snapback.dev.v1\",\"ok\":true,\"state\":\"generated-and-loaded\",\"changed\":\"functions.mjs\"}",
+      "seedIdentity": {
+        "before": "a3-board.2026-08-01.1",
+        "after": "a3-board.2026-08-01.1",
+        "dataVersionStream": "019fbd21-8d2d-7a43-b48b-a66c93615bb0"
+      },
+      "restartPathNonclaim": "stop/regenerate/restart refuses SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH with a misattributed SNAPBACK_RUNTIME_ARTIFACT_IDENTITY_MISMATCH cascade (finding 0137-a3-f4; probe retained)"
+    },
+    "afterCounts": {
+      "aggregates": {
+        "total": 17,
+        "todo": 7,
+        "inProgress": 5,
+        "review": 2,
+        "done": 3,
+        "urgent": 3
+      },
+      "issues": 17,
+      "commentsIss142": 5
+    },
+    "indexProof": {
+      "newIndex": "by_org_due",
+      "probe": [
+        "ISS-146",
+        "ISS-147"
+      ]
+    }
+  },
+  "A3-11": {
+    "registeredSurfaceProof": {
+      "multiQueryCount": 6,
+      "domProof": {
+        "columns": 4,
+        "cards": 17,
+        "aggregatesText": "17 total · 7 todo · 5 in progress · 2 review · 3 done",
+        "activityItems": 6,
+        "liveIdentifier": "ISS-154",
+        "aggregatesAfter": "18 total · 8 todo · 5 in progress · 2 review · 3 done"
+      },
+      "liveDomUpdate": true
+    },
+    "sourceFiles": [
+      "src/App.tsx (board view wired)",
+      "src/main.tsx (sessions boot + provider)"
+    ]
+  },
+  "A3-12": {
+    "targetBoundPlan": "suite-owned dev database in the arm directory only; membership retirement by self-removal (no admin kick in the private v1 roster — cannot be reset by seed, finding filed), then two receipted versioned reset-installs",
+    "cleanupReceipts": [
+      {
+        "operation": "reset-install",
+        "outcome": "reset-installed",
+        "seedVersion": "a3-board.2026-08-01.1",
+        "resetDeletedRows": 86,
+        "dataVersionStream": "019fbd21-98a9-7a81-a3ff-3f5924ae7715"
+      },
+      {
+        "operation": "reset-install",
+        "outcome": "reset-installed",
+        "resetDeletedRows": 57
+      }
+    ],
+    "postCleanupNegative": {
+      "afterLeave": "SNAPBACK_AUTH_PERMISSION_DENIED",
+      "afterReset": "SNAPBACK_AUTH_PERMISSION_DENIED",
+      "final": "SNAPBACK_AUTH_PERMISSION_DENIED"
+    },
+    "fixtureVerification": {
+      "aggregates": {
+        "total": 14,
+        "todo": 5,
+        "inProgress": 4,
+        "review": 2,
+        "done": 3,
+        "urgent": 3
+      },
+      "commentsIss142": 3,
+      "assigneeReverted": "seed:carol"
+    }
+  }
+}

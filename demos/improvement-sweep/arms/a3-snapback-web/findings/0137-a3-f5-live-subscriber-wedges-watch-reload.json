@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "findingId": "0137-a3-f5-live-subscriber-wedges-watch-reload",
+  "dimension": "react-reactivity-and-lifecycle",
+  "observation": {
+    "description": "The one working schema-evolution path (the dev supervisor's live watch reload) wedges permanently the moment ANY live stream subscription is attached. Repro matrix: with zero clients, or sessions-only clients, or after disposing every handle BEFORE the source swap, the reload lands 'generated-and-loaded' in under a second and data flows; with one attached live handle the reload reports 'generated-but-not-loaded' carrying SNAPBACK_AUTH_MODE_PENDING ('app-data admission is closed for an auth-mode transition'), every subsequent app-data request refuses with the same code, and admission NEVER reopens — not after the subscriber disposes (probed 20s+), with no recovery: restarting refuses on the evolved artifacts (finding f4), so the operator must restore the OLD sources to boot again. On a collaborative board, connected live clients are the steady state — the standard template (vite + browser tab open) hits this on any schema edit. The arm's workaround: dispose every provider and handle before evolving.",
+    "evidence": [
+      "demos/improvement-sweep/arms/a3-snapback-web/evidence/app/repro-evolution3.mjs (scenario matrix: idle/session/preview OK, live wedges, live2 dispose-before-swap OK)",
+      "demos/improvement-sweep/arms/a3-snapback-web/evidence/scenario-evidence.json (A3-10 migrationReceipt.restartPathNonclaim)",
+      "demos/improvement-sweep/arms/a3-snapback-web/evidence/app/acceptance.a3.mjs (preEvolutionDisposers workaround)"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Convex pushes schema/function evolution to a deployment with live WebSocket subscribers attached as the normal case; subscriptions resubscribe across the push (frozen Linear-arm evidence landed its production-shaped schema change without disconnecting clients).",
+    "source": "frozen-0102",
+    "sourceDate": "2026-07-28",
+    "reference": "diaries/0029-linear-backend-bakeoff.diary.md (LINEAR-11 migration)"
+  },
+  "classification": "defect",
+  "mustNotRegress": "Admission stays closed while an artifact transition is genuinely in flight (no window where a client reads under a half-loaded catalog), and established handles never silently serve rows from a superseded schema.",
+  "smallestCoherentFix": "Make the reload's auth-mode transition drain live subscriptions instead of deadlocking on them: invalidate/blank attached handles through the existing auth-invalidation protocol (clients already resubscribe), complete the transition, and reopen admission; if the transition cannot complete, roll back to the previous loaded catalog instead of leaving admission closed.",
+  "acceptanceWitness": "With an attached live handle, a source edit reloads to 'generated-and-loaded'; the handle blanks or resubscribes and then receives rows under the evolved catalog; app-data admission never stays closed after the reload settles.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a3-live-subscriber-wedges-watch-reload.md"
+  },
+  "stopClass": false,
+  "budgetFinding": false
+}

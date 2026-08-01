@@ -1,0 +1,20 @@
+# A3 sweep guide-gap: no page teaches sessions-mode schema evolution over existing data
+
+**Opened:** 2026-08-01
+**Systems:** Guide
+**Related:** LLP 0137 (A3 arm), LLP 0061, LLP 0109, demos/improvement-sweep/arms/a3-snapback-web/findings/0137-a3-f6-guide-gap-sessions-schema-evolution-path.json
+
+Adding an optional field to a table that already has data — the most routine
+operation a growing app performs — has no documented path. The
+versioned-seeds page says "use a migration to evolve durable data" but
+documents no migration surface; `SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH`
+and the startup artifact-pair pin appear nowhere in guide/ (grep verified);
+that the live watch reload is the ONLY working path — and its
+live-subscriber caveat — is discoverable only by experiment. The A3 arm
+spent its single debugging detour here (three probe scripts).
+
+Fix shape: an "Evolving a live app" page/section per LLP 0061: additive
+evolution through the running dev loop, the startup pin and its refusal
+code, the live-subscriber caveat, the not-yet-supported destructive cases,
+with a CI-verified snippet and a retrieval-eval row for "add a field to a
+table with existing data".

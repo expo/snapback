@@ -657,3 +657,53 @@ non-disclosing denials on read and subscribe, and the 6.6-second
 full-suite loop. This status note is a dated amendment inside the freeze
 boundary; the freeze was re-verified (and re-frozen for this plan digest)
 with the sweep's own scripts in the landing commit.
+
+A3 (Stage 2, third diaried sweep arm — snapback-web, deep budget)
+executed 2026-08-01 and **completed**: all 12 frozen checks ran
+(expectedChecks enforced) with **12 pass, 0 GAP, 0 fail, 0 Stop** (one
+explicit in-check nonclaim: org-wide member search, sanctioned by
+A3-05's gap lane), in sessions mode against the public 0.1.7 closure
+from a clean external directory. The relational core carried the
+Linear shape end to end: production-shaped versioned seed (14 issues,
+teams/projects/labels/comments/activity, seeded invites), owner/member/
+guest role matrix with uniform non-disclosing denials, declarative
+gte/lte ranges, generated keyset pages with AEAD cursor custody
+(malformed and cross-owner presentations refused byte-uniformly),
+owner-partition transactional text search with highlights, one-snapshot
+issue-detail composition with exact bounded aggregates, declared
+optimistic projections retired by authoritative delivery (51ms overlay
+lead), deterministic compare-and-move conflicts (exactly one commit per
+revision, explicit rebase), 80–107ms second-client live deliveries, an
+additive live schema evolution over the seeded data (same seed
+identity, byte-equal counts, sessions uninterrupted), the app's own
+six-query React board rendering under jsdom with a live DOM update,
+and receipted reset-install cleanup — full suite wall 4.7s. Budget
+actuals: ~44 active minutes (10 orientation + 34 build) and ~78
+build-phase tool calls against the 8h/400 deep ceilings; zero posture
+breaks; three assistance events (prior-arm recipes cited, one
+packaged-bytes read, the evolution probes). Capsule, evidence, probes,
+and app sources: `demos/improvement-sweep/arms/a3-snapback-web/`;
+diary: `diaries/0044-a3-planning-board-sweep.diary.md`. Seven findings
+filed (`0137-a3-f1..f7`, tickets `issues/20260801-0137-a3-*.md`): the
+headline is the evolution pair — any attached live subscriber wedges
+the watch-reload evolution permanently in `SNAPBACK_AUTH_MODE_PENDING`
+(admission never reopens, restart refuses on the evolved artifacts;
+connected clients are a collaborative app's steady state) and the
+restart refusal is misattributed to a runtime/codegen mismatch with
+harmful recovery advice — plus membership tables being unseedable and
+un-resettable (fixture resets cannot retire authority), search
+visibility unable to express membership partitions (org-wide issue
+search inexpressible; owner-partition subset shipped), no structured
+app-level refusal codes (conflict semantics collapse to
+SNAPBACK_HANDLER_FAILED prose), generated keyset pages accepting only
+principal-owner partitions (the org board list hand-rolls its cursor;
+the LLP 0110/0131 resource-partition shape not yet exposed), and the
+sessions schema-evolution path being entirely undocumented (guide-gap).
+Differentiator watch (protect while fixing): zero-ceremony transactional
+sequence allocation (ISS-n), settlement receipts on every mutation,
+optimistic-overlay honesty, cursor custody, transactionally live
+owner-partition search, sub-second unencumbered live evolution, the
+4.7s full-suite loop, and uniform denials across read/subscribe/write/
+cursor surfaces. This status note is a dated amendment inside the
+freeze boundary; the freeze was re-verified (and re-frozen for this
+plan digest) with the sweep's own scripts in the landing commit.

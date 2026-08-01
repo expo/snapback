@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "findingId": "0137-a3-f4-restart-evolution-refusal-misattributed-diagnostic",
+  "dimension": "diagnostics-docs-agent-usability-and-escape-hatches",
+  "observation": {
+    "description": "The natural deploy-shaped evolution workflow — stop the dev server, regenerate the evolved schema/functions, start again over the same database — refuses on a sessions app with SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH ('startup artifact pair differs from the pinned deployment'), and the CLI then wraps that cause in SNAPBACK_RUNTIME_ARTIFACT_IDENTITY_MISMATCH, telling the consumer the runtime 'could not deserialize artifacts emitted by the current codegen' and advising a runtime reinstall/rebuild or a SNAPBACK_RUNTIME_BINARY override. The actual cause (the auth-mode startup pin) appears only in a stderr line; the structured diagnostic names the wrong subsystem and the recovery advice cannot help. An external consumer who followed it would reinstall packages in a loop.",
+    "evidence": [
+      "demos/improvement-sweep/arms/a3-snapback-web/evidence/app/repro-evolution.mjs (probe: v1 boot, stop, v2 regenerate, boot refused with the cascade)",
+      "diaries/0044-a3-planning-board-sweep.diary.md (verbatim diagnostics)"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Convex's push-based evolution has no equivalent restart pin: 'npx convex dev' pushes the evolved schema to the running deployment and errors name the schema conflict itself (frozen Linear-arm evidence exercised a production-shaped schema change without a misattributed failure).",
+    "source": "frozen-0102",
+    "sourceDate": "2026-07-28",
+    "reference": "diaries/0029-linear-backend-bakeoff.diary.md (LINEAR-11 migration)"
+  },
+  "classification": "defect",
+  "mustNotRegress": "The startup pin itself — a sessions deployment must keep refusing to silently adopt a different artifact pair at boot; fail-closed stays.",
+  "smallestCoherentFix": "Propagate the true cause: when dev-server start fails with an auth-subsystem code, surface THAT code as the primary structured diagnostic with a recovery naming the sanctioned evolution path (live reload through the running supervisor, or an explicit artifact-pair admission step), and reserve RUNTIME_ARTIFACT_IDENTITY_MISMATCH for genuine deserialization failures.",
+  "acceptanceWitness": "The stop/regenerate/start sequence on a sessions database emits SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH as the primary structured diagnostic with a recovery pointing at the supported evolution step, and that step then succeeds.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a3-restart-evolution-refusal-misattributed-diagnostic.md"
+  },
+  "stopClass": false,
+  "budgetFinding": false
+}

@@ -1,0 +1,229 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "arm": {
+    "contract": "a3",
+    "armKind": "snapback-web",
+    "platform": "web",
+    "provider": "snapback",
+    "attemptId": "a3-snapback-web-darwin-arm64-20260801"
+  },
+  "packageVersions": {
+    "@expo/snapback-cli": "0.1.7",
+    "@expo/snapback-app-cli": "0.1.7",
+    "@expo/snapback-client": "0.1.7",
+    "@expo/snapback-codegen": "0.1.7",
+    "@expo/snapback-contract": "0.1.7",
+    "@expo/snapback-react": "0.1.7",
+    "@expo/snapback-vite": "0.1.7",
+    "@expo/snapback-runtime-darwin-arm64": "0.1.7",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "vite": "8.2.0",
+    "typescript": "5.9.3",
+    "jsdom": "28.0.0 (dev-only, render proof)"
+  },
+  "environment": {
+    "host": "macOS (Darwin 25.5.0), arm64",
+    "node": "24.18.0 (volta)",
+    "bun": "1.3.12",
+    "registry": "https://registry.npmjs.org",
+    "externalDirectory": "session scratchpad sweep-a3/consumer/board-app — outside any Snapback checkout; scaffolded by `snapback new board-app --template react`, board view of the frozen neutral-web shell wired live (other five views static placeholders)",
+    "sanctionedDocumentation": [
+      "the shipped Snapback guide (index, capabilities, queries, standard-patterns, text-search, versioned-seeds, scoped-roles, sessions-and-principals, react, acceptance, host-ops, trusted-runtime-values, relational-queries)",
+      "installed public package bytes under node_modules (product the consumer receives)",
+      "prior 0137 arm records (G1/A2/A1 capsules, diaries, findings) for known defects and the sessions persona recipe — program records, not product documentation"
+    ],
+    "authMode": "sessions (email-code provider; membership entry through seeded invite rows + the guide's documented app-data-invitation self-insert pattern)"
+  },
+  "budget": {
+    "class": "deep",
+    "ceilings": { "activeHours": 8, "toolCalls": 400 },
+    "wallClock": {
+      "orientationStart": "2026-08-01T10:58:00Z",
+      "externalBuildStart": "2026-08-01T11:08:19Z",
+      "finalGreenVerification": "2026-08-01T11:42:03Z",
+      "orientationMinutes": 10,
+      "activeBuildMinutes": 34,
+      "recordsPhase": "11:47Z onward (findings, tickets, capsule, diary, status, freeze/ref checks, rebase, commit)"
+    },
+    "toolCalls": {
+      "throughFinalVerification": 78,
+      "recordsPhaseEstimate": "~45 additional",
+      "note": "counted from the session transcript; well under the 400-call deep ceiling including records"
+    },
+    "ceilingExceeded": false
+  },
+  "actors": {
+    "builder": "Claude (Fable 5), LLP 0137 Stage 2 third diaried sweep arm (A3), external-consumer posture",
+    "personas": {
+      "alice": "alice@sweep-a3.test (owner via seeded invite INV-OWNER-7391)",
+      "bob": "bob@sweep-a3.test (member via seeded invite)",
+      "gwen": "gwen@sweep-a3.test (guest via seeded invite)",
+      "mallory": "mallory@sweep-a3.test (authenticated outsider, no seat)"
+    },
+    "principalDerivation": "server-minted sessions via email-code exchange; activity actor attribution asserted against the server principal, never client-supplied"
+  },
+  "targets": {
+    "kind": "fresh-isolated-local",
+    "targetProfile": "local-dev-sqlite-ibex",
+    "appId": "board-app",
+    "inputsHashV1": "snapback.v1:sessions:inputs:sha256:fca1195148d3b8123884ffb64f3b19dabd53160c85824117f4514eb4362edb4e",
+    "inputsHashV2": "snapback.v1:sessions:inputs:sha256:2b52459ccdd6e4c5d8e4fff023f5966233a04d497fc4317961559f8d4fe9d315",
+    "seedIdentity": "a3-board.2026-08-01.1 (dataVersionStream 019fbd21-8d2d-7a43-b48b-a66c93615bb0 in the green run)",
+    "database": "app-local .snapback/dev.sqlite3, deleted before each suite run so the supervisor installs the versioned seed fresh",
+    "serverUrl": "http://127.0.0.1:4290",
+    "port": 4290,
+    "portDiscipline": "runtime 4287-4387 scan; suite guard-blocks 4288 (A2 arm) and 4289 (A1 arm) during spawn and asserts never 4420; NOTE: three short-lived repro probe scripts lacked the guard and one adopted the then-free 4288 transiently (recorded honestly; no prior-arm server was running and no listener remained)",
+    "runtimeBinary": "node_modules/@expo/snapback-runtime-darwin-arm64/bin/snapback, sha256 6c5c956750edc1be016823824bf5e28a3e969810aed6d7299cf5f593fa2023fe (byte-identical to the A1/A2 arms' 0.1.7 publication)",
+    "hostedTarget": "none — A3 is a local-target contract"
+  },
+  "milestones": {
+    "closureInstalled": "2026-08-01T11:09:30Z (npm, 13 packages, ~5s)",
+    "scaffolded": "2026-08-01T11:10Z (snapback new --template react + bun install 538ms)",
+    "backendAuthored": "2026-08-01T11:10-11:17Z (10 tables incl. membership + search index, 24 v1 operations; one codegen fail-closed iteration: Gte value-expression → gteFilter)",
+    "firstServerLoaded": "2026-08-01T11:18Z (snapback dev, generated-and-loaded)",
+    "firstRead": "2026-08-01T11:18Z (smoke: pre-invite denial + column read after redeem)",
+    "firstMutation": "2026-08-01T11:18Z (redeemInvite via seeded invite)",
+    "verifiedRealtime": "2026-08-01T11:33Z (first full suite run: A3-09 second-client stream deliveries)",
+    "localAcceptance12Checks": "2026-08-01T11:42:03Z (12 pass / 0 gap / 0 fail, expectedChecks=12 enforced; suite wall 4.7s)",
+    "uiTypecheckAndBuild": "2026-08-01T11:30Z (tsc --noEmit clean after one unused-directive fix; vite build ok)",
+    "reactRuntimeRender": "2026-08-01T11:42Z (jsdom render of the app's own BoardView: 4 columns, 17 cards, live DOM update from an independent client)",
+    "hostedUrl": "not-applicable (local contract)",
+    "cleanup": "2026-08-01T11:42Z (dev child stopped via stdin close, port refused after stop, no arm processes or listeners on 4288-4295)"
+  },
+  "assistanceEvents": [
+    {
+      "elapsedMs": 300000,
+      "kind": "prior-arm-records",
+      "reason": "the sessions test-persona recipe (mailbox route, x-snapback-impersonation-capability carrier, external-bearer construction) and the versioned-seed admin custody recipe are still undocumented",
+      "informationSupplied": "reused the recipes from the A1 arm's retained acceptance sources (which themselves derive from A2's packaged-bytes read)",
+      "equivalentOpportunityOffered": "same program records available to the sweep; already filed as findings 0137-a2-f6 and 0137-a1-f9 (not re-filed)",
+      "postureBreak": false
+    },
+    {
+      "elapsedMs": 480000,
+      "kind": "undocumented-package-bytes",
+      "reason": "the declarative range vocabulary is undocumented (the queries page shows only eq): gte('field', arg(...)) refuses with 'Gte expects a value expression'",
+      "informationSupplied": "listed @expo/snapback-codegen/define exports and read the gte/gteFilter/arg constructor sources to find the filter-position gteFilter/lteFilter forms",
+      "equivalentOpportunityOffered": "same bytes ship to every public consumer; recorded in the diary as a docs papercut (absorbed into the guide-gap landscape rather than a new ticket — the working form is one probe away)",
+      "postureBreak": false
+    },
+    {
+      "elapsedMs": 900000,
+      "kind": "undocumented-package-bytes-and-probe",
+      "reason": "no documented path for sessions schema evolution: restart refused (misattributed diagnostic), and the live reload wedged under an attached subscriber",
+      "informationSupplied": "host-ops guide page (schema.load/functions.load exist; reload verbs), then three arm-authored probe scripts isolating the wedge matrix",
+      "equivalentOpportunityOffered": "probes retained in evidence/app; filed as findings 0137-a3-f4/f5/f6",
+      "postureBreak": false
+    }
+  ],
+  "postureBreaks": [],
+  "commands": [
+    "npm install --save-exact @expo/snapback-{cli,app-cli,client,codegen,contract,react,vite}@0.1.7",
+    "snapback new board-app --template react && bun install",
+    "snapback generate snapback (suite re-runs it per version; one fail-closed iteration on the range vocabulary)",
+    "node acceptance.a3.mjs (12-check suite; owns its dev server; performs the live v2 evolution mid-run; spawns the jsdom render phase)",
+    "node smoke.mjs / repro-evolution{,2,3}.mjs (early smoke + evolution defect isolation probes)",
+    "tsc --noEmit && vite build",
+    "bun add -d jsdom (render proof dependency)"
+  ],
+  "scenarioResults": [
+    { "id": "A3-01-SEED", "result": "pass", "evidencePaths": ["evidence/report.json", "evidence/scenario-evidence.json"], "note": "versioned seed installs the production-shaped fixture (1 org / 2 teams / 3 projects / 4 labels / 14 issues / 6 comments / 18 activity / 3 invites) on a fresh managed database; 4 distinct principals; seats claimed via seeded invites (owner/member/guest); seed identity previewed through admin custody" },
+    { "id": "A3-02-ROLES", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "owner admin writes allowed; member issue writes allowed + createProject denied; guest read/detail/comment allowed + createIssue/moveIssue denied (all denials uniform SNAPBACK_AUTH_PERMISSION_DENIED); activity actorIds equal the server-minted principals; ISS-151 allocated from the transactional org counter" },
+    { "id": "A3-03-OUTSIDER", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "read, detail, directory, stream subscribe, and both writes all uniformly denied; invite-code guess refused; owner-partition search returns the outsider's empty partition (no org disclosure)" },
+    { "id": "A3-04-QUERIES", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "indexed status filter equals the authoritative sweep subset with deterministic (position,_id) order; declarative gteFilter/lteFilter range over by_org_updated returns the exact literal-timestamp sets in asc order; generated keyset pages (by_assignee_page_key) page 3+3+1 with opaque cursors, no dup/skip under interleaved writes; malformed and cross-owner cursors refuse byte-uniformly (SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID); org-wide pages via the app-level cursor complete and duplicate-free (finding f7)" },
+    { "id": "A3-05-SEARCH", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "ordinary supported path = owner-partition indexed search: term and prefix queries with highlights and scores over the assignee's partition; per-principal partition negatives; org-wide member search recorded as an explicit GAP with nonclaim (finding f2 — v1 visibility is owner/public-read only)" },
+    { "id": "A3-06-DETAIL", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "one-snapshot composition: issue + project + team + labels (join) + bounded comments/activity (take 50) + aggregates; aggregates equal independent authoritative reads; bounded-query inventory recorded" },
+    { "id": "A3-07-OPTIMISTIC", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "declared optimistic projection through the React provider (headless observers): overlay visible 51ms before settlement, retired by the authoritative live delivery (isAuthoritative), server state confirms status+position; assignee/priority verified authoritatively via envelopes in other checks" },
+    { "id": "A3-08-CONFLICT", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "documented compare-and-move semantics: two actors from revision 1, exactly one commit wins, the stale mover refuses (generic SNAPBACK_HANDLER_FAILED code with prose message — finding f3), loser rebases on the authoritative revision and commits deterministically; both moves visible as activity rows" },
+    { "id": "A3-09-LIVE", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "second authenticated client with three stream handles: committed comment 107ms, aggregate counts 80ms, activity attributed to the server principal; handle rows equal an independent third-session snapshot; live search deliberately non-claimed (subscribe refuses SNAPBACK_FUNCTION_NOT_LIVE)" },
+    { "id": "A3-10-EVOLUTION", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "additive v2 evolution (optional issues.dueAt + by_org_due index + 2 operations) through the documented live dev loop: watch reload event, inputsHash changed, same seed identity/dataVersionStream, byte-equal counts, runtime rows and assignments preserved, sessions uninterrupted; new index serves dueSoon. Caveats recorded honestly: every live subscription had to be disposed first (finding f5) and the restart path refuses with a misattributed diagnostic (finding f4)" },
+    { "id": "A3-11-REACT-SURFACE", "result": "pass", "evidencePaths": ["evidence/ui-render.json", "evidence/app/board-view.mjs", "evidence/app/App.tsx"], "note": "the app's own BoardView module (six live queries in one provider group: four columns + aggregates + activity) renders under jsdom against the live server — 4 columns, 17 cards, aggregate text — and the DOM updates live from an independent client's committed issue; same module mounts in the browser shell; tsc + vite build green" },
+    { "id": "A3-12-CLEANUP", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "seats retired by self-removal (no admin kick in the private v1 roster; membership cannot be a reset target — finding f1), then two receipted versioned reset-installs (deleted 86 + 57 rows) restore the literal fixture including redeemable invites; verification via re-redeemed invite; final fresh-session negative denied; suite-owned database only, prior-arm ports guarded" }
+  ],
+  "expectedCheckCount": 12,
+  "findings": [
+    "0137-a3-f1-membership-not-seedable-cleanup-cannot-retire-authority",
+    "0137-a3-f2-search-visibility-cannot-express-membership",
+    "0137-a3-f3-no-structured-app-refusal-codes",
+    "0137-a3-f4-restart-evolution-refusal-misattributed-diagnostic",
+    "0137-a3-f5-live-subscriber-wedges-watch-reload",
+    "0137-a3-f6-guide-gap-sessions-schema-evolution-path",
+    "0137-a3-f7-keyset-pages-owner-partition-only"
+  ],
+  "differentiators": [
+    {
+      "observation": "Transactional human-visible sequence allocation with zero ceremony: ISS-<n> comes from a read-modify-write on the org row inside the mutation, serialized by commit order — the LLP 0135 sequence-counter shape works on 0.1.7 with no dedicated counter service. Frozen Firebase evidence needed a transaction retry idiom for the same fact.",
+      "mustNotRegress": "Serialized commit order making naive counter allocation correct, and the mutation receipt carrying the allocation's snapshotVersion.",
+      "referenceEvidence": "scenario-evidence.json A3-02 (ISS-151), diaries/0029 (LINEAR sequence)"
+    },
+    {
+      "observation": "Machine-checkable settlement receipts on every mutation ({mutationId, outcome, affectedTables, snapshotVersion} beside the typed result) made the conflict and idempotency evidence trivial to collect — no frozen arm had an envelope this rich.",
+      "mustNotRegress": "The structured mutation envelope with receipt and exact commit version.",
+      "referenceEvidence": "scenario-evidence.json A3-08, smoke output in the diary"
+    },
+    {
+      "observation": "Declared optimistic projections with authoritative retirement: the provider-owned overlay was visible 51ms before settlement and was retired by the matching live delivery (isAuthoritative), with no hand-rolled cache and no risk of counting optimistic state as authority.",
+      "mustNotRegress": "Optimistic layers validated against the generated result contract and retired only by validated live delivery.",
+      "referenceEvidence": "scenario-evidence.json A3-07"
+    },
+    {
+      "observation": "Opaque cursor custody on the generated keyset pages: malformed and cross-owner cursor presentations refuse byte-identically (SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID) — cursor abuse is a first-class refused surface, not an app bug. No frozen arm's pagination cursors carried authority binding.",
+      "mustNotRegress": "App/plan/authority-bound continuations with byte-uniform refusals.",
+      "referenceEvidence": "scenario-evidence.json A3-04 refusals"
+    },
+    {
+      "observation": "Owner-partition text search is maintained inside the source transaction: an assignIssue commit made the row immediately searchable in the assignee's partition (same-run probe), with deterministic scores and plain-text highlights — against frozen Firebase evidence where native search does not exist at all.",
+      "mustNotRegress": "Postings maintained transactionally with source mutations; deterministic exact-integer ranking.",
+      "referenceEvidence": "smoke output (search pre/post assign), scenario-evidence.json A3-05; diaries/0029 LINEAR-09 GAP"
+    },
+    {
+      "observation": "Live evolution when unencumbered is excellent: the watch reload landed an additive schema change over live data in under a second with sessions uninterrupted, seed identity untouched, and byte-equal counts — a shape the fix for f5 must preserve.",
+      "mustNotRegress": "Sub-second additive reload with non-destructive seed matching and preserved sessions.",
+      "referenceEvidence": "scenario-evidence.json A3-10 migrationReceipt"
+    },
+    {
+      "observation": "The whole 12-check suite — fresh seed install, four personas, a live schema evolution, a jsdom React render, and two destructive receipted resets — runs in 4.7 seconds wall; the fastest full-suite loop of the sweep so far (A1 was 6.6s over 13 checks).",
+      "mustNotRegress": "Machine-readable dev lifecycle (ready descriptor + snapback.dev.v1 events + stdin-close stop) that lets suites own their servers.",
+      "referenceEvidence": "evidence/report.json startedAt/finishedAt and per-check ms"
+    },
+    {
+      "observation": "Uniform non-disclosing denials held across every A3 surface — read, detail, directory, stream subscribe, writes, and cursor misuse — consistent with the A1/A2 arms; the outsider's search sees only its own empty partition.",
+      "mustNotRegress": "Byte-uniform SNAPBACK_AUTH_PERMISSION_DENIED on protected read and subscribe; partition-bounded search.",
+      "referenceEvidence": "scenario-evidence.json A3-03"
+    }
+  ],
+  "inventory": {
+    "authored": {
+      "backend": "snapback/schema.mjs (v1 178 lines incl. search index + membership; v2 +4), snapback/functions.mjs (v1 ~640, 24 operations; v2 +2 operations), snapback/seed.json (~250, production-shaped fixture)",
+      "ui": "src/board-view.mjs (95, the shared live board), src/App.tsx (127, frozen shell + wired board), src/main.tsx (95, sessions sign-in boot)",
+      "acceptance": "acceptance.a3.mjs (~700, 12 checks + own harness + live evolution orchestration), ui-render.mjs (110, jsdom render proof)",
+      "probes": "smoke.mjs, repro-evolution{,2,3}.mjs (evolution defect isolation, retained in evidence/app)"
+    },
+    "scaffolded": "react template (12 files) from snapback new",
+    "generated": "85 codegen files v1 (24 operations), 88 v2 (26); inputsHash v1 fca11951…, v2 2b52459c…",
+    "policy": "orgMembers scoped-role declaration (owner/member/guest, invite self-insert + self-remove transitions); every protected operation requireRole-gated; search visibility owner(assigneeId)",
+    "glue": "none — no gateway, poller, or normalization layer; the only workaround shapes are the hand-rolled org-wide cursor (finding f7) and pre-evolution subscriber disposal (finding f5)",
+    "evidenceRetained": [
+      "evidence/report.json",
+      "evidence/scenario-evidence.json",
+      "evidence/ui-render.json",
+      "evidence/app/*"
+    ]
+  },
+  "attribution": {
+    "transport": "managed WebSocket stream (transport:'stream', connection:'live') for every live claim — second-client committed-row deliveries at 80-107ms; polling never used as evidence; search is a non-live query and its subscribe refusal (SNAPBACK_FUNCTION_NOT_LIVE) is recorded as the nonclaim",
+    "authority": "server-authoritative sessions mode: server-minted principals, requireRole membership gates on every protected read/subscribe/write, declarative membership semi-join only on the positive range surface (a1-f7 filter-vs-deny split respected); activity actor attribution asserted against session principals; optimistic overlays never counted as authority (retired by validated live delivery)",
+    "settlement": "structured mutation envelopes with receipts ({mutationId, outcome, affectedTables, snapshotVersion}); comment idempotency by (issueId, clientKey) unique index returning the committed seq; compare-and-move refusals settle the conflict deterministically (first commit per revision wins; rebase is an explicit second commit)"
+  },
+  "stopDefects": [],
+  "cleanup": {
+    "processes": "suite and render phase stop their own spawned children (stdin close, verified exit); no processes under the arm's app directory after the final run",
+    "listeners": "port 4290 refused after stop; 4288/4289 guard-blocked during spawn and never adopted by the suite; 4420 never used; lsof over 4288-4295 clean at arm end; the transient repro-script adoption of then-free 4288 is recorded in targets.portDiscipline",
+    "unrelatedState": "nothing outside the arm-owned app directory touched; orchestrator clients run rqsStore:null so no durable client store was created",
+    "database": "arm-owned .snapback/dev.sqlite3 left at the literal versioned seed by the second receipted reset-install (zero memberships, unconsumed invites); retained in the session-isolated scratchpad; no secrets copied into any record",
+    "externalDirectory": "scratchpad sweep-a3/consumer/board-app retained as the working area; durable evidence copied into this arms/ directory"
+  },
+  "result": "complete"
+}

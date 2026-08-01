@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "findingId": "0137-a3-f7-keyset-pages-owner-partition-only",
+  "dimension": "relational-composition-and-aggregates",
+  "observation": {
+    "description": "The safe generated pagination path (defineOwnedKeysetPages, with its opaque AEAD cursor, byte-uniform refusals, and no-skip/no-dup continuation guarantee) accepts only visibility {kind:'owner'} — a partition field matched against the caller's principal. The A3 board's PRIMARY list shape — all issues in an organization/team, visible to any member — cannot use it: the partition is a resource id, not a principal. Combined with 0137-a2-f5 (the packaged ctx.db chain has no strict-greater keyset verb), an org-partition cursor must be hand-rolled over a bounded indexed read with client-side boundary exclusion, forfeiting the cursor custody the generated path provides. The arm shipped both: the generated pages for 'my issues' (passed, including cross-owner cursor refusals) and a hand-rolled org-wide cursor (honest at seed scale only).",
+    "evidence": [
+      "demos/improvement-sweep/arms/a3-snapback-web/evidence/scenario-evidence.json (A3-04 indexProof + cursorValues + refusals)",
+      "demos/improvement-sweep/arms/a3-snapback-web/evidence/app/functions.v1.mjs (pageIssues hand-rolled vs myIssues generated pair)"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Convex paginated queries (.paginate over any index) serve arbitrary partitions inside membership-gated functions with journal-backed cursors; the frozen Linear arm paginated the team's issue list natively.",
+    "source": "frozen-0102",
+    "sourceDate": "2026-07-28",
+    "reference": "diaries/0029-linear-backend-bakeoff.diary.md (LINEAR-04 pagination)"
+  },
+  "classification": "capability",
+  "mustNotRegress": "Cursor custody: opaque versioned continuations bound to app, plan pair, and authority partition, refusing malformed/cross-pair/cross-authority presentations byte-uniformly; generation keeps rejecting scan-disguising declarations.",
+  "smallestCoherentFix": "Extend the keyset-pages generator with a membership-gated resource partition: index [resourceField, cursorField] plus a membership declaration whose resource axis is that field — the cursor binds the resource partition and the caller's seat instead of the principal (this is the bounded-children/board-list shape LLP 0110/0131 already designed for).",
+  "acceptanceWitness": "A generated first/next pair over (orgId, pageKey) pages the seeded org for any member with the standard cursor refusal matrix, denies the outsider uniformly, and survives interleaved writes without duplication or skips.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a3-keyset-pages-owner-partition-only.md"
+  },
+  "stopClass": false,
+  "budgetFinding": false
+}

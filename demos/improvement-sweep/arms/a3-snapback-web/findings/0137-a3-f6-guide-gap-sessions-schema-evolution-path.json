@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "findingId": "0137-a3-f6-guide-gap-sessions-schema-evolution-path",
+  "dimension": "diagnostics-docs-agent-usability-and-escape-hatches",
+  "observation": {
+    "description": "No guide page explains how to evolve a sessions-mode app's schema over existing data. The versioned-seeds page says 'use a migration to evolve durable data' but documents no migration surface; SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH and the startup artifact-pair pin appear nowhere in guide/ (grep verified); the fact that the LIVE watch reload is the only working evolution path — and its live-subscriber caveat (f5) — is discoverable only by experiment. The arm burned its only debugging detour here (~15 minutes and three probe scripts for an additive optional-field evolution, the single most routine operation a growing app performs).",
+    "evidence": [
+      "demos/improvement-sweep/arms/a3-snapback-web/evidence/app/repro-evolution.mjs",
+      "demos/improvement-sweep/arms/a3-snapback-web/evidence/app/repro-evolution2.mjs",
+      "diaries/0044-a3-planning-board-sweep.diary.md (evolution detour timeline)"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Convex documents schema evolution as a first-class workflow (schema validation on push, staged migrations); the frozen Linear arm followed documented steps for its production-shaped schema change.",
+    "source": "frozen-0102",
+    "sourceDate": "2026-07-28",
+    "reference": "diaries/0029-linear-backend-bakeoff.diary.md (LINEAR-11)"
+  },
+  "classification": "documentation",
+  "mustNotRegress": "The pin and the fail-closed load remain; the docs must teach the honest surface, not soften it.",
+  "smallestCoherentFix": "A guide page (or a versioned-seeds section) 'Evolving a live app': additive evolution through the running dev loop, the startup artifact-pair pin and its refusal code, the current live-subscriber caveat, and what is NOT yet supported (destructive migrations), with a CI-verified snippet.",
+  "acceptanceWitness": "A cold agent retrieval eval for 'how do I add a field to a table that already has data (sessions mode)?' lands on the page and the page's snippet runs in CI.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a3-guide-gap-sessions-schema-evolution-path.md"
+  },
+  "stopClass": false,
+  "budgetFinding": false
+}

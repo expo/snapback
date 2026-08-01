@@ -1,0 +1,12 @@
+{
+  "multiQueryCount": 6,
+  "domProof": {
+    "columns": 4,
+    "cards": 17,
+    "aggregatesText": "17 total · 7 todo · 5 in progress · 2 review · 3 done",
+    "activityItems": 6,
+    "liveIdentifier": "ISS-154",
+    "aggregatesAfter": "18 total · 8 todo · 5 in progress · 2 review · 3 done"
+  },
+  "liveDomUpdate": true
+}

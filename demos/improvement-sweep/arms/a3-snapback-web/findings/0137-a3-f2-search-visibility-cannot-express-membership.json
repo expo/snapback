@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "findingId": "0137-a3-f2-search-visibility-cannot-express-membership",
+  "dimension": "assets-search-vector-and-notifications",
+  "observation": {
+    "description": "Search-index visibility in v1 accepts only {kind:'public-read'} or {kind:'owner', field} where the owner field is matched against the effective principal. The Linear-shaped product fact — full-text search over the ORGANIZATION'S issues, visible to any org member — is inexpressible: public-read would disclose issue text to outsiders (a Stop-class shape), and owner partitions only reach rows assigned to the caller. The arm shipped the honest subset ('search my issues' on assigneeId, which passed with term/prefix/highlights and per-principal partition negatives) and recorded org-wide member search as an explicit GAP. The guide documents the restriction ('Membership and relation-derived visibility are not accepted in v1'), so this is a capability gap, not a defect.",
+    "evidence": [
+      "demos/improvement-sweep/arms/a3-snapback-web/evidence/scenario-evidence.json (A3-05 gap + authoritativeResults)",
+      "demos/improvement-sweep/arms/a3-snapback-web/evidence/app/schema.v1.mjs (searchIndex visibility note)"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Convex full-text search indexes run inside ordinary query functions, so membership gating composes with search by construction (official docs); the frozen Firebase Linear arm had NO native full-text search at all and recorded LINEAR-09 as a GAP requiring an external provider.",
+    "source": "official-docs",
+    "sourceDate": "2026-08-01",
+    "reference": "docs.convex.dev/text-search; diaries/0029-linear-backend-bakeoff.diary.md (LINEAR-09 GAP)"
+  },
+  "classification": "capability",
+  "mustNotRegress": "The authorization-partition property: a caller can never receive a posting outside its declared partition, and search visibility never silently widens; deterministic ranking and the AEAD cursor custody stay.",
+  "smallestCoherentFix": "A membership visibility kind for search indexes — visibility: { kind: 'membership', membership: '<declaration>', resource: '<field>' } — resolving the caller's seats inside the same transaction the posting recheck already runs in, so a search query is pushed into the union of the caller's resource partitions.",
+  "acceptanceWitness": "An org member's search over the seeded issues returns cross-assignee matches with highlights; an outsider's identical query returns zero rows with no disclosure; revoking the seat makes the next search return zero.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a3-search-visibility-cannot-express-membership.md"
+  },
+  "stopClass": false,
+  "budgetFinding": false
+}

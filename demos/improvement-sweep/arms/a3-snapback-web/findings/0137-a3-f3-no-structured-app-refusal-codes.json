@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "findingId": "0137-a3-f3-no-structured-app-refusal-codes",
+  "dimension": "conflicts-jobs-effects-and-ambiguity",
+  "observation": {
+    "description": "Every semantic refusal an application handler raises collapses to the single generic diagnostic code SNAPBACK_HANDLER_FAILED. The arm's documented conflict semantics (compare-and-move: 'stale move: revision 2, expected 1'), an already-consumed invite, and a validation failure are indistinguishable at the code level — a client that wants to branch on 'stale move → refetch and rebase' versus 'invite consumed → show error' must parse prose message text. The host's own refusals are exemplary (uniform coded SNAPBACK_AUTH_PERMISSION_DENIED, SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID, etc.); application semantics get no equivalent vocabulary.",
+    "evidence": [
+      "demos/improvement-sweep/arms/a3-snapback-web/evidence/scenario-evidence.json (A3-08 loserRefusal: code SNAPBACK_HANDLER_FAILED, message 'stale move: revision 2, expected 1')",
+      "demos/improvement-sweep/arms/a3-snapback-web/evidence/app/acceptance.a3.mjs (A3-08 reconciliation branch keyed on message text)"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Convex application errors carry a developer-defined ConvexError with structured data the client can switch on (official docs); the frozen 0102 arms similarly branched on app-defined error payloads rather than message strings.",
+    "source": "official-docs",
+    "sourceDate": "2026-08-01",
+    "reference": "docs.convex.dev/functions/error-handling (ConvexError)"
+  },
+  "classification": "capability",
+  "mustNotRegress": "The terminal, non-catchable character of host-owned denials (auth denials must never be maskable by app error vocabulary), and the uniform non-disclosing shape of negative responses.",
+  "smallestCoherentFix": "A declared application refusal channel: handlers throw a typed refusal (code from a declared closed set plus a JSON-safe details payload validated like a result contract); the envelope carries it as diagnostic.appCode beside SNAPBACK_HANDLER_FAILED so existing consumers keep working.",
+  "acceptanceWitness": "A mutation declares refusals: ['STALE_MOVE'] and throws it; the client observes diagnostic.appCode === 'STALE_MOVE' with typed details, while an undeclared throw still surfaces as plain SNAPBACK_HANDLER_FAILED.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a3-no-structured-app-refusal-codes.md"
+  },
+  "stopClass": false,
+  "budgetFinding": false
+}

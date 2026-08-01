@@ -1,0 +1,89 @@
+{
+  "schemaVersion": "sweep-a3.acceptance.v1",
+  "title": "LLP 0137 A3 snapback-web acceptance",
+  "startedAt": "2026-08-01T11:41:58.974Z",
+  "finishedAt": "2026-08-01T11:42:03.629Z",
+  "expectedChecks": 12,
+  "observedChecks": 12,
+  "tally": {
+    "pass": 12,
+    "gap": 0,
+    "fail": 0,
+    "expected-refusal": 0
+  },
+  "results": [
+    {
+      "id": "A3-01-SEED",
+      "result": "pass",
+      "ms": 135,
+      "note": "seed installed (14 issues/2 teams/3 projects/4 labels/6 comments/18 activity); 4 distinct principals; invites redeemed owner/member/guest"
+    },
+    {
+      "id": "A3-02-ROLES",
+      "result": "pass",
+      "ms": 174,
+      "note": "owner admin writes, member issue writes + admin denial, guest read/comment + write denials; activity actorIds are the server-minted principals"
+    },
+    {
+      "id": "A3-03-OUTSIDER",
+      "result": "pass",
+      "ms": 105,
+      "note": "uniform SNAPBACK_AUTH_PERMISSION_DENIED on read/detail/directory/subscribe/write×2; invite guess refused; search partition empty"
+    },
+    {
+      "id": "A3-04-QUERIES",
+      "result": "pass",
+      "ms": 271,
+      "note": "indexed filter + declarative gte/lte range + deterministic order verified against the authoritative sweep; generated keyset pages 3+3+1 with opaque cursors, no dup/skip under interleaved writes; uniform cursor refusals"
+    },
+    {
+      "id": "A3-05-SEARCH",
+      "result": "pass",
+      "ms": 17,
+      "note": "owner-partition search verified (term/prefix/highlights, per-principal partitions); org-wide membership-scoped search recorded as an explicit GAP + finding"
+    },
+    {
+      "id": "A3-06-DETAIL",
+      "result": "pass",
+      "ms": 36,
+      "note": "detail composes project/team/assignee/labels/comments/activity in one snapshot; aggregates equal independent authoritative reads"
+    },
+    {
+      "id": "A3-07-OPTIMISTIC",
+      "result": "pass",
+      "ms": 123,
+      "note": "optimistic overlay visible 51ms before settlement, retired by the authoritative live delivery; server state confirms status+position"
+    },
+    {
+      "id": "A3-08-CONFLICT",
+      "result": "pass",
+      "ms": 181,
+      "note": "concurrent moves: exactly one commit per revision, stale mover refused (SNAPBACK_HANDLER_FAILED), rebase settles deterministically at revision 3; both moves in activity"
+    },
+    {
+      "id": "A3-09-LIVE",
+      "result": "pass",
+      "ms": 268,
+      "note": "comments 107ms, aggregates 80ms to the second client over the managed stream; activity attributed; search subscribe refuses (SNAPBACK_FUNCTION_NOT_LIVE)"
+    },
+    {
+      "id": "A3-10-EVOLUTION",
+      "result": "pass",
+      "ms": 911,
+      "note": "v2 schema (optional dueAt + index + 2 ops) landed via live watch reload over the seeded database: same seed identity/stream, byte-equal counts, runtime rows preserved, sessions uninterrupted; new index serves dueSoon"
+    },
+    {
+      "id": "A3-11-REACT-SURFACE",
+      "result": "pass",
+      "ms": 551,
+      "note": "React board renders in jsdom from the 6-query provider group (4 columns, 17 cards) and updates live from a second client; tsc+vite build green (recorded)"
+    },
+    {
+      "id": "A3-12-CLEANUP",
+      "result": "pass",
+      "ms": 242,
+      "note": "seats retired by self-removal, reset-install receipts (deleted 86 + 57 rows), literal fixture verified via re-redeemed invite, final fresh-session negative denied"
+    }
+  ],
+  "exitCode": 0
+}
