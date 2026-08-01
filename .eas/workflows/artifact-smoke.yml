@@ -1,0 +1,34 @@
+name: artifact-smoke
+
+on:
+  workflow_dispatch:
+
+jobs:
+  produce:
+    runs_on: linux-medium
+    steps:
+      - name: Create artifact
+        run: |
+          mkdir -p .eas-artifacts
+          printf 'artifact smoke\n' > .eas-artifacts/artifact-smoke.txt
+      - uses: eas/upload_artifact
+        with:
+          type: other
+          name: artifact-smoke
+          path: .eas-artifacts/artifact-smoke.txt
+
+  consume:
+    needs: [produce]
+    runs_on: macos-medium
+    steps:
+      - id: downloaded
+        uses: eas/download_artifact
+        with:
+          name: artifact-smoke
+      - name: Inspect artifact output
+        env:
+          ARTIFACT_PATH: ${{ steps.downloaded.outputs.artifact_path }}
+        run: |
+          printf 'artifact output=<%s>\n' "$ARTIFACT_PATH"
+          test -f "$ARTIFACT_PATH"
+          grep -q 'artifact smoke' "$ARTIFACT_PATH"
