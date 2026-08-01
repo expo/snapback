@@ -23,3 +23,13 @@ Resolution needs an author-level call:
 Until decided, multi-asset use cases (galleries, attachments lists)
 should model one row per asset with a scalar `v.assetRef`, which the
 reverse-edge and read-authorization machinery already handles.
+
+---
+
+**RESOLVED 2026-07-31 — author decision (Charlie): option 2, amend the
+docs.** The bounded-array node is withdrawn from LLP 0044 §Typed
+references and LLP 0007's companion amendment (dated notes in both);
+multi-asset relationships take the child-row / bounded-children paved
+path, which Party Wall validated end to end and the reverse-edge,
+sharing, and GC machinery already serve. If portable array fields ship
+platform-wide later, admitting an assetRef element type is additive.

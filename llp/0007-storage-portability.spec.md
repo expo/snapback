@@ -5,7 +5,11 @@
 **Systems:** Storage, API, Runtime, Sync, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-31 (LLP 0044 companion: `v.assetRef` joins the field
+**Revised:** 2026-07-31, later same day (bounded-array withdrawal, author
+decision by Charlie: the `v.array(v.assetRef(...))` placement the LLP 0044
+companion amendment froze is withdrawn — no array table fields exist in
+the shipped portable vocabulary; child rows are the paved multi-asset
+path; dated note inside the amendment). Earlier: (LLP 0044 companion: `v.assetRef` joins the field
 vocabulary with the `upload` restriction and explicit optional/bounded-array
 nodes; commit-boundary asset admission is classified under commit-time
 validation for every write path with the reverse edge in the same changeset;
@@ -683,8 +687,20 @@ closed validator set of `packages/snapback-codegen/define.mjs`:
 exported upload-intent binding whose assets the field admits; omitted, the
 field is unrestricted and attachable only through handler-side
 `ctx.assets.attach` (LLP 0044 §Typed references). Placements are explicit
-schema nodes: bare, `v.optional(v.assetRef(...))`, and
-`v.array(v.assetRef(...), { maxItems })` — the array bound is required.
+schema nodes: bare and `v.optional(v.assetRef(...))`.
+
+> Amended 2026-07-31, later same day (author decision, Charlie): the
+> bounded-array placement `v.array(v.assetRef(...), { maxItems })` this
+> amendment originally froze is **withdrawn**. Implementation established
+> that the portable field vocabulary ships no array table fields of any
+> type — "array of portable values" above remains intended, unshipped —
+> so the node promised a shape the platform cannot host. The paved path
+> for multi-asset relationships is one row per asset in a child table
+> (the LLP 0110 bounded-children idiom), which the reverse-edge,
+> sharing, and GC machinery already serve and which the Party Wall demo
+> validated end to end. If portable array fields later ship on their own
+> merits, admitting an assetRef element type is an additive follow-up,
+> not a breaking change.
 The physical representation is the opaque asset id string under the
 single-sourced type map; asset bytes are never inline document fields
 (unchanged rule above). The asset metadata, upload-attempt, blob,
@@ -693,8 +709,8 @@ ledger tables are Snapback-owned system tables in the LLP 0044 §Internal
 model shapes; application schemas cannot declare or shadow them.
 
 **Commit-boundary admission is part of commit-time validation.** Every
-committed write to a `v.assetRef` field — scalar, optional, or array
-element, on every write path — validates an admission inside the final
+committed write to a `v.assetRef` field — scalar or optional, on every
+write path — validates an admission inside the final
 write lock, in this Spec's read-set-validation idiom. Handler (Ibex)
 writes consume the transaction-scoped admission `ctx.assets.attach`
 records; write paths without handler execution — host plans, including

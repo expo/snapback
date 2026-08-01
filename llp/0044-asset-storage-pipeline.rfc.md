@@ -5,7 +5,13 @@
 **Systems:** Assets, Storage, API, Security, Auth, Runtime, Deployment, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-31, consistent-cut design addition (W2h): the asset
+**Revised:** 2026-07-31, bounded-array withdrawal (author decision,
+Charlie): `v.array(v.assetRef(...))` is withdrawn from the typed-reference
+schema nodes — the portable vocabulary ships no array table fields, and
+multi-asset relationships take the child-row (LLP 0110 bounded-children)
+paved path, validated by the Party Wall demo; LLP 0007's companion
+amendment carries the matching dated note, and the array follow-up ticket
+closes as decided. Prior, same day: consistent-cut design addition (W2h): the asset
 component of a logical export is designed — cut manifest, refuse-partial
 import, restore-epoch fencing — with the local export slice and import
 validation implemented, restore application gated experimental, and the
@@ -836,8 +842,12 @@ the same hashing primitive merely to start an upload.
 ### Typed references and atomic attachment
 
 The schema vocabulary gains a typed asset reference, conceptually
-`v.assetRef()` with an optional upload-intent restriction. Scalar, optional,
-and bounded-array placements are explicit schema nodes. Arbitrary strings that
+`v.assetRef()` with an optional upload-intent restriction. Scalar and
+optional placements are explicit schema nodes; the bounded-array placement
+was withdrawn by the author's 2026-07-31 decision (the portable field
+vocabulary ships no array table fields — multi-asset relationships use one
+row per asset in a child table, the LLP 0110 bounded-children idiom; see
+LLP 0007's amended companion note). Arbitrary strings that
 happen to equal an asset id are not references.
 
 In a mutation, application code admits a client-provided id through the asset
@@ -1951,8 +1961,7 @@ Deferred with named owners, honestly: the React/Expo projection and
 real-server JS conformance vectors (ticket L1-14's recorded remainder);
 sessions callback execution authority
 (`issues/20260731-0044-sessions-callback-authority.md` records the
-concrete design question); bounded-array `v.assetRef`
-(`issues/20260731-assetref-array-needs-portable-array-fields.md`); and
+concrete design question); and
 S3 store qualification, store migration, and the
 LLP 0070 runner generation, each already scoped as later capabilities
 above. The document stays Accepted; Implemented awaits the client
