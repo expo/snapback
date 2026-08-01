@@ -483,3 +483,118 @@ on three surfaces, hoist-the-admission fix shape) and the three
 details. That is a small, mechanical round; nothing in the option
 space, the recommendation, or the open questions needs to move. After
 it, this reviewer expects READY.
+
+
+## Round 3 — 2026-08-01 (targeted review of v3)
+
+**Reviewer family:** Claude Fable
+**Provider / runtime:** Anthropic Claude Code, `claude-fable-5`, non-author session (same session as rounds 1–2)
+**Effort:** session-inherited
+**Date:** 2026-08-01
+**Method:** targeted delta review of v3 against the round-2 findings;
+every claimed resolution re-verified against the tree (anchors
+re-checked, ticket re-read); the Codex-attributed correlation-token
+addition assessed for soundness without reading any codex artifact; all
+changed text swept for fresh defects.
+**Target:** `llp/0144-declared-app-refusal-codes.rfc.md` (Draft, v3)
+**Target SHA-256:** `32883649da568d641ad0b14fb4d67619e9c544190c9e1ac7fb198e6c7bfcb535`
+**Repo revision at review start:** origin/main `b0bf4594`
+**Tool uses:** 7
+**Status:** completed
+**Verdict:** READY
+
+## Verbatim review
+
+## Overall assessment
+
+**Verdict: READY.**
+
+All four round-2 findings are resolved fully and faithfully, the
+Codex-attributed round-2 correction to the F1 sketch is sound and
+improves the design, and the two fresh items I found are wording-level
+details inside an option sketch that is explicitly gated behind open
+questions — neither justifies holding the document. The floor section
+now tells the truth at the right granularity (per engine leg), the
+repair program matches it, and the option space is complete over its
+commission.
+
+## Round-2 findings ledger
+
+- **MATERIAL-R2-1: RESOLVED.** Floor fact 3 is now a per-engine-leg
+  admission matrix and every anchor re-verifies: sole
+  `admit_declared_refusal` call site at src/runtime.rs:2726 (Ibex leg);
+  the twin branch's early return at :2682 routing every non-action
+  invocation when `SNAPBACK_HANDLER_BACKEND=workerd-v8` is selected;
+  `run_handler_workerd` ending in plain `parse_handler_output`
+  (src/workerd_exec.rs:874); the Cloudflare passthrough unchanged. Fact
+  4 is scoped to "only the Ibex leg then adjudicates". The parity
+  ticket is retitled and widened with a dated Widened header, the
+  correct twin-leg trace, the engine-neutral-hoist fix shape, and the
+  three-surface triad as acceptance; step 0 and the floor-repair
+  witness both name the three surfaces, with the Ibex leg honestly
+  marked "(green today)". The losslessness argument for leaving
+  witness restores Ibex-side is correct — restores are action-scoped
+  and the routing site's own LLP 0048 @ref ("Actions stay on Ibex",
+  src/runtime.rs:2661–2664) guarantees actions never take the twin.
+- **DETAIL-R2-1: RESOLVED.** A2 now cites the 0094-gap ticket as the
+  analogy §Motivating evidence made of it, and carries the
+  floor-fact-6 unreachability caveat in place.
+- **DETAIL-R2-2: RESOLVED.** I3 is normative ("must fold every claim —
+  decoding a claim is never admitting it"), names the two unadmitted
+  surfaces as violations to repair, and adds the right forward
+  obligation: any new engine leg or host inherits the invariant before
+  serving handlers.
+- **DETAIL-R2-3: RESOLVED.** B3's note has a stated carrier —
+  `appDetailsDropped: true` beside `appCode` inside the existing
+  diagnostic-details map, absent otherwise — with the null-ambiguity
+  correctly worked out (`ctx.refuse(code)` with no details also yields
+  null, so absence-plus-null means "refused without details", never
+  "dropped"); D2's `detailsDropped` discriminant derives from it; C1's
+  no-envelope-change posture survives as an open-map detail key; and
+  the key is normatively named and fixture-pinned rather than
+  inferred. This is exactly the shape the round-2 detail asked for.
+
+## Assessment of the round-2 Codex-attributed F1 change
+
+The correlation-token restoration rule is a genuine improvement and its
+motivating hazard is real: code-only matching is safe in the denial
+analog only because platform denials are byte-uniform (restoring a
+stale witness reproduces identical bytes), while refusal *details*
+differ per raise — an action that catches an interior `STALE_MOVE` and
+later raises its own same-`appCode` refusal would, under code
+matching, have the stale witnessed details resurrected over its own.
+The sketch is honest that the token forces a structured addition to
+the `-` FFI response even without FO-1, and the composability
+paragraph's asymmetries (FO-1 subsumes the token; FO-2 must share the
+one witness authority; FO-3 alone has zero FFI surface change) are
+coherent.
+
+## Fresh findings (v3 text)
+
+**DETAIL-R3-1 — The F1 sketch still lists catch-invalidation as an
+affirmative state-machine event, but outside FO-1 the host cannot
+observe a catch.** §Axis F, F1. "Invalidated when the action's JS
+catches the error and continues" reads as something the host *does*;
+under the token design it is implicit — a caught-and-not-rethrown
+refusal simply never presents its token on the final envelope, so no
+restore fires (catch-to-success is moot via Ok; catch-to-unrelated-
+failure carries no token). And a handler that replays the one token it
+was handed onto a crafted failure gets only the host-recorded witness
+bytes restored — equivalent to rethrowing, hence harmless, which is
+worth one sentence so an implementer neither hunts for a
+catch-detection mechanism nor mistakes token replay for a forgery
+channel. One clause fixes both.
+
+**DETAIL-R3-2 — OQ1's closing line lags D2's.** D2 (correctly) says
+OQ1's ruling "fixes both D2's grammar and the carrier key"; OQ1 itself
+still ends "fixes D2's union grammar" only. Align the echo.
+
+## Recommended next step
+
+READY from this reviewer. The two details are one-clause edits inside
+the F1 option sketch and OQ1's echo line; they can ride the next
+natural edit (or the acceptance edit) without another review round.
+Proposed transition when the author is satisfied with the other
+family's verdict: Draft → Review/Accepted per the author's call, with
+step 0 (three-surface triad + fold-always pin) as the first
+implementation motion.
