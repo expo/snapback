@@ -27,3 +27,12 @@ defect claim against Convex: deployment-as-unit is a coherent design
 "namespace-scoped cleanup" is unavailable there, and the amendment's
 cleanup-proof requirement must be satisfied differently — by owning the
 whole deployment for the duration of the arm.
+
+## Resolution (2026-08-01, backlog lane P)
+
+Record-only process finding; no repo code action. The lesson is folded into
+LLP 0102's 2026-07-28 target-access amendment as a dated execution note
+(deployment-as-unit means the namespace-scoped-write proof is unsatisfiable
+on a shared Convex deployment; Convex arms own a whole deployment or
+serialize with immediate pre-run re-deploys, and concurrently-exposed runs
+must be re-run before their numbers are trusted). Closed.

@@ -5,7 +5,7 @@
 **Systems:** Competitive evaluation, Demo applications, Developer experience, Data modeling, Realtime, Offline sync, Auth, Actions, Deployment, Operations, Testing, Documentation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-28
-**Revised:** 2026-07-28 (author-approved target-access amendment permits free/local and shared hosted targets with arm-specific namespaces, baseline preservation, scoped cleanup, and explicit evidence-confidence limits). 2026-07-28 (accepted for execution after resolving reviewer, plan/region, identity, target-lifecycle, and performance defaults; initial draft: staged calibration, remediation, deep round, final ranking, and Snapback improvement synthesis)
+**Revised:** 2026-08-01 (target-access amendment execution note: a Convex deployment cannot be namespace-shared — deploy replaces the whole function set and reconciles the whole schema, so Convex arms own a deployment or serialize). 2026-07-28 (author-approved target-access amendment permits free/local and shared hosted targets with arm-specific namespaces, baseline preservation, scoped cleanup, and explicit evidence-confidence limits). 2026-07-28 (accepted for execution after resolving reviewer, plan/region, identity, target-lifecycle, and performance defaults; initial draft: staged calibration, remediation, deep round, final ranking, and Snapback improvement synthesis)
 **Related:** LLP 0000, LLP 0010, LLP 0015, LLP 0016, LLP 0035, LLP 0063, LLP 0074, LLP 0075, LLP 0076, LLP 0101, Diary 0016, Diary 0017, Diary 0018
 
 ## Summary
@@ -128,6 +128,21 @@ email delivery remains unproven unless delivery is witnessed.
 The amendment changes access and evidence confidence, not application facts,
 Stop classes, authorization expectations, native-path requirements, or the
 rule against a lowest-common-denominator backend abstraction.
+
+**Provider limit discovered in execution (2026-08-01, LLP 0139 bakeoff):
+a Convex deployment cannot be namespace-shared.** `convex deploy` replaces
+the deployment's entire function set and reconciles the whole schema as one
+unit — one arm's deploy against the shared dev deployment deleted another
+concurrently-running arm's index (`ub_a_profiles.by_handle`) and replaced its
+functions. Deployment-as-unit is a coherent Convex design (it is how their
+schema/function atomicity works), so this is a method constraint, not a
+product defect claim: the amendment's namespace-scoped-write proof is
+unsatisfiable on a shared Convex deployment. Convex arms must therefore own a
+whole deployment for the arm's duration — separate deployments per arm, or
+strict serialization with each arm re-deploying its own functions immediately
+before running — and any Convex arm that ran concurrently with another arm's
+deploy must be re-run before its numbers are trusted. Recorded from
+issues/closed/20260801-bakeoff-convex-deployment-is-not-namespaceable.md.
 
 ## Provider profiles
 
