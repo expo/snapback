@@ -5,3 +5,6 @@ fixtures/checksums.txt
 */pocketbase
 */pb_data/
 */downloads/
+*/firebase-debug.log
+*/*-debug.log
+*/pb.zip
