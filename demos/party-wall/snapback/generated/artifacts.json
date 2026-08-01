@@ -12,6 +12,7 @@
     "api.mjs",
     "api.d.ts",
     "package.json",
+    "seed.artifact.json",
     "seed.asset-fixtures.artifact.json",
     "operations/addGuest.args.schema.json",
     "operations/createEvent.args.schema.json",
@@ -21,6 +22,7 @@
     "operations/getEvent.args.schema.json",
     "operations/leaveEvent.args.schema.json",
     "operations/setCover.args.schema.json",
+    "operations/wallPhotos.args.schema.json",
     "contract/runtime-links.ts",
     "contract/addGuest.mutation.ts",
     "contract/addGuest.mutation.contract-meta.ts",
@@ -37,25 +39,27 @@
     "contract/leaveEvent.mutation.ts",
     "contract/leaveEvent.mutation.contract-meta.ts",
     "contract/setCover.mutation.ts",
-    "contract/setCover.mutation.contract-meta.ts"
+    "contract/setCover.mutation.contract-meta.ts",
+    "contract/wallPhotos.query.ts",
+    "contract/wallPhotos.query.contract-meta.ts"
   ],
-  "bundleHash": "snapback.v1:sessions:function:sha256:12fb21f6b5ef569f21e33e37fb782f009f8d90921c7ca5fdf218c122376aade6",
+  "bundleHash": "snapback.v1:sessions:function:sha256:d0c69b41ae57fbbdbf64ebc4c7893b6bc2021abf39ff4be42114e73f869396c8",
   "cache": {
-    "graphPath": "../../.snapback/codegen-cache/snapback.v1%3Asessions%3Ainputs%3Asha256%3A7558dfc4a025b2a68808c49691c7aff2a18b3b89469d956f0596e4fbaa93b809",
-    "key": "snapback.v1%3Asessions%3Ainputs%3Asha256%3A7558dfc4a025b2a68808c49691c7aff2a18b3b89469d956f0596e4fbaa93b809",
+    "graphPath": "../../.snapback/codegen-cache/snapback.v1%3Asessions%3Ainputs%3Asha256%3Aef046cdb4feb5e67f783824a779ebe3fb8454c1a3b2d0a2a43489c18206af019",
+    "key": "snapback.v1%3Asessions%3Ainputs%3Asha256%3Aef046cdb4feb5e67f783824a779ebe3fb8454c1a3b2d0a2a43489c18206af019",
     "regenerationRule": "regenerate-or-fail-closed"
   },
   "config": [],
   "cronJobs": [],
   "custody": {
     "consumer-committed": 0,
-    "regenerable-cache": 36,
+    "regenerable-cache": 40,
     "review-manifest": 1
   },
   "ephemeralCollections": [],
   "files": [
     {
-      "bytes": 8522,
+      "bytes": 8651,
       "consumer": "client-bundler",
       "custody": "regenerable-cache",
       "logicalKind": "typed-api",
@@ -64,10 +68,10 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:8f3d7f319ecfe5c876945f7b18b83e47656924e92c146aace2a98176ea231ab8"
+      "sha256": "sha256:0ebb3a1f7f5182995d9cea538e3ab5b2c27b8b33ef4e9be911b6a134502171b2"
     },
     {
-      "bytes": 8247,
+      "bytes": 9664,
       "consumer": "client-bundler",
       "custody": "regenerable-cache",
       "logicalKind": "typed-api",
@@ -76,7 +80,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:e153fa0b98b5f6e9d2ce02bc4c7b543f66c7813351e2cc353245da24718e1eb0"
+      "sha256": "sha256:b64a2ae589f03f72195e601bb70db659de4af79998dc3dd185c67e6b134ab6ab"
     },
     {
       "bytes": 8754,
@@ -91,7 +95,7 @@
       "sha256": "sha256:f416cc827829ee686e2ac7aff8b27e6b89639d03dd85cae3123daf3495ac027a"
     },
     {
-      "bytes": 11734,
+      "bytes": 12684,
       "consumer": "contract",
       "custody": "regenerable-cache",
       "logicalKind": "contract-data-manifest",
@@ -100,7 +104,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:6f4e8a8c1165cdd7379c6cdf59cd85baeae9ad608fb4d6f2710c7b1a9ae9898e"
+      "sha256": "sha256:4f2d197bdd9788178bb5f6497b5fb1d55bbc7114d56175e34d91062145d73683"
     },
     {
       "bytes": 294,
@@ -271,7 +275,7 @@
       "sha256": "sha256:40792a279e3ee1ae538e3d4dd2dbeb357ad1c69db143cde8bd84d6e1e267eb7d"
     },
     {
-      "bytes": 1193,
+      "bytes": 1243,
       "consumer": "contract",
       "custody": "regenerable-cache",
       "logicalKind": "contract-projection",
@@ -280,7 +284,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:427d5a2ed6ffc6dec5231c611bff2691aef9c25355736c267cc499f78f784a47"
+      "sha256": "sha256:aeb0a7fee326dd15fd1506f8ccd39be13041d9d325091431c5b3280ace703be0"
     },
     {
       "bytes": 282,
@@ -307,7 +311,31 @@
       "sha256": "sha256:5f6ed866deac688cd51ecb510b6c0197d1ae8e008700ee875c5a65354a8a6cbe"
     },
     {
-      "bytes": 40203,
+      "bytes": 391,
+      "consumer": "contract",
+      "custody": "regenerable-cache",
+      "logicalKind": "contract-projection",
+      "path": "contract/wallPhotos.query.contract-meta.ts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:aad9d648c5754c891f6af38f788ba3a654de6465b63f05f1132c2742dfa4ffe2"
+    },
+    {
+      "bytes": 499,
+      "consumer": "contract",
+      "custody": "regenerable-cache",
+      "logicalKind": "contract-projection",
+      "path": "contract/wallPhotos.query.ts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:c3d77f933e0e686922f5533a4ddf005263c05e2f7acf9a3d5fe8fe09b8fe33f9"
+    },
+    {
+      "bytes": 47249,
       "consumer": "snapback-runtime",
       "custody": "regenerable-cache",
       "logicalKind": "function-manifest",
@@ -316,7 +344,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:81f57291dff12a9efd5975346209d14a537827388ac47888def273dac3df5749"
+      "sha256": "sha256:bfeeb337379a0c087f13c0429f2f1980cecf3ff02031300983fab2390a88c6c2"
     },
     {
       "bytes": 408,
@@ -415,7 +443,19 @@
       "sha256": "sha256:87bc5640ffcae15a436a1225ad89a19dc1c2459c11a2989100ccf885518e2a49"
     },
     {
-      "bytes": 583,
+      "bytes": 352,
+      "consumer": "app-cli",
+      "custody": "regenerable-cache",
+      "logicalKind": "operation-schema",
+      "path": "operations/wallPhotos.args.schema.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:ebda70ee6eeba9a143b4056e016ff568c2e70c344b167e609567d70891f2bf61"
+    },
+    {
+      "bytes": 621,
       "consumer": "client-bundler",
       "custody": "regenerable-cache",
       "logicalKind": "package-metadata",
@@ -424,10 +464,10 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:1f2bcdf6fc2d0ba170f3ce3be51adf759cfa394fc0c96cb5403f1bb118d17e01"
+      "sha256": "sha256:f2c15faa3ac2ac8e2bc731adfea0190438b1804021b83066ca682e3a41690592"
     },
     {
-      "bytes": 1884,
+      "bytes": 2059,
       "consumer": "tooling",
       "custody": "regenerable-cache",
       "logicalKind": "provider-binding",
@@ -436,10 +476,10 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:6c57f2e05dcc69644ac3c373e6e65930dd20908691e20422803c541bf8303bd0"
+      "sha256": "sha256:97190c24435b282c88a1fee73f33e33dc3efec360526418751be4af5114a8f2c"
     },
     {
-      "bytes": 4391,
+      "bytes": 4895,
       "consumer": "tooling",
       "custody": "regenerable-cache",
       "logicalKind": "provider-binding",
@@ -448,10 +488,10 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:18dc26707ca3b1f912ec35e06051ca031a2e82cb8a1e1dd5cf767a316de57161"
+      "sha256": "sha256:2c180976d947bec1d16d573153e480b189537737d6d07ff3476f8613728eb6ed"
     },
     {
-      "bytes": 15500,
+      "bytes": 16812,
       "consumer": "tooling",
       "custody": "regenerable-cache",
       "logicalKind": "provider-introspection",
@@ -460,10 +500,10 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:6ae4ac4dcb6a579b7f2b38b8c0eee911ebcb3b2e9148eb7071d72ec978e3fe34"
+      "sha256": "sha256:ac6104d744cad6193a1a26289521811ae266f62bfb9ea3e9cb587699c570824a"
     },
     {
-      "bytes": 4600,
+      "bytes": 4707,
       "consumer": "snapback-runtime",
       "custody": "regenerable-cache",
       "logicalKind": "schema-manifest",
@@ -472,7 +512,19 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:3994159795c7336f858b4130d5bfce3527efd435b0d1eb8948c3be631ec8298f"
+      "sha256": "sha256:d1a343d648137ad0b3ce586b061840a3873fad05738443cf21aa21afde75dd2d"
+    },
+    {
+      "bytes": 1203,
+      "consumer": "tooling",
+      "custody": "regenerable-cache",
+      "logicalKind": "generated-projection",
+      "path": "seed.artifact.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:ae26b296ebd8b0cbab7430a753897694847cee95593fb4bb9df5ed8d4ce4513e"
     },
     {
       "bytes": 919,
@@ -527,39 +579,50 @@
       "id": "party-wall:setCover",
       "kind": "Mutation",
       "name": "setCover"
+    },
+    {
+      "id": "party-wall:wallPhotos",
+      "kind": "Query",
+      "name": "wallPhotos"
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:7558dfc4a025b2a68808c49691c7aff2a18b3b89469d956f0596e4fbaa93b809",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:ef046cdb4feb5e67f783824a779ebe3fb8454c1a3b2d0a2a43489c18206af019",
   "manifestVersion": 2,
   "reviewManifest": {
     "authority": "@expo/snapback-codegen/review-manifest.schema.json",
     "custody": "review-manifest",
     "path": "artifacts.json"
   },
-  "schemaHash": "snapback.v1:sessions:schema:sha256:4335bf655343b93e12787656eeb5e7efd1be873eb6c34d0cd328065c30e078d1",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:b5103c49537808477d3f138808b0a5782309a8b9a1ebaced65004192cd81dc3e",
   "schemaVersion": "snapback.v0",
+  "seed": {
+    "digest": "sha256:5f44ef1ec8d1b2f99b4fc77c6954becb9efbb1b8b7943b60876c0b9892924a89",
+    "rows": 8,
+    "version": "2026-07-31.2"
+  },
   "summary": {
     "appId": "party-wall",
     "counts": {
       "custody": {
         "consumerCommitted": 0,
-        "regenerableCache": 36,
+        "regenerableCache": 40,
         "reviewManifest": 1,
-        "total": 37
+        "total": 41
       },
-      "degradedResults": 7,
+      "degradedResults": 8,
       "ephemeralCollections": 0,
       "operations": {
         "action": 0,
         "live": 1,
         "liveQuery": 1,
         "mutation": 6,
-        "query": 1,
-        "total": 8
+        "query": 2,
+        "total": 9
       },
+      "seedRows": 8,
       "tables": 4,
-      "warnings": 1
+      "warnings": 2
     },
     "degradedResults": [
       {
@@ -573,7 +636,7 @@
         "remediation": "Add `result: results.document(\"table\")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `addGuest` in functions.mjs and regenerate.",
         "source": {
           "column": 14,
-          "line": 79,
+          "line": 110,
           "path": "functions.mjs"
         }
       },
@@ -588,7 +651,7 @@
         "remediation": "Add `result: results.document(\"table\")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `createEvent` in functions.mjs and regenerate.",
         "source": {
           "column": 14,
-          "line": 70,
+          "line": 101,
           "path": "functions.mjs"
         }
       },
@@ -603,7 +666,7 @@
         "remediation": "Add `result: results.document(\"table\")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `createPost` in functions.mjs and regenerate.",
         "source": {
           "column": 14,
-          "line": 99,
+          "line": 130,
           "path": "functions.mjs"
         }
       },
@@ -618,7 +681,7 @@
         "remediation": "Add `result: results.document(\"table\")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `deletePost` in functions.mjs and regenerate.",
         "source": {
           "column": 14,
-          "line": 115,
+          "line": 146,
           "path": "functions.mjs"
         }
       },
@@ -633,7 +696,7 @@
         "remediation": "Add `result: results.documents(\"table\")` for complete stored rows or `result: results.records(v.object({ ... }))` for computed rows to `getEvent` in functions.mjs and regenerate.",
         "source": {
           "column": 14,
-          "line": 62,
+          "line": 93,
           "path": "functions.mjs"
         }
       },
@@ -648,7 +711,7 @@
         "remediation": "Add `result: results.document(\"table\")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `leaveEvent` in functions.mjs and regenerate.",
         "source": {
           "column": 14,
-          "line": 88,
+          "line": 119,
           "path": "functions.mjs"
         }
       },
@@ -663,13 +726,33 @@
         "remediation": "Add `result: results.document(\"table\")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `setCover` in functions.mjs and regenerate.",
         "source": {
           "column": 14,
-          "line": 107,
+          "line": 138,
+          "path": "functions.mjs"
+        }
+      },
+      {
+        "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+        "kind": "Query",
+        "operation": "wallPhotos",
+        "output": {
+          "path": "generated/api.d.ts",
+          "symbol": "GeneratedApi[\"wallPhotos\"]"
+        },
+        "remediation": "Add `result: results.documents(\"table\")` for complete stored rows or `result: results.records(v.object({ ... }))` for computed rows to `wallPhotos` in functions.mjs and regenerate.",
+        "source": {
+          "column": 14,
+          "line": 85,
           "path": "functions.mjs"
         }
       }
     ],
-    "inputsHash": "snapback.v1:sessions:inputs:sha256:7558dfc4a025b2a68808c49691c7aff2a18b3b89469d956f0596e4fbaa93b809",
-    "schemaVersion": "snapback.codegen-summary.v1"
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:ef046cdb4feb5e67f783824a779ebe3fb8454c1a3b2d0a2a43489c18206af019",
+    "schemaVersion": "snapback.codegen-summary.v1",
+    "seed": {
+      "digest": "sha256:5f44ef1ec8d1b2f99b4fc77c6954becb9efbb1b8b7943b60876c0b9892924a89",
+      "rows": 8,
+      "version": "2026-07-31.2"
+    }
   },
   "tables": [
     "events",

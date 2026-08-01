@@ -12,6 +12,13 @@ globalThis.__snapbackHandlers = {
     });
   },
 
+  async wallPhotos(ctx, args) {
+    return await ctx.db
+      .query('photoShares')
+      .withIndex('by_event', (q) => q.eq('eventId', args.eventId))
+      .collect();
+  },
+
   async getEvent(ctx, args) {
     return await ctx.db.get('events', args.eventId);
   },

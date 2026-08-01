@@ -70,6 +70,7 @@ export default defineSchema(
       photo: v.optional(v.assetRef({ upload: 'photoUpload' })),
     })
       .index('by_post', ['postId'])
+      .index('by_event', ['eventId'])
       .assetSharing({ kind: 'membership', membership: 'eventMembers' }),
   },
   {

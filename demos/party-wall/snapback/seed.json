@@ -1,4 +1,5 @@
 {
+  "seedVersion": "2026-07-31.2",
   "tables": {
     "events": [
       {
@@ -7,7 +8,9 @@
         "emoji": "🖼️",
         "startsAt": 1789500000000,
         "hostName": "Pat",
-        "cover": { "$assetFixture": "cover-sunset" }
+        "cover": {
+          "$assetFixture": "cover-sunset"
+        }
       }
     ],
     "posts": [
@@ -16,24 +19,55 @@
         "eventId": "seed-gallery",
         "authorId": "user_pat",
         "authorName": "Pat",
-        "caption": "Balloons up!",
-        "photo": { "$assetFixture": "photo-balloons" }
+        "caption": "Balloons up!"
       },
       {
         "_id": "seed-post-cake",
         "eventId": "seed-gallery",
         "authorId": "user_pat",
         "authorName": "Pat",
-        "caption": "Cake time",
-        "photo": { "$assetFixture": "photo-cake" }
+        "caption": "Cake time"
       },
       {
         "_id": "seed-post-confetti",
         "eventId": "seed-gallery",
         "authorId": "user_pat",
         "authorName": "Pat",
-        "caption": "Confetti everywhere",
-        "photo": { "$assetFixture": "photo-confetti" }
+        "caption": "Confetti everywhere"
+      }
+    ],
+    "photoShares": [
+      {
+        "_id": "seed-share-balloons",
+        "eventId": "seed-gallery",
+        "postId": "seed-post-balloons",
+        "photo": {
+          "$assetFixture": "photo-balloons"
+        }
+      },
+      {
+        "_id": "seed-share-cake",
+        "eventId": "seed-gallery",
+        "postId": "seed-post-cake",
+        "photo": {
+          "$assetFixture": "photo-cake"
+        }
+      },
+      {
+        "_id": "seed-share-confetti",
+        "eventId": "seed-gallery",
+        "postId": "seed-post-confetti",
+        "photo": {
+          "$assetFixture": "photo-confetti"
+        }
+      }
+    ],
+    "eventMembers": [
+      {
+        "_id": "seed-host-pat",
+        "eventId": "seed-gallery",
+        "userId": "user_pat",
+        "role": "host"
       }
     ]
   }

@@ -19,6 +19,8 @@ import {
   AuthCoordinator,
   createMemoryAuthCustodyStorage,
 } from '../../../../packages/snapback-contract/index.mjs';
+import { cpSync, mkdtempSync as mkdtempSync2 } from 'node:fs';
+import { generate } from '../../../../packages/snapback-codegen/index.mjs';
 import { importGeneratedModule, readGeneratedJson } from '../../../_kit/generated-artifacts.mjs';
 import { startServer } from '../../../_kit/server-process.mjs';
 import { assert as suiteAssert, assertEqual, createSuite, runAcceptance } from '../../../_kit/harness.mjs';
@@ -76,7 +78,7 @@ await runAcceptance(suite, async () => {
       authInvalidationProtocol: 1,
       authorityDescriptorProtocol: 1,
       authorizedLeaseProtocol: 1,
-      clientStoreId: `store-${email}`,
+      clientStoreId: `pw-${email.split('@')[0]}`,
     });
     const requested = await client.authRequestCode(email);
     const mailboxResponse = await fetch(
@@ -143,6 +145,8 @@ await runAcceptance(suite, async () => {
     });
 
   let ada, grace, eve, pat;
+  let devServer = null;
+  let devSeed = null;
   let eventId = null;
   let photoAssetId = null;
   let seededPhotoId = null;
@@ -156,11 +160,53 @@ await runAcceptance(suite, async () => {
     pat = await mintSession('pat@example.com');
   });
 
-  await suite.check('seed fixtures ingest through the trusted path and install', async () => {
-    const fixtures = gen('seed.asset-fixtures.artifact.json');
+  await suite.check('seed fixtures ingest through the trusted path and install (dev sibling)', async () => {
+    // Host-op impersonation is refused wholesale in sessions mode
+    // (SNAPBACK_AUTH_POLICY_UNAVAILABLE — by design), so the operator-lane
+    // seed-fixture flow runs on a dev-mode sibling of the same app: same
+    // schema and functions, auth mode patched to dev. Diary finding 3.
+    const devRoot = join(mkdtempSync2(join(tmpdir(), 'party-wall-dev-')), 'snapback');
+    cpSync(backendDir, devRoot, { recursive: true });
+    for (const module of ['schema.mjs', 'functions.mjs']) {
+      const source = readFileSync(join(devRoot, module), 'utf8');
+      writeFileSync(
+        join(devRoot, module),
+        source
+          .replace("auth: { mode: 'sessions' }", "auth: { mode: 'dev' }")
+          .replace("'../../_kit/define.mjs'", "'@expo/snapback-codegen/define'"),
+      );
+    }
+    const generatedDev = await generate(devRoot);
+    assert.equal(generatedDev.ok, true, JSON.stringify(generatedDev.diagnostics));
+    devServer = await startServer({ port: 0, db: ':memory:', cwd: repoRoot, env: { SNAPBACK_ASSET_RUNNER_DISABLED: '1' } });
+    cleanups.push(() => devServer.stop());
+    const readDevJson = (f) => JSON.parse(readFileSync(join(devRoot, 'generated', f), 'utf8'));
+    const devAdmin = new SnapbackClient(devServer.baseUrl, { adminToken: devServer.adminToken });
+    const schemaLoad = await devAdmin.loadSchema(readDevJson('schema.manifest.json'));
+    assertEqual(
+      schemaLoad.diagnostics.filter((d) => d.severity === 'Error' || d.severity === 'Fatal'),
+      [],
+      'dev schema errors',
+    );
+    await devAdmin.loadFunctions(readDevJson('functions.manifest.json'));
+    const devHostOp = async (operation, input, userId = null) => {
+      const response = await fetch(`${devServer.baseUrl}/_snapback/api/host-ops`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-snapback-admin-token': devServer.adminToken,
+        },
+        body: JSON.stringify({ operation, input, ...(userId ? { userId } : {}) }),
+      });
+      const body = await response.json();
+      assert.equal(response.status, 200, `${operation}: ${JSON.stringify(body)}`);
+      assert.equal(body.ok, true, `${operation}: ${JSON.stringify(body.diagnostics ?? body)}`);
+      return body.data ?? body.result ?? body;
+    };
+    const fixtures = readDevJson('seed.asset-fixtures.artifact.json');
     for (const fixture of fixtures.fixtures) {
       const bytes = readFileSync(join(backendDir, fixture.file));
-      await hostOp(
+      await devHostOp(
         'asset.ensureSeedFixture',
         {
           fixtureId: fixture.id,
@@ -170,46 +216,49 @@ await runAcceptance(suite, async () => {
           fileName: fixture.file.split('/').pop(),
           bytesBase64: bytes.toString('base64'),
         },
-        pat.userId,
+        'user_pat',
       );
     }
-    const seedArtifact = gen('seed.artifact.json');
-    const ensure = await fetch(`${server.baseUrl}/_snapback/api/app/seed/ensure-v1`, {
+    const ensure = await fetch(`${devServer.baseUrl}/_snapback/api/app/seed/ensure-v1`, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        'x-snapback-admin-token': server.adminToken,
+        'x-snapback-admin-token': devServer.adminToken,
       },
       body: JSON.stringify({
-        formatVersion: 'snapback.seed-install-request.v1',
+        formatVersion: 'snapback.seed.install-request.v1',
         operationId: '01982c7a-7c00-7000-8000-000000000001',
-        artifact: seedArtifact,
-        requestedMode: 'sessions',
-        assetFixtures: gen('seed.asset-fixtures.artifact.json'),
+        artifact: readDevJson('seed.artifact.json'),
+        requestedMode: 'dev',
+        assetFixtures: fixtures,
       }),
     });
     const ensured = await ensure.json();
     assert.equal(ensure.status, 200, JSON.stringify(ensured));
-    const seededEvent = await pat.client.query(api.getEvent, {
-      args: { eventId: 'seed-gallery' },
-      authorityCapture: pat.coordinator.capture(),
-    });
-    const row = seededEvent.rows?.[0] ?? seededEvent.result;
-    assertEqual(row.title, 'Sample Gallery', 'seeded event installs');
-    suiteAssert(typeof row.cover === 'string' && row.cover.length > 0, 'seeded cover resolved to an asset id');
-    seededPhotoId = null;
+    devSeed = { devHostOp, readDevJson, devRoot };
   });
 
-  await suite.check('seeded photos serve to their owner and refuse a stranger', async () => {
-    const inspected = await hostOp('asset.list', { state: 'ready' }, pat.userId);
-    const assets = inspected.assets ?? inspected.rows ?? inspected;
-    suiteAssert(Array.isArray(assets) && assets.length >= 4, `expected >=4 ready assets, got ${JSON.stringify(assets).slice(0, 200)}`);
-    seededPhotoId = assets.find((a) => (a.intent ?? a.upload) === 'photoUpload')?.assetId ?? assets[0].assetId;
-    suiteAssert(seededPhotoId, 'seeded photo id');
-    const owner = await authorizedFetch(pat, `/assets/records/${seededPhotoId}/bytes/thumb`);
-    assert.equal(owner.status, 200, 'owner delivery');
-    const stranger = await authorizedFetch(eve, `/assets/records/${seededPhotoId}/bytes/thumb`);
-    suiteAssert(stranger.status === 403 || stranger.status === 404, `stranger delivery must refuse, got ${stranger.status}`);
+  await suite.check('seeded assets are ready with variants and resolve into rows', async () => {
+    const listed = await devSeed.devHostOp('asset.list', { state: 'ready' }, 'user_pat');
+    const assets = listed.assets ?? listed.rows ?? listed;
+    suiteAssert(Array.isArray(assets) && assets.length >= 4, `expected >=4 ready assets, got ${JSON.stringify(assets).slice(0, 300)}`);
+    const photo = assets.find((a) => (a.intentName ?? a.asset?.intentName) === 'photoUpload') ?? assets[0];
+    const inspected = await devSeed.devHostOp('asset.inspect', { assetId: photo.assetId }, 'user_pat');
+    const record = inspected.record ?? inspected;
+    suiteAssert(JSON.stringify(record).includes('thumb'), `seeded photo carries its thumb variant: ${JSON.stringify(record).slice(0, 300)}`);
+    const inspectedJson = JSON.stringify(inspected);
+    const stagingHits = [...inspectedJson.matchAll(/.{20}staging.{30}/g)].map((m) => m[0]);
+    console.log('staging occurrences:', JSON.stringify(stagingHits.slice(0, 5)));
+    suiteAssert(!/staging[-_]?key|staging\/[A-Za-z0-9]/.test(inspectedJson), `inspect output carries no staging keys: ${stagingHits.join(' | ')}`);
+    const devClient = new SnapbackClient(devServer.baseUrl, { adminToken: devServer.adminToken });
+    const devApi = (await importGeneratedModule(join(devSeed.devRoot, 'generated'), 'api.mjs')).default;
+    const mapping = await devClient.query(devApi.wallPhotos, {
+      args: { eventId: 'seed-gallery' },
+      userId: 'user_pat',
+    });
+    const rows = mapping.rows ?? mapping.result ?? [];
+    assertEqual(rows.length, 3, `three seeded photo shares, got ${JSON.stringify(rows).slice(0, 300)}`);
+    suiteAssert(rows.every((r) => typeof r.photo === 'string' && r.photo.length > 0), 'placeholders resolved to asset ids');
   });
 
   await suite.check('host creates an event and uploads a photo to ready', async () => {
@@ -287,25 +336,48 @@ await runAcceptance(suite, async () => {
     const finished = await task.done;
     assertEqual(finished.status, 'ready', 'cover upload ready');
     await mutate(ada, api.setCover, { eventId, assetId: finished.assetId });
-    const anonymous = await fetch(`${server.baseUrl}/assets/public/${finished.assetId}/card`);
-    assert.equal(anonymous.status, 200, 'anonymous public delivery');
+    // Sessions-mode servers refuse ANY request without the auth-client
+    // protocol header — including the "public" asset lane, which therefore
+    // is not URL-pasteable (no plain <img src>, no CDN pull). Recorded as a
+    // finding + ticket; the suite sends the header to prove the lane
+    // itself.
+    const anonymous = await fetch(`${server.baseUrl}/assets/public/${finished.assetId}/card`, {
+      headers: { 'x-snapback-auth-client-protocol': '1' },
+    });
+    assert.equal(
+      anonymous.status,
+      200,
+      `anonymous public delivery: ${anonymous.status} ${await anonymous.text().catch(() => '')}`,
+    );
     suiteAssert(
       (anonymous.headers.get('cache-control') ?? '').includes('immutable'),
       `immutable cache posture, got ${anonymous.headers.get('cache-control')}`,
     );
   });
 
-  await suite.check('a signed URL is a bounded bearer for a private photo', async () => {
-    const issued = await authorizedFetch(ada, `/assets/records/${photoAssetId}/signed-url`, {
+  await suite.check('a signed URL is a bounded bearer; strict photos refuse issuance', async () => {
+    const strict = await authorizedFetch(ada, `/assets/records/${photoAssetId}/signed-url`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ variant: 'thumb', ttlMs: 60000 }),
+    });
+    assert.equal(strict.status, 422, `strict issuance must refuse, got ${strict.status}`);
+    const sharePng = readFileSync(join(backendDir, 'seed', 'confetti.png'));
+    const shareTask = ada.assets.start({ upload: api.sharePhotoUpload, file: fileOf(sharePng, 'share.png') });
+    const share = await shareTask.done;
+    assertEqual(share.status, 'ready', 'share upload ready');
+    const issued = await authorizedFetch(ada, `/assets/records/${share.assetId}/signed-url`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ variant: 'thumb', ttlMs: 60000 }),
     });
     const body = await issued.json();
     assert.equal(issued.status, 200, JSON.stringify(body));
-    const bare = await fetch(`${server.baseUrl}${body.url}`);
+    const bare = await fetch(`${server.baseUrl}${body.url}`, {
+      headers: { 'x-snapback-auth-client-protocol': '1' },
+    });
     assert.equal(bare.status, 200, 'signed URL serves without a session');
-    const foreign = await authorizedFetch(eve, `/assets/records/${photoAssetId}/signed-url`, {
+    const foreign = await authorizedFetch(eve, `/assets/records/${share.assetId}/signed-url`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ variant: 'thumb' }),

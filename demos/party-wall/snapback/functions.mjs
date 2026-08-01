@@ -50,6 +50,24 @@ export const coverUpload = defineAssetUpload({
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
 
+// A share-link photo: same pixels, different contract — `private-signed`
+// issues bounded bearer URLs, which `private-strict` (the wall) refuses by
+// design. Delivery policy follows the asset, so "make my strict wall photo
+// shareable" is deliberately inexpressible; sharing means uploading under
+// the sharing intent. (Diary finding 5.)
+export const sharePhotoUpload = defineAssetUpload({
+  args: {},
+  auth: 'authenticated',
+  accept: { mediaTypes: ['image/png', 'image/jpeg'], maxBytes: 5_000_000 },
+  delivery: { kind: 'private-signed' },
+  access: { read: 'owner-only' },
+  image: {
+    location: 'strip',
+    variants: [{ key: 'thumb', width: 96, required: true }],
+  },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+
 export const eventWall = defineLiveQuery({
   table: 'posts',
   args: { eventId: v.id('events') },
@@ -57,6 +75,19 @@ export const eventWall = defineLiveQuery({
   filter: [eq('eventId', arg('eventId'))],
   order: [asc('_createdAt')],
   index: 'by_event',
+});
+
+// The post→photo mapping for rows whose photoId display copy is absent
+// (seeded posts: $assetFixture placeholders resolve only into v.assetRef
+// fields, so the seeded display copy cannot exist — diary finding 1
+// compounding). JS query because photoShares carries an assetRef and
+// therefore cannot be live-queried.
+export const wallPhotos = defineJsQuery({
+  auth: 'authenticated',
+  args: { eventId: v.id('events') },
+  source: 'handlers.mjs',
+  exportName: 'wallPhotos',
+  reads: ['photoShares'],
 });
 
 export const getEvent = defineJsQuery({
