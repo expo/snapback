@@ -2711,10 +2711,12 @@ and the explicit Missing nonclaims — backup/export, video finalization,
 custom read authorizers, deferred length) live in
 `schemas/capability.manifest.local-dev-sqlite-ibex.json` under `assets`.
 Live no-polling readiness ships as the reserved `_snapback.assetRecord`
-projection (subscribe via the headless client's `watch`), and the
-framework-neutral upload task is `client.assets.start` in
-`@expo/snapback-client`; the React/Expo hook and renderer are the
-remaining follow-up recorded in the L1-14 ticket.
+projection (subscribe via the headless client's `watch`/`watchStore`), and
+the framework-neutral upload task is `client.assets.start` in
+`@expo/snapback-client`; the React/Expo hook and renderer are
+`useSnapbackAssetUpload` / `useSnapbackAssetImage` in
+`@expo/snapback-react`, and the real-server JS conformance vectors are
+`tests/acceptance/asset-conformance-v1.mjs`.
 
 ---
 
