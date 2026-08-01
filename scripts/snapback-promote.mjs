@@ -14,6 +14,7 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+  CURRENT_LEASE_SCHEMA_VERSION,
   buildPostPromotionLedger,
   canonicalJcs,
   leaseSha256,
@@ -202,8 +203,15 @@ validatePublicationLease({
   candidateTag: ledger.tag,
   publisherInstanceId: options.publisherInstanceId,
 });
-if (lease.schemaVersion !== 'snapback.authorized-publication-lease.v3') {
-  fail('promotion requires a v3 lease bound to prior default closure evidence');
+// The pin is the CURRENT generation by construction, never a literal: a
+// stale v3 literal here survived the decision-9 generation bump and refused
+// every lease the standing authority could issue
+// (issues/closed/20260801-promote-v3-lease-pin-refuses-v4.md).
+if (lease.schemaVersion !== CURRENT_LEASE_SCHEMA_VERSION) {
+  fail(
+    'promotion requires the current-generation lease bound to prior default '
+      + `closure evidence (${CURRENT_LEASE_SCHEMA_VERSION})`,
+  );
 }
 const candidatesByName = new Map(ledger.packages.map((row) => [row.name, row]));
 for (const row of lease.packages) {

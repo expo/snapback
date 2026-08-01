@@ -1,4 +1,5 @@
 import {
+  CURRENT_LEASE_SCHEMA_VERSION,
   LEGACY_PROMOTION_PACKAGE_NAMES,
   PACKAGE_COUNT,
   PROMOTION_PACKAGE_NAMES,
@@ -17,6 +18,7 @@ import {
 } from '../packages/snapback-publication-authority/protocol.mjs';
 
 export {
+  CURRENT_LEASE_SCHEMA_VERSION,
   canonicalJcs,
   leaseSha256,
   publicationAuthorityTransition,

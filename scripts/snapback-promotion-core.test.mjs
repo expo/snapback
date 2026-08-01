@@ -11,6 +11,7 @@ import {
   signPublicationLease,
 } from '../packages/snapback-publication-authority/protocol.mjs';
 import {
+  CURRENT_LEASE_SCHEMA_VERSION,
   buildPostPromotionLedger,
   canonicalJcs,
   leaseSha256,
@@ -51,6 +52,68 @@ test('promotion executable imports the lease digest used by plan preflight', () 
   );
   assert.ok(coreImport?.groups?.bindings);
   assert.match(coreImport.groups.bindings, /(?:^|[\s,])leaseSha256(?:[\s,]|$)/u);
+});
+
+test('promote pins the lease generation the standing authority issues', () => {
+  // The authority's issuance path and the promote CLI's preflight pin must
+  // share one generation constant. A literal pin in the promote executable
+  // survived the v3 -> v4 decision-9 bump and refused every issuable lease
+  // (issues/closed/20260801-promote-v3-lease-pin-refuses-v4.md).
+  const authoritySource = readFileSync(
+    new URL(
+      '../packages/snapback-publication-authority/authority.mjs',
+      import.meta.url,
+    ),
+    'utf8',
+  );
+  assert.match(
+    authoritySource,
+    /schemaVersion: CURRENT_LEASE_SCHEMA_VERSION/u,
+    'authority issuance must use the shared generation constant',
+  );
+  assert.doesNotMatch(
+    authoritySource,
+    /schemaVersion: 'snapback\.authorized-publication-lease\.v\d+'/u,
+    'authority issuance must not carry a literal lease generation',
+  );
+  const promoteSource = readFileSync(
+    new URL('./snapback-promote.mjs', import.meta.url),
+    'utf8',
+  );
+  const promoteCoreImport = promoteSource.match(
+    /import \{(?<bindings>[\s\S]*?)\} from '\.\/snapback-promotion-core\.mjs';/u,
+  );
+  assert.match(
+    promoteCoreImport.groups.bindings,
+    /(?:^|[\s,])CURRENT_LEASE_SCHEMA_VERSION(?:[\s,]|$)/u,
+    'promote must import the shared generation constant',
+  );
+  assert.match(
+    promoteSource,
+    /lease\.schemaVersion !== CURRENT_LEASE_SCHEMA_VERSION/u,
+    'promote preflight must pin to the shared generation constant',
+  );
+  assert.doesNotMatch(
+    promoteSource,
+    /authorized-publication-lease\.v\d+/u,
+    'promote must not carry a literal lease generation that a bump can strand',
+  );
+  // Behavioral half: a lease of the current generation — the shape the
+  // authority signs and validatePublicationLease accepts as current — is the
+  // generation the promote pin admits.
+  const { lease, publicKey } = fixture();
+  assert.equal(lease.schemaVersion, CURRENT_LEASE_SCHEMA_VERSION);
+  validatePublicationLease({
+    lease,
+    publicKey,
+    authorityInstallationId,
+    authorityOrigin,
+    candidateLedgerSha256: lease.candidateLedgerSha256,
+    candidateTag: lease.candidateTag,
+    publisherInstanceId: lease.publisherInstanceId,
+    priorDefaultClosureReceiptSha256: lease.priorDefaultClosureReceiptSha256,
+    now: Date.parse(lease.issuedAt) + 1_000,
+  });
 });
 
 function fixture() {

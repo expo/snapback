@@ -12,6 +12,13 @@ import {
 const LEASE_DOMAIN_V2 = Buffer.from('snapback-authorized-publication-lease-v2\0');
 const LEASE_DOMAIN_V3 = Buffer.from('snapback-authorized-publication-lease-v3\0');
 export const LEASE_DOMAIN = Buffer.from('snapback-authorized-publication-lease-v4\0');
+// The single source of truth for the generation the standing authority
+// issues. Every consumer that requires "the current lease" (the authority's
+// issuance path, the promote CLI's preflight pin) must reference this
+// constant, never a literal: the v3 literal pin in snapback-promote.mjs
+// survived the decision-9 generation bump and stranded the entire leased
+// promotion path (issues/closed/20260801-promote-v3-lease-pin-refuses-v4.md).
+export const CURRENT_LEASE_SCHEMA_VERSION = 'snapback.authorized-publication-lease.v4';
 export const HEAD_DOMAIN = Buffer.from('snapback-publication-authority-head-v3\0');
 export const RECEIPT_DOMAIN = Buffer.from(
   'snapback-publication-authority-transition-receipt-v2\0',

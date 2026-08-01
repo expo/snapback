@@ -65,3 +65,24 @@ all nine packages staged dry-run from clean main `5d5c6b71` and
 npm-published directly to `latest`. This ticket stays OPEN — the stale v3
 pin still strands `scripts/snapback-promote.mjs` whenever the leased
 ceremony next runs.
+
+## Resolution (2026-08-01, backlog lane P)
+
+Fixed per the ticket's own fix shape, with the literal pin eliminated
+structurally rather than bumped to the next literal:
+
+- `packages/snapback-publication-authority/protocol.mjs` now exports
+  `CURRENT_LEASE_SCHEMA_VERSION` (v4) as the single source of truth for the
+  generation the standing authority issues.
+- `authority.mjs` issuance and the `scripts/snapback-promote.mjs` preflight
+  pin both reference that constant (re-exported through
+  `snapback-promotion-core.mjs`); the promote refusal message now names the
+  required generation.
+- Regression test `promote pins the lease generation the standing authority
+  issues` (scripts/snapback-promotion-core.test.mjs): asserts the authority
+  issuance and the promote pin share the constant, that neither file carries
+  a literal lease generation a bump could strand, and behaviorally that a
+  current-generation signed lease is the generation the pin admits.
+
+Witness: `node --test scripts/snapback-promotion-core.test.mjs` 38/38 pass;
+publication-authority package suite green.

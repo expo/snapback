@@ -1,6 +1,7 @@
 import { createPrivateKey, createPublicKey } from 'node:crypto';
 
 import {
+  CURRENT_LEASE_SCHEMA_VERSION,
   canonicalJcs,
   createPublicationAuthorityReceipt,
   leaseSha256,
@@ -237,7 +238,7 @@ export class PublicationLeaseAuthority {
       const issuedAt = new Date(now).toISOString();
       const expiresAt = new Date(now + request.lifetimeSeconds * 1_000).toISOString();
       const unsigned = {
-        schemaVersion: 'snapback.authorized-publication-lease.v4',
+        schemaVersion: CURRENT_LEASE_SCHEMA_VERSION,
         authorityInstallationId: this.authorityInstallationId,
         authorityOrigin: this.authorityOrigin,
         signingKeyId: this.signingKeyId,
