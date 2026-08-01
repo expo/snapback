@@ -1,0 +1,64 @@
+{
+  "arm": "convex",
+  "deployment": "shared dev deployment (namespace impossible — see collision note)",
+  "startedAt": "2026-08-01T16:25:36.519Z",
+  "steps": {
+    "interrupt": {
+      "plannedDropAtBytes": 60106257,
+      "transferredBeforeDrop": 59768832,
+      "outcome": {
+        "aborted": true,
+        "error": "This operation was aborted"
+      },
+      "resumeMechanism": "none — the official path has no resumable protocol; the upload URL is single-shot POST"
+    },
+    "bigUpload": {
+      "wallMsTotal": 130526,
+      "wallMsRetryLeg": 88147,
+      "fileBytes": 120212515,
+      "postBytesTotal": 179981347,
+      "bytesRetransmitted": 59768832,
+      "posts": 1,
+      "storageId": "kg2agnztq833chx1prmcmm3ydn8bms59",
+      "status": 200
+    },
+    "integrity": {
+      "sourceSha256": "6f821fe4d57acae58fa3da2b1981fa1207d2f652a64552badc792eb960e1c829",
+      "storedSha256": "6f821fe4d57acae58fa3da2b1981fa1207d2f652a64552badc792eb960e1c829",
+      "matches": true,
+      "providerDeclaredSha256": "b4If5NV6yuWPo9orGYH6EgfS9lKmRVK63HkuuWDhyCk=",
+      "size": 120212515
+    },
+    "range": {
+      "status": 206,
+      "contentRange": "bytes 100-4099/549153",
+      "bytes": 4000,
+      "suffixStatus": 500,
+      "suffixContentRange": null,
+      "cacheControl": "private, max-age=2592000"
+    },
+    "share": {
+      "headerlessServeStatus": 200,
+      "ttlMechanism": "getUrl() returns a long-lived unguessable URL; no TTL parameter, no per-issuance authorization",
+      "revocation": "delete the file (or gate a custom HTTP action); no signed-URL expiry surface"
+    },
+    "deletion": {
+      "outstandingUrlAfterDelete": 404,
+      "systemMetadataAfterDelete": null,
+      "referenceTracking": "none: the clips row held a storageId; deleting the file leaves dangling ids unless the app cleans up (documented app responsibility)"
+    },
+    "geoPrivacy": {
+      "digestUnchanged": true,
+      "note": "unchanged ⇒ location metadata served verbatim; no server-side media surface"
+    },
+    "limits": {
+      "docs": "Convex file storage: no documented resumable protocol; upload URL is single-shot; file size limits per plan",
+      "observedBigUpload": 200
+    },
+    "cleanup": {
+      "deletedStorageIds": "arm-owned only",
+      "note": "Convex deploy is deployment-global: see the collision finding in the diary"
+    }
+  },
+  "finishedAt": "2026-08-01T16:28:11.361Z"
+}

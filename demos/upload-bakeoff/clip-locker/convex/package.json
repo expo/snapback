@@ -1,0 +1,8 @@
+{
+  "name": "clip-locker-convex-arm",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "convex": "^1.43.0"
+  }
+}

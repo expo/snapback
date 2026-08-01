@@ -138,3 +138,61 @@ three delivery profiles, sha256, export facts).
 Checklist: big-file leg capped by plan (recorded), all other items
 measured; `supabase/results.json` carries receipts including the TUS
 capability-header nulls and the cleanup absence proof.
+
+## 2026-08-01 — convex, round 1, PASS (with the field's clearest resumability gap)
+
+### Environment
+- Shared dev deployment `acoustic-alpaca-401`, `convex` npm CLI +
+  `ConvexHttpClient`, official three-step storage path
+  (`generateUploadUrl` mutation → single POST → `storageId` in a
+  mutation). **Method hazard found and filed**
+  (`issues/20260801-bakeoff-convex-deployment-is-not-namespaceable.md`):
+  `convex deploy` is deployment-global — my push printed
+  `Deleted table indexes: [-] ub_a_profiles.by_handle`, i.e. it dropped
+  a concurrently-running Lane α arm's index. Convex arms must be
+  serialized on a shared deployment; Lane α's Convex numbers need a
+  re-run if they raced this.
+
+### Headline numbers
+- 120 MB uploads fine (200), 88.1 s for the clean leg; the whole
+  drop-then-retry sequence cost 130.5 s.
+- **Bytes re-transmitted after a mid-transfer drop: 59,768,832 —
+  100 % of what had already been sent.** There is no resumable
+  protocol on the official path: the upload URL is single-shot POST, so
+  interruption means starting over. This is the sharpest contrast in
+  the bakeoff (Snapback 0 bytes, Supabase 0 bytes with app-held custody,
+  Convex full re-send).
+- Integrity is a genuine strength: the system table exposes a
+  **provider-declared sha256** (base64) plus size for every file —
+  neither Snapback nor Supabase hands you the digest as ordinary
+  queryable data. Downloaded digest matched the source.
+- Range: 206 with correct `content-range` on a normal range, but a
+  **suffix range (`bytes=-1024`) returned 500** — a real edge-case bug
+  in their delivery path; `cache-control: private, max-age=2592000`
+  (30 days) on a URL with no TTL.
+- Share/deletion: `getUrl()` is a long-lived unguessable URL with no
+  TTL and no per-issuance authorization; deletion does kill it (404)
+  and the system row disappears. No reference tracking: a `clips` row
+  holding a deleted `storageId` dangles by design (documented as the
+  app's job).
+- **GPS: served back verbatim.** No server-side media surface.
+
+### What felt good
+- The three-step path is genuinely simple and the docs are excellent;
+  `_storage` as a system table you can `db.system.get()` is elegant —
+  size and sha256 come free as data.
+- File ids are first-class `v.id("_storage")` values, so the schema
+  says what it means (this is the shape Snapback's live-query
+  AssetRef gap is currently missing, per diary 0041 finding 1).
+
+### What felt bad or frustrating
+1. No resumability, and the docs don't lead with it: for a 100 MB+ clip
+   on mobile the recommended path is "retry the whole thing".
+2. The suffix-range 500 is silent damage: video scrubbing libraries
+   issue suffix ranges routinely.
+3. Deployment-global deploys make parallel experimentation hazardous
+   (the collision above).
+
+### Outcome
+All checklist items measured; `convex/results.json` carries receipts,
+including the provider sha256 and the suffix-range 500.
