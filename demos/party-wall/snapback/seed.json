@@ -1,0 +1,40 @@
+{
+  "tables": {
+    "events": [
+      {
+        "_id": "seed-gallery",
+        "title": "Sample Gallery",
+        "emoji": "🖼️",
+        "startsAt": 1789500000000,
+        "hostName": "Pat",
+        "cover": { "$assetFixture": "cover-sunset" }
+      }
+    ],
+    "posts": [
+      {
+        "_id": "seed-post-balloons",
+        "eventId": "seed-gallery",
+        "authorId": "user_pat",
+        "authorName": "Pat",
+        "caption": "Balloons up!",
+        "photo": { "$assetFixture": "photo-balloons" }
+      },
+      {
+        "_id": "seed-post-cake",
+        "eventId": "seed-gallery",
+        "authorId": "user_pat",
+        "authorName": "Pat",
+        "caption": "Cake time",
+        "photo": { "$assetFixture": "photo-cake" }
+      },
+      {
+        "_id": "seed-post-confetti",
+        "eventId": "seed-gallery",
+        "authorId": "user_pat",
+        "authorName": "Pat",
+        "caption": "Confetti everywhere",
+        "photo": { "$assetFixture": "photo-confetti" }
+      }
+    ]
+  }
+}

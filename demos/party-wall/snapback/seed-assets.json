@@ -1,0 +1,8 @@
+{
+  "fixtures": [
+    { "id": "photo-balloons", "upload": "photoUpload", "file": "seed/balloons.png", "mediaType": "image/png" },
+    { "id": "photo-cake", "upload": "photoUpload", "file": "seed/cake.png", "mediaType": "image/png" },
+    { "id": "photo-confetti", "upload": "photoUpload", "file": "seed/confetti.png", "mediaType": "image/png" },
+    { "id": "cover-sunset", "upload": "coverUpload", "file": "seed/cover-sunset.png", "mediaType": "image/png" }
+  ]
+}
