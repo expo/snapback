@@ -213,6 +213,8 @@ here (or listed here but gone from the code).
 | host_ops.asset.retry | backend.assets |
 | host_ops.asset.delete | backend.assets |
 | host_ops.asset.rotateSigningKey | notAuthorFacing (operator key rotation) |
+| host_ops.asset.exportCut | notAuthorFacing (operator consistent-cut export) |
+| host_ops.asset.importCut | notAuthorFacing (operator consistent-cut restore) |
 | host_ops.auth.mintSession | operating.host-ops |
 | host_ops.auth.rescueCollidingTable | operating.host-ops |
 | host_ops.function.explain | operating.host-ops |
