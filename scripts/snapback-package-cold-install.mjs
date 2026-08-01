@@ -1210,13 +1210,23 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceIdentity) {
     fail(`${label}: timed out\n${output()}`);
   };
   const fetchWhenReachable = async (url, label, timeoutMs = 60_000) => {
+    const candidates = [new URL(url)];
+    if (candidates[0].hostname === 'localhost') {
+      for (const hostname of ['127.0.0.1', '[::1]']) {
+        const candidate = new URL(url);
+        candidate.hostname = hostname;
+        candidates.push(candidate);
+      }
+    }
     const deadline = Date.now() + timeoutMs;
     let lastError;
     while (Date.now() < deadline) {
-      try {
-        return await fetch(url);
-      } catch (error) {
-        lastError = error;
+      for (const candidate of candidates) {
+        try {
+          return { origin: candidate.href, response: await fetch(candidate) };
+        } catch (error) {
+          lastError = error;
+        }
       }
       if (child.exitCode !== null) {
         fail(`${label}: one-command starter exited ${child.exitCode}\n${output()}`);
@@ -1230,12 +1240,12 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceIdentity) {
       (text) => text.includes('"state":"client-started"'),
       'one-command starter client arm',
     );
-    const origin = await waitFor(
+    const announcedOrigin = await waitFor(
       extractViteClientOrigin,
       'one-command starter Vite origin',
     );
-    const htmlResponse = await fetchWhenReachable(
-      origin,
+    const { origin, response: htmlResponse } = await fetchWhenReachable(
+      announcedOrigin,
       'one-command starter HTTP listener',
     );
     const html = await htmlResponse.text();
