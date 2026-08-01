@@ -5,7 +5,22 @@
 **Systems:** Background work, Actions, Webhooks, Cron, Storage, Runtime, Auth, Secrets, Deployment, Admin, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-07-30 (Diary 0039 competitive evidence and first-slice
+**Revised:** 2026-08-01 (first-slice absorption: the dated 2026-07-31
+amendment note's spec text — enqueue-association receipt shape, callee-class
+admission, deterministic drain seam, paved default queue, inspection
+surfaces, idempotency narrowing, honest gaps, capability posture — is
+absorbed into the body as §First slice as shipped, reconciled against what
+actually landed since: the e25ab2a3 slice landing, the 01ddd8e2 job-status
+boot-admission fix and the platform-owned job-status result contract, the
+secret-read-lease custody on admin jobs inspection, the bdf4763c cron
+epoch-seeding fix with LLP 0028's amended §Inspection and the still-open
+a4-f4 downtime-recovery trusted-clock question, the experimental
+`jobs_one_off_v1` registration, and the A6 arm plus 0.1.8 re-verification
+receipts. The two 2026-07-30 additions under §Decisions still requiring
+ratification are marked resolved by the shipped slice; the amendment file is
+tombstoned as a pointer. Status stays Draft — ratification is the review
+loop's call, and no durable-background-work capability class is claimed.)
+2026-07-30 (Diary 0039 competitive evidence and first-slice
 designation, per LLP 0115 CV-9: the Snapback × Convex rerun scored Convex's
 `ctx.scheduler.runAfter(0, ...)` as the better everyday primitive — a
 transactional one-off durable scheduler composing with mutations — and the
@@ -33,7 +48,10 @@ this RFC's hosted profile; verdict blocked-on, with the blocking facts named —
 plus the alarms-are-lossy cross-reference to LLP 0028's same-day amendment;
 assessment only, no adoption language). 2026-07-20 (initial proposal for LLP
 0063's hosted application platform)
-**Related:** LLP 0003, LLP 0004, LLP 0007, LLP 0009, LLP 0012, LLP 0014, LLP 0018, LLP 0028, LLP 0036, LLP 0044, LLP 0045, LLP 0046, LLP 0047, LLP 0063, LLP 0069, LLP 0083, LLP 0086, LLP 0087
+**Related:** LLP 0003, LLP 0004, LLP 0007, LLP 0009, LLP 0012, LLP 0014,
+LLP 0018, LLP 0028, LLP 0034, LLP 0036, LLP 0044, LLP 0045, LLP 0046,
+LLP 0047, LLP 0051, LLP 0058, LLP 0063, LLP 0069, LLP 0083, LLP 0086,
+LLP 0087, LLP 0094, LLP 0115, LLP 0121, LLP 0127, LLP 0137
 
 ## Summary
 
@@ -61,6 +79,227 @@ the same semantic corpus; one tuple does not borrow the other's evidence. A
 hosted target may implement the same contract with a managed queue, but it must
 pass the same conformance suite and report its different leases, retention,
 and delivery limits.
+
+## First slice as shipped (2026-07-31; absorbed 2026-08-01)
+
+This section is normative for the implemented surface. It absorbs the dated
+2026-07-31 amendment note (now a tombstone pointer under `llp/tombstones/`)
+and reconciles it against everything that landed through 2026-08-01. The
+slice landed as e25ab2a3 (`src/jobs.rs`, storage/runtime/server wiring,
+codegen jobs authoring), was completed by the 01ddd8e2 job-status
+boot-admission fix, and is proven by executable evidence three ways: the
+in-tree Rust and codegen suites, the external-consumer LLP 0137 A6 arm
+(10/10 checks on the public 0.1.7 closure;
+`demos/improvement-sweep/arms/a6-snapback-web/run-capsule.json`), and the
+0.1.8 re-verification pass
+(`demos/improvement-sweep/arms/reverify-0.1.8/run-capsule.json`, RV-A6-F2).
+The RFC remains Draft; nothing here claims a durable-background-work
+capability class or the `durable-work-single-process-sqlite-v1` tuple
+(§Capability posture below). The authoring surface is documented for
+consumers in `guide/backend/jobs.md`.
+
+### Enqueue-association receipt shape (0127 decision 7 — 0070-owned)
+
+Both halves of LLP 0121 option 3 ship, with the job side durable and the
+mutation side bounded.
+
+**Job-side (durable, unbounded-cardinality-safe).** Every job row carries
+its producer association, immutable from insertion:
+
+- `producerMutationId` — the exact `mutationId` the producing mutation's
+  receipt carries (the client mutation id when the client supplied one;
+  otherwise the server-minted receipt id). One identity names both halves.
+- `producerSnapshotVersion` — the committed storage version the producing
+  mutation's receipt reports as `snapshotVersion` (LLP 0034 §3.2); equal
+  for enqueue-only commits and write-carrying commits.
+- `producerFunction` — the producing mutation's declared name.
+- `producerPrincipal` — the resolved auth user id, when one existed
+  (provenance only, never execution permission; the enqueue-time
+  authorization rule in §Authorization and isolation is unchanged).
+
+"What did mutation M schedule" resolves from the job side by producer id;
+the association is provable without growing the bounded receipt ring.
+
+**Mutation-side (bounded, rollback-evidencing).** The mutation receipt
+(`Receipt::Mutation`, LLP 0034 §3.2 family) gains one optional field:
+
+```json
+"enqueues": [ { "jobId": "…", "action": "notify", "availableAtMs": 1753 } ]
+```
+
+- Present only on **confirmed** receipts that enqueued at least one job;
+  omitted when empty (the pinned pre-jobs wire shape is byte-identical).
+- Bounded by construction: v1 caps enqueues at 16 per mutation, so the
+  ring's size posture is preserved.
+- Privacy (§3.3 discipline): opaque job ids, the declared action name, and
+  the availability timestamp — never argument values or payloads.
+- A **rejected** receipt never carries the field, and rollback leaves no
+  job rows: the receipt pair is the inspectable form of
+  rollback-schedules-nothing — evidence Convex's bare returned ID does not
+  give (LLP 0121 finding 10). The A6 arm observed exactly this pair on the
+  packaged closure (A6-04-SCHEDULING).
+
+**Wire projection.** The field rides the existing receipt surfaces
+(receipts snapshot, live subscribe/unsubscribe echoes, mutation-response
+receipt) under LLP 0094's ordinary envelope rules;
+`schemas/receipt.schema.json` is regenerated from the Rust type. No new
+envelope kind is introduced.
+
+### Callee-class admission (LLP 0121 OQ2 — decided)
+
+V1 admits **manifest-declared actions only**, in **both** runtime forms —
+HostPlan-planned actions and Ibex JS actions — because both execute under
+the generated host envelope (declared writes, `uses` grants, LLP 0009/0047
+limits) that "generated host-plan actions only" exists to guarantee. This
+reading admits the Dispatch shape the diaries measured: an action
+performing egress and applying durable effects through `ctx.runMutation`,
+exactly as cron already invokes actions today.
+
+Not admitted in v1 (fail closed at staging, before any commit work):
+
+- direct **mutation** callees (`SNAPBACK_JOB_CALLEE_NOT_ADMITTED`) — the
+  later broader-callee capability;
+- **query** callees (same code) — queries are never schedulable;
+- undeclared names (`SNAPBACK_JOB_ACTION_UNKNOWN`).
+
+A parity statement against Convex must therefore say: enqueue-side parity
+with `runAfter` for **action** callees; Convex's scheduled-mutation
+exactly-once class is intentionally not matched (LLP 0121 finding 11 —
+this RFC is uniformly at-least-once with fenced attempts and idempotency
+keys).
+
+### Deterministic drain seam (0121 OQ5/OQ9 — decided)
+
+- **Shape:** set-based, not slot-based. `POST /_snapback/api/jobs/drain`
+  with body `{ nowMs?, maxWaves? }` claims every job with
+  `availableAt <= nowMs`, executes each claim, publishes each terminal
+  transition, and returns the drain receipts synchronously. Due-ness,
+  lease arithmetic, retry `availableAt`, and attempt timestamps are pure
+  functions of the injected clock — acceptance never sleeps.
+- **Cascades:** bounded waves (default 1, cap 16), never
+  run-to-quiescence; jobs enqueued by a wave's actions become claimable by
+  the next wave when due. Nontermination is refused by the cap, not
+  detected.
+- **Determinism bar (OQ9):** deterministic externally observable outcomes
+  plus stable job identity — not byte-identical rows. Job ids are
+  allocated through the invocation's ctx-answer ledger (LLP 0051 D1), so
+  enqueue replay reproduces them and tests can assert on returned ids.
+  Claim order is pinned: `availableAt` ascending, then canonical job-id
+  bytes. Claim ids remain random and are explicitly **non-normative**
+  (provenance on attempt receipts; no assertion may depend on them).
+- **Flags (OQ5):** `SNAPBACK_JOBS_DISABLED` is the sibling of
+  `SNAPBACK_CRON_DISABLED`, deliberately separate: cron and jobs are
+  separate subsystems with separate ledgers. The autonomous jobs worker is
+  its own one-second loop (the ticker-as-wakeup posture of LLP 0121
+  option 2 case 3 — the loop is a wakeup; the job/attempt rows are the
+  only evidence). Interactive latency for `availableAt = now` jobs is
+  therefore bounded by ~1s in the single-process profile (OQ6's v1
+  answer, a reported fact, not a contract).
+- **Cron cross-reference (2026-08-01).** The donor seam's own clock
+  hazard was fixed at source: a never-run `everyMs` cron job now seeds its
+  first nominal at the most recent epoch-aligned slot rather than slot 0
+  (bdf4763c; LLP 0028 §Inspection and query surface, amended 2026-08-01
+  per 0137 a4-f4), so a catch-up run's nominal-bound trusted clock is
+  within one interval of wall clock. Whether a **downtime-recovery**
+  catch-up run (a stale persisted nominal) should also clamp its trusted
+  clock remains LLP 0028's open design question; the jobs drain seam is
+  unaffected because drain clocks are injected per call, but any future
+  jobs downtime-recovery policy must answer the same question rather than
+  inherit an implicit one.
+
+### Paved default queue (0121 OQ1 — decided)
+
+`ctx.jobs.enqueue(action, args, options?)` requires zero app-side
+declaration. Every v1 job lands on the `default` queue with paved
+published limits: 16 enqueues/mutation, 64 KiB canonical args, 30-day
+delay horizon, attempts 1..=8 (default 1), 30 s lease, claim batch 64,
+backoff base 1 s capped 60 s with the RFC's v1 jitter profile (ceiling
+1000 ms). This RFC's full queue-declaration machinery remains RFC-only;
+when it lands, the `default` queue becomes a declared queue with these
+values as defaults.
+
+### Inspection surfaces (0121 OQ3 — decided)
+
+Two surfaces, per LLP 0121's four-way split:
+
+- **Job-lifecycle visibility to product code:** a **generated declared
+  job-status query** (`defineJobStatusQuery({ auth })` →
+  `HandlerPlan::JobStatusQuery`) — an ordinary declared operation with an
+  ordinary contract, live-capable through the ordinary subscription
+  machinery; never an ambient system table. The projection is
+  privacy-bounded lifecycle facts only (ids, action/queue names, state,
+  counters, timestamps, diagnostic codes, producer association) — never
+  argument values or results. V1 authorization vocabulary: the
+  operation's own declared auth requirement plus knowledge of the opaque
+  job id; per-job row-level policy is a later vocabulary. Two facts
+  landed after the amendment note and are part of the shipped contract:
+  the reserved `_snapback_jobs` logical stream the generated plan reads
+  is admitted by the load-time schema-reference preflight **only** for
+  read positions on JobStatusQuery-runtime functions (01ddd8e2, fixing
+  the A6 f1 boot refusal; writes naming it, and any other runtime
+  declaring it, keep the refusal), and the generated plan carries its own
+  complete platform-owned result contract (a literal lifecycle-state
+  union in the emitted types), so declaring the query is the whole
+  authoring step with zero degraded advisories (see the closed ticket
+  `20260801-0137-reverify-jobstatus-declaration-degraded-advisory.md`).
+- **Operator/acceptance inspection:** the admin lane —
+  `GET /_snapback/api/jobs`, `GET /_snapback/api/jobs/{id}` (job plus
+  append-only attempts), and the drain endpoint's synchronous receipts.
+  In **sessions auth mode** these reads can carry application-adjacent
+  data, so the admin token alone is deliberately insufficient: the
+  request must also present an operator-minted, TTL- and budget-bounded
+  secret-read lease (`x-snapback-secret-read-lease`, minted through the
+  ready-file-only CLI proof), or it refuses with
+  `SNAPBACK_ADMIN_SECRET_READ_REQUIRED`. Dev auth mode takes the
+  ordinary admin credential. This custody landed with the slice's fix
+  lane and is the shipped admin-lane posture for jobs inspection.
+
+Domain-result reactivity needs nothing here (it falls out of the terminal
+mutation, as LLP 0121 established); producer correlation is the
+enqueue-association section above.
+
+### Idempotency-key semantics, narrowed for v1
+
+The RFC's rule — same scoped key plus identical canonical bytes returns
+the existing job; divergent reuse fails
+`SNAPBACK_JOB_IDEMPOTENCY_KEY_REUSED` — is implemented with one
+narrowing: the identical-reuse fast path resolves at handler execution
+time against the read snapshot. If an identical job with the same key
+lands between that snapshot and commit, the commit fails closed with the
+typed `SNAPBACK_JOB_IDEMPOTENCY_KEY_RACED`; a retry of the mutation
+converges on the existing job. Divergent reuse fails closed in both
+places.
+
+### What the slice deliberately does not implement (honest gaps)
+
+All of the following remain RFC-only; the claim boundary stands and
+nothing below is claimed by any capability fact:
+
+queue declarations and capacity counters/admission (a saturated queue
+cannot yet refuse enqueue); per-key concurrency slots; cancellation (both
+cases); the `ambiguous` terminal state and domain reconciliation;
+deadlines; operator replay / successor jobs; retention windows and
+idempotency tombstones; webhook capture/delivery machinery; the
+`revalidatePrincipal` / `capturedGrant` authorization modes (v1 executes
+callees as the same system authority cron actions use); artifact-digest
+pinning and queue-admission epochs; restore fences; Postgres and every
+hosted/multi-worker tuple (hosted stays blocked-on per the Dynamic
+Workflows assessment below).
+
+### Capability posture
+
+The registry id `jobs_one_off_v1` (experimental for as long as LLP 0070
+is Draft) advertises the implemented surface on the local and
+remote-service single-process SQLite targets only; hosted target facts
+stay false. Its presence asserts current-contract compatibility, never a
+durable-background-work capability class or the
+`durable-work-single-process-sqlite-v1` tuple — the §Acceptance corpus is
+far from covered, and LLP 0063 Step 6's maintainer-acceptance gate
+stands. Artifacts binding the surface must acknowledge the experimental
+contract (LLP 0058 capability maturity); codegen emits both the
+capability requirement and the acknowledgment when the surface is
+declared — `defineSchema(..., { requiredCapabilities })` deliberately
+refuses the id, which admits schema-level target capabilities only.
 
 ## Semantics
 
@@ -98,7 +337,11 @@ with different action, args, or policy fails as
 The first profile admits generated host-plan actions only: a closed,
 artifact-owned action plan with generated validators, read/write/secret grants,
 and the LLP 0009/0047 execution envelope. Broad execution of arbitrary trusted
-application actions is a later capability.
+application actions is a later capability. *(As shipped, 2026-07-31: the
+admission reads "manifest-declared actions under the generated host
+envelope", which covers both the HostPlan and the Ibex JS runtime forms —
+§First slice as shipped, callee-class admission. Direct mutation and query
+callees remain excluded and fail closed.)*
 
 Actions may enqueue follow-up work only through an explicit mutation, preserving
 LLP 0004's rule that actions and database commits are not one transaction.
@@ -433,7 +676,12 @@ The blocking facts:
    while it is Draft. The §Acceptance conformance corpus exists only as
    prose: no executable suite, and no
    `durable-work-single-process-sqlite-v1` receipt to serve as the reference
-   evidence a hosted mapping must match.
+   evidence a hosted mapping must match. *(Partially stale as of
+   2026-08-01: the first slice now has executable evidence — the in-tree
+   state-machine/fault tests and the external A6/0.1.8 receipts in §First
+   slice as shipped — but the complete §Acceptance corpus is still not
+   covered and the tuple remains unclaimed, so the blocked-on verdict is
+   unchanged.)*
 2. **No conformance-suite run on the substrate.** The hosted-profile rule
    in the §Summary — same conformance suite, different substrate, with
    the target's own leases/retention/delivery limits reported — has been
@@ -523,7 +771,12 @@ It does not replace cron or domain-specific state machines.
 
 While this RFC is Draft, no capability report may claim durable background work
 from an ad hoc loop or cron sweep. LLP 0063 Step 6 requires maintainer acceptance
-and an executable target-specific witness before jobs or webhooks count.
+and an executable target-specific witness before jobs or webhooks count. The
+shipped first slice's experimental `jobs_one_off_v1` registration is inside
+this boundary, not an exception to it: it advertises current-contract
+compatibility for the implemented surface only and claims no
+durable-background-work capability class or storage tuple (§First slice as
+shipped, capability posture).
 
 ## Decisions still requiring ratification
 
@@ -535,22 +788,26 @@ terminal queue disposition plus domain-owned reconciliation; and independent
 single-process SQLite and Postgres tuples, with SQLite first. These choices are
 not accepted merely because they are written here. Independent storage/fault
 review and maintainer ratification remain prerequisites before implementation
-can satisfy LLP 0063.
+can satisfy LLP 0063. *(2026-08-01: the first slice now carries several of
+these proposals in shipped code with executable evidence — SQLite first,
+manifest-declared action callees, the drain seam — which changes the
+evidence available to the review, not the ratification requirement.)*
 
-Two additions from the 2026-07-30 Diary 0039 absorption (LLP 0115 CV-9):
+Two additions from the 2026-07-30 Diary 0039 absorption (LLP 0115 CV-9),
+both **resolved by the shipped slice** (2026-08-01; details in §First slice
+as shipped):
 
-- **Deterministic drive seam.** The admin surface (list/show/pause/resume/
-  cancel/replay/drain) has no injected-clock manual-drive operation, and the
-  acceptance corpus never requires frozen-clock determinism — yet the
-  matrix's Dispatch arm proved recurring work without sleeping only because
-  LLP 0028 has exactly that seam (`SNAPBACK_CRON_DISABLED` + admin manual
-  tick). The first slice must add the sibling: an injected-clock forced
-  drain that claims due jobs, so one-off work is provable without wall-clock
-  waits. LLP 0028's pattern is the donor; the cron run ledger's identity
-  model is not (runtime-created entries have no nominal slot or schedule
-  hash).
-- **Callee-class admission.** V1 admits generated host-plan actions only.
-  Whether the Dispatch-style one-off shape (action performing egress, then a
-  nested atomic mutation) fits that admission or requires the later
-  broader-action capability must be named before the slice claims the
-  Convex-parity use case rather than a narrower one.
+- **Deterministic drive seam — resolved.** The gap this bullet named — no
+  injected-clock manual-drive operation, with LLP 0028's
+  `SNAPBACK_CRON_DISABLED` + admin manual tick as the donor pattern — is
+  closed by the shipped set-based drain
+  (`POST /_snapback/api/jobs/drain { nowMs?, maxWaves? }`) and the
+  `SNAPBACK_JOBS_DISABLED` sibling switch. As predicted, the cron run
+  ledger's identity model was not borrowed: drain receipts live in the
+  job/attempt ledger with replay-stable job ids.
+- **Callee-class admission — resolved.** V1 admits manifest-declared
+  actions in both runtime forms (HostPlan and Ibex JS) under the generated
+  host envelope; the Dispatch-style action→mutation shape fits that
+  admission. Direct mutation/query callees fail closed as the later
+  broader-callee capability, and the Convex parity statement is scoped to
+  action callees accordingly (LLP 0121 finding 11).

@@ -13,8 +13,8 @@
 //!
 //! @ref LLP 0070#semantics — job identity/enqueue, state machine, claims and
 //! fencing, and the jitter profile implemented here follow the RFC's §Semantics;
-//! deliberate v1 narrowings are recorded in the dated amendment note
-//! `llp/0070-durable-background-work.amendment-2026-07-31-first-slice.md`.
+//! deliberate v1 narrowings are the RFC body's "First slice as shipped"
+//! section (the 2026-07-31 amendment note, absorbed 2026-08-01).
 
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
 use rusqlite::{Connection, OptionalExtension, params};

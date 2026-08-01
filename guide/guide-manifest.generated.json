@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "ddb70b142f4bb10db534a78de933dcc4df9917cc"
+    "commit": "86a862a0056da16b225edfbc68178297c58af95a"
   },
   "nav": {
     ".": [
@@ -741,7 +741,6 @@
       ],
       "authorities": [
         "llp/0070-durable-background-work.rfc.md",
-        "llp/0070-durable-background-work.amendment-2026-07-31-first-slice.md",
         "src/jobs.rs",
         "src/runtime.rs",
         "src/admin.rs",
@@ -756,7 +755,7 @@
       ],
       "reviewed": "2026-08-01",
       "reviewedCommit": "HEAD",
-      "sha256": "11a32a0c7d948548a80edd570124c04ffbfb58a8c50a79562378ee13156ccd46",
+      "sha256": "577abdcb39c1ebbc10b8dd9472c83231346fd6b018310d2dcfaba04056443e83",
       "snippets": [
         {
           "lang": "js",
@@ -2441,5 +2440,5 @@
     "routes": 86,
     "hostOps": 29
   },
-  "contentHash": "547e99895cb53ace07c77487f08fe2fb559443e5960f4b2e2e1ad2dcf269b2be"
+  "contentHash": "0b94ee0553fe0c2bde1ac7d19f866ae9a345845dc9d87e4c5bac46bc0830fb43"
 }

@@ -1080,9 +1080,9 @@ declared job-status live query, and the experimental
 `jobs_one_off_v1` capability facts. Both exit criteria are pinned by
 Rust tests (rollback-schedules-nothing; the forced drain claims due
 jobs exactly once with receipts). 0070 remains Draft — its claim
-boundary stands, and the enqueue-association spec text awaits
-absorption from the dated amendment note
-`llp/0070-durable-background-work.amendment-2026-07-31-first-slice.md`.
+boundary stands. (The enqueue-association spec text, first recorded in
+the dated 2026-07-31 amendment note, was absorbed into 0070's body as
+§First slice as shipped on 2026-08-01; the note is tombstoned.)
 The Dispatch arm's one-off path (the diary-visible half of the exit)
 ports at the successor rerun per §Sequencing 5.
 
