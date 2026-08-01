@@ -1,6 +1,6 @@
 # SD-6: the @expo/snapback-* scope migration, then slice 5-rebuild
 
-**Status:** Open
+**Status:** Resolved
 **Impact:** 5
 **Urgency:** 4
 **Ease:** 2
@@ -184,3 +184,21 @@ land the candidate ledger at a committed home on a pushed ref, then
 either execute the first leased promotion (0.1.8+ with a genuine
 prior) or dispatch the 5-rebuild matrix standalone per the decided
 option.
+
+## Resolution (2026-08-01)
+
+RESOLVED. Work item 1 (the in-repo scope migration) landed 2026-07-31
+(`a127d42f`); the npm candidate publication executed 2026-08-01 (all
+nine `@expo/snapback-*` at 0.1.7, registry-byte-verified, closed
+candidate ledger committed at
+`demos/partiful-matrix/acceptance/evidence/terminal-package-publication-0.1.7-fdd49db8.json`);
+npm pointed `latest` at 0.1.7 automatically on first publish. Work
+item 2 (slice 5-rebuild) EXECUTED: public-package-proof run
+30692108019, `root_selector=exact`, green on both platform proofs
+plus the aggregate — the external rebuild consumed only published
+artifacts under the terminal names, satisfying LLP 0115 CV-1's exit
+(row updated). Residue tracked separately: the leased-promotion
+machinery defects
+(issues/20260801-promote-v3-lease-pin-refuses-v4.md and
+issues/20260801-first-latest-promotion-no-distinct-prior-root.md,
+the latter an author decision) apply from 0.1.8 onward.
