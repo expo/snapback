@@ -1,0 +1,244 @@
+{
+  "schemaVersion": "snapback.package-candidate-ledger.v1",
+  "mode": "publish",
+  "revision": "fdd49db8abf1943ad6051fcba1c73f2983ad0e66",
+  "sourceDirty": false,
+  "version": "0.1.7",
+  "tag": "bakeoff-0-1-7-fdd49db8abf1",
+  "registry": "https://registry.npmjs.org",
+  "scopePreset": "identity",
+  "runtimePlatforms": [
+    "darwin-arm64",
+    "linux-x64"
+  ],
+  "qualifiedLedgerSha256": "28182c95a68bb2ec5c99ae9f13b4dd0cbc9fb2e02d9bdc415ad2beb82f62b8a0",
+  "qualifiedPlatformReceipts": [
+    {
+      "platform": "darwin-arm64",
+      "sha256": "f5d077a77ff9cdded63c971252da5da63ed91752ad3c3b481fb480d005e06a5a"
+    },
+    {
+      "platform": "linux-x64",
+      "sha256": "22f72b0a59803ef325eccd0d12cd50183b0d65418becd2690d88eb93562fd4e3"
+    }
+  ],
+  "packages": [
+    {
+      "publicationOrder": 0,
+      "sourceName": "@expo/snapback-runtime-darwin-arm64",
+      "name": "@expo/snapback-runtime-darwin-arm64",
+      "version": "0.1.7",
+      "dependencies": {},
+      "optionalDependencies": {},
+      "peerDependencies": {},
+      "devDependencies": {},
+      "tarball": "expo-snapback-runtime-darwin-arm64-0.1.7.tgz",
+      "sha256": "4f7081d64cd8b6b92d90d7a4a3b933f3fe4bf7112bff1778f08640fdbadda278",
+      "runtimeBinarySha256": "6c5c956750edc1be016823824bf5e28a3e969810aed6d7299cf5f593fa2023fe",
+      "runtimeSupportSha256": "ba1de111ef5eb91a7c2c9a7fe00f28abac20b514dc70bff0bbde3ecebae74a20",
+      "files": 4,
+      "unpackedSize": 90683472,
+      "status": "skipped-already-published",
+      "candidateTagVerified": true,
+      "registrySha256": "4f7081d64cd8b6b92d90d7a4a3b933f3fe4bf7112bff1778f08640fdbadda278",
+      "registryIntegrity": "sha512-WfW9LnROvUDQyJthV135ebzDaO0//JsVkJGVNfECMsP5qUj3PIkLQeKfrDbmcx7tfEXEChLiPgugy0yJvXa5Lw==",
+      "registryShasum": "4e3892f65bb75cd58eeab371f9206554315d1216"
+    },
+    {
+      "publicationOrder": 1,
+      "sourceName": "@expo/snapback-runtime-linux-x64",
+      "name": "@expo/snapback-runtime-linux-x64",
+      "version": "0.1.7",
+      "dependencies": {},
+      "optionalDependencies": {},
+      "peerDependencies": {},
+      "devDependencies": {},
+      "tarball": "expo-snapback-runtime-linux-x64-0.1.7.tgz",
+      "sha256": "fde13b95acb21782d21a90e773226e5b11208ad51338aff32e5e5496180eb833",
+      "runtimeBinarySha256": "6ac00d3e88b0a3c7f3f2124d886fbb0a84e296807ca8a54493b394838353b82a",
+      "runtimeSupportSha256": "d1bde2b2912ff3b71a30328813b0b2477ef03c08657dc18fd309854615f35d5d",
+      "files": 3,
+      "unpackedSize": 100795605,
+      "status": "skipped-already-published",
+      "candidateTagVerified": true,
+      "registrySha256": "fde13b95acb21782d21a90e773226e5b11208ad51338aff32e5e5496180eb833",
+      "registryIntegrity": "sha512-8I/CFMi/tN09M1+dJxL8EpshgDdDL4eo+2lR2Dp1vdjTBHvYtbKBnbRxtx9RhT8Qh9d55S5nZSfpNgUSPv32BQ==",
+      "registryShasum": "1d63babadce12e9df3529b9b9d0eefe69473fc16"
+    },
+    {
+      "publicationOrder": 2,
+      "sourceName": "@expo/snapback-contract",
+      "name": "@expo/snapback-contract",
+      "version": "0.1.7",
+      "dependencies": {},
+      "optionalDependencies": {},
+      "peerDependencies": {},
+      "devDependencies": {},
+      "tarball": "expo-snapback-contract-0.1.7.tgz",
+      "sha256": "e4340df8700f5b9341a6c831f090df9be97a7b5d1e27406ff3fdf3cc146b6391",
+      "runtimeBinarySha256": null,
+      "runtimeSupportSha256": null,
+      "files": 39,
+      "unpackedSize": 828028,
+      "status": "skipped-already-published",
+      "candidateTagVerified": true,
+      "registrySha256": "e4340df8700f5b9341a6c831f090df9be97a7b5d1e27406ff3fdf3cc146b6391",
+      "registryIntegrity": "sha512-05psKf8hrt2ct52Cp68F4V9PfOC/gdtKgN2F4n/Azz2uWxdHUQhDZCM/Zo52Xs+sxCU2fvsA1qBXowP1t171Tw==",
+      "registryShasum": "0bc3b648c0dfc693ae6e0d68e2f6f61623d821c5"
+    },
+    {
+      "publicationOrder": 3,
+      "sourceName": "@expo/snapback-client",
+      "name": "@expo/snapback-client",
+      "version": "0.1.7",
+      "dependencies": {
+        "@expo/snapback-contract": "0.1.7"
+      },
+      "optionalDependencies": {},
+      "peerDependencies": {},
+      "devDependencies": {},
+      "tarball": "expo-snapback-client-0.1.7.tgz",
+      "sha256": "6f29a4acce48c5742ebee00ee71cbc4a3713120cfcc1ed1c5c1000bb4f4ec58e",
+      "runtimeBinarySha256": null,
+      "runtimeSupportSha256": null,
+      "files": 37,
+      "unpackedSize": 861513,
+      "status": "skipped-already-published",
+      "candidateTagVerified": true,
+      "registrySha256": "6f29a4acce48c5742ebee00ee71cbc4a3713120cfcc1ed1c5c1000bb4f4ec58e",
+      "registryIntegrity": "sha512-X0bDGkWem962ltlG7MfyTcGUeNJF+VkFypUkM1Zah8sMvqxGcOkE2aIq72GWO2K1pjV6vJPMPPNG4MKXZT4YEw==",
+      "registryShasum": "835eca6a87eb497f8fad164028af39425f0e9c10"
+    },
+    {
+      "publicationOrder": 4,
+      "sourceName": "@expo/snapback-codegen",
+      "name": "@expo/snapback-codegen",
+      "version": "0.1.7",
+      "dependencies": {
+        "@expo/snapback-contract": "0.1.7",
+        "acorn": "^8.17.0",
+        "esbuild": "^0.28.1",
+        "typescript": "5.9.3"
+      },
+      "optionalDependencies": {},
+      "peerDependencies": {},
+      "devDependencies": {},
+      "tarball": "expo-snapback-codegen-0.1.7.tgz",
+      "sha256": "48518d0e09ed10b632cea0c7bc50c052e388f6738f1c839af8dce5471e2ebcab",
+      "runtimeBinarySha256": null,
+      "runtimeSupportSha256": null,
+      "files": 238,
+      "unpackedSize": 2761952,
+      "status": "skipped-already-published",
+      "candidateTagVerified": true,
+      "registrySha256": "48518d0e09ed10b632cea0c7bc50c052e388f6738f1c839af8dce5471e2ebcab",
+      "registryIntegrity": "sha512-1JJQ51ediSHoxOZVq2+kh+trRn6w695s/C+vrthijMRQ3lKiD9EH5V1MlIcjzoWvQk4UhSFmIwQqHuCCgH/hYw==",
+      "registryShasum": "95c3dffc7573cf581730c8bf755dda33313a4f82"
+    },
+    {
+      "publicationOrder": 5,
+      "sourceName": "@expo/snapback-react",
+      "name": "@expo/snapback-react",
+      "version": "0.1.7",
+      "dependencies": {},
+      "optionalDependencies": {},
+      "peerDependencies": {
+        "@expo/snapback-client": "0.1.7",
+        "react": ">=18.0.0 <20.0.0"
+      },
+      "devDependencies": {},
+      "tarball": "expo-snapback-react-0.1.7.tgz",
+      "sha256": "181caa91e4a04927342e1c074bb6d0901b12601504f64b376d32b8be5fe3ca11",
+      "runtimeBinarySha256": null,
+      "runtimeSupportSha256": null,
+      "files": 4,
+      "unpackedSize": 88720,
+      "status": "skipped-already-published",
+      "candidateTagVerified": true,
+      "registrySha256": "181caa91e4a04927342e1c074bb6d0901b12601504f64b376d32b8be5fe3ca11",
+      "registryIntegrity": "sha512-3idotiorLlvmWNPaeBh4bydduiOoGkJbAxfKbZB8LRhrbVut5C4uke/Xnl3EGz+xiFvHqO5gMEF+iMvJh3gsvw==",
+      "registryShasum": "736f51c43fac45ee9a2a4394e4d98f9e0aa3d250"
+    },
+    {
+      "publicationOrder": 6,
+      "sourceName": "@expo/snapback-app-cli",
+      "name": "@expo/snapback-app-cli",
+      "version": "0.1.7",
+      "dependencies": {
+        "@expo/snapback-client": "0.1.7",
+        "@expo/snapback-codegen": "0.1.7"
+      },
+      "optionalDependencies": {},
+      "peerDependencies": {},
+      "devDependencies": {},
+      "tarball": "expo-snapback-app-cli-0.1.7.tgz",
+      "sha256": "3105bb827018bcbdbf7e5508fe5166c6d4c1e70bc470ae24b9b162bb4ab6dfba",
+      "runtimeBinarySha256": null,
+      "runtimeSupportSha256": null,
+      "files": 4,
+      "unpackedSize": 13011,
+      "status": "skipped-already-published",
+      "candidateTagVerified": true,
+      "registrySha256": "3105bb827018bcbdbf7e5508fe5166c6d4c1e70bc470ae24b9b162bb4ab6dfba",
+      "registryIntegrity": "sha512-NVwlunG6nISMUqMhVeg4/UgvwgeW2VxOJ7ICLOAt2JGCBkdrT9Kf1ChM9e66kxCgCL/KaaZbQ73A4E94kh33fQ==",
+      "registryShasum": "4cf0cdc2bff3bdb7ed5f1a8f8f225e4e1f5ca29c"
+    },
+    {
+      "publicationOrder": 7,
+      "sourceName": "@expo/snapback-cli",
+      "name": "@expo/snapback-cli",
+      "version": "0.1.7",
+      "dependencies": {
+        "@expo/snapback-client": "0.1.7",
+        "@expo/snapback-codegen": "0.1.7",
+        "@expo/snapback-contract": "0.1.7"
+      },
+      "optionalDependencies": {
+        "@expo/snapback-runtime-darwin-arm64": "0.1.7",
+        "@expo/snapback-runtime-linux-x64": "0.1.7"
+      },
+      "peerDependencies": {},
+      "devDependencies": {},
+      "tarball": "expo-snapback-cli-0.1.7.tgz",
+      "sha256": "067e5d2d6ac45c479e6679b0261749e6b9c91323f4bff34514d1a0cb64822cf7",
+      "runtimeBinarySha256": null,
+      "runtimeSupportSha256": null,
+      "files": 82,
+      "unpackedSize": 751885,
+      "status": "skipped-already-published",
+      "candidateTagVerified": true,
+      "registrySha256": "067e5d2d6ac45c479e6679b0261749e6b9c91323f4bff34514d1a0cb64822cf7",
+      "registryIntegrity": "sha512-XW57/IV8m4kTZhz+2hsfyHF3X5o1WE3eR6u5L87RFj1RHAZScxggLf8MzbdyDCuKsn9tlvLGMl1qlClpD6f7MQ==",
+      "registryShasum": "3e11516a3e9c98d0b7f19e7f941d33597a8b4e8f"
+    },
+    {
+      "publicationOrder": 8,
+      "sourceName": "@expo/snapback-vite",
+      "name": "@expo/snapback-vite",
+      "version": "0.1.7",
+      "dependencies": {
+        "@expo/snapback-cli": "0.1.7"
+      },
+      "optionalDependencies": {},
+      "peerDependencies": {
+        "vite": "^8.0.0"
+      },
+      "devDependencies": {
+        "@expo/snapback-client": "0.1.7",
+        "vite": "^8.0.0"
+      },
+      "tarball": "expo-snapback-vite-0.1.7.tgz",
+      "sha256": "91b2e7eed506b50809b490a8ceb0320b82b7fa861b1b5ee9082717eff0f7aa04",
+      "runtimeBinarySha256": null,
+      "runtimeSupportSha256": null,
+      "files": 13,
+      "unpackedSize": 71996,
+      "status": "skipped-already-published",
+      "candidateTagVerified": true,
+      "registrySha256": "91b2e7eed506b50809b490a8ceb0320b82b7fa861b1b5ee9082717eff0f7aa04",
+      "registryIntegrity": "sha512-8S6MmJbSTy9CKPm6ybO80g1wcnkV4zvk8XTl5yiyAEH+8ZSYz9DdXNnhqnVMGm3dfujK3xo4nWoV2ihlBCMJUA==",
+      "registryShasum": "780abf12cf2a1bb06b42098f2e295c6a7f91cdf6"
+    }
+  ],
+  "candidateLedgerSha256": "d64d6bcec8dd8b59be14154d9f11786f7a39d3d3dfe3fd07846b595ebd7de88f"
+}
