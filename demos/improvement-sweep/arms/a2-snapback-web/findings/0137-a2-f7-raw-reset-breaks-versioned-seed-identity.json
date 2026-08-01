@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "findingId": "0137-a2-f7-raw-reset-breaks-versioned-seed-identity",
+  "dimension": "installed-product-first-hour",
+  "observation": {
+    "description": "Two guide-taught paths collide: testing/acceptance teaches POST /_snapback/api/app/reset with {seed} as the deterministic reset, while the packaged dev supervisor installs a generated versioned seed and requires its identity to match on later starts. After a suite uses the raw reset, the next `snapback dev` refuses with SNAPBACK_SEED_NONEMPTY_UNTRACKED ('seed targets contain application rows without active versioned identity') and the dev loop is wedged until the operator deletes the database or runs a versioned reset-install. This bit the arm twice (acceptance suite then ui-smoke); the workaround was deleting .snapback/dev.sqlite3* before each run. The refusal itself is honest and correctly coded — the trap is that the guide's acceptance recipe produces the state its own dev loop then refuses.",
+    "evidence": [
+      "diaries/0042-a2-group-chat-sweep.diary.md (both hits, with transcripts)",
+      "demos/improvement-sweep/arms/a2-snapback-web/evidence/app/acceptance.a2.mjs (fresh-target deletion preamble)"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Not directly comparable; the general reference standard is that a provider's documented test-reset path leaves the dev loop startable.",
+    "source": "none-available",
+    "sourceDate": "2026-08-01"
+  },
+  "classification": "experience",
+  "mustNotRegress": "The versioned-seed identity discipline itself (no silent divergence between installed seed identity and database contents) and the stable coded refusal.",
+  "smallestCoherentFix": "Teach the collision: either the raw reset response/dev refusal names the recovery (versioned reset-install or fresh database) with its exact command, or the acceptance guide's reset section routes suites to the versioned-seed lifecycle when a seed.artifact.json exists.",
+  "acceptanceWitness": "A suite that raw-resets with a seed can immediately restart `snapback dev` by following only the printed diagnostic's recovery, or the guide's recipe never produces the untracked state.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a2-raw-reset-breaks-versioned-seed-identity.md"
+  },
+  "stopClass": false,
+  "budgetFinding": false
+}

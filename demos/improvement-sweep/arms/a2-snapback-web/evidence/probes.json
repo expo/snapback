@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "arm": "a2-snapback-web",
+  "date": "2026-08-01",
+  "probes": {
+    "boundedKeyset": {
+      "question": "Does the packaged 0.1.7 inline-handler ctx.db chain support the bounded keyset verbs Diary 0034 used on repo main (.lt/.gt/.order/.take)?",
+      "method": "listMessagesPage rewritten as withIndex('by_channel').eq(...).gt('_version', boundary).order('_version','asc').take(6); codegen accepted it; first-page runtime call failed.",
+      "result": {
+        "code": "SNAPBACK_HANDLER_FAILED",
+        "details": { "function": "listMessagesPage", "message": "undefined is not a function" }
+      },
+      "conclusion": "Bounded keyset reads are not on the packaged 0.1.7 handler surface; codegen does not statically reject the unknown chain verbs, and the runtime failure names no missing method. The arm shipped collect+sort+slice instead.",
+      "evidence": "evidence/app/functions.mjs (listMessagesPage NOTE), debug-take.mjs retained in the external build dir"
+    },
+    "presenceWedge": {
+      "question": "Why does useSnapbackPresence/observeSnapbackPresence never reach 'ready' in the A2 UI?",
+      "matrix": [
+        {
+          "setup": "provider with NO live-query observers, managed presence value",
+          "outcome": "room live, publisher published, entries delivered (Bob, first run)"
+        },
+        {
+          "setup": "provider with active observeSnapbackQueries observers, managed presence value",
+          "outcome": "room stuck connection='connecting', status 'stale', publisher 'publishing' forever; deltas from OTHER publishers still arrive"
+        },
+        {
+          "setup": "same, with explicit createSnapbackReactProvider connectionId",
+          "outcome": "identical wedge (selfKey adopts the label; room still never ready)"
+        },
+        {
+          "setup": "dedicated presence-only provider per persona over the same session bearer",
+          "outcome": "both personas ready+published, entries [Alice, Bob] on both sides (retained ui-smoke.json)"
+        }
+      ],
+      "headlessContrast": "SnapbackClient.subscribeEphemeral overlays multiplexed with concurrent live queries on separate connection labels worked throughout the acceptance suite (A2-05, A2-11).",
+      "conclusion": "React-arm managed presence room fails to complete its readiness handshake whenever the same provider already owns live-query subscriptions; finding 0137-a2-f1."
+    },
+    "ephemeralReferenceMismatch": {
+      "question": "Why is api.ephemeral.chatPresence refused by the prepared React binding?",
+      "bindingConstructedReference": { "schemaVersion": "snapback.v1" },
+      "generatedApiReference": { "schemaVersion": "snapback.v0" },
+      "allOtherFieldsEqual": true,
+      "conclusion": "canonicalizeClientValueV1 comparison fails on schemaVersion alone, so every generated ephemeral reference is rejected with SNAPBACK_REACT_REFERENCE_INVALID; workaround is binding.ephemeral.<name>; finding 0137-a2-f2."
+    }
+  }
+}

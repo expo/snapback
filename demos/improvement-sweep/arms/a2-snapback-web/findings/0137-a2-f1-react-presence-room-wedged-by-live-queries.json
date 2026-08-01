@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "findingId": "0137-a2-f1-react-presence-room-wedged-by-live-queries",
+  "dimension": "react-reactivity-and-lifecycle",
+  "observation": {
+    "description": "On @expo/snapback-react 0.1.7, a provider that owns any active live-query subscription never brings its managed presence room out of 'connecting': the presence state stays 'stale' with publisher 'publishing' indefinitely, while remote deltas still arrive into the wedged room. A presence-only provider on the same session works immediately (ready/published, both personas visible). Explicit provider connectionId does not help. The headless subscribeEphemeral overlay path multiplexes fine with concurrent live queries, so this is React-provider room readiness, not the ephemeral lane. Consequence: the documented one-provider App pattern (queries + useSnapbackPresence together, exactly what clients/react.md teaches) cannot show presence at all in a chat UI.",
+    "evidence": [
+      "demos/improvement-sweep/arms/a2-snapback-web/evidence/probes.json (presenceWedge matrix)",
+      "demos/improvement-sweep/arms/a2-snapback-web/evidence/app/ui-smoke.mjs (dedicated-provider workaround + wedge note)",
+      "demos/improvement-sweep/arms/a2-snapback-web/evidence/scenario-evidence.json (A2-05/A2-11 headless ephemeral contrast)"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Convex core has no native ephemeral presence at all (two explicit GAPs in the frozen chat arm), so Snapback's native presence is the differentiator — but only if the first-party React surface can actually render it beside live queries. The frozen evidence has no competitor React-presence baseline to lose to; the loss is against Snapback's own headless arm.",
+    "source": "frozen-0102",
+    "sourceDate": "2026-07-29",
+    "reference": "diaries/0028-chat-backend-bakeoff.diary.md (Convex arm, 'Realtime, offline, and ephemeral state')"
+  },
+  "classification": "defect",
+  "mustNotRegress": "The headless overlay contract (register-before-snapshot, TTL pruning, granted-id provenance) and the provider's zero-leak disposal, both of which pass today.",
+  "smallestCoherentFix": "Make the provider's presence room readiness proof correct when the managed socket is already open and owned by live-query demand (the room must observe existing socket readiness rather than waiting for a fresh transition), with a regression test that opens one provider with a live query and a managed presence value together.",
+  "acceptanceWitness": "A single prepared provider with one live query observer and one managed presence value reaches presence status 'ready' with publisher 'published' within the collection dispatch budget, on the packaged public closure.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a2-react-presence-room-wedged-by-live-queries.md"
+  },
+  "stopClass": false,
+  "budgetFinding": false
+}

@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "findingId": "0137-a2-f6-sessions-test-persona-recipe-undocumented",
+  "dimension": "diagnostics-docs-agent-usability-and-escape-hatches",
+  "observation": {
+    "description": "The guide teaches authRequestCode/authExchange with 'the code is read from the server's admin-gated mailbox' but never shows how to read it: the mailbox route appears only as a bare row in the capability index, its required x-snapback-impersonation-capability header (the dev.ready.json.impersonation sidecar) is named nowhere, SNAPBACK_AUTH_IMPERSONATION_REQUIRED does not say how to supply the capability (unlike the exemplary auth-protocol diagnostic, which names its exact header), and the working multi-persona recipe — request-code, mailbox with admin token + impersonation capability, exchange, then an external-bearer SnapbackClient with the five protocol offers — had to be learned from the packaged comparator-profile.mjs bytes (recorded as an assistance event). Constructing a bare client with authClientProtocol: 1 also refuses ('requires browser, agent, or explicit external-bearer custody') without pointing at createExternalSessionClient. Once known, the recipe is excellent: three real bearer-backed principals in ~100ms each.",
+    "evidence": [
+      "demos/improvement-sweep/arms/a2-snapback-web/run-capsule.json (assistanceEvents)",
+      "demos/improvement-sweep/arms/a2-snapback-web/evidence/app/acceptance.a2.mjs (signIn)",
+      "diaries/0042-a2-group-chat-sweep.diary.md (auth bring-up)"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "The frozen Convex arm's biggest ceremony was auth fixtures (custom JWT issuer, JWKS, key custody). Snapback's minted-session dev path is materially lighter — but only discoverable today by reading package internals, which forfeits the differentiator.",
+    "source": "frozen-0102",
+    "sourceDate": "2026-07-29",
+    "reference": "diaries/0028-chat-backend-bakeoff.diary.md (Convex arm, auth ceremony)"
+  },
+  "classification": "documentation",
+  "mustNotRegress": "The three-authority gate on the mailbox and mint paths (admin token + process-bound impersonation capability + non-production), and the refusal to let a browser hold any of them.",
+  "smallestCoherentFix": "A guide section (sessions-and-principals or testing/acceptance) with the complete dev/test persona recipe — mailbox route, exact header names, sidecar location, createExternalSessionClient — plus SNAPBACK_AUTH_IMPERSONATION_REQUIRED naming its expected carrier the way the auth-protocol diagnostic does.",
+  "acceptanceWitness": "A cold external agent following only the guide mints two personas and passes a cross-principal acceptance check without reading any package or repository source; the diagnostic's message names the header.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a2-guide-gap-sessions-test-persona-recipe.md"
+  },
+  "stopClass": false,
+  "budgetFinding": false
+}

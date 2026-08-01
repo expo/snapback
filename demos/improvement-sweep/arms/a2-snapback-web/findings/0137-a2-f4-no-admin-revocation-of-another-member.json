@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "findingId": "0137-a2-f4-no-admin-revocation-of-another-member",
+  "dimension": "authorization-and-revocation",
+  "observation": {
+    "description": "v1's private-roster posture forecloses a host/moderator removing another member: id-addressed ctx.membership.remove requires a private row id the app can never obtain, and the transition grammar's other-targeted operations are unreachable for removal. For group chat this rules out kick/ban — a table-stakes moderation operation — so A2-10 (revocation stops delivery to an already-connected client) was proven through self-revocation (leaveChannel), which exercised the same barrier: the established protected live handle blanked in ~1.7s, a post-revocation commit was not delivered, and the fresh read denial was the uniform SNAPBACK_AUTH_PERMISSION_DENIED {kind:'role'}.",
+    "evidence": [
+      "demos/improvement-sweep/arms/a2-snapback-web/evidence/scenario-evidence.json (A2-10)",
+      "demos/improvement-sweep/arms/a2-snapback-web/evidence/report.json (A2-10 pass note)"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "The frozen Convex chat arm implemented host-driven membership revocation directly (membership documents are app data): Bob's established private watch errored, fresh reads were denied, and a subsequent private message was not delivered.",
+    "source": "frozen-0102",
+    "sourceDate": "2026-07-29",
+    "reference": "diaries/0028-chat-backend-bakeoff.diary.md (Convex arm, revocation)"
+  },
+  "classification": "capability",
+  "mustNotRegress": "The revocation-active live barrier (blank-then-terminal-deny on an established handle) and the non-disclosing uniform denial, both proven by this arm.",
+  "smallestCoherentFix": "A declared other-targeted remove/setRole transition reachable without a private row id — e.g. principal-addressed generated commands (ctx.membership.<decl>.removePrincipal(resource, principal)) admitted only when the declaration's transition matrix authorizes the caller class, keeping the roster unenumerable.",
+  "acceptanceWitness": "Host removes a member by principal; the removed member's established live handle blanks and post-revocation commits are not delivered (the A2-10 shape, other-initiated); an unauthorized caller's attempt is the uniform role denial.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a2-no-admin-revocation-of-another-member.md"
+  },
+  "stopClass": false,
+  "budgetFinding": false
+}

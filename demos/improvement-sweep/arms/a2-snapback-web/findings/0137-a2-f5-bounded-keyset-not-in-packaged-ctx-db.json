@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "findingId": "0137-a2-f5-bounded-keyset-not-in-packaged-ctx-db",
+  "dimension": "relational-composition-and-aggregates",
+  "observation": {
+    "description": "Shared-visibility history pagination cannot do bounded storage work on the public 0.1.7 closure: the ctx.db handler chain has only eq/in/order/collect (as the guide documents), the bounded verbs Diary 0034 used on repo main (.lt/.gt/.take) fail at runtime as SNAPBACK_HANDLER_FAILED with details.message 'undefined is not a function' (codegen accepts the chain, so the failure is late and unnamed), and defineOwnedKeysetPages is owner-scoped only, which cannot express membership-visible channel history. The arm shipped collect+sort+slice over the channel with an opaque commit-order cursor — correct and stable (pages 5+5+2, union exact, cursor stable across appends) but O(channel) reads per page. Diary 0034's discoverability lesson about this exact surface remains unabsorbed by the guide, and for public consumers the surface itself is missing, not just undocumented.",
+    "evidence": [
+      "demos/improvement-sweep/arms/a2-snapback-web/evidence/probes.json (boundedKeyset)",
+      "demos/improvement-sweep/arms/a2-snapback-web/evidence/scenario-evidence.json (A2-03)",
+      "demos/improvement-sweep/arms/a2-snapback-web/evidence/app/functions.mjs (listMessagesPage NOTE)"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Convex's .paginate() returned stable cursors with bounded work directly in the frozen chat arm, and its query-builder types made the bounded path obvious; the Snapback main-rerun (Diary 0034) matched it with .lt/.take but had to source-dive to find the surface.",
+    "source": "frozen-0102",
+    "sourceDate": "2026-07-30",
+    "reference": "diaries/0028-chat-backend-bakeoff.diary.md; diaries/0034-campfire-main-rerun.diary.md (shared pagination)"
+  },
+  "classification": "capability",
+  "mustNotRegress": "Codegen's closed-surface discipline and the deterministic server-order/cursor-stability facts this arm proved with the collect-based page.",
+  "smallestCoherentFix": "Ship the bounded builder verbs (.lt/.gt/.lte/.gte/.take) in the packaged inline-handler runtime with static codegen validation of the chain (so an unsupported verb fails generation with a named diagnostic, not a runtime 'undefined is not a function'), and document the complete ctx.db chain in the guide's handler section.",
+  "acceptanceWitness": "An external 0.1.x consumer paginates a two-source-visible table with withIndex(...).gt(cursorField, boundary).order(...).take(n) under an acceptance check that asserts bounded row reads and page-union exactness; codegen rejects a misspelled verb by name.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a2-guide-gap-bounded-keyset-not-in-packaged-ctx-db.md"
+  },
+  "stopClass": false,
+  "budgetFinding": false
+}

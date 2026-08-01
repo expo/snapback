@@ -1,0 +1,9 @@
+{
+  "seedVersion": "2026-08-01.1",
+  "tables": {
+    "channels": [
+      { "_id": "chan_general", "name": "general", "visibility": "public" },
+      { "_id": "chan_field_notes", "name": "field-notes", "visibility": "public" }
+    ]
+  }
+}

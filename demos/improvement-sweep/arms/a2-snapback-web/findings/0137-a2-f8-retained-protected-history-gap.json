@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "findingId": "0137-a2-f8-retained-protected-history-gap",
+  "dimension": "retained-offline-and-reconnect-settlement",
+  "observation": {
+    "description": "A2-08 (previously loaded history readable offline) is an explicit GAP on this arm: in sessions mode every channel query is authority-scoped, and the JS/React arm's default durable store refuses protected retention with the exact fact on the handle — retention {retainable:false, code:'SNAPBACK_RETENTION_NOT_RETAINABLE', reason:'authority-scoped query: retained display requires the LLP 0043/0053 lease machinery (Contract arm); protected queries are never cold-retained on this arm'} while rqsStoreInfo shows a durable file store present. The refusal is honest, coded, and carried on the handle rather than silently acting local-first — but the product outcome is that a sessions-mode chat has no offline history on the JS/React arm.",
+    "evidence": [
+      "demos/improvement-sweep/arms/a2-snapback-web/evidence/scenario-evidence.json (A2-08)",
+      "demos/improvement-sweep/arms/a2-snapback-web/evidence/report.json (A2-08 gap)"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "The frozen Convex chat arm also recorded cold offline history as a GAP (reactive cache did not survive a cold offline boot), so no frozen competitor wins this fact today; Firebase's offline persistence is the strongest reference on the adjacent A1 contract.",
+    "source": "frozen-0102",
+    "sourceDate": "2026-07-29",
+    "reference": "diaries/0028-chat-backend-bakeoff.diary.md (Convex arm, offline GAP)"
+  },
+  "classification": "capability",
+  "mustNotRegress": "The retainability boundary itself: protected rows must never be cold-retained without the lease machinery, and the handle must keep naming the refusal instead of silently degrading.",
+  "smallestCoherentFix": "The already-owned lease-custody lane for the JS arm (capability index GAP row sync.offline-js-arm-protected): authorized-lease-bounded retention for sessions-scoped live queries, per LLP 0043/0053.",
+  "acceptanceWitness": "A sessions-mode client cold-boots with the backend unreachable and renders previously loaded channel history marked retained, then deletes it exactly at the lease deadline; Mallory's store never retains the private channel.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260731-js-arm-lease-custody-and-sessions-outbox.md (existing owned GAP; this arm adds A2 evidence)"
+  },
+  "stopClass": false,
+  "budgetFinding": false
+}

@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "findingId": "0137-a2-f3-membership-semijoin-cannot-list-own-channels",
+  "dimension": "relational-composition-and-aggregates",
+  "observation": {
+    "description": "The core chat sidebar query — 'the private channels I belong to' — is inexpressible against the membership declaration: membershipResource.rowField() refuses both a nonexistent field and the resource table's own '_id' (QUERY_MEMBERSHIP_RESOURCE_REF_INVALID: 'membership row field _id does not exist on channels'), and the arg() form gates one known channel rather than listing. There is also no non-throwing role test in JS handlers (requireRole denial is terminal), so a handler cannot filter rows by membership either. The arm was forced to maintain a parallel app-data channelSeats mirror in every membership-touching mutation — adjacent to the roster mirror the scoped-roles guide explicitly warns against — purely for listing.",
+    "evidence": [
+      "demos/improvement-sweep/arms/a2-snapback-web/evidence/app/schema.mjs (channelSeats comment)",
+      "demos/improvement-sweep/arms/a2-snapback-web/evidence/app/functions.mjs (listMyPrivateChannels + seat writes)",
+      "diaries/0042-a2-group-chat-sweep.diary.md (codegen refusal transcript)"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "The frozen Convex chat arm modeled memberships as ordinary readable documents, so 'channels I belong to' was one indexed reactive query with no mirror; its cost was that membership privacy/authority is app-convention rather than host-owned.",
+    "source": "frozen-0102",
+    "sourceDate": "2026-07-29",
+    "reference": "diaries/0028-chat-backend-bakeoff.diary.md (Convex arm)"
+  },
+  "classification": "capability",
+  "mustNotRegress": "The private-roster posture itself: no existence oracle, no enumerable roster, denial that does not disclose whether the resource exists.",
+  "smallestCoherentFix": "A declaration-owned self-scoped projection — e.g. a generated 'myMemberships(declaration)' live query (or membershipResource.self() joinable against the resource table) that returns only the caller's own seats with their resource ids and roles, revocation-active like requireRole. That is the caller's own rows, so it does not breach the privacy posture.",
+  "acceptanceWitness": "An external app declares a resource-scoped membership and renders 'my channels' from one generated query, with an acceptance check that another principal's seats never appear and that self-removal live-updates the list — no app-data mirror table present.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a2-membership-semijoin-cannot-list-own-channels.md"
+  },
+  "stopClass": false,
+  "budgetFinding": false
+}

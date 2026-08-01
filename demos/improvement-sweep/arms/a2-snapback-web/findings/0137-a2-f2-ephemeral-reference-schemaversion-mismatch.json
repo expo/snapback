@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "findingId": "0137-a2-f2-ephemeral-reference-schemaversion-mismatch",
+  "dimension": "typescript-inference-and-contract-fidelity",
+  "observation": {
+    "description": "On 0.1.7, the generated api.mjs stamps every ephemeral collection reference with schemaVersion 'snapback.v0', while prepareReactBinding reconstructs its admitted reference from the schema manifest's schemaVersion 'snapback.v1'. The canonical comparison in admittedReactEphemeralDefinition therefore rejects every generated ephemeral reference with SNAPBACK_REACT_REFERENCE_INVALID ('React presence requires a complete generated ephemeral collection reference admitted by this binding') — the documented api.ephemeral.<name> path to useSnapbackPresence/observeSnapbackPresence is unusable. All other reference fields are byte-identical. Workaround: pass binding.ephemeral.<name> instead, which is undocumented.",
+    "evidence": [
+      "demos/improvement-sweep/arms/a2-snapback-web/evidence/probes.json (ephemeralReferenceMismatch)",
+      "demos/improvement-sweep/arms/a2-snapback-web/evidence/app/ui-smoke.mjs (binding.ephemeral workaround)"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Not competitor-comparable — a version-stamp inconsistency between two Snapback codegen consumers of the same declaration.",
+    "source": "none-available",
+    "sourceDate": "2026-08-01"
+  },
+  "classification": "defect",
+  "mustNotRegress": "The binding's strict canonical admission of generated references (fail-closed identity comparison) — the fix is to make both producers stamp one version, not to loosen the comparison.",
+  "smallestCoherentFix": "Emit the same schemaVersion in the generated api ephemeral references as the schema manifest carries (or derive the binding's constructed reference from the api reference), plus a packaged-closure conformance test that admits api.ephemeral.<name> through prepareReactBinding.",
+  "acceptanceWitness": "A fresh external scaffold with one ephemeral collection passes observeSnapbackPresence(provider, api.ephemeral.<name>, ...) to 'ready' on the public closure without touching binding internals.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a2-ephemeral-reference-schemaversion-mismatch.md"
+  },
+  "stopClass": false,
+  "budgetFinding": false
+}

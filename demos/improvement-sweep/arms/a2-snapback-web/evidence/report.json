@@ -1,0 +1,87 @@
+{
+  "schemaVersion": "sweep-a2.acceptance.v1",
+  "title": "LLP 0137 A2 snapback-web acceptance",
+  "startedAt": "2026-08-01T09:54:44.117Z",
+  "finishedAt": "2026-08-01T09:54:53.897Z",
+  "expectedChecks": 12,
+  "total": 12,
+  "passed": 11,
+  "gaps": 1,
+  "failed": 0,
+  "short": false,
+  "ok": true,
+  "results": [
+    {
+      "id": "A2-01-SEED",
+      "result": "pass",
+      "ms": 20,
+      "note": "seed exact (2 channels @v1); personas minted"
+    },
+    {
+      "id": "A2-02-CHANNELS",
+      "result": "pass",
+      "ms": 169,
+      "note": "membership transitions + both negatives are SNAPBACK_AUTH_PERMISSION_DENIED {kind:role}"
+    },
+    {
+      "id": "A2-03-HISTORY",
+      "result": "pass",
+      "ms": 327,
+      "note": "pages 5+5+2 cover 12 in commit order; cursor stable"
+    },
+    {
+      "id": "A2-04-REALTIME",
+      "result": "pass",
+      "ms": 58,
+      "note": "push delivery in 38ms, meta kinds authorization_snapshot,authorization_quarantine,authorization_snapshot"
+    },
+    {
+      "id": "A2-05-EPHEMERAL",
+      "result": "pass",
+      "ms": 3064,
+      "note": "typing travels ephemeral lane, TTL-expires, durable version untouched"
+    },
+    {
+      "id": "A2-06-UNREAD",
+      "result": "pass",
+      "ms": 307,
+      "note": "unread rises on both clients, clears on both after one markRead, survives resubscribe"
+    },
+    {
+      "id": "A2-07-RECONNECT",
+      "result": "pass",
+      "ms": 408,
+      "note": "severed socket, missed commit recovered, 3 rows exactly once; states live>polling>connecting>live"
+    },
+    {
+      "id": "A2-08-RETAINED",
+      "result": "gap",
+      "ms": 32,
+      "note": "retained offline history GAP on the sessions-mode JS arm: retention={\"retainable\":false,\"code\":\"SNAPBACK_RETENTION_NOT_RETAINABLE\",\"reason\":\"authority-scoped query: retained display requires the LLP 0043/0053 lease machinery (Contract arm); protected queries are never cold-retained on this arm\",\"store\":{\"source\":\"default\",\"implementation\":\"file\",\"durable\":true,\"reason\":null}} store={\"source\":\"default\",\"implementation\":\"file\",\"durable\":true,\"reason\":null}"
+    },
+    {
+      "id": "A2-09-CONCURRENT",
+      "result": "pass",
+      "ms": 306,
+      "note": "both concurrent sends kept, ordered by commit version; keyed retry idempotent"
+    },
+    {
+      "id": "A2-10-REVOCATION",
+      "result": "pass",
+      "ms": 1726,
+      "note": "established handle blanked (13→0), post-revocation commit not delivered, fresh read SNAPBACK_AUTH_PERMISSION_DENIED"
+    },
+    {
+      "id": "A2-11-PRESENCE-DURABILITY",
+      "result": "pass",
+      "ms": 1410,
+      "note": "20 publishes, durable version pinned at 25, zero write amplification"
+    },
+    {
+      "id": "A2-12-CLEANUP",
+      "result": "pass",
+      "ms": 50,
+      "note": "literal seed restored; arm-created state absent; unrelated baseline (seed rows) preserved"
+    }
+  ]
+}

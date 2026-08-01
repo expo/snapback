@@ -5,7 +5,7 @@
 **Systems:** Competitive evaluation, Demo applications, React, React/Expo, Exact Native, Developer experience, Data modeling, Realtime, Offline sync, Auth, Assets, Search, Actions, Scheduled work, Deployment, Operations, Testing, Documentation
 **Author:** Charlie Cheever / Codex / Claude
 **Date:** 2026-07-31
-**Revised:** 2026-07-31 (v3 purpose inversion per Charlie's direction: the program now exists to surface what would make Snapback better, not to prove Snapback is better — that proof is deferred until the improvement well runs dry. Phase 1 is a Snapback-first improvement sweep over all six contracts as an external npm consumer, with a mid-program fix loop, frozen-evidence-first competitor referencing, and demand-driven fresh probes; the symmetric championship — core/extension matrix, composite, ranking controls — is preserved compactly as deferred Phase 2 behind a dry-well trigger. Ranking-fairness controls that obstruct improvement, chiefly the single frozen Snapback revision and atomic rounds, move to Phase 2; honesty controls stay). 2026-07-31 (v2 efficiency restructure: sixteen-arm symmetric core over A1–A4 plus five extension arms; contract lineage to LLP 0102 with a zero-new-arm longitudinal comparison; atomic per-contract rounds; Track B baseline + checkpoint; former open questions 1–5 resolved). 2026-07-31 (refine pass: challenger gate unified; composite comparability scoped; Track B eligibility rule; cross-references verified). 2026-07-31 (initial draft: a four-backend React-web championship, a separately scored Expo validation, a Snapback-only Exact Native graduation exercise, and selective specialist challengers, all gated on public-package consumption)
+**Revised:** 2026-08-01 (A2 arm status note: first diaried sweep arm complete — 11 pass / 1 GAP / 0 fail; findings 0137-a2-f1..f8 filed; freeze re-verified). 2026-07-31 (v3 purpose inversion per Charlie's direction: the program now exists to surface what would make Snapback better, not to prove Snapback is better — that proof is deferred until the improvement well runs dry. Phase 1 is a Snapback-first improvement sweep over all six contracts as an external npm consumer, with a mid-program fix loop, frozen-evidence-first competitor referencing, and demand-driven fresh probes; the symmetric championship — core/extension matrix, composite, ranking controls — is preserved compactly as deferred Phase 2 behind a dry-well trigger. Ranking-fairness controls that obstruct improvement, chiefly the single frozen Snapback revision and atomic rounds, move to Phase 2; honesty controls stay). 2026-07-31 (v2 efficiency restructure: sixteen-arm symmetric core over A1–A4 plus five extension arms; contract lineage to LLP 0102 with a zero-new-arm longitudinal comparison; atomic per-contract rounds; Track B baseline + checkpoint; former open questions 1–5 resolved). 2026-07-31 (refine pass: challenger gate unified; composite comparability scoped; Track B eligibility rule; cross-references verified). 2026-07-31 (initial draft: a four-backend React-web championship, a separately scored Expo validation, a Snapback-only Exact Native graduation exercise, and selective specialist challengers, all gated on public-package consumption)
 **Related:** LLP 0000, LLP 0010, LLP 0015, LLP 0016, LLP 0035, LLP 0041, LLP 0044, LLP 0064, LLP 0074, LLP 0093, LLP 0102, LLP 0103, LLP 0105, LLP 0107, LLP 0114, LLP 0115, LLP 0129, LLP 0130, LLP 0132, LLP 0133, LLP 0135, LLP 0136, Diary 0027–0039
 
 ## Summary
@@ -581,3 +581,35 @@ runtime-readiness receipt/doc, orphaned `secret-read-root` sidecar) as
 that re-froze `protocol/freeze.v1.json` (the plan document is inside the
 freeze boundary). Diaried sweep arms are now unblocked by G1; G2/G3 gate
 their tracks as frozen.
+
+A2 (Stage 2, first diaried sweep arm — snapback-web, calibration budget)
+executed 2026-08-01 and **completed**: all 12 frozen checks ran
+(expectedChecks enforced) with **11 pass, 1 explicit contract-sanctioned
+GAP (A2-08 retained protected history on the JS arm), 0 fail, 0 Stop**,
+in sessions mode against the public 0.1.7 closure from a clean external
+directory. Budget actuals: ~41 active minutes (5 orientation + 36 build)
+and ~115 build-phase tool calls against the 4h/200 calibration ceilings
+(records phase included, ~160 total); zero posture breaks; two
+recorded assistance events (both undocumented-package-bytes reads, each
+converted into a finding). Capsule, evidence, probe matrices, and app
+sources: `demos/improvement-sweep/arms/a2-snapback-web/`; diary:
+`diaries/0042-a2-group-chat-sweep.diary.md`. Eight findings filed
+(`0137-a2-f1..f8`, tickets `issues/20260801-0137-a2-*.md` plus one
+attachment to the owned JS-arm lease-custody GAP): headline defects are
+the React-arm presence pair — generated `api.ephemeral.*` references
+rejected by the prepared binding (schemaVersion v0/v1 mismatch) and the
+managed presence room wedged at `connecting` whenever the same provider
+owns any live query — which together make native presence unreachable
+from the documented React path while the headless overlay lane passes
+every ephemeral check. Capability findings: no self-scoped "my seats"
+membership projection (forces an app-data mirror for the chat sidebar),
+no principal-addressed admin revocation (kick/ban), and no bounded keyset
+verbs in the packaged ctx.db chain. Differentiator watch (protect while
+fixing): zero-durable-amplification ephemeral state verified against the
+store version, blank-then-terminal-deny revocation on established handles
+(~1.7s) with non-disclosing uniform denials, 33–37ms committed-row push,
+commit-order (`_version`) determinism and stable cursors, and the
+settlement envelope making keyed retries provably effect-free. This
+status note is a dated amendment inside the freeze boundary; the freeze
+was re-verified (and re-frozen for this plan digest) with the sweep's own
+scripts in the landing commit.

@@ -1,0 +1,209 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "arm": {
+    "contract": "a2",
+    "armKind": "snapback-web",
+    "platform": "web",
+    "provider": "snapback",
+    "attemptId": "a2-snapback-web-darwin-arm64-20260801"
+  },
+  "packageVersions": {
+    "@expo/snapback-cli": "0.1.7",
+    "@expo/snapback-app-cli": "0.1.7",
+    "@expo/snapback-client": "0.1.7",
+    "@expo/snapback-codegen": "0.1.7",
+    "@expo/snapback-contract": "0.1.7",
+    "@expo/snapback-react": "0.1.7",
+    "@expo/snapback-vite": "0.1.7",
+    "@expo/snapback-runtime-darwin-arm64": "0.1.7",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "vite": "8.2.0",
+    "typescript": "5.9.3"
+  },
+  "environment": {
+    "host": "macOS (Darwin 25.5.0), arm64",
+    "node": "24.18.0 (volta)",
+    "bun": "1.3.12",
+    "registry": "https://registry.npmjs.org",
+    "externalDirectory": "session scratchpad sweep-a2/consumer/chat-app — outside any Snapback checkout; scaffolded by `snapback new chat-app --template react`, then the frozen neutral-web shell was merged in as the UI (chat view wired live, other five views static)",
+    "sanctionedDocumentation": [
+      "the shipped Snapback guide (index, capabilities, your-first-backend, authoring-loop, queries, mutations, standard-patterns, trusted-runtime-values, live-queries, ephemeral-state, presence-cursors recipe, sessions-and-principals, protecting-data, scoped-roles, native-apps, host-ops, headless, react, acceptance, offline-and-retention)",
+      "installed public package bytes under node_modules (product the consumer receives)"
+    ],
+    "authMode": "sessions (email-code provider; the honest posture for an auth-bearing contract; dev mode was rejected because its client-asserted userId would make every negative check vacuous)",
+    "nodeModulesFootprint": "194 MiB total, 93 MiB @expo/* including both platform runtime packages"
+  },
+  "budget": {
+    "class": "calibration",
+    "ceilings": { "activeHours": 4, "toolCalls": 200 },
+    "wallClock": {
+      "orientationStart": "2026-08-01T09:18:30Z",
+      "externalBuildStart": "2026-08-01T09:23:06Z",
+      "finalGreenVerification": "2026-08-01T09:58:30Z",
+      "activeBuildMinutes": 36,
+      "orientationMinutes": 5,
+      "recordsPhase": "09:59Z-10:10Z (findings, capsule, diary, freeze/ref checks, commit)"
+    },
+    "toolCalls": {
+      "throughFinalVerification": 112,
+      "recordsPhaseEstimate": "~45 additional",
+      "sandboxRefusedRetries": 3,
+      "note": "counted from the session transcript; well under the 200-call ceiling including records"
+    },
+    "ceilingExceeded": false
+  },
+  "actors": {
+    "builder": "Claude (Fable 5), LLP 0137 Stage 2 first diaried sweep arm, external-consumer posture",
+    "personas": {
+      "alice": "alice@sweep-a2.test (channel host)",
+      "bob": "bob@sweep-a2.test (invited member; second device bob2 for A2-06)",
+      "mallory": "mallory@sweep-a2.test (authenticated outsider)"
+    },
+    "principalDerivation": "server-minted sessions via email-code exchange; principals are server UUIDs, never client-asserted"
+  },
+  "targets": {
+    "kind": "fresh-isolated-local",
+    "targetProfile": "local-dev-sqlite-ibex",
+    "appId": "chat-app",
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:33fae8bce2a73bb3d53e7a2e043f7b93715acc4c3c875c7e87fc3763b1d40f11",
+    "database": "app-local .snapback/dev.sqlite3, deleted before each suite run so the supervisor creates a fresh managed database and installs the versioned seed",
+    "serverUrl": "http://127.0.0.1:4288",
+    "port": 4288,
+    "portDiscipline": "dev-supervisor-assigned; suite asserts != 4420 (fleet-shared)",
+    "runtimeBinary": "node_modules/@expo/snapback-runtime-darwin-arm64/bin/snapback, sha256 6c5c956750edc1be016823824bf5e28a3e969810aed6d7299cf5f593fa2023fe, build stamp fdd49db8 (clean, release) — matches the 0.1.7 publication ledger",
+    "hostedTarget": "none — A2 is a local-target contract; hosted sessions auth is a known product GAP outside this arm's scope"
+  },
+  "milestones": {
+    "closureInstalled": "2026-08-01T09:23:14Z (npm, 13 packages, ~8s)",
+    "scaffolded": "2026-08-01T09:24Z (snapback new --template react + bun install 869ms)",
+    "backendAuthored": "2026-08-01T09:25-09:28Z (5 tables incl. membership + 2 ephemeral collections, 12 operations; three codegen fail-closed iterations)",
+    "firstServerLoaded": "2026-08-01T09:28:50Z (snapback dev, generated-and-loaded)",
+    "firstRead": "2026-08-01T09:30:46Z (session mint + listPublicChannels)",
+    "firstMutation": "2026-08-01T09:30:47Z (createPrivateChannel bootstrap)",
+    "verifiedRealtime": "2026-08-01T09:34:35Z (A2-04 stream push, 33-37ms delivery)",
+    "localAcceptance12Checks": "2026-08-01T09:38Z (11 pass + 1 explicit GAP, expectedChecks=12 enforced)",
+    "uiTypecheckAndBuild": "2026-08-01T09:43Z (tsc --noEmit clean; vite build 363ms)",
+    "reactRuntimeSmoke": "2026-08-01T09:58Z (ui-smoke green after presence-defect diagnosis ~09:45-09:53; final 12-check rerun 09:54:44-09:54:53)",
+    "hostedUrl": "not-applicable (local contract)",
+    "cleanup": "2026-08-01T09:59Z (no arm processes, port 4288 free; unrelated fleet servers untouched; re-proven 10:05Z)"
+  },
+  "assistanceEvents": [
+    {
+      "elapsedMs": 420000,
+      "kind": "undocumented-package-bytes",
+      "reason": "the guide teaches authExchange with 'mailbox.code' but documents neither the mailbox retrieval nor the x-snapback-impersonation-capability carrier; SNAPBACK_AUTH_IMPERSONATION_REQUIRED does not name it",
+      "informationSupplied": "read installed @expo/snapback-cli/comparator-profile.mjs bytes: mailbox route + header names + external-bearer client construction",
+      "equivalentOpportunityOffered": "same bytes ship to every public consumer; filed as finding 0137-a2-f6 so the guide absorbs it",
+      "postureBreak": false
+    },
+    {
+      "elapsedMs": 300000,
+      "kind": "undocumented-package-bytes",
+      "reason": "diagnosing SNAPBACK_REACT_REFERENCE_INVALID for generated ephemeral references required reading installed @expo/snapback-client/react-binding.mjs to find the canonical comparison",
+      "informationSupplied": "binding reconstructs references with the schema manifest's snapback.v1 while api.mjs stamps snapback.v0",
+      "equivalentOpportunityOffered": "same bytes ship to every public consumer; filed as defect finding 0137-a2-f2",
+      "postureBreak": false
+    }
+  ],
+  "postureBreaks": [],
+  "commands": [
+    "npm install --save-exact @expo/snapback-{cli,app-cli,client,codegen,contract,react,vite}@0.1.7",
+    "snapback new chat-app --template react && bun install",
+    "snapback generate snapback (x6 over the arm; fail-closed diagnostics on 3)",
+    "snapback dev snapback (spawned per run; stdin-close stop)",
+    "node acceptance.a2.mjs (12-check suite, spawns/owns its dev server)",
+    "tsc --noEmit && vite build",
+    "node ui-smoke.mjs (React provider runtime proof)",
+    "node debug-ephemeral.mjs / debug-take.mjs (defect isolation probes)"
+  ],
+  "scenarioResults": [
+    { "id": "A2-01-SEED", "result": "pass", "evidencePaths": ["evidence/report.json", "evidence/scenario-evidence.json"], "note": "versioned seed installs exactly 2 channels on a fresh managed database; 3 distinct authenticated principals; second-client snapshot at the same version" },
+    { "id": "A2-02-CHANNELS", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "bootstrap host seat + invited/member transitions; Mallory read AND stream subscribe both SNAPBACK_AUTH_PERMISSION_DENIED {kind:'role'}" },
+    { "id": "A2-03-HISTORY", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "pages 5+5+2 over server commit order (_version), union exact, opaque cursor stable across appended writes; bounded storage work not expressible (finding f5)" },
+    { "id": "A2-04-REALTIME", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "second client, transport:'stream', 33-37ms committed-row delivery, attributed authorId; no poll() called, no polling fallback" },
+    { "id": "A2-05-EPHEMERAL", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "typing over the ephemeral lane: snapshot+delta overlay, server-stamped expiry, TTL expiry observed, durable version untouched; key is the opaque granted connection id" },
+    { "id": "A2-06-UNREAD", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "two clients of one principal both rise to 1 and clear to 0 from one markRead; marker survives resubscribe (authoritative channelReads row)" },
+    { "id": "A2-07-RECONNECT", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "admin-side disconnect of the granted wire id; commit lands while severed; auto-reconnect resnapshots to the exact authoritative row set, zero duplicates" },
+    { "id": "A2-08-RETAINED", "result": "gap", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "sessions-scoped history not retainable on the JS arm: handle names SNAPBACK_RETENTION_NOT_RETAINABLE (lease machinery is Contract-arm); durable file store present; finding f8 attaches to the owned GAP row" },
+    { "id": "A2-09-CONCURRENT", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "Promise.all cross-principal sends both commit with distinct versions; observed order equals commit-version order; keyed retry returns the original id with changed_count 0 and no new row" },
+    { "id": "A2-10-REVOCATION", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "established protected live handle blanks ~1.7s after self-revocation; post-revocation commit not delivered; fresh read denied uniformly. Admin kick foreclosed in v1 (finding f4)" },
+    { "id": "A2-11-PRESENCE-DURABILITY", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "20 presence publishes across two principals: durable version pinned, zero durable rows added — the zero-write-amplification claim verified against the store" },
+    { "id": "A2-12-CLEANUP", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "seed-true reset restores the literal 2 seed rows; arm-created channels absent post-cleanup; suite-owned server stopped, port freed; nothing outside the arm-owned database touched" }
+  ],
+  "expectedCheckCount": 12,
+  "findings": [
+    "0137-a2-f1-react-presence-room-wedged-by-live-queries",
+    "0137-a2-f2-ephemeral-reference-schemaversion-mismatch",
+    "0137-a2-f3-membership-semijoin-cannot-list-own-channels",
+    "0137-a2-f4-no-admin-revocation-of-another-member",
+    "0137-a2-f5-bounded-keyset-not-in-packaged-ctx-db",
+    "0137-a2-f6-sessions-test-persona-recipe-undocumented",
+    "0137-a2-f7-raw-reset-breaks-versioned-seed-identity",
+    "0137-a2-f8-retained-protected-history-gap"
+  ],
+  "differentiators": [
+    {
+      "observation": "Native ephemeral typing/presence with typed declarations, TTL, rate budgets, and verified zero durable write amplification (20 publishes, durable version pinned). The frozen Convex chat arm needed durable TTL rows plus heartbeat/cleanup glue and still recorded typing and presence as explicit GAPs.",
+      "mustNotRegress": "The ephemeral lane never touches durable versions, and the declaration carries TTL/rate/value budgets the server enforces.",
+      "referenceEvidence": "evidence/scenario-evidence.json A2-05/A2-11 vs diaries/0028-chat-backend-bakeoff.diary.md (Convex GAPs)"
+    },
+    {
+      "observation": "Revocation-active protected live handles: an established subscription blanks ~1.7s after the authority change, later commits are not delivered, and every denial is the uniform non-disclosing SNAPBACK_AUTH_PERMISSION_DENIED {kind:'role'} — read and subscribe alike. This matches the strongest frozen competitor result (Convex) while adding the non-disclosure property.",
+      "mustNotRegress": "Blank-then-terminal-deny ordering on established handles and byte-uniform denials that reveal neither resource nor membership existence.",
+      "referenceEvidence": "evidence/scenario-evidence.json A2-02/A2-10"
+    },
+    {
+      "observation": "Cross-client push delivery of a committed row in 33-37ms over the managed stream with meta-kind attribution, comparable to the frozen Convex 40ms median, with the whole 12-check suite (three sessions, revocation, reconnect, TTL waits included) finishing in ~9s.",
+      "mustNotRegress": "Durable live delivery produced from the committed write set (never partial mutations) over the multiplexed managed socket.",
+      "referenceEvidence": "evidence/report.json (per-check ms) vs diaries/0028 Convex performance table"
+    },
+    {
+      "observation": "Settlement-grade idempotency evidence for free: the structured mutation envelope (result + changed_count + version + receipt) plus a unique dedupe index made 'retry returns the original id with changed_count 0' a one-line machine assertion. No frozen competitor arm surfaced retry effect-neutrality in its envelope.",
+      "mustNotRegress": "The closed mutation result envelope and one-commit-one-version semantics.",
+      "referenceEvidence": "evidence/scenario-evidence.json A2-09"
+    },
+    {
+      "observation": "Dev-loop lifecycle as protocol: ready descriptor + snapback.dev.v1 events + stdin-close stop made every suite/smoke own its server without log parsing; sessions minting for tests is ~100ms per persona once known — far lighter than the Convex custom-JWT ceremony the frozen arm fought.",
+      "mustNotRegress": "The machine-readable ready/lifecycle contract and the three-authority gate on dev session minting.",
+      "referenceEvidence": "evidence/app/acceptance.a2.mjs lifecycle preamble; finding f6 (the recipe must become documentation to count)"
+    },
+    {
+      "observation": "Server-authoritative deterministic message order came free from _version (commit order): no app sequence counter, no OCC hot row under concurrent sends, and the cursor stayed stable across appends.",
+      "mustNotRegress": "Monotonic per-commit versions shared by all rows of a commit, exposed on documents results.",
+      "referenceEvidence": "evidence/scenario-evidence.json A2-03/A2-09"
+    }
+  ],
+  "inventory": {
+    "authored": {
+      "backend": "snapback/schema.mjs (105 lines), snapback/functions.mjs (352), snapback/seed.json (9)",
+      "ui": "src/App.tsx (311, neutral shell + wired chat view), src/main.tsx (145, sessions sign-in boot)",
+      "acceptance": "acceptance.a2.mjs (642, 12 checks + own harness), ui-smoke.mjs (205)",
+      "probes": "debug-ephemeral.mjs, debug-take.mjs (defect isolation, retained in the external dir)"
+    },
+    "scaffolded": "react template (12 files) from snapback new",
+    "generated": "57 codegen files, 12 operations, inputsHash 33fae8bc…",
+    "glue": "one app-data channelSeats mirror forced by finding f3; no gateway, poller, or normalization layer",
+    "evidenceRetained": [
+      "evidence/report.json",
+      "evidence/scenario-evidence.json",
+      "evidence/probes.json",
+      "evidence/app/*"
+    ]
+  },
+  "attribution": {
+    "transport": "managed WebSocket stream (transport:'stream', no polling fallback) for durable live; ephemeral lane over the same multiplexed socket for typing/presence; poll() never used as evidence",
+    "authority": "server-authoritative sessions mode: server-minted principals, membership-declaration requireRole gates on every private-channel operation, revocation-active live barriers; dev userId assertion never used",
+    "settlement": "structured mutation envelopes (result, changed_count, version, receipt) asserted per check; idempotent retry proven effect-free by changed_count 0 + unchanged authoritative counts; reservation-stale retry path never triggered"
+  },
+  "stopDefects": [],
+  "cleanup": {
+    "processes": "no processes under the arm's app directory after the final run; the suite and smokes stop their own spawned dev child via stdin close and verify exit",
+    "listeners": "port 4288 free at arm end; port 4420 never used (asserted in-suite)",
+    "unrelatedState": "fleet-owned snapback servers from other sessions observed running and deliberately untouched (kernel stop rule)",
+    "database": "arm-owned .snapback/dev.sqlite3 reset to the literal seed by A2-12, then left in the session-isolated scratchpad; no secrets copied into any record",
+    "externalDirectory": "scratchpad sweep-a2/consumer/chat-app retained as the working area; durable evidence copied into this arms/ directory"
+  },
+  "result": "complete"
+}

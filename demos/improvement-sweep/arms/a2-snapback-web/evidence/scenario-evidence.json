@@ -1,0 +1,224 @@
+{
+  "A2-01": {
+    "targetIdentity": {
+      "serverUrl": "http://127.0.0.1:4288",
+      "port": 4288,
+      "runtime": null,
+      "buildStamp": null,
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:33fae8bce2a73bb3d53e7a2e043f7b93715acc4c3c875c7e87fc3763b1d40f11",
+      "appId": "chat-app",
+      "authMode": "sessions"
+    },
+    "seedReceipt": {
+      "reset": true,
+      "seeded": true,
+      "seedVersion": "2026-08-01.1"
+    },
+    "authoritativeCounts": {
+      "channels": 2,
+      "version": 1
+    },
+    "personas": {
+      "alice": "019fbcbf-5e59-78f9-b7da-27ce6df4804f",
+      "bob": "019fbcbf-5e6d-7996-9278-0bd46ff422d7",
+      "mallory": "019fbcbf-5e7d-7377-b8f2-e7afece1d32e"
+    }
+  },
+  "A2-02": {
+    "privateChannelId": "019fbcbf-5eaa-7cc1-8dfc-7028ca061e2e",
+    "actorAttribution": {
+      "messageAuthor": "019fbcbf-5e59-78f9-b7da-27ce6df4804f",
+      "sessionDerived": true
+    },
+    "negativeRead": "SNAPBACK_AUTH_PERMISSION_DENIED",
+    "negativeSubscription": "SNAPBACK_AUTH_PERMISSION_DENIED",
+    "inviteFlow": [
+      "bootstrap host",
+      "insert invited (by member)",
+      "setSelfRole member"
+    ],
+    "messageId": "019fbcbf-5ec3-75f1-b943-bc10e4d21b1a"
+  },
+  "A2-03": {
+    "pageSizes": [
+      5,
+      5,
+      2
+    ],
+    "cursorShape": "a2v1:<commitVersion>:<rowId> (opaque to the UI)",
+    "orderField": "_version (server commit order), _id tiebreak",
+    "unionMatchesAuthoritativeOrder": true,
+    "stableAcrossAppends": true
+  },
+  "A2-04": {
+    "transport": "stream (managed WebSocket, transport: stream, no fallback used)",
+    "subscriptionReceipt": null,
+    "updateMeta": [
+      {
+        "rows": 0,
+        "kind": "authorization_snapshot"
+      },
+      {
+        "rows": 0,
+        "kind": "authorization_quarantine"
+      },
+      {
+        "rows": 1,
+        "kind": "authorization_snapshot"
+      }
+    ],
+    "deliveryLatencyMs": 38,
+    "productPolling": false,
+    "note": "poll() never called; update arrived via managed stream onUpdate"
+  },
+  "A2-05": {
+    "transport": "ephemeral lane over the shared managed stream (snapshot+delta overlay)",
+    "durability": {
+      "durableVersionBefore": 18,
+      "durableVersionAfter": 18
+    },
+    "expiry": {
+      "ttlMs": 3000,
+      "observedExpiry": true,
+      "serverStampedExpiresAtMs": 1785578089637
+    },
+    "keyProvenance": "connection-owned opaque key (granted id)"
+  },
+  "A2-06": {
+    "twoClients": [
+      "bob_unread_1",
+      "bob_unread_2 (separate session client, same principal)"
+    ],
+    "authoritativeMarker": "channelReads.lastReadVersion, server-stamped via markChannelRead",
+    "unreadRise": 2,
+    "afterMarkRead": 0,
+    "reconnectMarker": 0
+  },
+  "A2-07": {
+    "disconnectProof": [
+      {
+        "at": 1785578089992,
+        "state": "live"
+      },
+      {
+        "at": 1785578089995,
+        "state": "polling"
+      },
+      {
+        "at": 1785578090326,
+        "state": "connecting"
+      },
+      {
+        "at": 1785578090336,
+        "state": "live"
+      },
+      {
+        "at": 1785578093850,
+        "state": "disconnected"
+      }
+    ],
+    "authoritativeCount": 3,
+    "duplicates": 0
+  },
+  "A2-08": {
+    "rqsStoreInfo": {
+      "source": "default",
+      "implementation": "file",
+      "durable": true,
+      "reason": null
+    },
+    "retention": {
+      "retainable": false,
+      "code": "SNAPBACK_RETENTION_NOT_RETAINABLE",
+      "reason": "authority-scoped query: retained display requires the LLP 0043/0053 lease machinery (Contract arm); protected queries are never cold-retained on this arm",
+      "store": {
+        "source": "default",
+        "implementation": "file",
+        "durable": true,
+        "reason": null
+      }
+    },
+    "publicRetention": {
+      "retainable": false,
+      "code": "SNAPBACK_RETENTION_NOT_RETAINABLE",
+      "reason": "authority-scoped query: retained display requires the LLP 0043/0053 lease machinery (Contract arm); protected queries are never cold-retained on this arm",
+      "store": {
+        "source": "default",
+        "implementation": "file",
+        "durable": true,
+        "reason": null
+      }
+    }
+  },
+  "A2-09": {
+    "commitVersions": {
+      "a": 23,
+      "b": 22
+    },
+    "dedupeKey": "(channelId, clientKey) unique index + read-back",
+    "retryChangedCount": 0
+  },
+  "A2-10": {
+    "authorityChange": "channelMembers.removeSelf (self-revocation; admin kick foreclosed in v1)",
+    "alreadyConnectedClient": "bob_private_live established before revocation",
+    "blankObserved": true,
+    "negativeDelivery": "no rows after post-revocation commit",
+    "freshReadDenied": "SNAPBACK_AUTH_PERMISSION_DENIED",
+    "updateTrail": [
+      {
+        "rows": 13,
+        "kind": "authorization_snapshot"
+      },
+      {
+        "rows": 0,
+        "kind": "authorization_quarantine"
+      },
+      {
+        "rows": 0,
+        "kind": "authorization_delete"
+      },
+      {
+        "rows": 0,
+        "kind": "authorization_delete"
+      },
+      {
+        "rows": 0,
+        "kind": "authorization_delete"
+      },
+      {
+        "rows": 0,
+        "kind": "authorization_delete"
+      },
+      {
+        "rows": 0,
+        "kind": "authorization_delete"
+      }
+    ]
+  },
+  "A2-11": {
+    "publishes": 20,
+    "durableVersion": {
+      "before": 25,
+      "after": 25
+    },
+    "durableRowCounts": {
+      "before": 5,
+      "after": 5
+    },
+    "claim": "guide realtime/ephemeral-state: ephemeral values are never durable — verified against the store version"
+  },
+  "A2-12": {
+    "targetBoundPlan": "reset scoped to this suite-owned dev database only; no other process/port touched",
+    "cleanupReceipt": {
+      "seeded": {
+        "version": 1,
+        "changed_count": 2,
+        "result": null
+      }
+    },
+    "postCleanupNegative": {
+      "privateChannels": 0,
+      "publicChannels": 2
+    }
+  }
+}
