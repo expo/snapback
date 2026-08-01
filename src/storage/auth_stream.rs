@@ -361,7 +361,7 @@ pub(super) fn read_authorization_version_on(
 
 /// Read both halves of the authorization pair from one SQLite snapshot when
 /// the caller is outside an existing transaction.
-pub(super) fn read_authorization_version_snapshot(
+pub(crate) fn read_authorization_version_snapshot(
     conn: &Connection,
 ) -> SnapbackResult<Option<AuthorizationVersion>> {
     super::with_pinned_read_snapshot(conn, read_authorization_version_on)

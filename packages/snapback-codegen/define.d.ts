@@ -426,7 +426,15 @@ export interface SearchIndexSpec<Fields extends Record<string, Validator>> {
   equalityFilters?: Array<keyof Fields & string>;
   storedFields?: Array<keyof Fields & string>;
   highlightFields?: Array<keyof Fields & string>;
-  visibility?: { kind: 'public-read' } | { kind: 'owner'; field: keyof Fields & string };
+  visibility?:
+    | { kind: 'public-read' }
+    | { kind: 'owner'; field: keyof Fields & string }
+    | {
+      kind: 'membership';
+      declaration: string | MembershipTableBuilder;
+      resourceField: keyof Fields & string;
+      roles?: readonly string[];
+    };
   sourceLimits?: {
     maxIndexedBytes?: number;
     maxTokens?: number;
@@ -495,6 +503,7 @@ export declare function defineSearchQuery(spec: {
   table: TableBuilder;
   index: string;
   auth?: AuthRequirement;
+  resourceArg?: string;
 }): unknown;
 
 export interface RelationalVisibilitySpec {

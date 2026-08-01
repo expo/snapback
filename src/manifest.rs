@@ -3093,6 +3093,10 @@ pub fn validate_relational_query_plan_shape(plan: &RelationalQueryPlan) -> Snapb
 pub fn validate_search_query_plan_shape(plan: &SearchQueryPlanV1) -> SnapbackResult<()> {
     if plan.table.trim().is_empty()
         || plan.index.trim().is_empty()
+        || plan
+            .resource_arg
+            .as_ref()
+            .is_some_and(|resource_arg| resource_arg.trim().is_empty())
         || plan.parser != crate::search::types::SEARCH_PARSER
         || plan.result_projection != "search-page-v1"
         || plan.required_capability != crate::search::types::SEARCH_CAPABILITY

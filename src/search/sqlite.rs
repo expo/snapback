@@ -264,6 +264,16 @@ fn partition_for(index: &SearchIndexManifestV1, row: &Value) -> SnapbackResult<S
                     format!("owner search source is missing string field {field}"),
                 )
             }),
+        SearchVisibilityV1::Membership { resource_field, .. } => row
+            .get(resource_field)
+            .and_then(Value::as_str)
+            .map(|value| format!("membership:{value}"))
+            .ok_or_else(|| {
+                diagnostic(
+                    "SNAPBACK_SEARCH_MAINTENANCE_FAILED",
+                    format!("membership search source is missing string field {resource_field}"),
+                )
+            }),
     }
 }
 
@@ -786,6 +796,7 @@ fn scan_table_rows(
 }
 
 fn validate_index_declaration(
+    schema: &SchemaManifest,
     table: &TableManifest,
     index: &SearchIndexManifestV1,
 ) -> SnapbackResult<()> {
@@ -846,12 +857,51 @@ fn validate_index_declaration(
         .chain(stored)
         .map(ToOwned::to_owned)
         .collect::<BTreeSet<String>>();
-    if let SearchVisibilityV1::Owner { field } = &index.visibility {
-        let owner = source_fields.get(field.as_str()).ok_or_else(invalid)?;
-        if owner.optional || !matches!(owner.field_type, FieldType::String | FieldType::Principal) {
-            return Err(invalid());
+    match &index.visibility {
+        SearchVisibilityV1::Owner { field } => {
+            let owner = source_fields.get(field.as_str()).ok_or_else(invalid)?;
+            if owner.optional
+                || !matches!(owner.field_type, FieldType::String | FieldType::Principal)
+            {
+                return Err(invalid());
+            }
+            participating_non_text.insert(field.clone());
         }
-        participating_non_text.insert(field.clone());
+        SearchVisibilityV1::Membership {
+            declaration,
+            resource_field,
+            roles,
+        } => {
+            let resource = source_fields
+                .get(resource_field.as_str())
+                .ok_or_else(invalid)?;
+            if resource.optional
+                || !matches!(
+                    resource.field_type,
+                    FieldType::String | FieldType::Principal | FieldType::Id { .. }
+                )
+            {
+                return Err(invalid());
+            }
+            let (_, membership) = crate::membership_rules::find_declaration(schema, declaration)
+                .ok_or_else(invalid)?;
+            if membership.scope != crate::manifest::MembershipScope::Resource {
+                return Err(invalid());
+            }
+            if let Some(roles) = roles {
+                let unique = roles.iter().collect::<BTreeSet<_>>();
+                if roles.is_empty()
+                    || unique.len() != roles.len()
+                    || roles
+                        .iter()
+                        .any(|role| !membership.vocabulary().any(|known| known == role))
+                {
+                    return Err(invalid());
+                }
+            }
+            participating_non_text.insert(resource_field.clone());
+        }
+        SearchVisibilityV1::PublicRead => {}
     }
     for field in index.text_fields.keys() {
         participating_non_text.remove(field);
@@ -899,7 +949,7 @@ pub fn activate_manifest_in_tx(
 ) -> SnapbackResult<()> {
     for table in &schema.tables {
         for index in &table.search_indexes {
-            validate_index_declaration(table, index)?;
+            validate_index_declaration(schema, table, index)?;
             let index_manifest_digest = manifest_digest(index)?;
             let existing: Option<(u64, String, String, String, String, Option<String>)> = tx
                 .query_row(
@@ -1623,10 +1673,49 @@ pub fn query_search_on(
             "search query plan names an unsupported semantic profile",
         ));
     }
+    let membership_visibility = matches!(index.visibility, SearchVisibilityV1::Membership { .. });
+    if membership_visibility != plan.resource_arg.is_some() {
+        return Err(diagnostic(
+            "SNAPBACK_SEARCH_QUERY_INVALID",
+            "membership search visibility and resourceArg must be present together",
+        ));
+    }
+    let membership_resource = plan
+        .resource_arg
+        .as_deref()
+        .map(|resource_arg| {
+            input
+                .args
+                .get(resource_arg)
+                .and_then(Value::as_str)
+                .filter(|value| !value.is_empty())
+                .map(ToOwned::to_owned)
+                .ok_or_else(|| {
+                    diagnostic(
+                        "SNAPBACK_SEARCH_QUERY_INVALID",
+                        format!(
+                            "membership search requires non-empty string argument {resource_arg}"
+                        ),
+                    )
+                })
+        })
+        .transpose()?;
+    let mut request_args = input.args.clone();
+    if let Some(resource_arg) = &plan.resource_arg {
+        request_args
+            .as_object_mut()
+            .ok_or_else(|| {
+                diagnostic(
+                    "SNAPBACK_SEARCH_QUERY_INVALID",
+                    "membership search arguments must be an object",
+                )
+            })?
+            .remove(resource_arg);
+    }
     // @ref LLP 0131#runtime-ingress-validation — the request parse delegates
     // through the shared args-contract seam so this special case and the
     // SchemaRef delegation are one path-carrying serde authority.
-    let request: SearchRequestV1 = crate::args_contract::parse_search_request(&input.args)?;
+    let request: SearchRequestV1 = crate::args_contract::parse_search_request(&request_args)?;
     let limit = request.limit.unwrap_or(20);
     if !(1..=SEARCH_MAX_LIMIT).contains(&limit) {
         return Err(diagnostic(
@@ -1644,6 +1733,11 @@ pub fn query_search_on(
             "active search generation has the wrong manifest digest",
         ));
     }
+    let mut membership_declaration = None;
+    let mut membership_roles = None;
+    let mut authorization_incarnation = None;
+    let mut authorization_epoch = None;
+    let mut seat_admitted = true;
     let partition = match &index.visibility {
         SearchVisibilityV1::PublicRead => "public".to_owned(),
         SearchVisibilityV1::Owner { .. } => authority
@@ -1655,7 +1749,72 @@ pub fn query_search_on(
                     "owner search requires a canonical effective-user subject",
                 )
             })?,
+        SearchVisibilityV1::Membership {
+            declaration, roles, ..
+        } => {
+            let subject = authority.owner_subject.ok_or_else(|| {
+                diagnostic(
+                    "SNAPBACK_SEARCH_QUERY_INVALID",
+                    "membership search requires a canonical effective-user subject",
+                )
+            })?;
+            let resource = membership_resource
+                .as_deref()
+                .expect("resourceArg consistency checked above");
+            let (membership_table, membership) =
+                crate::membership_rules::find_declaration(schema, declaration).ok_or_else(
+                    || {
+                        diagnostic(
+                            "SNAPBACK_SEARCH_INDEX_UNAVAILABLE",
+                            "membership search declaration is unavailable",
+                        )
+                    },
+                )?;
+            let resource_column = membership.resource.as_ref().ok_or_else(|| {
+                diagnostic(
+                    "SNAPBACK_SEARCH_INDEX_UNAVAILABLE",
+                    "membership search declaration is not resource-scoped",
+                )
+            })?;
+            let authorization =
+                crate::storage::auth_stream::read_authorization_version_snapshot(conn)?
+                    .ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_AUTHORIZATION_VERSION_CORRUPT",
+                            "auth",
+                            "authorization-version metadata is missing",
+                        )
+                    })?;
+            authorization_incarnation = Some(authorization.incarnation);
+            authorization_epoch = Some(authorization.epoch);
+            membership_declaration = Some(declaration.clone());
+            membership_roles = roles.clone();
+
+            // `membership_probe_plan` deliberately ignores the optional expiry
+            // column: expiry becomes effective only when the declared sweep
+            // removes the row, so direct search seat resolution mirrors it.
+            // @ref LLP 0100#8-the-membership-composition-family-routed-sibling-surfaces
+            let sql = format!(
+                "SELECT {role} FROM {table} WHERE {principal}=?1 AND {resource}=?2",
+                role = crate::storage::quote_ident(&membership.role)?,
+                table = crate::storage::quote_ident(&membership_table.name)?,
+                principal = crate::storage::quote_ident(&membership.principal)?,
+                resource = crate::storage::quote_ident(resource_column)?,
+            );
+            let role: Option<String> = conn
+                .query_row(&sql, params![subject, resource], |row| row.get(0))
+                .optional()?;
+            let admitted_roles =
+                crate::membership_rules::effective_roles(membership, roles.as_deref());
+            seat_admitted = role
+                .as_ref()
+                .is_some_and(|role| admitted_roles.iter().any(|allowed| allowed == role));
+            format!("membership:{resource}")
+        }
     };
+    // @ref LLP 0100#8-the-membership-composition-family-routed-sibling-surfaces —
+    // membership custody, including the current authorization version, is
+    // compared before posting traversal and collapses to the uniform restart.
     let after = request
         .after
         .as_deref()
@@ -1676,6 +1835,11 @@ pub fn query_search_on(
                 || body.limit != limit
                 || body.authority_instance != authority.authority_instance
                 || body.owner_subject.as_deref() != authority.owner_subject
+                || body.membership_resource.as_ref() != membership_resource.as_ref()
+                || body.membership_declaration.as_ref() != membership_declaration.as_ref()
+                || body.membership_roles.as_ref() != membership_roles.as_ref()
+                || body.authorization_incarnation.as_ref() != authorization_incarnation.as_ref()
+                || body.authorization_epoch != authorization_epoch
                 || body.release_policy_digest != authority.release_policy_digest
                 || body.row_id_direction != "asc"
             {
@@ -1685,8 +1849,13 @@ pub fn query_search_on(
         })
         .transpose()?;
 
-    let candidate_ids =
-        posting_candidates(conn, &table.name, index, generation, &partition, &query)?;
+    let candidate_ids = if seat_admitted {
+        posting_candidates(conn, &table.name, index, generation, &partition, &query)?
+    } else {
+        // No seat follows the exact ordinary zero-candidate page path. This
+        // keeps outsider, revoked, and nonexistent-resource observations equal.
+        BTreeSet::new()
+    };
     let mut statement = conn.prepare(
         "SELECT row_id,source_version,partition_key,row_json,filters_json,fields_json,
                 tombstone,tokens_json,content_digest
@@ -1827,7 +1996,7 @@ pub fn query_search_on(
     ranked.truncate(limit as usize);
     let mut items = Vec::new();
     for (score, source, matched_tokens) in &ranked {
-        // Current authoritative source version/owner recheck in this pinned
+        // Current authoritative source version/visibility recheck in this pinned
         // snapshot. A mismatch is drift: no partial page is released.
         let quoted = crate::storage::quote_ident(&table.name)?;
         let current: Option<(u64, Option<String>)> = conn
@@ -1836,6 +2005,9 @@ pub fn query_search_on(
                     "SELECT \"_version\", {} FROM {quoted} WHERE \"_id\"=?1",
                     match &index.visibility {
                         SearchVisibilityV1::Owner { field } => crate::storage::quote_ident(field)?,
+                        SearchVisibilityV1::Membership { resource_field, .. } => {
+                            crate::storage::quote_ident(resource_field)?
+                        }
                         SearchVisibilityV1::PublicRead => "NULL".to_owned(),
                     }
                 ),
@@ -1843,12 +2015,17 @@ pub fn query_search_on(
                 |row| Ok((row.get::<_, i64>(0)? as u64, row.get(1)?)),
             )
             .optional()?;
-        let current_partition = current
-            .as_ref()
-            .and_then(|(_, owner)| owner.as_ref())
-            .map(|owner| format!("owner:{owner}"));
+        let current_partition =
+            current
+                .as_ref()
+                .and_then(|(_, value)| value.as_ref())
+                .map(|value| match &index.visibility {
+                    SearchVisibilityV1::Owner { .. } => format!("owner:{value}"),
+                    SearchVisibilityV1::Membership { .. } => format!("membership:{value}"),
+                    SearchVisibilityV1::PublicRead => unreachable!("public selects NULL"),
+                });
         if current.as_ref().map(|(version, _)| *version) != Some(source.source_version)
-            || matches!(&index.visibility, SearchVisibilityV1::Owner { .. })
+            || !matches!(&index.visibility, SearchVisibilityV1::PublicRead)
                 && current_partition.as_deref() != Some(partition.as_str())
         {
             return Err(diagnostic(
@@ -1902,6 +2079,11 @@ pub fn query_search_on(
                     key_generation: key_generation.clone(),
                     issued_at: authority.now_ms,
                     expires_at: authority.now_ms.saturating_add(SEARCH_CURSOR_TTL_MS),
+                    membership_resource: membership_resource.clone(),
+                    membership_declaration: membership_declaration.clone(),
+                    membership_roles: membership_roles.clone(),
+                    authorization_incarnation: authorization_incarnation.clone(),
+                    authorization_epoch,
                 },
             )
             .map_err(|_| {
@@ -1928,8 +2110,11 @@ pub fn query_search_on(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::manifest::{FieldManifest, FieldType, SeedData};
-    use crate::storage::LocalDatabase;
+    use crate::manifest::{
+        FieldManifest, FieldType, MembershipManifest, MembershipOp, MembershipScope,
+        MembershipTarget, MembershipTransition, SeedData,
+    };
+    use crate::storage::{LocalDatabase, MembershipWriter};
     use std::path::PathBuf;
     use std::time::{Duration, Instant};
 
@@ -1939,67 +2124,140 @@ mod tests {
         } else {
             SearchFieldClassV1::Private
         };
+        let mut field_classifications = BTreeMap::from([
+            ("owner".to_owned(), classification),
+            ("status".to_owned(), classification),
+        ]);
+        if matches!(visibility, SearchVisibilityV1::Membership { .. }) {
+            field_classifications.insert("resource".to_owned(), classification);
+        }
         SchemaManifest {
             required_capabilities: vec![SEARCH_CAPABILITY.to_owned()],
-            tables: vec![TableManifest {
-                name: "incidents".to_owned(),
-                fields: ["title", "summary", "status", "owner"]
-                    .into_iter()
-                    .map(|name| FieldManifest {
-                        name: name.to_owned(),
+            tables: vec![
+                TableManifest {
+                    name: "incidents".to_owned(),
+                    fields: ["title", "summary", "status", "owner", "resource"]
+                        .into_iter()
+                        .map(|name| FieldManifest {
+                            name: name.to_owned(),
+                            field_type: FieldType::String,
+                            optional: false,
+                        })
+                        .collect(),
+                    indexes: Vec::new(),
+                    search_indexes: vec![SearchIndexManifestV1 {
+                        format_version: 1,
+                        name: "search_incidents".to_owned(),
+                        semantic_version: "incident-search.v1".to_owned(),
+                        analyzer: SEARCH_ANALYZER.to_owned(),
+                        analyzer_tables_digest:
+                            crate::search::unicode17_generated::ANALYZER_TABLES_DIGEST.to_owned(),
+                        text_fields: BTreeMap::from([
+                            (
+                                "summary".to_owned(),
+                                SearchTextFieldV1 {
+                                    weight: 4,
+                                    classification,
+                                },
+                            ),
+                            (
+                                "title".to_owned(),
+                                SearchTextFieldV1 {
+                                    weight: 8,
+                                    classification,
+                                },
+                            ),
+                        ]),
+                        field_classifications,
+                        equality_filters: vec!["status".to_owned()],
+                        stored_fields: vec![
+                            "owner".to_owned(),
+                            "status".to_owned(),
+                            "summary".to_owned(),
+                            "title".to_owned(),
+                        ],
+                        highlight_fields: vec!["summary".to_owned(), "title".to_owned()],
+                        visibility,
+                        tie_break: "score-desc-row-id-asc.v1".to_owned(),
+                        source_limits: Default::default(),
+                        query_limits: Default::default(),
+                        cursor_limits: Default::default(),
+                        maintenance_limits: Default::default(),
+                    }],
+                    syncable: false,
+                    permission_backing: false,
+                    permission_fields: None,
+                    membership: None,
+                    asset_sharing: None,
+                },
+                TableManifest {
+                    name: "rooms".to_owned(),
+                    fields: vec![FieldManifest {
+                        name: "name".to_owned(),
                         field_type: FieldType::String,
                         optional: false,
-                    })
-                    .collect(),
-                indexes: Vec::new(),
-                search_indexes: vec![SearchIndexManifestV1 {
-                    format_version: 1,
-                    name: "search_incidents".to_owned(),
-                    semantic_version: "incident-search.v1".to_owned(),
-                    analyzer: SEARCH_ANALYZER.to_owned(),
-                    analyzer_tables_digest:
-                        crate::search::unicode17_generated::ANALYZER_TABLES_DIGEST.to_owned(),
-                    text_fields: BTreeMap::from([
-                        (
-                            "summary".to_owned(),
-                            SearchTextFieldV1 {
-                                weight: 4,
-                                classification,
+                    }],
+                    indexes: Vec::new(),
+                    search_indexes: Vec::new(),
+                    syncable: false,
+                    permission_backing: false,
+                    permission_fields: None,
+                    membership: None,
+                    asset_sharing: None,
+                },
+                TableManifest {
+                    name: "room_members".to_owned(),
+                    fields: vec![
+                        FieldManifest {
+                            name: "userId".to_owned(),
+                            field_type: FieldType::Principal,
+                            optional: false,
+                        },
+                        FieldManifest {
+                            name: "roomId".to_owned(),
+                            field_type: FieldType::Id {
+                                table: "rooms".to_owned(),
                             },
-                        ),
-                        (
-                            "title".to_owned(),
-                            SearchTextFieldV1 {
-                                weight: 8,
-                                classification,
-                            },
-                        ),
-                    ]),
-                    field_classifications: BTreeMap::from([
-                        ("owner".to_owned(), classification),
-                        ("status".to_owned(), classification),
-                    ]),
-                    equality_filters: vec!["status".to_owned()],
-                    stored_fields: vec![
-                        "owner".to_owned(),
-                        "status".to_owned(),
-                        "summary".to_owned(),
-                        "title".to_owned(),
+                            optional: false,
+                        },
+                        FieldManifest {
+                            name: "role".to_owned(),
+                            field_type: FieldType::String,
+                            optional: false,
+                        },
                     ],
-                    highlight_fields: vec!["summary".to_owned(), "title".to_owned()],
-                    visibility,
-                    tie_break: "score-desc-row-id-asc.v1".to_owned(),
-                    source_limits: Default::default(),
-                    query_limits: Default::default(),
-                    cursor_limits: Default::default(),
-                    maintenance_limits: Default::default(),
-                }],
-                syncable: false,
-                permission_backing: false,
-                permission_fields: None,
-                membership: None,
-                asset_sharing: None,
-            }],
+                    indexes: Vec::new(),
+                    search_indexes: Vec::new(),
+                    syncable: false,
+                    permission_backing: false,
+                    permission_fields: None,
+                    membership: Some(MembershipManifest {
+                        id: Some("roomMembers".to_owned()),
+                        principal: "userId".to_owned(),
+                        resource: Some("roomId".to_owned()),
+                        role: "role".to_owned(),
+                        roles: vec!["owner".to_owned(), "member".to_owned()],
+                        pending_roles: Some(vec!["invited".to_owned()]),
+                        bootstrap_role: None,
+                        last_holder: None,
+                        expiry: None,
+                        incidental: None,
+                        provenance: None,
+                        transitions: vec![MembershipTransition {
+                            op: MembershipOp::Remove,
+                            by: vec!["self".to_owned()],
+                            target: MembershipTarget::Own,
+                            from: None,
+                            to: None,
+                            fields: None,
+                        }],
+                        scope: MembershipScope::Resource,
+                        resource_table: Some("rooms".to_owned()),
+                        principal_addressed_writes: None,
+                    }),
+                    asset_sharing: None,
+                },
+            ],
             ..SchemaManifest::default()
         }
     }
@@ -2012,6 +2270,7 @@ mod tests {
                 "summary": "Checkout is slow",
                 "status": "open",
                 "owner": "alice"
+                ,"resource": "room-a"
             }),
             json!({
                 "_id": "incident-2",
@@ -2019,6 +2278,7 @@ mod tests {
                 "summary": "Payment latency",
                 "status": "open",
                 "owner": "alice"
+                ,"resource": "room-a"
             }),
             json!({
                 "_id": "incident-3",
@@ -2026,6 +2286,7 @@ mod tests {
                 "summary": "API latency",
                 "status": "open",
                 "owner": "bob"
+                ,"resource": "room-a"
             }),
             json!({
                 "_id": "incident-4",
@@ -2033,13 +2294,29 @@ mod tests {
                 "summary": "Historical incident",
                 "status": "resolved",
                 "owner": "alice"
+                ,"resource": "room-b"
             }),
         ]
         .into_iter()
         .map(|value| value.as_object().expect("seed object").clone())
         .collect();
         SeedData {
-            tables: BTreeMap::from([("incidents".to_owned(), rows)]),
+            tables: BTreeMap::from([
+                ("incidents".to_owned(), rows),
+                (
+                    "rooms".to_owned(),
+                    vec![
+                        json!({"_id": "room-a", "name": "Room A"})
+                            .as_object()
+                            .unwrap()
+                            .clone(),
+                        json!({"_id": "room-b", "name": "Room B"})
+                            .as_object()
+                            .unwrap()
+                            .clone(),
+                    ],
+                ),
+            ]),
         }
     }
 
@@ -2093,6 +2370,72 @@ mod tests {
         }
     }
 
+    fn membership_visibility(roles: Option<Vec<String>>) -> SearchVisibilityV1 {
+        SearchVisibilityV1::Membership {
+            declaration: "roomMembers".to_owned(),
+            resource_field: "resource".to_owned(),
+            roles,
+        }
+    }
+
+    fn membership_request(resource: &str, after: Option<String>, limit: u32) -> HandlerInput {
+        let mut input = request(after, limit);
+        input
+            .args
+            .as_object_mut()
+            .expect("request object")
+            .insert("resourceId".to_owned(), json!(resource));
+        input
+    }
+
+    fn search_page(output: QueryOutput) -> SearchPageV1 {
+        SearchPageV1 {
+            items: output
+                .rows
+                .into_iter()
+                .map(|row| serde_json::from_value(row).expect("search item"))
+                .collect(),
+            has_more: output.cursor.is_some(),
+            cursor: output.cursor,
+        }
+    }
+
+    fn grant_seat(db: &mut LocalDatabase, principal: &str, resource: &str, role: &str) -> String {
+        let writer = MembershipWriter::Admin;
+        let plan = db
+            .plan_privileged_membership_insert(
+                &writer,
+                "room_members",
+                Map::from_iter([
+                    ("userId".to_owned(), json!(principal)),
+                    ("roomId".to_owned(), json!(resource)),
+                    ("role".to_owned(), json!(role)),
+                ]),
+            )
+            .expect("plan membership seat");
+        let commit = db
+            .commit_membership_plan(&writer, plan)
+            .expect("commit membership seat");
+        commit
+            .changes
+            .iter()
+            .find(|change| change.table == "room_members")
+            .expect("membership insert change")
+            .id
+            .clone()
+    }
+
+    fn revoke_own_seat(db: &mut LocalDatabase, principal: &str, member_id: &str) {
+        let writer = MembershipWriter::User {
+            effective_principal: principal.to_owned(),
+        };
+        let plan = db
+            .plan_membership_remove(&writer, "room_members", member_id)
+            .expect("plan membership revocation");
+        db.commit_membership_plan(&writer, plan)
+            .expect("commit membership revocation");
+    }
+
     fn run(
         db: &LocalDatabase,
         input: &HandlerInput,
@@ -2105,6 +2448,23 @@ mod tests {
         view: &crate::storage::DbRead<'_>,
         input: &HandlerInput,
         owner_subject: Option<&str>,
+    ) -> SnapbackResult<QueryOutput> {
+        let resource_arg = view
+            .schema()
+            .table("incidents")
+            .and_then(|table| table.search_indexes.first())
+            .and_then(|index| {
+                matches!(index.visibility, SearchVisibilityV1::Membership { .. })
+                    .then_some("resourceId")
+            });
+        run_view_with_resource_arg(view, input, owner_subject, resource_arg)
+    }
+
+    fn run_view_with_resource_arg(
+        view: &crate::storage::DbRead<'_>,
+        input: &HandlerInput,
+        owner_subject: Option<&str>,
+        resource_arg: Option<&str>,
     ) -> SnapbackResult<QueryOutput> {
         let roots = vec![("cursor-root.v1".to_owned(), [7_u8; 32])];
         let authority = SearchExecutionAuthority {
@@ -2124,6 +2484,7 @@ mod tests {
             parser: SEARCH_PARSER.to_owned(),
             result_projection: "search-page-v1".to_owned(),
             required_capability: SEARCH_CAPABILITY.to_owned(),
+            resource_arg: resource_arg.map(ToOwned::to_owned),
         };
         view.search(&plan, input, &authority)
     }
@@ -2245,6 +2606,164 @@ mod tests {
         let error =
             run(&db, &request(Some(alice_cursor), 1), Some("bob")).expect_err("owner-bound cursor");
         assert_eq!(error.diagnostic.code, "SNAPBACK_SEARCH_CURSOR_RESTART");
+    }
+
+    #[test]
+    fn membership_member_sees_cross_owner_matches_within_resource() {
+        let mut db = seeded(membership_visibility(None));
+        grant_seat(&mut db, "carol", "room-a", "member");
+
+        let page = run(&db, &membership_request("room-a", None, 10), Some("carol"))
+            .expect("member-visible search");
+        let owners = page
+            .rows
+            .iter()
+            .map(|row| row["fields"]["owner"].as_str().unwrap())
+            .collect::<BTreeSet<_>>();
+        assert_eq!(owners, BTreeSet::from(["alice", "bob"]));
+        assert_eq!(page.rows.len(), 3);
+    }
+
+    #[test]
+    fn membership_outsider_empty_is_byte_identical_to_nonexistent_resource() {
+        let mut db = seeded(membership_visibility(None));
+        grant_seat(&mut db, "alice", "room-a", "member");
+
+        let outsider = search_page(
+            run(
+                &db,
+                &membership_request("room-a", None, 10),
+                Some("mallory"),
+            )
+            .expect("outsider gets empty success"),
+        );
+        let nonexistent = search_page(
+            run(
+                &db,
+                &membership_request("room-missing", None, 10),
+                Some("alice"),
+            )
+            .expect("nonexistent resource gets empty success"),
+        );
+        assert_eq!(
+            serde_json::to_value(outsider).unwrap(),
+            serde_json::to_value(nonexistent).unwrap()
+        );
+    }
+
+    #[test]
+    fn membership_revocation_zeroes_next_fresh_search() {
+        let mut db = seeded(membership_visibility(None));
+        let member_id = grant_seat(&mut db, "carol", "room-a", "member");
+        assert_eq!(
+            run(&db, &membership_request("room-a", None, 10), Some("carol"))
+                .expect("seated search")
+                .rows
+                .len(),
+            3
+        );
+
+        revoke_own_seat(&mut db, "carol", &member_id);
+        let revoked = search_page(
+            run(&db, &membership_request("room-a", None, 10), Some("carol"))
+                .expect("revoked search is empty success"),
+        );
+        let outsider = search_page(
+            run(
+                &db,
+                &membership_request("room-a", None, 10),
+                Some("mallory"),
+            )
+            .expect("outsider search is empty success"),
+        );
+        assert_eq!(
+            serde_json::to_value(revoked).unwrap(),
+            serde_json::to_value(outsider).unwrap()
+        );
+    }
+
+    #[test]
+    fn membership_stale_cursor_after_revocation_is_uniform_restart() {
+        let mut db = seeded(membership_visibility(None));
+        let member_id = grant_seat(&mut db, "carol", "room-a", "member");
+        let first = run(&db, &membership_request("room-a", None, 1), Some("carol"))
+            .expect("first member page");
+        let cursor = first.cursor.expect("member continuation");
+
+        revoke_own_seat(&mut db, "carol", &member_id);
+        let stale = run(
+            &db,
+            &membership_request("room-a", Some(cursor), 1),
+            Some("carol"),
+        )
+        .expect_err("revoked continuation restarts");
+        let garbage = run(
+            &db,
+            &membership_request("room-a", Some("garbage".to_owned()), 1),
+            Some("carol"),
+        )
+        .expect_err("garbage continuation restarts");
+        assert_eq!(stale.diagnostic.code, "SNAPBACK_SEARCH_CURSOR_RESTART");
+        assert_eq!(
+            serde_json::to_vec(&stale).unwrap(),
+            serde_json::to_vec(&garbage).unwrap()
+        );
+    }
+
+    #[test]
+    fn membership_partition_is_pushed_down_and_bound_into_cursors() {
+        let mut db = seeded(membership_visibility(None));
+        grant_seat(&mut db, "carol", "room-a", "member");
+        grant_seat(&mut db, "carol", "room-b", "member");
+        let room_a =
+            run(&db, &membership_request("room-a", None, 1), Some("carol")).expect("room-a page");
+        assert_eq!(room_a.rows.len(), 1);
+        let cursor = room_a.cursor.expect("room-a continuation");
+        assert!(
+            run(&db, &membership_request("room-b", None, 10), Some("carol"))
+                .expect("room-b partition")
+                .rows
+                .is_empty(),
+            "room-a matches must not be traversed through room-b"
+        );
+
+        let error = run(
+            &db,
+            &membership_request("room-b", Some(cursor), 1),
+            Some("carol"),
+        )
+        .expect_err("resource-bound cursor");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_SEARCH_CURSOR_RESTART");
+    }
+
+    #[test]
+    fn membership_roles_filter_admits_only_listed_roles() {
+        let mut member_db = seeded(membership_visibility(Some(vec!["owner".to_owned()])));
+        grant_seat(&mut member_db, "carol", "room-a", "member");
+        assert!(
+            run(
+                &member_db,
+                &membership_request("room-a", None, 10),
+                Some("carol")
+            )
+            .expect("wrong-role empty success")
+            .rows
+            .is_empty()
+        );
+
+        let mut owner_db = seeded(membership_visibility(Some(vec!["owner".to_owned()])));
+        grant_seat(&mut owner_db, "carol", "room-a", "owner");
+        assert_eq!(
+            run(
+                &owner_db,
+                &membership_request("room-a", None, 10),
+                Some("carol")
+            )
+            .expect("listed-role search")
+            .rows
+            .len(),
+            3
+        );
     }
 
     #[test]
@@ -2585,6 +3104,90 @@ mod tests {
     }
 
     #[test]
+    fn paired_membership_observations_do_not_reveal_other_resource_matches() {
+        let (_left_dir, _left_path, mut left) =
+            file_seeded(membership_visibility(None), "Checkout outage");
+        let (_right_dir, _right_path, mut right) =
+            file_seeded(membership_visibility(None), "Checkout outage");
+        grant_seat(&mut left, "carol", "room-a", "member");
+        grant_seat(&mut right, "carol", "room-a", "member");
+        right
+            .commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![crate::storage::BufferedWrite::Patch {
+                    table: "incidents".to_owned(),
+                    id: "incident-4".to_owned(),
+                    values: Map::from_iter([
+                        ("title".to_owned(), json!("Checkout hidden room")),
+                        ("summary".to_owned(), json!("Checkout hidden match")),
+                        ("status".to_owned(), json!("open")),
+                    ]),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect("add hidden other-resource match");
+
+        let input = membership_request("room-a", None, 1);
+        let left_page = run(&left, &input, Some("carol")).expect("left member page");
+        let right_page = run(&right, &input, Some("carol")).expect("right member page");
+        assert_eq!(left_page.rows, right_page.rows);
+        assert_eq!(left_page.cursor.is_some(), right_page.cursor.is_some());
+        assert_eq!(
+            left_page.cursor.as_ref().map(String::len),
+            right_page.cursor.as_ref().map(String::len)
+        );
+    }
+
+    #[test]
+    fn membership_visibility_validation_refuses_invalid_declarations_and_roles() {
+        let assert_invalid = |schema: &SchemaManifest| {
+            let table = schema.table("incidents").unwrap();
+            let error = validate_index_declaration(schema, table, &table.search_indexes[0])
+                .expect_err("invalid membership search declaration");
+            assert_eq!(
+                error.diagnostic.code,
+                "SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID"
+            );
+        };
+
+        let mut unknown = search_schema(membership_visibility(None));
+        if let SearchVisibilityV1::Membership { declaration, .. } =
+            &mut unknown.tables[0].search_indexes[0].visibility
+        {
+            *declaration = "missingDeclaration".to_owned();
+        }
+        assert_invalid(&unknown);
+
+        let mut app_scoped = search_schema(membership_visibility(None));
+        let membership = app_scoped.tables[2].membership.as_mut().unwrap();
+        membership.scope = MembershipScope::App;
+        membership.resource = None;
+        membership.resource_table = None;
+        assert_invalid(&app_scoped);
+
+        let outside_roles =
+            search_schema(membership_visibility(Some(vec!["moderator".to_owned()])));
+        assert_invalid(&outside_roles);
+    }
+
+    #[test]
+    fn membership_visibility_without_resource_arg_is_refused() {
+        let db = seeded(membership_visibility(None));
+        let error = db
+            .with_pinned_read_view(|view| {
+                run_view_with_resource_arg(
+                    &view,
+                    &membership_request("room-a", None, 10),
+                    Some("carol"),
+                    None,
+                )
+            })
+            .expect_err("membership search plan without resourceArg");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_SEARCH_QUERY_INVALID");
+    }
+
+    #[test]
     fn pinned_reader_survives_atomic_generation_switch() {
         let (_directory, path, db) = file_seeded(SearchVisibilityV1::PublicRead, "Checkout outage");
         drop(db);
@@ -2645,7 +3248,8 @@ mod tests {
                     "title": "Needle checkout",
                     "summary": format!("deterministic corpus row {index:04}"),
                     "status": "open",
-                    "owner": "alice"
+                    "owner": "alice",
+                    "resource": "room-a"
                 })
                 .as_object()
                 .unwrap()
@@ -2789,7 +3393,12 @@ mod tests {
         let minutes = page
             .rows
             .iter()
-            .map(|row| (row["rowId"].as_str().unwrap(), row["fields"]["minutes"].clone()))
+            .map(|row| {
+                (
+                    row["rowId"].as_str().unwrap(),
+                    row["fields"]["minutes"].clone(),
+                )
+            })
             .collect::<BTreeMap<_, _>>();
         assert_eq!(minutes["recipe-1"], json!(5.0));
         assert_eq!(minutes["recipe-2"], json!(7.5));

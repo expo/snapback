@@ -126,6 +126,11 @@ mod tests {
             key_generation: "k1".into(),
             issued_at: 100,
             expires_at: 120_100,
+            membership_resource: None,
+            membership_declaration: None,
+            membership_roles: None,
+            authorization_incarnation: None,
+            authorization_epoch: None,
         }
     }
 
@@ -152,5 +157,26 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn pre_membership_json_cursor_plaintext_remains_decodable() {
+        let mut legacy = serde_json::to_value(body()).unwrap();
+        let object = legacy.as_object_mut().unwrap();
+        for field in [
+            "membershipResource",
+            "membershipDeclaration",
+            "membershipRoles",
+            "authorizationIncarnation",
+            "authorizationEpoch",
+        ] {
+            object.remove(field);
+        }
+        let decoded: SearchCursorV1 = serde_json::from_value(legacy).unwrap();
+        assert_eq!(decoded.membership_resource, None);
+        assert_eq!(decoded.membership_declaration, None);
+        assert_eq!(decoded.membership_roles, None);
+        assert_eq!(decoded.authorization_incarnation, None);
+        assert_eq!(decoded.authorization_epoch, None);
     }
 }

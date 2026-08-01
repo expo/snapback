@@ -81,8 +81,23 @@ stored, or owner fields that are not text fields. `public-read` admits only
 public fields. Owner search instead declares
 `visibility: { kind: 'owner', field: 'ownerId' }`; the field must be a required
 string or principal and every query is pushed into the server-resolved
-effective user's partition. Membership and relation-derived visibility are
-not accepted in v1.
+effective user's partition.
+
+Membership-visible search (LLP 0073's 2026-08-01 amendment, commissioned by
+LLP 0100 §8a) declares
+`visibility: { kind: 'membership', declaration, resourceField, roles }`:
+`declaration` names a resource-scoped membership declaration, `resourceField`
+a required scalar field on the indexed rows, and `roles` (optional) narrows
+which seats are admitted. The generated search function then requires one
+equality-bound resource argument (`resourceArg` on `defineSearchQuery`), so
+every invocation searches exactly one resource's partition; the caller's seat
+is resolved in the same snapshot as the posting recheck. A caller with no
+admitted seat gets the empty page, byte-identical to a nonexistent resource;
+a continuation minted before a seat revocation fails with the uniform
+`SNAPBACK_SEARCH_CURSOR_RESTART` before any candidate is evaluated. Searching
+several resources means iterating your own seats — multi-seat union search is
+deliberately rejected. Other relation-derived visibility shapes remain
+unaccepted.
 
 Export the operation with
 `defineSearchQuery({ table: incidents, index: 'search_incidents' })`. It is an

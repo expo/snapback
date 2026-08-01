@@ -1364,6 +1364,36 @@
             "field"
           ],
           "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "declaration": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "membership",
+              "type": "string"
+            },
+            "resourceField": {
+              "type": "string"
+            },
+            "roles": {
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "declaration",
+            "resourceField"
+          ],
+          "type": "object"
         }
       ]
     },

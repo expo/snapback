@@ -62,6 +62,7 @@ const inventories = [
       'assets-watch-authorization.test.mjs',
       'assets.test.mjs',
       'attribution.test.mjs',
+      'bearer-rotation.test.mjs',
       'browser-closure.test.mjs',
       'bundle.test.mjs',
       'ephemeral-room.test.mjs',
@@ -73,13 +74,16 @@ const inventories = [
       'package.test.mjs',
       'reservation-retry.test.mjs',
       'rqs-digest-parity.test.mjs',
+      'rqs-resume-expo.test.mjs',
       'rqs-resume-native.test.mjs',
       'rqs-resume.test.mjs',
+      'rqs-store-expo.test.mjs',
       'rqs-store-file.test.mjs',
       'rqs-store.test.mjs',
       'sender-proof.test.mjs',
       'sender-transport.test.mjs',
       'search.test.mjs',
+      'webcrypto-fallback.test.mjs',
       'wire-version.test.mjs',
     ],
   },
@@ -120,7 +124,17 @@ const inventories = [
     packageDir: 'packages/snapback-react',
     testDir: '.',
     suffix: '.test.mjs',
-    expectedFiles: ['assets.test.mjs', 'lifecycle.test.mjs', 'offline.test.mjs', 'optimistic.test.mjs', 'package.test.mjs', 'presence.test.mjs'],
+    expectedFiles: [
+      'assets.test.mjs',
+      'authorization-denial.test.mjs',
+      'cold-boot-binding.test.mjs',
+      'lifecycle.test.mjs',
+      'offline.test.mjs',
+      'optimistic.test.mjs',
+      'package.test.mjs',
+      'presence.test.mjs',
+      'webcrypto-fallback.test.mjs',
+    ],
   },
   {
     id: '@expo/snapback-app-cli',
@@ -150,6 +164,7 @@ const inventories = [
       'inline-helper-sharing.test.mjs',
       'inline-result-contracts.test.mjs',
       'maintained-projections.test.mjs',
+      'membership-search-authoring.test.mjs',
       'operation-schemas.test.mjs',
       'provider-introspection.test.mjs',
       'protected-query-profile.test.mjs',
@@ -262,6 +277,7 @@ export function inspectInventory({ root = ROOT, inventory }) {
     ...command.matchAll(/(?:^|&&)\s*node\s+([^\s&]+\.mjs)(?=\s|$)/g),
   ])
     .map((match) => match[1].replace(/^\.\//, ''))
+    .filter((path) => path.endsWith(inventory.suffix))
     .sort();
 
   assert.deepEqual(
@@ -379,7 +395,15 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // @expo/snapback-codegen's seed-asset-fixtures.test.mjs (`a22fd5fd`,
 // LLP 0044 W2f). @expo/snapback-client also gains the focused LLP 0053
 // post-commit ACK, exact-redelivery, and apply-failure regression.
-assert.equal(total, 141, 'reviewed package/admin test count changed');
+// 141 -> 149 (2026-08-01, membership-visible search authoring):
+// @expo/snapback-codegen gains membership-search-authoring.test.mjs for the
+// LLP 0073 §membership visibility generated manifests, refusal matrix, and
+// required resource-argument types. The same inventory pass reconciles seven
+// already-configured suites that were added without a canonical inventory
+// update: @expo/snapback-client's bearer-rotation, Expo RQS store/resume, and
+// WebCrypto fallback; plus @expo/snapback-react's authorization-denial,
+// cold-boot-binding, and WebCrypto fallback.
+assert.equal(total, 149, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

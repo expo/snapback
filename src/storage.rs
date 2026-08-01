@@ -7725,9 +7725,9 @@ impl DbRead<'_> {
             DbRead::Pinned { conn, schema } => {
                 crate::search::query_search_on(conn, schema, plan, input, authority)
             }
-            DbRead::Live(db) => {
-                crate::search::query_search_on(&db.conn, &db.schema, plan, input, authority)
-            }
+            DbRead::Live(db) => with_pinned_read_snapshot(&db.conn, |conn| {
+                crate::search::query_search_on(conn, &db.schema, plan, input, authority)
+            }),
         }
     }
 
@@ -9634,6 +9634,42 @@ fn validate_schema(manifest: &SchemaManifest) -> SnapbackResult<()> {
                             "search",
                             format!(
                                 "owner search {}.{} requires a non-optional string/principal owner field",
+                                table.name, search.name
+                            ),
+                        ));
+                    }
+                }
+                crate::search::types::SearchVisibilityV1::Membership {
+                    declaration,
+                    resource_field,
+                    roles,
+                } => {
+                    let resource = ensure_field(table, resource_field)?;
+                    let declared = crate::membership_rules::find_declaration(manifest, declaration);
+                    let valid_roles = roles.as_ref().is_none_or(|roles| {
+                        !roles.is_empty()
+                            && roles.iter().collect::<BTreeSet<_>>().len() == roles.len()
+                            && declared.is_some_and(|(_, membership)| {
+                                roles.iter().all(|role| {
+                                    membership.vocabulary().any(|known| known == role)
+                                })
+                            })
+                    });
+                    if resource.optional
+                        || !matches!(
+                            resource.field_type,
+                            FieldType::String | FieldType::Principal | FieldType::Id { .. }
+                        )
+                        || !declared.is_some_and(|(_, membership)| {
+                            membership.scope == MembershipScope::Resource
+                        })
+                        || !valid_roles
+                    {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID",
+                            "search",
+                            format!(
+                                "membership search {}.{} requires one resource-scoped declaration, a required string/principal/id resource field, and declared roles",
                                 table.name, search.name
                             ),
                         ));

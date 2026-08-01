@@ -41,6 +41,14 @@ pub enum SearchFieldClassV1 {
 pub enum SearchVisibilityV1 {
     PublicRead,
     Owner { field: String },
+    Membership {
+        #[serde(rename = "declaration")]
+        declaration: String,
+        #[serde(rename = "resourceField")]
+        resource_field: String,
+        #[serde(rename = "roles", default, skip_serializing_if = "Option::is_none")]
+        roles: Option<Vec<String>>,
+    },
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
@@ -153,6 +161,8 @@ pub struct SearchQueryPlanV1 {
     pub parser: String,
     pub result_projection: String,
     pub required_capability: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resource_arg: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
@@ -327,6 +337,16 @@ pub struct SearchCursorV1 {
     pub key_generation: String,
     pub issued_at: u64,
     pub expires_at: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub membership_resource: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub membership_declaration: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub membership_roles: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub authorization_incarnation: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub authorization_epoch: Option<u64>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
@@ -370,7 +390,9 @@ impl FullTextSearchFactsV1 {
             pagination: "current-keyset-v1".to_owned(),
             cursor_ttl_ms: SEARCH_CURSOR_TTL_MS,
             accelerator: "none".to_owned(),
-            authorization_filters: vec!["public-read".to_owned(), "owner.v1".to_owned()],
+            authorization_filters: vec![
+                "public-read".to_owned(), "owner.v1".to_owned(), "membership.v1".to_owned(),
+            ],
             highlights: true,
             counts: false,
             facets: false,
@@ -386,6 +408,42 @@ impl FullTextSearchFactsV1 {
                 "sensitive-fields".to_owned(),
             ],
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn membership_manifest_wire_shapes_are_exact() {
+        assert_eq!(
+            serde_json::to_value(SearchVisibilityV1::Membership {
+                declaration: "roomMembers".to_owned(),
+                resource_field: "roomId".to_owned(),
+                roles: Some(vec!["owner".to_owned()]),
+            })
+            .unwrap(),
+            json!({
+                "kind": "membership",
+                "declaration": "roomMembers",
+                "resourceField": "roomId",
+                "roles": ["owner"],
+            })
+        );
+        assert_eq!(
+            serde_json::to_value(SearchQueryPlanV1 {
+                table: "messages".to_owned(),
+                index: "search_messages".to_owned(),
+                parser: SEARCH_PARSER.to_owned(),
+                result_projection: "search-page-v1".to_owned(),
+                required_capability: SEARCH_CAPABILITY.to_owned(),
+                resource_arg: Some("roomId".to_owned()),
+            })
+            .unwrap()["resourceArg"],
+            "roomId"
+        );
     }
 }
 

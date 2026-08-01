@@ -2699,6 +2699,12 @@
         "requiredCapability": {
           "type": "string"
         },
+        "resourceArg": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "resultProjection": {
           "type": "string"
         },

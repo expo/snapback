@@ -20500,11 +20500,11 @@ fn validate_function_schema_references(
             FunctionRuntime::HostPlan(HandlerPlan::SearchQuery(plan)) => {
                 crate::manifest::validate_search_query_plan_shape(plan)?;
                 let declared = table(&plan.table)?;
-                if !declared
+                let Some(index) = declared
                     .search_indexes
                     .iter()
-                    .any(|candidate| candidate.name == plan.index)
-                {
+                    .find(|candidate| candidate.name == plan.index)
+                else {
                     return Err(SnapbackError::error(
                         "SNAPBACK_SEARCH_INDEX_UNAVAILABLE",
                         "search",
@@ -20513,6 +20513,35 @@ fn validate_function_schema_references(
                             function.name, plan.table, plan.index
                         ),
                     ));
+                };
+                let membership_visibility = matches!(
+                    index.visibility,
+                    crate::search::types::SearchVisibilityV1::Membership { .. }
+                );
+                if membership_visibility != plan.resource_arg.is_some() {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_SEARCH_QUERY_PLAN_INVALID",
+                        "search",
+                        "search plan resourceArg must be present exactly for membership visibility",
+                    ));
+                }
+                if let (Some(resource_arg), Some(contract)) =
+                    (&plan.resource_arg, &function.args_contract)
+                {
+                    let declared_arg = contract
+                        .fields
+                        .iter()
+                        .find(|field| field.name == *resource_arg);
+                    if !declared_arg.is_some_and(|field| field.required) {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_SEARCH_QUERY_PLAN_INVALID",
+                            "search",
+                            format!(
+                                "search query {} resourceArg {resource_arg} must name a required declared argument",
+                                function.name
+                            ),
+                        ));
+                    }
                 }
             }
             // @ref LLP 0080#1-closed-relational-plan — activation validates
@@ -23429,6 +23458,10 @@ mod tests {
         ValueExpr, ctx_ledger_version,
     };
     use crate::runtime::ExecutedIbexMutation;
+    use crate::search::types::{
+        SEARCH_ANALYZER, SEARCH_CAPABILITY, SEARCH_PARSER, SearchFieldClassV1,
+        SearchIndexManifestV1, SearchQueryPlanV1, SearchTextFieldV1, SearchVisibilityV1,
+    };
     use crate::storage::BufferedWrite;
     use crate::storage::auth_grants::{ExactGrantScope, ScopedFunctionKind};
     use serde_json::{Map, Value, json};
@@ -23614,6 +23647,90 @@ mod tests {
         assert_eq!(
             error.diagnostic.code,
             "SNAPBACK_MEMBERSHIP_RESOURCE_REF_INVALID"
+        );
+    }
+
+    #[test]
+    fn membership_search_without_resource_arg_fails_at_manifest_load() {
+        let search = SearchIndexManifestV1 {
+            format_version: 1,
+            name: "search_events".to_owned(),
+            semantic_version: "events.v1".to_owned(),
+            analyzer: SEARCH_ANALYZER.to_owned(),
+            analyzer_tables_digest:
+                crate::search::unicode17_generated::ANALYZER_TABLES_DIGEST.to_owned(),
+            text_fields: BTreeMap::from([(
+                "title".to_owned(),
+                SearchTextFieldV1 {
+                    weight: 1,
+                    classification: SearchFieldClassV1::Private,
+                },
+            )]),
+            field_classifications: BTreeMap::from([(
+                "roomId".to_owned(),
+                SearchFieldClassV1::Private,
+            )]),
+            equality_filters: Vec::new(),
+            stored_fields: Vec::new(),
+            highlight_fields: Vec::new(),
+            visibility: SearchVisibilityV1::Membership {
+                declaration: "roomMembers".to_owned(),
+                resource_field: "roomId".to_owned(),
+                roles: None,
+            },
+            tie_break: "score-desc-row-id-asc.v1".to_owned(),
+            source_limits: Default::default(),
+            query_limits: Default::default(),
+            cursor_limits: Default::default(),
+            maintenance_limits: Default::default(),
+        };
+        let schema = SchemaManifest {
+            tables: vec![TableManifest {
+                name: "events".to_owned(),
+                fields: vec![
+                    FieldManifest {
+                        name: "title".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "roomId".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                ],
+                indexes: Vec::new(),
+                search_indexes: vec![search],
+                syncable: false,
+                permission_backing: false,
+                permission_fields: None,
+                membership: None,
+                asset_sharing: None,
+            }],
+            ..SchemaManifest::default()
+        };
+        let function = FunctionDefinition::new(
+            "search-events",
+            FunctionKind::Query,
+            FunctionRuntime::HostPlan(HandlerPlan::SearchQuery(SearchQueryPlanV1 {
+                table: "events".to_owned(),
+                index: "search_events".to_owned(),
+                parser: SEARCH_PARSER.to_owned(),
+                result_projection: "search-page-v1".to_owned(),
+                required_capability: SEARCH_CAPABILITY.to_owned(),
+                resource_arg: None,
+            })),
+        );
+        let manifest = FunctionManifest {
+            functions: vec![function],
+            ..FunctionManifest::default()
+        };
+
+        let error = validate_function_schema_references(&manifest, &schema)
+            .expect_err("membership search without resourceArg must fail at load");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_SEARCH_QUERY_PLAN_INVALID"
         );
     }
 

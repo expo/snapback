@@ -242,7 +242,18 @@ export function searchAstEmission() {
  * function's complete authored argument contract must agree with the exported
  * request schema's top level. Returns a list of problems; empty = agreement.
  */
-export function searchArgsSchemaProblems(args) {
+export function searchArgsSchemaProblems(args, options = {}) {
+  if (!options || typeof options !== 'object' || Array.isArray(options)) {
+    throw new TypeError('search argument schema options must be an object');
+  }
+  const optionNames = Object.keys(options);
+  if (optionNames.some((name) => name !== 'resourceArg')) {
+    throw new TypeError(`search argument schema options contain unknown fields [${optionNames}]`);
+  }
+  const resourceArg = options.resourceArg;
+  if (resourceArg !== undefined && (typeof resourceArg !== 'string' || resourceArg.length === 0)) {
+    throw new TypeError('search argument schema resourceArg must be a non-empty string');
+  }
   const emission = searchAstEmission();
   const problems = [];
   const { topLevel } = emission;
@@ -256,9 +267,13 @@ export function searchArgsSchemaProblems(args) {
   if (topLevel.limitKind !== 'integer') problems.push('exported schema limit is not an integer');
   if (topLevel.afterKind !== 'string') problems.push('exported schema after is not a string');
 
-  const names = Object.keys(args ?? {});
-  if (names.sort().join(',') !== 'after,limit,query') {
-    problems.push(`authored search arguments are [${names}] instead of [query, limit, after]`);
+  const names = Object.keys(args ?? {}).sort();
+  const expectedNames = ['after', 'limit', 'query', ...(resourceArg === undefined ? [] : [resourceArg])].sort();
+  if (names.join(',') !== expectedNames.join(',')) {
+    const expected = resourceArg === undefined
+      ? '[query, limit, after]'
+      : `[query, limit, after, ${resourceArg}]`;
+    problems.push(`authored search arguments are [${names}] instead of ${expected}`);
     return problems;
   }
   const query = args.query;
@@ -275,6 +290,9 @@ export function searchArgsSchemaProblems(args) {
   }
   if (args.after?.fieldType !== 'String' || args.after?.optional !== true) {
     problems.push('authored after argument must be an optional string');
+  }
+  if (resourceArg !== undefined && args[resourceArg]?.optional !== false) {
+    problems.push(`authored membership resource argument ${resourceArg} must be required`);
   }
   return problems;
 }

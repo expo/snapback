@@ -5,7 +5,7 @@
 **Systems:** Search, Storage, Schema, Code generation, Auth, Client integration, Admin, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-07-30 (Diary 0039 absorption, per LLP 0115 CV-5/10/11/12:
+**Revised:** 2026-08-01 (membership visibility amendment, commissioned by LLP 0100 §8a: third pushdown-compilable `membership` visibility variant with required equality-bound resource argument, one-snapshot seat resolution, outsider-empty ≡ nonexistent, authorization-version-bound continuations, and the two pinned post-revocation observables — see the dated section at the end). 2026-07-30 (Diary 0039 absorption, per LLP 0115 CV-5/10/11/12:
 (a) numeric canonicalization pin — stored/filter scalar bytes at the
 source-content digest and authoritative-release recheck boundary use RFC 8785
 number spelling, matching LLP 0080's portable scalar semantics; the Pantry
@@ -909,3 +909,100 @@ maintainer acceptance and executable target-specific evidence.
     bullet) or a Contract-owned surface (making it a cross-document wiring
     item). Either way the repair is propagation of the existing LLP
     0037-owned schema, not new type design. Tracked as LLP 0115 CV-5.
+
+## 2026-08-01 amendment: membership visibility (commissioned by LLP 0100 §8a)
+
+**Commissioning authority:** LLP 0100 (Accepted) §8a routes membership-visible
+search to this RFC as a dated amendment and pins the interface; the ticketed
+inexpressible case is
+`issues/closed/20260801-0137-a3-search-visibility-cannot-express-membership.md`.
+This section is append-only over the v1 text above: where the Search
+declarations and Authorization sections say the visibility union is exactly
+`public-read` and `owner`, and that membership joins are not v1 search
+declarations, this amendment adds the third pushdown-compilable variant those
+sections reserved. Everything else in the v1 contract — analyzer, scoring,
+work ceilings, non-live posture, observation boundary — is unchanged and
+applies to the new variant verbatim.
+
+### The third visibility variant
+
+`SearchVisibilityV1` gains `{ kind: 'membership', declaration, resourceField,
+roles }` (src/search/types.rs; authoring surface
+`packages/snapback-codegen/define.mjs`, same closed-union gate). `declaration`
+names a resource-scoped LLP 0100 membership declaration; app-scoped
+declarations are refused at generation. `resourceField` names a required
+scalar (String/Principal/Id) field on the source table; it is the partition
+key source exactly as `owner`'s field is, and is folded into the declared
+non-text participating fields. `roles`, when present, is a non-empty
+deduplicated subset of the declaration's role vocabulary and admits only
+those seats (`hasRole`); absent means any non-pending seat (`memberOf`).
+The posting partition is `membership:{resourceValue}` beside `public` and
+`owner:{subject}`; hidden partitions' postings are never traversed to fill
+or bound a page, exactly as for owner. Membership indexes admit `public` and
+`private` field classifications under the same reasoning as `owner.v1`: the
+partition plus seat check is both posting key and release authority.
+
+### The routed wire interface (LLP 0100 §8a pins honored)
+
+- **Required equality-bound resource argument.** The generated
+  membership-visible search function carries one additional required argument
+  (declared `resourceArg` at authoring) beside the unchanged
+  `SearchRequestV1` `{query, limit?, after?}` shape; the wire decision is a
+  new generated-function argument, not an extension of the committed request
+  schema, so the LLP 0037-owned `search.request.schema.json` and its fixture
+  corpus are untouched. Every invocation addresses one singular
+  `membership:{declaration, resource-value}` partition.
+- **Multi-seat traversal is rejected**, per LLP 0100 §8a's own reasons: one
+  resource value per invocation; seat enumeration belongs to
+  `_snapback.myMemberships`; cross-resource ranking across deliberately
+  independent partitions is not a v1 surface. A caller searching several
+  resources iterates its own seats.
+- **Seat resolution and posting recheck share one snapshot.** The caller's
+  seat for `(declaration, resource-value)` is resolved by a direct read of
+  the declaration's membership table on the same pinned per-request
+  connection that serves posting candidates and the authoritative-row release
+  recheck; the per-candidate recheck re-proves the current row's
+  `resourceField` partition as it does for owner. The caller principal is the
+  LLP 0065 canonical effective-user subject, required exactly as owner search
+  requires it; invocation classes without one refuse with the same
+  `SNAPBACK_SEARCH_QUERY_INVALID` class refusal (not a membership oracle).
+- **Outsider-empty ≡ nonexistent, byte-identical.** A caller with no
+  admitted seat receives the empty success page through the same code path
+  as a search over a nonexistent resource value: same rows, cursor absence,
+  `hasMore`, and bytes. Absence of a seat is never a refusal.
+
+### Continuation identity (the §5 authorization binding)
+
+The search continuation for a membership search binds, beyond the v1 cursor
+identity list: the concrete resource value, the declaration id, the admitted
+role set, and the durable authorization version pair
+(`AuthorizationVersion {incarnation, epoch}`) read from the same snapshot at
+mint. On presentation the decoded values must equal the current invocation's
+values and the **current** authorization version; any mismatch is the
+existing uniform `SNAPBACK_SEARCH_CURSOR_RESTART`, refused before candidate
+evaluation, byte-identical across causes. Because every committed membership
+write advances the authorization version, a continuation minted before a
+revocation always fails custody; that a non-membership-related membership
+write also restarts a continuation is accepted over-invalidation — restart
+from the first page is the ordinary recovery and discloses nothing.
+
+### The two post-revocation observables (both pinned, distinct)
+
+1. **Stale continuation** minted before the revocation → the uniform
+   invalid-continuation custody refusal, pre-evaluation
+   (`SNAPBACK_SEARCH_CURSOR_RESTART`), the epoch-bound observable LLP 0100
+   §1 scopes as an accepted disclosure.
+2. **Fresh search** after the revocation → success with the empty page,
+   byte-identical to the outsider and nonexistent-resource results — the
+   non-disclosing steady state.
+
+### Acceptance (mandatory rows, one per observable)
+
+Member cross-owner visibility within a resource; outsider-empty
+byte-identical to nonexistent-resource; roles-filtered admission; partition
+pushdown bound into cursors; paired observations across resources
+non-interfering; revocation zeroes the next fresh search (observable 2);
+stale continuation after revocation refuses uniformly pre-evaluation
+(observable 1); generation-time refusals for unknown declarations,
+app-scoped declarations, out-of-vocabulary roles, and a membership index
+whose generated function lacks the required resource argument.

@@ -673,13 +673,56 @@ class TableBuilder {
       assert(new Set(fields).size === fields.length, `search index ${name} ${label} must not contain duplicates`);
       return [...fields].sort();
     };
-    const visibility = spec.visibility ?? { kind: 'public-read' };
-    assert(visibility && typeof visibility === 'object' && !Array.isArray(visibility), `search index ${name} visibility is required`);
-    assert(
-      (visibility.kind === 'public-read' && Object.keys(visibility).length === 1)
-        || (visibility.kind === 'owner' && typeof visibility.field === 'string' && Object.keys(visibility).length === 2),
-      `search index ${name} visibility must be { kind: 'public-read' } or { kind: 'owner', field }`,
-    );
+    const authoredVisibility = spec.visibility ?? { kind: 'public-read' };
+    assert(authoredVisibility && typeof authoredVisibility === 'object' && !Array.isArray(authoredVisibility), `search index ${name} visibility is required`);
+    let visibility;
+    if (authoredVisibility.kind === 'public-read') {
+      exactObject(authoredVisibility, `search index ${name} public-read visibility`, new Set(['kind']));
+      visibility = { kind: 'public-read' };
+    } else if (authoredVisibility.kind === 'owner') {
+      exactObject(authoredVisibility, `search index ${name} owner visibility`, new Set(['kind', 'field']));
+      assert(typeof authoredVisibility.field === 'string' && authoredVisibility.field.length > 0, `search index ${name} owner visibility requires a non-empty field`);
+      visibility = { kind: 'owner', field: authoredVisibility.field };
+    } else if (authoredVisibility.kind === 'membership') {
+      // @ref LLP 0073#the-third-visibility-variant — membership visibility is
+      // a closed declaration-id/resource-field/roles record. A membership()
+      // table builder is accepted only when it already carries a stable id;
+      // the retained manifest shape never contains the authoring object.
+      exactObject(
+        authoredVisibility,
+        `search index ${name} membership visibility`,
+        new Set(['kind', 'declaration', 'resourceField', 'roles']),
+      );
+      const declaration = typeof authoredVisibility.declaration === 'string'
+        ? authoredVisibility.declaration
+        : authoredVisibility.declaration?.__table === true
+          ? authoredVisibility.declaration.membershipDeclaration?.id
+            ?? authoredVisibility.declaration.__tableName
+          : null;
+      assert(
+        typeof declaration === 'string' && declaration.length > 0,
+        `search index ${name} membership visibility declaration must be a non-empty membership declaration id or a membership() object carrying an id`,
+      );
+      assert(
+        typeof authoredVisibility.resourceField === 'string'
+          && authoredVisibility.resourceField.length > 0,
+        `search index ${name} membership visibility requires a non-empty resourceField`,
+      );
+      const roles = authoredVisibility.roles === undefined
+        ? undefined
+        : stringArray(authoredVisibility.roles, `search index ${name} membership visibility roles`);
+      visibility = {
+        kind: 'membership',
+        declaration,
+        resourceField: authoredVisibility.resourceField,
+        ...(roles ? { roles } : {}),
+      };
+    } else {
+      assert(
+        false,
+        `search index ${name} visibility must be { kind: 'public-read' }, { kind: 'owner', field }, or { kind: 'membership', declaration, resourceField, roles? }`,
+      );
+    }
     const equalityFilters = stringSet(spec.equalityFilters, 'equalityFilters');
     const storedFields = stringSet(spec.storedFields, 'storedFields');
     const highlightFields = stringSet(spec.highlightFields, 'highlightFields');
@@ -767,7 +810,7 @@ class TableBuilder {
       equalityFilters,
       storedFields,
       highlightFields,
-      visibility: { ...visibility },
+      visibility,
       tieBreak: 'score-desc-row-id-asc.v1',
       sourceLimits,
       queryLimits,
@@ -957,7 +1000,7 @@ export function defineSchema(tables, options = {}) {
   };
 }
 
-const SEARCH_QUERY_SPEC_FIELDS = new Set(['table', 'index', 'auth']);
+const SEARCH_QUERY_SPEC_FIELDS = new Set(['table', 'index', 'auth', 'resourceArg']);
 
 // @ref LLP 0131#the-argument-contract-descriptor — PlatformSchemaRef is
 // deliberately not an app-authorable spelling in v1: no `v.*` builder emits
@@ -987,9 +1030,44 @@ export function defineSearchQuery(spec) {
   assert(typeof spec.index === 'string' && spec.index.length > 0, 'defineSearchQuery index is required');
   assert(table.searchIndexes.some((candidate) => candidate.name === spec.index), `defineSearchQuery names unknown search index ${table.__tableName}.${spec.index}`);
   const visibility = table.searchIndexes.find((candidate) => candidate.name === spec.index).visibility;
-  const auth = spec.auth ?? (visibility.kind === 'owner' ? 'authenticated' : 'public');
+  const membershipVisibility = visibility.kind === 'membership';
+  if (membershipVisibility) {
+    assert(
+      typeof spec.resourceArg === 'string' && spec.resourceArg.length > 0,
+      'membership search requires resourceArg: every invocation must address one singular membership partition',
+    );
+    assert(
+      !['query', 'limit', 'after'].includes(spec.resourceArg),
+      'membership search resourceArg must name one additional argument beside query, limit, and after',
+    );
+  } else {
+    assert(
+      spec.resourceArg === undefined,
+      `${visibility.kind} search must not declare resourceArg; only membership visibility has a singular resource partition argument`,
+    );
+  }
+  const auth = spec.auth ?? (visibility.kind === 'owner' || membershipVisibility ? 'authenticated' : 'public');
   assert(AUTH_REQUIREMENTS.has(auth), 'SearchQuery auth must be public, optional-user, or authenticated');
   if (visibility.kind === 'owner') assert(auth === 'authenticated', 'owner search requires authenticated auth');
+  if (membershipVisibility) assert(auth === 'authenticated', 'membership search requires authenticated auth');
+  let resourceValidator;
+  if (membershipVisibility) {
+    const source = table.fields[visibility.resourceField];
+    const idTable = source?.fieldType?.Id?.table;
+    if (typeof idTable === 'string' && idTable.length > 0) resourceValidator = v.id(idTable);
+    else if (source?.fieldType === 'Principal') resourceValidator = v.principal();
+    else if (source?.fieldType === 'String') resourceValidator = v.string(source.resultOptions ?? {});
+    else {
+      assert(
+        false,
+        `membership search resourceField ${table.__tableName}.${visibility.resourceField} must be a required string, principal, or id field`,
+      );
+    }
+    assert(
+      source.optional !== true,
+      `membership search resourceField ${table.__tableName}.${visibility.resourceField} must be required`,
+    );
+  }
   return {
     [FN]: true,
     __kind: 'Query',
@@ -1002,6 +1080,7 @@ export function defineSearchQuery(spec) {
       query: searchQueryAstRef(),
       limit: v.optional(v.integer({ min: 1, max: 50 })),
       after: v.optional(v.string({ maxBytes: 2_048 })),
+      ...(membershipVisibility ? { [spec.resourceArg]: resourceValidator } : {}),
     },
     // Runtime result validation sees the ordinary QueryOutput rows. Codegen
     // derives their exact stored-field contract from this index declaration;
@@ -1013,6 +1092,7 @@ export function defineSearchQuery(spec) {
       parser: 'snapback-search-parser-v1',
       resultProjection: 'search-page-v1',
       requiredCapability: 'full_text_search_v1',
+      ...(membershipVisibility ? { resourceArg: spec.resourceArg } : {}),
     },
   };
 }

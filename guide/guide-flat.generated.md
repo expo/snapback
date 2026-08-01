@@ -44,7 +44,7 @@ with the Snapback label and `guide-gap` in the title.
 | backend.relational-queries | Bounded two-source equi-joins with explicit visibility, closed projections, and transactionally maintained projection tables (`defineRelationalQuery`, `defineMaintainedProjection`, stable capability since 2026-07-26) | joins, relational queries, denormalized reads, materialized views | local | partial | `defineRelationalQuery` in packages/snapback-codegen/define.mjs | llp/0080, llp/0065 | backend/relational-queries.md |
 | backend.bounded-children-v1 | Experimental one-visible-parent/one-index-bounded-child-page profile with protected relation incarnations and `sbbc1` AEAD keysets; only contributor source builds with the exact embedded atomic carrier advertise it, while public runtime packages and hosted targets retain a structured GAP | one-to-many, parent children, relation incarnation, bounded child page | local | partial | src/local-relation-activity-publication.v1.json | llp/0104, llp/0108, llp/0101 | GAP (public-package attestation and hosted publication; owner: Charlie, review: 2026-08-31) |
 | backend.write-activity-v1 | Experimental closed source-write plus one provenance-bearing activity insert with exact source-effect assertion and LLP 0043/0101 settlement; only contributor source builds with the exact embedded atomic carrier advertise it, while public runtime packages and hosted targets retain a structured GAP | audit log, activity feed, transactional activity, write receipt | local | partial | tests/conformance/relation-activity-publication-v1.receipt.json | llp/0104, llp/0108, llp/0043, llp/0101 | GAP (public-package attestation and hosted publication; owner: Charlie, review: 2026-08-31) |
-| backend.text-search | Portable indexed term, phrase, prefix, exclusion, and equality-filter search with deterministic integer ranking, bounded highlights, public/owner visibility partitions, and AEAD current-keyset cursors | search, full text, text index, phrase, prefix, highlights | local | shipped | `defineSearchQuery` in packages/snapback-codegen/define.mjs | llp/0073, llp/0065 | backend/text-search.md |
+| backend.text-search | Portable term, phrase, prefix, exclusion, and equality-filter search with deterministic ranking, bounded highlights, public/owner/membership (seat-per-resource) visibility, and AEAD keyset cursors | search, full text, text index, phrase, prefix, highlights | local | shipped | `defineSearchQuery` in packages/snapback-codegen/define.mjs | llp/0073, llp/0065, llp/0100 | backend/text-search.md |
 | backend.streamed-actions | Bounded pull-driven response streaming in actions: `ctx.fetchStream`, `ctx.streamAttempt` lease/settlement, durable progress via mutations | streaming, fetchStream, ReadableStream, AI tokens, SSE bytes | local | partial | `open_response_stream` in src/server.rs | llp/0076, llp/0075 | backend/streamed-actions.md |
 | backend.seed | Deterministic declarative seed + reset | seed, fixtures, sample data | local | shipped | route /_snapback/api/app/reset | llp/0004 | getting-started/your-first-backend.md |
 | backend.versioned-seed | Experimental local stream-scoped seed identity, pure matched observation, idempotent install/reset receipts, read-only preview, and explicit clear without legacy fallback. Hosted compiled-seed custody remains a GAP. | seed version, seed identity, reset-install, fixture drift | local | partial | tests/conformance/versioned-seed-v1.manifest.json | llp/0103 | backend/versioned-seeds.md |
@@ -4307,8 +4307,23 @@ stored, or owner fields that are not text fields. `public-read` admits only
 public fields. Owner search instead declares
 `visibility: { kind: 'owner', field: 'ownerId' }`; the field must be a required
 string or principal and every query is pushed into the server-resolved
-effective user's partition. Membership and relation-derived visibility are
-not accepted in v1.
+effective user's partition.
+
+Membership-visible search (LLP 0073's 2026-08-01 amendment, commissioned by
+LLP 0100 §8a) declares
+`visibility: { kind: 'membership', declaration, resourceField, roles }`:
+`declaration` names a resource-scoped membership declaration, `resourceField`
+a required scalar field on the indexed rows, and `roles` (optional) narrows
+which seats are admitted. The generated search function then requires one
+equality-bound resource argument (`resourceArg` on `defineSearchQuery`), so
+every invocation searches exactly one resource's partition; the caller's seat
+is resolved in the same snapshot as the posting recheck. A caller with no
+admitted seat gets the empty page, byte-identical to a nonexistent resource;
+a continuation minted before a seat revocation fails with the uniform
+`SNAPBACK_SEARCH_CURSOR_RESTART` before any candidate is evaluated. Searching
+several resources means iterating your own seats — multi-seat union search is
+deliberately rejected. Other relation-derived visibility shapes remain
+unaccepted.
 
 Export the operation with
 `defineSearchQuery({ table: incidents, index: 'search_incidents' })`. It is an

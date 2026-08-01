@@ -787,6 +787,7 @@ export async function generateInProcess(backendDir, options = {}) {
         ...(search.equalityFilters ?? []),
         ...(search.storedFields ?? []),
         ...(search.visibility.kind === 'owner' ? [search.visibility.field] : []),
+        ...(search.visibility.kind === 'membership' ? [search.visibility.resourceField] : []),
       ]);
       for (const field of Object.keys(search.textFields ?? {})) participatingNonText.delete(field);
       const declaredClassifications = search.fieldClassifications ?? {};
@@ -843,6 +844,23 @@ export async function generateInProcess(backendDir, options = {}) {
         const owner = table.fields[search.visibility.field];
         if (!owner || owner.optional || !['String', 'Principal'].includes(owner.fieldType)) {
           err('SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID', 'search', `owner search index ${name}.${search.name} requires a non-optional string/principal owner field`, { table: name, index: search.name, field: search.visibility.field });
+        }
+      } else if (search.visibility.kind === 'membership') {
+        const resource = table.fields[search.visibility.resourceField];
+        if (
+          !resource
+          || resource.optional
+          || !(
+            ['String', 'Principal'].includes(resource.fieldType)
+            || idFieldTypeTable(resource.fieldType) !== null
+          )
+        ) {
+          err(
+            'SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID',
+            'search',
+            `membership search index ${name}.${search.name} requires a non-optional string/principal/id resource field`,
+            { table: name, index: search.name, field: search.visibility.resourceField },
+          );
         }
       }
       searchIndexes.push(search);
@@ -1372,28 +1390,128 @@ export async function generateInProcess(backendDir, options = {}) {
     if (def.__kind === 'Query' && def.searchPlan) {
       const plan = def.searchPlan;
       const table = tables[plan.table];
+      let searchIndex = null;
       if (!table) {
         err('FUNCTION_UNKNOWN_TABLE', 'function', `${name}: search query references unknown table ${plan.table}`, { function: name, table: plan.table });
-      } else if (!(table.searchIndexes ?? []).some((candidate) => candidate.name === plan.index)) {
-        err('SNAPBACK_SEARCH_INDEX_UNAVAILABLE', 'search', `${name}: search query references unknown search index ${plan.table}.${plan.index}`, { function: name, table: plan.table, index: plan.index });
+      } else {
+        searchIndex = (table.searchIndexes ?? []).find((candidate) => candidate.name === plan.index) ?? null;
+        if (!searchIndex) {
+          err('SNAPBACK_SEARCH_INDEX_UNAVAILABLE', 'search', `${name}: search query references unknown search index ${plan.table}.${plan.index}`, { function: name, table: plan.table, index: plan.index });
+        }
       }
-      // @ref LLP 0131#the-search-fixture-cv-5 — the generation-time gate:
-      // the function's complete argument contract (query + limit + after)
-      // must agree with the exported request schema's top level, so "one
-      // exported search request schema" stays literally true.
+      const membershipVisibility = searchIndex?.visibility?.kind === 'membership';
+      let membershipDeclaration = null;
+      if (membershipVisibility) {
+        if (typeof plan.resourceArg !== 'string' || plan.resourceArg.length === 0) {
+          err(
+            'SNAPBACK_SEARCH_QUERY_PLAN_INVALID',
+            'search',
+            `${name}: membership search requires resourceArg for its singular membership partition`,
+            { function: name, table: plan.table, index: plan.index },
+          );
+        } else {
+          const resourceArg = def.args?.[plan.resourceArg];
+          const resourceField = table?.fields.find(
+            (field) => field.name === searchIndex.visibility.resourceField,
+          );
+          const fieldIdTable = idFieldTypeTable(resourceField?.field_type);
+          const argIdTable = idFieldTypeTable(resourceArg?.fieldType);
+          const equalityCompatible = resourceField !== undefined
+            && resourceField.optional !== true
+            && resourceArg?.optional === false
+            && (
+              (resourceField.field_type === 'String' && resourceArg.fieldType === 'String')
+              || (resourceField.field_type === 'Principal' && resourceArg.fieldType === 'Principal')
+              || (fieldIdTable !== null && argIdTable === fieldIdTable)
+            );
+          if (!equalityCompatible) {
+            err(
+              'SNAPBACK_SEARCH_QUERY_PLAN_INVALID',
+              'search',
+              `${name}: resourceArg ${plan.resourceArg} must name a required equality-compatible scalar argument matching ${plan.table}.${searchIndex.visibility.resourceField}`,
+              {
+                function: name,
+                resourceArg: plan.resourceArg,
+                resourceField: searchIndex.visibility.resourceField,
+              },
+            );
+          }
+        }
+
+        membershipDeclaration = membershipDeclarations.get(searchIndex.visibility.declaration) ?? null;
+        if (!membershipDeclaration) {
+          err(
+            'SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID',
+            'search',
+            `${name}: membership search index ${plan.table}.${plan.index} names unknown declaration ${searchIndex.visibility.declaration}`,
+            { function: name, declaration: searchIndex.visibility.declaration },
+          );
+        } else if (membershipDeclaration.membership.scope !== 'resource') {
+          err(
+            'SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID',
+            'search',
+            `${name}: membership search declaration ${searchIndex.visibility.declaration} must be resource-scoped`,
+            { function: name, declaration: searchIndex.visibility.declaration },
+          );
+        }
+        if (searchIndex.visibility.roles !== undefined) {
+          const roles = searchIndex.visibility.roles;
+          if (!Array.isArray(roles) || roles.length === 0 || new Set(roles).size !== roles.length) {
+            err(
+              'SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID',
+              'search',
+              `${name}: membership search roles must be a non-empty array of unique strings`,
+              { function: name, declaration: searchIndex.visibility.declaration },
+            );
+          } else if (membershipDeclaration) {
+            const vocabulary = new Set([
+              ...membershipDeclaration.membership.roles,
+              ...(membershipDeclaration.membership.pendingRoles ?? []),
+            ]);
+            for (const role of roles) {
+              if (typeof role !== 'string' || role.length === 0 || !vocabulary.has(role)) {
+                err(
+                  'SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID',
+                  'search',
+                  `${name}: membership search role ${String(role)} is outside declaration ${searchIndex.visibility.declaration}'s vocabulary`,
+                  { function: name, declaration: searchIndex.visibility.declaration, role },
+                );
+              }
+            }
+          }
+        }
+      } else if (plan.resourceArg !== undefined) {
+        err(
+          'SNAPBACK_SEARCH_QUERY_PLAN_INVALID',
+          'search',
+          `${name}: search plan resourceArg is permitted only for membership visibility`,
+          { function: name, table: plan.table, index: plan.index, resourceArg: plan.resourceArg },
+        );
+      }
+      // @ref LLP 0131#the-search-fixture-cv-5 — the request portion of the
+      // function's argument contract agrees with the exported schema. LLP
+      // 0073's membership resource is exactly one required sibling argument,
+      // not a change to that Rust-owned request shape.
       try {
-        for (const problem of searchArgsSchemaProblems(def.args ?? {})) {
+        for (const problem of searchArgsSchemaProblems(
+          def.args ?? {},
+          plan.resourceArg === undefined ? {} : { resourceArg: plan.resourceArg },
+        )) {
           err('SNAPBACK_SEARCH_REQUEST_SCHEMA_MISMATCH', 'search', `${name}: ${problem}`, { function: name });
         }
       } catch (error) {
         err(error.code ?? 'SNAPBACK_SEARCH_REQUEST_SCHEMA_DERIVATION', 'search', `${name}: ${error.message}`, { function: name });
+      }
+      const searchReads = [plan.table];
+      if (membershipDeclaration && !searchReads.includes(membershipDeclaration.table.name)) {
+        searchReads.push(membershipDeclaration.table.name);
       }
       functions.push({
         name,
         kind: 'Query',
         ...authoredFunctionManifestFields(def),
         runtime: { HostPlan: { SearchQuery: plan } },
-        declaredReads: [plan.table],
+        declaredReads: searchReads,
         declaredWrites: [],
         authScopeField: null,
         authorizationDependence: def.auth === 'authenticated' ? ['userId'] : [],
@@ -1403,7 +1521,7 @@ export async function generateInProcess(backendDir, options = {}) {
         name,
         args: argDescriptors(def.args),
         argOrder: Object.keys(def.args),
-        reads: [plan.table],
+        reads: searchReads,
         result: {
           kind: 'list',
           row: validatorRowDescriptor(def.resultContract?.validator) ?? { shape: 'unknown' },
@@ -4883,7 +5001,7 @@ function readSummary(fn) {
     return {
       mode: 'singleTable',
       primaryTable: searchPlan.table,
-      tables: [searchPlan.table],
+      tables: fn.declaredReads ?? [searchPlan.table],
       authScopeField: null,
     };
   }
@@ -6831,7 +6949,13 @@ function renderApiTypes(
         fn.resultContract ?? { kind: 'unknown' },
         (table) => `GeneratedDataModel[${JSON.stringify(table)}]`,
       );
-    const args = search ? 'SearchRequestV1' : typeForGeneratedArgs(def?.args ?? {});
+    const args = search
+      ? search.resourceArg === undefined
+        ? 'SearchRequestV1'
+        : `SearchRequestV1 & ${typeForGeneratedArgs({
+          [search.resourceArg]: def?.args?.[search.resourceArg],
+        })}`
+      : typeForGeneratedArgs(def?.args ?? {});
     lines.push(`  ${fn.name}: FunctionReference<'${fn.name}', '${fn.kind}', ${args}, ${result}>;`);
   }
   lines.push('  ephemeral: GeneratedEphemeral;');
