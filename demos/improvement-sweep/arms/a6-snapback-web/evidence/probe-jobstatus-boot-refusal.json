@@ -1,0 +1,10 @@
+{
+  "probe": "defineJobStatusQuery boot admission on packaged 0.1.7",
+  "date": "2026-08-01",
+  "declaration": "export const platformJobStatus = defineJobStatusQuery();",
+  "codegen": "accepted (28 operations; warning PROVIDER_INTROSPECTION_RESULT_TYPE_DEGRADED queries.platformJobStatus.result.row is explicitly unknown)",
+  "bootResult": "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID: function manifest references unknown table _snapback_jobs; dev server exits before dev.ready.json (SNAPBACK_DEV_SERVER_START_FAILED)",
+  "generatedReference": "functions.manifest.json plan references table _snapback_jobs (lines ~3419-3436); contract-data.manifest.json and provider-bindings.json carry the same name",
+  "runtimeTables": "the packaged runtime binary's SQL schema uses _snapback_jobs_v1 (plus _snapback_jobs_v1_due / _snapback_jobs_v1_idem indexes)",
+  "conclusion": "the generated declared job-status live query (LLP 0070 first slice, LLP 0121 option 3) is unbootable end to end on @expo/snapback-* 0.1.7: codegen emits it, the server refuses the whole app at load. Workaround: do not declare it; read one-off job status through the admin route GET /_snapback/api/jobs/{id}."
+}

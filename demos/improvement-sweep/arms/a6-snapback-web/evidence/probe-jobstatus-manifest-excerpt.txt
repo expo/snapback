@@ -1,0 +1,41 @@
+            "name": "jobId",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:6f3f518eda58e12ac64f44222667f2cdd6c278de3e483471c215b0b1f7ceba37",
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "platformJobStatus",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "point",
+            "table": "_snapback_jobs"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "platformJobStatus",
+      "handlerForm": "plan",
+      "id": "ops-app:platformJobStatus",
+      "implementationHash": "sha256:c9b34374e7b9069e39c7ee9c25993d98f1222fc24ba9b4d0adc9ba060427516d",
+      "kind": "LiveQuery",
+      "name": "platformJobStatus",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "_snapback_jobs",
+        "tables": [
+          "_snapback_jobs"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",

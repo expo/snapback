@@ -5,7 +5,7 @@
 **Systems:** Competitive evaluation, Demo applications, React, React/Expo, Exact Native, Developer experience, Data modeling, Realtime, Offline sync, Auth, Assets, Search, Actions, Scheduled work, Deployment, Operations, Testing, Documentation
 **Author:** Charlie Cheever / Codex / Claude
 **Date:** 2026-07-31
-**Revised:** 2026-08-01 (A5 arm status note: fifth diaried sweep arm complete — 11 pass / 1 GAP / 1 evidenced-defect fail; findings 0137-a5-f1..f3 filed; the Diary 0031 sessions+streamed-actions blocker verified reversed on the packaged closure; freeze re-verified). 2026-08-01 (A4 arm status note: fourth diaried sweep arm complete — 9 pass / 2 evidenced-defect fails / 0 GAP; findings 0137-a4-f1..f7 filed; freeze re-verified). 2026-08-01 (A2 arm status note: first diaried sweep arm complete — 11 pass / 1 GAP / 0 fail; findings 0137-a2-f1..f8 filed; freeze re-verified). 2026-07-31 (v3 purpose inversion per Charlie's direction: the program now exists to surface what would make Snapback better, not to prove Snapback is better — that proof is deferred until the improvement well runs dry. Phase 1 is a Snapback-first improvement sweep over all six contracts as an external npm consumer, with a mid-program fix loop, frozen-evidence-first competitor referencing, and demand-driven fresh probes; the symmetric championship — core/extension matrix, composite, ranking controls — is preserved compactly as deferred Phase 2 behind a dry-well trigger. Ranking-fairness controls that obstruct improvement, chiefly the single frozen Snapback revision and atomic rounds, move to Phase 2; honesty controls stay). 2026-07-31 (v2 efficiency restructure: sixteen-arm symmetric core over A1–A4 plus five extension arms; contract lineage to LLP 0102 with a zero-new-arm longitudinal comparison; atomic per-contract rounds; Track B baseline + checkpoint; former open questions 1–5 resolved). 2026-07-31 (refine pass: challenger gate unified; composite comparability scoped; Track B eligibility rule; cross-references verified). 2026-07-31 (initial draft: a four-backend React-web championship, a separately scored Expo validation, a Snapback-only Exact Native graduation exercise, and selective specialist challengers, all gated on public-package consumption)
+**Revised:** 2026-08-01 (A6 arm status note: sixth and final diaried web sweep arm complete — 10 pass / 0 GAP / 0 fail, the sweep's first fully green arm; findings 0137-a6-f1..f3 filed (defineJobStatusQuery boot refusal; jobs/secret-read custody guide-gap; reset-install strands live clients); jobs_one_off_v1 core verified end to end externally; freeze re-verified). 2026-08-01 (A5 arm status note: fifth diaried sweep arm complete — 11 pass / 1 GAP / 1 evidenced-defect fail; findings 0137-a5-f1..f3 filed; the Diary 0031 sessions+streamed-actions blocker verified reversed on the packaged closure; freeze re-verified). 2026-08-01 (A4 arm status note: fourth diaried sweep arm complete — 9 pass / 2 evidenced-defect fails / 0 GAP; findings 0137-a4-f1..f7 filed; freeze re-verified). 2026-08-01 (A2 arm status note: first diaried sweep arm complete — 11 pass / 1 GAP / 0 fail; findings 0137-a2-f1..f8 filed; freeze re-verified). 2026-07-31 (v3 purpose inversion per Charlie's direction: the program now exists to surface what would make Snapback better, not to prove Snapback is better — that proof is deferred until the improvement well runs dry. Phase 1 is a Snapback-first improvement sweep over all six contracts as an external npm consumer, with a mid-program fix loop, frozen-evidence-first competitor referencing, and demand-driven fresh probes; the symmetric championship — core/extension matrix, composite, ranking controls — is preserved compactly as deferred Phase 2 behind a dry-well trigger. Ranking-fairness controls that obstruct improvement, chiefly the single frozen Snapback revision and atomic rounds, move to Phase 2; honesty controls stay). 2026-07-31 (v2 efficiency restructure: sixteen-arm symmetric core over A1–A4 plus five extension arms; contract lineage to LLP 0102 with a zero-new-arm longitudinal comparison; atomic per-contract rounds; Track B baseline + checkpoint; former open questions 1–5 resolved). 2026-07-31 (refine pass: challenger gate unified; composite comparability scoped; Track B eligibility rule; cross-references verified). 2026-07-31 (initial draft: a four-backend React-web championship, a separately scored Expo validation, a Snapback-only Exact Native graduation exercise, and selective specialist challengers, all gated on public-package consumption)
 **Related:** LLP 0000, LLP 0010, LLP 0015, LLP 0016, LLP 0035, LLP 0041, LLP 0044, LLP 0064, LLP 0074, LLP 0093, LLP 0102, LLP 0103, LLP 0105, LLP 0107, LLP 0114, LLP 0115, LLP 0129, LLP 0130, LLP 0132, LLP 0133, LLP 0135, LLP 0136, Diary 0027–0039
 
 ## Summary
@@ -828,3 +828,63 @@ seed-version ledger refusing changed bytes under a reused identity.
 This status note is a dated amendment inside the freeze boundary; the
 freeze was re-verified (and re-frozen for this plan digest) with the
 sweep's own scripts in the landing commit.
+
+A6 (Stage 2, sixth and final diaried web sweep arm — snapback-web, deep
+budget) executed 2026-08-01 and **completed**: all 10 frozen checks ran
+(expectedChecks enforced) with **10 pass, 0 GAP, 0 fail, 0 Stop — the
+sweep's first fully green arm** — in sessions mode against the public
+0.1.7 closure from a clean external directory, full suite wall 5.0s.
+The operations-ledger core carried the new shape end to end: a
+two-client six-way concurrent-create barrier allocating JOB-4..JOB-9
+dense and duplicate-free from a three-line serialized counter (the
+frozen Diary 0028/0034 "contention-safe sequence allocation" wish, with
+dedupe replay burning nothing); bounded child lists (newest-20 audit
+window over a 25-row trail) with dashboard aggregates equal to an
+export-derived recount; **jobs_one_off_v1 proven end to end
+externally** — mutation-transactional `ctx.jobs.enqueue` with bounded
+`enqueues` facts on the confirmed envelope, producer association,
+premature drain running nothing, injected-clock drain executing exactly
+once, terminal no-rerun — beside deterministic everyMs maintenance
+(a4-f4 epoch-0 nominal cited); claim/release/retry-claim/lease-timeout/
+cancellation each leaving append-only receipts with byte-stable
+prefixes; concurrent claims resolving to one owner with the PRIOR
+owner's stale-fence completion and release both fenced and receipted;
+idempotent external dispatch over the streamed lane (a5-f1 cited) with
+the strict provider seeing exactly one request per key across retry and
+a two-actor race and the canary secret absent from five client-visible
+surfaces; a 64–67ms live ranged dashboard with an exact narrow/wide
+range partition; and an export/reset/restore round-trip with id-free
+digest equality plus receipted reset-install cleanup. Budget actuals:
+~42 min orientation + ~38 min build and ~100 build-phase tool calls
+against the 8h/400 deep ceilings; zero posture breaks; two assistance
+events (prior-arm recipes and packaged-artifact reads, each pinned to
+owning findings). Capsule, evidence, probe artifacts, and app sources:
+`demos/improvement-sweep/arms/a6-snapback-web/`; diary:
+`diaries/0047-a6-ops-ledger-sweep.diary.md`. Three findings filed
+(`0137-a6-f1..f3`, tickets `issues/20260801-0137-a6-*.md`): the
+headline is **f1 — `defineJobStatusQuery` makes the whole app
+unbootable** (codegen emits a plan referencing `_snapback_jobs`; the
+server refuses the manifest at load with
+SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID while the runtime table is
+`_snapback_jobs_v1`; one declared line, no boot — worked around via the
+admin job route); f2 guide-gap: the jobs admin custody (secret-read
+lease mint, `x-snapback-secret-read-lease`, the ready-file-bound
+`snapback secret-read-mint` CLI) and the enqueue/drain vocabulary are
+discoverable only from binary strings and error ladders, and the
+"acknowledged by codegen" capability sentence reads as an instruction
+that refuses; f3 the versioned reset-install strands connected clients
+(terminal SNAPBACK_AUTH_STREAM_RESET out of arbitrary awaits, stale
+tokens SNAPBACK_AUTH_REQUIRED, fresh sign-ins minting NEW principals)
+with no client terminal-state surface and no guide coverage — the
+authority posture itself is correct and must not regress.
+Differentiator watch (protect while fixing): transactional enqueue
+with receipt-level producer facts (the frozen LLP 0121 Convex-verdict
+capability, now externally real), zero-ceremony contention-safe
+sequence allocation, fence receipts as authoritative history (beyond
+frozen SpacetimeDB reducer-rejection evidence), provider-boundary
+idempotency with clean secret custody, the deterministic
+tick/drain/reset seams making a 10-check OPERATIONS suite green in
+5.0s, and app-authored export/restore with digest proof. This status
+note is a dated amendment inside the freeze boundary; the freeze was
+re-verified (and re-frozen for this plan digest) with the sweep's own
+scripts in the landing commit.

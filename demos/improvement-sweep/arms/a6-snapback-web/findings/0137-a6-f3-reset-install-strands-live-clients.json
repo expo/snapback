@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "findingId": "0137-a6-f3-reset-install-strands-live-clients",
+  "dimension": "retained-offline-and-reconnect-settlement",
+  "observation": {
+    "description": "A receipted versioned reset-install retires the ENTIRE pre-reset world, and connected clients have no documented or recoverable path through it. Observed on 0.1.7: (1) clients holding live-query handles get SNAPBACK_AUTH_STREAM_RESET ('the authenticated live transport ended (reset)') raised as a TERMINAL error into whatever operation is awaited next — the SnapbackClient closes for auth (#closeForAuthError) and stays broken; retrying the op on the same client does not reconnect; (2) pre-reset session tokens invalidate globally (subsequent mutations from other clients fail SNAPBACK_AUTH_REQUIRED); (3) a fresh email-code sign-in for the SAME email mints a NEW principal (samePrincipal:false), so all seats must be re-entered through the restored invites. The authority posture is right — reset never resurrects authority, consistent with the A5 arm's cleanup evidence — but the client-side blast radius is undocumented, the failure surfaces far from its cause (an arbitrary later await), and the only working pattern (discard every client and session wholesale, rebuild from fresh sign-ins) had to be discovered through three failing suite iterations.",
+    "evidence": [
+      "demos/improvement-sweep/arms/a6-snapback-web/evidence/scenario-evidence.json (A6-09 restoreReceipt.streamResetBehavior + authorityAfterReset; A6-10 postCleanupNegative.leaveOutcomes)",
+      "demos/improvement-sweep/arms/a6-snapback-web/evidence/app/acceptance.a6.mjs (the danaPost fresh-session strategy and retryOnce instrumentation)",
+      "diaries/0047-a6-ops-ledger-sweep.diary.md (the three-iteration discovery)"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Convex data imports/clears do not invalidate auth sessions or strand connected clients; subscriptions resettle on the new data and the identity layer is independent of table state, so admin data surgery is invisible to client lifecycles.",
+    "source": "official-docs",
+    "sourceDate": "2026-08-01",
+    "reference": "docs.convex.dev/database/import-export (import replaces data under live clients); frozen 0102 diaries record no client teardown around Convex reseeds"
+  },
+  "classification": "experience",
+  "mustNotRegress": "Reset-install retiring predecessor authority completely (tokens, principals, seats — nothing resurrected), the receipted reset semantics (resetDeletedRows, expectedDataVersionStream fencing), and membership rows staying unseedable (0137-a3-f1).",
+  "smallestCoherentFix": "Document the reset blast radius on the versioned-seeds guide page (tokens invalidate, live transports end terminally, fresh sign-ins are new principals), and give SnapbackClient an explicit terminal-auth surface — a closed/authTerminated state or callback — so tools and rigs learn 'this client is permanently done, rebuild the session' at the moment of reset instead of catching SNAPBACK_AUTH_STREAM_RESET out of an unrelated await.",
+  "acceptanceWitness": "A guide snippet performs reset-install with a connected client, observes the documented terminal state through the client API (not an incidental thrown code), rebuilds a session, re-enters through a restored invite, and passes; the versioned-seeds page states the three blast-radius facts.",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a6-reset-install-strands-live-clients.md"
+  },
+  "stopClass": false,
+  "budgetFinding": false
+}

@@ -1,0 +1,77 @@
+{
+  "schemaVersion": "sweep-a6.acceptance.v1",
+  "title": "LLP 0137 A6 snapback-web acceptance",
+  "startedAt": "2026-08-01T14:30:38.718Z",
+  "finishedAt": "2026-08-01T14:30:43.818Z",
+  "expectedChecks": 10,
+  "observedChecks": 10,
+  "tally": {
+    "pass": 10,
+    "gap": 0,
+    "fail": 0,
+    "expected-refusal": 0
+  },
+  "results": [
+    {
+      "id": "A6-01-SEED",
+      "result": "pass",
+      "ms": 115,
+      "note": "org + 4 customers + 3 jobs (seq 1-3, statuses split) + 7 steps + 4 activity rows + 4 invites seeded; 4 distinct principals; dispatcher/operator seats claimed"
+    },
+    {
+      "id": "A6-02-SEQUENCE",
+      "result": "pass",
+      "ms": 295,
+      "note": "six concurrent creates from two clients allocated JOB-4..JOB-9 gap-free and duplicate-free; dedupe replay returns the committed job without burning the counter"
+    },
+    {
+      "id": "A6-03-BOUNDED",
+      "result": "pass",
+      "ms": 456,
+      "note": "activity trail pushed to 25 rows: jobDetail child stays bounded at newest 20 while authoritative count reads 25; dashboard aggregates equal the export recount ({\"open\":8,\"claimed\":0,\"done\":1,\"cancelled\":0})"
+    },
+    {
+      "id": "A6-04-SCHEDULING",
+      "result": "pass",
+      "ms": 1420,
+      "note": "one-off follow-up enqueued in the createJob transaction ran exactly once through the injected-clock drain (premature drain ran nothing); recurring maintenance receipted 2 distinct nominals under deterministic ticks"
+    },
+    {
+      "id": "A6-05-ATTEMPTS",
+      "result": "pass",
+      "ms": 455,
+      "note": "claim, release, retry-claim, lease timeout, and cancellation each left append-only receipts (8 receipts, byte-stable prefixes); late claim/complete/re-cancel receipted without state change; audit trail mirrors the state machine"
+    },
+    {
+      "id": "A6-06-DISPATCH",
+      "result": "pass",
+      "ms": 201,
+      "note": "dispatch settled 'sent' once per job (provider saw exactly 1 request per key across retry and a two-actor race); settlement inspectable in the dispatcher ledger; canary secret absent from 5 client-visible surfaces"
+    },
+    {
+      "id": "A6-07-FENCING",
+      "result": "pass",
+      "ms": 253,
+      "note": "concurrent claims resolved to one owner (opal); after handoff the prior owner's stale-fence completion AND release were fenced with receipts while the fence-2 holder completed the job"
+    },
+    {
+      "id": "A6-08-DASHBOARD",
+      "result": "pass",
+      "ms": 184,
+      "note": "dispatcher dashboard and ranged list updated live in 65/65ms over the managed stream; JOB-6 partitions the narrow/wide ranges exactly; outsider subscription denied"
+    },
+    {
+      "id": "A6-09-EXPORT-RESTORE",
+      "result": "pass",
+      "ms": 156,
+      "note": "export (10 jobs, 19 attempt receipts, 2 dispatches) survived a receipted reset-install: restore rebuilt 7 jobs + patched 3, id-free digest equality holds, and the sequence continued at 11"
+    },
+    {
+      "id": "A6-10-CLEANUP",
+      "result": "pass",
+      "ms": 215,
+      "note": "config unset, endpoint reset, seats self-removed, two receipted reset-installs (deleted 110 + 24 rows) restore the literal fixture; far-future drain re-ran nothing; final fresh-session negative denied"
+    }
+  ],
+  "exitCode": 0
+}

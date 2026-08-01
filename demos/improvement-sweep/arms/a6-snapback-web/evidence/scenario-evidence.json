@@ -1,0 +1,796 @@
+{
+  "A6-01": {
+    "targetIdentity": {
+      "serverUrl": "http://127.0.0.1:4293",
+      "port": 4293,
+      "appId": "ops-app",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:57ca17c272aacd3203068309d2febaabc5af29f0dfe46ef3f0dea4b256f30447",
+      "authMode": "sessions"
+    },
+    "authoritativeCounts": {
+      "customers": 4,
+      "jobs": 3,
+      "steps": 7,
+      "activity": 4,
+      "invites": 4,
+      "members": 3,
+      "jobSeq": 3,
+      "statuses": {
+        "open": 2,
+        "claimed": 0,
+        "done": 1,
+        "cancelled": 0
+      }
+    },
+    "seedReceipt": {
+      "seedVersion": "a6-ops.2026-08-01.1",
+      "dataVersionStream": "019fbdbb-f65e-7f41-b9db-6cca44282d18"
+    },
+    "personas": {
+      "dana": "dispatcher",
+      "opal": "operator (claiming actor)",
+      "oscar": "operator (second claiming actor)",
+      "mallory": "outsider (authenticated, no seat)"
+    }
+  },
+  "A6-02": {
+    "twoActorBarrier": {
+      "actors": [
+        "dana (dispatcher client)",
+        "opal (operator client)"
+      ],
+      "mechanism": "six createJob mutations in one Promise.allSettled across two authenticated clients",
+      "results": [
+        {
+          "seq": 9,
+          "display": "JOB-9",
+          "deduped": false
+        },
+        {
+          "seq": 5,
+          "display": "JOB-5",
+          "deduped": false
+        },
+        {
+          "seq": 8,
+          "display": "JOB-8",
+          "deduped": false
+        },
+        {
+          "seq": 4,
+          "display": "JOB-4",
+          "deduped": false
+        },
+        {
+          "seq": 7,
+          "display": "JOB-7",
+          "deduped": false
+        },
+        {
+          "seq": 6,
+          "display": "JOB-6",
+          "deduped": false
+        }
+      ]
+    },
+    "sequenceReceipt": {
+      "allocated": [
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "dense": true,
+      "duplicates": 0,
+      "dedupeReplay": {
+        "deduped": true,
+        "seq": 9,
+        "counterAfter": 9
+      }
+    },
+    "authoritativeOrder": [
+      {
+        "seq": 9,
+        "display": "JOB-9",
+        "title": "Inspect: Harborlight cold room"
+      },
+      {
+        "seq": 8,
+        "display": "JOB-8",
+        "title": "Rewire: North Yard panel"
+      },
+      {
+        "seq": 7,
+        "display": "JOB-7",
+        "title": "Inventory: Harborlight stockroom"
+      },
+      {
+        "seq": 6,
+        "display": "JOB-6",
+        "title": "Plan: next-week window"
+      },
+      {
+        "seq": 5,
+        "display": "JOB-5",
+        "title": "Calibrate: Delta Freight scales"
+      },
+      {
+        "seq": 4,
+        "display": "JOB-4",
+        "title": "Audit: Meridian Foods safety"
+      },
+      {
+        "seq": 3,
+        "display": "JOB-3",
+        "title": "Install: Meridian Foods"
+      },
+      {
+        "seq": 2,
+        "display": "JOB-2",
+        "title": "Repair: Delta Freight"
+      },
+      {
+        "seq": 1,
+        "display": "JOB-1",
+        "title": "Survey: North Yard"
+      }
+    ],
+    "primitiveIdentity": "hand-rolled counter row inside the serialized mutation transaction (the A3 arm's zero-ceremony ISS-n pattern); the dedicated sequence-allocation primitive is LLP 0135 (Accepted 2026-07-31, unimplemented on 0.1.7)"
+  },
+  "A6-03": {
+    "boundedQueryInventory": [
+      {
+        "query": "jobDetail",
+        "child": "recentActivity",
+        "bound": 20,
+        "order": "newest first"
+      },
+      {
+        "query": "jobDetail",
+        "child": "steps",
+        "bound": 50,
+        "order": "seq"
+      },
+      {
+        "query": "jobList",
+        "bound": 100,
+        "order": "seq desc"
+      },
+      {
+        "query": "customerList",
+        "bound": 100
+      },
+      {
+        "query": "attemptLedger",
+        "bound": 200
+      },
+      {
+        "query": "dispatchLedger / maintenanceLedger / followUpLedger",
+        "bound": 200
+      },
+      {
+        "query": "orgDashboard scans",
+        "bound": 500,
+        "note": "take(N) before collect on every table scan"
+      },
+      {
+        "query": "exportLedger",
+        "bound": "500 per table (documented export ceiling)"
+      }
+    ],
+    "aggregateProof": {
+      "overflowedChild": {
+        "activityTotal": 25,
+        "shown": 20,
+        "newestSeq": 25
+      },
+      "dashboard": {
+        "jobsTotal": 9,
+        "byStatus": {
+          "open": 8,
+          "claimed": 0,
+          "done": 1,
+          "cancelled": 0
+        },
+        "steps": 7,
+        "activityRows": 34
+      },
+      "independentRecount": "exportLedger full enumeration (dispatcher) recounted client-side"
+    },
+    "authoritativeCounts": {
+      "customers": 4,
+      "jobs": 9,
+      "steps": 7,
+      "activity": 34,
+      "attempts": 0,
+      "dispatches": 0,
+      "maintenanceRuns": 0,
+      "followUpRuns": 0
+    }
+  },
+  "A6-04": {
+    "scheduleIdentity": {
+      "oneOff": {
+        "platformJobId": "019fbdbb-fa14-7493-bc70-bf954b79f967",
+        "producer": "createJob mutation (ctx.jobs.enqueue in the same transaction as the job insert; delayMs 4000, idempotencyKey followup-10, maxAttempts 1)",
+        "statusRowBeforeDrain": {
+          "artifactKind": "snapback.job-show/v0",
+          "job": {
+            "jobId": "019fbdbb-fa14-7493-bc70-bf954b79f967",
+            "queue": "default",
+            "action": "followUpSweep",
+            "state": "pending",
+            "availableAtMs": 1785594644908,
+            "enqueuedAtMs": 1785594640908,
+            "attemptCount": 0,
+            "maxAttempts": 1,
+            "stateVersion": 1,
+            "terminalAtMs": null,
+            "lastErrorCode": null,
+            "producerMutationId": "mut_019fbdbbfa0c7f709e8ab064803ec398",
+            "producerSnapshotVersion": 35,
+            "producerFunction": "createJob"
+          },
+          "attempts": []
+        },
+        "enqueueFactsOnMutationEnvelope": [
+          {
+            "jobId": "019fbdbb-fa14-7493-bc70-bf954b79f967",
+            "action": "followUpSweep",
+            "availableAtMs": 1785594644908
+          }
+        ]
+      },
+      "recurring": {
+        "job": "maintenanceTick (everyMs 1000, jitter false)",
+        "cronDisabled": "suite-driven deterministic ticks"
+      }
+    },
+    "runReceipt": {
+      "prematureDrain": {
+        "ranNothing": true,
+        "response": {
+          "artifactKind": "snapback.jobs-drain/v0",
+          "nowMs": 1785594641071,
+          "drained": []
+        }
+      },
+      "forcedDrain": {
+        "response": {
+          "artifactKind": "snapback.jobs-drain/v0",
+          "nowMs": 1785594646084,
+          "drained": [
+            {
+              "jobId": "019fbdbb-fa14-7493-bc70-bf954b79f967",
+              "queue": "default",
+              "action": "followUpSweep",
+              "attempt": 1,
+              "claimId": "019fbdbb-fabd-7ee0-aa62-e5b3f36eb0f7",
+              "fence": 1,
+              "disposition": "succeeded",
+              "diagnosticCode": null,
+              "nextAvailableAtMs": null
+            }
+          ]
+        },
+        "followUpReceipts": [
+          {
+            "jobSeqNum": 10,
+            "dedupeKey": "followup-run-10",
+            "detail": "follow-up sweep ran for JOB-10",
+            "at": 1785594641092
+          }
+        ]
+      },
+      "platformStatusAfter": {
+        "artifactKind": "snapback.job-show/v0",
+        "job": {
+          "jobId": "019fbdbb-fa14-7493-bc70-bf954b79f967",
+          "queue": "default",
+          "action": "followUpSweep",
+          "state": "succeeded",
+          "availableAtMs": 1785594644908,
+          "enqueuedAtMs": 1785594640908,
+          "attemptCount": 1,
+          "maxAttempts": 1,
+          "stateVersion": 3,
+          "terminalAtMs": 1785594646084,
+          "lastErrorCode": null,
+          "producerMutationId": "mut_019fbdbbfa0c7f709e8ab064803ec398",
+          "producerSnapshotVersion": 35,
+          "producerFunction": "createJob"
+        },
+        "attempts": [
+          {
+            "jobId": "019fbdbb-fa14-7493-bc70-bf954b79f967",
+            "attempt": 1,
+            "claimId": "019fbdbb-fabd-7ee0-aa62-e5b3f36eb0f7",
+            "fence": 1,
+            "claimedAtMs": 1785594646084,
+            "leaseExpiresAtMs": 1785594676084,
+            "drive": "forced-drain",
+            "finishedAtMs": 1785594646084,
+            "outcome": "succeeded",
+            "diagnosticCode": null
+          }
+        ]
+      },
+      "secondDrainNoRerun": true,
+      "declaredJobStatusQuery": "defineJobStatusQuery boot-refused (0137-a6-f1); admin route GET /_snapback/api/jobs/{id} is the working status path",
+      "auditTrail": [
+        {
+          "seq": 2,
+          "actorName": "follow-up",
+          "kind": "follow-up",
+          "detail": "scheduled follow-up sweep ran for JOB-10",
+          "at": 1785594641092
+        },
+        {
+          "seq": 1,
+          "actorName": "dana",
+          "kind": "created",
+          "detail": "JOB-10 created (Maintain: quarterly filter swap)",
+          "at": 1785594640908
+        }
+      ]
+    },
+    "recurrenceProof": {
+      "receipts": [
+        {
+          "dedupeKey": "maint:1785594641151",
+          "nominalMs": 1785594641151,
+          "timedOutCount": 0,
+          "outcome": "swept"
+        },
+        {
+          "dedupeKey": "maint:1785594642291",
+          "nominalMs": 1785594642291,
+          "timedOutCount": 0,
+          "outcome": "swept"
+        }
+      ],
+      "distinctNominals": 2,
+      "cronRunsObserved": 2,
+      "epochCatchup": {
+        "jobName": "maintenanceTick",
+        "scheduledAtMs": 0,
+        "outcome": "Succeeded"
+      },
+      "epochNote": "epoch-0 catch-up nominal receipted (known 0137-a4-f4, cited)"
+    }
+  },
+  "A6-05": {
+    "attemptLedger": [
+      {
+        "seq": 1,
+        "attemptSeq": 1,
+        "event": "claimed",
+        "actorName": "opal",
+        "outcome": "claimed",
+        "detail": "attempt 1 claimed with fence 1",
+        "at": 1785594642329
+      },
+      {
+        "seq": 2,
+        "attemptSeq": 1,
+        "event": "released",
+        "actorName": "opal",
+        "outcome": "open",
+        "detail": "attempt 1 released: missing parts",
+        "at": 1785594642361
+      },
+      {
+        "seq": 3,
+        "attemptSeq": 2,
+        "event": "claimed",
+        "actorName": "oscar",
+        "outcome": "claimed",
+        "detail": "attempt 2 claimed with fence 2",
+        "at": 1785594642391
+      },
+      {
+        "seq": 4,
+        "attemptSeq": 2,
+        "event": "timed-out",
+        "actorName": "maintenance",
+        "outcome": "open",
+        "detail": "attempt 2 lease expired (leaseUntil 1785594642541 < 1785594642640)",
+        "at": 1785594642640
+      },
+      {
+        "seq": 5,
+        "attemptSeq": 2,
+        "event": "cancelled",
+        "actorName": "dana",
+        "outcome": "cancelled",
+        "detail": "cancelled: customer withdrew the request",
+        "at": 1785594642689
+      },
+      {
+        "seq": 6,
+        "attemptSeq": 2,
+        "event": "claim-rejected",
+        "actorName": "opal",
+        "outcome": "cancelled",
+        "detail": "claim rejected: job is cancelled",
+        "at": 1785594642706
+      },
+      {
+        "seq": 7,
+        "attemptSeq": 2,
+        "event": "fenced",
+        "actorName": "oscar",
+        "outcome": "completeJob",
+        "detail": "late completion fenced: status=cancelled fence=2 presented=2",
+        "at": 1785594642724
+      },
+      {
+        "seq": 8,
+        "attemptSeq": 2,
+        "event": "fenced",
+        "actorName": "dana",
+        "outcome": "cancelJob",
+        "detail": "late cancellation fenced: job already cancelled",
+        "at": 1785594642740
+      }
+    ],
+    "appendOnlyProof": {
+      "snapshots": [
+        1,
+        2,
+        4,
+        8
+      ],
+      "prefixByteStable": true,
+      "mutationSurface": "no operation in the app surface updates or deletes jobAttempts rows; every lifecycle mutation only inserts the next receipt"
+    },
+    "stateMachineRecords": {
+      "transitions": [
+        "created",
+        "claimed",
+        "released",
+        "claimed",
+        "timed-out",
+        "cancelled"
+      ],
+      "terminal": {
+        "status": "cancelled",
+        "settledAt": 1785594642689,
+        "terminalDetail": "cancelled by dana: customer withdrew the request"
+      },
+      "authoritySplit": {
+        "operatorCancelRefusal": "SNAPBACK_AUTH_PERMISSION_DENIED",
+        "dispatcherCancel": "settled"
+      },
+      "lateAttempts": {
+        "claim": {
+          "claimed": false,
+          "status": "cancelled",
+          "fence": 2,
+          "attemptSeq": 2,
+          "owner": "",
+          "reason": "job is cancelled"
+        },
+        "complete": {
+          "fenced": true
+        },
+        "recancel": {
+          "fenced": true
+        }
+      }
+    }
+  },
+  "A6-06": {
+    "dedupeKey": {
+      "perJob": "dispatch-<seq> derived in beginDispatch; unique index on dispatches.dedupeKey",
+      "retry": {
+        "key": "dispatch-5",
+        "outcome": "deduped",
+        "providerCountAfter": 1
+      },
+      "concurrentRace": {
+        "key": "dispatch-8",
+        "outcomes": [
+          "SNAPBACK_ACTION_STREAM_INVALID",
+          "sent"
+        ],
+        "providerCount": 1
+      }
+    },
+    "providerBoundary": {
+      "strictProvider": "401 without the Bearer secret; suite-owned loopback server",
+      "requests": [
+        {
+          "at": 1785594642847,
+          "authValid": true,
+          "dedupeKey": "dispatch-5",
+          "bytes": 82
+        },
+        {
+          "at": 1785594642924,
+          "authValid": true,
+          "dedupeKey": "dispatch-8",
+          "bytes": 75
+        }
+      ],
+      "custody": "ctx.secrets staging + streamed egress lane (0137-a5-f1 cited); canary absent from all client-visible surfaces",
+      "canaryScan": {
+        "targets": [
+          "dispatchLedgerRows",
+          "actionEnvelopes",
+          "configStatus",
+          "devServerOutput",
+          "allEvidenceSoFar"
+        ],
+        "leaks": []
+      }
+    },
+    "terminalSettlement": {
+      "rows": [
+        {
+          "jobSeqNum": 5,
+          "dedupeKey": "dispatch-5",
+          "outcome": "sent",
+          "providerStatus": 200,
+          "bytes": 48,
+          "detail": "provider acknowledged (48 bytes)",
+          "at": 1785594642849
+        },
+        {
+          "jobSeqNum": 8,
+          "dedupeKey": "dispatch-8",
+          "outcome": "sent",
+          "providerStatus": 200,
+          "bytes": 48,
+          "detail": "provider acknowledged (48 bytes)",
+          "at": 1785594642926
+        }
+      ],
+      "inspectionPath": "dispatchLedger query (dispatcher-only)",
+      "authority": {
+        "operatorLedgerRead": "SNAPBACK_AUTH_PERMISSION_DENIED",
+        "outsiderDispatch": "SNAPBACK_HANDLER_FAILED"
+      }
+    }
+  },
+  "A6-07": {
+    "twoActorBarrier": {
+      "mechanism": "Promise.allSettled claimJob from two distinct operator sessions on one open job",
+      "results": [
+        {
+          "claimed": true,
+          "status": "claimed",
+          "fence": 1,
+          "attemptSeq": 1,
+          "owner": "opal",
+          "reason": ""
+        },
+        {
+          "claimed": false,
+          "status": "claimed",
+          "fence": 1,
+          "attemptSeq": 1,
+          "owner": "opal",
+          "reason": "job is claimed"
+        }
+      ],
+      "winner": "opal"
+    },
+    "fenceReceipt": {
+      "fenceProgression": [
+        1,
+        2
+      ],
+      "staleWrites": [
+        {
+          "seq": 5,
+          "attemptSeq": 2,
+          "event": "fenced",
+          "actorName": "opal",
+          "outcome": "completeJob",
+          "detail": "late completion fenced: status=claimed fence=2 presented=1",
+          "at": 1785594643146
+        },
+        {
+          "seq": 6,
+          "attemptSeq": 2,
+          "event": "fenced",
+          "actorName": "opal",
+          "outcome": "releaseJob",
+          "detail": "late release fenced: status=claimed fence=2 presented=1",
+          "at": 1785594643163
+        }
+      ],
+      "currentFenceWork": {
+        "completed": true,
+        "by": "oscar",
+        "fence": 2
+      }
+    },
+    "authoritativeOutcome": {
+      "status": "done",
+      "ownerName": "oscar",
+      "fence": 2,
+      "terminalDetail": "completed by oscar (0/0 steps done)",
+      "receiptSequence": [
+        "claimed",
+        "claim-rejected",
+        "released",
+        "claimed",
+        "fenced",
+        "fenced",
+        "completed",
+        "claim-rejected"
+      ]
+    }
+  },
+  "A6-08": {
+    "secondClient": {
+      "observer": "dana (dispatcher session) watching; opal (operator session) mutating",
+      "deliveries": {
+        "dashboardMs": 65,
+        "rangedListMs": 65
+      },
+      "liveEqualsSnapshot": true
+    },
+    "transportAttribution": {
+      "connection": "live",
+      "transport": "stream",
+      "polling": "never used as evidence"
+    },
+    "rangeFilterProof": {
+      "narrow": {
+        "range": {
+          "fromMs": 1785508240038,
+          "toMs": 1785681040038
+        },
+        "seqs": [
+          4,
+          5,
+          7,
+          8,
+          9,
+          10
+        ],
+        "jobsInRange": 6
+      },
+      "wide": {
+        "range": {
+          "fromMs": 1785508240038,
+          "toMs": 1786804240038
+        },
+        "seqs": [
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ]
+      },
+      "boundaryJob": "JOB-6 (scheduledFor +7d) excluded narrow, included wide"
+    },
+    "authority": {
+      "outsiderSubscription": "SNAPBACK_AUTH_PERMISSION_DENIED",
+      "outsiderList": "SNAPBACK_AUTH_PERMISSION_DENIED"
+    }
+  },
+  "A6-09": {
+    "exportReceipt": {
+      "counts": {
+        "customers": 4,
+        "jobs": 10,
+        "steps": 7,
+        "activity": 53,
+        "attempts": 19,
+        "dispatches": 2,
+        "maintenanceRuns": 3,
+        "followUpRuns": 1
+      },
+      "digest": "1e6b9ab07f9ffcb6ba4c41170c8dae565fec4909d89964dd62da8861eee99050",
+      "projection": "id-free natural keys: jobs by seq, customers by name, children by (jobSeq, seq), receipts by dedupeKey",
+      "authority": {
+        "operatorExportRefusal": "SNAPBACK_AUTH_PERMISSION_DENIED"
+      }
+    },
+    "restoreReceipt": {
+      "resetInstall": {
+        "operation": "reset-install",
+        "outcome": "reset-installed",
+        "seedVersion": "a6-ops.2026-08-01.1",
+        "resetDeletedRows": 108
+      },
+      "wipedFixtureCounts": {
+        "jobs": 3,
+        "attempts": 0,
+        "jobSeq": 3
+      },
+      "restore": {
+        "jobsInserted": 7,
+        "jobsPatched": 3,
+        "rowsInserted": 74,
+        "rowsSkipped": 15
+      },
+      "restoreAudited": "org-level activity row kind=restored (excluded from the digest comparison, counted explicitly)",
+      "streamResetBehavior": {
+        "observed": [],
+        "note": "the reset-install ends every connected client's authenticated live transport (SNAPBACK_AUTH_STREAM_RESET terminal on clients holding live handles); post-reset legs run on a fresh session"
+      },
+      "authorityAfterReset": {
+        "samePrincipal": false,
+        "postResetAccess": "SNAPBACK_AUTH_PERMISSION_DENIED",
+        "note": "the reset-install retires the whole pre-reset authority world on 0.1.7: pre-reset session tokens invalidate (SNAPBACK_AUTH_REQUIRED), and a fresh email-code sign-in mints a NEW principal (samePrincipal false) with no seat until it redeems the restored invite. Reset never resurrects authority (consistent with the A5 arm; membership unseedable per 0137-a3-f1, cited)"
+      }
+    },
+    "authoritativeCounts": {
+      "before": {
+        "customers": 4,
+        "jobs": 10,
+        "steps": 7,
+        "activity": 53,
+        "attempts": 19,
+        "dispatches": 2,
+        "maintenanceRuns": 3,
+        "followUpRuns": 1
+      },
+      "after": {
+        "customers": 4,
+        "jobs": 10,
+        "steps": 7,
+        "activity": 54,
+        "attempts": 19,
+        "dispatches": 2,
+        "maintenanceRuns": 3,
+        "followUpRuns": 1
+      },
+      "digestEqual": true,
+      "postRestoreSequence": 11
+    }
+  },
+  "A6-10": {
+    "targetBoundPlan": "suite-owned dev database in the arm directory only; config unset through admin custody; dispatch endpoint reset to the fixture value; seats retired by self-removal (0137-a3-f1 cited); receipted versioned reset-installs; guard-blocked ports 4287-4292 during spawn; 4420 never used",
+    "cleanupReceipts": [
+      {
+        "operation": "reset-install",
+        "outcome": "reset-installed",
+        "seedVersion": "a6-ops.2026-08-01.1",
+        "resetDeletedRows": 110
+      },
+      {
+        "operation": "reset-install",
+        "outcome": "reset-installed",
+        "resetDeletedRows": 24
+      }
+    ],
+    "configCleared": true,
+    "schedules": {
+      "cronDisabledWholeRun": true,
+      "finalTickRuns": 1,
+      "platformQueue": {
+        "farFutureDrain": 200,
+        "reRuns": 0
+      }
+    },
+    "postCleanupNegative": {
+      "leaveOutcomes": {
+        "opal": "SNAPBACK_AUTH_REQUIRED",
+        "oscar": "SNAPBACK_AUTH_REQUIRED",
+        "dana-post": "left"
+      },
+      "afterLeave": "SNAPBACK_AUTH_PERMISSION_DENIED",
+      "afterReset": "SNAPBACK_AUTH_PERMISSION_DENIED",
+      "final": "SNAPBACK_AUTH_PERMISSION_DENIED"
+    },
+    "fixtureVerification": {
+      "jobs": 3,
+      "jobSeq": 3,
+      "customers": 4,
+      "steps": 7,
+      "activity": 4,
+      "receipts": 0
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "findingId": "0137-a6-f1-jobstatus-query-boot-refusal",
+  "dimension": "conflicts-jobs-effects-and-ambiguity",
+  "observation": {
+    "description": "The generated declared job-status live query (defineJobStatusQuery, LLP 0070 first slice / LLP 0121 option 3 — the ONLY authorable client-facing status surface for jobs_one_off_v1) is unbootable end to end on packaged 0.1.7. Codegen accepts the declaration (28 operations, one degraded-result warning) and emits a plan referencing table `_snapback_jobs`, but the server refuses the WHOLE app at load: `SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID: function manifest references unknown table _snapback_jobs`, so `snapback dev` exits before dev.ready.json (SNAPBACK_DEV_SERVER_START_FAILED). The packaged runtime's own SQL schema names the platform table `_snapback_jobs_v1` (with `_snapback_jobs_v1_due` / `_snapback_jobs_v1_idem` indexes), and the function-schema reference validator admits neither spelling for an authored manifest. One declared line turns a fully working app into one that cannot boot. Workaround: do not declare it; read one-off job status through the admin route GET /_snapback/api/jobs/{id} (which carries its own secret-read custody, finding 0137-a6-f2). The REST of jobs_one_off_v1 works end to end as an external consumer: transactional ctx.jobs.enqueue with bounded enqueues facts on the mutation envelope ({jobId, action, availableAtMs}), pending state with producer association (producerMutationId), premature drain running nothing, injected-clock drain executing exactly once (disposition succeeded, fence 1), and terminal no-rerun.",
+    "evidence": [
+      "demos/improvement-sweep/arms/a6-snapback-web/evidence/probe-jobstatus-boot-refusal.json",
+      "demos/improvement-sweep/arms/a6-snapback-web/evidence/probe-jobstatus-manifest-excerpt.txt",
+      "demos/improvement-sweep/arms/a6-snapback-web/evidence/scenario-evidence.json (A6-04 runReceipt)",
+      "diaries/0047-a6-ops-ledger-sweep.diary.md"
+    ]
+  },
+  "competitorOutcome": {
+    "description": "Convex exposes scheduled-function status as ordinary system tables (ctx.db.system.get on _scheduled_functions) queryable and paginated from any function, with dashboard visibility; declaring the read does not affect deployability.",
+    "source": "official-docs",
+    "sourceDate": "2026-08-01",
+    "reference": "docs.convex.dev/scheduling/scheduled-functions (system-table status reads)"
+  },
+  "classification": "defect",
+  "mustNotRegress": "The working jobs_one_off_v1 core this arm proved end to end: mutation-transactional enqueue, bounded enqueues facts on confirmed mutation receipts (and their absence on rejections), idempotencyKey/delayMs/maxAttempts options, the injected-clock forced drain with append-only claim/fence records, and the privacy-bounded projection intent of the status query design.",
+  "smallestCoherentFix": "Align the generated job-status plan's platform-table reference with the name the runtime's function-schema validator admits (emit the versioned `_snapback_jobs_v1` reference, or teach the validator the platform alias), and add a boot-level regression: a schema declaring defineJobStatusQuery() must reach dev.ready.json and serve a pending row.",
+  "acceptanceWitness": "A clean external consumer declares `export const jobStatus = defineJobStatusQuery();`, `snapback dev` reaches ready, and the query returns the lifecycle projection for a just-enqueued job (state pending, then succeeded after drain).",
+  "owner": {
+    "kind": "filesystem-issue",
+    "reference": "issues/20260801-0137-a6-jobstatus-query-boot-refusal.md"
+  },
+  "stopClass": false,
+  "budgetFinding": false
+}

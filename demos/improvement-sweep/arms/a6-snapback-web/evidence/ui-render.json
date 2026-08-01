@@ -1,0 +1,19 @@
+{
+  "multiQueryGroups": 2,
+  "domProof": {
+    "counts": "3 jobs · 2 open · 0 claimed · 1 done · seq 3",
+    "seededRows": [
+      "ops-job-JOB-3",
+      "ops-job-JOB-2",
+      "ops-job-JOB-1"
+    ],
+    "detailTitle": "Survey: North Yard",
+    "detailSteps": 2,
+    "claimedPill": "claimed · Render Operator",
+    "claimMs": 93,
+    "createdDisplay": "JOB-4",
+    "createMs": 89,
+    "countsAfter": "4 jobs · 2 open · 1 claimed · 1 done · seq 4"
+  },
+  "liveDomUpdate": true
+}

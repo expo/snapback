@@ -1,0 +1,209 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "llp-0137-improvement-sweep-v1",
+  "arm": {
+    "contract": "a6",
+    "armKind": "snapback-web",
+    "platform": "web",
+    "provider": "snapback",
+    "attemptId": "a6-snapback-web-darwin-arm64-20260801"
+  },
+  "packageVersions": {
+    "@expo/snapback-cli": "0.1.7",
+    "@expo/snapback-app-cli": "0.1.7 (installed in the consumer root; the scaffolded app's bin resolves to @expo/snapback-cli)",
+    "@expo/snapback-client": "0.1.7",
+    "@expo/snapback-codegen": "0.1.7",
+    "@expo/snapback-contract": "0.1.7",
+    "@expo/snapback-react": "0.1.7",
+    "@expo/snapback-vite": "0.1.7",
+    "@expo/snapback-runtime-darwin-arm64": "0.1.7",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "vite": "8.2.0",
+    "typescript": "5.9.3",
+    "jsdom": "28.0.0 (dev-only, render proof)"
+  },
+  "environment": {
+    "host": "macOS (Darwin 25.5.0), arm64",
+    "node": "24.18.0 (volta)",
+    "bun": "1.3.12",
+    "registry": "https://registry.npmjs.org",
+    "externalDirectory": "session scratchpad sweep-a6/consumer/ops-app — outside any Snapback checkout; scaffolded by `snapback new --template react`; ops view of the frozen neutral-web shell wired live (other five views static placeholders)",
+    "sanctionedDocumentation": [
+      "the shipped Snapback guide (index, capabilities incl. the backend.jobs-one-off row, cron, streamed-actions, queries, mutations, versioned-seeds, sessions/scoped-roles pages)",
+      "prior 0137 arm records (G1/A2/A1/A3/A4/A5 capsules, diaries, findings, retained acceptance sources) for known defects and the sessions persona / dev-lifecycle / streamed-egress / config-and-cron admin recipes — program records, not product documentation",
+      "packaged artifacts of the installed closure (define.d.ts, runtime-artifacts schemas, binary strings, CLI --help) for the jobs_one_off_v1 and secret-read surfaces the guide does not cover — each such read is pinned to a finding (a6-f1, a6-f2) or the already-tracked jobs guide-page GAP"
+    ],
+    "authMode": "sessions (email-code provider; membership entry through seeded invite rows + the documented app-data-invitation self-insert pattern; server env SNAPBACK_OUTBOUND_ACTIONS=1 and SNAPBACK_CRON_DISABLED=1)"
+  },
+  "budget": {
+    "class": "deep",
+    "ceilings": { "activeHours": 8, "toolCalls": 400 },
+    "wallClock": {
+      "orientationStart": "2026-08-01T13:10:00Z (plan §A6, contract, kernel, prior-arm capsules and retained acceptance sources)",
+      "externalBuildStart": "2026-08-01T13:52:10Z",
+      "firstFullSuiteRun": "2026-08-01T14:08Z (after the a6-f1 boot refusal was probed and worked around): 7 pass / 3 fail",
+      "firstFullSuiteGreen": "2026-08-01T14:26:26Z (10/10, exit 0; suite wall 5.0s)",
+      "finalGreenVerification": "2026-08-01T14:30:43Z (suite re-run with corrected evidence notes; tsc --noEmit clean, vite build ok, jsdom render proof green in between)",
+      "orientationMinutes": 42,
+      "activeBuildMinutes": 38,
+      "recordsPhase": "14:35Z onward (findings, tickets, capsule, diary, status, freeze/ref checks, rebase, commit)"
+    },
+    "toolCalls": {
+      "throughFinalVerification": 100,
+      "recordsPhaseEstimate": "~35 additional",
+      "note": "counted from the session transcript; well under the 400-call deep ceiling including records"
+    },
+    "ceilingExceeded": false
+  },
+  "actors": {
+    "builder": "Claude (Fable 5), LLP 0137 Stage 2 sixth diaried sweep arm (A6), external-consumer posture",
+    "personas": {
+      "dana": "dana@sweep-a6.test (dispatcher via seeded invite INV-DISPATCH-5501; dashboard observer; export/restore custodian; dana-post / dana-verify / dana-final sessions for the post-reset legs)",
+      "opal": "opal@sweep-a6.test (operator via INV-OP-6601; claiming actor, dispatch driver)",
+      "oscar": "oscar@sweep-a6.test (operator via INV-OP-6602; second claiming actor for every concurrency barrier)",
+      "mallory": "mallory@sweep-a6.test (authenticated outsider, no seat)",
+      "render": "render-dispatcher / render-operator @sweep-a6.test (jsdom render proof, own fresh database)"
+    },
+    "principalDerivation": "server-minted sessions via email-code exchange; claim ownership, fence identity, and receipt attribution asserted against server principals, never client-supplied"
+  },
+  "targets": {
+    "kind": "fresh-isolated-local",
+    "targetProfile": "local-dev-sqlite-ibex",
+    "appId": "ops-app",
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:57ca17c272aacd3203068309d2febaabc5af29f0dfe46ef3f0dea4b256f30447",
+    "seedIdentity": "a6-ops.2026-08-01.1 (org + 4 customers + 3 baseline jobs with statuses/steps/activity + 4 invites; runtime receipt tables named-empty)",
+    "database": "app-local .snapback/dev.sqlite3, deleted before each suite run so the supervisor installs the versioned seed fresh",
+    "serverUrl": "http://127.0.0.1:4293",
+    "port": 4293,
+    "portDiscipline": "runtime port scan with suite guard-blocks on 4287-4292 (prior arms) during spawn; never 4420; the UNRELATED fleet session's snapback server (started 2026-07-27 from the main checkout, --memory) was listening on 4287 the whole arm and was left untouched — final lsof over 4287-4296 shows only that pre-existing listener",
+    "runtimeBinary": "node_modules/@expo/snapback-runtime-darwin-arm64/bin/snapback, sha256 6c5c956750edc1be016823824bf5e28a3e969810aed6d7299cf5f593fa2023fe (byte-identical to the A1/A2/A3/A4/A5 arms' 0.1.7 publication)",
+    "dispatchProviderServer": "suite-owned local HTTP server (port 0) REQUIRING the Bearer canary secret (401 otherwise) and recording per-dedupe-key request counts; reached only by the app server's streamed fetch — every arrived request carried the staged secret",
+    "hostedTarget": "none — A6 ran as a local-target contract; hosted availability remains the program-level gate"
+  },
+  "milestones": {
+    "closureInstalled": "2026-08-01T13:53Z (npm, 13 packages, ~9s)",
+    "scaffolded": "2026-08-01T13:54Z (snapback new --template react + bun install 0.7s)",
+    "backendAuthored": "2026-08-01T13:58-14:05Z (12 tables incl. membership, 28 operations; fail-closed iterations: requiredCapabilities refusing jobs_one_off_v1, then the a6-f1 boot refusal)",
+    "firstServerLoadedAndFirstRead": "2026-08-01T14:08Z (first full suite boot after the a6-f1 workaround: seed install + orgDashboard)",
+    "firstMutation": "2026-08-01T14:08Z (redeemInvite via seeded invite)",
+    "verifiedRealtime": "2026-08-01T14:08Z (A6-08 dispatcher deliveries 64-67ms on the first full run)",
+    "localAcceptance10Checks": "2026-08-01T14:26:26Z first green / 14:30:43Z final verification (10 pass / 0 gap / 0 fail, expectedChecks=10 enforced; suite wall 5.0s)",
+    "uiTypecheckAndBuild": "2026-08-01T14:28Z (tsc --noEmit clean; vite build ok)",
+    "reactRuntimeRender": "2026-08-01T14:29Z (jsdom render of the app's own OpsView: seeded aggregates '3 jobs · 2 open · 1 done · seq 3'; an independent operator's claim landed in the dispatcher's DOM in 93ms and a fresh JOB-4 allocation in 89ms; two nested provider-owned live-query groups)",
+    "hostedUrl": "not-applicable (local contract)",
+    "cleanup": "2026-08-01T14:30:43Z (dev child stopped via stdin close, port refused after stop; final lsof over 4287-4296 shows only the pre-existing unrelated fleet listener on 4287)"
+  },
+  "assistanceEvents": [
+    {
+      "elapsedMs": 600000,
+      "kind": "prior-arm-records",
+      "reason": "the sessions test-persona recipe, dev-server lifecycle ownership, versioned-seed admin custody, deterministic cron-tick seam, streamed-egress dispatch pattern, and the config admin API shapes are still undocumented in the guide",
+      "informationSupplied": "reused the recipes from the A5 arm's retained acceptance source (which derives from A2/A1/A3/A4's packaged-bytes reads)",
+      "equivalentOpportunityOffered": "same program records available to the sweep; already owned by findings 0137-a2-f6, 0137-a1-f9, 0137-a4-f7, 0137-a5-f1 (not re-filed)",
+      "postureBreak": false
+    },
+    {
+      "elapsedMs": 1200000,
+      "kind": "packaged-artifact-reads",
+      "reason": "jobs_one_off_v1 has no guide page (capability-index GAP row, issues/20260730-move3-jobs-slice-0070.md): the enqueue options vocabulary, drain input, job-status custody, and the secret-read mint surface had to come from define.d.ts, runtime-artifacts schemas, binary strings, and CLI --help",
+      "informationSupplied": "ctx.jobs.enqueue(action, args, {delayMs, idempotencyKey, maxAttempts}); drain {nowMs}; SecretReadMintEnvelope structs; `snapback secret-read-mint` recipe",
+      "equivalentOpportunityOffered": "the packaged closure is public npm bytes available to any consumer; the documentation cost is pinned as finding 0137-a6-f2 and the tracked jobs guide-page GAP",
+      "postureBreak": false
+    }
+  ],
+  "postureBreaks": [],
+  "commands": [
+    "npm install --save-exact @expo/snapback-{cli,app-cli,client,codegen,contract,react,vite}@0.1.7",
+    "snapback new ops-app --template react && bun install",
+    "node snapback/gen-seed.mjs && SNAPBACK_OUTBOUND_ACTIONS=1 snapback generate snapback (suite's dev loop regenerates per boot)",
+    "node acceptance.a6.mjs (10-check suite; owns its dev server + strict-auth dispatch provider + CLI secret-read-mint)",
+    "snapback secret-read-mint --ready-file .snapback/dev.ready.json --token <admin> --admin-inspect (invoked by the suite for the job-status route)",
+    "tsc --noEmit && vite build",
+    "node ui-render.mjs (auxiliary jsdom render proof, own dev server)",
+    "bun add -d jsdom"
+  ],
+  "scenarioResults": [
+    { "id": "A6-01-SEED", "result": "pass", "evidencePaths": ["evidence/report.json", "evidence/scenario-evidence.json"], "note": "versioned seed installs the org + 4 customers + 3 baseline jobs (seq 1-3 with a 2-open/1-done status split) + 7 steps + 4 audit rows + 4 invites on a fresh managed database; 4 distinct principals; dispatcher/operator seats claimed through seeded invites; runtime receipt tables named-empty; seed identity a6-ops.2026-08-01.1 receipted through admin custody" },
+    { "id": "A6-02-SEQUENCE", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "two-actor barrier: six concurrent createJob mutations across two authenticated clients allocated JOB-4..JOB-9 dense, duplicate-free, each receipt carrying its own create's title; dedupe replay returned the committed job without burning the counter (jobSeq stayed 9); the allocator is the hand-rolled counter row inside the serialized transaction — LLP 0135's dedicated primitive is Accepted-but-unimplemented on 0.1.7 (cited, and the race's nondeterministic seq-to-title assignment is exactly the ceremony 0135 §mint-visibility would remove)" },
+    { "id": "A6-03-BOUNDED", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "audit trail pushed to 25 rows: jobDetail's child list stays bounded at the newest 20 while the authoritative count reads 25; every query's bound inventoried (child 20/50, lists 100, ledgers 200, scans/export 500); dashboard aggregates equal an independent client-side recount over the dispatcher's full export, per status" },
+    { "id": "A6-04-SCHEDULING", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json", "evidence/probe-jobstatus-boot-refusal.json"], "note": "ONE-OFF (jobs_one_off_v1): ctx.jobs.enqueue in the SAME transaction as the job insert (delayMs 4000, idempotencyKey, maxAttempts 1); the mutation envelope carried the bounded enqueues fact {jobId, action, availableAtMs}; job-show row pending with producer association (producerMutationId); premature drain ran nothing; injected-clock drain executed exactly once (disposition succeeded, fence 1) writing one followUpRuns receipt + audit row; second drain no-reran. The generated declared job-status query is BOOT-REFUSED (finding 0137-a6-f1); status read via the admin route behind secret-read custody (finding 0137-a6-f2). RECURRING: maintenanceTick everyMs 1000 under deterministic ticks receipted 2+ distinct nominals with dedupe custody; epoch-0 catch-up nominal cited (0137-a4-f4)" },
+    { "id": "A6-05-ATTEMPTS", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "claim (attempt 1, fence 1), release, retry-claim (attempt 2, fence 2), lease timeout via the maintenance pass, and dispatcher cancellation each left append-only receipts; late claim/complete/re-cancel against the terminal job receipted without state change — 8 receipts, seq strictly increasing, three prefix snapshots byte-stable; operator cancellation refused (dispatcher-only); the audit trail mirrors the state machine [created, claimed, released, claimed, timed-out, cancelled]" },
+    { "id": "A6-06-DISPATCH", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "idempotent external dispatch over the streamed egress lane (0137-a5-f1 cited): dedupe key dispatch-<seq> with streamAttempt custody; the strict provider saw EXACTLY one request per key across a same-actor retry (outcome deduped) and a two-actor concurrent race (outcomes [sent, deduped]); settlement inspectable in the dispatcher-only ledger (sent, provider 200, bytes, at); every arrived provider request carried the staged secret; canary absent from 5 client-visible surfaces incl. dev output and all prior evidence; outsider dispatch refused (collapsed action code cited 0137-a4-f5)" },
+    { "id": "A6-07-FENCING", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "concurrent claims from two operator sessions resolved to exactly one owner (loser told the authoritative owner, receipted claim-rejected); after release + legitimate reclaim advanced the fence to 2, the PRIOR owner's stale-fence completion AND release were both fenced with append-only receipts while the fence-2 holder completed the job; post-terminal claim rejected; receipt sequence [claimed, claim-rejected, released, claimed, fenced, fenced, completed, claim-rejected]" },
+    { "id": "A6-08-DASHBOARD", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "dispatcher-held live dashboard + ranged job list (transport 'stream', connection 'live') updated in 64-67ms when an operator claimed a job; live rows equal an independent authoritative snapshot; range-filter proof: the +7d job is excluded from the weekly window and included by a wider live handle, with the dashboard's jobsInRange equal to the ranged list; outsider live subscription AND plain read denied uniformly" },
+    { "id": "A6-09-EXPORT-RESTORE", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "dispatcher-only export (id-free natural-key projection: jobs by seq, customers by name, children by (jobSeq,seq), receipts by dedupeKey) captured 10 jobs / 19 attempt receipts / 2 dispatches / maintenance + follow-up runs; a receipted versioned reset-install wiped to the fixture (verified); restoreLedger rebuilt 7 jobs + patched 3 with id remapping; round-trip digest equality holds (restore's own audit row excluded and counted explicitly); sequence continued at 11; operator export refused. Observed and instrumented: the reset retires pre-reset tokens/live transports/principals (finding 0137-a6-f3)" },
+    { "id": "A6-10-CLEANUP", "result": "pass", "evidencePaths": ["evidence/scenario-evidence.json"], "note": "config unset through admin custody; dispatch endpoint reset to the fixture value; far-future drain re-ran nothing (platform queue terminal); live seat self-removed (pre-reset seats already retired by the A6-09 reset — SNAPBACK_AUTH_REQUIRED on the stale sessions, recorded); two receipted reset-installs (deleted 110 + 24 rows) restore the literal fixture (3 jobs, jobSeq 3, 4 customers, 7 steps, 4 audit rows, zero receipts); restored invite redeemable; final fresh-session negative denied; unrelated fleet listener on 4287 untouched" }
+  ],
+  "expectedCheckCount": 10,
+  "findings": [
+    "0137-a6-f1-jobstatus-query-boot-refusal",
+    "0137-a6-f2-guide-gap-secret-read-lease-custody",
+    "0137-a6-f3-reset-install-strands-live-clients"
+  ],
+  "differentiators": [
+    {
+      "observation": "Transactional one-off scheduling — the exact capability the frozen LLP 0121 verdict named as why a builder 'would still choose Convex for the Dispatch workload' — now works on the public packaged closure as an external consumer: ctx.jobs.enqueue rides the SAME serialized transaction as the producing write (a rejected create schedules nothing), the confirmed mutation envelope carries bounded enqueues facts ({jobId, action, availableAtMs} — never argument values), the job row carries producer association (producerMutationId), and the injected-clock drain makes every schedule fact collectable deterministically. Convex's ctx.scheduler.runAfter offers the one-call ergonomics but no receipt-level producer association and no deterministic drain seam.",
+      "mustNotRegress": "Enqueue atomicity with the producing transaction; bounded enqueues facts on confirmed receipts and their absence on rejections; idempotencyKey custody (REUSED/RACED codes); the injected-clock forced drain.",
+      "referenceEvidence": "scenario-evidence.json A6-04; llp/0121-transactional-one-off-scheduling.research.md (frozen Convex verdict)"
+    },
+    {
+      "observation": "Zero-ceremony contention-safe sequence allocation: six concurrent creates from two clients allocated JOB-4..JOB-9 dense and duplicate-free with a three-line counter read-increment-write, because serialized mutation commits make it correct — the exact capability the frozen Convex chat evidence flags as missing ('compare-and-swap on server sequences', Diary 0028; 'would need a contention-safe sequence allocation', Diary 0034; LLP 0125's improvement row). The dedupe replay returned the committed job without burning the counter.",
+      "mustNotRegress": "Serialized commit order making read-increment-write collision-free; unique-index-backed dedupe replay returning the committed row.",
+      "referenceEvidence": "scenario-evidence.json A6-02; llp/0125-concurrency-and-conflict-ergonomics.research.md (frozen Diary 0028/0034 quotes)"
+    },
+    {
+      "observation": "Ownership fencing with an auditable ledger as plain app logic: concurrent claims resolve to one owner, the loser learns the authoritative owner, and a PRIOR owner's stale-fence writes leave append-only fenced receipts (byte-stable prefixes across three snapshots) — evidence-grade custody that frozen SpacetimeDB evidence delivers only as intentional reducer rejections (refusal without a receipt ledger) and frozen Convex arms hand-rolled without receipts.",
+      "mustNotRegress": "In-transaction ownership + fence checks writing only receipts on the late path; append-only attempt ledgers surviving as authoritative history.",
+      "referenceEvidence": "scenario-evidence.json A6-05/A6-07; llp/0125-concurrency-and-conflict-ergonomics.research.md (SpacetimeDB reducer-rejection evidence)"
+    },
+    {
+      "observation": "Idempotent external dispatch with provider-boundary proof: across a same-actor retry AND a two-actor concurrent race the strict external provider received exactly ONE request per dedupe key (streamAttempt custody; the loser observed 'deduped'), settlement landed as one inspectable ledger row, and the canary secret reached the provider while staying absent from every client-visible surface — where the frozen Convex research-room arm carries its Stop-class argv/wildcard secret defect.",
+      "mustNotRegress": "streamAttempt terminal-winner custody keyed by the app dedupe key; ctx.secrets staging with value-free diagnostics; unique-index settlement dedupe.",
+      "referenceEvidence": "scenario-evidence.json A6-06; diaries/0031 (Convex secret Stop)"
+    },
+    {
+      "observation": "Operational evidence velocity: the full 10-check suite — fresh versioned-seed install, ten sign-ins, concurrency barriers, cron ticks with a real maintenance sweep, an injected-clock one-off drain, external dispatch with a strict provider, export/reset/restore with digest proof, and two receipted reset-installs — runs in 5.0s wall. The deterministic tick seam, the forced drain, and the receipted reset-install are what make an OPERATIONS contract testable without sleeping on cadences.",
+      "mustNotRegress": "Machine-readable dev lifecycle; admin tick seam; injected-clock jobs drain; receipted reset-install restoring the literal fixture including named-empty runtime tables.",
+      "referenceEvidence": "evidence/report.json (startedAt/finishedAt); scenario-evidence.json A6-04/A6-10"
+    },
+    {
+      "observation": "App-level export/restore round-trips through a receipted destructive reset with DIGEST equality over an id-free natural-key projection (jobs by seq, children by (jobSeq, seq), receipts by dedupeKey), and the restore is itself an audited ledger event — no frozen competitor arm demonstrated an application-authored restore with byte-level proof.",
+      "mustNotRegress": "Receipted reset-install semantics (resetDeletedRows, expectedDataVersionStream fencing); serialized restore mutations making upsert-by-natural-key correct.",
+      "referenceEvidence": "scenario-evidence.json A6-09"
+    }
+  ],
+  "inventory": {
+    "authored": {
+      "backend": "snapback/schema.mjs (202 lines: 12 tables incl. membership, jobs state machine with fence/lease fields, append-only attempt + audit + dispatch + maintenance + follow-up ledgers), snapback/functions.mjs (1219: 28 operations — 5 queries, 5 live queries incl. the ranged dashboard, 15 mutations incl. claim/fence/restore, 3 actions), snapback/gen-seed.mjs (80) -> seed.json (264)",
+      "ui": "src/ops-view.mjs (81, the shared live ops surface with a nested job panel), src/App.tsx (95, frozen shell + wired ops view), src/main.tsx (93, sessions boot + invite deep link)",
+      "acceptance": "acceptance.a6.mjs (1079, 10 checks + own dev server + strict-auth dispatch provider + CLI lease mint), ui-render.mjs (168, auxiliary jsdom proof)"
+    },
+    "scaffolded": "react template (12 files) from snapback new",
+    "generated": "91 codegen files (28 operations); inputsHash 57ca17c2…",
+    "policy": "orgMembers scoped-role declaration (dispatcher/operator, invite self-insert + self-remove transitions); every protected operation requireRole-gated; dispatcher-only cancel/export/restore/dispatch-ledger/maintenance-ledger/endpoint; system-vs-human gating on the cron and job callees; one config secret (dispatchToken)",
+    "glue": "suite-owned strict-auth dispatch provider is test fixture; app-level workaround shapes: admin job-status route + CLI secret-read-mint in place of the boot-refused defineJobStatusQuery (a6-f1), fresh post-reset sessions in place of a client recovery surface (a6-f3); v.json() columns for steps/activity projections per the a5-f2 precedent",
+    "evidenceRetained": [
+      "evidence/report.json",
+      "evidence/scenario-evidence.json",
+      "evidence/ui-render.json",
+      "evidence/probe-jobstatus-boot-refusal.json",
+      "evidence/probe-jobstatus-manifest-excerpt.txt",
+      "evidence/app/*"
+    ]
+  },
+  "attribution": {
+    "transport": "managed WebSocket stream (transport:'stream', connection:'live') for every live claim — dispatcher dashboard/list deliveries 64-67ms (A6-08), jsdom DOM deliveries 89-93ms; polling never used as evidence; ledger reads and export are ordinary request-response queries and claimed as such",
+    "authority": "server-authoritative sessions mode: server-minted principals, requireRole membership gates on every protected read/subscribe/write; claim ownership bound to the server principal and the fence, never client-supplied; dispatcher-only surfaces enforced and negatively probed; the outsider uniformly denied incl. the live subscription; cron and drained jobs run with system authority and human invocations re-gated; admin data reads behind operator-minted secret-read leases",
+    "settlement": "structured mutation envelopes with receipts (incl. bounded enqueues facts); job dedupe by (orgId, dedupeKey) unique index with replay convergence; dispatch dedupe by unique settlement key with streamAttempt terminal-winner custody across a two-actor race; append-only attempt receipts with byte-stable prefixes; maintenance nominals receipted once each; reset-install receipts carry deleted-row counts and the restore returns row-level upsert counts with digest-verified fidelity"
+  },
+  "stopDefects": [],
+  "cleanup": {
+    "processes": "suite and render phase stop their own spawned children (stdin close, verified exit); no processes under the arm's app directory after the final runs",
+    "listeners": "arm servers on 4293 (guards blocked 4287-4292 during spawn); port refused after stop; 4420 never used; final lsof over 4287-4296 shows only the pre-existing unrelated fleet listener on 4287 (another session's 2026-07-27 main-checkout server, left untouched)",
+    "unrelatedState": "nothing outside the arm-owned app directory touched; acceptance clients run rqsStore:null so no durable client store was created; the dispatch provider bound port 0 and closed with the suite",
+    "database": "arm-owned .snapback/dev.sqlite3 left at the literal versioned seed by the second receipted reset-install (3 seeded jobs, zero runtime receipts, redeemable invites); config entry unset; retained in the session-isolated scratchpad; no secrets copied into any record",
+    "externalDirectory": "scratchpad sweep-a6/consumer/ops-app retained as the working area; durable evidence copied into this arms/ directory"
+  },
+  "result": "complete"
+}

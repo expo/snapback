@@ -1,0 +1,264 @@
+{
+  "seedVersion": "a6-ops.2026-08-01.1",
+  "tables": {
+    "orgs": [
+      {
+        "_id": "org_meridian",
+        "name": "Meridian Operations",
+        "jobSeq": 3
+      }
+    ],
+    "invites": [
+      {
+        "_id": "inv_dispatch",
+        "orgId": "org_meridian",
+        "code": "INV-DISPATCH-5501",
+        "role": "dispatcher",
+        "consumed": false,
+        "createdAt": 1783100000000
+      },
+      {
+        "_id": "inv_op_1",
+        "orgId": "org_meridian",
+        "code": "INV-OP-6601",
+        "role": "operator",
+        "consumed": false,
+        "createdAt": 1783100001000
+      },
+      {
+        "_id": "inv_op_2",
+        "orgId": "org_meridian",
+        "code": "INV-OP-6602",
+        "role": "operator",
+        "consumed": false,
+        "createdAt": 1783100002000
+      },
+      {
+        "_id": "inv_op_spare",
+        "orgId": "org_meridian",
+        "code": "INV-OP-9909",
+        "role": "operator",
+        "consumed": false,
+        "createdAt": 1783100003000
+      }
+    ],
+    "customers": [
+      {
+        "_id": "cust_meridian_foods",
+        "name": "Meridian Foods",
+        "region": "East Bay",
+        "orgId": "org_meridian",
+        "createdAt": 1783100000000
+      },
+      {
+        "_id": "cust_delta_freight",
+        "name": "Delta Freight",
+        "region": "Port",
+        "orgId": "org_meridian",
+        "createdAt": 1783100001000
+      },
+      {
+        "_id": "cust_north_yard",
+        "name": "North Yard",
+        "region": "North",
+        "orgId": "org_meridian",
+        "createdAt": 1783100002000
+      },
+      {
+        "_id": "cust_harborlight",
+        "name": "Harborlight Clinic",
+        "region": "Waterfront",
+        "orgId": "org_meridian",
+        "createdAt": 1783100003000
+      }
+    ],
+    "jobs": [
+      {
+        "_id": "job_survey_north",
+        "seq": 1,
+        "title": "Survey: North Yard",
+        "customerId": "cust_north_yard",
+        "status": "done",
+        "ownerId": "",
+        "ownerName": "",
+        "fence": 1,
+        "attemptCount": 1,
+        "leaseUntil": 0,
+        "scheduledFor": 1782495200000,
+        "dedupeKey": "seed-job-1",
+        "followUpPlatformJobId": "",
+        "createdAt": 1782408800000,
+        "updatedAt": 1782495200000,
+        "settledAt": 1782495200000,
+        "terminalDetail": "seeded baseline: survey completed",
+        "orgId": "org_meridian"
+      },
+      {
+        "_id": "job_repair_delta",
+        "seq": 2,
+        "title": "Repair: Delta Freight",
+        "customerId": "cust_delta_freight",
+        "status": "open",
+        "ownerId": "",
+        "ownerName": "",
+        "fence": 0,
+        "attemptCount": 0,
+        "leaseUntil": 0,
+        "scheduledFor": 1782927200000,
+        "dedupeKey": "seed-job-2",
+        "followUpPlatformJobId": "",
+        "createdAt": 1782840800000,
+        "updatedAt": 1782840800000,
+        "settledAt": 0,
+        "terminalDetail": "",
+        "orgId": "org_meridian"
+      },
+      {
+        "_id": "job_install_meridian",
+        "seq": 3,
+        "title": "Install: Meridian Foods",
+        "customerId": "cust_meridian_foods",
+        "status": "open",
+        "ownerId": "",
+        "ownerName": "",
+        "fence": 0,
+        "attemptCount": 0,
+        "leaseUntil": 0,
+        "scheduledFor": 1783013600000,
+        "dedupeKey": "seed-job-3",
+        "followUpPlatformJobId": "",
+        "createdAt": 1782927200000,
+        "updatedAt": 1782927200000,
+        "settledAt": 0,
+        "terminalDetail": "",
+        "orgId": "org_meridian"
+      }
+    ],
+    "jobSteps": [
+      {
+        "_id": "step_1_1",
+        "jobId": "job_survey_north",
+        "seq": 1,
+        "title": "Walk the perimeter",
+        "state": "done",
+        "doneByName": "Seed crew",
+        "at": 1782495200000,
+        "orgId": "org_meridian"
+      },
+      {
+        "_id": "step_1_2",
+        "jobId": "job_survey_north",
+        "seq": 2,
+        "title": "File measurements",
+        "state": "done",
+        "doneByName": "Seed crew",
+        "at": 1782495200000,
+        "orgId": "org_meridian"
+      },
+      {
+        "_id": "step_2_1",
+        "jobId": "job_repair_delta",
+        "seq": 1,
+        "title": "Diagnose conveyor fault",
+        "state": "pending",
+        "doneByName": "",
+        "at": 0,
+        "orgId": "org_meridian"
+      },
+      {
+        "_id": "step_2_2",
+        "jobId": "job_repair_delta",
+        "seq": 2,
+        "title": "Replace drive belt",
+        "state": "pending",
+        "doneByName": "",
+        "at": 0,
+        "orgId": "org_meridian"
+      },
+      {
+        "_id": "step_2_3",
+        "jobId": "job_repair_delta",
+        "seq": 3,
+        "title": "Load test",
+        "state": "pending",
+        "doneByName": "",
+        "at": 0,
+        "orgId": "org_meridian"
+      },
+      {
+        "_id": "step_3_1",
+        "jobId": "job_install_meridian",
+        "seq": 1,
+        "title": "Stage refrigeration units",
+        "state": "pending",
+        "doneByName": "",
+        "at": 0,
+        "orgId": "org_meridian"
+      },
+      {
+        "_id": "step_3_2",
+        "jobId": "job_install_meridian",
+        "seq": 2,
+        "title": "Commission and sign off",
+        "state": "pending",
+        "doneByName": "",
+        "at": 0,
+        "orgId": "org_meridian"
+      }
+    ],
+    "activity": [
+      {
+        "_id": "act_seed_1",
+        "jobId": "job_survey_north",
+        "seq": 1,
+        "actorName": "Seed",
+        "kind": "created",
+        "detail": "JOB-1 created (seed baseline)",
+        "at": 1782408800000,
+        "orgId": "org_meridian"
+      },
+      {
+        "_id": "act_seed_2",
+        "jobId": "job_survey_north",
+        "seq": 2,
+        "actorName": "Seed",
+        "kind": "status",
+        "detail": "JOB-1 settled done (seed baseline)",
+        "at": 1782495200000,
+        "orgId": "org_meridian"
+      },
+      {
+        "_id": "act_seed_3",
+        "jobId": "job_repair_delta",
+        "seq": 1,
+        "actorName": "Seed",
+        "kind": "created",
+        "detail": "JOB-2 created (seed baseline)",
+        "at": 1782840800000,
+        "orgId": "org_meridian"
+      },
+      {
+        "_id": "act_seed_4",
+        "jobId": "job_install_meridian",
+        "seq": 1,
+        "actorName": "Seed",
+        "kind": "created",
+        "detail": "JOB-3 created (seed baseline)",
+        "at": 1782927200000,
+        "orgId": "org_meridian"
+      }
+    ],
+    "dispatchSettings": [
+      {
+        "_id": "dispatch_cfg",
+        "orgId": "org_meridian",
+        "url": "",
+        "updatedAt": 0
+      }
+    ],
+    "jobAttempts": [],
+    "dispatches": [],
+    "maintenanceRuns": [],
+    "followUpRuns": []
+  }
+}
