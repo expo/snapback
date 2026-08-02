@@ -243,6 +243,16 @@ unregisterExternalMaterialization();
     name: 'generationBound',
     expectedGeneration: generation,
   };
+  const generatedLiveRef = {
+    ...generatedRef,
+    kind: 'LiveQuery',
+    argumentSchema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: { requiredValue: { type: 'string' } },
+      required: ['requiredValue'],
+    },
+  };
   globalThis.fetch = async (url, init = {}) => {
     const path = new URL(url).pathname;
     if (path === '/connection/open') {
@@ -279,10 +289,39 @@ unregisterExternalMaterialization();
     await generationClient.subscribeLive(generatedRef, {
       connectionId: 'generation-client-connection',
     });
+    const requestCountBeforeInvalidLiveQuery = requests.length;
+    await assert.rejects(
+      () => generationClient.liveQuery(generatedLiveRef, {
+        connectionId: 'generation-invalid-live-query-connection',
+        args: { forged: true },
+        persistResume: false,
+      }),
+      (error) => {
+        assert.equal(error.code, 'SNAPBACK_ARGUMENT_VALIDATION_FAILED');
+        assert(error.diagnostic.details.problems.includes('args.forged is not declared'));
+        return true;
+      },
+    );
+    assert.equal(
+      requests.length,
+      requestCountBeforeInvalidLiveQuery,
+      'liveQuery validates a generated reference before network I/O',
+    );
+    const generatedLiveHandle = await generationClient.liveQuery(
+      generatedLiveRef,
+      {
+        connectionId: 'generation-live-query-connection',
+        args: { requiredValue: 'valid' },
+        persistResume: false,
+      },
+    );
+    generatedLiveHandle.dispose();
+    await generatedLiveHandle.settled();
+    const generatedCalls = requests.filter(({ path }) => !path.endsWith('/unsubscribe'));
     assert.deepEqual(
-      requests.map(({ body }) => body.expectedGeneration),
-      Array(5).fill(generation),
-      'every generated call family carries the exact artifact generation',
+      generatedCalls.map(({ body }) => body.expectedGeneration),
+      Array(6).fill(generation),
+      'every generated call family, including liveQuery, carries the exact artifact generation',
     );
     assert.throws(
       () => generationClient.query({

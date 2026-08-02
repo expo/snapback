@@ -8557,13 +8557,18 @@ export class SnapbackClient {
               }
               : null,
           };
+          // Keep the generated reference through the last call boundary.
+          // Collapsing it to `name` here silently drops argument validation
+          // and expectedGeneration from fresh live admissions.
+          // @ref LLP 0012#call-time-generation-binding — generated live
+          //   subscriptions repeat the complete artifact generation tuple.
           const sub = externalBearerTransitionPermit === EXTERNAL_BEARER_TRANSITION_PERMIT
             ? await client.#subscribeLive(
-                name,
+                ref,
                 subscribeOptions,
                 externalBearerTransitionPermit,
               )
-            : await client.subscribeLive(name, subscribeOptions);
+            : await client.subscribeLive(ref, subscribeOptions);
           try {
             assertSubscribeLifecycle(lifecycle);
           } catch (error) {
