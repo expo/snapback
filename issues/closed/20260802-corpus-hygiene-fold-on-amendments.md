@@ -1,6 +1,6 @@
 # Corpus hygiene: apply the unfolded fold-on amendments from the Wave-1 acceptances
 
-**Status:** Reconciled — pending landing
+**Status:** Resolved 2026-08-02
 **Systems:** Docs
 **Related:** LLP 0135 §4, LLP 0136 Appendices A/B, LLP 0073, LLP 0091,
 LLP 0094, LLP 0120, LLP 0134
@@ -41,3 +41,6 @@ ticket closed with the commit list.
 - **2026-08-02 — proof.** `./ref-check --verbose` and the docs-only guide
   check gate the landing. No runtime, schema artifact, guide capability, or
   maturity claim changes in this ticket.
+- **2026-08-02 — landed.** Commit
+  `d7eef3c65db5ab39abcefdebc0c642b247c02623` is on main with all three
+  reconciliation items and the implementation-lane coordination notes.

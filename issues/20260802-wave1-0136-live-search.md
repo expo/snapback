@@ -32,7 +32,8 @@ registered; dated implementation-record amendment + 0115 CV-11 row updated.
 
 - **2026-08-02 — owner folds taken by corpus hygiene.** The
   `20260802-corpus-hygiene-fold-on-amendments` lane folded LLP 0136 Appendix
-  A/B into LLP 0073/0091/0094 as staged, explicitly unimplemented contracts
+  A/B at `d7eef3c65db5ab39abcefdebc0c642b247c02623` into LLP
+  0073/0091/0094 as staged, explicitly unimplemented contracts
   and marked the appendices folded. This ticket must not duplicate those doc
   amendments; it still owns every code/schema/fixture/capability and
   implementation-record obligation they name.

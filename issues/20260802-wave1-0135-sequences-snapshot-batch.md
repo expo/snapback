@@ -32,6 +32,7 @@ dated implementation-record amendment on the LLP; LLP 0115 board row updated.
 
 - **2026-08-02 — owner folds taken by corpus hygiene.** The
   `20260802-corpus-hygiene-fold-on-amendments` lane applied LLP 0135 §4's
-  dated owner amendments and marked §4 folded. This implementation ticket
+  dated owner amendments at `d7eef3c65db5ab39abcefdebc0c642b247c02623`
+  and marked §4 folded. This implementation ticket
   must not repeat them; it still owns code, executable acceptance, capability
   registration, demo replacement, and the implementation record.
