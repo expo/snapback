@@ -3114,11 +3114,16 @@ fn s2_subscription_ids_are_unguessable() {
         .expect("second subscription");
     assert_ne!(first.subscription_id, second.subscription_id);
     for id in [&first.subscription_id, &second.subscription_id] {
-        assert!(id.starts_with("sub_"), "unexpected id shape: {id}");
+        // @ref LLP 0148#d1-grammar — subscription capabilities now carry the
+        // registry's canonical 128-bit Crockford body instead of UUID text.
         assert!(
-            id.len() >= "sub_".len() + 32,
-            "id must not be an enumerable counter: {id}"
+            snapback::ids::is_well_formed(id),
+            "subscription id must retain the canonical minted-id body: {id}"
         );
+        let (prefix, body) = snapback::ids::split(id).expect("well-formed subscription id");
+        assert_eq!(prefix, snapback::ids::Kind::Subscription.prefix());
+        assert_eq!(body.len(), snapback::ids::BODY_LEN);
+        assert!(snapback::ids::decode_body(body).is_some());
     }
 }
 

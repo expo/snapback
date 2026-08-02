@@ -18288,8 +18288,6 @@ async fn invoke_query(
         .map_err(|error| error.with_attribution(attribution.clone()))?;
     let input = request.input;
     let expected_generation = request.expected_generation;
-    let facts_mode = authority.active_mode();
-    let facts_authority = authority.clone();
     // Only finite service authority needs the SQLite-owned terminal cut.
     // Anonymous and session queries are fenced by their process publication
     // handles and must stay off the global write lane so WAL reads remain
@@ -18312,9 +18310,9 @@ async fn invoke_query(
         .map_err(ApiError::from)
         .map_err(|error| error.with_attribution(attribution.clone()))?;
     }
-    let output = if read.available() {
+    let (output, facts) = if read.available() {
         with_read_lane(&read, move |lane| {
-            lane.invoke_query_prepared_generation(
+            lane.invoke_query_prepared_generation_with_facts(
                 &name,
                 input,
                 authority,
@@ -18324,24 +18322,21 @@ async fn invoke_query(
         .await
     } else {
         with_snapback(&state, move |snapback| {
-            snapback
+            let invocation = snapback
                 .invoke_query_with_dependencies_prepared_generation(
                     &name,
                     input,
-                    authority,
+                    authority.clone(),
                     expected_generation.as_ref(),
-                )
-                .map(|invocation| invocation.output)
+                )?;
+            authority.validate_admission("query generation facts")?;
+            let facts = snapback.function_invocation_facts(authority.active_mode())?;
+            Ok((invocation.output, facts))
         })
         .await
     }
     .map_err(ApiError::from)
     .map_err(|error| error.with_attribution(attribution.clone()))?;
-    let facts = with_snapback(&state, move |snapback| {
-        facts_authority.validate_admission("query generation facts")?;
-        snapback.function_invocation_facts(facts_mode)
-    })
-    .await?;
     Ok(Json(FunctionResponse::with_facts(
         output,
         attribution,

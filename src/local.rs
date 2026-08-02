@@ -21599,8 +21599,34 @@ impl ReadLane {
         authority: PreparedAuthority,
         expected_generation: Option<&ArtifactGeneration>,
     ) -> SnapbackResult<QueryOutput> {
+        self.invoke_query_prepared_generation_with_facts(
+            name,
+            input,
+            authority,
+            expected_generation,
+        )
+        .map(|(output, _facts)| output)
+    }
+
+    /// Invoke against one immutable read-manifest snapshot and derive the
+    /// caller-visible generation facts from that same snapshot. Returning the
+    /// pair keeps `/query` entirely off the global writer mutex.
+    ///
+    /// @ref LLP 0012#call-time-generation-binding — successful sessions facts
+    /// are server-derived from the exact pair selected for the invocation.
+    /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — read-lane
+    /// queries never reacquire the write lane for post-invocation metadata.
+    pub(crate) fn invoke_query_prepared_generation_with_facts(
+        &self,
+        name: &str,
+        input: HandlerInput,
+        authority: PreparedAuthority,
+        expected_generation: Option<&ArtifactGeneration>,
+    ) -> SnapbackResult<(QueryOutput, Option<FunctionInvocationFacts>)> {
         let pool = self.pool.as_ref().ok_or_else(read_lane_unavailable)?;
         let manifests = self.manifests();
+        let facts_mode = authority.active_mode();
+        let facts_authority = authority.clone();
         let epochs = self
             .epochs
             .read()
@@ -21666,7 +21692,14 @@ impl ReadLane {
         Ok(invocation.output)
         })();
         finish_function_observation(span, &result);
-        result
+        let output = result?;
+        facts_authority.validate_admission("query generation facts")?;
+        let facts = invocation_facts_from_manifests(
+            facts_mode,
+            &manifests.schema,
+            &manifests.functions,
+        )?;
+        Ok((output, facts))
     }
 
     pub(crate) fn execute_detached_ibex_mutation(
