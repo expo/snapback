@@ -155,7 +155,17 @@ fn invocation_facts_from_manifests(
     if active_mode != AuthMode::Sessions {
         return Ok(None);
     }
-    let identity = DeploymentIdentity::from_manifests(active_mode, schema, functions)?;
+    // Facts are the caller-visible identity stamp, not the coherence gate:
+    // activation owns strict pair validation, and an activation-enforced
+    // sessions deployment always yields a derivable identity. A pair whose
+    // identity is not derivable (reachable only outside that enforcement,
+    // e.g. invalidation-scoped authorities over dev-shaped manifests)
+    // stamps no facts instead of failing the invocation — absence is the
+    // explicit compatibility path. Asserted generations never ride this
+    // leniency: see validate_expected_generation_against_manifests.
+    let Ok(identity) = DeploymentIdentity::from_manifests(active_mode, schema, functions) else {
+        return Ok(None);
+    };
     Ok(Some(FunctionInvocationFacts {
         active_generation: ArtifactGeneration {
             schema_version: identity.schema_version,
@@ -185,9 +195,23 @@ fn validate_expected_generation_against_manifests(
     let Some(expected) = expected else {
         return Ok(());
     };
-    let active = invocation_facts_from_manifests(active_mode, schema, functions)?
-        .expect("sessions manifests always produce invocation facts")
-        .active_generation;
+    let Some(active) = invocation_facts_from_manifests(active_mode, schema, functions)?
+        .map(|facts| facts.active_generation)
+    else {
+        // An asserted generation can only be validated against a derivable
+        // active identity; refusing here keeps the assertion fail-closed
+        // even where the facts stamp degrades to absent.
+        return Err(SnapbackError::error(
+            "SNAPBACK_ARTIFACT_IDENTITY_MISMATCH",
+            "runtime",
+            "a generated artifact generation was asserted, but the active \
+             manifest pair has no derivable deployment identity",
+        )
+        .with_details(json!({
+            "subcause": "identity-underivable",
+            "expectedGeneration": expected,
+        })));
+    };
     if expected == &active {
         return Ok(());
     }
@@ -41769,6 +41793,50 @@ globalThis.__snapbackHandlers = {
             })
             .collect::<Vec<_>>();
         assert_eq!(payloads, vec![b"successor".to_vec()]);
+    }
+
+    #[test]
+    fn sessions_facts_degrade_when_identity_is_underivable_and_assertions_refuse() {
+        // Regression for the 2026-08-01 lib red: sessions-scoped authorities
+        // over dev-shaped manifests (an activation-unreachable pair) must not
+        // fail invocations at the facts stamp — absence is the compatibility
+        // path — while an asserted generation stays fail-closed.
+        let schema = SchemaManifest {
+            schema_hash: Some("dev-shaped-schema".to_owned()),
+            ..SchemaManifest::default()
+        };
+        let functions = FunctionManifest::default();
+
+        let facts =
+            super::invocation_facts_from_manifests(AuthMode::Sessions, &schema, &functions)
+            .expect("facts derivation must not fail the invocation");
+        assert!(
+            facts.is_none(),
+            "an underivable pair identity stamps no facts"
+        );
+
+        let expected = crate::manifest::ArtifactGeneration {
+            schema_version: "snapback.v1".to_owned(),
+            app_id: "app".to_owned(),
+            schema_hash: "s".to_owned(),
+            bundle_hash: "b".to_owned(),
+            inputs_hash: "i".to_owned(),
+        };
+        let refusal = super::validate_expected_generation_against_manifests(
+            AuthMode::Sessions,
+            Some(&expected),
+            &schema,
+            &functions,
+        )
+        .expect_err("an asserted generation without a derivable identity must refuse");
+        assert_eq!(
+            refusal.diagnostic.code,
+            "SNAPBACK_ARTIFACT_IDENTITY_MISMATCH"
+        );
+        assert_eq!(
+            refusal.diagnostic.details["subcause"],
+            "identity-underivable"
+        );
     }
 
     #[test]
