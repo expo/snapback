@@ -46,6 +46,7 @@ pub const MAX_STATS_RAW_TAIL_ROWS: usize = 10_000;
 pub const TYPED_QUERY_MAX_STEPS: u64 = 1_000_000;
 pub const TYPED_QUERY_MAX_TIME_MS: u64 = 2_000;
 pub const QUERY_FIXTURE_CORPUS_FILE: &str = "telemetry.query-fixtures-v1.json";
+const MAX_EXPORT_CONTINUATION_TOKEN_BYTES: usize = 64 * 1024;
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -201,10 +202,16 @@ pub struct TelemetryAgentExportRequestV1 {
     #[serde(default, flatten)]
     pub filter: TelemetryFilterV1,
     #[serde(default)]
+    #[schemars(length(max = MAX_EXPORT_CONTINUATION_TOKEN_BYTES))]
     pub continuation_token: Option<String>,
     #[serde(default = "default_event_limit")]
+    #[schemars(range(min = 1, max = MAX_EVENT_LIMIT))]
     pub max_rows: usize,
     #[serde(default = "default_agent_export_byte_bound")]
+    #[schemars(range(
+        min = MIN_AGENT_EXPORT_BYTE_BOUND,
+        max = MAX_AGENT_EXPORT_BYTE_BOUND
+    ))]
     pub max_bytes: usize,
 }
 
@@ -427,7 +434,12 @@ pub struct TelemetryExportPageV1 {
 #[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TelemetryAgentExportBoundsV1 {
+    #[schemars(range(min = 1, max = MAX_EVENT_LIMIT))]
     pub max_rows: usize,
+    #[schemars(range(
+        min = MIN_AGENT_EXPORT_BYTE_BOUND,
+        max = MAX_AGENT_EXPORT_BYTE_BOUND
+    ))]
     pub max_bytes: usize,
 }
 
@@ -439,11 +451,15 @@ pub struct TelemetryAgentExportBoundsV1 {
 pub struct TelemetryAgentExportPageV1 {
     pub schema_version: String,
     pub header: TelemetryExportHeaderV1,
+    #[schemars(length(max = MAX_EVENT_LIMIT))]
     pub records: Vec<TelemetryExportEventV1>,
     pub declared_bounds: TelemetryAgentExportBoundsV1,
+    #[schemars(range(max = MAX_EVENT_LIMIT))]
     pub page_rows: usize,
+    #[schemars(range(max = MAX_AGENT_EXPORT_BYTE_BOUND))]
     pub page_bytes: usize,
     pub truncated: bool,
+    #[schemars(length(max = MAX_EXPORT_CONTINUATION_TOKEN_BYTES))]
     pub continuation_token: Option<String>,
 }
 
@@ -1741,7 +1757,7 @@ fn decode_export_continuation(
     token: &str,
     key: &[u8; 32],
 ) -> SnapbackResult<TelemetryExportContinuationV1> {
-    if token.len() > MAX_EXPORT_CONTINUATION_BYTES * 2 {
+    if token.len() > MAX_EXPORT_CONTINUATION_TOKEN_BYTES {
         return Err(invalid_export_continuation());
     }
     let mut parts = token.split('.');
@@ -1818,7 +1834,7 @@ fn export_identity(connection: &Connection) -> SnapbackResult<(String, String)> 
 
 /// Execute exactly one local-only statement against the telemetry sibling.
 ///
-/// @ref LLP 0154#d5--the-query-and-export-contract — read-only open plus an
+/// @ref LLP 0154#d5--the-query-contract-typed-operations-projected-everywhere — read-only open plus an
 ///   attribution-aware authorizer admits base reads only through the visible
 ///   views. This function deliberately has no HTTP route.
 pub fn query_local_sql(
@@ -2318,6 +2334,57 @@ pub fn query_fixture_corpus() -> Value {
                 "records": [],
                 "nextCursor": null
             }
+        },
+        "agentExport": {
+            "request": {
+                "kind": "http_request",
+                "maxRows": 2,
+                "maxBytes": 65536
+            },
+            "continuationRequest": {
+                "continuationToken": "sbtel1.eyJ2ZXJzaW9uIjoic25hcGJhY2sudGVsZW1ldHJ5LmV4cG9ydC1jb250aW51YXRpb24udjEifQ.Zml4dHVyZS1tYWM",
+                "maxRows": 2,
+                "maxBytes": 65536
+            },
+            "page": {
+                "schemaVersion": "snapback.telemetry.agent-export-page.v1",
+                "header": {
+                    "schemaVersion": "snapback.telemetry.export.v1",
+                    "recordType": "header",
+                    "appId": "app_fixture",
+                    "environment": "local",
+                    "generation": "gen_fixture",
+                    "appDbIncarnation": "01900000-0000-7000-8000-000000000001",
+                    "snapshot": { "recordedTsMs": 1001, "id": 7 },
+                    "variance": fixture_variance("exact")
+                },
+                "records": [{
+                    "schemaVersion": "snapback.telemetry.export.v1",
+                    "recordType": "event",
+                    "appId": "app_fixture",
+                    "environment": "local",
+                    "id": 7,
+                    "observation": "obs_fixture",
+                    "phase": "joined",
+                    "generation": "gen_fixture",
+                    "classV": 1,
+                    "tsMs": 1000,
+                    "recordedTsMs": 1001,
+                    "kind": "http_request",
+                    "name": "/health",
+                    "status": 200,
+                    "durationMs": 2.0,
+                    "code": null,
+                    "correlation": null,
+                    "release": "sha256:fixture",
+                    "details": null
+                }],
+                "declaredBounds": { "maxRows": 2, "maxBytes": 65536 },
+                "pageRows": 1,
+                "pageBytes": 1138,
+                "truncated": true,
+                "continuationToken": "sbtel1.eyJ2ZXJzaW9uIjoic25hcGJhY2sudGVsZW1ldHJ5LmV4cG9ydC1jb250aW51YXRpb24udjEifQ.Zml4dHVyZS1tYWM"
+            }
         }
     })
 }
@@ -2497,6 +2564,29 @@ mod tests {
                 .unwrap(),
             1,
             "the scoped handler is removed after the typed read"
+        );
+    }
+
+    #[test]
+    fn finite_agent_export_fixture_pins_bounds_and_continuation() {
+        let corpus = query_fixture_corpus();
+        let fixture = &corpus["agentExport"];
+        let request: TelemetryAgentExportRequestV1 =
+            serde_json::from_value(fixture["request"].clone()).unwrap();
+        request.validate().unwrap();
+        let continuation_request: TelemetryAgentExportRequestV1 =
+            serde_json::from_value(fixture["continuationRequest"].clone()).unwrap();
+        continuation_request.validate().unwrap();
+        let page: TelemetryAgentExportPageV1 =
+            serde_json::from_value(fixture["page"].clone()).unwrap();
+        assert_eq!(page.page_rows, page.records.len());
+        assert_eq!(page.truncated, page.continuation_token.is_some());
+        assert_eq!(page.declared_bounds.max_rows, request.max_rows);
+        assert_eq!(page.declared_bounds.max_bytes, request.max_bytes);
+        assert_eq!(
+            page.page_bytes,
+            serde_json::to_vec(&page).unwrap().len(),
+            "the fixture preserves the finite carrier's exact byte accounting"
         );
     }
 }

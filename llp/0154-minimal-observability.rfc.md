@@ -193,6 +193,15 @@ pure and transport-independent per C7. The exact projection, identity,
 timestamp, event-id, retry/dedup, and billable-instance rules are recorded in
 the OQ1 resolution below and the full deliverable-2 boundary corpus is pinned
 in Store-level tests.)
+**Revised:** 2026-08-02 (dated amendment, post-acceptance — the agent-first
+export carrier is resolved per Charlie's direction in the author decision
+packet. `telemetry.export` remains snapshot-bounded NDJSON for HTTP/CLI and is
+also a required finite host-op/control-MCP projection. Each agent request
+declares hard row and byte ceilings; each response reports the applied bounds,
+exact page rows/bytes, and explicit truncation state, and carries an opaque
+authenticated continuation token bound to the original filter, store
+generation, app-DB incarnation, and frozen export header. Reset/rebind or
+server restart refuses continuation instead of weakening the snapshot.)
 **Related:** LLP 0000 (explainer; reserves Observability as an undrafted
 subsystem), LLP 0003 (storage core; app write lane), LLP 0010 (inspect
 loop; explicitly defers production observability), LLP 0012 (headless
@@ -876,6 +885,19 @@ survives where it is safe and where agents actually need it:
 - Because the hatch reads the same visibility views, whose boundary
   comes from `telemetry_meta` (D1), generation fencing and read-time
   retention hold there too with zero coordination (D1, D4).
+
+### Amendment 2026-08-02: agent-first export carrier
+
+The host-op and control-MCP projection of `telemetry.export` ships in v1; it is
+not deferred behind the streaming HTTP carrier. An agent call returns one
+snapshot-bounded finite page with caller-declared row and byte ceilings, the
+applied bounds and exact serialized page size, an explicit truncation fact,
+and an opaque authenticated continuation token when more rows remain. The
+token binds the original filter, frozen export header, store generation, and
+app-DB incarnation; a process restart or reset/rebind invalidates it. HTTP and
+CLI continue to unfold the same query core as NDJSON. The request and page are
+Rust-owned, schema-generated, committed, and covered by the shared query
+fixture corpus.
 
 ### D6 — Console pages (Phase 1: Health and Logs)
 
