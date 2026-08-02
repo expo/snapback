@@ -153,6 +153,24 @@ unreviewed; the author accepts on that record. Acceptance releases the
 Phase-1 deliverables program (`issues/20260802-obs-00-program.md`,
 tickets obs-01..04); Phases 2–3 and the OQ2/OQ3 retention and identity
 decisions remain gated as the document states.)
+**Revised:** 2026-08-02 (dated amendment, post-acceptance — admission
+identity representation, resolving the decision-packet question that
+blocked obs-01 close/obs-02: **release identity becomes a fixed
+`release TEXT` column** on `telemetry_events` (nullable — rows admitted
+before any bundle activation carry NULL) and leaves the `details`
+allowlist; D2 lists it first-class, the schema is schema-on-write by
+design, LLP 0156's flusher needs it per-row in the hot upsert, and
+identity fields must not be truncatable while `details` is.
+**App/environment identity is store-implicit and meta-pinned**: the
+sibling database is per-app/per-environment by D1 construction, so
+`telemetry_meta` gains `app_id` and `environment`, written at store
+creation and rebind — no per-row stamping (a constant column would add
+only a way for rows to lie). `telemetry.export` stamps both meta fields
+into the NDJSON at egress so exports are self-describing, and the
+obs-02 shared telemetry/metering fixtures check projection equality on
+the composed record (row + meta), with the metering projection taking
+the same identity from the C7 envelope. Ruled with Charlie in the LLP
+0156 promotion session working through the obs-02 block.)
 **Related:** LLP 0000 (explainer; reserves Observability as an undrafted
 subsystem), LLP 0003 (storage core; app write lane), LLP 0010 (inspect
 loop; explicitly defers production observability), LLP 0012 (headless
@@ -455,8 +473,10 @@ Each instrumented seam emits a two-stage **observation span** (C4):
   admitted): observation id (unique — the **correlation root**, not a
   bill-event id; see the identity rule below), operation class +
   **registry version**,
-  app/environment identity, `generation`, release identity
-  (function-bundle hash / deployment id), admission time `ts_ms`
+  app/environment identity (store-scoped: pinned in `telemetry_meta`
+  per the 2026-08-02 amendment, not stamped per row), `generation`,
+  release identity (function-bundle hash / deployment id — the fixed
+  `release` column), admission time `ts_ms`
   (the attribution-bound timestamp per LLP 0104's admission-bound
   `occurredAt` discipline), correlation (request/job/connection id), and
   attribution fields the metering projection needs (ownership interval
@@ -523,6 +543,10 @@ CREATE TABLE telemetry_events (
   subject        TEXT,                    -- invariantly NULL until Phase 3 (C5)
   code           TEXT,                    -- Diagnostic code, when failed
   correlation    TEXT,
+  release        TEXT,                    -- bundle hash / deployment id
+                                          -- (fixed column per the 2026-08-02
+                                          -- amendment; NULL before first
+                                          -- activation; never in details)
   details        TEXT                     -- JSON, allowlisted + capped
 );
 -- all raw reads go through this view (D1); rollup reads use
@@ -856,6 +880,10 @@ telemetry_rollup_hourly(generation, hour, kind, name,
                         latency_histogram)   -- fixed log-spaced buckets
 telemetry_rollup_daily(...)                  -- compacted tier, same shape
 telemetry_meta(generation, app_db_incarnation,
+               app_id, environment,         -- store identity (2026-08-02
+                                            -- amendment): written at
+                                            -- creation/rebind; stamped into
+                                            -- exports at egress
                max_days_mirror, retention_floor,
                observation_clock_ms,        -- the D2 nondecreasing clock
                aggregate_floor_hourly, aggregate_floor_daily,

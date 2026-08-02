@@ -1,7 +1,7 @@
 # D-02: Operation-class registry, OQ1 ratification vs LLP 0104, boundary-protocol fixture corpus (LLP 0154 checklist 2)
 
-**Status:** Blocked — LLP 0154 is Accepted; D2 admission identity representation
-remains author-owned in the decision packet
+**Status:** Open — unblocked 2026-08-02 (identity representation ruled;
+depends on obs-01 closing on the amended schema)
 **Program:** 20260802-obs-00-program.md
 **Depends on:** 20260802-obs-01
 **Systems:** Observability, Testing
@@ -35,3 +35,13 @@ disagree, that's a decision-packet append, not a silent fix.
   `issues/20260802-author-decision-packet.md`; this ticket will neither omit
   the fields nor invent columns/details/meta semantics. Work resumes when the
   packet supplies the representation and obs-01 can close on it.
+- **2026-08-02 — unblocked.** The admission-identity question is RESOLVED in
+  the decision packet via a dated LLP 0154 amendment (worked through with
+  Charlie in the 0156-promotion session): `release` is a fixed nullable
+  column on `telemetry_events` (out of the `details` allowlist);
+  app/environment identity is meta-pinned (`telemetry_meta.app_id`/
+  `environment`, stamped into exports at egress). For this ticket's shared
+  fixtures: projection equality is checked on the composed record (row +
+  meta) against the C7 envelope's identity fields. obs-01 should close on
+  the amended schema (one added column + two meta fields against the landed
+  substrate at bf73583d) before this ticket starts.

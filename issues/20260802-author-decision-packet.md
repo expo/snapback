@@ -45,6 +45,9 @@ Tier 2:
    loop concludes (dual-family READY or the author's loop session ends the
    rounds), the doc is Accepted without a fresh sitting — the loop session
    flips the header citing this record. obs-05/06 release then.
+   **Executed 2026-08-02:** loop closed at v0.7 under the asymmetric
+   stopping rule; header flipped Accepted citing this record; obs-05/06
+   released and realigned to the v0.7 checklist.
 8. **0140 D-1: keep the TypeScript checker** in the shipped codegen
    closure; Oxc replaces syntax-only scanners. Admission semantics do not
    weaken. **Program E stays parked** until the wave clears; D-1 is
@@ -103,3 +106,14 @@ Tier 3:
   defer/clarify these admission fields. obs-01 will not invent a schema, and
   obs-02 cannot ratify the shared projection fixture until this is clarified;
   the remaining D1–D4 implementation continues independently.
+  **RESOLVED 2026-08-02 (worked through with Charlie in the 0156-promotion
+  session; dated 0154 amendment landed):** release identity = a fixed
+  nullable `release TEXT` column on `telemetry_events`, removed from the
+  `details` allowlist (first-class in D2, schema-on-write, needed per-row
+  by 0156's flusher, and identity must not be truncatable);
+  app/environment identity = store-implicit, pinned as
+  `telemetry_meta.app_id`/`environment` at creation/rebind (the sibling
+  store is per-app/per-environment by D1 construction), stamped into
+  `telemetry.export` output at egress; the obs-02 shared fixtures check
+  projection equality on the composed record (row + meta) against the
+  C7 envelope's identity. obs-01 can close on this; obs-02 unblocks.
