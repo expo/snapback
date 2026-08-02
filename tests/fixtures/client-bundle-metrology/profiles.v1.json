@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "snapback.client-bundle-metrology-profiles.v1",
+  "profiles": [
+    {
+      "id": "full-operation-call",
+      "package": "@expo/snapback-client",
+      "imports": ["SnapbackClient"],
+      "uses": ["SnapbackClient.prototype.query"]
+    },
+    {
+      "id": "full-operation-live",
+      "package": "@expo/snapback-client",
+      "imports": ["SnapbackClient"],
+      "uses": ["SnapbackClient.prototype.query", "SnapbackClient.prototype.liveQuery"]
+    },
+    {
+      "id": "full-sessions",
+      "package": "@expo/snapback-client",
+      "imports": ["createExternalSessionClient"],
+      "uses": ["createExternalSessionClient"]
+    },
+    {
+      "id": "full-public-surface",
+      "package": "@expo/snapback-client",
+      "namespace": true
+    },
+    {
+      "id": "online-operation-live",
+      "package": "@expo/snapback-client/online",
+      "imports": ["SnapbackClient"],
+      "uses": ["SnapbackClient.prototype.query", "SnapbackClient.prototype.liveQuery"]
+    },
+    {
+      "id": "app-data-operation-live",
+      "package": "@expo/snapback-client/app-data",
+      "imports": ["createAppDataClient"],
+      "uses": ["createAppDataClient"]
+    },
+    {
+      "id": "react-external",
+      "package": "@expo/snapback-react",
+      "imports": ["SnapbackProvider", "useSnapbackQuery"],
+      "uses": ["SnapbackProvider", "useSnapbackQuery"],
+      "external": ["react"]
+    },
+    {
+      "id": "external-react-application",
+      "package": "@expo/snapback-react",
+      "imports": ["SnapbackProvider", "useSnapbackMutation", "useSnapbackQuery"],
+      "uses": ["SnapbackProvider", "useSnapbackMutation", "useSnapbackQuery"],
+      "external": ["react"]
+    }
+  ],
+  "publicSubpaths": {
+    "package": "@expo/snapback-client",
+    "exclude": ["./package.json"]
+  }
+}
