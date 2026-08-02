@@ -119,11 +119,16 @@ export function effectiveArgsContract(
  * Lowers an authoring validator (from ./define.mjs) into the closed
  * value-contract vocabulary; throws TypeError on unsupported shapes.
  * `args: true` selects the argument lane (admits `platformSchemaRef`,
- * normalizes relation incarnations to the profile-max string node).
+ * normalizes relation incarnations to the profile-max string node). `tables`
+ * admits and immediately expands result-side app document references.
  */
 export function validatorResultValue(
   validator: Validator,
-  options?: Readonly<{ legacy?: boolean; args?: boolean }>,
+  options?: Readonly<{
+    legacy?: boolean;
+    args?: boolean;
+    tables?: Readonly<Record<string, ResultContractTable>>;
+  }>,
 ): ResultValueContract;
 
 /** Table shapes as the effective-contract derivation observes them. */

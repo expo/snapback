@@ -227,6 +227,7 @@ function validateEffectiveResultContract(contract) {
 export function validatorResultValue(validator, {
   legacy = false,
   args = false,
+  tables,
 } = {}) {
   if (!validator || validator.__validator !== true) {
     throw new TypeError('result value must be a Snapback validator');
@@ -247,24 +248,41 @@ export function validatorResultValue(validator, {
       throw new TypeError(`unsupported schema reference ${JSON.stringify(reference?.schema)}`);
     }
     value = scalar('platformSchemaRef', { authority: 'platform', schema: reference.schema });
+  } else if (validator.primitive === 'appSchemaRef') {
+    // @ref LLP 0127#move-1--contracts-reference-nothing-respells — app
+    // document references are result-authoring sugar only. Resolve them to
+    // the existing frozen structural contract before validation and hashing;
+    // neither the wire grammar nor the argument grammar gains a new node.
+    const reference = validator.fieldType?.AppSchemaRef;
+    if (
+      args
+      || legacy
+      || reference?.authority !== 'app'
+      || typeof reference?.table !== 'string'
+      || reference.table.length === 0
+      || !tables
+    ) {
+      throw new TypeError(`unsupported app schema reference ${JSON.stringify(reference?.table)}`);
+    }
+    value = tableDocumentValue(reference.table, tables);
   } else if (validator.resultKind === 'null') value = scalar('null');
   else if (validator.resultKind === 'literal') {
     value = scalar('literal', { value: validator.literal });
   } else if (validator.resultKind === 'array') {
     value = scalar('array', {
-      element: validatorResultValue(validator.element, { legacy, args }),
+      element: validatorResultValue(validator.element, { legacy, args, tables }),
       maxItems: options.maxItems ?? RESULT_MAX_ARRAY_ITEMS,
     });
   } else if (validator.resultKind === 'union') {
     value = scalar('union', {
-      variants: validator.variants.map((variant) => validatorResultValue(variant, { legacy, args })),
+      variants: validator.variants.map((variant) => validatorResultValue(variant, { legacy, args, tables })),
     });
   } else if (validator.primitive === 'object') {
     value = scalar('object', {
       fields: Object.entries(validator.fields ?? {}).map(([name, field]) => ({
         name,
         required: field.optional !== true,
-        value: validatorResultValue(field, { legacy, args }),
+        value: validatorResultValue(field, { legacy, args, tables }),
       })),
       allowExtra: legacy,
     });
@@ -493,7 +511,24 @@ function authoredContract(spec, tables) {
     };
   }
   if (spec.kind === 'records') {
-    const record = validatorResultValue(spec.validator);
+    // A top-level v.doc(T) is exactly the already-shipped documents(T)
+    // contract, including its identity. Normalize before hashing so adding
+    // the composable authoring node does not fork the existing witness.
+    if (
+      spec.validator?.primitive === 'appSchemaRef'
+      && spec.rows === undefined
+    ) {
+      const reference = spec.validator.fieldType?.AppSchemaRef;
+      if (reference?.authority !== 'app' || typeof reference?.table !== 'string') {
+        throw new TypeError(`unsupported app schema reference ${JSON.stringify(reference?.table)}`);
+      }
+      return {
+        kind: 'documents',
+        table: reference.table,
+        document: tableDocumentValue(reference.table, tables),
+      };
+    }
+    const record = validatorResultValue(spec.validator, { tables });
     if (
       record.kind !== 'object'
       && !(
@@ -501,7 +536,7 @@ function authoredContract(spec, tables) {
         && record.variants.every((variant) => variant.kind === 'object')
       )
     ) {
-      throw new TypeError('results.records() requires v.object(...) or a discriminated object union');
+      throw new TypeError('results.records() requires v.object(...), v.doc(...), or a discriminated object union');
     }
     return {
       kind: 'records',
@@ -510,7 +545,7 @@ function authoredContract(spec, tables) {
     };
   }
   if (spec.kind === 'value') {
-    return { kind: 'value', value: validatorResultValue(spec.validator) };
+    return { kind: 'value', value: validatorResultValue(spec.validator, { tables }) };
   }
   throw new TypeError(`unsupported result contract kind ${JSON.stringify(spec.kind)}`);
 }

@@ -43,3 +43,47 @@ result types — the composition Spec owns those shapes.
   regenerates or refuses per the evolution rules — never a silently stale
   contract.
 - ref-check green; the LLP 0115 board row updated with the landing.
+
+## Running log
+
+- **2026-08-02 — current-main verification and boundary.** Started from
+  `origin/main` `9d1954a0`. LLP 0157 is still **Draft** (v0.2, with its
+  refinement blockers open), so its composition algebra and every generated
+  query-graph/composite result shape were deferred and left untouched. The
+  permitted remainder is result-side `v.doc(table)` plus handler/helper
+  interiors derived from existing manifests. LLP 0131's argument grammar was
+  not reopened; `v.doc` is explicitly refused in arguments and stored schema
+  fields, leaving CV-4b Open.
+- **2026-08-02 — schema-reference carrier implemented.** The authored
+  app-authority marker expands immediately against the loaded table manifest.
+  A top-level `results.records(v.doc(T))` normalizes to the shipped
+  `results.documents(T)` descriptor and identical hash; nested references
+  carry the same frozen structural object. No new deployed node or runtime
+  validation semantic exists. Unknown tables refuse, and schema evolution
+  changes the effective contract hash and generated types.
+- **2026-08-02 — generated interiors and A2 pilot.** `api.d.ts` now projects
+  table rows, inserts, patches, index names, query builders, read-only query
+  databases, write-capable mutation databases, authority-nullability-aware
+  contexts, per-function auth narrowing, and `GeneratedHandler` from the
+  schema/function manifests. The A2 message arm moved its whole-document
+  result to `v.doc` with the same witness and typed one shared context-reader
+  helper: complete-document field respellings stayed honestly 0 → 0 because
+  the arm already used `results.documents`; repeated message reader spellings
+  fell 4 → 1 (three eliminated). Regenerated-arm checkJs is green; a seeded
+  handler/result mismatch in the focused fixture is a required diagnostic.
+  This is an explicit current-main divergence from the ticket's assumed
+  before-state: no named A2/A6 whole-document contract still respelled its
+  fields, so a positive contract-field elimination count could not be produced
+  without broadening an API or inventing a fixture. The landing preserves the
+  existing A2 witness and records 0 → 0 rather than claiming that stale exit;
+  the independently measured helper duplication reduction is 4 → 1.
+- **2026-08-02 — current-main proof.** Rebased through `origin/main`
+  `3b6059a7`. The complete codegen package suite passes, including the new
+  schema-reference/type-interior fixture and the existing RBAC surface. A
+  regenerated five-table/twelve-operation A2 backend passes strict whole-file
+  checkJs, retains the `documents` result descriptor/hash, and contains one
+  shared message reader. Full `cargo test --lib` passes 1,740 tests with one
+  ignored benchmark and zero failures. `./ref-check --verbose` passes 158 LLPs
+  and 2,792 references with zero errors/unchecked; the guide check passes 46
+  pages, 142 snippets, 91 routes, and 29 host operations with its 17 inherited
+  freshness warnings. `git diff --check` is clean.

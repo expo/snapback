@@ -38,7 +38,7 @@ with the Snapback label and `guide-gap` in the title.
 | id | What | Aliases | Targets | Maturity | Witness | Authorities | Page |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | backend.schema | Declare tables, fields, indexes, sync | schema, tables, model | local | shipped | `defineSchema` in packages/snapback-codegen/define.mjs | llp/0037, llp/0004 | getting-started/your-first-backend.md |
-| backend.functions | Queries, live queries, mutations, and actions; declarative plans or self-contained colocated JS handlers; explicit document/record/value result contracts with generated exact references and runtime egress validation | query, mutation, endpoint, api, inline handler, result contract, results.documents, results.records | local | shipped | `results` in packages/snapback-codegen/define.mjs | llp/0004, llp/0009, llp/0101 | backend/queries.md |
+| backend.functions | Queries, live queries, mutations, and actions; declarative plans or colocated JS handlers with same-file helpers; explicit document/record/value result contracts including result-side `v.doc(table)` schema references; manifest-derived handler/helper `ctx.db` types with a query-read/mutation-write split; generated exact client references and runtime egress validation | query, mutation, endpoint, api, inline handler, result contract, results.documents, results.records, v.doc, GeneratedHandler, GeneratedQueryDatabase | local | shipped | packages/snapback-codegen/define.mjs | llp/0004, llp/0009, llp/0101, llp/0108, llp/0127 | backend/queries.md |
 | backend.runtime-values | Derive deterministic per-invocation time and fresh identifiers inside JavaScript handlers | server time, server clock, timestamp, generated id, UUID, Date.now, Math.random | local | shipped | `runtime.now` in packages/snapback-harness/ctx-bootstrap.js | llp/0051, llp/0065 | backend/trusted-runtime-values.md |
 | backend.standard-patterns | Generate owner CRUD, unique lookup, owner/membership keyset pages | CRUD generator, pagination, membership pages, trusted defaults | local | partial | `defineOwnedCrud` in packages/snapback-codegen/standard-patterns.mjs | llp/0051, llp/0065, llp/0100 | backend/standard-patterns.md |
 | backend.relational-queries | Bounded two-source equi-joins with explicit visibility, closed projections, and transactionally maintained projection tables (`defineRelationalQuery`, `defineMaintainedProjection`, stable capability since 2026-07-26) | joins, relational queries, denormalized reads, materialized views | local | partial | `defineRelationalQuery` in packages/snapback-codegen/define.mjs | llp/0080, llp/0065 | backend/relational-queries.md |
@@ -1979,7 +1979,7 @@ examples: [demos/todo, demos/todo-v2, demos/signal-desk]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-01
+reviewed: 2026-08-02
 reviewed-commit: HEAD
 ---
 
@@ -2062,11 +2062,29 @@ Declare what that array contains:
   server-owned system fields and stored optional-field semantics.
 - `results.records(v.object({...}))` validates exact computed records and does
   not invent system fields.
+- `v.doc('todos')` references that same complete document shape from inside a
+  result validator. For example,
+  `results.records(v.object({ todo: v.doc('todos') }))` avoids respelling a
+  nested document. A top-level `results.records(v.doc('todos'))` is
+  hash-identical to `results.documents('todos')`.
+
+`v.doc` is result-only. Codegen expands it against the current schema before
+hashing and refuses unknown tables; adding or changing a table field therefore
+regenerates the contract and generated types. It is not accepted in function
+arguments or stored schema fields.
 
 The generated reference carries the precise array result. Snapback validates
 the post-JSON image and 4 MiB egress ceiling before cache insertion, snapshot,
 or live publication. Omitting `result` is an explicit degraded `unknown`
 contract; codegen does not infer a type by inspecting handler behavior.
+
+Generated `api.d.ts` also exports `GeneratedHandler`,
+`GeneratedQueryDatabase`, and `GeneratedMutationDatabase`. Same-file
+context-reader helpers can use those types in TypeScript or checkJs without
+declaring another row model. Query helpers receive the read-only database
+surface; mutation handlers receive its write-capable extension. These types
+check code against the schema and declared effective contract—they never infer
+or mint a contract from handler behavior.
 
 ## Read one snapshot
 
@@ -2178,11 +2196,15 @@ polling contract. See [live queries](../realtime/live-queries.md).
   result.** Push the operation into the query builder and declare `.take(n)`.
 - **Do not mark every query live.** Ordinary queries stay ordinary; opt into
   live delivery only when the UI needs subscription semantics.
-- **Do not return a stored row under `results.records`.** Use
-  `results.documents(table)` when the complete stored shape, including system
-  fields, is part of the contract.
-- **Do not capture imported or sibling helpers in an inline handler.** Keep the
-  expression self-contained or use the legacy module form.
+- **Do not respell a complete stored row with `v.object`.** Use
+  `results.documents(table)` at the top level, or `v.doc(table)` when the
+  complete stored shape appears inside a result validator.
+- **Do not capture imports or arbitrary top-level bindings in an inline
+  handler.** Statically reachable same-file function declarations—including
+  context-reader helpers that receive `ctx.db`—are admitted. Imported helpers,
+  top-level `const`/class state, and multi-file capability graphs remain
+  outside the landed slice; use the legacy module form when that boundary is
+  intentional.
 
 ---
 

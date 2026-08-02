@@ -6828,6 +6828,24 @@ function renderApiTypes(
   const hasSearchFunction = functions.some(
     (fn) => fn.runtime?.HostPlan?.SearchQuery !== undefined,
   );
+  const schemaTables = Object.entries(schemaDef.tables ?? {});
+  const membershipTableNames = new Set(
+    schemaTables
+      .filter(([, table]) => table.membershipDeclaration !== undefined)
+      .map(([tableName]) => tableName),
+  );
+  const lastHolderResourceTableNames = new Set();
+  for (const [, table] of schemaTables) {
+    const membership = table.membershipDeclaration;
+    if (membership?.scope !== 'resource' || membership.lastHolder === undefined) continue;
+    const resourceTable = idFieldTypeTable(table.fields?.[membership.resource]?.fieldType);
+    if (resourceTable !== null) lastHolderResourceTableNames.add(resourceTable);
+  }
+  const typeUnion = (names) => [...names].map((name) => JSON.stringify(name)).join(' | ') || 'never';
+  const storageWriteValueType = (validator) => {
+    const type = typeForGeneratedValidator(validator).replace(/ \| undefined$/, '');
+    return validator.optional ? `null | ${type}` : type;
+  };
   const lines = [
     HEADER,
     ...(hasSearchFunction
@@ -6943,6 +6961,79 @@ function renderApiTypes(
   }
   lines.push(
     '}',
+    // @ref LLP 0004#ctxdb-contract — generated handler interiors expose the
+    // exact read/write split of the shipped ctx.db surface. Every row and
+    // write shape below is projected from schemaDef, the same manifest input
+    // that emits GeneratedDataModel; this is not a parallel type model.
+    'export type GeneratedTableName = keyof GeneratedDataModel & string;',
+    `export type GeneratedReadableTableName = Exclude<GeneratedTableName, ${typeUnion(membershipTableNames)}>;`,
+    `export type GeneratedInsertableTableName = Exclude<GeneratedReadableTableName, ${typeUnion(lastHolderResourceTableNames)}>;`,
+    'export type GeneratedPatchableTableName = GeneratedReadableTableName;',
+    `export type GeneratedDeletableTableName = Exclude<GeneratedReadableTableName, ${typeUnion(lastHolderResourceTableNames)}>;`,
+    'export interface GeneratedInsertModel {',
+  );
+  for (const [tableName, table] of Object.entries(schemaDef.tables ?? {})) {
+    if (membershipTableNames.has(tableName) || lastHolderResourceTableNames.has(tableName)) continue;
+    const properties = Object.entries(table.fields ?? {})
+      .filter(([, validator]) => validator.protectedWrite !== true)
+      .map(([fieldName, validator]) => {
+        return `${JSON.stringify(fieldName)}${validator.optional ? '?' : ''}: ${storageWriteValueType(validator)}`;
+      });
+    lines.push(`  ${JSON.stringify(tableName)}: { ${properties.join('; ')} };`);
+  }
+  lines.push(
+    '}',
+    'export interface GeneratedPatchModel {',
+  );
+  for (const [tableName, table] of Object.entries(schemaDef.tables ?? {})) {
+    if (table.membershipDeclaration !== undefined) continue;
+    const properties = Object.entries(table.fields ?? {})
+      .filter(([, validator]) => validator.protectedWrite !== true)
+      .map(([fieldName, validator]) => {
+        return `${JSON.stringify(fieldName)}?: ${storageWriteValueType(validator)}`;
+      });
+    lines.push(`  ${JSON.stringify(tableName)}: { ${properties.join('; ')} };`);
+  }
+  lines.push(
+    '}',
+    'export interface GeneratedIndexNames {',
+  );
+  for (const [tableName, table] of Object.entries(schemaDef.tables ?? {})) {
+    const indexes = (table.indexes ?? []).map((index) => JSON.stringify(index.name));
+    lines.push(`  ${JSON.stringify(tableName)}: ${indexes.join(' | ') || 'never'};`);
+  }
+  lines.push(
+    '}',
+    'export interface GeneratedQueryBuilder<Table extends GeneratedReadableTableName> {',
+    '  withIndex(index: GeneratedIndexNames[Table]): GeneratedQueryBuilder<Table>;',
+    '  eq<Field extends keyof GeneratedDataModel[Table] & string>(field: Field, value: GeneratedDataModel[Table][Field]): GeneratedQueryBuilder<Table>;',
+    '  in<Field extends keyof GeneratedDataModel[Table] & string>(field: Field, values: ReadonlyArray<GeneratedDataModel[Table][Field]>): GeneratedQueryBuilder<Table>;',
+    '  lt<Field extends keyof GeneratedDataModel[Table] & string>(field: Field, value: GeneratedDataModel[Table][Field]): GeneratedQueryBuilder<Table>;',
+    '  lte<Field extends keyof GeneratedDataModel[Table] & string>(field: Field, value: GeneratedDataModel[Table][Field]): GeneratedQueryBuilder<Table>;',
+    '  gt<Field extends keyof GeneratedDataModel[Table] & string>(field: Field, value: GeneratedDataModel[Table][Field]): GeneratedQueryBuilder<Table>;',
+    '  gte<Field extends keyof GeneratedDataModel[Table] & string>(field: Field, value: GeneratedDataModel[Table][Field]): GeneratedQueryBuilder<Table>;',
+    '  order<Field extends keyof GeneratedDataModel[Table] & string>(field: Field, direction?: "asc" | "desc" | "Asc" | "Desc"): GeneratedQueryBuilder<Table>;',
+    '  take(limit: number): GeneratedQueryBuilder<Table>;',
+    '  collect(): Promise<Array<GeneratedDataModel[Table]>>;',
+    '  first(): Promise<GeneratedDataModel[Table] | null>;',
+    '}',
+    'export interface GeneratedQueryDatabase {',
+    '  get<Table extends GeneratedReadableTableName>(table: Table, id: Id<Table>): Promise<GeneratedDataModel[Table] | null>;',
+    '  query<Table extends GeneratedReadableTableName>(table: Table): GeneratedQueryBuilder<Table>;',
+    '}',
+    'export interface GeneratedMutationDatabase extends GeneratedQueryDatabase {',
+    '  insert<Table extends GeneratedInsertableTableName>(table: Table, values: GeneratedInsertModel[Table]): Promise<Id<Table>>;',
+    '  patch<Table extends GeneratedPatchableTableName>(table: Table, id: Id<Table>, values: GeneratedPatchModel[Table]): Promise<unknown>;',
+    '  delete<Table extends GeneratedDeletableTableName>(table: Table, id: Id<Table>): Promise<unknown>;',
+    '}',
+    // The Rust HandlerAuthProjection always carries userId/sessionId, using
+    // null for anonymous or non-session authority; all other authority facts
+    // are omitted for anonymous calls. Keep that distinction exact so a
+    // helper must narrow before treating optional-user authority as human.
+    'export interface GeneratedAnonymousAuthContext { readonly userId: null; readonly sessionId: null; readonly isAuthenticated: false }',
+    'export interface GeneratedAuthenticatedAuthContext { readonly userId: Principal; readonly sessionId: string | null; readonly isAuthenticated: true; readonly provider?: string; readonly roles: readonly string[]; readonly kind: "human" | "agent"; readonly actor?: { readonly userId: Principal; readonly kind: "agent"; readonly grantId: string } }',
+    'export type GeneratedAuthContext = GeneratedAnonymousAuthContext | GeneratedAuthenticatedAuthContext;',
+    'export interface GeneratedRuntimeContext { now(): number; id(): string }',
     'export interface GeneratedPermissions {',
   );
   for (const [tableName, table] of Object.entries(schemaDef.tables ?? {})) {
@@ -6969,12 +7060,12 @@ function renderApiTypes(
     const insertFields = Object.entries(table.fields ?? {}).map(([fieldName, validator]) => {
       const fieldType = fieldName === membership.role
         ? `${typeName}Role`
-        : typeForGeneratedValidator(validator).replace(/ \| undefined$/, '');
+        : storageWriteValueType(validator);
       return `${fieldName}${validator.optional ? '?' : ''}: ${fieldType}`;
     });
     const patchFields = Object.entries(table.fields ?? {})
       .filter(([fieldName]) => ![membership.principal, membership.resource, membership.role].includes(fieldName))
-      .map(([fieldName, validator]) => `${fieldName}?: ${typeForGeneratedValidator(validator).replace(/ \| undefined$/, '')}`);
+      .map(([fieldName, validator]) => `${fieldName}?: ${storageWriteValueType(validator)}`);
     membershipAliases.push(`export type ${typeName}Insert = { ${insertFields.join('; ')} };`);
     const patchType = patchFields.length === 0
       ? 'Record<string, never>'
@@ -6986,7 +7077,7 @@ function renderApiTypes(
       const resourceDefinition = resourceTable ? schemaDef.tables?.[resourceTable] : null;
       if (resourceTable && resourceDefinition) {
         const bootstrapFields = Object.entries(resourceDefinition.fields ?? {}).map(([fieldName, validator]) => (
-          `${fieldName}${validator.optional ? '?' : ''}: ${typeForGeneratedValidator(validator).replace(/ \| undefined$/, '')}`
+          `${fieldName}${validator.optional ? '?' : ''}: ${storageWriteValueType(validator)}`
         ));
         membershipAliases.push(`export type ${typeName}Bootstrap = { ${bootstrapFields.join('; ')} };`);
         bootstrapMethod = `bootstrap(values: ${typeName}Bootstrap): Promise<Id<'${resourceTable}'>>; `;
@@ -7022,17 +7113,20 @@ function renderApiTypes(
   lines.push(...membershipMembers);
   lines.push(
     '}',
-    'export interface GeneratedQueryContext { readonly permissions: GeneratedPermissions }',
-    'export interface GeneratedMutationContext extends GeneratedQueryContext { readonly membership: GeneratedMembership }',
-    'export interface GeneratedActionContext {}',
+    'export interface GeneratedQueryContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> { readonly db: GeneratedQueryDatabase; readonly permissions: GeneratedPermissions; readonly auth: Auth; readonly runtime: GeneratedRuntimeContext; readonly assets: any; isDirectHuman(): boolean; refuse(code: string, details?: unknown): never }',
+    'export interface GeneratedMutationContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> extends GeneratedQueryContext<Auth> { readonly db: GeneratedMutationDatabase; readonly membership: GeneratedMembership; readonly jobs: { enqueue(name: string, args: Readonly<Record<string, unknown>>, options?: Readonly<Record<string, unknown>>): Promise<unknown> } }',
+    'export interface GeneratedActionContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> { readonly auth: Auth; readonly runtime: GeneratedRuntimeContext; readonly assets: any; readonly secrets: { get(name: string): any; rotating(name: string): any }; readonly run: unknown; readonly cron: unknown; isDirectHuman(): boolean; runMutation(name: string, args: Readonly<Record<string, unknown>>): Promise<unknown>; fetch(request: Readonly<Record<string, unknown>>): Promise<any>; fetchStream(request: Readonly<Record<string, unknown>>): Promise<any>; readonly streamAttempt: any; refuse(code: string, details?: unknown): never }',
     'export interface GeneratedFunctionContexts {',
   );
   for (const fn of functions) {
+    const authType = fn.authRequirement === 'authenticated'
+      ? '<GeneratedAuthenticatedAuthContext>'
+      : '';
     const context = fn.kind === 'Mutation'
-      ? 'GeneratedMutationContext'
+      ? `GeneratedMutationContext${authType}`
       : fn.kind === 'Action'
-        ? 'GeneratedActionContext'
-        : 'GeneratedQueryContext';
+        ? `GeneratedActionContext${authType}`
+        : `GeneratedQueryContext${authType}`;
     lines.push(`  ${fn.name}: ${context};`);
   }
   lines.push(
@@ -7109,6 +7203,8 @@ function renderApiTypes(
   lines.push('  ephemeral: GeneratedEphemeral;');
   lines.push('  groups: GeneratedQueryGroups;');
   lines.push('}');
+  lines.push('export type GeneratedFunctionName = keyof GeneratedFunctionContexts & keyof GeneratedApi;');
+  lines.push('export type GeneratedHandler<Name extends GeneratedFunctionName> = GeneratedApi[Name] extends FunctionReference<string, FunctionKind, infer Args, infer Result> ? (ctx: GeneratedFunctionContexts[Name], args: Args) => Result | Promise<Result> : never;');
   lines.push('export declare const ephemeral: GeneratedEphemeral;');
   lines.push('export declare const groups: GeneratedQueryGroups;');
   // Derived default upload intents (LLP 0044 §Ceremony floor) project as

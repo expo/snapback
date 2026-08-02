@@ -9,7 +9,7 @@ examples: [demos/todo, demos/todo-v2, demos/signal-desk]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-01
+reviewed: 2026-08-02
 reviewed-commit: HEAD
 ---
 
@@ -92,11 +92,29 @@ Declare what that array contains:
   server-owned system fields and stored optional-field semantics.
 - `results.records(v.object({...}))` validates exact computed records and does
   not invent system fields.
+- `v.doc('todos')` references that same complete document shape from inside a
+  result validator. For example,
+  `results.records(v.object({ todo: v.doc('todos') }))` avoids respelling a
+  nested document. A top-level `results.records(v.doc('todos'))` is
+  hash-identical to `results.documents('todos')`.
+
+`v.doc` is result-only. Codegen expands it against the current schema before
+hashing and refuses unknown tables; adding or changing a table field therefore
+regenerates the contract and generated types. It is not accepted in function
+arguments or stored schema fields.
 
 The generated reference carries the precise array result. Snapback validates
 the post-JSON image and 4 MiB egress ceiling before cache insertion, snapshot,
 or live publication. Omitting `result` is an explicit degraded `unknown`
 contract; codegen does not infer a type by inspecting handler behavior.
+
+Generated `api.d.ts` also exports `GeneratedHandler`,
+`GeneratedQueryDatabase`, and `GeneratedMutationDatabase`. Same-file
+context-reader helpers can use those types in TypeScript or checkJs without
+declaring another row model. Query helpers receive the read-only database
+surface; mutation handlers receive its write-capable extension. These types
+check code against the schema and declared effective contract—they never infer
+or mint a contract from handler behavior.
 
 ## Read one snapshot
 
@@ -208,8 +226,12 @@ polling contract. See [live queries](../realtime/live-queries.md).
   result.** Push the operation into the query builder and declare `.take(n)`.
 - **Do not mark every query live.** Ordinary queries stay ordinary; opt into
   live delivery only when the UI needs subscription semantics.
-- **Do not return a stored row under `results.records`.** Use
-  `results.documents(table)` when the complete stored shape, including system
-  fields, is part of the contract.
-- **Do not capture imported or sibling helpers in an inline handler.** Keep the
-  expression self-contained or use the legacy module form.
+- **Do not respell a complete stored row with `v.object`.** Use
+  `results.documents(table)` at the top level, or `v.doc(table)` when the
+  complete stored shape appears inside a result validator.
+- **Do not capture imports or arbitrary top-level bindings in an inline
+  handler.** Statically reachable same-file function declarations—including
+  context-reader helpers that receive `ctx.db`—are admitted. Imported helpers,
+  top-level `const`/class state, and multi-file capability graphs remain
+  outside the landed slice; use the legacy module form when that boundary is
+  intentional.

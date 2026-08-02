@@ -5,7 +5,12 @@
 **Systems:** Authoring, Code generation, Runtime, Data API, Client integration, Contract, Security, Artifacts, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-02 (Accepted LLP 0135 owner fold: JS-mutation sequence
+**Revised:** 2026-08-02 (typed-interior and schema-reference implementation
+clarification: result-side `v.doc(table)` is an app-authority reference that
+expands through the existing frozen structural document contract before
+hashing; generated handler/context types consume schema and effective-contract
+artifacts, and checker diagnostics never mint a contract from behavior).
+2026-08-02 (Accepted LLP 0135 owner fold: JS-mutation sequence
 declarations, versioned implementation-identity extension, and
 `ctx.sequence.allocate` harness surface); 2026-08-01, later same day (declared application refusals: `ctx.refuse` plus a manifest-declared closed code set, admitted only when declared and folded to the generic failure otherwise, carried as `appCode`/`appDetails` beside the platform code on both envelope decoders); 2026-08-01 (0137 a4-f1: §Admission rules gains the dated egress
 seam note — with SNAPBACK_OUTBOUND_ACTIONS set at generation, `fetch` is an
@@ -1031,3 +1036,32 @@ harness exposes `ctx.sequence.allocate` only to an invocation prepared with
 that declaration. These accepted contracts do not assert the surface is
 implemented; LLP 0135's acceptance corpus and artifact regeneration gate the
 landing.
+
+## Schema references and typed-interior checking — 2026-08-02
+
+The LLP 0127 Move-1 result-side reference and LLP 0115 CV-17 pilot are
+implemented as consumers of the authority this Spec already defines, not as
+new inference authorities.
+
+`v.doc(table)` is admitted only at result-contract positions. Its authored
+marker carries app authority plus the table name, and codegen immediately
+resolves it against the loaded schema manifest to the same closed document
+object used by `results.documents(table)`. A top-level
+`results.records(v.doc(table))` normalizes to the existing documents
+descriptor and therefore preserves its exact `resultContractHash`; a nested
+reference embeds that same structural object. No app-reference node reaches
+the deployed contract grammar. Unknown tables refuse generation, using the
+reference in arguments or stored schema fields is outside the admitted
+grammar, and any schema-field evolution regenerates a different expanded
+contract and hash rather than leaving a stale reference.
+
+Generated handler interiors follow the same one-way flow. `GeneratedHandler`,
+the read-only versus read-write `ctx.db` interfaces, helper-boundary database
+types, and result types are projections of the schema manifest, function
+manifest, and effective result contract. A TypeScript/checkJs diagnostic is
+therefore evidence that authored handler code disagrees with an already
+declared contract. It does **not** inspect handler behavior to invent, widen,
+or replace that contract; omission remains the explicit degraded `unknown`
+case specified above. The A2 improvement-sweep proof and
+`schema-reference-type-flow.test.mjs` pin this direction, including authority
+nullability and the query-write capability refusal.

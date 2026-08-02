@@ -294,21 +294,26 @@ try {
       "eventMembers: { requireRole(resource: Id<'events'>, role: EventMembersRole, ...roles: EventMembersRole[])",
       'export interface GeneratedMembership',
       "eventMembers: { bootstrap(values: EventMembersBootstrap): Promise<Id<'events'>>",
-      'export interface GeneratedMutationContext extends GeneratedQueryContext',
+      'export interface GeneratedMutationContext<Auth extends GeneratedAuthContext',
     ]) {
       assert(apiTypes.includes(expected), `generated API types omit ${expected}`);
     }
     assert(
-      apiTypes.includes('export interface GeneratedQueryContext { readonly permissions: GeneratedPermissions }'),
-      'query context must expose only the read-only permissions capability',
+      apiTypes.includes('export interface GeneratedQueryContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> { readonly db: GeneratedQueryDatabase; readonly permissions: GeneratedPermissions;'),
+      'query context must expose the read-only database and permissions capabilities',
     );
     assert(
-      apiTypes.includes('export interface GeneratedMutationContext extends GeneratedQueryContext { readonly membership: GeneratedMembership }'),
-      'mutation context must add the sanctioned membership write capability',
+      apiTypes.includes('export interface GeneratedMutationContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> extends GeneratedQueryContext<Auth> { readonly db: GeneratedMutationDatabase; readonly membership: GeneratedMembership;'),
+      'mutation context must add the write database and sanctioned membership capabilities',
     );
-    assert(apiTypes.includes('export interface GeneratedActionContext {}'), 'actions must not receive membership authority');
-    assert(apiTypes.includes('eventById: GeneratedQueryContext;'), 'live queries must use the read-only query context');
-    assert(apiTypes.includes('createEvent: GeneratedMutationContext;'), 'mutations must use the membership-capable context');
+    const actionContext = apiTypes.slice(
+      apiTypes.indexOf('export interface GeneratedActionContext'),
+      apiTypes.indexOf('export interface GeneratedFunctionContexts'),
+    );
+    assert(!actionContext.includes('GeneratedMembership'), 'actions must not receive membership authority');
+    assert(!actionContext.includes('GeneratedQueryDatabase'), 'actions must not receive transactional database authority');
+    assert(apiTypes.includes('eventById: GeneratedQueryContext<GeneratedAuthenticatedAuthContext>;'), 'authenticated live queries must use the read-only context with narrowed authority');
+    assert(apiTypes.includes('createEvent: GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;'), 'authenticated mutations must use the membership-capable context with narrowed authority');
     const permissionsSurface = apiTypes.slice(
       apiTypes.indexOf('export interface GeneratedPermissions'),
       apiTypes.indexOf('export type EventMembersRole'),
