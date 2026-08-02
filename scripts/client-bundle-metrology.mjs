@@ -29,6 +29,8 @@ const CURRENT_PATH = join(FIXTURE_DIR, 'current.v1.json');
 const PACKAGE_DIR = join(ROOT, 'packages');
 const METRICS = ['minifiedBytes', 'gzipBytes', 'brotliBytes'];
 const PUSH_REGISTRY_MODULE = 'packages/snapback-client/push-registry.mjs';
+const MICRO_CORE_MODULE = 'packages/snapback-client/micro-core.mjs';
+const MICRO_LIVE_MODULE = 'packages/snapback-client/micro-live.mjs';
 const BEHAVIOR_COMMANDS = Object.freeze([
   ['node', ['packages/snapback-client/package.test.mjs']],
   ['node', ['packages/snapback-client/browser-closure.test.mjs']],
@@ -52,6 +54,29 @@ const SUPPLEMENTAL_LEDGER_SPECS = Object.freeze([
     ]),
     behaviorCommands: Object.freeze([
       ['node', ['packages/snapback-client/push-registry.test.mjs']],
+    ]),
+  }),
+  Object.freeze({
+    filename: 'baseline.micro-phase-b.v1.json',
+    profileFilename: 'micro-phase-b-profiles.v1.json',
+    profileIds: Object.freeze([
+      'micro-core-runtime',
+      'micro-core-generated-entry',
+      'micro-live-runtime',
+      'micro-live-generated-entry',
+      'micro-root-negative',
+      'public-subpath-micro',
+      'public-subpath-micro-core',
+      'public-subpath-micro-live',
+    ]),
+    authorities: Object.freeze([
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0147#implementation-sequence',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/micro.test.mjs']],
+      ['node', ['packages/snapback-codegen/micro-profile.test.mjs']],
     ]),
   }),
 ]);
@@ -151,6 +176,68 @@ const workspaceExports = {
 };
 
 function profileSource(profile) {
+  if (profile.fixture === 'micro-core-runtime') {
+    return [
+      "import { createMicroCoreRuntime } from '@expo/snapback-client/micro/core';",
+      'export { createMicroCoreRuntime };',
+      'export function __snapbackMetrologyBehavior() {',
+      "  return typeof createMicroCoreRuntime === 'function' ? 1 : 0;",
+      '}',
+    ].join('\n');
+  }
+  if (profile.fixture === 'micro-live-runtime') {
+    return [
+      "import { createMicroCoreRuntime } from '@expo/snapback-client/micro/core';",
+      "import { withMicroLive } from '@expo/snapback-client/micro/live';",
+      'export { createMicroCoreRuntime, withMicroLive };',
+      'export function __snapbackMetrologyBehavior() {',
+      "  return typeof createMicroCoreRuntime === 'function' && typeof withMicroLive === 'function' ? 1 : 0;",
+      '}',
+    ].join('\n');
+  }
+  if (profile.fixture === 'micro-core-generated-entry') {
+    return [
+      "import { createMicroCoreRuntime } from '@expo/snapback-client/micro/core';",
+      "const generation = Object.freeze({ schemaVersion: 'snapback.v0', appId: 'metrology', schemaHash: 'sha256:schema', bundleHash: 'sha256:bundle', inputsHash: 'sha256:inputs' });",
+      "const list = Object.freeze({ name: 'listTodos', kind: 'Query' });",
+      "const create = Object.freeze({ name: 'createTodo', kind: 'Mutation' });",
+      "const echo = Object.freeze({ name: 'echo', kind: 'Action' });",
+      'export function createClient(options) { return createMicroCoreRuntime({ ...options, expectedGeneration: generation }); }',
+      'export function listTodos(client, args) { return client.invoke(list, args); }',
+      'export function createTodo(client, args) { return client.invoke(create, args); }',
+      'export function echo(client, args) { return client.invoke(echo, args); }',
+      'export function __snapbackMetrologyBehavior() {',
+      "  const client = createClient({ endpoint: 'http://127.0.0.1:9' });",
+      "  if (typeof client.invoke !== 'function' || 'subscribe' in client) throw new Error('core selection drifted');",
+      '  return 1;',
+      '}',
+    ].join('\n');
+  }
+  if (profile.fixture === 'micro-live-generated-entry') {
+    return [
+      "import { createMicroCoreRuntime } from '@expo/snapback-client/micro/core';",
+      "import { withMicroLive } from '@expo/snapback-client/micro/live';",
+      "const generation = Object.freeze({ schemaVersion: 'snapback.v0', appId: 'metrology', schemaHash: 'sha256:schema', bundleHash: 'sha256:bundle', inputsHash: 'sha256:inputs' });",
+      "const watch = Object.freeze({ name: 'watchTodos', kind: 'LiveQuery' });",
+      'export function createClient(options) { return withMicroLive(createMicroCoreRuntime({ ...options, expectedGeneration: generation })); }',
+      'export function watchTodos(client, args, options) { return client.subscribe(watch, args, options); }',
+      'export function __snapbackMetrologyBehavior() {',
+      "  const client = createClient({ endpoint: 'http://127.0.0.1:9' });",
+      "  if (typeof client.invoke !== 'function' || typeof client.subscribe !== 'function') throw new Error('live selection drifted');",
+      '  return 1;',
+      '}',
+    ].join('\n');
+  }
+  if (profile.fixture === 'micro-root-negative') {
+    return [
+      "import * as root from '@expo/snapback-client';",
+      "import * as online from '@expo/snapback-client/online';",
+      'export function __snapbackMetrologyBehavior() {',
+      "  for (const surface of [root, online]) if ('createMicroRuntime' in surface || 'createMicroCoreRuntime' in surface || 'withMicroLive' in surface) throw new Error('Micro leaked into a compatibility surface');",
+      '  return 1;',
+      '}',
+    ].join('\n');
+  }
   if (profile.fixture === 'push-registry-attach') {
     return [
       "import { SnapbackClient } from '@expo/snapback-client';",
@@ -372,6 +459,36 @@ function assertPushRegistryClosure(profiles) {
   }
 }
 
+function assertMicroClosure(profiles) {
+  const byId = new Map(profiles.map((profile) => [profile.id, profile]));
+  const core = byId.get('micro-core-generated-entry');
+  const live = byId.get('micro-live-generated-entry');
+  const coreRuntime = byId.get('micro-core-runtime');
+  const liveRuntime = byId.get('micro-live-runtime');
+  const negative = byId.get('micro-root-negative');
+  assert.ok(core && live && coreRuntime && liveRuntime && negative, 'Micro supplemental profiles are present');
+  assert.ok(Object.hasOwn(core.metafile.inputs, MICRO_CORE_MODULE), 'Micro core includes its core module');
+  assert.equal(Object.hasOwn(core.metafile.inputs, MICRO_LIVE_MODULE), false, 'Micro core excludes live');
+  assert.ok(Object.hasOwn(live.metafile.inputs, MICRO_CORE_MODULE), 'Micro live includes core');
+  assert.ok(Object.hasOwn(live.metafile.inputs, MICRO_LIVE_MODULE), 'Micro live includes live');
+  for (const profile of [core, live]) {
+    for (const forbidden of [
+      'packages/snapback-client/index.mjs',
+      'packages/snapback-client/rqs.mjs',
+      'packages/snapback-client/outbox-shared.mjs',
+      'packages/snapback-client/rqs-store-file.mjs',
+    ]) {
+      assert.equal(Object.hasOwn(profile.metafile.inputs, forbidden), false, `${profile.id}: excludes ${forbidden}`);
+    }
+  }
+  assert.ok(coreRuntime.gzipBytes <= 20_000, `Micro core runtime ${coreRuntime.gzipBytes} <= 20 kB gzip`);
+  assert.ok(liveRuntime.gzipBytes <= 20_000, `Micro live runtime ${liveRuntime.gzipBytes} <= 20 kB gzip`);
+  assert.ok(core.gzipBytes <= 25_000, `Micro core generated entry ${core.gzipBytes} <= 25 kB gzip`);
+  assert.ok(live.gzipBytes <= 25_000, `Micro live generated entry ${live.gzipBytes} <= 25 kB gzip`);
+  assert.equal(Object.hasOwn(negative.metafile.inputs, MICRO_CORE_MODULE), false, 'root/online exclude Micro core');
+  assert.equal(Object.hasOwn(negative.metafile.inputs, MICRO_LIVE_MODULE), false, 'root/online exclude Micro live');
+}
+
 async function measure() {
   const configBytes = readFileSync(PROFILE_PATH);
   const config = JSON.parse(configBytes);
@@ -397,6 +514,7 @@ async function measure() {
   for (const profile of profiles) measured.push(await measureProfile(profile));
   measured.sort((left, right) => left.id.localeCompare(right.id));
   assertPushRegistryClosure(measured);
+  assertMicroClosure(measured);
   runBehaviorCommands(BEHAVIOR_COMMANDS);
   for (const { spec } of additiveConfigs) runBehaviorCommands(spec.behaviorCommands);
   return {

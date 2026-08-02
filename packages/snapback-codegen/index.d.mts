@@ -105,6 +105,8 @@ export interface GenerateSuccess {
   readonly artifactIndex: ReviewManifest;
   readonly summary: CodegenSummary;
   readonly cacheGraphRoot: string;
+  /** Present only when a source-controlled `micro.profile.json` was selected. */
+  readonly microProfile?: Readonly<Record<string, unknown>>;
 }
 
 export type GenerateResult = GenerateFailure | GenerateSuccess;

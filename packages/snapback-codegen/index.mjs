@@ -215,6 +215,26 @@ const EXPERIMENTAL_TARGET_CAPABILITY_IDS = new Set([
 const LOCAL_MAX_PENDING_EPHEMERAL_KEYS = 1_024;
 const TARGET_PROFILE_LOCAL = 'local-dev-sqlite-ibex';
 const TARGET_PROFILE_REMOTE = 'remote-service-sqlite-ibex';
+const MICRO_PROFILE_INPUT_FILE = 'micro.profile.json';
+const MICRO_PROFILE_REQUIRED_MODULES = Object.freeze([
+  'authority-fence',
+  'core',
+  'operations',
+]);
+const MICRO_PROFILE_NONCLAIMS = Object.freeze([
+  'admin',
+  'assets',
+  'capability-class',
+  'ephemeral-state',
+  'generic-storage',
+  'hosted-carrier',
+  'offline-replay',
+  'optimistic-settlement',
+  'query-groups',
+  'retained-reads',
+  'rqs',
+  'sessions-auth',
+]);
 const TARGET_PROFILES = new Map([
   [TARGET_PROFILE_LOCAL, {
     capabilityManifest: 'capability.manifest.local-dev-sqlite-ibex.json',
@@ -3072,6 +3092,25 @@ export async function generateInProcess(backendDir, options = {}) {
     routesManifest,
     assetUploadIntents,
   );
+  const microArtifacts = buildMicroArtifacts({
+    backendRoot,
+    targetProfile,
+    capabilityManifest,
+    functionManifest,
+    functionsModule,
+    schemaDef,
+    expectedGeneration: {
+      schemaVersion: artifactVersion,
+      appId,
+      schemaHash,
+      bundleHash,
+      inputsHash,
+    },
+    err,
+  });
+  if (diagnostics.some((d) => d.severity === 'error')) {
+    return { ok: false, diagnostics };
+  }
   const providerBindingTypes = renderProviderBindingTypes(providerBindingMetadata);
   const contractModules = renderContractModules(contractManifest, functionManifest.functions, functionsModule, ephemeralCollections, schemaDef);
   const operationSchemas = renderOperationSchemas(appId, functionManifest.functions, functionsModule);
@@ -3140,6 +3179,13 @@ export async function generateInProcess(backendDir, options = {}) {
         './remote-auth-capability': './remote-auth-capability.manifest.json',
         './remote-data-capability': './remote-data-capability.manifest.json',
       } : {}),
+      ...(microArtifacts ? {
+        './micro': {
+          types: './micro.d.ts',
+          import: './micro.mjs',
+        },
+        './micro-profile': './micro.profile.json',
+      } : {}),
     },
   };
   const contractArtifactFiles = contractModules.map((module) => `contract/${module.file}`);
@@ -3153,7 +3199,7 @@ export async function generateInProcess(backendDir, options = {}) {
     generatedAt,
     schemaHash,
     bundleHash,
-    artifacts: ['schema.manifest.json', 'functions.manifest.json', 'capability.manifest.json', 'provider-introspection.json', 'provider-bindings.json', 'provider-bindings.d.ts', 'contract-data.manifest.json', 'api.mjs', 'api.d.ts', API_ENVELOPE_MEMBERS_FILE, 'package.json', ...(routesManifest ? ['routes.manifest.json'] : []), ...(seedArtifact ? ['seed.artifact.json'] : []), ...(seedAssetFixtures ? ['seed.asset-fixtures.artifact.json'] : []), ...operationArtifactFiles, ...remoteServiceArtifactFiles, ...contractArtifactFiles],
+    artifacts: ['schema.manifest.json', 'functions.manifest.json', 'capability.manifest.json', 'provider-introspection.json', 'provider-bindings.json', 'provider-bindings.d.ts', 'contract-data.manifest.json', 'api.mjs', 'api.d.ts', API_ENVELOPE_MEMBERS_FILE, 'package.json', ...(microArtifacts ? ['micro.mjs', 'micro.d.ts', 'micro.profile.json'] : []), ...(routesManifest ? ['routes.manifest.json'] : []), ...(seedArtifact ? ['seed.artifact.json'] : []), ...(seedAssetFixtures ? ['seed.asset-fixtures.artifact.json'] : []), ...operationArtifactFiles, ...remoteServiceArtifactFiles, ...contractArtifactFiles],
     tables: Object.keys(tables),
     ephemeralCollections: ephemeralCollections.map((collection) => collection.name),
     functions: functionManifest.functions.map((f) => ({ id: f.id, name: f.name, kind: f.kind })),
@@ -3188,6 +3234,7 @@ export async function generateInProcess(backendDir, options = {}) {
       apiModule,
       apiTypes,
       apiEnvelopeMembers,
+      microArtifacts,
       operationSchemas,
       remoteServicePublication,
       contractModules,
@@ -3246,6 +3293,7 @@ export async function generateInProcess(backendDir, options = {}) {
     schemaManifest,
     functionManifest,
     capabilityManifest,
+    microProfile: microArtifacts?.profile ?? null,
     providerIntrospection,
     providerBindingMetadata,
     contractManifest,
@@ -6731,6 +6779,398 @@ function renderAssetUploadReferences(appId, assetUploadIntents, functionsModule)
   }));
 }
 
+function microProfileDiagnostic(err, code, message, details = {}) {
+  err(code, 'micro-profile', message, details);
+}
+
+function canonicalStringArray(value) {
+  return Array.isArray(value)
+    && value.every((item) => typeof item === 'string' && item.length > 0)
+    && new Set(value).size === value.length;
+}
+
+function microContractIsConcrete(value) {
+  if (!value || typeof value !== 'object') return false;
+  if (value.kind === 'unknown') return false;
+  if (value.kind === 'schemaRef') return false;
+  if (value.kind === 'array') return microContractIsConcrete(value.element);
+  if (value.kind === 'union') {
+    return Array.isArray(value.variants)
+      && value.variants.length > 0
+      && value.variants.every(microContractIsConcrete);
+  }
+  if (value.kind === 'object') {
+    return Array.isArray(value.fields)
+      && value.fields.every((field) => microContractIsConcrete(field.value));
+  }
+  return true;
+}
+
+/** Stable fail-closed capability diagnostics used by generation and its 7a negative fixture. */
+export function microProfileCapabilityProblems(profile, capabilityManifest) {
+  const problems = [];
+  const maturity = capabilityManifest?.capabilityMaturity ?? {};
+  if (maturity.args_contract_v1 !== 'experimental' && maturity.args_contract_v1 !== 'stable') {
+    problems.push({
+      code: 'CODEGEN_MICRO_ARGS_CONTRACT_CAPABILITY_REQUIRED',
+      message: 'the selected target does not advertise args_contract_v1',
+    });
+  }
+  if (maturity.result_contract_v1 !== 'experimental' && maturity.result_contract_v1 !== 'stable') {
+    problems.push({
+      code: 'CODEGEN_MICRO_RESULT_CONTRACT_CAPABILITY_REQUIRED',
+      message: 'the selected target does not advertise result_contract_v1',
+    });
+  }
+  if (profile?.selectedKinds?.includes('LiveQuery') && capabilityManifest?.liveSubscriptions !== true) {
+    problems.push({
+      code: 'CODEGEN_MICRO_LIVE_CAPABILITY_REQUIRED',
+      message: 'the selected target does not advertise live subscriptions',
+    });
+  }
+  return problems;
+}
+
+/** Digest verifier for publication/metrology gates; runtime never imports the profile. */
+export function verifyMicroProfileArtifacts(profile, runtimeEntry, declaration) {
+  const problems = [];
+  if (profile?.runtimeEntryDigest !== `sha256:${sha256(runtimeEntry)}`) {
+    problems.push({
+      code: 'CODEGEN_MICRO_RUNTIME_DIGEST_DRIFT',
+      message: 'generated Micro runtime digest differs from the profile artifact',
+    });
+  }
+  if (profile?.declarationDigest !== `sha256:${sha256(declaration)}`) {
+    problems.push({
+      code: 'CODEGEN_MICRO_DECLARATION_DIGEST_DRIFT',
+      message: 'generated Micro declaration digest differs from the profile artifact',
+    });
+  }
+  return problems;
+}
+
+function buildMicroArtifacts({
+  backendRoot,
+  targetProfile,
+  capabilityManifest,
+  functionManifest,
+  functionsModule,
+  schemaDef,
+  expectedGeneration,
+  err,
+}) {
+  const path = join(backendRoot, MICRO_PROFILE_INPUT_FILE);
+  if (!existsSync(path)) return null;
+  let source;
+  let input;
+  try {
+    source = resolveFileReadCapability(path, {
+      allowedRoots: [backendRoot],
+      allowSymlink: false,
+      codePrefix: 'MICRO_PROFILE_INPUT',
+    }).read();
+    input = JSON.parse(decodeUtf8Source(source, path, 'MICRO_PROFILE_INPUT'));
+  } catch (error) {
+    microProfileDiagnostic(
+      err,
+      'CODEGEN_MICRO_PROFILE_INPUT_INVALID',
+      `${MICRO_PROFILE_INPUT_FILE} is unavailable or invalid: ${error.message}`,
+      { path },
+    );
+    return null;
+  }
+  const expectedKeys = [
+    'arm',
+    'authProfileSet',
+    'carriers',
+    'custodyOwner',
+    'explicitNonclaims',
+    'formatVersion',
+    'lane',
+    'modules',
+    'packagingProfile',
+    'profileName',
+    'selectedOperations',
+  ];
+  if (!input || typeof input !== 'object' || Array.isArray(input)
+    || Object.keys(input).sort().join('\0') !== expectedKeys.join('\0')) {
+    microProfileDiagnostic(
+      err,
+      'CODEGEN_MICRO_PROFILE_INPUT_INVALID',
+      `${MICRO_PROFILE_INPUT_FILE} must be a closed ${expectedKeys.join(', ')} object`,
+    );
+    return null;
+  }
+  if (input.formatVersion !== 'snapback.micro-profile-input.v1'
+    || input.packagingProfile !== 'micro.v1'
+    || typeof input.profileName !== 'string'
+    || !/^[A-Za-z][A-Za-z0-9._-]{0,63}$/u.test(input.profileName)) {
+    microProfileDiagnostic(
+      err,
+      'CODEGEN_MICRO_PROFILE_INPUT_INVALID',
+      'Micro profile requires format snapback.micro-profile-input.v1, packaging micro.v1, and a stable profileName',
+    );
+  }
+  const selectedOperationsValid = canonicalStringArray(input.selectedOperations);
+  const modulesValid = canonicalStringArray(input.modules);
+  const nonclaimsValid = canonicalStringArray(input.explicitNonclaims);
+  if (!selectedOperationsValid) {
+    microProfileDiagnostic(
+      err,
+      'CODEGEN_MICRO_SELECTED_OPERATIONS_INVALID',
+      'selectedOperations must be a duplicate-free array of operation names',
+    );
+  }
+  if (!modulesValid) {
+    microProfileDiagnostic(
+      err,
+      'CODEGEN_MICRO_MODULE_SET_INVALID',
+      'modules must be a duplicate-free array',
+    );
+  }
+  if (!nonclaimsValid) {
+    microProfileDiagnostic(
+      err,
+      'CODEGEN_MICRO_NONCLAIMS_INVALID',
+      'explicitNonclaims must be a duplicate-free array',
+    );
+  }
+  if (!selectedOperationsValid || !modulesValid || !nonclaimsValid) return null;
+  if (input.arm !== 'local-dev'
+    || input.lane !== 'poll'
+    || !Array.isArray(input.authProfileSet)
+    || input.authProfileSet.length !== 0) {
+    microProfileDiagnostic(
+      err,
+      'CODEGEN_MICRO_AUTH_LANE_UNSUPPORTED',
+      'Phase-B Micro requires arm local-dev, lane poll, and no auth profiles',
+      { arm: input.arm, lane: input.lane },
+    );
+  }
+  if (input.custodyOwner !== 'none'
+    || !Array.isArray(input.carriers)
+    || input.carriers.length !== 0) {
+    microProfileDiagnostic(
+      err,
+      'CODEGEN_MICRO_CUSTODY_MODULE_REQUIRED',
+      'Phase-B Micro carries no credential custody or carrier claim',
+      { custodyOwner: input.custodyOwner },
+    );
+  }
+  const functionsByName = new Map(functionManifest.functions.map((fn) => [fn.name, fn]));
+  const selected = [];
+  for (const name of input.selectedOperations ?? []) {
+    const fn = functionsByName.get(name);
+    if (!fn) {
+      microProfileDiagnostic(
+        err,
+        'CODEGEN_MICRO_OPERATION_UNKNOWN',
+        `selected Micro operation ${name} is not generated`,
+        { operation: name },
+      );
+      continue;
+    }
+    if (!['Query', 'Mutation', 'Action', 'LiveQuery'].includes(fn.kind)) {
+      microProfileDiagnostic(
+        err,
+        'CODEGEN_MICRO_OPERATION_KIND_UNSUPPORTED',
+        `${name} has unsupported Micro operation kind ${fn.kind}`,
+        { operation: name, kind: fn.kind },
+      );
+      continue;
+    }
+    if (['createClient', 'microProfileIdentity'].includes(name)) {
+      microProfileDiagnostic(
+        err,
+        'CODEGEN_MICRO_OPERATION_EXPORT_COLLISION',
+        `${name} collides with a generated Micro runtime export`,
+        { operation: name },
+      );
+    }
+    const argsConcrete = Array.isArray(fn.argsContract?.fields)
+      && fn.argsContract.fields.every((field) => microContractIsConcrete(field.value));
+    const resultConcrete = fn.resultContract?.kind !== 'unknown'
+      && (fn.resultContract?.kind !== 'value' || microContractIsConcrete(fn.resultContract.value))
+      && (fn.resultContract?.kind !== 'records' || microContractIsConcrete(fn.resultContract.record));
+    if (!argsConcrete || !resultConcrete
+      || typeof fn.argsContractHash !== 'string'
+      || typeof fn.resultContractHash !== 'string'
+      || typeof fn.implementationHash !== 'string') {
+      microProfileDiagnostic(
+        err,
+        'CODEGEN_MICRO_OPERATION_CONTRACT_REQUIRED',
+        `${name} requires concrete argument and result contracts`,
+        { operation: name },
+      );
+      continue;
+    }
+    selected.push(fn);
+  }
+  const selectedKinds = [...new Set(selected.map((fn) => fn.kind))].sort();
+  const requiredModules = [
+    ...MICRO_PROFILE_REQUIRED_MODULES,
+    ...(selectedKinds.includes('LiveQuery') ? ['live'] : []),
+  ].sort();
+  const modules = [...(input.modules ?? [])].sort();
+  if (modules.join('\0') !== requiredModules.join('\0')) {
+    microProfileDiagnostic(
+      err,
+      selectedKinds.includes('LiveQuery') && !modules.includes('live')
+        ? 'CODEGEN_MICRO_LIVE_MODULE_REQUIRED'
+        : 'CODEGEN_MICRO_MODULE_SET_INVALID',
+      `Micro module set must be exactly ${requiredModules.join(', ')}`,
+      { requiredModules, selectedModules: modules },
+    );
+  }
+  const nonclaims = [...(input.explicitNonclaims ?? [])].sort();
+  if (nonclaims.join('\0') !== [...MICRO_PROFILE_NONCLAIMS].sort().join('\0')) {
+    microProfileDiagnostic(
+      err,
+      'CODEGEN_MICRO_NONCLAIMS_INVALID',
+      `Phase-B Micro must state the complete nonclaim set: ${MICRO_PROFILE_NONCLAIMS.join(', ')}`,
+    );
+  }
+  for (const problem of microProfileCapabilityProblems({ selectedKinds }, capabilityManifest)) {
+    microProfileDiagnostic(err, problem.code, problem.message, { targetProfile });
+  }
+  if (selected.length !== (input.selectedOperations ?? []).length) return null;
+
+  const runtimeEntry = renderMicroRuntimeEntry(
+    selected,
+    expectedGeneration,
+    input.profileName,
+    modules.includes('live'),
+  );
+  const declaration = renderMicroDeclaration(selected, functionsModule, schemaDef);
+  const syntax = ts.transpileModule(declaration, {
+    compilerOptions: { strict: true, target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
+    reportDiagnostics: true,
+  }).diagnostics ?? [];
+  if (syntax.some((diagnostic) => diagnostic.category === ts.DiagnosticCategory.Error)) {
+    microProfileDiagnostic(
+      err,
+      'CODEGEN_MICRO_DECLARATION_TYPECHECK_FAILED',
+      'generated Micro declaration failed strict TypeScript syntax checking',
+      { diagnostics: syntax.map((diagnostic) => ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n')) },
+    );
+  }
+  const profile = {
+    formatVersion: 'microProfile.v1',
+    profileName: input.profileName,
+    packagingProfile: 'micro.v1',
+    capabilityClass: null,
+    selectedOperations: selected.map((fn) => ({
+      id: fn.id,
+      name: fn.name,
+      kind: fn.kind,
+      implementationHash: fn.implementationHash,
+      argsContractHash: fn.argsContractHash,
+      resultContractHash: fn.resultContractHash,
+    })),
+    expectedGeneration,
+    modules,
+    arm: 'local-dev',
+    lane: 'poll',
+    authProfileSet: [],
+    custodyOwner: 'none',
+    carriers: [],
+    explicitNonclaims: nonclaims,
+    sourceDigest: `sha256:${sha256(source)}`,
+    runtimeEntryDigest: `sha256:${sha256(runtimeEntry)}`,
+    declarationDigest: `sha256:${sha256(declaration)}`,
+  };
+  return { runtimeEntry, declaration, profile };
+}
+
+function renderMicroRuntimeEntry(functions, expectedGeneration, profileName, includesLive) {
+  const descriptors = Object.fromEntries(functions.map((fn) => [fn.name, {
+    name: fn.name,
+    kind: fn.kind,
+  }]));
+  const lines = [
+    HEADER,
+    '// @ref LLP 0147#runtime-entry — generated named wrappers bind one frozen',
+    '// operation set and generation to the standalone Micro transport.',
+    "import { createMicroCoreRuntime } from '@expo/snapback-client/micro/core';",
+    ...(includesLive
+      ? ["import { withMicroLive } from '@expo/snapback-client/micro/live';"]
+      : []),
+    '',
+    `const expectedGeneration = Object.freeze(${stableJson(expectedGeneration)});`,
+    `const descriptors = Object.freeze(${stableJson(descriptors)});`,
+    `export const microProfileIdentity = Object.freeze({ profileName: ${JSON.stringify(profileName)}, packagingProfile: 'micro.v1' });`,
+    'export function createClient(options) {',
+    `  const core = createMicroCoreRuntime({ ...options, expectedGeneration, requireGenerationFacts: false });`,
+    ...(includesLive ? ['  return withMicroLive(core);'] : ['  return core;']),
+    '}',
+  ];
+  for (const fn of functions) {
+    if (fn.kind === 'LiveQuery') {
+      lines.push(
+        `export function ${fn.name}(client, args, options) {`,
+        `  return client.subscribe(descriptors.${fn.name}, args, options);`,
+        '}',
+      );
+    } else {
+      lines.push(
+        `export function ${fn.name}(client, args) {`,
+        `  return client.invoke(descriptors.${fn.name}, args);`,
+        '}',
+      );
+    }
+  }
+  return `${lines.join('\n')}\n`;
+}
+
+function renderMicroDeclaration(functions, functionsModule, schemaDef) {
+  const selectedTables = new Set();
+  for (const fn of functions) {
+    if (typeof fn.resultContract?.table === 'string') selectedTables.add(fn.resultContract.table);
+  }
+  const lines = [
+    HEADER,
+    "import type { MicroActionOutput, MicroCoreRuntime, MicroMutationOutput, MicroQueryOutput, MicroRuntimeOptions } from '@expo/snapback-client/micro/core';",
+    ...(functions.some((fn) => fn.kind === 'LiveQuery')
+      ? ["import type { MicroLiveHandle, MicroRuntime } from '@expo/snapback-client/micro/live';"]
+      : ["type MicroRuntime = MicroCoreRuntime;"]),
+    "export type Id<Table extends string> = string & { readonly __snapbackIdTable: Table };",
+    "export type Principal = string & { readonly __snapbackPrincipal: unique symbol };",
+    'export interface MicroDataModel {',
+  ];
+  for (const tableName of [...selectedTables].sort()) {
+    const table = schemaDef.tables?.[tableName];
+    const fields = Object.entries(table?.fields ?? {}).map(([fieldName, validator]) => {
+      const type = typeForGeneratedValidator(validator).replace(/ \| undefined$/u, '');
+      return `${JSON.stringify(fieldName)}: ${validator.optional ? `null | ${type}` : type}`;
+    });
+    lines.push(`  ${JSON.stringify(tableName)}: { _id: Id<${JSON.stringify(tableName)}>; _version: number; _createdAt: number; _updatedAt: number${fields.length > 0 ? `; ${fields.join('; ')}` : ''} };`);
+  }
+  lines.push(
+    '}',
+    'export type MicroClientOptions = Omit<MicroRuntimeOptions, "expectedGeneration" | "requireGenerationFacts">;',
+    "export const microProfileIdentity: Readonly<{ profileName: string; packagingProfile: 'micro.v1' }> ;",
+    'export function createClient(options: MicroClientOptions): MicroRuntime;',
+  );
+  for (const fn of functions) {
+    const args = typeForGeneratedArgs(functionsModule[fn.name]?.args ?? {});
+    const result = resultContractType(
+      fn.resultContract,
+      (table) => `MicroDataModel[${JSON.stringify(table)}]`,
+    );
+    if (fn.kind === 'LiveQuery') {
+      lines.push(`export function ${fn.name}(client: MicroRuntime, args: ${args}, options?: { readonly onUpdate?: (rows: ${result}, detail: Readonly<{ kind: string; version: number }>) => void }): Promise<MicroLiveHandle<${result}>>;`);
+    } else {
+      const output = fn.kind === 'Mutation'
+        ? `MicroMutationOutput<${result}>`
+        : fn.kind === 'Action'
+          ? `MicroActionOutput<${result}>`
+          : `MicroQueryOutput<${result}>`;
+      lines.push(`export function ${fn.name}(client: MicroRuntime, args: ${args}): Promise<${output}>;`);
+    }
+  }
+  return `${lines.join('\n')}\n`;
+}
+
 function renderApiModule(
   appId,
   functions,
@@ -8744,6 +9184,7 @@ function writeGeneratedOutput(outDir, {
   apiModule,
   apiTypes,
   apiEnvelopeMembers,
+  microArtifacts,
   operationSchemas,
   remoteServicePublication,
   contractModules,
@@ -8769,6 +9210,11 @@ function writeGeneratedOutput(outDir, {
   writeFileSync(join(outDir, 'contract-data.manifest.json'), stableJson(contractManifest) + '\n');
   writeFileSync(join(outDir, 'api.mjs'), apiModule);
   writeFileSync(join(outDir, 'api.d.ts'), apiTypes);
+  if (microArtifacts) {
+    writeFileSync(join(outDir, 'micro.mjs'), microArtifacts.runtimeEntry);
+    writeFileSync(join(outDir, 'micro.d.ts'), microArtifacts.declaration);
+    writeFileSync(join(outDir, 'micro.profile.json'), stableJson(microArtifacts.profile) + '\n');
+  }
   if (apiEnvelopeMembers) {
     writeFileSync(join(outDir, API_ENVELOPE_MEMBERS_FILE), stableJson(apiEnvelopeMembers) + '\n');
   }

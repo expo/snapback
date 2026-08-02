@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "snapback.client-bundle-metrology-additive-profiles.v1",
+  "profiles": [
+    {
+      "id": "micro-core-runtime",
+      "package": "@expo/snapback-client/micro/core",
+      "fixture": "micro-core-runtime"
+    },
+    {
+      "id": "micro-core-generated-entry",
+      "package": "@expo/snapback-client/micro/core",
+      "fixture": "micro-core-generated-entry"
+    },
+    {
+      "id": "micro-live-runtime",
+      "package": "@expo/snapback-client/micro/live",
+      "fixture": "micro-live-runtime"
+    },
+    {
+      "id": "micro-live-generated-entry",
+      "package": "@expo/snapback-client/micro/live",
+      "fixture": "micro-live-generated-entry"
+    },
+    {
+      "id": "micro-root-negative",
+      "package": "@expo/snapback-client",
+      "fixture": "micro-root-negative"
+    }
+  ],
+  "prospectiveProfiles": [
+    {
+      "id": "micro-sessions-composition",
+      "phase": "C",
+      "status": "not-implemented"
+    },
+    {
+      "id": "micro-react-composition",
+      "phase": "D",
+      "status": "not-implemented"
+    },
+    {
+      "id": "micro-browser-carrier",
+      "phase": "D",
+      "status": "not-implemented"
+    },
+    {
+      "id": "micro-expo-metro-carrier",
+      "phase": "D",
+      "status": "not-implemented"
+    },
+    {
+      "id": "micro-external-application",
+      "phase": "D",
+      "status": "not-implemented"
+    }
+  ]
+}

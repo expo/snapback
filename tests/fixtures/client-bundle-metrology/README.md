@@ -43,6 +43,15 @@ node scripts/client-bundle-metrology.mjs --write-supplemental-baseline
 The command refuses unless exactly one declared ledger is missing and every
 existing primary/supplemental ceiling is still valid.
 
+The Phase-B Micro extension is `baseline.micro-phase-b.v1.json`, backed by
+`micro-phase-b-profiles.v1.json`. It freezes separate generated core and live
+closures, the three public experimental subpaths, and a root/`./online`
+negative. The profile file also reserves the Phase-C/D sessions, React,
+browser, Expo/Metro, and complete-application rows as explicitly
+`not-implemented`; they gain first-run ledgers only when those later phases
+exist, so this local-dev evidence cannot be mistaken for carrier or capability
+proof.
+
 ## Relationship to the Workstream 8 instrument
 
 This is a package-closure extension of LLP 0063 Workstream 8, not a competing
