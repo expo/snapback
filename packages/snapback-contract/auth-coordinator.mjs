@@ -4,7 +4,7 @@
 //   durable, serialized state machine per canonical app id; app participants
 //   never own independent current-auth state.
 
-import { ID_PREFIXES, encodeBody } from './ids.mjs';
+import { ID_PREFIXES, encodeBody, isMintedIdentifier } from './ids.mjs';
 
 export const SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION = 2;
 export const SNAPBACK_AUTH_SENDER_CUSTODY_FORMAT_VERSION = 3;
@@ -240,9 +240,11 @@ export function normalizeClientAuthority(authority) {
     'sessionId',
     'userId',
   ], 'authority');
+  // @ref LLP 0148#what-implementation-surfaced — object ids accept the new
+  // prefixed spelling and stored legacy UUIDv7s; the incarnation above does not.
   for (const field of ['sessionId', 'userId']) {
-    if (!UUID_V7.test(authority[field] ?? '')) {
-      throw corrupt(`session authority ${field} is not a canonical UUIDv7`, { field: `authority.${field}` });
+    if (!isMintedIdentifier(authority[field])) {
+      throw corrupt(`session authority ${field} is not a Snapback identifier`, { field: `authority.${field}` });
     }
   }
   return {
@@ -287,13 +289,15 @@ export function canonicalAgentAuthorityKey({
   credentialGeneration,
   grantId,
 } = {}) {
+  // @ref LLP 0148#d4-the-prefix-is-never-load-bearing — grant tuple ids use
+  // the shared shape predicate; no authority decision branches on a prefix.
   for (const [field, value] of [
     ['actorUserId', actorUserId],
     ['credentialId', credentialId],
     ['grantId', grantId],
   ]) {
-    if (!UUID_V7.test(value ?? '')) {
-      throw new TypeError(`${field} must be a UUIDv7`);
+    if (!isMintedIdentifier(value)) {
+      throw new TypeError(`${field} must be a Snapback identifier`);
     }
   }
   if (!Number.isSafeInteger(credentialGeneration) || credentialGeneration < 0) {

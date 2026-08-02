@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto';
 import {
   AuthCoordinator,
   authAppIdHash,
+  canonicalAgentAuthorityKey,
   canonicalAuthorityKey,
   createMemoryAuthCustodyStorage,
   SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION,
@@ -18,6 +19,10 @@ const SESSION_A = '018f0d90-7b12-7a22-8c33-445566778899';
 const SESSION_B = '018f0d90-7b13-7a22-8c33-445566778899';
 const USER_A = '018f0d90-7b14-7a22-8c33-445566778899';
 const USER_B = '018f0d90-7b15-7a22-8c33-445566778899';
+const PREFIXED_SESSION = `ses_${'0'.repeat(26)}`;
+const PREFIXED_USER = `usr_${'1'.repeat(26)}`;
+const PREFIXED_CREDENTIAL = `agc_${'2'.repeat(26)}`;
+const PREFIXED_GRANT = `grt_${'3'.repeat(26)}`;
 const BEARER_SENTINEL = 'sbs_CLIENT_BEARER_SECRET_SENTINEL_MUST_NOT_ESCAPE';
 
 const anonymous = (authMode = 'sessions') => ({
@@ -105,6 +110,13 @@ const hintStorage = {
     createHash('sha256').update(`snapback.auth-app.v1\n${APP}`, 'utf8').digest('hex'),
   );
   assert.notEqual(canonicalAuthorityKey(APP, anonymous('dev')), canonicalAuthorityKey(APP, anonymous('sessions')));
+  assert.match(canonicalAuthorityKey(APP, session(PREFIXED_SESSION, PREFIXED_USER)), /^sha256:[0-9a-f]{64}$/);
+  assert.match(canonicalAgentAuthorityKey({
+    actorUserId: PREFIXED_USER,
+    credentialId: PREFIXED_CREDENTIAL,
+    credentialGeneration: 1,
+    grantId: PREFIXED_GRANT,
+  }), /^sha256:[0-9a-f]{64}$/);
 }
 
 // The durable record is closed and fails blank on malformed authority/bearer combinations.
