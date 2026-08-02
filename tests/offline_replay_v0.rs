@@ -335,6 +335,7 @@ async fn current_mutation_id_cannot_be_acknowledged_by_its_own_request() {
     let mutation_id = "cm_overlap_1".to_owned();
     let request = |acknowledged_client_mutation_ids| MutationRequest {
         input: create_input(USER),
+        settlement: Default::default(),
         expected_generation: None,
         client_mutation_id: Some(mutation_id.clone()),
         authority_descriptor: None,
@@ -388,6 +389,7 @@ async fn standalone_ack_reclaims_a_final_result_and_is_auth_bound() {
     let mutation_id = "cm_standalone_ack_1".to_owned();
     let request = MutationRequest {
         input: create_input(USER),
+        settlement: Default::default(),
         expected_generation: None,
         client_mutation_id: Some(mutation_id.clone()),
         authority_descriptor: None,
@@ -470,6 +472,7 @@ async fn admin_purge_is_gated_explicit_and_auth_selective() {
     let other_id = "cm_admin_purge_other".to_owned();
     let user_request = MutationRequest {
         input: create_input(USER),
+        settlement: Default::default(),
         expected_generation: None,
         client_mutation_id: Some(user_id.clone()),
         authority_descriptor: None,
@@ -477,6 +480,7 @@ async fn admin_purge_is_gated_explicit_and_auth_selective() {
     };
     let other_request = MutationRequest {
         input: create_input("another_user"),
+        settlement: Default::default(),
         expected_generation: None,
         client_mutation_id: Some(other_id),
         authority_descriptor: None,

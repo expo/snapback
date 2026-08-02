@@ -19078,6 +19078,7 @@ async fn invoke_mutation(
     let stage_authority_descriptor = request.authority_descriptor.clone();
     let stage_acknowledgements = request.acknowledged_client_mutation_ids.clone();
     let stage_expected_generation = request.expected_generation.clone();
+    let stage_settlement = request.settlement.clone();
     let stage_authority = authority.clone();
     let (result, receipt, response_authority_descriptor) =
         with_snapback_staged_authorization_write(
@@ -19085,7 +19086,8 @@ async fn invoke_mutation(
         move |snapback| {
             let response_authority_descriptor =
                 snapback.descriptor_for_prepared_authority(&stage_authority)?;
-            let (preflight, staged) = snapback.stage_recorded_authorization_mutation_with_generation(
+            let (preflight, staged) = snapback
+                .stage_recorded_authorization_mutation_with_generation_and_settlement(
                 &stage_name,
                 stage_input.clone(),
                 stage_client_mutation_id.clone(),
@@ -19094,6 +19096,7 @@ async fn invoke_mutation(
                 "http",
                 stage_authority.clone(),
                 stage_expected_generation.as_ref(),
+                stage_settlement.clone(),
             )?;
             Ok((preflight, (response_authority_descriptor, staged)))
         },

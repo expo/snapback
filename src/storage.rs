@@ -4,7 +4,7 @@ use crate::manifest::{
     AuthInput, AuthMode, CLIENT_MUTATION_ACK_MAX_IDS, CTX_ANSWER_LEDGER_MAX_IDS,
     CTX_ANSWER_LEDGER_VERSION, CtxAnswerLedger, FieldManifest, FieldType, FilterOp, HandlerInput,
     MembershipManifest, MembershipOp, MembershipProvenance, MembershipScope, MembershipTarget,
-    MutationOutput, MutationPlan, MutationStep, OrderDirection, OrderExpr,
+    MutationOutput, MutationPlan, MutationSettlement, MutationStep, OrderDirection, OrderExpr,
     PORTABLE_STORAGE_VERSION_MAX, QUERY_INTERNAL_OVERFETCH_MAX, QUERY_MAX_FILTER_BINDINGS,
     QUERY_MAX_IN_ITEMS, QueryOutput, QueryPlan, ReadDependency, ReturnValue, SchemaManifest,
     SeedData, TableManifest, ValueExpr, auth_fingerprint, effective_query_limit,
@@ -691,12 +691,31 @@ impl ClientMutationIdentity {
         input: &HandlerInput,
         authority_instance_id: impl Into<String>,
     ) -> Self {
+        Self::for_authority_with_settlement(
+            id,
+            function,
+            input,
+            authority_instance_id,
+            &MutationSettlement::default(),
+        )
+    }
+
+    pub fn for_authority_with_settlement(
+        id: impl Into<String>,
+        function: impl Into<String>,
+        input: &HandlerInput,
+        authority_instance_id: impl Into<String>,
+        settlement: &MutationSettlement,
+    ) -> Self {
         Self {
             id: id.into(),
             function: function.into(),
             auth_fingerprint: auth_fingerprint(&input.auth),
             authority_instance_id: authority_instance_id.into(),
-            input_fingerprint: mutation_input_fingerprint(input),
+            // @ref LLP 0133#exactly-once-identity-under-the-new-semantics —
+            //   every settle-time policy fact shares the durable collision
+            //   boundary with args/readSet/ctxLedger.
+            input_fingerprint: mutation_input_fingerprint(input, settlement),
         }
     }
 
@@ -16162,15 +16181,27 @@ fn validate_client_mutation_identity(identity: &ClientMutationIdentity) -> Snapb
     Ok(())
 }
 
-fn mutation_input_fingerprint(input: &HandlerInput) -> String {
+fn mutation_input_fingerprint(input: &HandlerInput, settlement: &MutationSettlement) -> String {
     // Correlation is receipt-routing metadata and may legitimately change on
     // app reload. Args, optimistic baseline, and replay ledger identify the
     // logical mutation and must be byte-equivalent after canonical key sort.
-    let value = canonical_json(json!({
-        "args": input.args,
-        "readSet": input.read_set,
-        "ctxLedger": input.ctx_ledger,
-    }));
+    // The all-default lane-Q carrier retains the pre-0133 preimage so an
+    // additive server upgrade can still republish already-stored settlements.
+    let value = if settlement == &MutationSettlement::default() {
+        json!({
+            "args": input.args,
+            "readSet": input.read_set,
+            "ctxLedger": input.ctx_ledger,
+        })
+    } else {
+        json!({
+            "args": input.args,
+            "readSet": input.read_set,
+            "ctxLedger": input.ctx_ledger,
+            "settlement": settlement,
+        })
+    };
+    let value = canonical_json(value);
     let encoded = serde_json::to_vec(&value).expect("mutation identity JSON serializes");
     let mut digest = Sha256::new();
     digest.update(encoded);

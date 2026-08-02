@@ -5695,6 +5695,92 @@ pub enum SettlementLane {
     ReDerive,
 }
 
+/// Element-1/5 identity facts recorded by a lane-L capture. They are claims,
+/// never authority; this substrate binds them into exactly-once identity but
+/// leaves mismatch disposition to the tuple owners.
+///
+/// @ref LLP 0133#what-settlement-consumes-of-the-execution-identity-tuple —
+///   implementation and activation identity are retained claims only.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SettlementIdentityClaims {
+    pub implementation_hash: String,
+    pub activation: ArtifactGeneration,
+}
+
+/// One locally minted id plus the logical mint identity needed for ticket
+/// 04's unmapped-never-guessed pairing.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SettlementMintClaim {
+    pub claimed: String,
+    pub site: String,
+    pub occurrence: u32,
+}
+
+fn settlement_claim_set_version() -> u32 {
+    1
+}
+
+/// Versioned lane-L recorded answers. This is separate from lane Q's shipped
+/// positional `ctxLedger`: claims do not become replay authority.
+///
+/// @ref LLP 0133#divergence-on-settle — mint claims carry site/occurrence so
+///   equal counts at different sites can never cross-pair.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SettlementClaimSet {
+    #[serde(default = "settlement_claim_set_version")]
+    pub version: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(range(max = PORTABLE_TIMESTAMP_MAX_MS))]
+    pub now: Option<u64>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[schemars(length(max = CTX_ANSWER_LEDGER_MAX_IDS))]
+    pub mints: Vec<SettlementMintClaim>,
+}
+
+/// Capture-time identity of one proposed bounded-skew declaration. Ticket 05
+/// adds manifest admission and execution semantics; ticket 02 makes changes
+/// fail closed under a reused mutation id immediately.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct BoundedSkewDeclaration {
+    pub field: String,
+    #[schemars(range(max = PORTABLE_TIMESTAMP_MAX_MS))]
+    pub max_skew_ms: u64,
+}
+
+/// All LLP 0133 semantics-affecting request facts. Flattening keeps the
+/// additions optional on the established mutation envelope; the default
+/// preserves the pre-0133 lane-Q identity.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub struct MutationSettlement {
+    #[serde(default, rename = "settlementLane", alias = "settlement_lane")]
+    pub lane: SettlementLane,
+    #[serde(
+        default,
+        rename = "settlementIdentity",
+        alias = "settlement_identity",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub identity_claims: Option<SettlementIdentityClaims>,
+    #[serde(
+        default,
+        rename = "settlementClaims",
+        alias = "settlement_claims",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub claims: Option<SettlementClaimSet>,
+    #[serde(
+        default,
+        rename = "boundedSkew",
+        alias = "bounded_skew",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub bounded_skew: Option<BoundedSkewDeclaration>,
+}
+
 /// Client-visible mutation request envelope. The idempotency key is mutation
 /// only: queries remain server-authoritative reads and are never queued or
 /// ledgered as writes (LLP 0043 M1/M2).
@@ -5702,6 +5788,13 @@ pub enum SettlementLane {
 pub struct MutationRequest {
     #[serde(flatten)]
     pub input: HandlerInput,
+    /// Additive settle-time trust facts. Every member joins the durable
+    /// exactly-once identity before any fresh lane or activation gate.
+    ///
+    /// @ref LLP 0133#exactly-once-identity-under-the-new-semantics — changed
+    ///   lane, identity claims, declaration, or claim set fails closed.
+    #[serde(flatten)]
+    pub settlement: MutationSettlement,
     /// Optional generated-artifact assertion; sessions targets compare it
     /// atomically with mutation function selection before any receipt/ACK or
     /// handler effect. Absent remains unchecked.

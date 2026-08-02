@@ -51,8 +51,9 @@ use crate::manifest::{
     AuthorityDescriptor, CTX_ANSWER_LEDGER_MAX_IDS, CapabilityManifest, CtxAnswerLedger,
     FunctionDefinition, FunctionInvocationFacts, FunctionKind, FunctionManifest,
     FunctionResultContract, FunctionRuntime, HandlerInput, HandlerPlan, MutationOutput,
-    MutationStep, PermissionScopeExpr, PublicFunctionManifest, PublicSchemaManifest, QueryOutput,
-    QueryPlan, SNAPBACK_SCHEMA_VERSION, SchemaManifest, SeedData, SettlementLane,
+    MutationSettlement, MutationStep, PermissionScopeExpr, PublicFunctionManifest,
+    PublicSchemaManifest, QueryOutput, QueryPlan, SNAPBACK_SCHEMA_VERSION, SchemaManifest, SeedData,
+    SettlementLane,
     TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX, ValueExpr, auth_fingerprint, ctx_ledger_version,
     legacy_auth_fingerprint,
 };
@@ -11207,6 +11208,35 @@ impl LocalSnapback {
         crate::storage::AuthorizationCommitPreflight,
         StagedRecordedMutation,
     )> {
+        self.stage_recorded_authorization_mutation_with_generation_and_settlement(
+            name,
+            input,
+            client_mutation_id,
+            authority_descriptor,
+            acknowledged_client_mutation_ids,
+            transport,
+            authority,
+            expected_generation,
+            MutationSettlement::default(),
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn stage_recorded_authorization_mutation_with_generation_and_settlement(
+        &mut self,
+        name: &str,
+        input: HandlerInput,
+        client_mutation_id: Option<String>,
+        authority_descriptor: Option<AuthorityDescriptor>,
+        acknowledged_client_mutation_ids: &[String],
+        transport: &str,
+        authority: PreparedAuthority,
+        expected_generation: Option<&ArtifactGeneration>,
+        settlement: MutationSettlement,
+    ) -> SnapbackResult<(
+        crate::storage::AuthorizationCommitPreflight,
+        StagedRecordedMutation,
+    )> {
         // @ref LLP 0043#settlement-consumption-and-acknowledgement-lifecycle-2026-08-01
         // A committed settlement is independent of the continued existence
         // of executable code. Re-attest the live authority and the exact
@@ -11222,11 +11252,12 @@ impl LocalSnapback {
             }
             let mut canonical_input = input.clone();
             canonical_input.auth = authority.canonical_auth_input();
-            let identity = ClientMutationIdentity::for_authority(
+            let identity = ClientMutationIdentity::for_authority_with_settlement(
                 id.clone(),
                 name.to_owned(),
                 &canonical_input,
                 expected.authority_instance_id,
+                &settlement,
             );
             if let Some(output) = self.db.client_mutation_result(&identity)? {
                 if !acknowledged_client_mutation_ids.is_empty() {
@@ -11300,11 +11331,12 @@ impl LocalSnapback {
                 let incarnation = self.db.ensure_authorization_stream_incarnation()?;
                 let expected =
                     descriptor_for_authority(prepared.authority(), incarnation.as_str())?;
-                Some(ClientMutationIdentity::for_authority(
+                Some(ClientMutationIdentity::for_authority_with_settlement(
                     id,
                     name.to_owned(),
                     &input,
                     expected.authority_instance_id,
+                    &settlement,
                 ))
             } else {
                 None
@@ -24379,15 +24411,18 @@ mod tests {
         INPUTS_V1_PREFIX, SCHEMA_V1_PREFIX, STARTUP_ARTIFACT_FORMAT_VERSION, StartupArtifacts,
     };
     use crate::manifest::{
-        ActionPlan, AuthInput, AuthManifest, AuthMode, AuthorityDescriptor, ConfigEntryDefinition,
-        CronActivationPolicy, CronJitterPolicy, CronJobDefinition, CronOverlapPolicy,
-        CronRetryMode, CronRetryPolicy, CronSchedule, CtxAnswerLedger, FieldManifest, FieldType,
-        FilterExpr, FilterOp, FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime,
-        HandlerInput, HandlerPlan, IbexModule, IndexManifest, MembershipManifest,
-        MembershipPredicate, MembershipResourceRef, MembershipScope, MutationPlan, MutationStep,
-        PermissionScopeExpr, QueryPlan, ReturnValue, SchemaManifest, SeedData, TableManifest,
-        ValueExpr, ctx_ledger_version,
+        ActionPlan, ArtifactGeneration, AuthInput, AuthManifest, AuthMode, AuthorityDescriptor,
+        BoundedSkewDeclaration, ConfigEntryDefinition, CronActivationPolicy, CronJitterPolicy,
+        CronJobDefinition, CronOverlapPolicy, CronRetryMode, CronRetryPolicy, CronSchedule,
+        CtxAnswerLedger, FieldManifest, FieldType, FilterExpr, FilterOp, FunctionDefinition,
+        FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, IbexModule,
+        IndexManifest, MembershipManifest, MembershipPredicate, MembershipResourceRef,
+        MembershipScope, MutationOutput, MutationPlan, MutationSettlement, MutationStep,
+        PermissionScopeExpr, QueryPlan, ReturnValue, SchemaManifest, SeedData, SettlementClaimSet,
+        SettlementIdentityClaims, SettlementLane, SettlementMintClaim, TableManifest, ValueExpr,
+        ctx_ledger_version,
     };
+    use crate::live_wire::Receipt;
     use crate::runtime::ExecutedIbexMutation;
     use crate::search::types::{
         SEARCH_ANALYZER, SEARCH_CAPABILITY, SEARCH_PARSER, SearchFieldClassV1,
@@ -38309,6 +38344,169 @@ globalThis.__snapbackHandlers = {
         assert!(fanout.get("claimLedger").is_none());
         assert!(fanout.get("idMap").is_none());
         assert!(!fanout.to_string().contains(accepted_id));
+    }
+
+    fn invoke_guarded_settlement(
+        snapback: &mut LocalSnapback,
+        client_mutation_id: &str,
+        settlement: MutationSettlement,
+    ) -> SnapbackResult<(SnapbackResult<MutationOutput>, Receipt)> {
+        let authority = InvocationGate::prepare_dev_input(
+            InvocationSource::LocalMutation,
+            ServerProfile::Test,
+            &input(),
+        )?;
+        let (preflight, staged) = snapback
+            .stage_recorded_authorization_mutation_with_generation_and_settlement(
+                "hostInsert",
+                input(),
+                Some(client_mutation_id.to_owned()),
+                None,
+                &[],
+                "test",
+                authority,
+                None,
+                settlement,
+            )?;
+        snapback.try_with_direct_authorization_write(preflight, move |snapback| {
+            snapback.commit_staged_recorded_authorization_mutation(staged)
+        })?
+    }
+
+    /// LLP 0133 acceptance sketch 8. Exact retries are answered from the
+    /// retained settlement before current activation/function gates, while a
+    /// change to any settle-time fact collides fail-closed under the same id.
+    #[test]
+    fn llp0133_sketch_8_settlement_identity_is_exact_and_precedes_freshness() {
+        let baseline = MutationSettlement {
+            lane: SettlementLane::ReDerive,
+            identity_claims: Some(SettlementIdentityClaims {
+                implementation_hash: "sha256:local-implementation".to_owned(),
+                activation: ArtifactGeneration {
+                    schema_version: "schema-v1".to_owned(),
+                    app_id: "app-v1".to_owned(),
+                    schema_hash: "sha256:schema-v1".to_owned(),
+                    bundle_hash: "sha256:bundle-v1".to_owned(),
+                    inputs_hash: "sha256:inputs-v1".to_owned(),
+                },
+            }),
+            claims: Some(SettlementClaimSet {
+                version: 1,
+                now: Some(1_750_000_000_000),
+                mints: vec![SettlementMintClaim {
+                    claimed: "01981120-a780-7000-8000-000000000001".to_owned(),
+                    site: "insert:items".to_owned(),
+                    occurrence: 0,
+                }],
+            }),
+            bounded_skew: Some(BoundedSkewDeclaration {
+                field: "createdAt".to_owned(),
+                max_skew_ms: 5_000,
+            }),
+        };
+        let mut snapback = guarded_snapback();
+        let first = invoke_guarded_settlement(
+            &mut snapback,
+            "cm_llp0133_identity_collision",
+            baseline.clone(),
+        )
+        .expect("first identity stages")
+        .0
+        .expect("first identity settles");
+        assert_eq!(snapback.db.scan_table("items", 10, 0).unwrap().total, 1);
+
+        let diagnostics = snapback.load_functions(FunctionManifest::default());
+        assert!(
+            diagnostics.iter().all(|diagnostic| {
+                diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error
+            }),
+            "empty activation must load: {diagnostics:?}"
+        );
+
+        let duplicate = invoke_guarded_settlement(
+            &mut snapback,
+            "cm_llp0133_identity_collision",
+            baseline.clone(),
+        )
+        .expect("exact retry bypasses moved activation")
+        .0
+        .expect("exact retry republishes the settlement");
+        assert_eq!(duplicate.result, first.result);
+        assert_eq!(duplicate.version, first.version);
+        assert_eq!(snapback.db.scan_table("items", 10, 0).unwrap().total, 1);
+
+        let mut variants = Vec::new();
+        let mut changed = baseline.clone();
+        changed.lane = SettlementLane::ReplayAccept;
+        variants.push(("lane", changed));
+        let mut changed = baseline.clone();
+        changed
+            .identity_claims
+            .as_mut()
+            .unwrap()
+            .implementation_hash
+            .push('x');
+        variants.push(("implementation hash", changed));
+        for field in [
+            "schema_version",
+            "app_id",
+            "schema_hash",
+            "bundle_hash",
+            "inputs_hash",
+        ] {
+            let mut changed = baseline.clone();
+            let activation = &mut changed.identity_claims.as_mut().unwrap().activation;
+            match field {
+                "schema_version" => activation.schema_version.push('x'),
+                "app_id" => activation.app_id.push('x'),
+                "schema_hash" => activation.schema_hash.push('x'),
+                "bundle_hash" => activation.bundle_hash.push('x'),
+                "inputs_hash" => activation.inputs_hash.push('x'),
+                _ => unreachable!(),
+            }
+            variants.push((field, changed));
+        }
+        let mut changed = baseline.clone();
+        changed.claims.as_mut().unwrap().version += 1;
+        variants.push(("claim version", changed));
+        let mut changed = baseline.clone();
+        changed.claims.as_mut().unwrap().now = Some(1_750_000_000_001);
+        variants.push(("now claim", changed));
+        for field in ["claimed", "site", "occurrence"] {
+            let mut changed = baseline.clone();
+            let mint = &mut changed.claims.as_mut().unwrap().mints[0];
+            match field {
+                "claimed" => mint.claimed.push('x'),
+                "site" => mint.site.push('x'),
+                "occurrence" => mint.occurrence += 1,
+                _ => unreachable!(),
+            }
+            variants.push((field, changed));
+        }
+        let mut changed = baseline.clone();
+        changed.bounded_skew.as_mut().unwrap().field.push('x');
+        variants.push(("bounded-skew field", changed));
+        let mut changed = baseline.clone();
+        changed.bounded_skew.as_mut().unwrap().max_skew_ms += 1;
+        variants.push(("bounded-skew bound", changed));
+
+        for (changed_fact, settlement) in variants {
+            let error = invoke_guarded_settlement(
+                &mut snapback,
+                "cm_llp0133_identity_collision",
+                settlement,
+            )
+            .expect_err(changed_fact);
+            assert_eq!(
+                error.diagnostic.code, "SNAPBACK_CLIENT_MUTATION_ID_REUSED",
+                "changed {changed_fact} must collide before active-function lookup"
+            );
+        }
+        assert_eq!(
+            snapback.db.scan_table("items", 10, 0).unwrap().total,
+            1,
+            "no collision or retry may execute a second mutation"
+        );
     }
 
     /// LLP 0131 acceptance 1–2 (the Split-Ledger shape): a split vector
