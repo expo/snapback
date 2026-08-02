@@ -183,3 +183,15 @@ ticket closes citing that run id.
   six versioned-seed tests, and the complete dispatcher is green with 20 passed,
   zero failed, one declared hosted GAP, and a matched revision. Gate 11 passes
   locally; fixing commit `c393f503`.
+
+- **2026-08-02 — admin browser-security CI prerequisite.** Gate 18's static
+  build and non-browser admin tests passed, then its required CSP acceptance
+  failed before launch with `Chrome binary missing at` an empty path. The
+  self-hosted-runner migration in `536de019` replaced `ubuntu-latest` (whose
+  image supplied Chrome) without provisioning a browser on `expo-large`.
+  The fix provisions stable Chrome for Testing through the upstream setup
+  action pinned to its verified v2.1.2 commit, including self-hosted Linux
+  dependencies, and passes the action's exact `chrome-path` output as
+  `CHROME_BIN` to the canonical proof. The required real-browser lane and its
+  shared process-tree cleanup remain unchanged; fixing commit `1ccb3116`, CI
+  confirmation pending.
