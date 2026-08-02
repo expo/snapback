@@ -1,6 +1,6 @@
 # 0133-02: Extend ClientMutationIdentity with lane, identity claims, declaration, and claim set — fail closed on changed facts
 
-**Status:** Open
+**Status:** Closed
 **Program:** 20260802-0133-00-settlement-substrate-program.md
 **Systems:** Storage, Runtime, Sync
 **Related:** LLP 0133 §Exactly-once identity under the new semantics; LLP 0043
@@ -39,3 +39,31 @@ Acceptance sketch 8, as tests: duplicate with identical identity republishes
 after activation movement; same id with changed lane, hash, activation, claim
 set, or declaration fails closed; no double execution under any interleaving
 the harness can produce.
+
+## Resolution
+
+Landed in `2d63f246` (`feat(settlement): bind settle-time identity facts`).
+The additive mutation carrier now binds lane, implementation/activation
+claims, the versioned answer-claim set, and the singular bounded-skew
+declaration into the retained exactly-once fingerprint. Descriptor comparison
+still precedes lookup; an exact identity republishes before active-function or
+generation checks; each changed fact fails with
+`SNAPBACK_CLIENT_MUTATION_ID_REUSED`.
+
+Proofs:
+
+- `local::tests::llp0133_sketch_8_settlement_identity_is_exact_and_precedes_freshness`
+  covers activation movement, every individual identity fact, and the
+  no-double-execution row count.
+- `tests/artifact_schemas_v0.rs` passed all 30 tests after regenerating the
+  additive mutation-input schema and remote-service review manifest.
+- `npm test --workspace packages/snapback-client` passed.
+- `./ref-check --verbose` passed with 0 errors and 0 unchecked references.
+
+The full Rust library run reached 1,636 passing tests and inherited three
+unrelated deterministic live-query failures from the already-landed
+`eda8f231` narrowing change:
+`rqs_mutation_after_answer_and_register_loses_no_ops`,
+`rqs_tokens_refresh_across_delta_replace_and_current_as_of`, and
+`standard_pattern_live_is_conservative_and_recorded`. Each also fails alone;
+this ticket does not touch their live-query matcher paths.
