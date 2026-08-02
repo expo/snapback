@@ -47,6 +47,14 @@ assert.equal(view.ui.functions[0].auth, 'optional-user', 'function auth metadata
 assert.equal(view.ui.functions[0].kindLabel, 'live query', 'LiveQuery renders a friendly kind label');
 assert.equal(view.ui.subscriptions[0].connection, 'conn_a', 'Realtime tab accepts camelCase connectionId');
 assert.equal(view.ui.delivery.find((entry) => entry.key === 'lfs').value, '2', 'Realtime delivery counters accept camelCase');
+assert.equal(view.ui.health.available, true, 'Health hydrates from telemetry.stats');
+assert.equal(view.ui.health.tiles.find((tile) => tile.key === 'errors').value, '25.0%', 'Health computes request error rate');
+assert.equal(view.ui.health.topVolume[0].name, '/todos', 'Health ranks route volume from the typed named-count projection');
+assert.equal(view.ui.health.requestsOverTime[0].value, '4', 'Health series includes Rust-composed rollup and raw-tail counts');
+assert.equal(view.ui.health.drops.length, 2, 'since-boot and lifetime drops remain distinct');
+const initialLogs = surface.queryRows('telemetryLogs')[0];
+assert.equal(initialLogs.loaded, false, 'inactive Logs does not spend a raw-read lease during bootstrap');
+assert.equal(client.telemetryEventCalls, 0, 'inactive console tabs issue no telemetry.events call');
 assert.equal(surface.queryRows('tableScan')[0].loaded, false, 'tableScan starts empty');
 assert.equal(surface.queryRows('runResult')[0].ran, false, 'runResult starts empty');
 const guideHome = surface.queryRows('guidePage')[0];
@@ -126,6 +134,22 @@ assert.deepEqual(
   'browser runner never manufactures app identity or replay authority',
 );
 
+await surface.links.loadTelemetryLogs({ kind: 'log', name: '', code: '', text: 'needle' });
+assert.deepEqual(client.lastTelemetryFilter, { kind: 'log', text: 'needle', order: 'desc', limit: 100 }, 'Logs requests the newest deterministic page with only closed filter fields');
+assert.equal(surface.queryRows('telemetryLogs')[0].rows[0].name, '/todos', 'Logs renders the newest raw event row');
+assert.match(surface.queryRows('telemetryLogs')[0].rows[0].detail, /SNAPBACK_TEST_FAILURE/, 'Logs preserves the full record for its detail modal');
+await surface.links.loadOlderTelemetryLogs({});
+assert.deepEqual(
+  client.lastTelemetryFilter,
+  { kind: 'log', text: 'needle', cursorRecordedTsMs: 1_700_000_000_100, cursorId: 7, order: 'desc', limit: 100 },
+  'Logs continues toward older rows with the server-issued descending cursor',
+);
+assert.deepEqual(surface.queryRows('telemetryLogs')[0].rows.map((row) => row.id), ['7', '6'], 'older pages append in newest-first order');
+const rawCallsBeforePoll = client.telemetryEventCalls;
+await surface.links.refreshTelemetry({});
+assert.equal(surface.queryRows('inspect')[0].ui.health.available, true, 'poll refreshes Health');
+assert.equal(client.telemetryEventCalls, rawCallsBeforePoll, 'Health polling never performs a raw telemetry read');
+
 await surface.links.cleanup({});
 assert.equal(surface.queryRows('inspect')[0].id, 'inspect', 'cleanup republishes a fresh inspect view');
 
@@ -198,6 +222,8 @@ function createFakeAdminClient() {
     configAppProvisioned: true,
     configEntries: null,
     configMissing: null,
+    lastTelemetryFilter: null,
+    telemetryEventCalls: 0,
     async inspect() {
       if (client.failInspect) {
         throw new Error('inspect transport failed');
@@ -305,6 +331,68 @@ function createFakeAdminClient() {
           rejectedPublishes: 0,
           rateLimitedPublishes: 0,
         },
+      };
+    },
+    async telemetryStats() {
+      return {
+        statusCounts: [
+          { kind: 'http_request', statusClass: 'ok', count: 3 },
+          { kind: 'http_request', statusClass: 'error', count: 1 },
+        ],
+        latency: [{ name: '/todos', count: 4, p50Ms: 2, p95Ms: 16 }],
+        namedCounts: [
+          { kind: 'http_request', name: '/todos', count: 4, errorCount: 1 },
+        ],
+        series: [
+          {
+            bucketStartMs: 1_700_000_000_000,
+            bucketEndMs: 1_700_003_600_000,
+            kind: 'http_request', name: '/todos', count: 4, errorCount: 1,
+          },
+          {
+            bucketStartMs: 1_700_000_000_000,
+            bucketEndMs: 1_700_003_600_000,
+            kind: 'lifecycle', name: 'process_ready', count: 1, errorCount: 0,
+          },
+        ],
+        coverage: {
+          partitions: [
+            {
+              tier: 'hourly', bucketStartMs: 1_700_000_000_000,
+              bucketEndMs: 1_700_003_600_000, coverageEndMs: 1_700_000_000_100,
+              kind: 'http_request', name: '/todos', count: 4, errorCount: 1,
+            },
+            {
+              tier: 'hourly', bucketStartMs: 1_700_000_000_000,
+              bucketEndMs: 1_700_003_600_000, coverageEndMs: 1_700_000_000_100,
+              kind: 'lifecycle', name: 'process_ready', count: 1, errorCount: 0,
+            },
+          ],
+        },
+        variance: {
+          freshnessWatermark: 1_700_000_000_100,
+          capabilityOutcome: 'exact',
+          dropsSinceBoot: { 'log:normal:bufferFull': 1, zero: 0 },
+          dropsLifetime: { 'log:normal:bufferFull': 2 },
+        },
+      };
+    },
+    async telemetryEvents(filter) {
+      client.telemetryEventCalls += 1;
+      client.lastTelemetryFilter = filter;
+      const older = filter.cursorId != null;
+      return {
+        events: [{
+          id: older ? 6 : 7,
+          recordedTsMs: older ? 1_700_000_000_000 : 1_700_000_000_100,
+          kind: filter.kind || 'http_request',
+          name: older ? '/older' : '/todos',
+          status: 500,
+          code: 'SNAPBACK_TEST_FAILURE',
+          details: { message: 'needle' },
+        }],
+        nextCursor: older ? null : { recordedTsMs: 1_700_000_000_100, id: 7 },
+        variance: { freshnessWatermark: 1_700_000_000_100 },
       };
     },
     async cleanupEphemeral() {

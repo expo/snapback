@@ -963,6 +963,9 @@ fn operation_registry_is_exhaustive_and_bound_to_registered_carriers() {
             "host_ops.host.stop",
             "host_ops.schema.load",
             "host_ops.schema.reload",
+            "host_ops.telemetry.events",
+            "host_ops.telemetry.export",
+            "host_ops.telemetry.stats",
         ]),
         "host-op authority branches must remain explicit"
     );
@@ -1297,6 +1300,8 @@ fn session_overlay_closes_every_host_ops_branch() {
         "host_ops.app.inspect",
         "host_ops.function.explain",
         "host_ops.function.run.query",
+        "host_ops.telemetry.events",
+        "host_ops.telemetry.export",
     ] {
         let policy = host_ops.get(name).expect("secret-read host operation");
         assert_eq!(policy.path_policy, RoutePolicy::AdminSecretRead, "{name}");
@@ -1306,6 +1311,15 @@ fn session_overlay_closes_every_host_ops_branch() {
             "{name}"
         );
     }
+
+    let telemetry_stats = host_ops
+        .get("host_ops.telemetry.stats")
+        .expect("ordinary telemetry aggregate operation");
+    assert_eq!(telemetry_stats.path_policy, RoutePolicy::AdminRead);
+    assert_eq!(
+        telemetry_stats.response_sensitivity,
+        ResponseSensitivity::OperatorMetadata
+    );
 
     for name in [
         "host_ops.app.reset",

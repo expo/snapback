@@ -1,0 +1,151 @@
+{
+  "$defs": {
+    "TelemetryCursorV1": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "recordedTsMs": {
+          "format": "int64",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "recordedTsMs",
+        "id"
+      ],
+      "type": "object"
+    },
+    "TelemetryExportEventV1": {
+      "properties": {
+        "appId": {
+          "type": "string"
+        },
+        "classV": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "code": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "correlation": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "details": true,
+        "durationMs": {
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "environment": {
+          "type": "string"
+        },
+        "generation": {
+          "type": "string"
+        },
+        "id": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "observation": {
+          "type": "string"
+        },
+        "phase": {
+          "type": "string"
+        },
+        "recordType": {
+          "type": "string"
+        },
+        "recordedTsMs": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "release": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "schemaVersion": {
+          "type": "string"
+        },
+        "status": {
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "tsMs": {
+          "format": "int64",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "recordType",
+        "appId",
+        "environment",
+        "id",
+        "observation",
+        "phase",
+        "generation",
+        "classV",
+        "tsMs",
+        "recordedTsMs",
+        "kind",
+        "name"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/telemetry.export.page.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "nextCursor": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TelemetryCursorV1"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "records": {
+      "items": {
+        "$ref": "#/$defs/TelemetryExportEventV1"
+      },
+      "type": "array"
+    },
+    "schemaVersion": {
+      "type": "string"
+    },
+    "snapshot": {
+      "$ref": "#/$defs/TelemetryCursorV1"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "snapshot",
+    "records"
+  ],
+  "title": "TelemetryExportPageV1",
+  "type": "object"
+}

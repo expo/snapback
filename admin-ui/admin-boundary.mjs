@@ -22,8 +22,34 @@ export async function createAdminSurface({ runtime, client }) {
   // The most recent config.verify outcome, folded into the next inspect view so
   // the Secrets surface can show "verify ran and said X" next to durable state.
   let lastVerify = null;
+  let lastLogFilter = {};
+  let lastLogCursor = null;
+  let currentLogs = emptyTelemetryLogs();
   let guideCatalog = null;
   const loadView = async () => buildView(...(await loadFacts(client)), lastVerify);
+  const loadLogs = async (filter = lastLogFilter, append = false) => {
+    if (!append) {
+      lastLogFilter = normalizeLogFilter(filter);
+      lastLogCursor = null;
+    }
+    try {
+      const response = await client.telemetryEvents({
+        ...lastLogFilter,
+        ...(lastLogCursor ? {
+          cursorRecordedTsMs: lastLogCursor.recordedTsMs,
+          cursorId: lastLogCursor.id,
+        } : {}),
+        order: 'desc',
+        limit: 100,
+      });
+      lastLogCursor = response?.nextCursor || null;
+      currentLogs = shapeTelemetryLogs(response, append ? currentLogs.rows : []);
+      return currentLogs;
+    } catch (error) {
+      currentLogs = failedTelemetryLogs(error);
+      return currentLogs;
+    }
+  };
   const loadCommandView = async () => {
     try {
       return await loadView();
@@ -44,6 +70,9 @@ export async function createAdminSurface({ runtime, client }) {
     targetSurface: 'Snapback admin Contract',
     resources: {
       inspect: async () => loadView(),
+      // Raw telemetry is never fetched during console bootstrap. The Logs page
+      // spends its scoped secret-read lease only on an explicit Apply/refresh.
+      telemetryLogs: async () => currentLogs,
       tableScan: emptyScan,
       runResult: emptyRun,
       guidePage: async () => loadGuideHome(),
@@ -54,6 +83,17 @@ export async function createAdminSurface({ runtime, client }) {
         // durable verified state on each entry is what remains authoritative.
         lastVerify = null;
         publishOne('inspect', await loadCommandView());
+      },
+      refreshTelemetry: async (_args, { publishOne }) => {
+        publishOne('inspect', await loadCommandView());
+      },
+      loadTelemetryLogs: async (filter, { publishOne }) => {
+        publishOne('telemetryLogs', await loadLogs(filter));
+      },
+      loadOlderTelemetryLogs: async (_args, { publishOne }) => {
+        if (lastLogCursor) {
+          publishOne('telemetryLogs', await loadLogs(lastLogFilter, true));
+        }
       },
       // The data explorer's parameterized read: fetch a page, pre-shape rows into
       // {key,text,sys} cells so the .contract uses static access, then republish.
@@ -315,10 +355,16 @@ async function loadFacts(client) {
           (error) => ({ available: false, error: error.message }),
         )
       : { available: false, error: 'config status is not supported by this client' },
+    typeof client.telemetryStats === 'function'
+      ? client.telemetryStats().then(
+          (stats) => ({ available: true, stats }),
+          (error) => ({ available: false, error: error.message }),
+        )
+      : { available: false, error: 'telemetry stats is not supported by this client' },
   ]);
 }
 
-function buildView(s, configResult, lastVerify) {
+function buildView(s, configResult, telemetryResult, lastVerify) {
   const sv = s.server || {};
   const st = s.storage || {};
   const rt = s.runtime || {};
@@ -343,6 +389,7 @@ function buildView(s, configResult, lastVerify) {
     id: 'inspect',
     ui: {
       config,
+      health: shapeTelemetryHealth(telemetryResult, s),
       hasInspectError: false,
       inspectError: '',
       // identity + status strip
@@ -522,6 +569,175 @@ function buildView(s, configResult, lastVerify) {
   };
 }
 
+function shapeTelemetryHealth(result, inspect) {
+  if (!result?.available) {
+    return {
+      available: false,
+      error: result?.error || 'telemetry stats unavailable',
+      tiles: [], requestsOverTime: [], latency: [], topVolume: [],
+      topErrors: [], lifecycle: [], drops: [], hasDrops: false,
+      freshness: '—', coverage: '—', liveConnections: String(inspect.activeConnections || 0),
+    };
+  }
+  const stats = result.stats || {};
+  const counts = stats.statusCounts || [];
+  const requests = counts
+    .filter((entry) => entry.kind === 'http_request')
+    .reduce((sum, entry) => sum + Number(entry.count || 0), 0);
+  const requestErrors = counts
+    .filter((entry) => entry.kind === 'http_request' && entry.statusClass === 'error')
+    .reduce((sum, entry) => sum + Number(entry.count || 0), 0);
+  const series = new Map();
+  const named = new Map();
+  const lifecycle = new Map();
+  for (const point of stats.series || []) {
+    const count = Number(point.count || 0);
+    if (point.kind === 'http_request') {
+      const key = `${point.bucketStartMs}:${point.bucketEndMs}`;
+      const aggregatePoint = series.get(key) || {
+        key, at: Number(point.bucketStartMs || 0), count: 0,
+      };
+      aggregatePoint.count += count;
+      series.set(key, aggregatePoint);
+    }
+    if (point.kind === 'lifecycle') {
+      const key = `${point.name}:${point.bucketStartMs}`;
+      lifecycle.set(key, {
+        key,
+        label: `${point.name} · ${fmtTime(point.bucketStartMs)}`,
+        count,
+        countLabel: String(count),
+      });
+    }
+  }
+  for (const aggregate of stats.namedCounts || []) {
+    if ((aggregate.kind === 'http_request' || aggregate.kind === 'function_run')
+        && aggregate.name !== '_other') {
+      const key = `${aggregate.kind}:${aggregate.name}`;
+      named.set(key, {
+        key,
+        name: aggregate.name,
+        kind: aggregate.kind,
+        count: Number(aggregate.count || 0),
+        errors: Number(aggregate.errorCount || 0),
+      });
+    }
+  }
+  const nameRows = [...named.values()].map((entry) => ({
+    ...entry,
+    kindLabel: entry.kind === 'http_request' ? 'route' : 'function',
+    errorRate: entry.count ? entry.errors / entry.count : 0,
+    countLabel: String(entry.count),
+    errorLabel: `${entry.errors} · ${percent(entry.count ? entry.errors / entry.count : 0)}`,
+  }));
+  const drops = [
+    ...Object.entries(stats.variance?.dropsSinceBoot || {})
+      .map(([key, value]) => ({ key: `boot:${key}`, label: `${key} (since boot)`, value: Number(value || 0) })),
+    ...Object.entries(stats.variance?.dropsLifetime || {})
+      .map(([key, value]) => ({ key: `lifetime:${key}`, label: `${key} (lifetime)`, value: Number(value || 0) })),
+  ].filter((entry) => entry.value > 0)
+    .map((entry) => ({ ...entry, value: String(entry.value) }));
+  const latency = [...(stats.latency || [])]
+    .sort((a, b) => Number(b.count || 0) - Number(a.count || 0))
+    .slice(0, 12)
+    .map((entry) => ({
+      key: entry.name,
+      name: entry.name,
+      count: String(entry.count || 0),
+      p50: fmtDuration(entry.p50Ms),
+      p95: fmtDuration(entry.p95Ms),
+    }));
+  const freshness = stats.variance?.freshnessWatermark;
+  return {
+    available: true,
+    error: '',
+    liveConnections: String(inspect.activeConnections || 0),
+    freshness: freshness == null ? 'not flushed' : fmtTime(freshness),
+    coverage: stats.variance?.capabilityOutcome || 'unsupported',
+    tiles: [
+      { key: 'requests', label: 'Requests', value: String(requests), alert: false },
+      { key: 'errors', label: 'Request error rate', value: percent(requests ? requestErrors / requests : 0), alert: requestErrors > 0 },
+      { key: 'connections', label: 'Live connections', value: String(inspect.activeConnections || 0), alert: false },
+      { key: 'drops', label: 'Telemetry drops', value: String(drops.reduce((sum, entry) => sum + Number(entry.value || 0), 0)), alert: drops.some((entry) => Number(entry.value) > 0) },
+    ],
+    requestsOverTime: [...series.values()]
+      .sort((a, b) => a.at - b.at)
+      .slice(-24)
+      .map((entry) => ({ ...entry, label: fmtTime(entry.at), value: String(entry.count) })),
+    latency,
+    topVolume: [...nameRows].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)).slice(0, 10),
+    topErrors: [...nameRows].sort((a, b) => b.errorRate - a.errorRate || b.errors - a.errors).slice(0, 10),
+    lifecycle: [...lifecycle.values()].sort((a, b) => a.key.localeCompare(b.key)).slice(-20),
+    drops,
+    hasDrops: drops.some((entry) => Number(entry.value) > 0),
+  };
+}
+
+function normalizeLogFilter(filter) {
+  return Object.fromEntries(['kind', 'name', 'code', 'text']
+    .map((key) => [key, String(filter?.[key] || '').trim()])
+    .filter(([, value]) => value));
+}
+
+function shapeTelemetryLogs(response, previousRows = []) {
+  const events = response?.events || [];
+  return {
+    id: 'telemetryLogs',
+    loaded: true,
+    available: true,
+    error: '',
+    hasLogs: events.length > 0,
+    rows: [...previousRows, ...events.map((event) => ({
+      key: String(event.id),
+      id: String(event.id),
+      time: fmtTime(event.recordedTsMs),
+      kind: event.kind || '—',
+      name: event.name || '—',
+      status: event.status == null ? '—' : String(event.status),
+      code: event.code || '',
+      summary: [event.kind, event.name, event.code].filter(Boolean).join(' · '),
+      detail: JSON.stringify(event, null, 2),
+    }))],
+    nextCursor: response?.nextCursor || null,
+    hasMore: response?.nextCursor != null,
+    freshness: response?.variance?.freshnessWatermark == null
+      ? 'not flushed'
+      : fmtTime(response.variance.freshnessWatermark),
+  };
+}
+
+function emptyTelemetryLogs() {
+  return {
+    id: 'telemetryLogs',
+    loaded: false,
+    available: true,
+    error: '',
+    hasLogs: false,
+    rows: [],
+    nextCursor: null,
+    hasMore: false,
+    freshness: '—',
+  };
+}
+
+function failedTelemetryLogs(error) {
+  return {
+    id: 'telemetryLogs',
+    loaded: true,
+    available: false,
+    error: errorMessage(error),
+    hasLogs: false,
+    rows: [],
+    nextCursor: null,
+    hasMore: false,
+    freshness: '—',
+  };
+}
+
+function percent(value) {
+  return `${(Number(value || 0) * 100).toFixed(1)}%`;
+}
+
 function buildInspectFailureView(error, lastVerify) {
   const message = errorMessage(error);
   const row = buildView(
@@ -547,6 +763,7 @@ function buildInspectFailureView(error, lastVerify) {
       admin: {},
     },
     { available: false, error: 'inspect unavailable' },
+    { available: false, error: 'telemetry stats unavailable' },
     lastVerify,
   );
   row.ui.hasInspectError = true;

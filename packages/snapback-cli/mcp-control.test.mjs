@@ -114,6 +114,7 @@ try {
     'snapback_start', 'snapback_stop', 'snapback_restart', 'snapback_inspect',
     'snapback_reset', 'snapback_load_schema', 'snapback_load_functions',
     'snapback_run_function', 'snapback_acceptance_run',
+    'snapback_telemetry_stats', 'snapback_telemetry_events', 'snapback_telemetry_export',
   ]) {
     assert.ok(names.includes(pinned), `missing pinned control tool ${pinned}`);
   }
@@ -159,6 +160,45 @@ try {
     assert.equal(loaded.structuredContent.operation, operation);
     assert.equal(loaded.structuredContent.ok, true, JSON.stringify(loaded.structuredContent));
   }
+
+  const telemetryStats = await client.call('snapback_telemetry_stats', { kind: 'http_request' });
+  assert.equal(telemetryStats.structuredContent.operation, 'telemetry.stats');
+  assert.equal(telemetryStats.structuredContent.ok, true, JSON.stringify(telemetryStats.structuredContent));
+  assert.equal(telemetryStats.structuredContent.data.schemaVersion, 'snapback.telemetry.stats.v1');
+  assert.ok(Array.isArray(telemetryStats.structuredContent.data.coverage.partitions));
+
+  const telemetryEvents = await client.call('snapback_telemetry_events', {
+    kind: 'http_request', limit: 5,
+  });
+  assert.equal(telemetryEvents.structuredContent.operation, 'telemetry.events');
+  assert.equal(telemetryEvents.structuredContent.ok, true, JSON.stringify(telemetryEvents.structuredContent));
+  assert.equal(telemetryEvents.structuredContent.authority.mode, 'adminSecretRead');
+  assert.equal(telemetryEvents.structuredContent.authority.scope, 'telemetry.events');
+  assert.ok(telemetryEvents.structuredContent.data.events.length > 0);
+  assert.ok(telemetryEvents.structuredContent.data.events.length <= 5);
+
+  const telemetryExport = await client.call('snapback_telemetry_export', {
+    kind: 'http_request', maxRows: 1, maxBytes: 32 * 1024,
+  });
+  assert.equal(telemetryExport.structuredContent.operation, 'telemetry.export');
+  assert.equal(telemetryExport.structuredContent.ok, true, JSON.stringify(telemetryExport.structuredContent));
+  assert.equal(telemetryExport.structuredContent.authority.scope, 'telemetry.export');
+  assert.equal(telemetryExport.structuredContent.data.pageRows, 1);
+  assert.equal(telemetryExport.structuredContent.data.truncated, true);
+  assert.equal(
+    Buffer.byteLength(JSON.stringify(telemetryExport.structuredContent.data)),
+    telemetryExport.structuredContent.data.pageBytes,
+  );
+  assert.equal(typeof telemetryExport.structuredContent.data.continuationToken, 'string');
+  const exportSnapshot = telemetryExport.structuredContent.data.header.snapshot;
+  const continuedExport = await client.call('snapback_telemetry_export', {
+    continuationToken: telemetryExport.structuredContent.data.continuationToken,
+    maxRows: 1,
+    maxBytes: 32 * 1024,
+  });
+  assert.equal(continuedExport.structuredContent.ok, true, JSON.stringify(continuedExport.structuredContent));
+  assert.deepEqual(continuedExport.structuredContent.data.header.snapshot, exportSnapshot);
+  assert.equal(continuedExport.structuredContent.data.pageRows, 1);
 
   // Mutation without an authority tuple: structured refusal with a
   // machine-readable next hint — and a successful tool result, not an error.

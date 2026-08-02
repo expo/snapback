@@ -1,0 +1,99 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/telemetry.export.event.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "appId": {
+      "type": "string"
+    },
+    "classV": {
+      "format": "int64",
+      "type": "integer"
+    },
+    "code": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "correlation": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "details": true,
+    "durationMs": {
+      "format": "double",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "environment": {
+      "type": "string"
+    },
+    "generation": {
+      "type": "string"
+    },
+    "id": {
+      "format": "int64",
+      "type": "integer"
+    },
+    "kind": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "observation": {
+      "type": "string"
+    },
+    "phase": {
+      "type": "string"
+    },
+    "recordType": {
+      "type": "string"
+    },
+    "recordedTsMs": {
+      "format": "int64",
+      "type": "integer"
+    },
+    "release": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "schemaVersion": {
+      "type": "string"
+    },
+    "status": {
+      "format": "int64",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "tsMs": {
+      "format": "int64",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "recordType",
+    "appId",
+    "environment",
+    "id",
+    "observation",
+    "phase",
+    "generation",
+    "classV",
+    "tsMs",
+    "recordedTsMs",
+    "kind",
+    "name"
+  ],
+  "title": "TelemetryExportEventV1",
+  "type": "object"
+}

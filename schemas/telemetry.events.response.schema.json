@@ -1,0 +1,206 @@
+{
+  "$defs": {
+    "TelemetryCapabilityOutcomeV1": {
+      "enum": [
+        "exact",
+        "approximate",
+        "boundedWindow",
+        "unsupported"
+      ],
+      "type": "string"
+    },
+    "TelemetryCursorV1": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "recordedTsMs": {
+          "format": "int64",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "recordedTsMs",
+        "id"
+      ],
+      "type": "object"
+    },
+    "TelemetryEventV1": {
+      "properties": {
+        "classV": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "code": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "correlation": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "details": true,
+        "durationMs": {
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "generation": {
+          "type": "string"
+        },
+        "id": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "observation": {
+          "type": "string"
+        },
+        "phase": {
+          "type": "string"
+        },
+        "recordedTsMs": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "release": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "tsMs": {
+          "format": "int64",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "observation",
+        "phase",
+        "generation",
+        "classV",
+        "tsMs",
+        "recordedTsMs",
+        "kind",
+        "name"
+      ],
+      "type": "object"
+    },
+    "TelemetryVarianceV1": {
+      "properties": {
+        "capabilityOutcome": {
+          "$ref": "#/$defs/TelemetryCapabilityOutcomeV1"
+        },
+        "dropsLifetime": {
+          "additionalProperties": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "object"
+        },
+        "dropsSinceBoot": {
+          "additionalProperties": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "object"
+        },
+        "fieldExactness": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "freshnessWatermark": {
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "retentionBoundaryMs": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "samplingFactor": {
+          "format": "double",
+          "type": "number"
+        },
+        "storeBackend": {
+          "type": "string"
+        },
+        "truncation": {
+          "additionalProperties": true,
+          "type": "object"
+        }
+      },
+      "required": [
+        "storeBackend",
+        "fieldExactness",
+        "samplingFactor",
+        "retentionBoundaryMs",
+        "dropsSinceBoot",
+        "dropsLifetime",
+        "truncation",
+        "capabilityOutcome"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/telemetry.events.response.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "events": {
+      "items": {
+        "$ref": "#/$defs/TelemetryEventV1"
+      },
+      "type": "array"
+    },
+    "nextCursor": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TelemetryCursorV1"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "schemaVersion": {
+      "type": "string"
+    },
+    "variance": {
+      "$ref": "#/$defs/TelemetryVarianceV1"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "events",
+    "variance"
+  ],
+  "title": "TelemetryEventsResponseV1",
+  "type": "object"
+}

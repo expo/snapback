@@ -241,6 +241,27 @@ export class AdminClient {
     return this.#req('GET', '/inspect', undefined, {}, true, true);
   }
 
+  telemetryStats(filter = {}) {
+    return this.#req(
+      'GET',
+      `/telemetry/stats${telemetryQuery(filter, ['kind', 'name', 'fromMs', 'toMs'])}`,
+    );
+  }
+
+  telemetryEvents(filter = {}) {
+    return this.#req(
+      'GET',
+      `/telemetry/events${telemetryQuery(filter, [
+        'kind', 'name', 'status', 'code', 'correlation', 'fromMs', 'toMs',
+        'text', 'cursorRecordedTsMs', 'cursorId', 'order', 'limit',
+      ])}`,
+      undefined,
+      {},
+      true,
+      true,
+    );
+  }
+
   scanTable(table, limit = 50, offset = 0) {
     return this.#req(
       'GET',
@@ -324,6 +345,18 @@ export class AdminClient {
     const { body } = await this.#guideReq(path, { expectedIdentity });
     return body;
   }
+}
+
+function telemetryQuery(input, allowed) {
+  const query = new URLSearchParams();
+  for (const key of allowed) {
+    const value = input?.[key];
+    if (value !== undefined && value !== null && value !== '') {
+      query.set(key, String(value));
+    }
+  }
+  const encoded = query.toString();
+  return encoded ? `?${encoded}` : '';
 }
 
 function guideBaseUrl(adminApiBaseUrl) {

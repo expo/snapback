@@ -30,6 +30,10 @@ import {
 
 const PROTOCOL_VERSION = '2025-06-18';
 const SCHEMA_VERSION = 'snapback.v0';
+// The native response charges the complete HostOpsResult, while maxBytes
+// bounds its nested export-page data. Target/authority/artifact fields are
+// fixed-shape; this allowance is asserted by the native HTTP proof fixture.
+const TELEMETRY_EXPORT_HOST_ENVELOPE_ALLOWANCE = 64 * 1024;
 // @ref LLP 0024#authority-tuple — the five pinned modes; the local slice
 // serves the first four and refuses servicePrincipal honestly.
 const LOCAL_AUTHORITY_MODES = ['none', 'unauthenticated', 'devUser', 'devAdminBypass'];
@@ -209,6 +213,59 @@ const CONTROL_TOOLS = [
     title: 'Inspect the running app',
     description: 'Runtime state, loaded artifacts, and recent diagnostics (data.recentInvocations).',
     inputSchema: { type: 'object', additionalProperties: false, properties: {} },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
+  {
+    name: 'snapback_telemetry_stats',
+    operation: 'telemetry.stats',
+    title: 'Read aggregate telemetry health',
+    description: 'Counts, error rates, latency percentiles, coverage, and variance from the typed telemetry.stats operation.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        kind: { type: 'string' }, name: { type: 'string' },
+        fromMs: { type: 'integer' }, toMs: { type: 'integer' },
+      },
+    },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
+  {
+    name: 'snapback_telemetry_events',
+    operation: 'telemetry.events',
+    title: 'Read a bounded telemetry event page',
+    description: 'Filter and page raw telemetry events through an automatically minted scoped, budgeted secret-read lease.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        kind: { type: 'string' }, name: { type: 'string' }, status: { type: 'integer' },
+        code: { type: 'string' }, correlation: { type: 'string' },
+        fromMs: { type: 'integer' }, toMs: { type: 'integer' }, text: { type: 'string' },
+        cursorRecordedTsMs: { type: 'integer' }, cursorId: { type: 'integer' },
+        order: { type: 'string', enum: ['asc', 'desc'], default: 'asc' },
+        limit: { type: 'integer', minimum: 1, maximum: 500, default: 100 },
+      },
+    },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
+  {
+    name: 'snapback_telemetry_export',
+    operation: 'telemetry.export',
+    title: 'Export one bounded telemetry page',
+    description: 'Read one immutable-snapshot export page with declared row/byte ceilings and an opaque continuation token.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        kind: { type: 'string' }, name: { type: 'string' }, status: { type: 'integer' },
+        code: { type: 'string' }, correlation: { type: 'string' },
+        fromMs: { type: 'integer' }, toMs: { type: 'integer' }, text: { type: 'string' },
+        continuationToken: { type: 'string' },
+        maxRows: { type: 'integer', minimum: 1, maximum: 500, default: 100 },
+        maxBytes: { type: 'integer', minimum: 1024, maximum: 4194304, default: 4194304 },
+      },
+    },
     annotations: { readOnlyHint: true, openWorldHint: false },
   },
   {
@@ -448,7 +505,42 @@ export class McpControlServer {
   //
   // @ref LLP 0024#http-projection — the response body is the result envelope,
   //   including ok:false app-level failures.
-  async postHostOp(body) {
+  secretReadLease(scopeFlag, rowBudget, byteBudget) {
+    const runtime = this.resolveRuntime();
+    const result = native(runtime.binary, [
+      'secret-read-mint', '--ready-file', this.readyFile,
+      `--${scopeFlag}`, '--row-budget', String(rowBudget), '--byte-budget', String(byteBudget),
+    ], { cwd: this.projectRoot, env: this.env });
+    if (result.status !== 0) {
+      throw diagnosticError(
+        'SNAPBACK_MCP_SECRET_READ_MINT_FAILED',
+        'native scoped secret-read lease mint failed',
+        { status: result.status, stderr: result.stderr?.slice(0, 2_000) ?? '' },
+      );
+    }
+    let response;
+    try {
+      response = JSON.parse(result.stdout);
+    } catch (cause) {
+      const error = diagnosticError(
+        'SNAPBACK_MCP_SECRET_READ_MINT_FAILED',
+        'native scoped secret-read lease mint returned invalid JSON',
+        {},
+      );
+      error.cause = cause;
+      throw error;
+    }
+    if (typeof response.lease !== 'string' || !response.lease) {
+      throw diagnosticError(
+        'SNAPBACK_MCP_SECRET_READ_MINT_FAILED',
+        'native scoped secret-read lease mint returned no lease',
+        {},
+      );
+    }
+    return response.lease;
+  }
+
+  async postHostOp(body, { secretReadLease = null } = {}) {
     const descriptor = this.currentDescriptor();
     const adminToken = managedAdminToken(descriptor, this.database);
     const impersonation = typeof body.userId === 'string' && body.userId
@@ -463,6 +555,7 @@ export class McpControlServer {
           'content-type': 'application/json',
           ...(adminToken ? { 'x-snapback-admin-token': adminToken } : {}),
           ...(impersonation ? { 'x-snapback-impersonation-capability': impersonation } : {}),
+          ...(secretReadLease ? { 'x-snapback-secret-read-lease': secretReadLease } : {}),
         },
         body: JSON.stringify({ schemaVersion: SCHEMA_VERSION, requestId: requestId(), ...body }),
       });
@@ -620,6 +713,29 @@ export class McpControlServer {
       }
       case 'snapback_inspect':
         return this.servedResult({ operation: 'app.inspect' });
+      case 'snapback_telemetry_stats':
+        return this.servedResult({ operation: 'telemetry.stats', input: args });
+      case 'snapback_telemetry_events': {
+        const limit = Number.isInteger(args.limit) ? args.limit : 100;
+        const lease = this.secretReadLease('telemetry-events', limit, 4 * 1024 * 1024);
+        return this.servedResult(
+          { operation: 'telemetry.events', input: { ...args, limit } },
+          { secretReadLease: lease },
+        );
+      }
+      case 'snapback_telemetry_export': {
+        const maxRows = Number.isInteger(args.maxRows) ? args.maxRows : 100;
+        const maxBytes = Number.isInteger(args.maxBytes) ? args.maxBytes : 4 * 1024 * 1024;
+        const lease = this.secretReadLease(
+          'telemetry-export',
+          maxRows,
+          maxBytes + TELEMETRY_EXPORT_HOST_ENVELOPE_ALLOWANCE,
+        );
+        return this.servedResult(
+          { operation: 'telemetry.export', input: { ...args, maxRows, maxBytes } },
+          { secretReadLease: lease },
+        );
+      }
       case 'snapback_reset': {
         const { refusal } = this.checkAuthority(args.authority, {
           required: true,
@@ -707,8 +823,8 @@ export class McpControlServer {
     });
   }
 
-  async servedResult(body) {
-    const payload = await this.postHostOp(body);
+  async servedResult(body, options) {
+    const payload = await this.postHostOp(body, options);
     // An ok:false envelope is a successful tool result; only a body that is
     // not a host-ops envelope (an auth/protocol refusal produced before the
     // core ran) projects as an MCP tool error.

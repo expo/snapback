@@ -12,6 +12,10 @@
 
 use inspect from "./generated/contract/inspect.query.ts"
 use refresh from "./generated/contract/refresh.mutation.ts"
+use telemetryLogs from "./generated/contract/telemetryLogs.query.ts"
+use refreshTelemetry from "./generated/contract/refreshTelemetry.mutation.ts"
+use loadTelemetryLogs from "./generated/contract/loadTelemetryLogs.mutation.ts"
+use loadOlderTelemetryLogs from "./generated/contract/loadOlderTelemetryLogs.mutation.ts"
 use tableScan from "./generated/contract/tableScan.query.ts"
 use loadTable from "./generated/contract/loadTable.mutation.ts"
 use runResult from "./generated/contract/runResult.query.ts"
@@ -26,6 +30,7 @@ use navSections from "./theme.ts"
 use initialTab from "./theme.ts"
 use systemTheme from "./theme.ts"
 use watchSystemTheme from "./theme.ts"
+use watchTelemetryPoll from "./telemetry-poll.ts"
 
 component AdminConsole
   state activeTab = initialTab()
@@ -34,12 +39,21 @@ component AdminConsole
   state dataOffset = 0
   state runName = ""
   state runArgs = "{}"
+  state logKind = ""
+  state logName = ""
+  state logCode = ""
+  state logText = ""
+  state logDetail = ""
 
   query state = inspect({})
   query scan = tableScan({})
+  query logs = telemetryLogs({})
   query runResultQ = runResult({})
   query guide = guidePage({})
   mutation reloadInspect = refresh
+  mutation pollTelemetry = refreshTelemetry
+  mutation loadLogs = loadTelemetryLogs
+  mutation loadOlderLogs = loadOlderTelemetryLogs
   mutation loadScan = loadTable
   mutation runMut = runFunction
   mutation cleanupMut = cleanup
@@ -50,6 +64,8 @@ component AdminConsole
   derive f = fonts()
   derive nav = navSections()
   derive isOverview = activeTab == "Overview"
+  derive isHealth = activeTab == "Health"
+  derive isLogs = activeTab == "Logs"
   derive isSchema = activeTab == "Schema"
   derive isData = activeTab == "Data"
   derive isFunctions = activeTab == "Functions"
@@ -61,6 +77,8 @@ component AdminConsole
 
   action reload mutates reloadInspect
     reloadInspect()
+  action pollNow mutates pollTelemetry
+    pollTelemetry()
   action setTab(name) writes activeTab
     activeTab = name
   action syncSystemTheme(mode) writes theme
@@ -76,6 +94,22 @@ component AdminConsole
     runName = name
   action setArgs(value) writes runArgs
     runArgs = value
+  action setLogKind(value) writes logKind
+    logKind = value
+  action setLogName(value) writes logName
+    logName = value
+  action setLogCode(value) writes logCode
+    logCode = value
+  action setLogText(value) writes logText
+    logText = value
+  action filterLogs mutates loadLogs
+    loadLogs({ kind: logKind, name: logName, code: logCode, text: logText })
+  action olderLogs mutates loadOlderLogs
+    loadOlderLogs()
+  action openLog(detail) writes logDetail
+    logDetail = detail
+  action closeLog writes logDetail
+    logDetail = ""
   action runFn mutates runMut
     runMut({ name: runName, argsText: runArgs })
   action cleanupNow mutates cleanupMut
@@ -87,6 +121,8 @@ component AdminConsole
 
   task themeWatcher mount
     onCleanup(watchSystemTheme(syncSystemTheme))
+  task telemetryPoller mount
+    onCleanup(watchTelemetryPoll(pollNow))
 
   view
     row flex=1 width="100%" minHeight="100%" background=c.canvas
@@ -169,6 +205,95 @@ component AdminConsole
                         row gap=7 wrap="wrap"
                           each g in s.ui.gaps key=g.key
                             Badge(c=c, label=g.label, tone="warn", mono=true)
+
+                when isHealth
+                  column gap=16 width="100%"
+                    when s.ui.health.available
+                      row gap=12 wrap="wrap" width="100%"
+                        each t in s.ui.health.tiles key=t.key
+                          StatTile(c=c, label=t.label, value=t.value, alert=t.alert)
+                      row gap=14 wrap="wrap" width="100%" align="stretch"
+                        Card(c=c, title="REQUESTS OVER TIME")
+                          each point in s.ui.health.requestsOverTime key=point.key
+                            Kv(c=c, k=point.label, v=point.value, mono=true)
+                        Card(c=c, title="LATENCY BY ROUTE / FUNCTION")
+                          each latency in s.ui.health.latency key=latency.key
+                            Kv(c=c, k=latency.name, v=`p50 ${latency.p50} · p95 ${latency.p95}`, mono=true)
+                      row gap=14 wrap="wrap" width="100%" align="stretch"
+                        Card(c=c, title="TOP BY VOLUME")
+                          each top in s.ui.health.topVolume key=top.key
+                            Kv(c=c, k=`${top.kindLabel} · ${top.name}`, v=top.countLabel, mono=true)
+                        Card(c=c, title="TOP BY ERROR RATE")
+                          each top in s.ui.health.topErrors key=top.key
+                            Kv(c=c, k=`${top.kindLabel} · ${top.name}`, v=top.errorLabel, tone=top.errors > 0 ? "warn" : "", mono=true)
+                      row gap=14 wrap="wrap" width="100%" align="stretch"
+                        Card(c=c, title="LIFECYCLE MARKERS")
+                          each marker in s.ui.health.lifecycle key=marker.key
+                            Kv(c=c, k=marker.label, v=marker.countLabel, mono=true)
+                        Card(c=c, title="TELEMETRY COVERAGE")
+                          Kv(c=c, k="Freshness", v=s.ui.health.freshness, mono=true)
+                          Kv(c=c, k="Capability outcome", v=s.ui.health.coverage)
+                          Kv(c=c, k="Live connections", v=s.ui.health.liveConnections)
+                          each drop in s.ui.health.drops key=drop.key
+                            Kv(c=c, k=drop.label, v=drop.value, tone="warn", mono=true)
+                    else
+                      column gap=7 padding=16 radius=12 background=c.errSoft width="100%"
+                        text "Health telemetry unavailable" size=13 weight=700 color=c.err family=f.sans
+                        text s.ui.health.error size=12 color=c.err family=f.mono
+
+                when isLogs
+                  column gap=14 width="100%"
+                    text "Filter the same bounded telemetry.events operation used by agents. Raw rows require a telemetry.events secret-read lease." size=13 color=c.textMuted family=f.sans
+                    row gap=8 wrap="wrap" width="100%" align="end"
+                      input label="Kind" value=logKind change=setLogKind submit=filterLogs testId="logs-kind" minWidth=150 flex=1 padding=9 radius=8 borderWidth=1 borderColor=c.borderStrong background=c.surface color=c.text size=13 family=f.mono
+                      input label="Name" value=logName change=setLogName submit=filterLogs testId="logs-name" minWidth=150 flex=1 padding=9 radius=8 borderWidth=1 borderColor=c.borderStrong background=c.surface color=c.text size=13 family=f.mono
+                      input label="Code" value=logCode change=setLogCode submit=filterLogs testId="logs-code" minWidth=150 flex=1 padding=9 radius=8 borderWidth=1 borderColor=c.borderStrong background=c.surface color=c.text size=13 family=f.mono
+                      input label="Text" value=logText change=setLogText submit=filterLogs testId="logs-text" minWidth=180 flex=1 padding=9 radius=8 borderWidth=1 borderColor=c.borderStrong background=c.surface color=c.text size=13 family=f.mono
+                      button press=filterLogs testId="logs-filter" paddingTop=9 paddingBottom=9 paddingLeft=16 paddingRight=16 radius=8 background=c.accent borderWidth=0
+                        text "Apply" size=13 weight=600 color=c.onAccent family=f.sans
+                    async logs
+                      loading
+                        text "Loading telemetry events…" size=13 color=c.textMuted family=f.sans
+                      error logErr
+                        text logErr.message size=12 color=c.err family=f.mono
+                      ready logRows
+                        each lv in logRows key=lv.id
+                          when lv.available
+                            when lv.loaded
+                              column gap=0 radius=12 background=c.surface borderWidth=1 borderColor=c.border width="100%" boxShadow=c.shadowCard
+                                when lv.hasLogs
+                                  each event in lv.rows key=event.key
+                                    button press=openLog(event.detail) testId=`log-${event.key}` width="100%" borderWidth=0 background="transparent" paddingTop=10 paddingBottom=10 paddingLeft=14 paddingRight=14
+                                      row gap=12 align="center" width="100%"
+                                        text event.time size=11 color=c.textFaint family=f.mono width=150
+                                        Badge(c=c, label=event.kind, tone="default", mono=true)
+                                        text event.name size=13 color=c.text family=f.mono flex=1 minWidth=0 numberOfLines=1
+                                        text event.status size=12 color=c.textMuted family=f.mono
+                                        when event.code
+                                          Badge(c=c, label=event.code, tone="warn", mono=true)
+                                else
+                                  column padding=28 align="center" width="100%"
+                                    text "No events match these filters." size=13 color=c.textMuted family=f.sans
+                                when lv.hasMore
+                                  button press=olderLogs testId="logs-older" width="100%" borderWidth=1 borderColor=c.border background=c.surfaceRaised paddingTop=10 paddingBottom=10
+                                    text "Load older events" size=12 weight=600 color=c.accentText family=f.sans
+                            when lv.loaded == false
+                              column padding=28 align="center" radius=12 background=c.surface borderWidth=1 borderColor=c.border width="100%"
+                                text "Apply filters to load the newest telemetry events." size=13 color=c.textMuted family=f.sans
+                          else
+                            column gap=7 padding=16 radius=12 background=c.errSoft width="100%"
+                              text "Logs unavailable" size=13 weight=700 color=c.err family=f.sans
+                              text lv.error size=12 color=c.err family=f.mono
+                    when logDetail != ""
+                      stack portalTarget="root" portalLevel=120 portalPresentation="modal" presence="entered" position="fixed" left=0 top=0 width="100%" height="100%" zIndex=120 align="center" justify="center" padding=24 testId="log-detail-modal"
+                        button press=closeLog label="Close log detail" position="absolute" left=0 top=0 width="100%" height="100%" zIndex=0 background="rgba(0,0,0,0.62)" borderWidth=0 testId="log-detail-backdrop"
+                        column gap=12 width="100%" maxWidth=760 maxHeight="85%" padding=18 radius=12 background=c.surface borderWidth=1 borderColor=c.border zIndex=1
+                          row align="center" width="100%"
+                            text "Telemetry event" size=15 weight=700 color=c.text family=f.sans flex=1
+                            button press=closeLog testId="log-detail-close" paddingTop=6 paddingBottom=6 paddingLeft=12 paddingRight=12 radius=8 borderWidth=1 borderColor=c.border background=c.surfaceRaised
+                              text "Close" size=12 weight=600 color=c.textMuted family=f.sans
+                          scroll height=520 padding=12 radius=8 background=c.surfaceRaised borderWidth=1 borderColor=c.border width="100%"
+                            text logDetail size=12 color=c.text family=f.mono lineHeight=18
 
                 when isSchema
                   column gap=14 width="100%"

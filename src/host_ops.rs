@@ -26,9 +26,13 @@ use std::fmt;
 
 pub const HOST_OPS_RESULT_KIND: &str = "hostOpsResult";
 pub const HOST_READY_DESCRIPTOR_KIND: &str = "snapbackHostReady";
+/// MCP mints `maxBytes` plus this fixed-shape outer-envelope allowance. The
+/// server measures the actual successful envelope and fails closed if future
+/// host metadata ever outgrows it.
+pub const TELEMETRY_EXPORT_HOST_ENVELOPE_ALLOWANCE: usize = 64 * 1024;
 
 /// Operations this endpoint serves in the first slice.
-pub const SERVED_HOST_OPS: [&str; 12] = [
+pub const SERVED_HOST_OPS: [&str; 15] = [
     "app.inspect",
     "app.reset",
     "app.seed.ensure.v1",
@@ -41,6 +45,9 @@ pub const SERVED_HOST_OPS: [&str; 12] = [
     "function.explain",
     "auth.mintSession",
     "auth.rescueCollidingTable",
+    "telemetry.stats",
+    "telemetry.events",
+    "telemetry.export",
 ];
 
 /// Pinned by LLP 0024 but process-lifecycle verbs: the CLI owns them (a
@@ -575,6 +582,18 @@ fn authority_admin(reason: &str) -> Option<HostOpsAuthority> {
     })
 }
 
+fn authority_secret_read(scope: &str) -> Option<HostOpsAuthority> {
+    Some(HostOpsAuthority {
+        mode: "adminSecretRead".to_owned(),
+        actor_principal: None,
+        effective_principal: None,
+        local_dev_only: false,
+        admin_bypass: true,
+        scope: Some(scope.to_owned()),
+        reason: Some("scoped, budgeted secret-read lease".to_owned()),
+    })
+}
+
 fn authority_dev_user(user_id: Option<&str>) -> Option<HostOpsAuthority> {
     match user_id {
         Some(user_id) => Some(HostOpsAuthority {
@@ -686,6 +705,57 @@ pub(crate) fn auth_operator_result(
             vec![error.diagnostic],
         ),
     }
+}
+
+/// Project one finite telemetry query through the ordinary host-ops envelope.
+/// The export projection is one declared, bounded page; only HTTP/CLI unfold
+/// the same core into a streaming NDJSON response.
+pub(crate) fn telemetry_query_result(
+    snapback: &LocalSnapback,
+    request: &HostOpsRequest,
+    server_url: Option<String>,
+    profile: crate::admin::ServerProfile,
+    outcome: Result<Value, SnapbackError>,
+) -> HostOpsResult {
+    let request_id = request.request_id.clone().unwrap_or_else(new_request_id);
+    let operation = request.operation.clone();
+    let secret_data = matches!(operation.as_str(), "telemetry.events" | "telemetry.export");
+    let authority = if secret_data {
+        authority_secret_read(&operation)
+    } else {
+        authority_admin("host-ops telemetry aggregate read gate")
+    };
+    let mut result = match outcome {
+        Ok(data) => host_ops_result(
+            snapback,
+            request_id,
+            operation,
+            server_url,
+            profile,
+            true,
+            authority.clone(),
+            data,
+            Vec::new(),
+        ),
+        Err(error) => host_ops_result(
+            snapback,
+            request_id,
+            operation,
+            server_url,
+            profile,
+            false,
+            authority,
+            Value::Object(Default::default()),
+            vec![error.diagnostic],
+        ),
+    };
+    // `host_ops_result` can conservatively flip `ok` when target metadata is
+    // corrupt. Never retain raw rows behind that failed envelope: the caller
+    // must receive either a charged success or a data-empty failure.
+    if secret_data && !result.ok {
+        result.data = Value::Object(Default::default());
+    }
+    result
 }
 
 pub(crate) fn host_op_handler_input(request: &HostOpsRequest) -> HandlerInput {
@@ -1254,9 +1324,15 @@ pub(crate) fn execute_host_op_with_profile_and_authority(
         // DX): dev-admitted like function.run, admin-write gated at the
         // route, closed input shapes, no byte samples or bearer material in
         // any envelope.
-        "asset.put" | "asset.ensureSeedFixture" | "asset.inspect" | "asset.list"
-        | "asset.exportCut" | "asset.importCut"
-        | "asset.retry" | "asset.gcSweep" | "asset.delete"
+        "asset.put"
+        | "asset.ensureSeedFixture"
+        | "asset.inspect"
+        | "asset.list"
+        | "asset.exportCut"
+        | "asset.importCut"
+        | "asset.retry"
+        | "asset.gcSweep"
+        | "asset.delete"
         | "asset.rotateSigningKey" => {
             let outcome = snapback.asset_host_op(
                 &operation,
@@ -1991,6 +2067,36 @@ mod tests {
                 .diagnostics
                 .iter()
                 .any(|diagnostic| { diagnostic.code == "SNAPBACK_STORAGE_VERSION_CORRUPT" })
+        );
+
+        let raw = telemetry_query_result(
+            &snapback,
+            &HostOpsRequest {
+                operation: "telemetry.events".to_owned(),
+                ..HostOpsRequest::default()
+            },
+            None,
+            ServerProfile::Test,
+            Ok(json!({ "events": [{ "name": "RAW_SENTINEL" }] })),
+        );
+        assert!(!raw.ok);
+        assert_eq!(raw.data, Value::Object(Default::default()));
+        assert_eq!(
+            raw.authority
+                .as_ref()
+                .map(|authority| authority.mode.as_str()),
+            Some("adminSecretRead")
+        );
+        assert_eq!(
+            raw.authority
+                .as_ref()
+                .and_then(|authority| authority.scope.as_deref()),
+            Some("telemetry.events")
+        );
+        assert!(
+            !serde_json::to_string(&raw)
+                .unwrap()
+                .contains("RAW_SENTINEL")
         );
     }
 
