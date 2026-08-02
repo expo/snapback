@@ -1,6 +1,6 @@
 # 0133-01: Settlement receipts carry the lane label and the disposition-labeled claim ledger
 
-**Status:** Open
+**Status:** Closed (2026-08-02)
 **Program:** 20260802-0133-00-settlement-substrate-program.md
 **Systems:** Wire Protocol, Storage, Sync
 **Related:** LLP 0133 §The two settlement lanes (rule 4), §Receipts; LLP 0043
@@ -41,3 +41,17 @@ don't disturb it.
 - Wire additions follow the additive wire-version rules; a dated coordination
   note is filed for the row-4 owners (LLP 0043/0034/0093) recording the
   working spellings as provisional.
+
+## Resolution
+
+Landed in `5aa8dd03` (`feat(settlement): label receipts and redact private
+claims`). Mutation receipts now label lane Q as `replay-accept`; the submitting
+response carries the accepted claim ledger while the global fan-out ring
+server-side projects it away. The additive Rust-owned schemas were regenerated,
+and `issues/20260802-0133-receipt-wire-coordination.md` records the provisional
+spellings for the row-4 owners.
+
+Proof: `llp0133_sketch_1_lane_q_receipt_and_fanout_privacy`,
+`receipt_wire_shapes_are_preserved`, the DK-7 schema drift/live-value tests,
+the full 1,639-test Rust library suite (1 ignored benchmark), the complete
+`packages/snapback-client` suite, and `./ref-check --verbose`.
