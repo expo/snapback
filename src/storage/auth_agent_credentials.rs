@@ -57,6 +57,8 @@ pub struct ResolvedAgentCredential {
 pub struct IssuedScopedToken {
     pub token_id: String,
     pub grant_id: String,
+    pub actor_user_id: String,
+    pub effective_user_id: Option<String>,
     pub credential_id: String,
     pub credential_generation: u64,
     pub expires_at_ms: u64,
@@ -64,6 +66,12 @@ pub struct IssuedScopedToken {
     pub scopes: Value,
     pub evicted_token_ids: Vec<String>,
     pub secret: ScopedToken,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ReleasedScopedToken {
+    pub token_id: String,
+    pub newly_revoked: bool,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -444,6 +452,66 @@ impl LocalDatabase {
         })
     }
 
+    /// Resolve the exact carrier named by a release request, including an
+    /// already-released carrier. Release is deliberately bearer-by-value and
+    /// destroy-only: knowledge of one scoped token can end only that token,
+    /// and a lost 204 can be retried idempotently with the same value.
+    ///
+    /// @ref LLP 0055#dated-amendment-app-cli-scoped-token-release-2026-08-01
+    ///   — per-invocation CLI tokens leave the bounded family immediately.
+    pub(crate) fn plan_scoped_token_release(&self, token: &ScopedToken) -> SnapbackResult<String> {
+        let hash = token.token_hash();
+        self.with_auth_read(|connection| {
+            connection
+                .query_row(
+                    "SELECT id FROM _auth_grant_tokens WHERE token_hash = ?1",
+                    params![hash.as_bytes()],
+                    |row| row.get(0),
+                )
+                .optional()?
+                .ok_or_else(|| scoped_token_invalid(ScopedTokenAuthorityDisposition::Carrier))
+        })
+    }
+
+    /// Idempotently revoke exactly the scoped token presented in the request.
+    /// Durable grant/credential authority is untouched; this is a carrier
+    /// ending and therefore projects the carrier terminal disposition.
+    pub(crate) fn release_scoped_token(
+        &mut self,
+        token: &ScopedToken,
+        now_ms: u64,
+    ) -> SnapbackResult<ReleasedScopedToken> {
+        self.observe_agent_authorization_clock(now_ms)?;
+        let hash = token.token_hash();
+        self.with_auth_transaction(|tx| {
+            require_agent_clock_on(tx, now_ms)?;
+            let row: Option<(String, bool)> = tx
+                .query_row(
+                    "SELECT id, revoked_at_ms IS NOT NULL
+                     FROM _auth_grant_tokens WHERE token_hash = ?1",
+                    params![hash.as_bytes()],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .optional()?;
+            let Some((token_id, already_revoked)) = row else {
+                return Err(scoped_token_invalid(
+                    ScopedTokenAuthorityDisposition::Carrier,
+                ));
+            };
+            if !already_revoked {
+                tx.execute(
+                    "UPDATE _auth_grant_tokens SET revoked_at_ms = ?1
+                     WHERE id = ?2 AND revoked_at_ms IS NULL",
+                    params![now_ms as i64, token_id],
+                )?;
+            }
+            Ok(ReleasedScopedToken {
+                token_id,
+                newly_revoked: !already_revoked,
+            })
+        })
+    }
+
     /// Mint one grant-bound scoped token under the current live credential
     /// generation. The eleventh live token atomically revokes the oldest and
     /// returns its id for connection invalidation projection.
@@ -510,6 +578,8 @@ impl LocalDatabase {
                 body_outcome = Some(IssuedScopedToken {
                     token_id: token_id.clone(),
                     grant_id: grant_id.to_owned(),
+                    actor_user_id: resolved.user_id,
+                    effective_user_id: grant.effective_user_id,
                     credential_id: resolved.credential_id,
                     credential_generation: resolved.generation,
                     expires_at_ms,
@@ -680,6 +750,8 @@ impl LocalDatabase {
                 body_outcome = Some(IssuedScopedToken {
                     token_id: token_id.clone(),
                     grant_id,
+                    actor_user_id: resolved.user_id,
+                    effective_user_id: grant.effective_user_id,
                     credential_id: resolved.credential_id,
                     credential_generation: resolved.generation,
                     expires_at_ms,
@@ -1144,6 +1216,7 @@ pub(super) fn coalesce_credential_use(
 struct LiveGrant {
     scopes: Value,
     expires_at_ms: Option<u64>,
+    effective_user_id: Option<String>,
 }
 
 fn require_live_grant_for_actor(
@@ -1154,14 +1227,20 @@ fn require_live_grant_for_actor(
 ) -> SnapbackResult<LiveGrant> {
     let grant = connection
         .query_row(
-            "SELECT scopes, expires_at_ms FROM _auth_grants
+            "SELECT scopes, expires_at_ms, effective_user_id FROM _auth_grants
              WHERE id = ?1 AND actor_user_id = ?2 AND revoked_at_ms IS NULL
                AND (expires_at_ms IS NULL OR expires_at_ms > ?3)",
             params![grant_id, actor_user_id, now_ms as i64],
-            |row| Ok((row.get::<_, String>(0)?, row.get::<_, Option<i64>>(1)?)),
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, Option<i64>>(1)?,
+                    row.get::<_, Option<String>>(2)?,
+                ))
+            },
         )
         .optional()?;
-    let (scopes, expires_at_ms) = grant.ok_or_else(grant_invalid)?;
+    let (scopes, expires_at_ms, effective_user_id) = grant.ok_or_else(grant_invalid)?;
     let scopes = serde_json::from_str(&scopes).map_err(|_| agent_credential_state_corrupt())?;
     let expires_at_ms = expires_at_ms
         .map(u64::try_from)
@@ -1170,6 +1249,7 @@ fn require_live_grant_for_actor(
     Ok(LiveGrant {
         scopes,
         expires_at_ms,
+        effective_user_id,
     })
 }
 
@@ -2392,6 +2472,31 @@ mod tests {
             .unwrap();
         assert_eq!(resolved.grant_id, "grant-a");
         assert_eq!(resolved.actor_user_id, "agent-a");
+    }
+
+    #[test]
+    fn exact_scoped_token_release_is_idempotent_and_carrier_only() {
+        let (mut db, issued) = scoped_token_fixture(10_000);
+        assert_eq!(
+            db.plan_scoped_token_release(&issued.secret).unwrap(),
+            issued.token_id
+        );
+        let released = db.release_scoped_token(&issued.secret, 1_001).unwrap();
+        assert_eq!(released.token_id, issued.token_id);
+        assert!(released.newly_revoked);
+        let repeated = db.release_scoped_token(&issued.secret, 1_002).unwrap();
+        assert_eq!(repeated.token_id, issued.token_id);
+        assert!(!repeated.newly_revoked);
+        assert_scoped_token_disposition(
+            db.resolve_scoped_token(&issued.secret, 1_002).unwrap_err(),
+            "carrier",
+        );
+
+        let unknown = ScopedToken::generate(&FixedRandom(99)).unwrap();
+        assert_scoped_token_disposition(
+            db.release_scoped_token(&unknown, 1_003).unwrap_err(),
+            "carrier",
+        );
     }
 
     #[test]

@@ -5,7 +5,10 @@
 **Systems:** Auth, API, Security, Agent tooling, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-13
-**Revised:** 2026-07-30 (§Audit extended to the live wire: subscription
+**Revised:** 2026-08-01 (LLP 0062 app-CLI credentialed lane: exact scoped-token
+release, server-relative TTL receipts, actor/effective tuple re-attestation,
+reference-only profiles, loopback/redirect fences, and cap-aware
+cross-process admission; see the dated amendment). 2026-07-30 (§Audit extended to the live wire: subscription
 establishment/renewal carries the server-derived block as immutable
 subscription metadata, and client/CLI non-2xx retention is byte-preserving;
 landed under `issues/closed/20260717-app-cli-attribution-seams.md`).
@@ -2251,6 +2254,98 @@ enqueue occurs synchronously; and `Initiated` is acknowledged exactly once in
 `finally`. A terminal transaction that has premarked first prevents enqueue;
 one that arrives after `Begin` waits only for that bounded native initiation
 cut, not for the network response.
+
+## Dated amendment: app-CLI scoped-token release (2026-08-01)
+
+LLP 0062's process-per-command agent lane changes the desirable scoped-token
+shape without changing the durable agent/grant model: every invocation mints a
+fresh, short-TTL carrier and must be able to end that exact carrier as soon as
+the command settles. Waiting for the ordinary one-hour default would make a
+sequential agent workload fill the ten-token grant family and evict unrelated
+work. The following contract is therefore part of the v1 agent surface.
+
+### Receipt and scheduling authority
+
+`POST /auth/agents/token` adds `actorUserId`, `effectiveUserId`, and
+`expiresInMs` to its existing secret response. The actor and effective fields
+are server-resolved from the credential and grant; they are receipt facts, not
+caller-selected input. A credential-owning CLI must compare the complete
+durable tuple `(actorUserId, effectiveUserId, credentialId,
+credentialGeneration, grantId)` with its reference-only profile before
+constructing `AgentAuthorityFence`. A substitution is terminal and the newly
+minted token is released before the command refuses.
+
+`expiresAtMs` remains an absolute audit fact. `expiresInMs` is the scheduling
+authority: it is computed by the server from the same rollback-checked `now`
+used by minting, after both the requested TTL and grant expiry have been
+applied. A client never compares its wall clock with `expiresAtMs` to decide a
+renewal. LLP 0062's Node engine requests 130 seconds by default, within this
+RFC's one-hour default and 24-hour maximum; the server remains the authority
+and may return less.
+
+### Exact release primitive
+
+`POST /auth/agents/token/release` accepts the closed body `{ token: sbagt_ }`,
+accepts no `Authorization` header, installs no invocation principal, and
+returns an empty `204` with `Cache-Control: private, no-store`. Knowledge of a
+scoped token can end only that exact carrier. The server resolves the stored
+token id including an already-revoked row, acquires the finite
+service-authority terminal gate with `Carrier` disposition, idempotently sets
+`revoked_at_ms`, and projects the exact token terminal event to any bound live
+connection. A retry after a lost `204` therefore succeeds identically; an
+unknown or swept token receives the ordinary non-enumerating
+`SNAPBACK_AUTH_SCOPED_TOKEN_INVALID` carrier refusal. Durable credentials and
+grants are untouched.
+
+The route has its own per-carrier throttle bucket (240 attempts/minute),
+separate from mint and every other agent-management route. Its request body is
+secret-classified for ingestion/redaction even though its response is opaque:
+the `sbagt_` value never enters logs, diagnostics, receipts, inspection, or an
+`Authorization` header. Redirects are terminal and a second hop is never
+attempted.
+
+The token-mint route's independent floor is raised to 600 attempts per minute
+for this process-per-command client. That admits the specified sequential
+burst of hundreds without turning completed short-lived commands into their
+own throttle. The increase remains credential-and-grant bound: minting still
+requires a live long-lived credential and a live grant, while malformed
+traffic stays in the route's separate bounded source bucket. The ten-carrier
+grant cap and the client admission ledger remain the concurrency controls;
+the mint rate is not used as a substitute for either.
+
+### CLI custody and admission
+
+The LLP 0062 reference profile is a closed version-1, mode-0600 POSIX file. It
+stores only target origin, app id, grant id, actor/effective user ids,
+credential id/generation, and a durable credential *reference* (an absolute
+mode-0600 file or a named environment variable); it never stores `sbac_` or
+`sbagt_` plaintext. Every ancestor and file passes ownership, symlink,
+single-link, mode, and byte-bound checks before a credential is read. The Node
+engine refuses credentialed use where POSIX ownership/mode semantics are not
+available.
+
+Agent credentials are presented only to a literal loopback origin and only
+after the connected peer is rechecked as loopback; hostname inference and
+redirect following are forbidden. Pairing challenges enter through stdin or a
+mode-0600 file, never argv or an environment variable. On approval, the CLI
+writes the reference-only profile and immediately releases the pairing poll's
+first token.
+
+Across processes, admission is keyed by normalized `(target origin, app id,
+grant id)` under an owner-only directory. The target-advertised
+`perGrantTokenCap` is authoritative; the ordinary one-shot capacity is
+`max(1, cap - 2)`, reserving two carriers for a watch and renewal cut. Slot
+leases expire with the requested short token lifetime, so a killed process
+self-heals. A command acquires a slot before reading the credential or minting,
+releases the token (one retry, then TTL as crash-safe backstop), and only then
+releases its slot. Above-cap work waits within a bound or refuses typed; it
+never mints the eleventh carrier and silently evicts a sibling. Sequential
+bursts release promptly and therefore do not self-throttle.
+
+This amendment reconciles the earlier pairing prose: re-poll still
+revoke-and-replaces a prior pairing-request token at the server, but the
+process-per-command reference client treats that token as a one-use receipt,
+persists only its durable tuple, and releases it immediately.
 
 ## Status
 

@@ -317,15 +317,15 @@ try {
   check(
     'descriptorStatesItsPrincipalClasses',
     targetAdmitsPrincipal(discoveryDoc, 'anonymous')
+      && targetAdmitsPrincipal(discoveryDoc, 'dev')
       && targetAdmitsPrincipal(discoveryDoc, 'session')
-      // `agent` is deliberately not advertised until 0062-05's lane exists:
-      // a target must not claim a class it cannot serve.
-      && targetAdmitsPrincipal(discoveryDoc, 'agent') === false,
+      && targetAdmitsPrincipal(discoveryDoc, 'agent')
+      && descriptor.perGrantTokenCap === 10,
     JSON.stringify(descriptor.principalClasses),
   );
   let unadmitted = null;
   try {
-    refuseUnadmittedPrincipal(discoveryDoc, 'agent');
+    refuseUnadmittedPrincipal({}, 'agent');
   } catch (error) {
     unadmitted = error;
   }

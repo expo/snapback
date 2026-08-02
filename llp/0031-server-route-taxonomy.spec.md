@@ -5,7 +5,9 @@
 **Systems:** Local server lifecycle, HTTP surface, Security/authorization, Admin API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-01
-**Revised:** 2026-07-31, W2b (LLP 0044 completion program: the asset family
+**Revised:** 2026-08-01 (LLP 0062 exact scoped-token release: registered the
+closed destroy-only `POST /auth/agents/token/release` app-data route; see the
+dated amendment). 2026-07-31, W2b (LLP 0044 completion program: the asset family
 gains the `private-signed` issuance route, the token-credentialed public
 signed serve lane, and the `public-immutable` lane — the registry's first
 `AppData`/`Public` byte routes, with the existence-oracle and cache
@@ -1201,6 +1203,26 @@ reserved administrative app-lifecycle routes. Each is centrally classified
 AdminWrite and NonProd before its closed Rust body is parsed or seed state is
 inspected. The four routes have one-to-one LLP 0024 host-operation names and
 no legacy or root alias.
+
+## Dated amendment: app-CLI exact scoped-token release (2026-08-01)
+
+The registry adds `POST /auth/agents/token/release` as an `AppData` route with
+`Public` path policy, the closed `ScopedTokenReleaseBody` credential resolver,
+`InvocationAuthority::None`, no legacy-body authority, and
+`PublicNoStore` response sensitivity. The body is exactly `{ token: sbagt_ }`;
+an `Authorization` header is contradictory and refused. Although the response
+is an opaque empty `204`, middleware treats the request as secret-bearing: the
+token is excluded from buffering beyond the bounded auth body, logs,
+diagnostics, receipts, and inspection.
+
+`ScopedTokenReleaseBody` is deliberately distinct from ordinary
+`OptionalSessionOrScopedToken`: it resolves an already-revoked stored token so
+a lost success can be retried, installs no caller, and authorizes only the
+destroy-only effect on that exact carrier. The metadata validator admits this
+resolver only on `Public` + `None` + `PublicNoStore` rows, in both dev and
+sessions overlays. The router/registry parity set, route-policy matrix, method
+probe, independent throttle inventory, and response-control probe include the
+new path.
 
 ## Status
 

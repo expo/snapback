@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "c4c575e94b659cfdb0f939eca19c0f62b2f79e0a"
+    "commit": "50103befe39b9684d88ce6a0493a408770f2c96f"
   },
   "nav": {
     ".": [
@@ -276,17 +276,19 @@
       "authorities": [
         "llp/0055-agent-principals-and-scoped-grants.rfc.md",
         "packages/snapback-client/agent-authority.mjs",
-        "packages/snapback-app-cli/index.mjs",
+        "packages/snapback-app-cli/auth.mjs",
         "packages/snapback-app-cli/package.test.mjs",
+        "packages/snapback-app-cli/auth.test.mjs",
         "src/server.rs"
       ],
       "examples": [
         "packages/snapback-app-cli/package.test.mjs",
+        "packages/snapback-app-cli/auth.test.mjs",
         "demos/_kit/tests/auth-handshake.mjs"
       ],
-      "reviewed": "2026-07-19",
-      "reviewedCommit": "7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7",
-      "sha256": "92d47555dae17bd9d9e6d578c2d8b067a3e95939dda7d5e02d1f7cfd8956ad79",
+      "reviewed": "2026-08-01",
+      "reviewedCommit": "HEAD",
+      "sha256": "d8f81e7b3c7c820186ea3816ffdf862c21b1521deb36bd655f9e21c93f5dda10",
       "snippets": []
     },
     "auth.native-apps": {
@@ -1186,7 +1188,7 @@
       "examples": [],
       "reviewed": "2026-08-01",
       "reviewedCommit": "HEAD",
-      "sha256": "6c478cbb4db179af0102002adecc39ab3a8de2277060da1e9584ed842a93d338",
+      "sha256": "b2869f0337fc775777c39efa5b5da695b1db6a9f84ea9dda154b4777de54a28b",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1205,16 +1207,21 @@
         "llp/0062-generated-app-cli-and-code-mode.rfc.md",
         "packages/snapback-app-cli/index.mjs",
         "packages/snapback-app-cli/cli.mjs",
-        "packages/snapback-app-cli/package.test.mjs",
-        "packages/snapback-client/index.mjs"
+        "packages/snapback-app-cli/auth.mjs",
+        "packages/snapback-app-cli/code-mode.mjs",
+        "packages/snapback-app-cli/result-core.mjs",
+        "packages/snapback-client/app-data.mjs"
       ],
       "examples": [
         "packages/snapback-app-cli/package.test.mjs",
+        "packages/snapback-app-cli/auth.test.mjs",
+        "packages/snapback-app-cli/code-mode.test.mjs",
+        "packages/snapback-app-cli/cli.test.mjs",
         "demos/todo/snapback/generated"
       ],
-      "reviewed": "2026-07-19",
-      "reviewedCommit": "7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7",
-      "sha256": "9ab786a7308c0826e015237f7926c1d2748fc654553f38207db2d6fbe844515b",
+      "reviewed": "2026-08-01",
+      "reviewedCommit": "HEAD",
+      "sha256": "1a404ae66959d02f9cc59437dcbeb1aae386b051ccfabea8cf3bdcf76b4f094c",
       "snippets": []
     },
     "clients.contract-adapter": {
@@ -1822,7 +1829,7 @@
       ],
       "reviewed": "2026-07-27",
       "reviewedCommit": "8399da34f8bdebb2776395ee5751b57c2bd2e71f",
-      "sha256": "90c0831d9972e3bd7267f28f3010dacf5a291ffdb97171a3608965c7206b00eb",
+      "sha256": "3a09824b3e54e204b917f4d1cb32f88643cdd1c4984aaff8eb64cc4be2197fdb",
       "snippets": []
     },
     "operating.admin-console": {
@@ -2471,8 +2478,8 @@
     ]
   },
   "surfaces": {
-    "routes": 86,
+    "routes": 89,
     "hostOps": 29
   },
-  "contentHash": "85e7e0f5ddad85733833a3489b73493440d372d616195b6e4d321e78762d6166"
+  "contentHash": "81e03546df809d8bd0342574986ad26468d5ac0b8b31f39d6bff20969259a204"
 }

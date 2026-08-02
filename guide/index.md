@@ -125,8 +125,9 @@ you never build around a feature because you didn't know it existed.
   `SnapbackClient` surface: calls, live/ephemeral state, receipts, and auth.
 - [The Swift client](./clients/swift.md) — SwiftPM for iOS/macOS,
   `poll/local` + `live/local`, session auth, invalidation, and lifecycle.
-- [The app CLI](./clients/app-cli.md) — discover generated operations and run
-  the packaged local agent journey without source-diving.
+- [The app CLI](./clients/app-cli.md) — introspect and call generated/served
+  operations under explicit principals, or run a local TypeScript analysis
+  through the credential-owning broker parent.
 - [The Contract adapter](./clients/contract-adapter.md) — generated
   bindings, one-surface boot, derived optimistic overlays, offline classes.
 - [The React client](./clients/react.md) — first-class external-store hook,

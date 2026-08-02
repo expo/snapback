@@ -30,6 +30,8 @@
       "dependencies": {
         "@expo/snapback-client": "workspace:*",
         "@expo/snapback-codegen": "workspace:*",
+        "ajv": "^8.20.0",
+        "typescript": "5.9.3",
       },
     },
     "packages/snapback-cli": {

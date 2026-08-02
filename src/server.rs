@@ -6182,22 +6182,32 @@ fn agent_route_throttle_limit(path: &str) -> Option<usize> {
         "/auth/grants/by-actor/{actor_id}" => Some(60),
         "/auth/grants/{id}" => Some(60),
         "/auth/agents/rotate" => Some(10),
-        "/auth/agents/token" => Some(120),
+        // LLP 0062's process-per-command agent lane mints one short-lived
+        // carrier per invocation. Six hundred credential-and-grant-bound
+        // attempts per minute admits realistic agent bursts without making
+        // the unauthenticated source bucket an authority amplifier.
+        "/auth/agents/token" => Some(600),
+        "/auth/agents/token/release" => Some(240),
         "/auth/agents/revoke-self" => Some(20),
         _ => None,
     }
 }
 
 fn agent_body_throttle_source(body: Option<&Value>) -> AgentRouteThrottleSource {
-    let credential = body
-        .and_then(Value::as_object)
+    let object = body.and_then(Value::as_object);
+    let credential = object
         .and_then(|body| body.get("credential"))
         .and_then(Value::as_str)
         .and_then(|credential| AgentCredential::parse(credential).ok());
-    match credential {
-        Some(credential) => {
-            AgentRouteThrottleSource::Credential(*credential.token_hash().as_bytes())
-        }
+    if let Some(credential) = credential {
+        return AgentRouteThrottleSource::Credential(*credential.token_hash().as_bytes());
+    }
+    let token = object
+        .and_then(|body| body.get("token"))
+        .and_then(Value::as_str)
+        .and_then(|token| ScopedToken::parse(token).ok());
+    match token {
+        Some(token) => AgentRouteThrottleSource::Credential(*token.token_hash().as_bytes()),
         None => AgentRouteThrottleSource::Malformed,
     }
 }
@@ -6785,6 +6795,10 @@ pub enum CredentialResolution {
     ChallengeProof,
     AgentCredentialBody,
     AgentFamilySecretBody,
+    /// An exact scoped token carried in a closed destroy-only request body.
+    /// Unlike ordinary app-data bearer resolution, this accepts an already
+    /// released token so a lost successful response is safely retryable.
+    ScopedTokenReleaseBody,
     /// A bearer accepted only by the opaque revoke-only family alarm.
     FamilyAlarmBearer,
     /// A signed asset-delivery URL's token query parameter — the entire
@@ -7160,6 +7174,7 @@ impl RouteSpec {
                     | CredentialResolution::ChallengeProof
                     | CredentialResolution::AgentCredentialBody
                     | CredentialResolution::AgentFamilySecretBody
+                    | CredentialResolution::ScopedTokenReleaseBody
                     | CredentialResolution::FamilyAlarmBearer
                     | CredentialResolution::SignedUrlToken
                     | CredentialResolution::OperationSpecific
@@ -7240,6 +7255,15 @@ impl RouteSpec {
         {
             return fail(
                 "agent family secret body must be public, install no caller, and return an opaque no-store response",
+            );
+        }
+        if self.credential_resolution == CredentialResolution::ScopedTokenReleaseBody
+            && (self.path_policy != RoutePolicy::Public
+                || self.invocation_authority != InvocationAuthority::None
+                || self.response_sensitivity != ResponseSensitivity::PublicNoStore)
+        {
+            return fail(
+                "scoped-token release body must be public, install no caller, and return an opaque no-store response",
             );
         }
         if self.credential_resolution == CredentialResolution::FamilyAlarmBearer
@@ -7339,6 +7363,7 @@ impl RouteSpec {
                     | CredentialResolution::ChallengeProof
                     | CredentialResolution::AgentCredentialBody
                     | CredentialResolution::AgentFamilySecretBody
+                    | CredentialResolution::ScopedTokenReleaseBody
                     | CredentialResolution::FamilyAlarmBearer
                     | CredentialResolution::OptionalSessionBearer
                     | CredentialResolution::OptionalSessionOrScopedToken
@@ -7843,6 +7868,19 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
                 ResponseSensitivity::CredentialSecret,
             ),
             post(auth_agent_token).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/auth/agents/token/release",
+                RouteClass::AppData,
+                RoutePolicy::Public,
+                CredentialResolution::ScopedTokenReleaseBody,
+                InvocationAuthority::None,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::PublicNoStore,
+            ),
+            post(auth_agent_token_release).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
         ),
         RegisteredRoute::new(
             RouteSpec::new(
@@ -11725,6 +11763,12 @@ struct AgentCredentialRequest {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct AgentScopedTokenReleaseRequest {
+    token: SecretInput,
+}
+
+#[derive(Deserialize)]
 #[serde(untagged)]
 enum AgentTokenRequest {
     Grant(AgentGrantTokenRequest),
@@ -11835,9 +11879,12 @@ impl Serialize for AgentCredentialSecretResponse {
 struct AgentTokenSecretResponse {
     token_id: String,
     grant_id: String,
+    actor_user_id: String,
+    effective_user_id: Option<String>,
     credential_id: String,
     credential_generation: u64,
     expires_at_ms: u64,
+    expires_in_ms: u64,
     grant_expires_at_ms: Option<u64>,
     scopes: serde_json::Value,
     token: crate::auth::crypto::ScopedToken,
@@ -11848,12 +11895,15 @@ impl Serialize for AgentTokenSecretResponse {
     where
         S: serde::Serializer,
     {
-        let mut state = serializer.serialize_struct("AgentTokenResponse", 8)?;
+        let mut state = serializer.serialize_struct("AgentTokenResponse", 11)?;
         state.serialize_field("tokenId", &self.token_id)?;
         state.serialize_field("grantId", &self.grant_id)?;
+        state.serialize_field("actorUserId", &self.actor_user_id)?;
+        state.serialize_field("effectiveUserId", &self.effective_user_id)?;
         state.serialize_field("credentialId", &self.credential_id)?;
         state.serialize_field("credentialGeneration", &self.credential_generation)?;
         state.serialize_field("expiresAtMs", &self.expires_at_ms)?;
+        state.serialize_field("expiresInMs", &self.expires_in_ms)?;
         state.serialize_field("grantExpiresAtMs", &self.grant_expires_at_ms)?;
         state.serialize_field("scopes", &self.scopes)?;
         state.serialize_field("token", self.token.expose_secret())?;
@@ -12433,13 +12483,78 @@ async fn auth_agent_token(
     Ok(Json(AgentTokenSecretResponse {
         token_id: issued.token_id,
         grant_id: issued.grant_id,
+        actor_user_id: issued.actor_user_id,
+        effective_user_id: issued.effective_user_id,
         credential_id: issued.credential_id,
         credential_generation: issued.credential_generation,
         expires_at_ms: issued.expires_at_ms,
+        // Server-relative lifetime is the scheduling authority for clients;
+        // absolute expiry remains an audit fact and is never compared to a
+        // potentially skewed client clock.
+        expires_in_ms: issued.expires_at_ms.saturating_sub(now_ms),
         grant_expires_at_ms: issued.grant_expires_at_ms,
         scopes: issued.scopes,
         token: issued.secret,
     }))
+}
+
+/// Release exactly one short-lived scoped carrier. The token rides only in
+/// this secret-classified body; the route installs no caller authority and is
+/// idempotent for an already-released token so a lost 204 can be retried.
+///
+/// @ref LLP 0055#dated-amendment-app-cli-scoped-token-release-2026-08-01
+async fn auth_agent_token_release(
+    State(runtime): State<AppState>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Response, ApiError> {
+    let provider = require_agent_routes_available(&runtime)?;
+    reject_agent_route_authorization_header(&headers)?;
+    let request: AgentScopedTokenReleaseRequest = parse_auth_json(&headers, body)?;
+    dispatch_credential_class(request.token.as_str(), CredentialClass::ScopedToken)
+        .map_err(|error| ApiError::from(error.into_snapback_error()))?;
+    let token_for_plan = ScopedToken::parse(request.token.as_str())
+        .map_err(|_| ApiError::from(scoped_token_invalid_carrier()))?;
+    let token = ScopedToken::parse(request.token.as_str())
+        .map_err(|_| ApiError::from(scoped_token_invalid_carrier()))?;
+    let now_ms = provider.now_ms();
+    let token_id = with_snapback(&runtime.snapback, move |snapback| {
+        snapback
+            .auth_database_mut()
+            .plan_scoped_token_release(&token_for_plan)
+    })
+    .await?;
+    let service_terminal_gate = runtime
+        .service_authority_fences
+        .acquire_terminal_gate(
+            std::slice::from_ref(&token_id),
+            ServiceAuthorityDisposition::Carrier,
+        )
+        .await
+        .map_err(ApiError::from)?;
+    let snapback = runtime.snapback.clone();
+    let lifecycle = runtime.auth_terminal_lifecycle.clone();
+    let transaction = spawn_owned_auth_transaction(async move {
+        let released = with_snapback(&snapback, move |snapback| {
+            let released = with_service_authority_terminal_gate(service_terminal_gate, || {
+                snapback
+                    .auth_database_mut()
+                    .release_scoped_token(&token, now_ms)
+            })?;
+            if released.newly_revoked {
+                let terminal_token_ids = vec![released.token_id.clone()];
+                let close_by = terminal_close_by(Instant::now());
+                crate::exec_guard::run_or_defer_after_local(move || {
+                    lifecycle.evict_service_tokens(&terminal_token_ids, close_by);
+                });
+            }
+            Ok::<_, SnapbackError>(released)
+        })
+        .await?;
+        Ok::<_, SnapbackError>(released)
+    });
+    let _released = await_owned_auth_transaction(transaction).await??;
+    Ok(StatusCode::NO_CONTENT.into_response())
 }
 
 /// Destroy the complete attributable credential family. The response is
@@ -16038,10 +16153,7 @@ async fn app_api_current(State(runtime): State<AppState>) -> Result<Response, Ap
         header::CONTENT_TYPE,
         HeaderValue::from_static("application/json"),
     );
-    headers.insert(
-        header::CACHE_CONTROL,
-        HeaderValue::from_static("no-store"),
-    );
+    headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
     Ok(response)
 }
 
@@ -33142,7 +33254,15 @@ globalThis.__snapbackHandlers = {
         let ordinary = response_json(ordinary).await;
         assert_eq!(ordinary_status, StatusCode::OK, "{ordinary}");
         assert_eq!(ordinary["grantId"], "route-grant");
+        assert_eq!(ordinary["actorUserId"], "route-agent");
+        assert_eq!(ordinary["effectiveUserId"], "grant-user");
         assert_eq!(ordinary["grantExpiresAtMs"], now_ms + 60_000);
+        assert!(
+            ordinary["expiresInMs"]
+                .as_u64()
+                .is_some_and(|remaining| remaining > 59_000 && remaining <= 60_000),
+            "the receipt reports a server-relative token lifetime: {ordinary}"
+        );
         assert_eq!(ordinary["scopes"][0]["fn"], "fn:listItems");
         assert!(ordinary["token"].as_str().unwrap().starts_with("sbagt_"));
         let first_token = ordinary["token"].as_str().unwrap().to_owned();
@@ -33248,10 +33368,12 @@ globalThis.__snapbackHandlers = {
             None,
         );
         offer_auth_client_protocol(&mut evict);
-        assert_eq!(
-            router.clone().oneshot(evict).await.unwrap().status(),
-            StatusCode::OK
-        );
+        let evict = router.clone().oneshot(evict).await.unwrap();
+        assert_eq!(evict.status(), StatusCode::OK);
+        let released_token = response_json(evict).await["token"]
+            .as_str()
+            .unwrap()
+            .to_owned();
         let terminal = notifier
             .terminal_if_current(&first_connection_id, first_registration)
             .expect("cap eviction projects the exact carrier terminal event");
@@ -33285,6 +33407,77 @@ globalThis.__snapbackHandlers = {
             assert_ne!(first_connection_token, second_connection_token);
             connections.assert_grant_indexes_consistent();
         }
+
+        let release_request = || {
+            let mut request = auth_http_request(
+                "POST",
+                "/auth/agents/token/release",
+                serde_json::to_vec(&json!({ "token": released_token.clone() })).unwrap(),
+                true,
+                None,
+                None,
+            );
+            offer_auth_client_protocol(&mut request);
+            request
+        };
+        let mut header_smuggle = release_request();
+        header_smuggle.headers_mut().insert(
+            header::AUTHORIZATION,
+            HeaderValue::from_static("Bearer sbs_header-smuggle"),
+        );
+        let header_smuggle = router.clone().oneshot(header_smuggle).await.unwrap();
+        assert_eq!(header_smuggle.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(
+            response_json(header_smuggle).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_REQUEST_INVALID"
+        );
+        let mut wrong_class = auth_http_request(
+            "POST",
+            "/auth/agents/token/release",
+            serde_json::to_vec(&json!({ "token": credential.clone() })).unwrap(),
+            true,
+            None,
+            None,
+        );
+        offer_auth_client_protocol(&mut wrong_class);
+        let wrong_class = router.clone().oneshot(wrong_class).await.unwrap();
+        assert_eq!(wrong_class.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(
+            response_json(wrong_class).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_CREDENTIAL_CLASS_MISMATCH"
+        );
+        let released = router.clone().oneshot(release_request()).await.unwrap();
+        assert_eq!(released.status(), StatusCode::NO_CONTENT);
+        assert_eq!(
+            released.headers()[header::CACHE_CONTROL],
+            "no-store, private"
+        );
+        assert_eq!(
+            router
+                .clone()
+                .oneshot(release_request())
+                .await
+                .unwrap()
+                .status(),
+            StatusCode::NO_CONTENT,
+            "a lost successful release response is safely retryable"
+        );
+        assert_eq!(
+            router
+                .clone()
+                .oneshot(connection_open_request(Some(&released_token), json!({})))
+                .await
+                .unwrap()
+                .status(),
+            StatusCode::UNAUTHORIZED,
+            "the exact released carrier cannot establish new work"
+        );
+        assert!(
+            notifier
+                .terminal_if_current(&second_connection_id, second_registration)
+                .is_none(),
+            "releasing one unbound carrier does not disturb a sibling"
+        );
 
         let mut pending_request = auth_http_request(
             "POST",
@@ -40544,6 +40737,7 @@ globalThis.__snapbackHandlers = {
                 "/auth/agents/revoke-self",
                 "/auth/agents/rotate",
                 "/auth/agents/token",
+                "/auth/agents/token/release",
                 "/auth/grant-requests",
                 "/auth/grant-requests/{id}/approve",
                 "/auth/grant-requests/{id}/deny",
@@ -40553,6 +40747,8 @@ globalThis.__snapbackHandlers = {
                 "/auth/pairing-codes",
             ]
         );
+        assert_eq!(agent_paths["/auth/agents/token"], 600);
+        assert_eq!(agent_paths["/auth/agents/token/release"], 240);
 
         let mut state = ConnectionRegistryState::default();
         let start = Instant::now();

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -97,6 +97,10 @@ const server = createServer(async (request, response) => {
     scopes: [{ tier: 'query' }, { tier: 'mutation' }],
     token: 'sbagt_scoped_test_token',
   });
+  if (request.url === '/auth/agents/token/release') {
+    response.writeHead(204).end();
+    return undefined;
+  }
   if (request.url === '/auth/session') return send(handshake);
   if (request.url === '/mutation/createTodo') {
     created = true;
@@ -131,6 +135,13 @@ try {
       { id: 'journey:listTodosOnce', name: 'listTodosOnce', kind: 'Query' },
     ],
   }));
+  await mkdir(join(directory, 'operations'));
+  for (const name of ['createTodo', 'listTodos', 'listTodosOnce']) {
+    await writeFile(join(directory, 'operations', `${name}.args.schema.json`), JSON.stringify({
+      $schema: 'https://json-schema.org/draft/2020-12/schema',
+      type: 'object',
+    }));
+  }
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const address = server.address();
   const result = await runPackagedAgentJourney({
@@ -160,6 +171,7 @@ try {
     '/live/listTodos/subscribe',
     '/auth/session',
     '/query/listTodosOnce',
+    '/auth/agents/token/release',
   ]);
   // @ref LLP 0059#connection-bound-authority — opening a live connection
   // exchanges the bearer for a scoped connection grant; the subscription
@@ -173,11 +185,12 @@ try {
   assert.equal(
     calls
       .slice(2)
-      .filter(({ path }) => path !== '/live/listTodos/subscribe')
+      .filter(({ path }) => !['/live/listTodos/subscribe', '/auth/agents/token/release'].includes(path))
       .every(({ authorization }) => authorization === 'Bearer sbagt_scoped_test_token'),
     true,
     'ordinary agent requests retain the scoped bearer',
   );
+  assert.deepEqual(calls.at(-1).body, { token: 'sbagt_scoped_test_token' });
   // @ref LLP 0062#position-among-existing-surfaces — with the admin token
   // planted in the environment, no engine request of any kind carries it:
   // the façade has no ambient pickup and no admin request path.

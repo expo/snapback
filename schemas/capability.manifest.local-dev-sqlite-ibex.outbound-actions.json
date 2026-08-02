@@ -2,10 +2,12 @@
   "appCliTarget": {
     "acceptsGenerationAssertions": true,
     "capabilityId": "app-cli.target",
+    "perGrantTokenCap": 10,
     "principalClasses": [
       "anonymous",
       "dev",
-      "session"
+      "session",
+      "agent"
     ],
     "servesEnvelopes": true
   },

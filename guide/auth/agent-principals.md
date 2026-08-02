@@ -4,13 +4,13 @@ id: auth.agent-principals
 order: 4
 audience: agent-first
 capabilities: [auth.agent-principals]
-authorities: [llp/0055-agent-principals-and-scoped-grants.rfc.md, packages/snapback-client/agent-authority.mjs, packages/snapback-app-cli/index.mjs, packages/snapback-app-cli/package.test.mjs, src/server.rs]
-examples: [packages/snapback-app-cli/package.test.mjs, demos/_kit/tests/auth-handshake.mjs]
+authorities: [llp/0055-agent-principals-and-scoped-grants.rfc.md, packages/snapback-client/agent-authority.mjs, packages/snapback-app-cli/auth.mjs, packages/snapback-app-cli/package.test.mjs, packages/snapback-app-cli/auth.test.mjs, src/server.rs]
+examples: [packages/snapback-app-cli/package.test.mjs, packages/snapback-app-cli/auth.test.mjs, demos/_kit/tests/auth-handshake.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-19
-reviewed-commit: 7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7
+reviewed: 2026-08-01
+reviewed-commit: HEAD
 ---
 
 # Agent principals and scoped grants
@@ -44,9 +44,12 @@ letting the agent name or enumerate users:
    `pairingRequestId`. `SNAPBACK_AUTH_GRANT_PENDING` means wait; the
    non-enumerating `SNAPBACK_AUTH_GRANT_INVALID` means stop.
 
-The token response contains `tokenId`, `grantId`, `credentialId`,
-`credentialGeneration`, expiry, canonical scopes, and the bearer. Re-polling an
-approved request rotates the first token; it does not retrieve old plaintext.
+The token response contains `tokenId`, `grantId`, server-resolved
+`actorUserId`/`effectiveUserId`, `credentialId`, `credentialGeneration`,
+absolute expiry, server-relative `expiresInMs`, canonical scopes, and the
+bearer. Schedule from `expiresInMs`; do not compare a client clock with the
+server's absolute timestamp. Re-polling an approved request rotates the first
+token; it does not retrieve old plaintext.
 
 ## Choose scopes deliberately
 
@@ -75,6 +78,20 @@ Never return or serialize the bearer as an operation result. Rotation uses
 cuts publication and either retires the carrier or deletes the durable grant
 tuple according to the server's classified disposition.
 
+For a bounded command, call `POST /auth/agents/token/release` with the exact
+scoped token in its closed body when work settles. It returns an empty 204,
+accepts an already-released retained token for lost-response retry, and ends
+only that carrier. It never accepts an Authorization header. This release is
+not durable grant revocation.
+
+The app CLI's version-1 profile stores the target/app/grant and complete
+durable authority tuple plus an absolute credential file reference or named
+environment reference. It stores neither the durable credential nor a scoped
+token. The CLI re-attests the token receipt against that tuple on every mint,
+uses the target-advertised per-grant cap for cross-process admission, and
+reserves two cap slots for watch/renewal. Agent credential transport is
+literal-loopback-only and non-redirecting.
+
 ## Revoke and verify
 
 An agent can use `/auth/agents/revoke-self` and `/auth/agents/rotate` for its own
@@ -94,4 +111,7 @@ token in its returned result.
 - Do not treat a tier grant as deployment-pinned.
 - Do not persist bearer plaintext in the durable custody ledger or print it in
   diagnostics.
+- Do not use `expiresAtMs` and a local wall clock as renewal authority; use the
+  server-relative lifetime.
+- Do not treat exact token release as grant revocation.
 - Do not retry `SNAPBACK_AUTH_GRANT_INVALID` as if it were pending.

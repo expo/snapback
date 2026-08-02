@@ -18,6 +18,7 @@ import {
   DEFAULT_INGRESS_LIMIT_BYTES,
   SnapbackAppDataClient,
   createAppDataClient,
+  createExternalSessionAppDataClient,
   fetchPublicArtifact,
 } from './app-data.mjs';
 
@@ -135,6 +136,29 @@ try {
     'even a null adminToken member signals the wrong plane',
   );
   assert.ok(createAppDataClient(baseUrl) instanceof SnapbackAppDataClient);
+  const externalSession = createExternalSessionAppDataClient(baseUrl, {
+    bearerToken: 'sbs_external_app_data_test',
+  });
+  assert.ok(externalSession instanceof SnapbackAppDataClient);
+  assert.deepEqual(externalSession.authProtocols, {
+    authClient: 1,
+    authInvalidation: 1,
+    authorityDescriptor: 1,
+    authorizedLease: null,
+    ephemeralAuthority: null,
+    ephemeralExpiry: 1,
+  });
+  assert.throws(
+    () => createExternalSessionAppDataClient(baseUrl, { bearerToken: '' }),
+    /non-empty bearerToken/u,
+  );
+  assert.throws(
+    () => createExternalSessionAppDataClient(baseUrl, {
+      bearerToken: 'sbs_external_app_data_test',
+      senderConstrained: true,
+    }),
+    /mutually exclusive/u,
+  );
 
   // --- Planted-token non-transmission across the app-data call paths.
   captured.length = 0;

@@ -60,6 +60,18 @@ const refusedWith = (record) => resultExitCode(buildResultCore({
   diagnostics: [record],
 }));
 assert.equal(refusedWith(diagnosticRecord({ code: 'SNAPBACK_APP_CLI_USAGE', locus: 'engine' })), 2);
+for (const code of [
+  'SNAPBACK_APP_CLI_CREDENTIAL_SOURCE_INVALID',
+  'SNAPBACK_APP_CLI_AGENT_ORIGIN_UNSAFE',
+  'SNAPBACK_APP_CLI_HOST_UNSUPPORTED',
+]) {
+  assert.equal(refusedWith(diagnosticRecord({ code, locus: 'engine' })), 2, `${code} is usage-class`);
+}
+assert.equal(
+  refusedWith(diagnosticRecord({ code: 'SNAPBACK_APP_CLI_AGENT_ADMISSION_TIMEOUT', locus: 'engine' })),
+  9,
+  'bounded cross-process admission timeout retains the frozen timeout exit',
+);
 assert.equal(refusedWith(diagnosticRecord({ code: 'SNAPBACK_AUTH_REQUIRED', locus: 'request', httpStatus: 401 })), 3,
   'server auth codes are preserved and classify to exit 3, never rewritten');
 assert.equal(refusedWith(diagnosticRecord({ code: 'SNAPBACK_APP_CLI_FUNCTION_UNKNOWN', locus: 'engine' })), 4);

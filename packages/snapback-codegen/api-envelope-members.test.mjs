@@ -86,12 +86,27 @@ test('bindings declare kind-specific signatures and are order-stable', () => {
     { name: 'zeta', kind: 'LiveQuery' },
     { name: 'alpha', kind: 'Mutation' },
   ]);
-  assert.match(bindings, /"alpha": \(args\?: Record<string, unknown>\) => Promise<unknown>;/);
-  assert.match(bindings, /"zeta": \(args\?: Record<string, unknown>\) => AsyncIterable<unknown>;/);
+  assert.match(bindings, /"alpha": \(args\?: Record<string, unknown>, options\?: \{ timeoutMs\?: number \}\) => Promise<unknown>;/);
+  assert.match(bindings, /"zeta": \(args\?: Record<string, unknown>, options\?: \{ timeoutMs\?: number \}\) => AsyncIterable<unknown>;/);
   assert.ok(bindings.indexOf('"alpha"') < bindings.indexOf('"zeta"'), 'declaration order is stable');
   assert.equal(
     bindings,
     renderAppBindings([{ name: 'alpha', kind: 'Mutation' }, { name: 'zeta', kind: 'LiveQuery' }]),
     'declaration order does not depend on manifest order',
+  );
+});
+
+test('only valid hazardous property aliases are suppressed; stable ids remain authoritative', () => {
+  const bindings = renderAppBindings([
+    { id: 'app:normal', name: 'normal', kind: 'Query' },
+    { id: 'app:then', name: 'then', kind: 'Query' },
+    { id: 'app:constructor', name: 'constructor', kind: 'Mutation' },
+  ]);
+  assert.match(bindings, /"normal"/u);
+  assert.doesNotMatch(bindings, /"then"/u);
+  assert.doesNotMatch(bindings, /"constructor"/u);
+  assert.throws(
+    () => renderAppBindings([{ id: 'app:bad', name: 'bad-name', kind: 'Query' }]),
+    /invalid code-mode export name/u,
   );
 });

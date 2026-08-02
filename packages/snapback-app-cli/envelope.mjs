@@ -486,7 +486,7 @@ const surfaceFromEnvelope = (verified, discovery, { offline }) => {
       id: fn.id,
       name: fn.name,
       kind,
-      authRequirement: fn.authRequirement ?? null,
+      authRequirement: fn.authRequirement ?? 'optional-user',
       argsSchema: envelope.operations[fn.id]?.argsSchema ?? null,
     });
   });
@@ -524,6 +524,9 @@ const surfaceFromEnvelope = (verified, discovery, { offline }) => {
     envelopeSha256: verified.sha256,
     bundleHash: envelope.bundleHash ?? null,
     generation,
+    appCliDescriptor: discovery?.appCliDescriptor ?? null,
+    appBindings: envelope.declarations.appBindings,
+    apiDeclarations: null,
     functions: Object.freeze(functions),
   });
 };

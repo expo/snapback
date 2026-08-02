@@ -73,9 +73,9 @@ with the Snapback label and `guide-gap` in the title.
 | clients.swift | SwiftPM protocol client for iOS/macOS; poll/local and live/local with session auth | swift, swiftui, ios, macos | local | partial | `SnapbackClient` in clients/swift/SnapbackClient/Sources/SnapbackClient/SnapbackClient.swift | llp/0064, llp/0093 | clients/swift.md |
 | clients.non-js | Published and maintained non-JS clients beyond Swift (Kotlin and Dart) | kotlin, compose, dart, flutter | local | partial | llp/0093-client-protocol-and-native-clients.rfc.md | llp/0093, llp/0064 | GAP (owner: Charlie, review: 2026-08-31) |
 | clients.poll-hosted | Socketless hosted demand ownership and poll delivery | hosted polling, poll hosted | cloudflare | partial | cloudflare/src/coordinator.js | llp/0093, llp/0095 | GAP (owner: Charlie, review: 2026-08-31) |
-| clients.external-store | Framework-neutral current-value/subscription store, keyed sibling sharing, lifecycle scope | external store, lifecycle, vanilla, strict mode | local | shipped | `createExternalQueryStoreRegistry` in packages/snapback-client/external-store.mjs | llp/0012, llp/0064 | clients/headless.md |
-| clients.framework-bindings | Binding contract and shipped React/Contract projections; Vue/Svelte/Solid packages remain unclaimed | vue, svelte, solid, framework adapter | local | partial | `SNAPBACK_EXTERNAL_STORE_PROTOCOL` in packages/snapback-client/external-store.mjs | llp/0012, llp/0034, llp/0064 | clients/framework-bindings.md |
-| clients.app-cli | Artifact-driven application CLI and packaged agent journey | app cli, agent cli, introspect | local | partial | `snapback-app` in packages/snapback-app-cli/cli.mjs | llp/0062 | clients/app-cli.md |
+| clients.external-store | Shared current-value/subscription store | external store | local | shipped | `createExternalQueryStoreRegistry` in packages/snapback-client/external-store.mjs | llp/0012, llp/0064 | clients/headless.md |
+| clients.framework-bindings | React/Contract bindings | bindings | local | partial | `SNAPBACK_EXTERNAL_STORE_PROTOCOL` in packages/snapback-client/external-store.mjs | llp/0012, llp/0034, llp/0064 | clients/framework-bindings.md |
+| clients.app-cli | Local app CLI and brokered code mode | app cli, code mode | local | partial | `snapback-app` in packages/snapback-app-cli/cli.mjs | llp/0062 | clients/app-cli.md |
 | clients.contract | Contract/Exact adapter; generated bindings; surface boot | contract, exact, ui bindings | local | shipped | `createSnapbackContractSurface` in packages/snapback-contract/index.mjs | llp/0005, llp/0034 | clients/contract-adapter.md |
 | clients.contract-provider-generation | Provider-neutral Contract manifest, bindings, metadata, types, fixtures, and docs from a provider declaration | provider declaration, contract sidecar generator, convex bindings | local | shipped | `generateFromDeclaration` in demos/partiful-matrix/scripts/generate-contract-provider.mjs | llp/0063 | clients/contract-adapter.md |
 | clients.contract-keyed-scopes | Binding-time keyed Contract queries with dedup, refcounts, and authority fencing | dynamic query, query args, dedup, selection | local | shipped | `createKeyedSnapbackContractProvider` in packages/snapback-contract/keyed-provider.mjs | llp/0034, llp/0063 | clients/contract-adapter.md |
@@ -153,6 +153,8 @@ here (or listed here but gone from the code).
 | /action/{name} | backend.actions |
 | /app/bundle | realtime.snapshot-bundles |
 | /app/ensure | backend.provisioning |
+| /app-api/current | clients.app-cli |
+| /app-api/envelope/{sha256} | clients.app-cli |
 | /assets/attempts | backend.assets |
 | /assets/attempts/{id} | backend.assets |
 | /assets/attempts/{id}/cancel | backend.assets |
@@ -167,6 +169,7 @@ here (or listed here but gone from the code).
 | /auth/agents/revoke-self | auth.agent-principals |
 | /auth/agents/rotate | auth.agent-principals |
 | /auth/agents/token | auth.agent-principals |
+| /auth/agents/token/release | auth.agent-principals |
 | /auth/exchange | auth.sessions |
 | /auth/family-alarm | auth.sessions |
 | /auth/grant-requests | auth.agent-principals |

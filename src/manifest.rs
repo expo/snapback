@@ -7027,9 +7027,10 @@ impl AppCliTargetFactsV1 {
     /// union here and the posture there is what lets the engine refuse a
     /// mismatched lane as a target capability rather than a bug.
     ///
-    /// `agent` is deliberately absent: LLP 0062 §4's agent lane needs
-    /// 0062-05's credentialed implementation and its per-grant cap; a target
-    /// must not advertise a class before the class exists.
+    /// The local target now advertises `agent` together with the exact live
+    /// token cap because 0062-05 supplies the credentialed engine lane and
+    /// exact-token release primitive. Transport locality remains an
+    /// independent engine-side condition.
     pub fn local_v1() -> Self {
         Self {
             capability_id: "app-cli.target".to_owned(),
@@ -7037,10 +7038,13 @@ impl AppCliTargetFactsV1 {
                 "anonymous".to_owned(),
                 "dev".to_owned(),
                 "session".to_owned(),
+                "agent".to_owned(),
             ],
             serves_envelopes: true,
             accepts_generation_assertions: true,
-            per_grant_token_cap: None,
+            per_grant_token_cap: Some(
+                crate::storage::auth_agent_credentials::SCOPED_TOKEN_LIVE_CAP as u32,
+            ),
         }
     }
 }

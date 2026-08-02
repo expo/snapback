@@ -12,6 +12,7 @@
 // Run: node tests/acceptance/app-cli-served-journey.mjs
 
 import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
 import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -44,6 +45,31 @@ const check = (name, condition, detail = '') => {
 const scratch = await mkdtemp(join(tmpdir(), 'app-cli-journey-'));
 let server = null;
 const readJson = async (path) => JSON.parse(await readFile(path, 'utf8'));
+const runCli = (args, extraEnv = {}) => new Promise((resolve) => {
+  const env = { ...process.env, ...extraEnv };
+  delete env.SNAPBACK_APP_AGENT_PROFILE;
+  if (!Object.hasOwn(extraEnv, 'SNAPBACK_APP_SESSION_BEARER')) {
+    delete env.SNAPBACK_APP_SESSION_BEARER;
+  }
+  const child = spawn(process.execPath, [
+    join(repositoryRoot, 'packages', 'snapback-app-cli', 'cli.mjs'),
+    ...args,
+  ], {
+    cwd: repositoryRoot,
+    env,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  const stdout = [];
+  const stderr = [];
+  child.stdout.on('data', (chunk) => stdout.push(chunk));
+  child.stderr.on('data', (chunk) => stderr.push(chunk));
+  child.once('close', (code, signal) => resolve({
+    code,
+    signal,
+    stdout: Buffer.concat(stdout).toString('utf8'),
+    stderr: Buffer.concat(stderr).toString('utf8'),
+  }));
+});
 
 try {
   // --- codegen emits the members ------------------------------------------
@@ -228,9 +254,10 @@ try {
   );
 
   // --- the app still runs under real bearer custody -------------------------
+  const custodyState = { custody: {} };
   const coordinator = new AuthCoordinator({
     appId: schemaManifest.appId,
-    storage: createMemoryAuthCustodyStorage({ state: { custody: {} } }),
+    storage: createMemoryAuthCustodyStorage({ state: custodyState }),
     broadcastChannelFactory: null,
     hintStorage: null,
   });
@@ -255,6 +282,70 @@ try {
   assert.equal(mailboxResponse.status, 200, JSON.stringify(mailbox));
   await user.authExchange({ challengeId: requested.challengeId, code: mailbox.code });
   check('sessionsCustodyStillWorks', true);
+
+  // --- real CLI process: preflags, dev refusal, session, and code mode -----
+  const anonymous = await runCli([
+    '--server', server.baseUrl, '--json', 'call', 'listNotes',
+  ]);
+  check(
+    'anonymousAuthenticatedPreflagIsZeroDispatch',
+    anonymous.code === 2
+      && JSON.parse(anonymous.stderr).code === 'SNAPBACK_APP_CLI_USAGE',
+    anonymous.stderr,
+  );
+
+  const dev = await runCli([
+    '--server', server.baseUrl,
+    '--principal', 'dev',
+    '--dev-user', '018f0d90-7b31-7a22-8c33-445566778899',
+    '--json', 'call', 'listNotes',
+  ]);
+  check(
+    'sessionsTargetRefusesDevAssertion',
+    dev.code !== 0 && dev.stderr.includes('SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED'),
+    dev.stderr,
+  );
+
+  const sessionBearer = custodyState.custody[schemaManifest.appId]?.bearer;
+  assert.equal(typeof sessionBearer, 'string');
+  const scriptPath = join(scratch, 'session-analysis.ts');
+  await writeFile(scriptPath, `
+    const created = await api.createNote({ title: 'CLI', body: args[0] });
+    const rows = await api.listNotes({});
+    export default { created, rows, processType: typeof process, fetchType: typeof fetch };
+  `);
+  const plantedAdmin = 'sbadm_app_cli_live_journey_must_not_transmit';
+  const codeMode = await runCli([
+    '--server', server.baseUrl,
+    '--principal', 'session',
+    '--json', 'run', scriptPath, '--', 'from-code-mode',
+  ], {
+    SNAPBACK_APP_SESSION_BEARER: sessionBearer,
+    SNAPBACK_ADMIN_TOKEN: plantedAdmin,
+  });
+  const codeModeValue = codeMode.code === 0 ? JSON.parse(codeMode.stdout) : null;
+  check(
+    'sessionCodeModeRunsThroughCredentialOwningParent',
+    codeMode.code === 0
+      && codeModeValue.processType === 'undefined'
+      && codeModeValue.fetchType === 'undefined'
+      && codeModeValue.rows.some((row) => row.title === 'CLI' && row.body === 'from-code-mode')
+      && !`${codeMode.stdout}${codeMode.stderr}`.includes(sessionBearer)
+      && !`${codeMode.stdout}${codeMode.stderr}`.includes(plantedAdmin),
+    `${codeMode.stdout}\n${codeMode.stderr}`,
+  );
+
+  const sessionCall = await runCli([
+    '--server', server.baseUrl,
+    '--principal', 'session',
+    '--json', 'call', 'listNotes',
+  ], { SNAPBACK_APP_SESSION_BEARER: sessionBearer });
+  check(
+    'noncustodialSessionSubcommandUsesSelectedBearer',
+    sessionCall.code === 0
+      && JSON.parse(sessionCall.stdout).core.value.some((row) => row.title === 'CLI'),
+    `${sessionCall.stdout}\n${sessionCall.stderr}`,
+  );
 
   console.log(JSON.stringify({ ok: true, checks }, null, 2));
 } finally {

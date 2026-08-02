@@ -9,7 +9,7 @@ export interface AppFunctionDescriptor {
   readonly name: string;
   readonly kind: AppFunctionKind;
   readonly authRequirement: unknown;
-  readonly argsSchema: string;
+  readonly argsSchema: unknown;
 }
 
 export interface AppArtifacts {
@@ -17,6 +17,9 @@ export interface AppArtifacts {
   readonly appId: string;
   readonly bundleHash: string | null;
   readonly functions: readonly AppFunctionDescriptor[];
+  readonly generation?: Readonly<Record<string, string>> | null;
+  readonly appBindings?: string | null;
+  readonly apiDeclarations?: string | null;
 }
 
 /** Discover the app surface from the generated artifact directory without
@@ -85,6 +88,19 @@ export function subscribeAppFunction(
     readonly connectionId?: string;
   },
 ): Promise<unknown>;
+
+/** Start a managed, cancellation-safe live query. */
+export function startAppFunctionLive(
+  client: unknown,
+  artifacts: AppArtifacts | ServedAppSurface,
+  name: string,
+  options?: Readonly<Record<string, unknown>>,
+): Readonly<{
+  readonly current: unknown;
+  started(): Promise<void>;
+  dispose(): void;
+  settled(): Promise<void>;
+}>;
 
 export interface PackagedAgentJourneyResult {
   readonly appId: string;
@@ -229,6 +245,8 @@ export interface ServedAppSurface {
   readonly bundleHash: string | null;
   readonly generation: Readonly<Record<string, string>> | null;
   readonly functions: readonly ServedFunctionDescriptor[];
+  readonly appBindings: string;
+  readonly apiDeclarations: null;
 }
 
 export interface ServedUnavailable {
@@ -275,3 +293,86 @@ export function storeCachedEnvelope(cacheDir: string, baseUrl: string, verified:
   readonly limits?: { readonly perOriginEnvelopes: number; readonly globalBytes: number };
 }): Promise<void>;
 export function defaultCacheDir(): string;
+
+// --- Principal projection and code mode (LLP 0062 §§3–4) -----------------
+
+export type AppCliPrincipalClass = 'anonymous' | 'dev' | 'session' | 'agent' | 'auto';
+export const PRINCIPAL: Readonly<{
+  ANONYMOUS: 'anonymous'; DEV: 'dev'; SESSION: 'session'; AGENT: 'agent'; AUTO: 'auto';
+}>;
+export const SESSION_BEARER_ENV: 'SNAPBACK_APP_SESSION_BEARER';
+export const AGENT_PROFILE_ENV: 'SNAPBACK_APP_AGENT_PROFILE';
+export const AGENT_PROFILE_FORMAT_VERSION: 1;
+export const DEFAULT_AGENT_TOKEN_TTL_MS: number;
+export const DEFAULT_AGENT_ADMISSION_WAIT_MS: number;
+
+export interface AgentCredentialReference {
+  readonly kind: 'file' | 'env';
+  readonly path?: string;
+  readonly name?: string;
+}
+
+export interface AgentProfile {
+  readonly formatVersion: 1;
+  readonly targetOrigin: string;
+  readonly appId: string;
+  readonly grantId: string;
+  readonly actorUserId: string;
+  readonly effectiveUserId: string | null;
+  readonly credentialId: string;
+  readonly credentialGeneration: number;
+  readonly credential: AgentCredentialReference;
+  readonly path: string;
+}
+
+export interface PrincipalSelection {
+  readonly principalClass: Exclude<AppCliPrincipalClass, 'auto'>;
+  readonly source: string;
+  readonly devUser?: string;
+  readonly bearerToken?: string;
+  readonly profile?: AgentProfile;
+}
+
+export function assertSupportedHost(): void;
+export function normalizeTargetOrigin(baseUrl: string): string;
+export function isLiteralLoopbackOrigin(baseUrl: string): boolean;
+export function readAgentProfile(path: string): Promise<AgentProfile>;
+export function readPrivateSecretFile(path: string, label?: string): Promise<string>;
+export function readCredentialReference(reference: AgentCredentialReference, env?: Record<string, string | undefined>): Promise<string>;
+export function selectPrincipal(options?: Readonly<Record<string, unknown>>): Promise<PrincipalSelection>;
+export function assertPrincipalAdmitted(descriptor: unknown, principalClass: string): void;
+export function preflightFunctionPrincipal(fn: AppFunctionDescriptor, selection: PrincipalSelection): void;
+export function mintInvocationAgentToken(origin: string, options: Readonly<Record<string, unknown>>): Promise<unknown>;
+export function releaseAgentToken(origin: string, token: string): Promise<void>;
+export function pairAgentGrant(origin: string, options: Readonly<Record<string, unknown>>): Promise<unknown>;
+export function defaultAuthorityRoot(): string;
+export function acquireAgentAdmission(options: Readonly<Record<string, unknown>>): Promise<{ release(): Promise<void> }>;
+export function principalClient(
+  baseUrl: string,
+  surface: AppArtifacts | ServedAppSurface,
+  selection: PrincipalSelection,
+  options?: Readonly<Record<string, unknown>>,
+): Promise<{ readonly client: AppFunctionCallClient & AppLiveSubscribeClient; close(): Promise<void> }>;
+export function writeAgentProfile(path: string, profile: Readonly<Record<string, unknown>>): Promise<AgentProfile>;
+export function onboardAgentProfile(options: Readonly<Record<string, unknown>>): Promise<AgentProfile>;
+
+export const CODE_MODE_PROTOCOL_VERSION: 1;
+export const CODE_MODE_TRANSFORM: Readonly<{ name: 'typescript'; version: '5.9.3'; profile: 'erasable-only' }>;
+export const CODE_MODE_DEFAULTS: Readonly<Record<string, number>>;
+export const CODE_MODE_MAXIMA: Readonly<Record<string, number>>;
+export const CODE_MODE_HAZARDOUS_ALIASES_V1: readonly string[];
+export function codeModeBindings(surface: AppArtifacts | ServedAppSurface): Readonly<{
+  byId: ReadonlyMap<string, AppFunctionDescriptor>;
+  aliases: readonly Readonly<{ name: string; id: string }>[];
+}>;
+export function assertStrictCodeModeValue<T>(value: T, label?: string): T;
+export function runCodeMode(options: Readonly<Record<string, unknown>>): Promise<Readonly<{
+  value?: unknown;
+  hasValue: boolean;
+  scriptHash: string;
+  callsUsed: number;
+  stderrBytes: number;
+  stderrElided: boolean;
+}>>;
+export function renderCodeModeTypes(surface: AppArtifacts | ServedAppSurface): string;
+export function validateFunctionArgs(fn: AppFunctionDescriptor, args: unknown): void;

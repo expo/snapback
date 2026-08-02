@@ -38,6 +38,8 @@ export type SnapbackAppDataSurface = Pick<
   | 'outboxStatus'
   | 'liveQuery'
   | 'startLiveQuery'
+  | 'subscribeLive'
+  | 'unsubscribeLive'
   | 'subscribeEphemeral'
   | 'registerEphemeralRepublisher'
   | 'publishEphemeral'
@@ -64,6 +66,11 @@ export interface SnapbackAppDataClient extends SnapbackAppDataSurface {}
 export function createAppDataClient(
   baseUrl: string,
   options?: SnapbackAppDataClientOptions,
+): SnapbackAppDataClient;
+
+export function createExternalSessionAppDataClient(
+  baseUrl: string,
+  options: SnapbackAppDataClientOptions & { readonly bearerToken: string },
 ): SnapbackAppDataClient;
 
 export interface PublicArtifactResponse {

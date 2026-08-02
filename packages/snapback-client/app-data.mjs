@@ -145,6 +145,34 @@ export function createAppDataClient(baseUrl, options = {}) {
   return new SnapbackAppDataClient(baseUrl, options);
 }
 
+/// App-data-only projection of `createExternalSessionClient`: a genuine
+/// session bearer supplied by a trusted broker is adopted for this process,
+/// never persisted or refreshed by AuthCoordinator custody.
+///
+/// @ref LLP 0096#51-external-session-bearer-adoption-non-sender-bound —
+/// external session clients offer the complete rr/live/descriptor protocol
+/// set regardless of how the bearer was obtained.
+export function createExternalSessionAppDataClient(baseUrl, {
+  bearerToken,
+  ...options
+} = {}) {
+  if (typeof bearerToken !== 'string' || bearerToken.length === 0) {
+    throw new TypeError('createExternalSessionAppDataClient requires a non-empty bearerToken');
+  }
+  if (options.authCoordinator || options.agentAuthority || options.senderConstrained) {
+    throw new TypeError(
+      'external session bearer custody is mutually exclusive with browser, agent, and sender-constrained custody',
+    );
+  }
+  return new SnapbackAppDataClient(baseUrl, {
+    ...options,
+    bearerToken,
+    authClientProtocol: 1,
+    authInvalidationProtocol: 1,
+    authorityDescriptorProtocol: 1,
+  });
+}
+
 const artifactError = (code, message, details = undefined) => {
   const error = new Error(`${code}: ${message}`);
   error.code = code;

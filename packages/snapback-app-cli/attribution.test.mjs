@@ -6,7 +6,7 @@
 // resolved service principal must surface no member at all on every lane.
 
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -149,6 +149,11 @@ try {
     appId: 'attribution-parity',
     bundleHash: 'sha256:test',
     functions: [{ id: 'attribution-parity:denied', name: 'denied', kind: 'Query' }],
+  }));
+  await mkdir(join(directory, 'operations'));
+  await writeFile(join(directory, 'operations', 'denied.args.schema.json'), JSON.stringify({
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
   }));
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const baseUrl = `http://127.0.0.1:${server.address().port}`;

@@ -4,6 +4,12 @@ import { resolve } from 'node:path';
 import { AgentAuthorityFence } from '@expo/snapback-client';
 import { SnapbackAppDataClient } from '@expo/snapback-client/app-data';
 import { resolveGeneratedArtifact } from '@expo/snapback-codegen/review-surface';
+import { validateFunctionArgs } from './arguments.mjs';
+import {
+  mintAgentToken as mintInvocationAgentToken,
+  pairAgentGrant,
+  releaseAgentToken,
+} from './auth.mjs';
 
 // @ref LLP 0062#1-engine-plus-data-never-program-source--served-or-generated —
 // local phase 1 discovers the app surface from inert generated JSON and never
@@ -33,14 +39,33 @@ const jsonFile = async (path, code) => {
   }
 };
 
+const optionalJsonFile = async (path, code) => {
+  try {
+    return JSON.parse(await readFile(path, 'utf8'));
+  } catch (cause) {
+    if (cause?.code === 'ENOENT') return null;
+    const error = diagnosticError(code, `could not read ${path}`, { path });
+    error.cause = cause;
+    throw error;
+  }
+};
+
 export async function loadAppArtifacts(directory) {
   if (typeof directory !== 'string' || directory.length === 0) {
     throw diagnosticError('SNAPBACK_APP_CLI_ARTIFACTS_REQUIRED', '--artifacts must name a generated artifact directory');
   }
   const root = resolve(directory);
-  const [index, manifest] = await Promise.all([
+  const [index, manifest, envelopeMembers, apiDeclarations] = await Promise.all([
     jsonFile(resolve(root, 'artifacts.json'), 'SNAPBACK_APP_CLI_ARTIFACT_INDEX_INVALID'),
     jsonFile(resolveGeneratedArtifact(root, 'functions.manifest.json'), 'SNAPBACK_APP_CLI_FUNCTION_MANIFEST_INVALID'),
+    optionalJsonFile(
+      resolveGeneratedArtifact(root, 'api-envelope.members.json'),
+      'SNAPBACK_APP_CLI_FUNCTION_MANIFEST_INVALID',
+    ),
+    readFile(resolveGeneratedArtifact(root, 'api.d.ts'), 'utf8').catch((error) => {
+      if (error?.code === 'ENOENT') return null;
+      throw error;
+    }),
   ]);
   if (
     index?.artifactKind !== 'artifactIndex'
@@ -55,7 +80,7 @@ export async function loadAppArtifacts(directory) {
       { indexAppId: index?.appId ?? null, manifestAppId: manifest?.appId ?? null },
     );
   }
-  const functions = manifest.functions.map((fn) => {
+  const functions = await Promise.all(manifest.functions.map(async (fn) => {
     const kind = FUNCTION_KINDS.get(fn?.kind);
     if (!kind || typeof fn?.name !== 'string' || typeof fn?.id !== 'string') {
       throw diagnosticError(
@@ -64,14 +89,19 @@ export async function loadAppArtifacts(directory) {
         { function: fn?.name ?? null, kind: fn?.kind ?? null },
       );
     }
+    const argsSchemaPath = resolveGeneratedArtifact(root, `operations/${fn.name}.args.schema.json`);
+    const argsSchema = await jsonFile(
+      argsSchemaPath,
+      'SNAPBACK_APP_CLI_FUNCTION_MANIFEST_INVALID',
+    );
     return Object.freeze({
       id: fn.id,
       name: fn.name,
       kind,
-      authRequirement: fn.authRequirement ?? null,
-      argsSchema: `operations/${fn.name}.args.schema.json`,
+      authRequirement: fn.authRequirement ?? 'optional-user',
+      argsSchema,
     });
-  });
+  }));
   // @ref LLP 0062#1-engine-plus-data-never-program-source--served-or-generated —
   // call-time generation binding: when the artifact index carries the complete
   // generated artifact identity, every call this engine makes asserts it, so a
@@ -89,43 +119,18 @@ export async function loadAppArtifacts(directory) {
     appId: index.appId,
     bundleHash: manifest.bundleHash ?? index.bundleHash ?? null,
     generation,
+    appBindings: envelopeMembers?.declarations?.appBindings ?? null,
+    apiDeclarations,
     functions: Object.freeze(functions),
   });
 }
-
-const requestJson = async (baseUrl, path, body) => {
-  const response = await fetch(`${baseUrl.replace(/\/$/, '')}${path}`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'x-snapback-auth-client-protocol': '1',
-    },
-    body: JSON.stringify(body),
-  });
-  const payload = await response.json().catch(() => null);
-  if (!response.ok) {
-    const diagnostic = payload?.diagnostic ?? {
-      code: 'SNAPBACK_APP_CLI_HTTP_FAILED',
-      message: `request failed with HTTP ${response.status}`,
-    };
-    const error = diagnosticError(diagnostic.code, diagnostic.message, diagnostic.details);
-    error.status = response.status;
-    // @ref LLP 0055#audit — retain the server's attribution sibling verbatim;
-    // the CLI lane never reshapes or synthesizes the block.
-    if (payload && typeof payload === 'object' && payload.attribution !== undefined) {
-      error.attribution = payload.attribution;
-    }
-    throw error;
-  }
-  return payload;
-};
 
 export const pairAgent = (baseUrl, {
   credential,
   pairingRequestId,
   pairingCode,
   requestedScopes,
-}) => requestJson(baseUrl, '/auth/agents/pair', {
+}) => pairAgentGrant(baseUrl, {
   credential,
   pairingRequestId,
   pairingCode,
@@ -136,11 +141,13 @@ export const mintAgentToken = (baseUrl, {
   credential,
   pairingRequestId,
   ttlMs = undefined,
-}) => requestJson(baseUrl, '/auth/agents/token', {
+}) => mintInvocationAgentToken(baseUrl, {
   credential,
   pairingRequestId,
   ...(ttlMs === undefined ? {} : { ttlMs }),
 });
+
+const releasePackagedAgentToken = releaseAgentToken;
 
 const lookupFunction = (artifacts, name) => {
   const fn = artifacts.functions.find((entry) => entry.name === name);
@@ -175,6 +182,7 @@ const refuseOfflineSurface = (artifacts) => {
 export async function invokeAppFunction(client, artifacts, name, args = {}) {
   refuseOfflineSurface(artifacts);
   const fn = lookupFunction(artifacts, name);
+  validateFunctionArgs(fn, args);
   if (fn.kind === 'liveQuery') {
     throw diagnosticError('SNAPBACK_APP_CLI_CALL_REQUIRES_ORDINARY_FUNCTION', `'${name}' is live; use subscribe`);
   }
@@ -187,10 +195,32 @@ export async function subscribeAppFunction(client, artifacts, name, {
 } = {}) {
   refuseOfflineSurface(artifacts);
   const fn = lookupFunction(artifacts, name);
+  validateFunctionArgs(fn, args);
   if (fn.kind !== 'liveQuery') {
     throw diagnosticError('SNAPBACK_APP_CLI_SUBSCRIBE_REQUIRES_LIVE_QUERY', `'${name}' is not a live query`);
   }
   return client.subscribeLive(functionSelector(artifacts, fn), { args, connectionId });
+}
+
+export function startAppFunctionLive(client, artifacts, name, {
+  args = {},
+  connectionId = 'snapback-app-cli',
+  ...options
+} = {}) {
+  refuseOfflineSurface(artifacts);
+  const fn = lookupFunction(artifacts, name);
+  validateFunctionArgs(fn, args);
+  if (fn.kind !== 'liveQuery') {
+    throw diagnosticError('SNAPBACK_APP_CLI_SUBSCRIBE_REQUIRES_LIVE_QUERY', `'${name}' is not a live query`);
+  }
+  if (typeof client.startLiveQuery !== 'function') {
+    throw diagnosticError('SNAPBACK_APP_CLI_VERSION_MISMATCH', 'the installed app-data client lacks managed live-query support');
+  }
+  return client.startLiveQuery(functionSelector(artifacts, fn), {
+    ...options,
+    args,
+    connectionId,
+  });
 }
 
 // Acceptance seam for the packaged outcome: discovery -> pairing -> scoped
@@ -232,19 +262,25 @@ export async function runPackagedAgentJourney({
     agentAuthority: authority,
     authInvalidationProtocol: 1,
   });
-  const mutated = await invokeAppFunction(client, artifacts, mutation.name, mutation.args);
-  const subscribed = await subscribeAppFunction(client, artifacts, liveQuery.name, { args: liveQuery.args });
-  const verified = await invokeAppFunction(client, artifacts, verifyQuery.name, verifyQuery.args);
-  return Object.freeze({
-    appId: artifacts.appId,
-    discoveredFunctions: artifacts.functions.length,
-    pairingRequestId: pairing.pairingRequestId ?? pairing.id ?? pairingRequestId,
-    grantId: token.grantId,
-    scopes: token.scopes,
-    mutated,
-    subscribed,
-    verified,
-  });
+  try {
+    const mutated = await invokeAppFunction(client, artifacts, mutation.name, mutation.args);
+    const subscribed = await subscribeAppFunction(client, artifacts, liveQuery.name, { args: liveQuery.args });
+    const verified = await invokeAppFunction(client, artifacts, verifyQuery.name, verifyQuery.args);
+    return Object.freeze({
+      appId: artifacts.appId,
+      discoveredFunctions: artifacts.functions.length,
+      pairingRequestId: pairing.pairingRequestId ?? pairing.id ?? pairingRequestId,
+      grantId: token.grantId,
+      scopes: token.scopes,
+      mutated,
+      subscribed,
+      verified,
+    });
+  } finally {
+    await releasePackagedAgentToken(baseUrl, token.token).catch(async () => {
+      await releasePackagedAgentToken(baseUrl, token.token).catch(() => {});
+    });
+  }
 }
 
 // Served-envelope ingestion (LLP 0062 §5; ticket 0062-02 step 4): discovery,
@@ -282,3 +318,43 @@ export {
   resultExitCode,
   wrapCallResult,
 } from './result-core.mjs';
+
+export {
+  PRINCIPAL,
+  SESSION_BEARER_ENV,
+  AGENT_PROFILE_ENV,
+  AGENT_PROFILE_FORMAT_VERSION,
+  DEFAULT_AGENT_TOKEN_TTL_MS,
+  DEFAULT_AGENT_ADMISSION_WAIT_MS,
+  assertSupportedHost,
+  normalizeTargetOrigin,
+  isLiteralLoopbackOrigin,
+  readAgentProfile,
+  readPrivateSecretFile,
+  readCredentialReference,
+  selectPrincipal,
+  assertPrincipalAdmitted,
+  preflightFunctionPrincipal,
+  mintAgentToken as mintInvocationAgentToken,
+  releaseAgentToken,
+  pairAgentGrant,
+  defaultAuthorityRoot,
+  acquireAgentAdmission,
+  principalClient,
+  writeAgentProfile,
+  onboardAgentProfile,
+} from './auth.mjs';
+
+export {
+  CODE_MODE_PROTOCOL_VERSION,
+  CODE_MODE_TRANSFORM,
+  CODE_MODE_DEFAULTS,
+  CODE_MODE_MAXIMA,
+  CODE_MODE_HAZARDOUS_ALIASES_V1,
+  codeModeBindings,
+  assertStrictCodeModeValue,
+  runCodeMode,
+  renderCodeModeTypes,
+} from './code-mode.mjs';
+
+export { validateFunctionArgs } from './arguments.mjs';

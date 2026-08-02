@@ -1,6 +1,9 @@
 # 0062-07: ibex-side contracts for the one-file executable
 
-**Status:** OPEN — coordination ticket; the ibex repo owns the work.
+**Status:** READY FOR IBEX / WAITING — coordination ticket; the ibex repo
+owns the work. The precise handoff was reconciled against the ibex corpus on
+2026-08-01; no ibex document identifier or landing commit exists yet for the
+missing external-script contract.
 **Authority:** LLP 0062 §6 phase 2 (the author's 2026-08-01 one-file
 direction); ENG-25410/25411 (the filed-not-landed ibex 0028/0029
 correcting amendments).
@@ -19,3 +22,63 @@ stated as enforced policy and the threat model honest per ibex
 
 Done when: the three ibex-side documents land reviewed in the ibex
 repo and this ticket records their identifiers; 0062-08 unblocks.
+
+## 2026-08-01 precise maintainer handoff
+
+Observed state, without modifying the concurrently dirty ibex worktree:
+
+- ibex LLP 0028 is still Draft and still cites Snapback 0062 as requiring
+  computed dynamic imports. Correct that statement: Snapback phase 1 has no
+  embedded-Ibex dependency and no computed-import obligation. A future Ibex
+  host must instead implement the explicit, host-portable erasable-TypeScript
+  profile below.
+- ibex LLP 0029 is Accepted and defines exactly one trusted embedded entry. It
+  explicitly excludes file-execution ingress, so saying that it prototypes the
+  Snapback CLI does not yet cover `run analysis.ts`.
+- ibex LLP 0047 is the active standalone-executable finish-line plan. Its SFE
+  compilation work is useful but does not supply the missing admission and
+  broker contract. The next available ibex LLP number observed was 0048.
+
+The requested ibex-side document work is:
+
+1. Revise LLP 0028 to remove the phase-1/computed-import claim and pin the
+   external-file transform, if adopted, to the same finite erasable-only
+   language semantics across the Node and Ibex hosts.
+2. Revise LLP 0029 (and LLP 0047 where its finish-line matrix is affected) to
+   preserve the single trusted embedded parent entry while permitting one
+   caller-selected TS/JS path or stdin stream to be read as bounded data,
+   hashed and attributed, transformed under a pinned toolchain/profile, then
+   started as a distinct restricted worker principal. This is not a general
+   `eval`, REPL, module-import facility, or runtime-selected compiled entry.
+3. Author the next reviewed LLP (0048 if still available) to own the extension's
+   ABI and enforced policy. The parent retains credentials, network transport,
+   target/envelope authority, and result framing. The worker receives only the
+   broker capability plus `api`, `snapback`, `args`, `signal`, bounded console,
+   and bounded timers. It receives no bearer, origin, ambient environment,
+   filesystem authority after ingress, direct network, module import,
+   subprocess, or arbitrary clock/random source. State which constraints Ibex
+   actually enforces, and use ibex 0013/0014's supply-chain-capability threat
+   model rather than claiming a hostile-code sandbox.
+4. Freeze a host-portable v1 lifecycle/resource/broker contract that matches
+   Snapback 0062: closed frames and bounds, per-call and establishment
+   deadlines, latest-wins live-query delivery, explicit iterator disposal,
+   cancellation/graceful teardown, call/subscription/output ceilings, and the
+   same exit-class outcomes as the Node engine.
+5. Define the app binding embedded in each executable as fixed origin + app id
+   + engine/protocol compatibility + release provenance only. It must not
+   contain credentials, the current envelope, or handler source. The executable
+   fetches the current envelope, so an ordinary app deploy never triggers a
+   rebuild; offline operation is limited to honestly cached
+   help/introspection/types.
+6. Add acceptance for a literal single file running
+   `./example introspect`, `./example call`, and `./example run analysis.ts`;
+   a Node-versus-Ibex host-portable suite; planted-secret non-transmission;
+   iterator/lifecycle/ceiling behavior; policy inspection; current macOS arm64
+   and Linux x64 tuples with unsupported tuples refusing; no Node/npm tree,
+   sidecar, or dynamically loaded Hermes; and rebuilds only when the app
+   binding, engine/policy, platform, or provenance changes.
+
+This ticket closes only when the 0028 and 0029 corrections plus the new
+reviewed extension have landed and their document identifiers and commits are
+recorded here. Standalone compilation becoming green by itself is not that
+condition.

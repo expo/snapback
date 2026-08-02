@@ -64,6 +64,10 @@ const EXACT_CODE_EXITS = new Map([
   // served mode at a dev target, and deliberately not an auth refusal (no
   // credential was ever presented).
   ['SNAPBACK_APP_CLI_PRINCIPAL_UNSUPPORTED', EXIT.USAGE],
+  ['SNAPBACK_APP_CLI_CREDENTIAL_SOURCE_INVALID', EXIT.USAGE],
+  ['SNAPBACK_APP_CLI_AGENT_ORIGIN_UNSAFE', EXIT.USAGE],
+  ['SNAPBACK_APP_CLI_HOST_UNSUPPORTED', EXIT.USAGE],
+  ['SNAPBACK_APP_CLI_AGENT_ADMISSION_TIMEOUT', EXIT.TIMEOUT],
   // Server-side app-api refusals as the engine meets them on the wire:
   // pointing served mode at a dev target is a usage error; a stale hash is
   // identity establishment (refetch through /app-api/current).

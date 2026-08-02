@@ -65,7 +65,7 @@
   ],
   "files": [
     {
-      "bytes": 6038,
+      "bytes": 6310,
       "consumer": "tooling",
       "custody": "regenerable-cache",
       "logicalKind": "generated-projection",
@@ -74,7 +74,7 @@
         "command": "snapback generate snapback --target-profile remote-service-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:5d11f85c8be04cc585771b9862231a43d466521e7cc6875fe339a053a4a78ae5"
+      "sha256": "sha256:4342fe50132937da37bd47df2618319496e1ee4450280efbaa471392222abca0"
     },
     {
       "bytes": 8105,

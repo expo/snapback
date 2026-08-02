@@ -201,6 +201,7 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("POST", "/auth/agents/pair"),
         ("POST", "/auth/agents/rotate"),
         ("POST", "/auth/agents/token"),
+        ("POST", "/auth/agents/token/release"),
         ("POST", "/auth/agents/revoke-self"),
         ("GET", "/auth/grant-requests"),
         ("POST", "/auth/grant-requests/{id}/approve"),
@@ -397,10 +398,10 @@ async fn cors_preflight_projects_registered_methods_including_delete() {
     assert_eq!(unknown.status(), StatusCode::NOT_FOUND);
 }
 
-/// @ref LLP 0057#routes-operations-and-dtos — the five provider paths have
-/// closed independent carrier/response classifications. LLP 0058 adds the
-/// rootless bootstrap handshake; active dev refuses only the provider paths
-/// before inspecting bearer or body shape.
+/// @ref LLP 0057#routes-operations-and-dtos — the auth provider and agent
+/// paths have closed independent carrier/response classifications. LLP 0058
+/// adds the rootless bootstrap handshake; active dev refuses only the provider
+/// paths before inspecting bearer or body shape.
 #[tokio::test]
 async fn auth_provider_routes_are_classified_and_dev_refusal_is_opaque_no_store() {
     let registry = route_registry();
@@ -409,7 +410,7 @@ async fn auth_provider_routes_are_classified_and_dev_refusal_is_opaque_no_store(
         .filter(|route| route.path.starts_with("/auth/"))
         .map(|route| (route.path, *route))
         .collect::<BTreeMap<_, _>>();
-    assert_eq!(provider.len(), 18);
+    assert_eq!(provider.len(), 19);
 
     let handshake = provider["/auth/session"];
     assert_eq!(handshake.method, "GET");
@@ -508,6 +509,16 @@ async fn auth_provider_routes_are_classified_and_dev_refusal_is_opaque_no_store(
             "{path}"
         );
     }
+    let release = provider["/auth/agents/token/release"];
+    assert_eq!(release.path_policy, RoutePolicy::Public);
+    assert_eq!(
+        release.credential_resolution,
+        CredentialResolution::ScopedTokenReleaseBody
+    );
+    assert_eq!(
+        release.response_sensitivity,
+        ResponseSensitivity::PublicNoStore
+    );
     let revoke_self = provider["/auth/agents/revoke-self"];
     assert_eq!(revoke_self.path_policy, RoutePolicy::Public);
     assert_eq!(
