@@ -1,0 +1,7 @@
+# Valid self-hosted runner types for `runs-on:`
+# See expo/universe infrastructure/actions-runner-controller
+self-hosted-runner:
+  labels:
+    - expo-large
+    - expo-medium
+    - expo-small

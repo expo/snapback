@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   local-proof:
-    runs-on: ubuntu-latest
+    runs-on: expo-large
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -33,30 +33,21 @@ jobs:
       - name: Verify checkout credentials were removed
         run: scripts/check-checkout-credentials
 
-      # The standard GitHub-hosted Linux runner exposes a 14 GiB workspace
-      # budget, while its image also preinstalls Android and .NET toolchains
-      # this Rust/JS proof never uses. The native Ibex clippy + test profiles
-      # can otherwise fill the runner before the in-proof Cargo cleanup point.
-      # These are exact image-owned paths on this fresh ephemeral VM; refuse
-      # early if reclaiming them still leaves too little room for the proof.
-      - name: Reclaim unused GitHub-hosted runner disk
+      # The native Ibex clippy + test profiles can fill a small runner before
+      # the in-proof Cargo cleanup point. The GitHub-hosted image also needed
+      # its unused preinstalled Android/.NET toolchains deleted to reach this
+      # budget; that cleanup was specific to the GitHub image, so on the
+      # self-hosted runner only the headroom gate remains. Refuse early when
+      # the runner starts too full for the proof.
+      - name: Require workspace disk headroom
         shell: bash
         run: |
           set -euo pipefail
-          readonly ci_unused_paths=(
-            /usr/local/lib/android
-            /usr/share/dotnet
-            /usr/local/.ghcup
-          )
-          for ci_unused_path in "${ci_unused_paths[@]}"; do
-            if [[ -e "$ci_unused_path" ]]; then
-              sudo rm -rf --one-file-system -- "$ci_unused_path"
-            fi
-          done
-          readonly ci_available_kib="$(df -Pk "$GITHUB_WORKSPACE" | awk 'END { print $4 }')"
+          ci_available_kib="$(df -Pk "$GITHUB_WORKSPACE" | awk 'END { print $4 }')"
+          readonly ci_available_kib
           readonly ci_required_kib=$((20 * 1024 * 1024))
           if (( ci_available_kib < ci_required_kib )); then
-            echo "SNAPBACK_CI_DISK_HEADROOM_LOW: ${ci_available_kib} KiB available after hosted-runner cleanup; ${ci_required_kib} KiB required" >&2
+            echo "SNAPBACK_CI_DISK_HEADROOM_LOW: ${ci_available_kib} KiB available; ${ci_required_kib} KiB required" >&2
             exit 1
           fi
           echo "[snapback-ci] ${ci_available_kib} KiB available for canonical proof"

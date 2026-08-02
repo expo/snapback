@@ -14,10 +14,6 @@ name: required-surface-builds
 # surface installs @exact/* from npm and bun.lock is the pin. ENG-22564 removed
 # the Exact checkout/native-asset bridge; this job proves a clean Snapback
 # checkout can install and build without sibling source state.
-#
-# NOTE: GitHub Actions is billing-blocked for this account as of 2026-07-02
-# (see all-aboard-cold-clone.yml), so this lane is verified by local runs of
-# the same script until CI unblocks.
 
 on:
   push:
@@ -35,7 +31,7 @@ concurrency:
 
 jobs:
   required-surface-builds:
-    runs-on: ubuntu-latest
+    runs-on: expo-large
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:

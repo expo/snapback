@@ -26,7 +26,7 @@ concurrency:
 
 jobs:
   cold-clone:
-    runs-on: ubuntu-latest
+    runs-on: expo-large
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -73,13 +73,29 @@ jobs:
       - name: Cache Rust build
         uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
 
+      # scripts/cold-clone-check.sh refuses to run without a Chrome/Chromium
+      # binary on PATH. GitHub's ubuntu-latest image shipped Chrome; the
+      # self-hosted expo-large image is not guaranteed to, so install the
+      # stable Chrome deb only when no candidate binary is already present.
+      - name: Ensure a Chrome binary for the browser acceptance
+        run: |
+          for candidate in google-chrome google-chrome-stable chromium-browser chromium; do
+            if command -v "$candidate" >/dev/null 2>&1; then
+              echo "[snapback-ci] browser acceptance will use $candidate"
+              exit 0
+            fi
+          done
+          curl -fsSL -o "$RUNNER_TEMP/google-chrome-stable.deb" \
+            https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+          sudo apt-get update
+          sudo apt-get install -y "$RUNNER_TEMP/google-chrome-stable.deb"
+
       # Step 1 (registry install + production build) and step 2 (the 34-check
-      # browser acceptance, Chrome ships on ubuntu-latest) both live in the
-      # script so local runs and CI exercise one code path. No
-      # continue-on-error, no fallback: if the install, the build, or any
-      # check fails, this job is red.
+      # browser acceptance) both live in the script so local runs and CI
+      # exercise one code path. No continue-on-error, no fallback: if the
+      # install, the build, or any check fails, this job is red.
       - name: Cold-clone check (registry install + build + browser acceptance)
-        # GitHub's shared two-core runner varies materially while Vite cold-
+        # GitHub's shared two-core runner varied materially while Vite cold-
         # transforms the registry graph. Keep the 2200 ms default/local gate
         # and its 2600 ms synthetic regression strict; this lane alone uses
         # 1.5x headroom over the observed 2507 ms CI maximum (ENG-24386).
