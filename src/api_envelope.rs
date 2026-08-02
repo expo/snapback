@@ -1,7 +1,7 @@
 //! The API envelope: how a generic engine learns an app's callable surface
 //! without parsing JavaScript.
 //!
-//! @ref LLP 0062#1-engine-plus-data-never-program-source-served-or-generated —
+//! @ref LLP 0062#1-engine-plus-data-never-program-source--served-or-generated —
 //! artifacts are data; the engine never executes served program source, so the
 //! envelope carries declarative projections only.
 //! @ref LLP 0062#5-distribution-the-server-advertises-the-server-is-the-version-authority —
