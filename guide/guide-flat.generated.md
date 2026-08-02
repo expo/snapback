@@ -156,6 +156,8 @@ here (or listed here but gone from the code).
 | /_snapback/api/receipts | notAuthorFacing (operator projection) |
 | /_snapback/api/schema/load | backend.schema |
 | /action/{name} | backend.actions |
+| /app-api/current | clients.app-cli |
+| /app-api/envelope/{sha256} | clients.app-cli |
 | /app/bundle | realtime.snapshot-bundles |
 | /app/ensure | backend.provisioning |
 | /app-api/current | clients.app-cli |

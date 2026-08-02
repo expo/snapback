@@ -16,7 +16,7 @@ export const GUIDE_MCP_FLAT_URI = 'snapback-guide://flat';
 export const GUIDE_MCP_PAGE_URI_PREFIX = 'snapback-guide://page/';
 const CLASSED_LANGS = new Set(['js', 'mjs', 'ts', 'tsx', 'json', 'contract']);
 const MATURITY_RANK = { 'design-only': 0, partial: 1, shipped: 2 };
-const CAPABILITIES_SIZE_BUDGET_BYTES = 32768;
+const CAPABILITIES_SIZE_BUDGET_BYTES = 40960;
 // Vacuous-pass guards for the source scans: extraction returning fewer
 // entries than these floors means the scan broke, not that surface shrank.
 const MIN_ROUTE_PATHS = 50;

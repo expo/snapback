@@ -66,3 +66,14 @@ human-read index stays roughly stable.
 Exit: `node scripts/check-guide.mjs` passes with both `/app-api` routes
 classified, under whatever budget arrangement is chosen, and the generated
 manifest and flat page regenerate.
+
+## Resolution — 2026-08-02
+
+Charlie's call: option 1, raise the budget deliberately.
+`CAPABILITIES_SIZE_BUDGET_BYTES` in `scripts/guide-lib.mjs` is now 40960, and
+LLP 0061 §Design 2 records the raise, the reason there was no slack to
+reclaim, and option 2 (split the mechanical surface map into its own
+generated page) as the recorded next step for the next overflow rather than a
+second bump. `node scripts/check-guide.mjs` passes: 46 pages, 140 snippets,
+88 routes + 29 host-ops joined, 14 freshness warnings (warning-only by
+design).
