@@ -1,0 +1,1191 @@
+{
+  "$defs": {
+    "ApiEnvelopeDeclarationsV1": {
+      "additionalProperties": false,
+      "description": "The app-only binding declarations the envelope publishes.\n\nDeliberately distinct from the local merged `types` output (LLP 0062\nround-10 residue #9): `appBindings` is the app's own generated surface,\ncarries no merged framework declarations, and is what a served consumer\nmaterializes. The merged local output stays a checkout-side artifact.",
+      "properties": {
+        "appBindings": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "appBindings"
+      ],
+      "type": "object"
+    },
+    "ApiEnvelopeOperationV1": {
+      "additionalProperties": false,
+      "description": "One operation's argument schema, keyed by the function's stable id.",
+      "properties": {
+        "argsSchema": true,
+        "name": {
+          "description": "The exported function name, for human-facing surfaces only. Selection\nis always by stable id.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "argsSchema"
+      ],
+      "type": "object"
+    },
+    "ApiEnvelopeTupleV1": {
+      "additionalProperties": false,
+      "description": "The artifact tuple this envelope belongs to (LLP 0012's closed set).",
+      "properties": {
+        "authMode": {
+          "type": "string"
+        },
+        "schemaVersion": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "authMode"
+      ],
+      "type": "object"
+    },
+    "AuthRequirement": {
+      "description": "Function-level requirement applied after caller authority has been resolved.\nAbsence in a legacy function is represented by\n[`FunctionDefinition::effective_auth_requirement`] as `optional-user`.\n\n@ref LLP 0058#closed-function-requirement — closed values fail at manifest parse.",
+      "enum": [
+        "public",
+        "optional-user",
+        "authenticated"
+      ],
+      "type": "string"
+    },
+    "AuthorizationInputDimension": {
+      "description": "Closed caller-authority dimensions that a query result may depend on.\nRetention v1 accepts `userId` plus the effective principal `kind`, which is\nan immutable function of that identity; spelling the rejected dimensions\nis still important because a manifest must describe why it is online-only\nrather than silently erasing actor/session/provider/opaque dependence.\n\n@ref LLP 0053#retained-and-offline-authorization — retained rows survive a\n  same-user session replacement, so every other authority dimension is\n  deliberately ineligible.",
+      "enum": [
+        "userId",
+        "kind",
+        "actorKind",
+        "isDelegated",
+        "sessionId",
+        "provider",
+        "roles",
+        "isAuthenticated",
+        "opaque"
+      ],
+      "type": "string"
+    },
+    "CronActivationKind": {
+      "enum": [
+        "Always",
+        "WhileLive"
+      ],
+      "type": "string"
+    },
+    "CronActivationPolicy": {
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/CronActivationKind"
+        },
+        "whileLive": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    "CronJitterPolicy": {
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "maxOffsetMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "enabled",
+        "maxOffsetMs"
+      ],
+      "type": "object"
+    },
+    "CronOverlapPolicy": {
+      "enum": [
+        "NoOverlap",
+        "Allow"
+      ],
+      "type": "string"
+    },
+    "CronRetryMode": {
+      "enum": [
+        "NextTick",
+        "Backoff"
+      ],
+      "type": "string"
+    },
+    "CronRetryPolicy": {
+      "properties": {
+        "mode": {
+          "$ref": "#/$defs/CronRetryMode"
+        }
+      },
+      "required": [
+        "mode"
+      ],
+      "type": "object"
+    },
+    "CronSchedule": {
+      "properties": {
+        "cron": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "everyMs": {
+          "default": null,
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "CronTargetWakeup": {
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/CronTargetWakeupKind"
+        },
+        "needsDurableRunner": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    "CronTargetWakeupKind": {
+      "enum": [
+        "IntervalMs",
+        "CronExpression",
+        "DynamicAlarm"
+      ],
+      "type": "string"
+    },
+    "DependencySummary": {
+      "properties": {
+        "authScopeField": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "mode": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "primaryTable": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tables": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "DiagnosticSeverity": {
+      "enum": [
+        "info",
+        "warning",
+        "error",
+        "fatal"
+      ],
+      "type": "string"
+    },
+    "FunctionArgsContract": {
+      "additionalProperties": false,
+      "description": "One closed object contract over a function's declared arguments:\ndeclaration-ordered fields, each carrying a value node from the same node\nvocabulary the result manifest uses (LLP 0131 — one node vocabulary, two\ncontract roots).",
+      "properties": {
+        "fields": {
+          "items": {
+            "$ref": "#/$defs/ResultObjectFieldContract"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "fields"
+      ],
+      "type": "object"
+    },
+    "FunctionKind": {
+      "enum": [
+        "Query",
+        "Mutation",
+        "LiveQuery",
+        "Action"
+      ],
+      "type": "string"
+    },
+    "FunctionResultContract": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "unknown",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "document": {
+              "$ref": "#/$defs/ResultValueContract"
+            },
+            "kind": {
+              "const": "documents",
+              "type": "string"
+            },
+            "table": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "table",
+            "document"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "records",
+              "type": "string"
+            },
+            "record": {
+              "$ref": "#/$defs/ResultValueContract"
+            },
+            "rows": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ResultRowsBound"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "record"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "document": {
+              "$ref": "#/$defs/ResultValueContract"
+            },
+            "kind": {
+              "const": "document",
+              "type": "string"
+            },
+            "table": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "table",
+            "document"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "value",
+              "type": "string"
+            },
+            "value": {
+              "$ref": "#/$defs/ResultValueContract"
+            }
+          },
+          "required": [
+            "kind",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "legacyQueryRowsV0",
+              "type": "string"
+            },
+            "row": {
+              "$ref": "#/$defs/ResultValueContract"
+            }
+          },
+          "required": [
+            "kind",
+            "row"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "PermissionScopeExpr": {
+      "oneOf": [
+        {
+          "enum": [
+            "AuthUser"
+          ],
+          "type": "string"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "Arg": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Arg"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "Literal": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Literal"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "PublicConfigEntryDefinition": {
+      "description": "Public config declaration. Values never ride the manifest; the source span\nis additionally removed because it reveals local build paths.",
+      "properties": {
+        "acquisition": true,
+        "default": true,
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "howToGet": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "pool": {
+          "type": "boolean"
+        },
+        "probe": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "purpose": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "secret": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name",
+        "secret",
+        "required",
+        "pool"
+      ],
+      "type": "object"
+    },
+    "PublicCronJobDefinition": {
+      "description": "Public cron declaration: scheduling posture without its source path.",
+      "properties": {
+        "action": {
+          "type": "string"
+        },
+        "activation": {
+          "$ref": "#/$defs/CronActivationPolicy"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "jitterPolicy": {
+          "$ref": "#/$defs/CronJitterPolicy"
+        },
+        "name": {
+          "type": "string"
+        },
+        "overlapPolicy": {
+          "$ref": "#/$defs/CronOverlapPolicy"
+        },
+        "requiredCapabilities": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "retryPolicy": {
+          "$ref": "#/$defs/CronRetryPolicy"
+        },
+        "schedule": {
+          "$ref": "#/$defs/CronSchedule"
+        },
+        "targetWakeup": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CronTargetWakeup"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "schedule",
+        "action",
+        "enabled",
+        "activation",
+        "jitterPolicy",
+        "overlapPolicy",
+        "retryPolicy",
+        "requiredCapabilities"
+      ],
+      "type": "object"
+    },
+    "PublicDiagnostic": {
+      "description": "Public diagnostic identity. Messages and structured details can contain\nsource paths, handler text, arguments, or other operator-only context, so\nunauthenticated inspection exposes only the stable classification fields.",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/DiagnosticSeverity"
+        },
+        "subsystem": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "severity",
+        "subsystem"
+      ],
+      "type": "object"
+    },
+    "PublicFunctionDefinition": {
+      "description": "Public projection of [`FunctionDefinition`]: everything except the\nexecutable runtime body and the source span.",
+      "properties": {
+        "argsContract": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FunctionArgsContract"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The declared argument contract (LLP 0131) — a bounded declarative\nschema like the result contract, safe on the public projection."
+        },
+        "argsContractHash": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "authRequirement": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AuthRequirement"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "authorityCreating": {
+          "type": "boolean"
+        },
+        "authorityIndependent": {
+          "type": "boolean"
+        },
+        "authorizationDependence": {
+          "items": {
+            "$ref": "#/$defs/AuthorizationInputDimension"
+          },
+          "type": "array"
+        },
+        "bundleEntrypoint": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "exportedName": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "handlerForm": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "description": "Always present: the validated manifest guarantees a non-empty stable\nid, so the public projection never serves a null function identity.",
+          "type": "string"
+        },
+        "implementationHash": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "kind": {
+          "$ref": "#/$defs/FunctionKind"
+        },
+        "name": {
+          "type": "string"
+        },
+        "permissionEpochBumps": {
+          "items": {
+            "$ref": "#/$defs/PermissionScopeExpr"
+          },
+          "type": "array"
+        },
+        "publicInline": {
+          "description": "LLP 0092 §0C.3 disclosure fact — already disclosed by the behavior it\nauthorizes, so it rides the public projection.",
+          "type": "boolean"
+        },
+        "readSetSummary": {
+          "$ref": "#/$defs/DependencySummary"
+        },
+        "requiredCapabilities": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "resultContract": {
+          "$ref": "#/$defs/FunctionResultContract"
+        },
+        "resultContractHash": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "retainable": {
+          "type": "boolean"
+        },
+        "rqsEligible": {
+          "description": "LLP 0092 §0C.2 derived predicate — never authored; clients key the\nalias-key promotion check and token expectations on it.",
+          "type": "boolean"
+        },
+        "runtime": {
+          "$ref": "#/$defs/PublicFunctionRuntime"
+        },
+        "syncabilityClass": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "uses": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "writeSetSummary": {
+          "$ref": "#/$defs/DependencySummary"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "resultContract",
+        "requiredCapabilities",
+        "authorityIndependent",
+        "publicInline",
+        "rqsEligible",
+        "authorityCreating",
+        "retainable",
+        "authorizationDependence",
+        "readSetSummary",
+        "writeSetSummary",
+        "permissionEpochBumps",
+        "uses",
+        "runtime"
+      ],
+      "type": "object"
+    },
+    "PublicFunctionManifest": {
+      "description": "The public projection of [`FunctionManifest`] served inside the root\n`/inspect` identity descriptor. Like `PublicInspect` it is a typed\nallowlist: the `From` impls below destructure the full structs exhaustively,\nso a newly-added field is a compile error here rather than a silent leak.\n\nWhat it keeps: identity/compat and dependency facts — app id, bundle/inputs\nhashes, function names/kinds/capability summaries, read/write summaries,\ncron and config *declarations* (never values; secrets do not ride the\nmanifest — LLP 0036). What it drops: every executable handler body\n(`IbexModule.source`, `HandlerPlan` step bodies), every function/cron/config\n`sourceSpan` (a source-path leak), and free-form unsupported-dependency\ndiagnostic message/details. Full operational context stays only on the gated\n`/_snapback/api/inspect` twin.\n\n@ref LLP 0031#resolved-decisions — D3: public `/inspect` is an identity\n  descriptor; handler source and plan bodies are operational facts for the\n  gated twin only (ENG-23441).",
+      "properties": {
+        "acknowledgedExperimentalCapabilities": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "appId": {
+          "type": "string"
+        },
+        "artifactKind": {
+          "type": "string"
+        },
+        "bundleHash": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "config": {
+          "items": {
+            "$ref": "#/$defs/PublicConfigEntryDefinition"
+          },
+          "type": "array"
+        },
+        "cronJobs": {
+          "items": {
+            "$ref": "#/$defs/PublicCronJobDefinition"
+          },
+          "type": "array"
+        },
+        "functions": {
+          "items": {
+            "$ref": "#/$defs/PublicFunctionDefinition"
+          },
+          "type": "array"
+        },
+        "generatedAt": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "inputsHash": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "schemaVersion": {
+          "type": "string"
+        },
+        "unsupportedDependencyDiagnostics": {
+          "items": {
+            "$ref": "#/$defs/PublicDiagnostic"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "artifactKind",
+        "schemaVersion",
+        "appId",
+        "unsupportedDependencyDiagnostics",
+        "functions",
+        "cronJobs",
+        "config"
+      ],
+      "type": "object"
+    },
+    "PublicFunctionRuntime": {
+      "description": "Public projection of [`FunctionRuntime`]: the runtime kind (and the export\nname for Ibex modules) without any executable body.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "HostPlan": {
+              "$ref": "#/$defs/PublicHostPlanKind"
+            }
+          },
+          "required": [
+            "HostPlan"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "IbexModule": {
+              "$ref": "#/$defs/PublicIbexModule"
+            }
+          },
+          "required": [
+            "IbexModule"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "PublicHostPlanKind": {
+      "description": "Which host-plan family a redacted `HostPlan` runtime executes.",
+      "enum": [
+        "Query",
+        "SearchQuery",
+        "JobStatusQuery",
+        "Mutation",
+        "Action",
+        "RelationalQuery",
+        "BoundedChildrenQuery",
+        "WriteWithActivity"
+      ],
+      "type": "string"
+    },
+    "PublicIbexModule": {
+      "description": "Public projection of [`IbexModule`]: the export name, never the source.",
+      "properties": {
+        "export": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "export"
+      ],
+      "type": "object"
+    },
+    "ResultObjectFieldContract": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "value": {
+          "$ref": "#/$defs/ResultValueContract"
+        }
+      },
+      "required": [
+        "name",
+        "required",
+        "value"
+      ],
+      "type": "object"
+    },
+    "ResultRowsBound": {
+      "additionalProperties": false,
+      "properties": {
+        "maxItems": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "minItems": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "minItems",
+        "maxItems"
+      ],
+      "type": "object"
+    },
+    "ResultValueContract": {
+      "description": "The schema-expanded value grammar used to validate handler results at the\nRust publication boundary.\n\n@ref LLP 0108#final-author-reconciliation-after-round-3 — result contracts\nare Rust-owned, bounded, and carried by every generated function.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "null",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "boolean",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "string",
+              "type": "string"
+            },
+            "maxBytes": {
+              "format": "uint",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "kind",
+            "maxBytes"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "integer",
+              "type": "string"
+            },
+            "max": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "min": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "kind",
+            "min",
+            "max"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "finiteReal",
+              "type": "string"
+            },
+            "max": {
+              "format": "double",
+              "type": "number"
+            },
+            "min": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "kind",
+            "min",
+            "max"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "principal",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A typed asset reference in a handler result. Its post-JSON wire image\nis the non-empty opaque asset id string; attachment authority remains\na storage-commit concern rather than an egress-shape concern.",
+          "properties": {
+            "kind": {
+              "const": "assetRef",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "id",
+              "type": "string"
+            },
+            "table": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "table"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "literal",
+              "type": "string"
+            },
+            "value": true
+          },
+          "required": [
+            "kind",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "json",
+              "type": "string"
+            },
+            "maxBytes": {
+              "format": "uint",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "maxDepth": {
+              "format": "uint",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "kind",
+            "maxDepth",
+            "maxBytes"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "element": {
+              "$ref": "#/$defs/ResultValueContract"
+            },
+            "kind": {
+              "const": "array",
+              "type": "string"
+            },
+            "maxItems": {
+              "format": "uint",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "kind",
+            "element",
+            "maxItems"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "union",
+              "type": "string"
+            },
+            "variants": {
+              "items": {
+                "$ref": "#/$defs/ResultValueContract"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "kind",
+            "variants"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "allowExtra": {
+              "type": "boolean"
+            },
+            "fields": {
+              "items": {
+                "$ref": "#/$defs/ResultObjectFieldContract"
+              },
+              "type": "array"
+            },
+            "kind": {
+              "const": "object",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "fields",
+            "allowExtra"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A reference to an entry in the closed, platform-owned registry of\nexported Rust-owned schemas. Valid only at argument positions in v1;\nnot an app-authorable spelling — `defineSearchQuery` constructs it\ninternally and no `v.*` builder emits it. The node contributes its\nauthority class and reference id (never the referenced artifact's\nbytes) to the canonical hash form; artifact drift is gated by the\nschema-export drift test. The explicit `authority` member is a closed\nenum with exactly one admitted value in v1, so a future app-schema\nreference (option E) is a distinct authority class with\ndigest-carrying identity rather than a silent reinterpretation.\n\n@ref LLP 0131#the-argument-contract-descriptor — PlatformSchemaRef is\nthe one new node kind; v1's registry has exactly\n`snapback:search-query-ast:v1`.",
+          "properties": {
+            "authority": {
+              "$ref": "#/$defs/SchemaRefAuthority"
+            },
+            "kind": {
+              "const": "platformSchemaRef",
+              "type": "string"
+            },
+            "schema": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "authority",
+            "schema"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "SchemaRefAuthority": {
+      "description": "The closed authority classes a schema-reference node may name. V1 admits\nexactly `platform`; hash-by-reference-id is a property of this class.",
+      "enum": [
+        "platform"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/api.envelope.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The served API envelope.\n\nThe nested `functions` projection is exactly the server-derived\n`PublicFunctionManifest` — admission requires byte equality with the\nprojection of the manifest being activated, so a provisioner cannot smuggle\nan unknown source-bearing member through a passthrough path.",
+  "properties": {
+    "appId": {
+      "type": "string"
+    },
+    "artifactKind": {
+      "type": "string"
+    },
+    "bundleHash": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "declarations": {
+      "$ref": "#/$defs/ApiEnvelopeDeclarationsV1"
+    },
+    "formatVersion": {
+      "type": "string"
+    },
+    "functions": {
+      "$ref": "#/$defs/PublicFunctionManifest",
+      "description": "Kept as a received value, never round-tripped through the typed\nprojection: deserializing and re-serializing could normalize away a\nsmuggled member, which is precisely the disclosure hole the\nexact-equality admission rule closes."
+    },
+    "inputsHash": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "memberDigests": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Per-member digests keyed by stable id (`operation:<id>`,\n`declaration:appBindings`). Envelope-local digests prove internal\nconsistency; the independently carried provision-side map proves the\nmember belongs to *this* function — grammar bounds structure, the\ndigest map binds semantics.",
+      "type": "object"
+    },
+    "operations": {
+      "additionalProperties": {
+        "$ref": "#/$defs/ApiEnvelopeOperationV1"
+      },
+      "description": "Operation argument schemas keyed by stable function id.",
+      "type": "object"
+    },
+    "tuple": {
+      "$ref": "#/$defs/ApiEnvelopeTupleV1"
+    }
+  },
+  "required": [
+    "artifactKind",
+    "formatVersion",
+    "appId",
+    "tuple",
+    "functions",
+    "operations",
+    "declarations",
+    "memberDigests"
+  ],
+  "title": "ApiEnvelopeV1",
+  "type": "object"
+}

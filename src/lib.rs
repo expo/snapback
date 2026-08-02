@@ -8,6 +8,7 @@
 pub mod admin;
 pub mod admin_impersonation;
 pub mod admin_secret_read;
+pub mod api_envelope;
 pub mod assets;
 pub mod assets_cut;
 pub mod assets_image;

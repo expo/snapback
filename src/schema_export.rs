@@ -713,6 +713,14 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
             .into_iter()
             .map(|(file, schema)| finish(file, schema)),
     );
+    // @ref LLP 0062#5-distribution-the-server-advertises-the-server-is-the-version-authority —
+    // Rust owns every DTO the server parses or emits; the envelope is the
+    // served surface an engine binds to, so its schema is committed here.
+    artifacts.extend(
+        crate::api_envelope::schema_registrations()
+            .into_iter()
+            .map(|(file, schema)| finish(file, schema)),
+    );
     artifacts
 }
 
