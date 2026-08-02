@@ -1,0 +1,47 @@
+# Convex-ergonomics completion program (Program G)
+
+**Status:** Open (program)
+**Opened:** 2026-08-02, from Charlie's close-the-Convex-gap directive on the
+parity synthesis (LLP 0116–0127 series + capability-index GAP rows + the
+2026-08-02 backlog survey)
+**Systems:** API, Codegen, Runtime, Client integration, Scheduling, Live queries
+**Related:** LLP 0127 (six-move parity program), LLP 0115 (course-corrections
+board), LLP 0070, LLP 0118, LLP 0121, LLP 0131, LLP 0155
+
+## Why
+
+The measured Convex preference in the sweeps came from daily authoring feel,
+not platform breadth. The 2026-08-02 gap synthesis found four ergonomics items
+that were designed but absent from every active program: the LLP 0127 move-1
+type-flow remainder beyond LLP 0131, `runAfter`-class scheduling, the helper
+reuse slice, and the register cliff. This program owns them.
+
+Naming care: LLP 0127's moves (parity program) and LLP 0155's Moves
+(local-sync direction) are different numbering. Tickets here say which they
+mean.
+
+## Tickets
+
+- 01 scheduling: verify what Wave-1 lane C2 landed vs LLP 0070's
+  transactional `runAfter`; scope and implement the remainder
+- 02 LLP 0127 move-1 type-flow remainder: schema-referencing contract nodes +
+  generated interior types (beyond the landed LLP 0131 args contracts)
+- 03 helper reuse slice — BLOCKED on the helper-class cutline author decision
+  (in the decision packet); verify what lane C1 (CV-7) already landed first
+- 04 register cliff: one ordinary query must not degrade a whole register
+  group; verify current behavior, then fix or file the owning-design gap
+
+Every ticket starts with a verify-against-main step: the fleet lands fast and
+the survey's facts are hours old. Deliberately NOT here: aggregates (deferred
+to LLP 0130 SD-2's evidence branch by the 0155 acceptance), Kotlin/Dart
+clients (consciously deferred), hosted lifecycle (own future program).
+
+## Coordination
+
+- Ticket 02 must coordinate with the commissioned LLP 0155 Move-1
+  composition-algebra Spec — both touch generated query/contract types.
+- LLP 0135 snapshot-batch (Program A) and 0155 Move 1 are both LLP 0120
+  option-3a family; whoever implements first pins the shared cursor grammar.
+- House rules as in 20260802-0133-00: @ref annotations, ref-check, sketches as
+  exit tests, ticket → issues/closed/ with resolution note, docs land with
+  code.
