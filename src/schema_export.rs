@@ -401,7 +401,7 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
             schemars::schema_for!(AdapterQueryResponse),
         ),
         finish("inspect.schema.json", schemars::schema_for!(InspectState)),
-        // @ref LLP 0154#d5--the-query-and-export-contract — typed query and
+        // @ref LLP 0154#d5--the-query-contract-typed-operations-projected-everywhere — typed query and
         // export carriers are Rust-owned, generated, committed, and drift-gated.
         finish(
             "telemetry.events.request.schema.json",

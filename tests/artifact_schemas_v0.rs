@@ -619,6 +619,28 @@ fn dk7_committed_public_instances_match_rust_types() {
 }
 
 #[test]
+fn telemetry_agent_export_fixtures_match_the_pinned_carrier_schemas() {
+    let corpus = committed("telemetry.query-fixtures-v1.json");
+    let fixture = &corpus["agentExport"];
+    assert_validates(
+        "telemetry.agent-export.request.schema.json",
+        &fixture["request"],
+    );
+    assert_validates(
+        "telemetry.agent-export.request.schema.json",
+        &fixture["continuationRequest"],
+    );
+    assert_validates("telemetry.agent-export.page.schema.json", &fixture["page"]);
+
+    let mut missing_bound = fixture["page"].clone();
+    missing_bound
+        .as_object_mut()
+        .expect("agent export page fixture is an object")
+        .remove("declaredBounds");
+    assert_rejects("telemetry.agent-export.page.schema.json", &missing_bound);
+}
+
+#[test]
 fn dry_run_read_versions_stay_in_the_portable_storage_domain() {
     let mut report = json!({
         "kind": "mutationDryRun",

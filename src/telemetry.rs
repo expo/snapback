@@ -1248,7 +1248,7 @@ impl Telemetry {
     /// view. Querying first drains the in-process buffer through the ordinary
     /// OBS-01 flush path; it never writes through a second seam.
     ///
-    /// @ref LLP 0154#d5--the-query-and-export-contract — typed events use
+    /// @ref LLP 0154#d5--the-query-contract-typed-operations-projected-everywhere — typed events use
     ///   deterministic `(recorded_ts_ms,id)` ordering and a bounded page.
     pub fn query_events(
         &self,
@@ -1273,7 +1273,7 @@ impl Telemetry {
     /// Answer aggregate telemetry from one SQLite read owner: rollups through
     /// their durable watermark plus the visible raw tail above it.
     ///
-    /// @ref LLP 0154#d5--the-query-and-export-contract — stats never add two
+    /// @ref LLP 0154#d5--the-query-contract-typed-operations-projected-everywhere — stats never add two
     ///   independently observed answers or overlap the rollup/raw partitions.
     pub fn query_stats(
         &self,
