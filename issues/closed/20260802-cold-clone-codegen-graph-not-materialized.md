@@ -34,3 +34,13 @@ and that lane passes on the same runner.
 
 Exit: cold-clone-check.sh materializes the codegen graph the same fail-closed
 way before building the surface, and the lane is green on a clean clone.
+
+## Resolution — 2026-08-02
+
+cold-clone-check.sh now materializes the All Aboard codegen graph
+(`SNAPBACK_OUTBOUND_ACTIONS=1 node packages/snapback-codegen/index.mjs
+demos/all-aboard/snapback`) before step 1 and refuses drift of the committed
+review manifest. Reproduced the `SNAPBACK_CODEGEN_CACHE_INVALID` failure
+locally by deleting the regenerable cache, then verified the materialization
+plus surface build pass (same inputsHash digest the plugin expected). The
+full lane including the browser acceptance is verified by CI on the fix PR.
