@@ -172,3 +172,14 @@ ticket closes citing that run id.
   wire-shape suite is 32/32 and the full pinned-Node Cloudflare local suite is
   26/26. Both deployment identities were regenerated because the hosted bundle
   closure intentionally gained the shared ID registry; gates 6 and 17 pass.
+
+- **2026-08-02 — versioned-seed dispatcher cluster.** Membership fixture-lane
+  commit `6f4709f1` added two required Rust witnesses but left the conformance
+  producer filtered to the older `versioned_seed_conformance` test-name family,
+  so the required `versioned_seed_membership_fixture_*` tests could never enter
+  the dispatcher's evidence stream. The fix widens the producer filter to the
+  shared `versioned_seed` family and binds that non-obvious inclusion to LLP
+  0109's landed membership-fixture amendment. The focused Rust run executes all
+  six versioned-seed tests, and the complete dispatcher is green with 20 passed,
+  zero failed, one declared hosted GAP, and a matched revision. Gate 11 passes
+  locally; fixing commit `c393f503`.
