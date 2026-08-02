@@ -48,3 +48,17 @@ composes the envelope from its own projection at activation, making
 divergence structurally impossible and correspondence trivially true. That
 changes §5's "server never reserializes" clause, so it is an author/design
 call, not an implementation shortcut — raise it before building either half.
+
+---
+
+**RESOLVED 2026-08-01 — closed under the author's server-composes ruling
+(Charlie, verbatim: "Sounds like server-composes is right").** The Rust
+authority half (src/api_envelope.rs: DTO, committed schema, grammar,
+canonicity, member digests, correspondence — landed 391e27f2..6226fd22,
+8/8 tests) is this ticket's deliverable. Codegen emission of the
+canonical envelope is decided-against: the server composes the envelope
+at activation from its own projection plus the codegen-owned members
+(operation schemas + appBindings) received through provisioning, making
+codegen/server divergence structurally impossible. The dated ruling
+note lives in LLP 0062 §5; serving + provisioning + ingestion are
+ticket 02.

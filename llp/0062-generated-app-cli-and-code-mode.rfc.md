@@ -5,7 +5,15 @@
 **Systems:** Client integration, Developer experience, Tooling, API, Auth, Docs
 **Author:** Charlie Cheever / Claude Fable 5
 **Date:** 2026-07-17
-**Revised:** 2026-08-01, later same day (RECOMMISSIONED — author direction,
+**Revised:** 2026-08-01, still later same day (author ruling: the envelope
+is server-composed at activation from the server's own
+`PublicFunctionManifest` projection plus the codegen-owned members
+received through provisioning; §5's byte-exact "server never
+reserializes" ingestion clause is superseded for the authored envelope
+with the reasoning recorded in the dated §5 note; the correspondence
+check survives as composition self-verification; ticket 0062-01 closes
+under this ruling — the Rust authority half is the deliverable, codegen
+emission is decided-against). Prior, same day: (RECOMMISSIONED — author direction,
 Charlie Cheever, verbatim: "let's reawaken the downloadable terminal CLI
 interface program." The shelving is lifted the same day it landed; the
 fresh dependency-ordered program is `issues/20260801-0062-*`, derived from
@@ -988,6 +996,29 @@ codegen cannot silently diverge. *Engine-side* consumption of the
 nested payload still follows additive-ignore (an older engine reads
 a newer projection safely); it is the server's publication path that
 is exact-match.
+
+> **Author ruling, 2026-08-01 (Charlie, verbatim: "Sounds like
+> server-composes is right"): the envelope is SERVER-COMPOSED at
+> activation.** Codegen does not emit the canonical envelope; it
+> supplies only the members it owns — the per-operation argument
+> schemas and the `appBindings` declaration — through the provision
+> intent, and the server composes the canonical document from its own
+> `PublicFunctionManifest` projection plus those received members,
+> canonicalizes it (JCS), digests it, and self-verifies the
+> composition with this section's own admission rules before
+> activation. The paragraph above's "server never reserializes"
+> byte-exact ingestion clause is superseded for the authored envelope:
+> its threat model was normalization-laundering of a *received*
+> artifact, and an envelope the server authors from its own truth has
+> no received artifact to launder. Divergence between a codegen
+> mirror and the server projection becomes structurally impossible —
+> the LLP 0037 single-source principle — and the CI anti-divergence
+> gate this section called for is thereby unnecessary. The
+> exact-equality correspondence check survives as the composition's
+> self-verification (a composition that fails it refuses activation),
+> and the received codegen-owned members keep their digest binding
+> and bounds. Everything else in this section — routes, identity,
+> headers, caching, disclosure posture, retention — is unchanged.
 
 **App artifacts (move constantly, are data).** These routes live on
 the **app-data plane, beside `/inspect`** — not under `/_snapback/*`,

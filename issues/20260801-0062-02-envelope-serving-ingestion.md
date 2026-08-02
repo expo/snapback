@@ -65,3 +65,17 @@ What 02 still owes, in order:
 Done-when stays as originally written: a packaged engine against a live
 local target discovers, fetches, verifies, and calls through a served
 envelope with zero local artifact files.
+
+---
+
+**Ruling applied 2026-08-01 (composition fork step 1 of the handoff):
+server-composes** (author ruling on record in LLP 0062 §5's dated note
+and the Revised header). Consequences for the remaining steps: the
+provision intent carries the CODEGEN-OWNED MEMBERS (operations map +
+appBindings declaration + their member digests), not the whole envelope
+as opaque bytes; the server composes the canonical document at
+activation from its own projection + those members, JCS-canonicalizes,
+digests, and self-verifies with parse_and_validate +
+verify_member_digests + verify_correspondence — a failing composition
+refuses activation. Steps 3 (routes) and 4 (engine ingestion) proceed
+as written.
