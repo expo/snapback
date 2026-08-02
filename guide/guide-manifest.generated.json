@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "d8cacda1f187b567cd821f9f82d876afc3aee125"
+    "commit": "de6eaf7be73e62f04f23947f873d5436c9eb9308"
   },
   "nav": {
     ".": [
@@ -1187,8 +1187,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-02",
-      "reviewedCommit": "d8cacda1f187b567cd821f9f82d876afc3aee125",
-      "sha256": "919c967e53d37443e9c9cc2fa7a294a59165bfef214927a7a1cb45ed69153c3c",
+      "reviewedCommit": "63d980b654664d2c990f454cbcb78958d87d27b8",
+      "sha256": "db2a9c67c14b865dc63aa45656ab4b905119e39b657e3d290eab728b6507a232",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2288,9 +2288,12 @@
         "llp/0055-agent-principals-and-scoped-grants.rfc.md",
         "llp/0090-resumable-query-snapshots.rfc.md",
         "llp/0129-local-first-program.plan.md",
+        "llp/0133-local-settlement.spec.md",
         "packages/snapback-contract/index.mjs",
         "packages/snapback-contract/offline-replay.test.mjs",
         "packages/snapback-client/index.mjs",
+        "packages/snapback-client/external-store.mjs",
+        "packages/snapback-client/external-store.test.mjs",
         "packages/snapback-client/outbox-store.test.mjs",
         "packages/snapback-react/index.mjs"
       ],
@@ -2302,8 +2305,8 @@
         "packages/snapback-react/offline.test.mjs"
       ],
       "reviewed": "2026-08-02",
-      "reviewedCommit": "d8cacda1f187b567cd821f9f82d876afc3aee125",
-      "sha256": "5c73582b5506a50b85beab991db115139937908af725d97a0c315909a8f3b4a9",
+      "reviewedCommit": "63d980b654664d2c990f454cbcb78958d87d27b8",
+      "sha256": "c69974f7e89202e5a8b5c009b7c53be12e73748980aea19e6fe9bfdd9d90881c",
       "snippets": [
         {
           "lang": "js",
@@ -2484,5 +2487,5 @@
     "routes": 89,
     "hostOps": 29
   },
-  "contentHash": "f62f182421a690af3294678035f37e3cc39e9259068881f53a64543a6849a00e"
+  "contentHash": "6a770f8c84051df4974d6dfcfe7084c29f3a1be12043b6ddc6cf8902c68507a5"
 }

@@ -5,7 +5,14 @@
 **Systems:** Sync, Storage, Runtime, Client integration, Auth, Wire Protocol, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-07-31 (ACCEPTED under LLP 0130 SD-4's standing
+**Revised:** 2026-08-02 (implementation record — the buildable-now
+settlement substrate landed through the six-ticket program: additive lane
+labels/private claim ledgers, exact settlement identity, synthetic lane-L
+re-derivation, logical-mint id maps, bounded-skew admission, and client
+rewrite/cascade/bridge behavior. Acceptance sketches 1–4 and 7–10 are green;
+sketches 5–6 remain explicitly deferred to their owning programs. The
+implementation record below names the concrete spellings and scope residues;
+Status stays Accepted.) 2026-07-31 (ACCEPTED under LLP 0130 SD-4's standing
 authorization: dual-family READY — Fable round 2, Codex round 3 —
 with the three conditions checked and satisfied: (1) zero unresolved
 MATERIAL concerns in either family's final round; (2) within the
@@ -734,3 +741,70 @@ under the author's decided policy (0127 decision 10, adjudicated
 ledger row 1; rows 2–5 still gate any `Parity`-by-construction claim
 (LLP 0129 exit criterion 3). Review proceeds under LLP 0005 with
 LLP 0130 SD-4 as the acceptance path.
+
+## Amendment (2026-08-02): implementation record and rulings
+
+The buildable-now half of this Spec landed on main through
+`issues/closed/20260802-0133-00-settlement-substrate-program.md`, tickets 01–06
+(`5aa8dd03`, `2d63f246`, `e266c633`, `9cad757e`, `38d74e1a`, and
+`63d980b6`; each ticket's closure names its complete proof). This amendment
+records the shipped substrate rather than widening it into the local executor
+the program deliberately excluded.
+
+What landed:
+
+- Mutation receipts additively carry `settlementLane`; the submitting
+  authority's response and exactly-once settlement retain `claimLedger` and
+  lane-L `idMap`, while fan-out strips both private value carriers. The
+  provisional wire spellings and row-4 ownership are recorded in
+  `issues/20260802-0133-receipt-wire-coordination.md`.
+- `ClientMutationIdentity` binds the lane, activation/implementation claims,
+  recorded claim set, and bounded-skew declaration before freshness or
+  effects. Exact duplicates republish retained settlement facts; any identity
+  collision fails closed.
+- Synthetic lane-L submissions execute the admitted server artifact afresh,
+  re-derive `now` and ids, retain one settlement clock sample, roll back a
+  stale authorization reservation, and retry by fresh re-derivation. The
+  lane label remains client-attested and privilege-free; the adversarial
+  relabel proof is green.
+- Host-plan mint observations are paired by `(site, occurrence)`, never raw
+  answer index or equal total count. Missing, duplicate, cross-site, or excess
+  claims remain unmapped. The client receives that map at the external-store
+  seam, rewrites not-yet-submitted args by exact string-leaf equality, gates
+  every submission on predecessor settlement, and transitively marks
+  unresolved dependents failed with
+  `SNAPBACK_SPECULATIVE_ID_UNRESOLVED`.
+- The declared mutation grammar ships `boundedSkew: { field, maxSkewMs }`
+  beside the existing argument/result contracts, capped at 86,400,000 ms.
+  Admission accepts exactly one direct, untransformed `runtimeNow()` write;
+  lane L applies the one-sample bound and labels the disposition, while lane Q
+  remains inert under `replay-accept`. The stable capability id is
+  `settlement.bounded_skew`; its guide row is Partial because local capture is
+  not yet shipped.
+- Confirmation retains an inspectable external-store bridge until a
+  map-aware matcher or the first authoritative delivery strictly after
+  confirmation retires it. Delivery-before-confirmation is rechecked when the
+  private id-map arrives, so both orderings converge without a pre-mutation
+  flicker.
+
+Implementation-specific rulings and residues:
+
+1. The working wire spellings above are implemented additively, not frozen on
+   behalf of LLP 0129 ledger row 4. That row's owners still ratify or supersede
+   them through their own dated amendments.
+2. Exact string-leaf rewrite is the shipped floor. A deliberately copied id
+   rewrites and an embedded/derived id survives, exactly as §Divergence states;
+   no OQ2 typed-id declarations or dataflow inference landed.
+3. The implementation records execution-identity claims but makes no
+   identity-mismatch disposition owned by ledger rows 3/5. It also builds no
+   local/client mutation executor, optimistic runtime capture, or speculative
+   receipt. Consequently acceptance sketch 5 remains with LLP 0155 Stage 2 /
+   LLP 0051, and sketch 6 remains with the execution-identity and schema-skew
+   owners. Neither deferred sketch is claimed by this landing.
+
+Acceptance sketches 1–4 and 7–10 are executable in the Rust and client test
+corpora, including the relabel, equal-count/no-cross-pairing, collision, stale
+reservation, rewrite/cascade, and both delivery-order adversaries. This
+implementation unblocks LLP 0129 ledger row 1's settlement substrate only;
+rows 2–5 and the remaining Phase-1 evidence still bar any
+`Parity`-by-construction claim.

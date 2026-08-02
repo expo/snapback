@@ -1,9 +1,10 @@
 # LLP 0133 settlement-substrate program — the buildable-now half
 
-**Status:** Open (program)
+**Status:** Closed (2026-08-02)
 **Opened:** 2026-08-02, from the LLP 0130–0155 implementation-status survey
 **Systems:** Sync, Storage, Runtime, Client integration, Wire Protocol, Testing
-**Related:** LLP 0133 (Accepted 2026-07-31, zero implementation), LLP 0129
+**Related:** LLP 0133 (Accepted 2026-07-31; buildable-now substrate implemented
+2026-08-02), LLP 0129
 (ledger row 1), LLP 0155 (Stage 2 consumes this substrate), LLP 0043, LLP 0059,
 LLP 0051, LLP 0008, LLP 0034
 
@@ -57,3 +58,30 @@ resolution note naming the proof. Acceptance sketches from LLP 0133 are the
 falsifiable exit criteria — each ticket names its sketches. `cargo test` needs
 `DYLD_FRAMEWORK_PATH=<repo>/vendor/ibex/ios/Frameworks` on macOS; run
 `scripts/bootstrap-ibex-runtime` on a fresh checkout first.
+
+## Resolution
+
+The buildable-now program completed in dependency order and all six child
+tickets are closed. Implementation landings:
+
+- 01 receipt lane/private claim evidence: `5aa8dd03`
+- 02 exact settlement identity and gate order: `2d63f246`
+- 03 synthetic lane-L re-derivation: `e266c633`
+- 04 logical-mint id mapping: `9cad757e`
+- 05 bounded-skew declaration/admission/runtime/capability: `38d74e1a`
+- 06 client id-map delivery, rewrite, submission fence, and cascade:
+  `63d980b6`
+
+LLP 0133's 2026-08-02 implementation-record amendment and LLP 0129 ledger row
+1 record the resulting implementation state. Acceptance sketches 1–4 and
+7–10 are executable and green; the complete client package suite is green;
+the Rust library suite is at 1,640 passing, one ignored, and the three inherited
+live-query failures recorded in the child tickets. `./ref-check --verbose` and
+the guide check are green (with the guide's pre-existing freshness warnings).
+
+The scope exclusions remain exclusions, not incomplete work in this program:
+sketch 5/local capture and speculative receipts belong to LLP 0155 Stage 2 /
+LLP 0051; sketch 6 identity-mismatch disposition belongs to ledger rows 3/5's
+owners; OQ2 typed-id/dataflow analysis did not land; and the provisional wire
+spellings remain queued for ratification or replacement in
+`issues/20260802-0133-receipt-wire-coordination.md`.

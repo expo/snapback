@@ -15,7 +15,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-02
-reviewed-commit: d8cacda1f187b567cd821f9f82d876afc3aee125
+reviewed-commit: 63d980b654664d2c990f454cbcb78958d87d27b8
 ---
 
 # Capability index
@@ -9578,13 +9578,13 @@ id: sync.offline-and-retention
 order: 1
 audience: agent-first
 capabilities: [sync.offline, sync.offline-js-arm]
-authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0129-local-first-program.plan.md, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-react/index.mjs]
+authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0129-local-first-program.plan.md, llp/0133-local-settlement.spec.md, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/external-store.test.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-react/index.mjs]
 examples: [demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashboard, packages/snapback-contract/agent-authority-contract.test.mjs, packages/snapback-react/offline.test.mjs]
 status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-02
-reviewed-commit: d8cacda1f187b567cd821f9f82d876afc3aee125
+reviewed-commit: 63d980b654664d2c990f454cbcb78958d87d27b8
 ---
 
 # Offline retention and mutation replay
@@ -9656,11 +9656,23 @@ witness proves:
   the client drains the queue in sequence order; the server's settlement
   ledger returns the original result on duplicate delivery. (A refused
   replay is dropped and marked failed, visible in `outboxRecords()`. The
-  *store's* drop-and-mark-failed contract is covered by the package unit
-  test `packages/snapback-client/outbox-store.test.mjs`; the client
-  wiring that maps a server refusal onto it — emitting
-  `SNAPBACK_OFFLINE_MUTATION_REPLAY_FAILED` — is asserted by no test, and
-  neither is covered by the headless acceptance above.)
+  store transition and the client wiring that maps a server refusal onto it
+  are covered by `packages/snapback-client/outbox-store.test.mjs`; neither is
+  covered by the headless acceptance above.)
+- **Lane-L reconciliation substrate, without local execution.** A composing
+  layer may enqueue a synthetic `re-derive` intent with an LLP 0133 mint-claim
+  ledger. The server response's private `idMap` atomically rewrites exact
+  matching string leaves in not-yet-submitted successors; an unmapped or
+  rejected mint marks leaf-visible dependents terminally failed with
+  `SNAPBACK_SPECULATIVE_ID_UNRESOLVED`, including transitive dependents. The
+  actual submission slot rechecks the predecessor fence. Exact copied strings
+  rewrite too, while ids embedded in longer strings are not detected — the
+  deliberate leaf-equality floor until typed-id declarations graduate it.
+  The external query-store seam passes the same private map to an
+  authoritative-row matcher and otherwise retains its first-delivery-after-
+  confirmation fallback. This is settlement/reconciliation machinery only:
+  the JS arm still runs no local mutation executor, captures no speculative
+  runtime answers, and makes no `Parity` claim.
 - **No `Parity` claim.** This arm runs no local execution, so the queued
   path is Online-class retention/replay under LLP 0043's proof rule. A
   relaunch with pending intent still renders the retained rows — marked
@@ -9991,8 +10003,9 @@ reducer. Server rows remain authoritative:
 
 - **Do not call a surface Parity because it has localStorage.** The manifest,
   identities, derivable plans, store, and authority fences must all agree.
-- **Do not generate a fresh id or timestamp on replay.** Reuse the captured
-  mutation id and deterministic ledger.
+- **Do not generate a fresh protocol mutation id on replay.** Lane Q reuses
+  its deterministic ctx ledger; lane L keeps that protocol identity while the
+  server re-derives application ids/time and returns the private id map.
 - **Do not drop a queued write on a receipt-less 502.** The origin outcome is
   ambiguous.
 - **Do not serve retained rows as live.** Render the stale connection axis.

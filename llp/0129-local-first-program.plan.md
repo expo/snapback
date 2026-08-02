@@ -5,7 +5,12 @@
 **Systems:** Sync, Storage, Runtime, Client integration, Auth, Wire Protocol, Realtime, Packaging, Testing, Documentation, Competitive evaluation
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-08-02 (dated product-direction cross-reference — LLP 0155
+**Revised:** 2026-08-02 (ledger row 1 implementation record — LLP 0133's
+buildable-now settlement substrate is implemented: synthetic lane-L
+re-derivation, labeled/private settlement evidence, exact identity and logical
+mint mapping, bounded-skew admission, plus client id rewrite/cascade and
+authoritative-delivery bridging. This does not ship local execution or clear
+rows 2–5, and it does not change Phase 0/1 gate dispositions.) 2026-08-02 (dated product-direction cross-reference — LLP 0155
 "Local sync product direction" was Accepted by the author today and names
 this Plan's program as the write lane of its two-lane execution: LLP 0155
 moves 1–3 are the chosen product-direction consumers of this program.
@@ -722,6 +727,18 @@ designed but unbuilt. Proposed owners are proposals (constraint 7).
    default) split below, the (mint site, occurrence) logical mint
    identity, labeled-claim receipts, and bounded-skew as a per-field
    declared opt-in inert in lane Q. This row is UN-GATED.
+   **IMPLEMENTED SUBSTRATE (2026-08-02):** LLP 0133's buildable-now
+   six-ticket program is landed. Synthetic lane-L submissions exercise the
+   full server settlement path; receipts carry the lane/private evidence with
+   fan-out redaction; identity collisions fail closed before freshness;
+   logical mint maps never guess across sites/counts; bounded skew is
+   structurally admitted and capability-scoped; and the client store/outbox
+   performs delivery bridging, exact-leaf rewrite, submission fencing, and
+   terminal cascade. Acceptance sketches 1–4 and 7–10 are executable. This is
+   an implementation state for row 1's substrate only: local capture/execution
+   and speculative receipts (sketch 5) remain LLP 0155 Stage 2 / LLP 0051
+   work, identity-mismatch disposition (sketch 6) remains with rows 3/5's
+   owners, and rows 2–5 still bar any `Parity`-by-construction claim.
    **Domain and lane scoping (v0.3; verified against LLP 0008
    §Replay environment contract, 2026-07-31).** (a) Decision 10
    governs *application-visible* values: client-captured time and
@@ -1696,12 +1713,12 @@ scope; both were adjudicated 2026-07-30 and no longer gate this Plan
    IR-evaluator sizing spike plus the LLP 0051 D5 corpus passing on
    both sides. But the phase promises local optimistic overlays and
    honest `Parity`, and `Parity` needs mechanisms D5 does not
-   exercise: lane-L settlement and id mapping (LLP 0133 is *accepted
-   design*, not landed implementation — it delegates receipt wire
-   shape, queue/lease mechanics, and schema-at-capture to other
-   owners), partial-read admission (ledger row 2), schema/identity
-   fencing (row 3), receipt projection (row 4), and the browser
-   store/outbox and React presentation paths. Exit criterion 3 and
+   exercise: LLP 0133's lane-L settlement/id-map substrate and client
+   store/outbox reconciliation are landed (2026-08-02), but local execution,
+   speculative receipts, and the delegated receipt-wire freeze remain
+   unshipped or owner-gated; partial-read admission (ledger row 2),
+   schema/identity fencing (row 3), receipt projection (row 4), and the
+   browser React presentation paths also remain. Exit criterion 3 and
    the ledger already bar the *claim*; the open question is whether
    the *gate* should be split into evaluator/conformance and
    end-to-end shipping slices so SD-5 cannot advance the phase on D5
