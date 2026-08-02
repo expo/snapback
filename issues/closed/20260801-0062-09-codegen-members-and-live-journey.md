@@ -1,6 +1,6 @@
 # 0062-09: codegen emits envelope members; the live-binary served journey
 
-**Status:** OPEN. **Authority:** LLP 0062 §5 (server-composes ruling,
+**Status:** CLOSED. **Authority:** LLP 0062 §5 (server-composes ruling,
 2026-08-01); tickets 01/02's closures; LLP 0012 §Dated registration:
 provision envelope members (2026-08-01).
 
@@ -29,7 +29,7 @@ already consume.
 
 ---
 
-**RESOLVED 2026-08-01.** Both halves landed.
+**RESOLVED 2026-08-01.** Both halves landed in commit `8a6731df`.
 
 *Codegen member emission:* `packages/snapback-codegen/api-envelope-members.mjs`
 builds `{operations, declarations, memberDigests}` from the function manifest
@@ -56,6 +56,11 @@ byte refuses → the engine drives the served surface with zero local artifact
 files, carrying the five-key generation → offline introspection serves from the
 verified cache → redeploy recomposes, rotates the envelope identity, and the
 engine follows → sessions bearer custody still works.
+
+Closure verification on `origin/main`: `8a6731df` is an ancestor of main;
+`packages/snapback-codegen/api-envelope-members.mjs` is present and the
+registered `tests/acceptance/app-cli-served-journey.mjs` remains the 16/16
+live-binary evidence.
 
 *Defect found and fixed by the journey:* the `/app-api/*` routes are
 credential-free by construction, but the sessions-mode protocol-offer gate
