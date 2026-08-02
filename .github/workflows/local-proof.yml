@@ -77,6 +77,18 @@ jobs:
       - name: Install native build dependencies
         run: sudo apt-get update && sudo apt-get install -y cmake ninja-build libcurl4-openssl-dev
 
+      # @ref LLP 0010#ci-and-review-gates — the admin behavior lane is required.
+      # @ref LLP 0015#acceptance-rules — a missing required browser is a failure,
+      # never a skip. The self-hosted expo-large image does not carry the Chrome
+      # binary that ubuntu-latest supplied implicitly, so provision a real
+      # browser and pass its exact action-owned path to the canonical proof.
+      - name: Install Chrome for browser acceptance
+        id: setup-chrome
+        uses: browser-actions/setup-chrome@2e1d749697dd1612b833dba4a722266286fbefcd # v2.1.2
+        with:
+          chrome-version: stable
+          install-dependencies: true
+
       - name: Cache Hermes Linux build
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -131,6 +143,7 @@ jobs:
           CARGO_PROFILE_DEV_DEBUG: "0"
           CARGO_PROFILE_TEST_DEBUG: "0"
           SNAPBACK_VERIFY_EXACT: "1"
+          CHROME_BIN: ${{ steps.setup-chrome.outputs.chrome-path }}
           # One red round names every broken gate instead of only the first
           # (issues/20260802-verify-local-proof-stops-at-the-first-failure.md).
           SNAPBACK_PROOF_KEEP_GOING: "1"
