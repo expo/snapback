@@ -225,6 +225,12 @@ run env SNAPBACK_BINARY="$runtime_binary" \
 # @ref LLP 0044#language-neutral-protocol-and-sdks — the real-server asset
 # conformance vectors (sessions custody, TUS, attach, live frames, delivery).
 run node tests/acceptance/asset-conformance-v1.mjs
+# @ref LLP 0062#2-subcommand-surface — the engine's live-binary loop and the
+# LLP 0043 settlement goldens: both drive a real sessions server, so a
+# regression in generation binding or the ACK lifecycle fails the proof here
+# rather than in a package suite that can only see fakes.
+run node tests/acceptance/app-cli-served-journey.mjs
+run node tests/acceptance/app-cli-settlement-goldens.mjs
 run node demos/todo/tests/acceptance/headless.mjs
 run node demos/todo-v2/tests/acceptance/headless.mjs
 # Five deliberately different app kernels keep relational reads, trusted

@@ -30,6 +30,12 @@ export type SnapbackAppDataSurface = Pick<
   | 'search'
   | 'mutate'
   | 'action'
+  // The LLP 0043 settlement lifecycle, whole (see app-data.mjs).
+  | 'settledMutations'
+  | 'markMutationSettlementsConsumed'
+  | 'acknowledgeMutations'
+  | 'replayQueuedMutations'
+  | 'outboxStatus'
   | 'liveQuery'
   | 'startLiveQuery'
   | 'subscribeEphemeral'
@@ -50,6 +56,8 @@ export class SnapbackAppDataClient {
   readonly agentAuthority: unknown;
   readonly ingressLimits: Readonly<Record<string, number>>;
   readonly wireVersionDiagnostics: readonly unknown[];
+  /** The resolved store's implementation/durability facts (LLP 0043). */
+  readonly rqsStoreInfo: SnapbackClient['rqsStoreInfo'];
 }
 export interface SnapbackAppDataClient extends SnapbackAppDataSurface {}
 

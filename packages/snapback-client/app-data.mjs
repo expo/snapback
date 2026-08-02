@@ -45,7 +45,17 @@ export const APP_DATA_CLIENT_METHODS = Object.freeze([
   'search',
   'mutate',
   'action',
+  // The LLP 0043 settlement lifecycle, whole. `acknowledgeMutations` alone
+  // (stage 4) was unreachable in practice: without `settledMutations` (stage 3
+  // recovery) and `markMutationSettlementsConsumed` (the explicit consumption
+  // cut) a caller on this plane could acknowledge settlements it could never
+  // observe. Every member here operates on the caller's OWN durable outbox
+  // under its own authority — app-data plane by construction, no admin reach.
+  'settledMutations',
+  'markMutationSettlementsConsumed',
   'acknowledgeMutations',
+  'replayQueuedMutations',
+  'outboxStatus',
   'authorizedLeaseQuery',
   'fetchBundle',
   // Live paths.
@@ -107,6 +117,10 @@ export class SnapbackAppDataClient {
   get agentAuthority() { return inner(this).agentAuthority; }
   get ingressLimits() { return inner(this).ingressLimits; }
   get wireVersionDiagnostics() { return inner(this).wireVersionDiagnostics; }
+  // LLP 0043 makes durability a reportable fact, not an assumption: an
+  // in-memory store is "an explicitly reported degraded test arm". A caller
+  // that must report its own posture has to be able to read it.
+  get rqsStoreInfo() { return inner(this).rqsStoreInfo; }
 }
 
 for (const name of APP_DATA_CLIENT_METHODS) {
