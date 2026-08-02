@@ -1,0 +1,36 @@
+# cold-clone check fails: the all-aboard codegen graph is never materialized
+
+**Status:** Open
+**Impact:** 3
+**Urgency:** 3
+**Ease:** 3
+**Confidence:** 3
+**Severity:** P2
+**Systems:** CI, Codegen, Demos
+**Author:** Claude (Fable 5), directed by Philippe Loulidi
+**Date:** 2026-08-02
+**Related:** issues/20260801-0062-09-codegen-members-and-live-journey.md
+
+`scripts/cold-clone-check.sh` fails during step 1 (production build of the
+All Aboard Contract surface) with `SNAPBACK_CODEGEN_CACHE_INVALID`:
+
+```
+generated cache is missing or tampered; regenerate before consuming it:
+ENOENT ... demos/all-aboard/.snapback/codegen-cache/<digest>/artifacts.json
+remediation: Run `snapback generate snapback` and retry.
+```
+
+Observed on PR #9 run 30733786001. The script has no codegen materialization
+step (`grep -n "generate\|codegen" scripts/cold-clone-check.sh` matches
+nothing), so on a clean checkout the gitignored digest-keyed codegen cache
+does not exist and the Vite plugin's fail-closed graph verification refuses
+the build. The last successful run of the all-aboard-cold-clone lane was
+2026-07-28T23:26Z; codegen changes landed after that (for example `8a6731df`,
+`e2c79ba8`).
+
+For comparison, `scripts/check-required-surface-builds.mjs` materializes each
+gated demo's codegen graph from its committed review manifest before building,
+and that lane passes on the same runner.
+
+Exit: cold-clone-check.sh materializes the codegen graph the same fail-closed
+way before building the surface, and the lane is green on a clean clone.
