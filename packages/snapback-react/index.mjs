@@ -177,9 +177,8 @@ function weakConnection(values) {
 }
 
 function normalizeConnection(value, detail = {}) {
-  if (['connecting', 'live', 'polling', 'stale', 'disconnected'].includes(value)) {
-    return value;
-  }
+  const order = CONNECTION_ORDER[value];
+  if (order >= 2 && order <= 6) return value;
   if (value === 'closed') return 'closed';
   if (value === 'error' || detail?.error) return 'error';
   return 'disconnected';
@@ -816,7 +815,6 @@ function createRegistry(binding, providerInstanceId, options = {}) {
 
     if (
       typeof optimistic !== 'object'
-      || optimistic === null
       || typeof optimistic.update !== 'function'
     ) throw new TypeError('optimistic mutation options require query, args, and update');
     const queryReference = admittedReactReference(binding, optimistic.query, 'LiveQuery');

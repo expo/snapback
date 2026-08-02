@@ -331,39 +331,6 @@ export function newSeedOperationIdV1(nowMs = Date.now()) {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
-const PUSH_INSTALLATION_ALPHABET = '0123456789abcdefghjkmnpqrstvwxyz';
-const PUSH_INSTALLATION_PATTERN = /^inst_[0-7][0-9a-hjkmnp-tv-z]{25}$/u;
-const PUSH_TOKEN_ID_PATTERN = /^ptok_[0-7][0-9a-hjkmnp-tv-z]{25}$/u;
-
-const encodePushInstallationBody = (bytes) => {
-  let value = 0n;
-  for (const byte of bytes) value = (value << 8n) | BigInt(byte);
-  let body = '';
-  for (let index = 0; index < 26; index += 1) {
-    body = PUSH_INSTALLATION_ALPHABET[Number(value & 31n)] + body;
-    value >>= 5n;
-  }
-  return body;
-};
-
-/** Mint the random installation identity used only by the push registry. */
-export function newPushInstallationId() {
-  const bytes = new Uint8Array(16);
-  cryptoRandomSource('push installation identity').getRandomValues(bytes);
-  return `inst_${encodePushInstallationBody(bytes)}`;
-}
-
-const validatePushInstallationStorage = (storage) => {
-  if (!storage || typeof storage !== 'object') {
-    throw new TypeError('pushInstallationStorage must be an object');
-  }
-  for (const method of ['read', 'write', 'clear']) {
-    if (typeof storage[method] !== 'function') {
-      throw new TypeError(`pushInstallationStorage.${method} must be a function`);
-    }
-  }
-  return storage;
-};
 const SENDER_PROTOCOL = 'snapback.sender-constrained.v2';
 const SENDER_ISSUANCE_PROTOCOL = 'snapback.sender-issuance.v2';
 const SENDER_NONCE_TTL_MS = 120_000;
@@ -1027,10 +994,7 @@ const safeNextCounter = (
     || value < 0
     || value >= ceiling
   ) {
-    const error = new Error(`${code}: ${label} is exhausted`);
-    error.code = code;
-    error.diagnostic = { code, message: `${label} is exhausted` };
-    throw error;
+    throw clientCodedError(new Error(`${code}: ${label} is exhausted`), code);
   }
   return value + 1;
 };
@@ -1511,27 +1475,14 @@ const sameClientAuthority = (left, right) => (
   ))
 );
 
-const staleAuthorityError = () => {
-  const diagnostic = {
-    code: 'SNAPBACK_CLIENT_AUTHORITY_STALE',
-    message: 'the operation completed under a stale client authority',
-  };
-  const error = new Error(`${diagnostic.code}: ${diagnostic.message}`);
-  error.code = diagnostic.code;
-  error.diagnostic = diagnostic;
-  return error;
-};
+const staleAuthorityError = () => clientCodedError(new Error(
+  'SNAPBACK_CLIENT_AUTHORITY_STALE: the operation completed under a stale client authority',
+), 'SNAPBACK_CLIENT_AUTHORITY_STALE');
 
-const authorityCommitReentrantError = (message) => {
-  const diagnostic = {
-    code: 'SNAPBACK_CLIENT_AUTH_COMMIT_REENTRANT',
-    message,
-  };
-  const error = new Error(`${diagnostic.code}: ${diagnostic.message}`);
-  error.code = diagnostic.code;
-  error.diagnostic = diagnostic;
-  return error;
-};
+const authorityCommitReentrantError = (message) => clientCodedError(
+  new Error(`SNAPBACK_CLIENT_AUTH_COMMIT_REENTRANT: ${message}`),
+  'SNAPBACK_CLIENT_AUTH_COMMIT_REENTRANT',
+);
 
 /// Construct the generic client around a session bearer minted by a trusted
 /// server-side identity broker. This is the explicit non-custodial protocol
@@ -1544,7 +1495,7 @@ export function createExternalSessionClient(baseUrl, {
   bearerToken,
   ...options
 } = {}) {
-  if (typeof bearerToken !== 'string' || bearerToken.length === 0) {
+  if (typeof bearerToken != 'string' || bearerToken === '') {
     throw new TypeError('createExternalSessionClient requires a non-empty bearerToken');
   }
   if (options.authCoordinator || options.agentAuthority || options.senderConstrained) {
@@ -1552,13 +1503,11 @@ export function createExternalSessionClient(baseUrl, {
       'external session bearer custody is mutually exclusive with browser, agent, and sender-constrained custody',
     );
   }
-  return new SnapbackClient(baseUrl, {
-    ...options,
-    bearerToken,
-    authClientProtocol: 1,
-    authInvalidationProtocol: 1,
-    authorityDescriptorProtocol: 1,
-  });
+  options.bearerToken = bearerToken;
+  options.authClientProtocol = 1;
+  options.authInvalidationProtocol = 1;
+  options.authorityDescriptorProtocol = 1;
+  return new SnapbackClient(baseUrl, options);
 }
 
 /// Bind a first-party live-query handle to a React Native/Expo-style AppState
@@ -1616,6 +1565,12 @@ export function bindSnapbackAppLifecycle(appState, handle, {
     },
   });
 }
+
+const clientCodedError = (error, code) => {
+  error.code = code;
+  error.diagnostic = { code, message: error.message.slice(code.length + 2) };
+  return error;
+};
 
 export class SnapbackClient {
   constructor(baseUrl, {
@@ -1675,10 +1630,6 @@ export class SnapbackClient {
     // Per-class decoded-byte ingress bounds (LLP 0062); partial overrides
     // merge over DEFAULT_INGRESS_LIMIT_BYTES.
     ingressLimits = null,
-    // LLP 0143 registry-only slice. Expo apps inject durable installation
-    // custody. Until OQ2 chooses the production carrier and reset semantics,
-    // registration refuses without an explicit storage injection.
-    pushInstallationStorage = null,
   } = {}) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.adminToken = adminToken;
@@ -1692,7 +1643,7 @@ export class SnapbackClient {
     if ((authCoordinator || agentAuthority) && bearerToken !== null) {
       throw new TypeError('bearerToken cannot bypass browser or agent custody');
     }
-    if (typeof senderConstrained !== 'boolean') {
+    if (typeof senderConstrained != 'boolean') {
       throw new TypeError('senderConstrained must be boolean');
     }
     if (senderConstrained && !authCoordinator) {
@@ -1715,7 +1666,7 @@ export class SnapbackClient {
       && !authCoordinator
       && !agentAuthority
       && custody !== 'anonymous-public'
-      && (typeof bearerToken !== 'string' || bearerToken.length === 0)
+      && (typeof bearerToken != 'string' || !bearerToken)
     ) {
       throw new TypeError(
         'authClientProtocol v1 requires browser, agent, explicit external-bearer, or anonymous-public custody',
@@ -1732,16 +1683,6 @@ export class SnapbackClient {
     this.agentAuthority = agentAuthority;
     this.authorityFence = authCoordinator ?? agentAuthority;
     this.clientStoreId = clientStoreId;
-    this.pushInstallationStorage = pushInstallationStorage === null
-      ? null
-      : validatePushInstallationStorage(pushInstallationStorage);
-    this.__pushInstallationPromise = null;
-    this.push = Object.freeze({
-      installationId: () => this.#pushInstallationId(),
-      registerToken: (options) => this.pushRegisterToken(options),
-      unregisterToken: () => this.pushUnregisterToken(),
-      registerExpoToken: (options) => this.pushRegisterExpoToken(options),
-    });
     // Default persistence resolution (LLP 0129 Phase 0). `undefined` means
     // "not configured" and resolves the default ladder; explicit null/false
     // is the opt-out. The resolved implementation and durability mode are
@@ -1774,7 +1715,7 @@ export class SnapbackClient {
       this.__ownsRqsStore = false;
     }
     this.__rqsStoreClosePromise = null;
-    if (offlineQueue !== 'auto' && typeof offlineQueue !== 'boolean') {
+    if (offlineQueue !== 'auto' && typeof offlineQueue != 'boolean') {
       throw new TypeError("offlineQueue must be 'auto', true, or false");
     }
     this.__offlineQueue = offlineQueue;
@@ -1782,10 +1723,10 @@ export class SnapbackClient {
     this.__outboxReplayScheduled = false;
     this.__outboxDiagnostics = [];
     this.__outboxListeners = new Set();
-    if (typeof strictWireVersion !== 'boolean') {
+    if (typeof strictWireVersion != 'boolean') {
       throw new TypeError('strictWireVersion must be boolean');
     }
-    if (onWireVersionDiagnostic !== null && typeof onWireVersionDiagnostic !== 'function') {
+    if (onWireVersionDiagnostic !== null && typeof onWireVersionDiagnostic != 'function') {
       throw new TypeError('onWireVersionDiagnostic must be a function');
     }
     if (
@@ -2240,14 +2181,9 @@ export class SnapbackClient {
         projected.activeMode !== 'sessions'
         || projected.authority.kind !== 'servicePrincipal'
       ) {
-        const diagnostic = {
-          code: 'SNAPBACK_AUTH_HANDSHAKE_INVALID',
-          message: 'agent custody requires a service-principal authority response',
-        };
-        const error = new Error(`${diagnostic.code}: ${diagnostic.message}`);
-        error.code = diagnostic.code;
-        error.diagnostic = diagnostic;
-        throw error;
+        throw clientCodedError(new Error(
+          'SNAPBACK_AUTH_HANDSHAKE_INVALID: agent custody requires a service-principal authority response',
+        ), 'SNAPBACK_AUTH_HANDSHAKE_INVALID');
       }
       // A different configured tuple may delete predecessor durable work.
       // Admit that transition only after the server proves this carrier's
@@ -2454,14 +2390,9 @@ export class SnapbackClient {
       projected.activeMode !== 'sessions'
       || projected.authority.kind !== 'servicePrincipal'
     ) {
-      const diagnostic = {
-        code: 'SNAPBACK_AUTH_HANDSHAKE_INVALID',
-        message: 'agent credential replacement requires a service-principal authority response',
-      };
-      const error = new Error(`${diagnostic.code}: ${diagnostic.message}`);
-      error.code = diagnostic.code;
-      error.diagnostic = diagnostic;
-      throw error;
+      throw clientCodedError(new Error(
+        'SNAPBACK_AUTH_HANDSHAKE_INVALID: agent credential replacement requires a service-principal authority response',
+      ), 'SNAPBACK_AUTH_HANDSHAKE_INVALID');
     }
     // Only the server-proven descriptor can authorize the destructive local
     // barrier. An invalid proposed bearer leaves predecessor custody and every
@@ -3799,6 +3730,7 @@ export class SnapbackClient {
   }
 
   static auth(userId, { permissions = [] } = {}) {
+    if (userId === isAgentAuthorityFence) return this.#req;
     return { principal: userId ?? null, session_id: null, user_id: userId ?? null, permissions };
   }
 
@@ -3898,10 +3830,10 @@ export class SnapbackClient {
         const queuedAvailability = session?.availability?.queuedReplay;
         if (session && queuedAvailability?.available !== true) {
           const code = queuedAvailability?.reason ?? 'SNAPBACK_AUTH_POLICY_UNAVAILABLE';
-          const error = new Error(`${code}: queued mutation replay is unavailable`);
-          error.code = code;
-          error.diagnostic = { code, message: 'queued mutation replay is unavailable' };
-          throw error;
+          throw clientCodedError(
+            new Error(`${code}: queued mutation replay is unavailable`),
+            code,
+          );
         }
         const descriptor = body.authorityDescriptor ?? session?.authorityDescriptor ?? null;
         if (descriptor !== null || sessionsMode) {
@@ -4671,126 +4603,6 @@ export class SnapbackClient {
       await this.authCoordinator.compareAndClear(capture, 'refresh_superseded_without_successor');
       throw error;
     }
-  }
-
-  async #pushInstallationId() {
-    if (this.pushInstallationStorage === null) {
-      const error = new Error(
-        'SNAPBACK_PUSH_INSTALLATION_CUSTODY_REQUIRED: push registration requires explicit durable installation custody',
-      );
-      error.code = 'SNAPBACK_PUSH_INSTALLATION_CUSTODY_REQUIRED';
-      throw error;
-    }
-    this.__pushInstallationPromise ??= (async () => {
-      const stored = await this.#readPushInstallationId();
-      if (stored !== null) return stored;
-      const minted = newPushInstallationId();
-      await this.pushInstallationStorage.write(minted);
-      return minted;
-    })();
-    try {
-      return await this.__pushInstallationPromise;
-    } catch (error) {
-      this.__pushInstallationPromise = null;
-      throw error;
-    }
-  }
-
-  async #readPushInstallationId() {
-    if (this.pushInstallationStorage === null) return null;
-    const stored = await this.pushInstallationStorage.read();
-    if (stored === null || stored === undefined) return null;
-    if (typeof stored !== 'string' || !PUSH_INSTALLATION_PATTERN.test(stored)) {
-      const error = new Error(
-        'SNAPBACK_PUSH_INSTALLATION_CUSTODY_CORRUPT: stored installation identity is invalid',
-      );
-      error.code = 'SNAPBACK_PUSH_INSTALLATION_CUSTODY_CORRUPT';
-      throw error;
-    }
-    return stored;
-  }
-
-  /**
-   * Register an Expo token directly with the platform registry. The token is
-   * request-only: it is never returned or retained on the SnapbackClient.
-   *
-   * @ref LLP 0143#d1-device-token-custody — application handlers and ordinary
-   * rows never receive provider token bytes.
-   */
-  async pushRegisterToken({ token } = {}) {
-    if (
-      typeof token !== 'string'
-      || token.length === 0
-      || token.length > 1_024
-      || !/^(?:Exponent|Expo)PushToken\[[A-Za-z0-9_-]+\]$/u.test(token)
-    ) {
-      throw new TypeError('SNAPBACK_PUSH_TOKEN_INVALID: token must be an Expo push token');
-    }
-    const installationId = await this.#pushInstallationId();
-    const response = await this.#req('POST', '/push/tokens/register', {
-      installationId,
-      token,
-    });
-    if (
-      !response
-      || typeof response !== 'object'
-      || typeof response.tokenId !== 'string'
-      || !PUSH_TOKEN_ID_PATTERN.test(response.tokenId)
-      || response.installationId !== installationId
-      || !Number.isSafeInteger(response.registeredAt)
-      || response.registeredAt < 0
-      || typeof response.rotated !== 'boolean'
-      || typeof response.ownershipTransferred !== 'boolean'
-      || Object.keys(response).length !== 5
-    ) {
-      throw new Error(
-        'SNAPBACK_PUSH_REGISTRY_RESPONSE_INVALID: registration response is invalid',
-      );
-    }
-    return Object.freeze({ ...response });
-  }
-
-  /** Reacquire ExpoPushToken.data after a native-token rotation signal. */
-  async pushRegisterExpoToken({ getExpoPushTokenAsync, projectId } = {}) {
-    if (typeof getExpoPushTokenAsync !== 'function') {
-      throw new TypeError('getExpoPushTokenAsync must be a function');
-    }
-    const result = await getExpoPushTokenAsync(
-      projectId === undefined ? undefined : { projectId },
-    );
-    if (!result || typeof result.data !== 'string') {
-      throw new TypeError(
-        'SNAPBACK_PUSH_TOKEN_INVALID: getExpoPushTokenAsync returned no ExpoPushToken.data',
-      );
-    }
-    return this.pushRegisterToken({ token: result.data });
-  }
-
-  async pushUnregisterToken() {
-    // An absent identity means this client has no installation-shaped custody
-    // it can name. Minting here would neither retire the lost predecessor nor
-    // describe an unregister, so return an exact local no-op with no write or
-    // network effect.
-    const installationId = await this.#readPushInstallationId();
-    if (installationId === null) {
-      return Object.freeze({ tokenId: null, retired: false });
-    }
-    const response = await this.#req('POST', '/push/tokens/unregister', { installationId });
-    if (
-      !response
-      || typeof response !== 'object'
-      || (response.tokenId !== null && (
-        typeof response.tokenId !== 'string'
-        || !PUSH_TOKEN_ID_PATTERN.test(response.tokenId)
-      ))
-      || typeof response.retired !== 'boolean'
-      || Object.keys(response).length !== 2
-    ) {
-      throw new Error(
-        'SNAPBACK_PUSH_REGISTRY_RESPONSE_INVALID: unregister response is invalid',
-      );
-    }
-    return Object.freeze({ ...response });
   }
 
   async authLogout() {
@@ -8449,20 +8261,14 @@ export class SnapbackClient {
       const code = state === 'disposed'
         ? 'SNAPBACK_LIVE_QUERY_DISPOSED_DURING_SUBSCRIBE'
         : 'SNAPBACK_LIVE_QUERY_PAUSED_DURING_SUBSCRIBE';
-      const error = new Error(`${code}: Snapback live query subscribe was cancelled because the handle was ${state}.`);
-      error.code = code;
-      error.diagnostic = { code, message: error.message.slice(code.length + 2) };
-      return error;
+      return clientCodedError(new Error(
+        `${code}: Snapback live query subscribe was cancelled because the handle was ${state}.`,
+      ), code);
     };
 
-    const subscribeQueueInvalidatedError = () => {
-      const code = 'SNAPBACK_LIVE_QUERY_SUBSCRIBE_QUEUE_INVALIDATED';
-      const message = 'queued fresh subscribe was invalidated by the preceding attempt failure';
-      const error = new Error(`${code}: ${message}`);
-      error.code = code;
-      error.diagnostic = { code, message };
-      return error;
-    };
+    const subscribeQueueInvalidatedError = () => clientCodedError(new Error(
+      'SNAPBACK_LIVE_QUERY_SUBSCRIBE_QUEUE_INVALIDATED: queued fresh subscribe was invalidated by the preceding attempt failure',
+    ), 'SNAPBACK_LIVE_QUERY_SUBSCRIBE_QUEUE_INVALIDATED');
 
     const invalidateSubscribeLifecycle = (state) => {
       subscribeLifecycleEpoch = safeNextCounter(
@@ -10626,10 +10432,7 @@ export function dispatchDurableBytesFrame(stream, frame) {
 }
 
 function liveStreamReadinessError(code, message) {
-  const error = new Error(`${code}: ${message}`);
-  error.code = code;
-  error.diagnostic = { code, message };
-  return error;
+  return clientCodedError(new Error(`${code}: ${message}`), code);
 }
 
 function resyncReason(serverReason) {

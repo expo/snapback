@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "snapback.client-bundle-metrology-additive-profiles.v1",
+  "profiles": [
+    {
+      "id": "push-registry-attach",
+      "package": "@expo/snapback-client/push-registry",
+      "fixture": "push-registry-attach"
+    },
+    {
+      "id": "push-registry-root-negative",
+      "package": "@expo/snapback-client",
+      "fixture": "push-registry-root-negative"
+    }
+  ]
+}

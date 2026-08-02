@@ -2,9 +2,13 @@ import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 
 import {
+  createExternalSessionClient,
   SnapbackClient,
-  newPushInstallationId,
 } from './index.mjs';
+import {
+  attachPushRegistry,
+  newPushInstallationId,
+} from './push-registry.mjs';
 
 const createTestInstallationStorage = (initialValue = null) => {
   let value = initialValue;
@@ -15,9 +19,21 @@ const createTestInstallationStorage = (initialValue = null) => {
   };
 };
 
-const absent = new SnapbackClient('http://127.0.0.1:9', {
+const rootOnly = new SnapbackClient('http://127.0.0.1:9', {
   bearerToken: 'sbs_push_absent_storage',
 });
+assert.equal(SnapbackClient.prototype.health.length, 0, 'the public health signature stays exact');
+assert.equal(SnapbackClient.auth.length, 1, 'the public auth signature stays exact');
+assert.equal(SnapbackClient.roomPermission.length, 2, 'the public roomPermission signature stays exact');
+assert.deepEqual(SnapbackClient.auth('user_public', { permissions: ['read'] }), {
+  principal: 'user_public',
+  session_id: null,
+  user_id: 'user_public',
+  permissions: ['read'],
+});
+assert.equal(SnapbackClient.roomPermission('room', { id: 1 }), 'room:2:id=1:1');
+assert.equal(Object.hasOwn(rootOnly, 'push'), false, 'the root client has no push runtime surface');
+const absent = attachPushRegistry(rootOnly);
 await assert.rejects(
   () => absent.push.installationId(),
   (error) => error?.code === 'SNAPBACK_PUSH_INSTALLATION_CUSTODY_REQUIRED',
@@ -66,8 +82,9 @@ try {
     async write() { emptyWrites += 1; },
     async clear() {},
   };
-  const empty = new SnapbackClient(baseUrl, {
+  const empty = attachPushRegistry(new SnapbackClient(baseUrl, {
     bearerToken: 'sbs_push_empty_custody',
+  }), {
     pushInstallationStorage: emptyCustody,
   });
   const requestsBeforeEmptyUnregister = requests.length;
@@ -82,16 +99,22 @@ try {
     'unregister with empty custody never reaches the network',
   );
 
-  const first = new SnapbackClient(baseUrl, {
+  const first = attachPushRegistry(new SnapbackClient(baseUrl, {
     bearerToken: 'sbs_push_registry_1',
+  }), {
     pushInstallationStorage: storage,
   });
-  const second = new SnapbackClient(baseUrl, {
+  const second = attachPushRegistry(new SnapbackClient(baseUrl, {
     bearerToken: 'sbs_push_registry_2',
+  }), {
     pushInstallationStorage: storage,
   });
   const installationId = await first.push.installationId();
   assert.equal(await second.push.installationId(), installationId);
+  const requestsBeforeHealth = requests.length;
+  await first.health('ordinary extra argument');
+  assert.equal(requests.length, requestsBeforeHealth + 1);
+  assert.equal(requests.at(-1).path, '/health', 'ordinary extra arguments still perform GET /health');
 
   const tokens = [
     'ExponentPushToken[first_secret]',
@@ -113,7 +136,10 @@ try {
     { projectId: 'eas-fixture' },
     { projectId: 'eas-fixture' },
   ], 'each native rotation signal reacquires the Expo token');
-  assert.deepEqual(requests.slice(0, 2).map(({ body }) => body.token), tokens);
+  assert.deepEqual(
+    requests.filter(({ path }) => path === '/push/tokens/register').slice(0, 2).map(({ body }) => body.token),
+    tokens,
+  );
 
   const retired = await first.push.unregisterToken();
   assert.deepEqual(retired, {
@@ -152,13 +178,58 @@ try {
 }
 
 const corruptStorage = createTestInstallationStorage('not-an-installation-id');
-const corrupt = new SnapbackClient('http://127.0.0.1:9', {
+const corrupt = attachPushRegistry(new SnapbackClient('http://127.0.0.1:9', {
   bearerToken: 'sbs_push_corrupt_storage',
+}), {
   pushInstallationStorage: corruptStorage,
 });
 await assert.rejects(
   () => corrupt.push.installationId(),
   (error) => error?.code === 'SNAPBACK_PUSH_INSTALLATION_CUSTODY_CORRUPT',
 );
+
+// The additive module receives the root client's fenced request capability,
+// not fetch. Registration therefore waits behind external-bearer replacement
+// and can dispatch only with successor custody.
+const barrierStorage = createTestInstallationStorage();
+const barrierClient = attachPushRegistry(createExternalSessionClient('http://push-barrier.test', {
+  bearerToken: 'sbs_push_predecessor',
+}), { pushInstallationStorage: barrierStorage });
+let settleBarrierRelease;
+barrierClient.__externalBearerHandles.add({
+  paused: false,
+  pause() { return new Promise((resolve) => { settleBarrierRelease = resolve; }); },
+  async resume() {},
+});
+const replacement = barrierClient.replaceBearerToken('sbs_push_successor');
+await Promise.resolve();
+const originalFetch = globalThis.fetch;
+const barrierFetches = [];
+globalThis.fetch = async (url, init = {}) => {
+  barrierFetches.push({
+    url: String(url),
+    authorization: new Headers(init.headers).get('authorization'),
+  });
+  return new Response(JSON.stringify({
+    diagnostic: { code: 'SNAPBACK_PUSH_BARRIER_PROBE', message: 'probe' },
+  }), { status: 503, headers: { 'content-type': 'application/json' } });
+};
+try {
+  const held = barrierClient.push.registerToken({
+    token: 'ExponentPushToken[barrier_probe]',
+  }).catch(() => {});
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.deepEqual(barrierFetches, [], 'push registration cannot cross a held bearer barrier');
+  settleBarrierRelease();
+  await replacement;
+  await held;
+  assert(
+    barrierFetches.length >= 1
+      && barrierFetches.every(({ authorization }) => authorization === 'Bearer sbs_push_successor'),
+    'push registration dispatches only under successor custody',
+  );
+} finally {
+  globalThis.fetch = originalFetch;
+}
 
 console.log('push-registry.test.mjs: all cases passed');

@@ -9,7 +9,7 @@
 
 import { SnapbackClient } from './index.mjs';
 
-const HOSTED_OPTION_KEYS = new Set([
+const HOSTED_OPTION_KEYS = [
   'authCoordinator',
   'authClientProtocol',
   'authInvalidationProtocol',
@@ -17,7 +17,8 @@ const HOSTED_OPTION_KEYS = new Set([
   'authorizedLeaseProtocol',
   'clientStoreId',
   'authCounterCeiling',
-]);
+];
+const IMMUTABLE_TRANSPORT = 'HostedBrowserSnapbackClient transport posture is immutable';
 
 export class HostedBrowserSnapbackClient {
   constructor(baseUrl, options = {}) {
@@ -25,7 +26,7 @@ export class HostedBrowserSnapbackClient {
       throw new TypeError('HostedBrowserSnapbackClient options must be an object');
     }
     for (const key of Object.keys(options)) {
-      if (!HOSTED_OPTION_KEYS.has(key)) {
+      if (!HOSTED_OPTION_KEYS.includes(key)) {
         throw new TypeError(`HostedBrowserSnapbackClient option ${key} is not permitted`);
       }
     }
@@ -47,13 +48,13 @@ export class HostedBrowserSnapbackClient {
         return typeof value === 'function' ? value.bind(internal) : value;
       },
       set() {
-        throw new TypeError('HostedBrowserSnapbackClient transport posture is immutable');
+        throw new TypeError(IMMUTABLE_TRANSPORT);
       },
       defineProperty() {
-        throw new TypeError('HostedBrowserSnapbackClient transport posture is immutable');
+        throw new TypeError(IMMUTABLE_TRANSPORT);
       },
       deleteProperty() {
-        throw new TypeError('HostedBrowserSnapbackClient transport posture is immutable');
+        throw new TypeError(IMMUTABLE_TRANSPORT);
       },
       setPrototypeOf() {
         throw new TypeError('HostedBrowserSnapbackClient prototype is immutable');

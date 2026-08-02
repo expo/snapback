@@ -28,10 +28,32 @@ const BASELINE_PATH = join(FIXTURE_DIR, 'baseline.v1.json');
 const CURRENT_PATH = join(FIXTURE_DIR, 'current.v1.json');
 const PACKAGE_DIR = join(ROOT, 'packages');
 const METRICS = ['minifiedBytes', 'gzipBytes', 'brotliBytes'];
+const PUSH_REGISTRY_MODULE = 'packages/snapback-client/push-registry.mjs';
 const BEHAVIOR_COMMANDS = Object.freeze([
   ['node', ['packages/snapback-client/package.test.mjs']],
   ['node', ['packages/snapback-client/browser-closure.test.mjs']],
   ['node', ['packages/snapback-react/package.test.mjs']],
+]);
+// Additive workloads append immutable ledgers; no future workload mutates an
+// earlier workload's first-run receipt.
+const SUPPLEMENTAL_LEDGER_SPECS = Object.freeze([
+  Object.freeze({
+    filename: 'baseline.push-registry.v1.json',
+    profileFilename: 'push-registry-profiles.v1.json',
+    profileIds: Object.freeze([
+      'public-subpath-push-registry',
+      'push-registry-attach',
+      'push-registry-root-negative',
+    ]),
+    authorities: Object.freeze([
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0143#d6-activation-migration-and-the-no-op-posture',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/push-registry.test.mjs']],
+    ]),
+  }),
 ]);
 
 function fail(message) {
@@ -129,6 +151,36 @@ const workspaceExports = {
 };
 
 function profileSource(profile) {
+  if (profile.fixture === 'push-registry-attach') {
+    return [
+      "import { SnapbackClient } from '@expo/snapback-client';",
+      "import { attachPushRegistry, newPushInstallationId } from '@expo/snapback-client/push-registry';",
+      'export function __snapbackMetrologyBehavior() {',
+      "  const storage = { read: () => null, write: () => {}, clear: () => {} };",
+      "  const client = attachPushRegistry(new SnapbackClient('http://127.0.0.1:9'), { pushInstallationStorage: storage });",
+      "  if (typeof client.push?.registerToken !== 'function') throw new Error('push registry did not attach');",
+      "  if (!/^inst_[0-7][0-9a-hjkmnp-tv-z]{25}$/u.test(newPushInstallationId())) throw new Error('push installation id is invalid');",
+      '  return 1;',
+      '}',
+    ].join('\n');
+  }
+  if (profile.fixture === 'push-registry-root-negative') {
+    return [
+      "import * as root from '@expo/snapback-client';",
+      'export function __snapbackMetrologyBehavior() {',
+      "  if ('attachPushRegistry' in root || 'newPushInstallationId' in root) throw new Error('push leaked into the root export');",
+      "  const client = new root.SnapbackClient('http://127.0.0.1:9');",
+      "  if ('push' in client) throw new Error('push leaked into the root client');",
+      "  if (root.SnapbackClient.prototype.health.length !== 0) throw new Error('root health signature changed');",
+      "  if (root.SnapbackClient.auth.length !== 1) throw new Error('root auth signature changed');",
+      "  if (root.SnapbackClient.roomPermission.length !== 2) throw new Error('root roomPermission signature changed');",
+      "  const auth = root.SnapbackClient.auth('fixture', { permissions: ['read'] });",
+      "  if (auth.principal !== 'fixture' || auth.permissions[0] !== 'read') throw new Error('root auth behavior changed');",
+      "  if (root.SnapbackClient.roomPermission('room', { id: 1 }) !== 'room:2:id=1:1') throw new Error('root roomPermission behavior changed');",
+      '  return Object.keys(root).length;',
+      '}',
+    ].join('\n');
+  }
   if (profile.namespace === true) {
     return [
       `import * as measured from ${JSON.stringify(profile.package)};`,
@@ -277,9 +329,46 @@ async function measureProfile(profile) {
   };
 }
 
-function runBehaviorCommands() {
-  for (const [command, args] of BEHAVIOR_COMMANDS) {
+function commandStrings(commands) {
+  return commands.map(([command, args]) => [command, ...args].join(' '));
+}
+
+function runBehaviorCommands(commands) {
+  for (const [command, args] of commands) {
     execFileSync(command, args, { cwd: ROOT, stdio: 'inherit' });
+  }
+}
+
+function additiveProfileIds() {
+  return SUPPLEMENTAL_LEDGER_SPECS.flatMap((spec) => spec.profileIds);
+}
+
+function assertDeclaredAdditiveProfiles(additiveConfigs, profiles) {
+  const measured = new Set(profiles.map((profile) => profile.id));
+  for (const { spec, config } of additiveConfigs) {
+    const declared = [
+      ...config.profiles.map((profile) => profile.id),
+      ...spec.profileIds.filter((id) => id.startsWith('public-subpath-')),
+    ].sort();
+    assert.deepEqual(declared, spec.profileIds.toSorted(), `${spec.filename}: declared ids`);
+    for (const id of declared) assert.ok(measured.has(id), `${id}: additive profile exists`);
+  }
+}
+
+function assertPushRegistryClosure(profiles) {
+  const positive = new Set(['public-subpath-push-registry', 'push-registry-attach']);
+  const negative = new Set(['push-registry-root-negative']);
+  const additive = new Set(additiveProfileIds());
+  for (const profile of profiles) {
+    const includesPushRegistry = Object.hasOwn(
+      profile.metafile.inputs,
+      PUSH_REGISTRY_MODULE,
+    );
+    if (positive.has(profile.id)) {
+      assert.equal(includesPushRegistry, true, `${profile.id}: positive push closure`);
+    } else if (negative.has(profile.id) || !additive.has(profile.id)) {
+      assert.equal(includesPushRegistry, false, `${profile.id}: negative push closure`);
+    }
   }
 }
 
@@ -287,13 +376,29 @@ async function measure() {
   const configBytes = readFileSync(PROFILE_PATH);
   const config = JSON.parse(configBytes);
   assert.equal(config.schemaVersion, 'snapback.client-bundle-metrology-profiles.v1');
-  const profiles = [...config.profiles, ...publicSubpathProfiles(config)];
+  const additiveConfigs = SUPPLEMENTAL_LEDGER_SPECS.map((spec) => {
+    const bytes = readFileSync(join(FIXTURE_DIR, spec.profileFilename));
+    const config = JSON.parse(bytes);
+    assert.equal(
+      config.schemaVersion,
+      'snapback.client-bundle-metrology-additive-profiles.v1',
+    );
+    return { spec, bytes, config };
+  });
+  const profiles = [
+    ...config.profiles,
+    ...additiveConfigs.flatMap((entry) => entry.config.profiles),
+    ...publicSubpathProfiles(config),
+  ];
   const ids = profiles.map((profile) => profile.id);
   assert.equal(new Set(ids).size, ids.length, 'profile ids must be unique');
+  assertDeclaredAdditiveProfiles(additiveConfigs, profiles);
   const measured = [];
   for (const profile of profiles) measured.push(await measureProfile(profile));
   measured.sort((left, right) => left.id.localeCompare(right.id));
-  runBehaviorCommands();
+  assertPushRegistryClosure(measured);
+  runBehaviorCommands(BEHAVIOR_COMMANDS);
+  for (const { spec } of additiveConfigs) runBehaviorCommands(spec.behaviorCommands);
   return {
     schemaVersion: 'snapback.client-bundle-metrology.v1',
     authorities: [
@@ -324,21 +429,31 @@ async function measure() {
       profilesSha256: sha256(configBytes),
       lockfileSha256: sha256(readFileSync(join(ROOT, 'bun.lock'))),
     },
-    behaviorCommands: BEHAVIOR_COMMANDS.map(([command, args]) => [command, ...args].join(' ')),
+    behaviorCommands: commandStrings(BEHAVIOR_COMMANDS),
+    additiveLedgers: additiveConfigs.map(({ spec, bytes }) => ({
+      filename: spec.filename,
+      inputs: {
+        profilesSha256: sha256(bytes),
+        lockfileSha256: sha256(readFileSync(join(ROOT, 'bun.lock'))),
+      },
+      behaviorCommands: commandStrings(spec.behaviorCommands),
+    })),
     profiles: measured,
   };
 }
 
-function compactBaseline(report) {
+function compactSupplementalBaseline(report, spec, profiles) {
+  const evidence = report.additiveLedgers.find((entry) => entry.filename === spec.filename);
+  assert.ok(evidence, `${spec.filename}: additive evidence`);
   return {
-    schemaVersion: 'snapback.client-bundle-metrology-baseline.v1',
+    schemaVersion: 'snapback.client-bundle-metrology-supplemental-baseline.v1',
     source: baselineSourceProvenance(),
-    authorities: report.authorities,
-    frozenRule: 'first attributed run before optimization; valid ceilings never loosen',
+    authorities: spec.authorities,
+    frozenRule: 'prospective additive profile first run; valid ceilings never loosen',
     method: report.method,
-    inputs: report.inputs,
-    behaviorCommands: report.behaviorCommands,
-    profiles: report.profiles.map((profile) => ({
+    inputs: evidence.inputs,
+    behaviorCommands: evidence.behaviorCommands,
+    profiles: profiles.map((profile) => ({
       id: profile.id,
       package: profile.package,
       fixtureSha256: profile.fixtureSha256,
@@ -353,19 +468,80 @@ function compactBaseline(report) {
   };
 }
 
-function compareToBaseline(report, baseline) {
+function compactBaseline(report, profiles) {
+  return {
+    schemaVersion: 'snapback.client-bundle-metrology-baseline.v1',
+    source: baselineSourceProvenance(),
+    authorities: report.authorities,
+    frozenRule: 'first attributed run before optimization; valid ceilings never loosen',
+    method: report.method,
+    inputs: report.inputs,
+    behaviorCommands: report.behaviorCommands,
+    profiles: profiles.map((profile) => ({
+      id: profile.id,
+      package: profile.package,
+      fixtureSha256: profile.fixtureSha256,
+      externals: profile.externals,
+      minifiedBytes: profile.minifiedBytes,
+      gzipBytes: profile.gzipBytes,
+      brotliBytes: profile.brotliBytes,
+      outputSha256: profile.outputSha256,
+      attribution: profile.attribution,
+      metafile: profile.metafile,
+    })),
+  };
+}
+
+function validateMainBaseline(report, baseline) {
   assert.equal(baseline.schemaVersion, 'snapback.client-bundle-metrology-baseline.v1');
   validateBaselineSource(baseline.source);
   assert.deepEqual(report.authorities, baseline.authorities, 'baseline authorities');
   assert.deepEqual(report.method, baseline.method, 'baseline measurement method');
   assert.deepEqual(report.inputs, baseline.inputs, 'baseline input digests');
   assert.deepEqual(report.behaviorCommands, baseline.behaviorCommands, 'baseline behavior commands');
+}
+
+function validateSupplementalBaseline(report, spec, supplemental) {
+  assert.equal(
+    supplemental.schemaVersion,
+    'snapback.client-bundle-metrology-supplemental-baseline.v1',
+  );
+  validateBaselineSource(supplemental.source);
+  const evidence = report.additiveLedgers.find((entry) => entry.filename === spec.filename);
+  assert.ok(evidence, `${spec.filename}: additive evidence`);
+  assert.deepEqual(spec.authorities, supplemental.authorities, 'supplemental authorities');
+  assert.deepEqual(report.method, supplemental.method, 'supplemental measurement method');
+  assert.deepEqual(evidence.inputs, supplemental.inputs, 'supplemental inputs');
+  assert.deepEqual(
+    evidence.behaviorCommands,
+    supplemental.behaviorCommands,
+    'supplemental behavior commands',
+  );
+  assert.deepEqual(
+    supplemental.profiles.map((profile) => profile.id).toSorted(),
+    spec.profileIds.toSorted(),
+    `${spec.filename}: exact additive profile ids`,
+  );
+}
+
+function compareProfiles(report, baselines, { requireComplete = true } = {}) {
   const currentById = new Map(report.profiles.map((profile) => [profile.id, profile]));
-  const baselineById = new Map(baseline.profiles.map((profile) => [profile.id, profile]));
+  const baselineById = new Map();
+  for (const baseline of baselines) {
+    for (const profile of baseline.profiles) {
+      if (baselineById.has(profile.id)) fail(`profile ${profile.id} has overlapping baselines`);
+      baselineById.set(profile.id, profile);
+    }
+  }
   const regressions = [];
   for (const [id, profile] of currentById) {
     const frozen = baselineById.get(id);
-    if (!frozen) fail(`profile ${id} has no frozen baseline; add it prospectively before changing its closure`);
+    if (!frozen) {
+      if (requireComplete) {
+        fail(`profile ${id} has no frozen baseline; add it prospectively before changing its closure`);
+      }
+      continue;
+    }
     for (const metric of METRICS) {
       if (profile[metric] > frozen[metric]) {
         regressions.push(`${id} ${metric} regressed from ${frozen[metric]} to ${profile[metric]} bytes`);
@@ -378,11 +554,22 @@ function compareToBaseline(report, baseline) {
   if (regressions.length > 0) fail(regressions.join('; '));
 }
 
-function withSavings(report, baseline) {
-  const baselineById = new Map(baseline.profiles.map((profile) => [profile.id, profile]));
+function compareToBaselines(report, baseline, supplementals) {
+  for (const { spec, baseline: supplemental } of supplementals) {
+    validateSupplementalBaseline(report, spec, supplemental);
+  }
+  compareProfiles(report, [baseline, ...supplementals.map((entry) => entry.baseline)]);
+}
+
+function withSavings(report, baseline, supplementals) {
+  const baselineById = new Map(
+    [baseline, ...supplementals.map((entry) => entry.baseline)]
+      .flatMap((entry) => entry.profiles)
+      .map((profile) => [profile.id, profile]),
+  );
   return {
     ...report,
-    comparedTo: 'baseline.v1.json',
+    comparedTo: ['baseline.v1.json', ...supplementals.map(({ spec }) => spec.filename)],
     profiles: report.profiles.map((profile) => {
       const frozen = baselineById.get(profile.id);
       return {
@@ -393,30 +580,84 @@ function withSavings(report, baseline) {
   };
 }
 
+function readSupplementalBaselines() {
+  return SUPPLEMENTAL_LEDGER_SPECS.map((spec) => {
+    const path = join(FIXTURE_DIR, spec.filename);
+    if (!existsSync(path)) fail(`${spec.filename} is missing`);
+    return { spec, baseline: readJson(path) };
+  });
+}
+
+function assertExactProspectiveAdditions(report, baseline) {
+  const covered = new Set(baseline.profiles.map((profile) => profile.id));
+  const additions = report.profiles.filter((profile) => !covered.has(profile.id));
+  assert.deepEqual(
+    additions.map((profile) => profile.id).toSorted(),
+    additiveProfileIds().toSorted(),
+    'prospective additions exactly match the declared additive ledgers',
+  );
+  return additions;
+}
+
 function stableJson(value) {
   return `${JSON.stringify(value, null, 2)}\n`;
 }
 
 const mode = process.argv[2] ?? '--check';
-if (!['--check', '--write-baseline', '--write-current'].includes(mode)) {
-  console.error('usage: node scripts/client-bundle-metrology.mjs [--check|--write-baseline|--write-current]');
+if (![
+  '--check',
+  '--check-primary',
+  '--write-baseline',
+  '--write-current',
+  '--write-supplemental-baseline',
+].includes(mode)) {
+  console.error('usage: node scripts/client-bundle-metrology.mjs [--check|--check-primary|--write-baseline|--write-current|--write-supplemental-baseline]');
   process.exit(2);
 }
 
 const report = await measure();
 if (mode === '--write-baseline') {
   if (existsSync(BASELINE_PATH)) fail('baseline.v1.json already exists; the first-run baseline is immutable');
-  const baseline = compactBaseline(report);
+  const additiveIds = new Set(additiveProfileIds());
+  const primaryProfiles = report.profiles.filter((profile) => !additiveIds.has(profile.id));
+  const baseline = compactBaseline(report, primaryProfiles);
   writeFileSync(BASELINE_PATH, stableJson(baseline));
-  writeFileSync(CURRENT_PATH, stableJson(withSavings(report, baseline)));
-  console.log(`client bundle baseline frozen: ${report.profiles.length} profiles`);
+  const primaryReport = { ...report, profiles: primaryProfiles };
+  writeFileSync(CURRENT_PATH, stableJson(withSavings(primaryReport, baseline, [])));
+  console.log(`client bundle baseline frozen: ${primaryProfiles.length} primary profiles`);
   process.exit(0);
 }
 
 if (!existsSync(BASELINE_PATH)) fail('baseline.v1.json is missing');
 const baseline = readJson(BASELINE_PATH);
-compareToBaseline(report, baseline);
-const current = withSavings(report, baseline);
+validateMainBaseline(report, baseline);
+if (mode === '--check-primary') {
+  compareProfiles(report, [baseline], { requireComplete: false });
+  const additions = assertExactProspectiveAdditions(report, baseline);
+  console.log(`client bundle primary baseline passed; ${additions.length} additive profiles await a prospective baseline`);
+  process.exit(0);
+}
+if (mode === '--write-supplemental-baseline') {
+  compareProfiles(report, [baseline], { requireComplete: false });
+  const additions = assertExactProspectiveAdditions(report, baseline);
+  const missing = SUPPLEMENTAL_LEDGER_SPECS.filter(
+    (spec) => !existsSync(join(FIXTURE_DIR, spec.filename)),
+  );
+  if (missing.length !== 1) {
+    fail(`expected exactly one unfrozen supplemental ledger, found ${missing.length}`);
+  }
+  const spec = missing[0];
+  const selected = additions.filter((profile) => spec.profileIds.includes(profile.id));
+  const supplemental = compactSupplementalBaseline(report, spec, selected);
+  writeFileSync(join(FIXTURE_DIR, spec.filename), stableJson(supplemental));
+  const supplementals = readSupplementalBaselines();
+  writeFileSync(CURRENT_PATH, stableJson(withSavings(report, baseline, supplementals)));
+  console.log(`client bundle additive baseline frozen in ${spec.filename}: ${selected.length} profiles`);
+  process.exit(0);
+}
+const supplementals = readSupplementalBaselines();
+compareToBaselines(report, baseline, supplementals);
+const current = withSavings(report, baseline, supplementals);
 if (mode === '--write-current') {
   writeFileSync(CURRENT_PATH, stableJson(current));
   console.log(`client bundle current report updated: ${report.profiles.length} profiles`);

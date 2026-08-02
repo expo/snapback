@@ -38,10 +38,17 @@ assert.throws(
   () => { client.senderConstrained = false; },
   /transport posture is immutable/u,
 );
-assert.throws(
-  () => { client.baseUrl = 'https://attacker.example.test'; },
-  /transport posture is immutable/u,
-);
+const identity = client;
+const assertImmutableTransport = (operation) => assert.throws(operation, (error) => (
+  error instanceof TypeError
+  && error.message === 'HostedBrowserSnapbackClient transport posture is immutable'
+));
+assertImmutableTransport(() => { client.baseUrl = 'https://attacker.example.test'; });
+assertImmutableTransport(() => Object.defineProperty(client, 'baseUrl', {
+  value: 'https://attacker.example.test',
+}));
+assertImmutableTransport(() => { delete client.baseUrl; });
+assert.equal(client, identity);
 assert.throws(
   () => Object.setPrototypeOf(client, SnapbackClient.prototype),
   /prototype is immutable/u,
