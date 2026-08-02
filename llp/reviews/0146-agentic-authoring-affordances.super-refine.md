@@ -322,3 +322,88 @@ passes (148 LLP docs, 0 errors). Document grew 901 → 1043 lines.
 
 v0.3 SHA-256:
 `9d3658ad85ed9c9402d5373e069c3469ed1acfe377b81accd678c168f00393c4`
+
+## Round 3 — 2026-08-01 (delta-scoped)
+
+Instruction capsule SHA-256:
+`c8a064f831bc222d507473f1ba5c319c45327954ac2b4e385c94455738736af0`
+
+Target SHA-256 (v0.3): as above. Repo revision: `f946e69a`.
+
+The capsule explicitly named the cross-fix propagation failure mode — "check
+whether applying one family's finding introduced a defect elsewhere; that
+happened twice between v0.1 and v0.2 and is the failure mode most likely to
+recur" — and asked each family to verify v0.3's new factual claims
+independently.
+
+### Round 3 results
+
+**Fable READY** (1 MATERIAL, 5 DETAIL). **Codex NOT READY** (2 MATERIAL,
+2 DETAIL); it dispositioned eight of its nine round-2 findings FIXED, with
+D5 PARTIALLY FIXED.
+
+**The notable result is convergence.** Two families, blind to each other,
+independently found the *same four residues*:
+
+| Residue | Fable | Codex |
+| --- | --- | --- |
+| D5 acceptance still encodes the withdrawn target-side test | MATERIAL-1 | MATERIAL-1 (part) |
+| D1 report/acceptance keep collapsed `missing`/`extra`/`provenance` | DETAIL-1 | DETAIL-2 |
+| Retention paragraph conflates two gates, omits the relational arm | DETAIL-2 | DETAIL-1 |
+| D3 exposes only `envelopeHash` after deciding two delta keys | DETAIL-3 | MATERIAL-2 |
+
+Every one is **propagation lag**: v0.3 corrected the body of a decision and
+did not carry the correction into that decision's example, normative prose,
+acceptance clause, or open question. No round-3 finding disputed a design
+choice, and none inverted a claim. That is the signature of a document
+approaching convergence rather than one still being argued with.
+
+**One genuinely new defect, from Codex.** v0.3's replacement overlap
+predicate for D5 was ill-typed: it asked whether `sourceFields` "coincides
+with" the incarnation's `foreign_key_field`/`parent_table` pair, but
+`parent_table` is a *table identity*, not a member of a field list. v0.4
+restates it as three correctly typed terms (source table equality,
+foreign-key-field membership, target-vs-`parent_table` equality). Codex also
+observed that the declaration exposed only `targetIndex` while the prose
+demanded both indexes be nameable; v0.4 adds `sourceIndex`.
+
+**One genuinely new defect, from Fable.** D6 offered provenance-following
+and a conservative fallback as alternatives, but SQLite is named among the
+uncontrolled subsystems and every durable step touches it — so the blanket
+fallback would leave `deterministic` unpopulated and make D6's own
+acceptance clause unsatisfiable. v0.4 marks the fallback a degraded mode
+rather than a co-equal route.
+
+**Author-verified before application.** Fable's DETAIL-2 was checked in full
+and is correct: `validate_retainable_query` is the erroring gate and *also*
+admits a qualifying `HostPlan(RelationalQuery)` with a two-table relational
+summary (`src/manifest.rs:2911-2971`), while `rqs_eligible_digest_kind` is
+the non-erroring predicate whose doc comment says a failing query "is simply
+not eligible, never a load error" (`:2304-2307`). v0.3 had merged the two
+into one sentence. The conclusion survived; the description did not.
+
+No round-3 finding was refuted.
+
+### v0.4 fix pass
+
+Applied every round-3 finding from both families. `./ref-check --verbose`
+passes (148 LLP docs, 0 errors). Document grew 1043 → 1123 lines.
+
+v0.4 SHA-256:
+`985790cf195f40b315059768c0e4878b9be28aca1da9ed21ae67158bdb4d930f`
+
+## Round 4 — 2026-08-01 (delta-scoped, confirmation)
+
+Instruction capsule SHA-256:
+`7ba422d8fed2018abe909ffc713c8626db636101da57f76555c442c832ed2d23`
+
+Target SHA-256 (v0.4): as above.
+
+Scoped as a confirmation round: disposition round-3 findings, re-check the
+propagation failure mode across examples/prose/acceptance/open questions,
+and verify the two new constructs (the retyped `overlaps` predicate and the
+cursor-embeds-hash carrier). Both families are explicitly told not to hunt
+for new material in text stable since v0.1 that already passed their review,
+and to say so plainly if the document has reached the bar.
+
+Results are appended when the reviews are actually received.

@@ -266,3 +266,82 @@ Describe current search as non-live; do not characterize it as plan-table live i
 **DETAIL-2 — `functionTables` is not exactly “the declared fn.tables”**
 
 The RFC says `functionTables` returns declared `fn.tables` (`llp/0146-agentic-authoring-affordances.rfc.md:197-207`). Verified code returns the first schema table when `fn.tables` is absent or empty (`cloudflare/src/coordinator.js:5539-5542`). This does not change the demonstrated A-versus-B defect, but the factual description should include the fallback.
+
+## Round 3 — 2026-08-01 (delta-scoped)
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** `codex-cli` 0.146.0, `codex exec`, model
+`gpt-5.6-sol`, `model_reasoning_effort=xhigh`, sandbox `read-only`
+**Date:** 2026-08-01
+**Method:** fresh non-author `codex exec` context, read-only delta review;
+permitted to read only this family's artifact above, blind to the fable
+artifact and the super-refine journal. LLP paths resolved by directory
+listing per the round-2 correction notice; filenames in this round are
+correct.
+**Instruction capsule SHA-256:** `c8a064f831bc222d507473f1ba5c319c45327954ac2b4e385c94455738736af0`
+**Target:** `llp/0146-agentic-authoring-affordances.rfc.md` (v0.3, 1043 lines, Draft)
+**Target SHA-256:** `9d3658ad85ed9c9402d5373e069c3469ed1acfe377b81accd678c168f00393c4`
+**Repo revision at review start:** working tree at v0.3 (pushed as `f946e69a`)
+**Status:** completed
+**Verdict:** NOT READY
+
+## Verbatim review
+
+## Overall assessment
+
+**Verdict: NOT READY**
+
+v0.3 resolves most round-2 findings correctly, but D5 remains materially inconsistent: its source-side overlap predicate compares incompatible schema concepts, and its proposed syntax cannot name the reverse index the normative text requires. D3 also introduces a second delta key without defining how callers supply it. These are unresolved contract defects rather than named policy questions.
+
+## Round-2 finding dispositions
+
+- **BLOCKING-1 — FIXED:** the RFC now records the correct no-effect disposition for opaque JavaScript and narrows OQ12 to future eligibility expansion (`llp/0146-agentic-authoring-affordances.rfc.md:269-279,1017-1022`; `src/manifest.rs:2973-2982`). A narrower factual overstatement introduced by this repair is DETAIL-1 below.
+- **MATERIAL-1 — FIXED:** D1 defines four class-preserving deltas and separate read/write provenance (`llp/0146-agentic-authoring-affordances.rfc.md:317-333`), matching the four source collections (`src/local.rs:1449-1458`). Stale shorthand remains as DETAIL-2.
+- **MATERIAL-2 — FIXED:** D3 separates immutable-envelope deltas from dynamic observations and introduces `digestCursor` (`llp/0146-agentic-authoring-affordances.rfc.md:448-471`). The resulting command-carrier gap is MATERIAL-2 below.
+- **MATERIAL-3 — FIXED:** an observed-radius change now requires paired comparable bundles; one bundle is explicitly only a current radius (`llp/0146-agentic-authoring-affordances.rfc.md:525-536`).
+- **MATERIAL-4 — PARTIALLY FIXED:** D5 moves the intended check toward the source side and adds reverse-index, target-update, final-state, and concurrency requirements (`llp/0146-agentic-authoring-affordances.rfc.md:610-639`), but the overlap predicate and index syntax remain defective as MATERIAL-1 below.
+- **MATERIAL-5 — FIXED:** classification now follows transitive event/effect provenance, with conservative fallback to `observed`, and probabilistic shrinking has a fixed budget and success criterion (`llp/0146-agentic-authoring-affordances.rfc.md:686-710`).
+- **MATERIAL-6 — FIXED:** both authority remediations now carry preconditions, and carrier ownership is correctly assigned to LLP 0094/0095 (`llp/0146-agentic-authoring-affordances.rfc.md:739-788`; `llp/0144-declared-app-refusal-codes.rfc.md:318-338`).
+- **DETAIL-1 — FIXED:** search is correctly described as one-shot `FunctionKind::Query` (`llp/0146-agentic-authoring-affordances.rfc.md:262-268`; `src/manifest.rs:1163-1165`; `src/local.rs:22591-22684`).
+- **DETAIL-2 — FIXED:** the Cloudflare first-schema-table fallback is now recorded accurately (`llp/0146-agentic-authoring-affordances.rfc.md:231-246`; `cloudflare/src/coordinator.js:5539-5542`).
+
+## Strengths
+
+I verified the major new factual foundations:
+
+- `FunctionRunResult` has distinct declared reads, declared writes, captured reads, and captured writes (`src/local.rs:1449-1458`).
+- LLP 0062 defines `envelopeHash` as the content address of an immutable envelope (`llp/0062-generated-app-cli-and-code-mode.rfc.md:246-260,1011-1034`), so D3 is right that dynamic observations need another identity.
+- A relation incarnation is a protected field on the child/source row, paired with a foreign-key field and parent table (`src/manifest.rs:829-840`; `llp/0110-bounded-children-and-activity-patterns.spec.md:991-1000`).
+- Search is admitted only as a one-shot query and captures a conservative predicate-less query dependency (`src/manifest.rs:1153-1198`; `src/local.rs:22591-22684`).
+- LLP 0094 governs wire-envelope families and closes the error envelope (`llp/0094-wire-envelope-contract.spec.md:85-121,707-734`); LLP 0144 explicitly delegates first-class carrier changes to LLP 0094/0095 (`llp/0144-declared-app-refusal-codes.rfc.md:318-338`).
+- The local empty-declaration fallback is conservative, and the no-query-dependency fallback is reachable after point-read-only success (`src/live_matcher.rs:129-168,195-257`). The Cloudflare fallback is accurately described as arbitrary rather than conservative (`cloudflare/src/coordinator.js:5150-5167,5539-5542`).
+
+## Findings
+
+**MATERIAL-1 — D5’s repaired relation predicate and reverse-index contract remain unspellable**
+
+Verified source establishes that `RelationIncarnation` is a field on the source table whose metadata contains a `foreign_key_field` and a `parent_table` (`src/manifest.rs:829-840`). The RFC instead says the source table and `sourceFields` must “coincide with” the `foreign_key_field`/`parent_table` pair (`llp/0146-agentic-authoring-affordances.rfc.md:610-619`). That compares unlike concepts: `parent_table` is a table identity, not a member of `sourceFields`. A correct predicate must relate at least the D5 source table, the incarnation’s foreign-key field, and D5’s target table equal to the incarnation’s `parent_table`.
+
+The reverse-index repair is also absent from the proposed shape. The example exposes only `targetIndex` (`llp/0146-agentic-authoring-affordances.rfc.md:566-576`), while the normative text says both supporting indexes must be nameable (`llp/0146-agentic-authoring-affordances.rfc.md:621-626`). The acceptance text then reverts to the rejected target-side wording (`llp/0146-agentic-authoring-affordances.rfc.md:641-646`).
+
+Add a source/reverse-index field or a deterministic inference rule, state the overlap predicate using correctly typed source-field and target-table comparisons, and update the acceptance criterion to match.
+
+**MATERIAL-2 — D3 defines two delta keys but exposes only the old one-key command**
+
+Verified LLP 0062 proposes only `introspect --changed-since <envelopeHash>` (`llp/0062-generated-app-cli-and-code-mode.rfc.md:1520-1521`). v0.3 retains that exact command (`llp/0146-agentic-authoring-affordances.rfc.md:437-446`) while deciding that the static and dynamic sections use `envelopeHash` and `digestCursor` respectively (`llp/0146-agentic-authoring-affordances.rfc.md:448-463`).
+
+It is therefore an interface inference, but a necessary one: the shown request cannot tell the server which prior dynamic observation the caller saw. OQ10 discusses cursor custody and expiry, not how the cursor enters the command or how both delta bases are combined (`llp/0146-agentic-authoring-affordances.rfc.md:1008-1012`).
+
+Define the request/output carrier for `digestCursor`, or explicitly name that interface shape as open. The acceptance criteria should exercise a dynamic-only change while `envelopeHash` remains unchanged.
+
+**DETAIL-1 — The repaired retention paragraph overstates the eligible HostPlan shape**
+
+The conclusion that opaque-JavaScript drift has no current retention effect is verified: opaque JavaScript is refused (`src/manifest.rs:2973-2982`). But the RFC says retention eligibility requires `HostPlan(Query)` with a single-table summary (`llp/0146-agentic-authoring-affordances.rfc.md:269-275`). That is true for RQS eligibility (`src/manifest.rs:2299-2353`), not for all retention: general retainable-query admission also accepts qualifying `HostPlan(RelationalQuery)` functions (`src/manifest.rs:2891-2971`).
+
+Separate the statements: RQS requires the single-table Query profile; broader retention also admits a plan-consistent relational profile; both exclude opaque JavaScript.
+
+**DETAIL-2 — D1’s report and acceptance prose still names the superseded unclassified fields**
+
+After normatively defining `missingReads`, `missingWrites`, `extraReads`, `extraWrites`, `readProvenance`, and `writeProvenance` (`llp/0146-agentic-authoring-affordances.rfc.md:317-333`), the report and acceptance text still promises singular `missing`, `extra`, and `provenance` fields (`llp/0146-agentic-authoring-affordances.rfc.md:343-350,373-380`).
+
+Update those passages to use the class-specific fields so the acceptance contract tests the repair actually adopted.

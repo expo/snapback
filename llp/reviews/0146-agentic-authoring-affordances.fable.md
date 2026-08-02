@@ -123,3 +123,72 @@ Verified, not inferred: the full local-fallback chain (`live_subscription_may_be
 None of these blocks. The document now decides exactly as much as it has evidence for, names its fourteen open items as open, and every factual claim I checked about the codebase and corpus is true.
 
 TOOL_USES: 14
+
+## Round 3 — 2026-08-01 (delta-scoped)
+
+**Reviewer family:** Claude Fable
+**Provider / runtime:** Anthropic Claude Code, `claude-fable-5`, fresh
+non-author subagent
+**Effort:** session-inherited
+**Date:** 2026-08-01
+**Method:** fresh non-author subagent context, read-only delta review;
+permitted to read only this family's artifact above, blind to the codex
+artifact and the super-refine journal. SHA-pinned target and capsule.
+**Instruction capsule SHA-256:** `c8a064f831bc222d507473f1ba5c319c45327954ac2b4e385c94455738736af0`
+**Target:** `llp/0146-agentic-authoring-affordances.rfc.md` (v0.3, 1043 lines, Draft)
+**Target SHA-256:** `9d3658ad85ed9c9402d5373e069c3469ed1acfe377b81accd678c168f00393c4`
+**Repo revision at review start:** working tree at v0.3 (pushed as `f946e69a`)
+**Tool uses:** 21
+**Status:** completed
+**Verdict:** READY (with 1 MATERIAL and 5 DETAIL to apply before promotion)
+
+## Verbatim review
+
+## Overall assessment
+**Verdict: READY**
+
+All four of my round-2 findings are genuinely fixed, and every new factual claim v0.3 makes about the codebase and the corpus that I checked — the retention/opaque-JS disposition, the four-collection structure behind D1's class split, the `envelopeHash` immutability claim, the source-side location of `RelationIncarnation`, the one-shot execution kind of search, and the LLP 0094 carrier-ownership reassignment — verified true against the code or the cited document, at the cited lines. The changes responding to findings I never raised are correct on their merits: the read/write-swap cancellation example motivating D1's class split is arithmetically right; the `digestCursor` split correctly follows from LLP 0062's "content-addressed and immutable" envelope; the moved D5 overlap test now names the side the incarnation actually lives on; D6's transitivity argument is exactly what LLP 0054's stricter injected-interface route (verified at `llp/0054:243-257`) implies D6 cannot borrow. I found one MATERIAL defect, and it is precisely the capsule's predicted failure mode recurring: the v0.3 body edits did not fully propagate into the normative acceptance lines — D5's acceptance clause still encodes the *withdrawn* target-side overlap test that the body two paragraphs earlier declares names the wrong side. Because the body states the correct resolution unambiguously and the fix is a one-clause rewrite with no remaining design thinking, this is a transcription lag rather than an un-thought-through issue, and the document has reached the bar. The MATERIAL and the details below must still be applied before any status promotion.
+
+## Round-2 finding dispositions
+
+- **DETAIL-1 (empty-vs-wrong lumped, locally) — FIXED.** `llp/0146:216-225` now carries both qualifications: "An empty declared set is the safe direction" (re-verified: `tables.is_empty()` passes every change through the filter, `src/live_matcher.rs:151`) and the adjacent strengthening I sketched — the fallback is reachable on success for point-read-only handlers, grounded in the `saw_query_dependency` test (re-verified at `src/live_matcher.rs:230-234`).
+- **DETAIL-2 (Cloudflare `functionTables` first-schema-table fallback unmentioned) — FIXED.** `llp/0146:238-247` records the fallback with the correct citation (re-verified: `return [schema.tables[0].name]`, `cloudflare/src/coordinator.js:5539-5542`), calls it "a second and arguably worse miss," ties it to the code-first authoring state, and OQ8's widening option now covers "unwitnessed" functions (`llp/0146:999-1000`).
+- **DETAIL-3 (leverage residue of D2's withdrawn claim) — FIXED.** `llp/0146:148` scopes "the leverage" to the captured/declared row alone, and `:153-155` makes `acceptance.run`'s leverage explicitly conditional on OQ9 — exactly the rescoping I asked for.
+- **DETAIL-4 (OQ8 shape 3 vs Wave 3 sequencing) — FIXED.** `llp/0146:954-960` resolves the conditional in the form I sketched: shapes 1–2 are Wave 1 outright; if shape 3 wins, its target-scoped subset jumps to Wave 1 and the rest of strict mode stays in Wave 3; and the schedule cost is named as an input to OQ8.
+
+## Strengths
+
+What I verified in v0.3's new text, versus inferred:
+
+- **The retention/opaque-JS disposition's conclusion is true.** `validate_retainable_query` refuses any non-HostPlan runtime with `undeclarable_retention(function, "opaqueJavaScript")` (`src/manifest.rs:2980-2982`), and the derived RQS predicate `rqs_eligible_digest_kind` (`src/manifest.rs:2314-2353`) requires `HostPlan(HandlerPlan::Query)` with a complete plan-consistent single-table summary; the Cloudflare mirror applies the same conjunction with its own comment "opaque-JS handlers can never be eligible, exactly as on the local arm" (`cloudflare/src/rqs-host.mjs:194-223`). In every admitted shape the summary is checked against the plan, so drift indeed has no silent retention effect today, and narrowing OQ12 to the eligibility-expansion conditional is right. (One conflation in the supporting sentence — DETAIL-2 below.)
+- **D1's class split is grounded and its motivating example is correct.** `FunctionRunResult` carries exactly four collections — declared `reads`/`writes` and `captured_reads`/`captured_writes` (`src/local.rs:1449-1458`) — and the read-A/write-B swap does produce identical untagged unions on both sides while being two violations. Actions construct empty captured sets (`src/local.rs:1707-1726`), so per-class provenance is necessary, not decorative.
+- **D3's split follows from a true premise.** LLP 0062's envelope is "content-addressed and immutable" (`llp/0062:246-260` verbatim) and `introspect --changed-since <envelopeHash>` exists at `llp/0062:1520-1521`; an immutable content address genuinely cannot key dynamic observation state, so the static/dynamic split with a `digestCursor` is the correct repair rather than an invented rival.
+- **D5's moved overlap test names the right side.** `RelationIncarnation { foreign_key_field, parent_table }` is a field-kind variant on the child/source row, and "The paired required foreign-key field is the complete relationship declaration" is verbatim at `src/manifest.rs:829-841`. The reverse-index requirement is also correct as engineering: `targetIndex` bounds forward existence checks only, and `onTargetDelete: 'restrict'` needs the source-side lookup. The concurrency citation is apt — `llp/0056:564-588` does spell out the capture-and-linearize-at-commit race contract ("an insert racing that resource's deletion fails commit-time read-set validation … linearizes at commit, exactly like `lastHolder`").
+- **The search reclassification is true and admission-enforced.** `SearchQuery` is admitted only under `FunctionKind::Query` (`src/manifest.rs:1163-1165`); any other pairing hits `SNAPBACK_FUNCTION_KIND_RUNTIME_MISMATCH` (`:1189-1199`), so search cannot be live. The search executor captures a `Query` dependency with `predicate: None` (search arm at `src/local.rs:22591`, dependency construction inside it), and the matcher returns a conservative `Some(true)` for a predicate-less `Query` dependency before any plan-table arm (`src/live_matcher.rs:244-246`) — every clause of the paragraph checks out.
+- **The D7 carrier reassignment is what LLP 0144 actually says.** "This is a wire-shape change owned by LLP 0094 (the wire-envelope contract), not this document" is verbatim in 0144's Axis C2 (`llp/0144:323-326`), with C1 keeping the app refusal inside diagnostic details; OQ6's rewrite matches. The three example remediations now all carry preconditions, and the `useDifferentPrincipal` approval flip is consistent with the decision's own safety rule.
+- **D6's transitivity paragraph does not overclaim.** LLP 0054's stricter route — "All nondeterministic inputs that affect observable behavior pass through injected interfaces" — is verbatim at `llp/0054:243-257`, and 0054 remains "Draft research only" (`:414-419`), so refusing to borrow its guarantee is right.
+- **The correction section's anchors all still resolve:** `live_subscription_may_be_affected` at `src/live_matcher.rs:129`, the declared-tables arm at `:147-155`, the plan-table arms including `parent_table`/`child_table` at `:170-179`, `fanOut`'s filter at `cloudflare/src/coordinator.js:5163-5167`, and the coordinator header's "captured read sets are recorded but not yet validated" at `:21-23`.
+
+Inferred, not independently verified: the Revised block's account of the other family's round-2 verdict and finding counts (I am blind to that artifact by instruction), and D7's claims about which example fields v0.1/v0.2 carried.
+
+## Findings
+
+**MATERIAL-1 — D5's acceptance line still encodes the withdrawn target-side overlap test**
+§D5 acceptance (`llp/0146:643-644`): "an `existsRelation` targeting a promoted relation incarnation fails codegen with a named reason." The body two paragraphs earlier (`llp/0146:611-619`) withdraws exactly that formulation — "v0.2 said codegen must refuse an `existsRelation` whose *target* is a promoted incarnation. That names the wrong side" — and replaces it with the source-side coincidence test, correctly, since a `RelationIncarnation` is a field on the child/source row (`src/manifest.rs:829-841`) and cannot coherently be a `target`. Acceptance criteria are the document's contract with implementation; as written this clause tests the withdrawn condition and leaves the corrected test unencoded in acceptance. This is the cross-fix propagation failure mode the capsule flags, recurring. Fix: reword the clause to "an `existsRelation` whose source table and `sourceFields` coincide with a declared incarnation's `foreign_key_field`/`parent_table` pair fails codegen with a named reason."
+
+**DETAIL-1 — D1's surface-1 and acceptance lines keep the pre-split untagged vocabulary**
+The v0.3 schema block defines only class-tagged fields — `missingReads`/`missingWrites`, `extraReads`/`extraWrites`, `readProvenance`/`writeProvenance` (`llp/0146:328-332`) — but surface 1 still says every invocation "emits `missing`, `extra`, and `provenance`" (`:345-346`) and the acceptance line still tests "non-empty `missing` with `provenance: complete`" and "an action reports `provenance: unsupported`" (`:374-376`). Readable as collective shorthand, but after a paragraph arguing that collapsing the classes lets violations cancel, the backticked collapsed names in normative text invite exactly the union the split forbids. Same propagation class as MATERIAL-1, milder because no wrong side is named.
+
+**DETAIL-2 — The retention sentence conflates two distinct gates and omits the relational retainable arm**
+§Other arms (`llp/0146:269-274`). "Retention eligibility requires a `HostPlan(Query)` with a complete, plan-consistent single-table summary; an opaque JavaScript handler is refused outright with `undeclarable_retention` (`src/manifest.rs:2981`, eligibility at `:2299-2353`)" merges two mechanisms: `validate_retainable_query` (the erroring gate that owns the `:2981` refusal) *also admits* `HostPlan(RelationalQuery)` with a two-table relational summary (`src/manifest.rs:2911-2971`, the `opaque-authorized-snapshot-v1` class), so "requires a HostPlan(Query)" is false of it; and `rqs_eligible_digest_kind` (`:2299-2353`, which does require single-table `HostPlan(Query)`) never "refuses outright" — its own doc comment says "never a load error" (`:2304-2307`). The conclusion survives both corrections (the relational arm checks its summary against the plan too), but the sentence should split the gates: the declared-`retainable` class refuses opaque JS erroringly; RQS eligibility excludes it non-erroringly; both foreclose drift.
+
+**DETAIL-3 — D3's command example and OQ10's title were not updated for the `digestCursor` split**
+The example still reads `introspect --changed-since <envelopeHash>` (`llp/0146:444-445`) immediately before the text declaring that key insufficient for the dynamic section (`:448-455`), and the document never says what the flag accepts after the split — hash, cursor, or both. OQ10 is still titled "Digest hash custody" and asks about "a prior digest *hash*" (`:1008-1012`) while the body's concept is the cursor (`:462-471`). One sentence fixing the surface syntax and renaming OQ10's subject closes the seam.
+
+**DETAIL-4 — D6's conservative classification fallback collapses `deterministic` to nearly empty**
+The transitivity paragraph offers two routes: follow effect provenance through the step, or "conservatively mark any run that touched an uncontrolled subsystem as `observed`" (`llp/0146:712-714`). But SQLite is named among the uncontrolled escapes (`:664-666`) and every durable step touches SQLite, so under the conservative route the `deterministic` class is essentially unpopulated and the acceptance clause "a seeded property violation over controlled seams only shrinks to a minimal scenario classed `deterministic`" (`:719-720`) becomes unsatisfiable. The two routes are presented as alternatives but only provenance-following can populate `deterministic`; a sentence saying the fallback is a degraded mode, not a design choice of equal standing, keeps the acceptance line honest.
+
+**DETAIL-5 — The Status section still narrates the v0.2 state**
+`llp/0146:1038-1040` mentions only round 1 and "v0.2 applies every finding"; nothing there is false, but after a round-2 cycle recorded in the Revised header, the Status paragraph should acknowledge v0.3 so a reader landing on Status alone is not one revision behind.
+
+TOOL_USES: 21

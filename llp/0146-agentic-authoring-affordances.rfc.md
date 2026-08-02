@@ -45,6 +45,23 @@ example and reassigns carrier ownership from LLP 0144 to the LLP
 0094/0095 family. Corrects the search disposition — search is one-shot,
 not live — and records the `functionTables` first-schema-table fallback
 that both families found independently.)
+2026-08-01 (v0.4, round-3 dual-family reconciliation — Fable READY,
+Codex NOT READY; artifacts appended to the same two files. Both families
+converged independently on the same four residues, all propagation lag
+from v0.3's body edits: D5's acceptance clause still encoded the
+withdrawn target-side overlap test; D1's report and acceptance prose kept
+the collapsed `missing`/`extra`/`provenance` names the class split
+forbids; the retention paragraph merged two distinct gates and omitted
+the relational retainable arm; and D3's command still exposed only
+`envelopeHash` after deciding two delta keys. Codex additionally found
+v0.3's replacement overlap predicate ill-typed — it compared
+`sourceFields` against `parent_table`, a table identity — now restated as
+a three-term predicate, with `sourceIndex` added to the declaration so
+the reverse lookup `onTargetDelete` requires is nameable. Fable
+additionally found that D6's conservative fallback would leave
+`deterministic` unpopulated, since every durable step touches SQLite; it
+is now marked a degraded mode rather than a co-equal route. Status
+narration brought current.)
 **Related:** LLP 0008, LLP 0010, LLP 0017, LLP 0019, LLP 0020, LLP 0024,
 LLP 0040, LLP 0042, LLP 0054, LLP 0055, LLP 0056, LLP 0061, LLP 0062,
 LLP 0073, LLP 0080, LLP 0081, LLP 0094, LLP 0095, LLP 0097, LLP 0108,
@@ -267,15 +284,25 @@ most likely to make.
   plan-table arm is reached (`src/live_matcher.rs:237-257`). v0.2 grouped it
   with plan-table live invalidation; that was inaccurate.
 - **Offline/RQS retention has a verified current disposition, and it is
-  "no effect."** Retention eligibility requires a `HostPlan(Query)` with a
-  complete, plan-consistent single-table summary; an opaque JavaScript
-  handler is refused outright with `undeclarable_retention(function,
-  "opaqueJavaScript")` (`src/manifest.rs:2981`, eligibility at
-  `:2299-2353`), and the Cloudflare arm applies the same rule
-  (`cloudflare/src/rqs-host.mjs:194-223`). Hand-authored declaration drift
-  is only possible in opaque JS handlers, and those are exactly the shape
-  retention excludes — so drift has no retention or RQS effect today. OQ12
-  is narrowed accordingly: it asks only what happens if eligibility later
+  "no effect."** Two distinct gates reach the same conclusion, and they
+  should not be described as one:
+  - **Declared retainable admission** (`validate_retainable_query`) is the
+    *erroring* gate. It admits a `HostPlan(Query)` with a plan-consistent
+    single-table summary **and** a qualifying `HostPlan(RelationalQuery)`
+    with a two-table relational summary (`src/manifest.rs:2891-2971`), and
+    refuses anything else — opaque JavaScript included — with
+    `undeclarable_retention(function, "opaqueJavaScript")`
+    (`src/manifest.rs:2981`).
+  - **RQS eligibility** (`rqs_eligible_digest_kind`, `:2299-2353`) is the
+    *non-erroring* derived predicate, requiring the single-table
+    `HostPlan(Query)` profile; its own doc comment says a query failing the
+    proof "is simply not eligible, never a load error." The Cloudflare arm
+    mirrors it (`cloudflare/src/rqs-host.mjs:194-223`).
+
+  Every admitted shape has its summary checked against its plan, and
+  hand-authored drift is only possible in opaque JS handlers, which both
+  gates exclude. So drift has no retention or RQS effect today. OQ12 is
+  narrowed accordingly: it asks only what happens if eligibility later
   expands to admit opaque handlers.
 
 ### What is common to every target
@@ -343,7 +370,11 @@ confidence it exists to remove.
 Three surfaces, in increasing strictness:
 
 1. **Report (v0).** Every invocation that carries an authoritative capture
-   emits `missing`, `extra`, and `provenance`. Attach to `FunctionRunResult`
+   emits all six class-tagged fields — `missingReads`, `missingWrites`,
+   `extraReads`, `extraWrites`, `readProvenance`, `writeProvenance`. There
+   is no collapsed `missing`/`extra`/`provenance` triple; naming one would
+   reintroduce the union this split exists to prevent. Attach to
+   `FunctionRunResult`
    and to the `app.inspect` recent-invocation ring. Note the ring today
    records *host operations* only (`src/host_ops.rs:63-64`), so the
    app-data plane must be wired into it — or the surface scoped to host-op
@@ -371,13 +402,16 @@ unwitnessed function as affected by every changed table — chosen in OQ8.
 Strict mode is the third option and the only one that keeps fan-out cheap.
 
 *Acceptance:* a handler reading an undeclared table reports non-empty
-`missing` with `provenance: complete`, fails `verify` coverage, and is
-refused with the named code under strict mode; an action reports
-`provenance: unsupported` rather than `conformant`; a conditionally-read
-declared table produces no over-declaration warning until aggregate
-coverage shows no path witnesses it; and the coverage report names which
-of the success, failure, action, relational, search, snapshot-bundle, and
-per-target paths yielded authoritative evidence.
+`missingReads` with `readProvenance: complete`, fails `verify` coverage, and
+is refused with the named code under strict mode; a handler that swaps a
+read and a write against its declaration reports both `missingReads` and
+`missingWrites` rather than cancelling to empty; an action reports
+`readProvenance`/`writeProvenance` of `unsupported` rather than any
+conformant verdict; a conditionally-read declared table produces no
+over-declaration warning until aggregate coverage shows no path witnesses
+it; and the coverage report names which of the success, failure, action,
+relational, search, snapshot-bundle, and per-target paths yielded
+authoritative evidence.
 
 *Cost:* small for surfaces 1–2 (the sets are in hand; the work is the
 comparison, provenance plumbing, and source-span mapping). The two refusal
@@ -442,7 +476,7 @@ hash space. It supplies the budgeting, section stability, and elision
 discipline that entry lacks, under 0062's spelling:
 
 ```
-snapback-app introspect --changed-since <envelopeHash> --budget-bytes 32768
+snapback-app introspect --changed-since <digestCursor> --budget-bytes 32768
 ```
 
 **But `envelopeHash` alone cannot key this digest, and v0.2 got that
@@ -461,6 +495,14 @@ The digest therefore has **two sections with two delta keys**:
 - **Dynamic section** — counts, recent refusals, conformance verdicts.
   Keyed by a `digestCursor` bound to `(envelopeHash, observation state)`,
   which is the only thing that can say "since what."
+
+**One flag carries both keys.** The `digestCursor` *embeds* the
+`envelopeHash` it was minted against, so `--changed-since <digestCursor>`
+supplies both delta bases in one opaque token and the caller never holds two.
+Every digest response emits the cursor for its own state, which is what the
+next call passes back. A bare `envelopeHash` remains accepted for
+compatibility with LLP 0062's spelling and yields a static-only delta with
+the dynamic section sent whole — stated, not silent.
 
 **Custody remains a required decision.** Something must recover what a prior
 cursor denoted: the server retains recent digest manifests, the client
@@ -489,9 +531,13 @@ Budgets are declared in **bytes and item counts**, not tokens — see D-decline
 5.
 
 *Acceptance:* two digests of an unchanged app are byte-identical; a
-single-field schema change produces a minimal diff; a budget too small to
-hold the schema still produces a valid digest with a truthful elision
-marker.
+single-field schema change produces a minimal diff; **a dynamic-only change
+— new rows, a fresh refusal — produces a non-empty dynamic delta while
+`envelopeHash` is unchanged**, which is the case a hash-only key could not
+express; a bare `envelopeHash` yields a static-only delta and says so; an
+unknown or expired cursor degrades to a full digest with a named reason; and
+a budget too small to hold the schema still produces a valid digest with a
+truthful elision marker.
 
 ### D4. Semantic change-impact diff
 
@@ -570,10 +616,15 @@ defineInvariant('message-author-is-room-member', existsRelation({
   source: messages,
   sourceFields: ['roomId', 'authorId'],
   target: roomMembers,
-  targetIndex: 'by_room_user',
+  targetIndex: 'by_room_user',      // forward: does the target row exist?
+  sourceIndex: 'by_room_author',    // reverse: do source rows point at it?
   onTargetDelete: 'restrict',
 }))
 ```
+
+Both indexes are named because both directions are checked; `sourceIndex`
+may be inferred where exactly one index covers `sourceFields` in order, but
+never silently omitted.
 
 The v1 vocabulary: required referenced row (`existsRelation`) and
 conditional uniqueness.
@@ -613,16 +664,29 @@ incarnation. That names the wrong side of the relationship: a
 `RelationIncarnation` is a protected *field on the child/source row*,
 paired with a required foreign-key field, and "the paired required
 foreign-key field is the complete relationship declaration"
-(`src/manifest.rs:829-840`). The correct test is therefore: refuse an
-`existsRelation` whose **source table and `sourceFields` coincide with a
-declared incarnation's `foreign_key_field`/`parent_table` pair**. Whether
-the two vocabularies should ever converge is OQ13.
+(`src/manifest.rs:829-840`).
+
+v0.3's replacement was better but still ill-typed: it asked whether
+`sourceFields` coincides with the `foreign_key_field`/`parent_table` pair,
+and `parent_table` is a *table identity*, not a member of a field list. The
+predicate relates three correctly typed terms:
+
+```
+overlaps(existsRelation E, incarnation I declared on table T) :=
+      E.source            == T                  // same child table
+  AND I.foreign_key_field ∈  E.sourceFields     // field ∈ field list
+  AND E.target            == I.parent_table     // table == table
+```
+
+Codegen refuses `E` when `overlaps` holds for any declared incarnation.
+Whether the two vocabularies should ever converge is OQ13.
 
 Codegen must **prove boundedness in both directions**: `targetIndex` bounds
 insert and update validation on the source side, but `onTargetDelete:
 'restrict'` needs an indexed **reverse** lookup — "are there source rows
-pointing at this target?" — which `targetIndex` does not provide. An
-invariant that cannot name both supporting indexes is a generation error,
+pointing at this target?" — which `targetIndex` does not provide. That is
+why the declaration carries `sourceIndex` as well; an invariant that cannot
+name or unambiguously infer both supporting indexes is a generation error,
 not a slow commit.
 
 D5 must also define three semantics v0.2 left implicit:
@@ -639,11 +703,14 @@ D5 must also define three semantics v0.2 left implicit:
   survivor rather than merely counting.
 
 *Acceptance:* both directions refuse with the invariant's name in the
-refusal; an invariant without a supporting index fails codegen; an
-`existsRelation` targeting a promoted relation incarnation fails codegen
-with a named reason; a mutation that transiently violates and then repairs
-the invariant within one transaction commits; commit cost stays
-index-bounded under a growing target table.
+refusal; an invariant that can neither name nor unambiguously infer both
+`targetIndex` and `sourceIndex` fails codegen; an `existsRelation` for which
+`overlaps` holds against any declared incarnation — same source table, the
+incarnation's `foreign_key_field` among `sourceFields`, target equal to the
+incarnation's `parent_table` — fails codegen with a named reason; a
+mutation that transiently violates and then repairs the invariant within one
+transaction commits; commit cost stays index-bounded under a growing target
+table.
 
 ### D6. Scenario runner with counterexample shrinking
 
@@ -703,7 +770,13 @@ step still executes *through* SQLite, sockets, threads, or an action, any
 of which can supply the ordering the violation actually depended on.
 Classification must therefore follow event and effect provenance through the
 step — or, failing that, conservatively mark any run that touched an
-uncontrolled subsystem as `observed`. LLP 0054's exact-replay proposal takes
+uncontrolled subsystem as `observed`. **The conservative route is a degraded
+mode, not a co-equal design choice**: SQLite is named among the uncontrolled
+subsystems and every durable step touches it, so a blanket rule would leave
+`deterministic` unpopulated and the acceptance clause below unsatisfiable.
+Only provenance-following can populate the class; the fallback is what a
+runner does before that provenance exists, and it must say which route it
+used. LLP 0054's exact-replay proposal takes
 the stricter route, requiring every nondeterministic input that affects
 observable behaviour to pass through an injected interface
 (`llp/0054:243-257`); D6 does not adopt that, and so must not borrow its
@@ -1005,11 +1078,11 @@ value an agent cannot exploit while its model of the app is still wrong.
    does not implement the pinned operation. Does `verify` later become the
    shared core that `acceptance.run` projects, carrying the LLP 0024 result
    contract, or do the two stay separate surfaces?
-10. **Digest hash custody.** Who retains what a prior digest hash denoted —
-    server-side digest manifests, client-presented prior digest, or
-    generation-only resolution? What retention, expiry, and authority
-    boundary applies, and is degrading an unknown hash to a full digest with
-    a named reason the right behaviour?
+10. **Digest cursor custody.** Who retains what a prior `digestCursor`
+    denoted — server-side digest manifests, client-presented prior digest,
+    or coarse resolution with the dynamic section always sent whole? What
+    retention, expiry, and authority boundary applies? (The carrier is
+    settled — one flag, cursor embeds the envelope hash; custody is not.)
 11. **Generalising `membership.lastHolder`.** D5 withdraws
     protected-last-member because memberships already enforce it. Should a
     generic protected-cardinality invariant exist, and if so does it reuse
@@ -1035,9 +1108,16 @@ substantial subsystems and should be re-scoped after Wave 1 lands, when the
 conformance and verification surfaces will have made some of their
 motivating failure classes observable rather than hypothesized.
 
-Round-1 dual-family review returned NOT READY from both families; v0.2
-applies every finding, and the fourteen open questions above are the honest
-residue. The Cloudflare fan-out defect (OQ8) is the one item in this
-document that describes a live product defect rather than a missing
-affordance, and it should be ticketed independently of whether the rest of
-this RFC is accepted.
+Three dual-family review rounds have run. Round 1 returned NOT READY from
+both families and inverted the document's central claim. Round 2 returned
+Fable READY, Codex NOT READY, and caught two defects that v0.2 introduced
+while applying round-1 findings. Round 3 returned Fable READY, Codex NOT
+READY, with both families independently converging on the same four
+residues — all of them propagation lag from v0.3's body edits into examples
+and acceptance clauses, plus one ill-typed predicate. v0.4 applies every
+one. The fourteen open questions above are the honest residue.
+
+The Cloudflare fan-out defect (OQ8) is the one item in this document that
+describes a live product defect rather than a missing affordance. It is
+ticketed at `issues/20260801-cloudflare-live-fanout-uses-declared-tables.md`
+and stands whether or not this RFC is accepted.
