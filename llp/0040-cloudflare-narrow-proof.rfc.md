@@ -5,7 +5,7 @@
 **Systems:** Deployment, Runtime, Storage, Sync, Realtime, Security, Developer experience, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-17 (the pinned Node 24.18.0 protocol-hardening proof now uses an `Expect: 100-continue` header-only exchange for oversized uploads, preserving the real-loopback Content-Length fast path without starting a reset-prone uploader or retrying); 2026-07-12 (ENG-24341–ENG-24369 / ENG-24387–ENG-24388 final review: subscription rows/args and both legacy/total sockets have enforced manifest-advertised ceilings; foundational schema drift remains diagnosable/resettable; deploy health is pinned to Cloudflare's exact Worker-version metadata after code deploy and a post-secret final deploy. Earlier:
+**Revised:** 2026-08-01 (live fan-out now conservatively considers every subscribed live-query function on every non-empty commit, closing the under-declared/unwitnessed-read false-negative while retaining indexed durable-registry selection and equal-shape query grouping; All Aboard pins the two-table regression). 2026-07-17 (the pinned Node 24.18.0 protocol-hardening proof now uses an `Expect: 100-continue` header-only exchange for oversized uploads, preserving the real-loopback Content-Length fast path without starting a reset-prone uploader or retrying); 2026-07-12 (ENG-24341–ENG-24369 / ENG-24387–ENG-24388 final review: subscription rows/args and both legacy/total sockets have enforced manifest-advertised ceilings; foundational schema drift remains diagnosable/resettable; deploy health is pinned to Cloudflare's exact Worker-version metadata after code deploy and a post-secret final deploy. Earlier:
 whole-codebase review hardening closes hosted provisioning, schema/index,
 action/cron, secret, realtime-session, request-decoding, reset/migration,
 deployment-identity, config-operations, bootstrap, and cache-hygiene gaps; see
@@ -599,8 +599,13 @@ demonstration path. The resulting contracts are now executable regressions:
   required/type/unknown/protected-system-field rules. Declared expression
   indexes are definition-reconciled (fields/order/uniqueness, not name-only)
   and `withIndex` is validated; identity is checked before app DDL, internal
-  subscription selection is indexed, and fan-out queries only affected
-  functions.
+  subscription selection is indexed. Fan-out now selects every live-query
+  function conservatively, then uses bounded indexed queries to fetch only
+  functions with active durable subscriptions and groups equal
+  function/argument shapes into one re-query. This deliberately pays
+  false-positive delivery work rather than letting an incomplete declaration
+  suppress an update; captured-read persistence may recover precision later
+  without changing the correctness rule.
 - Every JSON body streams through one bounded, fatal-UTF-8 object parser. The
   gateway no longer buffers an unbounded body first, and syntax, media type,
   empty body, shape, UTF-8, and size failures return stable 4xx diagnostics

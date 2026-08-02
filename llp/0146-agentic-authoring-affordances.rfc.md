@@ -7,7 +7,7 @@ verification, Diagnostics, Schema and storage, Live queries, Developer
 experience
 **Author:** Charlie Cheever / Claude (Opus 5)
 **Date:** 2026-08-01
-**Revised:** 2026-08-01 (v0.1, initial draft)
+**Revised:** 2026-08-01 (implementation reconciliation outside the RFC's unratified D1 program: the independently ticketed Cloudflare live-delivery defect is fixed by conservative fan-out widening; OQ8 is narrowed to whether and how to recover precision). 2026-08-01 (v0.1, initial draft)
 2026-08-01 (v0.2, round-1 dual-family reconciliation — artifacts in
 `llp/reviews/0146-agentic-authoring-affordances.{fable,codex}.md`, both
 NOT READY. The load-bearing correction is rebuilt: v0.1 claimed
@@ -109,12 +109,14 @@ scenario runner with counterexample shrinking, and D7 typed remediations
 with type-aware suggestion. Six candidates are adjudicated as declined or
 deferred, including two that are attractive and wrong.
 
-One decision moved between v0.1 and v0.2 and is worth stating up front:
-because live fan-out on the Cloudflare arm selects subscriptions by
-manifest-declared tables, **D1 is a correctness seam on that target**, not
-only a trustworthiness improvement to the artifact. That raises D1 from
-"first because it is cheap" to "first because a shipped target can lose
-live updates without it."
+One decision moved between v0.1 and v0.2 and is worth stating up front: the
+review found that live fan-out on the Cloudflare arm selected subscriptions
+by manifest-declared tables, making **D1 a correctness seam on that target**,
+not only a trustworthiness improvement to the artifact. The independently
+ticketed product defect has since been closed by conservative widening: every
+non-empty commit now considers every subscribed live-query function. D1 still
+makes declaration drift observable; it is no longer required to prevent this
+specific false-negative.
 
 ## Motivation
 
@@ -255,27 +257,36 @@ Mutation commit validation is on firmer ground: it validates
 `src/local.rs:11111`, `:11568`, `:11797` and reaching the validator at
 `src/storage.rs:4454-4457`.
 
-### Cloudflare arm — declared tables are the only fan-out filter
+### Cloudflare arm — historical declared-table-only fan-out
 
-Here the critique's original claim is simply correct. `fanOut` selects
-affected subscriptions with
+At the v0.5 review cut, the critique's original claim was simply correct.
+`fanOut` selected affected subscriptions with
 `functionTables(fn).some((table) => changedTables.has(table))`
-(`cloudflare/src/coordinator.js:5163-5167`), and `functionTables` returns
-the function's declared `fn.tables` — **or, when that list is absent or
+(`cloudflare/src/coordinator.js:5163-5167` at that cut), and `functionTables`
+returned the function's declared `fn.tables` — **or, when that list is absent or
 empty, `[schema.tables[0].name]`** (`:5539-5542`). The fallback is a second
 and arguably worse miss on the same arm: a live query with no declared
 tables fans out on whichever table happens to be first in the schema, which
 is arbitrary rather than conservative, and "no declaration yet" is exactly
-the state a code-first agent leaves a handler in. Captured reads are
-recorded on this arm but deliberately unused: the coordinator's own header
-says "captured read sets are recorded but not yet validated"
+the state a code-first agent leaves a handler in. Captured reads were
+recorded on this arm but unused by fan-out: the coordinator's own header said
+"captured read sets are recorded but not yet validated"
 (`cloudflare/src/coordinator.js:22-23`), with serialisation standing in for
 the isolation the manifest declares.
 
-**Therefore: a handler that declares table A and dynamically reads table B
-will not be woken when B changes, on Cloudflare, today.** That is a live
+**Therefore, before the 2026-08-01 fix, a handler that declared table A and
+dynamically read table B was not woken when B changed.** That was a live
 correctness defect reachable by exactly the authoring mistake an agent is
 most likely to make.
+
+**Landed interim (2026-08-01).** `fanOut` now conservatively selects every
+`LiveQuery` function for every non-empty commit. The bounded indexed durable
+registry queries still limit work to active subscriptions, and equal
+function/argument shapes still share one re-query. This removes both the
+under-declared miss and the arbitrary first-schema-table fallback without a
+subscription-schema migration. The cost is delivery precision; OQ8 now asks
+whether captured-read persistence or future strict-mode admission should
+recover it, not how to restore correctness.
 
 ### Other arms
 
@@ -409,11 +420,12 @@ declarations are evidence, and LLP 0108 sequences ceiling enforcement as
 decision, taken narrowly. The escape hatch is per-dependency-class
 (explicitly conservative or unobservable classes), never a blanket disable.
 
-**Cloudflare disposition.** Report and coverage do not by themselves fix
-the fan-out defect. That arm needs either captured-read consumption in
-`fanOut` or a conservative widening — treat an under-declared or
-unwitnessed function as affected by every changed table — chosen in OQ8.
-Strict mode is the third option and the only one that keeps fan-out cheap.
+**Cloudflare disposition.** Report and coverage did not by themselves fix
+the fan-out defect, so the arm independently landed conservative widening:
+an under-declared or unwitnessed function is affected by every changed table.
+OQ8 retains the captured-read and strict-mode shapes only as ways to recover
+precision; strict mode is the one that keeps fan-out cheap without a durable
+dependency read.
 
 *Acceptance:* a handler reading an undeclared table reports non-empty
 `missingReads` with `readProvenance: complete`, fails `verify` coverage, and
@@ -1035,18 +1047,15 @@ consume conformance verdicts and the served manifest.
 subsystems with their own design risk and should not run concurrently with
 Wave 1.
 
-**One item jumps the waves.** The Cloudflare fan-out disposition (OQ8) is
-not a Wave 3 concern: it is a live-delivery defect on a shipped arm, and it
-should land with Wave 1 rather than wait for strict mode's
-authoring-contract decision.
+**One item jumped the waves.** The Cloudflare fan-out correctness disposition
+was not a Wave 3 concern: it was a live-delivery defect on a shipped arm. The
+conservative widening landed independently on 2026-08-01 rather than waiting
+for strict mode's authoring-contract decision.
 
-That commitment is conditional on which shape wins, and v0.2 stated it too
-flatly. Shapes 1 and 2 — captured-read consumption and conservative
-widening — are Wave 1 work outright. Shape 3 *is* strict mode, which
-Sequencing otherwise places in Wave 3; if it wins, the target-scoped subset
-required to make Cloudflare fan-out correct jumps to Wave 1 with it, and
-the rest of strict mode stays in Wave 3. Choosing shape 3 therefore costs
-more schedule than the other two, which is itself an input to OQ8.
+The correctness work chose shape 2, conservative widening. Captured-read
+consumption remains possible Wave 1 optimization work. Shape 3 *is* strict
+mode, which Sequencing otherwise places in Wave 3; it no longer needs a
+target-scoped subset pulled forward merely to make Cloudflare correct.
 
 **Deferred lane.** C9 after D7; C10 after D1; C11 when LLP 0097 becomes
 implementable.
@@ -1084,12 +1093,13 @@ value an agent cannot exploit while its model of the app is still wrong.
 7. **CV-14 custody.** D4 claims LLP 0115 CV-14, which rides a custody
    trigger in the 0062 family. Does claiming it here satisfy the trigger, or
    must the custody owner ratify?
-8. **Cloudflare fan-out disposition.** Three shapes close the declared-table
-   fan-out defect: consume captured reads in `fanOut`; widen conservatively
-   (an under-declared or unwitnessed function is affected by every changed
-   table); or require strict mode on that target. The first costs a storage
-   read per fan-out, the second costs delivery precision, the third costs an
-   authoring-contract change. Which, and does it gate any hosted claim?
+8. **Cloudflare fan-out precision after the correctness fix.** Conservative
+   widening landed on 2026-08-01: an under-declared or unwitnessed function is
+   affected by every changed table. Should that remain the final shape, should
+   `fanOut` consume a persisted captured-read witness, or should future strict
+   mode recover precision on this target? The first costs delivery precision,
+   the second a durable dependency read, and the third an authoring-contract
+   change. Does the precision choice gate any broader hosted claim?
 9. **`acceptance.run` relationship.** D2 is a CLI composition and explicitly
    does not implement the pinned operation. Does `verify` later become the
    shared core that `acceptance.run` projects, carrying the LLP 0024 result
@@ -1139,7 +1149,8 @@ truth of its factual claims — not a ratification of its seven decisions. The
 fourteen open questions above are the honest residue, and the status stays
 Draft because adjudicating them is the author's call, not the loop's.
 
-The Cloudflare fan-out defect (OQ8) is the one item in this document that
-describes a live product defect rather than a missing affordance. It is
-ticketed at `issues/20260801-cloudflare-live-fanout-uses-declared-tables.md`
-and stands whether or not this RFC is accepted.
+The Cloudflare fan-out defect was the one item in this document that described
+a live product defect rather than a missing affordance. It was fixed
+independently of this RFC and is closed at
+`issues/closed/20260801-cloudflare-live-fanout-uses-declared-tables.md`; no D1
+surface or strict-mode decision is implied by that repair.

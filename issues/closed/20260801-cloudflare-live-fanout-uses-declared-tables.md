@@ -1,6 +1,6 @@
 # Cloudflare live fan-out selects subscriptions by declared tables, not captured reads
 
-**Status:** Open
+**Status:** Resolved (2026-08-01)
 **Found:** 2026-08-01, LLP 0146 round-1 super-refine (Codex family BLOCKING-1,
 author-verified)
 **Systems:** Cloudflare arm, live queries, invalidation
@@ -85,4 +85,26 @@ is adjudicated.
 
 An acceptance case on the Cloudflare arm: a live query declaring table A that
 also reads table B, with a commit touching only B, must deliver an update.
-Today it does not.
+Before this fix, it did not.
+
+## Resolution (2026-08-01)
+
+The Cloudflare arm now uses the correctness-first interim described above:
+every non-empty commit considers every `LiveQuery` function affected. The
+existing bounded indexed `_snapback_subscriptions(function_name)` lookups
+still limit work to live functions with active durable subscriptions, and
+equal function/argument shapes still share one re-query. The old
+`functionTables` helper and its arbitrary first-schema-table default are
+removed.
+
+This deliberately accepts false-positive re-query work rather than allowing a
+false-negative update, following LLP 0008 §Reactivity and Read Sets. Captured
+reads remain available as a future precision optimization; they do not need to
+be persisted or consumed for correctness now.
+
+Acceptance is pinned in the Cloudflare All Aboard arm:
+`underdeclaredFeedState` declares `trainStatus`, executes the `feedState`
+handler that reads `feedRefreshState`, and must receive a `live_replace` after
+`claimFeedPoll` commits a change only to `feedRefreshState`. The focused suite
+passes 20/20 checks. Source-derived deployment identities were regenerated for
+both Cloudflare proof apps.

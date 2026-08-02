@@ -174,6 +174,10 @@ export const functions = [
   { name: 'liveTrainStatus', kind: 'LiveQuery', export: 'liveTrainStatus', tables: ['trainStatus'] },
   { name: 'liveDepartures', kind: 'LiveQuery', export: 'liveDepartures', tables: ['liveDepartures'] },
   { name: 'feedState', kind: 'LiveQuery', export: 'feedState', tables: ['feedRefreshState'] },
+  // Regression witness for conservative Cloudflare fan-out: the handler
+  // intentionally reads feedRefreshState despite declaring only trainStatus.
+  // A feedRefreshState-only commit must still wake this subscription.
+  { name: 'underdeclaredFeedState', kind: 'LiveQuery', export: 'feedState', tables: ['trainStatus'], testingOnly: true },
   { name: 'applyFeedTick', kind: 'Mutation', export: 'applyFeedTick', tables: ['trainStatus', 'liveDepartures', 'feedRefreshState', 'feedTicks'] },
   {
     name: 'applyLiveFeedSnapshot',

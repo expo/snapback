@@ -49,7 +49,7 @@ export const LOCAL_SUITES = Object.freeze([
   {
     id: 'acceptance-all-aboard',
     file: 'cloudflare/test/acceptance.all-aboard.mjs',
-    evidence: ['all-aboard cloudflare acceptance: 19/19 checks passed'],
+    evidence: ['all-aboard cloudflare acceptance: 20/20 checks passed'],
   },
   {
     id: 'acceptance-built-client',

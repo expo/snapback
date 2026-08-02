@@ -148,7 +148,7 @@ function readJson(rel) {
   return JSON.parse(fs.readFileSync(path.join(repoRoot, rel), 'utf8'));
 }
 
-const EXPECTED_CHECKS = 19;
+const EXPECTED_CHECKS = 20;
 let checks = 0;
 function check(label, condition) {
   checks += 1;
@@ -255,6 +255,31 @@ async function main() {
       feedHandle.rows.length === 1 && ['seed', 'recorded', 'recorded-fallback'].includes(feedHandle.rows[0].lastSource)
     );
 
+    // This testing-only query declares trainStatus but its shared feedState
+    // handler reads feedRefreshState. claimFeedPoll changes only
+    // feedRefreshState, pinning the conservative fallback required when a
+    // declaration is incomplete and no durable captured-read witness exists.
+    const underdeclaredHandle = await client.liveQuery('underdeclaredFeedState', {
+      connectionId,
+      transport: 'stream',
+      fallbackToPoll: false,
+    });
+    const underdeclaredBeforeVersion = underdeclaredHandle.version;
+    const pollClaim = await client.mutate('claimFeedPoll', {
+      args: { trigger: 'underdeclared-fanout-acceptance', minIntervalMs: 0 },
+    });
+    const underdeclaredDeadline = Date.now() + 5000;
+    while (underdeclaredHandle.version <= underdeclaredBeforeVersion && Date.now() < underdeclaredDeadline) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    check(
+      'a live query that reads an undeclared table wakes on a commit touching only that table',
+      pollClaim.result.allowed === true &&
+        pollClaim.changed_count === 1 &&
+        underdeclaredHandle.version >= pollClaim.version &&
+        underdeclaredHandle.rows[0]?.lastUpstreamPollAt === pollClaim.result.lastUpstreamPollAt
+    );
+
     // --- mutation + live push from a local commit -------------------------
     const beforeVersion = handle.version;
     const tick = await client.mutate('applyFeedTick', { args: { trigger: 'acceptance', source: 'recorded' } });
@@ -300,6 +325,7 @@ async function main() {
 
     handle.dispose();
     feedHandle.dispose();
+    underdeclaredHandle.dispose();
     client.liveStreamManager(connectionId).close();
 
     // --- reset/seed --------------------------------------------------------

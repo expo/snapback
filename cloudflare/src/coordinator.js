@@ -34,7 +34,7 @@
 import { HostContext, physicalIndexName, physicalTableName, validateWriteValues } from './host-ops.js';
 import { nextNominalAfter } from './cron-utils.js';
 import { SUBSCRIPTION_LIMITS, SUBSCRIPTION_TEST_CEILINGS } from './limits.js';
-import { compileSubscriptionSelection, SUBSCRIPTION_FUNCTION_INDEX } from './subscription-selection.js';
+import { compileSubscriptionSelections, SUBSCRIPTION_FUNCTION_INDEX } from './subscription-selection.js';
 import { wireDiagnostic } from './wire-diagnostic.js';
 import {
   DEFAULT_MAX_PENDING_INVOCATIONS,
@@ -5158,11 +5158,17 @@ export class Coordinator {
     // @ref LLP 0008#realtime-delivery — post-commit positive-data loss tears
     // down the affected socket and recovers through a fresh reconnect snapshot.
     try {
-      const changedTables = new Set(commit.changes.map((change) => change.table));
+      // @ref LLP 0008#reactivity-and-read-sets — a false-positive re-query is
+      // acceptable, while suppressing a possibly affected subscription is a
+      // correctness bug. Declarations are not enforced ceilings, and this arm
+      // does not yet persist the captured dependency witness with each durable
+      // subscription, so conservatively select every live function. The
+      // indexed registry queries below still limit work to functions that have
+      // active subscriptions, and grouping shares one re-query across equal
+      // function/argument shapes.
       const affectedFunctions = new Set(
         functions
           .filter((fn) => fn.kind === 'LiveQuery')
-          .filter((fn) => functionTables(fn).some((table) => changedTables.has(table)))
           .map((fn) => fn.name)
       );
       const sockets = this.ctx.getWebSockets();
@@ -5179,9 +5185,10 @@ export class Coordinator {
       const subs = [];
       const affectedNames = [...affectedFunctions];
       if (affectedNames.length === 0) return;
-      const selection = compileSubscriptionSelection(affectedNames);
-      for (const record of this.sql.exec(selection.sql, ...selection.params)) {
-        subs.push(record);
+      for (const selection of compileSubscriptionSelections(affectedNames)) {
+        for (const record of this.sql.exec(selection.sql, ...selection.params)) {
+          subs.push(record);
+        }
       }
       const groups = new Map();
       for (const sub of subs) {
@@ -5534,11 +5541,6 @@ function codedError(code, message, details = null) {
   error.snapbackCode = code;
   error.snapbackDetails = details;
   return error;
-}
-
-function functionTables(fn) {
-  if (Array.isArray(fn.tables) && fn.tables.length > 0) return fn.tables;
-  return [schema.tables[0].name];
 }
 
 function functionKindMatchesMode(kind, mode) {

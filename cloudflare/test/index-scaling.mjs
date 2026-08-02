@@ -12,7 +12,9 @@ import functionsManifest from '../../demos/all-aboard/snapback/generated/functio
 import { HostContext, applyPlan, physicalIndexName } from '../src/host-ops.js';
 import {
   compileSubscriptionSelection,
+  compileSubscriptionSelections,
   SUBSCRIPTION_FUNCTION_INDEX,
+  SUBSCRIPTION_SELECTION_MAX_FUNCTIONS,
 } from '../src/subscription-selection.js';
 
 const table = schemaManifest.tables.find((entry) => entry.name === 'stations');
@@ -33,6 +35,19 @@ assert.deepEqual(
   'the extracted selector must preserve the production multi-function query exactly'
 );
 assert.throws(() => compileSubscriptionSelection([]), /at least one function/);
+const chunkedFunctionNames = Array.from(
+  { length: SUBSCRIPTION_SELECTION_MAX_FUNCTIONS + 1 },
+  (_, index) => `live_${index}`,
+);
+const chunkedSelections = compileSubscriptionSelections(chunkedFunctionNames);
+assert.equal(chunkedSelections.length, 2, 'large manifests must use bounded indexed selectors');
+assert.equal(chunkedSelections[0].params.length, SUBSCRIPTION_SELECTION_MAX_FUNCTIONS);
+assert.equal(chunkedSelections[1].params.length, 1);
+assert.deepEqual(
+  chunkedSelections.flatMap((selection) => selection.params),
+  chunkedFunctionNames,
+  'selector chunking must preserve every live function exactly once',
+);
 
 const physicalTable = `app_${table.name}`;
 const declaredIndex = physicalIndexName(table.name, index.name);
