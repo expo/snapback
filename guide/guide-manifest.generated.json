@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "de6eaf7be73e62f04f23947f873d5436c9eb9308"
+    "commit": "b4228aae55344d59951f13074dc220b6e1d8ed48"
   },
   "nav": {
     ".": [
@@ -665,14 +665,16 @@
         "src/local.rs",
         "src/server.rs",
         "packages/snapback-codegen/define.mjs",
+        "packages/snapback-vite/allowlist.mjs",
         "tests/acceptance/asset-lifecycle-v1-evidence.md"
       ],
       "examples": [
-        "demos/party-wall"
+        "demos/party-wall",
+        "demos/file-drop"
       ],
-      "reviewed": "2026-07-31",
+      "reviewed": "2026-08-02",
       "reviewedCommit": "HEAD",
-      "sha256": "de517c8a499a29f58f99a489e7daa558a7c9023e30568bf70eda31b8a1e0ee21",
+      "sha256": "bb2467f4191ed0838a239fa16f97043dea32ce059d3dec2119e57b34e8dafd1f",
       "snippets": [
         {
           "lang": "js",
@@ -705,6 +707,15 @@
           "lang": "js",
           "class": "transcluded",
           "source": "demos/party-wall/snapback/schema.mjs"
+        },
+        {
+          "lang": "tsx",
+          "class": "fragment"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/file-drop/tests/acceptance/browser-relay.mjs"
         },
         {
           "lang": "js",
@@ -1188,7 +1199,7 @@
       "examples": [],
       "reviewed": "2026-08-02",
       "reviewedCommit": "63d980b654664d2c990f454cbcb78958d87d27b8",
-      "sha256": "db2a9c67c14b865dc63aa45656ab4b905119e39b657e3d290eab728b6507a232",
+      "sha256": "7ee204a3e89d85c092023c9f649226068c799e637cd6c853b16c70296bd12a33",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2487,5 +2498,5 @@
     "routes": 89,
     "hostOps": 29
   },
-  "contentHash": "6a770f8c84051df4974d6dfcfe7084c29f3a1be12043b6ddc6cf8902c68507a5"
+  "contentHash": "7077d817205aa6f04fe2b23037361cfe8a8a023ecd1b2acbea82bc58c2c235b6"
 }

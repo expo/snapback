@@ -59,7 +59,7 @@ export const groups = Object.freeze({
     "schemaVersion": "snapback.v0"
   }
 });
-/** @type {Readonly<Record<string, Readonly<Record<string, unknown>>>>} */
+/** @type {import('./api.d.ts').GeneratedAssetUploadDefaults} */
 export const defaults = Object.freeze({});
 /** @type {import('./api.d.ts').GeneratedApi} */
 export const api = Object.freeze({

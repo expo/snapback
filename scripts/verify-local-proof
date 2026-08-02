@@ -248,6 +248,17 @@ run node demos/todo-v2/tests/acceptance/register-boot.mjs
 run node demos/graffiti/tests/acceptance/widget-read-mode.mjs
 run node demos/all-aboard/tests/acceptance/egress.mjs
 run node demos/all-aboard/tests/acceptance/startup-timing.test.mjs
+# Guide gap 2026-08-02 (react-asset-vite-path): the complete paved browser
+# asset doorway — the stock @expo/snapback-vite relay forwards the /assets/*
+# family, sessions custody signs in through the trusted-local mailbox seam,
+# and the typed generated upload reference drives upload → typed attach →
+# live row → public rendition against a real Vite dev server. The strict-TS
+# demo app must also typecheck against the generated declarations (no
+# upload-reference cast). Generated artifacts were materialized by the regen
+# gate above.
+run bun install --frozen-lockfile --cwd demos/file-drop
+run bun run --cwd demos/file-drop typecheck
+run node demos/file-drop/tests/acceptance/browser-relay.mjs
 run node demos/_kit/tests/auth-handshake.mjs
 run node demos/_kit/tests/agent-authority-custody.mjs
 # ENG-24991: kit half of the auth.session schema/validator parity proof; the

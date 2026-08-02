@@ -108,6 +108,27 @@ export const avatarUpload = defineAssetUpload({
     api.includes('"_assets.default.profiles.attachment"'),
     'the derived reference is present',
   );
+  // The declaration surface agrees with the runtime module: explicit and
+  // derived upload references are typed GeneratedApi members, and the
+  // defaults subtree is typed per table/field — no app-side cast needed for
+  // useSnapbackAssetUpload({ upload: api.<intent> }).
+  const apiTypes = readFileSync(join(dir, 'generated', 'api.d.ts'), 'utf8');
+  assert.ok(
+    apiTypes.includes('avatarUpload: AssetUploadReference<"avatarUpload", Record<string, never>>;'),
+    'api.d.ts declares the explicit upload reference on GeneratedApi',
+  );
+  assert.ok(
+    apiTypes.includes('"_assets.default.profiles.attachment": AssetUploadReference<"_assets.default.profiles.attachment", Record<string, never>>;'),
+    'api.d.ts declares the derived upload reference on GeneratedApi',
+  );
+  assert.ok(
+    apiTypes.includes('profiles: { attachment: AssetUploadReference<"_assets.default.profiles.attachment", Record<string, never>> };'),
+    'api.d.ts types the defaults subtree per table/field',
+  );
+  assert.ok(
+    apiTypes.includes('export declare const defaults: GeneratedAssetUploadDefaults;'),
+    'api.d.ts declares defaults with the generated interface',
+  );
   // Sharing declared: no undeclared-sharing warning.
   assert.equal(codes(result).includes('SNAPBACK_ASSET_SHARING_UNDECLARED'), false);
 }

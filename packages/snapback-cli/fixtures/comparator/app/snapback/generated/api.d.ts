@@ -55,6 +55,20 @@ export interface QueryGroupReference<Route extends string, Params, Queries exten
 }
 export type QueryGroupParams<Ref> = Ref extends QueryGroupReference<string, infer Params, readonly QueryGroupEntry[]> ? Params : never;
 export type QueryGroupEntries<Ref> = Ref extends QueryGroupReference<string, unknown, infer Queries> ? QueryGroupEntryResults<Queries> : never;
+export interface AssetUploadReference<Name extends string, Args = Record<string, never>> {
+  artifactKind: 'assetUploadReference';
+  schemaVersion: SchemaVersion;
+  appId: string;
+  id: string;
+  name: Name;
+  implementationHash: string;
+  argsContractHash: string;
+  argumentSchema: Readonly<Record<string, unknown>>;
+  intentPolicyHash: string;
+  policyGeneration: number;
+  requiredCapabilities: readonly string[];
+  readonly __args?: Args;
+}
 export interface EphemeralCollectionReference<Name extends string, Scope, Value, KeyMode extends EphemeralKeyMode = EphemeralKeyMode> {
   artifactKind: 'ephemeralCollectionReference';
   schemaVersion: SchemaVersion;
@@ -112,6 +126,8 @@ export interface GeneratedApi {
 }
 export declare const ephemeral: GeneratedEphemeral;
 export declare const groups: GeneratedQueryGroups;
-export declare const defaults: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
+export interface GeneratedAssetUploadDefaults {
+}
+export declare const defaults: GeneratedAssetUploadDefaults;
 export declare const api: GeneratedApi;
 export default api;

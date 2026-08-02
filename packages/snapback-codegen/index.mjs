@@ -3069,6 +3069,7 @@ export async function generateInProcess(backendDir, options = {}) {
     schemaDef,
     providerBindingMetadata,
     routesManifest,
+    assetUploadIntents,
   );
   const providerBindingTypes = renderProviderBindingTypes(providerBindingMetadata);
   const contractModules = renderContractModules(contractManifest, functionManifest.functions, functionsModule, ephemeralCollections, schemaDef);
@@ -6807,7 +6808,7 @@ function renderApiModule(
     `export const ephemeral = Object.freeze(${stableJson(ephemeralRefs)});\n` +
     `/** @type {import('./api.d.ts').GeneratedQueryGroups} */\n` +
     `export const groups = Object.freeze(${stableJson(groupRefs)});\n` +
-    `/** @type {Readonly<Record<string, Readonly<Record<string, unknown>>>>} */\n` +
+    `/** @type {import('./api.d.ts').GeneratedAssetUploadDefaults} */\n` +
     `export const defaults = Object.freeze(${stableJson(defaultRefs)});\n` +
     `/** @type {import('./api.d.ts').GeneratedApi} */\n` +
     `export const api = Object.freeze(${stableJson(refs)});\n` +
@@ -6821,6 +6822,7 @@ function renderApiTypes(
   schemaDef,
   providerBindingMetadata,
   routesManifest,
+  assetUploadIntents = [],
 ) {
   const hasSearchFunction = functions.some(
     (fn) => fn.runtime?.HostPlan?.SearchQuery !== undefined,
@@ -6892,6 +6894,24 @@ function renderApiTypes(
     '}',
     'export type QueryGroupParams<Ref> = Ref extends QueryGroupReference<string, infer Params, readonly QueryGroupEntry[]> ? Params : never;',
     'export type QueryGroupEntries<Ref> = Ref extends QueryGroupReference<string, unknown, infer Queries> ? QueryGroupEntryResults<Queries> : never;',
+    // @ref LLP 0044#generated-upload-intents — the declaration twin of the
+    // Rust-owned assetUploadReference DTO renderAssetUploadReferences emits at
+    // runtime, structurally accepted by useSnapbackAssetUpload and
+    // createAssetClient(...).start without a cast.
+    'export interface AssetUploadReference<Name extends string, Args = Record<string, never>> {',
+    "  artifactKind: 'assetUploadReference';",
+    '  schemaVersion: SchemaVersion;',
+    '  appId: string;',
+    '  id: string;',
+    '  name: Name;',
+    '  implementationHash: string;',
+    '  argsContractHash: string;',
+    '  argumentSchema: Readonly<Record<string, unknown>>;',
+    '  intentPolicyHash: string;',
+    '  policyGeneration: number;',
+    '  requiredCapabilities: readonly string[];',
+    '  readonly __args?: Args;',
+    '}',
     'export interface EphemeralCollectionReference<Name extends string, Scope, Value, KeyMode extends EphemeralKeyMode = EphemeralKeyMode> {',
     "  artifactKind: 'ephemeralCollectionReference';",
     '  schemaVersion: SchemaVersion;',
@@ -7074,6 +7094,17 @@ function renderApiTypes(
       : typeForGeneratedArgs(def?.args ?? {});
     lines.push(`  ${fn.name}: FunctionReference<'${fn.name}', '${fn.kind}', ${args}, ${result}>;`);
   }
+  // Explicit and derived upload intents are api members like functions —
+  // the runtime module already emits them, and the declaration surface must
+  // agree so useSnapbackAssetUpload({ upload: api.<intent> }) typechecks
+  // without an app-side cast. Derived names (`_assets.default.<t>.<f>`)
+  // carry dots and emit as quoted keys.
+  const uploadRefType = (intent) =>
+    `AssetUploadReference<${JSON.stringify(intent.name)}, ${typeForGeneratedArgs(functionsModule[intent.name]?.args ?? {})}>`;
+  for (const intent of assetUploadIntents) {
+    const key = /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(intent.name) ? intent.name : JSON.stringify(intent.name);
+    lines.push(`  ${key}: ${uploadRefType(intent)};`);
+  }
   lines.push('  ephemeral: GeneratedEphemeral;');
   lines.push('  groups: GeneratedQueryGroups;');
   lines.push('}');
@@ -7082,7 +7113,20 @@ function renderApiTypes(
   // Derived default upload intents (LLP 0044 §Ceremony floor) project as
   // defaults.<table>.<field>; reference objects share the upload-reference
   // shape the client validates at runtime.
-  lines.push('export declare const defaults: Readonly<Record<string, Readonly<Record<string, unknown>>>>;');
+  lines.push('export interface GeneratedAssetUploadDefaults {');
+  const defaultsByTable = new Map();
+  for (const intent of assetUploadIntents) {
+    if (!intent.name.startsWith('_assets.default.')) continue;
+    const [tableName, fieldName] = intent.name.slice('_assets.default.'.length).split('.');
+    if (!tableName || !fieldName) continue;
+    if (!defaultsByTable.has(tableName)) defaultsByTable.set(tableName, []);
+    defaultsByTable.get(tableName).push(`${fieldName}: ${uploadRefType(intent)}`);
+  }
+  for (const [tableName, members] of defaultsByTable) {
+    lines.push(`  ${tableName}: { ${members.join('; ')} };`);
+  }
+  lines.push('}');
+  lines.push('export declare const defaults: GeneratedAssetUploadDefaults;');
   lines.push('export declare const api: GeneratedApi;');
   lines.push('export default api;');
   return lines.join('\n') + '\n';

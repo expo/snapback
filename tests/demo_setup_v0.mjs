@@ -16,6 +16,7 @@ assert.deepEqual([...demos.keys()].sort(), [
   'catalog-lens',
   'cursors-web',
   'dispatch-board',
+  'file-drop',
   'graffiti',
   'partiful-matrix',
   'party-wall',

@@ -57,6 +57,26 @@ export const APP_ROUTE_ALLOWLIST = Object.freeze([
   entry('POST', '/ephemeral/publish'),
   entry('POST', '/ephemeral/subscribe'),
   entry('POST', '/ephemeral/delete'),
+  // Asset upload sessions and delivery (LLP 0044; LLP 0031 dated amendment
+  // 2026-07-31): the whole root-level `/assets/*` family is AppData in
+  // `core_route_registrations()` — creation admits through the generated
+  // intent's authorizer, attempt/TUS operations are authority-bound, and
+  // every delivery lane re-authorizes (or carries the whole authority in
+  // the URL for the signed/public pasteable lanes). No system or admin
+  // authority rides these routes, so the relay forwards them all.
+  entry('POST', '/assets/attempts'),
+  entry('GET', '/assets/attempts/{id}'),
+  entry('POST', '/assets/attempts/{id}/cancel'),
+  entry('POST', '/assets/attempts/{id}/finalize'),
+  entry('HEAD', '/assets/tus/{id}'),
+  entry('PATCH', '/assets/tus/{id}'),
+  entry('DELETE', '/assets/tus/{id}'),
+  entry('GET', '/assets/records/{id}'),
+  entry('DELETE', '/assets/records/{id}'),
+  entry('GET', '/assets/records/{id}/bytes/{variant}'),
+  entry('POST', '/assets/records/{id}/signed-url'),
+  entry('GET', '/assets/signed/{id}/{variant}'),
+  entry('GET', '/assets/public/{id}/{variant}'),
 ]);
 
 const compiled = APP_ROUTE_ALLOWLIST.map((route) => ({

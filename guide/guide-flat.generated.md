@@ -52,7 +52,7 @@ with the Snapback label and `guide-gap` in the title.
 | backend.codegen | Generate a digest-verified review manifest, input-hash cache, client API, and Contract bindings with deterministic human/JSON summaries | codegen, generate, artifacts, cache, custody, review manifest | all | shipped | `createReviewManifest` in packages/snapback-codegen/review-surface.mjs | llp/0010, llp/0012, llp/0037, llp/0041 | getting-started/generated-artifacts.md |
 | backend.query-semantics | Read sets, snapshots, commit versions, conflict validation | consistency, transactions, conflicts | local | shipped | route /query/{name} | llp/0003, llp/0004, llp/0007 | backend/queries.md |
 | backend.actions | Actions with gated outbound fetch: global `fetch` and target-portable host-mediated `ctx.fetch`, in closed-script module handlers or the inline form | action, fetch, ctx.fetch, side effects, notification, webhook | local | shipped | route /action/{name} | llp/0004, llp/0009, llp/0049 | backend/actions-and-fetch.md |
-| backend.assets | Authenticated asset lifecycle plus the media pipeline on the local target — generated upload intents, TUS 1.0.0 resumable transfer, trusted SHA-256 finalization with GPS-strip canonicalization for images (decode/rewrite) and MP4/QuickTime video (in-place location-atom blanking, no transcoding), declared renditions with ThumbHash placeholders, typed `v.assetRef` attachment, private-strict/private-signed/public-immutable delivery with ranges and best-variant selection, opt-in reference GC, lifecycle callbacks, deletion/GC, receipts (`asset_lifecycle_v1`, `asset_image_finalization_v1`, `asset_image_pipeline_v1`, `asset_reference_gc_v1`, `asset_video_finalization_v1`); transcoding and hosted targets remain design-only | files, images, video, upload, object storage, media | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json (all five asset ids in supportedCapabilities; `assets` facts block with Enforced image and video ceilings) + src/assets.rs + src/assets_image.rs + src/assets_video.rs suites | llp/0044 | backend/assets.md |
+| backend.assets | Authenticated asset lifecycle plus the media pipeline on the local target — generated upload intents, TUS 1.0.0 resumable transfer, trusted SHA-256 finalization with GPS-strip canonicalization for images (decode/rewrite) and MP4/QuickTime video (in-place location-atom blanking, no transcoding), declared renditions with ThumbHash placeholders, typed `v.assetRef` attachment, private-strict/private-signed/public-immutable delivery with ranges and best-variant selection, opt-in reference GC, lifecycle callbacks, deletion/GC, receipts (`asset_lifecycle_v1`, `asset_image_finalization_v1`, `asset_image_pipeline_v1`, `asset_reference_gc_v1`, `asset_video_finalization_v1`); the paved browser path (stock `@expo/snapback-vite` relay over the `/assets/*` family, sessions custody, typed generated upload references) is CI-verified; transcoding and hosted targets remain design-only | files, images, video, upload, object storage, media, browser upload, vite relay | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json (all five asset ids in supportedCapabilities; `assets` facts block with Enforced image and video ceilings) + src/assets.rs + src/assets_image.rs + src/assets_video.rs suites + demos/file-drop/tests/acceptance/browser-relay.mjs (relay + sessions + typed upload reference browser path) | llp/0044 | backend/assets.md |
 | backend.notifications | First-class notification and effect delivery; application-authored table ledgers are not this product capability | notifications, push, email, delivery, effects | none | design-only | schemas/capability.manifest.local-dev-sqlite-ibex.json (`notifications: false`; explicit `notifications` gap) | llp/0045 | GAP (owner: Charlie, review: 2026-08-31; issue: issues/20260728-guide-gap-assets-and-notifications-capability-rows.md) |
 | backend.observability-v1 | Built-in backend telemetry with a generation-bound sibling store, operation-class spans, bounded retention and rollups, typed agent-facing queries, and Health/Logs projections; LLP 0154 is Accepted but no implementation witness ships yet | telemetry, observability, health, logs, metrics, traces | none | design-only | llp/0154-minimal-observability.rfc.md | llp/0154 | GAP (implementation and guide page; owner: Charlie, review: 2026-08-31; issue: issues/20260802-obs-04-guide-gates-crossrefs.md) |
 | backend.error-tracking-v1 | Minimal built-in backend error grouping and issue lifecycle layered on the observability substrate; LLP 0156 remains in its live refinement loop outside current main and no implementation witness ships yet | error tracking, issues, fingerprints, exceptions, failures | none | design-only | issues/20260802-obs-06-errors-surface-and-fixture-gates.md | llp/0156, llp/0154 | GAP (acceptance, implementation, and guide page; owner: Charlie, review: 2026-08-31; issue: issues/20260802-obs-06-errors-surface-and-fixture-gates.md) |
@@ -3319,12 +3319,12 @@ id: backend.assets
 order: 9
 audience: agent-first
 capabilities: [backend.assets]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, src/assets.rs, src/local.rs, src/server.rs, packages/snapback-codegen/define.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md]
-examples: [demos/party-wall]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, src/assets.rs, src/local.rs, src/server.rs, packages/snapback-codegen/define.mjs, packages/snapback-vite/allowlist.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md]
+examples: [demos/party-wall, demos/file-drop]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-07-31
+reviewed: 2026-08-02
 reviewed-commit: HEAD
 ---
 
@@ -3494,6 +3494,58 @@ edge, seed fixture, and live-feed row together:
       .assetSharing({ kind: 'membership', membership: 'eventMembers' })
       .sync(),
 ```
+
+## Browser apps: the paved React + Vite path
+
+A browser app reaches every asset route through the first-party dev relay:
+`@expo/snapback-vite` forwards the complete author-facing `/assets/*`
+family — attempts, TUS transfer, records, strict/signed/public delivery —
+under `/__snapback`, while continuing to refuse `/_snapback/*` system and
+admin routes (`packages/snapback-vite/allowlist.mjs`). No app-owned Vite
+proxy is needed, and a relative URL such as
+`/__snapback/assets/public/<id>/display` works directly as an `<img src>`.
+
+Two facts shape the browser flow:
+
+- **Authenticated intents need sessions custody.** Dev-mode HTTP asset
+  requests deliberately resolve as anonymous — the asset DTO/TUS carrier has
+  no dev body-authority member, so passing `userId` to the upload task does
+  **not** authenticate the attempt. An intent with `auth: 'authenticated'`
+  therefore requires a real signed-in session in the browser. The `--user`
+  lane under Operate below is the CLI/host-op path (admin authority for
+  agents and fixtures), not a browser path.
+- **The sign-in code arrives through a trusted-local seam.** The dev
+  mailbox is admin- and impersonation-gated
+  ([sessions guide](../auth/sessions-and-principals.md)), so a browser demo
+  reads it through a small server-side dev middleware that holds both
+  carriers and hands the page only the one-time code — neither credential
+  enters the bundle, and the relay never forwards the mailbox route.
+
+Explicit and derived upload references are typed members of the generated
+api (`AssetUploadReference` in `api.d.ts`; derived defaults are typed per
+table and field on `defaults`), so the generated reference is accepted
+directly — no cast:
+
+```tsx fragment reason="hook call shape; the demo app strict-typechecks it in the proof"
+const upload = useSnapbackAssetUpload({ upload: api.photoUpload });
+```
+
+```js source=demos/file-drop/tests/acceptance/browser-relay.mjs
+    const task = assets.start({
+      upload: api.photoUpload,
+      file,
+      declaredFilename: 'snapback-balloons.png',
+      declaredContentType: 'image/png',
+    });
+```
+
+The complete path — relay health, the system-route refusal, mailbox
+sessions sign-in, typed upload to `ready`, typed attachment, the live
+gallery update over the relayed WebSocket, and public rendition delivery
+through the relay — is CI-verified by
+`demos/file-drop/tests/acceptance/browser-relay.mjs` (run from
+`scripts/verify-local-proof`); Snapdrop
+([`demos/file-drop`](repo:demos/file-drop/README.md)) is the runnable demo.
 
 ## Deliver
 

@@ -39,6 +39,7 @@ run node packages/snapback-codegen/index.mjs demos/public-dashboard/snapback
 run node packages/snapback-codegen/index.mjs demos/access-desk/snapback
 run node packages/snapback-codegen/index.mjs demos/team-chat/snapback
 run node packages/snapback-codegen/index.mjs demos/party-wall/snapback
+run node packages/snapback-codegen/index.mjs demos/file-drop/snapback
 # The packaged comparator green fixture ships its generated output inside the
 # @expo/snapback-cli tarball, and the comparator's executing-package identity
 # (comparator-profile.mjs packageExecutionIdentity) digests every packed byte.
@@ -68,6 +69,7 @@ REVIEW_ROOTS=(
     demos/pulse-monitor/snapback/generated
     demos/public-dashboard/snapback/generated
     demos/access-desk/snapback/generated
+    demos/file-drop/snapback/generated
 )
 
 REVIEW_PATHS=()

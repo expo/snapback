@@ -4,12 +4,12 @@ id: backend.assets
 order: 9
 audience: agent-first
 capabilities: [backend.assets]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, src/assets.rs, src/local.rs, src/server.rs, packages/snapback-codegen/define.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md]
-examples: [demos/party-wall]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, src/assets.rs, src/local.rs, src/server.rs, packages/snapback-codegen/define.mjs, packages/snapback-vite/allowlist.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md]
+examples: [demos/party-wall, demos/file-drop]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-07-31
+reviewed: 2026-08-02
 reviewed-commit: HEAD
 ---
 
@@ -179,6 +179,58 @@ edge, seed fixture, and live-feed row together:
       .assetSharing({ kind: 'membership', membership: 'eventMembers' })
       .sync(),
 ```
+
+## Browser apps: the paved React + Vite path
+
+A browser app reaches every asset route through the first-party dev relay:
+`@expo/snapback-vite` forwards the complete author-facing `/assets/*`
+family — attempts, TUS transfer, records, strict/signed/public delivery —
+under `/__snapback`, while continuing to refuse `/_snapback/*` system and
+admin routes (`packages/snapback-vite/allowlist.mjs`). No app-owned Vite
+proxy is needed, and a relative URL such as
+`/__snapback/assets/public/<id>/display` works directly as an `<img src>`.
+
+Two facts shape the browser flow:
+
+- **Authenticated intents need sessions custody.** Dev-mode HTTP asset
+  requests deliberately resolve as anonymous — the asset DTO/TUS carrier has
+  no dev body-authority member, so passing `userId` to the upload task does
+  **not** authenticate the attempt. An intent with `auth: 'authenticated'`
+  therefore requires a real signed-in session in the browser. The `--user`
+  lane under Operate below is the CLI/host-op path (admin authority for
+  agents and fixtures), not a browser path.
+- **The sign-in code arrives through a trusted-local seam.** The dev
+  mailbox is admin- and impersonation-gated
+  ([sessions guide](../auth/sessions-and-principals.md)), so a browser demo
+  reads it through a small server-side dev middleware that holds both
+  carriers and hands the page only the one-time code — neither credential
+  enters the bundle, and the relay never forwards the mailbox route.
+
+Explicit and derived upload references are typed members of the generated
+api (`AssetUploadReference` in `api.d.ts`; derived defaults are typed per
+table and field on `defaults`), so the generated reference is accepted
+directly — no cast:
+
+```tsx fragment reason="hook call shape; the demo app strict-typechecks it in the proof"
+const upload = useSnapbackAssetUpload({ upload: api.photoUpload });
+```
+
+```js source=demos/file-drop/tests/acceptance/browser-relay.mjs
+    const task = assets.start({
+      upload: api.photoUpload,
+      file,
+      declaredFilename: 'snapback-balloons.png',
+      declaredContentType: 'image/png',
+    });
+```
+
+The complete path — relay health, the system-route refusal, mailbox
+sessions sign-in, typed upload to `ready`, typed attachment, the live
+gallery update over the relayed WebSocket, and public rendition delivery
+through the relay — is CI-verified by
+`demos/file-drop/tests/acceptance/browser-relay.mjs` (run from
+`scripts/verify-local-proof`); Snapdrop
+([`demos/file-drop`](repo:demos/file-drop/README.md)) is the runnable demo.
 
 ## Deliver
 

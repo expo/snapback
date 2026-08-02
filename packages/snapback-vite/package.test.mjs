@@ -77,6 +77,19 @@ async function eventually(check, { timeoutMs = 10_000, label = 'condition' } = {
     ['POST', '/ephemeral/delete'],
     ['POST', '/ephemeral/collections/ensure'],
     ['GET', '/auth/session'],
+    ['POST', '/assets/attempts'],
+    ['GET', '/assets/attempts/att_1'],
+    ['POST', '/assets/attempts/att_1/cancel'],
+    ['POST', '/assets/attempts/att_1/finalize'],
+    ['HEAD', '/assets/tus/att_1'],
+    ['PATCH', '/assets/tus/att_1'],
+    ['DELETE', '/assets/tus/att_1'],
+    ['GET', '/assets/records/ast_1'],
+    ['DELETE', '/assets/records/ast_1'],
+    ['GET', '/assets/records/ast_1/bytes/primary'],
+    ['POST', '/assets/records/ast_1/signed-url'],
+    ['GET', '/assets/signed/ast_1/primary'],
+    ['GET', '/assets/public/ast_1/display'],
   ];
   for (const [method, path] of allowed) {
     assert.equal(matchAppRoute(method, path).allowed, true, `${method} ${path} should forward`);
@@ -95,6 +108,11 @@ async function eventually(check, { timeoutMs = 10_000, label = 'condition' } = {
     ['GET', '/query/listTodos'],
     ['POST', '/live/conn_1/stream'],
     ['POST', '/query/listTodos/extra/deep'],
+    ['GET', '/assets/tus/att_1'],
+    ['POST', '/assets/records/ast_1'],
+    ['GET', '/assets/attempts/att_1/finalize'],
+    ['POST', '/assets/public/ast_1/display'],
+    ['GET', '/assets/records/ast_1/bytes/primary/extra'],
   ];
   for (const [method, path] of refused) {
     assert.equal(matchAppRoute(method, path).allowed, false, `${method} ${path} should be refused`);

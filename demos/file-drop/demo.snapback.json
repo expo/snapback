@@ -1,0 +1,60 @@
+{
+  "id": "file-drop",
+  "title": "Snapdrop — a minimal photo uploader",
+  "description": "A focused React and Vite demo of Snapback's local asset pipeline: upload progress, trusted image finalization, typed attachment, live gallery updates, and public immutable delivery.",
+  "artifactSchemaVersion": "snapback.v0",
+  "targetProfile": "local-dev-sqlite-ibex",
+  "systems": ["Assets", "Storage", "Realtime", "React", "Developer experience"],
+  "requiredCapabilities": {
+    "storageEngine": "sqlite",
+    "runtimeEngine": "ibex",
+    "authMode": "sessions",
+    "assetLifecycle": true,
+    "assetImagePipeline": true,
+    "assetDeliveryProfiles": ["public-immutable"],
+    "liveSubscriptions": true
+  },
+  "backend": {
+    "source": "snapback/schema.mjs + snapback/functions.mjs + snapback/seed.json",
+    "codegen": "node packages/snapback-codegen/index.mjs demos/file-drop/snapback",
+    "generated": ["snapback/generated/artifacts.json"],
+    "stalenessPolicy": "regenerate with codegen; freshness tracked by artifacts.json inputsHash"
+  },
+  "surfaces": {
+    "headless": {
+      "requirement": "required",
+      "buildTargets": [],
+      "runner": "node demos/file-drop/tests/acceptance/browser-relay.mjs",
+      "toolchain": "node>=24, cargo, bun (demo-local install)"
+    },
+    "react": {
+      "requirement": "integration",
+      "buildTargets": ["web"],
+      "runner": "bun run dev",
+      "toolchain": "bun, Vite, local Snapback runtime"
+    }
+  },
+  "acceptanceChecks": {
+    "headless": [
+      "the stock @expo/snapback-vite relay forwards the author-facing /assets/* family and still refuses /_snapback/* system routes",
+      "sessions sign-in completes through the trusted-local mailbox seam with both admin carriers held server-side",
+      "the typed generated upload reference (api.photoUpload, no cast) uploads a PNG to ready through the relay",
+      "the typed attachment mutation commits and the live gallery query observes the row over the relayed WebSocket",
+      "the public display rendition serves 200 image/* through the relay to a plain fetch"
+    ],
+    "react": [
+      "strict typecheck against the generated api.d.ts (no upload-reference cast)",
+      "managed dev loop starts Snapback and Vite",
+      "browser uploads a PNG and sees it in the live gallery"
+    ]
+  },
+  "capabilityGaps": [
+    "hosted asset storage is not claimed by the current target",
+    "dev-mode asset HTTP resolves anonymous, so the authenticated intent requires sessions custody; the browser sign-in code arrives through the trusted-local dev mailbox seam"
+  ],
+  "notClaiming": [
+    "private files or per-user sharing",
+    "non-image uploads",
+    "hosted deployment"
+  ]
+}
