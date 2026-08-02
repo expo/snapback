@@ -14,8 +14,8 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-01
-reviewed-commit: f245965ccfdc3addd44554d709c1074adec0834f
+reviewed: 2026-08-02
+reviewed-commit: d8cacda1f187b567cd821f9f82d876afc3aee125
 ---
 
 # Capability index
@@ -64,7 +64,7 @@ with the Snapback label and `guide-gap` in the title.
 | realtime.ephemeral | Typed ephemeral rooms: presence, cursors, TTL | presence, cursors, rooms, ephemeral | local | shipped | route /ephemeral/publish | llp/0013 | realtime/ephemeral-state.md |
 | realtime.snapshot-bundles | Resumable-query snapshot bundles: one request evaluates a served route-manifest entry's queries at one commit with per-query resume tokens; register mode arms the pending-registration owner; `defineRoutes` + `publicInline` feed the Channel A inlined web boot (`snapbackChannelA` in packages/snapback-vite) with anonymous reads for publicInline-class routes; on the Cloudflare arm the routes manifest compiles into the Worker, the gateway serves Channel A HTML, and the coordinator answers read-mode bundles + token resume (register mode Cloudflare: deferred) | bundle, preload, resumable snapshots, boot, RQS, inlined HTML, routes manifest | local, cloudflare | partial | route /app/bundle | llp/0090, llp/0092 | realtime/snapshot-bundles.md |
 | sync.offline | Retained queries, outbox, replay, optimistic overlays (Contract arm: lease-bounded protected retention, derived overlays, `Parity` under LLP 0043's proof rule) | offline, sync, local-first, outbox | local | shipped | route /outbox/{connection_id} | llp/0043, llp/0052 | sync/offline-and-retention.md |
-| sync.offline-js-arm | JS/React arm (LLP 0129 Phase 0): default persisted client cache selects IndexedDB in browsers **when both IndexedDB and Web Locks are available** and a durable file store in Node **when a usable state directory is available**, degrading to in-memory (non-durable) otherwise, with retained render for the rqsEligible subset — a per-query declaration opt-in (`auth: 'public'` + `authorityIndependent: true`; nothing retains until declared), durable LLP 0043 M2 outbox with client-minted mutation ids, ordered exactly-once replay on reconnect, and a relaunch-with-pending-intent that renders retained pre-intent rows with the token withheld (LLP 0090 D3 rendering note) plus `outboxStatus`/`useSnapbackOutbox` projection; protected/auth-scoped queries refuse retention with a named reason (`SNAPBACK_RETENTION_NOT_RETAINABLE` — implemented, asserted by no test on any carrier; the acceptance's refusal check covers the non-eligible *public* case only). **Acceptance reach:** the harness acceptance proves the Node/durable-**file** carrier by a fresh client instance in the same process (no client-process restart is proven on any carrier); the React freshness/retention surface is covered by `packages/snapback-react/offline.test.mjs` against a stub transport, not a browser; standards-real IndexedDB and browser-process restart remain an explicit evidence GAP. No local execution, so no `Parity` claim | offline browser, cold boot, restart-safe queue, IndexedDB, default persistence, retainability opt-in, pending intent render | local | partial | `resolveDefaultRqsStore` in packages/snapback-client/rqs-store-default.mjs + `demos/public-dashboard/tests/acceptance/offline-local-first.mjs` (Node/file, same-process) | llp/0043, llp/0090, llp/0129 | GAP (browser carrier proof; owner: Charlie, review: 2026-08-31; issue: issues/20260801-guide-gap-js-arm-browser-indexeddb-proof.md); sync/offline-and-retention.md |
+| sync.offline-js-arm | JS/React arm (LLP 0129 Phase 0): default persisted client cache selects IndexedDB in browsers **when both IndexedDB and Web Locks are available** and a durable file store in Node **when a usable state directory is available**, degrading to in-memory (non-durable) otherwise, with retained render for the rqsEligible subset — a per-query declaration opt-in (`auth: 'public'` + `authorityIndependent: true`; nothing retains until declared), durable LLP 0043 M2 outbox with client-minted mutation ids, ordered exactly-once replay on reconnect, and a relaunch-with-pending-intent that renders retained pre-intent rows with the token withheld (LLP 0090 D3 rendering note) plus `outboxStatus`/`useSnapbackOutbox` projection; protected/auth-scoped queries refuse retention with a named reason (`SNAPBACK_RETENTION_NOT_RETAINABLE` — implemented, asserted by no test on any carrier; the acceptance's refusal check covers the non-eligible *public* case only). **Acceptance reach:** the application acceptance proves the Node/durable-**file** carrier by a fresh client instance in the same process; the React freshness/retention surface is covered by `packages/snapback-react/offline.test.mjs` against a stub transport. LLP 0155's Stage 0 carrier harness now additionally proves that the shipped store's bytes survive an owned real-Chrome `SIGKILL`/relaunch over the same profile and that two tabs enforce Web Locks reader/writer refusal and takeover. It runs no React or server path, so end-to-end browser retained/current, full-resync/replay, settlement, observer convergence, and protected-refusal facts remain an explicit GAP. No local execution, so no `Parity` claim | offline browser, cold boot, restart-safe queue, IndexedDB, default persistence, retainability opt-in, pending intent render | local | partial | `resolveDefaultRqsStore` in packages/snapback-client/rqs-store-default.mjs + `demos/public-dashboard/tests/acceptance/offline-local-first.mjs` (Node/file, same-process) + `demos/zero-bakeoff/stage0/browser/run.mjs` (real-browser carrier substrate only) | llp/0043, llp/0090, llp/0129, llp/0155 | GAP (end-to-end browser product proof; owner: Charlie, review: 2026-08-31; issue: issues/20260801-guide-gap-js-arm-browser-indexeddb-proof.md); sync/offline-and-retention.md |
 | sync.offline-js-arm-protected | Lease-bounded protected retention (LLP 0043 M1 custody) on the JS/React arm — the Contract arm ships it; this arm does not yet | offline auth browser, lease js | none | design-only | llp/0129-local-first-program.plan.md (Phase 0 status note; no shipped witness) | llp/0043, llp/0053, llp/0129 | GAP (owner: Charlie, review: 2026-08-31; issue: issues/20260731-js-arm-lease-custody-and-sessions-outbox.md) |
 | sync.settlement-bounded-skew | `settlement.bounded_skew`: a mutation-declared, structurally direct `runtimeNow()` field may accept a lane-L captured time only within its declared bound; mixed sinks stay server-derived and lane Q remains unbounded replay-accept. The server path and receipt fact ship, while local capture/execution remains outside this slice. | bounded skew, local settlement, runtimeNow, claim ledger | local | partial | src/local.rs | llp/0133 | GAP (local capture/executor; owner: LLP 0155 Stage 2, review: 2026-08-31) |
 | auth.sessions | Server-minted sessions; email-code login; server-derived principals | login, signin, identity, session | local | shipped | route /auth/exchange | llp/0039, llp/0057, llp/0059 | auth/sessions-and-principals.md |
@@ -9583,8 +9583,8 @@ examples: [demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashbo
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-01
-reviewed-commit: HEAD
+reviewed: 2026-08-02
+reviewed-commit: d8cacda1f187b567cd821f9f82d876afc3aee125
 ---
 
 # Offline retention and mutation replay
@@ -9607,13 +9607,23 @@ fallback elsewhere, reporting the resolved implementation and durability on
 `client.rqsStoreInfo` (pass `rqsStore: null` or set
 `SNAPBACK_CLIENT_RQS_STORE=off` to opt out).
 
-The implementation surface includes all three carriers, but the retained
+The implementation surface includes all three carriers. LLP 0155 Stage 0 now
+has a standards-real **store-substrate** harness at
+`demos/zero-bakeoff/stage0/browser/run.mjs`: it drives the shipped IndexedDB
+store in system Chrome, kills the owned browser process group with `SIGKILL`,
+relaunches the same profile, verifies the stored entry, and proves two-tab Web
+Locks writer/refusal/takeover behavior. That is real carrier-mechanism evidence,
+but it intentionally runs no Snapback server or React surface.
+
+The retained
 `demos/public-dashboard/tests/acceptance/offline-local-first.mjs` witness runs
 headlessly on Node and forces the file store. It does **not** certify React,
-standards-real IndexedDB, or a full browser-process restart. Those browser
-facts remain an evidence GAP under
+end-to-end retained/current behavior over IndexedDB, or the server replay and
+authorization path after a browser-process restart. Those product facts remain
+an evidence GAP under
 `issues/20260801-guide-gap-js-arm-browser-indexeddb-proof.md`; do not infer
-them from the Node receipt. The headless witness proves:
+them from either the Node receipt or the Stage 0 substrate receipt. The headless
+witness proves:
 
 - **Retained render for the rqsEligible subset on the Node/file
   carrier, by a fresh client instance in the same process.** (Not a

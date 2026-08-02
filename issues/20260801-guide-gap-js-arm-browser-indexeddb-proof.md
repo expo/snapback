@@ -50,3 +50,20 @@ as that fact's first proof.
 
 When that witness passes, update the capability row and guide prose in the same
 landing change and close this ticket.
+
+## Running log
+
+- **2026-08-02 — prerequisite harness landed, resolution witness remains
+  open.** LLP 0155 Stage 0 added
+  `demos/zero-bakeoff/stage0/browser/run.mjs`, a locally reproducible system-
+  Chrome/Chromium lane over the shipped RQS store. Its nine-check receipt
+  proves a real IndexedDB commit survives whole-process `SIGKILL` and relaunch
+  over the same profile, then proves two tabs enforce Web Locks single-writer,
+  reader adoption/refusal, and takeover after writer-tab death. The receipt
+  retains browser executable/version/digest, profile/store, source, storage,
+  and scoped cleanup identities. This closes the automation prerequisite, not
+  this ticket: the harness deliberately runs no public React surface or
+  Snapback server, so retained/current labeling, full-resync-before-replay,
+  ordered settlement, observer convergence, and protected/opaque refusal
+  remain for the resolution witness above. The capability row and guide prose
+  now make this narrower evidence split explicit.

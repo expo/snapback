@@ -157,3 +157,36 @@ owned cache process, and the runner exits after bounded cleanup. The first
 Replicache control similarly overclaimed fake-IDB persistence; the final
 receipt separates same-session queue/rebase proof from standards-real browser
 custody. These corrections retain the first-pass product verdict.
+
+### 2026-08-02 — LLP 0155 Stage 0 browser-automation groundwork
+
+The successor program now has the missing standards-real carrier substrate:
+`demos/zero-bakeoff/stage0/browser/run.mjs` launches system Chrome through a
+pinned `playwright-core` CDP client, opens Snapback's shipped RQS store over
+actual IndexedDB/Web Locks, kills the owned browser process group, and relaunches
+the same profile. The first retained entry survived exactly. In the relaunch,
+two real tabs produced one writer and one reader; the reader adopted the entry,
+refused its write as `not_writer`, then acquired the lock and committed after
+the writer tab died.
+
+What felt good: the store-agnostic boundary paid off. The browser page imports
+the production store directly; no fake-indexeddb adapter or test-only lock
+double was needed. Compared with the earlier Node/file receipt, the process and
+profile identities are explicit, and cleanup can prove the exact process group
+and profile it owns. This is the kind of closed evidence loop that feels better
+than a typical React + Supabase cache smoke test, where browser persistence and
+application correctness are easy to conflate.
+
+What felt bad: Chrome leaves `DevToolsActivePort` behind after `SIGKILL`, so the
+first runner attempt read the dead predecessor port and leaked the just-launched
+successor until scoped cleanup. The harness now removes only that owned locator
+before relaunch, waits for the new endpoint, kills any failed launch, and checks
+the whole process group is gone. The profile itself is never cleared between
+the two legs.
+
+This groundwork is intentionally not a Field Notebook product receipt. It runs
+no React surface or Snapback server and therefore proves none of the retained/
+current, speculative reconstruction, full-resync-before-replay, settlement,
+observer convergence, or protected-retention facts. The existing browser guide
+gap remains open and now points at this harness as its prerequisite rather than
+mistaking infrastructure for the final witness.

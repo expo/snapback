@@ -7,6 +7,8 @@
   },
   "scripts": {
     "protocol:verify": "node scripts/verify-protocol.mjs",
+    "stage0:verify": "node stage0/verify-stage0.mjs",
+    "stage0:browser": "node stage0/browser/run.mjs",
     "runtime:qualify": "node scripts/qualify-zero-runtime.mjs",
     "runtime:audit-cleanup": "node scripts/audit-runtime-cleanup.mjs",
     "program:status": "node scripts/program-status.mjs",
@@ -23,6 +25,7 @@
     "@types/node": "24.10.1",
     "@types/react": "19.1.16",
     "@types/react-dom": "19.1.9",
+    "playwright-core": "1.62.0",
     "typescript": "5.9.3",
     "vite": "7.2.2"
   },

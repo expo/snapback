@@ -13,12 +13,16 @@ Zero and Replicache are deliberately not treated as one product:
 
 The frozen protocol lives in `protocol/`. Application code lives under
 `apps/<app>/<provider>/`; provider-specific code must remain visible.
+LLP 0155's successor-evidence baseline and standards-real browser carrier
+harness live under `stage0/`.
 
 ## Commands
 
 ```sh
 bun install --frozen-lockfile
 bun run protocol:verify
+bun run stage0:verify
+bun run stage0:browser
 bun test
 ```
 
@@ -35,4 +39,3 @@ account, Zero API key, or Replicache license key is required.
 The program compares observable sync-layer behavior, authoring experience, and
 measured local performance. It does not score unrelated complete-backend
 services, and local results do not imply Cloud Zero or hosted Snapback claims.
-

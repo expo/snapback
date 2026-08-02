@@ -9,8 +9,8 @@ examples: [demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashbo
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-01
-reviewed-commit: HEAD
+reviewed: 2026-08-02
+reviewed-commit: d8cacda1f187b567cd821f9f82d876afc3aee125
 ---
 
 # Offline retention and mutation replay
@@ -33,13 +33,23 @@ fallback elsewhere, reporting the resolved implementation and durability on
 `client.rqsStoreInfo` (pass `rqsStore: null` or set
 `SNAPBACK_CLIENT_RQS_STORE=off` to opt out).
 
-The implementation surface includes all three carriers, but the retained
+The implementation surface includes all three carriers. LLP 0155 Stage 0 now
+has a standards-real **store-substrate** harness at
+`demos/zero-bakeoff/stage0/browser/run.mjs`: it drives the shipped IndexedDB
+store in system Chrome, kills the owned browser process group with `SIGKILL`,
+relaunches the same profile, verifies the stored entry, and proves two-tab Web
+Locks writer/refusal/takeover behavior. That is real carrier-mechanism evidence,
+but it intentionally runs no Snapback server or React surface.
+
+The retained
 `demos/public-dashboard/tests/acceptance/offline-local-first.mjs` witness runs
 headlessly on Node and forces the file store. It does **not** certify React,
-standards-real IndexedDB, or a full browser-process restart. Those browser
-facts remain an evidence GAP under
+end-to-end retained/current behavior over IndexedDB, or the server replay and
+authorization path after a browser-process restart. Those product facts remain
+an evidence GAP under
 `issues/20260801-guide-gap-js-arm-browser-indexeddb-proof.md`; do not infer
-them from the Node receipt. The headless witness proves:
+them from either the Node receipt or the Stage 0 substrate receipt. The headless
+witness proves:
 
 - **Retained render for the rqsEligible subset on the Node/file
   carrier, by a fresh client instance in the same process.** (Not a
