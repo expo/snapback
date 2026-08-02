@@ -106,3 +106,39 @@ export function parseHandlerEnvelope(envelope) {
     message: 'handler promise never settled — the invocation produced no result and committed no writes',
   };
 }
+
+// Admit the decoder's claimed application refusal against the invoked
+// function's manifest declaration. This is host-neutral on purpose: every JS
+// serving host must adjudicate the same claim after decode, and a host that
+// cannot supply the declaration folds rather than trusting handler bytes.
+// @ref LLP 0144#invariants-for-any-extension — I1/I3 require declaration-
+//   backed admission on every completion path and generic folding otherwise.
+export function admitDeclaredRefusal(declared, result, { functionName = null } = {}) {
+  if (!result || result.ok !== false || result.code !== 'SNAPBACK_APP_REFUSAL') {
+    return result;
+  }
+  const declaration = Array.isArray(declared) ? declared : [];
+  if (typeof result.appCode !== 'string' || !declaration.includes(result.appCode)) {
+    return {
+      ok: false,
+      code: 'SNAPBACK_HANDLER_FAILED',
+      message: 'JavaScript handler failed',
+      details: {
+        ...(typeof functionName === 'string' ? { function: functionName } : {}),
+        message: 'handler raised an undeclared application refusal',
+      },
+    };
+  }
+  const admitted = {
+    ok: false,
+    code: 'SNAPBACK_APP_REFUSAL',
+    message: 'application refusal',
+    details: {
+      ...(typeof functionName === 'string' ? { function: functionName } : {}),
+      message: result.message,
+      appCode: result.appCode,
+      appDetails: result.appDetails === undefined ? null : result.appDetails,
+    },
+  };
+  return admitted;
+}

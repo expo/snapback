@@ -577,6 +577,17 @@ globalThis.__snapbackHandlers = {
     var after = await ctx.db.query('items').gte('rank', 5).collect();
     return { before: before.length, after: after };
   },
+  async declaredAppRefusal(ctx, args) {
+    ctx.refuse('STALE_MOVE', { expected: 1, actual: args.revision });
+  },
+  async undeclaredAppRefusal(ctx) {
+    ctx.refuse('SOMETHING_ELSE', { hidden: 'must-not-cross-admission' });
+  },
+  async bareAppRefusalClaim() {
+    var error = new Error('bare application-refusal claim');
+    error.__snapbackCode = 'SNAPBACK_APP_REFUSAL';
+    throw error;
+  },
   async dumpItems(ctx) {
     return await ctx.db.query('items').order('rank', 'asc').collect();
   }

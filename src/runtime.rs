@@ -2675,11 +2675,11 @@ fn run_ibex_handler_with_context_until(
     // storage, host-op implementation, and the logical host-call protocol are
     // this same context either way. Actions stay on Ibex (egress and secrets
     // powers are not in the twin's scope; the capability manifest says so).
-    if matches!(
+    let workerd_v8 = matches!(
         crate::workerd_exec::selected_backend(),
         crate::workerd_exec::HandlerBackend::WorkerdV8
-    ) && !matches!(invocation.mode, IbexInvocationMode::Action)
-    {
+    ) && !matches!(invocation.mode, IbexInvocationMode::Action);
+    let (result, claimed_code) = if workerd_v8 {
         let output = match deadline {
             Some(deadline) => {
                 let timeout_ms = u64::from(remaining_deadline_ms(deadline)?);
@@ -2692,8 +2692,31 @@ fn run_ibex_handler_with_context_until(
         invocation
             .admission
             .validate("workerd runtime completion")?;
-        return output;
-    }
+        (output, None)
+    } else {
+        run_handler_ibex_engine_until(module, invocation, pool, deadline)?
+    };
+
+    // @ref LLP 0144#invariants-for-any-extension — engine output is still a
+    // handler claim. Adjudicate the declared set only after the executor join
+    // so the Ibex and workerd-v8 legs cannot drift on admission again.
+    let result = admit_declared_refusal(&invocation.declared_refusals, result);
+    // Witness restoration remains action-scoped; actions stay on Ibex, while
+    // applying these empty-witness seams after the join is harmless for V8.
+    let result = restore_denial_witness(invocation, claimed_code.as_deref(), result);
+    restore_stream_refusal(invocation, result)
+}
+
+/// Execute only the Ibex/Hermes engine leg and return its unadmitted handler
+/// result plus the raw claimed platform code used by action witness restore.
+/// Application-refusal admission deliberately lives in the caller's shared
+/// completion seam, not in an engine implementation.
+fn run_handler_ibex_engine_until(
+    module: &IbexModule,
+    invocation: &mut IbexHostContext<'_>,
+    pool: Option<&WarmVmPool>,
+    deadline: Option<Instant>,
+) -> SnapbackResult<(SnapbackResult<Value>, Option<String>)> {
     // @ref LLP 0009#dk-4-retired--upstream-ibex-owner-thread-contract-2026-07-27 —
     // Snapback workers may change OS threads between invocations, while an
     // upstream Ibex runtime must be evaluated and destroyed on its creating
@@ -2735,10 +2758,7 @@ fn run_ibex_handler_with_context_until(
     if !rejections.is_empty() {
         return Err(unhandled_rejection_error(module, rejections));
     }
-    let (result, claimed_code) = parse_handler_output_with_claim(module, output);
-    let result = admit_declared_refusal(&invocation.declared_refusals, result);
-    let result = restore_denial_witness(invocation, claimed_code.as_deref(), result);
-    restore_stream_refusal(invocation, result)
+    Ok(parse_handler_output_with_claim(module, output))
 }
 
 /// Surface the host-recorded trusted `SNAPBACK_AUTH_PERMISSION_DENIED`

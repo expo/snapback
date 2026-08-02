@@ -5,7 +5,11 @@
 **Systems:** Runtime, Security, Testing, Developer experience, Deployment
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-07
-**Revised:** 2026-07-18 (dynamic source compilation is now a convergent runtime denial: Workerd proves its platform policy before handler evaluation, Snapback opts Ibex into no-eval Hermes plus patch 0010, the twin covers constructor and reflective aliases, and AST codegen diagnostics remain defense in depth)
+**Revised:** 2026-08-01 (the declared/undeclared/bare application-refusal
+triad now runs through all three serving surfaces; local admission occurs at
+the shared post-executor join and Cloudflare admission uses the resolved
+deploy-time function declaration, closing LLP 0144's widened parity gap).
+2026-07-18 (dynamic source compilation is now a convergent runtime denial: Workerd proves its platform policy before handler evaluation, Snapback opts Ibex into no-eval Hermes plus patch 0010, the twin covers constructor and reflective aliases, and AST codegen diagnostics remain defense in depth)
 **Revised:** 2026-07-13 (audit blocker: the Workerd settlement and detached-host-call drain consume one shared invocation deadline; expiry aborts HOST fetches and reports the quiescence phase before the outer kill deadline); 2026-07-13 (whole-codebase security follow-up: trusted strip state is one-shot and consumed before handler evaluation; the rejection ledger/drain is closure-private rather than importable; Promise-channel records, Response thenability, and Promise species resist inherited-then forgery; independent invoke/host/response capabilities close the worker-port bind race; readiness/invoke response bodies and sanitized stderr tails are bounded); 2026-07-12 (ENG-24559/ENG-24564: rejection collection is lexical rather than handler-drainable; response serialization is captured/prototype-free; local invoke and callback transports authenticate before bounded reads; per-invocation files use an atomically created 0700 UUID directory and exclusive 0600 files); 2026-07-12 (ENG-24375: encoding boundary coverage now pins
 forgiving-base64 padding validation, the complete UTF-8 label table with exact
 ASCII-whitespace/Web-IDL conversion, and streaming UTF-8 decoder state;
@@ -524,6 +528,15 @@ Miniflare). Three corpus cases pin the ENG-23582 divergence class directly
 coordinator now passes a `settlementTimeoutMs` to the handler server —
 previously a never-settling handler wedged the isolate's invocation chain on
 the deployed path. `npm run cf:twin` regenerates the committed report.
+
+The corpus also owns LLP 0144's refusal-admission parity gate. Three mutation
+cases raise a declared refusal with details, raise an undeclared refusal with
+a payload that must not cross admission, and forge a bare
+`SNAPBACK_APP_REFUSAL` claim. Ibex and workerd join at one local admission
+seam; the Cloudflare coordinator admits against the resolved compiled
+function definition. The report compares the declared diagnostic payload and
+the payload-free generic folds, while the ordinary committed-state dimension
+proves every refusing mutation remains effect-free.
 
 ## Reproducible conformance evidence (2026-07-12)
 

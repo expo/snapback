@@ -356,6 +356,39 @@ fn corpus() -> Vec<Case> {
             cloudflare_skip: None,
             seed: Some(("addItem", json!({"label": "stored-full", "rank": 1}))),
         },
+        // @ref LLP 0144#acceptance-witnesses-per-axis-when-adopted — the
+        // declared / undeclared / bare-claim triad is one corpus and runs on
+        // both local engines plus the Cloudflare-JS serving path.
+        Case {
+            name: "app-refusal-declared",
+            handler: "declaredAppRefusal",
+            kind: FunctionKind::Mutation,
+            args: json!({"revision": 2}),
+            engines: Engines::Both,
+            declared_fact: None,
+            cloudflare_skip: None,
+            seed: None,
+        },
+        Case {
+            name: "app-refusal-undeclared",
+            handler: "undeclaredAppRefusal",
+            kind: FunctionKind::Mutation,
+            args: json!({}),
+            engines: Engines::Both,
+            declared_fact: None,
+            cloudflare_skip: None,
+            seed: None,
+        },
+        Case {
+            name: "app-refusal-bare-claim",
+            handler: "bareAppRefusalClaim",
+            kind: FunctionKind::Mutation,
+            args: json!({}),
+            engines: Engines::Both,
+            declared_fact: None,
+            cloudflare_skip: None,
+            seed: None,
+        },
     ]
 }
 
@@ -392,14 +425,21 @@ fn functions(cases: &[Case]) -> FunctionManifest {
     let mut functions: Vec<FunctionDefinition> = cases
         .iter()
         .map(|case| {
-            FunctionDefinition::new(
+            let mut definition = FunctionDefinition::new(
                 case.handler,
                 case.kind.clone(),
                 snapback::manifest::FunctionRuntime::IbexModule(IbexModule {
                     source: CORPUS_MODULE_SOURCE.to_owned(),
                     export: case.handler.to_owned(),
                 }),
-            )
+            );
+            if matches!(
+                case.handler,
+                "declaredAppRefusal" | "undeclaredAppRefusal" | "bareAppRefusalClaim"
+            ) {
+                definition.refusals = vec!["STALE_MOVE".to_owned()];
+            }
+            definition
         })
         .collect();
     functions.dedup_by(|a, b| a.name == b.name);
@@ -599,6 +639,11 @@ fn run_case_on(case: &Case, backend: HandlerBackend) -> RawRun {
     });
     let outcome = match outcome {
         Ok(value) => json!({"ok": true, "value": value}),
+        Err(error) if error.diagnostic.code == "SNAPBACK_APP_REFUSAL" => json!({
+            "ok": false,
+            "code": error.diagnostic.code,
+            "details": error.diagnostic.details,
+        }),
         Err(error) => json!({"ok": false, "code": error.diagnostic.code}),
     };
     let committed = snapback

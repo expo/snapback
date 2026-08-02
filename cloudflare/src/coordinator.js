@@ -45,7 +45,10 @@ import {
   platformFailureResponse,
   valueTooLargeFailure,
 } from './platform-errors.js';
-import { parseHandlerEnvelope } from '../../packages/snapback-harness/envelope.mjs';
+import {
+  admitDeclaredRefusal,
+  parseHandlerEnvelope,
+} from '../../packages/snapback-harness/envelope.mjs';
 // RQS — the Cloudflare arm (LLP 0090 rollout step 4, ENG-25455). The token/
 // digest algebra is the shared packages/snapback-client/rqs.mjs module,
 // re-exported through rqs-host.mjs (never forked); rqs-host adds this arm's
@@ -3715,7 +3718,12 @@ export class Coordinator {
             'the handler isolate could not install unhandled-rejection detection; the LLP 0009 conformance floor requires it on every engine',
         };
       }
-      const parsed = classifyHandlerPlatformFailure(parseHandlerEnvelope(result.envelope), { maxRowBytes: MAX_ROW_BYTES });
+      const decoded = parseHandlerEnvelope(result.envelope);
+      // @ref LLP 0144#invariants-for-any-extension — the handler envelope is
+      //   a claim only. This deploy-time host admits it against the exact
+      //   function definition selected above, or folds it fail-closed.
+      const admitted = admitDeclaredRefusal(fn.refusals, decoded, { functionName: fn.export });
+      const parsed = classifyHandlerPlatformFailure(admitted, { maxRowBytes: MAX_ROW_BYTES });
       return { ...parsed, host, observedVersion: host.observedVersion || this.currentVersion() };
     } finally {
       await host?.closeResponseStreams();

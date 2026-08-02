@@ -4,12 +4,12 @@
   "generatedBy": "snapback-conformance-twin",
   "gate": "green",
   "summary": {
-    "total": 25,
-    "convergent": 23,
+    "total": 29,
+    "convergent": 27,
     "declaredEngineFacts": 2,
     "contractViolations": 0,
     "cloudflareJs": {
-      "convergent": 24,
+      "convergent": 28,
       "declaredEngineFacts": 1,
       "contractViolations": 0
     }
@@ -18,6 +18,62 @@
     "artifactKind": "capabilityManifest",
     "schemaVersion": "snapback.v0",
     "targetProfileId": "local-conformance-sqlite-workerd-v8",
+    "supportedArtifactVersions": [
+      "snapback.v0",
+      "snapback.v1"
+    ],
+    "supportedAuthModes": [
+      "dev",
+      "sessions"
+    ],
+    "supportedArtifactAuthPairs": [
+      {
+        "schemaVersion": "snapback.v0",
+        "authMode": "dev"
+      },
+      {
+        "schemaVersion": "snapback.v1",
+        "authMode": "sessions"
+      }
+    ],
+    "supportedCapabilities": [
+      "auth.sessions.v1",
+      "cron",
+      "cron_action_run_mutation",
+      "host_plan_runtime",
+      "inline_handler_v1",
+      "live_subscriptions",
+      "mutation_read_set_validation",
+      "permission_epoch_resync",
+      "registered_bundle_boot_v1",
+      "relational_query_v1",
+      "migration_keyset_scan_v1",
+      "result_contract_v1",
+      "args_contract_v1",
+      "versioned_seed_install_v1",
+      "versioned_seed_reset_v1"
+    ],
+    "capabilityMaturity": {
+      "inline_handler_v1": "experimental",
+      "registered_bundle_boot_v1": "experimental",
+      "result_contract_v1": "experimental",
+      "args_contract_v1": "experimental",
+      "versioned_seed_install_v1": "experimental",
+      "versioned_seed_reset_v1": "experimental"
+    },
+    "authProtocols": {
+      "provider": 1,
+      "invocation": 1,
+      "stagedMode": 1,
+      "bootstrap": 1
+    },
+    "hostedAuth": {
+      "externalTls": "unavailable",
+      "effectiveSource": "unavailable",
+      "authenticationThrottle": "processLocal",
+      "sessionInvalidation": "singleProcess",
+      "clientCredentialPosture": "bearerV1XssExposed"
+    },
     "storageEngine": "sqlite",
     "runtimeEngine": "workerd-v8",
     "localServerLifecycle": true,
@@ -68,16 +124,44 @@
         "status": "Enforced"
       },
       {
+        "name": "bounded_response_stream_total_bytes",
+        "status": "Enforced"
+      },
+      {
+        "name": "bounded_response_stream_buffered_bytes",
+        "status": "Enforced"
+      },
+      {
+        "name": "bounded_response_stream_read_bytes",
+        "status": "Enforced"
+      },
+      {
+        "name": "bounded_response_stream_open_cursors",
+        "status": "Enforced"
+      },
+      {
+        "name": "bounded_response_stream_wall_clock",
+        "status": "Enforced"
+      },
+      {
+        "name": "bounded_response_stream_idle_timeout",
+        "status": "Enforced"
+      },
+      {
+        "name": "bounded_response_stream_progress_rate",
+        "status": "Enforced"
+      },
+      {
         "name": "cpu_budget",
         "status": "Missing"
       },
       {
         "name": "maximum_result_size",
-        "status": "Advisory"
+        "status": "Enforced"
       },
       {
         "name": "maximum_subscription_count",
-        "status": "Advisory"
+        "status": "Enforced"
       },
       {
         "name": "ephemeral_value_size",
@@ -97,12 +181,15 @@
       "cloudflare",
       "hosted_untrusted_code",
       "external_auth",
-      "assets",
       "outbound_actions",
+      "bounded_response_stream_v1",
+      "bounded_children_v1",
       "notifications",
       "ephemeral_hosted_adapter",
       "ephemeral_multi_instance_sticky_routing",
-      "v8_action_execution"
+      "v8_action_execution",
+      "assets",
+      "write_activity_v1"
     ],
     "vmLifecycle": "fresh-process-per-invocation",
     "runtimeFacts": {
@@ -124,6 +211,30 @@
         ],
         "referenceLeg": "workerdV8"
       }
+    },
+    "migration": {
+      "executor": "local-exclusive-single-writer",
+      "fenceLanes": [
+        "mutation",
+        "buffered-mutation",
+        "query",
+        "live-subscribe",
+        "live-resume",
+        "cron",
+        "action-stage",
+        "ephemeral-publish"
+      ]
+    },
+    "relationalQueries": {
+      "liveDelivery": "live_replace",
+      "retention": [
+        "none",
+        "opaque-authorized-snapshot-v1"
+      ]
+    },
+    "standardPatterns": {
+      "liveDelivery": "conservative-resnapshot",
+      "authScopeDisjointnessSkip": "disabled"
     }
   },
   "cases": [
@@ -354,6 +465,85 @@
       }
     },
     {
+      "name": "query-limit-edge-validation",
+      "handler": "queryLimitValidation",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "codes": [
+                  "SNAPBACK_QUERY_LIMIT_INVALID",
+                  "SNAPBACK_QUERY_LIMIT_INVALID",
+                  "SNAPBACK_QUERY_LIMIT_INVALID",
+                  "SNAPBACK_QUERY_LIMIT_INVALID",
+                  "SNAPBACK_QUERY_LIMIT_INVALID"
+                ]
+              }
+            ]
+          }
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "codes": [
+                  "SNAPBACK_QUERY_LIMIT_INVALID",
+                  "SNAPBACK_QUERY_LIMIT_INVALID",
+                  "SNAPBACK_QUERY_LIMIT_INVALID",
+                  "SNAPBACK_QUERY_LIMIT_INVALID",
+                  "SNAPBACK_QUERY_LIMIT_INVALID"
+                ]
+              }
+            ]
+          }
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": true,
+          "value": {
+            "version": 0,
+            "rows": [
+              {
+                "codes": [
+                  "SNAPBACK_QUERY_LIMIT_INVALID",
+                  "SNAPBACK_QUERY_LIMIT_INVALID",
+                  "SNAPBACK_QUERY_LIMIT_INVALID",
+                  "SNAPBACK_QUERY_LIMIT_INVALID",
+                  "SNAPBACK_QUERY_LIMIT_INVALID"
+                ]
+              }
+            ]
+          }
+        },
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    },
+    {
       "name": "query-first",
       "handler": "firstItem",
       "class": "convergent",
@@ -496,7 +686,7 @@
                   }
                 ],
                 "order": [],
-                "limit": null,
+                "limit": 1024,
                 "indexed_by": null
               }
             },
@@ -570,7 +760,7 @@
                   }
                 ],
                 "order": [],
-                "limit": null,
+                "limit": 1024,
                 "indexed_by": null
               }
             },
@@ -2673,7 +2863,7 @@
                   }
                 ],
                 "order": [],
-                "limit": null,
+                "limit": 1024,
                 "indexed_by": null
               }
             },
@@ -2699,7 +2889,7 @@
                   }
                 ],
                 "order": [],
-                "limit": null,
+                "limit": 1024,
                 "indexed_by": null
               }
             },
@@ -2747,7 +2937,7 @@
                   }
                 ],
                 "order": [],
-                "limit": null,
+                "limit": 1024,
                 "indexed_by": null
               }
             },
@@ -2819,7 +3009,7 @@
                   }
                 ],
                 "order": [],
-                "limit": null,
+                "limit": 1024,
                 "indexed_by": null
               }
             },
@@ -2845,7 +3035,7 @@
                   }
                 ],
                 "order": [],
-                "limit": null,
+                "limit": 1024,
                 "indexed_by": null
               }
             },
@@ -2893,7 +3083,7 @@
                   }
                 ],
                 "order": [],
-                "limit": null,
+                "limit": 1024,
                 "indexed_by": null
               }
             },
@@ -2962,6 +3152,153 @@
               "rank": 9
             }
           ]
+        }
+      }
+    },
+    {
+      "name": "app-refusal-declared",
+      "handler": "declaredAppRefusal",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_APP_REFUSAL",
+          "details": {
+            "function": "declaredAppRefusal",
+            "message": "SNAPBACK_APP_REFUSAL: STALE_MOVE",
+            "appCode": "STALE_MOVE",
+            "appDetails": {
+              "expected": 1,
+              "actual": 2
+            }
+          }
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_APP_REFUSAL",
+          "details": {
+            "function": "declaredAppRefusal",
+            "message": "SNAPBACK_APP_REFUSAL: STALE_MOVE",
+            "appCode": "STALE_MOVE",
+            "appDetails": {
+              "expected": 1,
+              "actual": 2
+            }
+          }
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_APP_REFUSAL",
+          "details": {
+            "function": "declaredAppRefusal",
+            "message": "SNAPBACK_APP_REFUSAL: STALE_MOVE",
+            "appCode": "STALE_MOVE",
+            "appDetails": {
+              "expected": 1,
+              "actual": 2
+            }
+          }
+        },
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    },
+    {
+      "name": "app-refusal-undeclared",
+      "handler": "undeclaredAppRefusal",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_FAILED"
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_FAILED"
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_FAILED"
+        },
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      }
+    },
+    {
+      "name": "app-refusal-bare-claim",
+      "handler": "bareAppRefusalClaim",
+      "class": "convergent",
+      "notes": null,
+      "ibex": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_FAILED"
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "workerdV8": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_FAILED"
+        },
+        "trace": [],
+        "committed": {
+          "version": 0,
+          "rows": []
+        }
+      },
+      "cloudflareJsClass": "convergent",
+      "cloudflareJsNotes": null,
+      "cloudflareJs": {
+        "outcome": {
+          "ok": false,
+          "code": "SNAPBACK_HANDLER_FAILED"
+        },
+        "committed": {
+          "version": 0,
+          "rows": []
         }
       }
     }

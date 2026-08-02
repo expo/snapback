@@ -996,6 +996,11 @@ the throw, is what admits a code:
   declaration set is carried host-side from the prepared invocation and is
   empty by default, so any path that does not deliberately carry it folds
   every claim: fail-closed by construction.
+  As built, the local host performs this after the Ibex/workerd executor
+  join, while Cloudflare admits against the exact deploy-time function
+  definition selected for the invocation. The LLP 0048 conformance corpus
+  pins the declared/undeclared/bare-claim triad on all three serving
+  surfaces (LLP 0144 floor repair).
 - **Surface.** The refusal arrives as the platform code
   `SNAPBACK_APP_REFUSAL` with `appCode` and `appDetails` in its diagnostic
   details — a namespaced field beside the platform code, never replacing it,

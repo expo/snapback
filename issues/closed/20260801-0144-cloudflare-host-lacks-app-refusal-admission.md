@@ -54,3 +54,21 @@ green on all THREE serving surfaces — local Ibex leg, local workerd
 twin leg, Cloudflare host. Until it lands, LLP 0108/0144 describe the
 floor as one-engine-leg with this ticket as the named parity blocker
 (LLP 0144 v3 floor section).
+
+---
+
+**RESOLVED 2026-08-01.** Application-refusal admission now occurs after
+the local executor join in `run_ibex_handler_with_context_until`, so Ibex
+and workerd-v8 share one declaration-backed decision. The Cloudflare
+coordinator uses the shared JS `admitDeclaredRefusal` helper against the
+exact compiled function definition resolved for the invocation, before
+platform classification and response rendering. Declared refusals surface
+`appCode`/`appDetails` in diagnostic details; undeclared and bare claims
+fold to payload-free `SNAPBACK_HANDLER_FAILED`.
+
+The LLP 0048 conformance corpus now carries the declared / undeclared /
+bare-claim triad through all three serving surfaces. Its full 29-case run is
+green: 27 convergent plus two declared local engine facts, 28 Cloudflare
+convergent plus one declared Miniflare fact, and zero contract violations on
+either comparison. Every refusal case leaves version 0 and empty storage.
+LLPs 0048, 0108, and 0144 record the repaired as-built contract.

@@ -40,7 +40,14 @@ function readStdin() {
 
 function outcomeFromResponse(kind, response) {
   if (!response || response.ok !== true) {
-    return { ok: false, code: (response && response.code) || 'SNAPBACK_TWIN_ENGINE_NO_RESPONSE' };
+    const outcome = {
+      ok: false,
+      code: (response && response.code) || 'SNAPBACK_TWIN_ENGINE_NO_RESPONSE',
+    };
+    if (outcome.code === 'SNAPBACK_APP_REFUSAL') {
+      outcome.details = response.details ?? null;
+    }
+    return outcome;
   }
   if (kind === 'mutation') {
     return {

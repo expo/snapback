@@ -77,6 +77,7 @@ export const bundleHash = deploymentIdentity.bundleHash;
 export const functions = [
   { name: 'addItem', kind: 'Mutation', export: 'addItem', tables: ['items'] },
   { name: 'listRanked', kind: 'Query', export: 'listRanked', tables: ['items'] },
+  { name: 'queryLimitValidation', kind: 'Query', export: 'queryLimitValidation', tables: ['items'] },
   { name: 'firstItem', kind: 'Query', export: 'firstItem', tables: ['items'] },
   { name: 'readYourWrites', kind: 'Mutation', export: 'readYourWrites', tables: ['items'] },
   { name: 'patchAndDelete', kind: 'Mutation', export: 'patchAndDelete', tables: ['items'] },
@@ -116,6 +117,30 @@ export const functions = [
   { name: 'patchMissing', kind: 'Mutation', export: 'patchMissing', tables: ['items'] },
   { name: 'insertThenGet', kind: 'Mutation', export: 'insertThenGet', tables: ['items'] },
   { name: 'patchIntoFilter', kind: 'Mutation', export: 'patchIntoFilter', tables: ['items'] },
+  // @ref LLP 0144#the-landed-floor-2026-08-01 — the three refusal-admission
+  //   cases run through the deployed Cloudflare serving path with the same
+  //   declaration-backed vocabulary as the two local engine legs.
+  {
+    name: 'declaredAppRefusal',
+    kind: 'Mutation',
+    export: 'declaredAppRefusal',
+    tables: ['items'],
+    refusals: ['STALE_MOVE'],
+  },
+  {
+    name: 'undeclaredAppRefusal',
+    kind: 'Mutation',
+    export: 'undeclaredAppRefusal',
+    tables: ['items'],
+    refusals: ['STALE_MOVE'],
+  },
+  {
+    name: 'bareAppRefusalClaim',
+    kind: 'Mutation',
+    export: 'bareAppRefusalClaim',
+    tables: ['items'],
+    refusals: ['STALE_MOVE'],
+  },
   // The storage-dump helper every case run uses after the fact.
   { name: 'dumpItems', kind: 'Query', export: 'dumpItems', tables: ['items'] },
 ];

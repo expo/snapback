@@ -6,7 +6,11 @@
 Authoring, Contract, Diagnostics, Guide, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-01
-**Revised:** 2026-08-01 (loop CONVERGED dual-family READY — Fable round 3,
+**Revised:** 2026-08-01 (engine-leg admission floor repaired: local admission
+now runs after the Ibex/workerd executor join, Cloudflare admits against the
+resolved deploy-time function definition through the shared JS admitter, and
+the LLP 0048 corpus pins the declared/undeclared/bare-claim triad across all
+three serving surfaces; the widened parity ticket is resolved). 2026-08-01 (loop CONVERGED dual-family READY — Fable round 3,
 Codex round 4, zero unresolved concerns; artifacts
 reviews/0144-declared-app-refusal-codes.{fable,codex}.md. Status
 advances Draft -> Review; acceptance is the author's call; the
@@ -88,9 +92,9 @@ closed per-function `refusals: [...]` vocabulary, `ctx.refuse(code,
 details?)`, the platform carrier `SNAPBACK_APP_REFUSAL` with
 `appCode`/`appDetails` in diagnostic details, and fail-closed admission
 that folds every undeclared, forged, or bare claim back to the generic
-code — on the local host's Ibex engine leg only; the local workerd-v8
-twin leg and the Cloudflare host have no admission counterpart yet, a
-named parity blocker recorded in the floor section.
+code. Admission now runs after the local Ibex/workerd executor join and
+on the Cloudflare host against the exact deploy-time function definition;
+the three-leg LLP 0048 corpus pins the triad on every serving surface.
 
 This RFC does not re-open that slice. It records it as the floor,
 states the invariants any extension must preserve, and lays out the
@@ -165,49 +169,33 @@ LLP 0108 §"Declared application refusals"; implementation:
 2. **Raising.** `ctx.refuse(code, details?)` throws a branded error;
    the claimed code and JSON-safe details ride the completion envelope
    beside the platform code `SNAPBACK_APP_REFUSAL`.
-3. **Admission — one engine leg of one host.** `admit_declared_refusal`
+3. **Admission — every serving surface.** `admit_declared_refusal`
    admits the claim only when the invoked function declared that code;
    everything else — undeclared, forged, bare claim — folds to
    `SNAPBACK_HANDLER_FAILED` and the app payload is dropped with it.
    The declared set rides the prepared invocation and is empty by
-   default. But the admitter runs at exactly **one call site, on the
-   local host's Ibex leg** (src/runtime.rs:2726). The admission matrix
-   as built:
-   - *Local host, Ibex leg*: admitted — fail-closed as described.
-   - *Local host, workerd-v8 twin leg (LLP 0048)*: **unadmitted** —
-     `run_ibex_handler_with_context_until` routes every non-action
-     invocation to the twin when it is selected and returns at
-     src/runtime.rs:2682, *before* the only admit site, and
-     `run_handler_workerd` ends in plain `parse_handler_output`
-     (src/workerd_exec.rs:874, no claim extraction, no admission). An
-     **undeclared `ctx.refuse` therefore survives on the local host**
-     whenever the twin runs — inside the very parity harness whose job
-     is engine equivalence.
-   - *Cloudflare host*: **unadmitted** — the JS decoder is deliberately
-     claims-only (its own comment: "Claims, not facts: the host admits
-     these only against the declared refusal set", envelope.mjs:94–98),
-     and `classifyHandlerPlatformFailure`
-     (cloudflare/src/coordinator.js, platform-errors.js) passes
-     non-platform results — including a claimed `appCode` — through
-     unchanged.
-   The floor is therefore a per-engine-leg fact, not even a per-host
-   one, and LLP 0108's "fail-closed by construction" holds only where
-   the one admitter runs. Named parity blocker (widened to both
-   unadmitted surfaces):
-   `issues/20260801-0144-cloudflare-host-lacks-app-refusal-admission.md`.
-   The structural fix is recorded there and here: **hoist claim
-   extraction and admission into the engine-neutral completion path**
-   shared by both local legs, rather than duplicating the admitter
-   per engine; the denial-witness restore can stay on the Ibex leg
-   without loss because witness restores are action-scoped and actions
-   never take the twin (the LLP 0048 @ref at the routing site:
-   "Actions stay on Ibex").
+   default. The admission matrix as built:
+   - *Local host, Ibex and workerd-v8 legs*: both executors join in
+     `run_ibex_handler_with_context_until`, and one engine-neutral
+     completion seam admits against `invocation.declared_refusals`.
+     Denial-witness restoration remains after that join; actions stay on
+     Ibex, so its action-scoped authority is unchanged.
+   - *Cloudflare host*: the JS envelope decoder remains claims-only;
+     `admitDeclaredRefusal` then adjudicates against `fn.refusals` from
+     the exact deploy-time function definition resolved for the
+     invocation, before platform classification or response rendering.
+   The LLP 0048 conformance corpus runs declared, undeclared, and bare
+   claims through the local Ibex leg, local workerd-v8 twin leg, and
+   Cloudflare host, comparing the admitted payload for the declared case
+   and the generic payload-free fold for the other two. Resolved ticket:
+   `issues/closed/20260801-0144-cloudflare-host-lacks-app-refusal-admission.md`.
 4. **Surface.** The refusal arrives as platform code
    `SNAPBACK_APP_REFUSAL` with `appCode`/`appDetails` in diagnostic
    details — beside the platform namespace, structurally unable to mask
    a `SNAPBACK_*` denial. Decoder parity is *claims* parity: both
    decoder legs extract the claimed carrier identically on the refusal
-   branch; only the Ibex leg then adjudicates the claim (fact 3).
+   branch; each host then adjudicates the claim at its manifest-backed
+   completion seam (fact 3).
 5. **Effects.** A declared refusal is an ordinary handler failure for
    effect purposes: a refusing mutation commits nothing.
 6. **Enumerability — deliberately absent from the protocol surface.**
@@ -243,10 +231,8 @@ option below must preserve that symmetry.
 - **I3.** Fail-closed folding, stated normatively: any completion path
   that does not deliberately carry and adjudicate the declared set
   **must fold every claim** — decoding a claim is never admitting it.
-  The two unadmitted surfaces in floor fact 3 (the local twin leg, the
-  Cloudflare host) are violations of this invariant to repair, not
-  tolerated exceptions; and any new engine leg or host inherits the
-  obligation before it serves handlers.
+  The three-leg triad in floor fact 3 pins the repaired invariant; any new
+  engine leg or host inherits the same obligation before it serves handlers.
 - **I4.** A refusing mutation commits nothing (refusal is not a partial
   effect channel).
 - **I5.** Wire tolerance per LLP 0093: unknown fields and unknown app
@@ -356,14 +342,14 @@ stays enforced. B2-vs-B3 is a genuine reviewer question (OQ1).
      parity across both `handler_envelope_code` legs);
   2. *host admission* — decoded claim plus a declared set in, admitted
      or folded judgment out (the declared/undeclared/bare-claim triad;
-     both hosts must consume the same semantic admission vectors — the
-     Cloudflare parity blocker's test surface);
+     both hosts must consume the same semantic admission vectors — now
+     pinned by the three-leg LLP 0048 conformance corpus);
   3. *declaration validation* — invalid manifest/codegen inputs
      (including the reserved `SNAPBACK_*` spelling, which is a
      codegen/manifest fixture, never a wire fixture).
-  Today the admission semantics are pinned by Rust-side tests only
-  (direct and served-path); **no JS- or Cloudflare-side
-  application-refusal test exists anywhere**. And the decoder-parity
+  Today the semantic triad is pinned on both local engines and the
+  Cloudflare serving path by the LLP 0048 conformance corpus; the separate
+  completion-envelope fixture class remains open. And the decoder-parity
   argument is stronger than hygiene: the two allowlists already diverge
   by 16 codes (Rust-only: `SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY`,
   `SNAPBACK_AUTH_MUTABLE_INPUT_DENIED`,
@@ -656,15 +642,12 @@ section states the disclosure obligation, and one negative example
 The floor (A1/B1/C1/D1/E1, local host) is shipped. The recommended
 target, staged:
 
-0. **Repair the floor's own claims immediately**: the admission parity
-   blocker across all **three** serving surfaces — the local Ibex leg
-   (green today), the local workerd-v8 twin leg, and the Cloudflare
-   host — with the declared/undeclared/bare-claim triad run on each
-   (floor fact 3's matrix; the structural fix is hoisting admission
-   into the engine-neutral completion path, not duplicating the
-   admitter per engine), plus the fold-always boundary pinning test
-   (Axis F). Both guard everything below against building on an
-   unstated exception.
+0. **Floor repair (implemented 2026-08-01)**: admission is green across
+   all three serving surfaces — the local Ibex leg, local workerd-v8
+   twin leg, and Cloudflare host — with the declared/undeclared/bare-
+   claim triad run on each (floor fact 3's matrix). Local admission is
+   hoisted after the executor join rather than duplicated per engine.
+   The separate fold-always action-boundary pin remains Axis F work.
 1. **Fixtures** (Axis C), scoped honestly: decide the
    completion-envelope corpus class with the 0094/0095 owners
    (formatVersion-bump-class change), then land the three fixture
@@ -733,7 +716,7 @@ target, staged:
 
 ## Acceptance witnesses (per axis, when adopted)
 
-- Floor repair (step 0): an undeclared `ctx.refuse` folds identically
+- Floor repair (step 0, green): an undeclared `ctx.refuse` folds identically
   on all three serving surfaces — local Ibex leg, local workerd-v8
   twin leg, Cloudflare host (the parity ticket's triad green on each)
   — and the fold-always boundary test pins today's collapse.
