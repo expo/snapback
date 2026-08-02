@@ -22989,6 +22989,15 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         // first, then re-send the ensure.
         | "SNAPBACK_SEED_ASSET_FIXTURE_NOT_INGESTED" => StatusCode::CONFLICT,
         "SNAPBACK_ASSET_VARIANT_UNKNOWN" => StatusCode::NOT_FOUND,
+        // LLP 0062 §5 app-api serving classes, chosen deliberately:
+        // a malformed hash is a request defect; an evicted or unknown hash
+        // and a dev target's absent discovery document are both "nothing
+        // here" — and both carry `no-store` so a cached negative can never
+        // hide a valid envelope after a rollback.
+        "SNAPBACK_APP_API_ENVELOPE_HASH_INVALID" => StatusCode::BAD_REQUEST,
+        "SNAPBACK_APP_API_ENVELOPE_UNKNOWN" | "SNAPBACK_APP_API_UNAVAILABLE" => {
+            StatusCode::NOT_FOUND
+        }
         "SNAPBACK_ASSET_ATTEMPT_EXPIRED" => StatusCode::GONE,
         "SNAPBACK_ASSET_MEDIA_BOUNDS_EXCEEDED" => StatusCode::PAYLOAD_TOO_LARGE,
         "SNAPBACK_ASSET_QUOTA_EXCEEDED"
@@ -36684,6 +36693,8 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_ASSET_TTL_INVALID",
     ];
 
+    const APP_API_BAD_REQUEST_DIAGNOSTICS: &[&str] = &["SNAPBACK_APP_API_ENVELOPE_HASH_INVALID"];
+
     const UNAUTHORIZED_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ASSET_SIGNATURE_EXPIRED",
         "SNAPBACK_ADMIN_SECRET_READ_REQUIRED",
@@ -36762,6 +36773,8 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_ASSET_ATTEMPT_UNKNOWN",
         "SNAPBACK_ASSET_UNKNOWN",
         "SNAPBACK_ASSET_VARIANT_UNKNOWN",
+        "SNAPBACK_APP_API_ENVELOPE_UNKNOWN",
+        "SNAPBACK_APP_API_UNAVAILABLE",
     ];
 
     const CONFLICT_DIAGNOSTICS: &[&str] = &[
@@ -37005,6 +37018,11 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_API_ENVELOPE_NONCANONICAL",
         "SNAPBACK_API_ENVELOPE_TOO_LARGE",
         "SNAPBACK_API_ENVELOPE_VERSION_UNSUPPORTED",
+        // Composition and state serialization are server-side invariants:
+        // a failing composition means the server could not author its own
+        // envelope, which is a Snapback fault, never a caller's.
+        "SNAPBACK_APP_API_COMPOSITION_FAILED",
+        "SNAPBACK_APP_API_STATE_PARSE_FAILED",
         // LLP 0070 first slice: internal job-ledger invariants — a corrupt
         // stored state, an exhausted per-job fence, or enqueues reaching
         // commit without producer provenance are Snapback faults, never 4xx.
@@ -37192,6 +37210,7 @@ globalThis.__snapbackHandlers = {
 
     const HTTP_STATUS_FAMILIES: &[(StatusCode, &[&str])] = &[
         (StatusCode::BAD_REQUEST, BAD_REQUEST_DIAGNOSTICS),
+        (StatusCode::BAD_REQUEST, APP_API_BAD_REQUEST_DIAGNOSTICS),
         (StatusCode::UNAUTHORIZED, UNAUTHORIZED_DIAGNOSTICS),
         (StatusCode::FORBIDDEN, FORBIDDEN_DIAGNOSTICS),
         (StatusCode::NOT_FOUND, NOT_FOUND_DIAGNOSTICS),
