@@ -21,3 +21,12 @@ the LLP 0104 cross-reference for the shared span/registry.
 
 **Exit:** guide check green (`node scripts/check-guide.mjs`), both evidence
 gates recorded with numbers, cross-references landed as dated notes.
+
+## Running log
+
+- **2026-08-02 — GAP rows prepared.** Added honest design-only GAP rows for
+  `backend.observability-v1` and `backend.error-tracking-v1`. Neither row
+  claims a target or shipped witness. The observability row remains open for
+  its Phase-1 implementation, guide page, idle/benchmark evidence, and
+  owning-document cross-references; the error-tracking row remains gated on
+  LLP 0156 becoming Accepted and its own D-05/D-06 implementation.
