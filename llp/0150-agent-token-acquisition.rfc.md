@@ -6,7 +6,10 @@
 Client integration, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-01
-**Revised:** 2026-08-02 (v0.5, final round-4 super-refine dispositions —
+**Revised:** 2026-08-02 (decision-sitting propagation: OQ2 is answered with
+the exclusive credential-kind model — one agent principal has one live
+credential kind at a time, and a kind change supersedes the prior kind;
+source: `issues/20260802-author-decision-packet.md`). 2026-08-02 (v0.5, final round-4 super-refine dispositions —
 final round by announcement; Fable READY (second consecutive), Codex NOT
 READY; the asymmetric-stop rule met and honored, loop concluded. Both
 families converged blind a third time (foreign-predecessor injection =
@@ -272,8 +275,9 @@ here, not free); and the compromised-host limit above.
 **Relationship to 0055's `sbac_` credential.** The key-bound class is a
 parallel credential kind under the same identity, generation, and fencing
 model — `(credentialId, credentialGeneration)` stays unambiguous, with the
-thumbprint family playing the role of the secret hash. Whether one agent
-may hold both kinds at once is OQ2 (open, commissioned to this loop). The
+thumbprint family playing the role of the secret hash. The 2026-08-02 answer
+to OQ2 is exclusive: one agent principal has one live credential kind at a
+time, and a kind change supersedes the prior kind. The
 secret-based `sbac_` path remains for clients that cannot hold a key; it
 becomes the documented fallback, not the default. A middle option — the
 client mints a random secret and enrolls only its *hash*, so nothing
@@ -868,19 +872,12 @@ questions.
 
 ## Open questions
 
-- **OQ2 — Credential-kind coexistence (deliberately open for the review
-  loop).** May one agent identity hold a key-bound credential and a
-  secret-based `sbac_` simultaneously? Candidate answers, for reviewers
-  to argue: **exclusive** (one live credential of either kind; switching
-  kinds is a rotation — preserves 0055's one-act revocation and
-  `revoke-self` family semantics unchanged); **coexist, one per kind**
-  (lets one identity span a key-capable machine and a constrained CI
-  runner, at the cost of reworking the fencing tuple, rotation throttle,
-  and "revoke the agent is one act" story); **separate agents**
-  (constrained environments enroll as their own principal — sidesteps the
-  invariant but fragments identity and consent history). The author's
-  provisional lean is exclusive; the review loop should pressure-test
-  whether the coexistence use case is real enough to pay for.
+- **OQ2 — Credential-kind coexistence — ANSWERED 2026-08-02.** The model is
+  **exclusive**: one agent principal has one live credential kind at a time.
+  Changing kind supersedes the prior credential kind under the existing
+  generation/fencing and one-act revocation story; key-bound and secret-based
+  `sbac_` credentials never coexist for one principal. Source:
+  `issues/20260802-author-decision-packet.md`.
 - **OQ3 — Identifier and secret-class registrations.** The user code,
   request id, challenge nonce, and any key-bound access token need
   entries in 0055's prefix-free namespace and LLP 0031 registry rows.

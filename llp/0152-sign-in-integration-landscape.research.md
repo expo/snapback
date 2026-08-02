@@ -5,7 +5,11 @@
 **Systems:** Auth, Identity providers, Client integration, Developer experience, Security, Configuration, Hosted delivery, Competitive analysis
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-02
-**Revised:** 2026-08-02 (initial market survey; official product documentation checked on 2026-08-02, with practitioner reports separated from product facts); 2026-08-02 (v0.2, super-refine round 1: both families NOT READY; all 21 findings applied — conclusions re-baselined against LLP 0151 v0.3, whose same-day revision had already absorbed several challenges; recovery/TOTP claim corrected to exact matrix counts; shared-credential production posture closed; inherited session-issuance and hosted-admission gates added; §Implications relabeled confirms-vs-requests); 2026-08-02 (v0.3, super-refine round 2: Fable READY comfortable / Codex NOT READY moderate; TOTP+recovery count corrected five→seven after Codex's primary-source audit of Stytch consumer TOTP and Appwrite recovery codes, both orchestrator-reverified; gate 12 expanded to LLP 0060's complete admission conjunction; gate 11 adds per-request sender proofs; session-authority vs authorization-invalidation split per LLP 0039/0053; OQ15 existing-vs-proposed machinery; line re-wraps)
+**Revised:** 2026-08-02 (decision-sitting propagation: OQ14 is answered —
+external CIAM is a sibling paved path governed by LLP 0153's provider class,
+while LLP 0151 remains first-party-focused; the same sitting moves SMS OTP to
+tier 2 in LLP 0151. Source: `issues/20260802-author-decision-packet.md`).
+2026-08-02 (initial market survey; official product documentation checked on 2026-08-02, with practitioner reports separated from product facts); 2026-08-02 (v0.2, super-refine round 1: both families NOT READY; all 21 findings applied — conclusions re-baselined against LLP 0151 v0.3, whose same-day revision had already absorbed several challenges; recovery/TOTP claim corrected to exact matrix counts; shared-credential production posture closed; inherited session-issuance and hosted-admission gates added; §Implications relabeled confirms-vs-requests); 2026-08-02 (v0.3, super-refine round 2: Fable READY comfortable / Codex NOT READY moderate; TOTP+recovery count corrected five→seven after Codex's primary-source audit of Stytch consumer TOTP and Appwrite recovery codes, both orchestrator-reverified; gate 12 expanded to LLP 0060's complete admission conjunction; gate 11 adds per-request sender proofs; session-authority vs authorization-invalidation split per LLP 0039/0053; OQ15 existing-vs-proposed machinery; line re-wraps)
 **Related:** LLP 0011, LLP 0039, LLP 0045, LLP 0053, LLP 0057, LLP 0060, LLP 0061, LLP 0064, LLP 0077, LLP 0096, LLP 0151, LLP 0153
 
 ## Summary
@@ -942,8 +946,10 @@ re-verify these labels before use.
    cite: enterprise mail scanners consume links — WorkOS deprecated magic
    links over exactly this, and Stytch ships scanner-aware handling. Request:
    make link-scanner semantics explicit wherever links ship.
-3. **SMS Tier 1 definition — confirms.** 0151 v0.3's SMS row already carries
-   everything this survey's evidence demands: launch-gating abuse controls
+3. **SMS tier placement — superseded by the 2026-08-02 sitting.** LLP 0151
+   now places SMS at tier 2 and requires a delivery-vendor owner before
+   promotion. Its SMS row still carries everything this survey's evidence
+   demands for any supported or future paved path: launch-gating abuse controls
    (country allowlists, per-destination/source/prefix/IP throttles, spend
    caps), the vendor-neutral delivery seam (E.164, templates, status
    normalization, failover, riding LLP 0045's adapter), SIM-swap and
@@ -1078,10 +1084,10 @@ alone. It should pass:
 13. When hosted UI, generated components, and headless configuration diverge,
     which checked-in declaration is authoritative, and what are the
     rollback/migration semantics of reconciling drift?
-14. Is external CIAM a sibling paved path governed by LLP 0153's recommended
-    provider class, or a Tier-2 escape hatch under LLP 0151? The two Drafts
-    currently split the territory by scope statement; an author decision
-    should ratify the boundary.
+14. **Answered 2026-08-02:** external CIAM is a sibling paved path governed
+    by LLP 0153's provider class; LLP 0151 remains focused on first-party
+    identity integrations. Source:
+    `issues/20260802-author-decision-packet.md`.
 15. Which of the twelve evaluation gates are measurable with existing or
     already-proposed machinery — the capture mailbox exists today; the
     synthetic conformance IdP is proposed by LLP 0151; the auth acceptance

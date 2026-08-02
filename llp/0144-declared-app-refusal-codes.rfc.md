@@ -6,7 +6,11 @@
 Authoring, Contract, Diagnostics, Guide, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-01
-**Revised:** 2026-08-01 (engine-leg admission floor repaired: local admission
+**Revised:** 2026-08-02 (decision-sitting propagation: OQ1 selects B3 — admit
+the declared code, drop an invalid payload, and emit the
+`appDetailsDropped` diagnostic detail. D2's discriminated union and the wire
+carrier key follow from this selection. Source:
+`issues/20260802-author-decision-packet.md`). 2026-08-01 (engine-leg admission floor repaired: local admission
 now runs after the Ibex/workerd executor join, Cloudflare admits against the
 resolved deploy-time function definition through the shared JS admitter, and
 the LLP 0048 corpus pins the declared/undeclared/bare-claim triad across all
@@ -311,9 +315,15 @@ Given a details schema (A3), what happens when a raise violates it?
   a documentation contract rather than an enforced one, which is
   exactly the gap LLP 0131 closed for arguments.
 
-B3 is the draft recommendation: it is the only option where a details
-regression cannot destroy the code channel while the payload contract
-stays enforced. B2-vs-B3 is a genuine reviewer question (OQ1).
+B3 is selected: it is the only option where a details regression cannot
+destroy the code channel while the payload contract stays enforced.
+
+**Decision — 2026-08-02: B3.** A declared code remains admitted when its
+payload fails validation; the invalid payload is dropped and the diagnostic
+details carry `appDetailsDropped: true`. This fixes D2's union as the
+discriminated valid-payload/dropped-payload pair and makes
+`appDetailsDropped` the normative wire carrier key. Source:
+`issues/20260802-author-decision-packet.md`.
 
 ### Axis C — wire, protocol, and fixtures
 
@@ -670,15 +680,18 @@ target, staged:
 
 ## Open questions
 
-- **OQ1 (payload-violation fold).** B2 (fold everything) versus B3
-  (admit code, drop payload) when a declared-schema payload fails
-  validation at raise. Draft leans B3, with the failure-economics
+- **OQ1 (payload-violation fold) — ANSWERED 2026-08-02: B3.** Admit the code
+  and drop the payload when a declared-schema payload fails validation at
+  raise. B3 was selected with the failure-economics
   argument written down: LLP 0131's fold-the-invocation precedent is an
   *ingress* gate firing before effects on every call; A3 validation is
   an *egress* check on the rare path in production — different
   economics justify different strictness. The ruling also fixes D2's
   union grammar and the wire carrier key (the discriminated pair and
   `appDetailsDropped` exist only under B3).
+  The decision admits the declared code, drops the invalid payload, and sets
+  `appDetailsDropped: true`; D2 uses that discriminated pair and carrier key.
+  Source: `issues/20260802-author-decision-packet.md`.
 - **OQ2 (action boundary).** The as-built half is answered in Axis F
   (fold always; `appCode` never crosses the FFI). What remains open:
   F-transport's mechanism choice (F1-by-witness with the sketched

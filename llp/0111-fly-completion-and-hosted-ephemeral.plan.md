@@ -5,7 +5,11 @@
 **Systems:** Deployment, Control plane, Ephemeral state, Realtime, TLS, Auth, Migrations, Backup, Restore, Logs, Inspection, Runtime, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-07-30 (dated conflict flag, decision pending — no semantic
+**Revised:** 2026-08-02 (decision-sitting propagation: the local nine-package
+closure now follows LLP 0074's parallel npm gate and LLP 0134's maturity bar;
+default-channel promotion is no longer serialized behind hosted qualification,
+while every hosted-dependent claim and its hosted evidence gate remain intact;
+source: `issues/20260802-author-decision-packet.md`). 2026-07-30 (dated conflict flag, decision pending — no semantic
 change: this Plan serializes default-channel (`latest`) promotion of the
 nine-package closure behind the complete hosted Fly qualification journey,
 while LLP 0074 makes public npm publication a parallel gate independent of
@@ -59,6 +63,21 @@ The target still has one routed Machine, bounded downtime during activation,
 no horizontal scale, no HA, no managed SLA, no multi-region failover, and no
 durable presence. A second routed process immediately invalidates the ephemeral
 capability and the adapter refuses activation.
+
+## Default-channel amendment — 2026-08-02
+
+The 2026-08-02 author decision adopts LLP 0074's parallel npm gate for the
+locally provable nine-package surface. Once that closure satisfies LLP 0134's
+maturity bar and its local publication evidence, it may promote to npm
+`latest` independently of the hosted Fly journey. This supersedes this Plan's
+serialization of default-channel promotion behind the complete hosted
+qualification, and only that serialization.
+
+Hosted-dependent capabilities remain GAPs and nonclaims until their own gates
+in this Plan pass. Exact-version candidate-tag publication remains the only
+pre-qualification path for bytes intended to support those hosted claims; a
+locally promoted `latest` release is not evidence of hosted support. Source:
+`issues/20260802-author-decision-packet.md`.
 
 ## Governing amendments
 

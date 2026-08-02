@@ -5,7 +5,10 @@
 **Systems:** Competitive evaluation, Developer experience, Authoring, Application data API, Code generation, Runtime, Bootstrap, Packaging, Search, Relational queries, Scheduled work, Client integration, Sync, Storage, Documentation, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-07-30 (v0.3 — round-2 micro-fix pass. Round-2
+**Revised:** 2026-08-02 (decision-sitting propagation: open-question item 6
+is answered — context-reader helpers are admitted in the first mechanism and
+declared reads/writes stay evidence rather than enforced ceilings; source:
+`issues/20260802-author-decision-packet.md`). 2026-07-30 (v0.3 — round-2 micro-fix pass. Round-2
 outcome: Fable READY with two DETAILs (N1 blocked-accounting
 completeness, N2 1a locating clause;
 llp/reviews/0127-parity-and-local-first-synthesis.fable.md); Codex
@@ -750,9 +753,11 @@ The author decisions this synthesis forces, in rough order of leverage:
 5. **CV-6 strictness** (0115 OQ3), decided *after* A+E land, per the
    ordering dependency — and whether the rerun's severity-causality
    measurement changes the answer.
-6. **The helper-class cutline** (0118 OQ7): context-reader helpers in
-   the first mechanism (required to satisfy both diary instances), and
-   whether declared reads/writes remain evidence or become ceilings.
+6. **The helper-class cutline — ANSWERED 2026-08-02** (0118 OQ7):
+   context-reader helpers are admitted in the first mechanism (required to
+   satisfy both diary instances), and declared reads/writes remain evidence,
+   not enforced ceilings. Ceiling enforcement is a separate later decision.
+   Source: `issues/20260802-author-decision-packet.md`.
 7. **Confirmation of the OQ6 absorb/delegate split** proposed in
    §Sequencing 3, including which document owns the enqueue-receipt
    association shape (0121 OQ4).
@@ -768,10 +773,10 @@ The author decisions this synthesis forces, in rough order of leverage:
     under local execution, and its owning document (0126 OQ3) — the
     first unowned design move 3 hits once option A lands.
 
-What can start today with no decision made, per move: move 1's
-CV-4a+CV-5 slice; move 2's capability-free-only cut (the slice as
-specified — context-reader-admitting, which both diary instances need
-— waits on item 6); move 3's jobs slice (0121 OQ2 decided inside it);
+What can start today under the decisions now made, per move: move 1's
+CV-4a+CV-5 slice; move 2's context-reader-admitting first mechanism
+(item 6 is answered; declared reads/writes stay evidence); move 3's jobs slice
+(0121 OQ2 decided inside it);
 move 4's live-search design pass and rerun arm; move 5's slices
 5-qual and 5-types; move 6's sequence-primitive and 3a design passes
 (their shipping order is item 3's call). What blocks what, honestly:
@@ -780,7 +785,8 @@ published-channel mode; item 4 blocks slice 5-rebuild and with it
 CV-1's exit; item 2 gates move 3's displaced-in-space half from arm
 choice through exit; item 3 gates when move 6's surface stops being
 bypassable; item 5 is move 1's own deliberately post-A+E completion
-decision; item 6 bounds how much of move 2's first slice exists;
+decision; item 6 now admits move 2's context-reader first slice without
+adding table-ceiling enforcement;
 item 7 gates no first slice — it confirms §Sequencing 3's absorption
 and picks the receipt-association owner, a landing choice the jobs
 slice does not wait on; item 8 gates the product-breadth starts of

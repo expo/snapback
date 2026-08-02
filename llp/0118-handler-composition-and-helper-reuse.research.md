@@ -6,7 +6,10 @@
 generation, Runtime, Security
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-07-31 (v0.6, OQ1 answered with benchmark receipts — the
+**Revised:** 2026-08-02 (decision-sitting propagation: OQ7 is answered — the
+first mechanism admits context-reader helpers, while declared reads/writes
+remain evidence rather than enforced ceilings; source:
+`issues/20260802-author-decision-packet.md`). 2026-07-31 (v0.6, OQ1 answered with benchmark receipts — the
 same-file splice mechanism landed at `4d72c407` (normative text: LLP 0108
 §Same-file helper sharing), and the respecified benchmark ran twice on the
 real fresh-per-invocation runtime path (`helper_splice`, `src/bench.rs`)
@@ -1152,6 +1155,13 @@ a small increment while near-identical detection is not (option 5).
    change behavior for the existing opaque-handler tier. The follow-on
    must pick a cutline and state how the chosen class provably cannot
    expand any consumer's declared authority.
+
+   **Answered 2026-08-02.** The first mechanism admits context-reader
+   helpers. Declared reads and writes remain evidence, not runtime-enforced
+   table ceilings; adding ceiling enforcement is a separate future decision,
+   not part of this slice. This ruling does not admit mutation helpers or
+   action/egress helpers. Source:
+   `issues/20260802-author-decision-packet.md`.
 8. **Are hermetic lockfile-pinned package closures evaluated now, deferred,
    or excluded as a product boundary?** Option 4's hermetic variant survives
    the determinism and attestation objections but stands on package-scale

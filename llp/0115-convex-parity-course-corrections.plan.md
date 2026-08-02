@@ -5,7 +5,10 @@
 **Systems:** Competitive evaluation, Developer experience, Authoring, Application data API, Code generation, Runtime, Bootstrap, Packaging, Search, Relational queries, Scheduled work, Client integration, Documentation, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-07-31 (§Sequencing 5 rerun-arm prep EXECUTED: the
+**Revised:** 2026-08-02 (decision-sitting propagation: OQ5 is reaffirmed and
+carried into its owners — the locally provable npm closure follows LLP 0074's
+parallel gate and LLP 0134's maturity bar, independently of hosted work;
+source: `issues/20260802-author-decision-packet.md`). 2026-07-31 (§Sequencing 5 rerun-arm prep EXECUTED: the
 Campfire React query-group arm landed in-repo at `demos/campfire` — the
 Diary 0025/0034 Campfire contract rebuilt so every product read renders
 through the LLP 0114 React surface over a registered LLP 0112 generated
@@ -1389,6 +1392,12 @@ plan holds the cross-reference (§The move layer).
    closure had already reached `latest` on 2026-07-26, the day before
    0111's gate was written. v0.5 routed this as 0127 decision 1, then
    open.)
+
+   **Reaffirmed and propagated 2026-08-02.** The author decision sitting
+   confirms that the locally provable nine-package surface promotes on LLP
+   0134's maturity bar under the LLP 0074 parallel gate. Hosted work remains
+   independently gated and cannot borrow a capability claim from that
+   promotion. Source: `issues/20260802-author-decision-packet.md`.
 6. **Unowned remainders from the research series — ANSWERED (v0.6,
    0127 decision 7).** The §Sequencing-3 absorb/delegate split is
    confirmed exactly as v0.5 recorded it: cluster (a)'s rejection

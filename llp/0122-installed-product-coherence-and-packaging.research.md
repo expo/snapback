@@ -5,7 +5,10 @@
 **Systems:** Developer experience, Packaging, Tooling, Client integration, Documentation, Competitive evaluation
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-07-30 (v0.3, round-2 delta corrections — round-2 delta
+**Revised:** 2026-08-02 (decision-sitting propagation: Option 5 and OQ1 are
+answered in favor of LLP 0074's parallel npm gate, with LLP 0134's maturity
+bar governing the locally provable closure and hosted claims staying separately
+gated; source: `issues/20260802-author-decision-packet.md`). 2026-07-30 (v0.3, round-2 delta corrections — round-2 delta
 reviews in
 `reviews/0122-installed-product-coherence-and-packaging.fable.md` and
 `reviews/0122-installed-product-coherence-and-packaging.codex.md`, both
@@ -409,6 +412,13 @@ steps 1–2, but a pinned candidate tag is not the boring default install the
 diaries describe. This document lays out both sides and stops; the call is
 the author's.
 
+**Answered 2026-08-02.** Adopt LLP 0074's parallel gate. The locally
+provable nine-package closure may promote to `latest` when it satisfies LLP
+0134's maturity bar; that promotion does not advertise or qualify any hosted
+capability. LLP 0111's hosted-serialized ordering is superseded on this point
+only, and its hosted evidence gates remain in force. Source:
+`issues/20260802-author-decision-packet.md`.
+
 ### Option 6 — Admin-client and test-helper custody
 
 Per artifact, three shapes each (0041 §Open Questions):
@@ -713,9 +723,10 @@ the list.
 
 ## Open questions
 
-1. Which document governs default-channel promotion — 0111's hosted-gated
-   ordering or 0074's parallel gate? (Restates LLP 0115 OQ5; author
-   decision.)
+1. **Answered 2026-08-02:** LLP 0074's parallel gate governs the locally
+   provable closure, with LLP 0134's maturity bar; LLP 0111 continues to
+   govern hosted claims and their qualification. (Restates LLP 0115 OQ5;
+   source: `issues/20260802-author-decision-packet.md`.)
 2. What custody do the admin client and the acceptance helpers get —
    publish, fold, or endorse served/vendored paths? (Restates 0041's
    2026-07-30 open question; author decision that CV-1's exit requires.)

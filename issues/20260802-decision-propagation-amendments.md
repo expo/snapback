@@ -35,3 +35,18 @@ Run ./ref-check --verbose after the batch. One commit is fine; cite the
 packet in the message.
 
 **Exit:** all eight amendments landed; this ticket closed with the commit.
+
+## Running log
+
+- **2026-08-02:** Oriented from LLP 0000, the resolved author packet, LLP
+  0115, Accepted LLP 0155, and every owning document named above. Staged all
+  eight dated amendments without changing code, capability claims, or LLP
+  0156. `./ref-check --verbose` passed after rebasing current `main` (157 LLP
+  documents, 2,859 refs, zero
+  errors/unchecked); `git diff --check` passed.
+- **2026-08-02:** `node scripts/check-guide.mjs` ran as the docs fast path.
+  Its guide checks reported inherited missing snippet sources for
+  `trusted-runtime-values.md` and `contract-adapter.md`, plus the already-stale
+  generated guide manifest; no guide file is in this ticket's change set.
+  Landing commit and final closure evidence will be appended after the
+  amendment batch reaches `main`.

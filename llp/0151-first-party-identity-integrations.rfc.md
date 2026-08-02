@@ -8,7 +8,14 @@ OpenAI Codex (`gpt-5.6-sol`) and a non-author Fable context (rounds 1–2, per
 Charlie's direction that the other family participate in the design, not
 only review it)
 **Date:** 2026-08-02
-**Revised:** 2026-08-02 (v0.3, super-refine round 2: Fable NOT READY narrow,
+**Revised:** 2026-08-02 (decision-sitting propagation: Option D is adopted as
+the production paved path; app-owned provider credentials live in LLP
+0036-owned config/secret state, with registration automated where APIs exist
+and deterministic guided walkthroughs for Google and Apple; a broker is at
+most preview-only, with the transparent Google-issuer relay retained solely as
+the pre-pinned conditional. SMS OTP moves to tier 2 and may promote only once
+a delivery-vendor owner exists. Source:
+`issues/20260802-author-decision-packet.md`). 2026-08-02 (v0.3, super-refine round 2: Fable NOT READY narrow,
 Codex NOT READY substantial; all 5 Fable + 11 Codex findings applied —
 completion protocol re-grounded on LLP 0039's actual session issuance with
 sender-constrained redemption, three pinned flow profiles, and a local-arm
@@ -72,9 +79,9 @@ initial draft's two, adopted from Codex's round-1 design input:
   generic OIDC substrate (GitHub as the one bespoke OAuth2 adapter; Apple as
   an executable adapter profile, not just preset data);
 - **authenticators** that are first-class — email OTP and magic links,
-  username + password, SMS OTP, passkeys/WebAuthn, and anonymous/guest
-  identities with the claiming path LLP 0011's dated amendment already
-  specifies;
+  username + password, passkeys/WebAuthn, and anonymous/guest identities with
+  the claiming path LLP 0011's dated amendment already specifies; SMS OTP is
+  supported at tier 2;
 - **account lifecycle** — linking, unlinking, recovery, guest conversion,
   change-of-identifier, revocation, and abuse budgets, which round 1
   correctly judged "at least as important as adding providers."
@@ -82,10 +89,10 @@ initial draft's two, adopted from Codex's round-1 design input:
 It also pins **a tier model** so "first-party" has a testable meaning, and
 works the **credential-ownership question** — who registers and holds the
 OAuth client credentials for agent-built apps — into a per-provider matrix.
-After two review rounds the matrix carries a **convergent two-family
-recommendation** (§Credential ownership): app-owned registration with
-automation and guided walkthroughs now; a hard-constrained transport broker
-only as a pre-pinned conditional. **The decision remains Charlie's.** The
+After two review rounds the matrix carried a **convergent two-family
+recommendation** (§Credential ownership), and the 2026-08-02 author sitting
+adopted it: app-owned registration with automation and guided walkthroughs
+now; a hard-constrained transport broker only as a pre-pinned conditional. The
 one pinned constraint: whatever shape wins must not fundamentally tether a
 Snapback app's sign-in to Expo's servers; Expo-hosted convenience is
 welcome, hard dependency is not (Charlie, 2026-08-02).
@@ -199,7 +206,6 @@ existed but was only applied to SMS):
 | Username + password | none — the zero-dependency floor |
 | Passkeys | none in-protocol (RP-id/domain policy, §Passkeys) |
 | Anonymous/guest | none |
-| SMS OTP | carrier/sender registration + vendor account + spend |
 | Google | OAuth console registration (no registration API); shed only under the conditional broker (§Credential ownership) |
 | GitHub | GitHub account + one manifest-flow click |
 | Apple | Apple developer team + Services ID + key, at App-Store time |
@@ -250,48 +256,6 @@ current guidance, guessing throttles and non-enumerating failure shapes,
 username canonicalization and uniqueness rules (case behavior, rename),
 session rotation on password change, and the last-authenticator rule
 (§Lifecycle).
-
-### SMS OTP
-
-**Tier 1 with external prerequisite**, per Charlie's promotion decision
-(2026-08-02) and the annotation class above. Recorded for the author's
-adjudication: **both round-1 families challenged tier-1 placement** —
-production SMS requires carrier-side sender registration (US A2P 10DLC
-campaign vetting or toll-free verification, a days-to-weeks process tied
-to a business identity; per-country sender-ID rules elsewhere), and NIST
-SP 800-63B treats PSTN out-of-band authentication as *restricted*,
-requiring an alternative authenticator be offered. Codex recommended tier
-2 with a pre-committed promotion checklist; Fable offered an explicit
-pick-one — the external-prerequisite annotation (listed first) or Codex's
-tier-2 shape. The pin stands; the annotation plus the following design
-content is how it stands honestly.
-
-Phone-first sign-in matters most on the Expo/React Native surface
-`[observed — market pattern, region-dependent; strongest in phone-first
-markets]`. Design requirements:
-
-- **Abuse controls are launch-gating, not hardening.** SMS pumping
-  (artificially inflated traffic) attacks the app owner's wallet directly.
-  The paved path fails closed: destination-country allowlist **default-on**,
-  per-destination/per-source/per-prefix/per-IP throttles, global spend caps
-  with alarms, and idempotent sends. Per-message provider cost is
-  **shadow-metered internally under LLP 0104** (customer-facing pricing
-  would need an explicit 0104 amendment); locally, enabling SMS requires a
-  config acknowledgment of spend exposure.
-- **Snapback owns codes; vendors own transport.** The driver is a raw
-  message transport (`destination E.164, template id, variables` →
-  classified delivery result), behind the same ephemeral challenge-delivery
-  seam as email; challenge issuance/verification state stays in 0057's
-  state machine. A managed verification product (e.g. Twilio Verify) is a
-  *different semantic adapter* — the vendor becomes the challenge source of
-  truth — and is out of the paved path. Twilio Messaging first (widest
-  coverage); the seam stays vendor-neutral (E.164 normalization, locale
-  templates, delivery-status normalization, failover policy, secret-safe
-  telemetry) and should not assume phone-OTP ⇒ SMS (WhatsApp OTP is
-  cheaper and higher-deliverability than SMS `[observed — market pattern,
-  region-dependent]` in several major markets — landscape row for now).
-- Recycled numbers and SIM-swap risk mean SMS is never the recommended sole
-  authenticator for high-value accounts (§Lifecycle recovery rules).
 
 ### Passkeys / WebAuthn
 
@@ -650,13 +614,53 @@ everything else hangs off it:
    own team, not by calendar.
 8. **Passkeys** once the RP-id policy above is adjudicated.
 9. **Password** with its full baseline package.
-10. **SMS** once the delivery seam and abuse controls exist.
+10. **SMS tier-2 support** once the delivery seam and abuse controls exist;
+    tier-1 promotion additionally requires the named delivery-vendor owner.
 11. **Expo** when its provider contract is verifiable (GAP clears).
 
 `_auth_accounts` does not return (0039's identity-merge model holds);
 provider metadata needed for audit lives on the identity link.
 
 ## Tier 2 (supported, not paved)
+
+### SMS OTP
+
+**Tier 2**, by the 2026-08-02 author decision. SMS is supported when the app
+supplies vendor configuration; it is not a paved tier-1 mechanism. Promotion
+requires a named delivery-vendor owner in addition to tier 1's guide,
+fixture, demo, capability, deployment-arm, and client-surface witnesses.
+Production SMS requires carrier-side sender registration (US A2P 10DLC
+campaign vetting or toll-free verification, a days-to-weeks process tied
+to a business identity; per-country sender-ID rules elsewhere), and NIST
+SP 800-63B treats PSTN out-of-band authentication as *restricted*,
+requiring an alternative authenticator be offered.
+
+Phone-first sign-in matters most on the Expo/React Native surface
+`[observed — market pattern, region-dependent; strongest in phone-first
+markets]`. Design requirements:
+
+- **Abuse controls are launch-gating, not hardening.** SMS pumping
+  (artificially inflated traffic) attacks the app owner's wallet directly.
+  The supported path fails closed: destination-country allowlist **default-on**,
+  per-destination/per-source/per-prefix/per-IP throttles, global spend caps
+  with alarms, and idempotent sends. Per-message provider cost is
+  **shadow-metered internally under LLP 0104** (customer-facing pricing
+  would need an explicit 0104 amendment); locally, enabling SMS requires a
+  config acknowledgment of spend exposure.
+- **Snapback owns codes; vendors own transport.** The driver is a raw
+  message transport (`destination E.164, template id, variables` →
+  classified delivery result), behind the same ephemeral challenge-delivery
+  seam as email; challenge issuance/verification state stays in 0057's
+  state machine. A managed verification product (e.g. Twilio Verify) is a
+  *different semantic adapter* — the vendor becomes the challenge source of
+  truth — and is outside this path. The seam stays vendor-neutral (E.164
+  normalization, locale templates, delivery-status normalization, failover
+  policy, secret-safe telemetry) and should not assume phone-OTP ⇒ SMS
+  (WhatsApp OTP is cheaper and higher-deliverability than SMS `[observed —
+  market pattern, region-dependent]` in several major markets — landscape
+  row for now).
+- Recycled numbers and SIM-swap risk mean SMS is never the recommended sole
+  authenticator for high-value accounts (§Lifecycle recovery rules).
 
 - **Generic OIDC configuration** — the substrate exposed directly (issuer +
   client credentials + claim mapping).
@@ -683,12 +687,11 @@ vertical).
 
 Every provider requires a registered OAuth client with registered redirect
 URIs; Apple's additionally requires a developer team, Services ID, and
-signing key. The question is who owns those registrations for agent-built
-apps. Charlie directed (2026-08-02) that the options be written up with
-trade-offs and the decision left to the review loop, with one pinned
-constraint: no fundamental tether to Expo's servers; optional convenience
-is fine. **After two rounds the loop carries a convergent recommendation;
-the decision remains Charlie's.**
+signing key. Charlie directed (2026-08-02) that the options be written up with
+trade-offs under one pinned constraint: no fundamental tether to Expo's
+servers; optional convenience is fine. After two rounds the loop carried a
+convergent recommendation, and the 2026-08-02 author sitting adopted Option D
+as the production paved path.
 
 **Constraints that bound the space:**
 
@@ -770,10 +773,10 @@ asserted Google-issuer continuity, a broker issuer namespace, and
 app-side Google-token verification simultaneously — mutually
 incompatible; this paragraph is the resolution.)
 
-**For Charlie:** adopt D-now with the pre-pinned conditional, or keep the
-option space open. Under D, Google carries the external-prerequisite
-annotation permanently; under an activated conditional C it would shed
-it. Residual C costs that no constraint removes: consent-screen brand
+**Author decision — 2026-08-02.** Option D is adopted now, with the
+transparent Google-issuer relay retained as the pre-pinned conditional only.
+Google carries the external-prerequisite annotation unless that conditional
+is later activated. Residual C costs that no constraint removes: consent-screen brand
 leakage, shared suspension/rate-limit fate, cross-app correlation at the
 broker, availability coupling.
 
@@ -821,12 +824,11 @@ labeled walkthrough.
 
 ## Open questions
 
-- **Credential ownership**: the loop's convergent recommendation (Option D
-  now; transparent-relay conditional C pre-pinned; broker-issuer variant
-  rejected) awaits Charlie's adjudication.
-- **SMS tier placement**: Charlie's tier-1 pin stands with the
-  external-prerequisite annotation; Codex's tier-2 recommendation and
-  Fable's annotation-or-tier-2 pick-one are recorded for his adjudication.
+- **Credential ownership — ANSWERED 2026-08-02:** Option D is the production
+  paved path; the transparent-relay conditional remains pre-pinned and the
+  broker-issuer variant remains rejected.
+- **SMS tier placement — ANSWERED 2026-08-02:** tier 2, supported with vendor
+  configuration; promotion requires a named delivery-vendor owner.
 - **Generated-domain passkeys**: production tier-1 with disclosure, or
   preview-only exception? The tethered-continuity dependency (§Passkeys)
   is exactly the kind of tether the pinned constraint scrutinizes —

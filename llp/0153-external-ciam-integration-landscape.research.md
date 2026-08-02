@@ -5,7 +5,11 @@
 **Systems:** Auth, External identity, Sessions, Organizations, Client integration, Developer experience, Security, Hosted delivery, Competitive analysis
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-02
-**Revised:** 2026-08-02 (initial survey of meta-auth and third-party-auth integration patterns; official documentation checked on 2026-08-02); 2026-08-02 (v0.2, super-refine round 1: Fable READY moderate / Codex NOT READY wide; all 18 findings applied — bearer-originated exchange honesty, native sender-constraint GAP per LLP 0096, LLP 0060 admission budgets, org-switch split across LLP 0039/0059 vs 0053, impersonation removed from the generic permit list, per-token-kind audience rules, policy-valued capabilities, state cardinalities, profile support levels renamed against LLP 0151's tier contract); 2026-08-02 (v0.3, super-refine round 2: Fable READY narrow-to-moderate / Codex NOT READY narrow; rule 7 re-attributed to LLP 0060 D3's actual bucket mechanics with this route's additions marked [inference] and LLP 0031 route registration; provider_not_after_ms rescoped to LLP 0053's retained-authorization lease with derived-session provenance carrying the assertion not-after; key-confirmation vs nonce/jti split; per-surface sender qualification propagated to Model B, Level 0/1, gates, and bottom line; installation-scoped linking key made consistent; exchange-admission gate row added; table provenance narrowed honestly)
+**Revised:** 2026-08-02 (decision-sitting propagation: the external-CIAM
+boundary is ratified as a sibling paved path governed by this document's
+provider class; LLP 0151 remains first-party-focused, and step 1 below now
+records that relationship. Source:
+`issues/20260802-author-decision-packet.md`). 2026-08-02 (initial survey of meta-auth and third-party-auth integration patterns; official documentation checked on 2026-08-02); 2026-08-02 (v0.2, super-refine round 1: Fable READY moderate / Codex NOT READY wide; all 18 findings applied — bearer-originated exchange honesty, native sender-constraint GAP per LLP 0096, LLP 0060 admission budgets, org-switch split across LLP 0039/0059 vs 0053, impersonation removed from the generic permit list, per-token-kind audience rules, policy-valued capabilities, state cardinalities, profile support levels renamed against LLP 0151's tier contract); 2026-08-02 (v0.3, super-refine round 2: Fable READY narrow-to-moderate / Codex NOT READY narrow; rule 7 re-attributed to LLP 0060 D3's actual bucket mechanics with this route's additions marked [inference] and LLP 0031 route registration; provider_not_after_ms rescoped to LLP 0053's retained-authorization lease with derived-session provenance carrying the assertion not-after; key-confirmation vs nonce/jti split; per-surface sender qualification propagated to Model B, Level 0/1, gates, and bottom line; installation-scoped linking key made consistent; exchange-admission gate row added; table provenance narrowed honestly)
 **Related:** LLP 0011, LLP 0031, LLP 0039, LLP 0053, LLP 0055, LLP 0057, LLP 0059, LLP 0060, LLP 0064, LLP 0077, LLP 0096, LLP 0150, LLP 0151, LLP 0152
 
 ## Summary
@@ -1049,9 +1053,11 @@ plus three excellent profiles.
 
 ## Proposed adoption sequence
 
-1. Amend LLP 0151's “BYOP verified-token hook” concept into an explicit external
-   assertion/session-exchange capability with the LLP 0077 binding requirement
-   (browser-web) and the LLP 0060 admission-budget requirement.
+1. Proceed as the ratified sibling paved path under this document's external
+   provider class. LLP 0151 remains first-party-focused and receives only the
+   boundary pointer; this path owns the explicit external assertion/session-
+   exchange capability with the LLP 0077 binding requirement (browser-web)
+   and the LLP 0060 admission-budget requirement.
 2. Build the generic OIDC/JWKS verifier and conformance harness, and land the
    external-identity state model as an explicit LLP 0057 catalog-version
    migration (§Principal creation and profile data).

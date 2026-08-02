@@ -6,7 +6,10 @@
 MCP, Auth, Client protocol, Code generation, Diagnostics, Guide, Testing
 **Author:** Charlie Cheever / Codex / Claude (Fable 5)
 **Date:** 2026-08-01
-**Revised:** 2026-08-02 (v0.5 — promoted Draft→Active on the author's
+**Revised:** 2026-08-02 (decision-sitting propagation: Slice 0 ownership is
+assigned to LLP 0062's served envelope for both the consumption descriptor and
+the operation-journal projection; source:
+`issues/20260802-author-decision-packet.md`). 2026-08-02 (v0.5 — promoted Draft→Active on the author's
 adjudication after round-4 convergence: dual-family loop closed
 with Fable READY ×2 and Codex citation-only residue; the drifted 0147 anchor
 re-pinned by content, two wording completions. Earlier, rounds 1–3 applied:
@@ -394,8 +397,9 @@ without its own boundedness and authorization design.
 ### R1. Define one consumption descriptor, as a join over existing authorities
 
 The working name in this Research is `OperationConsumptionDescriptorV1`; the
-final name and owner are open. It should extend the app envelope/catalog family,
-not establish a new operation identity.
+final name remains open. The 2026-08-02 author decision assigns ownership to
+LLP 0062's served envelope. It extends that envelope/catalog family rather
+than establishing a new operation identity.
 
 The static descriptor should carry, where authoritative:
 
@@ -481,7 +485,13 @@ generation, and authority before new effects.
 
 ### Slice 0 — ownership and schema placement
 
-- Decide which existing artifact owns the static consumption descriptor.
+**Author decision — 2026-08-02.** LLP 0062's served envelope owns the static
+consumption descriptor and the operation-journal projection. This is ownership
+of the existing authority's projections, not permission for a fourth manifest
+or result envelope. Source: `issues/20260802-author-decision-packet.md`.
+
+- Extend the LLP 0062 served envelope with the static consumption descriptor
+  and operation-journal projection.
 - Amend LLP 0012/0024/0037/0062 as required rather than introducing a fourth
   manifest authority.
 - Specify public versus authenticated fields and disclosure classes.
@@ -803,9 +813,10 @@ Three smaller notes that need no idea-sized treatment:
 
 ## Open questions
 
-1. **Artifact ownership.** Does the static descriptor extend LLP 0062's app
-   envelope, LLP 0024's generated catalog entry, or a shared Rust-owned DTO
-   projected into both? The answer must preserve LLP 0037's ownership rule.
+1. **Artifact ownership — ANSWERED 2026-08-02.** LLP 0062's served envelope
+   owns the static consumption descriptor and operation-journal projection,
+   preserving LLP 0037's ownership rule and avoiding a fourth manifest.
+   Source: `issues/20260802-author-decision-packet.md`.
 2. **Public disclosure.** Which effect, refusal, and guide facts are safe in the
    principal-independent public envelope, and which require authenticated
    lookup?
@@ -887,8 +898,7 @@ Three smaller notes that need no idea-sized treatment:
 Active Research, promoted from Draft by the author on 2026-08-02 after the
 dual-family super-refine loop converged on v0.5 (Fable READY ×2, Codex
 citation-only residue; per-round record under `llp/reviews/0149-*`). As
-Research it authorizes no implementation or contract change. The
-recommended first decision is deliberately small: choose the existing artifact
-authority that will own the consumption descriptor and operation-journal
-projection. The plan-token and workspace questions should not be allowed to
-delay that foundation.
+Research it authorizes no implementation or contract change. The first
+ownership decision is now made: LLP 0062's served envelope owns the consumption
+descriptor and operation-journal projection. The plan-token and workspace
+questions should not be allowed to delay that foundation.
