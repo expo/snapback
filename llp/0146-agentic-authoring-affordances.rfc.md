@@ -8,9 +8,28 @@ experience
 **Author:** Charlie Cheever / Claude (Opus 5)
 **Date:** 2026-08-01
 **Revised:** 2026-08-01 (v0.1, initial draft)
-**Related:** LLP 0010, LLP 0017, LLP 0019, LLP 0024, LLP 0042, LLP 0054,
-LLP 0055, LLP 0061, LLP 0062, LLP 0097, LLP 0108, LLP 0115, LLP 0127,
-LLP 0131, LLP 0144
+2026-08-01 (v0.2, round-1 dual-family reconciliation — artifacts in
+`llp/reviews/0146-agentic-authoring-affordances.{fable,codex}.md`, both
+NOT READY. The load-bearing correction is rebuilt: v0.1 claimed
+declaration drift cannot break runtime behaviour, which is false on the
+Cloudflare arm (whose live fan-out filters on manifest-declared
+`fn.tables`) and too strong even locally (the local matcher falls back to
+the declared read-set summary whenever no query dependency is captured).
+D1 consequently becomes a correctness seam on one target rather than a
+purely artifact-trust improvement. Corrects two false "shipped" baseline
+rows — query explain serves only `mutationDryRun`, and checkpoint is not
+a host op. Replaces D1's three-state per-invocation verdict with
+independent deltas plus an evidence-provenance state; withdraws D2's
+claim to close `acceptance.run`; reconciles D3 with LLP 0062's existing
+`introspect --changed-since`; splits D4's blast radius into declared and
+observed; disposes D5 against the LLP 0110 relation family and the
+shipped last-holder guard; qualifies D6's replay guarantee to controlled
+seams; and rebuilds D7's remediation schema. Open questions grew from 7
+to 14.)
+**Related:** LLP 0008, LLP 0010, LLP 0017, LLP 0019, LLP 0020, LLP 0024,
+LLP 0040, LLP 0042, LLP 0054, LLP 0055, LLP 0061, LLP 0062, LLP 0080,
+LLP 0081, LLP 0097, LLP 0108, LLP 0110, LLP 0115, LLP 0127, LLP 0131,
+LLP 0134, LLP 0135, LLP 0144
 
 ## Summary
 
@@ -18,9 +37,11 @@ Snapback's agentic-authoring investment so far has produced an operating
 surface (LLP 0024), its three projections — CLI, HTTP, MCP (LLP 0042) —
 an agent-first guide with a witness-bearing capability index (LLP 0061),
 agent principals with scoped grants (LLP 0055), and a generated per-app
-CLI (LLP 0062). Mutation dry-run, query explain, and checkpoint are
-implemented in `src/host_ops.rs`. LLP 0019's recommended sequence is
-substantially executed.
+CLI (LLP 0062). Mutation dry-run is implemented as the one served
+`function.explain` kind (`src/host_ops.rs:1686-1725`). LLP 0019's
+recommended sequence is *partly* executed: its steps 1 and 2 are built,
+step 4's dry-run half is built, and its explain-denial half
+(`llp/0019:333`) is not.
 
 This RFC inventories thirteen *further* candidate affordances, adjudicates
 each, and proposes seven for construction. The organizing thesis is that
@@ -39,8 +60,15 @@ Seven decisions are proposed: D1 declaration/observation conformance,
 D2 the `verify` done-oracle, D3 the agent digest, D4 the semantic
 change-impact diff, D5 finite relational invariant profiles, D6 the
 scenario runner with counterexample shrinking, and D7 typed remediations
-with type-aware suggestion. Five candidates are explicitly declined or
+with type-aware suggestion. Six candidates are adjudicated as declined or
 deferred, including two that are attractive and wrong.
+
+One decision moved between v0.1 and v0.2 and is worth stating up front:
+because live fan-out on the Cloudflare arm selects subscriptions by
+manifest-declared tables, **D1 is a correctness seam on that target**, not
+only a trustworthiness improvement to the artifact. That raises D1 from
+"first because it is cheap" to "first because a shipped target can lose
+live updates without it."
 
 ## Motivation
 
@@ -85,14 +113,15 @@ turn out to be projections over facts Snapback already computes.
 | --- | --- | --- |
 | Host-op core with CLI/HTTP/MCP projections | Shipped | `src/host_ops.rs`; LLP 0024 |
 | Mutation dry-run through the real buffered path | Shipped | `dry_run` in `src/host_ops.rs`, `src/auth/invocation.rs` |
-| Query explain | Shipped | `explain` in `src/host_ops.rs`, `src/local.rs` |
-| Checkpoint | Shipped | `checkpoint` in `src/local.rs`, `src/auth/backup.rs` |
+| Query explain (`queryPlan`) | **Pinned, unbuilt** | `SNAPBACK_EXPLAIN_KIND_UNIMPLEMENTED`, `src/host_ops.rs:1717-1721`; `guide/operating/host-ops.md:66` |
+| Explain-denial (`permissionAllow`/`permissionDeny`/`capabilityGap`) | **Pinned, unbuilt** | same refusal arm; LLP 0019 step 4 half |
+| Quiesced backup and restore | Shipped (operator, not agent-facing) | `AuthCommand::Backup`/`Restore`, `src/cli.rs:900-907` |
 | Agent principals and scoped grants | Shipped | route `/auth/agents/pair`; LLP 0055 |
 | Agent-first guide with witness-bearing capability index | Shipped | `guide/capabilities.md`; LLP 0061 |
 | Generated per-app CLI | Partial | `snapback-app` in `packages/snapback-app-cli/cli.mjs`; LLP 0062 |
 | Stable diagnostic codes | Shipped | `SNAPBACK_*`; LLP 0010 "Bootstrap diagnostic codes" |
-| Declared app refusal codes | Draft | LLP 0144 |
-| Bounded recent-invocation ring in `app.inspect` | Specified | LLP 0042 §"Diagnostics reading" |
+| Declared app refusal codes | Review | LLP 0144 |
+| Bounded recent-invocation ring in `app.inspect` | Shipped — **host operations only** | `RECENT_INVOCATIONS_CAPACITY = 128`, `src/host_ops.rs:57-105` |
 | `acceptance.run` host operation | **Pinned but unbuilt** | `guide/operating/host-ops.md:72` |
 | Captured read/write dependencies beside declared ones | Shipped, unchecked | `FunctionRunResult` in `src/local.rs:1447` |
 
@@ -118,63 +147,145 @@ the observed dependency sets of every handler — and never compares them.
 | C12 | Trajectory record and replay | Declined as specified; narrow successor deferred |
 | C13 | Universal continuation tokens and token-cost estimates | Declined; replaced by per-operation bounding |
 
-## A verified correction
+## The correction, scoped by target
 
-The critique's strongest claim was that declared `reads`/`writes` drift
-makes **live invalidation silently wrong**: an agent adds a
+The motivating critique claimed that declared `reads`/`writes` drift makes
+**live invalidation silently wrong**: an agent adds a
 `ctx.db.query('members')` call, forgets the declaration, and the handler
 returns correct data on direct invocation while subscriptions fail to
 re-fire.
 
-**This premise is false as stated, and the correction changes D1's shape.**
+v0.1 of this RFC rejected that premise outright, on the ground that the
+runtime consumes captured dependencies rather than declarations. **That
+rejection was itself wrong** — too strong locally, and false on the
+Cloudflare arm. The corrected position is target-scoped, and it is what
+sets D1's priority.
 
-Live subscriptions register `CapturedReadDependency` values, not
-manifest-declared table names. `subscribe_live_*` and the invalidation
-path key off `query.read_dependencies` (`src/local.rs:13399`, `:13688`,
-`:14618`), which is the set captured during evaluation. Mutation commit
-likewise validates read sets against `executed.reads` — the runtime-captured
-set (`src/local.rs:11111`, `:11568`, `:11797`). The runtime is not reasoning
-from the declarations.
+### Local target — captured first, declared as fallback
 
-What is actually true is narrower and still worth fixing:
+The local matcher prefers captured dependencies and consults declarations
+only when the captured set cannot summarise the handler's reads.
+`live_subscription_may_be_affected` (`src/live_matcher.rs:129`) first calls
+`live_subscription_may_be_affected_by_dependencies` (`:195`), which answers
+from `CapturedReadDependency` values — `Row`/`MissingRow` facts by exact
+`(table, id)`, `Query` facts by replaying the captured predicate through
+`change_may_affect_query_plan`.
 
-- Both sets exist and are carried side by side on `FunctionRunResult`
-  (`src/local.rs:1447-1458`), with a doc comment naming the mismatch as the
-  Valet "counts stuck at zero" failure class.
-- **Nothing compares them.** The only consumer of `captured_reads` outside
-  `local.rs` is `function_run_secret_scopes` in `src/admin.rs:1774`, which
-  merely unions both sets to widen secret-read lease scopes.
+But that helper returns `None` when **no `Query` dependency was captured**,
+with its own comment stating why: "the captured reads do not summarize the
+handler's full read set (e.g. a handler that never ran, or captured
+nothing); fall back to the conservative read-set-summary arm"
+(`src/live_matcher.rs:229-233`). The fallback for an inline JS handler is:
+
+```rust
+FunctionRuntime::IbexModule(_) => {
+    let tables = &definition.read_set_summary.tables;   // declared
+    let relevant = changes.iter()
+        .filter(|change| tables.is_empty() || tables.contains(&change.table))
+    if relevant.is_empty() { return false; }            // no wake-up
+```
+
+So a declared table set *does* reach the local delivery decision, on a
+named path. The fallback is conservative where the captured facts are
+complete — it can only add wake-ups — but where nothing was captured, an
+empty or wrong `read_set_summary.tables` decides delivery on its own.
+Mutation commit validation is on firmer ground: it validates
+`executed.reads`, the runtime-captured set, forwarded from
+`src/local.rs:11111`, `:11568`, `:11797` and reaching the validator at
+`src/storage.rs:4454-4457`.
+
+### Cloudflare arm — declared tables are the only fan-out filter
+
+Here the critique's original claim is simply correct. `fanOut` selects
+affected subscriptions with
+`functionTables(fn).some((table) => changedTables.has(table))`
+(`cloudflare/src/coordinator.js:5163-5167`), and `functionTables` returns
+the function's declared `fn.tables` (`:5539-5542`). Captured reads are
+recorded on this arm but deliberately unused: the coordinator's own header
+says "captured read sets are recorded but not yet validated"
+(`cloudflare/src/coordinator.js:22-23`), with serialisation standing in for
+the isolation the manifest declares.
+
+**Therefore: a handler that declares table A and dynamically reads table B
+will not be woken when B changes, on Cloudflare, today.** That is a live
+correctness defect reachable by exactly the authoring mistake an agent is
+most likely to make.
+
+### Other arms
+
+- **Relational, bounded-children, and search queries** never consult
+  captured deps for invalidation; they are deliberately table-granular over
+  the *plan's* declared sources (`plan.root`/`plan.joined`,
+  `plan.parent_table`/`plan.child_table`, `plan.table` —
+  `src/live_matcher.rs:170-182`). Because those tables come from the
+  generated plan rather than a hand-written declaration, an agent cannot
+  under-declare them; LLP 0080 §4 records the table-granularity as
+  intentional.
+- **Offline/RQS retention** is out of scope for this correction and gets no
+  claim here; its disposition is OQ12.
+
+### What is common to every target
+
+- Declared and captured sets are carried side by side on
+  `FunctionRunResult` (`src/local.rs:1449-1458`), with a doc comment naming
+  the mismatch as the Valet "counts stuck at zero" failure class.
+- **Nothing compares them.** The only consumers of `captured_reads` outside
+  `local.rs` are secret-scope wideners — `function_run_secret_scopes`
+  (`src/admin.rs:1774`) and its host-ops sibling (`src/host_ops.rs:1444`) —
+  which union both sets to widen a lease, never to check one against the
+  other.
 - Declarations are documented as "evidence, not enforced ceilings"
   (LLP 0127 decision 6; `packages/snapback-codegen/inline-helper-sharing.test.mjs:7`).
 
-So the defect class is not a broken runtime. It is that **the manifest —
-the artifact every agent, review surface, and generated integration reasons
-from — can silently diverge from behavior**, and Snapback holds both halves
-of the proof and never joins them. An agent reading the manifest to answer
-"what does this function touch?" gets an answer no one has checked.
-
-That makes D1 cheaper than proposed (a join over facts already recorded,
-not a fix to invalidation) and relocates its primary value from runtime
-correctness to *artifact trustworthiness*.
+So D1 carries **two** values, not one: on the local target it makes the
+manifest — the artifact every agent, review surface, and generated
+integration reasons from — checkable against behaviour; on the Cloudflare
+arm it closes a reachable live-delivery defect. The second is why D1 is
+first.
 
 ## Decisions
 
 ### D1. Declaration/observation conformance
 
-**Build first.** Join the two dependency sets Snapback already computes and
-make divergence a named, addressable fact.
+**Build first**, for the reason the correction above establishes: on the
+Cloudflare arm this is a live-delivery defect, not only an artifact-trust
+gap. Join the two dependency sets Snapback already computes and make
+divergence a named, addressable fact.
+
+**Evidence shape.** A single invocation can be under-declared and
+over-declared at once — capturing undeclared B while never exercising
+declared A — so one three-valued verdict cannot represent it. And absence
+from one branch's captured set does not establish global over-declaration;
+a conditionally-read table is unwitnessed on every invocation that skips
+its branch. Per invocation, therefore, emit two independent deltas plus a
+provenance state:
+
+```
+missing:    captured \ declared          (authoritative when provenance = complete)
+extra:      declared \ captured-here     (data, not a verdict)
+provenance: complete | incomplete | unsupported
+```
+
+`incomplete` and `unsupported` are not decoration. Action results carry
+empty captured sets by construction (`src/local.rs:1705-1740`), failure
+paths may lack a complete dependency witness, and the local matcher itself
+distinguishes "captured reads summarise the handler" from "they do not"
+(`src/live_matcher.rs:229-233`). A conformance surface that reports
+`conformant` from an empty capture would manufacture exactly the false
+confidence it exists to remove.
 
 Three surfaces, in increasing strictness:
 
-1. **Report (v0).** Every function invocation that carries both sets emits a
-   conformance verdict: `conformant`, `underDeclared` (captured ⊄ declared),
-   or `overDeclared` (declared entries never witnessed). Attach it to the
-   `FunctionRunResult` and to the `app.inspect` recent-invocation ring so an
-   agent can read it without instrumenting anything.
-2. **Coverage (v0, inside D2).** `verify` reports declared dependencies never
-   witnessed by any acceptance path, and functions whose captured set exceeded
-   their declaration during the run. Over-declaration is a warning; under-
-   declaration is a failure.
+1. **Report (v0).** Every invocation that carries an authoritative capture
+   emits `missing`, `extra`, and `provenance`. Attach to `FunctionRunResult`
+   and to the `app.inspect` recent-invocation ring. Note the ring today
+   records *host operations* only (`src/host_ops.rs:63-64`), so the
+   app-data plane must be wired into it — or the surface scoped to host-op
+   invocations and said so.
+2. **Coverage (v0, inside D2).** `verify` aggregates across every acceptance
+   path and only then reports **over-declaration**, which is the only scope
+   at which that judgement is sound. Under-declaration is a failure;
+   over-declaration is a warning.
 3. **Strict mode (v1, opt-in per app).** Application-table reads and writes
    must be a subset of the declarations, refused at the seam with
    `SNAPBACK_HANDLER_UNDECLARED_READ` / `SNAPBACK_HANDLER_UNDECLARED_WRITE`,
@@ -182,27 +293,46 @@ Three surfaces, in increasing strictness:
 
 Strict mode is opt-in and per-app, not global and not default, because
 LLP 0127 decision 6 deliberately admits context-reader helpers whose
-declarations are evidence. Flipping that to an enforced ceiling is an
-authoring-contract change that must be chosen, not inherited. The escape
-hatch is per-dependency-class (explicitly conservative or unobservable
-classes), never a blanket disable.
+declarations are evidence, and LLP 0108 sequences ceiling enforcement as
+"its own later decision, decoupled" (`llp/0108`). This RFC is that later
+decision, taken narrowly. The escape hatch is per-dependency-class
+(explicitly conservative or unobservable classes), never a blanket disable.
 
-*Acceptance:* a handler that reads an undeclared table is `underDeclared` in
-report mode, fails `verify` coverage, and is refused with the named code in
-strict mode; a handler declaring a table it never reads is `overDeclared`
-and produces a warning, not a failure.
+**Cloudflare disposition.** Report and coverage do not by themselves fix
+the fan-out defect. That arm needs either captured-read consumption in
+`fanOut` or a conservative widening — treat an under-declared or
+unwitnessed function as affected by every changed table — chosen in OQ8.
+Strict mode is the third option and the only one that keeps fan-out cheap.
 
-*Cost:* small. Both sets are in hand; the work is the comparison, the
-verdict plumbing, two refusal codes (LLP 0144's registry), and the source-
-span mapping.
+*Acceptance:* a handler reading an undeclared table reports non-empty
+`missing` with `provenance: complete`, fails `verify` coverage, and is
+refused with the named code under strict mode; an action reports
+`provenance: unsupported` rather than `conformant`; a conditionally-read
+declared table produces no over-declaration warning until aggregate
+coverage shows no path witnesses it; and the coverage report names which
+of the success, failure, action, relational, search, snapshot-bundle, and
+per-target paths yielded authoritative evidence.
+
+*Cost:* small for surfaces 1–2 (the sets are in hand; the work is the
+comparison, provenance plumbing, and source-span mapping). The two refusal
+codes are **platform** codes and follow the LLP 0010 diagnostic-code
+discipline — not LLP 0144, which scopes itself to application-declared
+codes carried under `SNAPBACK_APP_REFUSAL` and explicitly calls
+platform-code registry gaps a different thing (`llp/0144:135-137`).
 
 ### D2. `snapback verify` — the done-oracle
 
 **Build second.** Agents optimize toward whatever oracle they are handed, so
-handing them a good one is the cheapest available leverage. `acceptance.run`
-is already pinned in the host-op contract and unbuilt
-(`guide/operating/host-ops.md:72`); this closes an acknowledged hole rather
-than introducing a concept.
+handing them a good one is the cheapest available leverage.
+
+**What this does and does not claim about `acceptance.run`.** That host
+operation is pinned and unbuilt (`guide/operating/host-ops.md:72`), and
+LLP 0042 deferred its server-side runner with a named reason. D2 is a **CLI
+composition, not that operation's implementation**: it does not project the
+LLP 0024 result contract, and it leaves `acceptance.run` open. v0.1 claimed
+D2 "closes an acknowledged hole"; it does not. Whether `verify` later
+becomes the shared core that `acceptance.run` projects — with the LLP 0024
+profile identity, counts, diagnostics, and artifact paths — is OQ9.
 
 `snapback verify --json` orchestrates, in precedence order:
 
@@ -213,8 +343,13 @@ than introducing a concept.
 4. declared capability requirements resolved against the served target
 5. registered acceptance profiles executed
 
-Output is a **receipt** — hash-bound to the artifact generation, replayable
-as evidence — plus the existing host-op `next[]` list. A `recommendedNext`
+Output is a **receipt** — plus the existing host-op `next[]` list. The
+receipt binds more than the artifact generation, or it is not replayable:
+the acceptance profile identity and the digest of the test bytes actually
+executed, the target and data identity, the authority context, and the
+seed or versioned-seed identity in force. An artifact hash alone would let
+two runs over different data or different tests present as the same
+evidence. A `recommendedNext`
 scalar is emitted **only** when precedence makes the choice mechanically
 unique; a capability gap, stale codegen, and a failed acceptance profile are
 independent conditions and collapsing them into one "next step" would lie.
@@ -231,11 +366,28 @@ named entry in `next[]`.
 ### D3. Agent digest
 
 **Build third.** `agentDigest.v1`, a projection over `app.inspect` and app-CLI
-introspection, emitted under a declared budget:
+introspection, emitted under a declared budget.
+
+**This extends an existing proposal rather than minting a rival.** LLP 0062
+already names `introspect --changed-since <envelopeHash>` — "the content
+address makes 'what changed since I last looked' a cheap diff"
+(`llp/0062:1521`). D3 does **not** introduce a second command with a second
+hash space. It supplies the budgeting, section stability, and elision
+discipline that entry lacks, under 0062's spelling:
 
 ```
-snapback describe --budget-bytes 32768 [--changed-since <digestHash>]
+snapback-app introspect --changed-since <envelopeHash> --budget-bytes 32768
 ```
+
+**Hash custody is a required decision, not an implementation detail.** A
+prior hash alone cannot produce a delta unless something can recover what
+that hash denoted. Three shapes are possible — the server retains recent
+digest manifests; the client presents its prior digest for server-side
+diffing; or the hash resolves only to an artifact generation and the delta
+is computed against that. Each has a different retention, authority, and
+unknown-hash story, and an unknown hash must degrade to a full digest with
+a named reason rather than an error or, worse, an empty delta that reads as
+"nothing changed." OQ10 carries this.
 
 Contents: artifact identities, schema summary, operation signatures with
 argument and result contracts (LLP 0131), capability gaps, row-count
@@ -267,17 +419,37 @@ manifests, and this is already docketed as LLP 0115 CV-14 "Semantic review
 summary for dense manifests," open and claimed by no move
 (`llp/0115-convex-parity-course-corrections.plan.md:435`). D4 claims it.
 
+**This is not greenfield.** A deterministic schema-change derivation
+already exists: `MigrationIntent` derivation over a predecessor/successor
+`SchemaManifest` pair, total over unambiguous semantics-free diffs and
+refusing everything else with `SNAPBACK_MIGRATION_PLAN_INVALID`
+(`src/migration.rs:896-923`, LLP 0081 §2), exposed as a migration preview
+(`src/cli.rs:779-813`). D4 **extends** that derivation to the
+function/contract/authority/capability axes rather than reimplementing the
+schema axis beside it.
+
 Given two artifact generations, emit a stable semantic diff:
 
-- tables, fields, indexes added, removed, or narrowed
-- migration required versus additive reload
+- tables, fields, indexes added, removed, or narrowed *(reuses
+  `src/migration.rs`)*
+- migration required versus additive reload *(same)*
 - functions added or removed
 - argument or result contract changes (LLP 0131, LLP 0108)
 - auth requirement or authority-creating status changes
 - declared read/write set changes
-- live invalidation blast radius changes
+- **declared** live-invalidation blast radius changes
 - capability requirements added or degraded
 - generated client surfaces made stale
+
+**Declared blast radius is not observed blast radius**, and D4 must not
+conflate them. On the local target, delivery is decided primarily by
+captured dependencies, so a handler's real fan-out can change with a code
+edit that leaves every declaration identical — two artifacts cannot detect
+that. D4 therefore reports the *declared* radius from artifacts alone, and
+reports an *observed* radius only when an observation bundle (a D2 receipt
+or a D6 scenario run over the new generation) is supplied. Where only the
+declared radius is available, the diff says so rather than implying
+completeness.
 
 For an agent, "what did my edit *mean*?" is at least as important as "what
 exists now?" — and it is the question the agent is worst at answering for
@@ -285,8 +457,10 @@ itself, because the mechanical diff is enormous and the semantic diff is
 three lines. Feeds both D2's receipt and D3's digest.
 
 *Acceptance:* a field addition and a field narrowing produce distinct
-migration verdicts; an auth-requirement change is never reported as
-additive.
+migration verdicts identical to the existing preview's; an auth-requirement
+change is never reported as additive; a handler edit that changes captured
+reads without changing declarations reports **no** observed-radius claim
+unless an observation bundle is supplied.
 
 ### D5. Finite relational invariant profiles
 
@@ -317,23 +491,52 @@ defineInvariant('message-author-is-room-member', existsRelation({
 }))
 ```
 
-The v1 vocabulary: required referenced row (`existsRelation`), membership
-existence, protected-last-member, and conditional uniqueness. These are the
-classes not already covered by uniqueness constraints, transaction read
-sets, and the membership-transition invariants Snapback enforces today
-(`guide/backend/mutations.md`).
+The v1 vocabulary: required referenced row (`existsRelation`) and
+conditional uniqueness.
+
+**Two classes v0.1 listed are withdrawn, because they already ship.**
+Protected-last-member is enforced today: demotion out of a protected role
+captures the survivor so two concurrent demotions of the final two cannot
+both commit (`src/storage.rs:13192-13203`), and `plan_membership_remove`
+"refuses removing the final eligible holder of a protected role"
+(`src/storage.rs:13220-13263`). Membership existence is likewise covered by
+the existing resource-existence checks. Claiming them as new vocabulary
+would have duplicated shipped behaviour while obscuring what is genuinely
+new. If D5 later wants to *generalise* `membership.lastHolder` beyond
+memberships, that is its own decision and must say how the generic rule
+reuses or supersedes the shipped one — OQ11.
 
 `onTargetDelete` is the part that is easy to miss and does most of the work:
 checking message insertion is insufficient — *removing a membership* must
 also refuse while dependent messages exist. Both directions, or the
 invariant is decorative.
 
+**Disposition against the bounded-relation family (LLP 0110/0134/0135).**
+That family already declares relations in the manifest
+(`RelationIncarnation { foreign_key_field, parent_table }`,
+`src/manifest.rs:836-840`) and deliberately declines this ground:
+`hide-orphans.v1` is its *only* parent-deletion policy (`llp/0110:169`,
+`:329-333`), and it explicitly excludes "referential constraints, cascade
+deletion, or orphan cleanup" (`llp/0110:917`). `onTargetDelete: 'restrict'`
+is exactly a referential constraint on that territory, and layering restrict
+over a read profile that *hides* orphans would put two deletion semantics
+on one shape. **D5 therefore applies only to ad-hoc application relations,
+not to promoted bounded-relation incarnations**, which keep `hide-orphans.v1`;
+codegen must refuse an `existsRelation` whose target is a promoted
+incarnation. Whether the two should ever converge is OQ13.
+
 Codegen must **prove boundedness**: an invariant that cannot name a
-supporting index is a generation error, not a slow commit.
+supporting index is a generation error, not a slow commit. It must also
+define transaction-final-state semantics (the invariant is evaluated once
+against the buffered final state, not per statement) and its behaviour
+against pre-existing rows at migration time.
 
 *Acceptance:* both directions refuse with the invariant's name in the
-refusal; an invariant without a supporting index fails codegen; commit cost
-stays index-bounded under a growing target table.
+refusal; an invariant without a supporting index fails codegen; an
+`existsRelation` targeting a promoted relation incarnation fails codegen
+with a named reason; a mutation that transiently violates and then repairs
+the invariant within one transaction commits; commit cost stays
+index-bounded under a growing target table.
 
 ### D6. Scenario runner with counterexample shrinking
 
@@ -373,8 +576,26 @@ scenario JSON runnable by `snapback scenario replay`. This is the decisive
 property: an agent can reliably fix a five-step counterexample and cannot
 reliably interpret a ten-thousand-event fuzz log.
 
-*Acceptance:* a seeded property violation shrinks to a minimal scenario that
-reproduces on replay; the runner refuses to describe as deterministic any
+**Replay is guaranteed only over controlled seams**, and v0.1's acceptance
+criterion overreached by requiring every shrunk violation to reproduce.
+Recording an ordering the runner does not control does not make that
+ordering enforceable on replay. A shrunk scenario therefore carries a
+**reproduction class**: `deterministic` (every step is a controlled seam —
+replay must reproduce), or `observed` (the violation depended on an
+uncontrolled ordering — replay attempts it and reports a reproduction rate,
+never a guarantee). An `observed` counterexample is still far more useful
+than a raw log, but it must not be presented as a regression test.
+
+**Relationship to LLP 0054.** That document is unratified research
+(`llp/0054:414-419`). D6 ratifies its controlled-seam framing and its
+safety/liveness property style, and claims the scenario language,
+generation, and shrinking that it left open. It does not ratify 0054's
+broader simulator programme.
+
+*Acceptance:* a seeded property violation over controlled seams only shrinks
+to a minimal scenario classed `deterministic` and reproduces on replay; a
+violation depending on uncontrolled ordering is classed `observed` and
+reports a reproduction rate; the runner never describes as deterministic an
 ordering it only observed.
 
 ### D7. Typed remediations and type-aware suggestion
@@ -389,20 +610,50 @@ policy; conclude the operation is invalid), and only the application knows
 which is intended. A server that emits one patch for that is guessing about
 authorization, which is the worst place to guess.
 
+Four axes are encoded **independently**, because collapsing them lets a
+consumer infer automation safety from the wrong field:
+
 ```json
 {
   "remediations": [
-    { "kind": "requestGrant", "requiresApproval": true, "authorityChanging": true },
-    { "kind": "useDifferentPrincipal", "requiresApproval": false },
-    { "kind": "openGuide", "resourceId": "auth.scoped-roles" }
+    { "kind": "requestGrant",
+      "riskClass": "authority-widening",
+      "machineApplicable": false,
+      "requiresApproval": true,
+      "authorityEffect": "widens" },
+    { "kind": "useDifferentPrincipal",
+      "riskClass": "authority-sensitive",
+      "machineApplicable": false,
+      "requiresApproval": true,
+      "authorityEffect": "changes-effective-principal" },
+    { "kind": "replaceIdentifier",
+      "riskClass": "mechanical",
+      "machineApplicable": true,
+      "requiresApproval": false,
+      "authorityEffect": "none",
+      "precondition": { "artifactHash": "…" } }
   ]
 }
 ```
 
-Machine-applicable *only* for typo fixes, exact identifier replacement, and
-regeneration — each carrying an artifact-hash precondition so a stale
-artifact cannot silently apply a repair. Never machine-applicable for
+v0.1's example marked `useDifferentPrincipal` as `requiresApproval: false`.
+That was wrong and contradicted this decision's own safety rule: changing
+the effective principal is authority-sensitive, and an artifact-hash
+precondition does nothing to bound that risk. **Any principal-changing
+remedy requires approval** unless separately constrained by a named,
+narrower rule.
+
+`machineApplicable: true` is a *positive* discriminator, never inferred from
+`requiresApproval: false`. It is granted only to typo fixes, exact
+identifier replacement, and regeneration — each carrying an artifact-hash
+precondition so a stale artifact cannot silently apply a repair. Never to
 authority widening, destructive schema change, or policy choices.
+
+The carrier is not settled here: LLP 0144 owns the refusal wire envelope and
+requires caller-visible disclosure, so whether `remediations[]` rides that
+envelope, a sibling field, or a separate lookup — and how it projects to
+CLI, HTTP, and MCP — is OQ6, now widened to cover the carrier as well as the
+registry.
 
 *Suggestion.* Unknown operation, unknown field, and wrong-arg-shape refusals
 answer with type-aware candidates drawn from the served manifest: available
@@ -563,6 +814,12 @@ consume conformance verdicts and the served manifest.
 subsystems with their own design risk and should not run concurrently with
 Wave 1.
 
+**One item jumps the waves.** The Cloudflare fan-out disposition (OQ8) is
+not a Wave 3 concern: it is a live-delivery defect on a shipped arm, and
+whichever of the three shapes is chosen — captured-read consumption,
+conservative widening, or required strict mode — it should land with Wave 1
+rather than wait for strict mode's authoring-contract decision.
+
 **Deferred lane.** C9 after D7; C10 after D1; C11 when LLP 0097 becomes
 implementable.
 
@@ -583,18 +840,50 @@ value an agent cannot exploit while its model of the app is still wrong.
 3. **D3 budget units.** Bytes and item counts are proposed. Is a
    per-section budget (schema versus operations versus diagnostics) needed,
    or does one global budget with a fixed section precedence suffice?
-4. **D5 vocabulary closure.** Four invariant classes are proposed for v1.
-   Is that the right cut, and what is the extension procedure — a new
-   declared class per RFC, or a bounded combinator algebra?
+4. **D5 vocabulary closure.** Two invariant classes are proposed for v1
+   (v0.1 proposed four; two were withdrawn as already shipped). Is that the
+   right cut, and what is the extension procedure — a new declared class per
+   RFC, or a bounded combinator algebra?
 5. **D6 property set ownership.** The six cross-cutting properties overlap
    LLP 0054's safety and liveness phases. Does D6 claim them, or does
    LLP 0054 own the property catalogue with D6 owning generation and
    shrinking?
-6. **D7 remediation registry.** Do remediation kinds live in LLP 0144's
-   refusal-code registry, or in a sibling registry keyed by refusal code?
+6. **D7 remediation carrier and registry.** Do remediation kinds live in a
+   registry keyed by refusal code, and does `remediations[]` ride LLP 0144's
+   refusal envelope, a sibling field, or a separate lookup? What is the
+   disclosure behaviour across the CLI, HTTP, and MCP projections?
 7. **CV-14 custody.** D4 claims LLP 0115 CV-14, which rides a custody
    trigger in the 0062 family. Does claiming it here satisfy the trigger, or
    must the custody owner ratify?
+8. **Cloudflare fan-out disposition.** Three shapes close the declared-table
+   fan-out defect: consume captured reads in `fanOut`; widen conservatively
+   (an under-declared or unwitnessed function is affected by every changed
+   table); or require strict mode on that target. The first costs a storage
+   read per fan-out, the second costs delivery precision, the third costs an
+   authoring-contract change. Which, and does it gate any hosted claim?
+9. **`acceptance.run` relationship.** D2 is a CLI composition and explicitly
+   does not implement the pinned operation. Does `verify` later become the
+   shared core that `acceptance.run` projects, carrying the LLP 0024 result
+   contract, or do the two stay separate surfaces?
+10. **Digest hash custody.** Who retains what a prior digest hash denoted —
+    server-side digest manifests, client-presented prior digest, or
+    generation-only resolution? What retention, expiry, and authority
+    boundary applies, and is degrading an unknown hash to a full digest with
+    a named reason the right behaviour?
+11. **Generalising `membership.lastHolder`.** D5 withdraws
+    protected-last-member because memberships already enforce it. Should a
+    generic protected-cardinality invariant exist, and if so does it reuse
+    or supersede the shipped rule?
+12. **Offline/RQS arm disposition.** The correction is scoped to the local
+    and Cloudflare arms. What does retention/replay on the JS arm consume —
+    captured dependencies, declarations, or neither — and does under-
+    declaration have an observable effect there?
+13. **D5 versus the bounded-relation family.** D5 applies only to ad-hoc
+    relations and must refuse promoted incarnations. Should the two
+    eventually converge on one relation vocabulary, and who owns that?
+14. **Conformance evidence on non-local targets.** D1's provenance states
+    are defined against local capture. What constitutes an authoritative
+    capture on Cloudflare, where captured reads are recorded but unused?
 
 ## Status
 
@@ -603,3 +892,10 @@ the intended first tranche and are the smallest of the seven; D5 and D6 are
 substantial subsystems and should be re-scoped after Wave 1 lands, when the
 conformance and verification surfaces will have made some of their
 motivating failure classes observable rather than hypothesized.
+
+Round-1 dual-family review returned NOT READY from both families; v0.2
+applies every finding, and the fourteen open questions above are the honest
+residue. The Cloudflare fan-out defect (OQ8) is the one item in this
+document that describes a live product defect rather than a missing
+affordance, and it should be ticketed independently of whether the rest of
+this RFC is accepted.
