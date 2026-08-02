@@ -119,6 +119,11 @@ run node --test scripts/snapback-github-latest-proof.test.mjs
 # collector's self-reference, path-custody, and tamper-failure rules in the
 # ordinary local proof even while its cumulative claim remains red.
 run node --test demos/partiful-matrix/tests/acceptance/final-immutable-revision-set.test.mjs
+# LLP 0032 P3 artifact gate: regenerate and verify the ignored cache before
+# the guide reads generated snippet sources. The guide's fresh-tree contract
+# requires this ordering (LLP 0061 §3); review manifests and policy-required
+# committed projections still fail closed on any diff.
+run scripts/check-generated-artifacts
 # LLP 0061: guide corpus — snippet transclusion-match, capability-index joins,
 # manifest staleness. Docs-only fast path: node scripts/check-guide.mjs.
 run node scripts/check-guide.mjs
@@ -139,9 +144,6 @@ fi
 # LLP 0032 P7: the bring-up doctor's green path (read-only; red paths are
 # proven by hand in fresh worktrees).
 run scripts/ibex-doctor
-# LLP 0032 P3 artifact gates: regen-and-diff staleness + tsc over generated
-# types (the Rust-derived schema validation gate runs inside cargo test).
-run scripts/check-generated-artifacts
 # demo_setup provisions every discovered demo from its generated manifests.
 # Those are gitignored since 6e080ca2 (only artifacts.json stays tracked), so
 # on a clean checkout this test can only run after the regen gate above has

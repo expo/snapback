@@ -230,3 +230,12 @@ ticket closes citing that run id.
   LLP 0017 plus the original closed finding record the strengthened contract.
   The exact unit witness, the higher-level G1 serve-teardown witness, and
   library Clippy pass locally.
+
+- **2026-08-02 — fresh-checkout guide prerequisites.** Gate 4 was green only
+  in an already-generated local tree. The hosted checkout correctly reported
+  three missing transclusion sources because the proof ran the guide before
+  the codegen gate materialized its gitignored cache. The proof now runs the
+  existing regenerate-and-diff gate first, matching `guide/conventions.md`'s
+  fresh-tree procedure without weakening snippet matching or accepting a stale
+  review manifest. The generated-artifact gate, all 142 guide snippets, shell
+  syntax, and ref-check pass locally; CI confirmation pending.
