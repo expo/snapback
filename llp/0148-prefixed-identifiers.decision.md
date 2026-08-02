@@ -1,11 +1,16 @@
 # LLP 0148: Prefixed identifiers
 
 **Type:** Decision
-**Status:** Draft
+**Status:** Accepted
 **Systems:** Storage, Auth, Runtime, API, Client protocol, Client integration,
 Code generation, Diagnostics, Admin API, Testing
 **Author:** Charlie Cheever / Claude (Opus 5)
 **Date:** 2026-08-01
+**Revised:** 2026-08-01 (Accepted by author Charlie Cheever, and implemented in
+the same motion — the registry, the per-table document prefixes, the codegen
+reservation, the widened validators, the LLP 0057 dated amendment, and the
+generated `schemas/id-registry.v1.json` all landed together. §What
+implementation surfaced records the three design corrections the build forced.)
 **Related:** LLP 0011, LLP 0031, LLP 0037, LLP 0039, LLP 0044, LLP 0055,
 LLP 0057, LLP 0059, LLP 0060, LLP 0070
 
