@@ -1,6 +1,6 @@
 # 0133-05: The bounded-skew opt-in — declaration, structural admission, settlement semantics, capability fact
 
-**Status:** Open
+**Status:** Closed
 **Program:** 20260802-0133-00-settlement-substrate-program.md
 **Systems:** Runtime, Storage, API, Testing
 **Depends on:** 0133-03
@@ -43,3 +43,31 @@ Sketch 4 in full: within-bound acceptance with capability fact present;
 out-of-bound labeled fallback; the mixed-sink variant (declared field accepts,
 undeclared sink of the same answer settles server-derived); the lane-Q
 inertness variant.
+
+## Resolution
+
+Resolved in `38d74e1a`; a concurrent main-session landing folded the staged
+settlement implementation into that commit while also landing LLP 0157's
+review amendment.
+The authoring grammar now admits one declared direct `runtimeNow()` field with
+a positive, grammar-bounded `maxSkewMs`; lane-L settlement uses one retained
+server sample, accepts only that direct field within the bound, re-derives it
+outside the bound, and leaves lane Q on the accepted replay pin. The stable
+`settlement.bounded_skew` capability and a deliberately partial guide row ship
+with the declaration, structural validation, receipt disposition, and runtime
+policy.
+
+Proving tests:
+
+- `local::tests::llp0133_sketch_4_bounded_skew_is_direct_field_only_and_lane_q_inert`
+- `packages/snapback-codegen/settlement-bounded-skew.test.mjs`
+- `cargo test --test capability_v0` (3 passed)
+- `cargo test --test artifact_schemas_v0` (30 passed)
+- the complete `packages/snapback-client` suite
+- `scripts/check-generated-artifacts`, `./ref-check --verbose`, and
+  `node scripts/check-guide.mjs`
+
+The full Rust library suite completed with 1,639 passing tests, one ignored,
+and the three previously inherited live-query failures recorded by earlier
+program tickets. One unrelated churn latency assertion also tripped under
+full-suite contention and passed immediately in isolation.
