@@ -75,3 +75,22 @@ ticket closes citing that run id.
   One additional Clippy finding is in the actively owned PUSH-01 lane
   (`src/push.rs` test helper `register`, landed by `769e7139`); it is recorded
   here as skipped-for-owner until that lane lands or confirms the seam is free.
+
+- **2026-08-02 — generated and inventory cluster.** The newer completed full
+  verdict `30763720394` still reports the original 18 failures, while later
+  runs are cancelled or in progress. Gate 1 was two inventory omissions:
+  settlement landing `38d74e1a` added
+  `settlement-bounded-skew.test.mjs` without its package test script or the
+  canonical inventory, and PUSH-01 landing `91a0a718` added
+  `push-registry.test.mjs` without the canonical inventory. Fixing commit
+  `44fe267e` registers both suites and advances the reviewed count to 158.
+  Gate 3 was a stale publication-carrier digest after its pinned local,
+  storage, and codegen sources changed; the same commit refreshes the complete
+  digest chain with `scripts/refresh-publication-carrier.mjs`. Gate 6 was the
+  expected all-aboard deployment-identity drift after generated manifest and
+  bundle inputs changed; the same commit regenerates it with the prescribed
+  generator. All three focused gates pass locally. Gate 2 now passes all 27
+  profiles under the pinned Node 24.18.0 toolchain after PUSH-01's additive
+  closure fix `91a0a718` and supplemental immutable ledger `745345fd`; the
+  primary PKG-01 baseline was not weakened or refrozen. Gate 4's fast guide
+  check also passes locally (17 freshness warnings, no errors).
