@@ -25,3 +25,19 @@ Enablement recipe (interactive; needs the account owner):
 
 Until then, P0.1 proceeds in its emulated posture (workerd twin) with
 the honest evidence-confidence downgrade per LLP 0102's amendment rule.
+
+---
+
+**Author decision (Charlie, 2026-08-01, verbatim):** "Expo-org
+Cloudflare account from day one. We're focusing on EAS hosting for
+this, not general cloudflare hosting on cloudflare free plans, though
+maybe we can think about that later."
+
+Consequences: this ticket's resolution path is Expo-org account
+provisioning (org account + WfP purchase + fleet credential custody in
+the established APIKeys/agent-local-secrets pattern), not enablement on
+the personal account. The general-Cloudflare free-plan hosting posture
+is explicitly deferred as a maybe-later, which also descopes free-plan
+pricing facts from Phase-0 gates. Phase 0's live WfP spikes (P0.1
+namespace run, P0.2, P0.3) remain blocked on the org account existing;
+the workerd-emulated P0.1 half stays runnable meanwhile.
