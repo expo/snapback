@@ -1,8 +1,9 @@
 name: public-package-proof
 run-name: public-package-proof-${{ inputs.operation_id || 'manual' }}
 
-# @ref LLP 0041#acceptance — install the exact public package closure on new
-# GitHub-hosted macOS/arm64 and Linux/x64 VMs, then aggregate both receipts.
+# @ref LLP 0041#acceptance — install the exact public package closure on a
+# new GitHub-hosted macOS/arm64 VM and a self-hosted expo Linux/x64 runner,
+# then aggregate both receipts.
 # @ref LLP 0063#workstream-6--reduce-snapbacks-declaration-and-runtime-tax —
 # the public-registry claim remains red unless every promised runtime tuple
 # agrees with one successful immutable publication ledger.
@@ -55,7 +56,7 @@ jobs:
           - id: darwin-arm64
             runner: macos-15
           - id: linux-x64
-            runner: ubuntu-latest
+            runner: expo-small
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -146,7 +147,7 @@ jobs:
   aggregate:
     if: ${{ inputs.root_selector == 'exact' }}
     needs: platform-proof
-    runs-on: ubuntu-latest
+    runs-on: expo-small
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
