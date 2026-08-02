@@ -258,6 +258,7 @@ export type TargetCapabilityId =
   | 'ibex_ctx_db_host_bridge'
   | 'live_subscriptions'
   | 'mutation_read_set_validation'
+  | 'settlement.bounded_skew'
   | 'permission_epoch_resync'
   | 'full_text_search_v1';
 
@@ -314,6 +315,9 @@ export interface HostPlanMutationSpec extends AuthorityCreatingAuthOptions {
   plan: MutationStep | MutationStep[];
   returns?: ReturnSpec;
   result?: ResultContract;
+  /** Lane-L only: accept the captured runtimeNow() value for one direct
+   * integer field when its settlement-clock skew is within the bound. */
+  boundedSkew?: { field: string; maxSkewMs: number };
 }
 
 interface JsMutationSpecBase extends AuthorityCreatingAuthOptions {
@@ -563,6 +567,7 @@ export interface MaintainedProjectionSpec {
 export declare function defineMaintainedProjection(spec: MaintainedProjectionSpec): unknown;
 export declare function isMaintainedProjectionDef(value: unknown): boolean;
 export declare function defineMutation(spec: HostPlanMutationSpec): { plan: { steps: MutationStep[]; return_value: ReturnSpec | null } };
+export declare const SETTLEMENT_BOUNDED_SKEW_MAX_MS: 86400000;
 export declare function mutationPlan(...steps: unknown[]): unknown;
 export declare function existingOwner(spec: unknown): unknown;
 export declare function clientMutation(): { kind: 'client-mutation.v1' };

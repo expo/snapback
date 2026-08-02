@@ -7,7 +7,7 @@ use crate::manifest::{
     MutationOutput, MutationPlan, MutationSettlement, MutationStep, OrderDirection, OrderExpr,
     PORTABLE_STORAGE_VERSION_MAX, QUERY_INTERNAL_OVERFETCH_MAX, QUERY_MAX_FILTER_BINDINGS,
     QUERY_MAX_IN_ITEMS, QueryOutput, QueryPlan, ReadDependency, ReturnValue, SchemaManifest,
-    SeedData, SettlementMintObservation, TableManifest, ValueExpr, auth_fingerprint,
+    SeedData, SettlementMintObservation, SettlementTimeObservation, TableManifest, ValueExpr, auth_fingerprint,
     effective_query_limit, replay_opaque_id_is_valid, validate_ctx_answer_ledger,
     validate_portable_timestamp_millis, validate_query_plan_shape,
 };
@@ -19,7 +19,7 @@ use rusqlite::{
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Number, Value, json};
 use sha2::{Digest, Sha256};
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -585,6 +585,16 @@ pub struct MutationCommit {
     pub authorization: Option<AuthorizationCommitWitness>,
 }
 
+/// A server-admitted lane-L override for one direct RuntimeNow field. The
+/// manifest validator proves the structural sink; storage owns the single
+/// authoritative sample and records whether that sink actually executed.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct SettlementTimePolicy {
+    pub field: String,
+    pub claimed: u64,
+    pub max_skew_ms: u64,
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct SeedCommit {
     pub output: MutationOutput,
@@ -1030,6 +1040,7 @@ fn reset_and_seed_transaction(
                 result: Value::Null,
                 ctx_ledger: None,
                 settlement_mint_observations: Vec::new(),
+                settlement_time_observation: None,
             })
         }
     };
@@ -3285,6 +3296,7 @@ impl LocalDatabase {
                 result: Value::Null,
                 ctx_ledger: None,
                 settlement_mint_observations: Vec::new(),
+                settlement_time_observation: None,
             },
             authorization,
         })
@@ -3474,7 +3486,9 @@ impl LocalDatabase {
         plan: &MutationPlan,
         input: &HandlerInput,
     ) -> SnapbackResult<MutationCommit> {
-        Ok(self.execute_mutation_plan(plan, input, true, None)?.commit)
+        Ok(self
+            .execute_mutation_plan(plan, input, true, None, None)?
+            .commit)
     }
 
     /// Execute a host plan with lifecycle checks throughout its finite step
@@ -3494,10 +3508,11 @@ impl LocalDatabase {
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
         Ok(self
-            .execute_mutation_plan_with_lifecycle(
+            .execute_mutation_plan_with_lifecycle_and_settlement_time(
                 plan,
                 input,
                 true,
+                None,
                 None,
                 &check_live,
                 before_commit,
@@ -3523,7 +3538,7 @@ impl LocalDatabase {
             });
         }
         Ok(self
-            .execute_mutation_plan(plan, input, true, Some(identity))?
+            .execute_mutation_plan(plan, input, true, Some(identity), None)?
             .commit)
     }
 
@@ -3549,11 +3564,12 @@ impl LocalDatabase {
             });
         }
         Ok(self
-            .execute_mutation_plan_with_lifecycle(
+            .execute_mutation_plan_with_lifecycle_and_settlement_time(
                 plan,
                 input,
                 true,
                 Some(identity),
+                None,
                 &|| Ok(()),
                 before_commit,
             )?
@@ -3575,7 +3591,76 @@ impl LocalDatabase {
         plan: &MutationPlan,
         input: &HandlerInput,
     ) -> SnapbackResult<MutationPlanExecution> {
-        self.execute_mutation_plan(plan, input, false, None)
+        self.execute_mutation_plan(plan, input, false, None, None)
+    }
+
+    pub(crate) fn dry_run_mutation_with_settlement_time(
+        &mut self,
+        plan: &MutationPlan,
+        input: &HandlerInput,
+        policy: Option<&SettlementTimePolicy>,
+    ) -> SnapbackResult<MutationPlanExecution> {
+        self.execute_mutation_plan(plan, input, false, None, policy)
+    }
+
+    pub(crate) fn execute_mutation_guarded_with_settlement_time<G, Check, BeforeCommit>(
+        &mut self,
+        plan: &MutationPlan,
+        input: &HandlerInput,
+        policy: Option<&SettlementTimePolicy>,
+        check_live: Check,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<MutationCommit>
+    where
+        Check: Fn() -> SnapbackResult<()>,
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        Ok(self
+            .execute_mutation_plan_with_lifecycle_and_settlement_time(
+                plan,
+                input,
+                true,
+                None,
+                policy,
+                &check_live,
+                before_commit,
+            )?
+            .commit)
+    }
+
+    pub(crate) fn execute_mutation_idempotent_guarded_with_settlement_time<G, BeforeCommit>(
+        &mut self,
+        plan: &MutationPlan,
+        input: &HandlerInput,
+        identity: &ClientMutationIdentity,
+        policy: Option<&SettlementTimePolicy>,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<MutationCommit>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        if let Some(output) = self.client_mutation_result(identity)? {
+            return Ok(MutationCommit {
+                output,
+                changes: Vec::new(),
+                read_dependencies: Vec::new(),
+                write_dependencies: Vec::new(),
+                job_enqueues: Vec::new(),
+                job_changes: Vec::new(),
+                authorization: None,
+            });
+        }
+        Ok(self
+            .execute_mutation_plan_with_lifecycle_and_settlement_time(
+                plan,
+                input,
+                true,
+                Some(identity),
+                policy,
+                &|| Ok(()),
+                before_commit,
+            )?
+            .commit)
     }
 
     fn execute_mutation_plan(
@@ -3584,18 +3669,51 @@ impl LocalDatabase {
         input: &HandlerInput,
         apply: bool,
         identity: Option<&ClientMutationIdentity>,
+        settlement_time: Option<&SettlementTimePolicy>,
     ) -> SnapbackResult<MutationPlanExecution> {
-        self.execute_mutation_plan_with_lifecycle(plan, input, apply, identity, &|| Ok(()), || {
-            Ok(())
-        })
+        self.execute_mutation_plan_with_lifecycle_and_settlement_time(
+            plan,
+            input,
+            apply,
+            identity,
+            settlement_time,
+            &|| Ok(()),
+            || Ok(()),
+        )
     }
 
+    #[cfg(test)]
     fn execute_mutation_plan_with_lifecycle<G, Check, BeforeCommit>(
         &mut self,
         plan: &MutationPlan,
         input: &HandlerInput,
         apply: bool,
         identity: Option<&ClientMutationIdentity>,
+        check_live: &Check,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<MutationPlanExecution>
+    where
+        Check: Fn() -> SnapbackResult<()>,
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.execute_mutation_plan_with_lifecycle_and_settlement_time(
+            plan,
+            input,
+            apply,
+            identity,
+            None,
+            check_live,
+            before_commit,
+        )
+    }
+
+    fn execute_mutation_plan_with_lifecycle_and_settlement_time<G, Check, BeforeCommit>(
+        &mut self,
+        plan: &MutationPlan,
+        input: &HandlerInput,
+        apply: bool,
+        identity: Option<&ClientMutationIdentity>,
+        settlement_time: Option<&SettlementTimePolicy>,
         check_live: &Check,
         before_commit: BeforeCommit,
     ) -> SnapbackResult<MutationPlanExecution>
@@ -3624,6 +3742,12 @@ impl LocalDatabase {
             .map(|ledger| ledger.now)
             .unwrap_or_else(now_millis);
         validate_portable_timestamp_millis(now_ms)?;
+        let settlement_time_skew = settlement_time
+            .map(|policy| now_ms.abs_diff(policy.claimed));
+        let settlement_time_within_bound = settlement_time_skew
+            .zip(settlement_time)
+            .is_some_and(|(skew, policy)| skew <= policy.max_skew_ms);
+        let settlement_time_sink_reached = Cell::new(false);
         let authorization_interlock = self.authorization_interlock.clone();
         let tx = self
             .conn
@@ -3744,6 +3868,9 @@ impl LocalDatabase {
                         now_ms,
                         &next_id,
                         &format!("{step_site}/insert/values"),
+                        settlement_time,
+                        settlement_time_within_bound,
+                        &settlement_time_sink_reached,
                     )?;
                     let changed_fields = changed_field_names(&row);
                     if projection_sources.contains(&table.name) {
@@ -3792,6 +3919,9 @@ impl LocalDatabase {
                         now_ms,
                         &next_id,
                         &format!("{step_site}/patch/values"),
+                        settlement_time,
+                        settlement_time_within_bound,
+                        &settlement_time_sink_reached,
                     )?;
                     let changed_fields = changed_field_names(&row);
                     if projection_sources.contains(&table.name)
@@ -4265,6 +4395,9 @@ impl LocalDatabase {
                             now_ms,
                             &next_id,
                             &format!("{step_site}/insert-each/values"),
+                            settlement_time,
+                            settlement_time_within_bound,
+                            &settlement_time_sink_reached,
                         )?;
                         let changed_fields = changed_field_names(&row);
                         let document =
@@ -4387,6 +4520,17 @@ impl LocalDatabase {
             result,
             ctx_ledger: Some(output_ledger),
             settlement_mint_observations: plan_ids.borrow().observations.clone(),
+            settlement_time_observation: settlement_time.map(|policy| {
+                let sink_reached = settlement_time_sink_reached.get();
+                SettlementTimeObservation {
+                    field: policy.field.clone(),
+                    claimed: policy.claimed,
+                    authoritative_sample: now_ms,
+                    skew_ms: settlement_time_skew.expect("policy implies measured skew"),
+                    sink_reached,
+                    accepted: settlement_time_within_bound && sink_reached,
+                }
+            }),
         };
         let authorization_predecessor = if apply {
             auth_stream::read_authorization_version_on(&tx)?
@@ -5005,6 +5149,7 @@ impl LocalDatabase {
             result,
             ctx_ledger: options.ctx_ledger,
             settlement_mint_observations: Vec::new(),
+            settlement_time_observation: None,
         };
         let authorization_predecessor = if options.apply {
             auth_stream::read_authorization_version_on(&tx)?
@@ -11771,12 +11916,32 @@ fn eval_value_map(
     now_ms: u64,
     runtime_id: &dyn Fn(&str) -> SnapbackResult<String>,
     site: &str,
+    settlement_time: Option<&SettlementTimePolicy>,
+    settlement_time_within_bound: bool,
+    settlement_time_sink_reached: &Cell<bool>,
 ) -> SnapbackResult<Map<String, Value>> {
     let mut output = Map::new();
     for (key, expr) in values {
         let site_key = key.replace('~', "~0").replace('/', "~1");
-        output.insert(
-            key.clone(),
+        let value = if settlement_time
+            .is_some_and(|policy| policy.field == *key)
+            && matches!(expr, ValueExpr::RuntimeNow)
+        {
+            settlement_time_sink_reached.set(true);
+            let policy = settlement_time.expect("matched settlement policy");
+            if settlement_time_within_bound {
+                Value::Number(Number::from(policy.claimed))
+            } else {
+                eval_expr(
+                    expr,
+                    input,
+                    bindings,
+                    now_ms,
+                    Some(runtime_id),
+                    &format!("{site}/{site_key}"),
+                )?
+            }
+        } else {
             eval_expr(
                 expr,
                 input,
@@ -11784,8 +11949,9 @@ fn eval_value_map(
                 now_ms,
                 Some(runtime_id),
                 &format!("{site}/{site_key}"),
-            )?,
-        );
+            )?
+        };
+        output.insert(key.clone(), value);
     }
     Ok(output)
 }

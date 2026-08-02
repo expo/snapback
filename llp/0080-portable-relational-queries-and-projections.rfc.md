@@ -54,8 +54,7 @@ sources feeding owner outputs require an explicit disclosure declaration;
 left joins cannot derive owner identity from the omissible side; stale
 0074/0075 self-references now name 0080/0081); 2026-07-20 (post-review
 reconciliation: bounded shared write ceiling, visibility/limit ordering,
-rebuild fencing, and v1 visibility profiles are pinned)
-**Revised:** 2026-08-02 (composition-boundary note, commissioned by
+rebuild fencing, and v1 visibility profiles are pinned); 2026-08-02 (composition-boundary note, commissioned by
 Accepted LLP 0155 §Move 1 / OQ1 and recorded per its acceptance: the
 composable read surface above this RFC's closed two-source plan is owned
 by the successor Spec

@@ -54,7 +54,7 @@ use crate::manifest::{
     FunctionResultContract, FunctionRuntime, HandlerInput, HandlerPlan, MutationOutput,
     MutationSettlement, MutationStep, PermissionScopeExpr, PublicFunctionManifest,
     PublicSchemaManifest, QueryOutput, QueryPlan, SNAPBACK_SCHEMA_VERSION, SchemaManifest, SeedData,
-    SettlementLane, SettlementMintObservation,
+    SettlementLane, SettlementMintObservation, SettlementTimeObservation,
     TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX, ValueExpr, auth_fingerprint, ctx_ledger_version,
     legacy_auth_fingerprint,
 };
@@ -66,7 +66,7 @@ use crate::storage::auth_mode::{DurableModeCommit, NetworkDeploymentCommit, Netw
 use crate::storage::{
     BufferedCommitPayload, CapturedReadDependency, CapturedReadKind, CapturedWriteDependency,
     ChangedRow, ClientMutationIdentity, DbRead, LocalDatabase, MutationCommit, ReaderPool,
-    StorageInfo, TableScan,
+    SettlementTimePolicy, StorageInfo, TableScan,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
@@ -1558,6 +1558,7 @@ pub(crate) struct StagedRecordedMutationCommit {
     settlement: MutationSettlement,
     prepared: PreparedInvocation,
     identity: Option<ClientMutationIdentity>,
+    settlement_time: Option<SettlementTimePolicy>,
     epoch_scopes: BTreeSet<String>,
     execution: StagedMutationExecution,
 }
@@ -1639,18 +1640,36 @@ fn rederived_claim_ledger(
     settlement: &MutationSettlement,
     ledger: Option<&CtxAnswerLedger>,
     authoritative_mints: &[SettlementMintObservation],
+    time_observation: Option<&SettlementTimeObservation>,
 ) -> Vec<SettlementClaim> {
     let Some(recorded) = settlement.claims.as_ref() else {
         return Vec::new();
     };
     let mut claims = Vec::with_capacity(recorded.mints.len() + usize::from(recorded.now.is_some()));
     if let Some(claimed) = recorded.now {
+        let bounded = time_observation.filter(|observation| observation.claimed == claimed);
         claims.push(SettlementClaim {
-            field_or_slot: "runtime.now".to_owned(),
+            field_or_slot: bounded.map_or_else(
+                || "runtime.now".to_owned(),
+                |observation| observation.field.clone(),
+            ),
             claimed: json!(claimed),
-            authoritative: ledger.map_or(Value::Null, |ledger| json!(ledger.now)),
-            disposition: SettlementClaimDisposition::ReDerived,
-            skew_ms: None,
+            authoritative: bounded.map_or_else(
+                || ledger.map_or(Value::Null, |ledger| json!(ledger.now)),
+                |observation| {
+                    json!(if observation.accepted {
+                        observation.claimed
+                    } else {
+                        observation.authoritative_sample
+                    })
+                },
+            ),
+            disposition: if bounded.is_some_and(|observation| observation.accepted) {
+                SettlementClaimDisposition::AcceptedBoundedSkew
+            } else {
+                SettlementClaimDisposition::ReDerived
+            },
+            skew_ms: bounded.map(|observation| observation.skew_ms),
         });
     }
     let authoritative = authoritative_mints_by_key(authoritative_mints);
@@ -1748,13 +1767,38 @@ fn settlement_claim_ledger(
     settlement: &MutationSettlement,
     ledger: Option<&CtxAnswerLedger>,
     authoritative_mints: &[SettlementMintObservation],
+    time_observation: Option<&SettlementTimeObservation>,
 ) -> Vec<SettlementClaim> {
     match settlement.lane {
         SettlementLane::ReplayAccept => accepted_claim_ledger(ledger),
         SettlementLane::ReDerive => {
-            rederived_claim_ledger(settlement, ledger, authoritative_mints)
+            rederived_claim_ledger(settlement, ledger, authoritative_mints, time_observation)
         }
     }
+}
+
+fn admitted_settlement_time_policy(
+    function: &FunctionDefinition,
+    settlement: &MutationSettlement,
+) -> Option<SettlementTimePolicy> {
+    if settlement.lane != SettlementLane::ReDerive {
+        return None;
+    }
+    let declared = function.bounded_skew.as_ref()?;
+    // The request copy freezes capture-time identity, but cannot widen the
+    // artifact-owned declaration. Only exact equality activates the opt-in;
+    // every other lane-L shape stays on authoritative re-derivation.
+    // @ref LLP 0133#the-bounded-skew-opt-in — bounded acceptance is
+    //   declaration authority, structurally admitted at artifact load.
+    if settlement.bounded_skew.as_ref() != Some(declared) {
+        return None;
+    }
+    let claimed = settlement.claims.as_ref()?.now?;
+    Some(SettlementTimePolicy {
+        field: declared.field.clone(),
+        claimed,
+        max_skew_ms: declared.max_skew_ms,
+    })
 }
 
 /// A durable cron claim paired with its process-local finite admission root.
@@ -11427,6 +11471,7 @@ impl LocalSnapback {
             }
         }
         let function = self.function(name)?.clone();
+        let settlement_time = admitted_settlement_time_policy(&function, &settlement);
         self.validate_expected_generation(&authority, expected_generation)?;
         let prepared = InvocationGate::prepare_function(authority.clone(), &function)?;
         // The live credential/grant is authorizing; the queued descriptor is
@@ -11524,7 +11569,11 @@ impl LocalSnapback {
                 | FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(
                     crate::manifest::WriteWithActivityPlan { mutation: plan, .. },
                 )) => {
-                    let preview = self.db.dry_run_mutation(plan, &input)?;
+                    let preview = self.db.dry_run_mutation_with_settlement_time(
+                        plan,
+                        &input,
+                        settlement_time.as_ref(),
+                    )?;
                     crate::result_contract::validate_handler_result(
                         &function,
                         &preview.commit.output.result,
@@ -11608,6 +11657,7 @@ impl LocalSnapback {
                     settlement: settlement.clone(),
                     prepared,
                     identity,
+                    settlement_time,
                     epoch_scopes,
                     execution,
                 })),
@@ -11653,6 +11703,7 @@ impl LocalSnapback {
             settlement,
             prepared,
             identity,
+            settlement_time,
             epoch_scopes,
             execution,
         } = *staged;
@@ -11662,13 +11713,18 @@ impl LocalSnapback {
             StagedMutationExecution::HostPlan(plan) => match identity.as_ref() {
                 Some(identity) => {
                     self.db
-                        .execute_mutation_idempotent_guarded(&plan, &input, identity, || {
-                            prepared.effect_guard("idempotent mutation transaction")
-                        })
+                        .execute_mutation_idempotent_guarded_with_settlement_time(
+                            &plan,
+                            &input,
+                            identity,
+                            settlement_time.as_ref(),
+                            || prepared.effect_guard("idempotent mutation transaction"),
+                        )
                 }
-                None => self.db.execute_mutation_guarded(
+                None => self.db.execute_mutation_guarded_with_settlement_time(
                     &plan,
                     &input,
+                    settlement_time.as_ref(),
                     || Ok(()),
                     || prepared.effect_guard("mutation transaction"),
                 ),
@@ -11727,6 +11783,7 @@ impl LocalSnapback {
                         settlement,
                         commit.output.ctx_ledger.as_ref(),
                         &commit.output.settlement_mint_observations,
+                        commit.output.settlement_time_observation.as_ref(),
                     ),
                     settlement_id_map(
                         settlement,
@@ -11742,7 +11799,7 @@ impl LocalSnapback {
                     // values (§3.3 privacy).
                     Some(error.diagnostic.code.clone()),
                     Some(version),
-                    settlement_claim_ledger(settlement, None, &[]),
+                    settlement_claim_ledger(settlement, None, &[], None),
                     settlement_id_map(settlement, &[]),
                     Vec::new(),
                     Err(error),
@@ -11751,7 +11808,7 @@ impl LocalSnapback {
                     MutationReceiptOutcome::Rejected,
                     Some(version_error.diagnostic.code.clone()),
                     None,
-                    settlement_claim_ledger(settlement, None, &[]),
+                    settlement_claim_ledger(settlement, None, &[], None),
                     settlement_id_map(settlement, &[]),
                     Vec::new(),
                     Err(version_error),
@@ -21758,6 +21815,41 @@ fn validate_function_schema_references(
             | FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(
                 crate::manifest::WriteWithActivityPlan { mutation: plan, .. },
             )) => {
+                if let Some(declaration) = &function.bounded_skew {
+                    let target = plan.steps.iter().find_map(|step| match step {
+                        MutationStep::Insert { table, values, .. }
+                        | MutationStep::Patch { table, values, .. }
+                        | MutationStep::InsertEach { table, values, .. }
+                            if values.contains_key(&declaration.field) =>
+                        {
+                            Some(table.as_str())
+                        }
+                        _ => None,
+                    });
+                    let target = target.expect("manifest structural validation found the sink");
+                    let declared = table(target)?
+                        .field(&declaration.field)
+                        .ok_or_else(|| {
+                            SnapbackError::error(
+                                "SNAPBACK_BOUNDED_SKEW_DECLARATION_INVALID",
+                                "runtime",
+                                format!(
+                                    "function {} boundedSkew names unknown field {target}.{}",
+                                    function.name, declaration.field
+                                ),
+                            )
+                        })?;
+                    if declared.field_type != crate::manifest::FieldType::Integer {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_BOUNDED_SKEW_DECLARATION_INVALID",
+                            "runtime",
+                            format!(
+                                "function {} boundedSkew field {target}.{} must be integer",
+                                function.name, declaration.field
+                            ),
+                        ));
+                    }
+                }
                 for step in &plan.steps {
                     match step {
                         MutationStep::Insert {
@@ -38518,7 +38610,7 @@ globalThis.__snapbackHandlers = {
             ],
             ..SchemaManifest::default()
         };
-        let function = FunctionDefinition::new(
+        let mut function = FunctionDefinition::new(
             "writeClockAndId",
             FunctionKind::Mutation,
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
@@ -38534,6 +38626,13 @@ globalThis.__snapbackHandlers = {
                 return_value: Some(ReturnValue::ChangedCount),
             })),
         );
+        function.bounded_skew = Some(BoundedSkewDeclaration {
+            field: "capturedAt".to_owned(),
+            max_skew_ms: 60_000,
+        });
+        function
+            .required_capabilities
+            .push("settlement.bounded_skew".to_owned());
         let branch_function = FunctionDefinition::new(
             "writeBranchId",
             FunctionKind::Mutation,
@@ -38904,6 +39003,192 @@ globalThis.__snapbackHandlers = {
         assert_eq!(map[0].disposition, SettlementIdMapDisposition::Mapped);
         assert_eq!(map[1].authoritative, None);
         assert_eq!(map[1].disposition, SettlementIdMapDisposition::Unmapped);
+    }
+
+    /// LLP 0133 acceptance sketch 4. The declaration governs one direct
+    /// field only: a nearby client time may settle there, the sibling sink
+    /// still takes the one server sample, and stale claims fall back to
+    /// re-derivation. Lane Q never interprets the declaration as a bound.
+    #[test]
+    fn llp0133_sketch_4_bounded_skew_is_direct_field_only_and_lane_q_inert() {
+        const WITHIN_ROW: &str = "018f0d90-7b41-7a22-8c33-445566778899";
+        const WITHIN_TOKEN: &str = "018f0d90-7b42-7a22-8c33-445566778899";
+        const STALE_ROW: &str = "018f0d90-7b43-7a22-8c33-445566778899";
+        const STALE_TOKEN: &str = "018f0d90-7b44-7a22-8c33-445566778899";
+        const PINNED_ROW: &str = "018f0d90-7b45-7a22-8c33-445566778899";
+        const PINNED_TOKEN: &str = "018f0d90-7b46-7a22-8c33-445566778899";
+        let mut snapback = lane_settlement_snapback();
+        assert!(
+            snapback
+                .inspect()
+                .unwrap()
+                .capability_manifest
+                .supported_capabilities
+                .contains(&crate::manifest::TargetCapabilityId::SettlementBoundedSkew),
+            "the complete local lane-L policy publishes its capability fact"
+        );
+        let declared = snapback
+            .function_definition("writeClockAndId")
+            .expect("declared fixture")
+            .clone();
+        let mut invalid_bound = declared.clone();
+        invalid_bound.bounded_skew.as_mut().unwrap().max_skew_ms = 0;
+        assert_eq!(
+            FunctionManifest {
+                functions: vec![invalid_bound],
+                ..FunctionManifest::default()
+            }
+            .validate_artifact()
+            .unwrap_err()
+            .diagnostic
+            .code,
+            "SNAPBACK_BOUNDED_SKEW_DECLARATION_INVALID"
+        );
+        let mut transformed = declared;
+        let FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)) = &mut transformed.runtime
+        else {
+            unreachable!("fixture is a HostPlan mutation")
+        };
+        let MutationStep::Insert { values, .. } = &mut plan.steps[0] else {
+            unreachable!("fixture starts with insert")
+        };
+        values.insert("capturedAt".to_owned(), ValueExpr::Literal(json!(7)));
+        assert_eq!(
+            FunctionManifest {
+                functions: vec![transformed],
+                ..FunctionManifest::default()
+            }
+            .validate_artifact()
+            .unwrap_err()
+            .diagnostic
+            .code,
+            "SNAPBACK_BOUNDED_SKEW_DECLARATION_INVALID"
+        );
+
+        let claimed = now_millis();
+        let mut within = synthetic_lane_l_settlement(claimed, [WITHIN_ROW, WITHIN_TOKEN]);
+        within.bounded_skew = Some(BoundedSkewDeclaration {
+            field: "capturedAt".to_owned(),
+            max_skew_ms: 60_000,
+        });
+        let (within_output, within_receipt) = invoke_synthetic_settlement(
+            &mut snapback,
+            "writeClockAndId",
+            captured_lane_input(claimed, [WITHIN_ROW, WITHIN_TOKEN]),
+            "cm_llp0133_bounded_within",
+            within.clone(),
+        )
+        .expect("within-bound lane-L stages");
+        let within_output = within_output.expect("within-bound lane-L settles");
+        let authoritative = within_output.ctx_ledger.as_ref().unwrap();
+        let row = snapback
+            .db
+            .scan_table("items", 10, 0)
+            .unwrap()
+            .rows
+            .into_iter()
+            .find(|row| row["_id"] == authoritative.ids[0])
+            .expect("within-bound row");
+        assert_eq!(row["capturedAt"], claimed);
+        assert_eq!(row["observedAt"], authoritative.now);
+        let within_receipt = serde_json::to_value(within_receipt).unwrap();
+        let claim = within_receipt["claimLedger"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|claim| claim["fieldOrSlot"] == "capturedAt")
+            .expect("field-specific bounded claim");
+        assert_eq!(claim["claimed"], claimed);
+        assert_eq!(claim["authoritative"], claimed);
+        assert_eq!(claim["disposition"], "accepted-bounded-skew");
+        assert!(claim["skewMs"].as_u64().unwrap() <= 60_000);
+        let (duplicate, duplicate_receipt) = invoke_synthetic_settlement(
+            &mut snapback,
+            "writeClockAndId",
+            captured_lane_input(claimed, [WITHIN_ROW, WITHIN_TOKEN]),
+            "cm_llp0133_bounded_within",
+            within,
+        )
+        .expect("exact bounded duplicate replays");
+        assert_eq!(
+            duplicate
+                .expect("duplicate output")
+                .settlement_time_observation,
+            within_output.settlement_time_observation
+        );
+        assert_eq!(
+            serde_json::to_value(duplicate_receipt).unwrap()["claimLedger"],
+            within_receipt["claimLedger"]
+        );
+        assert_eq!(snapback.db.scan_table("items", 10, 0).unwrap().total, 1);
+
+        let mut stale = synthetic_lane_l_settlement(1, [STALE_ROW, STALE_TOKEN]);
+        stale.bounded_skew = Some(BoundedSkewDeclaration {
+            field: "capturedAt".to_owned(),
+            max_skew_ms: 60_000,
+        });
+        let (stale_output, stale_receipt) = invoke_synthetic_settlement(
+            &mut snapback,
+            "writeClockAndId",
+            captured_lane_input(1, [STALE_ROW, STALE_TOKEN]),
+            "cm_llp0133_bounded_stale",
+            stale,
+        )
+        .expect("stale lane-L stages");
+        let stale_output = stale_output.expect("stale lane-L falls back");
+        let stale_authoritative = stale_output.ctx_ledger.as_ref().unwrap();
+        let stale_row = snapback
+            .db
+            .scan_table("items", 10, 0)
+            .unwrap()
+            .rows
+            .into_iter()
+            .find(|row| row["_id"] == stale_authoritative.ids[0])
+            .expect("stale row");
+        assert_eq!(stale_row["capturedAt"], stale_authoritative.now);
+        assert_eq!(stale_row["observedAt"], stale_authoritative.now);
+        let stale_receipt = serde_json::to_value(stale_receipt).unwrap();
+        let stale_claim = stale_receipt["claimLedger"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|claim| claim["fieldOrSlot"] == "capturedAt")
+            .expect("stale bounded claim");
+        assert_eq!(stale_claim["disposition"], "re-derived");
+        assert_eq!(stale_claim["authoritative"], stale_authoritative.now);
+
+        let mut pinned = synthetic_lane_l_settlement(23, [PINNED_ROW, PINNED_TOKEN]);
+        pinned.lane = SettlementLane::ReplayAccept;
+        pinned.bounded_skew = Some(BoundedSkewDeclaration {
+            field: "capturedAt".to_owned(),
+            max_skew_ms: 1,
+        });
+        let (pinned_output, pinned_receipt) = invoke_synthetic_settlement(
+            &mut snapback,
+            "writeClockAndId",
+            captured_lane_input(23, [PINNED_ROW, PINNED_TOKEN]),
+            "cm_llp0133_bounded_lane_q",
+            pinned,
+        )
+        .expect("lane-Q declaration is inert");
+        assert_eq!(pinned_output.expect("lane Q settles").ctx_ledger.unwrap().now, 23);
+        let pinned_row = snapback
+            .db
+            .scan_table("items", 10, 0)
+            .unwrap()
+            .rows
+            .into_iter()
+            .find(|row| row["_id"] == PINNED_ROW)
+            .expect("lane-Q row keeps replay ids");
+        assert_eq!(pinned_row["capturedAt"], 23);
+        assert_eq!(pinned_row["observedAt"], 23);
+        assert!(
+            serde_json::to_value(pinned_receipt).unwrap()["claimLedger"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|claim| claim["disposition"] == "accepted" && claim.get("skewMs").is_none())
+        );
     }
 
     /// LLP 0133 acceptance sketch 10. The harness changes the staged plan

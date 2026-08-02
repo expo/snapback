@@ -70,6 +70,26 @@
       ],
       "type": "string"
     },
+    "BoundedSkewDeclaration": {
+      "additionalProperties": false,
+      "description": "Capture-time identity of one proposed bounded-skew declaration. Ticket 05\nadds manifest admission and execution semantics; ticket 02 makes changes\nfail closed under a reused mutation id immediately.",
+      "properties": {
+        "field": {
+          "type": "string"
+        },
+        "maxSkewMs": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "field",
+        "maxSkewMs"
+      ],
+      "type": "object"
+    },
     "CronActivationKind": {
       "enum": [
         "Always",
@@ -570,6 +590,16 @@
             "$ref": "#/$defs/AuthorizationInputDimension"
           },
           "type": "array"
+        },
+        "boundedSkew": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BoundedSkewDeclaration"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "bundleEntrypoint": {
           "type": [

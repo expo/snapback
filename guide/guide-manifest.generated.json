@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "3c79fe69e19a60a3096e2aa858e843a692cbd191"
+    "commit": "3a22fc2e707bcb4317ff5eeaaf17a62990e21ee1"
   },
   "nav": {
     ".": [
@@ -1188,7 +1188,7 @@
       "examples": [],
       "reviewed": "2026-08-01",
       "reviewedCommit": "f245965ccfdc3addd44554d709c1074adec0834f",
-      "sha256": "e864fb37115aa61e44a6f8e30dffbb73348042da3c5db8eb29941339d2733b8e",
+      "sha256": "d0265853c0f7b5dd1b545208f15a27cdb697122c0d1a6eac6b59eae262b6420e",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2476,12 +2476,13 @@
       "clients.non-js",
       "clients.poll-hosted",
       "sync.offline-js-arm",
-      "sync.offline-js-arm-protected"
+      "sync.offline-js-arm-protected",
+      "sync.settlement-bounded-skew"
     ]
   },
   "surfaces": {
     "routes": 89,
     "hostOps": 29
   },
-  "contentHash": "727266d2fe90f4fc77672735dce166557413a21c643a017ca409024d614d73d8"
+  "contentHash": "a971be47994ad6a77dc17c5fdd06e7c1afc9ee92431674334875df902d2d337a"
 }

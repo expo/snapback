@@ -778,6 +778,7 @@
             "migration_keyset_scan_v1",
             "full_text_search_v1",
             "result_contract_v1",
+            "settlement.bounded_skew",
             "args_contract_v1",
             "versioned_seed_install_v1",
             "versioned_seed_reset_v1",

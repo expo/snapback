@@ -704,6 +704,26 @@
       ],
       "type": "string"
     },
+    "BoundedSkewDeclaration": {
+      "additionalProperties": false,
+      "description": "Capture-time identity of one proposed bounded-skew declaration. Ticket 05\nadds manifest admission and execution semantics; ticket 02 makes changes\nfail closed under a reused mutation id immediately.",
+      "properties": {
+        "field": {
+          "type": "string"
+        },
+        "maxSkewMs": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "field",
+        "maxSkewMs"
+      ],
+      "type": "object"
+    },
     "BrowserCredentialPosture": {
       "description": "The strongest browser credential claim the target can honestly advertise.\n\nA restrictive CSP does not upgrade bearer v1: app-origin script can still\nread or exercise the coordinator's IndexedDB/page-memory credential.",
       "enum": [
@@ -2456,6 +2476,16 @@
           },
           "type": "array"
         },
+        "boundedSkew": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BoundedSkewDeclaration"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "bundleEntrypoint": {
           "type": [
             "string",
@@ -3860,6 +3890,7 @@
             "migration_keyset_scan_v1",
             "full_text_search_v1",
             "result_contract_v1",
+            "settlement.bounded_skew",
             "args_contract_v1",
             "versioned_seed_install_v1",
             "versioned_seed_reset_v1",

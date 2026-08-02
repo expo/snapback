@@ -187,6 +187,7 @@ const TARGET_CAPABILITY_IDS = new Set([
   'migration_keyset_scan_v1',
   'result_contract_v1',
   'args_contract_v1',
+  'settlement.bounded_skew',
   'versioned_seed_install_v1',
   'versioned_seed_reset_v1',
   'write_activity_v1',
@@ -4614,6 +4615,7 @@ function authoredFunctionManifestFields(def, declaredWrites = [], tables = {}) {
     ...(Array.isArray(def.authorizationDependence)
       ? { authorizationDependence: [...def.authorizationDependence] }
       : {}),
+    ...(def.boundedSkew !== undefined ? { boundedSkew: { ...def.boundedSkew } } : {}),
   };
 }
 
@@ -5023,6 +5025,7 @@ function decorateFunctions(appId, functions) {
       authorizationDependence: fn.authorizationDependence ?? [],
       uses: fn.uses ?? [],
       standardPattern: fn.standardPattern ?? null,
+      ...(fn.boundedSkew !== undefined ? { boundedSkew: fn.boundedSkew } : {}),
     };
     return {
       id: functionId(appId, fn.name),
@@ -5037,6 +5040,7 @@ function decorateFunctions(appId, functions) {
       )}`,
       argsContractHash: fn.argsContractHash,
       argsContract: fn.argsContract,
+      ...(fn.boundedSkew !== undefined ? { boundedSkew: { ...fn.boundedSkew } } : {}),
       resultContract: fn.resultContract,
       resultContractHash: fn.resultContractHash,
       requiredCapabilities: requiredCapabilities(fn),
@@ -5172,7 +5176,14 @@ function requiredCapabilities(fn) {
     ];
   }
   if (fn.kind === 'LiveQuery') return ['live_subscriptions', runtimeCapability, ...contractCapabilities];
-  if (fn.kind === 'Mutation') return [runtimeCapability, 'mutation_read_set_validation', ...contractCapabilities];
+  if (fn.kind === 'Mutation') {
+    return [
+      runtimeCapability,
+      'mutation_read_set_validation',
+      ...(fn.boundedSkew !== undefined ? ['settlement.bounded_skew'] : []),
+      ...contractCapabilities,
+    ];
+  }
   if (fn.kind === 'Action') {
     const required = [runtimeCapability, 'cron_action_run_mutation'];
     // @ref LLP 0076#target-contract — a streamed action must be refused at

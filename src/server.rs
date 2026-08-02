@@ -6737,6 +6737,7 @@ impl MutationResponse {
             result,
             ctx_ledger,
             settlement_mint_observations: _,
+            settlement_time_observation: _,
         } = output;
         Self {
             version,
@@ -23237,6 +23238,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID"
         | "SNAPBACK_APP_REFUSAL"
         | "SNAPBACK_FUNCTION_REFUSAL_DECLARATION_INVALID"
+        | "SNAPBACK_BOUNDED_SKEW_DECLARATION_INVALID"
         | "SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED"
         | "SNAPBACK_HANDLER_CAPABILITY_DENIED"
         | "SNAPBACK_HANDLER_DID_NOT_SETTLE"
@@ -36710,6 +36712,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_RESULT_CONTRACT_KIND_MISMATCH",
         "SNAPBACK_APP_REFUSAL",
         "SNAPBACK_FUNCTION_REFUSAL_DECLARATION_INVALID",
+        "SNAPBACK_BOUNDED_SKEW_DECLARATION_INVALID",
         "SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED",
         "SNAPBACK_HANDLER_CAPABILITY_DENIED",
         "SNAPBACK_HANDLER_DID_NOT_SETTLE",

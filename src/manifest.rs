@@ -35,6 +35,10 @@ pub const QUERY_INTERNAL_OVERFETCH_MAX: usize = QUERY_MAX_LIMIT + QUERY_MAX_BUFF
 /// settlements. It matches the existing 1,024-item replay-ledger budget so a
 /// hostile envelope cannot turn acknowledgement into unbounded SQLite work.
 pub const CLIENT_MUTATION_ACK_MAX_IDS: usize = 1_024;
+/// Authoring-time ceiling for one direct-field bounded-skew declaration. A
+/// day is intentionally generous enough for clock drift and short offline
+/// queues while keeping the opt-in visibly bounded.
+pub const SETTLEMENT_BOUNDED_SKEW_MAX_MS: u64 = 86_400_000;
 pub const TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX: &str = "local-dev-sqlite-ibex";
 /// The standard SQLite + Ibex server when its lifecycle and network endpoint
 /// are owned outside the consuming application. The service semantics match
@@ -1253,6 +1257,7 @@ impl FunctionManifest {
             validate_result_contract_definition(function)?;
             validate_args_contract_definition(function)?;
             validate_declared_refusals(function)?;
+            validate_bounded_skew_definition(function)?;
 
             if self.schema_version == SNAPBACK_SESSIONS_SCHEMA_VERSION {
                 validate_known_v1_capabilities(
@@ -2274,6 +2279,66 @@ fn validate_declared_refusals(function: &FunctionDefinition) -> SnapbackResult<(
         if !seen.insert(code.as_str()) {
             return invalid("duplicate declared refusal", code);
         }
+    }
+    Ok(())
+}
+
+fn validate_bounded_skew_definition(function: &FunctionDefinition) -> SnapbackResult<()> {
+    let Some(declaration) = &function.bounded_skew else {
+        return Ok(());
+    };
+    let invalid = |reason: &str| {
+        SnapbackError::error(
+            "SNAPBACK_BOUNDED_SKEW_DECLARATION_INVALID",
+            "runtime",
+            format!(
+                "function {} declares invalid boundedSkew: {reason}",
+                function.name
+            ),
+        )
+        .with_details(serde_json::json!({
+            "function": function.name,
+            "field": declaration.field,
+            "maxSkewMs": declaration.max_skew_ms,
+        }))
+    };
+    if declaration.field.is_empty() {
+        return Err(invalid("field must be non-empty"));
+    }
+    if !(1..=SETTLEMENT_BOUNDED_SKEW_MAX_MS).contains(&declaration.max_skew_ms) {
+        return Err(invalid("maxSkewMs is outside 1..=86400000"));
+    }
+    if !function
+        .required_capabilities
+        .iter()
+        .any(|capability| capability == "settlement.bounded_skew")
+    {
+        return Err(invalid(
+            "the declaration requires settlement.bounded_skew",
+        ));
+    }
+    let plan = match &function.runtime {
+        FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan))
+        | FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(WriteWithActivityPlan {
+            mutation: plan,
+            ..
+        })) => plan,
+        _ => return Err(invalid("only HostPlan mutations can prove a direct time sink")),
+    };
+    let matching = plan.steps.iter().filter_map(|step| match step {
+        MutationStep::Insert { values, .. }
+        | MutationStep::Patch { values, .. }
+        | MutationStep::InsertEach { values, .. } => values.get(&declaration.field),
+        _ => None,
+    });
+    let matching = matching.collect::<Vec<_>>();
+    // @ref LLP 0133#the-bounded-skew-opt-in — v0.2 admits exactly one
+    //   structural leaf assignment, directly equal to RuntimeNow. No value
+    //   flow or transformed/nested expression can acquire this authority.
+    if matching.len() != 1 || !matches!(matching[0], ValueExpr::RuntimeNow) {
+        return Err(invalid(
+            "field must name exactly one direct RuntimeNow write assignment",
+        ));
     }
     Ok(())
 }
@@ -3741,6 +3806,16 @@ pub struct FunctionDefinition {
         skip_serializing_if = "Option::is_none"
     )]
     pub args_contract: Option<FunctionArgsContract>,
+    /// Optional lane-L acceptance contract for one directly assigned
+    /// `RuntimeNow` storage field. It sits beside the argument/result
+    /// contracts because it is declaration authority, never a request knob.
+    #[serde(
+        default,
+        rename = "boundedSkew",
+        alias = "bounded_skew",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub bounded_skew: Option<BoundedSkewDeclaration>,
     #[serde(default, rename = "resultContract", alias = "result_contract")]
     pub result_contract: FunctionResultContract,
     #[serde(default, rename = "resultContractHash", alias = "result_contract_hash")]
@@ -3870,6 +3945,7 @@ impl FunctionDefinition {
             implementation_hash: None,
             args_contract_hash: None,
             args_contract: None,
+            bounded_skew: None,
             result_contract: FunctionResultContract::Unknown,
             result_contract_hash: None,
             required_capabilities: Vec::new(),
@@ -4495,6 +4571,8 @@ pub struct PublicFunctionDefinition {
     /// schema like the result contract, safe on the public projection.
     #[serde(rename = "argsContract", skip_serializing_if = "Option::is_none")]
     pub args_contract: Option<FunctionArgsContract>,
+    #[serde(rename = "boundedSkew", skip_serializing_if = "Option::is_none")]
+    pub bounded_skew: Option<BoundedSkewDeclaration>,
     // @ref LLP 0107#optimistic-mutation-projection — the browser verifies
     // the deployed descriptor as well as its hash before admitting an
     // optimistic reducer. Result contracts are bounded declarative schemas,
@@ -4689,6 +4767,7 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             implementation_hash,
             args_contract_hash,
             args_contract,
+            bounded_skew,
             result_contract,
             result_contract_hash,
             required_capabilities,
@@ -4721,6 +4800,7 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             implementation_hash,
             args_contract_hash,
             args_contract,
+            bounded_skew,
             result_contract,
             result_contract_hash,
             required_capabilities,
@@ -5729,6 +5809,20 @@ pub(crate) struct SettlementMintObservation {
     pub occurrence: u32,
 }
 
+/// Server-owned observation of the one structurally admitted direct time
+/// sink. Retained with exactly-once output so duplicate delivery reconstructs
+/// the original disposition even after the function artifact is retired.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(crate) struct SettlementTimeObservation {
+    pub field: String,
+    pub claimed: u64,
+    pub authoritative_sample: u64,
+    pub skew_ms: u64,
+    pub sink_reached: bool,
+    pub accepted: bool,
+}
+
 fn settlement_claim_set_version() -> u32 {
     1
 }
@@ -6153,6 +6247,16 @@ pub struct MutationOutput {
     )]
     #[schemars(skip)]
     pub(crate) settlement_mint_observations: Vec<SettlementMintObservation>,
+    /// Private execution fact for reconstructing the field-specific
+    /// bounded-skew receipt on exact duplicate delivery.
+    #[doc(hidden)]
+    #[serde(
+        default,
+        rename = "_settlementTimeObservation",
+        skip_serializing_if = "Option::is_none"
+    )]
+    #[schemars(skip)]
+    pub(crate) settlement_time_observation: Option<SettlementTimeObservation>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -6248,6 +6352,8 @@ pub enum TargetCapabilityId {
     FullTextSearchV1,
     #[serde(rename = "result_contract_v1")]
     ResultContractV1,
+    #[serde(rename = "settlement.bounded_skew")]
+    SettlementBoundedSkew,
     #[serde(rename = "args_contract_v1")]
     ArgsContractV1,
     #[serde(rename = "versioned_seed_install_v1")]
@@ -6269,7 +6375,7 @@ pub enum TargetCapabilityId {
 }
 
 impl TargetCapabilityId {
-    pub const ALL: [Self; 26] = [
+    pub const ALL: [Self; 27] = [
         Self::AuthSessionsV1,
         Self::BoundedResponseStreamV1,
         Self::BoundedChildrenV1,
@@ -6287,6 +6393,7 @@ impl TargetCapabilityId {
         Self::MigrationKeysetScanV1,
         Self::FullTextSearchV1,
         Self::ResultContractV1,
+        Self::SettlementBoundedSkew,
         Self::ArgsContractV1,
         Self::VersionedSeedInstallV1,
         Self::VersionedSeedResetV1,
@@ -6317,6 +6424,7 @@ impl TargetCapabilityId {
             Self::MigrationKeysetScanV1 => "migration_keyset_scan_v1",
             Self::FullTextSearchV1 => "full_text_search_v1",
             Self::ResultContractV1 => "result_contract_v1",
+            Self::SettlementBoundedSkew => "settlement.bounded_skew",
             Self::ArgsContractV1 => "args_contract_v1",
             Self::VersionedSeedInstallV1 => "versioned_seed_install_v1",
             Self::VersionedSeedResetV1 => "versioned_seed_reset_v1",
@@ -6466,6 +6574,10 @@ impl TargetCapabilityId {
                     })
             }
             Self::ResultContractV1 => facts.result_contract_v1_registered,
+            // @ref LLP 0133#the-bounded-skew-opt-in — this fact names only
+            //   the lane-L declaration/admission/check/receipt policy. Lane Q
+            //   remains the replay-accept pin and gains no data-bound claim.
+            Self::SettlementBoundedSkew => facts.settlement_bounded_skew_registered,
             // @ref LLP 0131#runtime-ingress-validation — positive presence
             // means this exact target instance runs `validate_function_args`
             // on every fresh invocation admission lane, scalars included.
@@ -6705,6 +6817,7 @@ pub struct TargetCapabilityFacts {
     inline_handler_v1_registered: bool,
     jobs_one_off_v1_registered: bool,
     result_contract_v1_registered: bool,
+    settlement_bounded_skew_registered: bool,
     args_contract_v1_registered: bool,
     versioned_seed_install_v1_registered: bool,
     versioned_seed_reset_v1_registered: bool,
@@ -6757,6 +6870,7 @@ impl TargetCapabilityFacts {
             // experimental maturity carries the Draft-status honesty.
             jobs_one_off_v1_registered: true,
             result_contract_v1_registered: true,
+            settlement_bounded_skew_registered: true,
             args_contract_v1_registered: true,
             versioned_seed_install_v1_registered: true,
             versioned_seed_reset_v1_registered: true,

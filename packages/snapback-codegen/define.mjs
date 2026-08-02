@@ -108,6 +108,7 @@ const TARGET_CAPABILITIES = new Set([
   'ibex_ctx_db_host_bridge',
   'live_subscriptions',
   'mutation_read_set_validation',
+  'settlement.bounded_skew',
   'permission_epoch_resync',
   'full_text_search_v1',
   'bounded_children_v1',
@@ -2524,6 +2525,53 @@ export const returnLiteral = (value) => ({ Literal: value });
 /** Expression-valued return — with record() this covers computed summaries. */
 export const returnExpr = (expr) => ({ Expr: expectExpr(expr, 'returnExpr()') });
 
+export const SETTLEMENT_BOUNDED_SKEW_MAX_MS = 86_400_000;
+
+function normalizeBoundedSkew(declaration, steps) {
+  if (declaration === undefined) return {};
+  assert(
+    declaration && typeof declaration === 'object' && !Array.isArray(declaration)
+      && Object.keys(declaration).length === 2
+      && Object.hasOwn(declaration, 'field')
+      && Object.hasOwn(declaration, 'maxSkewMs'),
+    'defineMutation boundedSkew must be exactly { field, maxSkewMs }',
+  );
+  assert(
+    typeof declaration.field === 'string' && declaration.field.length > 0,
+    'defineMutation boundedSkew.field must be a non-empty declared field name',
+  );
+  assert(
+    Number.isSafeInteger(declaration.maxSkewMs)
+      && declaration.maxSkewMs >= 1
+      && declaration.maxSkewMs <= SETTLEMENT_BOUNDED_SKEW_MAX_MS,
+    `defineMutation boundedSkew.maxSkewMs must be an integer in 1..=${SETTLEMENT_BOUNDED_SKEW_MAX_MS}`,
+  );
+  const assignments = [];
+  for (const step of steps) {
+    const [kind, payload] = Object.entries(step)[0] ?? [];
+    if (['Insert', 'Patch', 'InsertEach'].includes(kind)
+      && Object.hasOwn(payload?.values ?? {}, declaration.field)) {
+      assignments.push(payload.values[declaration.field]);
+    }
+  }
+  // @ref LLP 0133#the-bounded-skew-opt-in — the authoring grammar admits
+  //   one direct RuntimeNow leaf only; transformed/nested flows are outside
+  //   the vocabulary instead of being trusted through dataflow inference.
+  assert(
+    assignments.length === 1
+      && assignments[0]?.__expr === true
+      && assignments[0]?.kind === 'RuntimeNow'
+      && Object.keys(assignments[0]).length === 2,
+    `defineMutation boundedSkew.field ${declaration.field} must name exactly one direct runtimeNow() write`,
+  );
+  return {
+    boundedSkew: {
+      field: declaration.field,
+      maxSkewMs: declaration.maxSkewMs,
+    },
+  };
+}
+
 export function defineMutation(spec) {
   const steps = Array.isArray(spec.plan) ? spec.plan : [spec.plan];
   assert(steps.length > 0, 'defineMutation requires at least one plan step');
@@ -2540,6 +2588,7 @@ export function defineMutation(spec) {
     ...authoredFunctionAuth(spec, 'Mutation'),
     args: spec.args ?? {},
     ...(spec.result !== undefined ? { resultContract: spec.result } : {}),
+    ...normalizeBoundedSkew(spec.boundedSkew, steps),
     ...normalizeStandardPattern(spec, 'Mutation'),
     plan: { steps, return_value: spec.returns ?? null },
   };
