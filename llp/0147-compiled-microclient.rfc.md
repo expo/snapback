@@ -70,6 +70,12 @@ acceptance. Per §Ratification, acceptance authorizes the additive Micro
 profile and the server-egress trust boundary only: no default change, no
 carrier claim, no met-size-target claim. Phases A–B may begin, with the
 stop-after-Phase-B rule in force.)
+**Revised:** 2026-08-02 (v0.8, Phases A–B implementation record — the
+local-dev core, generated surface, immutable supplemental size ledger, and
+paired operational receipt landed. Gate 11a's server-egress premise is green.
+The Phase-B stop rule did not trigger; a separately authorized Phase C is
+ready to be commissioned. This records no sessions composition, capability
+class, carrier, React, or publication claim.)
 **Related:** LLP 0000, LLP 0010, LLP 0012, LLP 0041, LLP 0043, LLP 0053,
 LLP 0058, LLP 0059, LLP 0063, LLP 0064, LLP 0077, LLP 0090, LLP 0093, LLP 0094,
 LLP 0095, LLP 0096, LLP 0108, LLP 0112, LLP 0114, LLP 0115, LLP 0122,
@@ -916,9 +922,12 @@ corresponding explicit nonclaim, and the profile artifact records that nonclaim.
     as a validated replacement where the chosen fix refuses the lane for
     narrowed contracts — so a fix cannot pass by suppressing publication, and
     none of OQ10's three shapes is foreclosed by the gate. This gate is
-    currently **red**: see
-    `issues/20260801-live-delta-frames-bypass-result-contract-validation.md`.
-    It blocks graduation of any Micro profile selecting live queries.
+    **green** as of `eda8f231`: narrowed `records` and non-schema-exact
+    `documents` contracts take the validated replacement lane. The focused
+    regression proves a contract-valid change still publishes while a
+    contract-invalid change publishes neither a delta nor a replacement
+    carrying the row. See
+    `issues/closed/20260801-live-delta-frames-bypass-result-contract-validation.md`.
 11b. Every remaining client-bound publication path a selected profile can reach
     — snapshot, replacement, resume, and any cache the target consults — is
     enumerated and shown to cross the same seam. The enumeration universe is
@@ -984,6 +993,76 @@ corresponding explicit nonclaim, and the profile artifact records that nonclaim.
 23. The existing Full client and all of its conformance suites remain green.
 24. Package-root and `./online` compatibility fixtures prove the additive
     release did not silently select Micro semantics for existing consumers.
+
+## 2026-08-02 Phases A–B implementation record
+
+PKG-02 implemented the additive **local-dev-only** Phase-B profile. The public
+surface is generated from a logical profile input into an exact declaration,
+runtime entry, and digest-bound `microProfile.v1` artifact. The runtime is
+split into `./micro/core` and the optional `./micro/live`; the compatibility
+root and `./online` retain Full semantics. The profile explicitly records
+nonclaims for sessions auth, retained reads, RQS, offline replay, optimistic
+settlement, query groups, hosted carrier, capability class, and other
+unimplemented compositions.
+
+The immutable first attributed package ledger is
+`tests/fixtures/client-bundle-metrology/baseline.micro-phase-b.v1.json`, sourced
+from `88ae7b10`. Under the frozen Node 24.18.0 / esbuild 0.28.1 method it records:
+
+- core runtime: 6,740 minified, **2,740 gzip**, 2,400 Brotli bytes;
+- core plus generated entry: 7,347 minified, **2,960 gzip**, 2,595 Brotli bytes;
+- live runtime: 12,470 minified, **4,549 gzip**, 3,989 Brotli bytes; and
+- live plus generated entry: 12,868 minified, **4,712 gzip**, 4,134 Brotli bytes.
+
+Both the 20 kB runtime and 25 kB generated-entry ceilings therefore pass with
+substantial margin. Closure receipts prove core excludes live, both generated
+entries exclude Full, RQS, outbox, and Node/file-store modules, and the root
+negative imports neither Micro module. Strict TypeScript positive/negative
+fixtures, capability and module-set refusals, byte-identical regeneration,
+artifact-drift refusal, adversarial envelope tests, no-retry effectful
+ambiguity, authority publication fencing, live version/resync behavior, and
+explicit server-side unsubscribe cover the Phase-B compile/runtime floor.
+
+Gate 11a's premise is independently green on current main. The fix at
+`eda8f231` admits only schema-exact `documents(table)` to delta fanout; narrowed
+contracts use the existing full re-query and validated `live_replace` path.
+Both focused Rust arms pass: the contract-valid change is delivered and the
+contract-invalid change publishes no application payload.
+
+Gate 22's first attempted comparison was not admissible evidence. It reported
+Micro 1,045 bytes against Full 700 because Full `liveQuery(ref)` had reduced a
+generated reference to its name before fresh admission. That pre-existing Full
+defect dropped the argument contract and complete generation tuple; 342 bytes
+of the 345-byte gap were the tuple Micro correctly retained and three bytes
+were unequal synthetic labels. The defect and its positive/negative proof are
+isolated in
+`issues/closed/20260802-full-livequery-drops-generated-reference.md` and the
+prerequisite Full correctness commit `1f889d6e`. “Same workload” therefore
+means **contract-correct Full**, not a smaller request obtained by violating
+LLP 0012's call-time generation binding.
+
+The first corrected local M5 Max / Node 25 attribution, using nine alternating
+samples of poll/local `resync_required` followed by an exact superseding
+snapshot, froze these values:
+
+- reconnect: Full and Micro each **1,042 UTF-8 JSON body bytes** in two round
+  trips (508 request + 534 response; equal transport headers/framing excluded);
+- reconnect P50: Full **0.128958 ms**, Micro **0.072875 ms**; and
+- startup P50: Full **18.477667 ms**, Micro **2.053000 ms**.
+
+A labeled post-rebase confirmation retained 1,042 bytes/two round trips and
+measured reconnect P50 Full 0.117875 ms versus Micro 0.068000 ms, and startup
+P50 Full 16.227042 ms versus Micro 1.691167 ms. It confirms the gate but does
+not replace or loosen the immutable first corrected receipt.
+
+The Phase-B stop rule did **not** trigger: the size ceilings pass and the
+unchecked transport/generated-surface split passes its negative proof gates
+without importing the Full manifest interpreter. This is readiness to
+commission a separately authorized Phase C, not Phase C implementation.
+Sessions custody, auth obligations, a Micro capability class, React admission,
+browser/Expo carrier evidence, publication, and any default-client change
+remain explicit nonclaims. No capability or carrier is advertised from this
+local-dev evidence.
 
 ## Consequences
 
@@ -1065,13 +1144,11 @@ corresponding explicit nonclaim, and the profile artifact records that nonclaim.
 9. Should codegen emit every selected wrapper in one entry or partition entries
    by route while sharing one immutable runtime chunk inside the same cache
    partition?
-10. Which fix closes the delta-lane egress gap — validating the effective
-   post-delta result, validating each operation against the contract's element
-   shape, or refusing the delta lane for narrowed contracts in favor of a
-   validated replacement? Gate 11a admits all three. Option two is the only one
-   that preserves LLP 0090 D1's per-changed-row economy, and it needs a proof
-   that element-wise validity plus a valid predecessor implies whole-result
-   validity for `documents` and `records`.
+10. **Resolved for this implementation:** refuse the delta lane for narrowed
+   contracts in favor of a validated replacement (`eda8f231`). Only the
+   schema-exact `documents(table)` contract retains LLP 0090 D1's
+   per-changed-row economy. A future element-wise proof may expand eligibility,
+   but it is no longer a prerequisite or open choice for Phase B.
 
 ## Ratification and implementation posture
 
