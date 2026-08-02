@@ -73,3 +73,12 @@ atomicity, retention floor monotonicity, reset fence); prefixes visible in
   after an `Applied` durable outcome; `AlreadyApplied` preserves the generation
   and this boot's buffered evidence and emits no restore marker. The focused
   telemetry and producer-seam matrix is green after all three corrections.
+- **2026-08-02 — substrate landed on main.** Commit
+  `bf73583dfb748872045a0d98e61b4632d4207076` lands the audited D1–D4
+  substrate and producer seams. Clean-tree proof: 31/31 telemetry tests,
+  10/10 `telemetry_` seam tests, 11/11 observation tests, 30/30 artifact-schema
+  tests, both relevant codegen identifier/schema suites, guide check, and
+  `./ref-check --verbose` are green. The full library result is 1693 passed,
+  the same three inherited live-matcher failures, and one ignored. This is an
+  evidence landing rather than ticket closure: the D2 identity representation
+  remains author-blocked and no substitute representation was invented.
