@@ -936,6 +936,28 @@ export class SnapbackClient {
       ) => void;
     } & LiveQueryRegistrationOptions,
   ): StartedLiveQueryHandle<FunctionResult<Ref>>;
+  subscribeLive<Ref extends FunctionRef<'LiveQuery'>>(
+    ref: Ref,
+    options?: {
+      readonly connectionId?: string;
+      readonly args?: FunctionArgs<Ref>;
+      readonly userId?: string;
+      readonly correlation?: unknown;
+      readonly supersedes?: unknown;
+      readonly authorizationNamespace?: string | null;
+      readonly authorityCapture?: unknown;
+      readonly resumeFromToken?: string | null;
+    },
+  ): Promise<unknown>;
+  unsubscribeLive<Ref extends FunctionRef<'LiveQuery'>>(
+    ref: Ref,
+    options?: {
+      readonly subscriptionId?: string;
+      readonly connectionId?: string;
+      readonly userId?: string;
+      readonly authorityCapture?: unknown;
+    },
+  ): Promise<unknown>;
   subscribeEphemeral<
     Ref extends string | SnapbackEphemeralReference<string, unknown, unknown>,
   >(
