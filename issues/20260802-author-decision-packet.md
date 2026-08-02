@@ -117,3 +117,16 @@ Tier 3:
   `telemetry.export` output at egress; the obs-02 shared fixtures check
   projection equality on the composed record (row + meta) against the
   C7 envelope's identity. obs-01 can close on this; obs-02 unblocks.
+- **2026-08-02 — LLP 0154 local environment identity source — RESOLVED by
+  Charlie Cheever.** The local telemetry store receives an explicit,
+  authoritative environment identity threaded from
+  `TargetDescriptor.environment_id`; the lower-level store-identity seam
+  carries `app_id` and `environment_id` together. Telemetry must not derive
+  environment identity from the database path, process environment,
+  `target_profile`, or a universal `"local"` sentinel. A descriptor-owned
+  environment identifier may itself be `"local"`, but telemetry treats it as
+  opaque caller-supplied identity rather than inventing it. Store creation and
+  rebind pin that explicit identity in `telemetry_meta`; the exact Rust API
+  spelling and compatibility plumbing remain implementation details. This
+  resolves the production binding needed to close obs-01 and releases obs-02
+  once obs-01's code and proof land.

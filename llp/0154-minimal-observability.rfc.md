@@ -171,6 +171,18 @@ obs-02 shared telemetry/metering fixtures check projection equality on
 the composed record (row + meta), with the metering projection taking
 the same identity from the C7 envelope. Ruled with Charlie in the LLP
 0156 promotion session working through the obs-02 block.)
+**Revised:** 2026-08-02 (dated amendment, post-acceptance — local
+environment identity source, resolving the remaining obs-01 production
+binding: local telemetry store construction receives an explicit
+environment identity threaded from `TargetDescriptor.environment_id`;
+the lower-level identity seam carries `app_id` and `environment_id`
+together. Telemetry does not infer environment identity from a database
+path, process environment, `target_profile`, or a universal `"local"`
+sentinel. A descriptor-owned identifier may itself be `"local"`, but is
+opaque caller-supplied identity. The exact Rust API spelling and
+compatibility plumbing are implementation details. Ruled by Charlie in
+the 2026-08-02 side conversation and recorded in the author decision
+packet.)
 **Related:** LLP 0000 (explainer; reserves Observability as an undrafted
 subsystem), LLP 0003 (storage core; app write lane), LLP 0010 (inspect
 loop; explicitly defers production observability), LLP 0012 (headless
@@ -423,6 +435,14 @@ Properties:
 - File permissions restrict to the owning user (C5); the file is absent
   until the first observation is written — on a provisioned instance
   that means the boot settle write (C2).
+- **Store identity is explicit, not inferred.** Local construction threads
+  the authoritative `TargetDescriptor.environment_id` into the telemetry
+  store, whose lower-level identity seam carries it together with `app_id`.
+  Database paths, process environment, and `target_profile` are not identity
+  authorities, and telemetry does not mint a universal local sentinel. An
+  authority may supply `"local"` as an actual opaque environment identifier;
+  that is distinct from telemetry inventing one. Creation and rebind pin this
+  caller-supplied pair in `telemetry_meta`.
 - **Generation identity is a durable protocol, not a trigger list.**
   Every event row carries a `generation` (`gen_`-prefixed per the LLP
   0148 grammar). The protocol:
