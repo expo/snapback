@@ -1,6 +1,6 @@
 # PKG-01: LLP 0145 Phase A/B — closure metrology ratchet + low-risk packaging savings
 
-**Status:** Open
+**Status:** Closed
 **Systems:** Packaging, Client SDK, Testing
 **Related:** LLP 0145 (Research — its §Status authorizes exactly this),
 LLP 0063 WS8 (vite-cost-attribution machinery to extend), LLP 0147
@@ -125,3 +125,12 @@ experiments recorded above.
   snippet sources under competitive-checkpoint and todo-v2 plus the resulting
   stale guide manifest. PKG-01 changes no guide authoring surface and does not
   regenerate unrelated demo/guide artifacts.
+
+## Resolution
+
+Resolved by `a2f658a2` on 2026-08-02. The landing freezes the machine-verifiable
+24-profile pre-optimization baseline, installs its non-growth gate in the local
+proof, records the maintained Metro and complete external-application evidence,
+and stops both packaging experiments at the no-semantics/ratchet cutlines. No
+Micro operational verdict or browser file-store extraction is claimed; those
+remain explicit PKG-02 dependencies above.
