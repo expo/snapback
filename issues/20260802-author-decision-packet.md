@@ -143,3 +143,26 @@ Tier 3:
   spelling and compatibility plumbing remain implementation details. This
   resolves the production binding needed to close obs-01 and releases obs-02
   once obs-01's code and proof land.
+
+## Rulings appended after the sitting (2026-08-02, evening)
+
+- **LLP 0154 telemetry export carrier — agent-first, so the MCP/host-ops
+  projection ships, bounded and continuable.** Charlie's direction verbatim:
+  "I think the main way people are going to use this is actually via AI
+  agent clients, so we should prioritize that." Translation into contract
+  (recorded by the session; correct here if wrong): the control-MCP and
+  host-ops projections of `telemetry.export` are NOT deferred — they ship
+  in v1 as a bounded, snapshot-bounded page with a declared row/byte bound,
+  an explicit truncation/continuation fact, and a continuation token, so an
+  agent pages through the full export in finite chunks. The routes/CLI
+  streaming export stays as specified. Lands as a dated LLP 0154 amendment
+  with the obs-03 implementation.
+- **LLP 0090 mixed-route successor — direction accepted, sequenced after
+  LLP 0157.** The versioned mixed profile (per-child registered-live vs
+  read-only under one pinned snapshot) is the endorsed successor shape;
+  design/implementation waits for LLP 0157's acceptance so Move-1 route
+  semantics don't churn it. Record as a dated author note on the 0090
+  proposal entry when convenient; the register cliff stays honestly gated
+  meanwhile.
+- **LLP 0143 installation identity carrier:** explanation requested;
+  ruling pending (see below when appended).
