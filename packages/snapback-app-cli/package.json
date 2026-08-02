@@ -5,6 +5,7 @@
   "description": "Artifact-driven local Snapback application CLI for agent journeys.",
   "files": [
     "cli.mjs",
+    "envelope.mjs",
     "index.d.mts",
     "index.mjs",
     "result-core.mjs"
@@ -27,6 +28,6 @@
     "access": "public"
   },
   "scripts": {
-    "test": "node package.test.mjs && node attribution.test.mjs && node result-core.test.mjs"
+    "test": "node package.test.mjs && node attribution.test.mjs && node result-core.test.mjs && node envelope.test.mjs"
   }
 }

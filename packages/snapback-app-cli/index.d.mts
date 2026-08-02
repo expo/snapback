@@ -210,3 +210,68 @@ export function wrapCallResult(core: AppDataResultCore, presentation: {
   readonly engine: { readonly name: string; readonly version: string };
   readonly envelope?: Readonly<Record<string, unknown>>;
 }): AppCliCallResult;
+
+// --- Served-envelope ingestion (LLP 0062 §5; ticket 0062-02 step 4) --------
+
+export interface ServedFunctionDescriptor {
+  readonly id: string;
+  readonly name: string;
+  readonly kind: AppFunctionKind;
+  readonly authRequirement: unknown;
+  readonly argsSchema: unknown;
+}
+
+export interface ServedAppSurface {
+  readonly source: 'served';
+  readonly offline: boolean;
+  readonly appId: string;
+  readonly envelopeSha256: string;
+  readonly bundleHash: string | null;
+  readonly generation: Readonly<Record<string, string>> | null;
+  readonly functions: readonly ServedFunctionDescriptor[];
+}
+
+export interface ServedUnavailable {
+  readonly status: 'unavailable';
+  readonly reason: 'dev-target' | 'route-absent';
+  readonly diagnostic: Readonly<Record<string, unknown>> | null;
+}
+
+export interface VerifiedEnvelope {
+  readonly envelope: Readonly<Record<string, unknown>>;
+  readonly sha256: string;
+  readonly canonical: string;
+}
+
+/** RFC 8785 canonical serialization for round-tripped JSON values. */
+export function jcsCanonical(value: unknown): string;
+export function memberDigest(canonical: string): string;
+export function envelopeDigest(canonical: string): string;
+
+/** Full client-side verification of received envelope bytes. */
+export function verifyEnvelopeBytes(bytes: Uint8Array, options?: {
+  readonly expectedSha256?: string | null;
+  readonly expectedAppId?: string | null;
+}): VerifiedEnvelope;
+
+export function discoverServedApp(baseUrl: string): Promise<
+  | { readonly status: 'current'; readonly discovery: Readonly<Record<string, unknown>>; readonly sha256: string }
+  | { readonly status: 'envelope-absent'; readonly discovery: Readonly<Record<string, unknown>> }
+  | ServedUnavailable
+>;
+
+export function fetchServedEnvelope(baseUrl: string, sha256: string, options?: {
+  readonly expectedAppId?: string | null;
+}): Promise<VerifiedEnvelope>;
+
+export function loadServedApp(baseUrl: string, options?: {
+  readonly cacheDir?: string;
+  readonly offline?: boolean;
+  readonly appId?: string | null;
+}): Promise<ServedAppSurface | ServedUnavailable>;
+
+export function readCachedEnvelope(cacheDir: string, baseUrl: string, appId: string): Promise<VerifiedEnvelope | null>;
+export function storeCachedEnvelope(cacheDir: string, baseUrl: string, verified: VerifiedEnvelope, options?: {
+  readonly limits?: { readonly perOriginEnvelopes: number; readonly globalBytes: number };
+}): Promise<void>;
+export function defaultCacheDir(): string;

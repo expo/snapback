@@ -5,7 +5,13 @@
 **Systems:** Contract/Exact, React/Expo, Client integration, Developer experience, API, Sync, Auth
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-08-01, later same day (app-CLI registration: the
+**Revised:** 2026-08-01, latest (LLP 0062-02 registration: the closed
+`provision` DTO gains the optional `apiEnvelope` members carrier
+(`ApiEnvelopeMembersV1`) — member material the server composes and
+self-verifies at activation, never a received whole envelope; the
+`AppApiDiscoveryV1` and content-addressed envelope artifacts register with
+the `SNAPBACK_APP_API_*` family; engine ingestion re-verifies client-side).
+Prior, same day (app-CLI registration: the
 `SNAPBACK_APP_CLI_*` family joins the stable code dialect and the
 Rust-owned `AppDataResultCoreV1` registers as a shared artifact shape;
 forward skew per LLP 0024's frozen fallback rules). Same day, earlier: (call-time generation binding for sessions generated
@@ -1135,6 +1141,33 @@ artifact shape under the ordinary drift gates; the engine's
 not a wire artifact of this contract. Diagnostic forward skew follows
 LLP 0024's frozen fallback rules: unknown codes are preserved and marked
 `unrecognized`, never rewritten and never a compatibility gate.
+
+## Dated registration: provision envelope members and app-api artifacts (2026-08-01)
+
+Recorded as the LLP 0012 half of LLP 0062 ticket 02 (the server-composed
+API envelope, per the same-day author ruling in 0062 §5). The closed
+`provision` variant above gains one further optional field: `apiEnvelope`
+— the Rust-owned `ApiEnvelopeMembersV1` carrier
+(`schemas/api.envelope-members.schema.json`) holding the codegen-owned
+members (the operations map, the `appBindings` declaration, and their
+member digests). It is member material, never a whole envelope: the
+server composes the canonical `ApiEnvelopeV1`
+(`schemas/api.envelope.schema.json`) from its own projection at
+activation and self-verifies the composition before any durable effect.
+Absent members activate an explicitly envelope-less generation; the
+provision outcome reports `apiEnvelope: "composed" | "absent"`. The
+closed-DTO rule is unchanged — every other field remains invalid.
+
+Two served artifacts register with it: the discovery document
+`AppApiDiscoveryV1` (`GET /app-api/current`, no-store, sessions targets
+only) and the content-addressed envelope
+(`GET /app-api/envelope/{sha256}`, immutable, identity content coding,
+`Content-Digest` over the transmitted body). `SNAPBACK_APP_API_*` joins
+the stable code families; LLP 0062 owns the spellings. Engine-side
+ingestion re-verifies every served envelope client-side (canonicity,
+member digests, content address, projection correspondence) — the
+engine trusts its own verification, never the transport — and unknown
+formatVersions fail closed under this Spec's compatibility rules.
 
 ## Status
 

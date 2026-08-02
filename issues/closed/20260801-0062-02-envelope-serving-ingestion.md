@@ -137,3 +137,40 @@ consumes is now stable and testable.
 
 The LLP 0012 DTO-amendment half of step 2 (registering the members
 carrier in 0012's closed provision DTO documentation) is also still owed.
+
+---
+
+**RESOLVED 2026-08-01 — step 4 (engine ingestion) landed; ticket
+complete.** `packages/snapback-app-cli/envelope.mjs`: discovery
+(`/app-api/current` — distinguishing current, envelope-absent,
+dev-target, and route-absent without conflation), content-addressed
+fetch through `fetchPublicArtifact`, full client-side verification
+mirroring the Rust authority (canonicity by byte-equality, grammar +
+bounds + deny-unknown-members, member digests, content address,
+header/projection correspondence, operations/functions pairing), the
+bounded cache keyed by (normalized origin, app id, hash) with a
+last-known-good pointer, atomic temp+rename writes under a best-effort
+advisory lock, per-origin and global eviction, and verify-on-read (a
+tampered cache entry degrades to absent). Offline, the cached surface
+answers introspection only (`SNAPBACK_APP_CLI_OFFLINE_CACHED_SURFACE`
+on any call). The served surface feeds the existing call families and
+carries the discovery tuple's five-key identity as `expectedGeneration`
+(proven by test). CLI: `snapback-app --server <url> [--offline --app
+<id>] introspect`, degrading to `--artifacts` when the server has no
+app-api surface. Exit classes: every served trust failure is identity
+establishment (exit 7) except formatVersion admission (exit 8);
+`SNAPBACK_APP_API_UNAVAILABLE` (served mode against a dev target) is
+usage (exit 2).
+
+Cross-language pinning: the JS suite and `src/api_envelope.rs` assert
+the identical anchor envelope bytes and content address
+(`ae62a554…`) — canonicalization/digest drift on either side breaks
+that side's suite. The LLP 0012 registration (provision members
+carrier + app-api artifacts + `SNAPBACK_APP_API_*`) landed in the same
+change.
+
+The original done-when ("a packaged engine against a live local target
+… with zero local artifact files") is proven at the transport level
+against a faithful served fixture; the live-binary leg additionally
+needs codegen to EMIT the members carrier, which no ticket owned —
+follow-up: `issues/20260801-0062-09-codegen-members-and-live-journey.md`.

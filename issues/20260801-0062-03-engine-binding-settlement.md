@@ -28,3 +28,7 @@ this ticket: the settlement/ACK store wiring into the CLI mutation path
 and the four goldens (deploy-mid-call refetch, deploy-mid-watch resync,
 removed-function recovery, kill-between-dispatch-and-ACK replay), which
 want a real-server harness rather than the journey fake.
+
+**Note 2026-08-01:** the settlement/ACK remainder's four goldens ride the
+real-server harness that `20260801-0062-09-codegen-members-and-live-journey.md`
+builds; execute them together.

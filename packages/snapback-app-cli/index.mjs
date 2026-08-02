@@ -160,7 +160,20 @@ const functionSelector = (artifacts, fn) => (artifacts.generation === null
   ? fn.name
   : Object.freeze({ name: fn.name, expectedGeneration: artifacts.generation }));
 
+// An offline served surface exists for `--help`/`introspect`/`types` only
+// (LLP 0062 §5): cached identity may describe a deployment that has since
+// rotated, so it never shapes a live call.
+const refuseOfflineSurface = (artifacts) => {
+  if (artifacts.offline === true) {
+    throw diagnosticError(
+      'SNAPBACK_APP_CLI_OFFLINE_CACHED_SURFACE',
+      'the cached served surface answers introspection only; reconnect to call functions',
+    );
+  }
+};
+
 export async function invokeAppFunction(client, artifacts, name, args = {}) {
+  refuseOfflineSurface(artifacts);
   const fn = lookupFunction(artifacts, name);
   if (fn.kind === 'liveQuery') {
     throw diagnosticError('SNAPBACK_APP_CLI_CALL_REQUIRES_ORDINARY_FUNCTION', `'${name}' is live; use subscribe`);
@@ -172,6 +185,7 @@ export async function subscribeAppFunction(client, artifacts, name, {
   args = {},
   connectionId = 'snapback-app-cli',
 } = {}) {
+  refuseOfflineSurface(artifacts);
   const fn = lookupFunction(artifacts, name);
   if (fn.kind !== 'liveQuery') {
     throw diagnosticError('SNAPBACK_APP_CLI_SUBSCRIBE_REQUIRES_LIVE_QUERY', `'${name}' is not a live query`);
@@ -232,6 +246,21 @@ export async function runPackagedAgentJourney({
     verified,
   });
 }
+
+// Served-envelope ingestion (LLP 0062 §5; ticket 0062-02 step 4): discovery,
+// content-addressed fetch, client-side verification, and the bounded cache.
+export {
+  discoverServedApp,
+  fetchServedEnvelope,
+  loadServedApp,
+  verifyEnvelopeBytes,
+  readCachedEnvelope,
+  storeCachedEnvelope,
+  defaultCacheDir,
+  envelopeDigest,
+  memberDigest,
+  jcsCanonical,
+} from './envelope.mjs';
 
 // The shared result core and frozen exit taxonomy (LLP 0024 amendment;
 // LLP 0062 §2). Projections consume these and never re-derive semantics.

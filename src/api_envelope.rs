@@ -825,4 +825,41 @@ mod compose_tests {
         let (parsed, _) = parse_and_validate(composed.canonical.as_bytes()).expect("admits");
         assert_eq!(parsed.tuple.auth_mode, "sessions");
     }
+
+    /// Cross-language anchor with the JS engine's ingestion verifier
+    /// (`packages/snapback-app-cli/envelope.test.mjs`): the identical
+    /// canonical bytes must admit on both sides and produce the identical
+    /// content address, or one side's canonicalization/digesting drifted.
+    #[test]
+    fn js_engine_anchor_envelope_parses_and_digests_identically() {
+        let canonical = format!(
+            concat!(
+                "{{\"appId\":\"anchor-app\",\"artifactKind\":\"apiEnvelope\",",
+                "\"bundleHash\":\"snapback.v1:sessions:function:sha256:{b}\",",
+                "\"declarations\":{{\"appBindings\":\"export const bindings = {{}};\\n\"}},",
+                "\"formatVersion\":\"snapback.api-envelope.v1\",",
+                "\"functions\":{{\"appId\":\"anchor-app\",\"artifactKind\":\"functionManifest\",",
+                "\"bundleHash\":\"snapback.v1:sessions:function:sha256:{b}\",",
+                "\"functions\":[{{\"authRequirement\":\"authenticated\",\"id\":\"anchor-app:addNote\",\"kind\":\"Mutation\",\"name\":\"addNote\"}},",
+                "{{\"authRequirement\":\"authenticated\",\"id\":\"anchor-app:listNotes\",\"kind\":\"Query\",\"name\":\"listNotes\"}}],",
+                "\"inputsHash\":\"snapback.v1:sessions:inputs:sha256:{c}\"}},",
+                "\"inputsHash\":\"snapback.v1:sessions:inputs:sha256:{c}\",",
+                "\"memberDigests\":{{\"declaration:appBindings\":\"e8e2d8ff0088c9ee62db4171f268cac2931f51c5724cb6a2fbd3b9b52968bd59\",",
+                "\"operation:anchor-app:addNote\":\"c5159bb036b76512dcd0d9d97bd51cd7041c9367af483ea2e355e9885d30dbf2\",",
+                "\"operation:anchor-app:listNotes\":\"cb851c1685cc73404ff7c5c0bf704d8399afa8cbd05a18fd835e2069c2f76641\"}},",
+                "\"operations\":{{\"anchor-app:addNote\":{{\"argsSchema\":{{\"properties\":{{\"title\":{{\"type\":\"string\"}}}},\"type\":\"object\"}},\"name\":\"addNote\"}},",
+                "\"anchor-app:listNotes\":{{\"argsSchema\":{{\"properties\":{{}},\"type\":\"object\"}},\"name\":\"listNotes\"}}}},",
+                "\"tuple\":{{\"authMode\":\"sessions\",\"schemaVersion\":\"snapback.v1\"}}}}"
+            ),
+            b = "b".repeat(64),
+            c = "c".repeat(64),
+        );
+        let (parsed, identity) =
+            parse_and_validate(canonical.as_bytes()).expect("the JS anchor admits");
+        assert_eq!(parsed.app_id, "anchor-app");
+        assert_eq!(
+            identity,
+            "ae62a5543e096aba479faa7f3c00314922448e736e673606b0a3ef3407b5d905",
+        );
+    }
 }
