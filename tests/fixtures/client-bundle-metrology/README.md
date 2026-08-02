@@ -22,6 +22,27 @@ The baseline is immutable under LLP 0063's valid-baseline rule. A proven
 instrument defect or unavailable instrument requires the versioned retirement
 procedure in that LLP; ordinary optimization updates only `current.v1.json`.
 
+New public capabilities join prospectively through versioned supplemental
+ledgers rather than rewriting `baseline.v1.json`. Each ledger declares an exact
+profile-id set, profile-source digest, behavior command, governing LLP anchors,
+and the already-committed source revision whose first run froze its ceilings.
+The runner validates all supplemental ledgers independently, rejects duplicate
+profile ownership, and folds their measurements into `current.v1.json`.
+
+The first extension is `baseline.push-registry.v1.json`, backed by
+`push-registry-profiles.v1.json`. It measures the explicit push subpath and
+attachment closure plus a root-negative fixture that proves the ordinary root
+namespace and client instance remain push-free. To add a future versioned
+ledger, declare its profile file and exact ids in the runner, commit the
+implementation and instrument first, then run:
+
+```sh
+node scripts/client-bundle-metrology.mjs --write-supplemental-baseline
+```
+
+The command refuses unless exactly one declared ledger is missing and every
+existing primary/supplemental ceiling is still valid.
+
 ## Relationship to the Workstream 8 instrument
 
 This is a package-closure extension of LLP 0063 Workstream 8, not a competing

@@ -66,3 +66,13 @@ updated honestly; dated implementation-record amendment on the LLP.
   table, a wrong physical index whose `sqlite_schema.sql` is forged back to the
   expected text, and a replaced trigger. Undeclared apps still run no registry
   inventory query.
+- **2026-08-02 — client closure corrected.** PUSH-01b moved the optional JS
+  registry to `@expo/snapback-client/push-registry`; the root namespace,
+  constructor, type, and ordinary client instance are push-free again. The
+  package-private request bridge preserves bearer-transition fencing without
+  exporting a generic request surface. LLP 0145's immutable primary baseline
+  was not rewritten: all 24 profiles pass, while a versioned prospective
+  ledger frozen to `91a0a718` owns the explicit subpath, attachment, and
+  root-negative profiles. This is still the registry slice only;
+  `notifications: false`, the GAP row, and every send/ledger remainder above
+  remain unchanged.

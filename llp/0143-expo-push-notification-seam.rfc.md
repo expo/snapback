@@ -101,6 +101,10 @@ implementation lands.)
 **Revised:** 2026-08-02 (device-token registry implementation record added.
 This is D1 plus the registry-only D6 activation slice, not the complete seam;
 the send lane, ledger, receipts, and full capability identity remain open.)
+**Revised:** 2026-08-02 (the registry client boundary was corrected to an
+explicit additive subpath. Root imports and ordinary clients now retain no
+push-shaped runtime, export, property, or type; a prospective bundle ledger
+freezes both positive attachment and root-negative proofs.)
 **Related:** LLP 0000, LLP 0027, LLP 0028, LLP 0036, LLP 0039, LLP 0045,
 LLP 0049, LLP 0053, LLP 0055, LLP 0064, LLP 0070, LLP 0100, LLP 0102,
 LLP 0137,
@@ -761,6 +765,29 @@ Honesty posture: the capability index advertises a local, partial
 `notifications: false` is unchanged. There is no `ctx.push.send`, audience
 resolver, handoff ledger, receipt poll, endpoint override, hosted claim, or
 delivery claim in this implementation record.
+
+### 2026-08-02 — D6 additive client-boundary correction
+
+The first registry landing accidentally constructed `client.push` in the root
+`SnapbackClient` and retained the complete registry runtime for applications
+that never selected notifications. Commit `91a0a718` corrects that D6 defect:
+
+- the root package exports no push symbol, the root constructor has no push
+  option or property, and its declarations reject `client.push`;
+- `@expo/snapback-client/push-registry` owns the runtime and declarations;
+  `attachPushRegistry(client, { pushInstallationStorage })` explicitly returns
+  the same client with the frozen registry surface attached;
+- the additive module receives only the root client's package-private request
+  funnel. Registration stays behind external-bearer replacement and dispatches
+  only under successor custody; no generic request API becomes public; and
+- LLP 0145's immutable primary baseline remains byte-identical. The versioned
+  `baseline.push-registry.v1.json` ledger is frozen to `91a0a718` and owns the
+  public subpath, positive attachment, and root-negative profiles, each with
+  executable registry behavior proof.
+
+This correction changes no registry storage or wire contract. The send lane,
+audience authorization, handoff ledger, provider tickets/receipts, and full
+capability claim remain open exactly as recorded above.
 
 ## Prior art
 

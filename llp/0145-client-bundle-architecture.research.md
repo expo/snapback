@@ -118,6 +118,10 @@ without dual-READY, so promotion remains the author's call.)
 **Revised:** 2026-08-01 (successor link — Draft LLP 0147 now owns the proposed
 Full/Micro profile contract and ahead-of-time compiled client boundary under
 D-D; this Research remains the evidence and option-analysis base.)
+**Revised:** 2026-08-02 (Phase A's landed instrument gained versioned,
+prospective supplemental ledgers when LLP 0143's optional push registry became
+the first post-baseline public capability. The original 24-profile baseline
+remains immutable; the push ledger freezes against its implementation commit.)
 **Related:** LLP 0000, LLP 0005, LLP 0008, LLP 0012, LLP 0041, LLP 0043, LLP 0053,
 LLP 0059, LLP 0060, LLP 0063, LLP 0064, LLP 0077, LLP 0090, LLP 0091,
 LLP 0092, LLP 0093, LLP 0094, LLP 0095, LLP 0096, LLP 0098, LLP 0107, LLP 0108,
@@ -1444,6 +1448,33 @@ a receipt rather than a report. Test at least:
 
 Every byte receipt must run behavioral acceptance. A bundle that is smaller but
 cannot boot, authenticate, stream, route, or invalidate is failing.
+
+#### 2026-08-02 implementation amendment — prospective additive ledgers
+
+The landed Phase A instrument now admits new public capability profiles without
+rewriting a valid historical baseline. Each additive capability owns a
+versioned supplemental ledger with an exact profile-id set, source/profile
+digests, behavior commands, and governing LLP anchors. Existing ledgers are
+validated independently, so a later capability cannot rewrite or invalidate an
+earlier capability's first-run ceiling.
+
+LLP 0143's push registry is the first use. Commit `91a0a718` removes its
+accidental root closure and adds an explicit `./push-registry` subpath. The
+original `baseline.v1.json` is byte-identical; all 24 primary profiles remain
+at or below their frozen ceilings. `baseline.push-registry.v1.json` then freezes
+three prospective profiles against that exact commit:
+
+| Profile | Frozen minified / gzip / Brotli bytes |
+| --- | ---: |
+| public push-registry subpath | 275,768 / 77,720 / 65,918 |
+| explicit attachment fixture | 275,789 / 77,643 / 65,868 |
+| root-negative fixture | 368,067 / 101,807 / 85,025 |
+
+The positive profiles must retain `push-registry.mjs`; every primary profile
+and the root-negative fixture must exclude it. The ledger also executes the
+registry custody/security suite, including successor-bearer fencing. This is a
+Phase A instrument extension and a low-risk D6 boundary repair, not evidence
+for Micro, Phase C, a new carrier, or a notification-delivery capability.
 
 ### Phase B — take the low-risk savings
 
