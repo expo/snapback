@@ -1,6 +1,6 @@
 # 0133-04: Receipt id-map paired by logical mint identity, unmapped-never-guessed
 
-**Status:** Open
+**Status:** Closed
 **Program:** 20260802-0133-00-settlement-substrate-program.md
 **Systems:** Runtime, Storage, Wire Protocol
 **Depends on:** 0133-03
@@ -37,3 +37,31 @@ per-site count mismatch leaves the excess occurrences unmapped. The stated
 residue (within-site positional occurrence pairing under fan-out divergence)
 is documented at the map-construction site with an `@ref` to OQ2's
 graduation path.
+
+## Resolution
+
+Closed 2026-08-02 by `9cad757e` (`feat(settlement): map logical mint
+identities`). HostPlan settlement now observes authoritative mints at stable
+structural sites, numbers repeated executions within a site, and constructs
+the private lane-L `idMap` only from unique exact `(site, occurrence)`
+matches. Missing, duplicate, cross-site, and excess claims remain explicitly
+`unmapped`; lane Q omits the map, and subscriber fan-out strips it. The
+implementation deliberately retains OQ2's documented within-site occurrence
+residue and does not add typed-id declarations or dataflow analysis.
+
+Proof:
+
+- `local::tests::llp0133_sketch_3_id_map_never_cross_pairs_sites_or_excess_occurrences`
+- `local::tests::llp0133_sketches_2_and_7_apply_lane_policy_without_privilege`
+  (exact duplicate returns the retained authoritative map)
+- `synthetic_lane_l_wire_submission_rederives_before_commit`
+- `cargo test --test artifact_schemas_v0 -- --nocapture` (30 passed)
+- `bun run --cwd packages/snapback-client test` (green)
+- `PATH="/usr/bin:$PATH" scripts/check-generated-artifacts` (green)
+- `./ref-check --verbose` (green: 157 LLP docs, 4,071 refs, 0 errors)
+
+The complete Rust library run proved 1,639 passing tests and inherited the
+same three deterministic live-query failures recorded by tickets 02 and 03:
+`rqs_mutation_after_answer_and_register_loses_no_ops`,
+`rqs_tokens_refresh_across_delta_replace_and_current_as_of`, and
+`standard_pattern_live_is_conservative_and_recorded`.
