@@ -119,11 +119,15 @@ export function throwRunAndCleanupFailures({
  */
 export async function launchChromeCdp({
   chromeBin,
+  userDataDir = null,
   userDataPrefix = 'snapback-chrome-',
   tempRoot = tmpdir(),
   env = process.env,
   extraArgs = [],
   launchPrefixArgs = [],
+  initialUrl = 'about:blank',
+  headless = true,
+  stopSignal = 'SIGTERM',
   startupTimeoutMs = DEFAULT_STARTUP_TIMEOUT_MS,
   pollMs = DEFAULT_POLL_MS,
   stopOptions = undefined,
@@ -135,6 +139,16 @@ export async function launchChromeCdp({
   if (!Array.isArray(extraArgs) || !Array.isArray(launchPrefixArgs)) {
     throw new TypeError('Chrome launch arguments must be arrays');
   }
+  if (userDataDir !== null && (typeof userDataDir !== 'string' || userDataDir.length === 0)) {
+    throw new TypeError('Chrome userDataDir must be a non-empty path');
+  }
+  if (typeof initialUrl !== 'string' || initialUrl.length === 0) {
+    throw new TypeError('Chrome initialUrl must be a non-empty URL');
+  }
+  if (typeof headless !== 'boolean') throw new TypeError('Chrome headless must be boolean');
+  if (stopSignal !== 'SIGTERM' && stopSignal !== 'SIGKILL') {
+    throw new TypeError('Chrome stopSignal must be SIGTERM or SIGKILL');
+  }
   assertNoLifecycleFlagOverrides(extraArgs);
 
   const spawnImpl = dependencies.spawnImpl ?? spawn;
@@ -144,17 +158,20 @@ export async function launchChromeCdp({
   const rmImpl = dependencies.rmImpl ?? rmSync;
   const stopChildImpl = dependencies.stopChildImpl ?? stopChild;
   const platform = dependencies.platform ?? process.platform;
-  const profilePath = mkdtempImpl(join(tempRoot, userDataPrefix));
+  // @ref LLP 0155#stage-0--authority-reconciliation-and-baseline-freeze —
+  // crash/relaunch evidence retains one exact profile while this launcher
+  // still owns both browser process trees and their signal/exit attestation.
+  const ownsProfile = userDataDir === null;
+  const profilePath = userDataDir ?? mkdtempImpl(join(tempRoot, userDataPrefix));
   const chromeArgs = [
     ...launchPrefixArgs,
-    '--headless=new',
-    '--disable-gpu',
+    ...(headless ? ['--headless=new', '--disable-gpu'] : []),
     '--no-first-run',
     '--no-default-browser-check',
     '--remote-debugging-port=0',
     `--user-data-dir=${profilePath}`,
     ...extraArgs,
-    'about:blank',
+    initialUrl,
   ];
 
   let child;
@@ -169,10 +186,12 @@ export async function launchChromeCdp({
     const launchError = new Error(`Chrome failed to launch (${chromeBin}): ${cleanupMessage(error)}`, {
       cause: error,
     });
-    try {
-      removeProfile(profilePath, rmImpl);
-    } catch (cleanupError) {
-      throw startupFailure(launchError, cleanupError);
+    if (ownsProfile) {
+      try {
+        removeProfile(profilePath, rmImpl);
+      } catch (cleanupError) {
+        throw startupFailure(launchError, cleanupError);
+      }
     }
     throw launchError;
   }
@@ -186,11 +205,11 @@ export async function launchChromeCdp({
 
   const ownership = ownProcessTree(child, async () => {
     try {
-      await stopChildImpl(child, stopOptions);
+      await stopChildImpl(child, { ...stopOptions, initialSignal: stopSignal });
     } catch (error) {
       throw profilePreservedError(error, profilePath);
     }
-    removeProfile(profilePath, rmImpl);
+    if (ownsProfile) removeProfile(profilePath, rmImpl);
   });
   const stop = () => ownership.stop();
   const portFile = join(profilePath, 'DevToolsActivePort');
@@ -220,6 +239,8 @@ export async function launchChromeCdp({
         return {
           ws: version.webSocketDebuggerUrl,
           version,
+          debugPort: Number(debugPort),
+          pid: child.pid,
           profilePath,
           stop,
         };

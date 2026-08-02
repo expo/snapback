@@ -190,3 +190,21 @@ current, speculative reconstruction, full-resync-before-replay, settlement,
 observer convergence, or protected-retention facts. The existing browser guide
 gap remains open and now points at this harness as its prerequisite rather than
 mistaking infrastructure for the final witness.
+
+### 2026-08-02 — proof greening: one Chrome lifecycle
+
+The first Stage 0 runner privately duplicated Chrome's debugging-port, profile,
+and process-group lifecycle. Snapback's repository proof correctly rejected
+that second owner. The shared launcher now owns both Stage 0 legs while allowing
+the harness to retain its exact profile between an attested `SIGKILL` and the
+successor launch. This kept the evidence boundary intact: the profile survives
+only because Stage 0 explicitly owns it, while signal delivery and whole-tree
+exit remain centralized and tested.
+
+This felt materially better than maintaining a special-purpose browser runner:
+the same cleanup semantics now cover ordinary acceptances and crash/relaunch
+evidence, and the unusual retained-profile behavior is a narrow option instead
+of a forked process implementation. The full real-browser rerun was locally
+blocked by an absent `playwright-core` installation, but the shared lifecycle
+proof and syntax checks passed; no product receipt or capability claim was
+changed.

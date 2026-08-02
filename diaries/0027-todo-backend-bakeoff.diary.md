@@ -1440,3 +1440,20 @@ packaging and host lifecycle still expose seams a mature default backend
 should hide. The biggest product gap remains offline behavior: an online Todo
 is solid, but the frozen surface does not yet make a resilient offline Todo
 feel native.
+
+## 2026-08-02 — proof greening: retained SpacetimeDB smokes adopt the shared browser owner
+
+The four retained SpacetimeDB Todo smoke scripts still launched Chrome with
+private fixed debugging ports and profile directories. Once the repository
+made Chrome lifecycle single-owner, that older comparison-arm plumbing became
+visible as follow-on drift. The scripts now use the shared ephemeral-port,
+attested process-tree launcher and await cleanup; their application URLs,
+persona separation, CDP page evaluation, and frozen receipts are unchanged.
+
+The migration reduced comparison-arm boilerplate and removed fixed-port/profile
+collision risk. It also made the contrast with Snapback's acceptance kit less
+artificial: both now get the same robust browser process ownership, so future
+comparisons remain about backend behavior rather than one arm's ad hoc runner.
+The external SpacetimeDB service was not available for a receipt rerun; syntax
+and the repository-wide lifecycle inventory passed, and no retained receipt was
+rewritten.

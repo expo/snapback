@@ -4,7 +4,7 @@
 // lead-time browser lane kills an owned real process, reuses its exact profile,
 // and exercises two-tab store contention without making a React/server claim.
 import {createHash, randomUUID} from 'node:crypto';
-import {execFileSync, spawn} from 'node:child_process';
+import {execFileSync} from 'node:child_process';
 import {existsSync} from 'node:fs';
 import {
   mkdir,
@@ -19,6 +19,8 @@ import {createServer} from 'node:http';
 import {dirname, extname, relative, resolve, sep} from 'node:path';
 import process from 'node:process';
 import {chromium} from 'playwright-core';
+
+import {launchChromeCdp} from '../../../_kit/chrome-process.mjs';
 
 const repoRoot = resolve(import.meta.dirname, '../../../..');
 const demoRoot = resolve(import.meta.dirname, '../..');
@@ -104,113 +106,37 @@ async function startStaticServer() {
   };
 }
 
-const processGroupExists = (pid) => {
-  try {
-    process.kill(process.platform === 'win32' ? pid : -pid, 0);
-    return true;
-  } catch (error) {
-    if (error?.code === 'ESRCH') return false;
-    throw error;
-  }
-};
-
-async function waitForProcessGroupExit(pid, timeoutMs = 10_000) {
-  const deadline = Date.now() + timeoutMs;
-  while (processGroupExists(pid)) {
-    if (Date.now() >= deadline) return false;
-    await sleep(25);
-  }
-  return true;
-}
-
-function signalOwnedProcessGroup(child, signal) {
-  if (!Number.isInteger(child.pid) || child.pid <= 1) throw new Error('browser child pid unavailable');
-  process.kill(process.platform === 'win32' ? child.pid : -child.pid, signal);
-}
-
-async function launchBrowser(profilePath) {
+async function launchBrowser(profilePath, stopSignal) {
   const activePortPath = resolve(profilePath, 'DevToolsActivePort');
   // Chrome leaves this locator behind on SIGKILL. Removing only the
   // process-owned locator (not profile data) prevents a relaunch from reading
   // the predecessor's dead port before the successor publishes its own.
   await rm(activePortPath, {force: true});
-  const args = [
-    `--user-data-dir=${profilePath}`,
-    '--remote-debugging-port=0',
-    '--remote-allow-origins=*',
-    '--no-first-run',
-    '--no-default-browser-check',
-    '--disable-background-networking',
-    '--disable-component-update',
-    ...(options.headed ? [] : ['--headless=new', '--disable-gpu']),
-    'about:blank',
-  ];
-  const child = spawn(browserExecutable, args, {
-    detached: process.platform !== 'win32',
-    stdio: 'ignore',
+  const lifecycle = await launchChromeCdp({
+    chromeBin: browserExecutable,
+    userDataDir: profilePath,
+    headless: !options.headed,
+    stopSignal,
+    startupTimeoutMs: 20_000,
+    pollMs: 50,
+    extraArgs: [
+      '--remote-allow-origins=*',
+      '--disable-background-networking',
+      '--disable-component-update',
+    ],
   });
-  const exit = new Promise((resolveExit) => child.once('exit', (code, signal) => resolveExit({code, signal})));
-  const deadline = Date.now() + 20_000;
-  let activePort = null;
-  while (Date.now() < deadline) {
-    if (child.exitCode !== null || child.signalCode !== null) {
-      throw new Error(`browser exited before CDP readiness (${child.exitCode ?? child.signalCode})`);
-    }
-    try {
-      const [port] = (await readFile(activePortPath, 'utf8')).trim().split('\n');
-      if (/^[0-9]+$/u.test(port)) {
-        activePort = Number(port);
-        break;
-      }
-    } catch {
-      // Chrome creates DevToolsActivePort only after the profile owns CDP.
-    }
-    await sleep(50);
-  }
-  if (activePort === null) {
-    signalOwnedProcessGroup(child, 'SIGKILL');
-    await exit;
-    throw new Error('browser did not publish DevToolsActivePort');
-  }
-  let browser = null;
-  let connectError = null;
-  while (Date.now() < deadline && browser === null) {
-    try {
-      browser = await chromium.connectOverCDP(`http://127.0.0.1:${activePort}`);
-    } catch (error) {
-      connectError = error;
-      await sleep(50);
-    }
-  }
-  if (browser === null) {
-    signalOwnedProcessGroup(child, 'SIGKILL');
-    await exit;
-    throw connectError ?? new Error('browser CDP endpoint did not accept connections');
-  }
+  const browser = await chromium.connectOverCDP(lifecycle.ws);
   const context = browser.contexts()[0];
   if (!context) {
-    signalOwnedProcessGroup(child, 'SIGKILL');
-    await exit;
-    await waitForProcessGroupExit(child.pid);
+    await lifecycle.stop();
     throw new Error('CDP browser did not expose its persistent context');
   }
-  return {browser, child, context, exit, pid: child.pid};
+  return {browser, context, lifecycle};
 }
 
-async function terminateBrowser(launch, signal = 'SIGKILL') {
-  signalOwnedProcessGroup(launch.child, signal);
-  const outcome = await Promise.race([
-    launch.exit,
-    sleep(10_000).then(() => null),
-  ]);
-  if (outcome === null) {
-    signalOwnedProcessGroup(launch.child, 'SIGKILL');
-    throw new Error(`browser process group did not exit after ${signal}`);
-  }
-  if (!(await waitForProcessGroupExit(launch.pid))) {
-    throw new Error('owned browser process group still exists after root exit');
-  }
-  return {...outcome, pid: launch.pid, requestedSignal: signal, groupGone: true};
+async function terminateBrowser(launch, requestedSignal) {
+  await launch.lifecycle.stop();
+  return {pid: launch.lifecycle.pid, requestedSignal, groupGone: true};
 }
 
 async function openHarnessPage(context, url) {
@@ -306,7 +232,7 @@ try {
   staticServer = await startStaticServer();
   const harnessUrl = `${staticServer.origin}${pageUrlPath}`;
 
-  first = await launchBrowser(profilePath);
+  first = await launchBrowser(profilePath, 'SIGKILL');
   const firstPage = await openHarnessPage(first.context, harnessUrl);
   await check('browser.standards-real-apis', async () => {
     const facts = await firstPage.evaluate((name) => globalThis.snapbackStage0Browser.open(name), receipt.carrier.databaseName);
@@ -336,7 +262,7 @@ try {
     return receipt.cleanup.firstBrowser;
   });
 
-  second = await launchBrowser(profilePath);
+  second = await launchBrowser(profilePath, 'SIGTERM');
   const writerTab = await openHarnessPage(second.context, harnessUrl);
   await writerTab.evaluate((name) => globalThis.snapbackStage0Browser.open(name), receipt.carrier.databaseName);
   await writerTab.evaluate(() => globalThis.snapbackStage0Browser.waitForWriter());

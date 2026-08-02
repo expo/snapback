@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 
 import { performance } from 'node:perf_hooks';
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
+
+import { launchChromeCdp } from '../../../../../../_kit/chrome-process.mjs';
 
 const chrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const cli = `${process.env.HOME}/.local/bin/spacetime`;
@@ -42,21 +44,14 @@ async function evaluate(page, expression) {
   return response.result.result.value;
 }
 
-async function launch(persona, port) {
-  const child = spawn(
-    chrome,
-    [
-      '--headless=new',
-      '--disable-gpu',
-      '--no-first-run',
-      `--remote-debugging-port=${port}`,
-      `--user-data-dir=${process.cwd()}/../runtime/chrome-${persona}-performance`,
-      `http://127.0.0.1:4178/?persona=${persona}`,
-    ],
-    { stdio: 'ignore' }
-  );
-  children.push(child);
-  return waitForDebugPage(port);
+async function launch(persona, _port) {
+  const lifecycle = await launchChromeCdp({
+    chromeBin: chrome,
+    userDataPrefix: `spacetimedb-${persona}-performance-`,
+    initialUrl: `http://127.0.0.1:4178/?persona=${persona}`,
+  });
+  children.push(lifecycle);
+  return waitForDebugPage(lifecycle.debugPort);
 }
 
 async function waitFor(page, expression, message, attempts = 120) {
@@ -180,5 +175,5 @@ try {
   await writeFile('../receipts/performance.v1.json', `${JSON.stringify(receipt, null, 2)}\n`);
   console.log(JSON.stringify(receipt));
 } finally {
-  for (const child of children) child.kill('SIGTERM');
+  await Promise.all(children.map((child) => child.stop()));
 }

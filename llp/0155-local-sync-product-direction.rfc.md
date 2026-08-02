@@ -8,7 +8,9 @@
 **Revised:** 2026-08-02 (Accepted by Charlie Cheever at v0.4 after the
 three-round dual-family super-refine loop converged dual-READY/dual-ENDORSE;
 Stage 0 reconciliation notes landed in LLP 0129/0008/0080 in the same
-change. v0.4 — super-refine round 3 closure: Incident
+change. 2026-08-02 implementation note — Stage 0's retained-profile hard-kill
+runner moved under the repository's shared Chrome lifecycle owner. v0.4 —
+super-refine round 3 closure: Incident
 Room's freeze home corrected — it is this RFC's named product-direction
 safety-control manifest frozen in Stage 0, not an LLP 0129 lab manifest
 (0129 freezes exactly Kanban/Calendar/Notebook), with the cross-reference
@@ -1120,6 +1122,14 @@ The freeze half:
 - establish standards-real browser automation before making new restart
   claims (which also bears on LLP 0129 OQ7's browser-witness half; the
   cross-reference should say whether it answers it).
+
+Implementation note (2026-08-02): the Stage 0 evidence runner uses the
+repository's shared Chrome/CDP process owner. That owner accepts an explicit
+caller-retained profile for exact-profile relaunch and an explicit `SIGKILL`
+first leg, but it continues to own the debugging port, process-tree
+attestation, and signal delivery. A retained profile is removed only by the
+evidence runner after both attested process exits; ordinary acceptance callers
+keep the launcher's create-and-remove profile lifecycle.
 
 ### The read lane (moves 1–2) — may run now
 

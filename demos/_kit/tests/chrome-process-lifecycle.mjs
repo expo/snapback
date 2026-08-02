@@ -97,6 +97,7 @@ async function runLifecycleProof() {
       await provesStartupFailureCleanup(scratch, 'early-exit');
     }
     await provesInjectedStopBeforeRemoval(scratch);
+    await provesCallerOwnedReusableProfile(scratch);
     await provesInjectedStartupStopBeforeRemoval(scratch);
     await provesWindowsSpawnShapeAndOrdering(scratch);
     await provesLifecycleFlagOverridesAreRejected(scratch);
@@ -167,6 +168,8 @@ function injectedLaunch(scratch, {
   platform = 'linux',
   stopError = null,
   prefix,
+  userDataDir = null,
+  stopSignal = 'SIGTERM',
 }) {
   const child = new EventEmitter();
   child.pid = nextFakePid++;
@@ -177,10 +180,13 @@ function injectedLaunch(scratch, {
   const events = [];
   let profilePath = null;
   let spawnOptions = null;
+  let receivedStopOptions = null;
   const launched = launchChromeCdp({
     chromeBin: 'injected-chrome',
-    userDataPrefix: prefix,
-    tempRoot: scratch,
+    ...(userDataDir === null
+      ? { userDataPrefix: prefix, tempRoot: scratch }
+      : { userDataDir }),
+    stopSignal,
     startupTimeoutMs: ready ? 500 : 40,
     pollMs: 5,
     dependencies: {
@@ -195,7 +201,8 @@ function injectedLaunch(scratch, {
       fetchImpl: async () => ({
         json: async () => ({ webSocketDebuggerUrl: 'ws://127.0.0.1/injected' }),
       }),
-      stopChildImpl: async () => {
+      stopChildImpl: async (_child, options) => {
+        receivedStopOptions = options;
         events.push('stop:start');
         await Promise.resolve();
         if (stopError) throw stopError;
@@ -211,6 +218,7 @@ function injectedLaunch(scratch, {
     events,
     launched,
     get profilePath() { return profilePath; },
+    get receivedStopOptions() { return receivedStopOptions; },
     get spawnOptions() { return spawnOptions; },
   };
 }
@@ -227,6 +235,30 @@ async function provesInjectedStopBeforeRemoval(scratch) {
     ['stop:start', 'stop:complete', 'rm'],
     'normal cleanup must await stopChild completion before profile removal',
   );
+}
+
+async function provesCallerOwnedReusableProfile(scratch) {
+  const userDataDir = mkdtempSync(join(scratch, 'caller-profile-'));
+  const fixture = injectedLaunch(scratch, {
+    ready: true,
+    prefix: 'unused-',
+    userDataDir,
+    stopSignal: 'SIGKILL',
+  });
+  const chrome = await fixture.launched;
+  await chrome.stop();
+  assert.equal(chrome.profilePath, userDataDir);
+  assert.equal(
+    fixture.receivedStopOptions.initialSignal,
+    'SIGKILL',
+    'the shared launcher must own the caller-selected hard-stop signal',
+  );
+  assert.equal(
+    existsSync(userDataDir),
+    true,
+    'a caller-owned profile must survive attested stop for an exact-profile relaunch',
+  );
+  rmSync(userDataDir, { recursive: true, force: true });
 }
 
 async function provesInjectedStartupStopBeforeRemoval(scratch) {

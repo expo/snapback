@@ -3,6 +3,8 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 
+import { launchChromeCdp } from '../../../../../../_kit/chrome-process.mjs';
+
 const chrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const spacetime = `${process.env.HOME}/.local/bin/spacetime`;
 const children = [];
@@ -41,21 +43,14 @@ async function evaluate(page, expression) {
   return response.result.result.value;
 }
 
-async function launch(label, port) {
-  const child = spawn(
-    chrome,
-    [
-      '--headless=new',
-      '--disable-gpu',
-      '--no-first-run',
-      `--remote-debugging-port=${port}`,
-      `--user-data-dir=${process.cwd()}/../runtime/chrome-${label}-offline`,
-      'http://127.0.0.1:4178/?persona=alice',
-    ],
-    { stdio: 'ignore' }
-  );
-  children.push(child);
-  return waitForDebugPage(port);
+async function launch(label, _port) {
+  const lifecycle = await launchChromeCdp({
+    chromeBin: chrome,
+    userDataPrefix: `spacetimedb-${label}-offline-`,
+    initialUrl: 'http://127.0.0.1:4178/?persona=alice',
+  });
+  children.push(lifecycle);
+  return waitForDebugPage(lifecycle.debugPort);
 }
 
 async function waitFor(page, expression, message, attempts = 120) {
@@ -117,5 +112,5 @@ try {
   await writeFile('../receipts/offline-smoke.v1.json', `${JSON.stringify(receipt, null, 2)}\n`);
   console.log(JSON.stringify(receipt));
 } finally {
-  for (const child of children) child.kill('SIGTERM');
+  await Promise.all(children.map((child) => child.stop()));
 }

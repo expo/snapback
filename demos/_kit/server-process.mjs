@@ -1358,6 +1358,7 @@ function cleanupFailure(child, { term, graceful = null, kill = null, leader = nu
 }
 
 export async function stopChild(child, {
+  initialSignal = 'SIGTERM',
   graceMs = 3_000,
   platform = process.platform,
   spawnImpl = spawn,
@@ -1369,6 +1370,9 @@ export async function stopChild(child, {
   signalTree = signalProcessTree,
 } = {}) {
   if (!child?.pid) return;
+  if (initialSignal !== 'SIGTERM' && initialSignal !== 'SIGKILL') {
+    throw new TypeError('stopChild initialSignal must be SIGTERM or SIGKILL');
+  }
 
   const closeTracker = trackLeaderClose(child);
   const signalOptions = {
@@ -1379,6 +1383,13 @@ export async function stopChild(child, {
     processGroupPollMs,
     processKill,
   };
+  if (initialSignal === 'SIGKILL') {
+    const kill = await signalTree(child, 'SIGKILL', signalOptions);
+    if (kill.ok && platform !== 'win32') releaseLeaderPipesAfterTreeExit(child);
+    const leader = await waitForLeaderClose(closeTracker, leaderCloseTimeoutMs);
+    if (kill.ok && leader.ok) return;
+    throw cleanupFailure(child, { term: null, kill, leader });
+  }
   const gracefulDeadline = Date.now() + Math.max(0, graceMs);
   const term = await signalTree(child, 'SIGTERM', {
     ...signalOptions,
