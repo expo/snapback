@@ -2182,7 +2182,19 @@ fn verify_live_descriptor_identity(
 }
 
 pub async fn run(args: Args) -> anyhow::Result<()> {
-    run_composed(args, None).await
+    run_composed(args, None, None).await
+}
+
+/// Typed production entry for a target adapter that already holds the trusted
+/// descriptor. Ordinary CLI startup remains an explicitly unbound compatibility
+/// path; adapters must use this seam to make telemetry exports self-describing.
+// @ref LLP 0154#d1--telemetry-store-a-sibling-sqlite-database-generation-bound —
+//   the descriptor, not argv/environment/path inference, owns environment id.
+pub async fn run_for_target(
+    args: Args,
+    target: crate::deploy::TargetDescriptor,
+) -> anyhow::Result<()> {
+    run_composed(args, None, Some(&target)).await
 }
 
 /// Composed startup for the supported embedding façade. Keeping the embedded
@@ -2195,7 +2207,7 @@ pub(crate) async fn run_embedded(
     args: Args,
     embedded_startup_artifacts: crate::auth::mode::StartupArtifacts,
 ) -> anyhow::Result<()> {
-    run_composed(args, Some(embedded_startup_artifacts)).await
+    run_composed(args, Some(embedded_startup_artifacts), None).await
 }
 
 /// Apply the telemetry side of the already-durable declared-restore outcome.
@@ -2222,6 +2234,7 @@ fn apply_declared_restore_telemetry_outcome(
 async fn run_composed(
     args: Args,
     embedded_startup_artifacts: Option<crate::auth::mode::StartupArtifacts>,
+    target: Option<&crate::deploy::TargetDescriptor>,
 ) -> anyhow::Result<()> {
     anyhow::ensure!(
         !(args.memory && args.restored_from_backup.is_some()),
@@ -2324,7 +2337,10 @@ async fn run_composed(
     let mut database_lock = None;
     let database_path = prepared_database_path;
     let mut snapback = match database_path.as_ref() {
-        None => startup_blocking(LocalSnapback::memory)?,
+        None => match target {
+            Some(target) => startup_blocking(|| LocalSnapback::memory_for_target(target))?,
+            None => startup_blocking(LocalSnapback::memory)?,
+        },
         Some(db_path) => {
             // @ref LLP 0003#decision — one local server process owns the SQLite
             // database and process-local runtime state for this app instance.
@@ -2339,7 +2355,10 @@ async fn run_composed(
                     .ensure_valid()
                     .context("database target changed while acquiring its inner lock")?;
             }
-            let opened = startup_blocking(|| LocalSnapback::open(db_path));
+            let opened = startup_blocking(|| match target {
+                Some(target) => LocalSnapback::open_for_target(db_path, target),
+                None => LocalSnapback::open(db_path),
+            });
             if let Some(reservation) = &startup_target_reservation {
                 reservation
                     .ensure_valid()
@@ -4577,6 +4596,33 @@ mod tests {
     use std::time::Duration;
     use tokio::net::TcpListener;
 
+    fn telemetry_target_descriptor(environment_id: &str) -> crate::deploy::TargetDescriptor {
+        crate::deploy::TargetDescriptor {
+            schema_version: crate::deploy::TargetDescriptorVersion::V1,
+            target_id: "target-cli-telemetry".to_owned(),
+            project_id: "project-cli-telemetry".to_owned(),
+            environment_id: environment_id.to_owned(),
+            deployment_id: "deployment-cli-telemetry".to_owned(),
+            database_id: "database-cli-telemetry".to_owned(),
+            stream_incarnation: "stream-cli-telemetry".to_owned(),
+            target_profile_id: "profile-cli-telemetry".to_owned(),
+            production_class: crate::deploy::TargetProductionClass::Preview,
+            adapter: crate::deploy::VmAdapterDescriptor {
+                kind: crate::deploy::VmAdapterKind::SingleInstanceContainerVm,
+                version: "1.0.0".to_owned(),
+                driver_path: "/trusted/adapter".to_owned(),
+                driver_sha256: "00".repeat(32),
+                provider: "provider-cli-telemetry".to_owned(),
+                account_fingerprint: "account-cli-telemetry".to_owned(),
+                region: "region-cli-telemetry".to_owned(),
+                public_origin: "https://cli-telemetry.example".to_owned(),
+                credential_ref: "credential-cli-telemetry".to_owned(),
+                state_store_ref: "state-cli-telemetry".to_owned(),
+            },
+            created_at_ms: 1,
+        }
+    }
+
     #[test]
     fn production_readiness_exposes_item7_before_item8() {
         let mut snapback = crate::local::LocalSnapback::memory().unwrap();
@@ -4609,6 +4655,57 @@ mod tests {
         assert!(after_lease_install.authority_descriptor);
         assert!(after_lease_install.authorization_invalidation);
         assert!(after_lease_install.authorized_lease);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn typed_target_runner_threads_descriptor_environment_into_store_meta() {
+        let directory = tempfile::tempdir().expect("typed target runner fixture");
+        let database = directory.path().join("app.sqlite3");
+        let ready = directory.path().join("ready.json");
+        let environment_id = "environment-from-target-descriptor";
+        let target = telemetry_target_descriptor(environment_id);
+        let server = tokio::spawn(super::run_for_target(
+            Args {
+                host: "127.0.0.1".to_owned(),
+                port: Some(0),
+                db: database.clone(),
+                ready_file: Some(ready.clone()),
+                ..Args::default()
+            },
+            target,
+        ));
+        let deadline = std::time::Instant::now() + Duration::from_secs(10);
+        while !ready.exists() {
+            if server.is_finished() {
+                let outcome = server.await;
+                panic!("typed target startup exited before readiness: {outcome:?}");
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "typed target startup never reached readiness"
+            );
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+        let telemetry = crate::telemetry::Telemetry::path_for_database(&database);
+        while !telemetry.exists() {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "typed target telemetry store was never materialized"
+            );
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+        let (app_id, environment): (String, String) = rusqlite::Connection::open(&telemetry)
+            .unwrap()
+            .query_row(
+                "SELECT app_id,environment FROM telemetry_meta WHERE singleton=1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(app_id, crate::manifest::SchemaManifest::default().app_id);
+        assert_eq!(environment, environment_id);
+        server.abort();
+        let _ = server.await;
     }
 
     fn stop_descriptor(startup_nonce: Option<&str>) -> crate::host_ops::HostReadyDescriptor {

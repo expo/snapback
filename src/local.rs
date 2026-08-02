@@ -2908,6 +2908,10 @@ pub struct LocalSnapback {
     // observations live in an independently opened sibling store and are
     // visibility-bound to the app database's authorization incarnation.
     telemetry: crate::telemetry::Telemetry,
+    /// Trusted app/environment binding supplied only by a target descriptor.
+    /// `None` is the legacy compatibility posture: telemetry still records,
+    /// but self-describing export fails closed rather than inventing identity.
+    telemetry_store_identity: Option<crate::telemetry::TelemetryStoreIdentity>,
     runtime: RuntimeManager,
     ephemeral: LocalEphemeralBackend,
     // Physical mutex ownership is released before committed ephemeral
@@ -3836,24 +3840,77 @@ impl ManagedHostPlanAction {
 
 impl LocalSnapback {
     pub fn memory() -> SnapbackResult<Self> {
-        let snapback = Self::from_database(LocalDatabase::memory()?)?;
+        let snapback = Self::from_database(LocalDatabase::memory()?, None)?;
+        snapback.record_process_start_lifecycle();
+        Ok(snapback)
+    }
+
+    /// Construct an in-memory production instance under an authoritative
+    /// target descriptor. The schema owns `app_id`; the descriptor owns the
+    /// opaque environment identifier.
+    // @ref LLP 0154#d1--telemetry-store-a-sibling-sqlite-database-generation-bound —
+    //   local production construction consumes descriptor authority directly.
+    pub fn memory_for_target(target: &crate::deploy::TargetDescriptor) -> SnapbackResult<Self> {
+        let db = LocalDatabase::memory()?;
+        let identity = Self::telemetry_identity_for_target(&db, target)?;
+        let snapback = Self::from_database(db, Some(identity))?;
         snapback.record_process_start_lifecycle();
         Ok(snapback)
     }
 
     pub fn open(path: impl AsRef<Path>) -> SnapbackResult<Self> {
-        let path = path.as_ref();
+        Self::open_with_optional_target(path.as_ref(), None)
+    }
+
+    /// Open a file-backed production instance under an authoritative target
+    /// descriptor. Compatibility [`Self::open`] intentionally remains
+    /// unbound; it never derives identity from the path or target profile.
+    // @ref LLP 0154#d1--telemetry-store-a-sibling-sqlite-database-generation-bound —
+    //   app and environment identity enter together at the production seam.
+    pub fn open_for_target(
+        path: impl AsRef<Path>,
+        target: &crate::deploy::TargetDescriptor,
+    ) -> SnapbackResult<Self> {
+        Self::open_with_optional_target(path.as_ref(), Some(target))
+    }
+
+    fn open_with_optional_target(
+        path: &Path,
+        target: Option<&crate::deploy::TargetDescriptor>,
+    ) -> SnapbackResult<Self> {
         let config = ConfigStore::open_for_database(path)?;
-        let mut snapback = Self::from_database(LocalDatabase::open(path)?)?;
+        let db = LocalDatabase::open(path)?;
+        let identity = target
+            .map(|target| Self::telemetry_identity_for_target(&db, target))
+            .transpose()?;
+        let mut snapback = Self::from_database(db, identity.clone())?;
         let incarnation = snapback.db.ensure_authorization_stream_incarnation()?;
-        snapback.telemetry = crate::telemetry::Telemetry::open_for_database(
-            path,
-            incarnation.as_str(),
-            config.telemetry_config().clone(),
-        )?;
+        snapback.telemetry = match identity {
+            Some(identity) => crate::telemetry::Telemetry::open_for_database_with_identity(
+                path,
+                incarnation.as_str(),
+                identity,
+                config.telemetry_config().clone(),
+            )?,
+            None => crate::telemetry::Telemetry::open_for_database(
+                path,
+                incarnation.as_str(),
+                config.telemetry_config().clone(),
+            )?,
+        };
         snapback.record_process_start_lifecycle();
         snapback.config = config;
         Ok(snapback)
+    }
+
+    fn telemetry_identity_for_target(
+        db: &LocalDatabase,
+        target: &crate::deploy::TargetDescriptor,
+    ) -> SnapbackResult<crate::telemetry::TelemetryStoreIdentity> {
+        crate::telemetry::TelemetryStoreIdentity::new(
+            db.schema().app_id.clone(),
+            target.environment_id.clone(),
+        )
     }
 
     pub(crate) fn telemetry(&self) -> crate::telemetry::Telemetry {
@@ -3904,8 +3961,7 @@ impl LocalSnapback {
         lifecycle_name: &str,
     ) -> SnapbackResult<()> {
         let incarnation = self.db.ensure_authorization_stream_incarnation()?;
-        self.telemetry
-            .finish_generation_transition(incarnation.as_str())?;
+        self.finish_telemetry_generation_transition(incarnation.as_str())?;
         self.telemetry.point(
             "lifecycle",
             lifecycle_name,
@@ -3915,6 +3971,23 @@ impl LocalSnapback {
             None,
             crate::telemetry::Priority::Reserved,
         );
+        Ok(())
+    }
+
+    fn finish_telemetry_generation_transition(
+        &mut self,
+        incarnation: &str,
+    ) -> SnapbackResult<()> {
+        let Some(current) = self.telemetry_store_identity.as_ref() else {
+            return self.telemetry.finish_generation_transition(incarnation);
+        };
+        let successor = crate::telemetry::TelemetryStoreIdentity::new(
+            self.db.schema().app_id.clone(),
+            current.environment_id.clone(),
+        )?;
+        self.telemetry
+            .finish_generation_transition_with_identity(incarnation, successor.clone())?;
+        self.telemetry_store_identity = Some(successor);
         Ok(())
     }
 
@@ -4453,7 +4526,48 @@ impl LocalSnapback {
             move |snapback| {
                 let ephemeral_collections = manifest.ephemeral_collections.clone();
                 let generation = next_app_generation()?;
-                let mut diagnostics = snapback.db.apply_schema(manifest)?;
+                let successor_telemetry_identity = snapback
+                    .telemetry_store_identity
+                    .as_ref()
+                    .map(|current| {
+                        crate::telemetry::TelemetryStoreIdentity::new(
+                            manifest.app_id.clone(),
+                            current.environment_id.clone(),
+                        )
+                    })
+                    .transpose()?;
+                let telemetry_identity_changes = successor_telemetry_identity
+                    != snapback.telemetry_store_identity;
+                let telemetry_incarnation = telemetry_identity_changes
+                    .then(|| snapback.db.ensure_authorization_stream_incarnation())
+                    .transpose()?;
+                if telemetry_identity_changes {
+                    // Fence before the app-schema commit. A successor app id
+                    // must never admit rows under its predecessor's meta pair.
+                    // @ref LLP 0154#d1--telemetry-store-a-sibling-sqlite-database-generation-bound —
+                    //   schema publication rotates identity without relabeling
+                    //   predecessor-generation rows.
+                    snapback.telemetry.begin_generation_transition();
+                }
+                let mut diagnostics = match snapback.db.apply_schema(manifest) {
+                    Ok(diagnostics) => diagnostics,
+                    Err(error) => {
+                        if telemetry_identity_changes {
+                            snapback.telemetry.cancel_generation_transition();
+                        }
+                        return Err(error);
+                    }
+                };
+                if let Some(incarnation) = telemetry_incarnation {
+                    if let Err(error) = snapback
+                        .finish_telemetry_generation_transition(incarnation.as_str())
+                    {
+                        // The schema commit is durable. Keep telemetry closed
+                        // and surface the independent sibling failure rather
+                        // than reporting a rollback that did not happen.
+                        diagnostics.push(error.diagnostic);
+                    }
+                }
                 let ephemeral = snapback.ephemeral.clone();
                 crate::exec_guard::run_or_defer_after_local(move || {
                     ephemeral
@@ -4547,6 +4661,11 @@ impl LocalSnapback {
         }
 
         self.functions = manifest;
+        // @ref LLP 0154#d2--the-observation-span-classification-registry-and-phase-1-kinds —
+        //   publish exact release identity before the activation marker and
+        //   every subsequently admitted operation.
+        self.telemetry
+            .set_release(self.functions.bundle_hash.as_deref());
         self.functions_loaded = true;
         self.db.set_projections(self.functions.projections.clone());
         self.install_app_generation(generation);
@@ -4713,6 +4832,10 @@ impl LocalSnapback {
             }
         }
         self.functions = manifest;
+        // @ref LLP 0154#d2--the-observation-span-classification-registry-and-phase-1-kinds —
+        //   complete-pair publication uses the same release cut as raw dev.
+        self.telemetry
+            .set_release(self.functions.bundle_hash.as_deref());
         self.functions_loaded = true;
         self.db.set_projections(self.functions.projections.clone());
         self.install_app_generation(generation);
@@ -4880,9 +5003,8 @@ impl LocalSnapback {
             .attempt_reset_and_seed_with_authorization_stream(seed, predecessor, successor)
         {
             AuthTransactionAttempt::Committed(seeded) => {
-                if let Err(error) = self
-                    .telemetry
-                    .finish_generation_transition(successor.as_str())
+                if let Err(error) =
+                    self.finish_telemetry_generation_transition(successor.as_str())
                 {
                     // The app reset is already durable. Keep telemetry closed
                     // if its independent sibling cannot rebind; reporting a
@@ -4970,9 +5092,8 @@ impl LocalSnapback {
             .attempt_versioned_seed_reset_with_authorization_stream(request, predecessor, successor)
         {
             AuthTransactionAttempt::Committed((seeded, receipt)) => {
-                if let Err(error) = self
-                    .telemetry
-                    .finish_generation_transition(successor.as_str())
+                if let Err(error) =
+                    self.finish_telemetry_generation_transition(successor.as_str())
                 {
                     self.record_attached_diagnostics(vec![error.diagnostic]);
                 } else {
@@ -18183,7 +18304,10 @@ impl LocalSnapback {
             .collect()
     }
 
-    fn from_database(mut db: LocalDatabase) -> SnapbackResult<Self> {
+    fn from_database(
+        mut db: LocalDatabase,
+        telemetry_store_identity: Option<crate::telemetry::TelemetryStoreIdentity>,
+    ) -> SnapbackResult<Self> {
         // LocalSnapback is the auth-capable embedding boundary. Complete the
         // explicit stream migration here, before the instance can disappear
         // behind a managed server mutex; managed authorization writes may then
@@ -18212,10 +18336,17 @@ impl LocalSnapback {
             }
         }
         let runtime = RuntimeManager::detect();
-        let telemetry = crate::telemetry::Telemetry::in_memory(
-            auth_stream_incarnation.as_str(),
-            crate::telemetry::TelemetryConfig::default(),
-        )?;
+        let telemetry = match telemetry_store_identity.clone() {
+            Some(identity) => crate::telemetry::Telemetry::in_memory_with_identity(
+                auth_stream_incarnation.as_str(),
+                identity,
+                crate::telemetry::TelemetryConfig::default(),
+            )?,
+            None => crate::telemetry::Telemetry::in_memory(
+                auth_stream_incarnation.as_str(),
+                crate::telemetry::TelemetryConfig::default(),
+            )?,
+        };
         let cron = LocalCronRuntime::from_persisted(db.load_cron_state()?)?;
         let auth_mode = db.auth_mode_snapshot()?.state;
         // @ref LLP 0081#4-execution-journaling-and-crash-recovery — the
@@ -18274,6 +18405,7 @@ impl LocalSnapback {
             functions_loaded: false,
             config: ConfigStore::in_memory(),
             telemetry,
+            telemetry_store_identity,
             runtime,
             ephemeral: LocalEphemeralBackend::new(),
             managed_local_handoff: Arc::new(crate::exec_guard::ManagedLocalHandoff::default()),
@@ -25309,6 +25441,33 @@ mod tests {
     use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU64, Ordering};
     use std::time::{Duration, Instant};
+
+    fn target_descriptor(environment_id: &str) -> crate::deploy::TargetDescriptor {
+        crate::deploy::TargetDescriptor {
+            schema_version: crate::deploy::TargetDescriptorVersion::V1,
+            target_id: "target-telemetry-fixture".to_owned(),
+            project_id: "project-telemetry-fixture".to_owned(),
+            environment_id: environment_id.to_owned(),
+            deployment_id: "deployment-telemetry-fixture".to_owned(),
+            database_id: "database-telemetry-fixture".to_owned(),
+            stream_incarnation: "stream-telemetry-fixture".to_owned(),
+            target_profile_id: "profile-telemetry-fixture".to_owned(),
+            production_class: crate::deploy::TargetProductionClass::Preview,
+            adapter: crate::deploy::VmAdapterDescriptor {
+                kind: crate::deploy::VmAdapterKind::SingleInstanceContainerVm,
+                version: "1.0.0".to_owned(),
+                driver_path: "/trusted/adapter".to_owned(),
+                driver_sha256: "00".repeat(32),
+                provider: "provider-telemetry-fixture".to_owned(),
+                account_fingerprint: "account-telemetry-fixture".to_owned(),
+                region: "region-telemetry-fixture".to_owned(),
+                public_origin: "https://telemetry-fixture.example".to_owned(),
+                credential_ref: "credential-telemetry-fixture".to_owned(),
+                state_store_ref: "state-telemetry-fixture".to_owned(),
+            },
+            created_at_ms: 1,
+        }
+    }
 
     struct CounterRandom(AtomicU8);
 
@@ -39671,6 +39830,242 @@ globalThis.__snapbackHandlers = {
             )
             .unwrap();
         assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn function_activation_publishes_exact_release_before_lifecycle_marker() {
+        let mut snapback = LocalSnapback::memory().expect("release activation fixture");
+        let release = "bundle-release".repeat(1_024);
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            bundle_hash: Some(release.clone()),
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics.iter().all(|diagnostic| !matches!(
+                diagnostic.severity,
+                crate::diagnostic::DiagnosticSeverity::Error
+                    | crate::diagnostic::DiagnosticSeverity::Fatal
+            )),
+            "activation diagnostics: {diagnostics:?}"
+        );
+        snapback
+            .telemetry
+            .force_flush()
+            .expect("flush release lifecycle");
+        assert_eq!(
+            snapback
+                .telemetry
+                .event_releases_for_test("lifecycle", "process_start"),
+            vec![None],
+            "pre-activation lifecycle evidence has no release"
+        );
+        assert_eq!(
+            snapback
+                .telemetry
+                .event_releases_for_test("lifecycle", "release_activation"),
+            vec![Some(release.clone())],
+            "activation marker is attributed to the exact installed bundle"
+        );
+
+        let pair_release = "pair-release".repeat(1_024);
+        let generation = snapback
+            .reserve_function_publication_generation()
+            .expect("reserve complete-pair publication");
+        let diagnostics = snapback.publish_preflighted_functions(
+            FunctionManifest {
+                bundle_hash: Some(pair_release.clone()),
+                ..FunctionManifest::default()
+            },
+            generation,
+            DiagnosticBoundary::Attached,
+        );
+        assert!(
+            diagnostics.iter().all(|diagnostic| !matches!(
+                diagnostic.severity,
+                crate::diagnostic::DiagnosticSeverity::Error
+                    | crate::diagnostic::DiagnosticSeverity::Fatal
+            )),
+            "complete-pair activation diagnostics: {diagnostics:?}"
+        );
+        snapback
+            .telemetry
+            .force_flush()
+            .expect("flush complete-pair release lifecycle");
+        assert_eq!(
+            snapback
+                .telemetry
+                .event_releases_for_test("lifecycle", "release_activation"),
+            vec![Some(release), Some(pair_release)],
+            "both activation paths publish their exact bundle before the marker"
+        );
+    }
+
+    #[test]
+    fn target_descriptor_identity_survives_restart_and_compatibility_open_unbinds() {
+        let directory = tempfile::tempdir().expect("target identity fixture directory");
+        let database_path = directory.path().join("target-identity.sqlite3");
+        let environment_id = "opaque-environment-identity";
+        let target = target_descriptor(environment_id);
+        let app_id = SchemaManifest::default().app_id;
+
+        let snapback = LocalSnapback::open_for_target(&database_path, &target)
+            .expect("open descriptor-bound instance");
+        snapback
+            .telemetry
+            .force_flush()
+            .expect("flush descriptor-bound process start");
+        let telemetry_path = crate::telemetry::Telemetry::path_for_database(&database_path);
+        let first: (String, Option<String>, Option<String>) =
+            rusqlite::Connection::open(&telemetry_path)
+                .unwrap()
+                .query_row(
+                    "SELECT generation,app_id,environment FROM telemetry_meta WHERE singleton=1",
+                    [],
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                )
+                .unwrap();
+        assert_eq!(first.1.as_deref(), Some(app_id.as_str()));
+        assert_eq!(first.2.as_deref(), Some(environment_id));
+        drop(snapback);
+
+        let reopened = LocalSnapback::open_for_target(&database_path, &target)
+            .expect("reopen under the same descriptor");
+        reopened.telemetry.force_flush().unwrap();
+        let same: (String, Option<String>, Option<String>) =
+            rusqlite::Connection::open(&telemetry_path)
+                .unwrap()
+                .query_row(
+                    "SELECT generation,app_id,environment FROM telemetry_meta WHERE singleton=1",
+                    [],
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                )
+                .unwrap();
+        assert_eq!(same, first, "same descriptor does not rotate identity");
+        drop(reopened);
+
+        let compatibility = LocalSnapback::open(&database_path)
+            .expect("compatibility open remains available but unbound");
+        compatibility.telemetry.force_flush().unwrap();
+        let unbound: (String, Option<String>, Option<String>) =
+            rusqlite::Connection::open(&telemetry_path)
+                .unwrap()
+                .query_row(
+                    "SELECT generation,app_id,environment FROM telemetry_meta WHERE singleton=1",
+                    [],
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                )
+                .unwrap();
+        assert_ne!(unbound.0, first.0);
+        assert_eq!((unbound.1, unbound.2), (None, None));
+    }
+
+    #[test]
+    fn schema_app_identity_change_rotates_without_relabeling_predecessor_rows() {
+        let directory = tempfile::tempdir().expect("schema identity fixture directory");
+        let database_path = directory.path().join("schema-identity.sqlite3");
+        let environment_id = "preview-exact";
+        let target = target_descriptor(environment_id);
+        let mut snapback = LocalSnapback::open_for_target(&database_path, &target)
+            .expect("open descriptor-bound instance");
+        snapback.telemetry.force_flush().unwrap();
+        let telemetry_path = crate::telemetry::Telemetry::path_for_database(&database_path);
+        let predecessor_generation: String = rusqlite::Connection::open(&telemetry_path)
+            .unwrap()
+            .query_row(
+                "SELECT generation FROM telemetry_meta WHERE singleton=1",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+
+        let mut same_app = SchemaManifest::default();
+        same_app.generated_at = Some(1);
+        snapback
+            .apply_schema(same_app)
+            .expect("publish same-app schema");
+        let same_generation: String = rusqlite::Connection::open(&telemetry_path)
+            .unwrap()
+            .query_row(
+                "SELECT generation FROM telemetry_meta WHERE singleton=1",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(same_generation, predecessor_generation);
+
+        let successor_app_id = "successor-app-identity".to_owned();
+        let mut successor = SchemaManifest::default();
+        successor.app_id = successor_app_id.clone();
+        successor.generated_at = Some(2);
+        let diagnostics = snapback
+            .apply_schema(successor)
+            .expect("publish successor app identity");
+        assert!(diagnostics.iter().all(|diagnostic| !matches!(
+            diagnostic.severity,
+            crate::diagnostic::DiagnosticSeverity::Error
+                | crate::diagnostic::DiagnosticSeverity::Fatal
+        )));
+
+        let raw = rusqlite::Connection::open(&telemetry_path).unwrap();
+        let successor_meta: (String, String, String) = raw
+            .query_row(
+                "SELECT generation,app_id,environment FROM telemetry_meta WHERE singleton=1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+        assert_ne!(successor_meta.0, predecessor_generation);
+        assert_eq!(successor_meta.1, successor_app_id);
+        assert_eq!(successor_meta.2, environment_id);
+        let total: i64 = raw
+            .query_row("SELECT count(*) FROM telemetry_events", [], |row| row.get(0))
+            .unwrap();
+        let visible: i64 = raw
+            .query_row("SELECT count(*) FROM telemetry_events_visible", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert!(total > 0, "predecessor rows remain physically present");
+        assert_eq!(visible, 0, "predecessor rows are generation-hidden");
+    }
+
+    #[test]
+    fn descriptor_bound_reset_rotates_generation_and_preserves_exact_identity() {
+        let directory = tempfile::tempdir().expect("reset identity fixture directory");
+        let database_path = directory.path().join("reset-identity.sqlite3");
+        let environment_id = "reset-environment-from-descriptor";
+        let target = target_descriptor(environment_id);
+        let mut snapback = LocalSnapback::open_for_target(&database_path, &target)
+            .expect("open descriptor-bound reset fixture");
+        snapback.telemetry.force_flush().unwrap();
+        let telemetry_path = crate::telemetry::Telemetry::path_for_database(&database_path);
+        let before: (String, String, String) = rusqlite::Connection::open(&telemetry_path)
+            .unwrap()
+            .query_row(
+                "SELECT generation,app_id,environment FROM telemetry_meta WHERE singleton=1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+
+        snapback.reset().expect("descriptor-bound reset commits");
+        snapback
+            .telemetry
+            .force_flush()
+            .expect("flush successor reset lifecycle");
+        let after: (String, String, String) = rusqlite::Connection::open(&telemetry_path)
+            .unwrap()
+            .query_row(
+                "SELECT generation,app_id,environment FROM telemetry_meta WHERE singleton=1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+        assert_ne!(after.0, before.0);
+        assert_eq!(after.1, before.1);
+        assert_eq!(after.2, before.2);
+        assert_eq!(after.1, SchemaManifest::default().app_id);
+        assert_eq!(after.2, environment_id);
     }
 
     #[test]

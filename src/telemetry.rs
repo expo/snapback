@@ -48,6 +48,39 @@ pub const DEFAULT_TOP_NAMES_PER_HOUR: usize = 200;
 pub const DEFAULT_ROLLUP_ROW_CAP: usize = 1_000_000;
 pub const DEFAULT_SWEEP_INTERVAL_MS: u64 = 6 * 60 * 60 * 1_000;
 
+/// Trusted identity of the app/environment that owns one telemetry sibling.
+/// These values are never accepted from an event payload and are never
+/// truncated: rows inherit them from `telemetry_meta` only when exported.
+///
+/// @ref LLP 0154#d1--telemetry-store-a-sibling-sqlite-database-generation-bound —
+///   one store binding supplies app/environment identity for every row.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct TelemetryStoreIdentity {
+    pub(crate) app_id: String,
+    pub(crate) environment_id: String,
+}
+
+impl TelemetryStoreIdentity {
+    pub(crate) fn new(
+        app_id: impl Into<String>,
+        environment_id: impl Into<String>,
+    ) -> SnapbackResult<Self> {
+        let identity = Self {
+            app_id: app_id.into(),
+            environment_id: environment_id.into(),
+        };
+        if identity.app_id.trim().is_empty() || identity.environment_id.trim().is_empty() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_TELEMETRY_IDENTITY_INVALID",
+                "telemetry",
+                "telemetry store identity requires non-empty app and environment values",
+            ));
+        }
+        Ok(identity)
+    }
+
+}
+
 fn default_max_days() -> u32 {
     DEFAULT_MAX_DAYS
 }
@@ -215,6 +248,10 @@ struct Event {
     duration_ms: Option<f64>,
     code: Option<String>,
     correlation: Option<String>,
+    // @ref LLP 0154#d2--the-observation-span-classification-registry-and-phase-1-kinds —
+    //   release is exact first-class identity captured at admission, not a
+    //   capped detail or an export-time ambient value.
+    release: Option<String>,
     details: Option<Value>,
     priority: Priority,
     enqueued_at: Instant,
@@ -230,6 +267,7 @@ pub struct ObservationSpan {
     kind: String,
     name: String,
     correlation: Option<String>,
+    release: Option<String>,
     details: Option<Value>,
     long_lived: bool,
     active: bool,
@@ -270,6 +308,7 @@ impl ObservationSpan {
             duration_ms: Some(self.started.elapsed().as_secs_f64() * 1000.0),
             code: code.map(|value| cap(value, CODE_MAX_BYTES)),
             correlation: self.correlation.clone(),
+            release: self.release.clone(),
             details: scrub_details(details).or_else(|| self.details.clone()),
             priority,
             enqueued_at: Instant::now(),
@@ -303,6 +342,7 @@ impl Drop for ObservationSpan {
             duration_ms: Some(self.started.elapsed().as_secs_f64() * 1000.0),
             code: None,
             correlation: self.correlation.clone(),
+            release: self.release.clone(),
             details: scrub_details(Some(json!({ "cause": "cancelled" })))
                 .or_else(|| self.details.clone()),
             priority: Priority::Reserved,
@@ -403,6 +443,7 @@ struct Shared {
     store: Mutex<Store>,
     flush_gate: Mutex<()>,
     config: RwLock<TelemetryConfig>,
+    release: RwLock<Option<String>>,
     worker_started: AtomicBool,
     worker_handle: Mutex<Option<std::thread::JoinHandle<()>>>,
     shutdown_flush_failed: AtomicBool,
@@ -430,6 +471,12 @@ impl Drop for Producer {
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .clone();
         let panicking = std::thread::panicking();
+        let release = self
+            .shared
+            .release
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clone();
         let mut graceful_admitted = false;
         {
             let mut buffer = self
@@ -459,6 +506,7 @@ impl Drop for Producer {
                     duration_ms: None,
                     code: None,
                     correlation: None,
+                    release,
                     details: None,
                     priority: Priority::Reserved,
                     enqueued_at: Instant::now(),
@@ -530,7 +578,21 @@ impl std::fmt::Debug for Telemetry {
 
 impl Telemetry {
     pub fn in_memory(app_db_incarnation: &str, config: TelemetryConfig) -> SnapbackResult<Self> {
-        Self::from_store(Store::memory(app_db_incarnation, config.clone())?, config)
+        Self::from_store(
+            Store::memory_unbound(app_db_incarnation, config.clone())?,
+            config,
+        )
+    }
+
+    pub(crate) fn in_memory_with_identity(
+        app_db_incarnation: &str,
+        identity: TelemetryStoreIdentity,
+        config: TelemetryConfig,
+    ) -> SnapbackResult<Self> {
+        Self::from_store(
+            Store::memory_with_identity(app_db_incarnation, identity, config.clone())?,
+            config,
+        )
     }
 
     pub fn open_for_database(
@@ -540,7 +602,20 @@ impl Telemetry {
     ) -> SnapbackResult<Self> {
         let path = telemetry_path(database_path);
         Self::from_store(
-            Store::open(path, app_db_incarnation, config.clone())?,
+            Store::open_unbound(path, app_db_incarnation, config.clone())?,
+            config,
+        )
+    }
+
+    pub(crate) fn open_for_database_with_identity(
+        database_path: &Path,
+        app_db_incarnation: &str,
+        identity: TelemetryStoreIdentity,
+        config: TelemetryConfig,
+    ) -> SnapbackResult<Self> {
+        let path = telemetry_path(database_path);
+        Self::from_store(
+            Store::open_with_identity(path, app_db_incarnation, identity, config.clone())?,
             config,
         )
     }
@@ -560,6 +635,7 @@ impl Telemetry {
             store: Mutex::new(store),
             flush_gate: Mutex::new(()),
             config: RwLock::new(config),
+            release: RwLock::new(None),
             worker_started: AtomicBool::new(false),
             worker_handle: Mutex::new(None),
             shutdown_flush_failed: AtomicBool::new(false),
@@ -601,6 +677,7 @@ impl Telemetry {
         let observation = ids::mint(IdKind::Observation).ok();
         let ts_ms = wall_now_ms();
         let details = scrub_details(details);
+        let release = self.current_release();
         let admission = (long_lived && observation.is_some()).then(|| Event {
             sequence: 0,
             observation: observation
@@ -616,6 +693,7 @@ impl Telemetry {
             duration_ms: None,
             code: None,
             correlation: correlation.map(|value| cap(value, CORRELATION_MAX_BYTES)),
+            release: release.clone(),
             details: details.clone(),
             // D3 reserves capacity for failures and terminal outcomes. A
             // long-lived admission is successful high-volume evidence until
@@ -634,6 +712,7 @@ impl Telemetry {
             kind: cap(kind, 64),
             name: cap(name, NAME_MAX_BYTES),
             correlation: correlation.map(|value| cap(value, CORRELATION_MAX_BYTES)),
+            release,
             details: if long_lived { None } else { details },
             long_lived,
             active,
@@ -666,10 +745,32 @@ impl Telemetry {
             duration_ms: None,
             code: code.map(|value| cap(value, CODE_MAX_BYTES)),
             correlation: correlation.map(|value| cap(value, CORRELATION_MAX_BYTES)),
+            release: self.current_release(),
             details: scrub_details(details),
             priority,
             enqueued_at: Instant::now(),
         });
+    }
+
+    /// Publish the release identity used by subsequent admissions. Spans keep
+    /// the exact release captured at admission even if activation changes
+    /// while they are in flight.
+    pub(crate) fn set_release(&self, release: Option<&str>) {
+        *self
+            .producer
+            .shared
+            .release
+            .write()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = release.map(str::to_owned);
+    }
+
+    fn current_release(&self) -> Option<String> {
+        self.producer
+            .shared
+            .release
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clone()
     }
 
     /// Publish process readiness once at the authoritative surface cut. Both
@@ -894,6 +995,30 @@ impl Telemetry {
     /// Reset/restore phase 2: durably bind a freshly minted generation to the
     /// committed app incarnation before producer admission reopens.
     pub fn finish_generation_transition(&self, app_db_incarnation: &str) -> SnapbackResult<()> {
+        let identity = self
+            .producer
+            .shared
+            .store
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .identity
+            .clone();
+        self.finish_generation_transition_inner(app_db_incarnation, identity)
+    }
+
+    pub(crate) fn finish_generation_transition_with_identity(
+        &self,
+        app_db_incarnation: &str,
+        identity: TelemetryStoreIdentity,
+    ) -> SnapbackResult<()> {
+        self.finish_generation_transition_inner(app_db_incarnation, Some(identity))
+    }
+
+    fn finish_generation_transition_inner(
+        &self,
+        app_db_incarnation: &str,
+        identity: Option<TelemetryStoreIdentity>,
+    ) -> SnapbackResult<()> {
         let generation = {
             let mut store = self
                 .producer
@@ -901,7 +1026,7 @@ impl Telemetry {
                 .store
                 .lock()
                 .unwrap_or_else(|poisoned| poisoned.into_inner());
-            store.rebind(app_db_incarnation, wall_now_ms())?;
+            store.rebind_with_optional_identity(app_db_incarnation, identity, wall_now_ms())?;
             store.generation.clone()
         };
         let enabled = self
@@ -1133,6 +1258,28 @@ impl Telemetry {
             .collect::<Result<Vec<_>, _>>()
             .expect("collect telemetry details")
     }
+
+    #[cfg(test)]
+    pub(crate) fn event_releases_for_test(&self, kind: &str, name: &str) -> Vec<Option<String>> {
+        let mut store = self
+            .producer
+            .shared
+            .store
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let connection = store
+            .ensure_connection(wall_now_ms())
+            .expect("open telemetry store for test release query");
+        connection
+            .prepare(
+                "SELECT release FROM telemetry_events_visible WHERE kind=?1 AND name=?2 ORDER BY id",
+            )
+            .expect("prepare telemetry release query")
+            .query_map(params![kind, name], |row| row.get(0))
+            .expect("query telemetry releases")
+            .collect::<Result<Vec<_>, _>>()
+            .expect("collect telemetry releases")
+    }
 }
 
 fn enqueue_locked(buffer: &mut Buffer, config: &TelemetryConfig, mut event: Event) -> bool {
@@ -1352,7 +1499,6 @@ fn scrub_details(details: Option<Value>) -> Option<Value> {
         "method",
         "rawPath",
         "referer",
-        "release",
         "severity",
         "trigger",
         "userAgent",
@@ -1431,6 +1577,7 @@ struct Store {
     conn: Option<Connection>,
     generation: String,
     app_db_incarnation: String,
+    identity: Option<TelemetryStoreIdentity>,
     config: TelemetryConfig,
     unclean_predecessor: bool,
     replacement_generation: Option<String>,
@@ -1455,7 +1602,28 @@ enum TelemetryFileIdentity {
 }
 
 impl Store {
+    #[cfg(test)]
     fn memory(app_db_incarnation: &str, config: TelemetryConfig) -> SnapbackResult<Self> {
+        Self::memory_unbound(app_db_incarnation, config)
+    }
+
+    fn memory_unbound(app_db_incarnation: &str, config: TelemetryConfig) -> SnapbackResult<Self> {
+        Self::memory_inner(app_db_incarnation, None, config)
+    }
+
+    fn memory_with_identity(
+        app_db_incarnation: &str,
+        identity: TelemetryStoreIdentity,
+        config: TelemetryConfig,
+    ) -> SnapbackResult<Self> {
+        Self::memory_inner(app_db_incarnation, Some(identity), config)
+    }
+
+    fn memory_inner(
+        app_db_incarnation: &str,
+        identity: Option<TelemetryStoreIdentity>,
+        config: TelemetryConfig,
+    ) -> SnapbackResult<Self> {
         config.validate()?;
         let conn = Connection::open_in_memory()?;
         configure_connection(&conn)?;
@@ -1465,6 +1633,7 @@ impl Store {
             &conn,
             &generation,
             app_db_incarnation,
+            identity.as_ref(),
             &config,
             wall_now_ms(),
         )?;
@@ -1474,6 +1643,7 @@ impl Store {
             conn: Some(conn),
             generation,
             app_db_incarnation: app_db_incarnation.to_owned(),
+            identity,
             config,
             unclean_predecessor: false,
             replacement_generation: None,
@@ -1490,9 +1660,36 @@ impl Store {
         })
     }
 
+    #[cfg(test)]
     fn open(
         path: PathBuf,
         app_db_incarnation: &str,
+        config: TelemetryConfig,
+    ) -> SnapbackResult<Self> {
+        Self::open_unbound(path, app_db_incarnation, config)
+    }
+
+    fn open_unbound(
+        path: PathBuf,
+        app_db_incarnation: &str,
+        config: TelemetryConfig,
+    ) -> SnapbackResult<Self> {
+        Self::open_inner(path, app_db_incarnation, None, config)
+    }
+
+    fn open_with_identity(
+        path: PathBuf,
+        app_db_incarnation: &str,
+        identity: TelemetryStoreIdentity,
+        config: TelemetryConfig,
+    ) -> SnapbackResult<Self> {
+        Self::open_inner(path, app_db_incarnation, Some(identity), config)
+    }
+
+    fn open_inner(
+        path: PathBuf,
+        app_db_incarnation: &str,
+        identity: Option<TelemetryStoreIdentity>,
         config: TelemetryConfig,
     ) -> SnapbackResult<Self> {
         config.validate()?;
@@ -1502,6 +1699,7 @@ impl Store {
             conn: None,
             generation: ids::mint(IdKind::Generation)?,
             app_db_incarnation: app_db_incarnation.to_owned(),
+            identity,
             config,
             unclean_predecessor: false,
             replacement_generation: None,
@@ -1557,6 +1755,7 @@ impl Store {
                 &conn,
                 &self.generation,
                 &self.app_db_incarnation,
+                self.identity.as_ref(),
                 &self.config,
                 now_ms,
             )?;
@@ -1572,12 +1771,13 @@ impl Store {
         let config = self.config.clone();
         let current_generation = self.generation.clone();
         let current_incarnation = self.app_db_incarnation.clone();
+        let current_identity = self.identity.clone();
         let conn = self.conn.as_mut().expect("existing telemetry connection");
-        let row: Option<(String, String, i64, i64)> = conn
+        let row: Option<(String, String, Option<String>, Option<String>, i64, i64)> = conn
             .query_row(
-                "SELECT generation, app_db_incarnation, observation_clock_ms, clean_shutdown FROM telemetry_meta WHERE singleton = 1",
+                "SELECT generation, app_db_incarnation, app_id, environment, observation_clock_ms, clean_shutdown FROM telemetry_meta WHERE singleton = 1",
                 [],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?)),
             )
             .optional()?;
         match row {
@@ -1585,24 +1785,46 @@ impl Store {
                 conn,
                 &current_generation,
                 &current_incarnation,
+                current_identity.as_ref(),
                 &config,
                 now_ms,
             )?,
-            Some((generation, incarnation, high_water, clean_shutdown))
-                if incarnation == current_incarnation =>
+            Some((generation, incarnation, app_id, environment, high_water, clean_shutdown))
+                if incarnation == current_incarnation
+                    && match current_identity.as_ref() {
+                        Some(identity) => {
+                            app_id.as_deref() == Some(identity.app_id.as_str())
+                                && environment.as_deref()
+                                    == Some(identity.environment_id.as_str())
+                        }
+                        None => app_id.is_none() && environment.is_none(),
+                    } =>
             {
                 self.generation = generation;
                 self.unclean_predecessor = clean_shutdown == 0;
                 let clock = now_ms.max(high_water.saturating_add(1));
                 advance_boundary(conn, &config, clock)?;
             }
-            Some((_generation, _incarnation, high_water, clean_shutdown)) => {
+            Some((
+                _generation,
+                _incarnation,
+                _stored_app_id,
+                _stored_environment,
+                high_water,
+                clean_shutdown,
+            )) => {
                 self.unclean_predecessor = clean_shutdown == 0;
                 let generation = ids::mint(IdKind::Generation)?;
                 let clock = now_ms.max(high_water.saturating_add(1));
+                let app_id = current_identity
+                    .as_ref()
+                    .map(|identity| identity.app_id.as_str());
+                let environment = current_identity
+                    .as_ref()
+                    .map(|identity| identity.environment_id.as_str());
                 conn.execute(
-                    "UPDATE telemetry_meta SET generation=?1, app_db_incarnation=?2, max_days_mirror=?3, observation_clock_ms=?4, retention_floor=max(retention_floor, ?5), rollup_watermark_id=0, last_sweep_ms=0, aggregate_floor_hourly=0, aggregate_floor_daily=0 WHERE singleton=1",
-                    params![generation, current_incarnation, config.max_days, clock, boundary_for(&config, clock)],
+                    "UPDATE telemetry_meta SET generation=?1, app_db_incarnation=?2, app_id=?3, environment=?4, max_days_mirror=?5, observation_clock_ms=?6, retention_floor=max(retention_floor, ?7), rollup_watermark_id=0, last_sweep_ms=0, aggregate_floor_hourly=0, aggregate_floor_daily=0 WHERE singleton=1",
+                    params![generation, current_incarnation, app_id, environment, config.max_days, clock, boundary_for(&config, clock)],
                 )?;
                 self.generation = generation;
             }
@@ -1620,24 +1842,71 @@ impl Store {
     fn bind_replacement(&mut self, now_ms: i64) -> SnapbackResult<()> {
         let generation = self.generation.clone();
         let incarnation = self.app_db_incarnation.clone();
+        let identity = self.identity.clone();
         let config = self.config.clone();
         let conn = self.conn.as_mut().expect("replacement connection");
-        let high_water: Option<i64> = conn
+        let row: Option<(i64, Option<String>, Option<String>)> = conn
             .query_row(
-                "SELECT observation_clock_ms FROM telemetry_meta WHERE singleton=1",
+                "SELECT observation_clock_ms,app_id,environment FROM telemetry_meta WHERE singleton=1",
                 [],
-                |row| row.get(0),
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
             )
             .optional()?;
-        if let Some(high_water) = high_water {
+        if let Some((high_water, _stored_app_id, _stored_environment)) = row {
             let clock = now_ms.max(high_water.saturating_add(1));
+            let app_id = identity.as_ref().map(|identity| identity.app_id.as_str());
+            let environment = identity
+                .as_ref()
+                .map(|identity| identity.environment_id.as_str());
             conn.execute(
-                "UPDATE telemetry_meta SET generation=?1, app_db_incarnation=?2, max_days_mirror=?3, observation_clock_ms=?4, retention_floor=max(retention_floor,?5), rollup_watermark_id=0, last_sweep_ms=0, aggregate_floor_hourly=0, aggregate_floor_daily=0, clean_shutdown=0 WHERE singleton=1",
-                params![generation, incarnation, config.max_days, clock, boundary_for(&config, clock)],
+                "UPDATE telemetry_meta SET generation=?1, app_db_incarnation=?2, app_id=?3, environment=?4, max_days_mirror=?5, observation_clock_ms=?6, retention_floor=max(retention_floor,?7), rollup_watermark_id=0, last_sweep_ms=0, aggregate_floor_hourly=0, aggregate_floor_daily=0, clean_shutdown=0 WHERE singleton=1",
+                params![generation, incarnation, app_id, environment, config.max_days, clock, boundary_for(&config, clock)],
             )?;
         } else {
-            initialize_meta(conn, &generation, &incarnation, &config, now_ms)?;
+            initialize_meta(
+                conn,
+                &generation,
+                &incarnation,
+                identity.as_ref(),
+                &config,
+                now_ms,
+            )?;
         }
+        Ok(())
+    }
+
+    /// Compose the store-scoped identity into one export record at the egress
+    /// boundary. The eventual streaming exporter calls this while holding the
+    /// same Store owner used for its visibility-view snapshot; event payloads
+    /// cannot supply or override either identity field.
+    ///
+    /// @ref LLP 0154#d9--export-not-retention — exports are self-describing,
+    ///   with app/environment read from the sibling's pinned meta authority.
+    #[allow(dead_code)] // Consumed by the obs-03 streaming exporter lane.
+    fn stamp_export_record(
+        &mut self,
+        record: &mut Map<String, Value>,
+        now_ms: i64,
+    ) -> SnapbackResult<()> {
+        let (app_id, environment): (Option<String>, Option<String>) =
+            self.ensure_connection(now_ms)?.query_row(
+                "SELECT app_id,environment FROM telemetry_meta WHERE singleton=1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )?;
+        let (Some(app_id), Some(environment)) = (app_id, environment) else {
+            return Err(SnapbackError::error(
+                "SNAPBACK_TELEMETRY_IDENTITY_UNBOUND",
+                "telemetry",
+                "telemetry export requires a trusted app/environment store binding",
+            ));
+        };
+        let identity = TelemetryStoreIdentity::new(app_id, environment)?;
+        record.insert("appId".to_owned(), Value::String(identity.app_id));
+        record.insert(
+            "environment".to_owned(),
+            Value::String(identity.environment_id),
+        );
         Ok(())
     }
 
@@ -1655,13 +1924,33 @@ impl Store {
         Ok(())
     }
 
+    #[cfg(test)]
     fn rebind(&mut self, app_db_incarnation: &str, now_ms: i64) -> SnapbackResult<()> {
+        self.rebind_with_optional_identity(app_db_incarnation, self.identity.clone(), now_ms)
+    }
+
+    fn rebind_with_identity(
+        &mut self,
+        app_db_incarnation: &str,
+        identity: TelemetryStoreIdentity,
+        now_ms: i64,
+    ) -> SnapbackResult<()> {
+        self.rebind_with_optional_identity(app_db_incarnation, Some(identity), now_ms)
+    }
+
+    fn rebind_with_optional_identity(
+        &mut self,
+        app_db_incarnation: &str,
+        identity: Option<TelemetryStoreIdentity>,
+        now_ms: i64,
+    ) -> SnapbackResult<()> {
         let generation = ids::mint(IdKind::Generation)?;
         let incarnation = app_db_incarnation.to_owned();
         let config = self.config.clone();
         if self.conn.is_none() && self.path.as_ref().is_some_and(|path| !path.exists()) {
             self.generation = generation;
             self.app_db_incarnation = incarnation;
+            self.identity = identity;
             return Ok(());
         }
         #[cfg(test)]
@@ -1681,12 +1970,17 @@ impl Store {
                 "injected telemetry rebind failure",
             ));
         }
+        let app_id = identity.as_ref().map(|identity| identity.app_id.as_str());
+        let environment = identity
+            .as_ref()
+            .map(|identity| identity.environment_id.as_str());
         conn.execute(
-            "UPDATE telemetry_meta SET generation=?1, app_db_incarnation=?2, max_days_mirror=?3, observation_clock_ms=?4, retention_floor=max(retention_floor, ?5), rollup_watermark_id=0, last_sweep_ms=0, aggregate_floor_hourly=0, aggregate_floor_daily=0 WHERE singleton=1",
-            params![generation, incarnation, config.max_days, clock, boundary_for(&config, clock)],
+            "UPDATE telemetry_meta SET generation=?1, app_db_incarnation=?2, app_id=?3, environment=?4, max_days_mirror=?5, observation_clock_ms=?6, retention_floor=max(retention_floor, ?7), rollup_watermark_id=0, last_sweep_ms=0, aggregate_floor_hourly=0, aggregate_floor_daily=0 WHERE singleton=1",
+            params![generation, incarnation, app_id, environment, config.max_days, clock, boundary_for(&config, clock)],
         )?;
         self.generation = generation;
         self.app_db_incarnation = incarnation;
+        self.identity = identity;
         self.replacement_generation = None;
         Ok(())
     }
@@ -1996,6 +2290,8 @@ fn create_schema(conn: &Connection) -> SnapbackResult<()> {
           singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
           generation TEXT NOT NULL,
           app_db_incarnation TEXT NOT NULL,
+          app_id TEXT,
+          environment TEXT,
           max_days_mirror INTEGER NOT NULL,
           retention_floor INTEGER NOT NULL,
           observation_clock_ms INTEGER NOT NULL,
@@ -2023,6 +2319,7 @@ fn create_schema(conn: &Connection) -> SnapbackResult<()> {
           subject TEXT CHECK (subject IS NULL),
           code TEXT,
           correlation TEXT,
+          release TEXT,
           details TEXT
         );
         CREATE INDEX IF NOT EXISTS telemetry_events_order
@@ -2095,13 +2392,11 @@ fn create_schema(conn: &Connection) -> SnapbackResult<()> {
             );
         ",
     )?;
-    let has_clean_shutdown = conn
+    let meta_columns = conn
         .prepare("PRAGMA table_info(telemetry_meta)")?
         .query_map([], |row| row.get::<_, String>(1))?
-        .collect::<Result<Vec<_>, _>>()?
-        .iter()
-        .any(|name| name == "clean_shutdown");
-    if !has_clean_shutdown {
+        .collect::<Result<BTreeSet<_>, _>>()?;
+    if !meta_columns.contains("clean_shutdown") {
         // Existing stores predate crash ownership. Defaulting their first
         // observation to clean avoids fabricating an unclean predecessor at
         // upgrade; this boot immediately claims the bit afterward.
@@ -2110,6 +2405,23 @@ fn create_schema(conn: &Connection) -> SnapbackResult<()> {
             [],
         )?;
     }
+    // @ref LLP 0154#d1--telemetry-store-a-sibling-sqlite-database-generation-bound —
+    //   identity is pinned once in meta, never copied from an event payload.
+    //   NULL migration values force an explicitly identified boot down its
+    //   generation-rotating rebind path, so legacy rows cannot be relabeled.
+    if !meta_columns.contains("app_id") {
+        conn.execute("ALTER TABLE telemetry_meta ADD COLUMN app_id TEXT", [])?;
+    }
+    if !meta_columns.contains("environment") {
+        conn.execute("ALTER TABLE telemetry_meta ADD COLUMN environment TEXT", [])?;
+    }
+    let event_columns = conn
+        .prepare("PRAGMA table_info(telemetry_events)")?
+        .query_map([], |row| row.get::<_, String>(1))?
+        .collect::<Result<BTreeSet<_>, _>>()?;
+    if !event_columns.contains("release") {
+        conn.execute("ALTER TABLE telemetry_events ADD COLUMN release TEXT", [])?;
+    }
     Ok(())
 }
 
@@ -2117,6 +2429,7 @@ fn initialize_meta(
     conn: &Connection,
     generation: &str,
     incarnation: &str,
+    identity: Option<&TelemetryStoreIdentity>,
     config: &TelemetryConfig,
     now_ms: i64,
 ) -> SnapbackResult<()> {
@@ -2126,8 +2439,8 @@ fn initialize_meta(
         boundary_for(config, now_ms)
     };
     conn.execute(
-        "INSERT OR IGNORE INTO telemetry_meta(singleton,generation,app_db_incarnation,max_days_mirror,retention_floor,observation_clock_ms,aggregate_floor_hourly,aggregate_floor_daily,rollup_watermark_id,last_sweep_ms,drop_counters_lifetime,hourly_days,daily_days,clean_shutdown) VALUES(1,?1,?2,?3,?4,?5,0,0,0,0,'{}',?6,?7,0)",
-        params![generation, incarnation, config.max_days, floor, now_ms, config.hourly_days, config.daily_days],
+        "INSERT OR IGNORE INTO telemetry_meta(singleton,generation,app_db_incarnation,app_id,environment,max_days_mirror,retention_floor,observation_clock_ms,aggregate_floor_hourly,aggregate_floor_daily,rollup_watermark_id,last_sweep_ms,drop_counters_lifetime,hourly_days,daily_days,clean_shutdown) VALUES(1,?1,?2,?3,?4,?5,?6,?7,0,0,0,0,'{}',?8,?9,0)",
+        params![generation, incarnation, identity.map(|identity| identity.app_id.as_str()), identity.map(|identity| identity.environment_id.as_str()), config.max_days, floor, now_ms, config.hourly_days, config.daily_days],
     )?;
     Ok(())
 }
@@ -2168,14 +2481,14 @@ fn boundary_for(config: &TelemetryConfig, clock: i64) -> i64 {
 
 fn insert_batch(tx: &Transaction<'_>, events: &[Event], stamp: i64) -> SnapbackResult<()> {
     let mut sql = String::from(
-        "INSERT INTO telemetry_events(observation,phase,generation,class_v,ts_ms,recorded_ts_ms,kind,name,status,duration_ms,subject,code,correlation,details) VALUES ",
+        "INSERT INTO telemetry_events(observation,phase,generation,class_v,ts_ms,recorded_ts_ms,kind,name,status,duration_ms,subject,code,correlation,release,details) VALUES ",
     );
     let mut values = Vec::<rusqlite::types::Value>::with_capacity(events.len() * 14);
     for (index, event) in events.iter().enumerate() {
         if index > 0 {
             sql.push(',');
         }
-        sql.push_str("(?,?,?,?,?,?,?,?,?,?,NULL,?,?,?)");
+        sql.push_str("(?,?,?,?,?,?,?,?,?,?,NULL,?,?,?,?)");
         values.extend([
             event.observation.clone().into(),
             event.phase.as_str().to_owned().into(),
@@ -2189,6 +2502,7 @@ fn insert_batch(tx: &Transaction<'_>, events: &[Event], stamp: i64) -> SnapbackR
             event.duration_ms.into(),
             event.code.clone().into(),
             event.correlation.clone().into(),
+            event.release.clone().into(),
             event
                 .details
                 .as_ref()
@@ -2857,6 +3171,13 @@ mod tests {
         }
     }
 
+    fn identity(
+        app_id: impl Into<String>,
+        environment: impl Into<String>,
+    ) -> TelemetryStoreIdentity {
+        TelemetryStoreIdentity::new(app_id, environment).unwrap()
+    }
+
     fn joined(generation: &str, kind: &str, sequence: u64) -> Event {
         Event {
             sequence,
@@ -2871,6 +3192,7 @@ mod tests {
             duration_ms: Some(4.0),
             code: None,
             correlation: None,
+            release: None,
             details: None,
             priority: Priority::Normal,
             enqueued_at: Instant::now(),
@@ -2881,6 +3203,211 @@ mod tests {
         let mut event = joined(generation, kind, sequence);
         event.name = name.to_owned();
         event
+    }
+
+    #[test]
+    fn release_is_first_class_exact_and_admission_bound() {
+        let telemetry = Telemetry::in_memory_with_identity(
+            "01900000-0000-7000-8000-000000000001",
+            identity("app-release", "preview-release"),
+            config(),
+        )
+        .unwrap();
+        telemetry.point(
+            "lifecycle",
+            "before_activation",
+            Some(200),
+            None,
+            None,
+            None,
+            Priority::Reserved,
+        );
+
+        let predecessor = "release-a".repeat(1_024);
+        let successor = "release-b".repeat(1_024);
+        telemetry.set_release(Some(&predecessor));
+        let span = telemetry.start_span(
+            "live_subscribe",
+            "release_capture",
+            None,
+            Some(json!({ "release": "payload-spoof", "cause": "fixture" })),
+            true,
+        );
+        telemetry.set_release(Some(&successor));
+        span.finish(
+            Some(200),
+            None,
+            Some(json!({ "release": "terminal-spoof", "cause": "completed" })),
+        );
+        telemetry.point(
+            "lifecycle",
+            "after_activation",
+            Some(200),
+            None,
+            None,
+            Some(json!({ "release": "point-spoof" })),
+            Priority::Reserved,
+        );
+        telemetry.force_flush().unwrap();
+
+        let store = telemetry.producer.shared.store.lock().unwrap();
+        let conn = store.conn.as_ref().unwrap();
+        let before: Option<String> = conn
+            .query_row(
+                "SELECT release FROM telemetry_events WHERE name='before_activation'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(before, None, "pre-activation rows carry NULL release");
+        let span_rows = conn
+            .prepare(
+                "SELECT phase,release,details FROM telemetry_events WHERE name='release_capture' ORDER BY id",
+            )
+            .unwrap()
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, Option<String>>(1)?,
+                    row.get::<_, Option<String>>(2)?,
+                ))
+            })
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(span_rows.len(), 2);
+        assert!(
+            span_rows
+                .iter()
+                .all(|(_, release, _)| release.as_deref() == Some(predecessor.as_str())),
+            "both admission and terminal retain the exact admission release"
+        );
+        for (_, _, details) in span_rows {
+            let details: Value = serde_json::from_str(details.as_deref().unwrap()).unwrap();
+            assert!(details.get("release").is_none());
+        }
+        let (release, details): (Option<String>, Option<String>) = conn
+            .query_row(
+                "SELECT release,details FROM telemetry_events WHERE name='after_activation'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(release.as_deref(), Some(successor.as_str()));
+        let details: Value = serde_json::from_str(details.as_deref().unwrap()).unwrap();
+        assert!(details.get("release").is_none());
+    }
+
+    #[test]
+    fn meta_identity_is_exact_store_scoped_and_stamped_only_at_export() {
+        let app_id = "app-identity".repeat(1_024);
+        let environment = "environment-identity".repeat(1_024);
+        let telemetry = Telemetry::in_memory_with_identity(
+            "01900000-0000-7000-8000-000000000001",
+            identity(app_id.clone(), environment.clone()),
+            config(),
+        )
+        .unwrap();
+        telemetry.point(
+            "function_run",
+            "identity_fixture",
+            Some(200),
+            None,
+            None,
+            None,
+            Priority::Normal,
+        );
+        telemetry.force_flush().unwrap();
+
+        let mut store = telemetry.producer.shared.store.lock().unwrap();
+        let conn = store.conn.as_ref().unwrap();
+        let durable: (String, String) = conn
+            .query_row(
+                "SELECT app_id,environment FROM telemetry_meta WHERE singleton=1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(durable, (app_id.clone(), environment.clone()));
+        let event_columns = conn
+            .prepare("PRAGMA table_info(telemetry_events)")
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(1))
+            .unwrap()
+            .collect::<Result<BTreeSet<_>, _>>()
+            .unwrap();
+        assert!(!event_columns.contains("app_id"));
+        assert!(!event_columns.contains("environment"));
+
+        let mut record = json!({
+            "observation": "obs_fixture",
+            "appId": "payload-spoof",
+            "environment": "payload-spoof"
+        })
+        .as_object()
+        .unwrap()
+        .clone();
+        store
+            .stamp_export_record(&mut record, wall_now_ms())
+            .unwrap();
+        assert_eq!(record["appId"], app_id);
+        assert_eq!(record["environment"], environment);
+    }
+
+    #[test]
+    fn unbound_store_never_fabricates_export_identity() {
+        let telemetry =
+            Telemetry::in_memory("01900000-0000-7000-8000-000000000001", config()).unwrap();
+        let mut record = Map::new();
+        let error = telemetry
+            .producer
+            .shared
+            .store
+            .lock()
+            .unwrap()
+            .stamp_export_record(&mut record, wall_now_ms())
+            .expect_err("missing production environment source fails closed");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_TELEMETRY_IDENTITY_UNBOUND");
+        assert!(record.get("appId").is_none());
+        assert!(record.get("environment").is_none());
+    }
+
+    #[test]
+    fn explicit_store_identity_rejects_empty_axes() {
+        for (app_id, environment) in [("", "preview"), ("app", ""), ("   ", "preview")] {
+            let error = TelemetryStoreIdentity::new(app_id, environment)
+                .expect_err("an empty identity axis is not a trusted store binding");
+            assert_eq!(error.diagnostic.code, "SNAPBACK_TELEMETRY_IDENTITY_INVALID");
+        }
+    }
+
+    #[test]
+    fn corrupt_pinned_identity_cannot_become_a_self_describing_export() {
+        let telemetry = Telemetry::in_memory_with_identity(
+            "01900000-0000-7000-8000-000000000001",
+            identity("app", "preview"),
+            config(),
+        )
+        .unwrap();
+        let mut store = telemetry.producer.shared.store.lock().unwrap();
+        for (app_id, environment) in [("", "preview"), ("app", "   ")] {
+            store
+                .conn
+                .as_ref()
+                .unwrap()
+                .execute(
+                    "UPDATE telemetry_meta SET app_id=?1,environment=?2 WHERE singleton=1",
+                    params![app_id, environment],
+                )
+                .unwrap();
+            let mut record = Map::new();
+            let error = store
+                .stamp_export_record(&mut record, wall_now_ms())
+                .expect_err("corrupt pinned identity fails closed at egress");
+            assert_eq!(error.diagnostic.code, "SNAPBACK_TELEMETRY_IDENTITY_INVALID");
+            assert!(record.get("appId").is_none());
+            assert!(record.get("environment").is_none());
+        }
     }
 
     #[test]
@@ -3021,7 +3548,10 @@ mod tests {
             .clone();
         telemetry.begin_generation_transition();
         telemetry
-            .finish_generation_transition("01900000-0000-7000-8000-000000000002")
+            .finish_generation_transition_with_identity(
+                "01900000-0000-7000-8000-000000000002",
+                identity("generation-app", "generation-environment"),
+            )
             .unwrap();
         let successor = telemetry
             .producer
@@ -3348,6 +3878,116 @@ mod tests {
         assert!(
             !disabled_path.exists(),
             "max_days=0 does not create persistence solely for boot ownership"
+        );
+    }
+
+    #[test]
+    fn legacy_store_migration_adds_identity_and_release_without_relabeling_rows() {
+        let dir = tempfile::tempdir().unwrap();
+        let app_path = dir.path().join("legacy.sqlite3");
+        let telemetry_path = Telemetry::path_for_database(&app_path);
+        let predecessor_generation = ids::mint(IdKind::Generation).unwrap();
+        let incarnation = "01900000-0000-7000-8000-000000000001";
+        let now = wall_now_ms();
+        let conn = Connection::open(&telemetry_path).unwrap();
+        conn.execute_batch(
+            "CREATE TABLE telemetry_meta (
+               singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+               generation TEXT NOT NULL,
+               app_db_incarnation TEXT NOT NULL,
+               max_days_mirror INTEGER NOT NULL,
+               retention_floor INTEGER NOT NULL,
+               observation_clock_ms INTEGER NOT NULL,
+               aggregate_floor_hourly INTEGER NOT NULL,
+               aggregate_floor_daily INTEGER NOT NULL,
+               rollup_watermark_id INTEGER NOT NULL,
+               last_sweep_ms INTEGER NOT NULL,
+               drop_counters_lifetime TEXT NOT NULL,
+               hourly_days INTEGER NOT NULL,
+               daily_days INTEGER NOT NULL,
+               clean_shutdown INTEGER NOT NULL DEFAULT 1 CHECK (clean_shutdown IN (0, 1))
+             );
+             CREATE TABLE telemetry_events (
+               id INTEGER PRIMARY KEY AUTOINCREMENT,
+               observation TEXT NOT NULL,
+               phase TEXT NOT NULL,
+               generation TEXT NOT NULL,
+               class_v INTEGER NOT NULL,
+               ts_ms INTEGER NOT NULL,
+               recorded_ts_ms INTEGER NOT NULL,
+               kind TEXT NOT NULL,
+               name TEXT NOT NULL,
+               status INTEGER,
+               duration_ms REAL,
+               subject TEXT CHECK (subject IS NULL),
+               code TEXT,
+               correlation TEXT,
+               details TEXT
+             );",
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO telemetry_meta(singleton,generation,app_db_incarnation,max_days_mirror,retention_floor,observation_clock_ms,aggregate_floor_hourly,aggregate_floor_daily,rollup_watermark_id,last_sweep_ms,drop_counters_lifetime,hourly_days,daily_days,clean_shutdown) VALUES(1,?1,?2,7,0,?3,0,0,0,0,'{}',90,730,1)",
+            params![predecessor_generation, incarnation, now],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO telemetry_events(observation,phase,generation,class_v,ts_ms,recorded_ts_ms,kind,name,status,duration_ms,subject,code,correlation,details) VALUES(?1,'joined',?2,1,?3,?3,'function_run','legacy',200,1.0,NULL,NULL,NULL,NULL)",
+            params![ids::mint(IdKind::Observation).unwrap(), predecessor_generation, now],
+        )
+        .unwrap();
+        drop(conn);
+
+        let app_id = "migration-app".repeat(512);
+        let environment = "migration-environment".repeat(512);
+        let telemetry = Telemetry::open_for_database_with_identity(
+            &app_path,
+            incarnation,
+            identity(app_id.clone(), environment.clone()),
+            config(),
+        )
+        .unwrap();
+        let store = telemetry.producer.shared.store.lock().unwrap();
+        let conn = store.conn.as_ref().unwrap();
+        let meta_columns = conn
+            .prepare("PRAGMA table_info(telemetry_meta)")
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(1))
+            .unwrap()
+            .collect::<Result<BTreeSet<_>, _>>()
+            .unwrap();
+        assert!(meta_columns.contains("app_id"));
+        assert!(meta_columns.contains("environment"));
+        let event_columns = conn
+            .prepare("PRAGMA table_info(telemetry_events)")
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(1))
+            .unwrap()
+            .collect::<Result<BTreeSet<_>, _>>()
+            .unwrap();
+        assert!(event_columns.contains("release"));
+        let (generation, durable_app, durable_environment): (String, String, String) = conn
+            .query_row(
+                "SELECT generation,app_id,environment FROM telemetry_meta WHERE singleton=1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+        assert_ne!(generation, predecessor_generation);
+        assert_eq!((durable_app, durable_environment), (app_id, environment));
+        let (release, visible): (Option<String>, i64) = conn
+            .query_row(
+                "SELECT
+                   (SELECT release FROM telemetry_events WHERE name='legacy'),
+                   (SELECT count(*) FROM telemetry_events_visible WHERE name='legacy')",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(release, None, "pre-column rows migrate as NULL release");
+        assert_eq!(
+            visible, 0,
+            "identity-less predecessor rows are hidden, never relabeled"
         );
     }
 
@@ -4042,6 +4682,59 @@ mod tests {
             .unwrap();
         assert_eq!(total, 1);
         assert_eq!(visible, 0);
+    }
+
+    #[test]
+    fn explicit_rebind_rotates_generation_and_replaces_identity_atomically() {
+        let predecessor_identity = identity("app-before", "environment-before");
+        let successor_identity =
+            identity("app-after".repeat(1_024), "environment-after".repeat(1_024));
+        let mut store = Store::memory_with_identity(
+            "01900000-0000-7000-8000-000000000001",
+            predecessor_identity,
+            config(),
+        )
+        .unwrap();
+        let predecessor_generation = store.generation.clone();
+        store
+            .flush(
+                vec![joined(&predecessor_generation, "function_run", 1)],
+                BTreeMap::new(),
+                wall_now_ms(),
+                false,
+            )
+            .unwrap();
+        store
+            .rebind_with_identity(
+                "01900000-0000-7000-8000-000000000002",
+                successor_identity.clone(),
+                wall_now_ms(),
+            )
+            .unwrap();
+        assert_ne!(store.generation, predecessor_generation);
+        assert_eq!(store.identity.as_ref(), Some(&successor_identity));
+        let durable: (String, String, String) = store
+            .conn
+            .as_ref()
+            .unwrap()
+            .query_row(
+                "SELECT generation,app_id,environment FROM telemetry_meta WHERE singleton=1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!(durable.0, store.generation);
+        assert_eq!(durable.1, successor_identity.app_id);
+        assert_eq!(durable.2, successor_identity.environment_id);
+        let visible: i64 = store
+            .conn
+            .as_ref()
+            .unwrap()
+            .query_row("SELECT count(*) FROM telemetry_events_visible", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(visible, 0, "predecessor rows stay generation-hidden");
     }
 
     #[test]
