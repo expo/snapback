@@ -8,6 +8,7 @@ export interface OutboxError extends Error {
 
 export declare const outboxNotWriterError: () => OutboxError;
 export declare const outboxFullError: () => OutboxError;
+export declare const outboxAckFullError: () => OutboxError;
 export declare const outboxOversizeError: (bytes: number) => OutboxError;
 
 export interface OutboxRecordInput {

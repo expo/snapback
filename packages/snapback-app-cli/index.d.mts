@@ -376,3 +376,27 @@ export function runCodeMode(options: Readonly<Record<string, unknown>>): Promise
 }>>;
 export function renderCodeModeTypes(surface: AppArtifacts | ServedAppSurface): string;
 export function validateFunctionArgs(fn: AppFunctionDescriptor, args: unknown): void;
+
+// The `app-cli.target` eligibility descriptor (LLP 0062 §4): read
+// credential-free from discovery, before any principal is selected.
+// `auto` is a resolution mode, never a class a target admits.
+export const PRINCIPAL_CLASSES: readonly Exclude<AppCliPrincipalClass, "auto">[];
+
+export interface AppCliTargetDescriptor {
+  readonly capabilityId: "app-cli.target";
+  readonly principalClasses: readonly Exclude<AppCliPrincipalClass, "auto">[];
+}
+
+export const targetDescriptor: (discovery: unknown) => AppCliTargetDescriptor | null;
+
+export function targetAdmitsPrincipal(
+  discovery: unknown,
+  principalClass: Exclude<AppCliPrincipalClass, "auto">,
+): boolean;
+
+/// Always throws: the typed refusal a credentialed lane raises when the
+/// target does not state the class.
+export function refuseUnadmittedPrincipal(
+  discovery: unknown,
+  principalClass: Exclude<AppCliPrincipalClass, "auto">,
+): never;

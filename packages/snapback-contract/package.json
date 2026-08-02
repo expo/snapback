@@ -29,6 +29,8 @@
     "exact-package.mjs",
     "exact-project-check.d.mts",
     "exact-project-check.mjs",
+    "ids.d.mts",
+    "ids.mjs",
     "index.d.mts",
     "index.mjs",
     "keyed-provider.d.mts",
