@@ -647,6 +647,28 @@ parallel authorization fence beside LLP 0053's.
 
 ## Status
 
+Draft, v0.2 — **round-2 review received, v0.3 revision pending.** Codex
+round 2 (2026-08-02, same artifact file): NOT READY; C1/C5/C10 RESOLVED,
+C4 fix-introduced-defect, the rest partial; four fresh BLOCKINGs, all
+precision-class: (1) the transition table must become a total product
+of materialization lifecycle × LLP 0053 disposition × freshness × page
+completeness, with quarantine preserving (not destroying) state per
+LLP 0053; (2) `QueryMaterializationKeyV1` needs a closed byte grammar
+and the LLP 0114 provider-instance/store namespace distinguished from
+the global subkey; (3) the proof needs frozen cursor-profile-tagged
+`PageIdentityV1`/`NodePlanHashV1`/`BatchIdentityV1` schemas with opaque
+digests (never raw cursor credentials or protected boundary values, and
+a uniform sealed-page variant); (4) page completeness must compose into
+a defined materialization-level state (one-current-page vs accumulated
+page set, with the no-skip/no-duplicate oracle). Plus: repair the
+crosswalk's "verbatim" overstatement by reproducing LLP 0155's exact
+numeric gates or mapping them as dependencies; give every sketch an
+executable oracle on an admitted profile; freeze the ordinary
+inspection projections' field-level redactions now;
+`query_instance_id` is instance identity stored/compared per fragment
+operation while only the generations are fence counters. The v0.3
+worklist is this paragraph.
+
 Draft, v0.2. Commissioned by LLP 0155's acceptance (Status step 2) and
 authored under the 2026-08-02 decision sitting's ruling 11. Round 1 of
 the LLP 0005 loop returned Codex NOT READY (5 BLOCKING / 4 MATERIAL /

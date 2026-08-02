@@ -121,3 +121,79 @@ The direction is sound, but the draft has four blocking problems: it contradicts
 ## Recommended next step
 
 Revise to v0.2 and remain Draft. Resolve the substrate contradictions first, then freeze identity and completeness-proof schemas, integrate LLP 0053’s store state machine, and replace the acceptance sketches with executable oracles plus the exact Triage/Fleet gates. After that, run round 2 against the revised text before considering READY.
+
+---
+
+## Round 2 — 2026-08-02
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** `codex-cli` 0.146.0, `codex exec`, model
+`gpt-5.6-sol`, `model_reasoning_effort=xhigh`, sandbox `read-only`
+**Date:** 2026-08-02
+**Redacted:** no
+**Method:** fresh non-author `codex exec` context over the working tree at
+38d74e1a (v0.2); instructed to read the round-1 artifact above, judge each
+round-1 concern's disposition with evidence, then review v0.2's new
+material on its own merits against LLP 0135 Part 2, LLP 0155, LLP 0053,
+LLP 0114, LLP 0080 §3, and LLP 0120 §Option 3a. Orchestrated by the
+authoring Fable session, which does not count as a reviewer.
+
+---
+
+## Overall assessment
+
+**NOT READY — high confidence (0.98).**
+
+v0.2 fully resolves C1, C5, and C10 and materially improves the other areas. It is still not ready because the identity and proof schemas are not actually closed, page completeness does not compose into a defined materialization state, the transition table conflicts with LLP 0053, and the commission crosswalk overstates its coverage.
+
+## Round-1 disposition table
+
+| Concern | Disposition | Evidence |
+|---|---|---|
+| C1 | **RESOLVED** | §D3 and §D8 preserve the byte-identical `{kind:"absent",nodes:null,continuation:null}` envelope, classify it as `complete`, reserve `refused` for actual refusal, and prohibit disclosure through status, proof, or inspection. |
+| C2 | **PARTIALLY RESOLVED** | §D2 now gives `PlanHashV1` SHA-256/JCS/domain separation, host recomputation, exported-function and contract identity, and LLP 0114-canonical arguments; however `QueryMaterializationKeyV1` “binds, at minimum” an open list with no exact byte grammar, and its cross-surface rule omits LLP 0114’s provider-instance namespace. |
+| C3 | **PARTIALLY RESOLVED** | §D3 adds stream/version, activation, authorization witness, page/boundary, node-set, batch identity, and atomic page installation; but several bound identities are undefined, single-node cursor pages cannot be represented by the `sbsb1`-only wording, and page proofs do not yield a defined multi-page materialization state. |
+| C4 | **FIX-INTRODUCED-DEFECT** | A transition table now exists and correctly removes per-node cursor transitions, but its catch-all preserves stale states, invalid retained-proof handling is absent, same-identity retry success is absent, and “status destroyed” is outside the claimed four-state algebra and contradicts quarantine preservation. |
+| C5 | **RESOLVED** | §D4 restates LLP 0135 §2.5 exactly: cursor-free first-page `live_replace`, no `live_delta`, no proved-disjoint skip, and `retention:"none"`; meet algebra is explicitly successor-only. |
+| C6 | **PARTIALLY RESOLVED** | §D7 correctly requires the generation-triple CAS on every write and render, preserves tombstones/frontiers, distinguishes the two witnesses, and keeps mutable generations out of the fragment key; §D3 nevertheless collapses quarantine and destructive fence events into one incorrect transition. |
+| C7 | **PARTIALLY RESOLVED** | The crosswalk and Fleet relational-node dependency are useful, but “restated verbatim below” is false, the Move-2 acceptance gate is unmapped, several store contracts remain deferred to the implementing slice, and “every retained row” has no row-level contract. |
+| C8 | **PARTIALLY RESOLVED** | The sketches now name explicit falsifiers for cap refusal, hash divergence, atomic install, sealed worlds, and fence races; sketch 2 contradicts whole-page fragment granularity, sketches 3/6 depend on still-unfrozen schemas, and sketch 9 lacks a defined re-establishment oracle. |
+| C9 | **PARTIALLY RESOLVED** | §D6 adds the normative missing-versus-invisible boundary, a separate audit channel, and client store/partition binding; however it explicitly defers the projection schemas and audience rules to OQ5/the implementing slice while exposing canonical arguments and proof-bound facts. |
+| C10 | **RESOLVED** | LLP 0080 now has one `Revised` field, and §D1 explicitly labels `SNAPBACK_COMPOSITE_DYNAMIC_NODE` and the other named codes as placeholders until registration. |
+
+## Fresh concerns
+
+1. **BLOCKING — The transition table is not safely total.** The default “any event not listed leaves the status unchanged” leaves failed proof revalidation potentially `complete`; only changed-plan retries can leave `refused`; and the fence row sends quarantine, deletion, lease expiry, user switch, and retirement to the same non-state, “status destroyed.” LLP 0053 instead preserves quarantined bytes hidden and destroys only on the appropriate dispositions. **Resolution path:** define a product of materialization lifecycle, LLP 0053 disposition, freshness, and page completeness; enumerate valid-proof install, invalid/missing proof, same-identity retry, quarantine/release, delete, retirement, and profile-ineligible retained boot, with LLP 0053 transitions taking precedence.
+
+2. **BLOCKING — `QueryMaterializationKeyV1` is neither closed nor coherently scoped.** “[B]inds, at minimum” contradicts “closed and versioned”; no record layout, serialization, digest, total-byte limit, or encoding of the parent-group canonical bytes is specified. More importantly, §D2 says client materialization keys solely by this value and no surface derives a parallel identity, while LLP 0114 requires provider-instance identity and distinct registries even when two providers borrow the same client. **Resolution path:** freeze exact bytes and limits, define parent-group ordering/byte encoding, and distinguish a global query/materialization subkey from contextual namespaces such as `providerInstanceId` and `client_store_id`.
+
+3. **BLOCKING — `CompletenessProofV1` is not a closed page/batch identity schema.** “Reference” to an LLP 0053 `CompositeWitness`, “sbsb1 token identity,” “node plan hash,” and “batch identity unique to this establishment” have no defined representations. The proof purports to cover all single-node reads, but non-first single-node pages use their owners’ cursors, not `sbsb1`. A sealed result also needs an explicitly uniform page-identity variant so its boundary vector cannot disclose which node sealed. **Resolution path:** freeze cursor-profile-tagged `PageIdentityV1`, `NodePlanHashV1`, `BatchIdentityV1`, and an embedded-or-digested authorization-witness binding; use opaque domain-separated digests rather than raw cursor credentials or protected boundary values.
+
+4. **BLOCKING — Page completeness does not define materialization completeness.** §D3 says `complete` belongs to one page and leaves prior pages untouched; sketch 9 then says pages from different versions remain individually valid while “the live materialization reports `unknown` until re-established,” without defining what must be re-established or how accumulated pages become current. This is load-bearing for pagination and local rendering. **Resolution path:** decide whether a materialization exposes only one current page or an accumulated page set. For accumulation, define its page-set identity, version-consistency rule, invalidation/refetch algorithm, render status, and no-skip/no-duplicate oracle.
+
+5. **MATERIAL — The commission crosswalk is inaccurate.** The claimed verbatim Triage/Fleet gate is absent; LLP 0155’s 20-change, 250,000-event/1,000-update/100-match, Mallory, and pagination gates are not reproduced. The Move-2 real-carrier gate is omitted, as are normative treatment of provisional entities, optimistic layers, outbox/settlement composition, and several per-query facts. OQ9 and “the implementing slice” are dependencies, not landed contracts. **Resolution path:** map every source obligation and acceptance item to normative text, an explicit external owner/dependency, and an executable fixture—or narrow this Spec’s ownership claim.
+
+6. **MATERIAL — Several rewritten sketches still lack executable oracles.** Sketch 2 refers to “two nodes’ fragments,” impossible when §Vocabulary makes a fragment the atomic whole-page tuple. Sketch 3 cannot freeze an open materialization key. Sketch 6 demands a transition cause absent from the inspection model. Sketch 9 has no definition of successful materialization re-establishment. Retained-boot sketches do not identify a retainable single-node profile despite composite v1 being non-retainable. **Resolution path:** give every fixture an admitted profile, exact serialized inputs, operation sequence, observable output, and forbidden output; replace node-fragment mixing with a fault at the actual atomic page-write boundary.
+
+7. **MATERIAL — The inspection authorization contract remains deferred at the point sensitive fields are introduced.** §D6 ordinarily exposes canonical arguments, authority partitions, proof-bound facts, and resume state, while postponing exact schemas and audiences. Page boundaries and cursor-derived identity can contain protected values that LLP 0080 permits only inside opaque credentials or the authorized audit channel. **Resolution path:** freeze ordinary server/client projection schemas and field-level redactions now, including opaque digests for cursor/boundary facts, then broaden sketch 7 across every sealing node and multiple-seal worlds.
+
+8. **DETAIL — “The generation triple is fence state, not identity” is too broad.** Excluding it from the fragment lookup key is sound, and the CAS rule is correct. But LLP 0053 treats `query_instance_id` as the exact never-reused `ClientQuery` instance discriminator; only the generations are purely mutable fence counters. **Resolution path:** say that none of the triple belongs to `QueryMaterializationKeyV1`, while `query_instance_id` remains mandatory instance/scope identity stored and compared with every fragment operation.
+
+## Suggestions
+
+- Define the identity stack explicitly: structural plan hash → global materialization subkey → provider/store namespace → query-instance fence → page identity → batch establishment.
+- Make completeness, freshness, authorization disposition, connection state, and materialization lifecycle an explicit product rather than forcing destructive events into one four-value status.
+- Turn the commission crosswalk into a verification matrix with source section, normative owner, dependency, and acceptance fixture.
+- Keep the v0.2 separation between fixed `snapshot-batch.v1` facts and successor-profile meet algebra; that correction is sound.
+
+## Open questions
+
+- Is public completeness attached to one requested page, the currently rendered page, or the entire accumulated query result?
+- Is `QueryMaterializationKeyV1` intended to be globally portable, provider-scoped, or store-scoped?
+- Does `CompletenessProofV1` embed the LLP 0053 `CompositeWitness`, bind its canonical digest, or reference some durable ticket identity?
+- During quarantine, is the completeness proof retained but non-renderable, and what may ordinary inspection report about it?
+- Is LLP 0157 truly the complete Move-2 owning Spec, or should the unprovided store/reactive/carrier contracts move to a separately commissioned Spec?
+
+## Recommended next step
+
+Keep LLP 0157 in **Draft** and revise to v0.3. Freeze the identity/proof/page schemas first, replace the transition table with a total product-state protocol consistent with LLP 0053, then repair the crosswalk and acceptance fixtures against every LLP 0155 Move-1/2 gate. Append this as the dated Codex round-2 review and run another independent round before considering READY.
