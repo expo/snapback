@@ -16,13 +16,14 @@
 // (so an id is one double-click-selectable word), and in ASCII order (so a
 // fixed-width body sorts lexically in the same order as the bytes it encodes).
 const ALPHABET = '0123456789abcdefghjkmnpqrstvwxyz';
+const PREFIXED_ID = /^[a-z][a-z0-9]{0,11}_[0-9a-hjkmnp-tv-z]{26}$/;
 
 export const BODY_LENGTH = 26;
 export const MAX_PREFIX_LENGTH = 12;
 
 /// The prefixes this arm mints. The Rust registry is the full vocabulary; the
 /// JavaScript client only ever mints these.
-export const ID_PREFIXES = Object.freeze({
+export const ID_PREFIXES = /* @__PURE__ */ Object.freeze({
   mutation: 'mut',
   lease: 'lse',
   // Derived (not minted) by `serviceAuthorityInstanceId` in
@@ -128,20 +129,15 @@ export function mintId(prefix, nowMs = Date.now()) {
 /// `null` means "not in this format", which includes every id written before
 /// LLP 0148 landed. That is ordinary, not an error — readers accept both.
 export function splitId(id) {
-  if (typeof id !== 'string') return null;
+  if (typeof id !== 'string' || !PREFIXED_ID.test(id)) return null;
   const cut = id.lastIndexOf('_');
-  if (cut <= 0) return null;
-  const prefix = id.slice(0, cut);
-  const body = id.slice(cut + 1);
-  if (prefix.length > MAX_PREFIX_LENGTH || !/^[a-z][a-z0-9]*$/.test(prefix)) return null;
-  if (body.length !== BODY_LENGTH) return null;
-  for (const char of body) if (!ALPHABET.includes(char)) return null;
-  return { prefix, body };
+  return { prefix: id.slice(0, cut), body: id.slice(cut + 1) };
 }
 
 /// Whether `id` is a canonically spelled LLP 0148 identifier. Advisory: a
 /// `false` may refuse a shape at an input boundary and nothing else.
-export const isWellFormedId = (id) => splitId(id) !== null;
+export const isWellFormedId = (id) =>
+  typeof id === 'string' && PREFIXED_ID.test(id);
 
 /// The canonical hyphenated UUIDv7 every Snapback id carried before LLP 0148.
 export const UUID_V7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;

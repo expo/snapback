@@ -199,3 +199,14 @@ ticket closes citing that run id.
   `apt-get`; follow-up disables only that incompatible OS-package step while
   retaining the pinned browser download, and leaves runtime-library sufficiency
   for the real browser acceptance itself to prove.
+
+- **2026-08-02 — client bundle ratchet follow-on.** Gate 2 regressed again
+  after `a0456ce2` correctly widened AuthorizedLease authority-instance
+  validation from legacy UUIDv7 only to LLP 0148's shared prefixed-or-legacy
+  predicate. The valid PKG-01 baseline remains byte-identical. The fix marks
+  the frozen JavaScript prefix registry as tree-shaker-pure and replaces the
+  predicate's equivalent multi-step prefix/body scan with one anchored
+  Crockford grammar, retaining the shared validator and both historical
+  spellings. All 27 behavior-backed profiles now pass below their immutable
+  minified, gzip, and Brotli ceilings; the complete Contract package suite and
+  ref-check pass, and only `current.v1.json` is refreshed.
