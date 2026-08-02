@@ -6,7 +6,7 @@
   ],
   "appId": "latency-kanban",
   "artifactKind": "functionManifest",
-  "bundleHash": "sha256:797da86f6b61e1d2",
+  "bundleHash": "sha256:c34612174f5cf637",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -886,7 +886,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "02928285ab472f288aa2c9a401ee0144e20ae67cf47d1383c0fed49d7b122c3b",
+  "inputsHash": "b4abec248eb1b913a613d7b0576f817076f9db9f3683a2609d063276dd29097a",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": []
 }

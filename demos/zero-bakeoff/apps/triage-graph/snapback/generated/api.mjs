@@ -3,6 +3,8 @@
 export const ephemeral = Object.freeze({});
 /** @type {import('./api.d.ts').GeneratedQueryGroups} */
 export const groups = Object.freeze({});
+/** @type {Readonly<Record<string, Readonly<Record<string, unknown>>>>} */
+export const defaults = Object.freeze({});
 /** @type {import('./api.d.ts').GeneratedApi} */
 export const api = Object.freeze({
   "ephemeral": {},
@@ -35,6 +37,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "triage-graph",
+      "bundleHash": "sha256:251baf3b2b596288",
+      "inputsHash": "753bbda379393ec09c9271e803cdab237b0be0878b7bc9af56b1ccddc1ddbc4b",
+      "schemaHash": "sha256:6a674b9950215a44",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "triage-graph:inbox",
     "implementationHash": "sha256:ef9b1dc3c5c28c95338dd176b6a579fff105faceceae25aec1a7679024d1f2f9",
     "kind": "LiveQuery",
@@ -60,6 +69,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "triage-graph",
+      "bundleHash": "sha256:251baf3b2b596288",
+      "inputsHash": "753bbda379393ec09c9271e803cdab237b0be0878b7bc9af56b1ccddc1ddbc4b",
+      "schemaHash": "sha256:6a674b9950215a44",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "triage-graph:ingestFixtureBatch",
     "implementationHash": "sha256:4e971de5ad0cbfb23062b09786ed22dbfb0e1fde6414ce332b3092fc402473eb",
     "kind": "Mutation",
@@ -83,6 +99,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "triage-graph",
+      "bundleHash": "sha256:251baf3b2b596288",
+      "inputsHash": "753bbda379393ec09c9271e803cdab237b0be0878b7bc9af56b1ccddc1ddbc4b",
+      "schemaHash": "sha256:6a674b9950215a44",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "triage-graph:issueDetail",
     "implementationHash": "sha256:db549c464d2599549fe3751d54b6851137f894f2641a3e8a25be5206a2a76297",
     "kind": "LiveQuery",
@@ -119,6 +142,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "triage-graph",
+      "bundleHash": "sha256:251baf3b2b596288",
+      "inputsHash": "753bbda379393ec09c9271e803cdab237b0be0878b7bc9af56b1ccddc1ddbc4b",
+      "schemaHash": "sha256:6a674b9950215a44",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "triage-graph:patchIssue",
     "implementationHash": "sha256:ff6711390e200171d1ba3bb0dcb8b60c5ed9c27ba3a5decb23603c7fd095e250",
     "kind": "Mutation",

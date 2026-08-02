@@ -6,7 +6,7 @@
   ],
   "appId": "fleet-observatory",
   "artifactKind": "functionManifest",
-  "bundleHash": "sha256:3587c8d83f0d15c5",
+  "bundleHash": "sha256:062ec5395ead6b17",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -435,7 +435,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "73024b105122df89e3b13bdcd3ae83c0b43a74e5ddf561db18f9b0f830a76a0b",
+  "inputsHash": "3ef7c9c4738bcbe06faa940dc5ea9550ef11e880733c2260bfc2548a310beb8b",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": []
 }

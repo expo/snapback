@@ -3,6 +3,8 @@
 export const ephemeral = Object.freeze({});
 /** @type {import('./api.d.ts').GeneratedQueryGroups} */
 export const groups = Object.freeze({});
+/** @type {Readonly<Record<string, Readonly<Record<string, unknown>>>>} */
+export const defaults = Object.freeze({});
 /** @type {import('./api.d.ts').GeneratedApi} */
 export const api = Object.freeze({
   "boardCards": {
@@ -14,6 +16,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "latency-kanban",
+      "bundleHash": "sha256:c34612174f5cf637",
+      "inputsHash": "b4abec248eb1b913a613d7b0576f817076f9db9f3683a2609d063276dd29097a",
+      "schemaHash": "sha256:b0c985c592d84373",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "latency-kanban:boardCards",
     "implementationHash": "sha256:30ae6dd5195670a04b9d33908415350b895bbd98259062f58045d59e0424c17e",
     "kind": "LiveQuery",
@@ -37,6 +46,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "latency-kanban",
+      "bundleHash": "sha256:c34612174f5cf637",
+      "inputsHash": "b4abec248eb1b913a613d7b0576f817076f9db9f3683a2609d063276dd29097a",
+      "schemaHash": "sha256:b0c985c592d84373",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "latency-kanban:cardsInColumn",
     "implementationHash": "sha256:2c8afa2c41a438243bea7d976fb95264ac625762b68b932056f84e39c22973bd",
     "kind": "LiveQuery",
@@ -74,6 +90,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "latency-kanban",
+      "bundleHash": "sha256:c34612174f5cf637",
+      "inputsHash": "b4abec248eb1b913a613d7b0576f817076f9db9f3683a2609d063276dd29097a",
+      "schemaHash": "sha256:b0c985c592d84373",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "latency-kanban:moveCard",
     "implementationHash": "sha256:fba9d16c22407e74481899d455c12706869163782eef9ba551f2ad90f0121f2c",
     "kind": "Mutation",
@@ -101,6 +124,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "latency-kanban",
+      "bundleHash": "sha256:c34612174f5cf637",
+      "inputsHash": "b4abec248eb1b913a613d7b0576f817076f9db9f3683a2609d063276dd29097a",
+      "schemaHash": "sha256:b0c985c592d84373",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "latency-kanban:setCardLocked",
     "implementationHash": "sha256:808900b0e9998b50d358151ba21cb881dd93f57f900c2e4250d362eeb238fe49",
     "kind": "Mutation",
@@ -117,6 +147,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "latency-kanban",
+      "bundleHash": "sha256:c34612174f5cf637",
+      "inputsHash": "b4abec248eb1b913a613d7b0576f817076f9db9f3683a2609d063276dd29097a",
+      "schemaHash": "sha256:b0c985c592d84373",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "latency-kanban:setupFixture",
     "implementationHash": "sha256:dce5e292e4649ea70cf60b12061d8a5b6e7d9bd518c9ba0d87c7ce5bffde4bac",
     "kind": "Mutation",

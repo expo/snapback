@@ -3,6 +3,8 @@
 export const ephemeral = Object.freeze({});
 /** @type {import('./api.d.ts').GeneratedQueryGroups} */
 export const groups = Object.freeze({});
+/** @type {Readonly<Record<string, Readonly<Record<string, unknown>>>>} */
+export const defaults = Object.freeze({});
 /** @type {import('./api.d.ts').GeneratedApi} */
 export const api = Object.freeze({
   "assignedRecords": {
@@ -21,6 +23,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "zero-bakeoff-field-notebook",
+      "bundleHash": "sha256:c2cf0f579af6f8f4",
+      "inputsHash": "b3a5d15feb9bc995c136d866ddd83e842598da87a9dfcc9088a31562881241e4",
+      "schemaHash": "sha256:565fccc6bf0b169a",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "zero-bakeoff-field-notebook:assignedRecords",
     "implementationHash": "sha256:2d8cc18629bb83494090638a50759d6ea5807a8c5b2b80e40d4b0064420c935e",
     "kind": "LiveQuery",
@@ -52,6 +61,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "zero-bakeoff-field-notebook",
+      "bundleHash": "sha256:c2cf0f579af6f8f4",
+      "inputsHash": "b3a5d15feb9bc995c136d866ddd83e842598da87a9dfcc9088a31562881241e4",
+      "schemaHash": "sha256:565fccc6bf0b169a",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "zero-bakeoff-field-notebook:createRecord",
     "implementationHash": "sha256:f86f4591107b055a01876fa127bf53c4a5903b88adf099b442ad350c44f2be13",
     "kind": "Mutation",
@@ -85,6 +101,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "zero-bakeoff-field-notebook",
+      "bundleHash": "sha256:c2cf0f579af6f8f4",
+      "inputsHash": "b3a5d15feb9bc995c136d866ddd83e842598da87a9dfcc9088a31562881241e4",
+      "schemaHash": "sha256:565fccc6bf0b169a",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "zero-bakeoff-field-notebook:updateRecord",
     "implementationHash": "sha256:4f480cf7d76118e60e805402c594fea296d195f0085a0562955598aa4b671e88",
     "kind": "Mutation",

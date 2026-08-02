@@ -3,6 +3,8 @@
 export const ephemeral = Object.freeze({});
 /** @type {import('./api.d.ts').GeneratedQueryGroups} */
 export const groups = Object.freeze({});
+/** @type {Readonly<Record<string, Readonly<Record<string, unknown>>>>} */
+export const defaults = Object.freeze({});
 /** @type {import('./api.d.ts').GeneratedApi} */
 export const api = Object.freeze({
   "applyTelemetryBurst": {
@@ -19,6 +21,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "fleet-observatory",
+      "bundleHash": "sha256:062ec5395ead6b17",
+      "inputsHash": "3ef7c9c4738bcbe06faa940dc5ea9550ef11e880733c2260bfc2548a310beb8b",
+      "schemaHash": "sha256:139e28daa19a863b",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "fleet-observatory:applyTelemetryBurst",
     "implementationHash": "sha256:99e53e6fad93140a2780f134627a77da139ce2c3763dc796e3377b5ec4307c5b",
     "kind": "Mutation",
@@ -46,6 +55,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "fleet-observatory",
+      "bundleHash": "sha256:062ec5395ead6b17",
+      "inputsHash": "3ef7c9c4738bcbe06faa940dc5ea9550ef11e880733c2260bfc2548a310beb8b",
+      "schemaHash": "sha256:139e28daa19a863b",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "fleet-observatory:ingestFixtureBatch",
     "implementationHash": "sha256:46f596375efcf163e6f06ed64d1f8d41f226a09da8edde22815ccb979e0759c2",
     "kind": "Mutation",
@@ -78,6 +94,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "fleet-observatory",
+      "bundleHash": "sha256:062ec5395ead6b17",
+      "inputsHash": "3ef7c9c4738bcbe06faa940dc5ea9550ef11e880733c2260bfc2548a310beb8b",
+      "schemaHash": "sha256:139e28daa19a863b",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "fleet-observatory:latestEvents",
     "implementationHash": "sha256:8af17ea4b8321ae899d57faa96cf24452300b68d4f4412b3d927619702dc6a0b",
     "kind": "LiveQuery",

@@ -3,6 +3,8 @@
 export const ephemeral = Object.freeze({});
 /** @type {import('./api.d.ts').GeneratedQueryGroups} */
 export const groups = Object.freeze({});
+/** @type {Readonly<Record<string, Readonly<Record<string, unknown>>>>} */
+export const defaults = Object.freeze({});
 /** @type {import('./api.d.ts').GeneratedApi} */
 export const api = Object.freeze({
   "addParticipant": {
@@ -29,6 +31,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "zero-bakeoff-private-incident-room",
+      "bundleHash": "snapback.v1:sessions:function:sha256:e62382537c1d62d73d191fc700aa23895eeeb7161376a0c57b98117c770f587d",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:042d33a9b007c6f8e6310b59a4c788407b10234a0b78dd178bece6ef78147565",
+      "schemaHash": "snapback.v1:sessions:schema:sha256:53975e20eb37ac487c7d6a81d2839a56951003190e88aa479ede547479dac2f2",
+      "schemaVersion": "snapback.v1"
+    },
     "id": "zero-bakeoff-private-incident-room:addParticipant",
     "implementationHash": "sha256:fbc0299b967ce38c05c2eaadd1a3aa22138fb0a4b9b61f36fb98ab06471945d8",
     "kind": "Mutation",
@@ -56,6 +65,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "zero-bakeoff-private-incident-room",
+      "bundleHash": "snapback.v1:sessions:function:sha256:e62382537c1d62d73d191fc700aa23895eeeb7161376a0c57b98117c770f587d",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:042d33a9b007c6f8e6310b59a4c788407b10234a0b78dd178bece6ef78147565",
+      "schemaHash": "snapback.v1:sessions:schema:sha256:53975e20eb37ac487c7d6a81d2839a56951003190e88aa479ede547479dac2f2",
+      "schemaVersion": "snapback.v1"
+    },
     "id": "zero-bakeoff-private-incident-room:createIncident",
     "implementationHash": "sha256:e01cb8ff63b5d4316e33df79e991e101c0da621f1b7b0d54953831b4dcd193bb",
     "kind": "Mutation",
@@ -81,6 +97,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "zero-bakeoff-private-incident-room",
+      "bundleHash": "snapback.v1:sessions:function:sha256:e62382537c1d62d73d191fc700aa23895eeeb7161376a0c57b98117c770f587d",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:042d33a9b007c6f8e6310b59a4c788407b10234a0b78dd178bece6ef78147565",
+      "schemaHash": "snapback.v1:sessions:schema:sha256:53975e20eb37ac487c7d6a81d2839a56951003190e88aa479ede547479dac2f2",
+      "schemaVersion": "snapback.v1"
+    },
     "id": "zero-bakeoff-private-incident-room:incidentMessages",
     "implementationHash": "sha256:14fddf3e47a53384c29b3d82ae653c21012b9e767cdcf56a6b1246945a393dd9",
     "kind": "LiveQuery",
@@ -108,6 +131,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "zero-bakeoff-private-incident-room",
+      "bundleHash": "snapback.v1:sessions:function:sha256:e62382537c1d62d73d191fc700aa23895eeeb7161376a0c57b98117c770f587d",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:042d33a9b007c6f8e6310b59a4c788407b10234a0b78dd178bece6ef78147565",
+      "schemaHash": "snapback.v1:sessions:schema:sha256:53975e20eb37ac487c7d6a81d2839a56951003190e88aa479ede547479dac2f2",
+      "schemaVersion": "snapback.v1"
+    },
     "id": "zero-bakeoff-private-incident-room:postMessage",
     "implementationHash": "sha256:b66748b2174d905cece5aee2a2d37843626039474aab4c6cb3fdb10beb3b07c8",
     "kind": "Mutation",
@@ -135,6 +165,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "zero-bakeoff-private-incident-room",
+      "bundleHash": "snapback.v1:sessions:function:sha256:e62382537c1d62d73d191fc700aa23895eeeb7161376a0c57b98117c770f587d",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:042d33a9b007c6f8e6310b59a4c788407b10234a0b78dd178bece6ef78147565",
+      "schemaHash": "snapback.v1:sessions:schema:sha256:53975e20eb37ac487c7d6a81d2839a56951003190e88aa479ede547479dac2f2",
+      "schemaVersion": "snapback.v1"
+    },
     "id": "zero-bakeoff-private-incident-room:removeParticipant",
     "implementationHash": "sha256:3fc30f798f1c69756b2df46406259aba00fd13b19646c78d8c5e9b4cabcb819e",
     "kind": "Mutation",

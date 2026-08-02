@@ -22,6 +22,7 @@ export interface FunctionReference<Name extends string, Kind extends FunctionKin
   implementationHash: string;
   argsContractHash: string;
   resultContractHash: string;
+  expectedGeneration: Readonly<{ schemaVersion: SchemaVersion; appId: string; schemaHash: string; bundleHash: string; inputsHash: string }>;
   argumentSchema: Readonly<Record<string, unknown>>;
   readonly __args?: Args;
   readonly __result?: Result;
@@ -103,5 +104,6 @@ export interface GeneratedApi {
 }
 export declare const ephemeral: GeneratedEphemeral;
 export declare const groups: GeneratedQueryGroups;
+export declare const defaults: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
 export declare const api: GeneratedApi;
 export default api;

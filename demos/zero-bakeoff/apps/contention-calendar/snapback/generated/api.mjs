@@ -3,6 +3,8 @@
 export const ephemeral = Object.freeze({});
 /** @type {import('./api.d.ts').GeneratedQueryGroups} */
 export const groups = Object.freeze({});
+/** @type {Readonly<Record<string, Readonly<Record<string, unknown>>>>} */
+export const defaults = Object.freeze({});
 /** @type {import('./api.d.ts').GeneratedApi} */
 export const api = Object.freeze({
   "clearReservations": {
@@ -14,6 +16,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "contention-calendar",
+      "bundleHash": "sha256:528550ec64be5b22",
+      "inputsHash": "219f0837561b0601baef99bd4495f9f9d8b3b3ed9c95e0dec2a5aa3e1bbe083b",
+      "schemaHash": "sha256:75e69d5b58e4b3ed",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "contention-calendar:clearReservations",
     "implementationHash": "sha256:6f06052369b6d325b48d53291855bc7e75921206b736edc652f46d9d2788ba29",
     "kind": "Mutation",
@@ -43,6 +52,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "contention-calendar",
+      "bundleHash": "sha256:528550ec64be5b22",
+      "inputsHash": "219f0837561b0601baef99bd4495f9f9d8b3b3ed9c95e0dec2a5aa3e1bbe083b",
+      "schemaHash": "sha256:75e69d5b58e4b3ed",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "contention-calendar:reservationsForSlot",
     "implementationHash": "sha256:2f6197d4df06c87e1845c7e59ef43ebbad13638f4456a044bb7cd80c4c977e6d",
     "kind": "LiveQuery",
@@ -86,6 +102,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "contention-calendar",
+      "bundleHash": "sha256:528550ec64be5b22",
+      "inputsHash": "219f0837561b0601baef99bd4495f9f9d8b3b3ed9c95e0dec2a5aa3e1bbe083b",
+      "schemaHash": "sha256:75e69d5b58e4b3ed",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "contention-calendar:reserve",
     "implementationHash": "sha256:3e8673acc58deff9d3b791b85564871dc4d7f27b3295c8983273355158179efe",
     "kind": "Mutation",
@@ -102,6 +125,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "contention-calendar",
+      "bundleHash": "sha256:528550ec64be5b22",
+      "inputsHash": "219f0837561b0601baef99bd4495f9f9d8b3b3ed9c95e0dec2a5aa3e1bbe083b",
+      "schemaHash": "sha256:75e69d5b58e4b3ed",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "contention-calendar:schedule",
     "implementationHash": "sha256:426c55946515d2c0e56bf6272b6fbe9efd9219c3065706dd90459ec05bf36858",
     "kind": "LiveQuery",
