@@ -159,6 +159,9 @@ here (or listed here but gone from the code).
 | /_snapback/api/jobs/{id} | backend.jobs-one-off |
 | /_snapback/api/receipts | notAuthorFacing (operator projection) |
 | /_snapback/api/schema/load | backend.schema |
+| /_snapback/api/telemetry/events | backend.observability-v1 |
+| /_snapback/api/telemetry/export | backend.observability-v1 |
+| /_snapback/api/telemetry/stats | backend.observability-v1 |
 | /action/{name} | backend.actions |
 | /app-api/current | clients.app-cli |
 | /app-api/envelope/{sha256} | clients.app-cli |
@@ -249,6 +252,9 @@ here (or listed here but gone from the code).
 | host_ops.host.start | operating.host-ops |
 | host_ops.host.stop | operating.host-ops |
 | host_ops.host.restart | operating.host-ops |
+| host_ops.telemetry.events | backend.observability-v1 |
+| host_ops.telemetry.export | backend.observability-v1 |
+| host_ops.telemetry.stats | backend.observability-v1 |
 
 ---
 

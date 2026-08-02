@@ -23479,6 +23479,11 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         //   membership row is absent, so this is a scoped not-found result.
         | "SNAPBACK_MEMBERSHIP_SELF_NOT_FOUND" => StatusCode::NOT_FOUND,
         "SNAPBACK_ARTIFACT_IDENTITY_MISMATCH"
+        // @ref LLP 0154#d5--the-query-contract-typed-operations-projected-everywhere —
+        //   a continuation or frozen export snapshot bound to retired sibling
+        //   state conflicts with the current store and must be restarted.
+        | "SNAPBACK_TELEMETRY_EXPORT_CONTINUATION_STALE"
+        | "SNAPBACK_TELEMETRY_EXPORT_SNAPSHOT_STALE"
         | "SNAPBACK_MUTATION_CONFLICT"
         | "SNAPBACK_ACTION_GENERATION_CONFLICT"
         // @ref LLP 0076#diagnostics — reserved internal cancellation reason;
@@ -23630,6 +23635,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_ADMIN_SECRET_READ_BUDGET_EXHAUSTED"
         | "SNAPBACK_TELEMETRY_STATS_WORK_LIMIT_EXCEEDED"
         | "SNAPBACK_TELEMETRY_QUERY_WORK_LIMIT_EXCEEDED"
+        | "SNAPBACK_TELEMETRY_SQL_BUDGET_EXCEEDED"
         | "SNAPBACK_ADMIN_SECRET_READ_LEASE_CAPACITY_EXCEEDED"
         | "SNAPBACK_ADMIN_SECRET_READ_PROOF_CAPACITY_EXCEEDED"
         | "SNAPBACK_AUTH_THROTTLED"
@@ -23652,6 +23658,11 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_CLIENT_MUTATION_RESULT_TOO_LARGE"
         | "SNAPBACK_WEBSOCKET_MESSAGE_TOO_LARGE" => StatusCode::PAYLOAD_TOO_LARGE,
         "SNAPBACK_ADMIN_SECRET_READ_LEASE_INVALID"
+        | "SNAPBACK_TELEMETRY_EXPORT_CONTINUATION_INVALID"
+        | "SNAPBACK_TELEMETRY_EXPORT_PAGE_TOO_SMALL"
+        | "SNAPBACK_TELEMETRY_QUERY_INVALID"
+        | "SNAPBACK_TELEMETRY_SQL_DENIED"
+        | "SNAPBACK_TELEMETRY_SQL_FAILED"
         | "SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED"
         | "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED"
         | "SNAPBACK_AUTH_INVALIDATION_NAMESPACE_REQUIRED"
@@ -23685,6 +23696,11 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         // @ref LLP 0058#admitted-body-ingestion — the admitted ingest deadline
         // is a client fault: the request body never finished arriving.
         "SNAPBACK_REQUEST_BODY_TIMEOUT" => StatusCode::REQUEST_TIMEOUT,
+        "SNAPBACK_TELEMETRY_EXPORT_ENVELOPE_BOUND_EXCEEDED"
+        | "SNAPBACK_TELEMETRY_EXPORT_RESPONSE_FAILED"
+        | "SNAPBACK_TELEMETRY_EXPORT_SERIALIZATION_FAILED"
+        | "SNAPBACK_TELEMETRY_QUERY_SERIALIZATION_FAILED"
+        | "SNAPBACK_TELEMETRY_SQL_OPEN_FAILED" => StatusCode::INTERNAL_SERVER_ERROR,
         "SNAPBACK_ACTION_CAPACITY_EXCEEDED"
         | "SNAPBACK_ACTION_STREAM_UNSUPPORTED"
         | "SNAPBACK_HOST_FETCH_UNSUPPORTED"
@@ -37746,6 +37762,12 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_BUNDLE_MODE_INVALID",
         "SNAPBACK_BUNDLE_PARAMS_INVALID",
         "SNAPBACK_ADMIN_SECRET_READ_LEASE_INVALID",
+        // LLP 0154 D5 typed-query/SQL request-shape refusals.
+        "SNAPBACK_TELEMETRY_EXPORT_CONTINUATION_INVALID",
+        "SNAPBACK_TELEMETRY_EXPORT_PAGE_TOO_SMALL",
+        "SNAPBACK_TELEMETRY_QUERY_INVALID",
+        "SNAPBACK_TELEMETRY_SQL_DENIED",
+        "SNAPBACK_TELEMETRY_SQL_FAILED",
         "SNAPBACK_ARG_MISSING",
         "SNAPBACK_AUTHORITY_INDEPENDENT_INVALID",
         "SNAPBACK_PUBLIC_INLINE_INVALID",
@@ -38143,6 +38165,8 @@ globalThis.__snapbackHandlers = {
     ];
 
     const CONFLICT_DIAGNOSTICS: &[&str] = &[
+        "SNAPBACK_TELEMETRY_EXPORT_CONTINUATION_STALE",
+        "SNAPBACK_TELEMETRY_EXPORT_SNAPSHOT_STALE",
         "SNAPBACK_JOB_IDEMPOTENCY_KEY_RACED",
         "SNAPBACK_JOB_IDEMPOTENCY_KEY_REUSED",
         "SNAPBACK_PROJECTION_FANOUT_EXCEEDED",
@@ -38256,6 +38280,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_ADMIN_SECRET_READ_BUDGET_EXHAUSTED",
         "SNAPBACK_TELEMETRY_STATS_WORK_LIMIT_EXCEEDED",
         "SNAPBACK_TELEMETRY_QUERY_WORK_LIMIT_EXCEEDED",
+        "SNAPBACK_TELEMETRY_SQL_BUDGET_EXCEEDED",
         "SNAPBACK_ADMIN_SECRET_READ_LEASE_CAPACITY_EXCEEDED",
         "SNAPBACK_ADMIN_SECRET_READ_PROOF_CAPACITY_EXCEEDED",
         "SNAPBACK_AUTH_THROTTLED",
@@ -38471,9 +38496,14 @@ globalThis.__snapbackHandlers = {
         // HTTP-200 result envelope.
         "SNAPBACK_TELEMETRY_CONFIG_INVALID",
         "SNAPBACK_TELEMETRY_CONFIG_TRANSITION_FAILED",
+        "SNAPBACK_TELEMETRY_EXPORT_ENVELOPE_BOUND_EXCEEDED",
+        "SNAPBACK_TELEMETRY_EXPORT_RESPONSE_FAILED",
+        "SNAPBACK_TELEMETRY_EXPORT_SERIALIZATION_FAILED",
         "SNAPBACK_TELEMETRY_FILE_CAP_UNSATISFIABLE",
         "SNAPBACK_TELEMETRY_IDENTITY_INVALID",
         "SNAPBACK_TELEMETRY_IDENTITY_UNBOUND",
+        "SNAPBACK_TELEMETRY_QUERY_SERIALIZATION_FAILED",
+        "SNAPBACK_TELEMETRY_SQL_OPEN_FAILED",
         "SNAPBACK_TELEMETRY_STORE_IO",
         "SNAPBACK_TELEMETRY_TEST_CONFIG_FAILED",
         "SNAPBACK_TELEMETRY_TEST_FLUSH_FAILED",
@@ -46274,7 +46304,9 @@ globalThis.__snapbackHandlers = {
                     assert!(
                         matches!(
                             route.policy,
-                            RoutePolicy::AdminRead | RoutePolicy::AdminWrite
+                            RoutePolicy::AdminRead
+                                | RoutePolicy::AdminWrite
+                                | RoutePolicy::AdminSecretRead
                         ),
                         "system-api must be admin-gated: {}",
                         route.path

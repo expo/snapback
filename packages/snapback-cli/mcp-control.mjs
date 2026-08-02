@@ -507,8 +507,11 @@ export class McpControlServer {
   //   including ok:false app-level failures.
   secretReadLease(scopeFlag, rowBudget, byteBudget) {
     const runtime = this.resolveRuntime();
+    const descriptor = this.currentDescriptor();
+    const adminToken = managedAdminToken(descriptor, this.database);
     const result = native(runtime.binary, [
       'secret-read-mint', '--ready-file', this.readyFile,
+      ...(adminToken ? ['--token', adminToken] : []),
       `--${scopeFlag}`, '--row-budget', String(rowBudget), '--byte-budget', String(byteBudget),
     ], { cwd: this.projectRoot, env: this.env });
     if (result.status !== 0) {
