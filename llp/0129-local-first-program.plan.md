@@ -5,7 +5,32 @@
 **Systems:** Sync, Storage, Runtime, Client integration, Auth, Wire Protocol, Realtime, Packaging, Testing, Documentation, Competitive evaluation
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-08-01 (React Native durable-store arm landed — the option-A
+**Revised:** 2026-08-02 (dated product-direction cross-reference — LLP 0155
+"Local sync product direction" was Accepted by the author today and names
+this Plan's program as the write lane of its two-lane execution: LLP 0155
+moves 1–3 are the chosen product-direction consumers of this program.
+Recorded here per LLP 0155 §Sequencing Stage 0: (1) the lane split — LLP
+0155's read lane (bounded-node composition, completeness, custody
+inspection, fragment-baseline materialization) proceeds under this Plan's
+existing §Interaction-with-intervening-product-work permission and its
+governing no-browser-write-expressiveness criterion; the write lane is
+this Plan's phases unmodified, and on any conflict this Plan wins until a
+dated amendment lands here. (2) No phase, gate, ledger row, or standing
+decision is amended by the cross-reference; OQ5/OQ7/OQ8/OQ10 remain open
+and author-owned under this Plan's own machinery. (3) LLP 0155's read lane
+commits to landing the browser store/outbox and presentation slice of the
+substrate OQ8 names — offered as evidence toward closing OQ8, with ledger
+rows 1–4 remaining OQ8's other half. (4) LLP 0155 adopts the conservative
+reading of this Plan's prototype/implement distinction for Candidate-B
+work and requires a retained A inexpressibility result plus OQ10's frozen
+boundary/owner before any B-shaped prototyping. (5) Proposal, not yet
+adopted: register Incident Room — LLP 0155's Stage-0-frozen
+product-direction safety-control manifest, the bakeoff's
+protected-retirement/authority-transition witness — as a named
+safety-control artifact of the decision lab; until the author adopts that
+here, the lab's frozen manifests remain exactly Kanban, Calendar, and
+Notebook.)
+2026-08-01 (React Native durable-store arm landed — the option-A
 default carrier now reaches React Native. Design decision recorded here
 because no prior revision answered it: the default ladder CANNOT import a
 platform filesystem module (Metro statically resolves every literal

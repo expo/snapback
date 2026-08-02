@@ -5,7 +5,13 @@
 **Systems:** Application data API, Query planning, Storage portability, Live Queries, Authorization, Code generation, Maintained projections, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-07-30 (Diary 0039 evidence annotation on open question 1
+**Revised:** 2026-08-02 (retention-section dated note: Accepted LLP 0155
+commissions a retention-class extension — local re-evaluation of admitted
+plans over retained query-result fragments with completeness witnesses —
+as a future dated amendment here or in the Move 1 composition-algebra
+successor Spec with a boundary note here; v1's opaque-snapshot-only rule
+governs unchanged until it lands);
+2026-07-30 (Diary 0039 evidence annotation on open question 1
 and a new open question 7 — the rerun's Relay/Split aggregate shapes are the
 concrete demand for whatever profile comes after v1; tracked as LLP 0115
 CV-8; no normative change). 2026-07-26 (Implemented: every §Acceptance item is witnessed — the
@@ -362,6 +368,16 @@ The retained/native evaluator executes relational plans on the live path
 like every evaluator in §2; against the retained store it only decodes and
 serves the opaque snapshot — it never re-executes the join over retained
 rows.
+
+> **Dated note (2026-08-02):** LLP 0155 (Accepted) commissions a
+> retention-class extension to this closed set: a successor class under
+> which admitted plans may be locally re-evaluated over retained
+> query-result fragments, with completeness witnesses, for the local
+> materialization its Move 2 describes. The extension is a dated amendment
+> that lands here (or in the Move 1 composition-algebra successor Spec
+> with a boundary note here, per LLP 0155 OQ1); until it lands, v1's
+> opaque-snapshot-only rule above governs unchanged, and LLP 0155's
+> fragment baseline stays within it.
 
 ### 5. Transactionally maintained projections
 
