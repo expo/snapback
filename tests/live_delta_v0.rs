@@ -10,12 +10,14 @@
 //! sequence.
 
 use serde_json::{Map, Value, json};
+use sha2::{Digest, Sha256};
 use snapback::ephemeral::RealtimeEnvelope;
 use snapback::local::{LiveSubscribeInput, LocalSnapback};
 use snapback::manifest::{
     AuthInput, FieldManifest, FieldType, FilterExpr, FilterOp, FunctionDefinition, FunctionKind,
-    FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, MutationPlan, MutationStep,
-    QueryPlan, ReturnValue, SchemaManifest, TableManifest, ValueExpr,
+    FunctionManifest, FunctionResultContract, FunctionRuntime, HandlerInput, HandlerPlan,
+    MutationPlan, MutationStep, QueryPlan, ResultObjectFieldContract, ResultValueContract,
+    ReturnValue, SchemaManifest, TableManifest, ValueExpr,
 };
 use std::collections::BTreeMap;
 
@@ -81,6 +83,59 @@ fn ordered_query_falls_back_to_live_replace() {
         "ordered queries must fall back to the whole-result replace"
     );
     assert_eq!(update["rows"].as_array().expect("rows").len(), 1);
+}
+
+/// A narrowed computed-record contract cannot use raw storage-row deltas.
+/// The positive change still arrives through the validated replacement lane;
+/// the invalid change is refused before any application row is published.
+///
+/// @ref LLP 0108#runtime-validation-and-atomicity — every live-query output
+///   crosses result-contract validation before publication/serialization.
+#[test]
+fn narrowed_result_contract_uses_validated_replacement_lane() {
+    let mut valid = configured();
+    valid
+        .subscribe_live("listMineNarrow", sub_input("conn-valid", "ada"))
+        .expect("subscribe valid lane");
+    create(&mut valid, "ok", "ada");
+    let update = drain_one_update(&mut valid, "conn-valid");
+    assert_eq!(
+        update["kind"], "live_replace",
+        "a narrowed contract must fall back to the validated replacement lane"
+    );
+    assert_eq!(update["rows"][0]["title"], "ok");
+
+    let mut invalid = configured();
+    invalid
+        .subscribe_live("listMineNarrow", sub_input("conn-invalid", "ada"))
+        .expect("subscribe invalid lane");
+    create(&mut invalid, "too-long", "ada");
+    let update = drain_one_update(&mut invalid, "conn-invalid");
+    assert_eq!(
+        update["kind"], "resync_required",
+        "contract-invalid storage rows must not escape in a delta or replacement"
+    );
+    assert!(
+        drain(&mut invalid, "conn-invalid").is_empty(),
+        "no application payload follows the refusal"
+    );
+}
+
+/// A direct artifact cannot smuggle a narrower contract through the nominal
+/// `documents(table)` tag. Delta candidacy requires the complete
+/// schema-derived document descriptor, including all scalar bounds.
+#[test]
+fn narrowed_documents_descriptor_uses_validated_replacement_lane() {
+    let mut snapback = configured();
+    snapback
+        .subscribe_live("listMineNarrowDocument", sub_input("conn-document", "ada"))
+        .expect("subscribe narrowed document lane");
+    create(&mut snapback, "ok", "ada");
+    let update = drain_one_update(&mut snapback, "conn-document");
+    assert_eq!(
+        update["kind"], "live_replace",
+        "a nominal Documents tag with narrower bounds is not delta-eligible"
+    );
 }
 
 /// The correctness property: applying the emitted deltas on the client
@@ -458,7 +513,7 @@ fn schema() -> SchemaManifest {
 
 fn functions() -> FunctionManifest {
     let filtered_query = |name: &str, order: Vec<snapback::manifest::OrderExpr>| {
-        FunctionDefinition::new(
+        let mut function = FunctionDefinition::new(
             name,
             FunctionKind::LiveQuery,
             FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
@@ -473,7 +528,9 @@ fn functions() -> FunctionManifest {
                 membership_filters: Vec::new(),
                 indexed_by: None,
             })),
-        )
+        );
+        install_result_contract(&mut function, documents_contract());
+        function
     };
     let insert = FunctionDefinition::new(
         "createTodo",
@@ -515,7 +572,7 @@ fn functions() -> FunctionManifest {
             return_value: Some(ReturnValue::ChangedCount),
         })),
     );
-    let list_all = FunctionDefinition::new(
+    let mut list_all = FunctionDefinition::new(
         "listAll",
         FunctionKind::Query,
         FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
@@ -527,9 +584,10 @@ fn functions() -> FunctionManifest {
             indexed_by: None,
         })),
     );
+    install_result_contract(&mut list_all, documents_contract());
     // An unordered range-filtered query: `priority < 3`. A row with a NULL
     // priority must be excluded, matching SQL (finding A).
-    let list_urgent = FunctionDefinition::new(
+    let mut list_urgent = FunctionDefinition::new(
         "listUrgent",
         FunctionKind::LiveQuery,
         FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
@@ -545,7 +603,8 @@ fn functions() -> FunctionManifest {
             indexed_by: None,
         })),
     );
-    let list_version_one = FunctionDefinition::new(
+    install_result_contract(&mut list_urgent, documents_contract());
+    let mut list_version_one = FunctionDefinition::new(
         "listVersionOne",
         FunctionKind::LiveQuery,
         FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
@@ -560,6 +619,17 @@ fn functions() -> FunctionManifest {
             membership_filters: Vec::new(),
             indexed_by: None,
         })),
+    );
+    install_result_contract(&mut list_version_one, documents_contract());
+    let mut list_mine_narrow = filtered_query("listMineNarrow", Vec::new());
+    install_result_contract(&mut list_mine_narrow, narrowed_records_contract());
+    let mut list_mine_narrow_document = filtered_query("listMineNarrowDocument", Vec::new());
+    install_result_contract(
+        &mut list_mine_narrow_document,
+        FunctionResultContract::Documents {
+            table: "todos".to_owned(),
+            document: todo_row_contract(4),
+        },
     );
     let create_with_priority = FunctionDefinition::new(
         "createWithPriority",
@@ -605,6 +675,8 @@ fn functions() -> FunctionManifest {
         bundle_hash: Some("delta-fns-v0".to_owned()),
         functions: vec![
             filtered_query("listMine", Vec::new()),
+            list_mine_narrow,
+            list_mine_narrow_document,
             filtered_query(
                 "listMineOrdered",
                 vec![snapback::manifest::OrderExpr {
@@ -622,6 +694,93 @@ fn functions() -> FunctionManifest {
             delete,
             list_all,
         ],
+        acknowledged_experimental_capabilities: vec!["result_contract_v1".to_owned()],
         ..FunctionManifest::default()
+    }
+}
+
+fn install_result_contract(function: &mut FunctionDefinition, contract: FunctionResultContract) {
+    let value = serde_json::to_value(&contract).expect("serialize result contract");
+    let canonical = snapback::rqs::jcs(&value).expect("canonical result contract");
+    let mut hash = Sha256::new();
+    hash.update(b"snapback:function-result:v1\n");
+    hash.update(canonical.as_bytes());
+    function.result_contract = contract;
+    function.result_contract_hash = Some(format!("sha256:{:x}", hash.finalize()));
+    function
+        .required_capabilities
+        .push("result_contract_v1".to_owned());
+}
+
+fn documents_contract() -> FunctionResultContract {
+    FunctionResultContract::Documents {
+        table: "todos".to_owned(),
+        document: todo_row_contract(1024 * 1024),
+    }
+}
+
+fn narrowed_records_contract() -> FunctionResultContract {
+    FunctionResultContract::Records {
+        record: todo_row_contract(4),
+        rows: None,
+    }
+}
+
+fn todo_row_contract(title_max_bytes: usize) -> ResultValueContract {
+    let system_integer = || ResultValueContract::Integer {
+        min: 0,
+        max: 9_007_199_254_740_991,
+    };
+    let application_integer = || ResultValueContract::Integer {
+        min: -9_007_199_254_740_991,
+        max: 9_007_199_254_740_991,
+    };
+    ResultValueContract::Object {
+        fields: vec![
+            ResultObjectFieldContract {
+                name: "_id".to_owned(),
+                required: true,
+                value: ResultValueContract::Id {
+                    table: "todos".to_owned(),
+                },
+            },
+            ResultObjectFieldContract {
+                name: "_version".to_owned(),
+                required: true,
+                value: system_integer(),
+            },
+            ResultObjectFieldContract {
+                name: "_createdAt".to_owned(),
+                required: true,
+                value: system_integer(),
+            },
+            ResultObjectFieldContract {
+                name: "_updatedAt".to_owned(),
+                required: true,
+                value: system_integer(),
+            },
+            ResultObjectFieldContract {
+                name: "title".to_owned(),
+                required: true,
+                value: ResultValueContract::String {
+                    max_bytes: title_max_bytes,
+                },
+            },
+            ResultObjectFieldContract {
+                name: "userId".to_owned(),
+                required: true,
+                value: ResultValueContract::String {
+                    max_bytes: 1024 * 1024,
+                },
+            },
+            ResultObjectFieldContract {
+                name: "priority".to_owned(),
+                required: true,
+                value: ResultValueContract::Union {
+                    variants: vec![ResultValueContract::Null, application_integer()],
+                },
+            },
+        ],
+        allow_extra: false,
     }
 }

@@ -49,11 +49,12 @@ use crate::live_wire::{
 use crate::manifest::{
     ActionPlan, ActionReturnValue, ActionStep, ArtifactGeneration, AuthInput, AuthMode,
     AuthorityDescriptor, CTX_ANSWER_LEDGER_MAX_IDS, CapabilityManifest, CtxAnswerLedger,
-    FunctionDefinition, FunctionInvocationFacts, FunctionKind, FunctionManifest, FunctionRuntime,
-    HandlerInput, HandlerPlan, MutationOutput, MutationStep, PermissionScopeExpr,
-    PublicFunctionManifest, PublicSchemaManifest, QueryOutput, QueryPlan, SNAPBACK_SCHEMA_VERSION,
-    SchemaManifest, SeedData, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX, ValueExpr, auth_fingerprint,
-    ctx_ledger_version, legacy_auth_fingerprint,
+    FunctionDefinition, FunctionInvocationFacts, FunctionKind, FunctionManifest,
+    FunctionResultContract, FunctionRuntime, HandlerInput, HandlerPlan, MutationOutput,
+    MutationStep, PermissionScopeExpr, PublicFunctionManifest, PublicSchemaManifest, QueryOutput,
+    QueryPlan, SNAPBACK_SCHEMA_VERSION, SchemaManifest, SeedData,
+    TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX, ValueExpr, auth_fingerprint, ctx_ledger_version,
+    legacy_auth_fingerprint,
 };
 use crate::runtime::{
     CapabilityState, ExecutedIbexMutation, IbexActionHost, IbexCliCapability,
@@ -2939,6 +2940,101 @@ impl Default for RqsReplayPolicy {
 /// [`crate::manifest::rqs_eligible_digest_kind`].
 fn rqs_eligibility(function: &FunctionDefinition) -> Option<crate::rqs::DigestKind> {
     crate::manifest::rqs_eligible_digest_kind(function)
+}
+
+/// Whether a query's result contract is exactly the schema-derived stored
+/// document contract. A direct manifest can spell `Documents` with arbitrary
+/// nested bounds, so the enum tag and table name alone do not prove that raw
+/// committed rows satisfy the declared egress shape.
+fn delta_documents_contract_matches_schema(
+    contract: &FunctionResultContract,
+    plan: &QueryPlan,
+    schema: &SchemaManifest,
+) -> bool {
+    let FunctionResultContract::Documents { table, document } = contract else {
+        return false;
+    };
+    if table != &plan.table {
+        return false;
+    }
+    let Some(table) = schema.table(table) else {
+        return false;
+    };
+
+    let safe_integer = || crate::manifest::ResultValueContract::Integer {
+        min: 0,
+        max: 9_007_199_254_740_991,
+    };
+    let mut fields = vec![
+        crate::manifest::ResultObjectFieldContract {
+            name: "_id".to_owned(),
+            required: true,
+            value: crate::manifest::ResultValueContract::Id {
+                table: table.name.clone(),
+            },
+        },
+        crate::manifest::ResultObjectFieldContract {
+            name: "_version".to_owned(),
+            required: true,
+            value: safe_integer(),
+        },
+        crate::manifest::ResultObjectFieldContract {
+            name: "_createdAt".to_owned(),
+            required: true,
+            value: safe_integer(),
+        },
+        crate::manifest::ResultObjectFieldContract {
+            name: "_updatedAt".to_owned(),
+            required: true,
+            value: safe_integer(),
+        },
+    ];
+    fields.extend(table.fields.iter().map(|field| {
+        use crate::manifest::{FieldType, ResultObjectFieldContract, ResultValueContract};
+
+        let value = match &field.field_type {
+            FieldType::String => ResultValueContract::String {
+                max_bytes: 1024 * 1024,
+            },
+            FieldType::Boolean => ResultValueContract::Boolean,
+            FieldType::Integer => ResultValueContract::Integer {
+                min: -9_007_199_254_740_991,
+                max: 9_007_199_254_740_991,
+            },
+            FieldType::Real => ResultValueContract::FiniteReal {
+                min: -f64::MAX,
+                max: f64::MAX,
+            },
+            FieldType::Json => ResultValueContract::Json {
+                max_depth: 16,
+                max_bytes: 1024 * 1024,
+            },
+            FieldType::Principal => ResultValueContract::Principal,
+            FieldType::Id { table } => ResultValueContract::Id {
+                table: table.clone(),
+            },
+            FieldType::RelationIncarnation { .. } => ResultValueContract::String { max_bytes: 64 },
+            FieldType::AssetRef { .. } => ResultValueContract::AssetRef,
+        };
+        let value = if field.optional && !matches!(value, ResultValueContract::Json { .. }) {
+            ResultValueContract::Union {
+                variants: vec![ResultValueContract::Null, value],
+            }
+        } else {
+            value
+        };
+        ResultObjectFieldContract {
+            name: field.name.clone(),
+            required: true,
+            value,
+        }
+    }));
+
+    document
+        == &crate::manifest::ResultValueContract::Object {
+            fields,
+            allow_extra: false,
+        }
 }
 
 /// The reserved system live query projecting one asset record (LLP 0044
@@ -19356,7 +19452,27 @@ impl LocalSnapback {
                 FunctionRuntime::HostPlan(HandlerPlan::Query(plan))
                     if !changes.is_empty()
                         && plan.membership_filters.is_empty()
-                        && function.standard_pattern.is_none() =>
+                        && function.standard_pattern.is_none()
+                        // The incremental lane publishes committed storage rows
+                        // without reconstructing the complete handler result.
+                        // That is sound only for the exact schema-derived
+                        // document contract: every changed row has already
+                        // crossed the installed table-schema write boundary.
+                        // Merely carrying the `Documents` enum tag is not
+                        // enough because direct manifests can carry arbitrary
+                        // nested bounds. Authored
+                        // records, legacy rows, and unknown contracts require
+                        // the full re-query below so the complete array crosses
+                        // the authoritative result-contract egress seam.
+                        //
+                        // @ref LLP 0108#runtime-validation-and-atomicity —
+                        //   live-query output is validated before publication
+                        //   or transport serialization.
+                        && delta_documents_contract_matches_schema(
+                            &function.result_contract,
+                            plan,
+                            self.db.schema(),
+                        ) =>
                 {
                     Some(plan.clone())
                 }

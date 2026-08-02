@@ -1,6 +1,6 @@
 # Live delta frames publish storage rows without result-contract validation
 
-**Status:** Open
+**Status:** Resolved 2026-08-02
 **Found:** 2026-08-01, LLP 0147 round-1 super-refine (Codex family BLOCKING-2,
 independently found by the author pre-verification pass; author-verified)
 **Systems:** Live queries, result contracts, local runtime, wire protocol
@@ -118,3 +118,36 @@ a contract-valid change must still reach the subscriber promptly — as a
 validated delta, or as a validated replacement if fix 3 is chosen. Stating it
 this way keeps all three candidate fixes admissible; requiring a *delta*
 specifically would foreclose fix 3.
+
+## Resolution
+
+Implemented candidate fix 3. The local delta candidacy gate now admits only a
+`documents(table)` descriptor that exactly matches the schema-derived stored
+document contract for the HostPlan query's table. The tag and table name alone
+are insufficient because a direct manifest can carry narrower nested bounds.
+`records`, non-schema-exact `documents`, `legacyQueryRowsV0`, and `unknown`
+contracts take the existing full re-query plus `live_replace` path, where
+`execute_query_invocation` validates the complete result before publication or
+serialization.
+
+The focused regression in `tests/live_delta_v0.rs` proves both directions with
+a `records` contract that narrows the table's `title` field to four bytes:
+
+- a valid short-title commit reaches the subscriber as a validated
+  `live_replace`; and
+- an invalid long-title commit publishes no application row and emits only the
+  existing `resync_required` recovery sentinel.
+
+The pre-existing document-contract tests continue to prove that eligible
+HostPlan queries retain `live_delta` delivery and client/fresh-query
+convergence.
+
+Verification:
+
+- `cargo test --locked --test live_delta_v0` — 9 passed;
+- `cargo test --locked result_contract --lib` — 8 passed (1,630 filtered);
+- `cargo clippy --locked --test live_delta_v0 -- -D warnings`;
+- `scripts/check-generated-artifacts`;
+- `node scripts/check-guide.mjs`;
+- `./ref-check --verbose`; and
+- `git diff --check` plus focused Rust formatting.
