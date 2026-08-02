@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "snapback.zero-bakeoff.acceptance.v1",
+  "app": "field-notebook",
+  "expectedChecks": 11,
+  "fixture": {"records": 200, "offlineStretchMs": 900000},
+  "checks": [
+    "fn.cold-retained-read",
+    "fn.honest-freshness",
+    "fn.short-interruption-write",
+    "fn.disconnected-write-contract",
+    "fn.draft-preservation",
+    "fn.reconnect-no-duplicate",
+    "fn.logout-cache-policy",
+    "fn.stretch-durable-create-update",
+    "fn.stretch-offline-restart",
+    "fn.stretch-concurrent-rebase",
+    "fn.cleanup"
+  ],
+  "providerApplicability": {
+    "zero": {"core": true, "stretch": false},
+    "snapback": {"core": true, "stretch": true},
+    "replicache": {"core": true, "stretch": true}
+  }
+}
+

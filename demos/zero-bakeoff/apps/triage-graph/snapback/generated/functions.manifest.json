@@ -1,0 +1,672 @@
+{
+  "acknowledgedExperimentalCapabilities": [
+    "args_contract_v1",
+    "inline_handler_v1",
+    "result_contract_v1"
+  ],
+  "appId": "triage-graph",
+  "artifactKind": "functionManifest",
+  "bundleHash": "sha256:a06f0ec252ef328c",
+  "config": [],
+  "cronJobs": [],
+  "functions": [
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "teamKey",
+            "required": false,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "priority",
+            "required": false,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "labelKey",
+            "required": false,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "assigneeKey",
+            "required": false,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "after",
+            "required": false,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:cc49b1ebf92b05a1ebb1281fe4b06b8dc48418064d2aae09bf7acec7a7047ea9",
+      "authRequirement": "optional-user",
+      "authorizationDependence": [
+        "opaque"
+      ],
+      "bundleEntrypoint": "inbox",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "issueLabels"
+          },
+          {
+            "access": "query",
+            "table": "issues"
+          },
+          {
+            "access": "query",
+            "table": "labels"
+          },
+          {
+            "access": "query",
+            "table": "memberships"
+          },
+          {
+            "access": "query",
+            "table": "projects"
+          },
+          {
+            "access": "query",
+            "table": "users"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "inbox",
+      "handlerForm": "inline",
+      "id": "triage-graph:inbox",
+      "implementationHash": "sha256:ef9b1dc3c5c28c95338dd176b6a579fff105faceceae25aec1a7679024d1f2f9",
+      "kind": "LiveQuery",
+      "name": "inbox",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "memberships",
+        "tables": [
+          "memberships",
+          "issues",
+          "issueLabels",
+          "labels",
+          "projects",
+          "users"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "ibex_ctx_db_host_bridge",
+        "result_contract_v1",
+        "args_contract_v1",
+        "inline_handler_v1"
+      ],
+      "resultContract": {
+        "kind": "records",
+        "record": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "issueKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "status",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "priority",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "pageKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "teamKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "projectKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "projectName",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "assigneeKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "assigneeName",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "labels",
+              "required": true,
+              "value": {
+                "kind": "json",
+                "maxBytes": 1048576,
+                "maxDepth": 16
+              }
+            },
+            {
+              "name": "commentCount",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            }
+          ],
+          "kind": "object"
+        }
+      },
+      "resultContractHash": "sha256:80bbf131743d1bf62240ca949ae37dd6a3b98e9298e09481a775945150bd2b4c",
+      "runtime": {
+        "IbexModule": {
+          "export": "inbox",
+          "source": "globalThis.__snapbackHandlers = { \"inbox\": (async (ctx, args) => {\n    const memberships = await ctx.db.query('memberships').withIndex('by_user_team').eq('userKey', ctx.auth.userId).collect();\n    const teamKeys = memberships.map((row) => row.teamKey);\n    const assigned = await ctx.db.query('issues').withIndex('by_assignee_page').eq('assigneeKey', ctx.auth.userId).collect();\n    const accessible = teamKeys.length === 0\n      ? []\n      : await ctx.db.query('issues').withIndex('by_team_page').in('teamKey', teamKeys).collect();\n    const byKey = new Map();\n    for (const issue of accessible.concat(assigned)) byKey.set(issue.issueKey, issue);\n    let issues = Array.from(byKey.values());\n    if (args.teamKey) issues = issues.filter((row) => row.teamKey === args.teamKey);\n    if (args.status) issues = issues.filter((row) => row.status === args.status);\n    if (args.priority) issues = issues.filter((row) => row.priority === args.priority);\n    if (args.assigneeKey) issues = issues.filter((row) => row.assigneeKey === args.assigneeKey);\n    if (args.after) issues = issues.filter((row) => row.pageKey < args.after);\n    if (args.labelKey) {\n      const links = await ctx.db.query('issueLabels').withIndex('by_label_issue').eq('labelKey', args.labelKey).collect();\n      const matching = new Set(links.map((row) => row.issueKey));\n      issues = issues.filter((row) => matching.has(row.issueKey));\n    }\n    issues.sort((left, right) => right.pageKey.localeCompare(left.pageKey));\n    const output = [];\n    for (const issue of issues.slice(0, 50)) {\n      const projectRows = await ctx.db.query('projects').withIndex('by_project_key').eq('projectKey', issue.projectKey).collect();\n      const assigneeRows = await ctx.db.query('users').withIndex('by_user_key').eq('userKey', issue.assigneeKey).collect();\n      const links = await ctx.db.query('issueLabels').withIndex('by_issue_label').eq('issueKey', issue.issueKey).collect();\n      const labelRows = links.length === 0 ? [] : await ctx.db.query('labels').withIndex('by_label_key').in('labelKey', links.map((row) => row.labelKey)).collect();\n      output.push({\n        issueKey: issue.issueKey, title: issue.title, status: issue.status, priority: issue.priority,\n        pageKey: issue.pageKey, teamKey: issue.teamKey, projectKey: issue.projectKey,\n        projectName: projectRows[0]?.name ?? '', assigneeKey: issue.assigneeKey,\n        assigneeName: assigneeRows[0]?.name ?? '', labels: labelRows.map((row) => ({labelKey: row.labelKey, name: row.name})),\n        commentCount: issue.commentCount, updatedAt: issue.updatedAt,\n      });\n    }\n    return output;\n  }) };\n"
+        }
+      },
+      "sourceSpan": {
+        "column": 12,
+        "file": "functions.mjs",
+        "line": 16
+      },
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "kind",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "rows",
+            "required": true,
+            "value": {
+              "kind": "json",
+              "maxBytes": 1048576,
+              "maxDepth": 16
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:b7f239b023dd70bc09479f789f47bca2c0350f9028ca78fbb559aa8223c12da7",
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "ingestFixtureBatch",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "activities"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "comments"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "issueLabels"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "issues"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "labels"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "memberships"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "organizations"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "projects"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "teams"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "users"
+          }
+        ]
+      },
+      "exportedName": "ingestFixtureBatch",
+      "handlerForm": "inline",
+      "id": "triage-graph:ingestFixtureBatch",
+      "implementationHash": "sha256:4e971de5ad0cbfb23062b09786ed22dbfb0e1fde6414ce332b3092fc402473eb",
+      "kind": "Mutation",
+      "name": "ingestFixtureBatch",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1",
+        "inline_handler_v1"
+      ],
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "kind": "integer",
+          "max": 9007199254740991,
+          "min": -9007199254740991
+        }
+      },
+      "resultContractHash": "sha256:6d09769174ac41f0658a64fc801c288afb4eb757fb1b3a85f154eb8100388e8b",
+      "runtime": {
+        "IbexModule": {
+          "export": "ingestFixtureBatch",
+          "source": "globalThis.__snapbackHandlers = { \"ingestFixtureBatch\": (async (ctx, args) => {\n    if (!Array.isArray(args.rows) || args.rows.length > 900) throw new Error('fixture batch must contain at most 900 rows');\n    const allowed = ['users', 'organizations', 'teams', 'memberships', 'projects', 'labels', 'issues', 'issueLabels', 'comments', 'activities'];\n    if (!allowed.includes(args.kind)) throw new Error('unknown fixture table');\n    for (const row of args.rows) await ctx.db.insert(args.kind, row);\n    return args.rows.length;\n  }) };\n"
+        }
+      },
+      "sourceSpan": {
+        "column": 12,
+        "file": "functions.mjs",
+        "line": 95
+      },
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "users",
+        "tables": [
+          "users",
+          "organizations",
+          "teams",
+          "memberships",
+          "projects",
+          "labels",
+          "issues",
+          "issueLabels",
+          "comments",
+          "activities"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "issueKey",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:21f5987788237eff421f83f0dfb7d502c3cec1d3b8bf7b6a495086b876ef8270",
+      "authRequirement": "optional-user",
+      "authorizationDependence": [
+        "opaque"
+      ],
+      "bundleEntrypoint": "issueDetail",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "activities"
+          },
+          {
+            "access": "query",
+            "table": "comments"
+          },
+          {
+            "access": "query",
+            "table": "issues"
+          },
+          {
+            "access": "query",
+            "table": "memberships"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "issueDetail",
+      "handlerForm": "inline",
+      "id": "triage-graph:issueDetail",
+      "implementationHash": "sha256:db549c464d2599549fe3751d54b6851137f894f2641a3e8a25be5206a2a76297",
+      "kind": "LiveQuery",
+      "name": "issueDetail",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "memberships",
+        "tables": [
+          "memberships",
+          "issues",
+          "comments",
+          "activities"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "ibex_ctx_db_host_bridge",
+        "result_contract_v1",
+        "args_contract_v1",
+        "inline_handler_v1"
+      ],
+      "resultContract": {
+        "kind": "records",
+        "record": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "issue",
+              "required": true,
+              "value": {
+                "kind": "json",
+                "maxBytes": 1048576,
+                "maxDepth": 16
+              }
+            },
+            {
+              "name": "comments",
+              "required": true,
+              "value": {
+                "kind": "json",
+                "maxBytes": 1048576,
+                "maxDepth": 16
+              }
+            },
+            {
+              "name": "activities",
+              "required": true,
+              "value": {
+                "kind": "json",
+                "maxBytes": 1048576,
+                "maxDepth": 16
+              }
+            }
+          ],
+          "kind": "object"
+        }
+      },
+      "resultContractHash": "sha256:b27cbe01f8367c75260d55a60fb77f53c70ca1f801604c0ab69175992bf1d423",
+      "runtime": {
+        "IbexModule": {
+          "export": "issueDetail",
+          "source": "globalThis.__snapbackHandlers = { \"issueDetail\": (async (ctx, args) => {\n    const issues = await ctx.db.query('issues').withIndex('by_issue_key').eq('issueKey', args.issueKey).collect();\n    const issue = issues[0];\n    if (!issue) return [];\n    const memberships = await ctx.db.query('memberships').withIndex('by_team_user').eq('teamKey', issue.teamKey).eq('userKey', ctx.auth.userId).collect();\n    if (memberships.length === 0 && issue.assigneeKey !== ctx.auth.userId) return [];\n    const comments = await ctx.db.query('comments').withIndex('by_issue_time').eq('issueKey', issue.issueKey).collect();\n    const activities = await ctx.db.query('activities').withIndex('by_issue_time').eq('issueKey', issue.issueKey).collect();\n    comments.sort((left, right) => right.createdAt - left.createdAt);\n    activities.sort((left, right) => right.createdAt - left.createdAt);\n    return [{issue, comments: comments.slice(0, 20), activities: activities.slice(0, 20)}];\n  }) };\n"
+        }
+      },
+      "sourceSpan": {
+        "column": 12,
+        "file": "functions.mjs",
+        "line": 59
+      },
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "issueKey",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "title",
+            "required": false,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "priority",
+            "required": false,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "updatedAt",
+            "required": true,
+            "value": {
+              "kind": "integer",
+              "max": 9007199254740991,
+              "min": -9007199254740991
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:1d57201c7e426624a49e119722bab4a9b2620ff675d32d6adbb7d0bb5c200bd5",
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "patchIssue",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "issues"
+          },
+          {
+            "access": "query",
+            "table": "memberships"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "issues"
+          }
+        ]
+      },
+      "exportedName": "patchIssue",
+      "handlerForm": "inline",
+      "id": "triage-graph:patchIssue",
+      "implementationHash": "sha256:ff6711390e200171d1ba3bb0dcb8b60c5ed9c27ba3a5decb23603c7fd095e250",
+      "kind": "Mutation",
+      "name": "patchIssue",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "issues",
+        "tables": [
+          "issues",
+          "memberships"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1",
+        "inline_handler_v1"
+      ],
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "kind": "string",
+          "maxBytes": 1048576
+        }
+      },
+      "resultContractHash": "sha256:0d1fe89abb891626c45ac65a0ca438ead08236ed7c8c861352a2dcff54cdb96b",
+      "runtime": {
+        "IbexModule": {
+          "export": "patchIssue",
+          "source": "globalThis.__snapbackHandlers = { \"patchIssue\": (async (ctx, args) => {\n    const rows = await ctx.db.query('issues').withIndex('by_issue_key').eq('issueKey', args.issueKey).collect();\n    const issue = rows[0];\n    if (!issue) throw new Error('issue not found');\n    const memberships = await ctx.db.query('memberships').withIndex('by_team_user').eq('teamKey', issue.teamKey).eq('userKey', ctx.auth.userId).collect();\n    if (memberships.length === 0 && issue.assigneeKey !== ctx.auth.userId) throw new Error('issue not found');\n    const patch = {updatedAt: args.updatedAt};\n    if (args.title !== undefined) patch.title = args.title;\n    if (args.status !== undefined) patch.status = args.status;\n    if (args.priority !== undefined) patch.priority = args.priority;\n    await ctx.db.patch('issues', issue._id, patch);\n    return issue.issueKey;\n  }) };\n"
+        }
+      },
+      "sourceSpan": {
+        "column": 12,
+        "file": "functions.mjs",
+        "line": 76
+      },
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "issues",
+        "tables": [
+          "issues"
+        ]
+      }
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "09b68f336b89fbbbbaa0bf7edc6f7c771348d050239a70037dad8a6c6daeddaa",
+  "schemaVersion": "snapback.v0",
+  "unsupportedDependencyDiagnostics": []
+}

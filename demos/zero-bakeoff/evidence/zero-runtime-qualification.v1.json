@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "snapback.zero-bakeoff.zero-runtime-qualification.v1",
+  "observedAt": "2026-08-01T06:39:00.297Z",
+  "ok": true,
+  "zeroVersion": "1.8.0",
+  "postgresVersion": "postgres (PostgreSQL) 17.10 (Homebrew)",
+  "walLevel": "logical",
+  "keepalive": 200,
+  "replicatedRow": "replicated",
+  "target": {
+    "class": "isolated-local-database",
+    "host": "127.0.0.1",
+    "database": "zero_bakeoff_qualification_99296"
+  },
+  "credentialsRequired": false,
+  "nonclaims": [
+    "Cloud Zero",
+    "hosted operations",
+    "production scale"
+  ]
+}

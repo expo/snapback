@@ -1,0 +1,9 @@
+{
+  "id":"zero-bakeoff-field-notebook","title":"Field Notebook",
+  "description":"LLP 0138 retained-read and offline-intent bakeoff arm.",
+  "artifactSchemaVersion":"snapback.v0","targetProfile":"local-dev-sqlite-ibex",
+  "systems":["Offline retention","Mutation replay","React"],
+  "requiredCapabilities":{"storageEngine":"sqlite","runtimeEngine":"ibex"},
+  "surfaces":{"headless":{"requirement":"required","buildTargets":[],"runner":"node acceptance/snapback.mjs"}},
+  "notClaiming":["Parity local execution","protected retained reads","automatic semantic merge"]
+}

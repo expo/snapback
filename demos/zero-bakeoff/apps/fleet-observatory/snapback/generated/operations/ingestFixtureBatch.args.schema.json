@@ -1,0 +1,17 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/fleet-observatory/ingestFixtureBatch.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "kind": {
+      "type": "string"
+    },
+    "rows": {}
+  },
+  "required": [
+    "kind",
+    "rows"
+  ],
+  "title": "fleet-observatory:ingestFixtureBatch arguments",
+  "type": "object"
+}

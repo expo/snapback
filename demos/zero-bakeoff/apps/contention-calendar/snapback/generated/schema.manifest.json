@@ -1,0 +1,103 @@
+{
+  "appId": "contention-calendar",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "ephemeralCollections": [],
+  "generatedAt": 0,
+  "inputsHash": "b11e65818a39216ed6a8b6f8e773162451f79486907384a5c70f20f1ab00a4a0",
+  "portabilityFlags": [],
+  "schemaHash": "sha256:92aa63e1d627664a",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "key",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "title",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "key"
+          ],
+          "name": "by_key",
+          "unique": true
+        }
+      ],
+      "name": "resources",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "idempotencyKey",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "resourceKey",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "slotKey",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "resourceSlotKey",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "ownerId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "title",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "createdAt",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "idempotencyKey"
+          ],
+          "name": "by_idempotency",
+          "unique": true
+        },
+        {
+          "fields": [
+            "resourceSlotKey"
+          ],
+          "name": "by_resource_slot",
+          "unique": true
+        },
+        {
+          "fields": [
+            "slotKey",
+            "ownerId"
+          ],
+          "name": "by_slot_owner"
+        }
+      ],
+      "name": "reservations",
+      "syncable": true
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

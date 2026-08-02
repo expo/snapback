@@ -1,0 +1,19 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/zero-bakeoff-private-incident-room/postMessage.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "body": {
+      "type": "string"
+    },
+    "incidentId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "incidentId",
+    "body"
+  ],
+  "title": "zero-bakeoff-private-incident-room:postMessage arguments",
+  "type": "object"
+}

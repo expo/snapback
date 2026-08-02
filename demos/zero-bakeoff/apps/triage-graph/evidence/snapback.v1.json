@@ -1,0 +1,122 @@
+{
+  "schemaVersion": "snapback.zero-bakeoff.arm-receipt.v1",
+  "observedAt": "2026-08-01T09:02:28.259Z",
+  "app": "triage-graph",
+  "provider": "snapback",
+  "expectedChecks": 9,
+  "executedChecks": 9,
+  "counts": {
+    "pass": 9,
+    "gap": 0,
+    "fail": 0
+  },
+  "missing": [],
+  "cleanup": {
+    "ok": true,
+    "errors": []
+  },
+  "ok": true,
+  "results": [
+    {
+      "id": "tg.inbox-membership",
+      "outcome": "pass",
+      "durationMs": 106.29970800000046,
+      "details": {},
+      "value": {
+        "rows": 50
+      }
+    },
+    {
+      "id": "tg.relationship-composition",
+      "outcome": "pass",
+      "durationMs": 113.9255000000012,
+      "details": {},
+      "value": {
+        "issueKey": "issue-00000",
+        "labels": 2,
+        "comments": 0
+      }
+    },
+    {
+      "id": "tg.composable-filters",
+      "outcome": "pass",
+      "durationMs": 97.14387499999975,
+      "details": {},
+      "value": {
+        "rows": 50
+      }
+    },
+    {
+      "id": "tg.stable-pagination",
+      "outcome": "pass",
+      "durationMs": 144.31541600000128,
+      "details": {},
+      "value": {
+        "first": 50,
+        "second": 50
+      }
+    },
+    {
+      "id": "tg.matching-live-update",
+      "outcome": "pass",
+      "durationMs": 83.99504199999865,
+      "details": {},
+      "value": {
+        "issueKey": "issue-00000",
+        "transport": "stream"
+      }
+    },
+    {
+      "id": "tg.nonmatching-stability",
+      "outcome": "pass",
+      "durationMs": 277.6100830000014,
+      "details": {}
+    },
+    {
+      "id": "tg.filter-switch-custody",
+      "outcome": "pass",
+      "durationMs": 859.3682919999992,
+      "details": {},
+      "value": {
+        "switches": 10
+      }
+    },
+    {
+      "id": "tg.completeness-state",
+      "outcome": "pass",
+      "durationMs": 0.09554100000059407,
+      "details": {},
+      "value": {
+        "initial": "current-authoritative-snapshot",
+        "connection": "live",
+        "retainedStateRenderedByReact": true
+      }
+    },
+    {
+      "id": "tg.outsider-denial",
+      "outcome": "pass",
+      "durationMs": 11.64429200000086,
+      "details": {},
+      "value": {
+        "rows": 0
+      }
+    }
+  ],
+  "target": {
+    "providerVersion": "source@15a4e35001611a4a73161efc63e527d71b5519f7",
+    "dirty": true,
+    "identityVerdict": "unpinned-binary",
+    "runtime": "debug Ibex/SQLite",
+    "clientStore": "headless memory"
+  },
+  "fixture": {
+    "issues": 10000,
+    "organizations": 5,
+    "teams": 50
+  },
+  "nonclaims": [
+    "No hosted Snapback claim",
+    "Headless receipt does not prove browser retained-store restart",
+    "Sequential switch check is not a browser paint measurement"
+  ]
+}

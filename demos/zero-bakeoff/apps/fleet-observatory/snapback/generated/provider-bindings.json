@@ -1,0 +1,91 @@
+{
+  "artifactKind": "providerBindingMetadata",
+  "bindings": {
+    "actions": [],
+    "ephemeral": [],
+    "mutations": [
+      {
+        "argumentsType": "{ \"updates\": unknown }",
+        "effects": {
+          "invalidates": [
+            "events"
+          ],
+          "writes": [
+            "events"
+          ]
+        },
+        "name": "applyTelemetryBurst",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "number"
+      },
+      {
+        "argumentsType": "{ \"kind\": string; \"rows\": unknown }",
+        "effects": {
+          "invalidates": [
+            "fleets",
+            "fleetMemberships",
+            "owners",
+            "devices",
+            "events"
+          ],
+          "writes": [
+            "fleets",
+            "fleetMemberships",
+            "owners",
+            "devices",
+            "events"
+          ]
+        },
+        "name": "ingestFixtureBatch",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "number"
+      }
+    ],
+    "queries": [
+      {
+        "argumentsType": "{ \"deviceStatus\"?: string; \"fleetKey\": string; \"region\"?: string; \"severity\"?: string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "fleetMemberships",
+            "events",
+            "devices",
+            "owners"
+          ]
+        },
+        "name": "latestEvents",
+        "resultType": "ReadonlyArray<{ \"deviceKey\": string; \"deviceName\": string; \"deviceStatus\": string; \"eventKey\": string; \"fleetKey\": string; \"message\": string; \"occurredAt\": number; \"ownerKey\": string; \"ownerName\": string; \"pageKey\": string; \"region\": string; \"severity\": string }>"
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v0"
+  },
+  "schemaVersion": "provider-binding-metadata.v1",
+  "source": {
+    "inputsHash": "73024b105122df89e3b13bdcd3ae83c0b43a74e5ddf561db18f9b0f830a76a0b",
+    "introspectionSchemaVersion": "provider-introspection.v1"
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "snapback.zero-bakeoff.provider-inventory.v1",
+  "frozenAt": "2026-07-31T23:39:00-07:00",
+  "providers": {
+    "zero": {
+      "product": "Zero",
+      "version": "1.8.0",
+      "package": "@rocicorp/zero",
+      "status": "GA",
+      "license": "Apache-2.0",
+      "credentialsRequiredForLocal": false,
+      "profile": {
+        "upstream": "PostgreSQL 17.10 with wal_level=logical",
+        "cache": "zero-cache-dev",
+        "client": "first-party TypeScript/React",
+        "queryEndpoint": "application-owned",
+        "mutateEndpoint": "application-owned"
+      },
+      "documentedBoundary": {
+        "offlineReads": "cached data remains readable",
+        "offlineWrites": "rejected once disconnected",
+        "authority": "server/PostgreSQL authoritative"
+      },
+      "sources": [
+        "https://zero.rocicorp.dev/docs/status",
+        "https://zero.rocicorp.dev/docs/tutorial",
+        "https://zero.rocicorp.dev/docs/when-to-use",
+        "https://zero.rocicorp.dev/docs/connection",
+        "https://zero.rocicorp.dev/docs/queries",
+        "https://zero.rocicorp.dev/docs/mutators",
+        "https://zero.rocicorp.dev/docs/auth",
+        "https://zero.rocicorp.dev/docs/self-host"
+      ]
+    },
+    "replicache": {
+      "product": "Replicache",
+      "version": "15.3.0",
+      "package": "replicache",
+      "status": "archived predecessor control",
+      "credentialsRequiredForLocal": false,
+      "profile": {
+        "store": "IndexedDB-backed ordered JSON key/value store",
+        "server": "application-owned push/pull/poke protocol",
+        "authority": "application canonical datastore",
+        "offlineWrites": "durable pending mutations with later push and rebase"
+      },
+      "sources": [
+        "https://github.com/rocicorp/replicache",
+        "https://www.npmjs.com/package/replicache/v/15.3.0",
+        "https://doc.replicache.dev/concepts/how-it-works",
+        "https://doc.replicache.dev/strategies/overview"
+      ]
+    },
+    "snapback": {
+      "product": "Snapback",
+      "version": "repository source at execution receipt",
+      "profile": {
+        "target": "local Ibex/SQLite",
+        "client": "first-party generated references and React binding",
+        "authority": "server authoritative",
+        "offline": "default retained JS cache and ordered mutation outbox within served capability limits"
+      },
+      "sources": [
+        "guide/index.md",
+        "guide/sync/offline-and-retention.md",
+        "guide/clients/react.md",
+        "guide/realtime/live-queries.md",
+        "guide/auth/protecting-data.md"
+      ]
+    }
+  }
+}

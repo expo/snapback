@@ -1,0 +1,367 @@
+{
+  "artifactKind": "providerIntrospection",
+  "capabilities": {
+    "claims": {
+      "branchableFixtures": false,
+      "derivedOptimisticOverlays": false,
+      "forceStates": true,
+      "headlessBoot": true,
+      "initialSnapshot": true,
+      "localReplica": false,
+      "offlineReplay": false,
+      "optimisticMutations": false,
+      "rowSyncState": true,
+      "serverRunnableQueries": true,
+      "subscriptions": true
+    },
+    "receipts": {
+      "mutation": true,
+      "subscription": true
+    }
+  },
+  "operations": {
+    "actions": [],
+    "ephemeral": [],
+    "mutations": [
+      {
+        "arguments": {
+          "fields": {
+            "updates": {
+              "shape": "unknown"
+            }
+          },
+          "order": [
+            "updates"
+          ]
+        },
+        "contract": {
+          "argumentsHash": "sha256:f58eeb66a15fb06bd733f23a75195e5f5afb591f376fdc75c7f66573cdb511e2",
+          "implementationHash": "sha256:99e53e6fad93140a2780f134627a77da139ce2c3763dc796e3377b5ec4307c5b",
+          "result": {
+            "kind": "value",
+            "value": {
+              "kind": "integer",
+              "max": 9007199254740991,
+              "min": -9007199254740991
+            }
+          },
+          "resultHash": "sha256:6d09769174ac41f0658a64fc801c288afb4eb757fb1b3a85f154eb8100388e8b",
+          "revision": "snapback.result-contract.v1"
+        },
+        "effects": {
+          "invalidates": [
+            "events"
+          ],
+          "writes": [
+            "events"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "applyTelemetryBurst",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "kind": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "rows": {
+              "shape": "unknown"
+            }
+          },
+          "order": [
+            "kind",
+            "rows"
+          ]
+        },
+        "contract": {
+          "argumentsHash": "sha256:b7f239b023dd70bc09479f789f47bca2c0350f9028ca78fbb559aa8223c12da7",
+          "implementationHash": "sha256:46f596375efcf163e6f06ed64d1f8d41f226a09da8edde22815ccb979e0759c2",
+          "result": {
+            "kind": "value",
+            "value": {
+              "kind": "integer",
+              "max": 9007199254740991,
+              "min": -9007199254740991
+            }
+          },
+          "resultHash": "sha256:6d09769174ac41f0658a64fc801c288afb4eb757fb1b3a85f154eb8100388e8b",
+          "revision": "snapback.result-contract.v1"
+        },
+        "effects": {
+          "invalidates": [
+            "fleets",
+            "fleetMemberships",
+            "owners",
+            "devices",
+            "events"
+          ],
+          "writes": [
+            "fleets",
+            "fleetMemberships",
+            "owners",
+            "devices",
+            "events"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "ingestFixtureBatch",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      }
+    ],
+    "queries": [
+      {
+        "arguments": {
+          "fields": {
+            "deviceStatus": {
+              "name": "string",
+              "optional": true,
+              "shape": "primitive"
+            },
+            "fleetKey": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "region": {
+              "name": "string",
+              "optional": true,
+              "shape": "primitive"
+            },
+            "severity": {
+              "name": "string",
+              "optional": true,
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "fleetKey",
+            "severity",
+            "region",
+            "deviceStatus"
+          ]
+        },
+        "contract": {
+          "argumentsHash": "sha256:2a51d009abd0c4d1d37393e5bc0981f8a31bf27326978ad56894b5777e330b58",
+          "implementationHash": "sha256:8af17ea4b8321ae899d57faa96cf24452300b68d4f4412b3d927619702dc6a0b",
+          "result": {
+            "kind": "records",
+            "record": {
+              "allowExtra": false,
+              "fields": [
+                {
+                  "name": "eventKey",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "deviceKey",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "fleetKey",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "severity",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "message",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "pageKey",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "occurredAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": -9007199254740991
+                  }
+                },
+                {
+                  "name": "deviceName",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "deviceStatus",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "region",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "ownerKey",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "ownerName",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                }
+              ],
+              "kind": "object"
+            }
+          },
+          "resultHash": "sha256:6afc5a6e006afbed1646f3f792f4390e18a6653ff838b744a1998095d5a1a4c7",
+          "revision": "snapback.result-contract.v1"
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "fleetMemberships",
+            "events",
+            "devices",
+            "owners"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "latestEvents",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "deviceKey": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "deviceName": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "deviceStatus": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "eventKey": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "fleetKey": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "message": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "occurredAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "ownerKey": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "ownerName": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "pageKey": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "region": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "severity": {
+                "name": "string",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v0"
+  },
+  "schemaVersion": "provider-introspection.v1",
+  "source": {
+    "implementationHash": "sha256:3587c8d83f0d15c5",
+    "inputsHash": "73024b105122df89e3b13bdcd3ae83c0b43a74e5ddf561db18f9b0f830a76a0b",
+    "schemaHash": "sha256:229ebc6d8d64ff84"
+  }
+}

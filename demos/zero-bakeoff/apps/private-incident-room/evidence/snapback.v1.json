@@ -1,0 +1,124 @@
+{
+  "schemaVersion": "snapback.zero-bakeoff.arm-receipt.v1",
+  "observedAt": "2026-08-01T09:00:22.578Z",
+  "app": "private-incident-room",
+  "provider": "snapback",
+  "expectedChecks": 8,
+  "executedChecks": 8,
+  "counts": {
+    "pass": 8,
+    "gap": 0,
+    "fail": 0
+  },
+  "missing": [],
+  "cleanup": {
+    "ok": true,
+    "errors": []
+  },
+  "ok": true,
+  "results": [
+    {
+      "id": "ir.read-visibility",
+      "outcome": "pass",
+      "durationMs": 445.682249999998,
+      "details": {},
+      "value": {
+        "fixtureIncidents": 10,
+        "outsiderDeliveredRows": 0
+      }
+    },
+    {
+      "id": "ir.write-authority",
+      "outcome": "pass",
+      "durationMs": 37.477208000000246,
+      "details": {},
+      "value": {
+        "observerReadOnly": true,
+        "outsiderDenied": true
+      }
+    },
+    {
+      "id": "ir.cross-client-live",
+      "outcome": "pass",
+      "durationMs": 38.64141699999891,
+      "details": {},
+      "value": {
+        "clients": 3,
+        "transport": "Snapback durable WebSocket stream"
+      }
+    },
+    {
+      "id": "ir.revocation-retirement",
+      "outcome": "pass",
+      "durationMs": 241.8691660000004,
+      "details": {},
+      "value": {
+        "retirementMs": 241.82695899999817,
+        "retainedRows": 0
+      }
+    },
+    {
+      "id": "ir.pending-write-revocation",
+      "outcome": "pass",
+      "durationMs": 92.53166699999929,
+      "details": {},
+      "value": {
+        "authorityCheckedAtExecution": true,
+        "transportDelaySimulatedClientSide": true
+      }
+    },
+    {
+      "id": "ir.user-switch-custody",
+      "outcome": "pass",
+      "durationMs": 16.8872080000001,
+      "details": {},
+      "value": {
+        "predecessorRowsBlanked": true,
+        "successorDeliveredRows": 0
+      }
+    },
+    {
+      "id": "ir.out-of-band-permission-change",
+      "outcome": "pass",
+      "durationMs": 45.4174579999999,
+      "details": {},
+      "value": {
+        "observedWithinMs": 16.98291600000084,
+        "boundMs": 8000
+      }
+    },
+    {
+      "id": "ir.cleanup",
+      "outcome": "pass",
+      "durationMs": 0.5669999999990978,
+      "details": {},
+      "value": {
+        "disposedLiveHandles": 5,
+        "ownedServer": true
+      }
+    }
+  ],
+  "target": "local-dev-sqlite-ibex",
+  "providerVersion": "repository-source",
+  "server": {
+    "identity": {
+      "verdict": "unpinned-binary",
+      "mismatches": [],
+      "binary": {
+        "gitCommit": "15a4e35001611a4a73161efc63e527d71b5519f7",
+        "gitDirty": true,
+        "crateVersion": "0.1.0"
+      },
+      "expected": {
+        "gitCommit": "15a4e35001611a4a73161efc63e527d71b5519f7",
+        "gitDirty": true,
+        "crateVersion": "0.1.0"
+      }
+    }
+  },
+  "nonclaims": [
+    "hosted auth",
+    "hostile-device byte secrecy",
+    "protected offline retention"
+  ]
+}

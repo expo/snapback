@@ -1,0 +1,7 @@
+{
+  "seedVersion":"field-notebook-v1",
+  "tables":{"records":[
+    {"_id":"record-001","assignmentId":"north","title":"Record 001","body":"Seed observation 001","checklistDone":false,"revision":1},
+    {"_id":"record-002","assignmentId":"north","title":"Record 002","body":"Seed observation 002","checklistDone":false,"revision":1}
+  ]}
+}

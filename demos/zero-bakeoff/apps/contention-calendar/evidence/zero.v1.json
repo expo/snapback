@@ -1,0 +1,137 @@
+{
+  "schemaVersion": "snapback.zero-bakeoff.arm-receipt.v1",
+  "observedAt": "2026-08-01T08:49:04.372Z",
+  "app": "contention-calendar",
+  "provider": "zero",
+  "expectedChecks": 7,
+  "executedChecks": 7,
+  "counts": {
+    "pass": 7,
+    "gap": 0,
+    "fail": 0
+  },
+  "missing": [],
+  "cleanup": {
+    "ok": true,
+    "errors": []
+  },
+  "ok": true,
+  "results": [
+    {
+      "id": "cc.provisional-render",
+      "outcome": "pass",
+      "durationMs": 1051.665916,
+      "details": {},
+      "value": {
+        "inputToPaintMs": 10.710708000000068,
+        "acknowledgementMs": 1051.6191669999998
+      }
+    },
+    {
+      "id": "cc.exactly-one-winner",
+      "outcome": "pass",
+      "durationMs": 1045.6137089999997,
+      "details": {},
+      "value": {
+        "winner": "alice",
+        "invariant": "unique(resource_id,slot_key)",
+        "serverResults": [
+          {
+            "type": "success"
+          },
+          {
+            "type": "error",
+            "error": {
+              "type": "app",
+              "message": "duplicate key value violates unique constraint \"calendar_reservation_resource_id_slot_key_key\"",
+              "details": {
+                "name": "PostgresError"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "cc.loser-correction",
+      "outcome": "pass",
+      "durationMs": 1004.7419999999993,
+      "details": {},
+      "value": {
+        "corrected": true,
+        "alternative": "room-01|slot-final"
+      }
+    },
+    {
+      "id": "cc.ambiguous-retry-idempotence",
+      "outcome": "pass",
+      "durationMs": 2018.0834170000007,
+      "details": {},
+      "value": {
+        "id": "reservation:retry-safe",
+        "count": 1
+      }
+    },
+    {
+      "id": "cc.nonoverlap-success",
+      "outcome": "pass",
+      "durationMs": 1011.2763750000004,
+      "details": {},
+      "value": {
+        "committed": 2
+      }
+    },
+    {
+      "id": "cc.observer-convergence",
+      "outcome": "pass",
+      "durationMs": 1035.6960839999992,
+      "details": {},
+      "value": {
+        "convergenceMs": 1035.6135840000006,
+        "transport": "Zero materialized query over websocket"
+      }
+    },
+    {
+      "id": "cc.cleanup",
+      "outcome": "pass",
+      "durationMs": 104.63724999999977,
+      "details": {},
+      "value": {
+        "owned": [
+          "three Zero clients",
+          "zero-cache-dev process tree",
+          "API server",
+          "replica file",
+          "zb_cc_2369"
+        ],
+        "shared": [
+          "PostgreSQL server"
+        ],
+        "removed": true
+      }
+    }
+  ],
+  "providerIdentity": {
+    "product": "Zero",
+    "version": "1.8.0",
+    "target": "zero-cache-dev/PostgreSQL 17"
+  },
+  "fixture": {
+    "resources": 20,
+    "contenders": 2
+  },
+  "latency": {
+    "authoritativeMutationMs": 1000,
+    "samples": [
+      {
+        "inputToPaintMs": 10.710708000000068,
+        "acknowledgementMs": 1051.6191669999998
+      }
+    ]
+  },
+  "conflictPolicy": {
+    "client": "shared optimistic mutator",
+    "server": "PostgreSQL unique(resource_id, slot_key)"
+  },
+  "zeroAppID": "cc2369"
+}

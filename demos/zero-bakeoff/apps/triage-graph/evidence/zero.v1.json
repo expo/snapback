@@ -1,0 +1,121 @@
+{
+  "schemaVersion": "snapback.zero-bakeoff.arm-receipt.v1",
+  "observedAt": "2026-08-01T08:32:08.710Z",
+  "app": "triage-graph",
+  "provider": "zero",
+  "expectedChecks": 9,
+  "executedChecks": 9,
+  "counts": {
+    "pass": 9,
+    "gap": 0,
+    "fail": 0
+  },
+  "missing": [],
+  "cleanup": {
+    "ok": true,
+    "errors": []
+  },
+  "ok": true,
+  "results": [
+    {
+      "id": "tg.inbox-membership",
+      "outcome": "pass",
+      "durationMs": 190.4716669999998,
+      "details": {},
+      "value": {
+        "rows": 50
+      }
+    },
+    {
+      "id": "tg.relationship-composition",
+      "outcome": "pass",
+      "durationMs": 82.0968329999996,
+      "details": {},
+      "value": {
+        "issueID": "issue-00000",
+        "labels": 2,
+        "comments": 0
+      }
+    },
+    {
+      "id": "tg.composable-filters",
+      "outcome": "pass",
+      "durationMs": 61.470374999999876,
+      "details": {},
+      "value": {
+        "rows": 50
+      }
+    },
+    {
+      "id": "tg.stable-pagination",
+      "outcome": "pass",
+      "durationMs": 120.92275000000063,
+      "details": {},
+      "value": {
+        "first": 50,
+        "second": 50
+      }
+    },
+    {
+      "id": "tg.matching-live-update",
+      "outcome": "pass",
+      "durationMs": 54.58995799999957,
+      "details": {},
+      "value": {
+        "issueID": "issue-00000"
+      }
+    },
+    {
+      "id": "tg.nonmatching-stability",
+      "outcome": "pass",
+      "durationMs": 222.00270900000032,
+      "details": {}
+    },
+    {
+      "id": "tg.filter-switch-custody",
+      "outcome": "pass",
+      "durationMs": 470.19725000000017,
+      "details": {},
+      "value": {
+        "switches": 10
+      }
+    },
+    {
+      "id": "tg.completeness-state",
+      "outcome": "pass",
+      "durationMs": 54.711082999999235,
+      "details": {},
+      "value": {
+        "states": [
+          "unknown",
+          "unknown",
+          "complete"
+        ]
+      }
+    },
+    {
+      "id": "tg.outsider-denial",
+      "outcome": "pass",
+      "durationMs": 68.78008299999965,
+      "details": {},
+      "value": {
+        "rows": 0
+      }
+    }
+  ],
+  "target": {
+    "providerVersion": "1.8.0",
+    "storage": "PostgreSQL 17 + zero-cache-dev",
+    "clientStore": "memory (headless acceptance)"
+  },
+  "fixture": {
+    "issues": 10000,
+    "organizations": 5,
+    "teams": 50
+  },
+  "nonclaims": [
+    "No Cloud Zero claim",
+    "Headless receipt does not prove browser IndexedDB persistence",
+    "Sequential switch check is not a browser paint measurement"
+  ]
+}

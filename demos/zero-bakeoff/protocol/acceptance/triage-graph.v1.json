@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "snapback.zero-bakeoff.acceptance.v1",
+  "app": "triage-graph",
+  "expectedChecks": 9,
+  "fixture": {"issues": 10000, "organizations": 5, "teams": 50},
+  "checks": [
+    "tg.inbox-membership",
+    "tg.relationship-composition",
+    "tg.composable-filters",
+    "tg.stable-pagination",
+    "tg.matching-live-update",
+    "tg.nonmatching-stability",
+    "tg.filter-switch-custody",
+    "tg.completeness-state",
+    "tg.outsider-denial"
+  ]
+}
+

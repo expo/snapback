@@ -1,0 +1,441 @@
+{
+  "acknowledgedExperimentalCapabilities": [
+    "args_contract_v1",
+    "inline_handler_v1",
+    "result_contract_v1"
+  ],
+  "appId": "fleet-observatory",
+  "artifactKind": "functionManifest",
+  "bundleHash": "sha256:3587c8d83f0d15c5",
+  "config": [],
+  "cronJobs": [],
+  "functions": [
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "updates",
+            "required": true,
+            "value": {
+              "kind": "json",
+              "maxBytes": 1048576,
+              "maxDepth": 16
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:f58eeb66a15fb06bd733f23a75195e5f5afb591f376fdc75c7f66573cdb511e2",
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "applyTelemetryBurst",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "events"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "events"
+          }
+        ]
+      },
+      "exportedName": "applyTelemetryBurst",
+      "handlerForm": "inline",
+      "id": "fleet-observatory:applyTelemetryBurst",
+      "implementationHash": "sha256:99e53e6fad93140a2780f134627a77da139ce2c3763dc796e3377b5ec4307c5b",
+      "kind": "Mutation",
+      "name": "applyTelemetryBurst",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "events",
+        "tables": [
+          "events"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1",
+        "inline_handler_v1"
+      ],
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "kind": "integer",
+          "max": 9007199254740991,
+          "min": -9007199254740991
+        }
+      },
+      "resultContractHash": "sha256:6d09769174ac41f0658a64fc801c288afb4eb757fb1b3a85f154eb8100388e8b",
+      "runtime": {
+        "IbexModule": {
+          "export": "applyTelemetryBurst",
+          "source": "globalThis.__snapbackHandlers = { \"applyTelemetryBurst\": (async (ctx, args) => {\n    if (!Array.isArray(args.updates) || args.updates.length > 1000) throw new Error('burst must contain at most 1000 updates');\n    let changed = 0;\n    for (const update of args.updates) {\n      const rows = await ctx.db.query('events').withIndex('by_event_key').eq('eventKey', update.eventKey).take(1).collect();\n      if (rows[0]) {\n        await ctx.db.patch('events', rows[0]._id, {message: update.message});\n        changed += 1;\n      }\n    }\n    return changed;\n  }) };\n"
+        }
+      },
+      "sourceSpan": {
+        "column": 12,
+        "file": "functions.mjs",
+        "line": 52
+      },
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "events",
+        "tables": [
+          "events"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "kind",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "rows",
+            "required": true,
+            "value": {
+              "kind": "json",
+              "maxBytes": 1048576,
+              "maxDepth": 16
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:b7f239b023dd70bc09479f789f47bca2c0350f9028ca78fbb559aa8223c12da7",
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "ingestFixtureBatch",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "devices"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "events"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "fleetMemberships"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "fleets"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "owners"
+          }
+        ]
+      },
+      "exportedName": "ingestFixtureBatch",
+      "handlerForm": "inline",
+      "id": "fleet-observatory:ingestFixtureBatch",
+      "implementationHash": "sha256:46f596375efcf163e6f06ed64d1f8d41f226a09da8edde22815ccb979e0759c2",
+      "kind": "Mutation",
+      "name": "ingestFixtureBatch",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1",
+        "inline_handler_v1"
+      ],
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "kind": "integer",
+          "max": 9007199254740991,
+          "min": -9007199254740991
+        }
+      },
+      "resultContractHash": "sha256:6d09769174ac41f0658a64fc801c288afb4eb757fb1b3a85f154eb8100388e8b",
+      "runtime": {
+        "IbexModule": {
+          "export": "ingestFixtureBatch",
+          "source": "globalThis.__snapbackHandlers = { \"ingestFixtureBatch\": (async (ctx, args) => {\n    if (!Array.isArray(args.rows) || args.rows.length > 900) throw new Error('fixture batch must contain at most 900 rows');\n    if (!['fleets', 'fleetMemberships', 'owners', 'devices', 'events'].includes(args.kind)) throw new Error('unknown fixture table');\n    for (const row of args.rows) await ctx.db.insert(args.kind, row);\n    return args.rows.length;\n  }) };\n"
+        }
+      },
+      "sourceSpan": {
+        "column": 12,
+        "file": "functions.mjs",
+        "line": 68
+      },
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "fleets",
+        "tables": [
+          "fleets",
+          "fleetMemberships",
+          "owners",
+          "devices",
+          "events"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "fleetKey",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "severity",
+            "required": false,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "region",
+            "required": false,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "deviceStatus",
+            "required": false,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:2a51d009abd0c4d1d37393e5bc0981f8a31bf27326978ad56894b5777e330b58",
+      "authRequirement": "optional-user",
+      "authorizationDependence": [
+        "opaque"
+      ],
+      "bundleEntrypoint": "latestEvents",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "devices"
+          },
+          {
+            "access": "query",
+            "table": "events"
+          },
+          {
+            "access": "query",
+            "table": "fleetMemberships"
+          },
+          {
+            "access": "query",
+            "table": "owners"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "latestEvents",
+      "handlerForm": "inline",
+      "id": "fleet-observatory:latestEvents",
+      "implementationHash": "sha256:8af17ea4b8321ae899d57faa96cf24452300b68d4f4412b3d927619702dc6a0b",
+      "kind": "LiveQuery",
+      "name": "latestEvents",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "fleetMemberships",
+        "tables": [
+          "fleetMemberships",
+          "events",
+          "devices",
+          "owners"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "ibex_ctx_db_host_bridge",
+        "result_contract_v1",
+        "args_contract_v1",
+        "inline_handler_v1"
+      ],
+      "resultContract": {
+        "kind": "records",
+        "record": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "eventKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "deviceKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "fleetKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "severity",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "message",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "pageKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "occurredAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "deviceName",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "deviceStatus",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "region",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "ownerKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "ownerName",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ],
+          "kind": "object"
+        }
+      },
+      "resultContractHash": "sha256:6afc5a6e006afbed1646f3f792f4390e18a6653ff838b744a1998095d5a1a4c7",
+      "runtime": {
+        "IbexModule": {
+          "export": "latestEvents",
+          "source": "globalThis.__snapbackHandlers = { \"latestEvents\": (async (ctx, args) => {\n    const memberships = await ctx.db.query('fleetMemberships').withIndex('by_fleet_user').eq('fleetKey', args.fleetKey).eq('userKey', ctx.auth.userId).take(1).collect();\n    if (memberships.length === 0) return [];\n    // @ref LLP 0004#ctxdb-contract — the global page is ordered and bounded\n    // in the query builder; application-side sorting of a prefix is incomplete.\n    let eventQuery;\n    if (args.severity && args.region && args.deviceStatus) {\n      eventQuery = ctx.db.query('events').withIndex('by_fleet_severity_region_status_page').eq('fleetKey', args.fleetKey).eq('severity', args.severity).eq('region', args.region).eq('deviceStatus', args.deviceStatus);\n    } else if (args.severity && args.region) {\n      eventQuery = ctx.db.query('events').withIndex('by_fleet_severity_region_page').eq('fleetKey', args.fleetKey).eq('severity', args.severity).eq('region', args.region);\n    } else if (args.severity && args.deviceStatus) {\n      eventQuery = ctx.db.query('events').withIndex('by_fleet_severity_status_page').eq('fleetKey', args.fleetKey).eq('severity', args.severity).eq('deviceStatus', args.deviceStatus);\n    } else if (args.region && args.deviceStatus) {\n      eventQuery = ctx.db.query('events').withIndex('by_fleet_region_status_page').eq('fleetKey', args.fleetKey).eq('region', args.region).eq('deviceStatus', args.deviceStatus);\n    } else if (args.severity) {\n      eventQuery = ctx.db.query('events').withIndex('by_fleet_severity_page').eq('fleetKey', args.fleetKey).eq('severity', args.severity);\n    } else if (args.region) {\n      eventQuery = ctx.db.query('events').withIndex('by_fleet_region_page').eq('fleetKey', args.fleetKey).eq('region', args.region);\n    } else if (args.deviceStatus) {\n      eventQuery = ctx.db.query('events').withIndex('by_fleet_status_page').eq('fleetKey', args.fleetKey).eq('deviceStatus', args.deviceStatus);\n    } else {\n      eventQuery = ctx.db.query('events').withIndex('by_fleet_page').eq('fleetKey', args.fleetKey);\n    }\n    const events = await eventQuery.order('pageKey', 'desc').take(100).collect();\n    const output = [];\n    for (const event of events) {\n      const devices = await ctx.db.query('devices').withIndex('by_device_key').eq('deviceKey', event.deviceKey).take(1).collect();\n      const owners = await ctx.db.query('owners').withIndex('by_owner_key').eq('ownerKey', event.ownerKey).take(1).collect();\n      output.push({\n        eventKey: event.eventKey, deviceKey: event.deviceKey, fleetKey: event.fleetKey,\n        severity: event.severity, message: event.message, pageKey: event.pageKey, occurredAt: event.occurredAt,\n        deviceName: devices[0]?.name ?? '', deviceStatus: event.deviceStatus, region: event.region,\n        ownerKey: event.ownerKey, ownerName: owners[0]?.name ?? '',\n      });\n    }\n    return output;\n  }) };\n"
+        }
+      },
+      "sourceSpan": {
+        "column": 12,
+        "file": "functions.mjs",
+        "line": 11
+      },
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      }
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "73024b105122df89e3b13bdcd3ae83c0b43a74e5ddf561db18f9b0f830a76a0b",
+  "schemaVersion": "snapback.v0",
+  "unsupportedDependencyDiagnostics": []
+}

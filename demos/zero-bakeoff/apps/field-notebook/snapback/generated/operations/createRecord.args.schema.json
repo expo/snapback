@@ -1,0 +1,23 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/zero-bakeoff-field-notebook/createRecord.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "assignmentId": {
+      "type": "string"
+    },
+    "body": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "assignmentId",
+    "title",
+    "body"
+  ],
+  "title": "zero-bakeoff-field-notebook:createRecord arguments",
+  "type": "object"
+}

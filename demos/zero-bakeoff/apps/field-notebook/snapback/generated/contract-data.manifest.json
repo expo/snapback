@@ -1,0 +1,308 @@
+{
+  "artifactKind": "contractDataManifest",
+  "bundleHash": "sha256:b485099c83a24fcb",
+  "capabilities": {
+    "branchableFixtures": false,
+    "derivedOptimisticOverlays": true,
+    "forceStates": true,
+    "headlessBoot": true,
+    "initialSnapshot": true,
+    "localReplica": false,
+    "offlineReplay": true,
+    "optimisticMutations": true,
+    "rowSyncState": true,
+    "serverRunnableQueries": true,
+    "subscriptions": true
+  },
+  "ephemeral": {},
+  "inputsHash": "41f4b2f33b4e07f1f9f7004649ad6c4a616a69c58608d1d08ab97331de988813",
+  "manifestVersion": 2,
+  "mutations": {
+    "createRecord": {
+      "argOrder": [
+        "assignmentId",
+        "title",
+        "body"
+      ],
+      "args": {
+        "assignmentId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "body": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "title": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:d12a3f4c5e2c6aedcb199fd7bd5e5e567d0e9ab591ec76171ac7050192b090b1",
+      "implementationHash": "sha256:f86f4591107b055a01876fa127bf53c4a5903b88adf099b442ad350c44f2be13",
+      "invalidates": [
+        "records"
+      ],
+      "name": "createRecord",
+      "optimistic": true,
+      "plan": {
+        "return_value": {
+          "Binding": "recordId"
+        },
+        "steps": [
+          {
+            "Insert": {
+              "bind_id_as": "recordId",
+              "table": "records",
+              "values": {
+                "assignmentId": {
+                  "Arg": "assignmentId"
+                },
+                "body": {
+                  "Arg": "body"
+                },
+                "checklistDone": {
+                  "Literal": false
+                },
+                "revision": {
+                  "Literal": 1
+                },
+                "title": {
+                  "Arg": "title"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "serverRunnable": true,
+      "writes": [
+        "records"
+      ]
+    },
+    "updateRecord": {
+      "argOrder": [
+        "id",
+        "body",
+        "revision"
+      ],
+      "args": {
+        "body": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "id": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "revision": {
+          "name": "number",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:ac5f4574de3503cb9be36e57651bc5c07c069774ee106203443b57d473bd872e",
+      "implementationHash": "sha256:4f480cf7d76118e60e805402c594fea296d195f0085a0562955598aa4b671e88",
+      "invalidates": [
+        "records"
+      ],
+      "name": "updateRecord",
+      "optimistic": true,
+      "plan": {
+        "return_value": "ChangedCount",
+        "steps": [
+          {
+            "Patch": {
+              "id": {
+                "Arg": "id"
+              },
+              "table": "records",
+              "values": {
+                "body": {
+                  "Arg": "body"
+                },
+                "revision": {
+                  "Arg": "revision"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "serverRunnable": true,
+      "writes": [
+        "records"
+      ]
+    }
+  },
+  "provider": "snapback",
+  "queries": {
+    "assignedRecords": {
+      "argOrder": [
+        "assignmentId"
+      ],
+      "args": {
+        "assignmentId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:d73e2493452daf068ad293e2727f5e9b9e026efe178af3635aaad8b0e78859c1",
+      "defaultLive": true,
+      "ephemeral": false,
+      "implementationHash": "sha256:2d8cc18629bb83494090638a50759d6ea5807a8c5b2b80e40d4b0064420c935e",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "assignedRecords",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "records"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "assignmentId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "body": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "checklistDone": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "revision": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "title": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "records"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "assignmentId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "body",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "checklistDone",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "revision",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "records"
+      },
+      "resultHash": "sha256:d679468ec0cf30d21b2c04ca4e05ed7ef6614eefa145131ad0e46f41282e152c",
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    }
+  },
+  "receipts": "mutation+subscription",
+  "schemaHash": "sha256:fc5c6acaaca9ef55",
+  "schemaVersion": "snapback.v0"
+}

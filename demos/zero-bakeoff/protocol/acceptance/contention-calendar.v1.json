@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "snapback.zero-bakeoff.acceptance.v1",
+  "app": "contention-calendar",
+  "expectedChecks": 7,
+  "fixture": {"resources": 20, "contenders": 2},
+  "checks": [
+    "cc.provisional-render",
+    "cc.exactly-one-winner",
+    "cc.loser-correction",
+    "cc.ambiguous-retry-idempotence",
+    "cc.nonoverlap-success",
+    "cc.observer-convergence",
+    "cc.cleanup"
+  ]
+}
+

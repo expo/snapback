@@ -1,0 +1,19 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/zero-bakeoff-private-incident-room/createIncident.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "severity": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "title",
+    "severity"
+  ],
+  "title": "zero-bakeoff-private-incident-room:createIncident arguments",
+  "type": "object"
+}

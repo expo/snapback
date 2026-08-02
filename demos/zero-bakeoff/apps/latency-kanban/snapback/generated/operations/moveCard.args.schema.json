@@ -1,0 +1,27 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/latency-kanban/moveCard.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "columnKey": {
+      "type": "string"
+    },
+    "expectedRevision": {
+      "type": "integer"
+    },
+    "id": {
+      "type": "string"
+    },
+    "rank": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "id",
+    "columnKey",
+    "rank",
+    "expectedRevision"
+  ],
+  "title": "latency-kanban:moveCard arguments",
+  "type": "object"
+}

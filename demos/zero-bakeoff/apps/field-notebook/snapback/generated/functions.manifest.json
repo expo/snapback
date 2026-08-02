@@ -1,0 +1,435 @@
+{
+  "acknowledgedExperimentalCapabilities": [
+    "args_contract_v1",
+    "result_contract_v1"
+  ],
+  "appId": "zero-bakeoff-field-notebook",
+  "artifactKind": "functionManifest",
+  "bundleHash": "sha256:b485099c83a24fcb",
+  "config": [],
+  "cronJobs": [],
+  "functions": [
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "assignmentId",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:d73e2493452daf068ad293e2727f5e9b9e026efe178af3635aaad8b0e78859c1",
+      "authRequirement": "public",
+      "authorityIndependent": true,
+      "bundleEntrypoint": "assignedRecords",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_assignment",
+            "table": "records"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "assignedRecords",
+      "handlerForm": "plan",
+      "id": "zero-bakeoff-field-notebook:assignedRecords",
+      "implementationHash": "sha256:2d8cc18629bb83494090638a50759d6ea5807a8c5b2b80e40d4b0064420c935e",
+      "kind": "LiveQuery",
+      "name": "assignedRecords",
+      "publicInline": true,
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "records",
+        "tables": [
+          "records"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "records"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "assignmentId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "body",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "checklistDone",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "revision",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "records"
+      },
+      "resultContractHash": "sha256:d679468ec0cf30d21b2c04ca4e05ed7ef6614eefa145131ad0e46f41282e152c",
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "assignmentId",
+                "op": "Eq",
+                "value": {
+                  "Arg": "assignmentId"
+                }
+              }
+            ],
+            "indexed_by": "by_assignment",
+            "limit": null,
+            "membershipFilters": [],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "title"
+              }
+            ],
+            "table": "records"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "assignmentId",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "title",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "body",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:d12a3f4c5e2c6aedcb199fd7bd5e5e567d0e9ab591ec76171ac7050192b090b1",
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "createRecord",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "insert"
+            ],
+            "table": "records"
+          }
+        ]
+      },
+      "exportedName": "createRecord",
+      "handlerForm": "plan",
+      "id": "zero-bakeoff-field-notebook:createRecord",
+      "implementationHash": "sha256:f86f4591107b055a01876fa127bf53c4a5903b88adf099b442ad350c44f2be13",
+      "kind": "Mutation",
+      "name": "createRecord",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "runtime": {
+        "HostPlan": {
+          "Mutation": {
+            "return_value": {
+              "Binding": "recordId"
+            },
+            "steps": [
+              {
+                "Insert": {
+                  "bind_id_as": "recordId",
+                  "table": "records",
+                  "values": {
+                    "assignmentId": {
+                      "Arg": "assignmentId"
+                    },
+                    "body": {
+                      "Arg": "body"
+                    },
+                    "checklistDone": {
+                      "Literal": false
+                    },
+                    "revision": {
+                      "Literal": 1
+                    },
+                    "title": {
+                      "Arg": "title"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "records",
+        "tables": [
+          "records"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "id",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "body",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "revision",
+            "required": true,
+            "value": {
+              "kind": "integer",
+              "max": 9007199254740991,
+              "min": -9007199254740991
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:ac5f4574de3503cb9be36e57651bc5c07c069774ee106203443b57d473bd872e",
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "updateRecord",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "point",
+            "table": "records"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "patch"
+            ],
+            "table": "records"
+          }
+        ]
+      },
+      "exportedName": "updateRecord",
+      "handlerForm": "plan",
+      "id": "zero-bakeoff-field-notebook:updateRecord",
+      "implementationHash": "sha256:4f480cf7d76118e60e805402c594fea296d195f0085a0562955598aa4b671e88",
+      "kind": "Mutation",
+      "name": "updateRecord",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "records",
+        "tables": [
+          "records"
+        ]
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "runtime": {
+        "HostPlan": {
+          "Mutation": {
+            "return_value": "ChangedCount",
+            "steps": [
+              {
+                "Patch": {
+                  "id": {
+                    "Arg": "id"
+                  },
+                  "table": "records",
+                  "values": {
+                    "body": {
+                      "Arg": "body"
+                    },
+                    "revision": {
+                      "Arg": "revision"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "records",
+        "tables": [
+          "records"
+        ]
+      }
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "41f4b2f33b4e07f1f9f7004649ad6c4a616a69c58608d1d08ab97331de988813",
+  "schemaVersion": "snapback.v0",
+  "unsupportedDependencyDiagnostics": [
+    {
+      "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+      "details": {
+        "function": "createRecord"
+      },
+      "message": "createRecord: no precise result contract was declared; runtime enforcement is limited to the general result budget",
+      "severity": "info",
+      "subsystem": "function"
+    },
+    {
+      "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+      "details": {
+        "function": "updateRecord"
+      },
+      "message": "updateRecord: no precise result contract was declared; runtime enforcement is limited to the general result budget",
+      "severity": "info",
+      "subsystem": "function"
+    }
+  ]
+}

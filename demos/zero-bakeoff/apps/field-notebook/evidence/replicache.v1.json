@@ -1,0 +1,159 @@
+{
+  "schemaVersion": "snapback.zero-bakeoff.arm-receipt.v1",
+  "observedAt": "2026-08-01T09:02:37.082Z",
+  "app": "field-notebook",
+  "provider": "replicache",
+  "expectedChecks": 11,
+  "executedChecks": 11,
+  "counts": {
+    "pass": 8,
+    "gap": 3,
+    "fail": 0
+  },
+  "missing": [],
+  "cleanup": {
+    "ok": true,
+    "errors": []
+  },
+  "ok": true,
+  "results": [
+    {
+      "id": "fn.cold-retained-read",
+      "outcome": "gap",
+      "durationMs": 0.001290999999994824,
+      "details": {
+        "reason": "The local arm used fake-indexeddb and kept the main client open; it cannot certify a cold browser-IDB restart.",
+        "retainedRowsInOpenClient": 200,
+        "backendReachable": false,
+        "officialCapability": "Replicache documents durable offline cache; this arm did not produce standards-real browser-carrier evidence."
+      }
+    },
+    {
+      "id": "fn.honest-freshness",
+      "outcome": "pass",
+      "durationMs": 0.01316700000000992,
+      "details": {},
+      "value": {
+        "providerFreshnessPrimitive": false,
+        "applicationFreshness": "retained/stale",
+        "backendReachable": false
+      }
+    },
+    {
+      "id": "fn.short-interruption-write",
+      "outcome": "pass",
+      "durationMs": 0.2085829999999902,
+      "details": {},
+      "value": {
+        "localMutationMs": 0.6920840000000084,
+        "queuedByReplicache": true
+      }
+    },
+    {
+      "id": "fn.disconnected-write-contract",
+      "outcome": "pass",
+      "durationMs": 0.016582999999997128,
+      "details": {},
+      "value": {
+        "contract": "durable optimistic queue",
+        "pendingMutations": 2
+      }
+    },
+    {
+      "id": "fn.draft-preservation",
+      "outcome": "pass",
+      "durationMs": 0.012000000000000455,
+      "details": {},
+      "value": {
+        "applicationOwned": true,
+        "preserved": true
+      }
+    },
+    {
+      "id": "fn.reconnect-no-duplicate",
+      "outcome": "pass",
+      "durationMs": 1.300457999999992,
+      "details": {},
+      "value": {
+        "authoritativeRecords": 201,
+        "duplicateCreates": 0,
+        "duplicatePushReplayApplied": false,
+        "pokeApplied": true,
+        "versionCookie": 5
+      }
+    },
+    {
+      "id": "fn.logout-cache-policy",
+      "outcome": "pass",
+      "durationMs": 0.43033399999995936,
+      "details": {},
+      "value": {
+        "policy": "dropDatabase(rep:field-notebook-replicache-7531:7:1)",
+        "retainedRows": 0
+      }
+    },
+    {
+      "id": "fn.stretch-durable-create-update",
+      "outcome": "gap",
+      "durationMs": 0.00012500000002546585,
+      "details": {
+        "reason": "The real Replicache mutation queue was exercised and reconciled exactly once, but fake-indexeddb is not sufficient evidence for 15-minute durable browser custody.",
+        "fixtureOfflineStretchMs": 900000,
+        "wallClockCompressed": true,
+        "queuedMutationNames": [
+          "create",
+          "update"
+        ],
+        "exactlyOnceServerRows": 1
+      }
+    },
+    {
+      "id": "fn.stretch-offline-restart",
+      "outcome": "gap",
+      "durationMs": 0.00016599999997879422,
+      "details": {
+        "reason": "The fake-indexeddb carrier did not restore the closed Replicache client; classify this as a browser-carrier evidence gap, not a Replicache product failure.",
+        "restartedRows": 0,
+        "pendingAfterRestart": 0,
+        "officialCapability": "Replicache documents persisted offline mutations and replay."
+      }
+    },
+    {
+      "id": "fn.stretch-concurrent-rebase",
+      "outcome": "pass",
+      "durationMs": 0.44358300000004647,
+      "details": {},
+      "value": {
+        "visibleConflict": {
+          "remote": "Remote dispatcher edit",
+          "local": "Local ranger edit",
+          "expectedRevision": 1,
+          "remoteRevision": 2
+        },
+        "revision": 3,
+        "policy": "server records both remote and local bodies; pull then rebases/acks local mutation"
+      }
+    },
+    {
+      "id": "fn.cleanup",
+      "outcome": "pass",
+      "durationMs": 0.022332999999946423,
+      "details": {},
+      "value": {
+        "ownedDatabase": true,
+        "sharedPostgresStopped": false,
+        "clientDatabasesDroppedByPolicy": true
+      }
+    }
+  ],
+  "target": {
+    "providerVersion": "15.3.0",
+    "storage": "app-owned PostgreSQL push/pull service",
+    "clientStore": "IndexedDB via fake-indexeddb"
+  },
+  "nonclaims": [
+    "Replicache Cloud",
+    "standards-real browser IndexedDB timing",
+    "literal 15-minute wall-clock wait"
+  ]
+}

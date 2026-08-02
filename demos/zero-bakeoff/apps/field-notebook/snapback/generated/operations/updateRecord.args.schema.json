@@ -1,0 +1,23 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/zero-bakeoff-field-notebook/updateRecord.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "body": {
+      "type": "string"
+    },
+    "id": {
+      "type": "string"
+    },
+    "revision": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "id",
+    "body",
+    "revision"
+  ],
+  "title": "zero-bakeoff-field-notebook:updateRecord arguments",
+  "type": "object"
+}

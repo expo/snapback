@@ -1,0 +1,112 @@
+{
+  "schemaVersion": "snapback.zero-bakeoff.arm-receipt.v1",
+  "observedAt": "2026-08-01T08:44:26.235Z",
+  "app": "private-incident-room",
+  "provider": "zero",
+  "expectedChecks": 8,
+  "executedChecks": 8,
+  "counts": {
+    "pass": 8,
+    "gap": 0,
+    "fail": 0
+  },
+  "missing": [],
+  "cleanup": {
+    "ok": true,
+    "errors": []
+  },
+  "ok": true,
+  "results": [
+    {
+      "id": "ir.read-visibility",
+      "outcome": "pass",
+      "durationMs": 89.46574999999984,
+      "details": {},
+      "value": {
+        "fixtureIncidents": 10,
+        "outsiderDeliveredRows": 0
+      }
+    },
+    {
+      "id": "ir.write-authority",
+      "outcome": "pass",
+      "durationMs": 29.46829200000002,
+      "details": {},
+      "value": {
+        "observerReadOnly": true,
+        "outsiderDenied": true
+      }
+    },
+    {
+      "id": "ir.cross-client-live",
+      "outcome": "pass",
+      "durationMs": 40.13416599999982,
+      "details": {},
+      "value": {
+        "clients": 3,
+        "transport": "Zero WebSocket partial sync"
+      }
+    },
+    {
+      "id": "ir.revocation-retirement",
+      "outcome": "pass",
+      "durationMs": 240.28187499999967,
+      "details": {},
+      "value": {
+        "retirementMs": 240.08766699999978,
+        "retainedRows": 0
+      }
+    },
+    {
+      "id": "ir.pending-write-revocation",
+      "outcome": "pass",
+      "durationMs": 76.51254199999994,
+      "details": {},
+      "value": {
+        "authorityCheckedAtServerExecution": true
+      }
+    },
+    {
+      "id": "ir.user-switch-custody",
+      "outcome": "pass",
+      "durationMs": 16.777750000000196,
+      "details": {},
+      "value": {
+        "predecessorViewDestroyed": true,
+        "successorDeliveredRows": 0,
+        "deviceByteSecrecy": false
+      }
+    },
+    {
+      "id": "ir.out-of-band-permission-change",
+      "outcome": "pass",
+      "durationMs": 26.929458000000068,
+      "details": {},
+      "value": {
+        "observedWithinMs": 26.734375,
+        "boundMs": 10000
+      }
+    },
+    {
+      "id": "ir.cleanup",
+      "outcome": "pass",
+      "durationMs": 0.06962500000008731,
+      "details": {},
+      "value": {
+        "ownedZeroCache": true,
+        "ownedDatabase": true,
+        "sharedPostgresStopped": false
+      }
+    }
+  ],
+  "target": {
+    "providerVersion": "1.8.0",
+    "storage": "PostgreSQL 17 + zero-cache-dev",
+    "clientStore": "memory headless"
+  },
+  "nonclaims": [
+    "Cloud Zero",
+    "hostile-device byte secrecy",
+    "browser IndexedDB persistence"
+  ]
+}

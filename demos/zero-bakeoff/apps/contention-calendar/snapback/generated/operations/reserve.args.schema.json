@@ -1,0 +1,35 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/contention-calendar/reserve.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "idempotencyKey": {
+      "type": "string"
+    },
+    "now": {
+      "type": "integer"
+    },
+    "ownerId": {
+      "type": "string"
+    },
+    "resourceKey": {
+      "type": "string"
+    },
+    "slotKey": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "idempotencyKey",
+    "resourceKey",
+    "slotKey",
+    "ownerId",
+    "title",
+    "now"
+  ],
+  "title": "contention-calendar:reserve arguments",
+  "type": "object"
+}

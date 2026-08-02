@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "snapback.zero-bakeoff.acceptance.v1",
+  "app": "latency-kanban",
+  "expectedChecks": 8,
+  "fixture": {"columns": 4, "cards": 500, "authoritativeLatencyMs": 1000},
+  "checks": [
+    "lk.one-frame-local-paint",
+    "lk.rapid-move-integrity",
+    "lk.locked-card-correction",
+    "lk.pending-reload",
+    "lk.concurrent-move-convergence",
+    "lk.independent-observer",
+    "lk.latency-axes",
+    "lk.cleanup"
+  ]
+}
+

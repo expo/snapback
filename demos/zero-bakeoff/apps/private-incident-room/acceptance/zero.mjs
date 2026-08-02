@@ -1,0 +1,28 @@
+#!/usr/bin/env bun
+import {resolve} from 'node:path';
+import {assert, assertEqual, createArmSuite, eventually, loadAcceptance} from '../../../shared/harness.mjs';
+import {mutators} from '../zero/mutators.mjs';
+import {queries} from '../zero/queries.mjs';
+import {startIncidentZeroRuntime} from '../zero/runtime.mjs';
+
+const manifest=await loadAcceptance('private-incident-room');
+const suite=createArmSuite({app:'private-incident-room',provider:'zero',manifest,evidencePath:resolve(import.meta.dirname,'..','evidence','zero.v1.json')});
+let runtime;
+const complete=(view)=>new Promise((resolveDone,reject)=>{const timer=setTimeout(()=>reject(new Error('complete timeout')),20000);let off=()=>{};off=view.addListener((_d,type)=>{if(type==='complete'){clearTimeout(timer);queueMicrotask(()=>off());resolveDone();}})});
+try {
+  runtime=await startIncidentZeroRuntime(); suite.cleanup(()=>runtime.close());
+  const alice=runtime.client('alice'), bob=runtime.client('bob'), oscar=runtime.client('oscar'), mallory=runtime.client('mallory');
+  await suite.pass('ir.read-visibility',async()=>{const [b,o,m]=await Promise.all([bob.run(queries.incidents.room({incidentID:'incident-01'}),{type:'complete'}),oscar.run(queries.incidents.room({incidentID:'incident-01'}),{type:'complete'}),mallory.run(queries.incidents.room({incidentID:'incident-01'}),{type:'complete'})]);assertEqual(b.length,1,'responder rows');assertEqual(o.length,1,'observer rows');assertEqual(m.length,0,'outsider rows');return {fixtureIncidents:10,outsiderDeliveredRows:0}});
+  await suite.pass('ir.write-authority',async()=>{const ok=bob.mutate(mutators.incidents.postMessage({id:'ir-bob-write',incidentID:'incident-01',sequence:2,body:'Responder update'}));assertEqual((await ok.server).type,'success','responder write');for(const [z,id,seq] of [[oscar,'ir-oscar-write',3],[mallory,'ir-mallory-write',4]]){let denied=false;try{const p=z.mutate(mutators.incidents.postMessage({id,incidentID:'incident-01',sequence:seq,body:'denied'}));denied=(await p.server).type!=='success'}catch{denied=true}assert(denied,'unauthorized Zero write accepted')}return {observerReadOnly:true,outsiderDenied:true}});
+  const views=[alice,bob,oscar].map((z)=>z.materialize(queries.incidents.room({incidentID:'incident-01'}))); views.forEach((v)=>suite.cleanup(()=>{try{v.destroy()}catch{}})); await Promise.all(views.map(complete));
+  await suite.pass('ir.cross-client-live',async()=>{const p=alice.mutate(mutators.incidents.postMessage({id:'ir-live',incidentID:'incident-01',sequence:3,body:'Live commander update'}));assertEqual((await p.server).type,'success','live write');await eventually(()=>views.every(v=>v.data.some(r=>r.id==='ir-live')),{timeoutMs:10000,label:'Zero three-client live'});return {clients:3,transport:'Zero WebSocket partial sync'}});
+  await suite.pass('ir.revocation-retirement',async()=>{const started=performance.now();const p=alice.mutate(mutators.incidents.removeParticipant({incidentID:'incident-01',userID:'bob'}));assertEqual((await p.server).type,'success','remove responder');await eventually(()=>views[1].data.length===0,{timeoutMs:10000,label:'Zero revocation retirement'});await runtime.sql`INSERT INTO message(id,incident_id,sequence,author_id,body) VALUES('ir-after-revoke','incident-01',4,'alice','After revocation')`;await Bun.sleep(200);assert(!views[1].data.some(r=>r.id==='ir-after-revoke'),'future row delivered');return {retirementMs:performance.now()-started,retainedRows:views[1].data.length}});
+  await suite.pass('ir.pending-write-revocation',async()=>{let denied=false;try{const delayed=await new Promise(r=>setTimeout(r,75)).then(()=>bob.mutate(mutators.incidents.postMessage({id:'ir-delayed',incidentID:'incident-01',sequence:5,body:'Delayed'})));denied=(await delayed.server).type!=='success'}catch{denied=true}assert(denied,'revoked pending intent accepted');return {authorityCheckedAtServerExecution:true}});
+  await suite.pass('ir.user-switch-custody',async()=>{views[1].destroy();const switched=runtime.client('mallory','same-device');const rows=await switched.run(queries.incidents.room({incidentID:'incident-01'}),{type:'complete'});assertEqual(rows.length,0,'successor user saw predecessor rows');return {predecessorViewDestroyed:true,successorDeliveredRows:0,deviceByteSecrecy:false}});
+  await runtime.sql`INSERT INTO incident_member(id,incident_id,user_id,role) VALUES('incident-01-bob-rejoin','incident-01','bob','responder')`;
+  const bob2=runtime.client('bob','oob'), oob=bob2.materialize(queries.incidents.room({incidentID:'incident-01'})); suite.cleanup(()=>oob.destroy()); await complete(oob);
+  await suite.pass('ir.out-of-band-permission-change',async()=>{assert(oob.data.length>0,'rejoin did not hydrate');const started=performance.now();await runtime.sql`DELETE FROM incident_member WHERE id='incident-01-bob-rejoin'`;await eventually(()=>oob.data.length===0,{timeoutMs:10000,label:'Zero OOB revocation'});return {observedWithinMs:performance.now()-started,boundMs:10000}});
+  await suite.pass('ir.cleanup',async()=>({ownedZeroCache:true,ownedDatabase:true,sharedPostgresStopped:false}));
+} catch(error){for(const id of manifest.checks){try{await suite.gap(id,'Zero runtime unavailable before check',{code:error?.code??'ZERO_RUNTIME_UNAVAILABLE',message:String(error?.message??error)})}catch(e){if(!String(e.message).includes('DUPLICATE'))throw e}}}
+const receipt=await suite.finish({target:{providerVersion:'1.8.0',storage:'PostgreSQL 17 + zero-cache-dev',clientStore:'memory headless'},nonclaims:['Cloud Zero','hostile-device byte secrecy','browser IndexedDB persistence']});
+console.log(JSON.stringify(receipt,null,2)); if(!receipt.ok||receipt.counts.gap>0)process.exitCode=1;

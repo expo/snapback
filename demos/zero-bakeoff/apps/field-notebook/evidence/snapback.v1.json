@@ -1,0 +1,166 @@
+{
+  "schemaVersion": "snapback.zero-bakeoff.arm-receipt.v1",
+  "observedAt": "2026-08-01T09:00:34.244Z",
+  "app": "field-notebook",
+  "provider": "snapback",
+  "expectedChecks": 11,
+  "executedChecks": 11,
+  "counts": {
+    "pass": 9,
+    "gap": 2,
+    "fail": 0
+  },
+  "missing": [],
+  "cleanup": {
+    "ok": true,
+    "errors": []
+  },
+  "ok": true,
+  "results": [
+    {
+      "id": "fn.cold-retained-read",
+      "outcome": "pass",
+      "durationMs": 68.89033400000005,
+      "details": {},
+      "value": {
+        "coldRows": 200,
+        "backendReachable": false,
+        "store": {
+          "source": "default",
+          "implementation": "file",
+          "durable": true,
+          "reason": null
+        }
+      }
+    },
+    {
+      "id": "fn.honest-freshness",
+      "outcome": "pass",
+      "durationMs": 0.02400000000000091,
+      "details": {},
+      "value": {
+        "freshness": "retained",
+        "connection": "stale"
+      }
+    },
+    {
+      "id": "fn.short-interruption-write",
+      "outcome": "pass",
+      "durationMs": 5.396624999999972,
+      "details": {},
+      "value": {
+        "contract": "durable queue",
+        "clientMutationId": "cm_49c86a58733e4b49a088044e239cb1a0"
+      }
+    },
+    {
+      "id": "fn.disconnected-write-contract",
+      "outcome": "pass",
+      "durationMs": 6.784875000000056,
+      "details": {},
+      "value": {
+        "declared": "queued",
+        "pending": 2,
+        "diagnostics": [
+          "SNAPBACK_OFFLINE_MUTATION_QUEUED",
+          "SNAPBACK_OFFLINE_MUTATION_QUEUED"
+        ]
+      }
+    },
+    {
+      "id": "fn.draft-preservation",
+      "outcome": "pass",
+      "durationMs": 0.03233399999999165,
+      "details": {},
+      "value": {
+        "applicationOwned": true,
+        "preserved": true
+      }
+    },
+    {
+      "id": "fn.reconnect-no-duplicate",
+      "outcome": "pass",
+      "durationMs": 831.4643330000001,
+      "details": {},
+      "value": {
+        "authoritativeRows": 201,
+        "duplicateOfflineCreates": 0
+      }
+    },
+    {
+      "id": "fn.logout-cache-policy",
+      "outcome": "pass",
+      "durationMs": 12.224333000000115,
+      "details": {},
+      "value": {
+        "policy": "application-owned delete on logout",
+        "retainedEntries": 0
+      }
+    },
+    {
+      "id": "fn.stretch-durable-create-update",
+      "outcome": "pass",
+      "durationMs": 0.015499999999974534,
+      "details": {},
+      "value": {
+        "offlineDurationProfileMs": 900000,
+        "exercisedDurationMs": "compressed deterministic outage",
+        "durablePendingMutations": 2,
+        "settledExactlyOnce": true
+      }
+    },
+    {
+      "id": "fn.stretch-offline-restart",
+      "outcome": "gap",
+      "durationMs": 0.0005830000000059954,
+      "details": {
+        "reason": "The JS arm deliberately refuses persisted speculative render while an outbox is pending (LLP 0090 D3); it preserves intent but does not show speculative rows after restart.",
+        "intentPreserved": true,
+        "speculativeStateVisibleAfterRestart": false
+      }
+    },
+    {
+      "id": "fn.stretch-concurrent-rebase",
+      "outcome": "gap",
+      "durationMs": 0.0005840000001171575,
+      "details": {
+        "reason": "The closed-IR JS arm replays server-authoritatively but exposes no semantic three-way merge/conflict UI for concurrent text edits.",
+        "serverAuthoritativeReplay": true,
+        "visibleSemanticConflict": false
+      }
+    },
+    {
+      "id": "fn.cleanup",
+      "outcome": "pass",
+      "durationMs": 0.008083000000169704,
+      "details": {},
+      "value": {
+        "ownedServer": true,
+        "temporaryStore": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/zero-bakeoff-fn-snapback-zBnb1K"
+      }
+    }
+  ],
+  "target": "local-dev-sqlite-ibex",
+  "providerVersion": "repository-source",
+  "server": {
+    "identity": {
+      "verdict": "unpinned-binary",
+      "mismatches": [],
+      "binary": {
+        "gitCommit": "15a4e35001611a4a73161efc63e527d71b5519f7",
+        "gitDirty": true,
+        "crateVersion": "0.1.0"
+      },
+      "expected": {
+        "gitCommit": "15a4e35001611a4a73161efc63e527d71b5519f7",
+        "gitDirty": true,
+        "crateVersion": "0.1.0"
+      }
+    }
+  },
+  "nonclaims": [
+    "Parity local execution",
+    "protected retained reads",
+    "semantic merge/rebase"
+  ]
+}

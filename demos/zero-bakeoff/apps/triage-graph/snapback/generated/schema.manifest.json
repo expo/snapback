@@ -1,0 +1,436 @@
+{
+  "appId": "triage-graph",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "ephemeralCollections": [],
+  "generatedAt": 0,
+  "inputsHash": "09b68f336b89fbbbbaa0bf7edc6f7c771348d050239a70037dad8a6c6daeddaa",
+  "portabilityFlags": [],
+  "schemaHash": "sha256:a19f6268037d4477",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "userKey",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "name",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "userKey"
+          ],
+          "name": "by_user_key",
+          "unique": true
+        }
+      ],
+      "name": "users",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "organizationKey",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "name",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "organizationKey"
+          ],
+          "name": "by_organization_key",
+          "unique": true
+        }
+      ],
+      "name": "organizations",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "teamKey",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "organizationKey",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "name",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "teamKey"
+          ],
+          "name": "by_team_key",
+          "unique": true
+        },
+        {
+          "fields": [
+            "organizationKey"
+          ],
+          "name": "by_organization"
+        }
+      ],
+      "name": "teams",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "membershipKey",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "teamKey",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "userKey",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "membershipKey"
+          ],
+          "name": "by_membership_key",
+          "unique": true
+        },
+        {
+          "fields": [
+            "userKey",
+            "teamKey"
+          ],
+          "name": "by_user_team",
+          "unique": true
+        },
+        {
+          "fields": [
+            "teamKey",
+            "userKey"
+          ],
+          "name": "by_team_user",
+          "unique": true
+        }
+      ],
+      "name": "memberships",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "projectKey",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "teamKey",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "name",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "projectKey"
+          ],
+          "name": "by_project_key",
+          "unique": true
+        },
+        {
+          "fields": [
+            "teamKey"
+          ],
+          "name": "by_team"
+        }
+      ],
+      "name": "projects",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "labelKey",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "teamKey",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "name",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "labelKey"
+          ],
+          "name": "by_label_key",
+          "unique": true
+        },
+        {
+          "fields": [
+            "teamKey"
+          ],
+          "name": "by_team"
+        }
+      ],
+      "name": "labels",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "issueKey",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "teamKey",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "projectKey",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "assigneeKey",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "title",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "status",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "priority",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "pageKey",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "commentCount",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "updatedAt",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "issueKey"
+          ],
+          "name": "by_issue_key",
+          "unique": true
+        },
+        {
+          "fields": [
+            "teamKey",
+            "pageKey"
+          ],
+          "name": "by_team_page",
+          "unique": true
+        },
+        {
+          "fields": [
+            "assigneeKey",
+            "pageKey"
+          ],
+          "name": "by_assignee_page",
+          "unique": true
+        }
+      ],
+      "name": "issues",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "issueLabelKey",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "issueKey",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "labelKey",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "issueLabelKey"
+          ],
+          "name": "by_issue_label_key",
+          "unique": true
+        },
+        {
+          "fields": [
+            "issueKey",
+            "labelKey"
+          ],
+          "name": "by_issue_label",
+          "unique": true
+        },
+        {
+          "fields": [
+            "labelKey",
+            "issueKey"
+          ],
+          "name": "by_label_issue",
+          "unique": true
+        }
+      ],
+      "name": "issueLabels",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "commentKey",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "issueKey",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "authorKey",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "body",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "createdAt",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "commentKey"
+          ],
+          "name": "by_comment_key",
+          "unique": true
+        },
+        {
+          "fields": [
+            "issueKey",
+            "createdAt"
+          ],
+          "name": "by_issue_time",
+          "unique": true
+        }
+      ],
+      "name": "comments",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "activityKey",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "issueKey",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "kind",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "createdAt",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "activityKey"
+          ],
+          "name": "by_activity_key",
+          "unique": true
+        },
+        {
+          "fields": [
+            "issueKey",
+            "createdAt"
+          ],
+          "name": "by_issue_time",
+          "unique": true
+        }
+      ],
+      "name": "activities",
+      "syncable": true
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

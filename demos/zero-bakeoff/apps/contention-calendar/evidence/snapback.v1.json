@@ -1,0 +1,144 @@
+{
+  "schemaVersion": "snapback.zero-bakeoff.arm-receipt.v1",
+  "observedAt": "2026-08-01T08:52:56.842Z",
+  "app": "contention-calendar",
+  "provider": "snapback",
+  "expectedChecks": 7,
+  "executedChecks": 7,
+  "counts": {
+    "pass": 7,
+    "gap": 0,
+    "fail": 0
+  },
+  "missing": [],
+  "cleanup": {
+    "ok": true,
+    "errors": []
+  },
+  "ok": true,
+  "results": [
+    {
+      "id": "cc.provisional-render",
+      "outcome": "pass",
+      "durationMs": 1039.4162919999999,
+      "details": {},
+      "value": {
+        "inputToPaintMs": 0.002666999999746622,
+        "acknowledgementMs": 1039.3551670000006
+      }
+    },
+    {
+      "id": "cc.exactly-one-winner",
+      "outcome": "pass",
+      "durationMs": 1084.3138330000002,
+      "details": {},
+      "value": {
+        "winner": "alice",
+        "loserCode": "SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION"
+      }
+    },
+    {
+      "id": "cc.loser-correction",
+      "outcome": "pass",
+      "durationMs": 1.0212080000001151,
+      "details": {},
+      "value": {
+        "diagnostic": "SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION",
+        "alternative": "room-01|slot-final"
+      }
+    },
+    {
+      "id": "cc.ambiguous-retry-idempotence",
+      "outcome": "pass",
+      "durationMs": 23.727249999999913,
+      "details": {},
+      "value": {
+        "id": "019fbc86-c51f-77a1-8ab3-4043764bf7b2",
+        "count": 1
+      }
+    },
+    {
+      "id": "cc.nonoverlap-success",
+      "outcome": "pass",
+      "durationMs": 61.58837499999936,
+      "details": {},
+      "value": {
+        "ids": [
+          "019fbc86-c536-7020-95c0-739856709ab3",
+          "019fbc86-c568-7ee3-a133-406c7bc89eb6"
+        ]
+      }
+    },
+    {
+      "id": "cc.observer-convergence",
+      "outcome": "pass",
+      "durationMs": 19.522375000000466,
+      "details": {},
+      "value": {
+        "transport": "live_replace",
+        "convergenceMs": 12.130332999999155,
+        "authoritativeId": "019fbc86-c57b-72a1-bb2b-5a962e690b86"
+      }
+    },
+    {
+      "id": "cc.cleanup",
+      "outcome": "pass",
+      "durationMs": 0.17374999999992724,
+      "details": {},
+      "value": {
+        "owned": [
+          "websocket",
+          "snapback server"
+        ],
+        "database": ":memory:"
+      }
+    }
+  ],
+  "providerIdentity": {
+    "product": "Snapback",
+    "target": "local Ibex/SQLite",
+    "source": "repository"
+  },
+  "server": {
+    "identity": {
+      "verdict": "unpinned-binary",
+      "mismatches": [],
+      "binary": {
+        "gitCommit": "15a4e35001611a4a73161efc63e527d71b5519f7",
+        "gitDirty": true,
+        "crateVersion": "0.1.0"
+      },
+      "expected": {
+        "gitCommit": "15a4e35001611a4a73161efc63e527d71b5519f7",
+        "gitDirty": true,
+        "crateVersion": "0.1.0"
+      }
+    }
+  },
+  "fixture": {
+    "resources": 20,
+    "contenders": 2
+  },
+  "latency": {
+    "authoritativeMutationMs": 1000,
+    "samples": [
+      {
+        "inputToPaintMs": 0.002666999999746622,
+        "acknowledgementMs": 1039.3551670000006
+      },
+      {
+        "inputToPaintMs": 0.001374999999825377,
+        "acknowledgementMs": 1030.346125
+      },
+      {
+        "inputToPaintMs": 0.0002500000009604264,
+        "acknowledgementMs": 1080.640125,
+        "rejected": true
+      }
+    ]
+  },
+  "conflictPolicy": {
+    "client": "optimistic projection",
+    "server": "unique index on resourceSlotKey"
+  }
+}

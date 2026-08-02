@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/triage-graph/issueDetail.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "issueKey": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "issueKey"
+  ],
+  "title": "triage-graph:issueDetail arguments",
+  "type": "object"
+}

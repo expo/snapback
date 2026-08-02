@@ -1,0 +1,19 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/zero-bakeoff-private-incident-room/removeParticipant.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "incidentId": {
+      "type": "string"
+    },
+    "userId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "incidentId",
+    "userId"
+  ],
+  "title": "zero-bakeoff-private-incident-room:removeParticipant arguments",
+  "type": "object"
+}

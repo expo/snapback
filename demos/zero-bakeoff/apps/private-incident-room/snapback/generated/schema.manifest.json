@@ -1,0 +1,225 @@
+{
+  "app": {
+    "description": "LLP 0138 authorization and revocation bakeoff arm.",
+    "name": "Private Incident Room"
+  },
+  "appId": "zero-bakeoff-private-incident-room",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "auth": {
+    "mode": "sessions"
+  },
+  "ephemeralCollections": [],
+  "generatedAt": 0,
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:c8b522c09b913d0968b75f48cf5de148a6b49cb6b1a949f2d4fb86a09c45cd0d",
+  "portabilityFlags": [],
+  "requiredCapabilities": [
+    "auth.sessions.v1"
+  ],
+  "schemaHash": "snapback.v1:sessions:schema:sha256:db9851b146250bfbcc32d506c8820ecdab668be4ba7b6d855213f36dc5bae6ce",
+  "schemaVersion": "snapback.v1",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "title",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "severity",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "createdBy",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "nextSequence",
+          "optional": false
+        }
+      ],
+      "indexes": [],
+      "name": "incidents",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "incidents"
+            }
+          },
+          "name": "incidentId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "userId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "role",
+          "optional": false
+        }
+      ],
+      "indexes": [],
+      "membership": {
+        "bootstrapRole": "commander",
+        "id": "incidentMembers",
+        "lastHolder": {
+          "protect": "commander"
+        },
+        "principal": "userId",
+        "provenance": "full",
+        "resource": "incidentId",
+        "resourceTable": "incidents",
+        "role": "role",
+        "roles": [
+          "commander",
+          "responder",
+          "observer"
+        ],
+        "scope": "resource",
+        "transitions": [
+          {
+            "by": [
+              "commander"
+            ],
+            "op": "insert",
+            "target": "other",
+            "to": [
+              "responder",
+              "observer"
+            ]
+          },
+          {
+            "by": [
+              "self"
+            ],
+            "from": [
+              "responder",
+              "observer"
+            ],
+            "op": "remove",
+            "target": "self"
+          }
+        ]
+      },
+      "name": "incidentMembers",
+      "syncable": false
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "incidents"
+            }
+          },
+          "name": "incidentId",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "sequence",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "authorId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "body",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "incidentId",
+            "sequence"
+          ],
+          "name": "by_incident_sequence",
+          "unique": true
+        }
+      ],
+      "name": "messages",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "incidents"
+            }
+          },
+          "name": "incidentId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "title",
+          "optional": false
+        },
+        {
+          "field_type": "Boolean",
+          "name": "done",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "incidentId"
+          ],
+          "name": "by_incident"
+        }
+      ],
+      "name": "tasks",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "incidents"
+            }
+          },
+          "name": "incidentId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "authorId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "body",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "incidentId"
+          ],
+          "name": "by_incident"
+        }
+      ],
+      "name": "notes",
+      "syncable": true
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

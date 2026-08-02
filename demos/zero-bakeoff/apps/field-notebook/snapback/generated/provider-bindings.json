@@ -1,0 +1,80 @@
+{
+  "artifactKind": "providerBindingMetadata",
+  "bindings": {
+    "actions": [],
+    "ephemeral": [],
+    "mutations": [
+      {
+        "argumentsType": "{ \"assignmentId\": string; \"body\": string; \"title\": string }",
+        "effects": {
+          "invalidates": [
+            "records"
+          ],
+          "writes": [
+            "records"
+          ]
+        },
+        "name": "createRecord",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        },
+        "resultType": "unknown"
+      },
+      {
+        "argumentsType": "{ \"body\": string; \"id\": string; \"revision\": number }",
+        "effects": {
+          "invalidates": [
+            "records"
+          ],
+          "writes": [
+            "records"
+          ]
+        },
+        "name": "updateRecord",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        },
+        "resultType": "unknown"
+      }
+    ],
+    "queries": [
+      {
+        "argumentsType": "{ \"assignmentId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "records"
+          ]
+        },
+        "name": "assignedRecords",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"assignmentId\": string; \"body\": string; \"checklistDone\": boolean; \"revision\": number; \"title\": string }>"
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v0"
+  },
+  "schemaVersion": "provider-binding-metadata.v1",
+  "source": {
+    "inputsHash": "41f4b2f33b4e07f1f9f7004649ad6c4a616a69c58608d1d08ab97331de988813",
+    "introspectionSchemaVersion": "provider-introspection.v1"
+  }
+}

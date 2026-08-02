@@ -1,0 +1,242 @@
+{
+  "schemaVersion": "snapback.zero-bakeoff.arm-receipt.v1",
+  "observedAt": "2026-08-01T08:53:01.886Z",
+  "app": "latency-kanban",
+  "provider": "snapback",
+  "expectedChecks": 8,
+  "executedChecks": 8,
+  "counts": {
+    "pass": 8,
+    "gap": 0,
+    "fail": 0
+  },
+  "missing": [],
+  "cleanup": {
+    "ok": true,
+    "errors": []
+  },
+  "ok": true,
+  "results": [
+    {
+      "id": "lk.one-frame-local-paint",
+      "outcome": "pass",
+      "durationMs": 1032.2835000000005,
+      "details": {},
+      "value": {
+        "inputToPaintMs": 0.00891700000011042,
+        "acknowledgementMs": 1014.50875
+      }
+    },
+    {
+      "id": "lk.rapid-move-integrity",
+      "outcome": "pass",
+      "durationMs": 1985.642582999999,
+      "details": {},
+      "value": {
+        "cards": 500,
+        "unique": 500
+      }
+    },
+    {
+      "id": "lk.locked-card-correction",
+      "outcome": "pass",
+      "durationMs": 1046.4015,
+      "details": {},
+      "value": {
+        "diagnostic": "SNAPBACK_HANDLER_FAILED",
+        "actionable": "card is locked; choose another card"
+      }
+    },
+    {
+      "id": "lk.pending-reload",
+      "outcome": "pass",
+      "durationMs": 1046.8521249999994,
+      "details": {},
+      "value": {
+        "behavior": "pending HTTP request is not reconstructed; reload reads old authority, then settled authority without loss"
+      }
+    },
+    {
+      "id": "lk.concurrent-move-convergence",
+      "outcome": "pass",
+      "durationMs": 1118.8348339999993,
+      "details": {},
+      "value": {
+        "winner": "c1",
+        "revision": 1
+      }
+    },
+    {
+      "id": "lk.independent-observer",
+      "outcome": "pass",
+      "durationMs": 1066.8962499999998,
+      "details": {},
+      "value": {
+        "observerConvergenceMs": 1029.777,
+        "transport": "live_replace"
+      }
+    },
+    {
+      "id": "lk.latency-axes",
+      "outcome": "pass",
+      "durationMs": 0.02974999999969441,
+      "details": {},
+      "value": {
+        "samples": [
+          {
+            "inputToPaintMs": 0.00891700000011042,
+            "acknowledgementMs": 1014.50875
+          },
+          {
+            "inputToPaintMs": 0.0033750000002328306,
+            "acknowledgementMs": 1193.7505839999994
+          },
+          {
+            "inputToPaintMs": 0.00008300000081362668,
+            "acknowledgementMs": 1269.8362500000003
+          },
+          {
+            "inputToPaintMs": 0.00004199999966658652,
+            "acknowledgementMs": 1399.203583999999
+          },
+          {
+            "inputToPaintMs": 0.00008399999933317304,
+            "acknowledgementMs": 1418.8059169999997
+          },
+          {
+            "inputToPaintMs": 0.00004199999966658652,
+            "acknowledgementMs": 1443.653624999999
+          },
+          {
+            "inputToPaintMs": 0.00008300000081362668,
+            "acknowledgementMs": 1491.1508329999997
+          },
+          {
+            "inputToPaintMs": 0.00008399999933317304,
+            "acknowledgementMs": 1577.3988339999996
+          },
+          {
+            "inputToPaintMs": 0.0001249999986612238,
+            "acknowledgementMs": 1598.2734999999993
+          },
+          {
+            "inputToPaintMs": 0.00008300000081362668,
+            "acknowledgementMs": 1619.1008330000004
+          },
+          {
+            "inputToPaintMs": 0.00004199999966658652,
+            "acknowledgementMs": 1629.961292
+          },
+          {
+            "inputToPaintMs": 0.00008300000081362668,
+            "acknowledgementMs": 1659.5935829999999
+          },
+          {
+            "inputToPaintMs": 0.00008399999933317304,
+            "acknowledgementMs": 1720.0237089999991
+          },
+          {
+            "inputToPaintMs": 0.00004199999966658652,
+            "acknowledgementMs": 1739.3073339999992
+          },
+          {
+            "inputToPaintMs": 0.00008299999899463728,
+            "acknowledgementMs": 1748.7299999999996
+          },
+          {
+            "inputToPaintMs": 0.00020799999947485048,
+            "acknowledgementMs": 1802.7245000000003
+          },
+          {
+            "inputToPaintMs": 0.0001250000004802132,
+            "acknowledgementMs": 1823.017084000001
+          },
+          {
+            "inputToPaintMs": 0.00004199999966658652,
+            "acknowledgementMs": 1870.6285000000007
+          },
+          {
+            "inputToPaintMs": 0.00008399999933317304,
+            "acknowledgementMs": 1896.9362920000003
+          },
+          {
+            "inputToPaintMs": 0.00008299999899463728,
+            "acknowledgementMs": 1914.3208749999994
+          },
+          {
+            "inputToPaintMs": 0.00008399999933317304,
+            "acknowledgementMs": 1950.3845419999998
+          },
+          {
+            "inputToPaintMs": 0.0007920000007288763,
+            "acknowledgementMs": 1012.2510419999999,
+            "rejected": true
+          },
+          {
+            "inputToPaintMs": 0.0003329999999550637,
+            "acknowledgementMs": 1012.6439159999991
+          },
+          {
+            "inputToPaintMs": 0.0003749999996216502,
+            "acknowledgementMs": 1022.8834999999999
+          },
+          {
+            "inputToPaintMs": 0.00004199999966658652,
+            "acknowledgementMs": 1085.0290420000001,
+            "rejected": true
+          },
+          {
+            "inputToPaintMs": 0.0003749999996216502,
+            "acknowledgementMs": 1029.759915999999
+          },
+          {
+            "observerConvergenceMs": 1029.777,
+            "transport": "live_replace"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lk.cleanup",
+      "outcome": "pass",
+      "durationMs": 0.16666699999950652,
+      "details": {},
+      "value": {
+        "owned": [
+          "websocket",
+          "snapback server"
+        ],
+        "database": ":memory:"
+      }
+    }
+  ],
+  "providerIdentity": {
+    "product": "Snapback",
+    "target": "local Ibex/SQLite",
+    "source": "repository"
+  },
+  "server": {
+    "identity": {
+      "verdict": "unpinned-binary",
+      "mismatches": [],
+      "binary": {
+        "gitCommit": "15a4e35001611a4a73161efc63e527d71b5519f7",
+        "gitDirty": true,
+        "crateVersion": "0.1.0"
+      },
+      "expected": {
+        "gitCommit": "15a4e35001611a4a73161efc63e527d71b5519f7",
+        "gitDirty": true,
+        "crateVersion": "0.1.0"
+      }
+    }
+  },
+  "fixture": {
+    "columns": 4,
+    "cards": 500,
+    "authoritativeLatencyMs": 1000
+  },
+  "nonclaims": [
+    "browser paint was measured in the provider-native projection kernel, not a compositor trace"
+  ]
+}

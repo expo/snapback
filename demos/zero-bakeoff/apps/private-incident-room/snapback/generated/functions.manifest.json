@@ -1,0 +1,600 @@
+{
+  "acknowledgedExperimentalCapabilities": [
+    "args_contract_v1",
+    "result_contract_v1"
+  ],
+  "appId": "zero-bakeoff-private-incident-room",
+  "artifactKind": "functionManifest",
+  "bundleHash": "snapback.v1:sessions:function:sha256:e29b0d755b9ca0ab211fe1545db8a0702fe61449da8cfa74175cae91591debf9",
+  "config": [],
+  "cronJobs": [],
+  "functions": [
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "incidentId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "incidents"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "value": {
+              "kind": "principal"
+            }
+          },
+          {
+            "name": "role",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:1d6a3c70d57e07b51b98e190e83d404d504f8822bf412944d1f256504683e39c",
+      "authRequirement": "authenticated",
+      "authorityCreating": true,
+      "bundleEntrypoint": "addParticipant",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "incidentMembers"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "incidentMembers"
+          }
+        ]
+      },
+      "exportedName": "addParticipant",
+      "handlerForm": "module",
+      "id": "zero-bakeoff-private-incident-room:addParticipant",
+      "implementationHash": "sha256:fbc0299b967ce38c05c2eaadd1a3aa22138fb0a4b9b61f36fb98ab06471945d8",
+      "kind": "Mutation",
+      "name": "addParticipant",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "incidentMembers",
+        "tables": [
+          "incidentMembers"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "runtime": {
+        "IbexModule": {
+          "export": "addParticipant",
+          "source": "const writeRoles = ['commander', 'responder'];\n\nglobalThis.__snapbackHandlers = {\n  async createIncident(ctx, args) {\n    const incidentId = await ctx.membership.incidentMembers.bootstrap({\n      title: String(args.title).trim(), severity: args.severity,\n      createdBy: ctx.auth.userId, nextSequence: 2,\n    });\n    await ctx.db.insert('messages', {\n      incidentId, sequence: 1, authorId: ctx.auth.userId, body: 'Incident opened',\n    });\n    return incidentId;\n  },\n  async addParticipant(ctx, args) {\n    await ctx.permissions.incidentMembers.requireRole(args.incidentId, 'commander');\n    if (!['responder', 'observer'].includes(args.role)) throw new Error('invalid participant role');\n    await ctx.membership.incidentMembers.insert({\n      incidentId: args.incidentId, userId: args.userId, role: args.role,\n    });\n    return null;\n  },\n  async removeParticipant(ctx, args) {\n    if (args.userId !== ctx.auth.userId) throw new Error('v1 removal is self-service');\n    await ctx.membership.incidentMembers.removeSelf(args.incidentId);\n    return null;\n  },\n  async postMessage(ctx, args) {\n    await ctx.permissions.incidentMembers.requireRole(args.incidentId, ...writeRoles);\n    const incident = await ctx.db.get('incidents', args.incidentId);\n    if (!incident) throw new Error('incident not found');\n    const sequence = incident.nextSequence;\n    await ctx.db.insert('messages', {\n      incidentId: args.incidentId, sequence, authorId: ctx.auth.userId,\n      body: String(args.body).trim(),\n    });\n    await ctx.db.patch('incidents', args.incidentId, {nextSequence: sequence + 1});\n    return sequence;\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "incidentMembers",
+        "tables": [
+          "incidentMembers"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "title",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "severity",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:42638899904f685c0b19ac7328e80727409dfa9db04baa175cd1933dc6b64f70",
+      "authRequirement": "authenticated",
+      "authorityCreating": true,
+      "bundleEntrypoint": "createIncident",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "incidentMembers"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "incidents"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "messages"
+          }
+        ]
+      },
+      "exportedName": "createIncident",
+      "handlerForm": "module",
+      "id": "zero-bakeoff-private-incident-room:createIncident",
+      "implementationHash": "sha256:e01cb8ff63b5d4316e33df79e991e101c0da621f1b7b0d54953831b4dcd193bb",
+      "kind": "Mutation",
+      "name": "createIncident",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "runtime": {
+        "IbexModule": {
+          "export": "createIncident",
+          "source": "const writeRoles = ['commander', 'responder'];\n\nglobalThis.__snapbackHandlers = {\n  async createIncident(ctx, args) {\n    const incidentId = await ctx.membership.incidentMembers.bootstrap({\n      title: String(args.title).trim(), severity: args.severity,\n      createdBy: ctx.auth.userId, nextSequence: 2,\n    });\n    await ctx.db.insert('messages', {\n      incidentId, sequence: 1, authorId: ctx.auth.userId, body: 'Incident opened',\n    });\n    return incidentId;\n  },\n  async addParticipant(ctx, args) {\n    await ctx.permissions.incidentMembers.requireRole(args.incidentId, 'commander');\n    if (!['responder', 'observer'].includes(args.role)) throw new Error('invalid participant role');\n    await ctx.membership.incidentMembers.insert({\n      incidentId: args.incidentId, userId: args.userId, role: args.role,\n    });\n    return null;\n  },\n  async removeParticipant(ctx, args) {\n    if (args.userId !== ctx.auth.userId) throw new Error('v1 removal is self-service');\n    await ctx.membership.incidentMembers.removeSelf(args.incidentId);\n    return null;\n  },\n  async postMessage(ctx, args) {\n    await ctx.permissions.incidentMembers.requireRole(args.incidentId, ...writeRoles);\n    const incident = await ctx.db.get('incidents', args.incidentId);\n    if (!incident) throw new Error('incident not found');\n    const sequence = incident.nextSequence;\n    await ctx.db.insert('messages', {\n      incidentId: args.incidentId, sequence, authorId: ctx.auth.userId,\n      body: String(args.body).trim(),\n    });\n    await ctx.db.patch('incidents', args.incidentId, {nextSequence: sequence + 1});\n    return sequence;\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "incidents",
+        "tables": [
+          "incidents",
+          "incidentMembers",
+          "messages"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "incidentId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "incidents"
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:1bae3d09e488c2a2dc106ed891ae86417b8965d0af051cc451515341cb00c310",
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "userId"
+      ],
+      "bundleEntrypoint": "incidentMessages",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "membershipPredicate"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_incident_sequence",
+            "table": "messages"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "incidentMessages",
+      "handlerForm": "plan",
+      "id": "zero-bakeoff-private-incident-room:incidentMessages",
+      "implementationHash": "sha256:14fddf3e47a53384c29b3d82ae653c21012b9e767cdcf56a6b1246945a393dd9",
+      "kind": "LiveQuery",
+      "name": "incidentMessages",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "messages",
+        "tables": [
+          "messages",
+          "incidentMembers"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "messages"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "incidentId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "incidents"
+              }
+            },
+            {
+              "name": "sequence",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "authorId",
+              "required": true,
+              "value": {
+                "kind": "principal"
+              }
+            },
+            {
+              "name": "body",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "messages"
+      },
+      "resultContractHash": "sha256:8cf98018800017e57410e16a8ec722b7646e670eb90a723de5c2d6b662b06cd2",
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "incidentId",
+                "op": "Eq",
+                "value": {
+                  "Arg": "incidentId"
+                }
+              }
+            ],
+            "indexed_by": "by_incident_sequence",
+            "limit": null,
+            "membershipFilters": [
+              {
+                "declaration": "incidentMembers",
+                "resource": {
+                  "arg": {
+                    "path": "incidentId",
+                    "resourceTable": "incidents"
+                  }
+                }
+              }
+            ],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "sequence"
+              }
+            ],
+            "table": "messages"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "incidentId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "incidents"
+            }
+          },
+          {
+            "name": "body",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:33e83bc2c41649aeaa2f6f77eaf986e85ac897358ee76c1211331aabcc6b8e66",
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "postMessage",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "incidentMembers"
+          },
+          {
+            "access": "query",
+            "table": "incidents"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "incidents"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "messages"
+          }
+        ]
+      },
+      "exportedName": "postMessage",
+      "handlerForm": "module",
+      "id": "zero-bakeoff-private-incident-room:postMessage",
+      "implementationHash": "sha256:b66748b2174d905cece5aee2a2d37843626039474aab4c6cb3fdb10beb3b07c8",
+      "kind": "Mutation",
+      "name": "postMessage",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "incidents",
+        "tables": [
+          "incidents",
+          "incidentMembers"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "runtime": {
+        "IbexModule": {
+          "export": "postMessage",
+          "source": "const writeRoles = ['commander', 'responder'];\n\nglobalThis.__snapbackHandlers = {\n  async createIncident(ctx, args) {\n    const incidentId = await ctx.membership.incidentMembers.bootstrap({\n      title: String(args.title).trim(), severity: args.severity,\n      createdBy: ctx.auth.userId, nextSequence: 2,\n    });\n    await ctx.db.insert('messages', {\n      incidentId, sequence: 1, authorId: ctx.auth.userId, body: 'Incident opened',\n    });\n    return incidentId;\n  },\n  async addParticipant(ctx, args) {\n    await ctx.permissions.incidentMembers.requireRole(args.incidentId, 'commander');\n    if (!['responder', 'observer'].includes(args.role)) throw new Error('invalid participant role');\n    await ctx.membership.incidentMembers.insert({\n      incidentId: args.incidentId, userId: args.userId, role: args.role,\n    });\n    return null;\n  },\n  async removeParticipant(ctx, args) {\n    if (args.userId !== ctx.auth.userId) throw new Error('v1 removal is self-service');\n    await ctx.membership.incidentMembers.removeSelf(args.incidentId);\n    return null;\n  },\n  async postMessage(ctx, args) {\n    await ctx.permissions.incidentMembers.requireRole(args.incidentId, ...writeRoles);\n    const incident = await ctx.db.get('incidents', args.incidentId);\n    if (!incident) throw new Error('incident not found');\n    const sequence = incident.nextSequence;\n    await ctx.db.insert('messages', {\n      incidentId: args.incidentId, sequence, authorId: ctx.auth.userId,\n      body: String(args.body).trim(),\n    });\n    await ctx.db.patch('incidents', args.incidentId, {nextSequence: sequence + 1});\n    return sequence;\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "incidents",
+        "tables": [
+          "incidents",
+          "messages"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "incidentId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "incidents"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "value": {
+              "kind": "principal"
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:fbbbcb87e36e45047efd8a2740a366b1d6d5a02654d827a957e0e53474e2341d",
+      "authRequirement": "authenticated",
+      "authorityCreating": true,
+      "bundleEntrypoint": "removeParticipant",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "incidentMembers"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "incidentMembers"
+          }
+        ]
+      },
+      "exportedName": "removeParticipant",
+      "handlerForm": "module",
+      "id": "zero-bakeoff-private-incident-room:removeParticipant",
+      "implementationHash": "sha256:3fc30f798f1c69756b2df46406259aba00fd13b19646c78d8c5e9b4cabcb819e",
+      "kind": "Mutation",
+      "name": "removeParticipant",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "incidentMembers",
+        "tables": [
+          "incidentMembers"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "runtime": {
+        "IbexModule": {
+          "export": "removeParticipant",
+          "source": "const writeRoles = ['commander', 'responder'];\n\nglobalThis.__snapbackHandlers = {\n  async createIncident(ctx, args) {\n    const incidentId = await ctx.membership.incidentMembers.bootstrap({\n      title: String(args.title).trim(), severity: args.severity,\n      createdBy: ctx.auth.userId, nextSequence: 2,\n    });\n    await ctx.db.insert('messages', {\n      incidentId, sequence: 1, authorId: ctx.auth.userId, body: 'Incident opened',\n    });\n    return incidentId;\n  },\n  async addParticipant(ctx, args) {\n    await ctx.permissions.incidentMembers.requireRole(args.incidentId, 'commander');\n    if (!['responder', 'observer'].includes(args.role)) throw new Error('invalid participant role');\n    await ctx.membership.incidentMembers.insert({\n      incidentId: args.incidentId, userId: args.userId, role: args.role,\n    });\n    return null;\n  },\n  async removeParticipant(ctx, args) {\n    if (args.userId !== ctx.auth.userId) throw new Error('v1 removal is self-service');\n    await ctx.membership.incidentMembers.removeSelf(args.incidentId);\n    return null;\n  },\n  async postMessage(ctx, args) {\n    await ctx.permissions.incidentMembers.requireRole(args.incidentId, ...writeRoles);\n    const incident = await ctx.db.get('incidents', args.incidentId);\n    if (!incident) throw new Error('incident not found');\n    const sequence = incident.nextSequence;\n    await ctx.db.insert('messages', {\n      incidentId: args.incidentId, sequence, authorId: ctx.auth.userId,\n      body: String(args.body).trim(),\n    });\n    await ctx.db.patch('incidents', args.incidentId, {nextSequence: sequence + 1});\n    return sequence;\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "incidentMembers",
+        "tables": [
+          "incidentMembers"
+        ]
+      }
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:c8b522c09b913d0968b75f48cf5de148a6b49cb6b1a949f2d4fb86a09c45cd0d",
+  "schemaVersion": "snapback.v1",
+  "unsupportedDependencyDiagnostics": [
+    {
+      "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+      "details": {
+        "function": "addParticipant"
+      },
+      "message": "addParticipant: no precise result contract was declared; runtime enforcement is limited to the general result budget",
+      "severity": "info",
+      "subsystem": "function"
+    },
+    {
+      "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+      "details": {
+        "function": "createIncident"
+      },
+      "message": "createIncident: no precise result contract was declared; runtime enforcement is limited to the general result budget",
+      "severity": "info",
+      "subsystem": "function"
+    },
+    {
+      "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+      "details": {
+        "function": "postMessage"
+      },
+      "message": "postMessage: no precise result contract was declared; runtime enforcement is limited to the general result budget",
+      "severity": "info",
+      "subsystem": "function"
+    },
+    {
+      "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+      "details": {
+        "function": "removeParticipant"
+      },
+      "message": "removeParticipant: no precise result contract was declared; runtime enforcement is limited to the general result budget",
+      "severity": "info",
+      "subsystem": "function"
+    }
+  ]
+}

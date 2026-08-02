@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "snapback.zero-bakeoff.program.v1",
+  "frozenAt": "2026-07-31T00:00:00-07:00",
+  "authority": "LLP 0138",
+  "providers": {
+    "snapback": {
+      "kind": "primary",
+      "profile": "repository source; local Ibex/SQLite"
+    },
+    "zero": {
+      "kind": "primary",
+      "version": "1.8.0",
+      "profile": "self-hosted zero-cache-dev; PostgreSQL 17"
+    },
+    "replicache": {
+      "kind": "field-notebook-control-only",
+      "version": "15.3.0",
+      "profile": "application-owned push/pull/poke over PostgreSQL 17"
+    }
+  },
+  "personas": [
+    {"id": "alice", "role": "authorized-primary"},
+    {"id": "bob", "role": "authorized-collaborator"},
+    {"id": "mallory", "role": "outsider"}
+  ],
+  "applications": [
+    {"id": "triage-graph", "diary": "0042", "primaryDimension": "relational-query-driven-partial-sync"},
+    {"id": "latency-kanban", "diary": "0043", "primaryDimension": "optimistic-lifecycle"},
+    {"id": "contention-calendar", "diary": "0044", "primaryDimension": "conflict-correction"},
+    {"id": "private-incident-room", "diary": "0045", "primaryDimension": "authorization-and-revocation"},
+    {"id": "field-notebook", "diary": "0046", "primaryDimension": "offline-retention-and-intent"},
+    {"id": "fleet-observatory", "diary": "0047", "primaryDimension": "large-partial-sync-and-query-churn"}
+  ],
+  "rules": {
+    "sharedBackendAbstraction": false,
+    "optimisticPaintIsAuthority": false,
+    "expectedCheckCountRequired": true,
+    "immutableFirstDiaryVerdict": true,
+    "sameMachineForComparativePerformance": true,
+    "zeroAndReplicacheScoresSeparate": true,
+    "presenceScoredAsDurableSync": false
+  }
+}

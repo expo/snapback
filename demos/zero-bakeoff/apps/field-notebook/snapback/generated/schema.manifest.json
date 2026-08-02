@@ -1,0 +1,60 @@
+{
+  "app": {
+    "description": "LLP 0138 retained-read and offline-intent bakeoff arm.",
+    "name": "Field Notebook"
+  },
+  "appId": "zero-bakeoff-field-notebook",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "auth": {
+    "mode": "dev"
+  },
+  "ephemeralCollections": [],
+  "generatedAt": 0,
+  "inputsHash": "41f4b2f33b4e07f1f9f7004649ad6c4a616a69c58608d1d08ab97331de988813",
+  "portabilityFlags": [],
+  "schemaHash": "sha256:fc5c6acaaca9ef55",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "assignmentId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "title",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "body",
+          "optional": false
+        },
+        {
+          "field_type": "Boolean",
+          "name": "checklistDone",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "revision",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "assignmentId"
+          ],
+          "name": "by_assignment"
+        }
+      ],
+      "name": "records",
+      "syncable": true
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

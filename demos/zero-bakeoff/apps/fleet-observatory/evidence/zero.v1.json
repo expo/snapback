@@ -1,0 +1,163 @@
+{
+  "schemaVersion": "snapback.zero-bakeoff.arm-receipt.v1",
+  "observedAt": "2026-08-01T08:40:22.691Z",
+  "app": "fleet-observatory",
+  "provider": "zero",
+  "expectedChecks": 8,
+  "executedChecks": 8,
+  "counts": {
+    "pass": 7,
+    "gap": 1,
+    "fail": 0
+  },
+  "missing": [],
+  "cleanup": {
+    "ok": true,
+    "errors": []
+  },
+  "ok": true,
+  "results": [
+    {
+      "id": "fo.initial-bounded-slice",
+      "outcome": "pass",
+      "durationMs": 115.77470900000026,
+      "details": {},
+      "value": {
+        "rows": 100,
+        "bytes": 43769
+      }
+    },
+    {
+      "id": "fo.first-useful-vs-complete",
+      "outcome": "pass",
+      "durationMs": 35.88291699999991,
+      "details": {},
+      "value": {
+        "firstUsefulMs": 34.69300000000021,
+        "completeMs": 34.85870799999975
+      }
+    },
+    {
+      "id": "fo.filter-churn-custody",
+      "outcome": "pass",
+      "durationMs": 481.3492919999999,
+      "details": {},
+      "value": {
+        "switches": 20,
+        "samplesMs": [
+          37.72112500000003,
+          29.38183300000037,
+          33.20141600000079,
+          34.44208299999991,
+          30.841707999999926,
+          28.584082999999737,
+          29.89116699999977,
+          29.388582999999926,
+          31.809290999999575,
+          30.39220800000021,
+          32.961207999999715,
+          31.238291000000572,
+          32.244166000000405,
+          30.141208000000006,
+          32.969875000000684,
+          0.9338749999997162,
+          1.4688750000004802,
+          1.17975000000024,
+          1.225416000000223,
+          1.0096250000005966
+        ]
+      }
+    },
+    {
+      "id": "fo.matching-update-convergence",
+      "outcome": "pass",
+      "durationMs": 649.633084,
+      "details": {},
+      "value": {
+        "updates": 1000,
+        "activeMatches": 100,
+        "clientSettlementAt": 7173.365833,
+        "serverSettlementAt": 7184.384875
+      }
+    },
+    {
+      "id": "fo.no-full-dataset-transfer",
+      "outcome": "pass",
+      "durationMs": 5.6727499999997235,
+      "details": {},
+      "value": {
+        "fixtureEvents": 250000,
+        "clientEventRows": 100,
+        "currentResultRows": 100
+      }
+    },
+    {
+      "id": "fo.active-view-resources",
+      "outcome": "pass",
+      "durationMs": 170.4567079999997,
+      "details": {},
+      "value": {
+        "views": 20,
+        "clientEventRows": 500,
+        "inspectorQueries": 5,
+        "processRssBytes": 305905664,
+        "hydrationMs": [
+          23.60699999999997,
+          29.794582999999875,
+          26.783416000000216,
+          32.192667000000256,
+          36.44433300000037,
+          0.024667000000590633,
+          0.006209000000126252,
+          0.004791999999724794,
+          0.0032090000004245667,
+          0.007165999999415362,
+          0.005500000000211003,
+          0.0039999999999054126,
+          0.006166999999550171,
+          0.0013340000004973263,
+          0.0013330000001587905,
+          0.0018749999999272404,
+          0.0029999999997016857,
+          0.023917000000437838,
+          0.0058330000001660665,
+          0.01208299999962037
+        ]
+      }
+    },
+    {
+      "id": "fo.warm-cold-restart",
+      "outcome": "gap",
+      "durationMs": 0.0010840000004463946,
+      "details": {
+        "reason": "Headless Node/Bun acceptance uses Zero kvStore=mem; browser IndexedDB warm/cold restart requires the browser carrier",
+        "code": "ZERO_BAKEOFF_BROWSER_INDEXEDDB_REQUIRED"
+      }
+    },
+    {
+      "id": "fo.outsider-nonreplication",
+      "outcome": "pass",
+      "durationMs": 19.837749999999687,
+      "details": {},
+      "value": {
+        "queryRows": 0,
+        "clientEventRows": 0
+      }
+    }
+  ],
+  "target": {
+    "providerVersion": "1.8.0",
+    "storage": "PostgreSQL 17 + zero-cache-dev",
+    "clientStore": "memory (headless acceptance)"
+  },
+  "fixture": {
+    "devices": 25000,
+    "events": 250000,
+    "activeViews": 20
+  },
+  "nonclaims": [
+    "No Cloud Zero claim",
+    "Browser IndexedDB restart is a retained GAP",
+    "Process RSS includes the Bun acceptance process and is attributable context, not isolated client heap"
+  ]
+}

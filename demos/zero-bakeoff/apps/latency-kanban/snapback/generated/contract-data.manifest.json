@@ -1,0 +1,717 @@
+{
+  "artifactKind": "contractDataManifest",
+  "bundleHash": "sha256:797da86f6b61e1d2",
+  "capabilities": {
+    "branchableFixtures": false,
+    "derivedOptimisticOverlays": false,
+    "forceStates": true,
+    "headlessBoot": true,
+    "initialSnapshot": true,
+    "localReplica": false,
+    "offlineReplay": false,
+    "optimisticMutations": false,
+    "rowSyncState": true,
+    "serverRunnableQueries": true,
+    "subscriptions": true
+  },
+  "ephemeral": {},
+  "inputsHash": "02928285ab472f288aa2c9a401ee0144e20ae67cf47d1383c0fed49d7b122c3b",
+  "manifestVersion": 2,
+  "mutations": {
+    "moveCard": {
+      "argOrder": [
+        "id",
+        "columnKey",
+        "rank",
+        "expectedRevision"
+      ],
+      "args": {
+        "columnKey": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "expectedRevision": {
+          "name": "number",
+          "shape": "primitive"
+        },
+        "id": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "rank": {
+          "name": "number",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:dcccec306ca90d7f94fbf483d11afeb26adc6a9c962d3e0564cb8db05c35e736",
+      "implementationHash": "sha256:fba9d16c22407e74481899d455c12706869163782eef9ba551f2ad90f0121f2c",
+      "invalidates": [
+        "cards"
+      ],
+      "name": "moveCard",
+      "optimistic": false,
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "cards"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "key",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "columnKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "rank",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "assigneeId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "archived",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "locked",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "revision",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "document",
+        "table": "cards"
+      },
+      "resultHash": "sha256:531a4b220e23814fec2faa739272881816f6b2c5d3f85be1b6f586f55a39963b",
+      "serverRunnable": true,
+      "writes": [
+        "cards"
+      ]
+    },
+    "setCardLocked": {
+      "argOrder": [
+        "id",
+        "locked"
+      ],
+      "args": {
+        "id": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "locked": {
+          "name": "boolean",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:9d781c391bb07d0e43fc6b33342b5eb35d6a3a3d9be90ec3d4308245ae2fb35a",
+      "implementationHash": "sha256:808900b0e9998b50d358151ba21cb881dd93f57f900c2e4250d362eeb238fe49",
+      "invalidates": [
+        "cards"
+      ],
+      "name": "setCardLocked",
+      "optimistic": false,
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "cards"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "key",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "columnKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "rank",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "assigneeId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "archived",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "locked",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "revision",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "document",
+        "table": "cards"
+      },
+      "resultHash": "sha256:531a4b220e23814fec2faa739272881816f6b2c5d3f85be1b6f586f55a39963b",
+      "serverRunnable": true,
+      "writes": [
+        "cards"
+      ]
+    },
+    "setupFixture": {
+      "argOrder": [],
+      "args": {},
+      "argsHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "implementationHash": "sha256:dce5e292e4649ea70cf60b12061d8a5b6e7d9bd518c9ba0d87c7ce5bffde4bac",
+      "invalidates": [
+        "cards",
+        "columns"
+      ],
+      "name": "setupFixture",
+      "optimistic": false,
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "kind": "integer",
+          "max": 9007199254740991,
+          "min": -9007199254740991
+        }
+      },
+      "resultHash": "sha256:6d09769174ac41f0658a64fc801c288afb4eb757fb1b3a85f154eb8100388e8b",
+      "serverRunnable": true,
+      "writes": [
+        "cards",
+        "columns"
+      ]
+    }
+  },
+  "provider": "snapback",
+  "queries": {
+    "boardCards": {
+      "argOrder": [],
+      "args": {},
+      "argsHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "defaultLive": true,
+      "ephemeral": false,
+      "implementationHash": "sha256:30ae6dd5195670a04b9d33908415350b895bbd98259062f58045d59e0424c17e",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "boardCards",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "cards"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "archived": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "assigneeId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "columnKey": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "key": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "locked": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "rank": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "revision": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "title": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "cards"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "key",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "columnKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "rank",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "assigneeId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "archived",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "locked",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "revision",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "cards"
+      },
+      "resultHash": "sha256:d6d862a5b39ecf23f15c6981b51f46630bed250dac4e61d233a77025ca5f1d83",
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "cardsInColumn": {
+      "argOrder": [
+        "columnKey"
+      ],
+      "args": {
+        "columnKey": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:b6c5b2ed4addc71f69748518ba87c902002b864d1063de77dafc3a07d8cba30f",
+      "defaultLive": true,
+      "ephemeral": false,
+      "implementationHash": "sha256:2c8afa2c41a438243bea7d976fb95264ac625762b68b932056f84e39c22973bd",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "cardsInColumn",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "cards"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "archived": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "assigneeId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "columnKey": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "key": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "locked": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "rank": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "revision": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "title": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "cards"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "key",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "columnKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "rank",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "assigneeId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "archived",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "locked",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "revision",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "cards"
+      },
+      "resultHash": "sha256:d6d862a5b39ecf23f15c6981b51f46630bed250dac4e61d233a77025ca5f1d83",
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    }
+  },
+  "receipts": "mutation+subscription",
+  "schemaHash": "sha256:7cfd30d83d8e2303",
+  "schemaVersion": "snapback.v0"
+}

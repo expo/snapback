@@ -1,0 +1,11 @@
+{
+  "id": "zero-bakeoff-private-incident-room",
+  "title": "Private Incident Room",
+  "description": "LLP 0138 authorization and revocation bakeoff arm.",
+  "artifactSchemaVersion": "snapback.v0",
+  "targetProfile": "local-dev-sqlite-ibex",
+  "systems": ["Auth", "Memberships", "Live queries", "React"],
+  "requiredCapabilities": {"storageEngine":"sqlite","runtimeEngine":"ibex","membershipDeclarations":true},
+  "surfaces": {"headless":{"requirement":"required","buildTargets":[],"runner":"node acceptance/snapback.mjs"}},
+  "notClaiming": ["hosted auth", "hostile-device byte secrecy", "protected offline retention on the JS arm"]
+}

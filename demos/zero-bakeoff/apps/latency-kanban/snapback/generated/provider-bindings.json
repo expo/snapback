@@ -1,0 +1,125 @@
+{
+  "artifactKind": "providerBindingMetadata",
+  "bindings": {
+    "actions": [],
+    "ephemeral": [],
+    "mutations": [
+      {
+        "argumentsType": "{ \"columnKey\": string; \"expectedRevision\": number; \"id\": string; \"rank\": number }",
+        "effects": {
+          "invalidates": [
+            "cards"
+          ],
+          "writes": [
+            "cards"
+          ]
+        },
+        "name": "moveCard",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "Record<string, unknown>"
+      },
+      {
+        "argumentsType": "{ \"id\": string; \"locked\": boolean }",
+        "effects": {
+          "invalidates": [
+            "cards"
+          ],
+          "writes": [
+            "cards"
+          ]
+        },
+        "name": "setCardLocked",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "Record<string, unknown>"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "effects": {
+          "invalidates": [
+            "cards",
+            "columns"
+          ],
+          "writes": [
+            "cards",
+            "columns"
+          ]
+        },
+        "name": "setupFixture",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "number"
+      }
+    ],
+    "queries": [
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "cards"
+          ]
+        },
+        "name": "boardCards",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"archived\": boolean; \"assigneeId\": string; \"columnKey\": string; \"key\": string; \"locked\": boolean; \"rank\": number; \"revision\": number; \"title\": string }>"
+      },
+      {
+        "argumentsType": "{ \"columnKey\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "cards"
+          ]
+        },
+        "name": "cardsInColumn",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"archived\": boolean; \"assigneeId\": string; \"columnKey\": string; \"key\": string; \"locked\": boolean; \"rank\": number; \"revision\": number; \"title\": string }>"
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v0"
+  },
+  "schemaVersion": "provider-binding-metadata.v1",
+  "source": {
+    "inputsHash": "02928285ab472f288aa2c9a401ee0144e20ae67cf47d1383c0fed49d7b122c3b",
+    "introspectionSchemaVersion": "provider-introspection.v1"
+  }
+}

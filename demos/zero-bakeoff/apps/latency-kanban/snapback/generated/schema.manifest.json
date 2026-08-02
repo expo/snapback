@@ -1,0 +1,112 @@
+{
+  "appId": "latency-kanban",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "ephemeralCollections": [],
+  "generatedAt": 0,
+  "inputsHash": "02928285ab472f288aa2c9a401ee0144e20ae67cf47d1383c0fed49d7b122c3b",
+  "portabilityFlags": [],
+  "schemaHash": "sha256:7cfd30d83d8e2303",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "key",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "title",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "rank",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "key"
+          ],
+          "name": "by_key",
+          "unique": true
+        },
+        {
+          "fields": [
+            "rank"
+          ],
+          "name": "by_rank"
+        }
+      ],
+      "name": "columns",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "key",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "title",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "columnKey",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "rank",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "assigneeId",
+          "optional": false
+        },
+        {
+          "field_type": "Boolean",
+          "name": "archived",
+          "optional": false
+        },
+        {
+          "field_type": "Boolean",
+          "name": "locked",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "revision",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "key"
+          ],
+          "name": "by_key",
+          "unique": true
+        },
+        {
+          "fields": [
+            "columnKey",
+            "rank"
+          ],
+          "name": "by_column_rank"
+        }
+      ],
+      "name": "cards",
+      "syncable": true
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

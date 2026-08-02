@@ -1,0 +1,8 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/latency-kanban/setupFixture.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {},
+  "title": "latency-kanban:setupFixture arguments",
+  "type": "object"
+}

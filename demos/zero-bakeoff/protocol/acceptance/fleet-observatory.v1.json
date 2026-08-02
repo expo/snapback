@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "snapback.zero-bakeoff.acceptance.v1",
+  "app": "fleet-observatory",
+  "expectedChecks": 8,
+  "fixture": {"devices": 25000, "events": 250000, "activeViews": 20},
+  "checks": [
+    "fo.initial-bounded-slice",
+    "fo.first-useful-vs-complete",
+    "fo.filter-churn-custody",
+    "fo.matching-update-convergence",
+    "fo.no-full-dataset-transfer",
+    "fo.active-view-resources",
+    "fo.warm-cold-restart",
+    "fo.outsider-nonreplication"
+  ]
+}
+

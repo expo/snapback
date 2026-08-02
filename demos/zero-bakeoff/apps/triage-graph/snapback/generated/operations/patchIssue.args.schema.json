@@ -1,0 +1,28 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/triage-graph/patchIssue.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "issueKey": {
+      "type": "string"
+    },
+    "priority": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "updatedAt": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "issueKey",
+    "updatedAt"
+  ],
+  "title": "triage-graph:patchIssue arguments",
+  "type": "object"
+}

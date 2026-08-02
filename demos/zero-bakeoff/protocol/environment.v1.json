@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "snapback.zero-bakeoff.environment.v1",
+  "observedAt": "2026-07-31T00:00:00-07:00",
+  "machine": {
+    "hostname": "Charlies-MacBook-Pro.local",
+    "platform": "darwin-arm64",
+    "cpu": "Apple M5 Max, 18-core",
+    "memoryGiB": 128
+  },
+  "runtime": {
+    "node": "25.9.0",
+    "bun": "1.3.12",
+    "postgres": "17.10",
+    "zero": "1.8.0",
+    "replicache": "15.3.0"
+  },
+  "networkProfiles": {
+    "normal": {"downstreamLatencyMs": 0, "upstreamLatencyMs": 0},
+    "optimistic": {"authoritativeMutationLatencyMs": 1000},
+    "offlineStretch": {"durationMs": 900000}
+  },
+  "performanceRule": "Only same-machine, same-fixture, same-profile samples are comparative."
+}

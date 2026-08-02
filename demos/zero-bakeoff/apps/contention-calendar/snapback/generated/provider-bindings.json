@@ -1,0 +1,106 @@
+{
+  "artifactKind": "providerBindingMetadata",
+  "bindings": {
+    "actions": [],
+    "ephemeral": [],
+    "mutations": [
+      {
+        "argumentsType": "Record<string, never>",
+        "effects": {
+          "invalidates": [
+            "reservations"
+          ],
+          "writes": [
+            "reservations"
+          ]
+        },
+        "name": "clearReservations",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "number"
+      },
+      {
+        "argumentsType": "{ \"idempotencyKey\": string; \"now\": number; \"ownerId\": string; \"resourceKey\": string; \"slotKey\": string; \"title\": string }",
+        "effects": {
+          "invalidates": [
+            "reservations"
+          ],
+          "writes": [
+            "reservations"
+          ]
+        },
+        "name": "reserve",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "string"
+      }
+    ],
+    "queries": [
+      {
+        "argumentsType": "{ \"ownerId\": string; \"slotKey\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "reservations"
+          ]
+        },
+        "name": "reservationsForSlot",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"createdAt\": number; \"idempotencyKey\": string; \"ownerId\": string; \"resourceKey\": string; \"resourceSlotKey\": string; \"slotKey\": string; \"title\": string }>"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "reservations"
+          ]
+        },
+        "name": "schedule",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"createdAt\": number; \"idempotencyKey\": string; \"ownerId\": string; \"resourceKey\": string; \"resourceSlotKey\": string; \"slotKey\": string; \"title\": string }>"
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v0"
+  },
+  "schemaVersion": "provider-binding-metadata.v1",
+  "source": {
+    "inputsHash": "b11e65818a39216ed6a8b6f8e773162451f79486907384a5c70f20f1ab00a4a0",
+    "introspectionSchemaVersion": "provider-introspection.v1"
+  }
+}

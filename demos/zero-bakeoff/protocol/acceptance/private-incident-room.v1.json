@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "snapback.zero-bakeoff.acceptance.v1",
+  "app": "private-incident-room",
+  "expectedChecks": 8,
+  "fixture": {"incidents": 10, "roles": ["commander", "responder", "observer", "outsider"]},
+  "checks": [
+    "ir.read-visibility",
+    "ir.write-authority",
+    "ir.cross-client-live",
+    "ir.revocation-retirement",
+    "ir.pending-write-revocation",
+    "ir.user-switch-custody",
+    "ir.out-of-band-permission-change",
+    "ir.cleanup"
+  ]
+}
+

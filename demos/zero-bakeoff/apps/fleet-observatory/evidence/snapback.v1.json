@@ -1,0 +1,165 @@
+{
+  "schemaVersion": "snapback.zero-bakeoff.arm-receipt.v1",
+  "observedAt": "2026-08-01T08:55:52.524Z",
+  "app": "fleet-observatory",
+  "provider": "snapback",
+  "expectedChecks": 8,
+  "executedChecks": 8,
+  "counts": {
+    "pass": 6,
+    "gap": 1,
+    "fail": 1
+  },
+  "missing": [],
+  "cleanup": {
+    "ok": true,
+    "errors": []
+  },
+  "ok": false,
+  "results": [
+    {
+      "id": "fo.initial-bounded-slice",
+      "outcome": "pass",
+      "durationMs": 74.64541599999939,
+      "details": {},
+      "value": {
+        "rows": 100,
+        "bytes": 29700
+      }
+    },
+    {
+      "id": "fo.first-useful-vs-complete",
+      "outcome": "pass",
+      "durationMs": 68.2512080000015,
+      "details": {},
+      "value": {
+        "firstUsefulMs": 67.71816599999875,
+        "completeMs": 67.71816599999875,
+        "semantics": "initial response is one authoritative snapshot"
+      }
+    },
+    {
+      "id": "fo.filter-churn-custody",
+      "outcome": "pass",
+      "durationMs": 1129.114125,
+      "details": {},
+      "value": {
+        "switches": 20,
+        "samplesMs": [
+          57.2040829999969,
+          56.728415999998106,
+          56.53741699999955,
+          56.23362500000076,
+          56.043541999999434,
+          55.7735410000023,
+          55.90562499999942,
+          55.86162499999773,
+          56.56816699999763,
+          57.97295799999847,
+          56.801958999996714,
+          56.29312499999651,
+          56.40033399999811,
+          57.02370899999369,
+          56.392375000003085,
+          56.589584000001196,
+          55.854707999998936,
+          56.203332999997656,
+          56.411207999997714,
+          56.112499999995634
+        ],
+        "custody": "server result only; headless client has no persistent row store"
+      }
+    },
+    {
+      "id": "fo.matching-update-convergence",
+      "outcome": "fail",
+      "durationMs": 50634.54966700001,
+      "details": {
+        "code": "SNAPBACK_BAKEOFF_BURST_NOT_VISIBLE",
+        "message": "live burst did not converge: directMatches=0, liveMatches=0, connection=polling"
+      }
+    },
+    {
+      "id": "fo.no-full-dataset-transfer",
+      "outcome": "pass",
+      "durationMs": 0.05204200001026038,
+      "details": {},
+      "value": {
+        "fixtureEvents": 250000,
+        "currentResultRows": 100,
+        "resultBytes": 29700,
+        "custody": "authoritative result projection, not a replicated client table"
+      }
+    },
+    {
+      "id": "fo.active-view-resources",
+      "outcome": "pass",
+      "durationMs": 1161.674125000005,
+      "details": {},
+      "value": {
+        "views": 20,
+        "retainedResultRows": 1366,
+        "processRssBytes": 120406016,
+        "hydrationMs": [
+          59.305749999999534,
+          57.94416700000875,
+          57.2208329999994,
+          58.24162499999511,
+          57.427167000001646,
+          57.0324580000015,
+          61.615499999999884,
+          58.49408299999777,
+          58.269459000002826,
+          57.45137500000419,
+          57.661707999999635,
+          57.31979200000933,
+          57.91629199999443,
+          57.45841599999403,
+          57.643167000001995,
+          57.59654199999932,
+          57.35212500000489,
+          57.97291700000642,
+          59.31220800000301,
+          57.749582999997074
+        ]
+      }
+    },
+    {
+      "id": "fo.warm-cold-restart",
+      "outcome": "gap",
+      "durationMs": 0.0008749999979045242,
+      "details": {
+        "reason": "Headless acceptance uses Snapback in-memory client state; browser retained-store warm/cold restart requires the browser carrier",
+        "code": "SNAPBACK_BAKEOFF_BROWSER_RETAINED_STORE_REQUIRED"
+      }
+    },
+    {
+      "id": "fo.outsider-nonreplication",
+      "outcome": "pass",
+      "durationMs": 12.741666999994777,
+      "details": {},
+      "value": {
+        "queryRows": 0,
+        "clientRetainedRows": 0,
+        "custody": "no protected result bytes delivered"
+      }
+    }
+  ],
+  "target": {
+    "providerVersion": "source@15a4e35001611a4a73161efc63e527d71b5519f7",
+    "dirty": true,
+    "identityVerdict": "unpinned-binary",
+    "runtime": "debug Ibex/SQLite",
+    "clientStore": "headless memory"
+  },
+  "fixture": {
+    "devices": 25000,
+    "events": 250000,
+    "activeViews": 20
+  },
+  "nonclaims": [
+    "No hosted Snapback claim",
+    "Browser retained-store restart is a retained GAP",
+    "Process RSS includes the Node acceptance process and is attributable context, not isolated client heap"
+  ]
+}

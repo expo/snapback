@@ -1,0 +1,142 @@
+{
+  "schemaVersion": "snapback.zero-bakeoff.arm-receipt.v1",
+  "observedAt": "2026-08-01T08:54:41.930Z",
+  "app": "field-notebook",
+  "provider": "zero",
+  "expectedChecks": 11,
+  "executedChecks": 11,
+  "counts": {
+    "pass": 7,
+    "gap": 4,
+    "fail": 0
+  },
+  "missing": [],
+  "cleanup": {
+    "ok": true,
+    "errors": []
+  },
+  "ok": true,
+  "results": [
+    {
+      "id": "fn.cold-retained-read",
+      "outcome": "gap",
+      "durationMs": 0.0032089999999698193,
+      "details": {
+        "reason": "The local arm used fake-indexeddb, not a standards-real browser IndexedDB carrier; it cannot certify Zero cached-offline-read behavior.",
+        "coldRows": 0,
+        "backendReachable": false,
+        "clientStore": "fake-indexeddb headless implementation",
+        "officialCapability": "Zero documents cached offline reads; this arm did not produce browser-carrier evidence."
+      }
+    },
+    {
+      "id": "fn.honest-freshness",
+      "outcome": "pass",
+      "durationMs": 51.47495899999967,
+      "details": {},
+      "value": {
+        "resultType": "unknown",
+        "connection": "disconnected"
+      }
+    },
+    {
+      "id": "fn.short-interruption-write",
+      "outcome": "pass",
+      "durationMs": 501.3148339999998,
+      "details": {},
+      "value": {
+        "declaredContract": "disconnected writes are unsupported",
+        "observedServerOutcome": "pending-timeout"
+      }
+    },
+    {
+      "id": "fn.disconnected-write-contract",
+      "outcome": "pass",
+      "durationMs": 0.050333999999566004,
+      "details": {},
+      "value": {
+        "writePreventedFromClaimedSettlement": true,
+        "localPredictionMayExist": true
+      }
+    },
+    {
+      "id": "fn.draft-preservation",
+      "outcome": "pass",
+      "durationMs": 0.03270799999972951,
+      "details": {},
+      "value": {
+        "applicationOwned": true,
+        "preserved": true
+      }
+    },
+    {
+      "id": "fn.reconnect-no-duplicate",
+      "outcome": "pass",
+      "durationMs": 4002.0650830000004,
+      "details": {},
+      "value": {
+        "authoritativeRecords": 201,
+        "duplicateCreates": 0
+      }
+    },
+    {
+      "id": "fn.logout-cache-policy",
+      "outcome": "pass",
+      "durationMs": 203.7225839999992,
+      "details": {},
+      "value": {
+        "policy": "zero.delete()",
+        "retainedRows": 0
+      }
+    },
+    {
+      "id": "fn.stretch-durable-create-update",
+      "outcome": "gap",
+      "durationMs": 0.0002500000009604264,
+      "details": {
+        "reason": "Zero 1.8.0 does not claim durable disconnected mutation intent in this frozen provider profile.",
+        "providerApplicability": false
+      }
+    },
+    {
+      "id": "fn.stretch-offline-restart",
+      "outcome": "gap",
+      "durationMs": 0.0001250000004802132,
+      "details": {
+        "reason": "Zero 1.8.0 is not scored for persisted speculative pending mutations after restart.",
+        "providerApplicability": false
+      }
+    },
+    {
+      "id": "fn.stretch-concurrent-rebase",
+      "outcome": "gap",
+      "durationMs": 0.00008299999899463728,
+      "details": {
+        "reason": "Zero 1.8.0 is not scored for Replicache-class offline mutation rebase.",
+        "providerApplicability": false
+      }
+    },
+    {
+      "id": "fn.cleanup",
+      "outcome": "pass",
+      "durationMs": 0.044541000001117936,
+      "details": {},
+      "value": {
+        "ownedZeroCache": true,
+        "ownedDatabase": true,
+        "sharedPostgresStopped": false
+      }
+    }
+  ],
+  "target": {
+    "providerVersion": "1.8.0",
+    "storage": "PostgreSQL 17 + zero-cache-dev",
+    "clientStore": "IndexedDB via fake-indexeddb"
+  },
+  "nonclaims": [
+    "Cloud Zero",
+    "standards-real browser IndexedDB persistence",
+    "browser-render timing",
+    "durable offline mutation/rebase"
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/triage-graph/inbox.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "after": {
+      "type": "string"
+    },
+    "assigneeKey": {
+      "type": "string"
+    },
+    "labelKey": {
+      "type": "string"
+    },
+    "priority": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "teamKey": {
+      "type": "string"
+    }
+  },
+  "title": "triage-graph:inbox arguments",
+  "type": "object"
+}

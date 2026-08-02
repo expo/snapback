@@ -1,0 +1,23 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/zero-bakeoff-private-incident-room/addParticipant.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "incidentId": {
+      "type": "string"
+    },
+    "role": {
+      "type": "string"
+    },
+    "userId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "incidentId",
+    "userId",
+    "role"
+  ],
+  "title": "zero-bakeoff-private-incident-room:addParticipant arguments",
+  "type": "object"
+}

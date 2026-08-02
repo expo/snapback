@@ -1,0 +1,311 @@
+{
+  "appId": "fleet-observatory",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "ephemeralCollections": [],
+  "generatedAt": 0,
+  "inputsHash": "73024b105122df89e3b13bdcd3ae83c0b43a74e5ddf561db18f9b0f830a76a0b",
+  "portabilityFlags": [],
+  "schemaHash": "sha256:229ebc6d8d64ff84",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "fleetKey",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "name",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "fleetKey"
+          ],
+          "name": "by_fleet_key",
+          "unique": true
+        }
+      ],
+      "name": "fleets",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "membershipKey",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "fleetKey",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "userKey",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "membershipKey"
+          ],
+          "name": "by_membership_key",
+          "unique": true
+        },
+        {
+          "fields": [
+            "userKey",
+            "fleetKey"
+          ],
+          "name": "by_user_fleet",
+          "unique": true
+        },
+        {
+          "fields": [
+            "fleetKey",
+            "userKey"
+          ],
+          "name": "by_fleet_user",
+          "unique": true
+        }
+      ],
+      "name": "fleetMemberships",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "ownerKey",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "name",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "ownerKey"
+          ],
+          "name": "by_owner_key",
+          "unique": true
+        }
+      ],
+      "name": "owners",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "deviceKey",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "fleetKey",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "ownerKey",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "name",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "region",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "status",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "updatedAt",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "deviceKey"
+          ],
+          "name": "by_device_key",
+          "unique": true
+        },
+        {
+          "fields": [
+            "fleetKey",
+            "region",
+            "status",
+            "deviceKey"
+          ],
+          "name": "by_fleet_region_status",
+          "unique": true
+        }
+      ],
+      "name": "devices",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "eventKey",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "deviceKey",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "fleetKey",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "ownerKey",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "deviceStatus",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "region",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "severity",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "message",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "pageKey",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "occurredAt",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "eventKey"
+          ],
+          "name": "by_event_key",
+          "unique": true
+        },
+        {
+          "fields": [
+            "fleetKey",
+            "pageKey"
+          ],
+          "name": "by_fleet_page",
+          "unique": true
+        },
+        {
+          "fields": [
+            "fleetKey",
+            "severity",
+            "pageKey"
+          ],
+          "name": "by_fleet_severity_page",
+          "unique": true
+        },
+        {
+          "fields": [
+            "fleetKey",
+            "region",
+            "pageKey"
+          ],
+          "name": "by_fleet_region_page",
+          "unique": true
+        },
+        {
+          "fields": [
+            "fleetKey",
+            "deviceStatus",
+            "pageKey"
+          ],
+          "name": "by_fleet_status_page",
+          "unique": true
+        },
+        {
+          "fields": [
+            "fleetKey",
+            "severity",
+            "region",
+            "pageKey"
+          ],
+          "name": "by_fleet_severity_region_page",
+          "unique": true
+        },
+        {
+          "fields": [
+            "fleetKey",
+            "severity",
+            "deviceStatus",
+            "pageKey"
+          ],
+          "name": "by_fleet_severity_status_page",
+          "unique": true
+        },
+        {
+          "fields": [
+            "fleetKey",
+            "region",
+            "deviceStatus",
+            "pageKey"
+          ],
+          "name": "by_fleet_region_status_page",
+          "unique": true
+        },
+        {
+          "fields": [
+            "fleetKey",
+            "severity",
+            "region",
+            "deviceStatus",
+            "pageKey"
+          ],
+          "name": "by_fleet_severity_region_status_page",
+          "unique": true
+        }
+      ],
+      "name": "events",
+      "syncable": true
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

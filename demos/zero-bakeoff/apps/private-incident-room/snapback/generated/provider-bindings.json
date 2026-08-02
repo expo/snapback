@@ -1,0 +1,121 @@
+{
+  "artifactKind": "providerBindingMetadata",
+  "bindings": {
+    "actions": [],
+    "ephemeral": [],
+    "mutations": [
+      {
+        "argumentsType": "{ \"incidentId\": string; \"role\": string; \"userId\": string }",
+        "effects": {
+          "invalidates": [
+            "incidentMembers"
+          ],
+          "writes": [
+            "incidentMembers"
+          ]
+        },
+        "name": "addParticipant",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "unknown"
+      },
+      {
+        "argumentsType": "{ \"severity\": string; \"title\": string }",
+        "effects": {
+          "invalidates": [
+            "incidents",
+            "incidentMembers",
+            "messages"
+          ],
+          "writes": [
+            "incidents",
+            "incidentMembers",
+            "messages"
+          ]
+        },
+        "name": "createIncident",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "unknown"
+      },
+      {
+        "argumentsType": "{ \"body\": string; \"incidentId\": string }",
+        "effects": {
+          "invalidates": [
+            "incidents",
+            "messages"
+          ],
+          "writes": [
+            "incidents",
+            "messages"
+          ]
+        },
+        "name": "postMessage",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "unknown"
+      },
+      {
+        "argumentsType": "{ \"incidentId\": string; \"userId\": string }",
+        "effects": {
+          "invalidates": [
+            "incidentMembers"
+          ],
+          "writes": [
+            "incidentMembers"
+          ]
+        },
+        "name": "removeParticipant",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "unknown"
+      }
+    ],
+    "queries": [
+      {
+        "argumentsType": "{ \"incidentId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "messages",
+            "incidentMembers"
+          ]
+        },
+        "name": "incidentMessages",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"authorId\": string; \"body\": string; \"incidentId\": string; \"sequence\": number }>"
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v1"
+  },
+  "schemaVersion": "provider-binding-metadata.v1",
+  "source": {
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:c8b522c09b913d0968b75f48cf5de148a6b49cb6b1a949f2d4fb86a09c45cd0d",
+    "introspectionSchemaVersion": "provider-introspection.v1"
+  }
+}

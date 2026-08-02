@@ -1,0 +1,13 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/fleet-observatory/applyTelemetryBurst.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "updates": {}
+  },
+  "required": [
+    "updates"
+  ],
+  "title": "fleet-observatory:applyTelemetryBurst arguments",
+  "type": "object"
+}

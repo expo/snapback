@@ -1,0 +1,407 @@
+{
+  "appId": "contention-calendar",
+  "artifactKind": "artifactIndex",
+  "artifacts": [
+    "schema.manifest.json",
+    "functions.manifest.json",
+    "capability.manifest.json",
+    "provider-introspection.json",
+    "provider-bindings.json",
+    "provider-bindings.d.ts",
+    "contract-data.manifest.json",
+    "api.mjs",
+    "api.d.ts",
+    "package.json",
+    "seed.artifact.json",
+    "operations/clearReservations.args.schema.json",
+    "operations/reservationsForSlot.args.schema.json",
+    "operations/reserve.args.schema.json",
+    "operations/schedule.args.schema.json",
+    "contract/runtime-links.ts",
+    "contract/clearReservations.mutation.ts",
+    "contract/clearReservations.mutation.contract-meta.ts",
+    "contract/reservationsForSlot.query.ts",
+    "contract/reservationsForSlot.query.contract-meta.ts",
+    "contract/reserve.mutation.ts",
+    "contract/reserve.mutation.contract-meta.ts",
+    "contract/schedule.query.ts",
+    "contract/schedule.query.contract-meta.ts"
+  ],
+  "bundleHash": "sha256:76bbc30c03b514b0",
+  "cache": {
+    "graphPath": "../../.snapback/codegen-cache/b11e65818a39216ed6a8b6f8e773162451f79486907384a5c70f20f1ab00a4a0",
+    "key": "b11e65818a39216ed6a8b6f8e773162451f79486907384a5c70f20f1ab00a4a0",
+    "regenerationRule": "regenerate-or-fail-closed"
+  },
+  "config": [],
+  "cronJobs": [],
+  "custody": {
+    "consumer-committed": 0,
+    "regenerable-cache": 24,
+    "review-manifest": 1
+  },
+  "ephemeralCollections": [],
+  "files": [
+    {
+      "bytes": 6693,
+      "consumer": "client-bundler",
+      "custody": "regenerable-cache",
+      "logicalKind": "typed-api",
+      "path": "api.d.ts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:2714baff86f69d4ed50f650ecf305d9cad956a58d2e3dc585e0857f25e4f4669"
+    },
+    {
+      "bytes": 3718,
+      "consumer": "client-bundler",
+      "custody": "regenerable-cache",
+      "logicalKind": "typed-api",
+      "path": "api.mjs",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:e9d8c358b767c56fad0094c01d9d0d580a3526d5d4c0958091140d92115d9bdd"
+    },
+    {
+      "bytes": 8754,
+      "consumer": "snapback-runtime",
+      "custody": "regenerable-cache",
+      "logicalKind": "capability-manifest",
+      "path": "capability.manifest.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:f416cc827829ee686e2ac7aff8b27e6b89639d03dd85cae3123daf3495ac027a"
+    },
+    {
+      "bytes": 12514,
+      "consumer": "contract",
+      "custody": "regenerable-cache",
+      "logicalKind": "contract-data-manifest",
+      "path": "contract-data.manifest.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:0bb27aca0517fbcb887b0ff28f0929d7241b35eccd12b38f73be49fbbc25ca7a"
+    },
+    {
+      "bytes": 312,
+      "consumer": "contract",
+      "custody": "regenerable-cache",
+      "logicalKind": "contract-projection",
+      "path": "contract/clearReservations.mutation.contract-meta.ts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:1ed8a34e93329900eef4cfc7b3f899c116a5b6d030bce6c084aac65ceab8451e"
+    },
+    {
+      "bytes": 555,
+      "consumer": "contract",
+      "custody": "regenerable-cache",
+      "logicalKind": "contract-projection",
+      "path": "contract/clearReservations.mutation.ts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:cc549e32aed4c742b472a14bf2adb150f7475cbbab93e1e48f57b0dcde5a35b0"
+    },
+    {
+      "bytes": 745,
+      "consumer": "contract",
+      "custody": "regenerable-cache",
+      "logicalKind": "contract-projection",
+      "path": "contract/reservationsForSlot.query.contract-meta.ts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:d5a19ef5aeae55f4484b88668b95f0d58b640751feaf90a0262ab2ca74d37d01"
+    },
+    {
+      "bytes": 579,
+      "consumer": "contract",
+      "custody": "regenerable-cache",
+      "logicalKind": "contract-projection",
+      "path": "contract/reservationsForSlot.query.ts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:9e181442f09ccddfa032d67e8577c1dea054b62c688c1115c45a7e195da60f5b"
+    },
+    {
+      "bytes": 292,
+      "consumer": "contract",
+      "custody": "regenerable-cache",
+      "logicalKind": "contract-projection",
+      "path": "contract/reserve.mutation.contract-meta.ts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:b63dbf0b172874385f14297bc50863f3adc96096cb46f46e6a41ea1062aa4173"
+    },
+    {
+      "bytes": 583,
+      "consumer": "contract",
+      "custody": "regenerable-cache",
+      "logicalKind": "contract-projection",
+      "path": "contract/reserve.mutation.ts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:b315e9db305fb0c3c3aa598179f93c69170e7fbc822e4eeaf095eeed6efc07e8"
+    },
+    {
+      "bytes": 986,
+      "consumer": "contract",
+      "custody": "regenerable-cache",
+      "logicalKind": "contract-projection",
+      "path": "contract/runtime-links.ts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:f8d1e6abc2811d6b4d4019fded05cc8ef9a885ce0372d1e20358848aa5b19ec8"
+    },
+    {
+      "bytes": 701,
+      "consumer": "contract",
+      "custody": "regenerable-cache",
+      "logicalKind": "contract-projection",
+      "path": "contract/schedule.query.contract-meta.ts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:bdb36969478898e9d3160524844cc0b35a7da04b2db7b21836565ed8c775250e"
+    },
+    {
+      "bytes": 498,
+      "consumer": "contract",
+      "custody": "regenerable-cache",
+      "logicalKind": "contract-projection",
+      "path": "contract/schedule.query.ts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:ae48f2b5d4719dff1429e409dae5b978bf168036cddded371f9fea8fe39c2853"
+    },
+    {
+      "bytes": 16672,
+      "consumer": "snapback-runtime",
+      "custody": "regenerable-cache",
+      "logicalKind": "function-manifest",
+      "path": "functions.manifest.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:57707234406ca9a833ac9acd78f860af077cc26e7b33e2bffb4fe5702520160e"
+    },
+    {
+      "bytes": 300,
+      "consumer": "app-cli",
+      "custody": "regenerable-cache",
+      "logicalKind": "operation-schema",
+      "path": "operations/clearReservations.args.schema.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:b829002cdce28ca6a1869bd6072a1ff6c603be3dc6f22230be418bce1c7ec918"
+    },
+    {
+      "bytes": 450,
+      "consumer": "app-cli",
+      "custody": "regenerable-cache",
+      "logicalKind": "operation-schema",
+      "path": "operations/reservationsForSlot.args.schema.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:82de1dfedbac55802990e669ffe95af6ec153a3513eff8807fed705d5ff2ff83"
+    },
+    {
+      "bytes": 685,
+      "consumer": "app-cli",
+      "custody": "regenerable-cache",
+      "logicalKind": "operation-schema",
+      "path": "operations/reserve.args.schema.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:3338ca2f00de9f22041409f0525f0f72278fe0dfabf480ccb3f0a4dff85e587f"
+    },
+    {
+      "bytes": 282,
+      "consumer": "app-cli",
+      "custody": "regenerable-cache",
+      "logicalKind": "operation-schema",
+      "path": "operations/schedule.args.schema.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:c690f8b2c07f8f4ea436c3db1394caf252d713abb3b470c2cd450c8b2e787628"
+    },
+    {
+      "bytes": 561,
+      "consumer": "client-bundler",
+      "custody": "regenerable-cache",
+      "logicalKind": "package-metadata",
+      "path": "package.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:e17f145a9d03e2ac421be285ca9a5fafd1c34236cc47484e9c5b8ec03079dd1d"
+    },
+    {
+      "bytes": 1567,
+      "consumer": "tooling",
+      "custody": "regenerable-cache",
+      "logicalKind": "provider-binding",
+      "path": "provider-bindings.d.ts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:a6927103884bf3ac205ff4d9ddb03c2975c7800b1721f0c249631510195377fe"
+    },
+    {
+      "bytes": 3086,
+      "consumer": "tooling",
+      "custody": "regenerable-cache",
+      "logicalKind": "provider-binding",
+      "path": "provider-bindings.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:e8989e6307e326cd7061f1bda1f731af5bd7759855c1d52e161d01ff63cd5fd5"
+    },
+    {
+      "bytes": 15328,
+      "consumer": "tooling",
+      "custody": "regenerable-cache",
+      "logicalKind": "provider-introspection",
+      "path": "provider-introspection.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:65654a893d8527a6441470df4fe3817d7791c3f44422cb60172d03ae095a1ed7"
+    },
+    {
+      "bytes": 2215,
+      "consumer": "snapback-runtime",
+      "custody": "regenerable-cache",
+      "logicalKind": "schema-manifest",
+      "path": "schema.manifest.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:bb2d65f48d5254aad26eeb3fba4866d96e82d724ea706369636591ce25ab7aa5"
+    },
+    {
+      "bytes": 1369,
+      "consumer": "tooling",
+      "custody": "regenerable-cache",
+      "logicalKind": "generated-projection",
+      "path": "seed.artifact.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:29d7376923101f279fcd54c1856b25b1241ffb9da29e0626c0af00bab449e27b"
+    }
+  ],
+  "functions": [
+    {
+      "id": "contention-calendar:clearReservations",
+      "kind": "Mutation",
+      "name": "clearReservations"
+    },
+    {
+      "id": "contention-calendar:reservationsForSlot",
+      "kind": "LiveQuery",
+      "name": "reservationsForSlot"
+    },
+    {
+      "id": "contention-calendar:reserve",
+      "kind": "Mutation",
+      "name": "reserve"
+    },
+    {
+      "id": "contention-calendar:schedule",
+      "kind": "LiveQuery",
+      "name": "schedule"
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "b11e65818a39216ed6a8b6f8e773162451f79486907384a5c70f20f1ab00a4a0",
+  "manifestVersion": 2,
+  "reviewManifest": {
+    "authority": "@expo/snapback-codegen/review-manifest.schema.json",
+    "custody": "review-manifest",
+    "path": "artifacts.json"
+  },
+  "schemaHash": "sha256:92aa63e1d627664a",
+  "schemaVersion": "snapback.v0",
+  "seed": {
+    "digest": "sha256:528e0662a51ae951561bf0eff0fa449acd8b49e8a40d3d1bde580737facecb09",
+    "rows": 20,
+    "version": "zero-bakeoff-contention-calendar.v1"
+  },
+  "summary": {
+    "appId": "contention-calendar",
+    "counts": {
+      "custody": {
+        "consumerCommitted": 0,
+        "regenerableCache": 24,
+        "reviewManifest": 1,
+        "total": 25
+      },
+      "degradedResults": 0,
+      "ephemeralCollections": 0,
+      "operations": {
+        "action": 0,
+        "live": 2,
+        "liveQuery": 2,
+        "mutation": 2,
+        "query": 0,
+        "total": 4
+      },
+      "seedRows": 20,
+      "tables": 2,
+      "warnings": 0
+    },
+    "degradedResults": [],
+    "inputsHash": "b11e65818a39216ed6a8b6f8e773162451f79486907384a5c70f20f1ab00a4a0",
+    "schemaVersion": "snapback.codegen-summary.v1",
+    "seed": {
+      "digest": "sha256:528e0662a51ae951561bf0eff0fa449acd8b49e8a40d3d1bde580737facecb09",
+      "rows": 20,
+      "version": "zero-bakeoff-contention-calendar.v1"
+    }
+  },
+  "tables": [
+    "resources",
+    "reservations"
+  ]
+}

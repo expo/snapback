@@ -1,0 +1,162 @@
+{
+  "schemaVersion": "snapback.zero-bakeoff.arm-receipt.v1",
+  "observedAt": "2026-08-01T08:49:05.453Z",
+  "app": "latency-kanban",
+  "provider": "zero",
+  "expectedChecks": 8,
+  "executedChecks": 8,
+  "counts": {
+    "pass": 8,
+    "gap": 0,
+    "fail": 0
+  },
+  "missing": [],
+  "cleanup": {
+    "ok": true,
+    "errors": []
+  },
+  "ok": true,
+  "results": [
+    {
+      "id": "lk.one-frame-local-paint",
+      "outcome": "pass",
+      "durationMs": 1030.5533339999997,
+      "details": {},
+      "value": {
+        "inputToPaintMs": 2.434707999999773,
+        "acknowledgementMs": 1030.0608329999995
+      }
+    },
+    {
+      "id": "lk.rapid-move-integrity",
+      "outcome": "pass",
+      "durationMs": 2048.0184579999996,
+      "details": {},
+      "value": {
+        "cards": 500,
+        "unique": 500
+      }
+    },
+    {
+      "id": "lk.locked-card-correction",
+      "outcome": "pass",
+      "durationMs": 1013.7178749999994,
+      "details": {},
+      "value": {
+        "rejected": true,
+        "serverResult": {
+          "type": "error",
+          "error": {
+            "type": "app",
+            "message": "CARD_LOCKED"
+          }
+        },
+        "actionable": "CARD_LOCKED; choose an unlocked card"
+      }
+    },
+    {
+      "id": "lk.pending-reload",
+      "outcome": "pass",
+      "durationMs": 2038.1712079999998,
+      "details": {},
+      "value": {
+        "behavior": "memory cache does not reconstruct pending work; a still-live Zero owner settles and a new view converges"
+      }
+    },
+    {
+      "id": "lk.concurrent-move-convergence",
+      "outcome": "pass",
+      "durationMs": 1021.7453330000008,
+      "details": {},
+      "value": {
+        "winner": "c1",
+        "revision": 1,
+        "serverResults": [
+          {
+            "type": "success"
+          },
+          {
+            "type": "error",
+            "error": {
+              "type": "app",
+              "message": "CARD_REVISION_CONFLICT"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "lk.independent-observer",
+      "outcome": "pass",
+      "durationMs": 1036.3439999999991,
+      "details": {},
+      "value": {
+        "observerConvergenceMs": 1035.7530000000006,
+        "transport": "Zero materialized query over websocket"
+      }
+    },
+    {
+      "id": "lk.latency-axes",
+      "outcome": "pass",
+      "durationMs": 0.11449999999967986,
+      "details": {},
+      "value": {
+        "samples": [
+          {
+            "inputToPaintMs": 2.434707999999773,
+            "acknowledgementMs": 1030.0608329999995
+          },
+          {
+            "observerConvergenceMs": 1035.7530000000006,
+            "transport": "Zero materialized query over websocket"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lk.cleanup",
+      "outcome": "pass",
+      "durationMs": 49.31974999999875,
+      "details": {},
+      "value": {
+        "owned": [
+          "three Zero clients",
+          "zero-cache-dev process tree",
+          "API server",
+          "replica file",
+          "zb_lk_2370"
+        ],
+        "shared": [
+          "PostgreSQL server"
+        ],
+        "removed": true
+      }
+    }
+  ],
+  "providerIdentity": {
+    "product": "Zero",
+    "version": "1.8.0",
+    "target": "zero-cache-dev/PostgreSQL 17"
+  },
+  "fixture": {
+    "columns": 4,
+    "cards": 500,
+    "authoritativeLatencyMs": 1000
+  },
+  "latency": {
+    "samples": [
+      {
+        "inputToPaintMs": 2.434707999999773,
+        "acknowledgementMs": 1030.0608329999995
+      },
+      {
+        "observerConvergenceMs": 1035.7530000000006,
+        "transport": "Zero materialized query over websocket"
+      }
+    ]
+  },
+  "nonclaims": [
+    "kvStore=mem makes pending reload behavior non-durable; no offline write claim"
+  ],
+  "zeroAppID": "lk2370"
+}

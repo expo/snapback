@@ -1,0 +1,541 @@
+{
+  "artifactKind": "providerIntrospection",
+  "capabilities": {
+    "claims": {
+      "branchableFixtures": false,
+      "derivedOptimisticOverlays": false,
+      "forceStates": true,
+      "headlessBoot": true,
+      "initialSnapshot": true,
+      "localReplica": false,
+      "offlineReplay": false,
+      "optimisticMutations": false,
+      "rowSyncState": true,
+      "serverRunnableQueries": true,
+      "subscriptions": true
+    },
+    "receipts": {
+      "mutation": true,
+      "subscription": true
+    }
+  },
+  "operations": {
+    "actions": [],
+    "ephemeral": [],
+    "mutations": [
+      {
+        "arguments": {
+          "fields": {},
+          "order": []
+        },
+        "contract": {
+          "argumentsHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+          "implementationHash": "sha256:6f06052369b6d325b48d53291855bc7e75921206b736edc652f46d9d2788ba29",
+          "result": {
+            "kind": "value",
+            "value": {
+              "kind": "integer",
+              "max": 9007199254740991,
+              "min": -9007199254740991
+            }
+          },
+          "resultHash": "sha256:6d09769174ac41f0658a64fc801c288afb4eb757fb1b3a85f154eb8100388e8b",
+          "revision": "snapback.result-contract.v1"
+        },
+        "effects": {
+          "invalidates": [
+            "reservations"
+          ],
+          "writes": [
+            "reservations"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "clearReservations",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "idempotencyKey": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "now": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "ownerId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "resourceKey": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "slotKey": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "title": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "idempotencyKey",
+            "resourceKey",
+            "slotKey",
+            "ownerId",
+            "title",
+            "now"
+          ]
+        },
+        "contract": {
+          "argumentsHash": "sha256:cb710277debe850d8fb6785162929db30f826c4a5d8ecada88411db05fcfcc81",
+          "implementationHash": "sha256:3e8673acc58deff9d3b791b85564871dc4d7f27b3295c8983273355158179efe",
+          "result": {
+            "kind": "value",
+            "value": {
+              "kind": "id",
+              "table": "reservations"
+            }
+          },
+          "resultHash": "sha256:bc1b7c246a4f71f7367282a145ddd03081c61d8f669f2aede20cc369bea2e561",
+          "revision": "snapback.result-contract.v1"
+        },
+        "effects": {
+          "invalidates": [
+            "reservations"
+          ],
+          "writes": [
+            "reservations"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "reserve",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      }
+    ],
+    "queries": [
+      {
+        "arguments": {
+          "fields": {
+            "ownerId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "slotKey": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "slotKey",
+            "ownerId"
+          ]
+        },
+        "contract": {
+          "argumentsHash": "sha256:ed1a00d6f67f10a8fc9c460f6cd4ded624cb8bd7e3812baac1609d3440cb82b0",
+          "implementationHash": "sha256:2f6197d4df06c87e1845c7e59ef43ebbad13638f4456a044bb7cd80c4c977e6d",
+          "result": {
+            "document": {
+              "allowExtra": false,
+              "fields": [
+                {
+                  "name": "_id",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "reservations"
+                  }
+                },
+                {
+                  "name": "_version",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "_createdAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "_updatedAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "idempotencyKey",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "resourceKey",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "slotKey",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "resourceSlotKey",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "ownerId",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "title",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "createdAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": -9007199254740991
+                  }
+                }
+              ],
+              "kind": "object"
+            },
+            "kind": "documents",
+            "table": "reservations"
+          },
+          "resultHash": "sha256:0f7e28d25e3b0d6fe2196ffb20415518e79b2bda737b9a19559b7abf01e40c14",
+          "revision": "snapback.result-contract.v1"
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "reservations"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "reservationsForSlot",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "idempotencyKey": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "ownerId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "resourceKey": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "resourceSlotKey": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "slotKey": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "title": {
+                "name": "string",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      },
+      {
+        "arguments": {
+          "fields": {},
+          "order": []
+        },
+        "contract": {
+          "argumentsHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+          "implementationHash": "sha256:426c55946515d2c0e56bf6272b6fbe9efd9219c3065706dd90459ec05bf36858",
+          "result": {
+            "document": {
+              "allowExtra": false,
+              "fields": [
+                {
+                  "name": "_id",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "reservations"
+                  }
+                },
+                {
+                  "name": "_version",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "_createdAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "_updatedAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "idempotencyKey",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "resourceKey",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "slotKey",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "resourceSlotKey",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "ownerId",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "title",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "createdAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": -9007199254740991
+                  }
+                }
+              ],
+              "kind": "object"
+            },
+            "kind": "documents",
+            "table": "reservations"
+          },
+          "resultHash": "sha256:0f7e28d25e3b0d6fe2196ffb20415518e79b2bda737b9a19559b7abf01e40c14",
+          "revision": "snapback.result-contract.v1"
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "reservations"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "schedule",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "idempotencyKey": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "ownerId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "resourceKey": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "resourceSlotKey": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "slotKey": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "title": {
+                "name": "string",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v0"
+  },
+  "schemaVersion": "provider-introspection.v1",
+  "source": {
+    "implementationHash": "sha256:76bbc30c03b514b0",
+    "inputsHash": "b11e65818a39216ed6a8b6f8e773162451f79486907384a5c70f20f1ab00a4a0",
+    "schemaHash": "sha256:92aa63e1d627664a"
+  }
+}

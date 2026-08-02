@@ -1,0 +1,19 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/latency-kanban/setCardLocked.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "locked": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "id",
+    "locked"
+  ],
+  "title": "latency-kanban:setCardLocked arguments",
+  "type": "object"
+}

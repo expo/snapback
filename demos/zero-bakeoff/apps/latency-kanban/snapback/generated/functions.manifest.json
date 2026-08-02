@@ -1,0 +1,892 @@
+{
+  "acknowledgedExperimentalCapabilities": [
+    "args_contract_v1",
+    "inline_handler_v1",
+    "result_contract_v1"
+  ],
+  "appId": "latency-kanban",
+  "artifactKind": "functionManifest",
+  "bundleHash": "sha256:797da86f6b61e1d2",
+  "config": [],
+  "cronJobs": [],
+  "functions": [
+    {
+      "argsContract": {
+        "fields": []
+      },
+      "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "boardCards",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_column_rank",
+            "table": "cards"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "boardCards",
+      "handlerForm": "plan",
+      "id": "latency-kanban:boardCards",
+      "implementationHash": "sha256:30ae6dd5195670a04b9d33908415350b895bbd98259062f58045d59e0424c17e",
+      "kind": "LiveQuery",
+      "name": "boardCards",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "cards",
+        "tables": [
+          "cards"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "cards"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "key",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "columnKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "rank",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "assigneeId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "archived",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "locked",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "revision",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "cards"
+      },
+      "resultContractHash": "sha256:d6d862a5b39ecf23f15c6981b51f46630bed250dac4e61d233a77025ca5f1d83",
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [],
+            "indexed_by": "by_column_rank",
+            "limit": null,
+            "membershipFilters": [],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "columnKey"
+              },
+              {
+                "direction": "Asc",
+                "field": "rank"
+              }
+            ],
+            "table": "cards"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "columnKey",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:b6c5b2ed4addc71f69748518ba87c902002b864d1063de77dafc3a07d8cba30f",
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "cardsInColumn",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_column_rank",
+            "table": "cards"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "cardsInColumn",
+      "handlerForm": "plan",
+      "id": "latency-kanban:cardsInColumn",
+      "implementationHash": "sha256:2c8afa2c41a438243bea7d976fb95264ac625762b68b932056f84e39c22973bd",
+      "kind": "LiveQuery",
+      "name": "cardsInColumn",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "cards",
+        "tables": [
+          "cards"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "cards"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "key",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "columnKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "rank",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "assigneeId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "archived",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "locked",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "revision",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "cards"
+      },
+      "resultContractHash": "sha256:d6d862a5b39ecf23f15c6981b51f46630bed250dac4e61d233a77025ca5f1d83",
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "columnKey",
+                "op": "Eq",
+                "value": {
+                  "Arg": "columnKey"
+                }
+              }
+            ],
+            "indexed_by": "by_column_rank",
+            "limit": null,
+            "membershipFilters": [],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "rank"
+              }
+            ],
+            "table": "cards"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "id",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "cards"
+            }
+          },
+          {
+            "name": "columnKey",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "rank",
+            "required": true,
+            "value": {
+              "kind": "integer",
+              "max": 9007199254740991,
+              "min": -9007199254740991
+            }
+          },
+          {
+            "name": "expectedRevision",
+            "required": true,
+            "value": {
+              "kind": "integer",
+              "max": 9007199254740991,
+              "min": -9007199254740991
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:dcccec306ca90d7f94fbf483d11afeb26adc6a9c962d3e0564cb8db05c35e736",
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "moveCard",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "cards"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "cards"
+          }
+        ]
+      },
+      "exportedName": "moveCard",
+      "handlerForm": "inline",
+      "id": "latency-kanban:moveCard",
+      "implementationHash": "sha256:fba9d16c22407e74481899d455c12706869163782eef9ba551f2ad90f0121f2c",
+      "kind": "Mutation",
+      "name": "moveCard",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "cards",
+        "tables": [
+          "cards"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1",
+        "inline_handler_v1"
+      ],
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "cards"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "key",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "columnKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "rank",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "assigneeId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "archived",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "locked",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "revision",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "document",
+        "table": "cards"
+      },
+      "resultContractHash": "sha256:531a4b220e23814fec2faa739272881816f6b2c5d3f85be1b6f586f55a39963b",
+      "runtime": {
+        "IbexModule": {
+          "export": "moveCard",
+          "source": "globalThis.__snapbackHandlers = { \"moveCard\": (async (ctx, args) => {\n    const card = await ctx.db.get('cards', args.id);\n    if (!card) throw new Error('CARD_NOT_FOUND');\n    if (card.locked) throw new Error('CARD_LOCKED');\n    if (card.revision !== args.expectedRevision) throw new Error('CARD_REVISION_CONFLICT');\n    await ctx.db.patch('cards', args.id, {\n      columnKey: args.columnKey,\n      rank: args.rank,\n      revision: card.revision + 1,\n    });\n    return await ctx.db.get('cards', args.id);\n  }) };\n"
+        }
+      },
+      "sourceSpan": {
+        "column": 12,
+        "file": "functions.mjs",
+        "line": 66
+      },
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "cards",
+        "tables": [
+          "cards"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "id",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "cards"
+            }
+          },
+          {
+            "name": "locked",
+            "required": true,
+            "value": {
+              "kind": "boolean"
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:9d781c391bb07d0e43fc6b33342b5eb35d6a3a3d9be90ec3d4308245ae2fb35a",
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "setCardLocked",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "cards"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "cards"
+          }
+        ]
+      },
+      "exportedName": "setCardLocked",
+      "handlerForm": "inline",
+      "id": "latency-kanban:setCardLocked",
+      "implementationHash": "sha256:808900b0e9998b50d358151ba21cb881dd93f57f900c2e4250d362eeb238fe49",
+      "kind": "Mutation",
+      "name": "setCardLocked",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "cards",
+        "tables": [
+          "cards"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1",
+        "inline_handler_v1"
+      ],
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "cards"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "key",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "columnKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "rank",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "assigneeId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "archived",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "locked",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "revision",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "document",
+        "table": "cards"
+      },
+      "resultContractHash": "sha256:531a4b220e23814fec2faa739272881816f6b2c5d3f85be1b6f586f55a39963b",
+      "runtime": {
+        "IbexModule": {
+          "export": "setCardLocked",
+          "source": "globalThis.__snapbackHandlers = { \"setCardLocked\": (async (ctx, args) => {\n    const card = await ctx.db.get('cards', args.id);\n    if (!card) throw new Error('CARD_NOT_FOUND');\n    await ctx.db.patch('cards', args.id, { locked: args.locked });\n    return await ctx.db.get('cards', args.id);\n  }) };\n"
+        }
+      },
+      "sourceSpan": {
+        "column": 12,
+        "file": "functions.mjs",
+        "line": 85
+      },
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "cards",
+        "tables": [
+          "cards"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": []
+      },
+      "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "setupFixture",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "cards"
+          },
+          {
+            "access": "query",
+            "table": "columns"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "cards"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "columns"
+          }
+        ]
+      },
+      "exportedName": "setupFixture",
+      "handlerForm": "inline",
+      "id": "latency-kanban:setupFixture",
+      "implementationHash": "sha256:dce5e292e4649ea70cf60b12061d8a5b6e7d9bd518c9ba0d87c7ce5bffde4bac",
+      "kind": "Mutation",
+      "name": "setupFixture",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "cards",
+        "tables": [
+          "cards",
+          "columns"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1",
+        "inline_handler_v1"
+      ],
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "kind": "integer",
+          "max": 9007199254740991,
+          "min": -9007199254740991
+        }
+      },
+      "resultContractHash": "sha256:6d09769174ac41f0658a64fc801c288afb4eb757fb1b3a85f154eb8100388e8b",
+      "runtime": {
+        "IbexModule": {
+          "export": "setupFixture",
+          "source": "globalThis.__snapbackHandlers = { \"setupFixture\": (async (ctx) => {\n    for (const row of await ctx.db.query('cards').collect()) await ctx.db.delete('cards', row._id);\n    for (const row of await ctx.db.query('columns').collect()) await ctx.db.delete('columns', row._id);\n    await ctx.db.insert('columns', { key: 'c0', title: 'Backlog', rank: 0 });\n    await ctx.db.insert('columns', { key: 'c1', title: 'Ready', rank: 1 });\n    await ctx.db.insert('columns', { key: 'c2', title: 'Doing', rank: 2 });\n    await ctx.db.insert('columns', { key: 'c3', title: 'Done', rank: 3 });\n    for (let i = 0; i < 500; i += 1) {\n      await ctx.db.insert('cards', {\n        key: `card-${String(i).padStart(3, '0')}`,\n        title: `Deterministic card ${i}`,\n        columnKey: `c${i % 4}`,\n        rank: Math.floor(i / 4) * 100,\n        assigneeId: i % 3 === 0 ? 'alice' : (i % 3 === 1 ? 'bob' : 'cara'),\n        archived: false,\n        locked: i === 7,\n        revision: 0,\n      });\n    }\n    return 500;\n  }) };\n"
+        }
+      },
+      "sourceSpan": {
+        "column": 12,
+        "file": "functions.mjs",
+        "line": 33
+      },
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "cards",
+        "tables": [
+          "cards",
+          "columns"
+        ]
+      }
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "02928285ab472f288aa2c9a401ee0144e20ae67cf47d1383c0fed49d7b122c3b",
+  "schemaVersion": "snapback.v0",
+  "unsupportedDependencyDiagnostics": []
+}

@@ -1,0 +1,132 @@
+{
+  "artifactKind": "providerBindingMetadata",
+  "bindings": {
+    "actions": [],
+    "ephemeral": [],
+    "mutations": [
+      {
+        "argumentsType": "{ \"kind\": string; \"rows\": unknown }",
+        "effects": {
+          "invalidates": [
+            "users",
+            "organizations",
+            "teams",
+            "memberships",
+            "projects",
+            "labels",
+            "issues",
+            "issueLabels",
+            "comments",
+            "activities"
+          ],
+          "writes": [
+            "users",
+            "organizations",
+            "teams",
+            "memberships",
+            "projects",
+            "labels",
+            "issues",
+            "issueLabels",
+            "comments",
+            "activities"
+          ]
+        },
+        "name": "ingestFixtureBatch",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "number"
+      },
+      {
+        "argumentsType": "{ \"issueKey\": string; \"priority\"?: string; \"status\"?: string; \"title\"?: string; \"updatedAt\": number }",
+        "effects": {
+          "invalidates": [
+            "issues"
+          ],
+          "writes": [
+            "issues"
+          ]
+        },
+        "name": "patchIssue",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "string"
+      }
+    ],
+    "queries": [
+      {
+        "argumentsType": "{ \"after\"?: string; \"assigneeKey\"?: string; \"labelKey\"?: string; \"priority\"?: string; \"status\"?: string; \"teamKey\"?: string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "memberships",
+            "issues",
+            "issueLabels",
+            "labels",
+            "projects",
+            "users"
+          ]
+        },
+        "name": "inbox",
+        "resultType": "ReadonlyArray<{ \"assigneeKey\": string; \"assigneeName\": string; \"commentCount\": number; \"issueKey\": string; \"labels\": unknown; \"pageKey\": string; \"priority\": string; \"projectKey\": string; \"projectName\": string; \"status\": string; \"teamKey\": string; \"title\": string; \"updatedAt\": number }>"
+      },
+      {
+        "argumentsType": "{ \"issueKey\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "memberships",
+            "issues",
+            "comments",
+            "activities"
+          ]
+        },
+        "name": "issueDetail",
+        "resultType": "ReadonlyArray<{ \"activities\": unknown; \"comments\": unknown; \"issue\": unknown }>"
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v0"
+  },
+  "schemaVersion": "provider-binding-metadata.v1",
+  "source": {
+    "inputsHash": "09b68f336b89fbbbbaa0bf7edc6f7c771348d050239a70037dad8a6c6daeddaa",
+    "introspectionSchemaVersion": "provider-introspection.v1"
+  }
+}
