@@ -1,0 +1,212 @@
+{
+  "$defs": {
+    "AppDataCallKind": {
+      "description": "Which call family produced the result. One-shot live reads are their own\nkind (`live-snapshot`) so the per-kind mapping table stays closed.",
+      "enum": [
+        "query",
+        "mutation",
+        "action",
+        "live-snapshot"
+      ],
+      "type": "string"
+    },
+    "AppDataDiagnosticV1": {
+      "additionalProperties": false,
+      "description": "The public diagnostic projection the core carries: `code`, `severity`,\n`subsystem` (LLP 0012's shared dialect), the wire locus, and — only\nthrough the versioned code-indexed allowlist — additional safe fields.\nFree-text `message`/`details` never pass (LLP 0062 §2). Server codes are\npreserved verbatim; an unknown-but-valid code sets `unrecognized` and is\nnever rewritten (forward skew is presentation, not a compatibility gate).",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "fields": {
+          "additionalProperties": true,
+          "description": "Allowlisted safe semantic fields only (code-indexed, versioned).",
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "httpStatus": {
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "locus": {
+          "$ref": "#/$defs/DiagnosticLocus"
+        },
+        "severity": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "subsystem": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "unrecognized": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "code",
+        "locus"
+      ],
+      "type": "object"
+    },
+    "AppDataMutationFactsV1": {
+      "additionalProperties": false,
+      "description": "Write-effect facts for mutations (LLP 0062 §2 pinned outcome semantics):\nthe durable client mutation id exists so an `outcome: \"unknown\"` result\nhas a replay handle; `underlying` names the failure class the exit code\nderives from when the outcome alone is ambiguous (unknown ⇒ 6 or 9).",
+      "properties": {
+        "clientMutationId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "underlying": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AppDataOutcome"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "AppDataOutcome": {
+      "description": "The closed outcome vocabulary. `Unknown` and `NotDispatched` implement\nLLP 0062 §2's pinned write-effect semantics: a lost write reports what is\nknown, never a guess. `AppRefusal` is the declared `ctx.refuse` channel\n(LLP 0108 §Declared application refusals) — distinct from `Failed`\n(threw / `ok: false`) and from `Refused` (a SNAPBACK_* platform refusal).",
+      "enum": [
+        "ok",
+        "app-refusal",
+        "refused",
+        "failed",
+        "transport-failed",
+        "timeout",
+        "unknown",
+        "not-dispatched"
+      ],
+      "type": "string"
+    },
+    "AppRefusalV1": {
+      "additionalProperties": false,
+      "description": "The declared application refusal (`ctx.refuse`): the declaration types\nthe code, the host folds forgeries, and the core carries it typed.",
+      "properties": {
+        "appCode": {
+          "type": "string"
+        },
+        "details": true
+      },
+      "required": [
+        "appCode"
+      ],
+      "type": "object"
+    },
+    "DiagnosticLocus": {
+      "description": "Where a diagnostic was observed on the wire. The frozen unknown-code\nfallback exits (LLP 0062 review residue #8) key on this locus, never on\nwhether the engine recognizes the code.",
+      "oneOf": [
+        {
+          "const": "request",
+          "description": "A non-2xx HTTP response to the request itself.",
+          "type": "string"
+        },
+        {
+          "const": "result",
+          "description": "An HTTP-200 response whose function/action result carried the refusal.",
+          "type": "string"
+        },
+        {
+          "const": "live",
+          "description": "A live subscription terminal or refusal frame.",
+          "type": "string"
+        },
+        {
+          "const": "broker",
+          "description": "A code-mode brokered call's error surface.",
+          "type": "string"
+        },
+        {
+          "const": "engine",
+          "description": "Produced by the engine before or without dispatch.",
+          "type": "string"
+        }
+      ]
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/app-data.result-core.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The shared app-data result core. Every field is either the application\nvalue, a protocol fact, or a preserved server artifact — the core never\ninvents presentation. `taggedValues` is the RESERVED versioned\nextension point for exact 64-bit integers / decimals / binary values\n(LLP 0004 anticipates them); v1 emitters never set it, and v1 consumers\nrefuse a document that does (reserved means declared, not negotiable).",
+  "properties": {
+    "appRefusal": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AppRefusalV1"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "artifactKind": {
+      "type": "string"
+    },
+    "attribution": {
+      "description": "The server-derived attribution block, verbatim (LLP 0055 §Audit).\nWrappers and projections never synthesize or reshape one."
+    },
+    "diagnostics": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/AppDataDiagnosticV1"
+      },
+      "type": "array"
+    },
+    "facts": {
+      "additionalProperties": true,
+      "description": "Protocol facts preserved (`changed_count`, receipts, active identity).",
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "formatVersion": {
+      "type": "string"
+    },
+    "kind": {
+      "$ref": "#/$defs/AppDataCallKind"
+    },
+    "mutation": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AppDataMutationFactsV1"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "outcome": {
+      "$ref": "#/$defs/AppDataOutcome"
+    },
+    "taggedValues": true,
+    "value": {
+      "description": "A query's rows, a mutation's `result`, an action's value. Absent on\nevery non-`ok` outcome except `app-refusal`, which carries no value."
+    }
+  },
+  "required": [
+    "artifactKind",
+    "formatVersion",
+    "kind",
+    "outcome"
+  ],
+  "title": "AppDataResultCoreV1",
+  "type": "object"
+}

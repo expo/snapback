@@ -5,7 +5,13 @@
 **Systems:** Developer experience, Runtime, API, Tooling, Testing, Auth, Security, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-27
-**Revised:** 2026-07-23 (dated pointer note: the provisioning/project-lifecycle contract's proposed home is LLP 0089; this Spec's scope exclusion stands); 2026-07-16 (ENG-24920 companion amendment); 2026-07-15 (ENG-25001: make LLP 0024 the explicit host-operation DTO owner, require the credential authority descriptor, and distinguish ordinary from startup-recovery rescue output); 2026-07-13 (ENG-24596 final audit: preserve frozen LLP 0039's narrower dev/test-only collision-rescue profile while mint remains dev/demo/test); 2026-07-13 (ENG-24596: add the built `auth.mintSession` and `auth.rescueCollidingTable` host operations, including their independent authority axes, activation fence, and exact result projections; earlier: ENG-24561 centralized operation profile and AdminRead/AdminWrite requirements across dedicated and multiplexed transports; provisioning and dev-user impersonation fail closed in prod, and host-ops reports the active profile. Earlier: 2026-07-01 LLP 0032 R4: implementation-status banner added — pinned contract, not built surface)
+**Revised:** 2026-08-01 (shared app-data result core amendment: the
+Rust-owned `AppDataResultCoreV1` + committed schema, the
+`appCliCallResult` wrapper-to-core mapping, the frozen per-kind mapping
+table, the forward-skew fallback rules by wire locus with residues #8/#10
+frozen — unknown codes never exit 8, envelope-absent is exit 7 — and the
+MCP-catalog parity obligation; see §Dated amendment: shared app-data
+result core); 2026-07-23 (dated pointer note: the provisioning/project-lifecycle contract's proposed home is LLP 0089; this Spec's scope exclusion stands); 2026-07-16 (ENG-24920 companion amendment); 2026-07-15 (ENG-25001: make LLP 0024 the explicit host-operation DTO owner, require the credential authority descriptor, and distinguish ordinary from startup-recovery rescue output); 2026-07-13 (ENG-24596 final audit: preserve frozen LLP 0039's narrower dev/test-only collision-rescue profile while mint remains dev/demo/test); 2026-07-13 (ENG-24596: add the built `auth.mintSession` and `auth.rescueCollidingTable` host operations, including their independent authority axes, activation fence, and exact result projections; earlier: ENG-24561 centralized operation profile and AdminRead/AdminWrite requirements across dedicated and multiplexed transports; provisioning and dev-user impersonation fail closed in prod, and host-ops reports the active profile. Earlier: 2026-07-01 LLP 0032 R4: implementation-status banner added — pinned contract, not built surface)
 **Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0017, LLP 0019, LLP 0020, LLP 0023, LLP 0057
 
 > **Implementation status (2026-07-02 — the LLP 0032 P6 first slice is
@@ -594,6 +600,77 @@ under `HostOpsRequest.input`; understood failures use this Spec's HTTP-200
 `hostOpsResult` envelope and carry the same diagnostic as the corresponding
 direct route. Successful `data` is the Rust-owned LLP 0109 result without a
 host-specific reinterpretation.
+
+## Dated amendment: shared app-data result core (2026-08-01)
+
+The canonical shared result this Spec promises ("one shared result
+envelope across CLI/HTTP/MCP") gains its frozen app-data form, per LLP
+0062 §2 and the recommissioned app-CLI program (ticket
+`issues/20260801-0062-04-shared-result-core.md`; ENG-25406 lineage).
+
+**The core.** `AppDataResultCoreV1` is a Rust-owned serialized DTO
+(`src/app_data_result.rs`, committed schema
+`schemas/app-data.result-core.schema.json`, LLP 0037 ownership: the Rust
+type is the shape authority; engines construct conforming documents and
+the drift gate holds the committed schema equal to the type). Closed
+members: `artifactKind: "appDataResultCore"`, `formatVersion:
+"snapback.app-data-result.v1"`, `kind` (`query | mutation | action |
+live-snapshot` — the per-kind mapping below), `outcome` (`ok |
+app-refusal | refused | failed | transport-failed | timeout | unknown |
+not-dispatched`), `value`, `facts`, `appRefusal {appCode, details?}`
+(the LLP 0108 declared-refusal channel, typed end to end),
+`diagnostics[]` (the public projection — `code`, `severity`,
+`subsystem` — plus wire `locus`, optional `httpStatus`, the
+`unrecognized` marker, and allowlisted `fields` only; free-text
+`message`/`details` never pass), `attribution` (the server-derived block
+verbatim, never synthesized or reshaped — LLP 0055 §Audit), `mutation`
+(`clientMutationId`, `underlying`), and the **reserved** `taggedValues`
+extension point (declared for LLP 0004's anticipated exact-64-bit/
+decimal/binary negotiation; v1 emitters never set it and v1 validation
+refuses it).
+
+**Wrapper-to-core mapping.** `appCliCallResult`
+(`snapback.app-cli-call-result.v1`) is the engine's presentation
+wrapper, not a second envelope: it embeds the core **verbatim** and adds
+only `engine {name, version}` and the server-derived active `envelope`
+identity — absent, not null, on dev targets, which hold none. Parity
+distinguishes core parity (byte-identical across HTTP, headless client,
+CLI, and the future MCP catalog) from wrapper identity (engine-owned).
+The MCP catalog carries the same core when it lands; that obligation is
+stated here and does not block the app-CLI phase.
+
+**Per-kind mapping (frozen).** query → `value` = rows; mutation →
+`value` = the mutation result with protocol facts under `facts`
+(`changedCount`, receipts, active identity) and `mutation` carrying the
+durable `clientMutationId`; action → `value` = the action value, an
+`ok: false` run mapping to outcome `failed` (exit 5) or, when the
+refusal is a declared `ctx.refuse`, to `app-refusal` (also exit 5,
+typed); one-shot live query → `kind: "live-snapshot"` with `value` =
+the snapshot rows.
+
+**Exit taxonomy.** LLP 0062 §2 owns the frozen table (0–11, exit 1
+reserved for engine-internal failure, signal deaths outside the
+taxonomy); the mapping from outcomes and diagnostics to exits is
+implemented once in the engine's shared module
+(`packages/snapback-app-cli/result-core.mjs`) and consumed by every
+projection — a projection never re-derives it. Never-renumber applies:
+changing a number is a compatibility event.
+
+**Forward skew (LLP 0062 residues #8 and #10, frozen).** An
+unknown-but-syntactically-valid server diagnostic code is preserved
+verbatim, marked `unrecognized`, and never rewritten — recognition is
+presentation, never a third compatibility gate. Its exit falls back by
+**wire locus and result kind**, never to exit 8: non-2xx request locus →
+3 when auth-shaped (401/403 or `SNAPBACK_AUTH_*`), 6 on 5xx, else 5;
+HTTP-200 result locus → 5; live terminal → 3 when auth-shaped, else 5;
+broker → 5. The envelope-less sessions target that requires redeploy is
+frozen as exit 7 with sub-cause `envelope-absent`
+(`SNAPBACK_APP_CLI_ENVELOPE_ABSENT`) — an identity-establishment
+failure, explicitly not exit 8.
+
+`SNAPBACK_APP_CLI_*` is registered in LLP 0012's shared diagnostic
+dialect by that Spec's dated registration of the same day; changing an
+emitted code is a compatibility event there.
 
 ## Status
 

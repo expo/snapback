@@ -6,7 +6,8 @@
   "files": [
     "cli.mjs",
     "index.d.mts",
-    "index.mjs"
+    "index.mjs",
+    "result-core.mjs"
   ],
   "bin": {
     "snapback-app": "./cli.mjs"
@@ -26,6 +27,6 @@
     "access": "public"
   },
   "scripts": {
-    "test": "node package.test.mjs && node attribution.test.mjs"
+    "test": "node package.test.mjs && node attribution.test.mjs && node result-core.test.mjs"
   }
 }

@@ -117,3 +117,96 @@ export function runPackagedAgentJourney(options: {
     readonly args?: Readonly<Record<string, unknown>>;
   };
 }): Promise<PackagedAgentJourneyResult>;
+
+/**
+ * The shared app-data result core (LLP 0024 amendment; Rust-owned shape at
+ * schemas/app-data.result-core.schema.json) and the frozen exit taxonomy
+ * (LLP 0062 §2). Projections consume these; they never re-derive semantics.
+ */
+export type AppDataCallKind = 'query' | 'mutation' | 'action' | 'live-snapshot';
+export type AppDataOutcome =
+  | 'ok'
+  | 'app-refusal'
+  | 'refused'
+  | 'failed'
+  | 'transport-failed'
+  | 'timeout'
+  | 'unknown'
+  | 'not-dispatched';
+export type DiagnosticLocus = 'request' | 'result' | 'live' | 'broker' | 'engine';
+
+export interface AppDataDiagnostic {
+  readonly code: string;
+  readonly severity?: string;
+  readonly subsystem?: string;
+  readonly locus: DiagnosticLocus;
+  readonly httpStatus?: number;
+  readonly unrecognized?: true;
+  readonly fields?: Readonly<Record<string, unknown>>;
+}
+
+export interface AppRefusal {
+  readonly appCode: string;
+  readonly details?: unknown;
+}
+
+export interface AppDataMutationFacts {
+  readonly clientMutationId?: string;
+  readonly underlying?: AppDataOutcome;
+}
+
+export interface AppDataResultCore {
+  readonly artifactKind: 'appDataResultCore';
+  readonly formatVersion: 'snapback.app-data-result.v1';
+  readonly kind: AppDataCallKind;
+  readonly outcome: AppDataOutcome;
+  readonly value?: unknown;
+  readonly facts?: Readonly<Record<string, unknown>>;
+  readonly appRefusal?: AppRefusal;
+  readonly diagnostics: readonly AppDataDiagnostic[];
+  readonly attribution?: unknown;
+  readonly mutation?: AppDataMutationFacts;
+}
+
+export interface AppCliCallResult {
+  readonly artifactKind: 'appCliCallResult';
+  readonly formatVersion: 'snapback.app-cli-call-result.v1';
+  readonly engine: { readonly name: string; readonly version: string };
+  readonly envelope?: Readonly<Record<string, unknown>>;
+  readonly core: AppDataResultCore;
+}
+
+export const EXIT: Readonly<{
+  OK: 0; USAGE: 2; AUTH_REFUSED: 3; FUNCTION_NOT_FOUND: 4; FUNCTION_ERROR: 5;
+  TRANSPORT_FAILED: 6; ARTIFACT_IDENTITY_MISMATCH: 7; VERSION_MISMATCH: 8;
+  TIMEOUT: 9; SCRIPT_ERROR: 10; RESOURCE_EXCEEDED: 11;
+}>;
+export const RESULT_CORE_ARTIFACT_KIND: 'appDataResultCore';
+export const RESULT_CORE_FORMAT_VERSION: 'snapback.app-data-result.v1';
+export const CALL_RESULT_ARTIFACT_KIND: 'appCliCallResult';
+export const CALL_RESULT_FORMAT_VERSION: 'snapback.app-cli-call-result.v1';
+
+export function diagnosticRecord(input: {
+  readonly code: string;
+  readonly severity?: string;
+  readonly subsystem?: string;
+  readonly locus: DiagnosticLocus;
+  readonly httpStatus?: number;
+  readonly fields?: Readonly<Record<string, unknown>>;
+}): AppDataDiagnostic;
+export function classifyDiagnosticExit(record: AppDataDiagnostic): number;
+export function buildResultCore(input: {
+  readonly kind: AppDataCallKind;
+  readonly outcome: AppDataOutcome;
+  readonly value?: unknown;
+  readonly facts?: Readonly<Record<string, unknown>>;
+  readonly appRefusal?: AppRefusal;
+  readonly diagnostics?: readonly AppDataDiagnostic[];
+  readonly attribution?: unknown;
+  readonly mutation?: AppDataMutationFacts;
+}): AppDataResultCore;
+export function resultExitCode(core: AppDataResultCore): number;
+export function wrapCallResult(core: AppDataResultCore, presentation: {
+  readonly engine: { readonly name: string; readonly version: string };
+  readonly envelope?: Readonly<Record<string, unknown>>;
+}): AppCliCallResult;

@@ -232,3 +232,18 @@ export async function runPackagedAgentJourney({
     verified,
   });
 }
+
+// The shared result core and frozen exit taxonomy (LLP 0024 amendment;
+// LLP 0062 §2). Projections consume these and never re-derive semantics.
+export {
+  EXIT,
+  RESULT_CORE_ARTIFACT_KIND,
+  RESULT_CORE_FORMAT_VERSION,
+  CALL_RESULT_ARTIFACT_KIND,
+  CALL_RESULT_FORMAT_VERSION,
+  buildResultCore,
+  classifyDiagnosticExit,
+  diagnosticRecord,
+  resultExitCode,
+  wrapCallResult,
+} from './result-core.mjs';

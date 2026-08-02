@@ -721,6 +721,14 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
             .into_iter()
             .map(|(file, schema)| finish(file, schema)),
     );
+    // @ref LLP 0024#dated-amendment-shared-app-data-result-core-2026-08-01 —
+    // the one shared app-data result core every projection (CLI/HTTP/MCP)
+    // carries byte-identically; Rust owns the shape, engines construct it.
+    artifacts.extend(
+        crate::app_data_result::schema_registrations()
+            .into_iter()
+            .map(|(file, schema)| finish(file, schema)),
+    );
     artifacts
 }
 

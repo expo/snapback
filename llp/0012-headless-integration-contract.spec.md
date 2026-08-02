@@ -5,7 +5,10 @@
 **Systems:** Contract/Exact, React/Expo, Client integration, Developer experience, API, Sync, Auth
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-08-01 (call-time generation binding for sessions generated
+**Revised:** 2026-08-01, later same day (app-CLI registration: the
+`SNAPBACK_APP_CLI_*` family joins the stable code dialect and the
+Rust-owned `AppDataResultCoreV1` registers as a shared artifact shape;
+forward skew per LLP 0024's frozen fallback rules). Same day, earlier: (call-time generation binding for sessions generated
 references and subscriptions, with explicit unchecked legacy compatibility);
 2026-07-31 (LLP 0044 companion registration: the
 `SNAPBACK_ASSET_*` diagnostic family with its initial closed set; the
@@ -1117,6 +1120,21 @@ lifecycle, and receipt DTOs are Rust-owned per LLP 0037's same-day
 alignment and versioned like every other artifact here. Unknown protocol
 versions, capabilities, intent members, state variants, and delivery
 profiles fail closed under this Spec's existing compatibility rules.
+
+## Dated registration: app-CLI result core and diagnostic family (2026-08-01)
+
+Recorded with LLP 0024's shared app-data result core amendment (LLP 0062
+§2; the recommissioned app-CLI program). `SNAPBACK_APP_CLI_*` joins the
+stable code families beside `SNAPBACK_AUTH_*` and `SNAPBACK_ASSET_*`;
+LLP 0062 owns the spellings and the frozen exit taxonomy those codes
+classify into, and changing an emitted code is a compatibility event
+here. The Rust-owned `AppDataResultCoreV1`
+(`schemas/app-data.result-core.schema.json`) registers as a shared
+artifact shape under the ordinary drift gates; the engine's
+`appCliCallResult` wrapper is engine-owned presentation and deliberately
+not a wire artifact of this contract. Diagnostic forward skew follows
+LLP 0024's frozen fallback rules: unknown codes are preserved and marked
+`unrecognized`, never rewritten and never a compatibility gate.
 
 ## Status
 

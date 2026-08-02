@@ -5,7 +5,13 @@
 **Systems:** Client integration, Developer experience, Tooling, API, Auth, Docs
 **Author:** Charlie Cheever / Claude Fable 5
 **Date:** 2026-07-17
-**Revised:** 2026-08-01, still later same day (author ruling: the envelope
+**Revised:** 2026-08-01, latest (shared result core landed: the LLP 0024
+amendment with `AppDataResultCoreV1` + the wrapper-to-core mapping, the
+engine taxonomy module in `packages/snapback-app-cli/result-core.mjs`,
+residues #8/#10 frozen — unknown codes fall back by wire locus and never
+exit 8, envelope-absent is exit 7 `envelope-absent` — and the
+`SNAPBACK_APP_CLI_*` LLP 0012 registration; §2 dated note). Earlier same
+day (author ruling: the envelope
 is server-composed at activation from the server's own
 `PublicFunctionManifest` projection plus the codegen-owned members
 received through provisioning; §5's byte-exact "server never
@@ -500,6 +506,20 @@ complete typed overflow document, **never truncated JSON**. (The result DTO rese
 tagged-value extension point so a later revision can negotiate exact
 64-bit integers, decimals, or binary values — LLP 0004 anticipates
 them — without breaking the frozen v1 profile.)
+
+> **Dated note (2026-08-01):** the LLP 0024 shared app-data result core
+> amendment landed (`AppDataResultCoreV1`, Rust-owned, committed schema;
+> the `appCliCallResult` wrapper-to-core mapping; the frozen per-kind
+> mapping table), the engine's shared taxonomy module ships in
+> `packages/snapback-app-cli/result-core.mjs`, and the two review
+> residues this section owed are frozen: **#8** — an unknown server code
+> is preserved verbatim, marked `unrecognized`, and falls back by wire
+> locus (auth-shaped non-2xx → 3; 5xx → 6; other non-2xx, HTTP-200
+> `ok:false`, non-auth live terminal, and broker → 5), never exit 8;
+> **#10** — the envelope-less sessions redeploy-required refusal is exit
+> 7, sub-cause `envelope-absent` (`SNAPBACK_APP_CLI_ENVELOPE_ABSENT`),
+> explicitly not exit 8. `SNAPBACK_APP_CLI_*` is registered in LLP
+> 0012's dialect the same day.
 
 Exit codes are a frozen contract from phase 1:
 

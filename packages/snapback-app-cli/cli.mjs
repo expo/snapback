@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { loadAppArtifacts } from './index.mjs';
+import { classifyDiagnosticExit, diagnosticRecord } from './result-core.mjs';
 
 const args = process.argv.slice(2);
 const valueAfter = (flag) => {
@@ -20,6 +21,13 @@ try {
     throw Object.assign(new Error(`unknown command '${command}'`), { code: 'SNAPBACK_APP_CLI_COMMAND_UNKNOWN' });
   }
 } catch (error) {
-  process.stderr.write(`${JSON.stringify(error.diagnostic ?? { code: error.code ?? 'SNAPBACK_APP_CLI_FAILED', message: error.message })}\n`);
-  process.exitCode = 2;
+  const diagnostic = error.diagnostic ?? { code: error.code ?? 'SNAPBACK_APP_CLI_FAILED', message: error.message };
+  process.stderr.write(`${JSON.stringify(diagnostic)}\n`);
+  // The frozen taxonomy classifies every exit — the projection consumes the
+  // shared core rules and never re-derives its own mapping (LLP 0062 §2).
+  process.exitCode = classifyDiagnosticExit(diagnosticRecord({
+    code: diagnostic.code,
+    locus: 'engine',
+    ...(typeof error.status === 'number' ? { locus: 'request', httpStatus: error.status } : {}),
+  }));
 }
