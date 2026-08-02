@@ -25,12 +25,12 @@ console pages render from the same typed operations.
 
 ## Resolution
 
-Implemented on the recovery branch in commits
-`2d5cbe6f50c5038db35bab5fac81eaae68ba0535` (typed query surfaces),
-`0cd111e1f77b136d81a08760b4cd42cc71a8f6b0` (finite agent export carrier),
-and `7a047d69779251fe5a8326d778e5055531c53793` (schema, MCP, route-policy,
-diagnostic, and guide-join proof gates). The branch is rebased onto
-`c17641e8813ededc587238cc6357832b9311ce1e`.
+Landed in commits
+`7797c23930c8f2e1396fbaeed7dd61f64fb7636e` (typed query surfaces),
+`5d89e0083b073aa6b8ed9f9fe25c5db9fc7372cd` (finite agent export carrier),
+and `8279bd443b9b2e8ac0dac2b2000850aed74b64e7` (schema, MCP, route-policy,
+diagnostic, and guide-join proof gates), with closure recorded by
+`994e20c487a2811b6dc2e3b646074d59ce6b1081`.
 
 The result includes the Rust-owned typed events/stats/export/SQL contracts;
 schema-generated request, response, finite-page, and fixture artifacts; the
