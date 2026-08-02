@@ -79,3 +79,61 @@ digests, and self-verifies with parse_and_validate +
 verify_member_digests + verify_correspondence — a failing composition
 refuses activation. Steps 3 (routes) and 4 (engine ingestion) proceed
 as written.
+
+---
+
+**PARTIALLY RESOLVED 2026-08-01 — the server half landed; engine
+ingestion (step 4) remains.**
+
+Landed under the server-composes ruling:
+- **Composition (step 1 replaced by the ruling):**
+  `api_envelope::compose_api_envelope` builds the canonical document from
+  the server's own `PublicFunctionManifest` projection plus the
+  codegen-owned members, binds those members to their carried digest map
+  before composing, and self-verifies the result with the same
+  `parse_and_validate` + `verify_member_digests` + `verify_correspondence`
+  a received envelope faces. A composition that fails refuses activation
+  before any durable effect (`SNAPBACK_APP_API_COMPOSITION_FAILED`).
+- **Provisioning (step 2):** `EnsureAppExplicitInput::Provision` gained the
+  optional `apiEnvelope` members carrier (`ApiEnvelopeMembersV1`, committed
+  schema, drift-gated); absent members activate an explicitly
+  envelope-less generation, reported as `apiEnvelope: "absent"` on the
+  provision outcome (`"composed"` otherwise).
+- **Persistence:** `_snapback_meta`-backed state with the current-plus-
+  previous retention window LLP 0062 §5 pins, evicting anything older in
+  the same transaction. Read is verify-on-read: a record whose inputsHash
+  disagrees with the active generation degrades to the typed absent
+  marker, so the crash window between activation cut and record can never
+  serve a stale envelope.
+- **Routes (step 3):** `GET /app-api/current` (`PublicNoStore`, sessions
+  targets only — dev targets answer the typed refusal per §5) and
+  `GET /app-api/envelope/{sha256}` (`PublicProjection`, 64-lowercase-hex
+  grammar with a typed 400 otherwise, identity content-coding,
+  `Content-Digest: sha-256=:…:` over the transmitted body, strong `ETag`,
+  `public, max-age=31536000, immutable, no-transform` on a hit, typed 404
+  on an evicted hash). Registry parity pin extended; diagnostics
+  deliberately classified (400 malformed, 404 unknown/dev-absent, 500 for
+  the two server-fault classes).
+
+Evidence: `api_envelope` 13/13 (5 new composition tests: self-verifying
+composition, determinism, member-binding refusal, ghost-operation
+correspondence refusal, auth-mode tuple); `local::tests`
+app_api_envelope_{composes_serves_and_rotates_across_redeploys,
+composition_failure_refuses_activation,
+absent_members_activate_without_an_envelope}; full lib suite 1617/0 after
+rebasing over the upstream inputsHash fix; route_policy_v1 23/23,
+artifact_schemas_v0 30/30, name_keying_guard 3/3, capability_v0 5/5,
+host_ops_v0 2/2; app-cli + codegen package suites pass;
+check-generated-artifacts ok; ref-check 147 docs / 0 errors; clippy clean.
+
+**Remaining (step 4, engine ingestion):** discovery → content-addressed
+fetch through `fetchPublicArtifact` → client-side verification before use
+(the engine trusts its own verification, not the transport) → cache keyed
+by (normalized origin, app id, envelope hash) with a last-known-good
+pointer, per-origin and global limits, atomic writes under an advisory
+lock; offline the cached envelope serves `--help`/`introspect`/`types`
+only; absent-route degradation for older servers. The server surface it
+consumes is now stable and testable.
+
+The LLP 0012 DTO-amendment half of step 2 (registering the members
+carrier in 0012's closed provision DTO documentation) is also still owed.
