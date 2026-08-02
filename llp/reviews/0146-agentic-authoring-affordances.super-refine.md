@@ -406,4 +406,104 @@ cursor-embeds-hash carrier). Both families are explicitly told not to hunt
 for new material in text stable since v0.1 that already passed their review,
 and to say so plainly if the document has reached the bar.
 
-Results are appended when the reviews are actually received.
+### Round 4 results — CONVERGED
+
+**Both families READY.** Codex returned READY with **no findings**, having
+dispositioned all four of its round-3 findings FIXED. Fable returned READY
+with all six of its round-3 findings FIXED and one new DETAIL.
+
+This is the loop's convergence condition, reached in four rounds.
+
+**Fable's one DETAIL is a defect v0.4 introduced while applying Fable's own
+round-3 DETAIL-1** — the propagation failure mode in miniature, one last
+time. v0.4 wrote "Every invocation *that carries an authoritative capture*
+emits all six class-tagged fields." The qualifier was new (v0.3 said "every
+invocation" unqualified) and it excludes exactly the invocations the
+provenance vocabulary exists to describe: actions construct empty captured
+sets by design, so they carry no authoritative capture, yet the acceptance
+clause requires an action to report `unsupported`. The paragraph two lines
+below makes the point the qualifier undercuts — a surface silent on empty
+captures "would manufacture exactly the false confidence it exists to
+remove." v0.5 drops the qualifier: emission is unconditional, and the delta
+fields are authoritative only where that class's provenance is `complete`.
+v0.5 also states `targetIndex`'s inference rule symmetrically with
+`sourceIndex`'s, per the same finding's adjacent nit.
+
+**v0.5's two changes are post-READY and therefore unreviewed.** Both are
+one-clause edits applying a DETAIL the reviewer stated explicitly; neither
+changes a decision.
+
+v0.5 SHA-256:
+`b46bf87dddc0017412fce6d157262615335f272541af9c041e3bce09c79fa57c`
+`./ref-check --verbose` passes (148 LLP docs, 0 errors). 1123 → 1145 lines.
+
+## Loop outcome
+
+**CONVERGED — dual READY at round 4.** Four rounds, eight reviews, one
+BLOCKING inversion, two rounds of introduced-defect catches, and a final
+confirmation round.
+
+Verdict trajectory:
+
+| Round | Fable | Codex |
+| --- | --- | --- |
+| 1 | NOT READY (4 MATERIAL, 4 DETAIL) | NOT READY (1 BLOCKING, 8 MATERIAL, 2 DETAIL) |
+| 2 | READY (4 DETAIL) | NOT READY (1 BLOCKING, 6 MATERIAL, 2 DETAIL) |
+| 3 | READY (1 MATERIAL, 5 DETAIL) | NOT READY (2 MATERIAL, 2 DETAIL) |
+| 4 | **READY** (1 DETAIL) | **READY** (none) |
+
+The document moved v0.1 → v0.5 and 605 → 1145 lines. Status stays **Draft**:
+convergence certifies internal coherence and factual truth, not ratification
+of the seven decisions. Fourteen open questions remain, and adjudicating them
+is the author's call.
+
+**What the loop actually bought, in order of value:**
+
+1. **A live product defect.** Cloudflare live fan-out selects subscriptions
+   by manifest-declared tables, so an under-declared handler is never woken.
+   Found by Codex in round 1, verified, and ticketed independently at
+   `issues/20260801-cloudflare-live-fanout-uses-declared-tables.md`. Both
+   families later found the companion `[schema.tables[0].name]` fallback.
+   This defect exists whether or not LLP 0146 is ever accepted.
+2. **An inverted central claim.** v0.1 asserted that declaration drift
+   cannot break runtime behaviour. It was wrong on Cloudflare outright, and
+   too strong locally — the matcher falls back to the declared read-set
+   summary whenever no query dependency is captured. D1's priority rationale
+   changed as a result: not "first because it is cheap" but "first because a
+   shipped target can lose live updates without it."
+3. **Four withdrawn claims.** D2 closing `acceptance.run`; two D5 invariant
+   classes that already ship; D7's `requiresApproval: false` on a
+   principal-changing remedy; and the "no retention effect" question, closed
+   with a verified answer rather than left open.
+4. **Two self-inflicted defects caught.** Applying a round-1 finding
+   introduced D3's static-hash-for-dynamic-state error and D7's misassigned
+   carrier ownership. A single-round review would have shipped both.
+
+**Methodological notes for future loops:**
+
+- **The families are complementary, not redundant.** Round 1 is the case:
+  Fable recorded the Cloudflare arm as a *strength* ("structurally
+  impossible"), Codex found the BLOCKING there. Fable checked whether the
+  hazard was present and stopped; Codex checked what the code uses instead.
+  The same asymmetry appeared in the 0141 loop. A single-family loop would
+  have shipped the false claim.
+- **The author's own pass is not redundant either.** Reading
+  `src/live_matcher.rs` end-to-end — rather than tracing `read_dependencies`
+  call sites as both families did — found the local declared-tables fallback
+  that neither family reported and that both families' round-1 framings got
+  wrong in opposite directions.
+- **Convergent findings are the stopping signal.** Round 3's four residues
+  were found independently by both families, and all four were propagation
+  lag rather than design disputes. That pattern — same findings, no
+  inversions, all mechanical — predicted the round-4 dual READY.
+- **Propagation lag is this loop's characteristic defect.** Every round from
+  2 onward found at least one instance of a corrected decision body whose
+  example, acceptance clause, or open question still encoded the withdrawn
+  version. Naming it explicitly in the round-3 capsule made both families
+  hunt for it, and they found all of it. Future capsules should name it from
+  round 2 onward.
+- **Codex confabulates LLP filenames.** Round 1 cited seven LLP paths whose
+  slugs do not exist, while every line number and quotation in those files
+  was correct. Instructing it to resolve paths by directory listing fixed
+  this from round 2 onward. Source-tree anchors (`src/`, `cloudflare/`,
+  `packages/`) were accurate in every round.

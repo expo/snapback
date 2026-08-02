@@ -345,3 +345,38 @@ Separate the statements: RQS requires the single-table Query profile; broader re
 After normatively defining `missingReads`, `missingWrites`, `extraReads`, `extraWrites`, `readProvenance`, and `writeProvenance` (`llp/0146-agentic-authoring-affordances.rfc.md:317-333`), the report and acceptance text still promises singular `missing`, `extra`, and `provenance` fields (`llp/0146-agentic-authoring-affordances.rfc.md:343-350,373-380`).
 
 Update those passages to use the class-specific fields so the acceptance contract tests the repair actually adopted.
+
+## Round 4 — 2026-08-01 (delta-scoped, confirmation)
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** `codex-cli` 0.146.0, `codex exec`, model
+`gpt-5.6-sol`, `model_reasoning_effort=xhigh`, sandbox `read-only`
+**Date:** 2026-08-01
+**Method:** fresh non-author `codex exec` context, read-only confirmation
+round; permitted to read only this family's artifact above, blind to the
+fable artifact and the super-refine journal.
+**Instruction capsule SHA-256:** `7ba422d8fed2018abe909ffc713c8626db636101da57f76555c442c832ed2d23`
+**Target:** `llp/0146-agentic-authoring-affordances.rfc.md` (v0.4, 1123 lines, Draft)
+**Target SHA-256:** `985790cf195f40b315059768c0e4878b9be28aca1da9ed21ae67158bdb4d930f`
+**Repo revision at review start:** working tree at v0.4 (pushed as `89e00747`)
+**Status:** completed
+**Verdict:** READY
+
+## Verbatim review
+
+## Overall assessment
+
+**Verdict: READY**
+
+Verified against the RFC, the relevant Rust schema/runtime definitions, and LLP 0062. All four round-3 findings are resolved, and the v0.4 examples, normative prose, acceptance clauses, and open questions now agree. The overlap predicate is correctly typed against the shipped `RelationIncarnation` shape; the cursor carrier coherently extends LLP 0062 while leaving custody explicitly open. Cursor behavior is necessarily inferred contract coherence because it is proposed, not implemented.
+
+## Round-3 finding dispositions
+
+- **MATERIAL-1 — FIXED:** D5 now names `sourceIndex`, requires both indexes throughout, and uses the same correctly typed source-table/foreign-key-field/target-table predicate in normative and acceptance prose (`llp/0146-agentic-authoring-affordances.rfc.md:614`, `llp/0146-agentic-authoring-affordances.rfc.md:661`, `llp/0146-agentic-authoring-affordances.rfc.md:684`, `llp/0146-agentic-authoring-affordances.rfc.md:705`; verified schema at `src/manifest.rs:829`).
+- **MATERIAL-2 — FIXED:** D3 defines one `--changed-since` carrier accepting a cursor that embeds `envelopeHash`, preserves bare-hash compatibility, covers dynamic-only changes, and leaves only custody open (`llp/0146-agentic-authoring-affordances.rfc.md:471`, `llp/0146-agentic-authoring-affordances.rfc.md:499`, `llp/0146-agentic-authoring-affordances.rfc.md:533`, `llp/0146-agentic-authoring-affordances.rfc.md:1081`; verified baseline at `llp/0062-generated-app-cli-and-code-mode.rfc.md:1520`).
+- **DETAIL-1 — FIXED:** retention admission and RQS eligibility are now separate erroring and non-erroring gates, including relational retention (`llp/0146-agentic-authoring-affordances.rfc.md:286`; verified at `src/manifest.rs:2299` and `src/manifest.rs:2891`).
+- **DETAIL-2 — FIXED:** D1’s report and acceptance clauses consistently use all six class-tagged fields and explicitly prohibit the collapsed triple (`llp/0146-agentic-authoring-affordances.rfc.md:344`, `llp/0146-agentic-authoring-affordances.rfc.md:370`, `llp/0146-agentic-authoring-affordances.rfc.md:404`; verified underlying collections at `src/local.rs:1449`).
+
+## Findings
+
+None.

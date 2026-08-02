@@ -62,6 +62,16 @@ additionally found that D6's conservative fallback would leave
 `deterministic` unpopulated, since every durable step touches SQLite; it
 is now marked a degraded mode rather than a co-equal route. Status
 narration brought current.)
+2026-08-01 (v0.5, round-4 confirmation — **dual READY**, the loop's
+convergence condition. Codex returned READY with no findings; Fable
+returned READY with one DETAIL, which is applied here: v0.4's new
+"every invocation *that carries an authoritative capture*" qualifier in
+D1 surface 1 excluded exactly the invocations the provenance vocabulary
+exists for — actions carry no capture by design, yet acceptance requires
+them to report `unsupported` — so emission is now unconditional with the
+delta fields authoritative only where provenance is `complete`. Also
+states `targetIndex`'s inference rule symmetrically with `sourceIndex`'s.
+Both changes are post-READY and therefore unreviewed.)
 **Related:** LLP 0008, LLP 0010, LLP 0017, LLP 0019, LLP 0020, LLP 0024,
 LLP 0040, LLP 0042, LLP 0054, LLP 0055, LLP 0056, LLP 0061, LLP 0062,
 LLP 0073, LLP 0080, LLP 0081, LLP 0094, LLP 0095, LLP 0097, LLP 0108,
@@ -369,12 +379,16 @@ confidence it exists to remove.
 
 Three surfaces, in increasing strictness:
 
-1. **Report (v0).** Every invocation that carries an authoritative capture
-   emits all six class-tagged fields — `missingReads`, `missingWrites`,
-   `extraReads`, `extraWrites`, `readProvenance`, `writeProvenance`. There
-   is no collapsed `missing`/`extra`/`provenance` triple; naming one would
-   reintroduce the union this split exists to prevent. Attach to
-   `FunctionRunResult`
+1. **Report (v0).** *Every* invocation emits all six class-tagged fields —
+   `missingReads`, `missingWrites`, `extraReads`, `extraWrites`,
+   `readProvenance`, `writeProvenance` — with the delta fields authoritative
+   only where that class's provenance is `complete`. Emission is not
+   conditional on an authoritative capture; an invocation with no capture is
+   exactly the case the provenance vocabulary exists to report, and a
+   surface that fell silent there would recreate the false confidence it is
+   meant to remove. There is no collapsed `missing`/`extra`/`provenance`
+   triple; naming one would reintroduce the union this split exists to
+   prevent. Attach to `FunctionRunResult`
    and to the `app.inspect` recent-invocation ring. Note the ring today
    records *host operations* only (`src/host_ops.rs:63-64`), so the
    app-data plane must be wired into it — or the surface scoped to host-op
@@ -622,9 +636,11 @@ defineInvariant('message-author-is-room-member', existsRelation({
 }))
 ```
 
-Both indexes are named because both directions are checked; `sourceIndex`
-may be inferred where exactly one index covers `sourceFields` in order, but
-never silently omitted.
+Both indexes are named because both directions are checked. Either may be
+inferred where exactly one index covers the relevant fields in order —
+`sourceIndex` from `sourceFields` on the source table, `targetIndex` from
+the target's key fields — but neither may be silently omitted: an ambiguous
+or absent cover is a generation error, not a defaulted choice.
 
 The v1 vocabulary: required referenced row (`existsRelation`) and
 conditional uniqueness.
@@ -1108,14 +1124,20 @@ substantial subsystems and should be re-scoped after Wave 1 lands, when the
 conformance and verification surfaces will have made some of their
 motivating failure classes observable rather than hypothesized.
 
-Three dual-family review rounds have run. Round 1 returned NOT READY from
-both families and inverted the document's central claim. Round 2 returned
-Fable READY, Codex NOT READY, and caught two defects that v0.2 introduced
-while applying round-1 findings. Round 3 returned Fable READY, Codex NOT
-READY, with both families independently converging on the same four
-residues — all of them propagation lag from v0.3's body edits into examples
-and acceptance clauses, plus one ill-typed predicate. v0.4 applies every
-one. The fourteen open questions above are the honest residue.
+**The review loop converged on dual READY at round 4.** Round 1 returned
+NOT READY from both families and inverted the document's central claim.
+Round 2 returned Fable READY / Codex NOT READY, and caught two defects that
+v0.2 introduced while applying round-1 findings. Round 3 returned Fable
+READY / Codex NOT READY, with both families independently converging on the
+same four residues — all propagation lag from v0.3's body edits into
+examples and acceptance clauses, plus one ill-typed predicate. Round 4
+returned **READY from both**: Codex with no findings, Fable with one detail
+that v0.5 applies.
+
+Convergence is a statement about this document's internal coherence and the
+truth of its factual claims — not a ratification of its seven decisions. The
+fourteen open questions above are the honest residue, and the status stays
+Draft because adjudicating them is the author's call, not the loop's.
 
 The Cloudflare fan-out defect (OQ8) is the one item in this document that
 describes a live product defect rather than a missing affordance. It is

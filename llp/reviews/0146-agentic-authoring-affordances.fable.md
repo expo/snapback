@@ -192,3 +192,46 @@ The transitivity paragraph offers two routes: follow effect provenance through t
 `llp/0146:1038-1040` mentions only round 1 and "v0.2 applies every finding"; nothing there is false, but after a round-2 cycle recorded in the Revised header, the Status paragraph should acknowledge v0.3 so a reader landing on Status alone is not one revision behind.
 
 TOOL_USES: 21
+
+## Round 4 — 2026-08-01 (delta-scoped, confirmation)
+
+**Reviewer family:** Claude Fable
+**Provider / runtime:** Anthropic Claude Code, `claude-fable-5`, fresh
+non-author subagent
+**Effort:** session-inherited
+**Date:** 2026-08-01
+**Method:** fresh non-author subagent context, read-only confirmation round;
+permitted to read only this family's artifact above, blind to the codex
+artifact and the super-refine journal.
+**Instruction capsule SHA-256:** `7ba422d8fed2018abe909ffc713c8626db636101da57f76555c442c832ed2d23`
+**Target:** `llp/0146-agentic-authoring-affordances.rfc.md` (v0.4, 1123 lines, Draft)
+**Target SHA-256:** `985790cf195f40b315059768c0e4878b9be28aca1da9ed21ae67158bdb4d930f`
+**Repo revision at review start:** working tree at v0.4 (pushed as `89e00747`)
+**Tool uses:** 10
+**Status:** completed
+**Verdict:** READY (1 DETAIL, applied in v0.5)
+
+## Verbatim review
+
+## Overall assessment
+**Verdict: READY**
+
+All six of my round-3 findings — one MATERIAL, five DETAIL — are genuinely fixed in v0.4, and I verified each against the document text and, where the fix leans on code claims, against the code at the cited lines rather than taking the Revised block's word. The two genuinely new constructs are coherent and correctly typed. The retyped `overlaps` predicate relates three well-typed terms — table == table, field ∈ field list, table == table (`llp/0146:675-679`) — and I re-verified its ground truth: `RelationIncarnation { foreign_key_field, parent_table }` with the "paired required foreign-key field is the complete relationship declaration" doc comment sits exactly at `src/manifest.rs:829-841`, so a source-table/field-membership/target-table predicate is the only shape that can coincide with what the manifest actually declares; the acceptance clause (`llp/0146:707-710`) now restates that same three-term test in prose, closing my round-3 MATERIAL-1 with body and acceptance in agreement. The cursor-embeds-hash carrier is internally consistent end to end: one flag (`llp/0146:479`), cursor bound to `(envelopeHash, observation state)` (`:496-497`), embedding stated (`:499-505`), the bare-hash compatibility path yielding a stated static-only delta, the unknown-cursor degradation rule (`:511-513`), a matching dynamic-only acceptance case (`:535-538`), and OQ10 retitled to cursor custody with the carrier explicitly marked settled (`:1081-1085`). The retention paragraph now correctly splits the erroring admission gate from the non-erroring eligibility predicate, and both halves check out in code (details below). I found one new DETAIL — a one-clause qualifier introduced while applying my round-3 DETAIL-1 that mildly contradicts D1's own acceptance line — and nothing at MATERIAL or BLOCKING severity. The document has reached the bar; the DETAIL below should be applied whenever the file is next touched.
+
+## Round-3 finding dispositions
+
+- **MATERIAL-1 (D5 acceptance encoded the withdrawn target-side overlap test) — FIXED.** The acceptance clause now tests the source-side three-term predicate verbatim — "same source table, the incarnation's `foreign_key_field` among `sourceFields`, target equal to the incarnation's `parent_table`" (`llp/0146:707-710`) — matching the retyped `overlaps` definition at `:675-679`; no "targeting a promoted" formulation survives anywhere in the file (grep-verified).
+- **DETAIL-1 (D1 surface-1/acceptance kept collapsed `missing`/`extra`/`provenance`) — FIXED, with one new wobble.** Surface 1 names all six class-tagged fields and explicitly forbids a collapsed triple (`llp/0146:373-376`); acceptance tests `missingReads` with `readProvenance: complete`, the read/write-swap non-cancellation case, and per-class `unsupported` (`:404-410`). Grep confirms the collapsed backticked names appear only in the Revised narration and the prohibition sentence itself. The fix introduced the qualifier flagged as DETAIL-1 below.
+- **DETAIL-2 (retention sentence merged two gates, omitted relational arm) — FIXED.** The paragraph now presents the two gates separately (`llp/0146:286-306`). Re-verified in code: `validate_retainable_query` (`src/manifest.rs:2891`) admits the `HostPlan(RelationalQuery)` arm with `summary.tables == vec![plan.root, plan.joined]` (the two-table relational summary, `:2911-2971`) and refuses opaque JS erroringly with `undeclarable_retention(function, "opaqueJavaScript")` at `:2981`; `rqs_eligible_digest_kind` requires the single-table `HostPlan(Query)` profile and its doc comment says verbatim "is simply not eligible, never a load error" (`src/manifest.rs:2299-2353`). Both citations in the document are exact.
+- **DETAIL-3 (D3 command example and OQ10 not updated for the cursor split) — FIXED.** The example takes `<digestCursor>` (`llp/0146:479`), the flag's accepted inputs are now fully specified (cursor, or bare hash with stated static-only behaviour, `:499-505`), and OQ10 is retitled "Digest cursor custody" asking about a prior cursor (`:1081-1085`). The one remaining `<envelopeHash>` spelling at `:472` correctly describes LLP 0062's pre-existing entry, not this command.
+- **DETAIL-4 (D6 conservative fallback collapses `deterministic`) — FIXED.** The fallback is now "a degraded mode, not a co-equal design choice," with exactly my argument recorded — SQLite is uncontrolled, every durable step touches it, a blanket rule leaves `deterministic` unpopulated and the acceptance clause unsatisfiable — plus the requirement that the runner state which route it used (`llp/0146:773-779`).
+- **DETAIL-5 (Status narrated the v0.2 state) — FIXED.** Status now narrates all three rounds, the round-3 convergence, and v0.4's application (`llp/0146:1111-1118`), consistent with the Revised header.
+
+## Findings
+
+**DETAIL-1 — Surface 1's new "carries an authoritative capture" qualifier contradicts D1's own schema and acceptance**
+§D1 surface 1 (`llp/0146:372-374`): "Every invocation **that carries an authoritative capture** emits all six class-tagged fields." That qualifier — new in v0.4; v0.3 said "every invocation" unqualified — excludes precisely the invocations the provenance fields exist for. Actions construct empty captured sets by design (`src/local.rs:1705-1740`, cited at `:364`), so they carry no authoritative capture; under this sentence they emit nothing, yet the acceptance line requires "an action reports `readProvenance`/`writeProvenance` of `unsupported` rather than any conformant verdict" (`llp/0146:408-410`), and the schema's own provenance vocabulary `complete | incomplete | unsupported` (`:359`) is meaningful only if non-authoritative invocations also emit. The paragraph two lines down makes the same point the qualifier undercuts: a surface silent (or falsely conformant) on empty captures "would manufacture exactly the false confidence it exists to remove" (`:366-368`). This is the propagation failure mode in miniature, introduced by the v0.4 edit itself. Fix is one clause: drop the qualifier ("Every invocation emits all six class-tagged fields; the delta fields are authoritative only when that class's provenance is `complete`"). Adjacent nit, same section family: the index-inference sentence spells the inference rule only for `sourceIndex` (`:625-627`) while both the body (`:688-690`) and acceptance (`:706-707`) say both indexes may be "named or unambiguously inferred"; stating `targetIndex`'s inference rule symmetrically would close the asymmetry.
+
+Verified versus inferred: I verified the target SHA-256 (matches the pinned `985790cf…`), every disposition above against the v0.4 text, and the three code claims underpinning the changed passages (`src/manifest.rs:829-841`, `:2891-2981` including the relational arm and the opaque-JS refusal line, and `:2299-2353` including the verbatim doc-comment quote). I did not re-verify code citations in text stable since v0.2/v0.3 that passed my earlier rounds (`src/live_matcher.rs`, `cloudflare/src/coordinator.js`, `src/local.rs` anchors), and I remain blind by instruction to the other family's artifact and the super-refine journal, so the Revised block's account of Codex's round-3 findings is taken on trust.
+
+TOOL_USES: 10
