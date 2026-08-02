@@ -26,6 +26,15 @@ async function myRoomDeliveries(ctx, roomId) {
     .collect();
 }
 
+async function principalRoomDeliveries(ctx, roomId, principal) {
+  return await ctx.db
+    .query('deliveries')
+    .withIndex('by_recipient_room')
+    .eq('recipientId', principal)
+    .eq('roomId', roomId)
+    .collect();
+}
+
 globalThis.__snapbackHandlers = {
   async createRoom(ctx, args) {
     const title = requiredText(args.title, 'room title');
@@ -55,7 +64,7 @@ globalThis.__snapbackHandlers = {
       .eq('roomId', args.roomId)
       .collect())
       .find((row) => row.userId === args.userId);
-    if (existing !== undefined && existing.status !== 'left') {
+    if (existing !== undefined && existing.status !== 'left' && existing.status !== 'removed') {
       throw new Error('room participant already exists');
     }
     await ctx.membership.roomMembers.insert({
@@ -112,6 +121,42 @@ globalThis.__snapbackHandlers = {
       changedAt: ctx.runtime.now(),
     });
     return { removedDeliveries: deliveries.length };
+  },
+
+  // @ref LLP 0100#3-host-resolution-and-linearization — removePrincipal is
+  // invoked before any product-row lookup so an unauthorized caller is
+  // refused before target-dependent application work. The display and
+  // delivery cleanup is branch-insensitive: it converges product state to
+  // "removed" even when the private membership pair was already absent.
+  async ownerRemoveMember(ctx, args) {
+    await ctx.membership.roomMembers.removePrincipal(
+      args.roomId,
+      args.targetPrincipal,
+    );
+    const participant = (await ctx.db
+      .query('roomParticipants')
+      .withIndex('by_room')
+      .eq('roomId', args.roomId)
+      .collect())
+      .find((row) => row.userId === args.targetPrincipal);
+    const deliveries = await principalRoomDeliveries(
+      ctx,
+      args.roomId,
+      args.targetPrincipal,
+    );
+    if (deliveries.length > MAX_ROOM_DELIVERIES_PER_MUTATION) {
+      throw new Error('room inbox exceeds the bounded owner-removal mutation');
+    }
+    for (const delivery of deliveries) {
+      await ctx.db.delete('deliveries', delivery._id);
+    }
+    if (participant !== undefined && participant.status !== 'removed') {
+      await ctx.db.patch('roomParticipants', participant._id, {
+        status: 'removed',
+        changedAt: ctx.runtime.now(),
+      });
+    }
+    return null;
   },
 
   async sendMessage(ctx, args) {

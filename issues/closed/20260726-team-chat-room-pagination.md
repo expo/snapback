@@ -1,6 +1,6 @@
 # Team Chat needs membership-scoped opaque room-history pagination
 
-**Status:** Open (author-gated on LLP 0100 ratification)
+**Status:** Closed
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 2
@@ -109,3 +109,13 @@ pages), the headless + complete React/Contract product receipts, the
 pressure-ledger row, and the diary entry — plus the composed family
 witness rows owned by the program's other lanes. Cross-target work/page
 bound preregistration beyond the declared limit is part of that receipt.
+
+## Resolution — 2026-08-01
+
+Team Chat now generates `firstRoomMessagePage` and `nextRoomMessagePage` with
+`defineMembershipKeysetPages` over the exact `by_room_page_key` index and a
+ten-row bound. Headless, React, and Contract receipts traverse a 22-message
+fixture in three pages and prove cross-user, cross-room, post-removal, and
+post-rejoin stale cursors all refuse with the invariant safe code. The
+pressure row is `implemented-local`; broader hosted and cross-target claims
+remain outside this ticket.

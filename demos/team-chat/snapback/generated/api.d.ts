@@ -86,7 +86,7 @@ export type RoomMembersInsert = { roomId: Id<'rooms'>; userId: Principal; role: 
 export type RoomMembersPatch = Record<string, never>;
 export type RoomMembersBootstrap = { title: string; createdBy: Principal; createdAt: number };
 export interface GeneratedMembership {
-  roomMembers: { bootstrap(values: RoomMembersBootstrap): Promise<Id<'rooms'>>; insert(values: RoomMembersInsert): Promise<unknown>; setSelfRole(resource: Id<'rooms'>, role: RoomMembersRole): Promise<unknown>; removeSelf(resource: Id<'rooms'>): Promise<unknown>; patchSelf(resource: Id<'rooms'>, values: RoomMembersPatch): Promise<unknown>; setRole(memberId: Id<'roomMembers'>, role: RoomMembersRole): Promise<unknown>; remove(memberId: Id<'roomMembers'>): Promise<unknown>; patch(memberId: Id<'roomMembers'>, values: RoomMembersPatch): Promise<unknown> };
+  roomMembers: { bootstrap(values: RoomMembersBootstrap): Promise<Id<'rooms'>>; insert(values: RoomMembersInsert): Promise<unknown>; setSelfRole(resource: Id<'rooms'>, role: RoomMembersRole): Promise<unknown>; removeSelf(resource: Id<'rooms'>): Promise<unknown>; patchSelf(resource: Id<'rooms'>, values: RoomMembersPatch): Promise<unknown>; removePrincipal(resource: Id<'rooms'>, principal: string): Promise<null>; setRole(memberId: Id<'roomMembers'>, role: RoomMembersRole): Promise<unknown>; remove(memberId: Id<'roomMembers'>): Promise<unknown>; patch(memberId: Id<'roomMembers'>, values: RoomMembersPatch): Promise<unknown> };
 }
 export interface GeneratedQueryContext { readonly permissions: GeneratedPermissions }
 export interface GeneratedMutationContext extends GeneratedQueryContext { readonly membership: GeneratedMembership }
@@ -95,11 +95,14 @@ export interface GeneratedFunctionContexts {
   acceptInvite: GeneratedMutationContext;
   createRoom: GeneratedMutationContext;
   firstInboxPage: GeneratedQueryContext;
+  firstRoomMessagePage: GeneratedQueryContext;
   inviteMember: GeneratedMutationContext;
   leaveRoom: GeneratedMutationContext;
   listMyRooms: GeneratedQueryContext;
   markRoomRead: GeneratedMutationContext;
   nextInboxPage: GeneratedQueryContext;
+  nextRoomMessagePage: GeneratedQueryContext;
+  ownerRemoveMember: GeneratedMutationContext;
   roomDetails: GeneratedQueryContext;
   roomMessages: GeneratedQueryContext;
   sendMessage: GeneratedMutationContext;
@@ -108,16 +111,20 @@ export interface GeneratedFunctionContexts {
 export interface GeneratedEphemeral {
 }
 export interface GeneratedQueryGroups {
+  "/": QueryGroupReference<"/", Record<string, never>, readonly [Readonly<{ name: "listMyRooms"; ref: FunctionReference<'listMyRooms', 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["roomParticipants"]>>; args: Readonly<Record<string, never>> }>, Readonly<{ name: "unreadDeliveries"; ref: FunctionReference<'unreadDeliveries', 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["deliveries"]>>; args: Readonly<Record<string, never>> }>]>;
 }
 export interface GeneratedApi {
   acceptInvite: FunctionReference<'acceptInvite', 'Mutation', { roomId: Id<'rooms'> }, unknown>;
   createRoom: FunctionReference<'createRoom', 'Mutation', { title: string; displayName: string }, unknown>;
   firstInboxPage: FunctionReference<'firstInboxPage', 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["deliveries"]>>;
+  firstRoomMessagePage: FunctionReference<'firstRoomMessagePage', 'Query', { roomId: Id<'rooms'> }, ReadonlyArray<GeneratedDataModel["messages"]>>;
   inviteMember: FunctionReference<'inviteMember', 'Mutation', { roomId: Id<'rooms'>; userId: Principal; displayName: string }, unknown>;
   leaveRoom: FunctionReference<'leaveRoom', 'Mutation', { roomId: Id<'rooms'> }, unknown>;
   listMyRooms: FunctionReference<'listMyRooms', 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["roomParticipants"]>>;
   markRoomRead: FunctionReference<'markRoomRead', 'Mutation', { roomId: Id<'rooms'> }, unknown>;
   nextInboxPage: FunctionReference<'nextInboxPage', 'LiveQuery', { after: string }, ReadonlyArray<GeneratedDataModel["deliveries"]>>;
+  nextRoomMessagePage: FunctionReference<'nextRoomMessagePage', 'Query', { roomId: Id<'rooms'>; after: string }, ReadonlyArray<GeneratedDataModel["messages"]>>;
+  ownerRemoveMember: FunctionReference<'ownerRemoveMember', 'Mutation', { roomId: Id<'rooms'>; targetPrincipal: Principal }, null>;
   roomDetails: FunctionReference<'roomDetails', 'LiveQuery', { roomId: Id<'rooms'> }, ReadonlyArray<GeneratedDataModel["rooms"]>>;
   roomMessages: FunctionReference<'roomMessages', 'LiveQuery', { roomId: Id<'rooms'> }, ReadonlyArray<GeneratedDataModel["messages"]>>;
   sendMessage: FunctionReference<'sendMessage', 'Mutation', { roomId: Id<'rooms'>; body: string }, unknown>;

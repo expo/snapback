@@ -12,6 +12,7 @@ use inviteMember from "../../snapback/generated/contract/inviteMember.mutation.t
 use sendMessage from "../../snapback/generated/contract/sendMessage.mutation.ts"
 use markRoomRead from "../../snapback/generated/contract/markRoomRead.mutation.ts"
 use leaveRoom from "../../snapback/generated/contract/leaveRoom.mutation.ts"
+use ownerRemoveMember from "../../snapback/generated/contract/ownerRemoveMember.mutation.ts"
 use navigateHome from "./helpers.ts"
 use unreadForRoom from "./helpers.ts"
 
@@ -33,6 +34,7 @@ component TeamChatRoom
   mutation sendMessageMut = sendMessage
   mutation markRead = markRoomRead
   mutation leave = leaveRoom
+  mutation removeMember = ownerRemoveMember
 
   derive canSend = draft.trim() != ""
 
@@ -67,6 +69,13 @@ component TeamChatRoom
 
   action leaveProtectedRoom writes errorMessage mutates leave
     let result = await leave({ roomId: roomId })
+    if result.ok
+      errorMessage = ""
+    else
+      errorMessage = result.error.message
+
+  action removeDefaultMember writes errorMessage mutates removeMember
+    let result = await removeMember({ roomId: roomId, targetPrincipal: inviteeId })
     if result.ok
       errorMessage = ""
     else
@@ -127,8 +136,11 @@ component TeamChatRoom
                   text details.title size=21 weight=800 color="#f4f6fb"
                   text `Signed in locally as ${displayName}` size=11 color="#8794ad"
                   when details.createdBy == userId
-                    button press=inviteDefault label=`Invite ${inviteeName}` testId="invite-member" padding=10 radius=9 background="#182238" borderWidth=1 borderColor="#3a4661"
-                      text `Invite ${inviteeName}` size=12 weight=700 color="#e9edf5"
+                    column gap=9
+                      button press=inviteDefault label=`Invite ${inviteeName}` testId="invite-member" padding=10 radius=9 background="#182238" borderWidth=1 borderColor="#3a4661"
+                        text `Invite ${inviteeName}` size=12 weight=700 color="#e9edf5"
+                      button press=removeDefaultMember label=`Remove ${inviteeName}` testId="remove-member" padding=10 radius=9 background="#3c1822" borderWidth=1 borderColor="#7e2b3d"
+                        text `Remove ${inviteeName}` size=12 weight=700 color="#ffb0bd"
                   else
                     button press=leaveProtectedRoom label="Leave room" testId="leave-room" padding=10 radius=9 background="#3c1822" borderWidth=1 borderColor="#7e2b3d"
                       text "Leave room" size=12 weight=700 color="#ffb0bd"

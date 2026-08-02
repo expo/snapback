@@ -17,9 +17,11 @@ declaration facts, durable global AuthorizationVersion pair, data-version
 stream, active artifact identity) while the owned profile's digest stays
 byte-identical; §Acceptance's membership-pages rows run in src/local.rs
 including the mandatory cross-resource VALUE negative and the
-per-component mutation schedule. Team Chat adoption and the product/
-composed-family receipts (implementation-order step 6) remain open with
-their tickets.) 2026-08-01, later same day (the one §Acceptance row that
+per-component mutation schedule. Team Chat adoption and its three product
+receipts (implementation-order step 6) landed on the local target in
+`demos/team-chat`, closing both product-adoption tickets; the broader composed-
+family witness remains owned by its other program lanes.)
+2026-08-01, later same day (the one §Acceptance row that
 spans both surfaces — "the absent-target no-op advances no authorization
 version and the present-target removal does … asserted via cursor
 validity across each branch" — is now witnessed:
@@ -36,7 +38,8 @@ present/absent lookups, the exact no-op commit, typed emission, and the
 src/storage.rs, tests/membership_principal_addressed_v0.rs, src/local.rs,
 and rbac-authoring.test.mjs; guide section landed
 (guide/auth/scoped-roles.md). Team Chat adoption and the
-composed family witness remain open lanes — Status stays Accepted.)
+composed family witness remained open at that checkpoint — Status stays
+Accepted.)
 2026-08-01 (ACCEPTED by explicit composed-parent ruling: the
 author's 2026-08-01 ballot, verbatim item 2, "ruling: accept" — the
 explicit maintainer ruling this RFC's own §Status and ratification
@@ -771,8 +774,9 @@ After semantic acceptance and implementation conformance:
 - `firstRoomMessagePage` / `nextRoomMessagePage` provide bounded historical
   callable traversal over `by_room_page_key`.
 
-The pressure ledger remains red until headless, React, and Contract product
-receipts exercise both paths. This RFC does not promote `STEP6.CHAT`, accept
+The headless, React, and Contract product receipts now exercise both paths on
+`local-dev-sqlite-ibex`, and the two pressure rows are `implemented-local`.
+The overall ledger remains red: this RFC does not promote `STEP6.CHAT`, accept
 LLPs 0071–0073, or claim hosted completeness.
 
 ## Acceptance

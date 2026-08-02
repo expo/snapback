@@ -20,11 +20,12 @@
     },
     {
       "id": "membership-changes",
-      "status": "implemented-local-partial",
-      "witness": "tests/acceptance/headless.mjs",
-      "nonclaim": "invite, self-accept, and self-leave are covered; host-initiated removal is not",
-      "blocker": "LLP 0100 principal-addressed removal remains Draft and unimplemented",
-      "issue": "issues/20260726-team-chat-owner-removal.md"
+      "status": "implemented-local",
+      "witnesses": [
+        "tests/acceptance/headless.mjs",
+        "tests/acceptance/react-browser.mjs",
+        "tests/acceptance/contract-browser.mjs"
+      ]
     },
     {
       "id": "high-fan-out-rooms",
@@ -44,11 +45,13 @@
     },
     {
       "id": "pagination",
-      "status": "implemented-local-partial",
-      "witness": "tests/acceptance/headless.mjs",
-      "nonclaim": "recipient inbox is keyset-paged; channel-history-scoped pagination remains open",
-      "blocker": "LLP 0100 membership-scoped keyset pages remains Draft and unimplemented",
-      "issue": "issues/20260726-team-chat-room-pagination.md"
+      "status": "implemented-local",
+      "witnesses": [
+        "tests/acceptance/headless.mjs",
+        "tests/acceptance/react-browser.mjs",
+        "tests/acceptance/contract-browser.mjs"
+      ],
+      "scope": "recipient inbox and membership-scoped room history use opaque bounded keyset pages"
     },
     {
       "id": "search",
@@ -82,7 +85,7 @@
         "tests/acceptance/react-browser.mjs",
         "tests/acceptance/contract-browser.mjs"
       ],
-      "nonclaim": "the local React and Contract surfaces cover the admitted room, membership, messaging, and unread kernel; hosted deployment and every still-red product pressure remain absent"
+      "nonclaim": "the local React and Contract surfaces cover the admitted room, owner-removal, membership-scoped history, messaging, and unread kernel; hosted deployment and every still-red product pressure remain absent"
     }
   ]
 }

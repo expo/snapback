@@ -14,6 +14,8 @@ import artifactIndex from '../../snapback/generated/artifacts.json';
 import contractDataManifest from '../../snapback/generated/contract-data.manifest.json';
 import functionsManifest from '../../snapback/generated/functions.manifest.json';
 import schemaManifest from '../../snapback/generated/schema.manifest.json';
+import runtimeApi from '../../snapback/generated/api.mjs';
+import type { GeneratedApi } from '../../snapback/generated/api';
 import {
   configureSnapbackContractLinks,
   resetSnapbackContractLinks,
@@ -35,7 +37,11 @@ type Active = {
   host: ContractWebHostHandle | null;
   mounted: MountHandle;
   surface: OnlineSurface;
+  history: { dispose(): void } | null;
+  receiptSeats: Awaited<ReturnType<SnapbackClient['liveQuery']>> | null;
 };
+
+const api = runtimeApi as GeneratedApi;
 
 let active: Active | null = null;
 let routeTransition: Promise<unknown> = Promise.resolve();
@@ -63,9 +69,100 @@ async function disposeActive(): Promise<void> {
   active = null;
   current?.mounted.dispose();
   current?.host?.dispose();
+  current?.history?.dispose();
+  current?.receiptSeats?.dispose();
   await current?.surface.dispose?.();
   resetSnapbackContractLinks();
   reset();
+}
+
+function installHistoryControls(client: SnapbackClient, userId: string, roomId: string) {
+  const previous = document.getElementById('contract-history');
+  previous?.remove();
+  const section = document.createElement('section');
+  section.id = 'contract-history';
+  section.dataset.testid = 'room-history';
+  const label = document.createElement('strong');
+  label.textContent = 'Bounded room history';
+  const count = document.createElement('span');
+  count.dataset.testid = 'history-count';
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.dataset.testid = 'history-first';
+  button.textContent = 'Load first page';
+  const error = document.createElement('span');
+  error.dataset.testid = 'history-error';
+  let rows: unknown[] = [];
+  let cursor: string | null = null;
+  let terminal = false;
+  let disposed = false;
+  const render = () => {
+    count.textContent = `${rows.length} historical messages`;
+    button.dataset.testid = rows.length === 0 ? 'history-first' : 'history-next';
+    button.textContent = rows.length === 0 ? 'Load first page' : 'Load next page';
+    button.hidden = terminal;
+    let terminalNode = section.querySelector<HTMLElement>('[data-testid="history-terminal"]');
+    if (terminal && !terminalNode) {
+      terminalNode = document.createElement('span');
+      terminalNode.dataset.testid = 'history-terminal';
+      terminalNode.textContent = 'End of history';
+      section.append(terminalNode);
+    }
+    if (!terminal) terminalNode?.remove();
+  };
+  button.addEventListener('click', () => {
+    error.textContent = '';
+    const request = cursor === null
+      ? client.query(api.firstRoomMessagePage, { args: { roomId }, userId })
+      : client.query(api.nextRoomMessagePage, { args: { roomId, after: cursor }, userId });
+    void request.then((page) => {
+      if (disposed) return;
+      rows = cursor === null ? page.rows : [...rows, ...page.rows];
+      cursor = page.cursor ?? null;
+      terminal = cursor === null;
+      render();
+    }, (cause) => {
+      if (disposed) return;
+      rows = [];
+      cursor = null;
+      terminal = false;
+      error.textContent = cause instanceof Error ? cause.message : String(cause);
+      render();
+    });
+  });
+  section.append(label, count, button, error);
+  document.body.append(section);
+  render();
+
+  let seats: Awaited<ReturnType<SnapbackClient['liveQuery']>> | null = null;
+  void client.liveQuery('_snapback.myMemberships', {
+    args: { membership: 'roomMembers' },
+    userId,
+    connectionId: `team_chat_contract_history_seats_${userId}`,
+    transport: 'stream',
+    fallbackToPoll: false,
+    onUpdate(next: unknown[]) {
+      if (disposed) return;
+      const activeSeat = next.some((entry) => {
+        const row = entry as { resource?: unknown; role?: unknown };
+        return row.resource === roomId && (row.role === 'owner' || row.role === 'member');
+      });
+      if (!activeSeat) {
+        rows = [];
+        cursor = null;
+        terminal = false;
+        render();
+      }
+    },
+    onConnectionChange() {},
+  }).then((handle) => { seats = handle; });
+  return {
+    dispose() {
+      disposed = true;
+      seats?.dispose();
+      section.remove();
+    },
+  };
 }
 
 async function boot() {
@@ -124,7 +221,8 @@ async function boot() {
           inviteeName: PERSONAS[1].name,
         },
       });
-  active = { host, mounted, surface };
+  const history = roomId === null ? null : installHistoryControls(client, persona.userId, roomId);
+  active = { host, mounted, surface, history, receiptSeats: null };
   document.title = roomId === null ? 'Team Chat · Contract' : 'Protected room · Team Chat';
   status('Ready', 'ready');
   return {
@@ -132,6 +230,29 @@ async function boot() {
     screen: roomId === null ? 'rooms' : 'room',
     roomId,
     claimEligible: false,
+    productReceipt: {
+      query: (name: string, args: Record<string, unknown>, userId: string) =>
+        client.query((api as any)[name], { args, userId }),
+      mutate: (name: string, args: Record<string, unknown>, userId: string) =>
+        client.mutate((api as any)[name], { args, userId }),
+      async startSeats(userId: string) {
+        active?.receiptSeats?.dispose();
+        const handle = await client.liveQuery('_snapback.myMemberships', {
+          args: { membership: 'roomMembers' },
+          userId,
+          connectionId: `team_chat_contract_receipt_seats_${userId}`,
+          transport: 'stream',
+          fallbackToPoll: false,
+          onUpdate() {},
+          onConnectionChange() {},
+        });
+        if (active) active.receiptSeats = handle;
+        return handle.rows;
+      },
+      async pollSeats() {
+        return active?.receiptSeats ? await active.receiptSeats.poll() : [];
+      },
+    },
     dispose: disposeActive,
   };
 }

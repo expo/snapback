@@ -5,8 +5,8 @@
 // The profile remains claim-ineligible while its red pressures and hosted
 // gates remain unsatisfied.
 
-import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { execFileSync, spawn } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -21,8 +21,15 @@ const surfaceDir = join(repoRoot, 'demos', 'team-chat', 'surfaces', 'contract');
 const backendDir = join(repoRoot, 'demos', 'team-chat', 'snapback');
 const chromeBin = process.env.CHROME_BIN
   ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const suite = createSuite('team-chat / Contract local product surface', { expectedChecks: 8 });
+const suite = createSuite('team-chat / Contract local product surface', { expectedChecks: 11 });
 const cleanups = [];
+const artifactIndex = JSON.parse(readFileSync(join(backendDir, 'generated', 'artifacts.json'), 'utf8'));
+const pressureProfile = JSON.parse(readFileSync(join(repoRoot, 'demos', 'team-chat', 'pressure-profile.v1.json'), 'utf8'));
+const receiptPressureRows = pressureProfile.pressures.filter(({ id }) =>
+  id === 'membership-changes' || id === 'pagination');
+const snapbackRevision = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repoRoot, encoding: 'utf8' }).trim();
+let roomId;
+let preRemovalCursor;
 
 const sleep = (milliseconds) => new Promise((resolveSleep) => setTimeout(resolveSleep, milliseconds));
 const urlOk = async (url) => {
@@ -177,7 +184,122 @@ await runAcceptance(suite, async () => {
     if (!/reply from member/.test(message ?? '')) throw new Error(`owner reply missing: ${message}`);
   });
 
-  await suite.check('self-leave revokes the room, then re-invite restores access without old inbox rows', async () => {
+  await suite.check('member traverses three bounded room-history pages through the Contract UI', async () => {
+    roomId = await owner.eval(`decodeURIComponent(location.pathname.split('/')[2] ?? '')`);
+    if (!roomId) throw new Error('room id missing from Contract product route');
+    for (let index = 0; index < 20; index += 1) {
+      const body = `contract-history-${String(index).padStart(2, '0')}`;
+      await owner.setValue('message-input', body);
+      await owner.click('message-send');
+      const visible = await member.pollText('message-list', body, 10_000);
+      if (!visible?.includes(body)) throw new Error(`history message did not settle: ${body}`);
+    }
+    await member.click('history-first');
+    if (await member.pollText('history-count', '^10 historical messages$', 10_000) !== '10 historical messages') {
+      throw new Error('first Contract history page did not render');
+    }
+    await member.click('history-next');
+    if (await member.pollText('history-count', '^20 historical messages$', 10_000) !== '20 historical messages') {
+      throw new Error('second Contract history page did not render');
+    }
+    await member.click('history-next');
+    if (await member.pollText('history-count', '^22 historical messages$', 10_000) !== '22 historical messages') {
+      throw new Error('terminal Contract history page did not render');
+    }
+    if (!await member.exists('history-terminal')) throw new Error('terminal Contract history state missing');
+  });
+
+  await suite.check('Contract receipt records cross-user and cross-room cursor refusal', async () => {
+    const first = await member.eval(`window.teamChatContractReady.then((state) => state.productReceipt.query(
+      'firstRoomMessagePage', { roomId: ${JSON.stringify(roomId)} }, 'user_member_01'))`);
+    preRemovalCursor = first?.cursor;
+    if (typeof preRemovalCursor !== 'string' || !preRemovalCursor.startsWith('sbpc1.')) {
+      throw new Error('Contract product client did not mint an opaque room cursor');
+    }
+    const crossUserCode = await outsider.eval(`window.teamChatContractReady.then((state) => state.productReceipt.query(
+      'nextRoomMessagePage',
+      { roomId: ${JSON.stringify(roomId)}, after: ${JSON.stringify(preRemovalCursor)} },
+      'user_unrelated'
+    )).then(() => null, (error) => error?.diagnostic?.code ?? error?.code ?? null)`);
+    if (crossUserCode !== 'SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID') {
+      throw new Error(`cross-user refusal mismatch: ${crossUserCode}`);
+    }
+    const second = await owner.eval(`window.teamChatContractReady.then((state) => state.productReceipt.mutate(
+      'createRoom', { title: 'Contract Other Room', displayName: 'Owner' }, 'user_owner'))`);
+    const secondRoomId = second?.result;
+    const crossRoomCode = await member.eval(`window.teamChatContractReady.then((state) => state.productReceipt.query(
+      'nextRoomMessagePage',
+      { roomId: ${JSON.stringify(secondRoomId)}, after: ${JSON.stringify(preRemovalCursor)} },
+      'user_member_01'
+    )).then(() => null, (error) => error?.diagnostic?.code ?? error?.code ?? null)`);
+    if (crossRoomCode !== 'SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID') {
+      throw new Error(`cross-room refusal mismatch: ${crossRoomCode}`);
+    }
+  });
+
+  await suite.check('owner removal blanks Contract room, seat, history custody, send authority, and delivery at one cut', async () => {
+    const beforeSeats = await member.eval(`window.teamChatContractReady.then((state) => state.productReceipt.startSeats('user_member_01'))`);
+    if (!beforeSeats.some((row) => row.resource === roomId && row.role === 'member')) {
+      throw new Error(`member seat missing before removal: ${JSON.stringify(beforeSeats)}`);
+    }
+    await owner.click('remove-member');
+    const locked = await member.pollText('room-locked', 'no longer available', 10_000);
+    if (!/no longer available/.test(locked ?? '')) throw new Error(`removed room did not lock: ${locked}`);
+    if (await member.pollText('history-count', '^0 historical messages$', 10_000) !== '0 historical messages') {
+      throw new Error('Contract retained accumulated room history after removal');
+    }
+    const afterSeats = await member.eval(`window.teamChatContractReady.then((state) => state.productReceipt.pollSeats())`);
+    if (afterSeats.some((row) => row.resource === roomId)) {
+      throw new Error(`seat survived owner-removal cut: ${JSON.stringify(afterSeats)}`);
+    }
+    const fresh = await member.eval(`window.teamChatContractReady.then((state) => state.productReceipt.query(
+      'firstRoomMessagePage', { roomId: ${JSON.stringify(roomId)} }, 'user_member_01'))`);
+    if (fresh.rows.length !== 0 || fresh.cursor != null) {
+      throw new Error(`former member history was not blank: ${JSON.stringify(fresh)}`);
+    }
+    const staleCode = await member.eval(`window.teamChatContractReady.then((state) => state.productReceipt.query(
+      'nextRoomMessagePage',
+      { roomId: ${JSON.stringify(roomId)}, after: ${JSON.stringify(preRemovalCursor)} },
+      'user_member_01'
+    )).then(() => null, (error) => error?.diagnostic?.code ?? error?.code ?? null)`);
+    if (staleCode !== 'SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID') {
+      throw new Error(`stale cursor refusal mismatch: ${staleCode}`);
+    }
+    const sendCode = await member.eval(`window.teamChatContractReady.then((state) => state.productReceipt.mutate(
+      'sendMessage', { roomId: ${JSON.stringify(roomId)}, body: 'forbidden' }, 'user_member_01'
+    )).then(() => null, (error) => error?.diagnostic?.code ?? error?.code ?? null)`);
+    if (sendCode !== 'SNAPBACK_AUTH_PERMISSION_DENIED') {
+      throw new Error(`removed send refusal mismatch: ${sendCode}`);
+    }
+    await owner.setValue('message-input', 'after removal boundary');
+    await owner.click('message-send');
+    await owner.pollText('message-list', 'after removal boundary', 10_000);
+    if (await member.exists('message-list')) throw new Error('post-removal delivery reopened room UI');
+  });
+
+  await suite.check('invitation, self-accept, self-leave, and stale-cursor fencing survive owner removal', async () => {
+    await member.click('locked-back-to-rooms');
+    const removed = await member.pollText('room-status', 'removed', 10_000);
+    if (!/removed/.test(removed ?? '')) throw new Error(`removed status missing: ${removed}`);
+    await owner.click('invite-member');
+    const invited = await member.pollText('room-status', 'invited', 10_000);
+    if (!/invited/.test(invited ?? '')) throw new Error(`re-invitation missing: ${invited}`);
+    await member.clickPrefix('accept-invite-');
+    const acceptedAfterRemoval = await member.pollText('room-status', 'member', 10_000);
+    if (!/member/.test(acceptedAfterRemoval ?? '')) {
+      throw new Error(`reaccepted membership missing: ${acceptedAfterRemoval}`);
+    }
+    await member.clickPrefix('open-room-');
+    const restored = await member.pollText('room-title', 'Compiler Club', 10_000);
+    if (restored !== '#Compiler Club') throw new Error(`rejoined room missing: ${restored}`);
+    const staleCode = await member.eval(`window.teamChatContractReady.then((state) => state.productReceipt.query(
+      'nextRoomMessagePage',
+      { roomId: ${JSON.stringify(roomId)}, after: ${JSON.stringify(preRemovalCursor)} },
+      'user_member_01'
+    )).then(() => null, (error) => error?.diagnostic?.code ?? error?.code ?? null)`);
+    if (staleCode !== 'SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID') {
+      throw new Error(`rejoin revived old cursor: ${staleCode}`);
+    }
     await member.click('leave-room');
     const locked = await member.pollText('room-locked', 'no longer available', 10_000);
     if (!/no longer available/.test(locked ?? '')) {
@@ -188,14 +310,14 @@ await runAcceptance(suite, async () => {
     if (!/left/.test(left ?? '')) throw new Error(`left status missing: ${left}`);
     if (await member.exists('team-chat-room')) throw new Error('room remained open after leave');
     await owner.click('invite-member');
-    const invited = await member.pollText('room-status', 'invited', 10_000);
-    if (!/invited/.test(invited ?? '')) throw new Error(`re-invitation missing: ${invited}`);
+    const invitedAgain = await member.pollText('room-status', 'invited', 10_000);
+    if (!/invited/.test(invitedAgain ?? '')) throw new Error(`second re-invitation missing: ${invitedAgain}`);
     await member.clickPrefix('accept-invite-');
     const accepted = await member.pollText('room-status', 'member', 10_000);
     if (!/member/.test(accepted ?? '')) throw new Error(`reaccepted membership missing: ${accepted}`);
     await member.clickPrefix('open-room-');
-    const restored = await member.pollText('room-title', 'Compiler Club', 10_000);
-    if (restored !== '#Compiler Club') throw new Error(`rejoined room missing: ${restored}`);
+    const restoredAgain = await member.pollText('room-title', 'Compiler Club', 10_000);
+    if (restoredAgain !== '#Compiler Club') throw new Error(`second rejoin missing: ${restoredAgain}`);
     const unread = await member.text('unread-count');
     if (unread !== '0 unread') throw new Error(`old inbox rows survived rejoin: ${unread}`);
   });
@@ -216,6 +338,18 @@ await runAcceptance(suite, async () => {
     demo: 'team-chat',
     surface: 'contract',
     profileId: 'team-chat/local-pressure-v0',
+    targetProfile: 'local-dev-sqlite-ibex',
+    snapbackRevision,
+    generatedArtifactHashes: {
+      inputsHash: artifactIndex.inputsHash,
+      bundleHash: artifactIndex.bundleHash,
+      schemaHash: artifactIndex.schemaHash,
+    },
+    pressureRows: receiptPressureRows,
+    refusalCodes: [
+      'SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID',
+      'SNAPBACK_AUTH_PERMISSION_DENIED',
+    ],
     claimEligible: false,
   },
 });

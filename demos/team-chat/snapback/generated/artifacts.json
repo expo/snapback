@@ -12,14 +12,18 @@
     "api.mjs",
     "api.d.ts",
     "package.json",
+    "routes.manifest.json",
     "operations/acceptInvite.args.schema.json",
     "operations/createRoom.args.schema.json",
     "operations/firstInboxPage.args.schema.json",
+    "operations/firstRoomMessagePage.args.schema.json",
     "operations/inviteMember.args.schema.json",
     "operations/leaveRoom.args.schema.json",
     "operations/listMyRooms.args.schema.json",
     "operations/markRoomRead.args.schema.json",
     "operations/nextInboxPage.args.schema.json",
+    "operations/nextRoomMessagePage.args.schema.json",
+    "operations/ownerRemoveMember.args.schema.json",
     "operations/roomDetails.args.schema.json",
     "operations/roomMessages.args.schema.json",
     "operations/sendMessage.args.schema.json",
@@ -31,6 +35,8 @@
     "contract/createRoom.mutation.contract-meta.ts",
     "contract/firstInboxPage.query.ts",
     "contract/firstInboxPage.query.contract-meta.ts",
+    "contract/firstRoomMessagePage.query.ts",
+    "contract/firstRoomMessagePage.query.contract-meta.ts",
     "contract/inviteMember.mutation.ts",
     "contract/inviteMember.mutation.contract-meta.ts",
     "contract/leaveRoom.mutation.ts",
@@ -41,6 +47,10 @@
     "contract/markRoomRead.mutation.contract-meta.ts",
     "contract/nextInboxPage.query.ts",
     "contract/nextInboxPage.query.contract-meta.ts",
+    "contract/nextRoomMessagePage.query.ts",
+    "contract/nextRoomMessagePage.query.contract-meta.ts",
+    "contract/ownerRemoveMember.mutation.ts",
+    "contract/ownerRemoveMember.mutation.contract-meta.ts",
     "contract/roomDetails.query.ts",
     "contract/roomDetails.query.contract-meta.ts",
     "contract/roomMessages.query.ts",
@@ -50,23 +60,23 @@
     "contract/unreadDeliveries.query.ts",
     "contract/unreadDeliveries.query.contract-meta.ts"
   ],
-  "bundleHash": "sha256:567fcedacfcfc787",
+  "bundleHash": "sha256:252407a09e5fce2b",
   "cache": {
-    "graphPath": "../../.snapback/codegen-cache/c5516c5015e376b3bcf590068d9eeeb5323508f081c7ba3649313337421f8e32",
-    "key": "c5516c5015e376b3bcf590068d9eeeb5323508f081c7ba3649313337421f8e32",
+    "graphPath": "../../.snapback/codegen-cache/ca7d6fef2336b4b488dbba4cb7f4b1ac5c96df6bb1e2ec7f92c9b71f9d0ab6a9",
+    "key": "ca7d6fef2336b4b488dbba4cb7f4b1ac5c96df6bb1e2ec7f92c9b71f9d0ab6a9",
     "regenerationRule": "regenerate-or-fail-closed"
   },
   "config": [],
   "cronJobs": [],
   "custody": {
     "consumer-committed": 0,
-    "regenerable-cache": 47,
+    "regenerable-cache": 57,
     "review-manifest": 1
   },
   "ephemeralCollections": [],
   "files": [
     {
-      "bytes": 9600,
+      "bytes": 10734,
       "consumer": "client-bundler",
       "custody": "regenerable-cache",
       "logicalKind": "typed-api",
@@ -75,10 +85,10 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:e0634a6ce328da08afd939f0004ad00c777f39cfc67292f8eaeea3f373870022"
+      "sha256": "sha256:d001f7b88ab11a2a157d0f269942af22df6374421b3abbf0f8f322100f8edd18"
     },
     {
-      "bytes": 9399,
+      "bytes": 15148,
       "consumer": "client-bundler",
       "custody": "regenerable-cache",
       "logicalKind": "typed-api",
@@ -87,7 +97,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:5071e434d03acdad84d7ae889c2e24b553ab3a266d9fc1ed4f2ad0ff4f5c2abd"
+      "sha256": "sha256:4f86b84faea135c3c14946e0b5d21dc20a9f852d368aa0f17cad81ff5fbafa91"
     },
     {
       "bytes": 9018,
@@ -102,7 +112,7 @@
       "sha256": "sha256:1b9097cc25ab48d06e8dce73e483bbbb9cf9e58671ad1b90f063eda7fbdb6b20"
     },
     {
-      "bytes": 33554,
+      "bytes": 43481,
       "consumer": "contract",
       "custody": "regenerable-cache",
       "logicalKind": "contract-data-manifest",
@@ -111,7 +121,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:9fe78bd5cf9b8da5ab23537608d9e216addc11bc1a31119142bd4a70377cc2e6"
+      "sha256": "sha256:0b08f877263419d41ffc2eae588ca71c3b41cf4d35da00e0a64ac209124494fa"
     },
     {
       "bytes": 344,
@@ -184,6 +194,30 @@
         "rule": "complete-inputs-hash"
       },
       "sha256": "sha256:738f8aaa6f960fa59950a6a3762d20b4ff78d5c9f316243e20b956b0703ef8ad"
+    },
+    {
+      "bytes": 686,
+      "consumer": "contract",
+      "custody": "regenerable-cache",
+      "logicalKind": "contract-projection",
+      "path": "contract/firstRoomMessagePage.query.contract-meta.ts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:2b22cb1ea5145ce6b3e257ad7df97f1cbe195c28b157796328b4559fa60023cc"
+    },
+    {
+      "bytes": 557,
+      "consumer": "contract",
+      "custody": "regenerable-cache",
+      "logicalKind": "contract-projection",
+      "path": "contract/firstRoomMessagePage.query.ts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:487fefc4afd60e64cd77dd9e1d0f4de7b0f670d994d47438d184de64da4c2460"
     },
     {
       "bytes": 344,
@@ -306,6 +340,54 @@
       "sha256": "sha256:2ccaf67aa1c17939c17232380b23c6be70e8eb4ca5ef7728d526ad00e6d737ba"
     },
     {
+      "bytes": 682,
+      "consumer": "contract",
+      "custody": "regenerable-cache",
+      "logicalKind": "contract-projection",
+      "path": "contract/nextRoomMessagePage.query.contract-meta.ts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:80292455161dde537c5bd416f934b25e285f4be97ae26b8312dd525166ef3221"
+    },
+    {
+      "bytes": 566,
+      "consumer": "contract",
+      "custody": "regenerable-cache",
+      "logicalKind": "contract-projection",
+      "path": "contract/nextRoomMessagePage.query.ts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:e29cd61fb2c400dc9a09e3d072303aa468f3f99ef517fbeaf0b926cc6e8e223e"
+    },
+    {
+      "bytes": 386,
+      "consumer": "contract",
+      "custody": "regenerable-cache",
+      "logicalKind": "contract-projection",
+      "path": "contract/ownerRemoveMember.mutation.contract-meta.ts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:3d6506a5161becc83d9eaa0228f6f520ece57f822964e8008e6a905a4a2c8db7"
+    },
+    {
+      "bytes": 567,
+      "consumer": "contract",
+      "custody": "regenerable-cache",
+      "logicalKind": "contract-projection",
+      "path": "contract/ownerRemoveMember.mutation.ts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:2f26fbea7c3d922de715d0de531efaf7a73d3dd33682ed76919f1037c21640e0"
+    },
+    {
       "bytes": 620,
       "consumer": "contract",
       "custody": "regenerable-cache",
@@ -354,7 +436,7 @@
       "sha256": "sha256:e3e16b151bdef542625634640c1ffb49a97ad121536df399fd07e04ee11c05c6"
     },
     {
-      "bytes": 1354,
+      "bytes": 1567,
       "consumer": "contract",
       "custody": "regenerable-cache",
       "logicalKind": "contract-projection",
@@ -363,7 +445,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:cb7a09504eb08f41731e0b0af4d78f8dc48c41a260d93bd7114c04d0ccd722aa"
+      "sha256": "sha256:dcdf4101b834f2dde94eff5ffddb7506d21e38e4ed38382679ac1a7e2d60abbd"
     },
     {
       "bytes": 324,
@@ -414,7 +496,7 @@
       "sha256": "sha256:3f7d272dddcb4bd3a1144b84eb3e8768fb9926c733c6d3b91b32f587a2cc7d99"
     },
     {
-      "bytes": 83886,
+      "bytes": 115760,
       "consumer": "snapback-runtime",
       "custody": "regenerable-cache",
       "logicalKind": "function-manifest",
@@ -423,7 +505,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:4e5e6c60795ddebdebcbc2b311a0a5e4a4c772a79ff35b8fce4423750eb9cb86"
+      "sha256": "sha256:1bebce49e3b25d364733a7622502dd75166a96f6e66b2edb6bcadceef7a12eda"
     },
     {
       "bytes": 352,
@@ -460,6 +542,18 @@
         "rule": "complete-inputs-hash"
       },
       "sha256": "sha256:be9a122d1651a2351ecbbf0d021c50302be6ce250ac33c8fab75c08596a27b2d"
+    },
+    {
+      "bytes": 368,
+      "consumer": "app-cli",
+      "custody": "regenerable-cache",
+      "logicalKind": "operation-schema",
+      "path": "operations/firstRoomMessagePage.args.schema.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:15e8105d1cfe3a2941e58dff0a021c1aa28a9c6b0d4823ce9b259621fda6130a"
     },
     {
       "bytes": 482,
@@ -522,6 +616,30 @@
       "sha256": "sha256:c2213d418e7b81e2ecbfb3ac30ff4038830a11068c3b6b667aa0fb0a15edeeab"
     },
     {
+      "bytes": 424,
+      "consumer": "app-cli",
+      "custody": "regenerable-cache",
+      "logicalKind": "operation-schema",
+      "path": "operations/nextRoomMessagePage.args.schema.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:43ac01501aaec257eda04e481a6814437329871b0925a76c23b7a383d1aa703b"
+    },
+    {
+      "bytes": 440,
+      "consumer": "app-cli",
+      "custody": "regenerable-cache",
+      "logicalKind": "operation-schema",
+      "path": "operations/ownerRemoveMember.args.schema.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:aeab3b42a9ee0e25c9df43013380d523bd03fb124168ee1be6aa20109056ca99"
+    },
+    {
       "bytes": 350,
       "consumer": "app-cli",
       "custody": "regenerable-cache",
@@ -570,7 +688,7 @@
       "sha256": "sha256:691c5545442fdd39424f54263cc8fa9f77f1847d3eeaf47fa0ba710978b3e671"
     },
     {
-      "bytes": 523,
+      "bytes": 565,
       "consumer": "client-bundler",
       "custody": "regenerable-cache",
       "logicalKind": "package-metadata",
@@ -579,10 +697,10 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:4e9e54445ac075f17e8326b895e5e62cdd263f48c7bbed8cd45dc1537a2ac981"
+      "sha256": "sha256:78798fdef8900e20da590b979a10b9ed7d292785f184f3ee0b42191f3d04fc89"
     },
     {
-      "bytes": 3721,
+      "bytes": 4779,
       "consumer": "tooling",
       "custody": "regenerable-cache",
       "logicalKind": "provider-binding",
@@ -591,10 +709,10 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:7bd88b0bc806b1a68627e39373959b63fe197d54235e6deecb954160b706b56d"
+      "sha256": "sha256:3c7975455b67b79e10c7aa0e6cff8efd2bd491203573d0fe9cb0e23fa5cb6195"
     },
     {
-      "bytes": 8371,
+      "bytes": 10412,
       "consumer": "tooling",
       "custody": "regenerable-cache",
       "logicalKind": "provider-binding",
@@ -603,10 +721,10 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:30a7677889f5d9d9d7588e3bfd6d9f093d6d198ddca2d7c6a73b7822c2ba17a7"
+      "sha256": "sha256:3d7ed2e6e44dcd5ffc37fd7470b53def2da554211db14fb9b4096422d81f29a3"
     },
     {
-      "bytes": 41276,
+      "bytes": 53222,
       "consumer": "tooling",
       "custody": "regenerable-cache",
       "logicalKind": "provider-introspection",
@@ -615,10 +733,22 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:571e06fef7b4eba8b3b5e69b6831695024171832b4c11d70975e690010ff8f79"
+      "sha256": "sha256:16ccd363df094b55b3d40617b6e2e3a9931a964d4f804f06984872e431ecd305"
     },
     {
-      "bytes": 6750,
+      "bytes": 324,
+      "consumer": "tooling",
+      "custody": "regenerable-cache",
+      "logicalKind": "route-manifest",
+      "path": "routes.manifest.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:0fffec20801d818100f91deeee0aaa00912b6fd4ae01c7435421db1d2ba67482"
+    },
+    {
+      "bytes": 6971,
       "consumer": "snapback-runtime",
       "custody": "regenerable-cache",
       "logicalKind": "schema-manifest",
@@ -627,7 +757,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:0f6643c041f5ad19c9054703c1f16162f1b107ca1b6a03eed7ccac29c45c22e7"
+      "sha256": "sha256:ca5491c20bf3f0bf09f50156b10f5cdbf9a2989ac99269d72594a17245ea326f"
     }
   ],
   "functions": [
@@ -645,6 +775,11 @@
       "id": "team-chat:firstInboxPage",
       "kind": "LiveQuery",
       "name": "firstInboxPage"
+    },
+    {
+      "id": "team-chat:firstRoomMessagePage",
+      "kind": "Query",
+      "name": "firstRoomMessagePage"
     },
     {
       "id": "team-chat:inviteMember",
@@ -672,6 +807,16 @@
       "name": "nextInboxPage"
     },
     {
+      "id": "team-chat:nextRoomMessagePage",
+      "kind": "Query",
+      "name": "nextRoomMessagePage"
+    },
+    {
+      "id": "team-chat:ownerRemoveMember",
+      "kind": "Mutation",
+      "name": "ownerRemoveMember"
+    },
+    {
       "id": "team-chat:roomDetails",
       "kind": "LiveQuery",
       "name": "roomDetails"
@@ -693,23 +838,23 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "c5516c5015e376b3bcf590068d9eeeb5323508f081c7ba3649313337421f8e32",
+  "inputsHash": "ca7d6fef2336b4b488dbba4cb7f4b1ac5c96df6bb1e2ec7f92c9b71f9d0ab6a9",
   "manifestVersion": 2,
   "reviewManifest": {
     "authority": "@expo/snapback-codegen/review-manifest.schema.json",
     "custody": "review-manifest",
     "path": "artifacts.json"
   },
-  "schemaHash": "sha256:2a0ea9023ba88eb2",
+  "schemaHash": "sha256:3d0d5de9c23e0d39",
   "schemaVersion": "snapback.v0",
   "summary": {
     "appId": "team-chat",
     "counts": {
       "custody": {
         "consumerCommitted": 0,
-        "regenerableCache": 47,
+        "regenerableCache": 57,
         "reviewManifest": 1,
-        "total": 48
+        "total": 58
       },
       "degradedResults": 6,
       "ephemeralCollections": 0,
@@ -717,9 +862,9 @@
         "action": 0,
         "live": 6,
         "liveQuery": 6,
-        "mutation": 6,
-        "query": 0,
-        "total": 12
+        "mutation": 7,
+        "query": 2,
+        "total": 15
       },
       "tables": 5,
       "warnings": 0
@@ -736,7 +881,7 @@
         "remediation": "Add `result: results.document(\"table\")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `acceptInvite` in functions.mjs and regenerate.",
         "source": {
           "column": 14,
-          "line": 92,
+          "line": 114,
           "path": "functions.mjs"
         }
       },
@@ -751,7 +896,7 @@
         "remediation": "Add `result: results.document(\"table\")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `createRoom` in functions.mjs and regenerate.",
         "source": {
           "column": 14,
-          "line": 70,
+          "line": 92,
           "path": "functions.mjs"
         }
       },
@@ -766,7 +911,7 @@
         "remediation": "Add `result: results.document(\"table\")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `inviteMember` in functions.mjs and regenerate.",
         "source": {
           "column": 14,
-          "line": 78,
+          "line": 100,
           "path": "functions.mjs"
         }
       },
@@ -781,7 +926,7 @@
         "remediation": "Add `result: results.document(\"table\")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `leaveRoom` in functions.mjs and regenerate.",
         "source": {
           "column": 14,
-          "line": 102,
+          "line": 124,
           "path": "functions.mjs"
         }
       },
@@ -796,7 +941,7 @@
         "remediation": "Add `result: results.document(\"table\")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `markRoomRead` in functions.mjs and regenerate.",
         "source": {
           "column": 14,
-          "line": 121,
+          "line": 154,
           "path": "functions.mjs"
         }
       },
@@ -811,12 +956,12 @@
         "remediation": "Add `result: results.document(\"table\")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `sendMessage` in functions.mjs and regenerate.",
         "source": {
           "column": 14,
-          "line": 112,
+          "line": 145,
           "path": "functions.mjs"
         }
       }
     ],
-    "inputsHash": "c5516c5015e376b3bcf590068d9eeeb5323508f081c7ba3649313337421f8e32",
+    "inputsHash": "ca7d6fef2336b4b488dbba4cb7f4b1ac5c96df6bb1e2ec7f92c9b71f9d0ab6a9",
     "schemaVersion": "snapback.codegen-summary.v1"
   },
   "tables": [

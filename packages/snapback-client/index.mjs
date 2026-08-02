@@ -10782,9 +10782,12 @@ function liveStreamProtocols(grant, protocols = {}) {
 
 function functionName(ref) {
   const name = typeof ref === 'string' ? ref : ref?.name;
-  // The one reserved system live query (LLP 0044 §Live asset lifecycle):
-  // server-admitted by exact name, never a generated identifier.
-  if (name === '_snapback.assetRecord') return name;
+  // Reserved system live queries are server-admitted by exact name and never
+  // generated identifiers. Keep this allowlist aligned with local.rs rather
+  // than forcing product clients to bypass the headless arm.
+  // @ref LLP 0100#product-receipt — Team Chat observes the caller's own seat
+  // drop through the ordinary client at the same authorization cut.
+  if (name === '_snapback.assetRecord' || name === '_snapback.myMemberships') return name;
   if (typeof name === 'string' && GENERATED_IDENTIFIER.test(name)) return name;
   if (typeof name === 'string') {
     throw new TypeError(`Snapback function name must match ${GENERATED_IDENTIFIER}, got ${JSON.stringify(name)}`);

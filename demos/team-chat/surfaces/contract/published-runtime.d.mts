@@ -33,6 +33,19 @@ export class SnapbackClient {
     schema: unknown;
     functions: unknown;
   }): Promise<unknown>;
+  query(reference: unknown, options: {
+    args: Record<string, unknown>;
+    userId: string;
+  }): Promise<{ rows: unknown[]; cursor?: string | null }>;
+  mutate(reference: unknown, options: {
+    args: Record<string, unknown>;
+    userId: string;
+  }): Promise<{ result: unknown }>;
+  liveQuery(reference: unknown, options: Record<string, unknown>): Promise<{
+    rows: unknown[];
+    poll(): Promise<unknown[]>;
+    dispose(): void;
+  }>;
 }
 
 export function createOnlineSnapbackContractSurface(options: {

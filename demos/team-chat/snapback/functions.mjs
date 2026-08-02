@@ -13,9 +13,11 @@ import {
   eq,
   lit,
   membershipResource,
+  results,
   v,
 } from '../../_kit/define.mjs';
 import {
+  defineMembershipKeysetPages,
   defineOwnedKeysetPages,
 } from '../../../packages/snapback-codegen/standard-patterns.mjs';
 
@@ -67,6 +69,26 @@ export const {
   limit: 10,
 });
 
+// @ref LLP 0100#4-membership-scoped-keyset-pages — historical room pages
+// are callable-only and re-check roomMembers on every page; roomMessages
+// remains the separate current-room live view.
+export const {
+  firstRoomMessagePage,
+  nextRoomMessagePage,
+} = defineMembershipKeysetPages({
+  table: schema.tables.messages,
+  names: { first: 'firstRoomMessagePage', next: 'nextRoomMessagePage' },
+  membership: {
+    declaration: roomMembers,
+    resourceArg: 'roomId',
+    resourceField: 'roomId',
+    roles: ['owner', 'member'],
+  },
+  index: 'by_room_page_key',
+  cursorField: 'pageKey',
+  limit: 10,
+});
+
 export const createRoom = defineJsMutation({
   auth: 'authenticated',
   args: { title: v.string(), displayName: v.string() },
@@ -105,6 +127,17 @@ export const leaveRoom = defineJsMutation({
   args: { roomId: v.id('rooms') },
   source: 'handlers.mjs',
   exportName: 'leaveRoom',
+  reads: ['roomMembers', 'roomParticipants', 'deliveries'],
+  writes: ['roomMembers', 'roomParticipants', 'deliveries'],
+});
+
+export const ownerRemoveMember = defineJsMutation({
+  auth: 'authenticated',
+  authorityCreating: true,
+  args: { roomId: v.id('rooms'), targetPrincipal: v.principal() },
+  source: 'handlers.mjs',
+  exportName: 'ownerRemoveMember',
+  result: results.value(v.null()),
   reads: ['roomMembers', 'roomParticipants', 'deliveries'],
   writes: ['roomMembers', 'roomParticipants', 'deliveries'],
 });

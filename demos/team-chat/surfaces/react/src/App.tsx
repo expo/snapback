@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useSnapbackQuery } from '../../../../../packages/snapback-react/index.mjs';
+import {
+  useSnapbackMutation,
+  useSnapbackQuery,
+} from '../../../../../packages/snapback-react/index.mjs';
 
 import type { GeneratedApi, GeneratedDataModel } from '../../../snapback/generated/api';
 import runtimeApi from '../../../snapback/generated/api.mjs';
-import { teamChatProvider } from './provider';
+import { queryTeamChat } from './provider';
 
 const api = runtimeApi as GeneratedApi;
 type Room = GeneratedDataModel['rooms'];
@@ -25,9 +28,8 @@ export const PERSONAS: Persona[] = [
 ];
 
 export function App({ initialUserId }: { initialUserId: string }) {
-  const [userId, setUserId] = useState(initialUserId);
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
-  const persona = PERSONAS.find((candidate) => candidate.userId === userId) ?? PERSONAS[0];
+  const persona = PERSONAS.find((candidate) => candidate.userId === initialUserId) ?? PERSONAS[0];
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -46,11 +48,13 @@ export function App({ initialUserId }: { initialUserId: string }) {
             <button
               type="button"
               key={candidate.id}
-              className={candidate.userId === userId ? 'persona active' : 'persona'}
+              className={candidate.userId === persona.userId ? 'persona active' : 'persona'}
               data-testid={`persona-${candidate.id}`}
               onClick={() => {
-                setUserId(candidate.userId);
-                setSelectedRoomId(null);
+                const url = new URL(location.href);
+                url.searchParams.set('user', candidate.id);
+                url.pathname = '/';
+                location.assign(url);
               }}
             >
               {candidate.initials}
@@ -86,12 +90,10 @@ function RoomList({
   persona: Persona;
   onOpen(roomId: string): void;
 }) {
-  const rooms = useSnapbackQuery<Participant>({
-    provider: teamChatProvider,
-    query: api.listMyRooms,
-    userId: persona.userId,
-    authority: persona.userId,
-  });
+  const rooms = useSnapbackQuery(api.listMyRooms, {});
+  const createRoom = useSnapbackMutation(api.createRoom);
+  const acceptInvite = useSnapbackMutation(api.acceptInvite);
+  const roomRows = rooms.data ?? [];
   const [creating, setCreating] = useState(false);
   const [title, setTitle] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -99,11 +101,8 @@ function RoomList({
     if (!title.trim()) return;
     setError(null);
     try {
-      const roomId = await rooms.mutate<string>(
-        api.createRoom,
-        { title: title.trim(), displayName: persona.name },
-      );
-      onOpen(roomId);
+      const roomId = await createRoom({ title: title.trim(), displayName: persona.name });
+      onOpen(String(roomId));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'room creation failed');
     }
@@ -153,10 +152,10 @@ function RoomList({
       )}
       <div className="room-grid" data-testid="room-list">
         {rooms.status === 'pending' && <p className="empty">Loading rooms…</p>}
-        {rooms.status !== 'pending' && rooms.rows.length === 0 && (
+        {rooms.status !== 'pending' && roomRows.length === 0 && (
           <p className="empty" data-testid="rooms-empty">No rooms yet.</p>
         )}
-        {rooms.rows.map((participant) => (
+        {roomRows.map((participant: Participant) => (
           <article className="room-card" key={participant._id} data-testid={`room-card-${participant.roomId}`}>
             <div className="room-glyph">#</div>
             <div>
@@ -171,7 +170,7 @@ function RoomList({
                 className="primary"
                 data-testid="accept-invite"
                 onClick={async () => {
-                  await rooms.mutate(api.acceptInvite, { roomId: participant.roomId });
+                  await acceptInvite({ roomId: participant.roomId });
                   onOpen(participant.roomId);
                 }}
               >
@@ -205,36 +204,39 @@ function RoomView({
   roomId: string;
   onBack(): void;
 }) {
-  const room = useSnapbackQuery<Room>({
-    provider: teamChatProvider,
-    query: api.roomDetails,
-    args: { roomId },
-    userId: persona.userId,
-    authority: persona.userId,
-  });
-  const messages = useSnapbackQuery<Message>({
-    provider: teamChatProvider,
-    query: api.roomMessages,
-    args: { roomId },
-    userId: persona.userId,
-    authority: persona.userId,
-  });
-  const unread = useSnapbackQuery<Delivery>({
-    provider: teamChatProvider,
-    query: api.unreadDeliveries,
-    userId: persona.userId,
-    authority: persona.userId,
-  });
+  const roomRef = roomId as Room['_id'];
+  const memberPrincipal = PERSONAS[1].userId as Room['createdBy'];
+  const room = useSnapbackQuery(api.roomDetails, { roomId: roomRef });
+  const messages = useSnapbackQuery(api.roomMessages, { roomId: roomRef });
+  const unread = useSnapbackQuery(api.unreadDeliveries, {});
+  const inviteMember = useSnapbackMutation(api.inviteMember);
+  const leaveRoom = useSnapbackMutation(api.leaveRoom);
+  const ownerRemoveMember = useSnapbackMutation(api.ownerRemoveMember);
+  const sendMessage = useSnapbackMutation(api.sendMessage);
+  const markRoomRead = useSnapbackMutation(api.markRoomRead);
+  const roomRows = room.data ?? [];
+  const messageRows = messages.data ?? [];
+  const unreadRows = unread.data ?? [];
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [history, setHistory] = useState<Message[]>([]);
+  const [historyCursor, setHistoryCursor] = useState<string | null>(null);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
   const selectedUnread = useMemo(
-    () => unread.rows.filter((delivery) => delivery.roomId === roomId),
-    [roomId, unread.rows],
+    () => unreadRows.filter((delivery: Delivery) => delivery.roomId === roomId),
+    [roomId, unreadRows],
   );
   useEffect(() => {
-    if (room.status === 'ready' && room.rows.length === 0) onBack();
-  }, [onBack, room.rows.length, room.status]);
-  const details = room.rows[0];
+    if (room.status === 'ready' && roomRows.length === 0) onBack();
+  }, [onBack, roomRows.length, room.status]);
+  useEffect(() => {
+    setHistory([]);
+    setHistoryCursor(null);
+    setHistoryLoaded(false);
+    setHistoryError(null);
+  }, [persona.userId, roomId]);
+  const details = roomRows[0] as Room | undefined;
   if (!details) return <p className="empty">Opening protected room…</p>;
   const send = async () => {
     const body = draft.trim();
@@ -242,7 +244,7 @@ function RoomView({
     setError(null);
     setDraft('');
     try {
-      await messages.mutate(api.sendMessage, { roomId, body });
+      await sendMessage({ roomId: roomRef, body });
     } catch (cause) {
       setDraft(body);
       setError(cause instanceof Error ? cause.message : 'message failed');
@@ -251,17 +253,36 @@ function RoomView({
   const invite = async () => {
     setError(null);
     try {
-      await room.mutate(api.inviteMember, {
-        roomId,
-        userId: PERSONAS[1].userId,
+      await inviteMember({
+        roomId: roomRef,
+        userId: memberPrincipal,
         displayName: PERSONAS[1].name,
       });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'invitation failed');
     }
   };
+  const loadHistory = async (after: string | null) => {
+    setHistoryError(null);
+    try {
+      const page = after === null
+        ? await queryTeamChat<Message>(api.firstRoomMessagePage, { roomId }, persona.userId)
+        : await queryTeamChat<Message>(
+          api.nextRoomMessagePage,
+          { roomId, after },
+          persona.userId,
+        );
+      setHistory((rows) => after === null ? page.rows : [...rows, ...page.rows]);
+      setHistoryCursor(page.cursor);
+      setHistoryLoaded(true);
+    } catch (cause) {
+      setHistory([]);
+      setHistoryCursor(null);
+      setHistoryError(cause instanceof Error ? cause.message : 'history page failed');
+    }
+  };
   return (
-    <section className="room-page" data-testid="room-view">
+    <section className="room-page" data-testid="room-view" data-room-id={roomId}>
       <aside className="room-sidebar">
         <button type="button" className="back" data-testid="back" onClick={onBack}>← Rooms</button>
         <div className="room-mark">#</div>
@@ -270,9 +291,29 @@ function RoomView({
         <Connection value={messages.connection} />
         <div className="sidebar-actions">
           {details.createdBy === persona.userId && (
-            <button type="button" className="secondary" data-testid="invite-member" onClick={() => void invite()}>
-              Invite Member 01
-            </button>
+            <>
+              <button type="button" className="secondary" data-testid="invite-member" onClick={() => void invite()}>
+                Invite Member 01
+              </button>
+              <button
+                type="button"
+                className="danger"
+                data-testid="remove-member"
+                onClick={async () => {
+                  setError(null);
+                  try {
+                    await ownerRemoveMember({
+                      roomId: roomRef,
+                      targetPrincipal: memberPrincipal,
+                    });
+                  } catch (cause) {
+                    setError(cause instanceof Error ? cause.message : 'member removal failed');
+                  }
+                }}
+              >
+                Remove Member 01
+              </button>
+            </>
           )}
           {details.createdBy !== persona.userId && (
             <button
@@ -280,7 +321,7 @@ function RoomView({
               className="danger"
               data-testid="leave-room"
               onClick={async () => {
-                await room.mutate(api.leaveRoom, { roomId });
+                await leaveRoom({ roomId: roomRef });
                 onBack();
               }}
             >
@@ -300,14 +341,14 @@ function RoomView({
             type="button"
             className="unread"
             data-testid="unread-count"
-            onClick={() => void unread.mutate(api.markRoomRead, { roomId })}
+            onClick={() => void markRoomRead({ roomId: roomRef })}
           >
             {selectedUnread.length} unread
           </button>
         </header>
         <div className="messages" data-testid="message-list">
-          {messages.rows.length === 0 && <p className="empty">No messages yet. Say hello.</p>}
-          {messages.rows.map((message) => (
+          {messageRows.length === 0 && <p className="empty">No messages yet. Say hello.</p>}
+          {messageRows.map((message: Message) => (
             <article className="message" key={message._id}>
               <div className="avatar">{message.authorName.slice(0, 2).toUpperCase()}</div>
               <div>
@@ -318,6 +359,34 @@ function RoomView({
             </article>
           ))}
         </div>
+        <section className="history" data-testid="room-history">
+          <div>
+            <strong>Bounded room history</strong>
+            <span data-testid="history-count">{history.length} historical messages</span>
+          </div>
+          {!historyLoaded ? (
+            <button
+              type="button"
+              className="secondary"
+              data-testid="history-first"
+              onClick={() => void loadHistory(null)}
+            >
+              Load first page
+            </button>
+          ) : historyCursor !== null ? (
+            <button
+              type="button"
+              className="secondary"
+              data-testid="history-next"
+              onClick={() => void loadHistory(historyCursor)}
+            >
+              Load next page
+            </button>
+          ) : (
+            <span className="muted" data-testid="history-terminal">End of history</span>
+          )}
+          {historyError && <p className="error" role="alert" data-testid="history-error">{historyError}</p>}
+        </section>
         <form
           className="composer"
           onSubmit={(event) => {

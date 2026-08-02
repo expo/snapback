@@ -5,8 +5,8 @@
 // profile remains claim-ineligible until every red pressure and hosted gate
 // in pressure-profile.v1.json is satisfied.
 
-import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { execFileSync, spawn } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -14,6 +14,7 @@ import { launchChromeCdp } from '../../../_kit/chrome-process.mjs';
 import { createSuite, runAcceptance } from '../../../_kit/harness.mjs';
 import { freePort } from '../../../_kit/provenance.mjs';
 import { startServer } from '../../../_kit/server-process.mjs';
+import { SnapbackClient } from '../../../_kit/client.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..', '..', '..', '..');
@@ -21,8 +22,15 @@ const surfaceDir = join(repoRoot, 'demos', 'team-chat', 'surfaces', 'react');
 const backendDir = join(repoRoot, 'demos', 'team-chat', 'snapback');
 const chromeBin = process.env.CHROME_BIN
   ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const suite = createSuite('team-chat / React local product surface', { expectedChecks: 8 });
+const suite = createSuite('team-chat / React local product surface', { expectedChecks: 11 });
 const cleanups = [];
+const artifactIndex = JSON.parse(readFileSync(join(backendDir, 'generated', 'artifacts.json'), 'utf8'));
+const pressureProfile = JSON.parse(readFileSync(join(repoRoot, 'demos', 'team-chat', 'pressure-profile.v1.json'), 'utf8'));
+const receiptPressureRows = pressureProfile.pressures.filter(({ id }) =>
+  id === 'membership-changes' || id === 'pagination');
+const snapbackRevision = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repoRoot, encoding: 'utf8' }).trim();
+let roomId;
+let preRemovalCursor;
 
 const sleep = (milliseconds) => new Promise((resolveSleep) => setTimeout(resolveSleep, milliseconds));
 const urlOk = async (url) => {
@@ -78,6 +86,17 @@ await runAcceptance(suite, async () => {
     },
   });
   cleanups.push(() => server.stop());
+  const admin = new SnapbackClient(server.baseUrl, server.clientOptions);
+  const generated = (name) => JSON.parse(
+    readFileSync(join(backendDir, 'generated', name), 'utf8'),
+  );
+  await admin.ensureApp({
+    intent: 'provision',
+    requestedMode: 'dev',
+    schema: generated('schema.manifest.json'),
+    functions: generated('functions.manifest.json'),
+    routes: generated('routes.manifest.json'),
+  });
   const viteOrigin = await spawnVite(server.baseUrl);
   const chrome = await launchChromeCdp({
     chromeBin,
@@ -100,8 +119,12 @@ await runAcceptance(suite, async () => {
       if (Date.now() >= deadline) throw new Error('team-chat surface never booted');
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
-    await window.teamChatReady;
-    return true;
+    return await Promise.race([
+      window.teamChatReady.then(() => true),
+      new Promise((_, reject) => setTimeout(() => reject(new Error(
+        'boot pending at ' + window.teamChatBootStage + ': ' + document.body.innerText
+      )), 20000)),
+    ]);
   })()`);
 
   await suite.check('three independent authority windows boot over generated artifacts', async () => {
@@ -158,17 +181,124 @@ await runAcceptance(suite, async () => {
     if (!/reply from member/.test(message ?? '')) throw new Error(`owner reply missing: ${message}`);
   });
 
-  await suite.check('self-leave revokes the room, then re-invite restores access without old inbox rows', async () => {
-    await member.click('leave-room');
-    const left = await member.pollText('room-status', '^left$', 10_000);
-    if (left !== 'left') throw new Error(`left status missing: ${left}`);
-    if (await member.exists('room-view')) throw new Error('room remained open after leave');
+  await suite.check('member traverses three bounded room-history pages through the React UI', async () => {
+    roomId = await owner.eval(`document.querySelector('[data-testid="room-view"]')?.dataset.roomId ?? null`);
+    if (!roomId) throw new Error('room id missing from product route state');
+    for (let index = 0; index < 20; index += 1) {
+      const body = `react-history-${String(index).padStart(2, '0')}`;
+      await owner.setValue('message-input', body);
+      await owner.click('message-send');
+      const visible = await member.pollText('message-list', body, 10_000);
+      if (!visible?.includes(body)) throw new Error(`history message did not settle: ${body}`);
+    }
+    await member.click('history-first');
+    if (await member.pollText('history-count', '^10 historical messages$', 10_000) !== '10 historical messages') {
+      throw new Error('first room-history page did not render');
+    }
+    await member.click('history-next');
+    if (await member.pollText('history-count', '^20 historical messages$', 10_000) !== '20 historical messages') {
+      throw new Error('second room-history page did not render');
+    }
+    await member.click('history-next');
+    if (await member.pollText('history-count', '^22 historical messages$', 10_000) !== '22 historical messages') {
+      throw new Error('terminal room-history page did not render');
+    }
+    if (!await member.exists('history-terminal')) throw new Error('terminal history state missing');
+  });
+
+  await suite.check('React receipt records cross-user and cross-room cursor refusal', async () => {
+    const first = await member.eval(`window.teamChatProductReceipt.query(
+      'firstRoomMessagePage', { roomId: ${JSON.stringify(roomId)} }, 'user_member_01')`);
+    preRemovalCursor = first?.cursor;
+    if (typeof preRemovalCursor !== 'string' || !preRemovalCursor.startsWith('sbpc1.')) {
+      throw new Error('React product client did not mint an opaque room cursor');
+    }
+    const crossUserCode = await outsider.eval(`window.teamChatProductReceipt.query(
+      'nextRoomMessagePage',
+      { roomId: ${JSON.stringify(roomId)}, after: ${JSON.stringify(preRemovalCursor)} },
+      'user_unrelated'
+    ).then(() => null, (error) => error?.diagnostic?.code ?? error?.code ?? null)`);
+    if (crossUserCode !== 'SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID') {
+      throw new Error(`cross-user refusal mismatch: ${crossUserCode}`);
+    }
+    const second = await owner.eval(`window.teamChatProductReceipt.mutate(
+      'createRoom', { title: 'React Other Room', displayName: 'Owner' }, 'user_owner')`);
+    const secondRoomId = second?.result;
+    const crossRoomCode = await member.eval(`window.teamChatProductReceipt.query(
+      'nextRoomMessagePage',
+      { roomId: ${JSON.stringify(secondRoomId)}, after: ${JSON.stringify(preRemovalCursor)} },
+      'user_member_01'
+    ).then(() => null, (error) => error?.diagnostic?.code ?? error?.code ?? null)`);
+    if (crossRoomCode !== 'SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID') {
+      throw new Error(`cross-room refusal mismatch: ${crossRoomCode}`);
+    }
+  });
+
+  await suite.check('owner removal blanks room, seat, page custody, send authority, and delivery at one product cut', async () => {
+    const beforeSeats = await member.eval(`window.teamChatProductReceipt.startSeats('user_member_01')`);
+    if (!beforeSeats.some((row) => row.resource === roomId && row.role === 'member')) {
+      throw new Error(`member seat missing before removal: ${JSON.stringify(beforeSeats)}`);
+    }
+    await owner.click('remove-member');
+    const removed = await member.pollText('room-status', '^removed$', 10_000);
+    if (removed !== 'removed') throw new Error(`removed status missing: ${removed}`);
+    if (await member.exists('room-view') || await member.exists('room-history')) {
+      throw new Error('protected room or accumulated history remained in React custody');
+    }
+    const afterSeats = await member.eval(`window.teamChatProductReceipt.pollSeats()`);
+    if (afterSeats.some((row) => row.resource === roomId)) {
+      throw new Error(`seat survived owner-removal cut: ${JSON.stringify(afterSeats)}`);
+    }
+    const fresh = await member.eval(`window.teamChatProductReceipt.query(
+      'firstRoomMessagePage', { roomId: ${JSON.stringify(roomId)} }, 'user_member_01')`);
+    if (fresh.rows.length !== 0 || fresh.cursor != null) {
+      throw new Error(`former member history was not blank: ${JSON.stringify(fresh)}`);
+    }
+    const staleCode = await member.eval(`window.teamChatProductReceipt.query(
+      'nextRoomMessagePage',
+      { roomId: ${JSON.stringify(roomId)}, after: ${JSON.stringify(preRemovalCursor)} },
+      'user_member_01'
+    ).then(() => null, (error) => error?.diagnostic?.code ?? error?.code ?? null)`);
+    if (staleCode !== 'SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID') {
+      throw new Error(`stale cursor refusal mismatch: ${staleCode}`);
+    }
+    const sendCode = await member.eval(`window.teamChatProductReceipt.mutate(
+      'sendMessage', { roomId: ${JSON.stringify(roomId)}, body: 'forbidden' }, 'user_member_01'
+    ).then(() => null, (error) => error?.diagnostic?.code ?? error?.code ?? null)`);
+    if (sendCode !== 'SNAPBACK_AUTH_PERMISSION_DENIED') {
+      throw new Error(`removed send refusal mismatch: ${sendCode}`);
+    }
+    await owner.setValue('message-input', 'after removal boundary');
+    await owner.click('message-send');
+    await owner.pollText('message-list', 'after removal boundary', 10_000);
+    if (await member.exists('unread-count')) throw new Error('post-removal delivery reopened room UI');
+  });
+
+  await suite.check('invitation, self-accept, self-leave, and stale-cursor fencing survive owner removal', async () => {
     await owner.click('invite-member');
     const invited = await member.pollText('room-status', '^invited$', 10_000);
     if (invited !== 'invited') throw new Error(`re-invitation missing: ${invited}`);
     await member.click('accept-invite');
     const restored = await member.pollText('room-title', 'Compiler Club', 10_000);
     if (restored !== 'Compiler Club') throw new Error(`rejoined room missing: ${restored}`);
+    const staleCode = await member.eval(`window.teamChatProductReceipt.query(
+      'nextRoomMessagePage',
+      { roomId: ${JSON.stringify(roomId)}, after: ${JSON.stringify(preRemovalCursor)} },
+      'user_member_01'
+    ).then(() => null, (error) => error?.diagnostic?.code ?? error?.code ?? null)`);
+    if (staleCode !== 'SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID') {
+      throw new Error(`rejoin revived old cursor: ${staleCode}`);
+    }
+    await member.click('leave-room');
+    const left = await member.pollText('room-status', '^left$', 10_000);
+    if (left !== 'left') throw new Error(`left status missing: ${left}`);
+    if (await member.exists('room-view')) throw new Error('room remained open after leave');
+    await owner.click('invite-member');
+    const invitedAgain = await member.pollText('room-status', '^invited$', 10_000);
+    if (invitedAgain !== 'invited') throw new Error(`second re-invitation missing: ${invitedAgain}`);
+    await member.click('accept-invite');
+    const restoredAgain = await member.pollText('room-title', 'Compiler Club', 10_000);
+    if (restoredAgain !== 'Compiler Club') throw new Error(`second rejoin missing: ${restoredAgain}`);
     const unread = await member.text('unread-count');
     if (unread !== '0 unread') throw new Error(`old inbox rows survived rejoin: ${unread}`);
   });
@@ -189,6 +319,18 @@ await runAcceptance(suite, async () => {
     demo: 'team-chat',
     surface: 'react',
     profileId: 'team-chat/local-pressure-v0',
+    targetProfile: 'local-dev-sqlite-ibex',
+    snapbackRevision,
+    generatedArtifactHashes: {
+      inputsHash: artifactIndex.inputsHash,
+      bundleHash: artifactIndex.bundleHash,
+      schemaHash: artifactIndex.schemaHash,
+    },
+    pressureRows: receiptPressureRows,
+    refusalCodes: [
+      'SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID',
+      'SNAPBACK_AUTH_PERMISSION_DENIED',
+    ],
     claimEligible: false,
   },
 });

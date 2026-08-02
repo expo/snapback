@@ -48,7 +48,7 @@ input:focus { border-color: #8b75ff; box-shadow: 0 0 0 3px rgb(117 87 255 / 18%)
 .room-sidebar h1 { margin: 8px 0 18px; font-size: 28px; }
 .room-mark { width: 58px; height: 58px; margin: 40px 0 18px; }
 .sidebar-actions { display: grid; gap: 10px; margin-top: 30px; }
-.conversation { min-width: 0; display: grid; grid-template-rows: 72px 1fr auto; }
+.conversation { min-width: 0; display: grid; grid-template-rows: 72px 1fr auto auto; }
 .conversation-header { display: flex; align-items: center; justify-content: space-between; padding: 0 28px; border-bottom: 1px solid #26324d; background: #101728; }
 .conversation-header strong, .conversation-header span { display: block; }
 .conversation-header span { margin-top: 4px; color: #7f8da8; font-size: 11px; }
@@ -59,6 +59,9 @@ input:focus { border-color: #8b75ff; box-shadow: 0 0 0 3px rgb(117 87 255 / 18%)
 .message strong { margin-right: 8px; }
 .message time { color: #77849e; font-size: 11px; }
 .message p { margin: 5px 0 0; color: #d4d9e5; line-height: 1.55; }
+.history { display: flex; align-items: center; gap: 14px; padding: 12px 28px; border-top: 1px solid #26324d; background: #0d1424; }
+.history > div { display: grid; gap: 3px; flex: 1; }
+.history span { color: #7f8da8; font-size: 11px; }
 .composer { display: grid; grid-template-columns: 1fr auto; gap: 10px; padding: 18px 28px 24px; border-top: 1px solid #26324d; background: #101728; }
 .composer label { grid-column: 1 / 3; color: #75819a; font-size: 11px; }
 .back { padding: 8px 11px; }

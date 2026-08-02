@@ -5,6 +5,7 @@
 // production or hosted witness.
 
 import { readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -19,6 +20,11 @@ const backendDir = join(here, '..', '..', 'snapback');
 const generated = (name) => JSON.parse(
   readFileSync(join(backendDir, 'generated', name), 'utf8'),
 );
+const artifactIndex = generated('artifacts.json');
+const pressureProfile = JSON.parse(readFileSync(join(here, '..', '..', 'pressure-profile.v1.json'), 'utf8'));
+const receiptPressureRows = pressureProfile.pressures.filter(({ id }) =>
+  id === 'membership-changes' || id === 'pagination');
+const snapbackRevision = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repoRoot, encoding: 'utf8' }).trim();
 
 const OWNER = 'user_owner';
 const MEMBERS = Array.from(
@@ -27,11 +33,15 @@ const MEMBERS = Array.from(
 );
 const FIRST_MEMBER = MEMBERS[0];
 const UNRELATED = 'user_unrelated';
-const suite = createSuite('team-chat / local pressure kernel', { expectedChecks: 9 });
+const suite = createSuite('team-chat / local pressure kernel', { expectedChecks: 11 });
 const cleanups = [];
 let server;
 let db;
 let roomId;
+let secondRoomId;
+let memberRoomLive;
+let memberSeatsLive;
+let preRemovalCursor;
 
 const mutate = (ref, args, userId) => db.mutate(ref, { args, userId });
 const query = (ref, args, userId) => db.query(ref, { args, userId });
@@ -106,12 +116,24 @@ await runAcceptance(suite, async () => {
   });
 
   await suite.check('self-accept grants the protected room and live message surface', async () => {
-    const roomLive = await db.liveQuery(api.roomMessages, {
+    memberRoomLive = await db.liveQuery(api.roomMessages, {
       connectionId: 'team_chat_first_member_room',
       args: { roomId },
       userId: FIRST_MEMBER,
     });
-    assertEqual(roomLive.rows, [], 'pending member live query must start empty');
+    cleanups.push(() => memberRoomLive.dispose());
+    memberSeatsLive = await db.liveQuery('_snapback.myMemberships', {
+      connectionId: 'team_chat_first_member_seats',
+      args: { membership: 'roomMembers' },
+      userId: FIRST_MEMBER,
+    });
+    cleanups.push(() => memberSeatsLive.dispose());
+    assertEqual(memberRoomLive.rows, [], 'pending member live query must start empty');
+    assertEqual(
+      memberSeatsLive.rows.map(({ resource, role }) => [resource, role]),
+      [[roomId, 'invited']],
+      'pending invitation appears only in the caller-owned seat projection',
+    );
     await mutate(api.acceptInvite, { roomId }, FIRST_MEMBER);
     assertEqual(
       (await query(api.roomDetails, { roomId }, FIRST_MEMBER)).rows.map(({ title }) => title),
@@ -120,9 +142,14 @@ await runAcceptance(suite, async () => {
     );
     await mutate(api.sendMessage, { roomId, body: 'welcome' }, OWNER);
     assertEqual(
-      (await roomLive.poll()).map(({ body }) => body),
+      (await memberRoomLive.poll()).map(({ body }) => body),
       ['welcome'],
       'accepted member live room message',
+    );
+    assertEqual(
+      (await memberSeatsLive.poll()).map(({ resource, role }) => [resource, role]),
+      [[roomId, 'member']],
+      'accepted membership appears in the host-owned self projection',
     );
   });
 
@@ -192,9 +219,120 @@ await runAcceptance(suite, async () => {
     return { rows: ids.length, pages: 3 };
   });
 
+  await suite.check('membership-scoped room history traverses three pages and fences cursor custody', async () => {
+    const page1 = await query(api.firstRoomMessagePage, { roomId }, FIRST_MEMBER);
+    assertEqual(page1.rows.length, 10, 'first room page length');
+    assert(typeof page1.cursor === 'string' && page1.cursor.startsWith('sbpc1.'), 'room cursor is opaque');
+    const page2 = await query(
+      api.nextRoomMessagePage,
+      { roomId, after: page1.cursor },
+      FIRST_MEMBER,
+    );
+    assertEqual(page2.rows.length, 10, 'second room page length');
+    const page3 = await query(
+      api.nextRoomMessagePage,
+      { roomId, after: page2.cursor },
+      FIRST_MEMBER,
+    );
+    assertEqual(page3.rows.length, 2, 'terminal room page length');
+    assertEqual(page3.cursor ?? null, null, 'terminal room cursor');
+    const ids = [...page1.rows, ...page2.rows, ...page3.rows].map(({ _id }) => _id);
+    assertEqual(new Set(ids).size, 22, 'room page overlap');
+    await assertThrows(
+      () => query(api.nextRoomMessagePage, { roomId, after: page1.cursor }, MEMBERS[1]),
+      'SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID',
+      'cross-user room cursor must fail closed',
+    );
+    secondRoomId = (await mutate(
+      api.createRoom,
+      { title: 'Other Room', displayName: 'Owner' },
+      OWNER,
+    )).result;
+    await assertThrows(
+      () => query(
+        api.nextRoomMessagePage,
+        { roomId: secondRoomId, after: page1.cursor },
+        FIRST_MEMBER,
+      ),
+      'SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID',
+      'cross-room cursor must fail closed',
+    );
+    preRemovalCursor = page1.cursor;
+    return { rows: ids.length, pages: 3, refusalCode: 'SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID' };
+  });
+
+  await suite.check('owner removal cuts room, seat, history cursor, delivery, and send authority together', async () => {
+    const removed = await mutate(
+      api.ownerRemoveMember,
+      { roomId, targetPrincipal: FIRST_MEMBER },
+      OWNER,
+    );
+    assertEqual(removed.result, null, 'principal-addressed removal result');
+    assertEqual(await memberRoomLive.poll(), [], 'protected room did not blank at removal cut');
+    assertEqual(await memberSeatsLive.poll(), [], 'self-membership seat did not drop at removal cut');
+    assertEqual(
+      (await query(api.firstRoomMessagePage, { roomId }, FIRST_MEMBER)).rows,
+      [],
+      'fresh former-member room-history page',
+    );
+    assertEqual(
+      (await query(api.firstInboxPage, {}, FIRST_MEMBER)).rows,
+      [],
+      'owner removal did not purge product delivery custody',
+    );
+    await assertThrows(
+      () => query(
+        api.nextRoomMessagePage,
+        { roomId, after: preRemovalCursor },
+        FIRST_MEMBER,
+      ),
+      'SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID',
+      'pre-removal cursor must fail closed',
+    );
+    await assertThrows(
+      () => mutate(api.sendMessage, { roomId, body: 'after owner removal' }, FIRST_MEMBER),
+      'SNAPBACK_AUTH_PERMISSION_DENIED',
+      'removed member send must be denied',
+    );
+    const fanout = await mutate(api.sendMessage, { roomId, body: 'after removal boundary' }, OWNER);
+    assertEqual(fanout.result.recipients, 31, 'removed member remained in fan-out');
+    assertEqual(
+      (await query(api.unreadDeliveries, {}, FIRST_MEMBER)).rows,
+      [],
+      'post-boundary delivery reached removed member',
+    );
+    const absentAgain = await mutate(
+      api.ownerRemoveMember,
+      { roomId, targetPrincipal: FIRST_MEMBER },
+      OWNER,
+    );
+    assertEqual(absentAgain.result, null, 'absent-target removal result differs');
+    await mutate(
+      api.inviteMember,
+      { roomId, userId: FIRST_MEMBER, displayName: 'Member 01 returns' },
+      OWNER,
+    );
+    await mutate(api.acceptInvite, { roomId }, FIRST_MEMBER);
+    await assertThrows(
+      () => query(
+        api.nextRoomMessagePage,
+        { roomId, after: preRemovalCursor },
+        FIRST_MEMBER,
+      ),
+      'SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID',
+      'rejoin revived pre-removal cursor',
+    );
+    return {
+      refusalCodes: [
+        'SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID',
+        'SNAPBACK_AUTH_PERMISSION_DENIED',
+      ],
+    };
+  });
+
   await suite.check('self-leave purges retained room deliveries and revokes room authority', async () => {
     const left = await mutate(api.leaveRoom, { roomId }, FIRST_MEMBER);
-    assertEqual(left.result.removedDeliveries, 22, 'leave-time delivery purge');
+    assertEqual(left.result.removedDeliveries, 0, 'rejoined member acquired retained deliveries');
     assertEqual(
       (await query(api.firstInboxPage, {}, FIRST_MEMBER)).rows,
       [],
@@ -248,6 +386,18 @@ await runAcceptance(suite, async () => {
   reportExtra: {
     demo: 'team-chat',
     profileId: 'team-chat/local-pressure-v0',
+    targetProfile: 'local-dev-sqlite-ibex',
+    snapbackRevision,
+    generatedArtifactHashes: {
+      inputsHash: artifactIndex.inputsHash,
+      bundleHash: artifactIndex.bundleHash,
+      schemaHash: artifactIndex.schemaHash,
+    },
+    pressureRows: receiptPressureRows,
+    refusalCodes: [
+      'SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID',
+      'SNAPBACK_AUTH_PERMISSION_DENIED',
+    ],
     claimEligible: false,
     roadmapClaim: 'STEP6.CHAT',
   },

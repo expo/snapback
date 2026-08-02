@@ -167,3 +167,50 @@ This is useful progress but not product evidence. No Team Chat source or
 generated artifact uses the proposal; both pressure-profile rows remain partial
 and the two filesystem issues stay open pending independent review,
 ratification, implementation, and product receipts.
+
+## 2026-08-01 — LLP 0100 product adoption
+
+Team Chat now uses both accepted LLP 0100 surfaces. `roomMembers` explicitly
+opts into total owner removal of another principal, and the product mutation
+uses `removePrincipal` without exposing the private membership row. Room
+history is a generated membership-scoped keyset pair over
+`by_room_page_key`, with a ten-row page bound. The headless, React, and
+Contract receipts each traverse three pages, reject cross-user/cross-room and
+post-removal cursors, and prove that owner removal drops the room, seat,
+retained history, send authority, and later delivery at the same product cut.
+
+### What felt good
+
+- The removal command is the right product primitive: the app supplies the
+  public principal it already knows, while private-row lookup, non-oracular
+  absence, provenance, and authorization invalidation remain host-owned.
+- The page helper made the safe path shorter than an app-authored cursor. Its
+  generated query references work unchanged in headless and React, and the
+  refusal code stays identical across cross-user, cross-room, and stale-seat
+  probes.
+- `_snapback.myMemberships` is a crisp product receipt for the authority cut.
+  It let every surface assert the seat loss alongside visible room/history
+  loss instead of inferring revocation from one query alone.
+
+### Friction and surprises
+
+- The current React provider carried a prepared local-dev identity into live
+  reads but not mutations. The UI therefore looked correctly scoped while
+  every authenticated form write failed. Adoption fixed the provider so the
+  admitted dev identity binds reads and writes consistently, and the browser
+  receipt now guards that path.
+- The headless client documented `_snapback.myMemberships` as a supported
+  system query but its function-name admission allowed only asset records.
+  The receipt exposed and fixed that mismatch.
+- Contract's generated data adapter covers live queries and mutations, while
+  callable-only page queries still need the ordinary Snapback client. The
+  product keeps compiled Contract for the live room and actions and mounts a
+  small history control around the generated callable references. This is a
+  real authoring seam, now captured as a guide-gap ticket rather than hidden.
+
+Compared with React plus Convex or Supabase, Snapback asks for more explicit
+authority setup, but removal invalidation and cursor custody arrive as one
+platform contract instead of coordinated cache and policy conventions. The
+local receipts are substantially stronger now; search, attachments,
+notifications, moderation, sessions/hosted operation, and the complete
+`STEP6.CHAT` claim remain deliberately red.

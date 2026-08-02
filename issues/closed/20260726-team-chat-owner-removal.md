@@ -1,6 +1,6 @@
 # Team Chat needs an owner-authorized member-removal surface
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 3
@@ -104,3 +104,13 @@ final acceptance item only — `team-chat/local-pressure-v0` adopts
 removal through the complete UI, and lands the headless/React/Contract
 product receipts (LLP 0100 §Team Chat adoption, implementation-order
 step 6). The M2 pages lane and the composed family witness join there.
+
+## Resolution — 2026-08-01
+
+Team Chat now opts `roomMembers` into principal-addressed removal and exposes
+the action in both complete product UIs. The headless, React, and Contract
+receipts prove active and absent removal, immediate protected-room and
+`_snapback.myMemberships` seat loss, history custody loss, stale-cursor
+refusal, send denial, no later delivery, and invite/accept/leave regressions.
+The pressure row is `implemented-local`; hosted completeness remains outside
+this ticket.

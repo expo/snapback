@@ -801,7 +801,12 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     canonicalizeClientValueV1(mutationArgs);
     const mutationContract = preparedReactResultContract(binding, admittedMutation);
     if (optimistic === null) {
-      const output = await client.mutate(admittedMutation, { args: mutationArgs });
+      // @ref LLP 0100#product-receipt — the admitted local-dev
+      // persona must bind writes at the same product boundary as live reads.
+      const output = await client.mutate(admittedMutation, {
+        args: mutationArgs,
+        ...(preparedDevUserId === null ? {} : { userId: preparedDevUserId }),
+      });
       return validateResultContract(
         mutationContract,
         output.result,
@@ -906,6 +911,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         args: mutationArgs,
         clientMutationId: id,
         authorityCapture: capture,
+        ...(preparedDevUserId === null ? {} : { userId: preparedDevUserId }),
       });
       const result = validateResultContract(
         mutationContract,

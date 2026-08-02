@@ -21,11 +21,13 @@ export const roomMembers = defineTable({
   pendingRoles: ['invited'],
   bootstrapRole: 'owner',
   lastHolder: { protect: 'owner' },
+  principalAddressedWrites: { remove: true },
   provenance: 'full',
   transitions: [
     { op: 'insert', by: ['owner'], target: 'other', to: ['invited'] },
     { op: 'setRole', by: ['self'], target: 'self', from: ['invited'], to: ['member'] },
     { op: 'remove', by: ['self'], target: 'self', from: ['invited', 'member'] },
+    { op: 'remove', by: ['owner'], target: 'other' },
   ],
 });
 export default defineSchema({

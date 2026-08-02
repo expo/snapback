@@ -5,11 +5,14 @@ export interface SnapbackContractLinks {
   acceptInvite(args: { roomId: string }): unknown;
   createRoom(args: { title: string; displayName: string }): unknown;
   firstInboxPage(args: Record<string, never>): unknown;
+  firstRoomMessagePage(args: { roomId: string }): unknown;
   inviteMember(args: { roomId: string; userId: string; displayName: string }): unknown;
   leaveRoom(args: { roomId: string }): unknown;
   listMyRooms(args: Record<string, never>): unknown;
   markRoomRead(args: { roomId: string }): unknown;
   nextInboxPage(args: { after: string }): unknown;
+  nextRoomMessagePage(args: { roomId: string; after: string }): unknown;
+  ownerRemoveMember(args: { roomId: string; targetPrincipal: string }): unknown;
   roomDetails(args: { roomId: string }): unknown;
   roomMessages(args: { roomId: string }): unknown;
   sendMessage(args: { roomId: string; body: string }): unknown;

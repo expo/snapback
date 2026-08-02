@@ -102,6 +102,27 @@
         "resultType": "unknown"
       },
       {
+        "argumentsType": "{ \"roomId\": string; \"targetPrincipal\": string }",
+        "effects": {
+          "invalidates": [
+            "roomMembers",
+            "roomParticipants",
+            "deliveries"
+          ],
+          "writes": [
+            "roomMembers",
+            "roomParticipants",
+            "deliveries"
+          ]
+        },
+        "name": "ownerRemoveMember",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "null"
+      },
+      {
         "argumentsType": "{ \"body\": string; \"roomId\": string }",
         "effects": {
           "invalidates": [
@@ -147,6 +168,28 @@
         },
         "name": "firstInboxPage",
         "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"authorId\": string; \"authorName\": string; \"body\": string; \"createdAt\": number; \"messageId\": string; \"pageKey\": string; \"recipientId\": string; \"roomId\": string; \"unread\": boolean }>"
+      },
+      {
+        "argumentsType": "{ \"roomId\": string }",
+        "delivery": {
+          "defaultLive": false,
+          "initialSnapshot": false,
+          "mode": "snapshot",
+          "transports": [
+            {
+              "kind": "request",
+              "role": "primary"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "messages",
+            "roomMembers"
+          ]
+        },
+        "name": "firstRoomMessagePage",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"authorId\": string; \"authorName\": string; \"body\": string; \"createdAt\": number; \"pageKey\": string; \"roomId\": string }>"
       },
       {
         "argumentsType": "Record<string, never>",
@@ -199,6 +242,28 @@
         },
         "name": "nextInboxPage",
         "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"authorId\": string; \"authorName\": string; \"body\": string; \"createdAt\": number; \"messageId\": string; \"pageKey\": string; \"recipientId\": string; \"roomId\": string; \"unread\": boolean }>"
+      },
+      {
+        "argumentsType": "{ \"after\": string; \"roomId\": string }",
+        "delivery": {
+          "defaultLive": false,
+          "initialSnapshot": false,
+          "mode": "snapshot",
+          "transports": [
+            {
+              "kind": "request",
+              "role": "primary"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "messages",
+            "roomMembers"
+          ]
+        },
+        "name": "nextRoomMessagePage",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"authorId\": string; \"authorName\": string; \"body\": string; \"createdAt\": number; \"pageKey\": string; \"roomId\": string }>"
       },
       {
         "argumentsType": "{ \"roomId\": string }",
@@ -288,7 +353,7 @@
   },
   "schemaVersion": "provider-binding-metadata.v1",
   "source": {
-    "inputsHash": "c5516c5015e376b3bcf590068d9eeeb5323508f081c7ba3649313337421f8e32",
+    "inputsHash": "ca7d6fef2336b4b488dbba4cb7f4b1ac5c96df6bb1e2ec7f92c9b71f9d0ab6a9",
     "introspectionSchemaVersion": "provider-introspection.v1"
   }
 }

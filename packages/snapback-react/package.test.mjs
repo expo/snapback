@@ -88,6 +88,7 @@ function createFakeClient({
   const byFunction = new Map();
   const durableConsumers = new Set();
   const startOptions = [];
+  const mutationOptions = [];
   let starts = 0;
   let mutations = 0;
   let bundleFetches = 0;
@@ -207,8 +208,9 @@ function createFakeClient({
       byFunction.get(ref.id).add(handle);
       return Object.freeze(handle);
     },
-    async mutate(ref, { args }) {
+    async mutate(ref, { args, userId = null }) {
       mutations += 1;
+      mutationOptions.push(Object.freeze({ function: ref.name, userId }));
       return { result: `${ref.name}:${args.value}`, version: mutations };
     },
     async fetchBundle({
@@ -283,6 +285,7 @@ function createFakeClient({
         barrierUnregistered,
         durableConsumers: durableConsumers.size,
         startOptions,
+        mutationOptions,
       };
     },
   };
@@ -828,6 +831,39 @@ assert.equal(fallbackFake.inspection().ordinaryStarts, 2);
 fallbackObserver.dispose();
 await flush();
 await fallbackProvider.dispose();
+
+const devWriteFake = createFakeClient({ registeredBundleAvailable: false });
+const devWriteBinding = await prepareReactBindingForClient(devWriteFake, {
+  generatedManifest: { functions: generatedManifest, routes },
+});
+const devWriteGroup = await devWriteBinding.prepareQueryGroup(
+  devWriteBinding.groups['/workspace/:id'],
+  { id: 'dev-write' },
+  { fallbackToLive: true, userId: 'dev-write-user' },
+);
+const devWriteProvider = createSnapbackReactProvider(devWriteBinding, {
+  preparedGroup: devWriteGroup,
+});
+let devWriteMutation = null;
+function DevWriteProbe() {
+  devWriteMutation = useSnapbackMutation(publish);
+  return React.createElement('output');
+}
+let devWriteRenderer;
+await act(async () => {
+  devWriteRenderer = TestRenderer.create(React.createElement(
+    SnapbackProvider,
+    { provider: devWriteProvider },
+    React.createElement(DevWriteProbe),
+  ));
+  await flush();
+});
+assert.equal(await devWriteMutation({ value: 'bound' }), 'publish:bound');
+assert.deepEqual(devWriteFake.inspection().mutationOptions, [
+  { function: 'publish', userId: 'dev-write-user' },
+]);
+await act(async () => { devWriteRenderer.unmount(); await flush(); });
+await devWriteProvider.dispose();
 
 await assert.rejects(
   fallbackBinding.prepareQueryGroup(

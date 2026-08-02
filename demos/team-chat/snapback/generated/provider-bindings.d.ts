@@ -3,10 +3,14 @@ export type ProviderBindingMetadataVersion = 'provider-binding-metadata.v1';
 
 export type FirstInboxPageArgs = Record<string, never>;
 export type FirstInboxPageResult = ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "authorId": string; "authorName": string; "body": string; "createdAt": number; "messageId": string; "pageKey": string; "recipientId": string; "roomId": string; "unread": boolean }>;
+export type FirstRoomMessagePageArgs = { "roomId": string };
+export type FirstRoomMessagePageResult = ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "authorId": string; "authorName": string; "body": string; "createdAt": number; "pageKey": string; "roomId": string }>;
 export type ListMyRoomsArgs = Record<string, never>;
 export type ListMyRoomsResult = ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "changedAt": number; "displayName": string; "roomId": string; "status": string; "userId": string }>;
 export type NextInboxPageArgs = { "after": string };
 export type NextInboxPageResult = ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "authorId": string; "authorName": string; "body": string; "createdAt": number; "messageId": string; "pageKey": string; "recipientId": string; "roomId": string; "unread": boolean }>;
+export type NextRoomMessagePageArgs = { "after": string; "roomId": string };
+export type NextRoomMessagePageResult = ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "authorId": string; "authorName": string; "body": string; "createdAt": number; "pageKey": string; "roomId": string }>;
 export type RoomDetailsArgs = { "roomId": string };
 export type RoomDetailsResult = ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "createdAt": number; "createdBy": string; "title": string }>;
 export type RoomMessagesArgs = { "roomId": string };
@@ -23,13 +27,17 @@ export type LeaveRoomArgs = { "roomId": string };
 export type LeaveRoomResult = unknown;
 export type MarkRoomReadArgs = { "roomId": string };
 export type MarkRoomReadResult = unknown;
+export type OwnerRemoveMemberArgs = { "roomId": string; "targetPrincipal": string };
+export type OwnerRemoveMemberResult = null;
 export type SendMessageArgs = { "body": string; "roomId": string };
 export type SendMessageResult = unknown;
 
 export interface ProviderQueryBindings {
   "firstInboxPage": { args: FirstInboxPageArgs; result: FirstInboxPageResult };
+  "firstRoomMessagePage": { args: FirstRoomMessagePageArgs; result: FirstRoomMessagePageResult };
   "listMyRooms": { args: ListMyRoomsArgs; result: ListMyRoomsResult };
   "nextInboxPage": { args: NextInboxPageArgs; result: NextInboxPageResult };
+  "nextRoomMessagePage": { args: NextRoomMessagePageArgs; result: NextRoomMessagePageResult };
   "roomDetails": { args: RoomDetailsArgs; result: RoomDetailsResult };
   "roomMessages": { args: RoomMessagesArgs; result: RoomMessagesResult };
   "unreadDeliveries": { args: UnreadDeliveriesArgs; result: UnreadDeliveriesResult };
@@ -40,6 +48,7 @@ export interface ProviderMutationBindings {
   "inviteMember": { args: InviteMemberArgs; result: InviteMemberResult };
   "leaveRoom": { args: LeaveRoomArgs; result: LeaveRoomResult };
   "markRoomRead": { args: MarkRoomReadArgs; result: MarkRoomReadResult };
+  "ownerRemoveMember": { args: OwnerRemoveMemberArgs; result: OwnerRemoveMemberResult };
   "sendMessage": { args: SendMessageArgs; result: SendMessageResult };
 }
 export interface ProviderActionBindings {

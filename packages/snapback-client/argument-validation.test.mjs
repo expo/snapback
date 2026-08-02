@@ -96,6 +96,11 @@ try {
 
   await client.query('legacyUntyped', { args: { anything: true } });
   assert.equal(requests, 2, 'legacy string references remain untyped');
+
+  await client.query('_snapback.myMemberships', {
+    args: { membership: 'roomMembers' },
+  });
+  assert.equal(requests, 3, 'the documented caller-seat system query reaches the transport');
 } finally {
   globalThis.fetch = originalFetch;
 }

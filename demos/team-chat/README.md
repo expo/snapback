@@ -40,9 +40,12 @@ default target directory.
 - an accepted member receives room messages and a recipient-owned inbox row;
 - one message fans out atomically to a preregistered 32-recipient cohort;
 - unread state is live and can be cleared room-at-a-time;
-- recipient-owned inbox rows use opaque keyset continuation cursors; and
-- self-leave revokes room reads, removes retained inbox rows for that room, and
-  prevents subsequent sends.
+- recipient-owned inbox rows and membership-scoped room history use opaque
+  keyset continuation cursors;
+- owner removal immediately drops the member seat, protected room, retained
+  history, send authority, and later delivery; and
+- self-leave revokes room reads, removes retained inbox rows for that room,
+  and prevents subsequent sends.
 
 The React surface uses the official `useSnapbackQuery` adapter and generated
 API references. It exposes local development personas for the owner, invited
@@ -64,8 +67,7 @@ consulted as permission.
 
 [`pressure-profile.v1.json`](./pressure-profile.v1.json) is the fail-closed
 ledger. Search, attachments, notifications, moderation/audit, hosted
-authentication and operations, full channel-history pagination, and the
-complete hosted product remain red. The local React and Contract witnesses are
-only partial implementations of the admitted kernel; neither is a hosted
-surface claim. Draft LLPs 0071–0073 cannot be replaced by application-local
-approximations.
+authentication and operations, and the complete hosted product remain red.
+The local React and Contract witnesses are only implementations of the
+admitted local kernel; neither is a hosted surface claim. Draft LLPs 0071–0073
+cannot be replaced by application-local approximations.

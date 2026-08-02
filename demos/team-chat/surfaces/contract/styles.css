@@ -46,3 +46,21 @@ body {
   color: #ff9bad;
   border-color: #7e2b3d;
 }
+
+#contract-history {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #3a4661;
+  border-radius: 12px;
+  background: rgb(13 20 36 / 96%);
+  box-shadow: 0 14px 38px rgb(0 0 0 / 35%);
+}
+
+#contract-history span { color: #8794ad; font-size: 11px; }
+#contract-history button { padding: 8px 10px; border: 1px solid #4e4279; border-radius: 9px; color: #e9edf5; background: #201b3d; }
