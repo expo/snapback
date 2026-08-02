@@ -66,3 +66,13 @@ LLP 0017 (§the serve/mint bridge bullet) now documents the custody split:
 lifecycle rerun (this ticket's acceptance witness) remains with the G1 arm's
 next pass — the packaged closure picks the fix up at the next release cut
 (0.1.7 stays the arms' pinned baseline).
+
+### 2026-08-02 CI follow-on
+
+The four-thread Linux suite exposed immediate inode-number reuse in the unit
+witness: unlinking the adopted sidecar and creating a replacement could assign
+the replacement the same `(device, inode)` pair, making an identity-only guard
+delete the foreign file. `ReadyFileTarget` now retains an open handle to the
+adopted sidecar until teardown, so its inode cannot be reused while cleanup
+custody is live. The exact foreign-replacement unit witness and the higher-level
+G1 lifecycle witness both pass; LLP 0017 records the strengthened mechanism.

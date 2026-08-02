@@ -220,3 +220,13 @@ ticket closes citing that run id.
   on exit. The complete seven-file app-CLI package suite passes locally with
   the explicit-root path, along with workflow parsing and ref-check; CI
   confirmation pending.
+
+- **2026-08-02 — descriptor-sidecar inode reuse.** Gate 9's
+  `secret_read_root_cleanup_removes_only_the_adopted_identity` failure exposed
+  an actual custody edge: Linux may immediately reuse an unlinked inode number,
+  so a foreign replacement could compare equal to the adopted `(device,
+  inode)` pair. The fix keeps the adopted sidecar descriptor open until
+  teardown, preventing reuse while the identity-guarded removal is live, and
+  LLP 0017 plus the original closed finding record the strengthened contract.
+  The exact unit witness, the higher-level G1 serve-teardown witness, and
+  library Clippy pass locally.

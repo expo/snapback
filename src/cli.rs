@@ -3464,6 +3464,8 @@ struct ReadyFileTarget {
     impersonation_identity: Option<(PathBuf, (u64, u64))>,
     secret_read_root_identity: Option<(PathBuf, (u64, u64))>,
     #[cfg(unix)]
+    _secret_read_root_handle: Option<std::fs::File>,
+    #[cfg(unix)]
     parent: std::fs::File,
 }
 
@@ -3530,6 +3532,8 @@ impl ReadyFileTarget {
             parent_identity,
             impersonation_identity: None,
             secret_read_root_identity: None,
+            #[cfg(unix)]
+            _secret_read_root_handle: None,
             #[cfg(unix)]
             parent,
         })
@@ -3954,7 +3958,56 @@ impl ReadyFileTarget {
     /// family (`<db>.admin-token`), which persists by design.
     fn adopt_secret_read_root_sibling(&mut self, path: &Path) -> std::io::Result<()> {
         #[cfg(unix)]
-        let identity = self.identity_at(self.sibling_name(path)?)?;
+        let identity = {
+            use std::ffi::CString;
+            use std::os::fd::{AsRawFd as _, FromRawFd as _};
+            use std::os::unix::ffi::OsStrExt as _;
+            use std::os::unix::fs::{MetadataExt as _, PermissionsExt as _};
+
+            self.ensure_parent_path_identity()?;
+            let sibling = self.sibling_name(path)?;
+            let name = CString::new(sibling.as_bytes()).map_err(|_| {
+                std::io::Error::new(ErrorKind::InvalidInput, "managed sibling contains NUL")
+            })?;
+            // SAFETY: name is one component beneath the pinned parent;
+            // O_NOFOLLOW refuses a replacement symlink.
+            let fd = unsafe {
+                libc::openat(
+                    self.parent.as_raw_fd(),
+                    name.as_ptr(),
+                    libc::O_RDONLY | libc::O_NOFOLLOW | libc::O_CLOEXEC,
+                )
+            };
+            if fd < 0 {
+                return Err(std::io::Error::last_os_error());
+            }
+            // SAFETY: openat returned this owned descriptor exactly once.
+            let file = unsafe { std::fs::File::from_raw_fd(fd) };
+            let metadata = file.metadata()?;
+            // SAFETY: geteuid has no preconditions and reads process identity.
+            let effective_uid = unsafe { libc::geteuid() };
+            if !metadata.file_type().is_file()
+                || metadata.uid() != effective_uid
+                || metadata.permissions().mode() & 0o777 != 0o600
+                || metadata.nlink() != 1
+            {
+                return Err(std::io::Error::new(
+                    ErrorKind::PermissionDenied,
+                    "secret-read root sidecar is not a strict owner-only regular file",
+                ));
+            }
+            let identity = (metadata.dev(), metadata.ino());
+            if self.identity_at(sibling)? != Some(identity) {
+                return Err(std::io::Error::new(
+                    ErrorKind::PermissionDenied,
+                    "secret-read root sidecar changed while it was adopted",
+                ));
+            }
+            // Keeping the adopted inode open prevents a remove-and-recreate
+            // race from reusing its number before identity-guarded cleanup.
+            self._secret_read_root_handle = Some(file);
+            Some(identity)
+        };
         #[cfg(not(unix))]
         let identity = existing_file_identity(path);
         let identity = identity.ok_or_else(|| {
