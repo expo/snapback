@@ -166,3 +166,13 @@ Tier 3:
   meanwhile.
 - **LLP 0143 installation identity carrier:** explanation requested;
   ruling pending (see below when appended).
+- **LLP 0143 installation identity — RESOLVED (2026-08-02, conventional
+  default recorded by the session under Charlie's delegation; veto open
+  until push-01 lands it):** device-scoped installation identity in a
+  dedicated small store. Logout keeps the identity and unbinds the
+  principal (deliveries stop until someone signs in); account switch keeps
+  it and rebinds; app-data reset and reinstall mint a fresh identity.
+  User-visible contract: push "just works" across logins on the same
+  phone; a wiped or reinstalled app is a new device. Matches Expo's own
+  installation-identity behavior. Lands as the 0143 OQ2 dated note with
+  push-01's send-lane slice.
