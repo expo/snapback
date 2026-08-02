@@ -72,6 +72,7 @@ const inventories = [
       'lifecycle-disposal.test.mjs',
       'outbox-store.test.mjs',
       'package.test.mjs',
+      'push-registry.test.mjs',
       'reservation-retry.test.mjs',
       'rqs-digest-parity.test.mjs',
       'rqs-resume-expo.test.mjs',
@@ -189,6 +190,7 @@ const inventories = [
       'search-result-contracts.test.mjs',
       'seed-artifact.test.mjs',
       'seed-asset-fixtures.test.mjs',
+      'settlement-bounded-skew.test.mjs',
       'standard-patterns.test.mjs',
     ],
   },
@@ -413,7 +415,11 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // update: @expo/snapback-client's bearer-rotation, Expo RQS store/resume, and
 // WebCrypto fallback; plus @expo/snapback-react's authorization-denial,
 // cold-boot-binding, and WebCrypto fallback.
-assert.equal(total, 156, 'reviewed package/admin test count changed');
+// 156 -> 158 (2026-08-02, settlement and LLP 0143 registry slices):
+// @expo/snapback-codegen gains the bounded-skew settlement authoring suite;
+// @expo/snapback-client gains the explicit push-registry subpath custody and
+// protocol suite.
+assert.equal(total, 158, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }
