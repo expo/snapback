@@ -13,6 +13,10 @@ import { dirname, join } from 'node:path';
 import { SnapbackClient } from '../client.mjs';
 import { startServer } from '../server-process.mjs';
 import { assert, assertEqual, createSuite } from '../harness.mjs';
+import {
+  effectiveResultContract,
+  resultContractHash,
+} from '../../../packages/snapback-codegen/result-contracts.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..', '..', '..');
@@ -35,11 +39,8 @@ const schema = {
   ],
 };
 
-const hostQuery = (name, order) => ({
-  id: `live-delta-e2e:${name}`,
-  name,
-  kind: 'LiveQuery',
-  runtime: {
+const hostQuery = (name, order) => {
+  const runtime = {
     HostPlan: {
       Query: {
         table: 'todos',
@@ -49,8 +50,23 @@ const hostQuery = (name, order) => ({
         indexed_by: null,
       },
     },
-  },
-});
+  };
+  const resultContract = effectiveResultContract({
+    def: null,
+    functionKind: 'LiveQuery',
+    runtime,
+    tables: Object.fromEntries(schema.tables.map((table) => [table.name, table])),
+  });
+  return {
+    id: `live-delta-e2e:${name}`,
+    name,
+    kind: 'LiveQuery',
+    runtime,
+    resultContract,
+    resultContractHash: resultContractHash(resultContract),
+    requiredCapabilities: ['result_contract_v1'],
+  };
+};
 
 const functions = {
   artifactKind: 'functionManifest',
@@ -58,6 +74,7 @@ const functions = {
   appId: 'live-delta-e2e',
   bundleHash: 'live-delta-e2e',
   inputsHash: 'live-delta-e2e',
+  acknowledgedExperimentalCapabilities: ['result_contract_v1'],
   functions: [
     hostQuery('listMine', []),
     {
