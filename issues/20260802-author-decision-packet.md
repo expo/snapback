@@ -91,3 +91,15 @@ Tier 3:
   projection, or defer only the MCP export projection. This question does not
   block the HTTP/CLI streaming export or the stats/events projections, and no
   implementation session should infer an answer for the MCP export carrier.
+- **2026-08-02 — LLP 0154 admission identity representation.** Accepted D2
+  requires every admission record to carry app/environment identity and
+  release identity (function-bundle hash / deployment id), but its normative
+  fixed `telemetry_events` schema defines no columns for those fields. The
+  current `details` allowlist admits `release`; app/environment identity may
+  instead be implicit in the per-app local sibling store or represented in
+  `telemetry_meta`, but the RFC does not choose a durable representation.
+  Author ruling requested: add fixed event columns; keep `release` in
+  `details` while making app/environment implicit or meta-bound; or explicitly
+  defer/clarify these admission fields. obs-01 will not invent a schema, and
+  obs-02 cannot ratify the shared projection fixture until this is clarified;
+  the remaining D1–D4 implementation continues independently.
