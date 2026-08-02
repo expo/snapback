@@ -1,0 +1,6 @@
+node_modules
+dist
+.snapback
+.snapback.snapback.restore.lock
+snapback/generated/*
+!snapback/generated/artifacts.json

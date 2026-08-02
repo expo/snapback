@@ -1,0 +1,32 @@
+{
+  "name": "snapback-incident-room",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.3.12",
+  "scripts": {
+    "generate": "snapback generate snapback",
+    "dev": "snapback dev snapback --client . --client-command vite",
+    "client:dev": "vite",
+    "snapback:dev": "snapback dev snapback --client . --client-command vite",
+    "typecheck": "tsc --noEmit",
+    "build": "vite build",
+    "test": "node acceptance.mjs",
+    "test:live": "node acceptance.live.mjs"
+  },
+  "dependencies": {
+    "@expo/snapback-cli": "0.1.8",
+    "@expo/snapback-client": "0.1.8",
+    "@expo/snapback-codegen": "0.1.8",
+    "@expo/snapback-react": "0.1.8",
+    "@expo/snapback-vite": "0.1.8",
+    "@vitejs/plugin-react": "^5.0.0",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "typescript": "^5.9.0",
+    "vite": "^8.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0"
+  }
+}

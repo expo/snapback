@@ -5,7 +5,7 @@
 **Systems:** Client integration, Developer experience, Tooling, API, Auth, Docs
 **Author:** Charlie Cheever / Claude Fable 5
 **Date:** 2026-07-17
-**Revised:** 2026-08-01 (author decision, Charlie Cheever, via the triage
+**Revised:** 2026-08-01 (author direction: the post-Node distribution is an app-bound, one-file Ibex executable, not a vague standalone wrapper — it embeds Ibex/Hermes, the generic trusted engine, and the app binding while fetching the current API envelope dynamically; ordinary app deploys do not rebuild it, and external `run analysis.ts` ingress is the specific Ibex contract gap; see §6). 2026-08-01 (author decision, Charlie Cheever, via the triage
 sweep: the 13-ticket app-cli implementation program is temporarily
 shelved — the tickets are closed as Shelved under `issues/closed/`
 (session-custody-store as Superseded by LLP 0096's
@@ -57,9 +57,14 @@ app surface, following the served-guide identity pattern (LLP 0061).
 The engine is TypeScript on the headless client's app-data core and
 runs on Node on POSIX hosts in phase 1 (exact tested version and
 supported range in §6). Hosted targets are out of phase 1 entirely
-(§5). A later standalone-executable phase via Ibex is a direction,
-not a commitment of this RFC: it requires ibex-side contract
-revisions first (§6).
+(§5). The post-Node product direction is now concrete: an app author
+can publish one app-bound executable per supported platform containing
+Ibex/Hermes, this generic engine, and the fixed app origin and identity.
+The executable does **not** bake the app's current function surface or
+handler code; it fetches the same dynamic envelope as the Node engine,
+so ordinary app deployments do not require a new download. That
+direction remains outside phase 1 and requires explicit ibex-side
+contract revisions before implementation (§6).
 
 ## Motivation
 
@@ -1119,9 +1124,19 @@ taken from a server response — a server that can hand an agent an
 arbitrary `npx <string>` to run is the same download-and-execute
 trust hole §1 closes for `api.mjs`, and a degraded-mode diagnostic
 therefore prints the *pinned* name with the server's expected version
-range. Standalone binaries, when they exist, are a redirect to a
-pinned release host with published checksums (scale-to-zero targets
-should not serve platform binaries).
+range.
+
+The later one-file distribution preserves that boundary. An app may
+advertise that a publisher-produced app-bound executable exists, but
+the target does not supply an arbitrary executable URL or command.
+Acquisition resolves through the engine's pinned release origin and
+trust policy, with the app identity, target origin, platform tuple,
+engine/Ibex identity, executable digest, and publisher signature or
+attestation bound by the release metadata. A scale-to-zero app target
+therefore serves neither platform binaries nor executable installer
+instructions. Downloading the binary is an explicit software-install
+act; fetching an API envelope is ordinary app-data discovery, and the
+two trust decisions stay separate.
 
 **Compatibility has exactly two hard gates, both engine-evaluated:**
 the artifact tuple (LLP 0012's closed admissible set — `(snapback.v0,
@@ -1186,28 +1201,74 @@ additional machinery.
    equality gate holds during the transition) — the Node session
    custody store and credential profile DTO (§4), and the finite
    result seams (§2).
-2. **Standalone executable (non-normative direction)** — packaging
-   the engine via ibex LLP 0029 conflicts today with that contract as
-   written: 0029 admits **exactly one embedded entry** — no REPL, no
-   eval, no file-execution ingress — and erases TypeScript at compile
-   time, while this engine must accept arbitrary external scripts;
-   its embedded policy is also a total authority ceiling at odds with
-   a runtime-selected target URL. Ibex LLPs 0013/0014 frame their
-   boundary as supply-chain integrity, not a hostile-code sandbox. So
-   phase 2 proceeds only after the relevant ibex LLPs are revised
-   (script ingress — plausibly ibex 0022's `Quarantine` principal
-   with an explicitly passed broker capability rather than ambient
-   authority — separate engine/worker policies, runtime transform
-   inclusion per 0028, target attenuation), under its own review —
-   this RFC does not commit those contracts, creates no phase-1
-   embedded-Ibex or computed-import requirement, and phase 1 depends
-   on none of it. Ibex 0028's current citation of this RFC predates
-   that scoping (and ibex 0029's own text says its v1 "prototypes
-   the Snapback CLI" — the same stale coupling); **filing the
-   correcting ibex-side amendments — to both 0028 and 0029 — is a
-   landing obligation of this RFC** so the two corpora cannot
-   sequence work against a dependency that no longer exists. The §3 brokered ABI and the §7 host-portable suite
-   are what make the eventual move checkable.
+2. **App-bound single-file Ibex executable (post-phase-1 product
+   direction; implementation-gated)** — the downloaded artifact is a
+   real all-in-one executable, not a shell wrapper around `npx`. For
+   an app named `example`, the intended surface is:
+
+   ```sh
+   ./example introspect
+   ./example call createTodo --args-json '{"text":"Buy milk"}'
+   ./example run analysis.ts
+   ```
+
+   The executable contains one statically self-contained Ibex/Hermes
+   runtime, the generic trusted app-CLI parent and script host, the app's
+   fixed normalized target origin and expected app id, the admissible
+   artifact/DTO protocol set, the closed engine/worker capability
+   policies, and release provenance. It contains no credential, no
+   current API envelope, no generated `api.mjs`, and no application
+   handler source. At invocation it performs the same discovery,
+   content-addressed envelope fetch, generation binding, and
+   compatibility checks as the Node engine. Cached envelopes may still
+   support the explicitly offline `--help`, `introspect`, and `types`
+   surfaces; calls, subscriptions, pairing, and code-mode API operations
+   require the bound target.
+
+   This is **one executable per app × supported platform tuple, not per
+   app deployment**. A schema/function deploy changes the dynamic
+   envelope and does not rebuild the executable. Rebuild and
+   redistribution are required only when the fixed app binding, trusted
+   engine/Ibex runtime, embedded policy, compatible protocol set, or
+   release trust metadata changes. The one-file claim is literal: no
+   Node installation, npm tree, Hermes framework, shared library, carrier,
+   or policy sidecar is required beside the executable. If a platform
+   cannot satisfy that closure, it is unsupported for this phase rather
+   than silently receiving a multi-file approximation.
+
+   Code mode preserves §3's two-principal boundary inside the file. The
+   embedded trusted parent owns credentials, target networking, envelope
+   verification, and result custody. `analysis.ts` is caller-supplied
+   local program input admitted as a restricted worker principal; it
+   receives the frozen generated `api`/`snapback` surface and broker
+   frames, never a bearer or ambient parent authority. The exact worker
+   filesystem, arbitrary-network, import, clock/randomness, subprocess,
+   and environment posture is an Ibex-policy deliverable rather than an
+   implication of "bundled." Server-provided JavaScript remains data-only
+   and is never admitted through this script-input lane.
+
+   Ibex LLP 0029 already supplies the correct outer goal — a static-Hermes,
+   capability-bounded, signed/attested one-file executable — but its
+   current compiled mode admits exactly one embedded entry and explicitly
+   provides no file-execution ingress, REPL, or eval. This direction
+   therefore requires a reviewed ibex-side extension for a trusted embedded
+   parent to admit one caller-selected local TypeScript/JavaScript file as a
+   separately attributed restricted principal, transform it under the
+   pinned LLP 0028 toolchain, and grant it only the broker capability. The
+   old runtime-selected-target conflict no longer applies: the app origin is
+   a build-time binding in the executable. Ibex LLPs 0013/0014 still frame
+   compartments as supply-chain authority rather than a hostile-code
+   sandbox, so the extension must state its threat model honestly and must
+   not claim containment beyond the enforced policy.
+
+   Phase 2 proceeds only after those ibex contracts are revised and reviewed.
+   This amendment creates no phase-1 embedded-Ibex, computed-import, or
+   single-file delivery requirement, and phase 1 depends on none of it.
+   Ibex 0028's current citation of this RFC predates that scoping, while ibex
+   0029's statement that v1 "prototypes the Snapback CLI" still lacks this
+   external-script lane; **the correcting ibex-side amendments to both 0028
+   and 0029 remain a landing obligation before implementation**. The §3
+   brokered ABI and §7 host-portable suite make the eventual move checkable.
 
 ### 7. Acceptance
 
@@ -1519,8 +1580,19 @@ CI-run snippets, plus route-map rows for the new `/app-api` routes.
 
 ## Revision history
 
-All revisions 2026-07-17, one per /llp-super-refine round; full
-review artifacts under `llp/reviews/0062-*.{fable,codex}.md`.
+Revisions r1–r10 were made 2026-07-17, one per /llp-super-refine round;
+full review artifacts are under
+`llp/reviews/0062-*.{fable,codex}.md`. Later dated amendments are author
+direction or implementation reconciliation, not additional review rounds.
+
+- **2026-08-01 app-bound executable direction** — replaces the vague
+  standalone phase with the intended downloadable product: one
+  app-and-platform-bound, all-in-one Ibex executable carrying the trusted
+  engine and fixed target identity while loading the app's changing API
+  envelope dynamically. Ordinary deploys do not rebuild it. The remaining
+  cross-repo blocker is narrowed to a reviewed Ibex lane for caller-supplied
+  local `run analysis.ts` input under a distinct restricted principal and
+  broker-only authority; the target URL is no longer runtime-selected.
 
 - **r1** — anonymous model corrected to the three-valued
   `authRequirement`; one public source-stripped envelope; envelope
@@ -1586,6 +1658,18 @@ review artifacts under `llp/reviews/0062-*.{fable,codex}.md`.
 - Naming: the engine's bin name (`snapback-app` is the working
   spelling) and the final `/app-api` route spellings (the plane is
   decided; the spelling is not).
+- Single-file publication: what trusted release origin, publisher key,
+  platform-signing policy, retention window, and download-manifest spelling
+  carry an app-bound executable, and may the app discovery document advertise
+  only its availability/identity without becoming redirect authority?
+- Single-file production: which trusted authoring command binds the app
+  origin/id and produces the per-platform executable, and what explicit
+  compatibility or trust change — beyond ordinary envelope movement — forces
+  rebuilding it?
+- Restricted script policy: which local imports and filesystem, arbitrary
+  network, environment, subprocess, clock/randomness, and working-directory
+  powers does the Ibex `analysis.ts` principal receive in the first executable
+  profile? Broker-only app calls are decided; these ambient edges are not.
 - Whether an app should be able to restrict the advertised surface —
   which, to protect anything, must govern `/inspect` and the envelope
   together — and whether that knob is app config or a deploy setting.

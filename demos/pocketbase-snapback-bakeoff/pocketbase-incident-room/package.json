@@ -1,0 +1,30 @@
+{
+  "name": "pocketbase-incident-room",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "backend": "./.pocketbase/pocketbase serve --http=127.0.0.1:8099 --dir=./pb_data --migrationsDir=./pb_migrations --hooksDir=./pb_hooks",
+    "migrate": "./.pocketbase/pocketbase migrate up --dir=./pb_data --migrationsDir=./pb_migrations --hooksDir=./pb_hooks",
+    "test:acceptance": "node acceptance.mjs",
+    "build": "tsc -b && vite build",
+    "lint": "oxlint",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "eventsource": "^4.0.0",
+    "pocketbase": "^0.27.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.4",
+    "oxlint": "^1.75.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.2.0"
+  }
+}

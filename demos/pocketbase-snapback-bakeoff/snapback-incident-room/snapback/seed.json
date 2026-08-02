@@ -1,0 +1,22 @@
+{
+  "seedVersion": "2026-08-01.1",
+  "tables": {
+    "rooms": [
+      { "_id": "room_ops", "name": "Production Operations", "ownerId": "user_ada" }
+    ],
+    "incidents": [
+      { "_id": "incident_api", "roomId": "room_ops", "title": "API latency elevated", "summary": "The p95 latency is above the service objective.", "severity": "sev2", "status": "open", "commanderId": "user_ada" }
+    ],
+    "incidentAccess": [
+      { "_id": "access_ada", "incidentId": "incident_api", "userId": "user_ada", "role": "commander" },
+      { "_id": "access_grace", "incidentId": "incident_api", "userId": "user_grace", "role": "responder" }
+    ],
+    "messages": [
+      { "_id": "message_first", "incidentId": "incident_api", "authorId": "user_ada", "authorName": "Ada", "body": "Investigating the database connection pool.", "kind": "message" }
+    ],
+    "activity": [],
+    "maintenance": [
+      { "_id": "maintenance_hourly", "name": "hourly", "runCount": 0, "lastRunAt": 0 }
+    ]
+  }
+}

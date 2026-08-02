@@ -36,3 +36,17 @@ handoff/receipt recorded there).
 *(α2 addendum: the release refresh is prepared and dry-run-proven; the
 real publish + default-tag promotion is handed to the promotion lane —
 see issues/20260801-release-refresh-handoff.md.)*
+
+## 2026-08-01 — 0.1.8 dev-mode extension
+
+Diary 0050 reproduced the same boundary in a clean public-npm dev-mode app,
+not only sessions mode. `createAssetClient(client).start({ upload,
+userId: 'user_ada', file })` against a schema with `auth: { mode: 'dev' }`
+and an `auth: 'authenticated'` intent failed at attempt creation with
+`SNAPBACK_AUTH_REQUIRED`; zero bytes transferred. Ordinary generated queries,
+mutations, search, stream subscriptions, and ephemeral rooms accepted the same
+dev user. The acceptance witness is
+`demos/pocketbase-snapback-bakeoff/snapback-incident-room/acceptance.live.mjs`.
+
+The fix witness should therefore cover both dev-user custody and sessions
+bearer custody through the public `@expo/snapback-client/assets` subpath.

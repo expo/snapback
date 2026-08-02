@@ -5,8 +5,8 @@
 **Systems:** Competitive evaluation, Demo applications, React, React/Expo, Exact Native, Developer experience, Data modeling, Realtime, Offline sync, Auth, Assets, Search, Actions, Scheduled work, Deployment, Operations, Testing, Documentation
 **Author:** Charlie Cheever / Codex / Claude
 **Date:** 2026-07-31
-**Revised:** 2026-08-01 (Track C status note: Stage 5/6 readiness assessment run — the Exact Native surface is NOT ready for the frozen A1 contract; honest program GAP recorded per this plan's Track C rule with four precise unready gates (plan-tier expressibility of A1's membership/JS-handler operation tier, stale b79c695f authority pin in the exact-side generated Rust modules, no app-agnostic carrier/capture/import path beyond the Partitime-specific crates and gates, no native asset/sessions-custody coverage for A1-04/A1-02); Partitime-workload Parity receipts (2026-07-21) remain real and non-transferable; Contract/web available-but-not-run; gap-record + ticket filed; Track C remains a successor gate and the sweep report is not delayed). 2026-08-01 (Track B A4 Expo iOS arm status note: second and final planned Expo sweep arm complete — 8 pass / 3 GAP / 1 evidenced-defect fail on the 12 a4-applicable EXPO checks, iOS simulator, release build, G3 pin honored; the A4 deep-link invitation entry exercised as a real OS-level deep link; on-device flyer upload/rendition/strict-delivery/native-render proven (owner lane; the a1-f2/a4-f3 non-owner hole re-verified on 0.1.7 — the 117dcae2 main fixes are post-publication); findings 0137-a4expo-f1 (no mobile push boundary) and 0137-a4expo-f2 (deep-link scheme-approval guide-gap) filed; a1expo-f2/f4 re-verified and f7 narrowed via dated ticket appends; android honest not-run (JDK absence re-verified); freeze re-verified). 2026-08-01 (Track B A1 Expo iOS arm status note: first Expo sweep arm complete — 7 pass / 2 GAP / 1 evidenced-defect fail on the 10 a1-applicable EXPO checks, iOS simulator, release build, G3 pin honored; findings 0137-a1expo-f1..f7 filed (WebCrypto prerequisite, queue cannot engage on Expo fetch errors, no on-device durable store, downgrade-rotation wedge, hosted mobile GAP, react-expo guide-gap, RN connection cycling); android honest not-run (no JDK); freeze re-verified). 2026-08-01 (A6 arm status note: sixth and final diaried web sweep arm complete — 10 pass / 0 GAP / 0 fail, the sweep's first fully green arm; findings 0137-a6-f1..f3 filed (defineJobStatusQuery boot refusal; jobs/secret-read custody guide-gap; reset-install strands live clients); jobs_one_off_v1 core verified end to end externally; freeze re-verified). 2026-08-01 (A5 arm status note: fifth diaried sweep arm complete — 11 pass / 1 GAP / 1 evidenced-defect fail; findings 0137-a5-f1..f3 filed; the Diary 0031 sessions+streamed-actions blocker verified reversed on the packaged closure; freeze re-verified). 2026-08-01 (A4 arm status note: fourth diaried sweep arm complete — 9 pass / 2 evidenced-defect fails / 0 GAP; findings 0137-a4-f1..f7 filed; freeze re-verified). 2026-08-01 (A2 arm status note: first diaried sweep arm complete — 11 pass / 1 GAP / 0 fail; findings 0137-a2-f1..f8 filed; freeze re-verified). 2026-07-31 (v3 purpose inversion per Charlie's direction: the program now exists to surface what would make Snapback better, not to prove Snapback is better — that proof is deferred until the improvement well runs dry. Phase 1 is a Snapback-first improvement sweep over all six contracts as an external npm consumer, with a mid-program fix loop, frozen-evidence-first competitor referencing, and demand-driven fresh probes; the symmetric championship — core/extension matrix, composite, ranking controls — is preserved compactly as deferred Phase 2 behind a dry-well trigger. Ranking-fairness controls that obstruct improvement, chiefly the single frozen Snapback revision and atomic rounds, move to Phase 2; honesty controls stay). 2026-07-31 (v2 efficiency restructure: sixteen-arm symmetric core over A1–A4 plus five extension arms; contract lineage to LLP 0102 with a zero-new-arm longitudinal comparison; atomic per-contract rounds; Track B baseline + checkpoint; former open questions 1–5 resolved). 2026-07-31 (refine pass: challenger gate unified; composite comparability scoped; Track B eligibility rule; cross-references verified). 2026-07-31 (initial draft: a four-backend React-web championship, a separately scored Expo validation, a Snapback-only Exact Native graduation exercise, and selective specialist challengers, all gated on public-package consumption)
-**Related:** LLP 0000, LLP 0010, LLP 0015, LLP 0016, LLP 0035, LLP 0041, LLP 0044, LLP 0064, LLP 0074, LLP 0093, LLP 0102, LLP 0103, LLP 0105, LLP 0107, LLP 0114, LLP 0115, LLP 0129, LLP 0130, LLP 0132, LLP 0133, LLP 0135, LLP 0136, Diary 0027–0039
+**Revised:** 2026-08-01 (Diary 0050 PocketBase × public-npm Snapback 0.1.8 bounded probe adds a seven-outcome correction packet: public React identity, asset authority custody, handler read-your-writes, membership-policy composition, push-default clarity, warning/export coherence, and measured footprint budgets; the probe is improvement evidence, not Phase-2 ranking evidence). 2026-08-01 (Track C status note: Stage 5/6 readiness assessment run — the Exact Native surface is NOT ready for the frozen A1 contract; honest program GAP recorded per this plan's Track C rule with four precise unready gates (plan-tier expressibility of A1's membership/JS-handler operation tier, stale b79c695f authority pin in the exact-side generated Rust modules, no app-agnostic carrier/capture/import path beyond the Partitime-specific crates and gates, no native asset/sessions-custody coverage for A1-04/A1-02); Partitime-workload Parity receipts (2026-07-21) remain real and non-transferable; Contract/web available-but-not-run; gap-record + ticket filed; Track C remains a successor gate and the sweep report is not delayed). 2026-08-01 (Track B A4 Expo iOS arm status note: second and final planned Expo sweep arm complete — 8 pass / 3 GAP / 1 evidenced-defect fail on the 12 a4-applicable EXPO checks, iOS simulator, release build, G3 pin honored; the A4 deep-link invitation entry exercised as a real OS-level deep link; on-device flyer upload/rendition/strict-delivery/native-render proven (owner lane; the a1-f2/a4-f3 non-owner hole re-verified on 0.1.7 — the 117dcae2 main fixes are post-publication); findings 0137-a4expo-f1 (no mobile push boundary) and 0137-a4expo-f2 (deep-link scheme-approval guide-gap) filed; a1expo-f2/f4 re-verified and f7 narrowed via dated ticket appends; android honest not-run (JDK absence re-verified); freeze re-verified). 2026-08-01 (Track B A1 Expo iOS arm status note: first Expo sweep arm complete — 7 pass / 2 GAP / 1 evidenced-defect fail on the 10 a1-applicable EXPO checks, iOS simulator, release build, G3 pin honored; findings 0137-a1expo-f1..f7 filed (WebCrypto prerequisite, queue cannot engage on Expo fetch errors, no on-device durable store, downgrade-rotation wedge, hosted mobile GAP, react-expo guide-gap, RN connection cycling); android honest not-run (no JDK); freeze re-verified). 2026-08-01 (A6 arm status note: sixth and final diaried web sweep arm complete — 10 pass / 0 GAP / 0 fail, the sweep's first fully green arm; findings 0137-a6-f1..f3 filed (defineJobStatusQuery boot refusal; jobs/secret-read custody guide-gap; reset-install strands live clients); jobs_one_off_v1 core verified end to end externally; freeze re-verified). 2026-08-01 (A5 arm status note: fifth diaried sweep arm complete — 11 pass / 1 GAP / 1 evidenced-defect fail; findings 0137-a5-f1..f3 filed; the Diary 0031 sessions+streamed-actions blocker verified reversed on the packaged closure; freeze re-verified). 2026-08-01 (A4 arm status note: fourth diaried sweep arm complete — 9 pass / 2 evidenced-defect fails / 0 GAP; findings 0137-a4-f1..f7 filed; freeze re-verified). 2026-08-01 (A2 arm status note: first diaried sweep arm complete — 11 pass / 1 GAP / 0 fail; findings 0137-a2-f1..f8 filed; freeze re-verified). 2026-07-31 (v3 purpose inversion per Charlie's direction: the program now exists to surface what would make Snapback better, not to prove Snapback is better — that proof is deferred until the improvement well runs dry. Phase 1 is a Snapback-first improvement sweep over all six contracts as an external npm consumer, with a mid-program fix loop, frozen-evidence-first competitor referencing, and demand-driven fresh probes; the symmetric championship — core/extension matrix, composite, ranking controls — is preserved compactly as deferred Phase 2 behind a dry-well trigger. Ranking-fairness controls that obstruct improvement, chiefly the single frozen Snapback revision and atomic rounds, move to Phase 2; honesty controls stay). 2026-07-31 (v2 efficiency restructure: sixteen-arm symmetric core over A1–A4 plus five extension arms; contract lineage to LLP 0102 with a zero-new-arm longitudinal comparison; atomic per-contract rounds; Track B baseline + checkpoint; former open questions 1–5 resolved). 2026-07-31 (refine pass: challenger gate unified; composite comparability scoped; Track B eligibility rule; cross-references verified). 2026-07-31 (initial draft: a four-backend React-web championship, a separately scored Expo validation, a Snapback-only Exact Native graduation exercise, and selective specialist challengers, all gated on public-package consumption)
+**Related:** LLP 0000, LLP 0010, LLP 0015, LLP 0016, LLP 0035, LLP 0041, LLP 0044, LLP 0056, LLP 0064, LLP 0073, LLP 0074, LLP 0093, LLP 0095, LLP 0100, LLP 0102, LLP 0103, LLP 0105, LLP 0107, LLP 0108, LLP 0114, LLP 0115, LLP 0122, LLP 0129, LLP 0130, LLP 0132, LLP 0133, LLP 0135, LLP 0136, Diary 0027–0039, Diary 0050
 
 ## Summary
 
@@ -471,6 +471,119 @@ capability model.
   actually measured.
 - Probe evidence and frozen evidence are always labeled with their source and
   date; stale frozen evidence is flagged, not silently treated as current.
+
+## Diary 0050 correction packet — close the first-working-app gap
+
+Diary 0050 is a fresh, bounded PocketBase comparison against the complete
+public `@expo/snapback-*` 0.1.8 closure. It is admitted under Phase 1's probe
+rules because PocketBase's relation rules, protected record files, SSE client,
+single-binary lifecycle, and durable-presence workaround provide concrete
+current-generation reference outcomes for product facts the earlier sweep did
+not settle cleanly. It is **improvement evidence, not Phase 2 ranking
+evidence**: the arm was not part of the frozen symmetric matrix, used one local
+Apple-silicon target, and has no hosted or throughput claim.
+
+The probe's useful result is not “copy PocketBase.” It isolates a
+**first-working-app gap**: Snapback's stronger authority, generated-contract,
+atomicity, ephemeral-state, and diagnostic model is visible, but an external
+React builder must cross too many client seams before those strengths compose
+into an ordinary app. The next public closure should close that gap through the
+seven outcomes below, in priority order.
+
+### P0 — restore already-promised public closure
+
+1. **First-party React identity.** Implement the already-specified LLP 0114
+   `devPrincipal` seam in the public React package and preserve the prepared
+   client's sole authority ownership. A clean external app must represent Ada
+   and Grace with two providers, use generated hooks for every operation, and
+   never pass `userId` per operation or escape to a raw client. Sessions and
+   hosted targets must continue to refuse dev principals.
+2. **Asset authority custody.** Close
+   `issues/20260801-0137-a1-packaged-asset-client-cannot-authenticate-sessions.md`
+   for both dev and sessions authority. Route the framework-neutral asset task
+   through the prepared client's authenticated transport as LLP 0044 requires;
+   align root runtime exports with their published types. The witness starts,
+   transfers, finalizes, attaches, downloads, revokes, and deletes through only
+   public packages, with negative cross-user and logout cases.
+3. **Handler read-your-writes.** Treat Diary 0050's `patch` followed by
+   `ctx.db.get` returning the predecessor row as a conformance regression, not
+   a new semantic choice: LLP 0000 and LLP 0003/0004 already say buffered
+   handler reads observe earlier writes. The witness covers point get, query,
+   and returned-result validation after insert/patch/delete, on every evaluator
+   claiming the JS-handler profile.
+
+These three outcomes are release blockers for the correction packet. A new
+package closure must not claim React or asset completeness while any remains an
+expected GAP in the external witness.
+
+### P1 — declare authority once and receive real live behavior
+
+4. **Membership-policy composition.** Continue the existing LLP 0056/0100
+   direction rather than blessing the bakeoff's parallel `incidentAccess`
+   table. One resource-membership declaration must support: listing the
+   caller's resources, ordinary and relational live reads, membership-visible
+   full-text search, and asset read/delivery policy. This closes the existing
+   A2 self-seat and A3 search-visibility tickets together. Acceptance uses one
+   membership fact, no authorization mirror, and proves member access,
+   outsider denial, revocation blanking, search disappearance, and strict asset
+   denial from the same seat change.
+5. **Push-default clarity.** On a target advertising the live-stream
+   capability, the generated/React paved path should select stream transport
+   without a caller spelling `transport: "stream"`. Poll remains an explicit
+   lane and an explicit fallback under LLP 0095; it must never silently satisfy
+   a push assertion. Acceptance mutates from a second client, disables poll
+   fallback, observes unsolicited bounded delivery, and reports the selected
+   transport in inspectable client state.
+
+### P2 — make the paved first hour internally coherent
+
+6. **Warning-free starter and export parity.** Close the existing degraded
+   result-contract starter ticket without weakening LLP 0108's advisory, and
+   extend the external-package export gate so every public type export has the
+   same runtime value or a deliberate type-only declaration. A fresh scaffold,
+   generate, typecheck, and production build must complete without a Snapback
+   warning, ambient shim, undocumented subpath correction, or repository
+   import.
+7. **Measured footprint budgets.** Establish separate regression budgets for
+   installed native runtime bytes and tree-shaken browser bytes before choosing
+   an optimization. Diary 0050's 195.0 MiB install and 456.2 kB production JS
+   bundle are one baseline, not universal limits. The browser budget must keep
+   server/runtime code out of the client graph; the install budget must retain
+   the self-contained npm runtime and its readiness receipt rather than
+   externalizing setup work to the user. LLP 0122 owns the packaging analysis.
+
+### Execution and release gate
+
+Execute in four landings: (1) P0 conformance repairs; (2) membership
+composition; (3) live/default and starter/export coherence; (4) footprint
+measurement followed by separately justified reductions. Each landing updates
+its governing LLP or issue and adds its focused public-package witness. Do not
+bundle a semantic redesign into a conformance repair.
+
+The packet exits only when a clean external React incident-room app, installed
+from one exact public package closure:
+
+- generates and typechecks without Snapback warnings or local shims;
+- uses only the first-party provider/hooks for two dev identities;
+- receives a second-client message over witnessed push with polling disabled;
+- uses one membership declaration for reads, search, live invalidation, and
+  strict asset authority;
+- completes the authenticated asset lifecycle in dev and sessions modes;
+- observes earlier buffered writes inside its mutation result; and
+- tears down with no process, listener, connection, upload attempt, or secret
+  sidecar left behind.
+
+The retained must-not-regress inventory is exact generated result/argument
+contracts, server-resolved authority and invalidation, atomic handler commit,
+true non-durable ephemeral presence, structured diagnostics, strict asset
+revocation, deterministic artifact identity, and a self-contained public npm
+runtime. A smaller API or bundle does not qualify if it weakens any of those
+facts.
+
+Passing this packet does not fire the Phase 2 dry-well trigger. Re-run the
+Diary 0050 Snapback arm against the released closure and append an immutable
+dated entry; only the broader six-contract re-verification can inform the
+dry-well judgment.
 
 ## Phase 2 — the deferred backend championship
 
