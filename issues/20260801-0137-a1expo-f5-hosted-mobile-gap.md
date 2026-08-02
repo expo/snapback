@@ -18,3 +18,11 @@ hosted leg for the Expo receipt.
 
 Witness: an Expo simulator app signs in through a documented hosted path and
 passes the EXPO-04 realtime check against a hosted target.
+
+**2026-08-01 (EAS Phase 0 cross-reference):** LLP 0105's Phase 0 was
+authorized today; its P0.5 spike (hosted auth and product security)
+depends on exactly this ticket's fix shape — hosted sessions routes +
+a production challenge-delivery path. The Phase-0 §Status ledger in
+LLP 0105 names this dependency; receipts under
+`demos/eas-phase0/receipts/`. Fixing this ticket is the substrate
+critical path for the EAS-hosted lane, not just the mobile story.

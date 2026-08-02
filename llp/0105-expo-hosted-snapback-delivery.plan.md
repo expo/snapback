@@ -5,7 +5,11 @@
 **Systems:** Product, Deployment, Runtime, Storage, Auth, Security, Billing, Observability, Developer experience, Operations
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-28
-**Revised:** 2026-07-28 (initial cross-repository plan); 2026-07-28 (/llp-super-refine round 1 revision: write-amplification/margin, logical-storage, and account-budget-protocol proofs made blocking Phase-0 outputs feeding 0104's price decisions; P0.3 proves the release-pinning fence's repair invariant rather than re-opening it; minimum private-beta config/secrets and maintenance-job slices pulled into Phase 1 with Gate 1 assertions, distinct from Phase 4 ergonomics; owner-independent durable identity and narrowed LLP 0089 scope reconciled in Work ownership and the cross-repository ledger); 2026-07-28 (/llp-super-refine round 2 revision: P0.3 injects admission-to-execution delay, non-responsive WebSockets, and proves the admission compatibility check; P0.4/Gate 0 produce scale-ceiling numbers from formulas and reconcile logical storage to the namespace-level provider bill; P0.4/Gate 1 add the account-budget transfer-fence case; Work ownership and cross-repository ledger corrected to retain LLP 0089 as contract authority with Universe as hosted implementation authority, rollback included); 2026-07-28 (/llp-super-refine round 3 revision: P0.3 wording tightened so drain-and-revoke never permits post-migration old-epoch execution and the admission check is machine-checkable/sufficient-by-construction with replay only supplemental; P0.4/Gate 1 transfer-fence made an atomic coordinator boundary with admission-bound attribution carried through commit; hosted operations given distinct stable ids (`environment.create`/`environment.inspect`); logical-storage pragmas named exactly plus a Gate-0 reconciliation-record clause; Gate 0 forces the action-isolation mechanism selection); 2026-07-28 (/llp-super-refine round 4 revision: P0.3 compatibility window enumerated to strictly-additive backward-safe changes only, all other change classes forcing hard drain-and-revoke; P0.4/Gate 0 add the missing-sample estimator experiment (fault-inject growth+shrinkage, prove worst-case error bound, verify customer-favorable credit) and PRAGMA-availability Gate-0 verification; P0.4/Gate 1 add the app-wide multi-coordinator two-phase transfer proof with atomic publication and abort-on-unavailable); 2026-07-28 (/llp-super-refine round 5 revision: P0.4/Gate 1 transfer proof made a durable prepare/commit/abort state machine (prepare freezes leases, commit revokes/epochs, abort restores) with a snapshotted/serialized participant set, publication re-validation, and a mid-transfer environment create/delete/restore injection; "no partial transfer" narrowed to ownership attribution; P0.4 removes index/system-table overhead from the headroom list (measured in-band); missing PRAGMA support made a Gate-0 failure blocking the billing basis, `databaseSize` cross-check only; P0.4 Gate-0 estimator receipt records inputs/max-gap/error-bound-units/credit rule); 2026-07-28 (/llp-super-refine post-convergence touch-up: r6 detail items folded in); 2026-07-28 (Accepted by author Charlie Cheever after /llp-super-refine dual-READY convergence on r6; r6 detail items folded in)
+**Revised:** 2026-08-01 (Phase 0 authorized by Charlie and execution
+begun: WfP access-gap receipt + enablement ticket, dated pricing facts
+— rows-written pricing confirms write amplification as the decisive
+margin input — and the locally-decisive P0.4 spikes; see §Status
+ledger). 2026-07-28 (initial cross-repository plan); 2026-07-28 (/llp-super-refine round 1 revision: write-amplification/margin, logical-storage, and account-budget-protocol proofs made blocking Phase-0 outputs feeding 0104's price decisions; P0.3 proves the release-pinning fence's repair invariant rather than re-opening it; minimum private-beta config/secrets and maintenance-job slices pulled into Phase 1 with Gate 1 assertions, distinct from Phase 4 ergonomics; owner-independent durable identity and narrowed LLP 0089 scope reconciled in Work ownership and the cross-repository ledger); 2026-07-28 (/llp-super-refine round 2 revision: P0.3 injects admission-to-execution delay, non-responsive WebSockets, and proves the admission compatibility check; P0.4/Gate 0 produce scale-ceiling numbers from formulas and reconcile logical storage to the namespace-level provider bill; P0.4/Gate 1 add the account-budget transfer-fence case; Work ownership and cross-repository ledger corrected to retain LLP 0089 as contract authority with Universe as hosted implementation authority, rollback included); 2026-07-28 (/llp-super-refine round 3 revision: P0.3 wording tightened so drain-and-revoke never permits post-migration old-epoch execution and the admission check is machine-checkable/sufficient-by-construction with replay only supplemental; P0.4/Gate 1 transfer-fence made an atomic coordinator boundary with admission-bound attribution carried through commit; hosted operations given distinct stable ids (`environment.create`/`environment.inspect`); logical-storage pragmas named exactly plus a Gate-0 reconciliation-record clause; Gate 0 forces the action-isolation mechanism selection); 2026-07-28 (/llp-super-refine round 4 revision: P0.3 compatibility window enumerated to strictly-additive backward-safe changes only, all other change classes forcing hard drain-and-revoke; P0.4/Gate 0 add the missing-sample estimator experiment (fault-inject growth+shrinkage, prove worst-case error bound, verify customer-favorable credit) and PRAGMA-availability Gate-0 verification; P0.4/Gate 1 add the app-wide multi-coordinator two-phase transfer proof with atomic publication and abort-on-unavailable); 2026-07-28 (/llp-super-refine round 5 revision: P0.4/Gate 1 transfer proof made a durable prepare/commit/abort state machine (prepare freezes leases, commit revokes/epochs, abort restores) with a snapshotted/serialized participant set, publication re-validation, and a mid-transfer environment create/delete/restore injection; "no partial transfer" narrowed to ownership attribution; P0.4 removes index/system-table overhead from the headroom list (measured in-band); missing PRAGMA support made a Gate-0 failure blocking the billing basis, `databaseSize` cross-check only; P0.4 Gate-0 estimator receipt records inputs/max-gap/error-bound-units/credit rule); 2026-07-28 (/llp-super-refine post-convergence touch-up: r6 detail items folded in); 2026-07-28 (Accepted by author Charlie Cheever after /llp-super-refine dual-READY convergence on r6; r6 detail items folded in)
 **Related:** LLP 0009, LLP 0010, LLP 0014, LLP 0018, LLP 0043, LLP 0044, LLP 0045, LLP 0047, LLP 0057, LLP 0060, LLP 0070, LLP 0071, LLP 0087, LLP 0089, LLP 0103, LLP 0104
 
 ## Summary
@@ -501,5 +505,38 @@ passes by prose assertion alone.
 
 ## Status
 
-Draft. Phase 0 is proposed, not authorized here. Revise each gate with
-machine-readable receipts and dated platform/pricing facts.
+Accepted (see Revised header); the section text below predated
+acceptance and is superseded by the dated notes that follow.
+
+**Phase 0 AUTHORIZED — 2026-08-01.** Charlie Cheever, verbatim: "let's
+… spend more time on hosting, especially hosting on EAS." Phase 0
+execution began the same day. Per this section's own rule, each gate
+revision below carries machine-readable receipts and dated
+platform/pricing facts.
+
+**Phase-0 execution ledger (2026-08-01, first pass):**
+
+- **Access reality (receipt `demos/eas-phase0/receipts/p0-access-wfp.json`):**
+  Workers for Platforms is a purchase-gated add-on NOT enabled on the
+  available Cloudflare account (API error 10121 on the dispatch-namespace
+  endpoint, token validity proven separately). P0.1's real-namespace run,
+  P0.2, and the WfP-bound Gate-0 items are access-gapped with an
+  enablement recipe (`issues/20260801-eas-phase0-wfp-enablement.md`) —
+  environment evidence, not product failure, per the LLP 0102 idiom.
+- **Dated platform/pricing facts
+  (`demos/eas-phase0/receipts/p0-platform-pricing-facts.md`):** WfP
+  $25/mo, 20M req + 60M CPU-ms + 1,000 scripts included; DO-SQLite rows
+  written **$1.00/M past 50M/mo** — ~6,700× the request coefficient,
+  confirming P0.4's write-amplification measurement as the decisive
+  margin input; stored data $0.20/GB-month; DO requests $0.15/M.
+- **P0.4 locally-decisive spikes:** see the dated receipts under
+  `demos/eas-phase0/receipts/` (write amplification, logical-storage
+  formula, missing-sample estimator) — these run against the real local
+  engine and pure protocol logic, need no WfP entitlement, and are the
+  blocking economics outputs Gate 0 names.
+- **P0.5 dependency named:** hosted sessions (the 0137-a1expo-f5 gap's
+  fix shape — hosted sessions routes + production challenge delivery)
+  gates P0.5's app-plane auth proof; the spike cannot run before that
+  substrate exists on a hosted target.
+- **P0.3** requires the eas-hosting staging substrate plus WfP; deferred
+  with P0.2 behind the enablement ticket.

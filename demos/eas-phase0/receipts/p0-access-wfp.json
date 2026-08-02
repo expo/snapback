@@ -1,0 +1,16 @@
+{
+  "receipt": "eas-phase0/access/workers-for-platforms",
+  "date": "2026-08-01",
+  "probe": {
+    "endpoint": "GET /client/v4/accounts/{account}/workers/dispatch/namespaces",
+    "tokenPosture": "account-scoped API token from the LLP 0040 credential store; validity proven same-session by listing the account's deployed Workers (snapback-all-aboard-* present) and reading the account record",
+    "account": { "type": "standard", "name": "ccheever@expo.io account", "idRedacted": true }
+  },
+  "result": {
+    "success": false,
+    "errorCode": 10121,
+    "errorMessage": "You do not have access to dispatch namespaces. You can purchase it within the Cloudflare dashboard here: https://dash.cloudflare.com?to=/:account/workers-for-platforms - if you are an Enterprise customer please contact your account team."
+  },
+  "verdict": "ACCESS-GAPPED: Workers for Platforms is a purchase-gated add-on not enabled on the account. P0.1's real-dispatch-namespace half, P0.2's staging routes, and every WfP-bound Gate-0 item are blocked on enablement, not on engineering. Clean API refusal recorded per the LLP 0102 access-evidence rule; this is environment/credential evidence, not a product failure.",
+  "enablementTicket": "issues/20260801-eas-phase0-wfp-enablement.md"
+}
