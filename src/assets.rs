@@ -3739,14 +3739,12 @@ mod tests {
                  record_json, updated_at_ms
              ) VALUES ('legacy', 'app_1', 'local-fs', 'klegacy', 'sha256',
                        'dlegacy', 'none', 42, 3, 0, ?1, 4)",
-            [format!(
-                "{{\"blobId\":\"legacy\",\"appId\":\"app_1\",\"store\":\"local-fs\",\
+            ["{\"blobId\":\"legacy\",\"appId\":\"app_1\",\"store\":\"local-fs\",\
                  \"physicalKey\":\"klegacy\",\"byteLength\":42,\
                  \"detectedContentType\":\"application/octet-stream\",\
                  \"digestAlgorithm\":\"sha256\",\"digest\":\"dlegacy\",\
                  \"canonicalizationPolicy\":\"none\",\"referenceCount\":1,\
-                 \"condemned\":false,\"createdAtMs\":1}}"
-            )],
+                 \"condemned\":false,\"createdAtMs\":1}".to_owned()],
         )
         .expect("legacy row");
         assert!(load_blob(&tx, "legacy").is_err(), "legacy json refuses pre-migration");

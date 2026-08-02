@@ -754,6 +754,9 @@ impl Telemetry {
     }
 
     #[cfg(test)]
+    // The public observation seam keeps the complete closed point shape
+    // explicit so producers cannot smuggle fields through an options bag.
+    #[allow(clippy::too_many_arguments)]
     pub fn point(
         &self,
         kind: &str,
@@ -1350,10 +1353,10 @@ fn enqueue_locked(buffer: &mut Buffer, config: &TelemetryConfig, mut event: Even
                 buffer.count_drop(&event, "reservedProtectedDropIncoming");
                 return true;
             }
-            if buffer.normal.len() >= normal_limit || buffer.len() >= config.buffer_capacity {
-                if let Some(dropped) = buffer.normal.pop_front() {
+            if (buffer.normal.len() >= normal_limit || buffer.len() >= config.buffer_capacity)
+                && let Some(dropped) = buffer.normal.pop_front()
+            {
                     buffer.count_drop(&dropped, "bufferFullDropOldest");
-                }
             }
             buffer.normal.push_back(event);
         }
@@ -1829,7 +1832,9 @@ impl Store {
         let current_incarnation = self.app_db_incarnation.clone();
         let current_identity = self.identity.clone();
         let conn = self.conn.as_mut().expect("existing telemetry connection");
-        let row: Option<(String, String, Option<String>, Option<String>, i64, i64)> = conn
+        type TelemetryMetaIdentityRow =
+            (String, String, Option<String>, Option<String>, i64, i64);
+        let row: Option<TelemetryMetaIdentityRow> = conn
             .query_row(
                 "SELECT generation, app_db_incarnation, app_id, environment, observation_clock_ms, clean_shutdown FROM telemetry_meta WHERE singleton = 1",
                 [],

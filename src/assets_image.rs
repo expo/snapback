@@ -651,7 +651,6 @@ pub(crate) mod fixtures {
             image::codecs::jpeg::JpegEncoder::new_with_quality(&mut cursor, quality);
         encoder.encode_image(&image).expect("fixture jpeg encodes");
         drop(encoder);
-        drop(cursor);
         encoded
     }
 

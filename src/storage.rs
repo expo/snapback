@@ -3744,6 +3744,9 @@ impl LocalDatabase {
         )
     }
 
+    // The lifecycle callbacks and settlement policy remain distinct because
+    // they guard different commit phases and are independently fault-injected.
+    #[allow(clippy::too_many_arguments)]
     fn execute_mutation_plan_with_lifecycle_and_settlement_time<G, Check, BeforeCommit>(
         &mut self,
         plan: &MutationPlan,
@@ -10884,7 +10887,7 @@ fn build_query_sql(
     bindings: &BTreeMap<String, Value>,
     direct_bindings: Option<&BTreeMap<String, Value>>,
     now_ms: u64,
-    runtime_id: Option<&dyn Fn(&str) -> SnapbackResult<String>>,
+    runtime_id: Option<&crate::value_expr::RuntimeIdGenerator<'_>>,
     runtime_id_site: &str,
     sql_limit: Option<usize>,
     keyset: Option<&KeysetAfter>,
@@ -11120,7 +11123,7 @@ fn build_membership_exists_sql(
     input: &HandlerInput,
     bindings: &BTreeMap<String, Value>,
     now_ms: u64,
-    runtime_id: Option<&dyn Fn(&str) -> SnapbackResult<String>>,
+    runtime_id: Option<&crate::value_expr::RuntimeIdGenerator<'_>>,
     runtime_id_site: &str,
     filter_bindings: &mut usize,
 ) -> SnapbackResult<(String, Vec<SqlValue>)> {
@@ -11946,6 +11949,9 @@ fn changed_field_names(values: &Map<String, Value>) -> Vec<String> {
     fields
 }
 
+// Mutation value evaluation carries the settlement-time witness explicitly;
+// each argument is independently meaningful at the commit boundary.
+#[allow(clippy::too_many_arguments)]
 fn eval_value_map(
     values: &BTreeMap<String, ValueExpr>,
     input: &HandlerInput,
@@ -12001,7 +12007,7 @@ fn eval_expr(
     input: &HandlerInput,
     bindings: &BTreeMap<String, Value>,
     now_ms: u64,
-    runtime_id: Option<&dyn Fn(&str) -> SnapbackResult<String>>,
+    runtime_id: Option<&crate::value_expr::RuntimeIdGenerator<'_>>,
     site: &str,
 ) -> SnapbackResult<Value> {
     let default_id = |_path: &str| Ok(new_id());
@@ -12038,7 +12044,7 @@ fn eval_authorization_decision_values(
     bindings: &BTreeMap<String, Value>,
     direct_bindings: Option<&BTreeMap<String, Value>>,
     now_ms: u64,
-    runtime_id: Option<&dyn Fn(&str) -> SnapbackResult<String>>,
+    runtime_id: Option<&crate::value_expr::RuntimeIdGenerator<'_>>,
     site: &str,
 ) -> SnapbackResult<Vec<Value>> {
     let is_actor_aware =

@@ -51,6 +51,9 @@ pub const PINNED_FUNCTIONS: &[&str] = &[
     "len", "trim", "lower", "abs", "min", "max", "round", "floor", "ceil", "coalesce",
 ];
 
+/// Host-provided fresh-id source for `RuntimeId` expressions.
+pub type RuntimeIdGenerator<'a> = dyn Fn(&str) -> SnapbackResult<String> + 'a;
+
 /// What the evaluation environment can answer. The matcher deliberately
 /// evaluates without bindings or runtime intrinsics: expressions that need
 /// them are unanalyzable for delta maintenance and fall back to
@@ -70,7 +73,7 @@ pub struct ExprEnv<'a> {
     /// Fresh-id source (`RuntimeId`). Pluggable because callers differ
     /// (storage `new_id`, cron actions use the store's generator); absent in
     /// the matcher, where `RuntimeId` is unanalyzable by definition.
-    pub runtime_id: Option<&'a dyn Fn(&str) -> SnapbackResult<String>>,
+    pub runtime_id: Option<&'a RuntimeIdGenerator<'a>>,
 }
 
 pub enum ExprError {

@@ -805,9 +805,9 @@ mod tests {
         };
         query
             .split('&')
-            .filter_map(|pair| {
+            .map(|pair| {
                 let (k, v) = pair.split_once('=').unwrap_or((pair, ""));
-                Some((percent_decode(k), percent_decode(v)))
+                (percent_decode(k), percent_decode(v))
             })
             .collect()
     }
@@ -817,14 +817,13 @@ mod tests {
         let mut out = Vec::new();
         let mut i = 0;
         while i < bytes.len() {
-            if bytes[i] == b'%' && i + 2 < bytes.len() + 1 && i + 2 <= bytes.len() - 1 + 1 {
-                if let Ok(byte) =
+            if bytes[i] == b'%' && i + 2 < bytes.len()
+                && let Ok(byte) =
                     u8::from_str_radix(std::str::from_utf8(&bytes[i + 1..i + 3]).unwrap_or("zz"), 16)
-                {
+            {
                     out.push(byte);
                     i += 3;
                     continue;
-                }
             }
             out.push(bytes[i]);
             i += 1;
@@ -864,6 +863,9 @@ mod tests {
 
         /// Independent SigV4 derivation from the received materials — never
         /// calls the store's signer.
+        // The fake independently derives the complete SigV4 tuple; keeping
+        // every signed component explicit makes omission bugs visible.
+        #[allow(clippy::too_many_arguments)]
         fn expected_signature(
             &self,
             method: &str,

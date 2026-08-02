@@ -538,7 +538,7 @@ pub(crate) mod fixtures {
 
 #[cfg(test)]
 mod tests {
-    use super::fixtures::{boxed, ftyp, mvhd, tkhd, GPS};
+    use super::fixtures::{boxed, ftyp, mvhd, GPS};
     use super::*;
 
     fn gps_fixture() -> Vec<u8> {
@@ -686,7 +686,7 @@ mod tests {
         assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_VIDEO_BOUNDS_EXCEEDED");
 
         // Metadata bomb.
-        let fat_udta = boxed(b"udta", &vec![0u8; 128]);
+        let fat_udta = boxed(b"udta", &[0u8; 128]);
         let source = [ftyp(), boxed(b"moov", &fat_udta)].concat();
         let error = canonicalize_strip_video(&source, &tiny).unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_VIDEO_BOUNDS_EXCEEDED");

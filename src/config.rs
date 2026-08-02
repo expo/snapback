@@ -1153,14 +1153,20 @@ mod tests {
         let mut store = ConfigStore::open(path.clone()).unwrap();
         assert_eq!(store.telemetry_config(), &TelemetryConfig::default());
 
-        let mut config = TelemetryConfig::default();
-        config.max_days = 30;
+        let config = TelemetryConfig {
+            max_days: 30,
+            ..TelemetryConfig::default()
+        };
         let outcome = store.set_telemetry_config(config.clone()).unwrap();
         assert!(outcome.value_changed);
         assert_eq!(ConfigStore::open(path).unwrap().telemetry_config(), &config);
 
-        config.priority_reserve = config.buffer_capacity;
-        let error = store.set_telemetry_config(config).unwrap_err();
+        let invalid = TelemetryConfig {
+            max_days: 30,
+            priority_reserve: config.buffer_capacity,
+            ..TelemetryConfig::default()
+        };
+        let error = store.set_telemetry_config(invalid).unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_TELEMETRY_CONFIG_INVALID");
     }
 

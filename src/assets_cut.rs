@@ -323,6 +323,7 @@ pub fn validation_summary(manifest: &AssetCutManifestV1) -> Value {
 }
 
 #[cfg(test)]
+#[allow(clippy::items_after_test_module)]
 mod tests {
     use super::*;
 

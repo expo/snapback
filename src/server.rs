@@ -17756,7 +17756,7 @@ enum CoordinatedResetOutput {
 }
 
 enum CoordinatedResetCommitted {
-    Legacy(crate::local::CoordinatedResetCommit),
+    Legacy(Box<crate::local::CoordinatedResetCommit>),
     Versioned(Box<crate::local::CoordinatedVersionedSeedResetCommit>),
 }
 
@@ -17898,7 +17898,7 @@ async fn coordinated_app_reset_inner(
                         &predecessor,
                         &durable_successor,
                     ),
-                    CoordinatedResetCommitted::Legacy,
+                    |committed| CoordinatedResetCommitted::Legacy(Box::new(committed)),
                 ),
                 CoordinatedResetInput::Versioned(request) => map_reset_attempt(
                     snapback.attempt_versioned_seed_reset_with_authorization_stream(
@@ -17950,7 +17950,7 @@ async fn coordinated_app_reset_inner(
     runtime.clear_reset_auth_invalidation();
     let output = with_snapback(&runtime.snapback, move |snapback| match committed {
         CoordinatedResetCommitted::Legacy(committed) => {
-            CoordinatedResetOutput::Legacy(snapback.publish_coordinated_reset(committed))
+            CoordinatedResetOutput::Legacy(snapback.publish_coordinated_reset(*committed))
         }
         CoordinatedResetCommitted::Versioned(committed) => CoordinatedResetOutput::Versioned(
             snapback.publish_coordinated_versioned_seed_reset(*committed),
@@ -20628,7 +20628,7 @@ impl LiveSocketObservation {
                 let cause = cause_value
                     .as_str()
                     .expect("live auth error reason serializes as a string");
-                span.finish(Some(500), Some(&code), Some(json!({ "cause": cause })));
+                span.finish(Some(500), Some(code), Some(json!({ "cause": cause })));
             } else {
                 span.finish(Some(200), None, Some(json!({ "cause": "disconnected" })));
             }

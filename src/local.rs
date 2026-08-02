@@ -4560,15 +4560,14 @@ impl LocalSnapback {
                         return Err(error);
                     }
                 };
-                if let Some(incarnation) = telemetry_incarnation {
-                    if let Err(error) = snapback
+                if let Some(incarnation) = telemetry_incarnation
+                    && let Err(error) = snapback
                         .finish_telemetry_generation_transition(incarnation.as_str())
-                    {
+                {
                         // The schema commit is durable. Keep telemetry closed
                         // and surface the independent sibling failure rather
                         // than reporting a rollback that did not happen.
                         diagnostics.push(error.diagnostic);
-                    }
                 }
                 let ephemeral = snapback.ephemeral.clone();
                 crate::exec_guard::run_or_defer_after_local(move || {
@@ -12192,6 +12191,10 @@ impl LocalSnapback {
         Ok(recorded)
     }
 
+    // Receipt recording deliberately keeps the mutation identity, settlement
+    // policy, durable outcome, and retention decision visible at this fan-out
+    // boundary; grouping them would obscure which values may be redacted.
+    #[allow(clippy::too_many_arguments)]
     fn record_mutation_commit(
         &mut self,
         name: &str,
@@ -19231,9 +19234,7 @@ impl LocalSnapback {
                 hook();
             }
         });
-        let result = prepared
-            .effect_guard("action result handoff")
-            .and_then(|_publication| result);
+        let result = prepared.effect_guard("action result handoff").and(result);
         finish_function_observation(span, &result);
         result
     }
@@ -25453,9 +25454,10 @@ mod tests {
         FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, IbexModule,
         IndexManifest, MembershipManifest, MembershipPredicate, MembershipResourceRef,
         MembershipScope, MutationOutput, MutationPlan, MutationSettlement, MutationStep,
-        PermissionScopeExpr, QueryPlan, ReturnValue, SchemaManifest, SeedData, SettlementClaimSet,
-        SettlementIdentityClaims, SettlementLane, SettlementMintClaim, SettlementMintObservation,
-        TableManifest, ValueExpr, ctx_ledger_version,
+        PermissionScopeExpr, QueryPlan, ResultObjectFieldContract, ResultValueContract,
+        ReturnValue, SchemaManifest, SeedData, SettlementClaimSet, SettlementIdentityClaims,
+        SettlementLane, SettlementMintClaim, SettlementMintObservation, TableManifest, ValueExpr,
+        FunctionResultContract, ctx_ledger_version,
     };
     use crate::runtime::ExecutedIbexMutation;
     use crate::search::types::{
@@ -31454,7 +31456,7 @@ globalThis.__snapbackHandlers = {
 
         // Syntactically valid but past the end: 416 with the total, per
         // RFC 9110; the outcome carries what the handler needs.
-        let authority = asset_dev_authority(&mut snapback, "user_a", InvocationSource::HttpQuery);
+        let authority = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
         match snapback
             .asset_deliver(
                 &authority,
@@ -31503,7 +31505,7 @@ globalThis.__snapbackHandlers = {
         assert!(delivery.disposition.contains("photo.bin"));
 
         // A pending asset has no deliverable bytes yet.
-        let creator = asset_dev_authority(&mut snapback, "user_a", InvocationSource::HttpQuery);
+        let creator = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
         let pending = snapback
             .asset_attempt_create(&creator, asset_create_request(Some(8)))
             .expect("pending attempt");
@@ -31534,7 +31536,7 @@ globalThis.__snapbackHandlers = {
 
         // Deleting A: the shared blob keeps B's reference; B still delivers
         // through its own alias (URL identity under dedup).
-        let owner = asset_dev_authority(&mut snapback, "user_a", InvocationSource::HttpQuery);
+        let owner = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
         snapback.asset_delete(&owner, &asset_a).expect("delete a");
         let (availability, blob_refs): (String, u64) = snapback
             .db
@@ -31611,7 +31613,7 @@ globalThis.__snapbackHandlers = {
         let asset_id = asset_ready(&mut snapback, "user_a", b"referenced-bytes");
 
         // Foreign caller: denied before any cascade step.
-        let foreign = asset_dev_authority(&mut snapback, "user_b", InvocationSource::HttpQuery);
+        let foreign = asset_dev_authority(&snapback, "user_b", InvocationSource::HttpQuery);
         let refused = snapback
             .asset_delete(&foreign, &asset_id)
             .expect_err("foreign delete refuses");
@@ -31635,7 +31637,7 @@ globalThis.__snapbackHandlers = {
             }],
         )
         .expect("attach commits");
-        let owner = asset_dev_authority(&mut snapback, "user_a", InvocationSource::HttpQuery);
+        let owner = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
         let referenced = snapback
             .asset_delete(&owner, &asset_id)
             .expect_err("referenced delete refuses");
@@ -31687,7 +31689,7 @@ globalThis.__snapbackHandlers = {
     #[test]
     fn asset_gc_reclaims_expired_attempts_pending_assets_orphans_and_tombstones() {
         let mut snapback = asset_test_snapback();
-        let creator = asset_dev_authority(&mut snapback, "user_a", InvocationSource::HttpQuery);
+        let creator = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
         let created = snapback
             .asset_attempt_create(&creator, asset_create_request(Some(16)))
             .expect("attempt");
@@ -38657,11 +38659,13 @@ globalThis.__snapbackHandlers = {
             profile: "owner.v1".to_owned(),
             membership: None,
         });
-        let control = FunctionDefinition::new(
+        install_schema_documents_contract(&mut pattern, &schema, "todos");
+        let mut control = FunctionDefinition::new(
             "lookupControl",
             FunctionKind::LiveQuery,
             FunctionRuntime::HostPlan(HandlerPlan::Query(lookup_plan)),
         );
+        install_schema_documents_contract(&mut control, &schema, "todos");
         let add = FunctionDefinition::new(
             "addTodo",
             FunctionKind::Mutation,
@@ -38684,6 +38688,7 @@ globalThis.__snapbackHandlers = {
             .expect("apply pattern-live schema");
         let diagnostics = snapback.load_functions(FunctionManifest {
             functions: vec![pattern, control, add],
+            acknowledged_experimental_capabilities: vec!["result_contract_v1".to_owned()],
             ..FunctionManifest::default()
         });
         assert!(
@@ -39797,8 +39802,10 @@ globalThis.__snapbackHandlers = {
         let config_path = crate::config::ConfigStore::path_for_database(&database_path);
         std::fs::create_dir(&config_path).expect("block atomic config rename with a directory");
 
-        let mut disabled = crate::telemetry::TelemetryConfig::default();
-        disabled.max_days = 0;
+        let disabled = crate::telemetry::TelemetryConfig {
+            max_days: 0,
+            ..crate::telemetry::TelemetryConfig::default()
+        };
         let error = snapback
             .set_telemetry_config(disabled)
             .expect_err("config persistence must fail");
@@ -40006,8 +40013,10 @@ globalThis.__snapbackHandlers = {
             )
             .unwrap();
 
-        let mut same_app = SchemaManifest::default();
-        same_app.generated_at = Some(1);
+        let same_app = SchemaManifest {
+            generated_at: Some(1),
+            ..SchemaManifest::default()
+        };
         snapback
             .apply_schema(same_app)
             .expect("publish same-app schema");
@@ -40022,9 +40031,11 @@ globalThis.__snapbackHandlers = {
         assert_eq!(same_generation, predecessor_generation);
 
         let successor_app_id = "successor-app-identity".to_owned();
-        let mut successor = SchemaManifest::default();
-        successor.app_id = successor_app_id.clone();
-        successor.generated_at = Some(2);
+        let successor = SchemaManifest {
+            app_id: successor_app_id.clone(),
+            generated_at: Some(2),
+            ..SchemaManifest::default()
+        };
         let diagnostics = snapback
             .apply_schema(successor)
             .expect("publish successor app identity");
@@ -46142,6 +46153,101 @@ globalThis.__snapbackHandlers = {
         }
     }
 
+    // @ref LLP 0108#runtime-validation-and-atomicity — hand-built live-query
+    // fixtures must carry the same schema-expanded document contract codegen
+    // emits before they can honestly exercise raw-row delta publication.
+    fn install_schema_documents_contract(
+        function: &mut FunctionDefinition,
+        schema: &SchemaManifest,
+        table_name: &str,
+    ) {
+        let table = schema.table(table_name).expect("fixture table exists");
+        let system_integer = || ResultValueContract::Integer {
+            min: 0,
+            max: 9_007_199_254_740_991,
+        };
+        let mut fields = vec![
+            ResultObjectFieldContract {
+                name: "_id".to_owned(),
+                required: true,
+                value: ResultValueContract::Id {
+                    table: table_name.to_owned(),
+                },
+            },
+            ResultObjectFieldContract {
+                name: "_version".to_owned(),
+                required: true,
+                value: system_integer(),
+            },
+            ResultObjectFieldContract {
+                name: "_createdAt".to_owned(),
+                required: true,
+                value: system_integer(),
+            },
+            ResultObjectFieldContract {
+                name: "_updatedAt".to_owned(),
+                required: true,
+                value: system_integer(),
+            },
+        ];
+        fields.extend(table.fields.iter().map(|field| {
+            let value = match &field.field_type {
+                FieldType::String => ResultValueContract::String {
+                    max_bytes: 1024 * 1024,
+                },
+                FieldType::Boolean => ResultValueContract::Boolean,
+                FieldType::Integer => ResultValueContract::Integer {
+                    min: -9_007_199_254_740_991,
+                    max: 9_007_199_254_740_991,
+                },
+                FieldType::Real => ResultValueContract::FiniteReal {
+                    min: -f64::MAX,
+                    max: f64::MAX,
+                },
+                FieldType::Json => ResultValueContract::Json {
+                    max_depth: 16,
+                    max_bytes: 1024 * 1024,
+                },
+                FieldType::Principal => ResultValueContract::Principal,
+                FieldType::Id { table } => ResultValueContract::Id {
+                    table: table.clone(),
+                },
+                FieldType::RelationIncarnation { .. } => {
+                    ResultValueContract::String { max_bytes: 64 }
+                }
+                FieldType::AssetRef { .. } => ResultValueContract::AssetRef,
+            };
+            let value = if field.optional
+                && !matches!(value, ResultValueContract::Json { .. })
+            {
+                ResultValueContract::Union {
+                    variants: vec![ResultValueContract::Null, value],
+                }
+            } else {
+                value
+            };
+            ResultObjectFieldContract {
+                name: field.name.clone(),
+                required: true,
+                value,
+            }
+        }));
+        let contract = FunctionResultContract::Documents {
+            table: table_name.to_owned(),
+            document: ResultValueContract::Object {
+                fields,
+                allow_extra: false,
+            },
+        };
+        function.result_contract_hash = Some(
+            crate::manifest::result_contract_hash(&contract).expect("fixture contract hashes"),
+        );
+        function.result_contract = contract;
+        function
+            .required_capabilities
+            .push("result_contract_v1".to_owned());
+    }
+
     fn rqs_public_live_query(name: &str, ordered: bool) -> FunctionDefinition {
         let mut function = FunctionDefinition::new(
             name,
@@ -46172,6 +46278,7 @@ globalThis.__snapbackHandlers = {
             mode: Some("singleTable".to_owned()),
             auth_scope_field: None,
         };
+        install_schema_documents_contract(&mut function, &rqs_schema(), "todos");
         function
     }
 
@@ -46264,6 +46371,7 @@ globalThis.__snapbackHandlers = {
                 set_rank,
                 set_title,
             ],
+            acknowledged_experimental_capabilities: vec!["result_contract_v1".to_owned()],
             ..FunctionManifest::default()
         }
     }
