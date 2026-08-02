@@ -56,3 +56,9 @@ clients (consciously deferred), hosted lifecycle (own future program).
   a versioned mixed profile rather than a local codegen relaxation. The
   non-normative proposal is recorded in LLP 0090; implementation is gated on
   author acceptance and no change was made to the separately owned LLP 0157.
+- **2026-08-02 — G-03 closed as an already-landed duplicate.** Verification
+  against current main found C1 commit `4d72c407` already implements the full
+  context-reader-admitting LLP 0118 option-1a cut, with declared reads/writes
+  retained as evidence rather than ceilings. Its current helper-sharing suite
+  and LLP references are green; the redundant G-03 ticket moved to
+  `issues/closed/` without changing code.
