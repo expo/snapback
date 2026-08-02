@@ -1,6 +1,6 @@
 # LLP 0155 Stage 0, evidence half — freeze baselines and stand up standards-real browser automation
 
-**Status:** Open
+**Status:** Resolved
 **Opened:** 2026-08-02, on LLP 0155's acceptance (fc19d8ed). The acceptance
 change carried Stage 0's reconciliation half (the dated LLP 0129
 cross-reference and companion records); this ticket owns the other half.
@@ -83,3 +83,14 @@ class honestly.
   same three deterministic `src/local.rs` live-query failures already recorded
   by closed settlement tickets 0133-02 and 0133-04; this branch changes no Rust
   or matcher code.
+
+## Resolution
+
+Resolved 2026-08-02 by implementation commit
+`f2cdfc3d883c0a846d63ae52077e5c77247bbf13`. The landing freezes the six
+application manifests and client/store/carrier/target identities, verifies all
+15 retained LLP 0138 receipts against their immutable source blobs, and adds
+the locally reproducible nine-check real-browser process/IndexedDB/Web-Locks
+lane. The proof commands and exact inherited Rust failures are recorded in the
+running log above. The broader end-to-end JS-arm browser product witness remains
+open in `issues/20260801-guide-gap-js-arm-browser-indexeddb-proof.md`.
