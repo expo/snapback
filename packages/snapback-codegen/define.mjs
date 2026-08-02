@@ -24,6 +24,7 @@ const TABLE = Symbol('snapback.table');
 const EPHEMERAL_COLLECTION = Symbol('snapback.ephemeralCollection');
 const EPHEMERAL = Symbol('snapback.ephemeral');
 const ASSET_UPLOAD = Symbol('snapback.assetUpload');
+const PUSH_SEAM = Symbol('snapback.pushSeam');
 const OBJECT_GET_PROTOTYPE_OF = Object.getPrototypeOf;
 const REFLECT_APPLY = Reflect.apply;
 const ARRAY_SLICE = Array.prototype.slice;
@@ -952,6 +953,41 @@ export function defineTable(fields) {
   return new TableBuilder(fields);
 }
 
+/**
+ * Declare the registry-only first slice of the Expo push seam. Audience
+ * resolution, sending, and receipts intentionally have no authoring spelling
+ * until their implementation slices land.
+ *
+ * @ref LLP 0143#d1-device-token-custody — app scope is declared once; a
+ * registration request can never choose or widen it.
+ */
+export function definePushSeam(spec) {
+  exactObject(spec, 'definePushSeam', new Set(['appScope', 'registry']));
+  exactObject(spec.appScope, 'definePushSeam appScope', new Set([
+    'easProjectId', 'applicationId', 'environment',
+  ]));
+  exactObject(spec.registry, 'definePushSeam registry', new Set(['idleRetentionMs']));
+  for (const field of ['easProjectId', 'applicationId', 'environment']) {
+    const value = spec.appScope[field];
+    assert(
+      typeof value === 'string'
+        && /^[A-Za-z0-9._:-]{1,255}$/u.test(value),
+      `definePushSeam appScope.${field} must be 1..255 bounded ASCII characters`,
+    );
+  }
+  assert(
+    Number.isSafeInteger(spec.registry.idleRetentionMs)
+      && spec.registry.idleRetentionMs >= 86_400_000
+      && spec.registry.idleRetentionMs <= 31_536_000_000,
+    'definePushSeam registry.idleRetentionMs must be between one day and one year',
+  );
+  return {
+    [PUSH_SEAM]: true,
+    appScope: { ...spec.appScope },
+    registry: { ...spec.registry },
+  };
+}
+
 export function defineSchema(tables, options = {}) {
   assert(tables && typeof tables === 'object', 'defineSchema expects a tables object');
   for (const [name, table] of Object.entries(tables)) {
@@ -996,12 +1032,25 @@ export function defineSchema(tables, options = {}) {
       assets = { referenceGc: { graceMs } };
     }
   }
+  let pushSeam;
+  if (options.pushSeam !== undefined) {
+    assert(
+      options.pushSeam && options.pushSeam[PUSH_SEAM] === true,
+      'defineSchema option "pushSeam" must be definePushSeam(...)',
+    );
+    assert(auth?.mode === 'sessions', 'defineSchema pushSeam requires auth.mode sessions');
+    pushSeam = {
+      appScope: { ...options.pushSeam.appScope },
+      registry: { ...options.pushSeam.registry },
+    };
+  }
   return {
     __schema: true,
     tables,
     ephemeral: ephemeralDef,
     ...(auth ? { auth } : {}),
     ...(assets ? { assets } : {}),
+    ...(pushSeam ? { pushSeam } : {}),
     ...(options.requiredCapabilities !== undefined
       ? { requiredCapabilities: [...new Set(options.requiredCapabilities)] }
       : {}),

@@ -1470,6 +1470,14 @@ fn representative_inspect() -> InspectState {
             last_permission_resolution_failure_ms: Some(7),
             last_journal_prune_failure_ms: Some(8),
         },
+        push_registry: snapback::push::PushRegistryInspectionV1 {
+            live_tokens: 1,
+            retired_tokens: 2,
+            retirement_reasons: std::collections::BTreeMap::from([
+                ("explicit-unregister".to_owned(), 1),
+                ("session-ended".to_owned(), 1),
+            ]),
+        },
         recent_diagnostics: vec![
             Diagnostic::info("SNAPBACK_READY", "server", "recent diagnostic secret text")
                 .with_details(json!({ "path": "/secret/recent/details.ts" })),

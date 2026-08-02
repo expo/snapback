@@ -721,6 +721,7 @@ pub enum InvocationSource {
     BootstrapHandshake,
     AuthRefresh,
     AuthLogout,
+    PushTokenRegistry,
     AgentGrantManagement,
     HttpQuery,
     HttpMutation,
@@ -776,10 +777,11 @@ pub enum FunctionKindConstraint {
 }
 
 impl InvocationSource {
-    pub const ALL: [Self; 31] = [
+    pub const ALL: [Self; 32] = [
         Self::BootstrapHandshake,
         Self::AuthRefresh,
         Self::AuthLogout,
+        Self::PushTokenRegistry,
         Self::AgentGrantManagement,
         Self::HttpQuery,
         Self::HttpMutation,
@@ -828,6 +830,7 @@ impl InvocationSource {
             Self::BootstrapHandshake
             | Self::AuthRefresh
             | Self::AuthLogout
+            | Self::PushTokenRegistry
             | Self::AgentGrantManagement
             | Self::MutationSettlementAcknowledgement
             | Self::InvalidationAcknowledgement
@@ -1596,7 +1599,8 @@ fn source_allows_authority(
         },
         InvocationSource::AuthRefresh
         | InvocationSource::AuthLogout
-        | InvocationSource::AgentGrantManagement => {
+        | InvocationSource::AgentGrantManagement
+        | InvocationSource::PushTokenRegistry => {
             mode == AuthMode::Sessions && matches!(resolved, ResolvedAppAuthority::Session { .. })
         }
         InvocationSource::HttpQuery
@@ -2242,7 +2246,8 @@ mod tests {
                 ),
                 InvocationSource::AuthRefresh
                 | InvocationSource::AuthLogout
-                | InvocationSource::AgentGrantManagement => {
+                | InvocationSource::AgentGrantManagement
+                | InvocationSource::PushTokenRegistry => {
                     mode == AuthMode::Sessions && matches!(kind, Kind::Session)
                 }
                 InvocationSource::HttpQuery

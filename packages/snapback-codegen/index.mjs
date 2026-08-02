@@ -2873,6 +2873,7 @@ export async function generateInProcess(backendDir, options = {}) {
     ...(appIdentity ? { app: appIdentity } : {}),
     ...(schemaDef.auth !== undefined ? { auth: { mode: authMode } } : {}),
     ...(schemaAssetsPolicy ? { assets: schemaAssetsPolicy } : {}),
+    ...(schemaDef.pushSeam ? { pushSeam: schemaDef.pushSeam } : {}),
     ...(schemaRequiredCapabilities.length > 0
       ? { requiredCapabilities: schemaRequiredCapabilities }
       : {}),

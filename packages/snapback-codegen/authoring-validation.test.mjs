@@ -63,6 +63,59 @@ export const probe = defineAction({
 });
 `;
 
+// LLP 0143 registry declaration is explicit, session-only, and closed. It
+// does not imply the later send/ledger slices.
+{
+  const result = await validCase({
+    schema: `
+import { definePushSeam, defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema(
+  { todos: defineTable({ title: v.string() }) },
+  {
+    auth: { mode: 'sessions' },
+    pushSeam: definePushSeam({
+      appScope: {
+        easProjectId: 'eas-project-fixture',
+        applicationId: 'com.example.fixture',
+        environment: 'preview',
+      },
+      registry: { idleRetentionMs: 2592000000 },
+    }),
+  },
+);
+`,
+    functions: 'export const nothing = 0;\n',
+  });
+  const manifest = JSON.parse(readFileSync(join(result.outDir, 'schema.manifest.json'), 'utf8'));
+  assert.deepEqual(manifest.pushSeam, {
+    appScope: {
+      easProjectId: 'eas-project-fixture',
+      applicationId: 'com.example.fixture',
+      environment: 'preview',
+    },
+    registry: { idleRetentionMs: 2_592_000_000 },
+  });
+}
+
+{
+  const diagnostics = await invalidCase({
+    schema: `
+import { definePushSeam, defineSchema } from '${defineUrl}';
+export default defineSchema({}, {
+  auth: { mode: 'dev' },
+  pushSeam: definePushSeam({
+    appScope: { easProjectId: 'eas', applicationId: 'app', environment: 'dev' },
+    registry: { idleRetentionMs: 86400000 },
+  }),
+});
+`,
+    functions: 'export const nothing = 0;\n',
+  });
+  assert(diagnostics.some((diagnostic) => /pushSeam requires auth\.mode sessions/u.test(
+    diagnostic.message ?? '',
+  )));
+}
+
 function handlerWith(statement) {
   return `// scanner location prelude\n${statement}\nglobalThis.__snapbackHandlers = { async probe() { return {}; } };\n`;
 }

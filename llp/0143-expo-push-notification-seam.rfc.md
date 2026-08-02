@@ -98,6 +98,9 @@ concerns stood; the nine open questions resolve during implementation as
 the document itself proposes. Acceptance authorizes the seam design;
 `notifications: false` remains the honest manifest claim until the
 implementation lands.)
+**Revised:** 2026-08-02 (device-token registry implementation record added.
+This is D1 plus the registry-only D6 activation slice, not the complete seam;
+the send lane, ledger, receipts, and full capability identity remain open.)
 **Related:** LLP 0000, LLP 0027, LLP 0028, LLP 0036, LLP 0039, LLP 0045,
 LLP 0049, LLP 0053, LLP 0055, LLP 0064, LLP 0070, LLP 0100, LLP 0102,
 LLP 0137,
@@ -703,6 +706,61 @@ gate of this witness, not a footnote.
    in v1, and how a resolver's own authorization is declared.
 9. Whether `expo-error-rate` receipts should feed back into the pacing
    facts (adaptive pacing) or stay a static published limit in v1.
+
+## Implementation record
+
+### 2026-08-02 — D1/D6 registry slice
+
+The first independently landable slice implements platform custody without
+claiming provider handoff:
+
+- `definePushSeam({ appScope, registry: { idleRetentionMs } })` is the exact
+  registry declaration. It is valid only with session auth. Schema activation
+  creates the protected registry and exact auth-lifecycle triggers only when
+  declared; removing the declaration removes those objects. This proves D6's
+  undeclared no-storage/no-maintenance posture for the registry half.
+- The live registry key is `(appScope, principal, installation)`. Registration
+  is one transaction: exact live session generation, idempotent refresh,
+  last-write-wins rotation, same-scope single-owner transfer, cross-scope
+  refusal with a bounded leak indicator, and no token bytes in the response.
+- Exact-catalog triggers retire and erase the bound generation in the same
+  SQLite transaction as session terminalization or durable expiry-clock
+  advancement. Explicit unregister and declared idle-retention maintenance
+  are live. The protected registry table, its PK autoindex, four named indexes,
+  and three triggers are checked against a once-built exact reference catalog,
+  including `table_xinfo`, `foreign_key_list`, `index_list`, and `index_xinfo`
+  physical shape; forged `sqlite_schema` index text cannot hide different
+  btree columns. A tested `DeviceNotRegistered` transition accepts only a
+  token-row id plus an allowlisted `ticket:`/`receipt:` reference; it has no
+  production caller until the send and receipt slices exist.
+- Inspection reports only live/retired cardinalities and allowlisted reason
+  counts. Auth backup retains registry schema but secure-deletes all custody
+  rows from the staged image; the proof scans raw SQLite bytes, including free
+  space, for the token fixture. Token bytes are request-only secret input and
+  are absent
+  from app storage, responses, diagnostics, inspection, and exports.
+- The JS spelling for this slice is `client.push.registerToken`,
+  `client.push.registerExpoToken`, and `client.push.unregisterToken`.
+  Installation identity storage is explicitly injected. The client refuses
+  with `SNAPBACK_PUSH_INSTALLATION_CUSTODY_REQUIRED` when it is absent because
+  OQ2's production carrier and reset semantics remain an author question in
+  the decision packet. Unregister reads existing custody only: when no
+  installation id exists it returns `{ tokenId: null, retired: false }`
+  locally, without minting, writing storage, or making a network request.
+
+Open-question dispositions at this boundary: OQ1 is resolved only for the
+registry spellings (`definePushSeam`, `client.push`); the complete seam's
+manifest capability id waits for the send/ledger shape. OQ6's independent
+sequencing assumption is confirmed. OQ7 begins with deterministic in-process
+registry fixtures, but the shared fake-Expo tickets/receipts/socket-drop kit
+and real dev-build receipt remain completion gates. OQ2 remains explicitly
+unresolved; OQ3–OQ5 and OQ8–OQ9 belong to later slices.
+
+Honesty posture: the capability index advertises a local, partial
+`backend.push-token-registry-v1` GAP with the HTTP route as witness.
+`notifications: false` is unchanged. There is no `ctx.push.send`, audience
+resolver, handoff ledger, receipt poll, endpoint override, hosted claim, or
+delivery claim in this implementation record.
 
 ## Prior art
 

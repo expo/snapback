@@ -533,6 +533,29 @@ export interface SnapbackClientOptions {
   readonly offlineQueue?: 'auto' | boolean;
   readonly strictWireVersion?: boolean;
   readonly onWireVersionDiagnostic?: ((diagnostic: unknown) => void) | null;
+  /** Explicit installation-identity custody for the LLP 0143 registry.
+   * Registration refuses when absent until OQ2 chooses a default durable
+   * carrier and reset contract. */
+  readonly pushInstallationStorage?: PushInstallationStorage | null;
+}
+
+export interface PushInstallationStorage {
+  read(): Promise<string | null | undefined> | string | null | undefined;
+  write(value: string): Promise<void> | void;
+  clear(): Promise<void> | void;
+}
+
+export interface PushTokenRegistration {
+  readonly tokenId: string;
+  readonly installationId: string;
+  readonly registeredAt: number;
+  readonly rotated: boolean;
+  readonly ownershipTransferred: boolean;
+}
+
+export interface PushTokenUnregistration {
+  readonly tokenId: string | null;
+  readonly retired: boolean;
 }
 
 /** DK-9 degradation fact: which persistence store the client resolved. */
@@ -711,6 +734,17 @@ export class SnapbackClient {
   closeAuth(): Promise<void>;
   health(): Promise<unknown>;
   inspect(): Promise<unknown>;
+  readonly push: Readonly<{
+    installationId(): Promise<string>;
+    registerToken(input: { readonly token: string }): Promise<Readonly<PushTokenRegistration>>;
+    unregisterToken(): Promise<Readonly<PushTokenUnregistration>>;
+    registerExpoToken(input: {
+      readonly getExpoPushTokenAsync: (
+        options?: { readonly projectId: string },
+      ) => Promise<{ readonly data: string }>;
+      readonly projectId?: string;
+    }): Promise<Readonly<PushTokenRegistration>>;
+  }>;
   captureAuthority(): unknown;
   allocateLiveQueryNamespace(
     ref: NamedReference,
@@ -1036,6 +1070,7 @@ export function bindSnapbackAppLifecycle(
 ): { dispose(): void; settled(): Promise<void> };
 
 export const LIVE_HEARTBEAT_INTERVAL_MS: number;
+export function newPushInstallationId(): string;
 export const LIVE_FRESHNESS_BUDGET_MS: number;
 export const LIVE_RECONNECT_BASE_DELAY_MS: number;
 export const LIVE_RECONNECT_MAX_DELAY_MS: number;

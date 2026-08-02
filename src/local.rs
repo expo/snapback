@@ -363,6 +363,8 @@ pub struct InspectState {
     pub ephemeral: EphemeralDiagnostics,
     pub cron: CronInspectState,
     pub maintenance: MaintenanceDiagnostics,
+    #[serde(rename = "pushRegistry")]
+    pub push_registry: crate::push::PushRegistryInspectionV1,
     #[serde(rename = "recentDiagnostics", alias = "recent_diagnostics")]
     pub recent_diagnostics: Vec<Diagnostic>,
     #[serde(rename = "capabilityGaps", alias = "capability_gaps")]
@@ -664,6 +666,7 @@ impl From<InspectState> for PublicInspect {
             ephemeral,
             cron,
             maintenance,
+            push_registry: _,
             recent_diagnostics,
             capability_gaps,
         } = inspect;
@@ -6171,6 +6174,7 @@ impl LocalSnapback {
             ephemeral: EphemeralDiagnostics::default(),
             cron,
             maintenance: self.maintenance.clone(),
+            push_registry: self.db.push_registry_inspection()?,
             recent_diagnostics: self.recent_diagnostics.iter().cloned().collect(),
             capability_gaps,
         })

@@ -1640,6 +1640,9 @@ fn apply_schema_tables(tx: &Transaction<'_>, manifest: &SchemaManifest) -> Snapb
     for table in &manifest.tables {
         create_or_update_table(tx, table)?;
     }
+    // @ref LLP 0143#d6-activation-migration-and-the-no-op-posture — registry storage
+    // and auth-lifecycle triggers exist iff the schema declares the seam.
+    crate::push::activate_manifest_in(tx, manifest.push_seam.as_ref())?;
     Ok(())
 }
 

@@ -330,6 +330,40 @@ export function newSeedOperationIdV1(nowMs = Date.now()) {
   const hex = [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('');
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
+
+const PUSH_INSTALLATION_ALPHABET = '0123456789abcdefghjkmnpqrstvwxyz';
+const PUSH_INSTALLATION_PATTERN = /^inst_[0-7][0-9a-hjkmnp-tv-z]{25}$/u;
+const PUSH_TOKEN_ID_PATTERN = /^ptok_[0-7][0-9a-hjkmnp-tv-z]{25}$/u;
+
+const encodePushInstallationBody = (bytes) => {
+  let value = 0n;
+  for (const byte of bytes) value = (value << 8n) | BigInt(byte);
+  let body = '';
+  for (let index = 0; index < 26; index += 1) {
+    body = PUSH_INSTALLATION_ALPHABET[Number(value & 31n)] + body;
+    value >>= 5n;
+  }
+  return body;
+};
+
+/** Mint the random installation identity used only by the push registry. */
+export function newPushInstallationId() {
+  const bytes = new Uint8Array(16);
+  cryptoRandomSource('push installation identity').getRandomValues(bytes);
+  return `inst_${encodePushInstallationBody(bytes)}`;
+}
+
+const validatePushInstallationStorage = (storage) => {
+  if (!storage || typeof storage !== 'object') {
+    throw new TypeError('pushInstallationStorage must be an object');
+  }
+  for (const method of ['read', 'write', 'clear']) {
+    if (typeof storage[method] !== 'function') {
+      throw new TypeError(`pushInstallationStorage.${method} must be a function`);
+    }
+  }
+  return storage;
+};
 const SENDER_PROTOCOL = 'snapback.sender-constrained.v2';
 const SENDER_ISSUANCE_PROTOCOL = 'snapback.sender-issuance.v2';
 const SENDER_NONCE_TTL_MS = 120_000;
@@ -1641,6 +1675,10 @@ export class SnapbackClient {
     // Per-class decoded-byte ingress bounds (LLP 0062); partial overrides
     // merge over DEFAULT_INGRESS_LIMIT_BYTES.
     ingressLimits = null,
+    // LLP 0143 registry-only slice. Expo apps inject durable installation
+    // custody. Until OQ2 chooses the production carrier and reset semantics,
+    // registration refuses without an explicit storage injection.
+    pushInstallationStorage = null,
   } = {}) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.adminToken = adminToken;
@@ -1694,6 +1732,16 @@ export class SnapbackClient {
     this.agentAuthority = agentAuthority;
     this.authorityFence = authCoordinator ?? agentAuthority;
     this.clientStoreId = clientStoreId;
+    this.pushInstallationStorage = pushInstallationStorage === null
+      ? null
+      : validatePushInstallationStorage(pushInstallationStorage);
+    this.__pushInstallationPromise = null;
+    this.push = Object.freeze({
+      installationId: () => this.#pushInstallationId(),
+      registerToken: (options) => this.pushRegisterToken(options),
+      unregisterToken: () => this.pushUnregisterToken(),
+      registerExpoToken: (options) => this.pushRegisterExpoToken(options),
+    });
     // Default persistence resolution (LLP 0129 Phase 0). `undefined` means
     // "not configured" and resolves the default ladder; explicit null/false
     // is the opt-out. The resolved implementation and durability mode are
@@ -4623,6 +4671,126 @@ export class SnapbackClient {
       await this.authCoordinator.compareAndClear(capture, 'refresh_superseded_without_successor');
       throw error;
     }
+  }
+
+  async #pushInstallationId() {
+    if (this.pushInstallationStorage === null) {
+      const error = new Error(
+        'SNAPBACK_PUSH_INSTALLATION_CUSTODY_REQUIRED: push registration requires explicit durable installation custody',
+      );
+      error.code = 'SNAPBACK_PUSH_INSTALLATION_CUSTODY_REQUIRED';
+      throw error;
+    }
+    this.__pushInstallationPromise ??= (async () => {
+      const stored = await this.#readPushInstallationId();
+      if (stored !== null) return stored;
+      const minted = newPushInstallationId();
+      await this.pushInstallationStorage.write(minted);
+      return minted;
+    })();
+    try {
+      return await this.__pushInstallationPromise;
+    } catch (error) {
+      this.__pushInstallationPromise = null;
+      throw error;
+    }
+  }
+
+  async #readPushInstallationId() {
+    if (this.pushInstallationStorage === null) return null;
+    const stored = await this.pushInstallationStorage.read();
+    if (stored === null || stored === undefined) return null;
+    if (typeof stored !== 'string' || !PUSH_INSTALLATION_PATTERN.test(stored)) {
+      const error = new Error(
+        'SNAPBACK_PUSH_INSTALLATION_CUSTODY_CORRUPT: stored installation identity is invalid',
+      );
+      error.code = 'SNAPBACK_PUSH_INSTALLATION_CUSTODY_CORRUPT';
+      throw error;
+    }
+    return stored;
+  }
+
+  /**
+   * Register an Expo token directly with the platform registry. The token is
+   * request-only: it is never returned or retained on the SnapbackClient.
+   *
+   * @ref LLP 0143#d1-device-token-custody — application handlers and ordinary
+   * rows never receive provider token bytes.
+   */
+  async pushRegisterToken({ token } = {}) {
+    if (
+      typeof token !== 'string'
+      || token.length === 0
+      || token.length > 1_024
+      || !/^(?:Exponent|Expo)PushToken\[[A-Za-z0-9_-]+\]$/u.test(token)
+    ) {
+      throw new TypeError('SNAPBACK_PUSH_TOKEN_INVALID: token must be an Expo push token');
+    }
+    const installationId = await this.#pushInstallationId();
+    const response = await this.#req('POST', '/push/tokens/register', {
+      installationId,
+      token,
+    });
+    if (
+      !response
+      || typeof response !== 'object'
+      || typeof response.tokenId !== 'string'
+      || !PUSH_TOKEN_ID_PATTERN.test(response.tokenId)
+      || response.installationId !== installationId
+      || !Number.isSafeInteger(response.registeredAt)
+      || response.registeredAt < 0
+      || typeof response.rotated !== 'boolean'
+      || typeof response.ownershipTransferred !== 'boolean'
+      || Object.keys(response).length !== 5
+    ) {
+      throw new Error(
+        'SNAPBACK_PUSH_REGISTRY_RESPONSE_INVALID: registration response is invalid',
+      );
+    }
+    return Object.freeze({ ...response });
+  }
+
+  /** Reacquire ExpoPushToken.data after a native-token rotation signal. */
+  async pushRegisterExpoToken({ getExpoPushTokenAsync, projectId } = {}) {
+    if (typeof getExpoPushTokenAsync !== 'function') {
+      throw new TypeError('getExpoPushTokenAsync must be a function');
+    }
+    const result = await getExpoPushTokenAsync(
+      projectId === undefined ? undefined : { projectId },
+    );
+    if (!result || typeof result.data !== 'string') {
+      throw new TypeError(
+        'SNAPBACK_PUSH_TOKEN_INVALID: getExpoPushTokenAsync returned no ExpoPushToken.data',
+      );
+    }
+    return this.pushRegisterToken({ token: result.data });
+  }
+
+  async pushUnregisterToken() {
+    // An absent identity means this client has no installation-shaped custody
+    // it can name. Minting here would neither retire the lost predecessor nor
+    // describe an unregister, so return an exact local no-op with no write or
+    // network effect.
+    const installationId = await this.#readPushInstallationId();
+    if (installationId === null) {
+      return Object.freeze({ tokenId: null, retired: false });
+    }
+    const response = await this.#req('POST', '/push/tokens/unregister', { installationId });
+    if (
+      !response
+      || typeof response !== 'object'
+      || (response.tokenId !== null && (
+        typeof response.tokenId !== 'string'
+        || !PUSH_TOKEN_ID_PATTERN.test(response.tokenId)
+      ))
+      || typeof response.retired !== 'boolean'
+      || Object.keys(response).length !== 2
+    ) {
+      throw new Error(
+        'SNAPBACK_PUSH_REGISTRY_RESPONSE_INVALID: unregister response is invalid',
+      );
+    }
+    return Object.freeze({ ...response });
   }
 
   async authLogout() {

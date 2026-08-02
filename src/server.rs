@@ -75,6 +75,10 @@ use crate::manifest::{
     MutationAcknowledgementRequest, MutationAcknowledgementResponse, MutationOutput,
     MutationRequest, QueryOutput, ReadDependency, SchemaManifest, SeedData,
 };
+use crate::push::{
+    PushTokenRegistrationResponse, PushTokenUnregisterResponse, RegisterPushTokenRequest,
+    Registration as PushTokenRegistration, UnregisterPushTokenRequest,
+};
 use crate::runtime::{
     ActionStreamChunk, ActionStreamOpened, ActionStreamRequest, CapabilityState, IbexActionHost,
 };
@@ -7813,6 +7817,35 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
             ),
             post(auth_logout).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
         ),
+        // Registry-only LLP 0143 slice. These routes are session-only even in
+        // local development: caller-asserted body auth cannot own a bearer-
+        // shaped device token, and a registration never carries app scope.
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/push/tokens/register",
+                RouteClass::AppData,
+                RoutePolicy::SessionAuth,
+                CredentialResolution::RequiredSessionBearer,
+                InvocationAuthority::ResolvedCaller,
+                LegacyBodyPolicy::Rejected,
+                ResponseSensitivity::SensitiveApplicationData,
+            ),
+            post(push_token_register).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/push/tokens/unregister",
+                RouteClass::AppData,
+                RoutePolicy::SessionAuth,
+                CredentialResolution::RequiredSessionBearer,
+                InvocationAuthority::ResolvedCaller,
+                LegacyBodyPolicy::Rejected,
+                ResponseSensitivity::SensitiveApplicationData,
+            ),
+            post(push_token_unregister).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+        ),
         RegisteredRoute::new(
             RouteSpec::new(
                 "POST",
@@ -9203,6 +9236,9 @@ fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
         "/auth/session" => Some(InvocationSource::BootstrapHandshake),
         "/auth/refresh" => Some(InvocationSource::AuthRefresh),
         "/auth/logout" => Some(InvocationSource::AuthLogout),
+        "/push/tokens/register" | "/push/tokens/unregister" => {
+            Some(InvocationSource::PushTokenRegistry)
+        }
         "/auth/step-up/request"
         | "/auth/pairing-codes"
         | "/auth/grant-requests"
@@ -13819,6 +13855,122 @@ async fn auth_logout(
         }
     }
     Err(auth_provider_unavailable())
+}
+
+/// Register one Expo token without allowing handler or application storage to
+/// observe any token already under platform custody.
+///
+/// @ref LLP 0143#d1-device-token-custody — declared app scope, one live token
+/// owner, and exact session-generation custody are host-enforced.
+async fn push_token_register(
+    State(runtime): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Json<PushTokenRegistrationResponse>, ApiError> {
+    let (principal_id, session_id, session_generation) =
+        require_push_registry_authority(&authority)?;
+    let request = parse_auth_json::<RegisterPushTokenRequest>(&headers, body)?;
+    let provider = installed_auth_provider(&runtime)?;
+    let now_ms = provider.now_ms();
+    let effect_authority = authority.clone();
+    let response = with_snapback(&runtime.snapback, move |snapback| {
+        let _effect = effect_authority.effect_guard("push-token registration transaction")?;
+        let database = snapback.auth_database_mut();
+        let declaration = database.schema().push_seam.clone().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_PUSH_SEAM_NOT_DECLARED",
+                "push",
+                "the app schema does not declare definePushSeam",
+            )
+        })?;
+        database.with_auth_transaction(|tx| {
+            crate::push::register_in(
+                tx,
+                PushTokenRegistration {
+                    declaration: &declaration,
+                    principal_id: &principal_id,
+                    session_id: &session_id,
+                    session_generation,
+                    installation_id: &request.installation_id,
+                    token: request.token.as_str(),
+                    now_ms,
+                },
+            )
+        })
+    })
+    .await?;
+    Ok(Json(response))
+}
+
+async fn push_token_unregister(
+    State(runtime): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Json<PushTokenUnregisterResponse>, ApiError> {
+    let (principal_id, session_id, session_generation) =
+        require_push_registry_authority(&authority)?;
+    let request = parse_auth_json::<UnregisterPushTokenRequest>(&headers, body)?;
+    let provider = installed_auth_provider(&runtime)?;
+    let now_ms = provider.now_ms();
+    let effect_authority = authority.clone();
+    let response = with_snapback(&runtime.snapback, move |snapback| {
+        let _effect = effect_authority.effect_guard("push-token unregister transaction")?;
+        let database = snapback.auth_database_mut();
+        let declaration = database.schema().push_seam.clone().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_PUSH_SEAM_NOT_DECLARED",
+                "push",
+                "the app schema does not declare definePushSeam",
+            )
+        })?;
+        database.with_auth_transaction(|tx| {
+            crate::push::unregister_in(
+                tx,
+                &declaration,
+                &principal_id,
+                &session_id,
+                session_generation,
+                &request.installation_id,
+                now_ms,
+            )
+        })
+    })
+    .await?;
+    Ok(Json(response))
+}
+
+fn require_push_registry_authority(
+    authority: &PreparedAuthority,
+) -> Result<(String, String, u64), ApiError> {
+    authority
+        .validate_admission("push-token registry operation")
+        .map_err(ApiError::from)?;
+    if authority.source() != InvocationSource::PushTokenRegistry
+        || authority.active_mode() != AuthMode::Sessions
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_PUSH_SESSION_REQUIRED",
+            "push",
+            "push-token registry operations require exact session authority",
+        )
+        .into());
+    }
+    match authority.resolved() {
+        ResolvedAppAuthority::Session {
+            user_id,
+            session_id,
+            generation,
+            ..
+        } => Ok((user_id.clone(), session_id.clone(), *generation)),
+        _ => Err(SnapbackError::error(
+            "SNAPBACK_PUSH_SESSION_REQUIRED",
+            "push",
+            "push-token registry operations require exact session authority",
+        )
+        .into()),
+    }
 }
 
 fn require_provider_session_authority(
@@ -23072,6 +23224,18 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
 
 fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
     match code {
+        "SNAPBACK_PUSH_TOKEN_INVALID"
+        | "SNAPBACK_PUSH_SEAM_AUTH_REQUIRED"
+        | "SNAPBACK_PUSH_SEAM_NOT_DECLARED" => {
+            StatusCode::BAD_REQUEST
+        }
+        "SNAPBACK_PUSH_SESSION_STALE" | "SNAPBACK_PUSH_SESSION_REQUIRED" => {
+            StatusCode::UNAUTHORIZED
+        }
+        "SNAPBACK_PUSH_TOKEN_SCOPE_COLLISION" | "SNAPBACK_PUSH_APP_SCOPE_CHANGE_BLOCKED" => {
+            StatusCode::CONFLICT
+        }
+        "SNAPBACK_PUSH_REGISTRY_CORRUPT" => StatusCode::INTERNAL_SERVER_ERROR,
         "SNAPBACK_UNKNOWN_FUNCTION" | "SNAPBACK_UNKNOWN_TABLE" | "SNAPBACK_UNKNOWN_FIELD" => {
             StatusCode::NOT_FOUND
         }
@@ -33811,6 +33975,104 @@ globalThis.__snapbackHandlers = {
     }
 
     #[tokio::test]
+    async fn push_registry_routes_keep_token_custody_and_logout_retirement_host_owned() {
+        let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+        let state = activate_test_sessions(state);
+        with_snapback(&state.snapback, |snapback| {
+            snapback
+                .auth_database_mut()
+                .activate_push_registry_for_test(crate::push::PushSeamDeclarationV1 {
+                    app_scope: crate::push::PushAppScopeV1 {
+                        eas_project_id: "eas-route".into(),
+                        application_id: "com.example.route".into(),
+                        environment: "test".into(),
+                    },
+                    registry: crate::push::PushRegistryDeclarationV1 {
+                        idle_retention_ms: 86_400_000,
+                    },
+                })
+        })
+        .await
+        .expect("declare push registry");
+        let credential = mint_test_credential(&state, "push-route@example.com").await;
+        let bearer = credential["token"].as_str().unwrap().to_owned();
+        let installation_id = crate::ids::mint(crate::ids::Kind::Installation).unwrap();
+        let token = "ExponentPushToken[route_secret]";
+        let router = app(state.clone());
+
+        let mut missing_request = auth_http_request(
+            "POST",
+            "/push/tokens/register",
+            serde_json::to_vec(&json!({
+                "installationId": installation_id,
+                "token": token,
+            }))
+            .unwrap(),
+            true,
+            None,
+            None,
+        );
+        offer_auth_client_protocol(&mut missing_request);
+        let missing = router
+            .clone()
+            .oneshot(missing_request)
+            .await
+            .expect("missing bearer response");
+        assert_eq!(missing.status(), StatusCode::UNAUTHORIZED);
+
+        let registered = router
+            .clone()
+            .oneshot(session_auth_http_request(
+                "/push/tokens/register",
+                serde_json::to_vec(&json!({
+                    "installationId": installation_id,
+                    "token": token,
+                }))
+                .unwrap(),
+                &bearer,
+            ))
+            .await
+            .expect("register token");
+        assert_eq!(registered.status(), StatusCode::OK);
+        let registered = response_json(registered).await;
+        assert_eq!(registered["installationId"], installation_id);
+        assert!(crate::ids::looks_like(
+            crate::ids::Kind::PushToken,
+            registered["tokenId"].as_str().unwrap(),
+        ));
+        let encoded = serde_json::to_string(&registered).unwrap();
+        assert!(!encoded.contains("route_secret"));
+        assert!(registered.get("token").is_none());
+
+        let logout = router
+            .oneshot(session_auth_http_request(
+                "/auth/logout",
+                br#"{}"#.to_vec(),
+                &bearer,
+            ))
+            .await
+            .expect("logout registered session");
+        assert_eq!(logout.status(), StatusCode::NO_CONTENT);
+        let (inspection, bytes) = with_snapback(&state.snapback, |snapback| {
+            let db = snapback.auth_database_mut();
+            let inspection = db.push_registry_inspection()?;
+            let bytes = db.with_auth_read(|conn| {
+                Ok(conn.query_row(
+                    "SELECT token_bytes FROM _snapback_push_tokens_v1",
+                    [],
+                    |row| row.get::<_, String>(0),
+                )?)
+            })?;
+            Ok::<_, SnapbackError>((inspection, bytes))
+        })
+        .await
+        .expect("retired custody facts");
+        assert_eq!(inspection.live_tokens, 0);
+        assert_eq!(inspection.retirement_reasons["session-ended"], 1);
+        assert!(bytes.is_empty());
+    }
+
+    #[tokio::test]
     async fn agent_token_route_accepts_exactly_one_target_and_returns_complete_receipts() {
         let state = sessions_activation_server_fixture_async().await;
         let provider = state.auth_provider.clone().unwrap();
@@ -37561,6 +37823,9 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_ASSET_ATTACH_UNAVAILABLE",
         "SNAPBACK_ASSET_ATTACH_DENIED",
         "SNAPBACK_ASSET_TTL_INVALID",
+        "SNAPBACK_PUSH_SEAM_AUTH_REQUIRED",
+        "SNAPBACK_PUSH_SEAM_NOT_DECLARED",
+        "SNAPBACK_PUSH_TOKEN_INVALID",
     ];
 
     const APP_API_BAD_REQUEST_DIAGNOSTICS: &[&str] = &["SNAPBACK_APP_API_ENVELOPE_HASH_INVALID"];
@@ -37584,6 +37849,8 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
         "SNAPBACK_CONNECTION_AUTHORITY_MISMATCH",
         "SNAPBACK_CONNECTION_TOKEN_REQUIRED",
+        "SNAPBACK_PUSH_SESSION_STALE",
+        "SNAPBACK_PUSH_SESSION_REQUIRED",
     ];
 
     const FORBIDDEN_DIAGNOSTICS: &[&str] = &[
@@ -37731,6 +37998,8 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_ASSET_NOT_READY",
         "SNAPBACK_ASSET_REFERENCED",
         "SNAPBACK_SEED_ASSET_FIXTURE_NOT_INGESTED",
+        "SNAPBACK_PUSH_TOKEN_SCOPE_COLLISION",
+        "SNAPBACK_PUSH_APP_SCOPE_CHANGE_BLOCKED",
     ];
 
     const PAYLOAD_TOO_LARGE_DIAGNOSTICS: &[&str] = &[
@@ -38030,6 +38299,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_V8_RUNNER_INVOKE_FAILED",
         "SNAPBACK_V8_RUNNER_START_FAILED",
         "SNAPBACK_VERSION_OUT_OF_RANGE",
+        "SNAPBACK_PUSH_REGISTRY_CORRUPT",
         "SNAPBACK_ASSET_AUTHORIZER_RESULT_INVALID",
         "SNAPBACK_ASSET_BLOB_CONDEMNED_RACE",
         "SNAPBACK_ASSET_HOST_OP_INPUT_INVALID",

@@ -3297,6 +3297,56 @@
         }
       ]
     },
+    "PushAppScopeV1": {
+      "additionalProperties": false,
+      "properties": {
+        "applicationId": {
+          "type": "string"
+        },
+        "easProjectId": {
+          "type": "string"
+        },
+        "environment": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "easProjectId",
+        "applicationId",
+        "environment"
+      ],
+      "type": "object"
+    },
+    "PushRegistryDeclarationV1": {
+      "additionalProperties": false,
+      "properties": {
+        "idleRetentionMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "idleRetentionMs"
+      ],
+      "type": "object"
+    },
+    "PushSeamDeclarationV1": {
+      "additionalProperties": false,
+      "properties": {
+        "appScope": {
+          "$ref": "#/$defs/PushAppScopeV1"
+        },
+        "registry": {
+          "$ref": "#/$defs/PushRegistryDeclarationV1"
+        }
+      },
+      "required": [
+        "appScope",
+        "registry"
+      ],
+      "type": "object"
+    },
     "QueryPlan": {
       "properties": {
         "filters": {
@@ -3961,6 +4011,17 @@
             "type": "string"
           },
           "type": "array"
+        },
+        "pushSeam": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PushSeamDeclarationV1"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Registry-only first slice of LLP 0143. The declaration pins app scope\nonce in generated source; registration requests never choose it."
         },
         "requiredCapabilities": {
           "items": {

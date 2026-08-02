@@ -211,6 +211,15 @@ pub struct SchemaManifest {
     /// is a schema declaration — "an app may enable" — not an intent knob).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub assets: Option<SchemaAssetsPolicyV1>,
+    /// Registry-only first slice of LLP 0143. The declaration pins app scope
+    /// once in generated source; registration requests never choose it.
+    #[serde(
+        default,
+        rename = "pushSeam",
+        alias = "push_seam",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub push_seam: Option<crate::push::PushSeamDeclarationV1>,
     #[serde(
         default,
         rename = "requiredCapabilities",
@@ -254,6 +263,7 @@ impl Default for SchemaManifest {
             app: None,
             auth: None,
             assets: None,
+            push_seam: None,
             required_capabilities: Vec::new(),
             schema_hash: None,
             inputs_hash: None,
@@ -332,6 +342,17 @@ impl SchemaManifest {
             ));
         }
 
+        if let Some(push_seam) = &self.push_seam {
+            if mode != AuthMode::Sessions {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_PUSH_SEAM_AUTH_REQUIRED",
+                    "push",
+                    "the push-token registry requires schema auth.mode sessions",
+                ));
+            }
+            push_seam.validate()?;
+        }
+
         Ok(())
     }
 }
@@ -351,6 +372,8 @@ pub struct PublicSchemaManifest {
     pub auth: Option<AuthManifest>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub assets: Option<SchemaAssetsPolicyV1>,
+    #[serde(rename = "pushSeam", default, skip_serializing_if = "Option::is_none")]
+    pub push_seam: Option<crate::push::PushSeamDeclarationV1>,
     #[serde(rename = "requiredCapabilities")]
     pub required_capabilities: Vec<String>,
     #[serde(rename = "schemaHash")]
@@ -381,6 +404,7 @@ impl From<SchemaManifest> for PublicSchemaManifest {
             app,
             auth,
             assets,
+            push_seam,
             required_capabilities,
             schema_hash,
             inputs_hash,
@@ -399,6 +423,7 @@ impl From<SchemaManifest> for PublicSchemaManifest {
             app,
             auth,
             assets,
+            push_seam,
             required_capabilities,
             schema_hash,
             inputs_hash,

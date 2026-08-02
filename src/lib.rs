@@ -92,6 +92,8 @@ pub mod live_wire;
 pub mod local;
 #[doc(hidden)]
 pub mod manifest;
+#[doc(hidden)]
+pub mod push;
 pub(crate) mod membership_rules;
 #[doc(hidden)]
 pub mod migration;

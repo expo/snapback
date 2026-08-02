@@ -160,6 +160,16 @@
     },
     {
       "body": "timeOrdered",
+      "kind": "PushToken",
+      "prefix": "ptok"
+    },
+    {
+      "body": "random",
+      "kind": "Installation",
+      "prefix": "inst"
+    },
+    {
+      "body": "timeOrdered",
       "kind": "Opaque",
       "prefix": "id"
     }

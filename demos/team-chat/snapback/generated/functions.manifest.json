@@ -5,7 +5,7 @@
   ],
   "appId": "team-chat",
   "artifactKind": "functionManifest",
-  "bundleHash": "sha256:be8e39b28e6b32b8",
+  "bundleHash": "sha256:c9186664e6c48cca",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -2262,7 +2262,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "de28e39b748d058f1e86b13994e72e17518467fa7d72c77994863709c8e89631",
+  "inputsHash": "86a42e31423cefcafb16c5fe63d595f976a6860db962ff4671e1bdf7810f9524",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": [
     {

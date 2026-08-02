@@ -83,6 +83,19 @@ Tier 3:
 
 ## Questions appended after the sitting
 
+- **2026-08-02 — LLP 0143 installation identity carrier and reset semantics
+  (OQ2).** D1a requires an opaque installation identity persisted beside auth
+  custody, explicitly not in the RQS cache, while OQ2 leaves its final home and
+  reset semantics open. The shipped client has no mechanically owned durable
+  installation carrier: its auth and RQS stores have different lifecycle
+  contracts, and selecting either one (or adding an Expo FileSystem/SecureStore
+  carrier) would decide whether logout, app-data reset, account switching, and
+  reinstall preserve or replace the identity. Author ruling requested: choose
+  the production carrier and enumerate its reset events. The registry slice
+  will require explicit storage injection and refuse registration with
+  `SNAPBACK_PUSH_INSTALLATION_CUSTODY_REQUIRED` when none is configured; it
+  will not silently substitute process-memory custody.
+
 - **2026-08-02 — LLP 0154 telemetry export carrier across host ops / control
   MCP.** The accepted RFC requires `telemetry.export` to be snapshot-bounded
   streaming and also projects the operation one-to-one through LLP 0024 host

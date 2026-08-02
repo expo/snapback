@@ -262,6 +262,21 @@ export type TargetCapabilityId =
   | 'permission_epoch_resync'
   | 'full_text_search_v1';
 
+export interface PushSeamDefinition {
+  readonly __pushSeamDefinition: true;
+}
+
+export declare function definePushSeam(spec: {
+  readonly appScope: {
+    readonly easProjectId: string;
+    readonly applicationId: string;
+    readonly environment: string;
+  };
+  readonly registry: {
+    readonly idleRetentionMs: number;
+  };
+}): PushSeamDefinition;
+
 export interface FunctionAuthOptions {
   /** Controls whether the resolved server authority must carry a user. */
   auth?: AuthRequirement;
@@ -483,6 +498,9 @@ export declare function defineSchema(
      * schema-declared opt-in; only typed `v.assetRef` references protect an
      * asset, and the grace must sit inside the target's Enforced bounds. */
     assets?: { referenceGc?: { graceMs: number } };
+    /** Registry-only LLP 0143 declaration. The send and handoff-ledger slices
+     * are not implied by this marker. */
+    pushSeam?: PushSeamDefinition;
     requiredCapabilities?: TargetCapabilityId[];
   },
 ): unknown;

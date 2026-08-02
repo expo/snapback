@@ -93,6 +93,11 @@ pub enum Kind {
     AgentToken,
     Observation,
     Generation,
+    /// One platform-custodied Expo push-token registry row.
+    PushToken,
+    /// One app installation, persisted by the client independently of a user
+    /// session so account switches can transfer token ownership atomically.
+    Installation,
     /// An id minted inside a field expression, where no target table is in
     /// scope. Deliberately generic: guessing a table here would produce a
     /// prefix that lies, which §D6 forbids more strongly than it requires a
@@ -160,6 +165,8 @@ impl Kind {
             // unconditional LLP 0148 registry members.
             Kind::Observation => ("obs", Random),
             Kind::Generation => ("gen", Random),
+            Kind::PushToken => ("ptok", TimeOrdered),
+            Kind::Installation => ("inst", Random),
             Kind::Opaque => ("id", TimeOrdered),
         };
         Spec { prefix, body }
@@ -204,6 +211,8 @@ pub const ALL: &[Kind] = &[
     Kind::AgentToken,
     Kind::Observation,
     Kind::Generation,
+    Kind::PushToken,
+    Kind::Installation,
     Kind::Opaque,
 ];
 
@@ -541,11 +550,19 @@ mod tests {
 
     #[test]
     fn privacy_and_telemetry_ids_are_random_and_everything_else_is_time_ordered() {
-        for kind in [Kind::User, Kind::Observation, Kind::Generation] {
+        for kind in [
+            Kind::User,
+            Kind::Observation,
+            Kind::Generation,
+            Kind::Installation,
+        ] {
             assert_eq!(kind.spec().body, Body::Random);
         }
         for kind in ALL.iter().filter(|kind| {
-            !matches!(kind, Kind::User | Kind::Observation | Kind::Generation)
+            !matches!(
+                kind,
+                Kind::User | Kind::Observation | Kind::Generation | Kind::Installation
+            )
         }) {
             assert_eq!(
                 kind.spec().body,

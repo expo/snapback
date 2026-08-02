@@ -1409,6 +1409,17 @@ impl LocalDatabase {
     /// pathname an attacker could redirect.
     pub(crate) fn backup_auth_catalog_into(&self, image: &File) -> SnapbackResult<()> {
         require_ready_on(&self.conn)?;
+        // Derive the export scrub from physical custody, not the in-memory
+        // manifest projection. A crashed or tampered schema transition must
+        // fail toward removing a protected table, never toward exporting it.
+        let scrub_push_registry: bool = self.conn.query_row(
+            "SELECT EXISTS(
+               SELECT 1 FROM sqlite_schema
+               WHERE type = 'table' AND name = '_snapback_push_tokens_v1'
+             )",
+            [],
+            |row| row.get(0),
+        )?;
         let mut output = open_backup_image_connection(image, false)?;
         // A descriptor-bound connection has no usable sibling pathname, so
         // the copy journals in memory: no `-journal`/`-wal` sidecar is ever
@@ -1438,6 +1449,39 @@ impl LocalDatabase {
         normalize_backup_image_format(image).map_err(|_| {
             backup_invalid("backup database image could not be made self-contained")
         })?;
+        // @ref LLP 0143#d1-device-token-custody — auth backup is an export
+        // surface; the staged copy retains registry schema but never custody
+        // rows or provider token bytes. Sanitize only after the copied WAL
+        // header is normalized: querying or writing the descriptor-bound
+        // image before then would make SQLite look for a forbidden `-wal`
+        // sibling beside `/dev/fd`.
+        if scrub_push_registry {
+            let output = open_backup_image_connection(image, false)?;
+            let journal_mode: String =
+                output.query_row("PRAGMA journal_mode = MEMORY", [], |row| row.get(0))?;
+            if !journal_mode.eq_ignore_ascii_case("memory") {
+                return Err(backup_invalid(
+                    "backup database image could not be made self-contained",
+                ));
+            }
+            // A logical DELETE is not an export boundary: ordinary SQLite
+            // deletion can leave the token payload recoverable in free cells
+            // or freelist pages. Require physical overwrite semantics on the
+            // descriptor-bound staged image before removing custody rows.
+            output.execute_batch("PRAGMA secure_delete = ON;")?;
+            let secure_delete: i64 =
+                output.query_row("PRAGMA secure_delete", [], |row| row.get(0))?;
+            if secure_delete != 1 {
+                return Err(backup_invalid(
+                    "backup database could not enable secure token deletion",
+                ));
+            }
+            output.execute("DELETE FROM _snapback_push_tokens_v1", [])?;
+            output.close().map_err(|(_, error)| error)?;
+            normalize_backup_image_format(image).map_err(|_| {
+                backup_invalid("backup database image could not be made self-contained")
+            })?;
+        }
         image
             .sync_all()
             .map_err(|_| backup_invalid("could not sync the backup database image"))?;
@@ -2093,6 +2137,19 @@ fn validate_exact(
         if object.kind == "index" && expected_indexes.contains(object.name.as_str()) {
             continue;
         }
+        let declared_push_registry = objects.iter().any(|candidate| {
+            candidate.kind == "table" && candidate.name == "_snapback_push_tokens_v1"
+        });
+        if declared_push_registry
+            && object.kind == "trigger"
+            && crate::push::is_exact_auth_lifecycle_trigger(
+                &object.name,
+                &object.table,
+                object.sql.as_deref(),
+            )
+        {
+            continue;
+        }
         return Err(corrupt_with_object(
             "marked auth catalog has an unexpected attached object",
             &object.kind,
@@ -2573,6 +2630,87 @@ mod tests {
         assert_eq!(
             db.auth_session_clock_floor().unwrap_err().diagnostic.code,
             "SNAPBACK_AUTH_CATALOG_CORRUPT"
+        );
+    }
+
+    #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+    #[test]
+    fn auth_backup_excludes_push_registry_custody_rows() {
+        use std::os::unix::fs::FileExt as _;
+
+        let mut db = catalog_database();
+        db.activate_push_registry_for_test(crate::push::PushSeamDeclarationV1 {
+            app_scope: crate::push::PushAppScopeV1 {
+                eas_project_id: "eas-backup".into(),
+                application_id: "com.example.backup".into(),
+                environment: "test".into(),
+            },
+            registry: crate::push::PushRegistryDeclarationV1 {
+                idle_retention_ms: 86_400_000,
+            },
+        })
+        .expect("push registry");
+        db.conn
+            .execute(
+                "INSERT INTO _snapback_push_tokens_v1(
+                   id, app_scope, principal_id, installation_id, token_hash, token_bytes,
+                   session_id, session_generation, registered_at_ms, last_registered_at_ms
+                 ) VALUES(?1, 'scope', 'user', 'installation', ?2, ?3,
+                          'session', 1, 1, 1)",
+                params![
+                    crate::ids::mint_time_ordered(crate::ids::Kind::PushToken),
+                    vec![7_u8; 32],
+                    "ExponentPushToken[backup_must_not_export]",
+                ],
+            )
+            .expect("protected token fixture");
+
+        let image = tempfile::tempfile().expect("backup image");
+        db.backup_auth_catalog_into(&image).expect("auth backup");
+        let backup = open_backup_image_connection(&image, true).expect("open backup");
+        let rows: i64 = backup
+            .query_row("SELECT COUNT(*) FROM _snapback_push_tokens_v1", [], |row| {
+                row.get(0)
+            })
+            .expect("backup registry count");
+        assert_eq!(rows, 0, "auth export retains no push custody rows");
+        drop(backup);
+
+        let mut raw_image = vec![0_u8; image.metadata().expect("backup metadata").len() as usize];
+        image
+            .read_exact_at(&mut raw_image, 0)
+            .expect("read raw backup image");
+        let forbidden = b"backup_must_not_export";
+        assert!(
+            !raw_image
+                .windows(forbidden.len())
+                .any(|window| window == forbidden),
+            "auth export retains push-token plaintext in SQLite free space"
+        );
+
+        // Removing the declaration drops the table before a later backup can
+        // see it. That DROP must itself be a physical erasure boundary; the
+        // next export gets no table-shaped second chance to scrub old pages.
+        db.with_auth_transaction(|tx| crate::push::activate_manifest_in(tx, None))
+            .expect("remove push declaration storage");
+        let post_removal_image = tempfile::tempfile().expect("post-removal backup image");
+        db.backup_auth_catalog_into(&post_removal_image)
+            .expect("post-removal auth backup");
+        let mut raw_post_removal = vec![
+            0_u8;
+            post_removal_image
+                .metadata()
+                .expect("post-removal backup metadata")
+                .len() as usize
+        ];
+        post_removal_image
+            .read_exact_at(&mut raw_post_removal, 0)
+            .expect("read raw post-removal backup image");
+        assert!(
+            !raw_post_removal
+                .windows(forbidden.len())
+                .any(|window| window == forbidden),
+            "post-declaration-removal auth export retains push-token plaintext"
         );
     }
 

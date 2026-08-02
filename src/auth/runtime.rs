@@ -430,9 +430,15 @@ impl AuthRuntime {
         }
         let maintenance = self.provider.exclusive_maintenance().await;
         let now_ms = self.provider.now_ms();
-        maintenance
-            .run_gc_pass(snapback.auth_database_mut(), now_ms)
-            .map(Some)
+        let database = snapback.auth_database_mut();
+        let pass = maintenance.run_gc_pass(database, now_ms)?;
+        if let Some(declaration) = database.schema().push_seam.clone() {
+            database.with_auth_transaction(|tx| {
+                crate::push::retire_idle_in(tx, &declaration, now_ms)?;
+                Ok(())
+            })?;
+        }
+        Ok(Some(pass))
     }
 }
 
@@ -468,7 +474,15 @@ where
     let maintenance = provider.exclusive_maintenance().await;
     let now_ms = provider.now_ms();
     crate::server::with_snapback(state, move |snapback| {
-        maintenance.run_gc_pass(snapback.auth_database_mut(), now_ms)
+        let database = snapback.auth_database_mut();
+        let pass = maintenance.run_gc_pass(database, now_ms)?;
+        if let Some(declaration) = database.schema().push_seam.clone() {
+            database.with_auth_transaction(|tx| {
+                crate::push::retire_idle_in(tx, &declaration, now_ms)?;
+                Ok(())
+            })?;
+        }
+        Ok(pass)
     })
     .await
 }
@@ -1302,6 +1316,118 @@ mod tests {
                 .code,
             "SNAPBACK_AUTH_SESSION_EXPIRED"
         );
+    }
+
+    #[tokio::test]
+    async fn periodic_auth_maintenance_runs_declared_push_idle_retention() {
+        let retention_ms = 86_400_000;
+        let mut snapback = LocalSnapback::memory().unwrap();
+        let keyring = Arc::new(AuthKeyringStore::in_memory());
+        activate_catalog(snapback.auth_database_mut(), keyring.as_ref(), 1, &OsRandom).unwrap();
+        snapback
+            .auth_database_mut()
+            .activate_push_registry_for_test(crate::push::PushSeamDeclarationV1 {
+                app_scope: crate::push::PushAppScopeV1 {
+                    eas_project_id: "eas-maintenance".into(),
+                    application_id: "com.example.maintenance".into(),
+                    environment: "test".into(),
+                },
+                registry: crate::push::PushRegistryDeclarationV1 {
+                    idle_retention_ms: retention_ms,
+                },
+            })
+            .unwrap();
+        let user_id = crate::ids::mint(crate::ids::Kind::User).unwrap();
+        let identity_id = crate::ids::mint(crate::ids::Kind::Identity).unwrap();
+        let session_id = crate::ids::mint(crate::ids::Kind::Session).unwrap();
+        let authority_id = crate::ids::mint(crate::ids::Kind::AuthorityInstance).unwrap();
+        snapback
+            .auth_database_mut()
+            .with_auth_transaction(|tx| {
+                tx.execute(
+                    "INSERT INTO _auth_users(id, created_at_ms) VALUES(?1, 0)",
+                    params![user_id],
+                )?;
+                tx.execute(
+                    "INSERT INTO _auth_identities(
+                       id, user_id, provider, subject, verified_at_ms
+                     ) VALUES(?1, ?2, 'email-code', 'push@example.com', 0)",
+                    params![identity_id, user_id],
+                )?;
+                tx.execute(
+                    "INSERT INTO _auth_sessions(
+                       id, user_id, identity_id, authority_instance_id, token_hash,
+                       generation, created_at_ms, last_used_at_ms, expires_at_ms,
+                       absolute_expires_at_ms, revoked_at_ms
+                     ) VALUES(?1, ?2, ?3, ?4, zeroblob(32), 1, 0, 0, ?5, ?5, NULL)",
+                    params![
+                        session_id,
+                        user_id,
+                        identity_id,
+                        authority_id,
+                        (retention_ms * 2) as i64,
+                    ],
+                )?;
+                tx.execute(
+                    "INSERT INTO _snapback_push_tokens_v1(
+                       id, app_scope, principal_id, installation_id, token_hash, token_bytes,
+                       session_id, session_generation, registered_at_ms, last_registered_at_ms
+                     ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, 1, 1, 1)",
+                    params![
+                        crate::ids::mint_time_ordered(crate::ids::Kind::PushToken),
+                        "15:eas-maintenance|23:com.example.maintenance|4:test",
+                        user_id,
+                        crate::ids::mint(crate::ids::Kind::Installation)?,
+                        vec![8_u8; 32],
+                        "ExponentPushToken[idle_maintenance_secret]",
+                        session_id,
+                    ],
+                )?;
+                Ok(())
+            })
+            .unwrap();
+        snapback
+            .auth_database_mut()
+            .ensure_authorization_stream_incarnation()
+            .unwrap();
+        let clock = Arc::new(RuntimeManualClock::new(1));
+        let provider = Arc::new(
+            AuthProvider::new_with_dependencies(
+                AuthProviderProfile::Test,
+                keyring,
+                Arc::new(OsRandom),
+                clock.clone(),
+            )
+            .unwrap(),
+        );
+        let projection = SessionProjection::rebuild_with_fresh_startup_id(
+            snapback
+                .auth_database_mut()
+                .session_projection_source()
+                .unwrap(),
+            provider.now_ms(),
+            provider.monotonic_now(),
+        )
+        .unwrap();
+        let coordinator = Arc::new(AuthCoordinator::new(projection).unwrap());
+        let state = Arc::new(Mutex::new(snapback));
+        clock.set(retention_ms + 1);
+        run_periodic_gc_pass(
+            &state,
+            provider,
+            coordinator,
+            &AuthExpiryTerminalSink::new(|_| {}),
+        )
+        .await
+        .unwrap();
+        let inspection = state
+            .lock()
+            .await
+            .auth_database_mut()
+            .push_registry_inspection()
+            .unwrap();
+        assert_eq!(inspection.live_tokens, 0);
+        assert_eq!(inspection.retirement_reasons["idle-retention"], 1);
     }
 
     #[tokio::test]

@@ -913,6 +913,11 @@ fn reset_and_seed_transaction(
     // deleted in dependency order inside the same transaction as app reset,
     // while the protected catalog DDL and marker remain installed.
     auth::reset_auth_catalog_in(tx)?;
+    // @ref LLP 0143#d1-device-token-custody — destructive app reset clears
+    // deployment-custody token rows in the same transaction as auth state.
+    if schema.push_seam.is_some() {
+        crate::push::clear_in(tx)?;
+    }
     // @ref LLP 0007#schema-evolution — dormant rollback tables are still
     // inside the app-wide reset boundary.
     let physical_tables = physical_user_tables(tx)?;
@@ -1696,6 +1701,13 @@ impl LocalDatabase {
             validate_existing_storage_ordering(conn, head)
         })?;
         db.schema = stored_schema.unwrap_or_default();
+        if db.schema.push_seam.is_some() {
+            // @ref LLP 0143#d1-device-token-custody — every reopened writer
+            // re-arms physical deletion and refuses a non-exact protected
+            // catalog before auth adoption can trust attached triggers.
+            crate::push::require_secure_delete(&db.conn)?;
+            crate::push::validate_exact_schema(&db.conn)?;
+        }
         auth_mode::adopt_after_infra(&mut db, mode_inspection)?;
         // The pool is created after configure/create_infra so readers open an
         // existing WAL database with the infra tables committed.
@@ -1761,6 +1773,31 @@ impl LocalDatabase {
 
     pub fn schema(&self) -> &SchemaManifest {
         &self.schema
+    }
+
+    pub(crate) fn push_registry_inspection(
+        &self,
+    ) -> SnapbackResult<crate::push::PushRegistryInspectionV1> {
+        if self.schema.push_seam.is_some() {
+            crate::push::inspect(&self.conn)
+        } else {
+            Ok(crate::push::PushRegistryInspectionV1::default())
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn activate_push_registry_for_test(
+        &mut self,
+        declaration: crate::push::PushSeamDeclarationV1,
+    ) -> SnapbackResult<()> {
+        self.with_auth_transaction(|tx| {
+            crate::push::activate_manifest_in(tx, Some(&declaration))
+        })?;
+        self.schema.auth = Some(crate::manifest::AuthManifest {
+            mode: crate::manifest::AuthMode::Sessions,
+        });
+        self.schema.push_seam = Some(declaration);
+        Ok(())
     }
 
     /// File-backed databases publish their canonical storage path to sibling

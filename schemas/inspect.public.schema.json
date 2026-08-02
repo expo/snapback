@@ -2862,6 +2862,16 @@
           },
           "type": "array"
         },
+        "pushSeam": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PushSeamDeclarationV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "requiredCapabilities": {
           "items": {
             "type": "string"
@@ -2943,6 +2953,56 @@
       "required": [
         "id",
         "function"
+      ],
+      "type": "object"
+    },
+    "PushAppScopeV1": {
+      "additionalProperties": false,
+      "properties": {
+        "applicationId": {
+          "type": "string"
+        },
+        "easProjectId": {
+          "type": "string"
+        },
+        "environment": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "easProjectId",
+        "applicationId",
+        "environment"
+      ],
+      "type": "object"
+    },
+    "PushRegistryDeclarationV1": {
+      "additionalProperties": false,
+      "properties": {
+        "idleRetentionMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "idleRetentionMs"
+      ],
+      "type": "object"
+    },
+    "PushSeamDeclarationV1": {
+      "additionalProperties": false,
+      "properties": {
+        "appScope": {
+          "$ref": "#/$defs/PushAppScopeV1"
+        },
+        "registry": {
+          "$ref": "#/$defs/PushRegistryDeclarationV1"
+        }
+      },
+      "required": [
+        "appScope",
+        "registry"
       ],
       "type": "object"
     },
