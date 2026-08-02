@@ -41,12 +41,12 @@ unblocks.
    (delta-lane egress) is now fixed (eda8f231). Acceptance authorizes the
    additive Micro profile + server-egress trust boundary, nothing else.
 6. **0154 minimal observability** — v0.9 after the 7-round design-partner
-   loop (asymmetric stop). Acceptance unblocks the Phase-1 deliverables
-   checklist (telemetry.rs, routes, CLI, console pages).
-7. **0156 minimal error tracking** — Draft v0.1, refinement in flight,
-   "mostly settled" per author 2026-08-02. Acceptance call when the loop
-   closes; then Program D tickets its deliverables on top of 0154's
-   substrate.
+   loop (asymmetric stop). Acceptance releases Program D tickets obs-01
+   through obs-04 (20260802-obs-00-program.md — already filed and queued
+   for this wave).
+7. **0156 minimal error tracking** — Draft, refinement closing, "mostly
+   settled" per author 2026-08-02. Acceptance releases Program D tickets
+   obs-05/obs-06 (filed, sequenced after the 0154 substrate).
 8. **0140 D-1** — does the TypeScript checker leave the shipped codegen
    closure? The one question that shapes the whole Vite/Rolldown/Oxc
    migration (Program E holds cheaply until then).
