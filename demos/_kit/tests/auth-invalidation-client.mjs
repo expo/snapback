@@ -581,22 +581,27 @@ try {
   assert.deepEqual(handle.rows, []);
   assert.equal(subscribeCalls, subscribesBeforeTerminalReuse);
 
-  // Pause is an exact demand release, not query retirement. Its signed scope
-  // retirement still advances local queue/fence custody while the query
-  // lifecycle remains active for a later fresh resume.
+  // Terminal deletion already retired this exact server demand and terminally
+  // fenced the query instance. Pause must recognize that boundary locally: a
+  // duplicate T-UNSUB would present an intentionally stale capture and cannot
+  // advance a deleted query back into an active lifecycle.
   const unsubscribesBeforePause = order.filter((entry) => entry === 'unsubscribe').length;
   await handle.pause();
   assert.equal(
     order.filter((entry) => entry === 'unsubscribe').length,
-    unsubscribesBeforePause + 1,
-    'pause performs exact T-UNSUB and observes its signed retirement response',
+    unsubscribesBeforePause,
+    'pause does not repeat T-UNSUB after terminal deletion already retired the query',
   );
   const pausedAuthorizationState = handle.authorizationState();
   assert(
-    pausedAuthorizationState.retiredScopeFrontier?.scopeSequence === 40,
-    `pause applies the server-returned scope retirement to the active query fence: ${JSON.stringify(pausedAuthorizationState)}`,
+    pausedAuthorizationState.terminalDeleted === true,
+    `pause preserves the terminally deleted query fence: ${JSON.stringify(pausedAuthorizationState)}`,
   );
-  assert.equal(pausedAuthorizationState.lifecycle, 'active');
+  assert.equal(
+    pausedAuthorizationState.lifecycle,
+    'active',
+    'the handle lifecycle remains locally active/paused while the terminal marker prevents reuse',
+  );
   await handle.resume();
   assert.equal(
     subscribeCalls,

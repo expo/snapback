@@ -30,7 +30,8 @@ assert.throws(() => authorizedLeaseActivationHash({
 }), /non-empty appId/);
 
 const INCARNATION = '018f0d90-7b11-7a22-8c33-445566778899';
-const AUTHORITY_INSTANCE = '018f0d90-7b12-7a22-8c33-445566778899';
+const LEGACY_AUTHORITY_INSTANCE = '018f0d90-7b12-7a22-8c33-445566778899';
+const AUTHORITY_INSTANCE = 'aut_3z3g2wp3bf7gde5jmat82dze4d';
 const ACTIVATION_HASH = `snapback.authorized-lease.activation.v1:sha256:${'a'.repeat(64)}`;
 const canonical = (value) => {
   if (Array.isArray(value)) return value.map(canonical);
@@ -68,6 +69,10 @@ const lease = {
 };
 
 assert.deepEqual(validateAuthorizedLease(lease), lease);
+assert.doesNotThrow(() => validateAuthorizedLease({
+  ...lease,
+  authorityInstanceId: LEGACY_AUTHORITY_INSTANCE,
+}));
 assert.doesNotThrow(() => validateAuthorizedLease({ ...lease, queryKey: 'é'.repeat(4_096) }));
 assert.throws(
   () => validateAuthorizedLease({ ...lease, queryKey: 'é'.repeat(4_097) }),

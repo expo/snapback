@@ -19,12 +19,12 @@ import {
   validateAuthorizationVersion,
   validateIssuerId,
 } from './auth-invalidation.mjs';
+import { isMintedIdentifier } from './ids.mjs';
 
 export const SNAPBACK_AUTHORIZED_LEASE_PROTOCOL_VERSION = 1;
 export const SNAPBACK_AUTHORIZED_LEASE_DEFAULT_MS = 86_400_000;
 export const SNAPBACK_AUTHORIZED_LEASE_HARD_MAX_MS = 86_400_000;
 
-const UUID_V7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const OPAQUE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/;
 const MAC_SHA256 = /^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$/;
 const ACTIVATION_HASH = /^snapback\.authorized-lease\.activation\.v1:sha256:[0-9a-f]{64}$/;
@@ -272,8 +272,15 @@ export function validateAuthorizedLease(value, path = 'authorizedLease') {
       });
     }
   }
-  if (value.authorityInstanceId !== null && !UUID_V7.test(value.authorityInstanceId ?? '')) {
-    throw corrupt(`${path}.authorityInstanceId must be null or a canonical UUIDv7`, {
+  // Leases issued before LLP 0148 permanently retain their UUIDv7 authority
+  // instance; current servers issue the same identifier family as `aut_` plus
+  // a Crockford body. Neither spelling is load-bearing for routing.
+  // @ref LLP 0148#d4-the-prefix-is-never-load-bearing — accept both eras
+  if (
+    value.authorityInstanceId !== null
+    && !isMintedIdentifier(value.authorityInstanceId ?? '')
+  ) {
+    throw corrupt(`${path}.authorityInstanceId must be null or a canonical Snapback identifier`, {
       field: `${path}.authorityInstanceId`,
     });
   }
