@@ -1,7 +1,6 @@
 # Propagate the 2026-08-02 decision-sitting rulings into their owning LLPs
 
-**Status:** Open — docs-only, do early (implementers read the owning docs,
-not the packet)
+**Status:** Closed — 2026-08-02
 **Source of truth:** issues/20260802-author-decision-packet.md (the sitting
 record). Status flips + dated notes for 0143/0147/0154 already landed with
 the sitting; everything below remains.
@@ -48,5 +47,20 @@ packet in the message.
   Its guide checks reported inherited missing snippet sources for
   `trusted-runtime-values.md` and `contract-adapter.md`, plus the already-stale
   generated guide manifest; no guide file is in this ticket's change set.
-  Landing commit and final closure evidence will be appended after the
-  amendment batch reaches `main`.
+  Amendment batch landed on `main` as `a26076a4`.
+
+## Resolution — 2026-08-02
+
+All eight decision-sitting amendments landed in implementation commit
+`a26076a4` (`docs: propagate 2026-08-02 author decisions`). The batch updates
+the twelve owning LLPs named above, leaves LLP 0156 and all settlement-lane
+files untouched, and makes no code or capability claim.
+
+Proof on the rebased landing commit:
+
+- `git diff --check` — pass;
+- `./ref-check --verbose` — pass: 157 LLP documents, 2,859 refs in 6,611
+  files, zero errors and zero unchecked; and
+- `node scripts/check-guide.mjs` — ran, with the inherited missing-snippet and
+  stale-manifest failures recorded in the running log above; no guide files
+  changed in this ticket.
