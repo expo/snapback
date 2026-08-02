@@ -31,6 +31,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "competitive-checkpoint",
+      "bundleHash": "sha256:d19421732c9cb849",
+      "inputsHash": "ada9e87635db370aab8ebc49dfc08f9074ca1625a1a42963425739bf991c09c1",
+      "schemaHash": "sha256:a8b27c8ece1f3cbe",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "competitive-checkpoint:applyReplyProgress",
     "implementationHash": "sha256:660de439a46febef7f5a499c2723f22424a33b657913b6e14784286bfed6929b",
     "kind": "Mutation",
@@ -54,6 +61,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "competitive-checkpoint",
+      "bundleHash": "sha256:d19421732c9cb849",
+      "inputsHash": "ada9e87635db370aab8ebc49dfc08f9074ca1625a1a42963425739bf991c09c1",
+      "schemaHash": "sha256:a8b27c8ece1f3cbe",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "competitive-checkpoint:cancelReply",
     "implementationHash": "sha256:ac478aadb1ac40372c4ab6e9614916100d039db68fdba686e2e15db765f2b5b5",
     "kind": "Mutation",
@@ -85,6 +99,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "competitive-checkpoint",
+      "bundleHash": "sha256:d19421732c9cb849",
+      "inputsHash": "ada9e87635db370aab8ebc49dfc08f9074ca1625a1a42963425739bf991c09c1",
+      "schemaHash": "sha256:a8b27c8ece1f3cbe",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "competitive-checkpoint:completeReply",
     "implementationHash": "sha256:85f26d53518c91b267f6816bd017e04edbf019cdcf3cc2e3074a21eda2818a46",
     "kind": "Mutation",
@@ -108,6 +129,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "competitive-checkpoint",
+      "bundleHash": "sha256:d19421732c9cb849",
+      "inputsHash": "ada9e87635db370aab8ebc49dfc08f9074ca1625a1a42963425739bf991c09c1",
+      "schemaHash": "sha256:a8b27c8ece1f3cbe",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "competitive-checkpoint:conversationBySlug",
     "implementationHash": "sha256:ddef74324015869cef34ef11459e603369140a506016466257b2cf7a3076ad1e",
     "kind": "LiveQuery",
@@ -128,6 +156,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "competitive-checkpoint",
+      "bundleHash": "sha256:d19421732c9cb849",
+      "inputsHash": "ada9e87635db370aab8ebc49dfc08f9074ca1625a1a42963425739bf991c09c1",
+      "schemaHash": "sha256:a8b27c8ece1f3cbe",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "competitive-checkpoint:conversationsWithModel",
     "implementationHash": "sha256:ece8a2eaad23f3ff830bd0dfd553f833b336b62a55d17f0d632893d1441ca9cc",
     "kind": "LiveQuery",
@@ -159,6 +194,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "competitive-checkpoint",
+      "bundleHash": "sha256:d19421732c9cb849",
+      "inputsHash": "ada9e87635db370aab8ebc49dfc08f9074ca1625a1a42963425739bf991c09c1",
+      "schemaHash": "sha256:a8b27c8ece1f3cbe",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "competitive-checkpoint:createConversation",
     "implementationHash": "sha256:ff4f928ccce67c879c62027bb59c40f68fcd7e2985c1632543c6a174928ebee8",
     "kind": "Mutation",
@@ -182,6 +224,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "competitive-checkpoint",
+      "bundleHash": "sha256:d19421732c9cb849",
+      "inputsHash": "ada9e87635db370aab8ebc49dfc08f9074ca1625a1a42963425739bf991c09c1",
+      "schemaHash": "sha256:a8b27c8ece1f3cbe",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "competitive-checkpoint:deleteConversation",
     "implementationHash": "sha256:96c947c478374b2809aee196310d5709f242cf44fdff5740a884aa9a7b985c85",
     "kind": "Mutation",
@@ -199,6 +248,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "competitive-checkpoint",
+      "bundleHash": "sha256:d19421732c9cb849",
+      "inputsHash": "ada9e87635db370aab8ebc49dfc08f9074ca1625a1a42963425739bf991c09c1",
+      "schemaHash": "sha256:a8b27c8ece1f3cbe",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "competitive-checkpoint:firstConversationPage",
     "implementationHash": "sha256:0f682defa408b4ea0c701b015eede03ed8a07f4c0f4fb1beb9bfc5322a8e6be6",
     "kind": "LiveQuery",
@@ -222,6 +278,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "competitive-checkpoint",
+      "bundleHash": "sha256:d19421732c9cb849",
+      "inputsHash": "ada9e87635db370aab8ebc49dfc08f9074ca1625a1a42963425739bf991c09c1",
+      "schemaHash": "sha256:a8b27c8ece1f3cbe",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "competitive-checkpoint:getConversation",
     "implementationHash": "sha256:317e37670b4bcefa38b6a4127529304470a701d53b56150cf8a85b1e1d53e555",
     "kind": "LiveQuery",
@@ -239,6 +302,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "competitive-checkpoint",
+      "bundleHash": "sha256:d19421732c9cb849",
+      "inputsHash": "ada9e87635db370aab8ebc49dfc08f9074ca1625a1a42963425739bf991c09c1",
+      "schemaHash": "sha256:a8b27c8ece1f3cbe",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "competitive-checkpoint:listConversationCards",
     "implementationHash": "sha256:bca3911b131cf4640834d3a62b2698e383fcc1c8cb49b53c6c3fd7ed2c82094a",
     "kind": "LiveQuery",
@@ -255,6 +325,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "competitive-checkpoint",
+      "bundleHash": "sha256:d19421732c9cb849",
+      "inputsHash": "ada9e87635db370aab8ebc49dfc08f9074ca1625a1a42963425739bf991c09c1",
+      "schemaHash": "sha256:a8b27c8ece1f3cbe",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "competitive-checkpoint:listConversations",
     "implementationHash": "sha256:fcbabc5981cedef2ec30106593843e43bccaed5e73b9bcddc99aa98aefc4149f",
     "kind": "LiveQuery",
@@ -278,6 +355,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "competitive-checkpoint",
+      "bundleHash": "sha256:d19421732c9cb849",
+      "inputsHash": "ada9e87635db370aab8ebc49dfc08f9074ca1625a1a42963425739bf991c09c1",
+      "schemaHash": "sha256:a8b27c8ece1f3cbe",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "competitive-checkpoint:listMessages",
     "implementationHash": "sha256:4945751b334ea05fd2f833e655fb047f5c17a5426bd360677c893d8fb04a2671",
     "kind": "LiveQuery",
@@ -301,6 +385,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "competitive-checkpoint",
+      "bundleHash": "sha256:d19421732c9cb849",
+      "inputsHash": "ada9e87635db370aab8ebc49dfc08f9074ca1625a1a42963425739bf991c09c1",
+      "schemaHash": "sha256:a8b27c8ece1f3cbe",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "competitive-checkpoint:nextConversationPage",
     "implementationHash": "sha256:159ecf5427af0463a6d3cbc78fe0d3c44d7d75f81c28b80c2901046f2daf9a9d",
     "kind": "LiveQuery",
@@ -331,6 +422,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "competitive-checkpoint",
+      "bundleHash": "sha256:d19421732c9cb849",
+      "inputsHash": "ada9e87635db370aab8ebc49dfc08f9074ca1625a1a42963425739bf991c09c1",
+      "schemaHash": "sha256:a8b27c8ece1f3cbe",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "competitive-checkpoint:registerModel",
     "implementationHash": "sha256:cd72223aabe96532cbc6faa922f317f101cdcf05637b40977d434fe6089b5b7a",
     "kind": "Mutation",
@@ -358,6 +456,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "competitive-checkpoint",
+      "bundleHash": "sha256:d19421732c9cb849",
+      "inputsHash": "ada9e87635db370aab8ebc49dfc08f9074ca1625a1a42963425739bf991c09c1",
+      "schemaHash": "sha256:a8b27c8ece1f3cbe",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "competitive-checkpoint:settleReply",
     "implementationHash": "sha256:bbf19a7a5dc4c0af724d8960750025ec902e9edfba38d7f8c77186f05383d045",
     "kind": "Mutation",
@@ -389,6 +494,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "competitive-checkpoint",
+      "bundleHash": "sha256:d19421732c9cb849",
+      "inputsHash": "ada9e87635db370aab8ebc49dfc08f9074ca1625a1a42963425739bf991c09c1",
+      "schemaHash": "sha256:a8b27c8ece1f3cbe",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "competitive-checkpoint:startReply",
     "implementationHash": "sha256:c34217c4d386cd4b5218df4985eb69d4c327ee80b390fb5ce33652f6aae1c871",
     "kind": "Mutation",
@@ -424,6 +536,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "competitive-checkpoint",
+      "bundleHash": "sha256:d19421732c9cb849",
+      "inputsHash": "ada9e87635db370aab8ebc49dfc08f9074ca1625a1a42963425739bf991c09c1",
+      "schemaHash": "sha256:a8b27c8ece1f3cbe",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "competitive-checkpoint:streamReply",
     "implementationHash": "sha256:713005e763cd156a712efe2b7b1a1a30ad3cf0ba849cf3fd253bdb44ecf97fef",
     "kind": "Action",
@@ -455,6 +574,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "competitive-checkpoint",
+      "bundleHash": "sha256:d19421732c9cb849",
+      "inputsHash": "ada9e87635db370aab8ebc49dfc08f9074ca1625a1a42963425739bf991c09c1",
+      "schemaHash": "sha256:a8b27c8ece1f3cbe",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "competitive-checkpoint:updateConversation",
     "implementationHash": "sha256:5b6950ca7f4d36a3cd23f975ee262472dfe68d7ec29bdf96cc17211c6eb6ed79",
     "kind": "Mutation",

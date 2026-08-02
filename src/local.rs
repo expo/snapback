@@ -47,13 +47,13 @@ use crate::live_wire::{
     ResumeWire, SubscriptionReceiptEvent,
 };
 use crate::manifest::{
-    ActionPlan, ActionReturnValue, ActionStep, AuthInput, AuthMode, AuthorityDescriptor,
-    CTX_ANSWER_LEDGER_MAX_IDS, CapabilityManifest, CtxAnswerLedger, FunctionDefinition,
-    FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, MutationOutput,
-    MutationStep, PermissionScopeExpr, PublicFunctionManifest, PublicSchemaManifest, QueryOutput,
-    QueryPlan, SNAPBACK_SCHEMA_VERSION, SchemaManifest, SeedData,
-    TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX, ValueExpr, auth_fingerprint, ctx_ledger_version,
-    legacy_auth_fingerprint,
+    ActionPlan, ActionReturnValue, ActionStep, ArtifactGeneration, AuthInput, AuthMode,
+    AuthorityDescriptor, CTX_ANSWER_LEDGER_MAX_IDS, CapabilityManifest, CtxAnswerLedger,
+    FunctionDefinition, FunctionInvocationFacts, FunctionKind, FunctionManifest, FunctionRuntime,
+    HandlerInput, HandlerPlan, MutationOutput, MutationStep, PermissionScopeExpr,
+    PublicFunctionManifest, PublicSchemaManifest, QueryOutput, QueryPlan, SNAPBACK_SCHEMA_VERSION,
+    SchemaManifest, SeedData, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX, ValueExpr, auth_fingerprint,
+    ctx_ledger_version, legacy_auth_fingerprint,
 };
 use crate::runtime::{
     CapabilityState, ExecutedIbexMutation, IbexActionHost, IbexCliCapability,
@@ -145,6 +145,62 @@ fn next_secret_read_reset_generation(current: u64) -> SnapbackResult<u64> {
             "the secret-read reset-generation space is exhausted",
         )
     })
+}
+
+fn invocation_facts_from_manifests(
+    active_mode: AuthMode,
+    schema: &SchemaManifest,
+    functions: &FunctionManifest,
+) -> SnapbackResult<Option<FunctionInvocationFacts>> {
+    if active_mode != AuthMode::Sessions {
+        return Ok(None);
+    }
+    let identity = DeploymentIdentity::from_manifests(active_mode, schema, functions)?;
+    Ok(Some(FunctionInvocationFacts {
+        active_generation: ArtifactGeneration {
+            schema_version: identity.schema_version,
+            app_id: identity.app_id,
+            schema_hash: identity.schema_hash,
+            bundle_hash: identity.bundle_hash,
+            inputs_hash: identity.inputs_hash,
+        },
+    }))
+}
+
+fn validate_expected_generation_against_manifests(
+    active_mode: AuthMode,
+    expected: Option<&ArtifactGeneration>,
+    schema: &SchemaManifest,
+    functions: &FunctionManifest,
+) -> SnapbackResult<()> {
+    // @ref LLP 0012#call-time-generation-binding — sessions assertions are
+    // checked against the exact manifest pair selected for this invocation;
+    // absence is the explicit compatibility path.
+    // LLP 0062 deliberately leaves v0-dev discovery-time-only. The additive
+    // field is tolerated there so one generated package can be used in both
+    // local development and its sessions deployment.
+    if active_mode != AuthMode::Sessions {
+        return Ok(());
+    }
+    let Some(expected) = expected else {
+        return Ok(());
+    };
+    let active = invocation_facts_from_manifests(active_mode, schema, functions)?
+        .expect("sessions manifests always produce invocation facts")
+        .active_generation;
+    if expected == &active {
+        return Ok(());
+    }
+    Err(SnapbackError::error(
+        "SNAPBACK_ARTIFACT_IDENTITY_MISMATCH",
+        "runtime",
+        "the asserted generated artifact generation is not active",
+    )
+    .with_details(json!({
+        "subcause": "generation",
+        "expectedGeneration": expected,
+        "activeGeneration": active,
+    })))
 }
 
 /// Receipt retention (LLP 0034 §3 / ENG-22478): bounded in-memory rings — one
@@ -657,9 +713,30 @@ pub struct LiveSubscribeInput {
     pub resume_from_token: Option<ResumeFromToken>,
 }
 
+/// Transport-only wrapper for optional call-time generation binding. Keeping
+/// the assertion outside `LiveSubscribeInput` leaves internal/bundle-created
+/// subscriptions on the explicitly unchecked compatibility path.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct LiveSubscribeRequest {
+    #[serde(flatten)]
+    pub input: LiveSubscribeInput,
+    #[serde(
+        default,
+        rename = "expectedGeneration",
+        alias = "expected_generation",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub expected_generation: Option<ArtifactGeneration>,
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct LiveSubscribeOutput {
     pub subscription_id: String,
+    /// Server-derived active sessions artifact identity. Absent on dev, even
+    /// when a generated v0 reference carried an ignored assertion.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub facts: Option<FunctionInvocationFacts>,
     /// Absent exactly when the subscribe was answered without rows (LLP 0090
     /// D1.3): rung-1 `CurrentAsOf` (held rows are current) or rung-2 delta
     /// replay (the witness verified). The answer rides the durable lane —
@@ -2763,6 +2840,9 @@ struct LiveSubscription {
     id: String,
     connection_id: String,
     function: String,
+    /// The asserted sessions artifact generation, pinned at establishment.
+    /// `None` is the legacy unchecked subscription contract.
+    expected_generation: Option<ArtifactGeneration>,
     authority: RetainedLiveAuthority,
     input: HandlerInput,
     read_dependencies: Vec<CapturedReadDependency>,
@@ -3149,6 +3229,7 @@ struct PendingLocalLiveEffectRegistration {
 pub(crate) struct PreparedLiveSubscribePlan {
     name: String,
     input: LiveSubscribeInput,
+    expected_generation: Option<ArtifactGeneration>,
     authority: PreparedAuthority,
     invalidation: LiveInvalidationAdmission,
 }
@@ -4772,7 +4853,7 @@ impl LocalSnapback {
                 );
                 self.begin_live_delivery_frame(self.subscriptions.len());
                 if activation_changed {
-                    self.invalidate_unscoped_live_subscriptions_for_activation(admission)
+                    self.invalidate_generation_bound_live_subscriptions_for_activation(admission)
                         .map_err(ModeCommitFailure::Uncertain)?;
                 }
                 let already_resynced = if let Some(authorization) =
@@ -5311,8 +5392,19 @@ impl LocalSnapback {
         input: HandlerInput,
         authority: PreparedAuthority,
     ) -> SnapbackResult<QueryInvocation> {
+        self.invoke_query_with_dependencies_prepared_generation(name, input, authority, None)
+    }
+
+    pub(crate) fn invoke_query_with_dependencies_prepared_generation(
+        &self,
+        name: &str,
+        input: HandlerInput,
+        authority: PreparedAuthority,
+        expected_generation: Option<&ArtifactGeneration>,
+    ) -> SnapbackResult<QueryInvocation> {
         self.validate_prepared_service_authority(&authority)?;
         let function = self.function(name)?;
+        self.validate_expected_generation(&authority, expected_generation)?;
         let prepared = InvocationGate::prepare_function(authority, function)?;
         let input = prepared.canonicalize_input(input);
         execute_query_invocation(
@@ -8916,8 +9008,9 @@ impl LocalSnapback {
         )?;
         let now_ms = now_millis();
         self.db.asset_transaction(|tx| {
-            match asset_commit_prepared_variant(tx, &app_id, asset_id, &prepared, app_quota, now_ms)?
-            {
+            match asset_commit_prepared_variant(
+                tx, &app_id, asset_id, &prepared, app_quota, now_ms,
+            )? {
                 AssetVariantCommit::Committed { rendition_id, .. } => {
                     assets::write_receipt(
                         tx,
@@ -9260,10 +9353,7 @@ impl LocalSnapback {
                 ),
             )?;
             Ok(assets::AssetSignedUrlIssueResponseV1 {
-                url: format!(
-                    "/assets/signed/{asset_id}/{}?token={token}",
-                    issued_variant
-                ),
+                url: format!("/assets/signed/{asset_id}/{}?token={token}", issued_variant),
                 variant: issued_variant.clone(),
                 expires_at_ms,
             })
@@ -10267,6 +10357,7 @@ impl LocalSnapback {
     /// capable of quarantining/deleting this exact query can never ride a
     /// lease-bearing snapshot; unrelated users' obligations do not fence it
     /// (ENG-24989).
+    #[allow(dead_code)]
     pub(crate) fn capture_authorized_lease_query(
         &self,
         name: &str,
@@ -10274,9 +10365,21 @@ impl LocalSnapback {
         authority: PreparedAuthority,
         request: AuthorizedLeaseRequestIdentity,
     ) -> SnapbackResult<AuthorizedLeaseCapture> {
+        self.capture_authorized_lease_query_generation(name, input, authority, request, None)
+    }
+
+    pub(crate) fn capture_authorized_lease_query_generation(
+        &self,
+        name: &str,
+        input: HandlerInput,
+        authority: PreparedAuthority,
+        request: AuthorizedLeaseRequestIdentity,
+        expected_generation: Option<&ArtifactGeneration>,
+    ) -> SnapbackResult<AuthorizedLeaseCapture> {
         request.validate()?;
         authority.validate_admission("authorized lease full-query capture")?;
         let function = self.function(name)?;
+        self.validate_expected_generation(&authority, expected_generation)?;
         if !function.is_user_scoped_retainable_query() {
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTHORIZED_LEASE_QUERY_NOT_RETAINABLE",
@@ -10795,6 +10898,33 @@ impl LocalSnapback {
         crate::storage::AuthorizationCommitPreflight,
         StagedRecordedMutation,
     )> {
+        self.stage_recorded_authorization_mutation_with_generation(
+            name,
+            input,
+            client_mutation_id,
+            authority_descriptor,
+            acknowledged_client_mutation_ids,
+            transport,
+            authority,
+            None,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn stage_recorded_authorization_mutation_with_generation(
+        &mut self,
+        name: &str,
+        input: HandlerInput,
+        client_mutation_id: Option<String>,
+        authority_descriptor: Option<AuthorityDescriptor>,
+        acknowledged_client_mutation_ids: &[String],
+        transport: &str,
+        authority: PreparedAuthority,
+        expected_generation: Option<&ArtifactGeneration>,
+    ) -> SnapbackResult<(
+        crate::storage::AuthorizationCommitPreflight,
+        StagedRecordedMutation,
+    )> {
         // @ref LLP 0043#settlement-consumption-and-acknowledgement-lifecycle-2026-08-01
         // A committed settlement is independent of the continued existence
         // of executable code. Re-attest the live authority and the exact
@@ -10851,6 +10981,7 @@ impl LocalSnapback {
             }
         }
         let function = self.function(name)?.clone();
+        self.validate_expected_generation(&authority, expected_generation)?;
         let prepared = InvocationGate::prepare_function(authority.clone(), &function)?;
         // The live credential/grant is authorizing; the queued descriptor is
         // only a non-authorizing replay axis. Preserve the ordinary mutation
@@ -12708,6 +12839,17 @@ impl LocalSnapback {
         input: LiveSubscribeInput,
         invalidation: LiveInvalidationAdmission,
     ) -> SnapbackResult<LiveSubscribeOutput> {
+        self.subscribe_live_with_invalidation_generation(name, input, invalidation, None)
+    }
+
+    #[cfg(test)]
+    fn subscribe_live_with_invalidation_generation(
+        &mut self,
+        name: &str,
+        input: LiveSubscribeInput,
+        invalidation: LiveInvalidationAdmission,
+        expected_generation: Option<&ArtifactGeneration>,
+    ) -> SnapbackResult<LiveSubscribeOutput> {
         let active_mode = if invalidation.session_mode {
             AuthMode::Sessions
         } else {
@@ -12727,7 +12869,13 @@ impl LocalSnapback {
             &WireAuthorityFields::default(),
             resolved,
         )?;
-        self.subscribe_live_prepared_with_invalidation(name, input, authority, invalidation)
+        self.subscribe_live_prepared_with_invalidation_generation(
+            name,
+            input,
+            authority,
+            invalidation,
+            expected_generation,
+        )
     }
 
     fn stage_local_live_effect<T>(
@@ -13007,6 +13155,23 @@ impl LocalSnapback {
         authority: PreparedAuthority,
         invalidation: LiveInvalidationAdmission,
     ) -> SnapbackResult<LiveSubscribeOutput> {
+        self.subscribe_live_prepared_with_invalidation_generation(
+            name,
+            input,
+            authority,
+            invalidation,
+            None,
+        )
+    }
+
+    fn subscribe_live_prepared_with_invalidation_generation(
+        &mut self,
+        name: &str,
+        input: LiveSubscribeInput,
+        authority: PreparedAuthority,
+        invalidation: LiveInvalidationAdmission,
+        expected_generation: Option<&ArtifactGeneration>,
+    ) -> SnapbackResult<LiveSubscribeOutput> {
         if authority.source() != InvocationSource::LiveInitialQuery {
             return Err(SnapbackError::error(
                 "SNAPBACK_INVOCATION_SOURCE_INVALID",
@@ -13030,6 +13195,7 @@ impl LocalSnapback {
             Some(definition) => definition?,
             None => self.function(name)?.clone(),
         };
+        self.validate_expected_generation(&authority, expected_generation)?;
         if function.kind != FunctionKind::LiveQuery {
             return Err(SnapbackError::error(
                 "SNAPBACK_FUNCTION_NOT_LIVE",
@@ -13516,6 +13682,7 @@ impl LocalSnapback {
                 id: subscription_id.clone(),
                 connection_id: input.connection_id.clone(),
                 function: name.to_owned(),
+                expected_generation: expected_generation.cloned(),
                 authority: retained_authority,
                 input: subscription_input.clone(),
                 read_dependencies: query.read_dependencies,
@@ -13609,6 +13776,7 @@ impl LocalSnapback {
 
         Ok(LiveSubscribeOutput {
             subscription_id,
+            facts: self.function_invocation_facts(authority.active_mode())?,
             snapshot: (!answered_without_rows).then_some(query.output),
             resume: fresh_resume,
             resume_refusal: resume_refusal.map(str::to_owned),
@@ -13627,12 +13795,30 @@ impl LocalSnapback {
     /// or mutating live/obligation state. The query runs only after the exact
     /// connection act commits, so pending subscriptions cannot miss mutation
     /// fanout between preparation and publication.
+    #[allow(dead_code)]
     pub(crate) fn prepare_subscribe_live_for_transport(
         &mut self,
         name: String,
         input: LiveSubscribeInput,
         authority: PreparedAuthority,
         invalidation: LiveInvalidationAdmission,
+    ) -> SnapbackResult<PreparedLiveSubscribe> {
+        self.prepare_subscribe_live_for_transport_generation(
+            name,
+            input,
+            authority,
+            invalidation,
+            None,
+        )
+    }
+
+    pub(crate) fn prepare_subscribe_live_for_transport_generation(
+        &mut self,
+        name: String,
+        input: LiveSubscribeInput,
+        authority: PreparedAuthority,
+        invalidation: LiveInvalidationAdmission,
+        expected_generation: Option<ArtifactGeneration>,
     ) -> SnapbackResult<PreparedLiveSubscribe> {
         if authority.source() != InvocationSource::LiveInitialQuery {
             return Err(SnapbackError::error(
@@ -13674,6 +13860,7 @@ impl LocalSnapback {
             PreparedLiveSubscribePlan {
                 name,
                 input,
+                expected_generation,
                 authority,
                 invalidation,
             },
@@ -13685,15 +13872,17 @@ impl LocalSnapback {
         staged: &PreparedLiveSubscribe,
     ) -> SnapbackResult<LiveTransportPublication<LiveSubscribeOutput>> {
         self.finalize_prepared_live_effect(staged, |snapback, plan| {
-            snapback.subscribe_live_for_transport(
+            snapback.subscribe_live_for_transport_generation(
                 &plan.name,
                 plan.input,
                 plan.authority,
                 plan.invalidation,
+                plan.expected_generation.as_ref(),
             )
         })
     }
 
+    #[allow(dead_code)]
     pub(crate) fn subscribe_live_for_transport(
         &mut self,
         name: &str,
@@ -13701,8 +13890,24 @@ impl LocalSnapback {
         authority: PreparedAuthority,
         invalidation: LiveInvalidationAdmission,
     ) -> SnapbackResult<LiveTransportPublication<LiveSubscribeOutput>> {
-        let output =
-            self.subscribe_live_prepared_with_invalidation(name, input, authority, invalidation)?;
+        self.subscribe_live_for_transport_generation(name, input, authority, invalidation, None)
+    }
+
+    fn subscribe_live_for_transport_generation(
+        &mut self,
+        name: &str,
+        input: LiveSubscribeInput,
+        authority: PreparedAuthority,
+        invalidation: LiveInvalidationAdmission,
+        expected_generation: Option<&ArtifactGeneration>,
+    ) -> SnapbackResult<LiveTransportPublication<LiveSubscribeOutput>> {
+        let output = self.subscribe_live_prepared_with_invalidation_generation(
+            name,
+            input,
+            authority,
+            invalidation,
+            expected_generation,
+        )?;
         let authorization = output.authorization_scope.as_ref().and_then(|_| {
             self.auth_invalidation
                 .as_ref()
@@ -14235,6 +14440,7 @@ impl LocalSnapback {
         if !subscription.is_owned_by(&authority, invalidation.effect_fence.as_ref()) {
             return Err(live_owner_mismatch(&subscription.id, &authority));
         }
+        self.validate_expected_generation(&authority, subscription.expected_generation.as_ref())?;
         // The establishment block, not the presenting caller's: a renewal
         // resubscribe carries the subscription's immutable metadata.
         // @ref LLP 0055#audit — attribution is copied, never re-synthesized.
@@ -15012,6 +15218,15 @@ impl LocalSnapback {
         name: &str,
         authority: PreparedAuthority,
     ) -> StagedAppAction {
+        self.stage_app_action_with_authority_generation(name, authority, None)
+    }
+
+    pub(crate) fn stage_app_action_with_authority_generation(
+        &mut self,
+        name: &str,
+        authority: PreparedAuthority,
+        expected_generation: Option<&ArtifactGeneration>,
+    ) -> StagedAppAction {
         let started = Instant::now();
         // The action lane (the only egress-capable class) consults the
         // persisted migration fence at staging (LLP 0081 §4).
@@ -15058,6 +15273,25 @@ impl LocalSnapback {
                 ),
             }));
         };
+
+        if let Err(error) = self.validate_expected_generation(&authority, expected_generation) {
+            return StagedAppAction::Done(Box::new(FunctionRunResult {
+                ok: false,
+                function: name.to_owned(),
+                kind: Some(definition.kind.clone()),
+                reads: Vec::new(),
+                writes: Vec::new(),
+                captured_reads: Vec::new(),
+                captured_writes: Vec::new(),
+                admin_bypass: false,
+                elapsed_ms: elapsed_ms(started),
+                version: None,
+                changed_count: None,
+                rows: None,
+                result: None,
+                diagnostic: Some(error.diagnostic),
+            }));
+        }
 
         let (reads, writes) = plan_io(&definition);
         let prepared = match InvocationGate::prepare_function(authority, &definition) {
@@ -17056,6 +17290,29 @@ impl LocalSnapback {
         })
     }
 
+    /// The caller-visible content identity for the active sessions pair.
+    /// This is derived from the same loaded manifests used for function
+    /// selection, never copied from the request assertion.
+    pub(crate) fn function_invocation_facts(
+        &self,
+        active_mode: AuthMode,
+    ) -> SnapbackResult<Option<FunctionInvocationFacts>> {
+        invocation_facts_from_manifests(active_mode, self.db.schema(), &self.functions)
+    }
+
+    fn validate_expected_generation(
+        &self,
+        authority: &PreparedAuthority,
+        expected: Option<&ArtifactGeneration>,
+    ) -> SnapbackResult<()> {
+        validate_expected_generation_against_manifests(
+            authority.active_mode(),
+            expected,
+            self.db.schema(),
+            &self.functions,
+        )
+    }
+
     pub(crate) fn function_is_authority_independent(&self, name: &str) -> bool {
         self.functions
             .function(name)
@@ -17998,6 +18255,10 @@ impl LocalSnapback {
             match self
                 .prepare_live_rerun_authority(&subscription.authority, admission.clone())
                 .and_then(|authority| {
+                    self.validate_expected_generation(
+                        &authority,
+                        subscription.expected_generation.as_ref(),
+                    )?;
                     if is_reserved_live_function(&subscription.function) {
                         // Reserved projections execute natively; the
                         // manifest lookup below can never produce them. The
@@ -18009,10 +18270,11 @@ impl LocalSnapback {
                             &subscription.input,
                         )
                     } else {
-                        self.invoke_query_with_dependencies_prepared(
+                        self.invoke_query_with_dependencies_prepared_generation(
                             &subscription.function,
                             subscription.input.clone(),
                             authority,
+                            subscription.expected_generation.as_ref(),
                         )
                     }
                 }) {
@@ -18745,22 +19007,25 @@ impl LocalSnapback {
         Ok(handled)
     }
 
-    /// A sessions-mode deployment swap can change or remove a function that
-    /// was previously proved `authorityIndependent`. Such a retained live
-    /// query owns no authorization scope, so it cannot safely inherit the
-    /// deployment event's obligation. Retire every unscoped predecessor
-    /// subscription and enqueue a clear-retained resync while the activation
-    /// projection lease is still the sole admitted root. The client may then
-    /// establish a successor subscription under the new manifest after the
-    /// controller reopens.
-    fn invalidate_unscoped_live_subscriptions_for_activation(
+    /// A sessions-mode deployment swap retires every asserted predecessor
+    /// generation, plus the legacy authority-independent subscriptions that
+    /// cannot safely inherit the deployment event's authorization obligation.
+    /// Asserted subscriptions receive the same typed generation refusal as a
+    /// fresh call; unchecked auth-scoped subscriptions retain their existing
+    /// witnessed projection behavior.
+    ///
+    /// @ref LLP 0012#call-time-generation-binding — a live assertion remains
+    /// pinned for the subscription lifetime and refuses across activation.
+    fn invalidate_generation_bound_live_subscriptions_for_activation(
         &mut self,
         admission: &AdmissionLease,
     ) -> SnapbackResult<()> {
         let subscriptions = self
             .subscriptions
             .values()
-            .filter(|subscription| subscription.authorization.is_none())
+            .filter(|subscription| {
+                subscription.authorization.is_none() || subscription.expected_generation.is_some()
+            })
             .cloned()
             .collect::<Vec<_>>();
         if subscriptions.is_empty() {
@@ -18771,7 +19036,11 @@ impl LocalSnapback {
             .iter()
             .map(|subscription| {
                 serde_json::to_vec(&LiveEnvelope::ResyncRequired {
-                    reason: "auth_deployment_activated".to_owned(),
+                    reason: if subscription.expected_generation.is_some() {
+                        "SNAPBACK_ARTIFACT_IDENTITY_MISMATCH".to_owned()
+                    } else {
+                        "auth_deployment_activated".to_owned()
+                    },
                     subscription_id: Some(subscription.id.clone()),
                     scope: Some(String::new()),
                     epoch: Some(0),
@@ -18811,7 +19080,11 @@ impl LocalSnapback {
             self.receipts.push_global(
                 Receipt::Subscription {
                     event: SubscriptionReceiptEvent::Disposed,
-                    reason: Some("auth_deployment_activated".to_owned()),
+                    reason: Some(if subscription.expected_generation.is_some() {
+                        "SNAPBACK_ARTIFACT_IDENTITY_MISMATCH".to_owned()
+                    } else {
+                        "auth_deployment_activated".to_owned()
+                    }),
                     subscription_id: Some(subscription.id.clone()),
                     superseded_by: None,
                     lane: None,
@@ -19024,10 +19297,11 @@ impl LocalSnapback {
                 match self
                     .prepare_live_rerun_authority(&subscription.authority, admission.clone())
                     .and_then(|authority| {
-                        self.invoke_query_with_dependencies_prepared(
+                        self.invoke_query_with_dependencies_prepared_generation(
                             &subscription.function,
                             subscription.input.clone(),
                             authority,
+                            subscription.expected_generation.as_ref(),
                         )
                     }) {
                     Ok(query) => query,
@@ -20005,6 +20279,16 @@ impl ReadLane {
         input: HandlerInput,
         authority: PreparedAuthority,
     ) -> SnapbackResult<QueryOutput> {
+        self.invoke_query_prepared_generation(name, input, authority, None)
+    }
+
+    pub(crate) fn invoke_query_prepared_generation(
+        &self,
+        name: &str,
+        input: HandlerInput,
+        authority: PreparedAuthority,
+        expected_generation: Option<&ArtifactGeneration>,
+    ) -> SnapbackResult<QueryOutput> {
         let pool = self.pool.as_ref().ok_or_else(read_lane_unavailable)?;
         let manifests = self.manifests();
         let epochs = self
@@ -20019,6 +20303,12 @@ impl ReadLane {
                 format!("unknown function {name}"),
             )
         })?;
+        validate_expected_generation_against_manifests(
+            authority.active_mode(),
+            expected_generation,
+            &manifests.schema,
+            &manifests.functions,
+        )?;
         let prepared = InvocationGate::prepare_function(authority, function)?;
         let input = prepared.canonicalize_input(input);
 
@@ -23983,8 +24273,8 @@ mod tests {
             name: "search_events".to_owned(),
             semantic_version: "events.v1".to_owned(),
             analyzer: SEARCH_ANALYZER.to_owned(),
-            analyzer_tables_digest:
-                crate::search::unicode17_generated::ANALYZER_TABLES_DIGEST.to_owned(),
+            analyzer_tables_digest: crate::search::unicode17_generated::ANALYZER_TABLES_DIGEST
+                .to_owned(),
             text_fields: BTreeMap::from([(
                 "title".to_owned(),
                 SearchTextFieldV1 {
@@ -24054,10 +24344,7 @@ mod tests {
 
         let error = validate_function_schema_references(&manifest, &schema)
             .expect_err("membership search without resourceArg must fail at load");
-        assert_eq!(
-            error.diagnostic.code,
-            "SNAPBACK_SEARCH_QUERY_PLAN_INVALID"
-        );
+        assert_eq!(error.diagnostic.code, "SNAPBACK_SEARCH_QUERY_PLAN_INVALID");
     }
 
     #[test]
@@ -26254,10 +26541,7 @@ globalThis.__snapbackHandlers = {
             vec![crate::storage::BufferedWrite::Insert {
                 table: "notes".to_owned(),
                 id: "note_seed".to_owned(),
-                values: serde_json::Map::from_iter([(
-                    "body".to_owned(),
-                    json!("advance head"),
-                )]),
+                values: serde_json::Map::from_iter([("body".to_owned(), json!("advance head"))]),
             }],
             Vec::new(),
         )
@@ -26329,14 +26613,16 @@ globalThis.__snapbackHandlers = {
                 .find(|table| table.name == "channel_members")
                 .and_then(|table| table.membership.as_mut())
                 .expect("membership declaration");
-            membership.transitions.push(crate::manifest::MembershipTransition {
-                op: crate::manifest::MembershipOp::Remove,
-                by: vec!["owner".to_owned()],
-                target: crate::manifest::MembershipTarget::Other,
-                from: None,
-                to: None,
-                fields: None,
-            });
+            membership
+                .transitions
+                .push(crate::manifest::MembershipTransition {
+                    op: crate::manifest::MembershipOp::Remove,
+                    by: vec!["owner".to_owned()],
+                    target: crate::manifest::MembershipTarget::Other,
+                    from: None,
+                    to: None,
+                    fields: None,
+                });
             membership.principal_addressed_writes =
                 Some(crate::manifest::MembershipPrincipalAddressedWrites { remove: true });
             schema
@@ -28943,7 +29229,10 @@ globalThis.__snapbackHandlers = {
         };
         assert_eq!(second.total_length, first.total_length);
         let still = asset_rendition_for(&mut snapback, &asset_id, "w128").expect("still there");
-        assert_eq!(still.rendition_id, w128.rendition_id, "no re-materialization");
+        assert_eq!(
+            still.rendition_id, w128.rendition_id,
+            "no re-materialization"
+        );
 
         // Above the declared ceiling: structured refusal, nothing made.
         let above = snapback
@@ -31821,6 +32110,157 @@ globalThis.__snapbackHandlers = {
                 .all(|frame| !frame.contains("\"kind\":\"live_delta\"")),
             "deployment authorization changes never escape as an unfenced live delta"
         );
+    }
+
+    #[test]
+    fn sessions_generation_assertion_refuses_deploy_races_and_live_predecessors() {
+        let (schema, mut predecessor_functions) = sessions_activation_pair('b', false);
+        predecessor_functions.functions[0].authority_independent = true;
+        predecessor_functions.functions[0].auth_requirement =
+            Some(crate::manifest::AuthRequirement::Public);
+        let mut snapback =
+            settled_sessions_activation_snapback(schema, predecessor_functions.clone());
+        let connection = install_test_invalidation(&mut snapback);
+        let predecessor_generation = snapback
+            .function_invocation_facts(AuthMode::Sessions)
+            .expect("derive predecessor generation")
+            .expect("sessions answers generation facts")
+            .active_generation;
+        let subscribe_input = |connection_id: &str| LiveSubscribeInput {
+            connection_id: connection_id.to_owned(),
+            input: HandlerInput::default(),
+            authorization_namespace: None,
+            supersedes: None,
+            resume_from_token: None,
+        };
+        let invalidation = || LiveInvalidationAdmission {
+            session_mode: true,
+            connection: Some(connection.clone()),
+            effect_fence: None,
+        };
+
+        let predecessor = snapback
+            .subscribe_live_with_invalidation_generation(
+                "listItems",
+                subscribe_input("generation-bound-live"),
+                invalidation(),
+                Some(&predecessor_generation),
+            )
+            .expect("subscribe under the discovered predecessor generation");
+        assert_eq!(
+            predecessor
+                .facts
+                .expect("sessions subscribe echoes server facts")
+                .active_generation,
+            predecessor_generation
+        );
+        assert!(
+            drain_live_stream_through_test_sink(&mut snapback, "generation-bound-live").is_empty()
+        );
+
+        let (_, mut successor_functions) = sessions_activation_pair('d', true);
+        successor_functions.functions[0].authority_independent = true;
+        successor_functions.functions[0].auth_requirement =
+            Some(crate::manifest::AuthRequirement::Public);
+        let prepared = snapback
+            .prepare_auth_provision(
+                EnsureAppMode::Sessions,
+                None,
+                Some(successor_functions.clone()),
+                None,
+            )
+            .expect("preflight successor generation");
+        let transition = snapback
+            .admission
+            .clone()
+            .begin_transition()
+            .expect("close predecessor admission");
+        transition
+            .commit_and_project_mode_state(|projection_admission| {
+                let committed = snapback.commit_auth_provision_classified(
+                    prepared,
+                    "test",
+                    Some(projection_admission),
+                )?;
+                Ok(((), committed.state))
+            })
+            .and_then(|committed| committed.publish_successor())
+            .expect("activate successor generation");
+
+        let frames = drain_live_stream_through_test_sink(&mut snapback, "generation-bound-live");
+        assert!(frames.iter().any(|frame| {
+            serde_json::from_str::<Value>(frame).is_ok_and(|frame| {
+                frame["kind"] == "resync_required"
+                    && frame["reason"] == "SNAPBACK_ARTIFACT_IDENTITY_MISMATCH"
+                    && frame["subscription_id"] == predecessor.subscription_id
+                    && frame["clear_retained"] == true
+            })
+        }));
+
+        let stale = snapback
+            .subscribe_live_with_invalidation_generation(
+                "listItems",
+                subscribe_input("generation-stale-call"),
+                invalidation(),
+                Some(&predecessor_generation),
+            )
+            .expect_err("dispatch after a racing deploy refuses the stale generation");
+        assert_eq!(stale.diagnostic.code, "SNAPBACK_ARTIFACT_IDENTITY_MISMATCH");
+        assert_eq!(stale.diagnostic.details["subcause"], "generation");
+
+        let successor_generation = snapback
+            .function_invocation_facts(AuthMode::Sessions)
+            .expect("derive successor generation")
+            .expect("sessions answers generation facts")
+            .active_generation;
+        assert_ne!(successor_generation, predecessor_generation);
+        snapback
+            .subscribe_live_with_invalidation_generation(
+                "listItems",
+                subscribe_input("generation-refetched-call"),
+                invalidation(),
+                Some(&successor_generation),
+            )
+            .expect("refetching artifacts permits the successor call");
+        snapback
+            .subscribe_live_with_invalidation(
+                "listItems",
+                subscribe_input("generation-legacy-call"),
+                invalidation(),
+            )
+            .expect("an unasserted legacy caller remains unchecked");
+
+        successor_functions.bundle_hash = Some(format!("{}{}", FUNCTION_V1_PREFIX, "e".repeat(64)));
+        successor_functions.functions.clear();
+        let prepared = snapback
+            .prepare_auth_provision(
+                EnsureAppMode::Sessions,
+                None,
+                Some(successor_functions),
+                None,
+            )
+            .expect("preflight removal generation");
+        let transition = snapback.admission.clone().begin_transition().unwrap();
+        transition
+            .commit_and_project_mode_state(|projection_admission| {
+                let committed = snapback.commit_auth_provision_classified(
+                    prepared,
+                    "test",
+                    Some(projection_admission),
+                )?;
+                Ok(((), committed.state))
+            })
+            .and_then(|committed| committed.publish_successor())
+            .expect("activate function removal");
+        let removed = snapback
+            .subscribe_live_with_invalidation_generation(
+                "listItems",
+                subscribe_input("generation-removed-call"),
+                invalidation(),
+                Some(&successor_generation),
+            )
+            .expect_err("removed function keeps its distinct selection refusal");
+        assert_eq!(removed.diagnostic.code, "SNAPBACK_UNKNOWN_FUNCTION");
     }
 
     // Regression for issues/20260801-0137-a3-live-subscriber-wedges-watch-reload.md:
@@ -35726,22 +36166,26 @@ globalThis.__snapbackHandlers = {
                 .find(|table| table.name == "room_members")
                 .and_then(|table| table.membership.as_mut())
                 .expect("membership fixture");
-            membership.transitions.push(crate::manifest::MembershipTransition {
-                op: crate::manifest::MembershipOp::Insert,
-                by: vec!["none".to_owned()],
-                target: crate::manifest::MembershipTarget::Own,
-                from: None,
-                to: Some(vec!["owner".to_owned()]),
-                fields: None,
-            });
-            membership.transitions.push(crate::manifest::MembershipTransition {
-                op: crate::manifest::MembershipOp::Remove,
-                by: vec!["owner".to_owned()],
-                target: crate::manifest::MembershipTarget::Other,
-                from: None,
-                to: None,
-                fields: None,
-            });
+            membership
+                .transitions
+                .push(crate::manifest::MembershipTransition {
+                    op: crate::manifest::MembershipOp::Insert,
+                    by: vec!["none".to_owned()],
+                    target: crate::manifest::MembershipTarget::Own,
+                    from: None,
+                    to: Some(vec!["owner".to_owned()]),
+                    fields: None,
+                });
+            membership
+                .transitions
+                .push(crate::manifest::MembershipTransition {
+                    op: crate::manifest::MembershipOp::Remove,
+                    by: vec!["owner".to_owned()],
+                    target: crate::manifest::MembershipTarget::Other,
+                    from: None,
+                    to: None,
+                    fields: None,
+                });
             membership.principal_addressed_writes =
                 Some(crate::manifest::MembershipPrincipalAddressedWrites { remove: true });
         }
@@ -36458,7 +36902,6 @@ globalThis.__snapbackHandlers = {
             .expect("bob is still seated");
         assert!(!fresh.rows.is_empty());
     }
-
 
     // @ref LLP 0065#4-capability-and-llp-0053-composition — a generated
     //   standard pattern claims no skip and no live_delta: the identical

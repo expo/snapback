@@ -3027,6 +3027,7 @@ export async function generateInProcess(backendDir, options = {}) {
     ephemeralCollections,
     routesManifest,
     assetUploadIntents,
+    { schemaVersion: artifactVersion, appId, schemaHash, bundleHash, inputsHash },
   );
   const apiTypes = renderApiTypes(
     functionManifest.functions,
@@ -6615,7 +6616,7 @@ function queryGroupDefinitionHash(routeEntry) {
   return `sha256:${sha256(`snapback:query-group-reference:v1\n${canonicalDefinition}`)}`;
 }
 
-function renderQueryGroupReferences(appId, functions, routesManifest) {
+function renderQueryGroupReferences(appId, functions, routesManifest, expectedGeneration) {
   const byName = new Map(functions.map((fn) => [fn.name, fn]));
   const groups = dict();
   for (const routeEntry of generatedQueryGroupRoutes(functions, routesManifest)) {
@@ -6638,6 +6639,7 @@ function renderQueryGroupReferences(appId, functions, routesManifest) {
           implementationHash: fn.implementationHash,
           argsContractHash: fn.argsContractHash,
           resultContractHash: fn.resultContractHash,
+          expectedGeneration,
         },
         args: query.args ?? {},
       };
@@ -6681,7 +6683,15 @@ function renderAssetUploadReferences(appId, assetUploadIntents, functionsModule)
   }));
 }
 
-function renderApiModule(appId, functions, functionsModule, ephemeralCollections, routesManifest, assetUploadIntents = []) {
+function renderApiModule(
+  appId,
+  functions,
+  functionsModule,
+  ephemeralCollections,
+  routesManifest,
+  assetUploadIntents = [],
+  expectedGeneration,
+) {
   const refs = dict();
   // Derived default intents also project as api.defaults.<table>.<field>
   // so the zero-ceremony flow reads naturally (LLP 0044 §Ceremony floor).
@@ -6706,6 +6716,7 @@ function renderApiModule(appId, functions, functionsModule, ephemeralCollections
       implementationHash: fn.implementationHash,
       argsContractHash: fn.argsContractHash,
       resultContractHash: fn.resultContractHash,
+      expectedGeneration,
       // @ref LLP 0065#3-common-pattern-contracts — trusted defaults are
       // absent and additional properties are closed on the generated client
       // boundary. Reuse the operation-schema projection, never a second model.
@@ -6738,7 +6749,12 @@ function renderApiModule(appId, functions, functionsModule, ephemeralCollections
     };
   }
   refs.ephemeral = ephemeralRefs;
-  const groupRefs = renderQueryGroupReferences(appId, functions, routesManifest);
+  const groupRefs = renderQueryGroupReferences(
+    appId,
+    functions,
+    routesManifest,
+    expectedGeneration,
+  );
   refs.groups = groupRefs;
   return `${HEADER}\n` +
     `/** @type {import('./api.d.ts').GeneratedEphemeral} */\n` +
@@ -6797,6 +6813,7 @@ function renderApiTypes(
     '  implementationHash: string;',
     '  argsContractHash: string;',
     '  resultContractHash: string;',
+    '  expectedGeneration: Readonly<{ schemaVersion: SchemaVersion; appId: string; schemaHash: string; bundleHash: string; inputsHash: string }>;',
     '  argumentSchema: Readonly<Record<string, unknown>>;',
     '  readonly __args?: Args;',
     '  readonly __result?: Result;',

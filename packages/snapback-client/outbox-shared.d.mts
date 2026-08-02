@@ -15,6 +15,13 @@ export interface OutboxRecordInput {
   readonly functionId: string;
   readonly args: unknown;
   readonly capturedAt?: string;
+  readonly expectedGeneration?: Readonly<{
+    schemaVersion: string;
+    appId: string;
+    schemaHash: string;
+    bundleHash: string;
+    inputsHash: string;
+  }> | null;
   readonly [key: string]: unknown;
 }
 

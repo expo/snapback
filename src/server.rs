@@ -64,14 +64,15 @@ use crate::local::{
     AuthorizationInvalidationManualRetryInput, ConfigVerifyStage, DetachedMutationRead,
     EnsureAppExplicitInput, EnsureAppMode, EnsureAppRequest, EnsureAppResponse, EphemeralApi,
     FunctionRunResult, InspectState, LiveInvalidationAdmission, LiveResumeInput,
-    LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback, MaintenanceOperation,
+    LiveSubscribeRequest, LiveUnsubscribeInput, LocalSnapback, MaintenanceOperation,
     PreparedAuthProvision, StagedAction, StagedAppAction, StagedConfigVerify, StagedNestedMutation,
     live_stream_text, live_stream_text_with_server_observed,
 };
 use crate::manifest::{
-    ActionReturnValue, ActionStep, AuthInput, AuthMode, AuthRequirement, AuthorityDescriptor,
-    CtxAnswerLedger,
-    FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput, MutationAcknowledgementRequest,
+    ActionReturnValue, ActionStep, ArtifactGeneration, AuthInput, AuthMode, AuthRequirement,
+    AuthorityDescriptor, CtxAnswerLedger, FunctionCallRequest, FunctionInvocationFacts,
+    FunctionKind, FunctionManifest, FunctionResponse, FunctionRuntime, HandlerInput,
+    MutationAcknowledgementRequest,
     MutationAcknowledgementResponse, MutationOutput, MutationRequest, QueryOutput, ReadDependency,
     SchemaManifest, SeedData,
 };
@@ -6586,6 +6587,8 @@ pub struct MutationResponse {
     #[serde(rename = "authorityDescriptor")]
     pub authority_descriptor: AuthorityDescriptor,
     pub receipt: Receipt,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub facts: Option<FunctionInvocationFacts>,
     /// Server-derived attribution (LLP 0055). Admitted explicitly so the
     /// served bytes and the closed generated schema agree: the route used to
     /// flatten this member through `FunctionResponse<T>` while the committed
@@ -6595,23 +6598,6 @@ pub struct MutationResponse {
     ///   is generated from the envelope actually served.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub attribution: Option<FunctionAttribution>,
-}
-
-#[derive(Serialize)]
-struct FunctionResponse<T> {
-    #[serde(flatten)]
-    output: T,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    attribution: Option<FunctionAttribution>,
-}
-
-impl<T> FunctionResponse<T> {
-    fn new(output: T, attribution: Option<FunctionAttribution>) -> Self {
-        Self {
-            output,
-            attribution,
-        }
-    }
 }
 
 /// Closed request carrier for the sole full-query lease issuance path. The
@@ -6641,6 +6627,13 @@ pub struct AuthorizedLeaseQueryRequest {
     /// behavior. Queries and mutations only; actions never carry one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ctx_ledger: Option<CtxAnswerLedger>,
+    #[serde(
+        default,
+        rename = "expectedGeneration",
+        alias = "expected_generation",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub expected_generation: Option<ArtifactGeneration>,
     #[serde(rename = "leaseRequestId")]
     pub lease_request_id: String,
     #[serde(rename = "clientStoreId")]
@@ -6656,7 +6649,13 @@ pub struct AuthorizedLeaseQueryRequest {
 }
 
 impl AuthorizedLeaseQueryRequest {
-    fn into_parts(self) -> (HandlerInput, AuthorizedLeaseRequestIdentity) {
+    fn into_parts(
+        self,
+    ) -> (
+        HandlerInput,
+        Option<ArtifactGeneration>,
+        AuthorizedLeaseRequestIdentity,
+    ) {
         (
             HandlerInput {
                 args: self.args,
@@ -6665,6 +6664,7 @@ impl AuthorizedLeaseQueryRequest {
                 correlation: self.correlation,
                 ctx_ledger: self.ctx_ledger,
             },
+            self.expected_generation,
             AuthorizedLeaseRequestIdentity {
                 lease_request_id: self.lease_request_id,
                 client_store_id: self.client_store_id,
@@ -6684,10 +6684,16 @@ pub struct AuthorizedLeaseQueryResponse {
     pub version: u64,
     pub rows: Vec<Value>,
     pub authorized_lease: AuthorizedLease,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub facts: Option<FunctionInvocationFacts>,
 }
 
 impl AuthorizedLeaseQueryResponse {
-    fn from_parts(output: QueryOutput, authorized_lease: AuthorizedLease) -> Self {
+    fn from_parts(
+        output: QueryOutput,
+        authorized_lease: AuthorizedLease,
+        facts: Option<FunctionInvocationFacts>,
+    ) -> Self {
         // A retained authorized snapshot is decode-only (LLP 0080 §4): a
         // relational continuation cursor never rides the lease envelope, so
         // it is deliberately dropped here rather than silently flattened in.
@@ -6700,6 +6706,7 @@ impl AuthorizedLeaseQueryResponse {
             version,
             rows,
             authorized_lease,
+            facts,
         }
     }
 }
@@ -6710,6 +6717,7 @@ impl MutationResponse {
         receipt: Receipt,
         attribution: Option<FunctionAttribution>,
         authority_descriptor: AuthorityDescriptor,
+        facts: Option<FunctionInvocationFacts>,
     ) -> Self {
         // Exhaustive destructuring makes an added MutationOutput field a
         // compile error here instead of silent drift in the public envelope.
@@ -6726,6 +6734,7 @@ impl MutationResponse {
             ctx_ledger,
             authority_descriptor,
             receipt,
+            facts,
             attribution,
         }
     }
@@ -8220,8 +8229,7 @@ fn system_route_registrations() -> Vec<RegisteredRoute> {
             // The route bound admits the same declared byte envelope as the
             // host-ops peek limit (asset.put / seed-fixture base64 inputs);
             // coarse admin authorization still precedes any body read.
-            post(host_ops_handler)
-                .layer(DefaultBodyLimit::max(POLICY_BODY_PEEK_LIMIT_HOST_OPS)),
+            post(host_ops_handler).layer(DefaultBodyLimit::max(POLICY_BODY_PEEK_LIMIT_HOST_OPS)),
         ),
         RegisteredRoute::new(
             write(
@@ -8428,19 +8436,17 @@ async fn peek_policy_json_body(
     limit: usize,
 ) -> Result<(Request<Body>, Option<Value>), ApiError> {
     let (parts, body) = request.into_parts();
-    let bytes = to_bytes(body, limit)
-        .await
-        .map_err(|error| {
-            SnapbackError::error(
-                "SNAPBACK_VALUE_TOO_LARGE",
-                "server",
-                "request body exceeded the policy-gate inspection limit",
-            )
-            .with_details(json!({
-                "limitBytes": limit,
-                "error": error.to_string(),
-            }))
-        })?;
+    let bytes = to_bytes(body, limit).await.map_err(|error| {
+        SnapbackError::error(
+            "SNAPBACK_VALUE_TOO_LARGE",
+            "server",
+            "request body exceeded the policy-gate inspection limit",
+        )
+        .with_details(json!({
+            "limitBytes": limit,
+            "error": error.to_string(),
+        }))
+    })?;
     let value = if bytes.is_empty() {
         None
     } else {
@@ -9036,12 +9042,10 @@ fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
         // Query-kind admission (LLP 0044 §Upload sessions).
         // Create and finalize both run the generated authorizer (finalize
         // through witness re-validation), so both are query-shaped.
-        "/assets/attempts" | "/assets/attempts/{id}/finalize" => {
-            Some(InvocationSource::HttpQuery)
+        "/assets/attempts" | "/assets/attempts/{id}/finalize" => Some(InvocationSource::HttpQuery),
+        "/assets/attempts/{id}" | "/assets/attempts/{id}/cancel" | "/assets/tus/{id}" => {
+            Some(InvocationSource::AssetTransfer)
         }
-        "/assets/attempts/{id}"
-        | "/assets/attempts/{id}/cancel"
-        | "/assets/tus/{id}" => Some(InvocationSource::AssetTransfer),
         // Metadata reads, byte delivery, and owner deletion all decide
         // through the declared read-access policy / owner authority
         // (LLP 0044 §Asset read authorization) — query-shaped admission.
@@ -10866,17 +10870,17 @@ async fn enforce_registered_route_policy(
     let opaque_transfer_body = spec.path == "/assets/tus/{id}" && spec.method == "PATCH";
     let inspect_body = !opaque_transfer_body
         && (effective.legacy_body_policy == LegacyBodyPolicy::Rejected
-        || connection_id_in_body
-        || operation_deferred
-        || matches!(spec.path, "/auth/request-code" | "/auth/exchange")
-        || agent_route_throttle_limit(spec.path).is_some()
-        || registered_source.is_some_and(|source| {
-            !matches!(
-                source,
-                InvocationSource::AuthRefresh | InvocationSource::AuthLogout
-            )
-        })
-        || effective.effect_policy == EffectPolicy::SecretReadMintProof);
+            || connection_id_in_body
+            || operation_deferred
+            || matches!(spec.path, "/auth/request-code" | "/auth/exchange")
+            || agent_route_throttle_limit(spec.path).is_some()
+            || registered_source.is_some_and(|source| {
+                !matches!(
+                    source,
+                    InvocationSource::AuthRefresh | InvocationSource::AuthLogout
+                )
+            })
+            || effective.effect_policy == EffectPolicy::SecretReadMintProof);
     let connection_open_bearer = (spec.path == "/connection/open")
         .then(|| OwnedPresentedSessionBearer::from_headers(request.headers()));
     let mut policy_body = None;
@@ -13788,14 +13792,12 @@ pub(crate) fn router_from_registrations(
                     let mut response =
                         enforce_registered_route_policy(spec, runtime, request, next).await;
                     if let Some(value) = sender_nonce.value() {
-                        response.headers_mut().insert(
-                            HeaderName::from_static(SENDER_NONCE_HEADER),
-                            value.clone(),
-                        );
-                        response.headers_mut().insert(
-                            header::CACHE_CONTROL,
-                            HeaderValue::from_static("no-store"),
-                        );
+                        response
+                            .headers_mut()
+                            .insert(HeaderName::from_static(SENDER_NONCE_HEADER), value.clone());
+                        response
+                            .headers_mut()
+                            .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
                     }
                     response
                 }
@@ -17674,12 +17676,16 @@ async fn invoke_query(
     State(read): State<crate::local::ReadLane>,
     Extension(authority): Extension<PreparedAuthority>,
     Path(name): Path<String>,
-    input: Result<Json<HandlerInput>, JsonRejection>,
+    input: Result<Json<FunctionCallRequest>, JsonRejection>,
 ) -> Result<Json<FunctionResponse<crate::manifest::QueryOutput>>, ApiError> {
     let attribution = authority.function_attribution();
-    let Json(input) = input
+    let Json(request) = input
         .map_err(ApiError::from_json_rejection)
         .map_err(|error| error.with_attribution(attribution.clone()))?;
+    let input = request.input;
+    let expected_generation = request.expected_generation;
+    let facts_mode = authority.active_mode();
+    let facts_authority = authority.clone();
     // Only finite service authority needs the SQLite-owned terminal cut.
     // Anonymous and session queries are fenced by their process publication
     // handles and must stay off the global write lane so WAL reads remain
@@ -17704,20 +17710,39 @@ async fn invoke_query(
     }
     let output = if read.available() {
         with_read_lane(&read, move |lane| {
-            lane.invoke_query_prepared(&name, input, authority)
+            lane.invoke_query_prepared_generation(
+                &name,
+                input,
+                authority,
+                expected_generation.as_ref(),
+            )
         })
         .await
     } else {
         with_snapback(&state, move |snapback| {
             snapback
-                .invoke_query_with_dependencies_prepared(&name, input, authority)
+                .invoke_query_with_dependencies_prepared_generation(
+                    &name,
+                    input,
+                    authority,
+                    expected_generation.as_ref(),
+                )
                 .map(|invocation| invocation.output)
         })
         .await
     }
     .map_err(ApiError::from)
     .map_err(|error| error.with_attribution(attribution.clone()))?;
-    Ok(Json(FunctionResponse::new(output, attribution)))
+    let facts = with_snapback(&state, move |snapback| {
+        facts_authority.validate_admission("query generation facts")?;
+        snapback.function_invocation_facts(facts_mode)
+    })
+    .await?;
+    Ok(Json(FunctionResponse::with_facts(
+        output,
+        attribution,
+        facts,
+    )))
 }
 
 /// Replay-tuple identities for credential families that do not carry LLP
@@ -18205,9 +18230,17 @@ async fn invoke_authorized_lease_query(
         .into());
     }
     let Json(request) = request.map_err(ApiError::from_json_rejection)?;
-    let (input, lease_request) = request.into_parts();
-    let capture = with_snapback(&state, move |snapback| {
-        snapback.capture_authorized_lease_query(&name, input, authority, lease_request)
+    let (input, expected_generation, lease_request) = request.into_parts();
+    let (capture, facts) = with_snapback(&state, move |snapback| {
+        let facts_mode = authority.active_mode();
+        let capture = snapback.capture_authorized_lease_query_generation(
+            &name,
+            input,
+            authority,
+            lease_request,
+            expected_generation.as_ref(),
+        )?;
+        Ok::<_, SnapbackError>((capture, snapback.function_invocation_facts(facts_mode)?))
     })
     .await?;
 
@@ -18237,7 +18270,7 @@ async fn invoke_authorized_lease_query(
     })
     .await?;
     Ok(Json(AuthorizedLeaseQueryResponse::from_parts(
-        output, lease,
+        output, lease, facts,
     )))
 }
 
@@ -18295,10 +18328,7 @@ fn require_tus_version(headers: &HeaderMap) -> Result<(), ApiError> {
     Ok(())
 }
 
-fn tus_response_headers(
-    response: &mut Response,
-    attempt: &crate::assets::AssetAttemptRecordV1,
-) {
+fn tus_response_headers(response: &mut Response, attempt: &crate::assets::AssetAttemptRecordV1) {
     let headers = response.headers_mut();
     headers.insert(
         HeaderName::from_static(TUS_RESUMABLE_HEADER),
@@ -18328,10 +18358,11 @@ fn tus_response_headers(
         HeaderName::from_static(TUS_CHECKSUM_ALGORITHM_HEADER),
         HeaderValue::from_static("sha256"),
     );
-    if let Ok(chunk) =
-        HeaderValue::from_str(&crate::assets::ASSET_MAX_CHUNK_BYTES.to_string())
-    {
-        headers.insert(HeaderName::from_static(SNAPBACK_MAX_CHUNK_BYTES_HEADER), chunk);
+    if let Ok(chunk) = HeaderValue::from_str(&crate::assets::ASSET_MAX_CHUNK_BYTES.to_string()) {
+        headers.insert(
+            HeaderName::from_static(SNAPBACK_MAX_CHUNK_BYTES_HEADER),
+            chunk,
+        );
     }
     if let Ok(expires) = HeaderValue::from_str(&attempt.expires_at_ms.to_string()) {
         headers.insert(
@@ -18543,12 +18574,23 @@ async fn asset_deliver_route(
         .and_then(|value| value.to_str().ok())
         .map(str::to_owned);
     // The declarative best-variant bound (LLP 0044): `best?maxWidth=N`.
-    let max_width = query.get("maxWidth").and_then(|value| value.parse::<u64>().ok());
+    let max_width = query
+        .get("maxWidth")
+        .and_then(|value| value.parse::<u64>().ok());
     // Bounded on-demand widths (LLP 0044 §Ceremony floor): `?width=N`
     // ladder-normalizes and materializes once, after authorization.
-    let width = query.get("width").and_then(|value| value.parse::<u64>().ok());
+    let width = query
+        .get("width")
+        .and_then(|value| value.parse::<u64>().ok());
     let outcome = with_snapback(&state, move |snapback| {
-        snapback.asset_deliver(&authority, &id, &variant, range_header.as_deref(), max_width, width)
+        snapback.asset_deliver(
+            &authority,
+            &id,
+            &variant,
+            range_header.as_deref(),
+            max_width,
+            width,
+        )
     })
     .await?;
     stream_asset_delivery(outcome).await
@@ -18578,7 +18620,12 @@ async fn stream_asset_delivery(
     let store = delivery.store.clone();
     let blob_key = delivery.blob_key.clone();
     let stream = futures_util::stream::try_unfold(
-        (store, blob_key, delivery.window_start, delivery.window_length),
+        (
+            store,
+            blob_key,
+            delivery.window_start,
+            delivery.window_length,
+        ),
         |(store, blob_key, position, remaining)| async move {
             if remaining == 0 {
                 return Ok(None);
@@ -18685,7 +18732,9 @@ async fn asset_deliver_public_route(
         .get(header::RANGE)
         .and_then(|value| value.to_str().ok())
         .map(str::to_owned);
-    let width = query.get("width").and_then(|value| value.parse::<u64>().ok());
+    let width = query
+        .get("width")
+        .and_then(|value| value.parse::<u64>().ok());
     let outcome = with_snapback(&state, move |snapback| {
         snapback.asset_deliver_public(&id, &variant, range_header.as_deref(), width)
     })
@@ -18750,6 +18799,7 @@ async fn invoke_mutation(
     let stage_client_mutation_id = request.client_mutation_id.clone();
     let stage_authority_descriptor = request.authority_descriptor.clone();
     let stage_acknowledgements = request.acknowledged_client_mutation_ids.clone();
+    let stage_expected_generation = request.expected_generation.clone();
     let stage_authority = authority.clone();
     let (result, receipt, response_authority_descriptor) =
         with_snapback_staged_authorization_write(
@@ -18757,7 +18807,7 @@ async fn invoke_mutation(
         move |snapback| {
             let response_authority_descriptor =
                 snapback.descriptor_for_prepared_authority(&stage_authority)?;
-            let (preflight, staged) = snapback.stage_recorded_authorization_mutation(
+            let (preflight, staged) = snapback.stage_recorded_authorization_mutation_with_generation(
                 &stage_name,
                 stage_input.clone(),
                 stage_client_mutation_id.clone(),
@@ -18765,6 +18815,7 @@ async fn invoke_mutation(
                 &stage_acknowledgements,
                 "http",
                 stage_authority.clone(),
+                stage_expected_generation.as_ref(),
             )?;
             Ok((preflight, (response_authority_descriptor, staged)))
         },
@@ -18784,12 +18835,21 @@ async fn invoke_mutation(
         // (never through the FunctionResponse flatten) so the served bytes
         // stay inside the closed generated mutation.output schema.
         // @ref LLP 0094#0c6-response-shape-divergences-audited-at-137dee8c-defects-not-contract — item 4.
-        Ok(output) => Ok(Json(MutationResponse::from_output(
-            output,
-            receipt,
-            attribution,
-            response_authority_descriptor,
-        ))),
+        Ok(output) => {
+            let facts_mode = authority.active_mode();
+            let facts = with_snapback(&state, move |snapback| {
+                authority.validate_admission("mutation generation facts")?;
+                snapback.function_invocation_facts(facts_mode)
+            })
+            .await?;
+            Ok(Json(MutationResponse::from_output(
+                output,
+                receipt,
+                attribution,
+                response_authority_descriptor,
+                facts,
+            )))
+        }
         Err(error) => Err(ApiError::with_receipt(error, receipt).with_attribution(attribution)),
     }
 }
@@ -18809,16 +18869,24 @@ async fn invoke_action(
     State(state): State<SharedSnapback>,
     Extension(authority): Extension<PreparedAuthority>,
     Path(name): Path<String>,
-    input: Result<Json<HandlerInput>, JsonRejection>,
+    input: Result<Json<FunctionCallRequest>, JsonRejection>,
 ) -> Result<Json<FunctionResponse<crate::local::FunctionRunResult>>, ApiError> {
     let attribution = authority.function_attribution();
-    let Json(input) = input
+    let Json(request) = input
         .map_err(ApiError::from_json_rejection)
         .map_err(|error| error.with_attribution(attribution.clone()))?;
+    let input = request.input;
+    let expected_generation = request.expected_generation;
+    let facts_mode = authority.active_mode();
+    let facts_authority = authority.clone();
     let staged = {
         let name = name.clone();
         with_snapback(&state, move |snapback| {
-            snapback.stage_app_action_with_authority(&name, authority)
+            snapback.stage_app_action_with_authority_generation(
+                &name,
+                authority,
+                expected_generation.as_ref(),
+            )
         })
         .await
     };
@@ -18828,7 +18896,29 @@ async fn invoke_action(
             run_staged_app_action(&state, &name, input, stage, "action").await
         }
     };
-    Ok(Json(FunctionResponse::new(result, attribution)))
+    if let Some(diagnostic) = result
+        .diagnostic
+        .as_ref()
+        .filter(|diagnostic| diagnostic.code == "SNAPBACK_ARTIFACT_IDENTITY_MISMATCH")
+    {
+        return Err(
+            ApiError::from(SnapbackError::new(diagnostic.clone())).with_attribution(attribution)
+        );
+    }
+    let facts = if result.ok {
+        with_snapback(&state, move |snapback| {
+            facts_authority.validate_admission("action generation facts")?;
+            snapback.function_invocation_facts(facts_mode)
+        })
+        .await?
+    } else {
+        None
+    };
+    Ok(Json(FunctionResponse::with_facts(
+        result,
+        attribution,
+        facts,
+    )))
 }
 
 /// Commit one already-preflighted provisioning pair. Cross-mode changes and
@@ -19156,9 +19246,10 @@ async fn subscribe_live(
     Extension(connection_act): Extension<PreparedConnectionAct>,
     Extension(admission): Extension<AdmissionLease>,
     Path(name): Path<String>,
-    input: Result<Json<LiveSubscribeInput>, JsonRejection>,
+    input: Result<Json<LiveSubscribeRequest>, JsonRejection>,
 ) -> Result<Response, ApiError> {
-    let Json(input) = input.map_err(ApiError::from_json_rejection)?;
+    let Json(request) = input.map_err(ApiError::from_json_rejection)?;
+    let input = request.input;
     let invalidation = LiveInvalidationAdmission {
         connection: connection_act.authorization_invalidation.clone(),
         effect_fence: Some(connection_act.effect_fence()),
@@ -19167,7 +19258,13 @@ async fn subscribe_live(
     };
     let connection_id = input.connection_id.clone();
     let staged = with_snapback(&runtime.snapback, move |snapback| {
-        snapback.prepare_subscribe_live_for_transport(name, input, authority, invalidation)
+        snapback.prepare_subscribe_live_for_transport_generation(
+            name,
+            input,
+            authority,
+            invalidation,
+            request.expected_generation,
+        )
     })
     .await?;
     let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
@@ -22393,7 +22490,8 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         //   the private self resolver may disclose only that the caller's own
         //   membership row is absent, so this is a scoped not-found result.
         | "SNAPBACK_MEMBERSHIP_SELF_NOT_FOUND" => StatusCode::NOT_FOUND,
-        "SNAPBACK_MUTATION_CONFLICT"
+        "SNAPBACK_ARTIFACT_IDENTITY_MISMATCH"
+        | "SNAPBACK_MUTATION_CONFLICT"
         | "SNAPBACK_ACTION_GENERATION_CONFLICT"
         // @ref LLP 0076#diagnostics — reserved internal cancellation reason;
         // no v1 read path surfaces it, but its reviewed status is a conflict
@@ -27920,7 +28018,10 @@ globalThis.__snapbackHandlers = {
         };
         let headerless = HeaderMap::new();
 
-        for path in ["/assets/public/{id}/{variant}", "/assets/signed/{id}/{variant}"] {
+        for path in [
+            "/assets/public/{id}/{variant}",
+            "/assets/signed/{id}/{variant}",
+        ] {
             let spec = spec_for("GET", path);
             assert!(
                 super::pasteable_delivery_route(spec),
@@ -36557,6 +36658,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_AUTH_MODE_DOWNGRADE",
         "SNAPBACK_AUTH_REFRESH_SUPERSEDED",
         "SNAPBACK_AUTH_TABLE_COLLISION",
+        "SNAPBACK_ARTIFACT_IDENTITY_MISMATCH",
         "SNAPBACK_CLIENT_MUTATION_ID_REUSED",
         "SNAPBACK_CLIENT_MUTATION_LEGACY_AUTH_QUARANTINED",
         "SNAPBACK_CONFIG_VERIFY_STALE",
@@ -36973,8 +37075,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_ASSET_DELIVERY_PROFILE_UNSUPPORTED",
         "SNAPBACK_ASSET_SEED_FIXTURE_REJECTED",
     ];
-    const ASSET_PRECONDITION_DIAGNOSTICS: &[&str] =
-        &["SNAPBACK_ASSET_TUS_VERSION_UNSUPPORTED"];
+    const ASSET_PRECONDITION_DIAGNOSTICS: &[&str] = &["SNAPBACK_ASSET_TUS_VERSION_UNSUPPORTED"];
     const ASSET_UNSUPPORTED_MEDIA_DIAGNOSTICS: &[&str] =
         &["SNAPBACK_ASSET_TUS_CONTENT_TYPE_UNSUPPORTED"];
 
@@ -38024,8 +38125,7 @@ globalThis.__snapbackHandlers = {
                     export: "notify".to_owned(),
                 }),
             );
-            notify.args_contract_hash =
-                Some(args_contract_hash(&contract).expect("contract hash"));
+            notify.args_contract_hash = Some(args_contract_hash(&contract).expect("contract hash"));
             notify.args_contract = Some(contract);
             notify
                 .required_capabilities
@@ -38064,10 +38164,8 @@ globalThis.__snapbackHandlers = {
             };
             let diagnostics = snapback.load_functions(manifest);
             assert!(
-                diagnostics
-                    .iter()
-                    .all(|diagnostic| diagnostic.severity
-                        != crate::diagnostic::DiagnosticSeverity::Error),
+                diagnostics.iter().all(|diagnostic| diagnostic.severity
+                    != crate::diagnostic::DiagnosticSeverity::Error),
                 "jobs contract fixture must install: {diagnostics:?}"
             );
             Arc::new(Mutex::new(snapback))
@@ -38117,17 +38215,16 @@ globalThis.__snapbackHandlers = {
 
         // A conforming payload against the same contract commits.
         let conforming = with_snapback(&state, |snapback| {
-            snapback
-                .invoke_mutation(
-                    "scheduleAny",
-                    HandlerInput {
-                        args: serde_json::json!({
-                            "action": "notify",
-                            "payload": { "name": "ok" },
-                        }),
-                        ..HandlerInput::default()
-                    },
-                )
+            snapback.invoke_mutation(
+                "scheduleAny",
+                HandlerInput {
+                    args: serde_json::json!({
+                        "action": "notify",
+                        "payload": { "name": "ok" },
+                    }),
+                    ..HandlerInput::default()
+                },
+            )
         })
         .await
         .expect("conforming enqueue commits");
@@ -41493,16 +41590,19 @@ globalThis.__snapbackHandlers = {
             Extension(connection_act),
             Extension(admission),
             axum::extract::Path("listItems".to_owned()),
-            Ok(Json(LiveSubscribeInput {
-                connection_id: opened.grant.connection_id.clone(),
-                input: HandlerInput::default(),
-                authorization_namespace: Some(QueryNamespace {
-                    client_store_id: "refused_stage_store".to_owned(),
-                    query_key: "listItems:{}".to_owned(),
-                    query_instance_id: 9_002,
-                }),
-                supersedes: None,
-                resume_from_token: None,
+            Ok(Json(crate::local::LiveSubscribeRequest {
+                input: LiveSubscribeInput {
+                    connection_id: opened.grant.connection_id.clone(),
+                    input: HandlerInput::default(),
+                    authorization_namespace: Some(QueryNamespace {
+                        client_store_id: "refused_stage_store".to_owned(),
+                        query_key: "listItems:{}".to_owned(),
+                        query_instance_id: 9_002,
+                    }),
+                    supersedes: None,
+                    resume_from_token: None,
+                },
+                expected_generation: None,
             })),
         )
         .await

@@ -112,6 +112,10 @@ export function normalizeOutboxRecordInput(record) {
     // runs no local execution, so it usually captures none; a composing
     // layer with derived overlays supplies one.
     ctxLedger: record.ctxLedger ?? null,
+    // Generated-artifact call-time binding (LLP 0012 amendment). Replay pins
+    // the generation that authored the queued args; it never silently adopts
+    // the currently discovered same-named mutation.
+    expectedGeneration: record.expectedGeneration ?? null,
     // Client-captured wall-clock at enqueue. A labeled claim for receipts
     // and UI (LLP 0129 ledger row 1, decision 10 taxonomy) — never
     // transmitted as authority and never used for ordering.

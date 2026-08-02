@@ -5,7 +5,9 @@
 **Systems:** Contract/Exact, React/Expo, Client integration, Developer experience, API, Sync, Auth
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-31 (LLP 0044 companion registration: the
+**Revised:** 2026-08-01 (call-time generation binding for sessions generated
+references and subscriptions, with explicit unchecked legacy compatibility);
+2026-07-31 (LLP 0044 companion registration: the
 `SNAPBACK_ASSET_*` diagnostic family with its initial closed set; the
 granular asset capability rows superseding the `assetUpload` boolean at
 first implementation, with store-parameterized lifecycle claims,
@@ -866,6 +868,43 @@ until the final registry inputs rerun against the implementation revision.
 inferred from the Android result. LLP 0064 owns the per-OS native surface and
 artifact-integrity contract.
 
+## Call-time generation binding
+
+Generated function references for a complete sessions artifact pair carry an
+`expectedGeneration` object containing exactly `schemaVersion`, `appId`,
+`schemaHash`, `bundleHash`, and `inputsHash`. The packaged client repeats that
+assertion on query, mutation, action, authorized-lease query, and live-subscribe
+requests. References prepared from an incomplete artifact set do not invent an
+identity.
+
+On a sessions target, function selection and comparison with the active
+schema/function pair are one admitted operation. Selection runs first so a
+removed or unknown function keeps `SNAPBACK_UNKNOWN_FUNCTION`; otherwise an
+unequal asserted pair refuses before handler, acknowledgement, receipt, or
+mutation effects with `SNAPBACK_ARTIFACT_IDENTITY_MISMATCH` and the closed
+detail `subcause: "generation"`. The details include both
+`expectedGeneration` and server-derived `activeGeneration`. Integrity and
+binding failures remain their separately registered subcauses; clients must
+not infer one from the umbrella code alone.
+
+Successful sessions calls and subscriptions echo the server-derived pair as
+`facts.activeGeneration`. The server never copies this fact from the request.
+Dev targets tolerate but do not enforce the additive assertion and omit the
+sessions fact, preserving LLP 0062's discovery-time-only v0 rule.
+
+A live assertion is pinned to the subscription. Activation retires the
+predecessor and sends `resync_required` with reason
+`SNAPBACK_ARTIFACT_IDENTITY_MISMATCH`; a fresh subscribe using predecessor
+artifacts receives the same HTTP refusal, while a refetched successor reference
+may establish a new subscription. Function removal still returns its own
+unknown-function refusal on the fresh attempt.
+
+The assertion is optional by design. String function names, older generated
+references, browser-kit callers, Contract, and other existing clients that omit
+`expectedGeneration` receive no generation comparison and retain their prior
+behavior. This compatibility arm is not evidence that their discovered schema
+and selected function were one generation.
+
 ## Versioning
 
 Each artifact should carry a version or schema hash. Adapters must declare which
@@ -1114,6 +1153,13 @@ Spec. They complete the local auth v1 registrations above, including the
 independently negotiated item-6/8 surfaces and honest hosted-readiness refusal.
 
 ## Changelog
+
+- **2026-08-01 (call-time generation binding).** Registered the complete
+  generated `expectedGeneration` assertion on every packaged call family, the
+  atomic sessions comparison and server-derived response fact, the typed
+  generation subcause, pinned live activation refusal/resubscribe behavior,
+  unknown-function precedence, v0-dev non-enforcement, and the explicit
+  absent-assertion compatibility arm. Status remains Draft.
 
 - **2026-07-31 (LLP 0044 companion registration).** Added §Dated
   registration: asset subsystem contract — the `SNAPBACK_ASSET_*` family

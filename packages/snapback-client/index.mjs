@@ -4913,10 +4913,16 @@ export class SnapbackClient {
   query(ref, { args = {}, userId, readSet = [], authorityCapture = null } = {}) {
     const name = functionName(ref);
     validateGeneratedArguments(ref, args, name);
+    const generation = expectedGeneration(ref);
     return this.#req(
       'POST',
       `/query/${encodeURIComponent(name)}`,
-      { args, auth: SnapbackClient.auth(userId), read_set: readSet },
+      {
+        args,
+        auth: SnapbackClient.auth(userId),
+        read_set: readSet,
+        ...(generation === null ? {} : { expectedGeneration: generation }),
+      },
       undefined,
       { expectedAuthorityCapture: authorityCapture },
     );
@@ -5089,6 +5095,7 @@ export class SnapbackClient {
   } = {}) {
     const name = functionName(ref);
     validateGeneratedArguments(ref, args, name);
+    const generation = expectedGeneration(ref);
     const namespace = createLiveQueryNamespace(authorizationNamespace ?? {});
     if (typeof leaseRequestId !== 'string' || leaseRequestId.length === 0) {
       throw new TypeError('authorizedLeaseQuery requires leaseRequestId');
@@ -5101,16 +5108,23 @@ export class SnapbackClient {
       clientStoreId: namespace.clientStoreId,
       queryKey: namespace.queryKey,
       queryInstanceId: namespace.queryInstanceId,
+      ...(generation === null ? {} : { expectedGeneration: generation }),
     }, undefined, { expectedAuthorityCapture: authorityCapture });
   }
 
   action(ref, { args = {}, userId, readSet = [], authorityCapture = null } = {}) {
     const name = functionName(ref);
     validateGeneratedArguments(ref, args, name);
+    const generation = expectedGeneration(ref);
     return this.#req(
       'POST',
       `/action/${encodeURIComponent(name)}`,
-      { args, auth: SnapbackClient.auth(userId), read_set: readSet },
+      {
+        args,
+        auth: SnapbackClient.auth(userId),
+        read_set: readSet,
+        ...(generation === null ? {} : { expectedGeneration: generation }),
+      },
       undefined,
       { expectedAuthorityCapture: authorityCapture },
     );
@@ -5504,7 +5518,11 @@ export class SnapbackClient {
         // server's settlement ledger returns the original result on a
         // duplicate, so a crash between settle and remove cannot double-
         // apply (LLP 0043 M2 exactly-once).
-        const settlement = await this.mutate(record.function, {
+        const settlement = await this.mutate(
+          record.expectedGeneration == null
+            ? record.function
+            : { name: record.function, expectedGeneration: record.expectedGeneration },
+          {
           args: record.args,
           userId: record.userId ?? undefined,
           readSet: record.readSet ?? [],
@@ -5513,7 +5531,8 @@ export class SnapbackClient {
           authorityDescriptor: record.authorityDescriptor ?? null,
           ctxLedger: record.ctxLedger ?? null,
           queue: false,
-        });
+          },
+        );
         let consumed;
         try {
           consumed = await store.outboxDurablyConsume(
@@ -5596,11 +5615,13 @@ export class SnapbackClient {
   } = {}) {
     const name = functionName(ref);
     validateGeneratedArguments(ref, args, name);
+    const generation = expectedGeneration(ref);
     if (queue !== 'auto' && queue !== false && queue !== true) {
       throw new TypeError("mutate queue option must be 'auto', true, or false");
     }
     const queueStore = queue === false ? null : this.#offlineQueueStore(queue === true);
     const body = { args, auth: SnapbackClient.auth(userId), read_set: readSet };
+    if (generation !== null) body.expectedGeneration = generation;
     // Opaque adapter correlation (LLP 0034 §3.2): sent verbatim, echoed on
     // the receipt; the provider never interprets it.
     if (correlation) body.correlation = correlation;
@@ -5656,6 +5677,7 @@ export class SnapbackClient {
       correlation,
       authorityDescriptor: body.authorityDescriptor ?? null,
       ctxLedger: ctxLedger ?? null,
+      expectedGeneration: generation,
       capturedNow: Date.now(),
     } : null;
     let durableOnlineRecord = false;
@@ -5768,15 +5790,16 @@ export class SnapbackClient {
             const queued = await this.#enqueueOfflineMutation(
               queueStore,
               durableMutationRecord ?? {
-              id: createClientMutationId(),
-              function: name,
-              args,
-              userId: typeof userId === 'string' ? userId : null,
-              readSet,
-              correlation,
-              authorityDescriptor: body.authorityDescriptor ?? null,
-              ctxLedger: ctxLedger ?? null,
-              capturedNow: Date.now(),
+                id: createClientMutationId(),
+                function: name,
+                args,
+                userId: typeof userId === 'string' ? userId : null,
+                readSet,
+                correlation,
+                authorityDescriptor: body.authorityDescriptor ?? null,
+                ctxLedger: ctxLedger ?? null,
+                expectedGeneration: generation,
+                capturedNow: Date.now(),
               },
             );
             if (queued) return queued;
@@ -5850,10 +5873,12 @@ export class SnapbackClient {
   } = {}, externalBearerTransitionPermit = null) {
     const name = functionName(ref);
     validateGeneratedArguments(ref, args, name);
+    const generation = expectedGeneration(ref);
     const input = { args, auth: SnapbackClient.auth(userId), read_set: [] };
     if (correlation) input.correlation = correlation;
     const response = await this.#withGrant(connectionId, (grant) => {
       const body = { connection_id: grant.id, input };
+      if (generation !== null) body.expectedGeneration = generation;
       // RQS token resume (LLP 0091 §0B.4): the token seeds this ordinary
       // subscribe; a refused token is answered with a fresh snapshot by the
       // server, never retried client-side.
@@ -10906,6 +10931,32 @@ function functionName(ref) {
     throw new TypeError(`Snapback function name must match ${GENERATED_IDENTIFIER}, got ${JSON.stringify(name)}`);
   }
   throw new TypeError(`Snapback function reference must be a string or generated ref, got ${JSON.stringify(ref)}`);
+}
+
+const EXPECTED_GENERATION_KEYS = Object.freeze([
+  'schemaVersion',
+  'appId',
+  'schemaHash',
+  'bundleHash',
+  'inputsHash',
+]);
+
+function expectedGeneration(ref) {
+  if (typeof ref !== 'object' || ref === null || ref.expectedGeneration == null) return null;
+  const value = ref.expectedGeneration;
+  if (
+    typeof value !== 'object'
+    || Array.isArray(value)
+    || Object.keys(value).some((key) => !EXPECTED_GENERATION_KEYS.includes(key))
+    || EXPECTED_GENERATION_KEYS.some(
+      (key) => typeof value[key] !== 'string' || value[key].length === 0,
+    )
+  ) {
+    throw new TypeError(
+      'Snapback function reference expectedGeneration must be the complete generated artifact identity',
+    );
+  }
+  return Object.fromEntries(EXPECTED_GENERATION_KEYS.map((key) => [key, value[key]]));
 }
 
 function validateGeneratedArguments(ref, args, name = functionName(ref)) {

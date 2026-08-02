@@ -57,13 +57,13 @@ use crate::local::{
     AuthorizationInvalidationAckInput, AuthorizationInvalidationAckOutput,
     AuthorizationInvalidationManualRetryInput, AuthorizationInvalidationManualRetryOutput,
     EnsureAppRequest, EnsureAppResponse, FunctionRunResult, InspectState, LiveResumeInput,
-    LiveResumeOutput, LiveSubscribeInput, LiveSubscribeOutput, LiveUnsubscribeInput,
+    LiveResumeOutput, LiveSubscribeOutput, LiveSubscribeRequest, LiveUnsubscribeInput,
     LiveUnsubscribeOutput, PublicInspect,
 };
 use crate::manifest::{
-    CapabilityManifest, FunctionManifest, HandlerInput, MutationAcknowledgementRequest,
-    MutationAcknowledgementResponse, MutationRequest, QueryOutput, SNAPBACK_SCHEMA_VERSION,
-    SchemaManifest,
+    CapabilityManifest, FunctionCallRequest, FunctionManifest, FunctionResponse,
+    MutationAcknowledgementRequest, MutationAcknowledgementResponse, MutationRequest, QueryOutput,
+    SNAPBACK_SCHEMA_VERSION, SchemaManifest,
 };
 use crate::migration::{
     MigrationAdmissionV1, MigrationApprovalV1, MigrationPlanArtifactV1,
@@ -563,7 +563,7 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         ),
         finish(
             "live.subscribe.input.schema.json",
-            schemars::schema_for!(LiveSubscribeInput),
+            schemars::schema_for!(LiveSubscribeRequest),
         ),
         finish(
             "live.resume.output.schema.json",
@@ -606,7 +606,11 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         ),
         finish(
             "query.input.schema.json",
-            schemars::schema_for!(HandlerInput),
+            schemars::schema_for!(FunctionCallRequest),
+        ),
+        finish(
+            "action.input.schema.json",
+            schemars::schema_for!(FunctionCallRequest),
         ),
         finish(
             "mutation.input.schema.json",
@@ -656,11 +660,11 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         // serde-typed but not independently schema-committed.
         finish(
             "query.output.schema.json",
-            schemars::schema_for!(QueryOutput),
+            schemars::schema_for!(FunctionResponse<QueryOutput>),
         ),
         finish(
             "action.output.schema.json",
-            schemars::schema_for!(FunctionRunResult),
+            schemars::schema_for!(FunctionResponse<FunctionRunResult>),
         ),
         finish(
             "live.socket-client.sessions.schema.json",

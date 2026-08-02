@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "4204fd55926bb8cba251d60129d10afe4e171c35"
+    "commit": "c4c575e94b659cfdb0f939eca19c0f62b2f79e0a"
   },
   "nav": {
     ".": [
@@ -346,9 +346,9 @@
         "demos/card-game",
         "demos/_kit/tests/auth-invalidation-client.mjs"
       ],
-      "reviewed": "2026-07-26",
+      "reviewed": "2026-08-01",
       "reviewedCommit": "HEAD",
-      "sha256": "5842223234049e94996271dcf60f85ebe198023d48e241484278343e8e74b636",
+      "sha256": "498d620f424f8d591ec0ebc03a58292f7d7e1d26f948fca564013090b9d86f26",
       "snippets": [
         {
           "lang": "js",
@@ -1355,9 +1355,9 @@
         "demos/card-game",
         "demos/partiful-matrix/surfaces/vanilla"
       ],
-      "reviewed": "2026-07-23",
+      "reviewed": "2026-08-01",
       "reviewedCommit": "HEAD",
-      "sha256": "cafbcf5f0dac14fde3da3d3a753597ecb579e14d9c5721ff79c836fea5ec6400",
+      "sha256": "b8478ceef0b41766d0a225335afebadfcf61d8b25ca8fbcc359a3a2a42264ad3",
       "snippets": [
         {
           "lang": "js",
@@ -1996,9 +1996,9 @@
       "examples": [
         "clients/swift/SnapbackClient"
       ],
-      "reviewed": "2026-07-26",
+      "reviewed": "2026-08-01",
       "reviewedCommit": "HEAD",
-      "sha256": "bb4d4c3e849cfb7aa6c902bd5e9b641d4f062211cf7edd0f36190a2fb556e321",
+      "sha256": "fafb325e8ffc70d0d8783c600b725c98fbb74be32e7343bb729e99e30c07d751",
       "snippets": []
     },
     "realtime.ephemeral-state": {
@@ -2474,5 +2474,5 @@
     "routes": 86,
     "hostOps": 29
   },
-  "contentHash": "8c84dbe2b44f31dd49fd772330da82a2949718effda26344b36a2051b0f024e6"
+  "contentHash": "85e7e0f5ddad85733833a3489b73493440d372d616195b6e4d321e78762d6166"
 }

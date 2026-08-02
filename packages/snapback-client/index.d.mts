@@ -36,8 +36,21 @@ export interface SnapbackFunctionReference<
   readonly implementationHash: string;
   readonly argsContractHash: string;
   readonly resultContractHash: string;
+  readonly expectedGeneration?: ArtifactGeneration;
   readonly __args?: Args;
   readonly __result?: Result;
+}
+
+export interface ArtifactGeneration {
+  readonly schemaVersion: string;
+  readonly appId: string;
+  readonly schemaHash: string;
+  readonly bundleHash: string;
+  readonly inputsHash: string;
+}
+
+export interface FunctionInvocationFacts {
+  readonly activeGeneration: ArtifactGeneration;
 }
 
 export interface SnapbackEphemeralReference<
@@ -117,6 +130,7 @@ export interface QueryOutput<Result> {
   readonly rows: Result;
   readonly version: number;
   readonly cursor?: string | null;
+  readonly facts?: FunctionInvocationFacts;
 }
 
 /** LLP 0055 §Audit server-derived attribution block, copied verbatim. */
@@ -135,6 +149,7 @@ export interface MutationOutput<Result> {
   readonly authorityDescriptor: AuthorityDescriptorV1;
   readonly receipt: Readonly<Record<string, unknown>>;
   readonly attribution?: FunctionAttribution;
+  readonly facts?: FunctionInvocationFacts;
 }
 
 export interface AuthorityDescriptorV1 {
@@ -155,6 +170,7 @@ export interface ActionOutput<Result> {
   readonly ok: boolean;
   readonly result: Result;
   readonly diagnostic?: Readonly<Record<string, unknown>>;
+  readonly facts?: FunctionInvocationFacts;
 }
 
 export type SearchMatchAtomV1 =

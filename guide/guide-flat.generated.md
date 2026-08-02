@@ -985,7 +985,7 @@ examples: [demos/card-game, demos/_kit/tests/auth-invalidation-client.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-26
+reviewed: 2026-08-01
 reviewed-commit: HEAD
 ---
 
@@ -1171,6 +1171,7 @@ Lease acquisition is one full revalidation, not a heartbeat:
       clientStoreId: namespace.clientStoreId,
       queryKey: namespace.queryKey,
       queryInstanceId: namespace.queryInstanceId,
+      ...(generation === null ? {} : { expectedGeneration: generation }),
     }, undefined, { expectedAuthorityCapture: authorityCapture });
 ```
 
@@ -5141,7 +5142,7 @@ examples: [demos/todo, demos/todo-v2, demos/graffiti, demos/card-game, demos/par
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-23
+reviewed: 2026-08-01
 reviewed-commit: HEAD
 ---
 
@@ -5359,6 +5360,16 @@ arguments fail with `SNAPBACK_ARGUMENT_VALIDATION_FAILED`. This is an early
 client diagnostic, not a replacement for server validation. A legacy string
 name has no generated schema and retains its untyped behavior.
 
+A reference generated from a complete sessions artifact pair also carries the
+exact schema/function generation. The client sends it on every call family and
+the server compares it atomically with function selection. A deploy between
+artifact discovery and dispatch returns HTTP 409
+`SNAPBACK_ARTIFACT_IDENTITY_MISMATCH` with
+`details.subcause: "generation"`; refetch generated artifacts before retrying.
+Successful sessions responses expose the server-derived pair at
+`facts.activeGeneration`. String names and older references carry no assertion
+and remain unchecked for compatibility.
+
 Mutation responses carry `result`, `changed_count`, `version`, and a
 terminal receipt. The client records receipts before returning or rethrowing;
 read them with `receipts()` or subscribe with `onReceipt(listener)`.
@@ -5419,6 +5430,14 @@ Do this once in the provider/framework binding, not in every view. See
 The lower-level `subscribeLive` / `unsubscribeLive`, `openLiveStream`,
 `liveStreamManager`, and drain methods exist for adapters and acceptance
 harnesses. App UI code normally uses `liveQuery`.
+
+Generated live references pin that same generation for the subscription
+lifetime. A sessions deployment sends `resync_required` with reason
+`SNAPBACK_ARTIFACT_IDENTITY_MISMATCH`; the managed handle fresh-subscribes with
+its pinned reference and remains refused until the caller installs/refetches
+the successor artifacts and establishes from that reference. If the successor
+removed the function, the fresh attempt reports `SNAPBACK_UNKNOWN_FUNCTION`
+instead.
 
 ## Project live state into a framework-neutral external store
 
@@ -8555,7 +8574,7 @@ examples: [clients/swift/SnapbackClient]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-26
+reviewed: 2026-08-01
 reviewed-commit: HEAD
 ---
 
@@ -8657,6 +8676,26 @@ After connection open, connection-scoped HTTP and WebSocket routes authenticate
 the returned connection grant and ignore a session bearer. A changed identity
 therefore opens a fresh grant and establishes fresh subscriptions; replacing a
 bearer on an old connection cannot change its bound authority.
+
+## Bind generated calls to one sessions generation
+
+When a client consumes a complete generated sessions pair, copy its exact
+`expectedGeneration` object onto query, mutation, action, authorized-lease, and
+live-subscribe bodies. The five required strings are `schemaVersion`, `appId`,
+`schemaHash`, `bundleHash`, and `inputsHash`. A mismatch is HTTP 409
+`SNAPBACK_ARTIFACT_IDENTITY_MISMATCH` with
+`details.subcause: "generation"`; refetch the artifacts and retry as a new
+operation. Successful sessions answers echo server-derived
+`facts.activeGeneration`.
+
+Subscriptions pin the assertion. On activation, handle
+`resync_required.reason === "SNAPBACK_ARTIFACT_IDENTITY_MISMATCH"` as a request
+to discard predecessor rows and establish from refreshed artifacts. A removed
+function remains `SNAPBACK_UNKNOWN_FUNCTION`, not a generation mismatch.
+
+The field is additive. Omit it when the caller has no complete generated pair;
+the server deliberately leaves that legacy call unchecked. Dev accepts the
+field without enforcing it and does not echo sessions generation facts.
 
 ## Release demand
 

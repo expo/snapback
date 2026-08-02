@@ -1,5 +1,39 @@
 {
   "$defs": {
+    "ArtifactGeneration": {
+      "additionalProperties": false,
+      "description": "Content-derived identity of one coherent schema/function artifact pair.\nIt deliberately excludes the process-local publication counter: callers\nlearn these values from generated artifacts and can refetch them after a\ndeployment race.",
+      "properties": {
+        "appId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "bundleHash": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "inputsHash": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "schemaHash": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "schemaVersion": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "appId",
+        "schemaHash",
+        "bundleHash",
+        "inputsHash"
+      ],
+      "type": "object"
+    },
     "AuthorityDescriptor": {
       "additionalProperties": false,
       "description": "Opaque server-issued consistency descriptor for one queued mutation.\nPossession grants no authority; the invocation gate first resolves a live\ncredential and only then compares this value with its prepared authority.\n\n@ref LLP 0039#replay-parity-and-the-authority-instance-id — this is a\n  dedicated MutationRequest channel, never a ctx-answer-ledger member.",
@@ -90,6 +124,19 @@
         "actorUserId",
         "grantId",
         "dryRun"
+      ],
+      "type": "object"
+    },
+    "FunctionInvocationFacts": {
+      "additionalProperties": false,
+      "description": "Server-derived successful-invocation facts. Keeping the generation under\na named `facts` block leaves room for additive call facts without mixing\nthem into handler-owned result values.",
+      "properties": {
+        "activeGeneration": {
+          "$ref": "#/$defs/ArtifactGeneration"
+        }
+      },
+      "required": [
+        "activeGeneration"
       ],
       "type": "object"
     },
@@ -339,6 +386,16 @@
       "anyOf": [
         {
           "$ref": "#/$defs/CtxAnswerLedger"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "facts": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/FunctionInvocationFacts"
         },
         {
           "type": "null"

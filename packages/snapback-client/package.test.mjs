@@ -228,6 +228,74 @@ externalClient.__externalBearerHandles.delete(externalHandle);
 externalClient.__externalBearerHandles.delete(prePausedExternalHandle);
 unregisterExternalMaterialization();
 
+{
+  const originalFetch = globalThis.fetch;
+  const requests = [];
+  const generation = {
+    schemaVersion: 'snapback.v1',
+    appId: '018f0d90-7b14-7a22-8c33-445566778899',
+    schemaHash: `snapback.v1:sessions:schema:sha256:${'1'.repeat(64)}`,
+    bundleHash: `snapback.v1:sessions:function:sha256:${'2'.repeat(64)}`,
+    inputsHash: `snapback.v1:sessions:inputs:sha256:${'3'.repeat(64)}`,
+  };
+  const generatedRef = {
+    artifactKind: 'functionReference',
+    name: 'generationBound',
+    expectedGeneration: generation,
+  };
+  globalThis.fetch = async (url, init = {}) => {
+    const path = new URL(url).pathname;
+    if (path === '/connection/open') {
+      return Response.json({
+        connectionId: 'generation-wire-connection',
+        connectionToken: 'generation-wire-token',
+        wireVersion: 'snapback.v1',
+        authorizationInvalidation: null,
+      });
+    }
+    requests.push({ path, body: JSON.parse(init.body) });
+    if (path.endsWith('/subscribe')) {
+      return Response.json({
+        subscription_id: 'generation-wire-subscription',
+        snapshot: { version: 1, rows: [] },
+        permission_epochs: {},
+      });
+    }
+    return Response.json({ version: 1, rows: [], result: null });
+  };
+  try {
+    const generationClient = new SnapbackClient('http://generation.test');
+    await generationClient.query(generatedRef);
+    await generationClient.action(generatedRef);
+    await generationClient.mutate(generatedRef, { queue: false });
+    await generationClient.authorizedLeaseQuery(generatedRef, {
+      leaseRequestId: 'lease-generation-test',
+      authorizationNamespace: {
+        clientStoreId: 'generation-store',
+        queryKey: 'generationBound:{}',
+        queryInstanceId: 1,
+      },
+    });
+    await generationClient.subscribeLive(generatedRef, {
+      connectionId: 'generation-client-connection',
+    });
+    assert.deepEqual(
+      requests.map(({ body }) => body.expectedGeneration),
+      Array(5).fill(generation),
+      'every generated call family carries the exact artifact generation',
+    );
+    assert.throws(
+      () => generationClient.query({
+        ...generatedRef,
+        expectedGeneration: { ...generation, bundleHash: '' },
+      }),
+      /complete generated artifact identity/u,
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
 // Exercise the first-party handle path as well as the synthetic participant
 // above: the old subscription must retire without deadlocking on its own
 // transition barrier, then the fresh subscription must be established only

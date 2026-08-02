@@ -121,6 +121,14 @@ assert.throws(
   assert.match(schema.schemaHash, /^snapback\.v1:sessions:schema:sha256:[0-9a-f]{64}$/);
   assert.match(functions.bundleHash, /^snapback\.v1:sessions:function:sha256:[0-9a-f]{64}$/);
   assert.match(schema.inputsHash, /^snapback\.v1:sessions:inputs:sha256:[0-9a-f]{64}$/);
+  const generatedApi = await import(pathToFileURL(join(dir, 'generated', 'api.mjs')).href);
+  assert.deepEqual(generatedApi.api.listTodos.expectedGeneration, {
+    schemaVersion: schema.schemaVersion,
+    appId: schema.appId,
+    schemaHash: schema.schemaHash,
+    bundleHash: functions.bundleHash,
+    inputsHash: schema.inputsHash,
+  });
 
   const list = functions.functions.find((fn) => fn.name === 'listTodos');
   const create = functions.functions.find((fn) => fn.name === 'createTodo');

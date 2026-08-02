@@ -1,5 +1,39 @@
 {
   "$defs": {
+    "ArtifactGeneration": {
+      "additionalProperties": false,
+      "description": "Content-derived identity of one coherent schema/function artifact pair.\nIt deliberately excludes the process-local publication counter: callers\nlearn these values from generated artifacts and can refetch them after a\ndeployment race.",
+      "properties": {
+        "appId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "bundleHash": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "inputsHash": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "schemaHash": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "schemaVersion": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "appId",
+        "schemaHash",
+        "bundleHash",
+        "inputsHash"
+      ],
+      "type": "object"
+    },
     "AuthInput": {
       "properties": {
         "principal": {
@@ -88,6 +122,8 @@
   },
   "$id": "https://schemas.snapback.dev/snapback.v0/query.input.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Ordinary query/action request envelope. The expected generation is kept\noutside [`HandlerInput`] so nested calls and internal runtime invocations\ncannot accidentally inherit a caller's transport assertion.",
   "properties": {
     "args": {
       "default": null
@@ -114,6 +150,17 @@
       ],
       "description": "Replay ledger (LLP 0051 D1): when present, the invocation runs in\nREPLAY mode — `ctx.runtime.now()` answers `ledger.now` and every\nhost-generated id (`ctx.runtime.id()` and `ctx.db.insert` row ids)\nconsumes `ledger.ids` in order. Consuming past the end is a typed\ndivergence error. Additive: absent means record mode, today's\nbehavior. Queries and mutations only; actions never carry one."
     },
+    "expectedGeneration": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ArtifactGeneration"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Optional caller assertion checked only by sessions targets. Absence is\nthe backwards-compatible unchecked path.\n\n@ref LLP 0012#call-time-generation-binding — selection and generation\n  comparison are one server admission operation."
+    },
     "read_set": {
       "default": [],
       "items": {
@@ -122,6 +169,6 @@
       "type": "array"
     }
   },
-  "title": "HandlerInput",
+  "title": "FunctionCallRequest",
   "type": "object"
 }

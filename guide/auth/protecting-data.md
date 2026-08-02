@@ -9,7 +9,7 @@ examples: [demos/card-game, demos/_kit/tests/auth-invalidation-client.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-26
+reviewed: 2026-08-01
 reviewed-commit: HEAD
 ---
 
@@ -195,6 +195,7 @@ Lease acquisition is one full revalidation, not a heartbeat:
       clientStoreId: namespace.clientStoreId,
       queryKey: namespace.queryKey,
       queryInstanceId: namespace.queryInstanceId,
+      ...(generation === null ? {} : { expectedGeneration: generation }),
     }, undefined, { expectedAuthorityCapture: authorityCapture });
 ```
 

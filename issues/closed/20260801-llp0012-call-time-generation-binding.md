@@ -1,6 +1,6 @@
 # Call-time generation binding on sessions targets (LLP 0012 amendment)
 
-**Status:** Open
+**Status:** Resolved
 **Impact:** 5
 **Urgency:** 3
 **Ease:** 3
@@ -51,3 +51,14 @@ shelved CLI engine; the design transfers unchanged.
   against the amended server.
 - The refusal sub-causes (integrity / binding / generation) are
   machine-distinguishable in diagnostics.
+
+## Resolution
+
+Resolved 2026-08-01. Generated references now carry the complete artifact pair
+through every packaged call family. Sessions dispatch selects the function and
+checks that pair under one admission; successful responses return
+server-derived `facts.activeGeneration`, while absent assertions retain the
+legacy unchecked path. Live assertions are pinned and retire with a typed
+generation resync on activation. The focused activation test covers stale
+dispatch, artifact refetch, unasserted compatibility, and removed-function
+precedence. LLP 0012 and the guide record the wire and compatibility contract.

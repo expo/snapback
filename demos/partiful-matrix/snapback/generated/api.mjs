@@ -47,6 +47,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "partiful-matrix",
+      "bundleHash": "sha256:3ca43af40974da20",
+      "inputsHash": "0ab379aeb2a4c40d77b845fc7f505ad9cacda060a1811dd406b9b49626966851",
+      "schemaHash": "sha256:ce3ef0bba69d9207",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "partiful-matrix:createEvent",
     "implementationHash": "sha256:9f23cdd2b20288d8109c250fe892ec6c253e025a31d9866ebb4675e488136d64",
     "kind": "Mutation",
@@ -71,6 +78,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "partiful-matrix",
+      "bundleHash": "sha256:3ca43af40974da20",
+      "inputsHash": "0ab379aeb2a4c40d77b845fc7f505ad9cacda060a1811dd406b9b49626966851",
+      "schemaHash": "sha256:ce3ef0bba69d9207",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "partiful-matrix:eventDetails",
     "implementationHash": "sha256:26dc60025c48cf06e775c880f9339702307826c14971a8b53c91f925a2a55db6",
     "kind": "LiveQuery",
@@ -94,6 +108,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "partiful-matrix",
+      "bundleHash": "sha256:3ca43af40974da20",
+      "inputsHash": "0ab379aeb2a4c40d77b845fc7f505ad9cacda060a1811dd406b9b49626966851",
+      "schemaHash": "sha256:ce3ef0bba69d9207",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "partiful-matrix:eventWall",
     "implementationHash": "sha256:3e646d6bd0efe0b3e743f9a9a494e86f7ccb551355faa1cf64f7bc86db0e03e2",
     "kind": "LiveQuery",
@@ -118,6 +139,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "partiful-matrix",
+      "bundleHash": "sha256:3ca43af40974da20",
+      "inputsHash": "0ab379aeb2a4c40d77b845fc7f505ad9cacda060a1811dd406b9b49626966851",
+      "schemaHash": "sha256:ce3ef0bba69d9207",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "partiful-matrix:guestList",
     "implementationHash": "sha256:a1a718a3d3fd4d9b00fa8f7f49b4803feaca220274221f8eb3be90e130abf017",
     "kind": "LiveQuery",
@@ -134,6 +162,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "partiful-matrix",
+      "bundleHash": "sha256:3ca43af40974da20",
+      "inputsHash": "0ab379aeb2a4c40d77b845fc7f505ad9cacda060a1811dd406b9b49626966851",
+      "schemaHash": "sha256:ce3ef0bba69d9207",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "partiful-matrix:listEvents",
     "implementationHash": "sha256:efa1ae95a37d3918179481c09f8346cab76cae03ef7a1422c63254c408fd49bb",
     "kind": "LiveQuery",
@@ -165,6 +200,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "partiful-matrix",
+      "bundleHash": "sha256:3ca43af40974da20",
+      "inputsHash": "0ab379aeb2a4c40d77b845fc7f505ad9cacda060a1811dd406b9b49626966851",
+      "schemaHash": "sha256:ce3ef0bba69d9207",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "partiful-matrix:postMessage",
     "implementationHash": "sha256:4ef8e444d653c8a5713b8077aafd140e04732671c5bd73a22e3c8ed417ac8f24",
     "kind": "Mutation",
@@ -196,6 +238,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "partiful-matrix",
+      "bundleHash": "sha256:3ca43af40974da20",
+      "inputsHash": "0ab379aeb2a4c40d77b845fc7f505ad9cacda060a1811dd406b9b49626966851",
+      "schemaHash": "sha256:ce3ef0bba69d9207",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "partiful-matrix:rsvp",
     "implementationHash": "sha256:b6313a4af4fa6afb23d79f3fc11bc28af40099813356ce15b20d11c47fc2a98c",
     "kind": "Mutation",

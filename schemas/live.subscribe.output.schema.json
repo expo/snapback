@@ -1,5 +1,39 @@
 {
   "$defs": {
+    "ArtifactGeneration": {
+      "additionalProperties": false,
+      "description": "Content-derived identity of one coherent schema/function artifact pair.\nIt deliberately excludes the process-local publication counter: callers\nlearn these values from generated artifacts and can refetch them after a\ndeployment race.",
+      "properties": {
+        "appId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "bundleHash": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "inputsHash": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "schemaHash": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "schemaVersion": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "appId",
+        "schemaHash",
+        "bundleHash",
+        "inputsHash"
+      ],
+      "type": "object"
+    },
     "AuthorizationInvalidationProjection": {
       "additionalProperties": false,
       "description": "One level-triggered live projection. Delivery is only a hint; the exact\nobligation remains authoritative until the optional resolution ticket is\nacknowledged after the client commits its local transition.",
@@ -106,6 +140,19 @@
         "actorUserId",
         "grantId",
         "dryRun"
+      ],
+      "type": "object"
+    },
+    "FunctionInvocationFacts": {
+      "additionalProperties": false,
+      "description": "Server-derived successful-invocation facts. Keeping the generation under\na named `facts` block leaves room for additive call facts without mixing\nthem into handler-owned result values.",
+      "properties": {
+        "activeGeneration": {
+          "$ref": "#/$defs/ArtifactGeneration"
+        }
+      },
+      "required": [
+        "activeGeneration"
       ],
       "type": "object"
     },
@@ -712,6 +759,17 @@
           "type": "null"
         }
       ]
+    },
+    "facts": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/FunctionInvocationFacts"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Server-derived active sessions artifact identity. Absent on dev, even\nwhen a generated v0 reference carried an ignored assertion."
     },
     "permission_epochs": {
       "additionalProperties": {

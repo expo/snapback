@@ -39,6 +39,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "app",
+      "bundleHash": "sha256:b54faec0be67f975",
+      "inputsHash": "c3f046cad93784df9c20f455e48fbd1396b18cbe0c92d0c327bbf00ed027b0ca",
+      "schemaHash": "sha256:47fddc373854e9af",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "app:activityRows",
     "implementationHash": "sha256:a3aefd3d7b6e5d61aebd341227336b1c5f88c19d08e10c25b6393363cf410639",
     "kind": "LiveQuery",
@@ -80,6 +87,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "app",
+      "bundleHash": "sha256:b54faec0be67f975",
+      "inputsHash": "c3f046cad93784df9c20f455e48fbd1396b18cbe0c92d0c327bbf00ed027b0ca",
+      "schemaHash": "sha256:47fddc373854e9af",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "app:liveRows",
     "implementationHash": "sha256:c1b182218c558b0b7414e82c13e579282cf1d8c687509a3d92ef7197b75f157c",
     "kind": "LiveQuery",
@@ -96,6 +110,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "app",
+      "bundleHash": "sha256:b54faec0be67f975",
+      "inputsHash": "c3f046cad93784df9c20f455e48fbd1396b18cbe0c92d0c327bbf00ed027b0ca",
+      "schemaHash": "sha256:47fddc373854e9af",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "app:primaryRows",
     "implementationHash": "sha256:f8817869ab197a504537ca0249e800422f3e33151b9f39843d7b4d5aed2b28db",
     "kind": "LiveQuery",
@@ -119,6 +140,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "app",
+      "bundleHash": "sha256:b54faec0be67f975",
+      "inputsHash": "c3f046cad93784df9c20f455e48fbd1396b18cbe0c92d0c327bbf00ed027b0ca",
+      "schemaHash": "sha256:47fddc373854e9af",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "app:publishLiveRow",
     "implementationHash": "sha256:71030e268b602f757c2c3dc460c220e74561c44449cb95e37725b4309bbe5a70",
     "kind": "Mutation",
@@ -142,6 +170,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "app",
+      "bundleHash": "sha256:b54faec0be67f975",
+      "inputsHash": "c3f046cad93784df9c20f455e48fbd1396b18cbe0c92d0c327bbf00ed027b0ca",
+      "schemaHash": "sha256:47fddc373854e9af",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "app:rejectInvalidWrite",
     "implementationHash": "sha256:d6cefd418a2044649475b419e3b34bc62a7f2575f8cab6c04269205574723649",
     "kind": "Mutation",
@@ -158,6 +193,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "app",
+      "bundleHash": "sha256:b54faec0be67f975",
+      "inputsHash": "c3f046cad93784df9c20f455e48fbd1396b18cbe0c92d0c327bbf00ed027b0ca",
+      "schemaHash": "sha256:47fddc373854e9af",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "app:rejectionRows",
     "implementationHash": "sha256:a496a2d52a46f04e10ab1f5b23f8e87256ec71f04a39f91a80ca12a16a82fc4e",
     "kind": "LiveQuery",
@@ -185,6 +227,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "app",
+      "bundleHash": "sha256:b54faec0be67f975",
+      "inputsHash": "c3f046cad93784df9c20f455e48fbd1396b18cbe0c92d0c327bbf00ed027b0ca",
+      "schemaHash": "sha256:47fddc373854e9af",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "app:writePrimaryAndActivity",
     "implementationHash": "sha256:0a8b92e2161be3eccca0c255a01ac8461b6c6391f6d4bd127f80058e8095af1a",
     "kind": "Mutation",

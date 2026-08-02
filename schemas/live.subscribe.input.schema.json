@@ -1,5 +1,39 @@
 {
   "$defs": {
+    "ArtifactGeneration": {
+      "additionalProperties": false,
+      "description": "Content-derived identity of one coherent schema/function artifact pair.\nIt deliberately excludes the process-local publication counter: callers\nlearn these values from generated artifacts and can refetch them after a\ndeployment race.",
+      "properties": {
+        "appId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "bundleHash": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "inputsHash": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "schemaHash": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "schemaVersion": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "appId",
+        "schemaHash",
+        "bundleHash",
+        "inputsHash"
+      ],
+      "type": "object"
+    },
     "AuthInput": {
       "properties": {
         "principal": {
@@ -265,6 +299,8 @@
   },
   "$id": "https://schemas.snapback.dev/snapback.v0/live.subscribe.input.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Transport-only wrapper for optional call-time generation binding. Keeping\nthe assertion outside `LiveSubscribeInput` leaves internal/bundle-created\nsubscriptions on the explicitly unchecked compatibility path.",
   "properties": {
     "authorizationNamespace": {
       "anyOf": [
@@ -280,6 +316,16 @@
     },
     "connection_id": {
       "type": "string"
+    },
+    "expectedGeneration": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ArtifactGeneration"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "input": {
       "$ref": "#/$defs/HandlerInput",
@@ -316,6 +362,6 @@
   "required": [
     "connection_id"
   ],
-  "title": "LiveSubscribeInput",
+  "title": "LiveSubscribeRequest",
   "type": "object"
 }

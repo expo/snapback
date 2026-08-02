@@ -1,5 +1,39 @@
 {
   "$defs": {
+    "ArtifactGeneration": {
+      "additionalProperties": false,
+      "description": "Content-derived identity of one coherent schema/function artifact pair.\nIt deliberately excludes the process-local publication counter: callers\nlearn these values from generated artifacts and can refetch them after a\ndeployment race.",
+      "properties": {
+        "appId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "bundleHash": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "inputsHash": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "schemaHash": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "schemaVersion": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "appId",
+        "schemaHash",
+        "bundleHash",
+        "inputsHash"
+      ],
+      "type": "object"
+    },
     "AuthorizationVersion": {
       "description": "The one durable authorization-stream witness. The incarnation closes reset\nand restore ABA; the JS-safe epoch advances for ordinary authorization\nevents within that stream.\n\n@ref LLP 0053#the-authorization-version — v1 has one global durable pair.",
       "properties": {
@@ -153,6 +187,19 @@
       ],
       "type": "object"
     },
+    "FunctionInvocationFacts": {
+      "additionalProperties": false,
+      "description": "Server-derived successful-invocation facts. Keeping the generation under\na named `facts` block leaves room for additive call facts without mixing\nthem into handler-owned result values.",
+      "properties": {
+        "activeGeneration": {
+          "$ref": "#/$defs/ArtifactGeneration"
+        }
+      },
+      "required": [
+        "activeGeneration"
+      ],
+      "type": "object"
+    },
     "IssuerId": {
       "additionalProperties": false,
       "description": "A boot identity is never reused, even when process-local counters restart.",
@@ -185,6 +232,16 @@
   "properties": {
     "authorizedLease": {
       "$ref": "#/$defs/AuthorizedLease"
+    },
+    "facts": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/FunctionInvocationFacts"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "rows": {
       "items": true,

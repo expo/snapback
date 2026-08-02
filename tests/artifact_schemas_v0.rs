@@ -549,6 +549,7 @@ fn mutation_replay_bounds_match_the_public_data_tier_profile() {
 
     let base = serde_json::to_value(MutationRequest {
         input: HandlerInput::default(),
+        expected_generation: None,
         client_mutation_id: Some("cm_valid".to_owned()),
         authority_descriptor: Some(AuthorityDescriptor {
             descriptor_version: 1,
@@ -2810,6 +2811,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
             received_at_ms: 1,
         },
         attribution: None,
+        facts: None,
     };
     let mutation_response = serde_json::to_value(mutation_response).unwrap();
     assert_validates("mutation.output.schema.json", &mutation_response);
@@ -2896,6 +2898,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
             authorization_invalidation: None,
             scope_retirements: Vec::new(),
             attribution: None,
+            facts: None,
         })
         .unwrap(),
     );
@@ -2944,6 +2947,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
         "mutation.input.schema.json",
         &serde_json::to_value(MutationRequest {
             input: input.clone(),
+            expected_generation: None,
             client_mutation_id: Some("cm_schema_roundtrip".to_owned()),
             authority_descriptor: Some(AuthorityDescriptor {
                 descriptor_version: 1,
@@ -3394,16 +3398,20 @@ fn outbox_drain_schema_accepts_the_served_batches_and_rejects_wrappers() {
 /// request/outcome families, and the sessions-mode socket family.
 #[test]
 fn gap_row_schemas_accept_representative_values() {
-    // QueryOutput: open family — the local arm's served envelope may flatten
-    // an `attribution` member onto it (`FunctionResponse<T>`), so the
-    // extension must validate.
+    // QueryOutput: the served `FunctionResponse<T>` admits only the exact
+    // server-derived attribution block beside the flattened query fields.
     let query_output = json!({ "version": 7, "rows": [{ "_id": "n1", "text": "hi" }] });
     assert_validates("query.output.schema.json", &query_output);
     let mut with_cursor = query_output.clone();
     with_cursor["cursor"] = json!("cursor.v1.abc");
     assert_validates("query.output.schema.json", &with_cursor);
     let mut attributed = query_output.clone();
-    attributed["attribution"] = json!({ "principalId": "user_1" });
+    attributed["attribution"] = json!({
+        "actorUserId": "agent_1",
+        "effectiveUserId": "user_1",
+        "grantId": "grant_1",
+        "dryRun": false
+    });
     assert_validates("query.output.schema.json", &attributed);
     let mut oversized = query_output.clone();
     oversized["version"] = json!(9_007_199_254_740_992_u64);
@@ -3664,7 +3672,10 @@ fn asset_wire_schemas_accept_rust_values_and_reject_extensions() {
         primary_rendition_id: None,
         diagnostic: None,
     };
-    assert_validates("asset.task-state.schema.json", &serde_json::to_value(&task).unwrap());
+    assert_validates(
+        "asset.task-state.schema.json",
+        &serde_json::to_value(&task).unwrap(),
+    );
 
     let transfer = AssetTusInstructionV1 {
         upload_url: "/_snapback/api/assets/tus/01890f3c".to_owned(),
@@ -3698,5 +3709,8 @@ fn asset_wire_schemas_accept_rust_values_and_reject_extensions() {
         at_ms: 1_800_000_000_000,
         details: json!({"lifecycleGeneration": 4}),
     };
-    assert_validates("asset.receipt.schema.json", &serde_json::to_value(&receipt).unwrap());
+    assert_validates(
+        "asset.receipt.schema.json",
+        &serde_json::to_value(&receipt).unwrap(),
+    );
 }

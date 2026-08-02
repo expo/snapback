@@ -94,7 +94,12 @@ function deepFreeze(value, seen = new Set()) {
   return Object.freeze(value);
 }
 
-function publicReference(definition, fallbackAppId, fallbackSchemaVersion) {
+function publicReference(
+  definition,
+  fallbackAppId,
+  fallbackSchemaVersion,
+  expectedGeneration = null,
+) {
   const reference = {
     artifactKind: 'functionReference',
     schemaVersion: definition?.schemaVersion ?? fallbackSchemaVersion,
@@ -105,8 +110,9 @@ function publicReference(definition, fallbackAppId, fallbackSchemaVersion) {
     implementationHash: definition?.implementationHash,
     argsContractHash: definition?.argsContractHash,
     resultContractHash: definition?.resultContractHash,
+    ...(expectedGeneration === null ? {} : { expectedGeneration }),
   };
-  for (const field of Object.keys(reference)) {
+  for (const field of Object.keys(reference).filter((field) => field !== 'expectedGeneration')) {
     if (typeof reference[field] !== 'string' || reference[field].length === 0) {
       throw diagnosticError(
         'SNAPBACK_REACT_MANIFEST_INVALID',
@@ -348,11 +354,22 @@ export async function prepareReactBindingForClient(client, options = {}) {
   // would reject every generated `api.ephemeral.*` reference (0137 A2 f2).
   const referenceSchemaVersion = generated.capabilityManifest?.schemaVersion
     ?? generated.functions.schemaVersion;
+  const expectedGeneration = generated.schema?.schemaHash
+    && generated.functions.inputsHash
+    ? Object.freeze({
+        schemaVersion: generated.functions.schemaVersion,
+        appId: generated.functions.appId,
+        schemaHash: generated.schema.schemaHash,
+        bundleHash: generated.functions.bundleHash,
+        inputsHash: generated.functions.inputsHash,
+      })
+    : null;
   for (const definition of generated.functions.functions) {
     const reference = publicReference(
       definition,
       generated.functions.appId,
       referenceSchemaVersion,
+      expectedGeneration,
     );
     const actual = deployedFunctions.get(reference.id);
     if (

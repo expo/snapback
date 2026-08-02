@@ -9,7 +9,7 @@ examples: [demos/todo, demos/todo-v2, demos/graffiti, demos/card-game, demos/par
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-23
+reviewed: 2026-08-01
 reviewed-commit: HEAD
 ---
 
@@ -227,6 +227,16 @@ arguments fail with `SNAPBACK_ARGUMENT_VALIDATION_FAILED`. This is an early
 client diagnostic, not a replacement for server validation. A legacy string
 name has no generated schema and retains its untyped behavior.
 
+A reference generated from a complete sessions artifact pair also carries the
+exact schema/function generation. The client sends it on every call family and
+the server compares it atomically with function selection. A deploy between
+artifact discovery and dispatch returns HTTP 409
+`SNAPBACK_ARTIFACT_IDENTITY_MISMATCH` with
+`details.subcause: "generation"`; refetch generated artifacts before retrying.
+Successful sessions responses expose the server-derived pair at
+`facts.activeGeneration`. String names and older references carry no assertion
+and remain unchecked for compatibility.
+
 Mutation responses carry `result`, `changed_count`, `version`, and a
 terminal receipt. The client records receipts before returning or rethrowing;
 read them with `receipts()` or subscribe with `onReceipt(listener)`.
@@ -287,6 +297,14 @@ Do this once in the provider/framework binding, not in every view. See
 The lower-level `subscribeLive` / `unsubscribeLive`, `openLiveStream`,
 `liveStreamManager`, and drain methods exist for adapters and acceptance
 harnesses. App UI code normally uses `liveQuery`.
+
+Generated live references pin that same generation for the subscription
+lifetime. A sessions deployment sends `resync_required` with reason
+`SNAPBACK_ARTIFACT_IDENTITY_MISMATCH`; the managed handle fresh-subscribes with
+its pinned reference and remains refused until the caller installs/refetches
+the successor artifacts and establishes from that reference. If the successor
+removed the function, the fresh attempt reports `SNAPBACK_UNKNOWN_FUNCTION`
+instead.
 
 ## Project live state into a framework-neutral external store
 

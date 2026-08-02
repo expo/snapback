@@ -1,3 +1,4 @@
+use crate::auth::invocation::FunctionAttribution;
 use crate::diagnostic::{Diagnostic, PublicDiagnostic, SnapbackError, SnapbackResult};
 use crate::ephemeral::EphemeralCollection;
 use serde::{Deserialize, Serialize};
@@ -5564,6 +5565,92 @@ pub struct HandlerInput {
     pub ctx_ledger: Option<CtxAnswerLedger>,
 }
 
+/// Content-derived identity of one coherent schema/function artifact pair.
+/// It deliberately excludes the process-local publication counter: callers
+/// learn these values from generated artifacts and can refetch them after a
+/// deployment race.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ArtifactGeneration {
+    #[schemars(length(min = 1))]
+    pub schema_version: String,
+    #[schemars(length(min = 1))]
+    pub app_id: String,
+    #[schemars(length(min = 1))]
+    pub schema_hash: String,
+    #[schemars(length(min = 1))]
+    pub bundle_hash: String,
+    #[schemars(length(min = 1))]
+    pub inputs_hash: String,
+}
+
+/// Server-derived successful-invocation facts. Keeping the generation under
+/// a named `facts` block leaves room for additive call facts without mixing
+/// them into handler-owned result values.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct FunctionInvocationFacts {
+    pub active_generation: ArtifactGeneration,
+}
+
+/// Successful query/action wire envelope. The function-owned output remains
+/// flattened for compatibility while host-derived attribution and generation
+/// facts stay outside that output contract.
+#[derive(Clone, Debug, PartialEq, Serialize, schemars::JsonSchema)]
+pub struct FunctionResponse<T> {
+    #[serde(flatten)]
+    pub output: T,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub attribution: Option<FunctionAttribution>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub facts: Option<FunctionInvocationFacts>,
+}
+
+impl<T> FunctionResponse<T> {
+    #[cfg(test)]
+    pub(crate) fn new(output: T, attribution: Option<FunctionAttribution>) -> Self {
+        Self {
+            output,
+            attribution,
+            facts: None,
+        }
+    }
+
+    pub(crate) fn with_facts(
+        output: T,
+        attribution: Option<FunctionAttribution>,
+        facts: Option<FunctionInvocationFacts>,
+    ) -> Self {
+        Self {
+            output,
+            attribution,
+            facts,
+        }
+    }
+}
+
+/// Ordinary query/action request envelope. The expected generation is kept
+/// outside [`HandlerInput`] so nested calls and internal runtime invocations
+/// cannot accidentally inherit a caller's transport assertion.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct FunctionCallRequest {
+    #[serde(flatten)]
+    pub input: HandlerInput,
+    /// Optional caller assertion checked only by sessions targets. Absence is
+    /// the backwards-compatible unchecked path.
+    ///
+    /// @ref LLP 0012#call-time-generation-binding — selection and generation
+    ///   comparison are one server admission operation.
+    #[serde(
+        default,
+        rename = "expectedGeneration",
+        alias = "expected_generation",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub expected_generation: Option<ArtifactGeneration>,
+}
+
 /// Opaque server-issued consistency descriptor for one queued mutation.
 /// Possession grants no authority; the invocation gate first resolves a live
 /// credential and only then compares this value with its prepared authority.
@@ -5591,6 +5678,16 @@ pub const AUTHORITY_DESCRIPTOR_MAX_SESSION_GENERATION: u64 = 9_007_199_254_740_9
 pub struct MutationRequest {
     #[serde(flatten)]
     pub input: HandlerInput,
+    /// Optional generated-artifact assertion; sessions targets compare it
+    /// atomically with mutation function selection before any receipt/ACK or
+    /// handler effect. Absent remains unchecked.
+    #[serde(
+        default,
+        rename = "expectedGeneration",
+        alias = "expected_generation",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub expected_generation: Option<ArtifactGeneration>,
     /// Durable client-generated identity for exactly-once reconnect replay.
     /// Reusing an id with another function or auth context is rejected.
     #[serde(

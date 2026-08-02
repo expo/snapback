@@ -9,7 +9,7 @@ examples: [clients/swift/SnapbackClient]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-26
+reviewed: 2026-08-01
 reviewed-commit: HEAD
 ---
 
@@ -111,6 +111,26 @@ After connection open, connection-scoped HTTP and WebSocket routes authenticate
 the returned connection grant and ignore a session bearer. A changed identity
 therefore opens a fresh grant and establishes fresh subscriptions; replacing a
 bearer on an old connection cannot change its bound authority.
+
+## Bind generated calls to one sessions generation
+
+When a client consumes a complete generated sessions pair, copy its exact
+`expectedGeneration` object onto query, mutation, action, authorized-lease, and
+live-subscribe bodies. The five required strings are `schemaVersion`, `appId`,
+`schemaHash`, `bundleHash`, and `inputsHash`. A mismatch is HTTP 409
+`SNAPBACK_ARTIFACT_IDENTITY_MISMATCH` with
+`details.subcause: "generation"`; refetch the artifacts and retry as a new
+operation. Successful sessions answers echo server-derived
+`facts.activeGeneration`.
+
+Subscriptions pin the assertion. On activation, handle
+`resync_required.reason === "SNAPBACK_ARTIFACT_IDENTITY_MISMATCH"` as a request
+to discard predecessor rows and establish from refreshed artifacts. A removed
+function remains `SNAPBACK_UNKNOWN_FUNCTION`, not a generation mismatch.
+
+The field is additive. Omit it when the caller has no complete generated pair;
+the server deliberately leaves that legacy call unchecked. Dev accepts the
+field without enforcing it and does not echo sessions generation facts.
 
 ## Release demand
 

@@ -540,6 +540,39 @@ test('mutate queues on connectivity failure and replays exactly-once', async (t)
   );
 });
 
+test('queued generated mutation retains its call-time artifact generation through replay', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const expectedGeneration = {
+    schemaVersion: 'snapback.v1',
+    appId: 'generation-bound-outbox',
+    schemaHash: 'schema-generation-bound-outbox',
+    bundleHash: 'bundle-generation-bound-outbox',
+    inputsHash: 'inputs-generation-bound-outbox',
+  };
+  const ref = {
+    artifactKind: 'functionReference',
+    name: 'generationBoundMutation',
+    expectedGeneration,
+  };
+  const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
+  globalThis.fetch = async () => { throw new TypeError('offline'); };
+  await client.mutate(ref, { args: { value: 1 } });
+  assert.deepEqual((await store.outboxPending())[0].expectedGeneration, expectedGeneration);
+
+  let replayBody;
+  globalThis.fetch = async (_url, init) => {
+    replayBody = JSON.parse(init.body);
+    return Response.json({
+      version: 1,
+      result: { ok: true },
+      authorityDescriptor: TEST_AUTHORITY_DESCRIPTOR,
+    });
+  };
+  assert.equal((await client.replayQueuedMutations()).replayed, 1);
+  assert.deepEqual(replayBody.expectedGeneration, expectedGeneration);
+});
+
 test('explicit-id online publication is durable before delivery and retires only after ACK', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
