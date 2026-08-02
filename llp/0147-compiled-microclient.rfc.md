@@ -1007,7 +1007,7 @@ unimplemented compositions.
 
 The immutable first attributed package ledger is
 `tests/fixtures/client-bundle-metrology/baseline.micro-phase-b.v1.json`, sourced
-from `88ae7b10`. Under the frozen Node 24.18.0 / esbuild 0.28.1 method it records:
+from `95557db1`. Under the frozen Node 24.18.0 / esbuild 0.28.1 method it records:
 
 - core runtime: 6,740 minified, **2,740 gzip**, 2,400 Brotli bytes;
 - core plus generated entry: 7,347 minified, **2,960 gzip**, 2,595 Brotli bytes;
@@ -1037,7 +1037,7 @@ of the 345-byte gap were the tuple Micro correctly retained and three bytes
 were unequal synthetic labels. The defect and its positive/negative proof are
 isolated in
 `issues/closed/20260802-full-livequery-drops-generated-reference.md` and the
-prerequisite Full correctness commit `1f889d6e`. “Same workload” therefore
+prerequisite Full correctness commit `48fce9ff`. “Same workload” therefore
 means **contract-correct Full**, not a smaller request obtained by violating
 LLP 0012's call-time generation binding.
 

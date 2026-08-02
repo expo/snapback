@@ -5,7 +5,7 @@
 **Systems:** Packaging, Codegen, Client SDK, Wire Protocol
 **Related:** LLP 0147, LLP 0145 §D-D, LLP 0012, LLP 0063, the fixed
 delta-lane egress defect (`eda8f231`), and the separate Full-client prerequisite
-(`1f889d6e` after the final pre-handoff rebase)
+(`48fce9ff` after integration)
 
 ## Authorized scope and outcome
 
@@ -28,7 +28,7 @@ selection claim. Those remain explicit profile nonclaims.
 
 The Phase-B supplemental ledger is
 `tests/fixtures/client-bundle-metrology/baseline.micro-phase-b.v1.json`. It is
-bound to source revision `88ae7b10`, the exact client/contract/React package
+bound to source revision `95557db1`, the exact client/contract/React package
 trees, Node 24.18.0, esbuild 0.28.1, the frozen minifier/compression method,
 fixture inputs, and behavior commands.
 
@@ -51,7 +51,7 @@ negative. Its metafiles prove:
 
 The metrology runner initially could not build its generated core fixture
 because the internal `echo` descriptor collided with the exported `echo`
-wrapper. The isolated instrument correction `88ae7b10` renames the descriptor
+wrapper. The isolated instrument correction `95557db1` renames the descriptor
 to `echoRef`; it changes no product closure or ceiling. After rebasing over
 main's `605e290f` canonical-id compression, the immutable primary ledgers and
 the new supplemental ledger pass together.
@@ -111,7 +111,7 @@ synthetic `full-*`/`micro-*` labels account for the other three bytes.
 That is a pre-existing Full correctness defect, not a Micro optimization. It
 is isolated in
 `issues/closed/20260802-full-livequery-drops-generated-reference.md` and fixed
-by prerequisite commit `1f889d6e`. Its focused negative proves malformed
+by prerequisite commit `48fce9ff`. Its focused negative proves malformed
 generated live arguments fail before network I/O; its positive proves the
 complete tuple reaches valid admissions. PKG-02's comparison intentionally
 depends on that commit and must land after it. Gate 22's “same workload” means
