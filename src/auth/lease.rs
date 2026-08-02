@@ -15,7 +15,6 @@ use hmac::{Hmac, Mac as _};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest as _, Sha256};
-use uuid::Uuid;
 
 use crate::auth::crypto::{AuthKeyId, AuthKeyMaterial};
 use crate::auth::invalidation::IssuerId;
@@ -691,12 +690,10 @@ fn validate_optional_uuid_v7(value: Option<&str>, field: &str) -> SnapbackResult
     let Some(value) = value else {
         return Ok(());
     };
-    let parsed = Uuid::parse_str(value)
-        .map_err(|_| invalid(format!("{field} is not a canonical UUIDv7")))?;
-    if parsed.get_version_num() != 7 || parsed.hyphenated().to_string() != value {
-        return Err(invalid(format!("{field} is not a canonical UUIDv7")));
+    if crate::ids::is_minted_identifier(value) {
+        return Ok(());
     }
-    Ok(())
+    Err(invalid(format!("{field} is not a Snapback identifier")))
 }
 
 fn validate_counter(value: u64, field: &str, positive: bool) -> SnapbackResult<()> {

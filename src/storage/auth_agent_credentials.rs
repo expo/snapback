@@ -119,8 +119,8 @@ impl LocalDatabase {
         random: &dyn RandomSource,
     ) -> SnapbackResult<IssuedAgentCredential> {
         self.observe_agent_authorization_clock(now_ms)?;
-        let credential_id = new_id();
-        let identity_id = new_id();
+        let credential_id = crate::ids::mint_time_ordered(crate::ids::Kind::AgentCredential);
+        let identity_id = crate::ids::mint_time_ordered(crate::ids::Kind::AgentIdentity);
         let mut body_outcome = None;
         let attempt = self.attempt_auth_transaction(|tx| {
             require_agent_active_on(tx, user_id)?;
@@ -466,7 +466,7 @@ impl LocalDatabase {
         self.observe_agent_authorization_clock(now_ms)?;
         let secret = ScopedToken::generate(random).map_err(|_| secret_generation_failed())?;
         let token_hash = secret.token_hash();
-        let token_id = new_id();
+        let token_id = crate::ids::mint_time_ordered(crate::ids::Kind::AgentToken);
         let mut body_outcome = None;
         let attempt = self.attempt_auth_transaction_with_service_terminal(
             crate::auth::service_fence::ServiceAuthorityDisposition::Carrier,

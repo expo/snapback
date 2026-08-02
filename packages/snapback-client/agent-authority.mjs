@@ -14,7 +14,10 @@ import {
 } from '@expo/snapback-contract/auth-coordinator';
 import { brandAgentAuthorityFence } from './agent-authority-brand.mjs';
 
-const UUID_V7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+// Object ids accept both spellings: LLP 0148 prefixed, or the UUIDv7 that
+// predates it. @ref LLP 0148#d4-the-prefix-is-never-load-bearing
+import { isMintedIdentifier } from '@expo/snapback-contract/ids';
+const UUID_V7 = { test: (value) => isMintedIdentifier(value) };
 
 const requireUuid = (value, name) => {
   if (!UUID_V7.test(value ?? '')) throw new TypeError(`${name} must be a UUIDv7`);

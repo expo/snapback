@@ -1147,9 +1147,11 @@ impl SessionProjection {
         if let Some(raw_declaration) = source.restore_declaration_id.as_deref() {
             let declaration = std::str::from_utf8(raw_declaration)
                 .map_err(|_| projection_corrupt("restore declaration metadata is not UTF-8"))?;
-            validate_canonical_uuid_v7(declaration).map_err(|_| {
-                projection_corrupt("restore declaration metadata is not a canonical UUIDv7")
-            })?;
+            if !crate::ids::is_minted_identifier(declaration) {
+                return Err(projection_corrupt(
+                    "restore declaration metadata is not a Snapback identifier",
+                ));
+            }
         }
 
         let mut users = HashMap::new();
@@ -2937,8 +2939,17 @@ fn deadline_key_for(session: &ProjectedSession) -> DeadlineKey {
 }
 
 fn validate_projection_id(value: &str, label: &str) -> SnapbackResult<()> {
-    validate_canonical_uuid_v7(value)
-        .map_err(|_| projection_corrupt(&format!("projected {label} id is not a canonical UUIDv7")))
+    // Both spellings: a projection rebuilt from a pre-LLP-0148 database still
+    // carries hyphenated UUIDv7 ids, and reporting those as corrupt would
+    // refuse to serve data Snapback itself wrote.
+    //
+    // @ref LLP 0148#d4-the-prefix-is-never-load-bearing
+    if crate::ids::is_minted_identifier(value) {
+        return Ok(());
+    }
+    Err(projection_corrupt(&format!(
+        "projected {label} id is not a Snapback identifier"
+    )))
 }
 
 fn validate_canonical_uuid_v7(value: &str) -> Result<(), ()> {

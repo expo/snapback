@@ -818,12 +818,10 @@ fn validate_operation_id(value: &str) -> SnapbackResult<()> {
 }
 
 fn validate_uuid_v7(value: &str, label: &str) -> SnapbackResult<()> {
-    let parsed = uuid::Uuid::parse_str(value)
-        .map_err(|_| invalid(format!("{label} is not a canonical UUIDv7")))?;
-    if parsed.get_version_num() != 7 || parsed.hyphenated().to_string() != value {
-        return Err(invalid(format!("{label} is not a canonical UUIDv7")));
+    if crate::ids::is_minted_identifier(value) {
+        return Ok(());
     }
-    Ok(())
+    Err(invalid(format!("{label} is not a Snapback identifier")))
 }
 
 fn invalid(message: impl Into<String>) -> SnapbackError {

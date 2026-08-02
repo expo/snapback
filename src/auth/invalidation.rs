@@ -21,7 +21,6 @@ use sha2::Sha256;
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, RwLock};
-use uuid::Uuid;
 
 pub const AUTH_INVALIDATION_PROTOCOL_VERSION: u32 = 1;
 pub const AUTH_INVALIDATION_REFIRE_MAX_MS: u64 = 5_000;
@@ -56,12 +55,10 @@ fn validate_counter(value: u64, field: &str, positive: bool) -> SnapbackResult<(
 }
 
 fn validate_uuid_v7(value: &str, field: &str) -> SnapbackResult<()> {
-    let parsed = Uuid::parse_str(value)
-        .map_err(|_| corrupt(format!("{field} is not a canonical UUIDv7")))?;
-    if parsed.get_version_num() != 7 || parsed.hyphenated().to_string() != value {
-        return Err(corrupt(format!("{field} is not a canonical UUIDv7")));
+    if crate::ids::is_minted_identifier(value) {
+        return Ok(());
     }
-    Ok(())
+    Err(corrupt(format!("{field} is not a Snapback identifier")))
 }
 
 fn validate_opaque(value: &str, field: &str) -> SnapbackResult<()> {
@@ -1383,7 +1380,7 @@ impl ObligationRegistry {
             revision: current.obligation.revision,
             witness,
             max_disposition: current.obligation.max_disposition,
-            ack_token: format!("ack_{}", Uuid::now_v7().simple()),
+            ack_token: crate::ids::mint_time_ordered(crate::ids::Kind::AckToken),
             owner_continuity_id: current.obligation.owner_continuity_id.clone(),
         };
         self.resolution_by_scope
@@ -1970,7 +1967,7 @@ impl RetryEpisodeRegistry {
         }
         self.ensure_capacity(&key)?;
         let episode = RetryEpisode {
-            episode_id: format!("retry_{}", Uuid::now_v7().simple()),
+            episode_id: crate::ids::mint_time_ordered(crate::ids::Kind::RetryEpisode),
             key: key.clone(),
             witness_floor,
             first_attempt_reserved_at_ms: now_ms,
@@ -2062,7 +2059,7 @@ impl RetryEpisodeRegistry {
                 "manual retry cannot replace an authorization retry episode before exhaustion",
             ));
         }
-        episode.episode_id = format!("retry_{}", Uuid::now_v7().simple());
+        episode.episode_id = crate::ids::mint_time_ordered(crate::ids::Kind::RetryEpisode);
         episode.first_attempt_reserved_at_ms = now_ms;
         episode.first_failure_at_ms = None;
         episode.attempts_reserved = 1;

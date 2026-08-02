@@ -5,7 +5,10 @@
 **Systems:** Auth, Storage, Security, API, Admin API, Backup/restore, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-26 (capture-only provider ergonomics: `dev` and `demo`
+**Revised:** 2026-08-01 (LLP 0148 prefixed identifiers: the four catalog object
+ids are respelled `usr_`/`idn_`/`ses_`/`aut_`, `usr_` gains a random body, both
+spellings stay readable, and no catalog version is taken — see the dated
+amendment). 2026-07-26 (capture-only provider ergonomics: `dev` and `demo`
 retain the global request budget and bounded mailbox but are exempt from the
 recipient-oriented per-address request budget; `test` and `prod` retain the
 exact per-address boundary); 2026-07-23 (delegated wire extension: Draft LLP 0077 extends
@@ -249,8 +252,12 @@ All credentials, codes, challenge ids, and key material use the operating
 system CSPRNG. Failure to obtain all requested bytes is
 `SNAPBACK_AUTH_PROVIDER_UNAVAILABLE`; no weak or deterministic fallback exists.
 
-- User, identity, session, and authority-instance ids are canonical lowercase
-  hyphenated UUIDv7 strings.
+- User, identity, session, and authority-instance ids are LLP 0148 prefixed
+  identifiers — `usr_`, `idn_`, `ses_`, `aut_` followed by a 26-character
+  lowercase Crockford base32 body. `usr_` bodies are 16 CSPRNG bytes; the other
+  three are UUIDv7 bytes. **A catalog written before that decision carries
+  canonical lowercase hyphenated UUIDv7 strings in these columns, and readers
+  MUST continue to accept them** — see the dated amendment below.
 - A challenge id is `sbc_` followed by base64url-without-padding of 16 random
   bytes. Collision retries are bounded to three attempts.
 - A key id is `sbak_` followed by base64url-without-padding of 16 random bytes.
@@ -1765,6 +1772,45 @@ Implementations may choose internal Rust type/module names and crate helpers.
 They may not vary the wire spelling, DDL invariants, digest/checksum framing,
 constants, state outcomes, carrier separation, rescue atomicity, or backup unit
 without revising this Draft and its fixtures.
+
+## Dated amendment: prefixed identifiers (2026-08-01)
+
+[LLP 0148](./0148-prefixed-identifiers.decision.md) changes the spelling of the
+four catalog object ids this Spec pins in §Randomness and identifiers. Recorded
+here because this Spec is Accepted and 0148 may not silently reinterpret it.
+
+**What changes.** `_auth_users.id`, `_auth_identities.id`, `_auth_sessions.id`,
+and `authority_instance_id` are minted as `usr_`, `idn_`, `ses_`, and `aut_`
+plus a 26-character Crockford base32 body. `usr_` takes 16 CSPRNG bytes rather
+than UUIDv7 bytes, because a time-ordered user id reveals account-creation time
+to every other user (LLP 0148 §D3); the other three stay time-ordered.
+
+**What does not change:**
+
+- **The catalog DDL, and therefore the catalog version.** These are `TEXT`
+  columns with no format constraint, and §Catalog states compares DDL, not
+  data. Exact v1/v2 recognition is unaffected and **no marker bump is taken**.
+  A `CHECK` on the prefix would require one and is deliberately declined.
+- **Every credential spelling.** `sbs_` bearers keep their 56-byte form, CRC-32,
+  and base64url alphabet; `sbc_` and `sbak_` are untouched. §Session bearer and
+  at-rest digest stands as written. LLP 0148 §D7 specifies an environment
+  marker for bearers but defers it, gated on the first `deploymentCapable`
+  target under LLP 0060.
+- **Minting discipline.** Ids still come from the injected `RandomSource`, still
+  fail closed as `SNAPBACK_AUTH_PROVIDER_UNAVAILABLE` when the CSPRNG is
+  unavailable, still zeroize rejected buffers, and still retry a collision
+  within the three-candidate bound.
+
+**Compatibility.** There is no backfill and no rewrite. A catalog activated
+before this amendment keeps hyphenated UUIDv7 ids in these columns
+indefinitely, and every reader accepts both spellings — the shared predicate is
+`ids::is_minted_identifier`. Refusing the older spelling would report data
+Snapback itself wrote as corrupt.
+
+**Non-substitution is unaffected.** §Credential non-substitution's guarantees
+rest on digest resolution and the cross-table absence check, not on id shape.
+Prefixes are advisory (LLP 0148 §D4) and no authorization, resolution, or
+fencing decision reads one.
 
 ## Open questions
 

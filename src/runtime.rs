@@ -375,7 +375,7 @@ impl RuntimeManager {
             ctx_ledger,
             job_enqueues,
             Some(crate::jobs::JobProducer {
-                mutation_id: format!("dryrun_{}", crate::storage::new_id()),
+                mutation_id: crate::ids::mint_time_ordered(crate::ids::Kind::DryRun),
                 function: "mutationDryRun".to_owned(),
                 principal: input.auth.user_id.clone(),
             }),

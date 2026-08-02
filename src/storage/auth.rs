@@ -20,7 +20,6 @@ use std::fs::File;
 use std::path::Path;
 use std::sync::OnceLock;
 use std::time::Duration;
-use uuid::Uuid;
 
 /// The catalog version this binary **creates** and treats as current. LLP 0055
 /// G1 (agent principals) bumps it from `"1"` to `"2"`: the `_auth_users` agent
@@ -1746,14 +1745,12 @@ fn retained_key_ids_on(conn: &Connection) -> SnapbackResult<Vec<String>> {
 }
 
 fn validate_restore_declaration(declaration_id: &str) -> SnapbackResult<()> {
-    let parsed = Uuid::parse_str(declaration_id)
-        .map_err(|_| restore_invalid("restore declaration id is not a canonical UUIDv7"))?;
-    if parsed.get_version_num() != 7 || parsed.hyphenated().to_string() != declaration_id {
-        return Err(restore_invalid(
-            "restore declaration id is not a canonical UUIDv7",
-        ));
+    if crate::ids::is_minted_identifier(declaration_id) {
+        return Ok(());
     }
-    Ok(())
+    Err(restore_invalid(
+        "restore declaration id is not a Snapback identifier",
+    ))
 }
 
 fn backup_invalid(message: &str) -> SnapbackError {
@@ -2883,7 +2880,7 @@ mod tests {
             let predecessor_version = db.authorization_version().unwrap();
             let predecessor_floor = db.auth_session_clock_floor().unwrap();
             let error = db
-                .apply_auth_restore_declaration(&Uuid::now_v7().to_string(), 50)
+                .apply_auth_restore_declaration(&crate::ids::mint_time_ordered(crate::ids::Kind::Declaration), 50)
                 .expect_err("every malformed restored timestamp must fail closed");
             assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_CATALOG_CORRUPT");
             assert_eq!(
@@ -2944,7 +2941,7 @@ mod tests {
             )
             .unwrap();
 
-        db.apply_auth_restore_declaration(&Uuid::now_v7().to_string(), 50)
+        db.apply_auth_restore_declaration(&crate::ids::mint_time_ordered(crate::ids::Kind::Declaration), 50)
             .unwrap();
 
         assert_eq!(
@@ -3370,7 +3367,7 @@ mod tests {
             let predecessor_version = db.authorization_version().unwrap();
 
             inject_auth_restore_failure_after_step(step);
-            let declaration_id = Uuid::now_v7().to_string();
+            let declaration_id = crate::ids::mint_time_ordered(crate::ids::Kind::Declaration);
             let error = db
                 .apply_auth_restore_declaration(&declaration_id, 100)
                 .expect_err("injected restore transaction must fail");

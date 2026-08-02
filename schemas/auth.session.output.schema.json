@@ -83,11 +83,11 @@
               "const": "humanSession"
             },
             "sessionId": {
-              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "pattern": "^(?:[a-z][a-z0-9]{0,11}_[0-9a-hjkmnp-tv-z]{26}|[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$",
               "type": "string"
             },
             "userId": {
-              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "pattern": "^(?:[a-z][a-z0-9]{0,11}_[0-9a-hjkmnp-tv-z]{26}|[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$",
               "type": "string"
             }
           }
@@ -104,7 +104,7 @@
               "type": "null"
             },
             "userId": {
-              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "pattern": "^(?:[a-z][a-z0-9]{0,11}_[0-9a-hjkmnp-tv-z]{26}|[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$",
               "type": "string"
             }
           }
@@ -143,7 +143,7 @@
       "description": "Handshake-specific descriptor closure. Mutation inputs retain their own\ndiagnostic surface; the bootstrap schema pins protocol-v1 and canonical\nUUIDv7 independently so the server schema and executable kit agree.",
       "properties": {
         "authorityInstanceId": {
-          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+          "pattern": "^(?:[a-z][a-z0-9]{0,11}_[0-9a-hjkmnp-tv-z]{26}|[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$",
           "type": "string"
         },
         "descriptorVersion": {
@@ -637,7 +637,7 @@
       "description": "Consistency only: possession never authorizes an invocation."
     },
     "authorizationStreamIncarnation": {
-      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "pattern": "^(?:[a-z][a-z0-9]{0,11}_[0-9a-hjkmnp-tv-z]{26}|[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$",
       "type": "string"
     },
     "authorizedLease": {

@@ -152,8 +152,8 @@ pub enum AuthSessionAuthorityKind {
     "required" = ["kind", "userId", "sessionId", "isAuthenticated"],
     "oneOf" = [
       {"properties": {"kind": {"const": "anonymous"}, "userId": {"type": "null"}, "sessionId": {"type": "null"}, "isAuthenticated": {"const": false}}},
-      {"properties": {"kind": {"const": "humanSession"}, "userId": {"type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"}, "sessionId": {"type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"}, "isAuthenticated": {"const": true}}},
-      {"properties": {"kind": {"const": "servicePrincipal"}, "userId": {"type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"}, "sessionId": {"type": "null"}, "isAuthenticated": {"const": true}}}
+      {"properties": {"kind": {"const": "humanSession"}, "userId": {"type": "string", "pattern": crate::ids::ID_WIRE_PATTERN}, "sessionId": {"type": "string", "pattern": crate::ids::ID_WIRE_PATTERN}, "isAuthenticated": {"const": true}}},
+      {"properties": {"kind": {"const": "servicePrincipal"}, "userId": {"type": "string", "pattern": crate::ids::ID_WIRE_PATTERN}, "sessionId": {"type": "null"}, "isAuthenticated": {"const": true}}}
     ]
 ))]
 pub struct AuthSessionAuthority {
@@ -171,7 +171,7 @@ pub struct AuthSessionAuthority {
 pub struct AuthSessionAuthorityDescriptor {
     #[schemars(range(min = 1, max = 1))]
     pub descriptor_version: u64,
-    #[schemars(pattern(r"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"))]
+    #[schemars(pattern(crate::ids::ID_WIRE_PATTERN))]
     pub authority_instance_id: String,
     /// Zero is the anonymous/no-session sentinel; authenticated session
     /// descriptors are positive and every value stays JavaScript-safe.
@@ -349,7 +349,7 @@ pub struct AuthSessionResponse {
     pub protocol_version: u64,
     #[schemars(length(min = 1))]
     pub server_startup_nonce: String,
-    #[schemars(pattern(r"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"))]
+    #[schemars(pattern(crate::ids::ID_WIRE_PATTERN))]
     pub authorization_stream_incarnation: String,
     #[schemars(range(min = 0, max = 9007199254740991_u64))]
     pub transition_generation: u64,

@@ -62,7 +62,7 @@
       "description": "Opaque server-issued consistency descriptor for one queued mutation.\nPossession grants no authority; the invocation gate first resolves a live\ncredential and only then compares this value with its prepared authority.\n\n@ref LLP 0039#replay-parity-and-the-authority-instance-id — this is a\n  dedicated MutationRequest channel, never a ctx-answer-ledger member.",
       "properties": {
         "authorityInstanceId": {
-          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+          "pattern": "^(?:[a-z][a-z0-9]{0,11}_[0-9a-hjkmnp-tv-z]{26}|[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$",
           "type": "string"
         },
         "descriptorVersion": {

@@ -3687,6 +3687,9 @@ impl LocalDatabase {
         // dry-run as `deterministicInputs`.
         let plan_ids = RefCell::new(PlanIdSource::new(replay_ledger));
         let next_id = || plan_ids.borrow_mut().next();
+        // Row ids carry their table's prefix; ids minted inside field
+        // expressions go through `next_id` and stay generic (LLP 0148 §D6).
+        let next_id_for = |table: &str| plan_ids.borrow_mut().next_for(Some(table));
 
         for step in &plan.steps {
             check_live()?;
@@ -3701,7 +3704,7 @@ impl LocalDatabase {
                     //   without seating its bootstrap holder (bootstrap path
                     //   only); a HostPlan generic insert cannot do that.
                     enforce_protected_resource_insert_guard(&schema, &table.name)?;
-                    let id = next_id()?;
+                    let id = next_id_for(&table.name)?;
                     if let Some(binding) = bind_id_as {
                         let value = Value::String(id.clone());
                         bindings.insert(binding.clone(), value.clone());
@@ -4143,7 +4146,7 @@ impl LocalDatabase {
                         // The item binding is scoped to this step's value maps.
                         let mut item_bindings = bindings.clone();
                         item_bindings.insert(item_as.clone(), item);
-                        let id = next_id()?;
+                        let id = next_id_for(&table.name)?;
                         if projection_sources.contains(&table.name) {
                             projection_pre_images
                                 .entry((table.name.clone(), id.clone()))
@@ -6157,7 +6160,7 @@ fn ensure_projection_identity(
             "activation timestamp exceeds the 48-bit UUIDv7 range".to_owned(),
         ));
     }
-    let identity = format!("proj_{}", Uuid::now_v7().simple());
+    let identity = crate::ids::mint_time_ordered(crate::ids::Kind::Projection);
     tx.execute(
         "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)",
         params![identity_key, identity],
@@ -11845,7 +11848,7 @@ fn seed_rows_into_transaction(
             // carrier before entering the same insert validator used by
             // handler/derived writes.
             let id = match row.remove("_id") {
-                None => new_id(),
+                None => crate::ids::mint_document(&table_name),
                 Some(Value::String(id)) if !id.is_empty() => id,
                 Some(_) => {
                     return Err(SnapbackError::error(
@@ -13058,7 +13061,7 @@ impl LocalDatabase {
             Ok(MembershipPlan {
                 writes: vec![BufferedWrite::Insert {
                     table: table_manifest.name.clone(),
-                    id: new_id(),
+                    id: crate::ids::mint_document(&table_manifest.name),
                     values,
                 }],
                 read_dependencies: Vec::new(),
@@ -13273,7 +13276,7 @@ impl LocalDatabase {
             // can never be kept full with corpses.
             self.require_eligible_if_protected(membership, &inserted_role, &inserted_principal)?;
 
-            let id = new_id();
+            let id = crate::ids::mint_document(&table_manifest.name);
             Ok(MembershipPlan {
                 writes: vec![BufferedWrite::Insert {
                     table: table_manifest.name.clone(),
@@ -13645,7 +13648,7 @@ impl LocalDatabase {
         self.plan_membership_bootstrap_with_id(
             writer,
             resource_table,
-            new_id(),
+            crate::ids::mint_document(resource_table),
             resource_values,
             membership_table,
         )
@@ -13718,7 +13721,7 @@ impl LocalDatabase {
                     },
                     BufferedWrite::Insert {
                         table: member_table_manifest.name.clone(),
-                        id: new_id(),
+                        id: crate::ids::mint_document(&member_table_manifest.name),
                         values: member_values,
                     },
                 ],
@@ -16071,6 +16074,22 @@ impl<'a> PlanIdSource<'a> {
     }
 
     fn next(&mut self) -> SnapbackResult<String> {
+        self.next_for(None)
+    }
+
+    /// The ledgered allocator, told which table the id is being minted for.
+    ///
+    /// `Some(table)` mints the table's LLP 0148 prefix; `None` — an id minted
+    /// inside a field expression, where no target table is in scope — mints the
+    /// generic `id_` prefix rather than guessing a table it would then lie
+    /// about.
+    ///
+    /// The replay arm is deliberately unaffected: on replay the id comes from
+    /// the client's ledger, so client and server never both derive a prefix and
+    /// cannot disagree about one.
+    ///
+    /// @ref LLP 0148#d6-app-document-ids-take-a-per-table-prefix
+    fn next_for(&mut self, table: Option<&str>) -> SnapbackResult<String> {
         if self.generated.len() >= CTX_ANSWER_LEDGER_MAX_IDS {
             return Err(SnapbackError::error(
                 "SNAPBACK_CTX_LEDGER_LIMIT_EXCEEDED",
@@ -16092,7 +16111,10 @@ impl<'a> PlanIdSource<'a> {
                     ),
                 )
             })?,
-            None => new_id(),
+            None => match table {
+                Some(table) => crate::ids::mint_document(table),
+                None => new_id(),
+            },
         };
         self.cursor += 1;
         self.generated.push(id.clone());
@@ -16125,16 +16147,16 @@ fn validate_client_mutation_identity(identity: &ClientMutationIdentity) -> Snapb
             "client mutation id must match the declared opaque replay-id bounds/alphabet",
         ));
     }
-    let parsed_authority = Uuid::parse_str(&identity.authority_instance_id).ok();
-    if parsed_authority.as_ref().map(Uuid::get_version_num) != Some(7)
-        || parsed_authority
-            .as_ref()
-            .is_some_and(|parsed| parsed.to_string() != identity.authority_instance_id)
-    {
+    // Both spellings: the authority instance is `aut_` under LLP 0148, and a
+    // mutation retained before it carries a hyphenated UUIDv7. This is a shape
+    // check on retained state; the authority comparison itself is unchanged.
+    //
+    // @ref LLP 0148#d4-the-prefix-is-never-load-bearing
+    if !crate::ids::is_minted_identifier(&identity.authority_instance_id) {
         return Err(SnapbackError::error(
             "SNAPBACK_CLIENT_MUTATION_RETENTION_STATE_INVALID",
             "sync",
-            "retained client mutation authority instance must be a canonical UUIDv7",
+            "retained client mutation authority instance is not a Snapback identifier",
         ));
     }
     Ok(())
@@ -16397,8 +16419,15 @@ fn record_client_mutation_result(
     Ok(())
 }
 
+/// A generic host-minted id, for the paths where no table is in scope.
+///
+/// Prefer `crate::ids::mint_document(table)` wherever the target table is
+/// known — that is what gives a row's id its table's prefix (LLP 0148 §D6).
+///
+/// @ref LLP 0148#d5-one-registry-one-minting-helper — mint through the
+/// registry, never `format!` a prefix at a call site
 pub(crate) fn new_id() -> String {
-    Uuid::now_v7().to_string()
+    crate::ids::mint_time_ordered(crate::ids::Kind::Opaque)
 }
 
 /// A fresh-claim-id source over the trusted id allocator, in the closure

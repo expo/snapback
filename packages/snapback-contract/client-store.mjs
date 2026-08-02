@@ -5,6 +5,7 @@
 // SQLite/OPFS implementations can preserve the same records without changing
 // replay semantics (DK-9).
 
+import { ID_PREFIXES, isMintedIdentifier, mintId } from './ids.mjs';
 import {
   effectiveDisposition,
   mergeResyncObligation,
@@ -39,7 +40,14 @@ const ARTIFACT_SCOPE_FIELDS = [
 ];
 const AUTHORITY_KEY_PATTERN = /^sha256:[0-9a-f]{64}$/;
 const ACTIVATION_HASH_PATTERN = /^snapback\.authorized-lease\.activation\.v1:sha256:[0-9a-f]{64}$/;
+// UUID_V7_PATTERN stays exact for `authorizationStreamIncarnation`, an
+// opaque incarnation marker with its own persisted format. Object ids use
+// SNAPBACK_ID_PATTERN, which also accepts the pre-LLP-0148 spelling so a
+// client store persisted before this landed still validates.
+//
+// @ref LLP 0148#d4-the-prefix-is-never-load-bearing
 const UUID_V7_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const SNAPBACK_ID_PATTERN = { test: (value) => isMintedIdentifier(value) };
 const RECORD_IDENTITY_FIELDS = ['authFingerprint', 'authorityKey', ...ARTIFACT_SCOPE_FIELDS];
 
 const clone = (value) => value === undefined ? undefined : JSON.parse(JSON.stringify(value));
@@ -294,7 +302,7 @@ function assertAuthorityDescriptor(descriptor, path) {
   assertStateField(descriptor.descriptorVersion === 1, `${path}.descriptorVersion`);
   assertStateField(
     typeof descriptor.authorityInstanceId === 'string'
-      && UUID_V7_PATTERN.test(descriptor.authorityInstanceId),
+      && SNAPBACK_ID_PATTERN.test(descriptor.authorityInstanceId),
     `${path}.authorityInstanceId`,
   );
   assertStateField(
@@ -397,7 +405,7 @@ function assertQueryAuthorizationState(query, path, state, queryKey) {
   );
   assertStateField(
     query.authorityInstanceId === null
-      || (typeof query.authorityInstanceId === 'string' && UUID_V7_PATTERN.test(query.authorityInstanceId)),
+      || (typeof query.authorityInstanceId === 'string' && SNAPBACK_ID_PATTERN.test(query.authorityInstanceId)),
     `${path}.authorityInstanceId`,
   );
   assertStateField(isRecord(query.pendingByScope), `${path}.pendingByScope`);
@@ -3221,8 +3229,8 @@ function isExactClientAuthority(authority) {
     && authority.authMode === 'sessions'
     && Object.keys(authority).sort().join(',')
       === 'authMode,authorizationStreamIncarnation,kind,sessionId,userId'
-    && UUID_V7_PATTERN.test(authority.sessionId ?? '')
-    && UUID_V7_PATTERN.test(authority.userId ?? '');
+    && SNAPBACK_ID_PATTERN.test(authority.sessionId ?? '')
+    && SNAPBACK_ID_PATTERN.test(authority.userId ?? '');
 }
 
 function principalScopeForAuthority(authority) {
@@ -3335,7 +3343,14 @@ export function createSnapbackClientStoreAuthParticipant(store, {
   });
 }
 
-export function createClientMutationId(prefix = 'cm') {
-  const random = globalThis.crypto?.randomUUID?.().replaceAll('-', '') ?? newOrigin();
-  return `${prefix}_${random}`;
+/// A client-minted durable mutation identity, spelled through the LLP 0148
+/// registry so a queued intent's id reads the same as the server's.
+///
+/// The default was `cm_`; callers that pass an explicit prefix keep passing
+/// one. `'lease'` maps to the registry's `lse`.
+///
+/// @ref LLP 0148#d5-one-registry-one-minting-helper
+export function createClientMutationId(prefix = ID_PREFIXES.mutation) {
+  const registered = prefix === 'lease' ? ID_PREFIXES.lease : prefix;
+  return mintId(registered);
 }

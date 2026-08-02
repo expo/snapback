@@ -180,7 +180,7 @@ pub enum AuthTokenType {
 struct CredentialAuthorityDescriptorSchema {
     #[schemars(range(min = 1, max = 1))]
     descriptor_version: u32,
-    #[schemars(pattern(r"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"))]
+    #[schemars(pattern(crate::ids::ID_WIRE_PATTERN))]
     authority_instance_id: String,
     #[schemars(range(
         min = 1,

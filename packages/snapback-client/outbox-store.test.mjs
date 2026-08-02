@@ -464,7 +464,7 @@ test('mutate queues on connectivity failure and replays exactly-once', async (t)
   globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
   const queued = await client.mutate('createThing', { args: { title: 'offline' } });
   assert.equal(queued.queued, true);
-  assert.match(queued.clientMutationId, /^cm/);
+  assert.match(queued.clientMutationId, /^mut_[0-9a-hjkmnp-tv-z]{26}$/u);
   assert.equal(queued.sequence, 1);
   const queuedUpdate = await client.mutate('updateThing', { args: { title: 'later' } });
   assert.equal(queuedUpdate.sequence, 2);
@@ -910,7 +910,7 @@ test('mutate queues when the carrier fetch rejects a plain Error (Expo shape)', 
   };
   const queued = await client.mutate('createThing', { args: { title: 'expo-offline' } });
   assert.equal(queued.queued, true, 'Expo-shaped transport rejection engages the queue');
-  assert.match(queued.clientMutationId, /^cm/);
+  assert.match(queued.clientMutationId, /^mut_[0-9a-hjkmnp-tv-z]{26}$/u);
   assert.equal(queued.sequence, 1);
   assert.equal((await store.outboxPending()).length, 1);
 

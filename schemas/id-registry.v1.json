@@ -1,0 +1,158 @@
+{
+  "alphabet": "0123456789abcdefghjkmnpqrstvwxyz",
+  "artifactVersion": 1,
+  "bodyLength": 26,
+  "kinds": [
+    {
+      "body": "random",
+      "kind": "User",
+      "prefix": "usr"
+    },
+    {
+      "body": "timeOrdered",
+      "kind": "Identity",
+      "prefix": "idn"
+    },
+    {
+      "body": "timeOrdered",
+      "kind": "Session",
+      "prefix": "ses"
+    },
+    {
+      "body": "timeOrdered",
+      "kind": "AuthorityInstance",
+      "prefix": "aut"
+    },
+    {
+      "body": "timeOrdered",
+      "kind": "AgentIdentity",
+      "prefix": "agi"
+    },
+    {
+      "body": "timeOrdered",
+      "kind": "AgentCredential",
+      "prefix": "agc"
+    },
+    {
+      "body": "timeOrdered",
+      "kind": "PairingRequest",
+      "prefix": "pair"
+    },
+    {
+      "body": "timeOrdered",
+      "kind": "GrantRequest",
+      "prefix": "greq"
+    },
+    {
+      "body": "timeOrdered",
+      "kind": "Grant",
+      "prefix": "grt"
+    },
+    {
+      "body": "timeOrdered",
+      "kind": "Mutation",
+      "prefix": "mut"
+    },
+    {
+      "body": "timeOrdered",
+      "kind": "Connection",
+      "prefix": "conn"
+    },
+    {
+      "body": "timeOrdered",
+      "kind": "Subscription",
+      "prefix": "sub"
+    },
+    {
+      "body": "timeOrdered",
+      "kind": "Invocation",
+      "prefix": "inv"
+    },
+    {
+      "body": "timeOrdered",
+      "kind": "HostOperation",
+      "prefix": "hop"
+    },
+    {
+      "body": "timeOrdered",
+      "kind": "Lease",
+      "prefix": "lse"
+    },
+    {
+      "body": "timeOrdered",
+      "kind": "Receipt",
+      "prefix": "rct"
+    },
+    {
+      "body": "timeOrdered",
+      "kind": "Declaration",
+      "prefix": "dcl"
+    },
+    {
+      "body": "timeOrdered",
+      "kind": "Job",
+      "prefix": "job"
+    },
+    {
+      "body": "timeOrdered",
+      "kind": "Asset",
+      "prefix": "ast"
+    },
+    {
+      "body": "timeOrdered",
+      "kind": "Migration",
+      "prefix": "mig"
+    },
+    {
+      "body": "timeOrdered",
+      "kind": "Stage",
+      "prefix": "stg"
+    },
+    {
+      "body": "timeOrdered",
+      "kind": "Projection",
+      "prefix": "proj"
+    },
+    {
+      "body": "timeOrdered",
+      "kind": "AckToken",
+      "prefix": "ack"
+    },
+    {
+      "body": "timeOrdered",
+      "kind": "RetryEpisode",
+      "prefix": "ep"
+    },
+    {
+      "body": "timeOrdered",
+      "kind": "DryRun",
+      "prefix": "dry"
+    },
+    {
+      "body": "timeOrdered",
+      "kind": "OwnerContinuity",
+      "prefix": "own"
+    },
+    {
+      "body": "timeOrdered",
+      "kind": "Stream",
+      "prefix": "stm"
+    },
+    {
+      "body": "timeOrdered",
+      "kind": "Startup",
+      "prefix": "srt"
+    },
+    {
+      "body": "timeOrdered",
+      "kind": "AgentToken",
+      "prefix": "agtk"
+    },
+    {
+      "body": "timeOrdered",
+      "kind": "Opaque",
+      "prefix": "id"
+    }
+  ],
+  "maxPrefixLength": 12
+}

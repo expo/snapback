@@ -25,7 +25,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
 use std::time::Instant;
-use uuid::Uuid;
 
 /// Presence of one authority-bearing wire location.
 ///
@@ -1538,7 +1537,7 @@ impl InvocationGate {
             requirement,
             authority_creating_consent,
             matched_grant_scope,
-            invocation_id: format!("inv_{}", Uuid::now_v7().simple()),
+            invocation_id: crate::ids::mint_time_ordered(crate::ids::Kind::Invocation),
             declared_refusals: function.refusals.clone(),
         })
     }

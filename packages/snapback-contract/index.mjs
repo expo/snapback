@@ -2215,7 +2215,10 @@ export async function createSnapbackContractSurface({
           }
           let optimisticOp = null;
           if (typeof reducer === 'function') {
-            const mutationId = createClientMutationId(`cm_${name}`);
+            // The mutation id no longer embeds the function name: the queued
+            // record stores `function` beside the id, so carrying it twice only
+            // bought a prefix that breaks the LLP 0148 grammar.
+            const mutationId = createClientMutationId();
             const ledgerIds = [];
             const nowMs = Date.now();
             const runtimeId = () => {

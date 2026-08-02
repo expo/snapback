@@ -17,7 +17,6 @@ use crate::storage::auth::{AuthCatalogState, AuthRestoreResult};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use uuid::Uuid;
 
 pub(crate) const AUTH_GC_INTERVAL: Duration = Duration::from_secs(30);
 pub(crate) const RESTORE_DECLARATION_FILE: &str = "restore-declaration.json";
@@ -156,7 +155,7 @@ impl RestoreDeclaration {
     pub(crate) fn fresh() -> Self {
         Self {
             format_version: RESTORE_DECLARATION_FORMAT_VERSION,
-            declaration_id: Uuid::now_v7().to_string(),
+            declaration_id: crate::ids::mint_time_ordered(crate::ids::Kind::Declaration),
         }
     }
 
@@ -252,14 +251,12 @@ pub(crate) fn apply_declared_restore(
 }
 
 fn validate_uuid_v7(value: &str) -> SnapbackResult<()> {
-    let parsed = Uuid::parse_str(value)
-        .map_err(|_| restore_invalid("restore declaration id is not a canonical UUIDv7"))?;
-    if parsed.get_version_num() != 7 || parsed.hyphenated().to_string() != value {
-        return Err(restore_invalid(
-            "restore declaration id is not a canonical UUIDv7",
-        ));
+    if crate::ids::is_minted_identifier(value) {
+        return Ok(());
     }
-    Ok(())
+    Err(restore_invalid(
+        "restore declaration id is not a Snapback identifier",
+    ))
 }
 
 fn provider_unavailable(_: KeyringError) -> SnapbackError {

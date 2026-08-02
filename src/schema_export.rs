@@ -737,6 +737,14 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
 /// non-Rust consumer.
 pub fn artifact_instances() -> Vec<SchemaArtifact> {
     vec![
+        // The LLP 0148 id-prefix registry. Codegen reads this to refuse an app
+        // table whose derived prefix would shadow a system one, and the client
+        // packages read it to mint client-side ids with the same spellings the
+        // runtime uses.
+        SchemaArtifact {
+            file: "id-registry.v1.json",
+            schema: sorted_keys(crate::ids::id_registry_artifact()),
+        },
         SchemaArtifact {
             file: "data-tier.profile.json",
             schema: sorted_keys(

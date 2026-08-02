@@ -200,7 +200,7 @@ impl LocalDatabase {
             .ok_or_else(grant_state_corrupt)?;
         let secret = PairingCode::generate(random).map_err(|_| provider_unavailable())?;
         let hash = secret.token_hash();
-        let request_id = super::new_id();
+        let request_id = crate::ids::mint_time_ordered(crate::ids::Kind::GrantRequest);
         self.with_auth_transaction(|tx| {
             require_agent_clock_on(tx, now_ms)?;
             require_human_user_on(tx, user_id)?;
@@ -410,7 +410,7 @@ impl LocalDatabase {
             .checked_add(ttl)
             .filter(|expires_at_ms| *expires_at_ms <= super::MAX_AUTHORIZATION_EPOCH)
             .ok_or_else(grant_expiry_invalid)?;
-        let grant_id_candidate = super::new_id();
+        let grant_id_candidate = crate::ids::mint_time_ordered(crate::ids::Kind::Grant);
         let mut body_outcome = None;
         let attempt = self.attempt_auth_transaction(|tx| {
             require_agent_clock_on(tx, now_ms)?;

@@ -2012,7 +2012,7 @@ fn host_stop(ready_file: &Path) -> anyhow::Result<()> {
         |ok: bool, data: Value, diagnostics: Vec<crate::diagnostic::Diagnostic>| HostOpsResult {
             schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
             result_kind: HOST_OPS_RESULT_KIND.to_owned(),
-            request_id: format!("hop_{}", Uuid::now_v7().simple()),
+            request_id: crate::ids::mint_time_ordered(crate::ids::Kind::HostOperation),
             operation: "host.stop".to_owned(),
             ok,
             target: descriptor.target.clone(),
@@ -2753,7 +2753,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         let descriptor = crate::host_ops::HostReadyDescriptor {
             schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
             descriptor_kind: crate::host_ops::HOST_READY_DESCRIPTOR_KIND.to_owned(),
-            startup_id: format!("srt_{}", Uuid::now_v7().simple()),
+            startup_id: crate::ids::mint_time_ordered(crate::ids::Kind::Startup),
             ready: true,
             server_url: format!("http://{local_addr}"),
             host: local_addr.ip().to_string(),
@@ -3046,7 +3046,7 @@ async fn run_auth_collision_recovery(
         let descriptor = HostReadyDescriptor {
             schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
             descriptor_kind: crate::host_ops::HOST_READY_DESCRIPTOR_KIND.to_owned(),
-            startup_id: format!("srt_{}", Uuid::now_v7().simple()),
+            startup_id: crate::ids::mint_time_ordered(crate::ids::Kind::Startup),
             ready: true,
             server_url: format!("http://{local_addr}"),
             host: local_addr.ip().to_string(),
@@ -7168,7 +7168,7 @@ fn migrate_envelope(
     HostOpsResult {
         schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
         result_kind: HOST_OPS_RESULT_KIND.to_owned(),
-        request_id: format!("hop_{}", Uuid::now_v7().simple()),
+        request_id: crate::ids::mint_time_ordered(crate::ids::Kind::HostOperation),
         operation: operation.to_owned(),
         ok,
         target: crate::host_ops::HostOpsTarget {

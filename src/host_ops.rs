@@ -23,7 +23,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
 use std::fmt;
-use uuid::Uuid;
 
 pub const HOST_OPS_RESULT_KIND: &str = "hostOpsResult";
 pub const HOST_READY_DESCRIPTOR_KIND: &str = "snapbackHostReady";
@@ -549,7 +548,7 @@ pub(crate) fn versioned_seed_wrapper_has_forbidden_siblings(request: &HostOpsReq
 }
 
 pub fn new_request_id() -> String {
-    format!("hop_{}", Uuid::now_v7().simple())
+    crate::ids::mint_time_ordered(crate::ids::Kind::HostOperation)
 }
 
 fn authority_none() -> Option<HostOpsAuthority> {

@@ -260,7 +260,7 @@ assert.equal(keyA, 'sha256:53904370b9f9cf1f73c126b94a0f59e781c24f703baa2167118c4
 assert.equal(keyA, canonicalAgentAuthorityKey(credential()));
 assert.equal(
   deriveServiceAuthorityInstanceId(credential()),
-  '49082da1-0362-7c7d-bb41-1f6e925b688f',
+  'aut_2910pt20v2xhyqpg8zdt95pt4f',
   'JS service descriptor derivation stays byte-for-byte aligned with the Rust fixture',
 );
 assert.equal(

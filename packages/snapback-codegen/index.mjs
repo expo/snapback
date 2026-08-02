@@ -119,6 +119,24 @@ const isAuthReservedIdentifier = (name) => {
   const folded = name.toLowerCase();
   return folded === '_auth' || folded.startsWith('_auth_');
 };
+
+// @ref LLP 0148#d6-app-document-ids-take-a-per-table-prefix — an app table
+// whose derived prefix would shadow a registered system prefix is refused.
+// A table named `usr` would mint `usr_…` documents, which makes the
+// human-recognition property actively misleading rather than merely imprecise.
+// The registry is generated from the Rust `ids::ALL`, so this list cannot
+// drift from what the runtime actually mints.
+const ID_REGISTRY = JSON.parse(
+  readFileSync(new URL('../../schemas/id-registry.v1.json', import.meta.url), 'utf8'),
+);
+const SYSTEM_ID_PREFIXES = new Set(ID_REGISTRY.kinds.map((entry) => entry.prefix));
+const deriveTablePrefix = (name) =>
+  [...name]
+    .filter((c) => /[A-Za-z0-9]/.test(c))
+    .join('')
+    .toLowerCase()
+    .slice(0, ID_REGISTRY.maxPrefixLength);
+const shadowsSystemIdPrefix = (name) => SYSTEM_ID_PREFIXES.has(deriveTablePrefix(name));
 const MAX_EPHEMERAL_COLLECTION_NAME_BYTES = 64;
 const MAX_EPHEMERAL_SCOPE_FIELDS = 16;
 const MAX_EPHEMERAL_SCOPE_KEY_BYTES = 64;
@@ -686,6 +704,16 @@ export async function generateInProcess(backendDir, options = {}) {
   for (const [name, table] of Object.entries(schemaDef.tables)) {
     if (!IDENT.test(name) || name.startsWith('_snapback') || isAuthReservedIdentifier(name)) {
       err('SCHEMA_INVALID_IDENTIFIER', 'schema', `invalid table identifier ${name}`, { table: name });
+      continue;
+    }
+    if (shadowsSystemIdPrefix(name)) {
+      err(
+        'SCHEMA_RESERVED_ID_PREFIX',
+        'schema',
+        `table ${name} derives the reserved id prefix ${deriveTablePrefix(name)}_, which Snapback ` +
+          `mints for its own objects; rename the table so its documents cannot be mistaken for them`,
+        { table: name, prefix: deriveTablePrefix(name) },
+      );
       continue;
     }
     if (seenTables.has(name)) {

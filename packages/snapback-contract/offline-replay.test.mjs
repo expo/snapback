@@ -380,7 +380,9 @@ assert.equal(first.pendingCount(), 1);
 const optimistic = first.boundary.current('todos');
 assert.equal(optimistic.length, 1);
 const todoId = optimistic[0]._id;
-assert.match(todoId, /^cm_createTodo_.+_id_1$/);
+// LLP 0148: the mutation id is `mut_<body>` and no longer embeds the
+// function name — the queued record carries `function` beside it.
+assert.match(todoId, /^mut_[0-9a-hjkmnp-tv-z]{26}_id_1$/u);
 first.dispose();
 
 // New store + new adapter instance models an app reload. The live request

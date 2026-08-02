@@ -101,9 +101,10 @@ fn service_authority_instance_id(
     let hash = digest.finalize();
     let mut bytes = [0_u8; 16];
     bytes.copy_from_slice(&hash[..16]);
-    bytes[6] = (bytes[6] & 0x0f) | 0x70;
-    bytes[8] = (bytes[8] & 0x3f) | 0x80;
-    Uuid::from_bytes(bytes).to_string()
+    // Derived, not minted: the bytes are the digest prefix as-is. The UUID
+    // version/variant bits this used to stamp described a shape it no longer
+    // produces, so they are gone rather than decorative.
+    crate::ids::format_id(crate::ids::Kind::AuthorityInstance, &bytes)
 }
 
 /// Validate a descriptor before any settlement lookup or application effect.
@@ -147,8 +148,14 @@ fn validate_descriptor_values(
     authority_instance_id: &str,
     session_generation: u64,
 ) -> SnapbackResult<()> {
+    // Both spellings: sessions mint `aut_` ids under LLP 0148, while a
+    // mutation queued before it carries a hyphenated UUIDv7. Refusing the
+    // older spelling here would strand queued work rather than protect it.
+    //
+    // @ref LLP 0148#d4-the-prefix-is-never-load-bearing — this is a shape
+    // check; the authority comparison below is still exact string equality.
     if version != AUTHORITY_DESCRIPTOR_VERSION
-        || canonical_uuid_v7(authority_instance_id).is_err()
+        || !crate::ids::is_minted_identifier(authority_instance_id)
         || session_generation > AUTHORITY_DESCRIPTOR_MAX_SESSION_GENERATION
     {
         return Err(stale_descriptor("invalid"));
@@ -269,7 +276,10 @@ mod tests {
             first.authority_instance_id,
             replaced_grant.authority_instance_id
         );
-        assert!(canonical_uuid_v7(&first.authority_instance_id).is_ok());
+        assert!(crate::ids::looks_like(
+            crate::ids::Kind::AuthorityInstance,
+            &first.authority_instance_id
+        ));
         assert_eq!(first.session_generation, 0);
     }
 
@@ -282,7 +292,7 @@ mod tests {
                 4,
                 "018f0d90-7b03-7a22-8c33-445566778899",
             ),
-            "49082da1-0362-7c7d-bb41-1f6e925b688f"
+            "aut_2910pt20v2xhyqpg8zdt95pt4f"
         );
     }
 

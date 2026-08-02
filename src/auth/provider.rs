@@ -2811,10 +2811,12 @@ impl AuthMaintenanceGuard {
 
 impl SessionCandidate {
     fn generate(provider: &AuthProvider, now_ms: u64) -> ProviderResult<Self> {
-        let user_id = mint_uuid_v7(provider.random.as_ref(), now_ms)?;
-        let identity_id = mint_uuid_v7(provider.random.as_ref(), now_ms)?;
-        let session_id = mint_uuid_v7(provider.random.as_ref(), now_ms)?;
-        let authority_instance_id = mint_uuid_v7(provider.random.as_ref(), now_ms)?;
+        use crate::ids::Kind;
+        let user_id = mint_random_catalog_id(Kind::User, provider.random.as_ref())?;
+        let identity_id = mint_catalog_id(Kind::Identity, provider.random.as_ref(), now_ms)?;
+        let session_id = mint_catalog_id(Kind::Session, provider.random.as_ref(), now_ms)?;
+        let authority_instance_id =
+            mint_catalog_id(Kind::AuthorityInstance, provider.random.as_ref(), now_ms)?;
         let bearer = SessionBearer::generate(provider.random.as_ref())
             .map_err(|_| provider_unavailable())?;
         let token_hash = bearer.token_hash();
@@ -5066,17 +5068,41 @@ fn execute_candidate(
     }
 }
 
-fn mint_uuid_v7(random: &dyn RandomSource, now_ms: u64) -> ProviderResult<String> {
+/// A time-ordered catalog id, spelled through the LLP 0148 registry.
+///
+/// Keeps this Spec's injected `RandomSource` rather than reaching for the OS
+/// directly, so the CSPRNG-or-refuse contract stays testable and the buffer
+/// still zeroizes.
+///
+/// @ref LLP 0148#d5-one-registry-one-minting-helper — the prefix comes from the
+/// registry, not from a `format!` here
+fn mint_catalog_id(
+    kind: crate::ids::Kind,
+    random: &dyn RandomSource,
+    now_ms: u64,
+) -> ProviderResult<String> {
     if now_ms > 0x0000_FFFF_FFFF_FFFF {
         return Err(provider_unavailable());
     }
     let mut random_bytes = [0_u8; 10];
     fill_random_or_unavailable(random, &mut random_bytes)?;
-    let id = uuid::Builder::from_unix_timestamp_millis(now_ms, &random_bytes)
-        .into_uuid()
-        .hyphenated()
-        .to_string();
+    let uuid = uuid::Builder::from_unix_timestamp_millis(now_ms, &random_bytes).into_uuid();
     random_bytes.zeroize();
+    Ok(crate::ids::format_id(kind, uuid.as_bytes()))
+}
+
+/// A random-body catalog id. Only `Kind::User` takes one, because a
+/// time-ordered user id would tell every other user when an account was
+/// created (LLP 0148 §D3).
+fn mint_random_catalog_id(
+    kind: crate::ids::Kind,
+    random: &dyn RandomSource,
+) -> ProviderResult<String> {
+    debug_assert_eq!(kind.spec().body, crate::ids::Body::Random);
+    let mut bytes = [0_u8; 16];
+    fill_random_or_unavailable(random, &mut bytes)?;
+    let id = crate::ids::format_id(kind, &bytes);
+    bytes.zeroize();
     Ok(id)
 }
 

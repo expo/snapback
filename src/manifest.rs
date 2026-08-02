@@ -5661,7 +5661,7 @@ pub struct FunctionCallRequest {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AuthorityDescriptor {
     pub descriptor_version: u32,
-    #[schemars(extend("pattern" = "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"))]
+    #[schemars(extend("pattern" = crate::ids::ID_WIRE_PATTERN))]
     pub authority_instance_id: String,
     #[schemars(range(max = AUTHORITY_DESCRIPTOR_MAX_SESSION_GENERATION))]
     pub session_generation: u64,

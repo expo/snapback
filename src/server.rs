@@ -1576,7 +1576,7 @@ impl IbexActionHost for DetachedActionHost {
         // attempt BEFORE the request bytes reach the outbound stack: the
         // write-ahead pre-mark leaves `initiation_possible` standing unless a
         // provably pre-send failure narrows it (LLP 0076 §Settlement).
-        let stream_id = Uuid::new_v4().to_string();
+        let stream_id = crate::ids::mint_time_ordered(crate::ids::Kind::Stream);
         if let Some(attempt_token) = &request.attempt_token {
             crate::stream_attempt::global_stream_attempt_registry().bind_cursor(
                 attempt_token,
@@ -5359,7 +5359,7 @@ impl ConnectionRegistry {
                     id
                 }
                 _ => loop {
-                    let minted = format!("conn_{}", Uuid::new_v4().simple());
+                    let minted = crate::ids::mint_time_ordered(crate::ids::Kind::Connection);
                     if !grants.grants.contains_key(&minted) {
                         break minted;
                     }
@@ -22931,6 +22931,9 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         // LLP 0080 §2: a full page must carry its continuation, so an
         // unmintable cursor is a transient serving failure, not a terminal
         // page silently lied about.
+        // LLP 0148 §D3: a random-body id (only `usr_`) cannot be minted
+        // without the OS CSPRNG, and there is no weak fallback.
+        | "SNAPBACK_RANDOM_UNAVAILABLE"
         | "SNAPBACK_RELATIONAL_CURSOR_MINT_UNAVAILABLE"
         | "SNAPBACK_BOUNDED_CHILDREN_CURSOR_MINT_UNAVAILABLE"
         | "SNAPBACK_STANDARD_PATTERN_CURSOR_MINT_UNAVAILABLE"
@@ -36974,6 +36977,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
         "SNAPBACK_AUTH_RESERVATION_CANCELLED",
         "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE",
+        "SNAPBACK_RANDOM_UNAVAILABLE",
         "SNAPBACK_AUTH_EFFECTIVE_SOURCE_UNAVAILABLE",
         // LLP 0098 §6: forwarding metadata that is absent, malformed,
         // over-long, or presented by an untrusted peer leaves the origin with

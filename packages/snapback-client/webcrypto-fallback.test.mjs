@@ -115,7 +115,9 @@ await withoutGlobalCrypto(() => {
 // --- 3: mutation identity (the M2 queue's exactly-once id) still mints on a
 // --- cryptoless carrier via its established non-crypto uniqueness fallback.
 await withoutGlobalCrypto(() => {
-  assert.match(createClientMutationId(), /^cm_/u);
+  // LLP 0148: the prefix is now the registry's `mut`, but the point of this
+  // case is unchanged — a cryptoless carrier still mints a mutation id.
+  assert.match(createClientMutationId(), /^mut_[0-9a-hjkmnp-tv-z]{26}$/u);
 });
 
 console.log('snapback-client webcrypto fallback tests: ok');

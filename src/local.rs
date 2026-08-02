@@ -75,7 +75,6 @@ use std::sync::Mutex as StdMutex;
 use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU64, Ordering};
 use std::sync::{Arc, PoisonError, RwLock, Weak};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
-use uuid::Uuid;
 
 const MAX_RECENT_DIAGNOSTICS: usize = 100;
 const MAINTENANCE_DIAGNOSTIC_MIN_INTERVAL_MS: u64 = 60_000;
@@ -6921,7 +6920,7 @@ impl LocalSnapback {
             crate::assets::write_receipt(
                 tx,
                 &crate::assets::AssetReceiptV1 {
-                    receipt_id: uuid::Uuid::now_v7().to_string(),
+                    receipt_id: crate::ids::mint_time_ordered(crate::ids::Kind::Receipt),
                     operation_lineage: "asset-cut-export".to_owned(),
                     event: crate::assets::AssetReceiptEventV1::CutExported,
                     asset_id: None,
@@ -6965,7 +6964,7 @@ impl LocalSnapback {
                 crate::assets::write_receipt(
                     tx,
                     &crate::assets::AssetReceiptV1 {
-                        receipt_id: uuid::Uuid::now_v7().to_string(),
+                        receipt_id: crate::ids::mint_time_ordered(crate::ids::Kind::Receipt),
                         operation_lineage: "asset-cut-import".to_owned(),
                         event: crate::assets::AssetReceiptEventV1::CutImportValidated,
                         asset_id: None,
@@ -7013,7 +7012,7 @@ impl LocalSnapback {
             crate::assets::write_receipt(
                 tx,
                 &crate::assets::AssetReceiptV1 {
-                    receipt_id: uuid::Uuid::now_v7().to_string(),
+                    receipt_id: crate::ids::mint_time_ordered(crate::ids::Kind::Receipt),
                     operation_lineage: "asset-cut-import".to_owned(),
                     event: crate::assets::AssetReceiptEventV1::CutImported,
                     asset_id: None,
@@ -9662,7 +9661,7 @@ impl LocalSnapback {
             assets::write_receipt(
                 tx,
                 &assets::AssetReceiptV1 {
-                    receipt_id: uuid::Uuid::now_v7().to_string(),
+                    receipt_id: crate::ids::mint_time_ordered(crate::ids::Kind::Receipt),
                     operation_lineage: "signing-key-rotation".to_owned(),
                     event: assets::AssetReceiptEventV1::SigningKeyRotated,
                     asset_id: None,
@@ -10643,7 +10642,7 @@ impl LocalSnapback {
         }
         Ok(AuthorizedLeaseCapture {
             issue: AuthorizedLeaseIssue {
-                lease_id: format!("lease_{}", Uuid::now_v7().simple()),
+                lease_id: crate::ids::mint_time_ordered(crate::ids::Kind::Lease),
                 lease_request_id: request.lease_request_id,
                 issuer_id,
                 client_store_id: request.client_store_id,
@@ -10841,7 +10840,7 @@ impl LocalSnapback {
             Err(error) => {
                 let correlation = capped_correlation(input.correlation.clone());
                 let receipt_mutation_id = client_mutation_id
-                    .unwrap_or_else(|| format!("mut_{}", Uuid::now_v7().simple()));
+                    .unwrap_or_else(|| crate::ids::mint_time_ordered(crate::ids::Kind::Mutation));
                 self.record_mutation_commit(
                     name,
                     transport,
@@ -10906,7 +10905,7 @@ impl LocalSnapback {
         let correlation = capped_correlation(input.correlation.clone());
         let receipt_mutation_id = client_mutation_id
             .clone()
-            .unwrap_or_else(|| format!("mut_{}", Uuid::now_v7().simple()));
+            .unwrap_or_else(|| crate::ids::mint_time_ordered(crate::ids::Kind::Mutation));
         let staged = self.stage_recorded_authorization_mutation(
             name,
             input,
@@ -10966,7 +10965,7 @@ impl LocalSnapback {
         let correlation = capped_correlation(input.correlation.clone());
         let receipt_mutation_id = client_mutation_id
             .clone()
-            .unwrap_or_else(|| format!("mut_{}", Uuid::now_v7().simple()));
+            .unwrap_or_else(|| crate::ids::mint_time_ordered(crate::ids::Kind::Mutation));
         let result = self.invoke_mutation_commit_with_id_and_authority(
             name,
             input,
@@ -11168,7 +11167,7 @@ impl LocalSnapback {
         let correlation = capped_correlation(input.correlation.clone());
         let receipt_mutation_id = client_mutation_id
             .clone()
-            .unwrap_or_else(|| format!("mut_{}", Uuid::now_v7().simple()));
+            .unwrap_or_else(|| crate::ids::mint_time_ordered(crate::ids::Kind::Mutation));
         let error_correlation = correlation.clone();
         let error_receipt_mutation_id = receipt_mutation_id.clone();
         let staged = (|| -> SnapbackResult<_> {
@@ -11526,7 +11525,7 @@ impl LocalSnapback {
         let admission = prepared.admission_lease().clone();
         let input = prepared.canonicalize_input(input);
         let correlation = capped_correlation(input.correlation.clone());
-        let receipt_mutation_id = format!("mut_{}", Uuid::now_v7().simple());
+        let receipt_mutation_id = crate::ids::mint_time_ordered(crate::ids::Kind::Mutation);
         let result = self.invoke_host_plan_mutation_commit_guarded(
             name,
             input,
@@ -11711,7 +11710,7 @@ impl LocalSnapback {
                 let producer_mutation_id = receipt_mutation_id
                     .map(ToOwned::to_owned)
                     .or_else(|| identity.as_ref().map(|identity| identity.id.clone()))
-                    .unwrap_or_else(|| format!("mut_{}", Uuid::now_v7().simple()));
+                    .unwrap_or_else(|| crate::ids::mint_time_ordered(crate::ids::Kind::Mutation));
                 let (job_enqueues, job_producer) = admit_job_enqueues(
                     &self.functions,
                     executed.job_enqueues,
@@ -11939,7 +11938,7 @@ impl LocalSnapback {
         // enqueue follow-up work only through an explicit mutation). The
         // nested commit mints its own producer identity in the receipt id
         // domain.
-        let producer_mutation_id = format!("mut_{}", Uuid::now_v7().simple());
+        let producer_mutation_id = crate::ids::mint_time_ordered(crate::ids::Kind::Mutation);
         let (job_enqueues, job_producer) = admit_job_enqueues(
             &self.functions,
             executed.job_enqueues,
@@ -13131,7 +13130,7 @@ impl LocalSnapback {
                 .with_details(json!({ "limit": MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION })));
             }
         }
-        let stage_id = format!("live_stage_{}", Uuid::now_v7().simple());
+        let stage_id = crate::ids::mint_time_ordered(crate::ids::Kind::Stage);
         let control = Arc::new(LocalLiveStageControl {
             state: AtomicU8::new(LOCAL_LIVE_STAGE_PENDING),
             connection_id: connection_id.clone(),
@@ -13688,7 +13687,7 @@ impl LocalSnapback {
         // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S2:
         // subscription ids are unguessable bearer capabilities, not enumerable
         // counters; they share the runtime's UUIDv7 id source.
-        let subscription_id = format!("sub_{}", Uuid::now_v7().simple());
+        let subscription_id = crate::ids::mint_time_ordered(crate::ids::Kind::Subscription);
         let _publication = publication_authority.effect_guard("live subscribe publication")?;
         self.touch_connection(&input.connection_id, now_millis());
         let mut authorization_scope = None;
@@ -13712,7 +13711,7 @@ impl LocalSnapback {
                     issuer_id: connection.issuer_id,
                     connection_generation: connection.connection_generation,
                 };
-                let owner_continuity_id = format!("owner_{}", Uuid::now_v7().simple());
+                let owner_continuity_id = crate::ids::mint_time_ordered(crate::ids::Kind::OwnerContinuity);
                 let registration = (|| {
                     state
                         .obligations
@@ -14684,7 +14683,7 @@ impl LocalSnapback {
                     issuer_id: connection.issuer_id.clone(),
                     connection_generation: connection.connection_generation,
                 };
-                let owner_continuity_id = format!("owner_{}", Uuid::now_v7().simple());
+                let owner_continuity_id = crate::ids::mint_time_ordered(crate::ids::Kind::OwnerContinuity);
                 let transfer_cause = if previous.is_some() {
                     Some(state.reserve_cause_sequence()?)
                 } else {

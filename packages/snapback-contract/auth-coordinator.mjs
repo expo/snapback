@@ -4,6 +4,8 @@
 //   durable, serialized state machine per canonical app id; app participants
 //   never own independent current-auth state.
 
+import { ID_PREFIXES, encodeBody } from './ids.mjs';
+
 export const SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION = 2;
 export const SNAPBACK_AUTH_SENDER_CUSTODY_FORMAT_VERSION = 3;
 export const AUTH_CUSTODY_DATABASE_NAME = 'snapback-auth-custody';
@@ -340,18 +342,19 @@ export function deriveServiceAuthorityInstanceId({
     bytes.push(...encoded);
   }
   appendU64(credentialGeneration);
+  // Derived, not minted: the id body is the digest prefix as-is, spelled
+  // through the LLP 0148 registry so a service authority instance reads like
+  // the session arm's `aut_` id. The UUID version/variant bits this used to
+  // stamp described a shape it no longer produces.
+  //
+  // Must stay byte-identical to `service_authority_instance_id` in
+  // src/auth/descriptor.rs; agent-authority-contract.test.mjs pins the vector.
   const digest = sha256Hex(bytes);
-  const uuid = digest.slice(0, 32).split('');
-  uuid[12] = '7';
-  uuid[16] = ((Number.parseInt(uuid[16], 16) & 0x3) | 0x8).toString(16);
-  const compact = uuid.join('');
-  return [
-    compact.slice(0, 8),
-    compact.slice(8, 12),
-    compact.slice(12, 16),
-    compact.slice(16, 20),
-    compact.slice(20),
-  ].join('-');
+  const body = new Uint8Array(16);
+  for (let index = 0; index < 16; index += 1) {
+    body[index] = Number.parseInt(digest.slice(index * 2, index * 2 + 2), 16);
+  }
+  return `${ID_PREFIXES.authorityInstance}_${encodeBody(body)}`;
 }
 
 export function authAppIdHash(appId) {

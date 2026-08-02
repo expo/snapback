@@ -48,6 +48,10 @@
       "types": "./index.d.mts",
       "default": "./index.mjs"
     },
+    "./ids": {
+      "types": "./ids.d.mts",
+      "default": "./ids.mjs"
+    },
     "./capabilities": {
       "types": "./capabilities.d.mts",
       "default": "./capabilities.mjs"

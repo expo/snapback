@@ -18,6 +18,7 @@ import {
   retainedQueryKey,
   stableJson,
 } from '@expo/snapback-contract/client-store';
+import { isMintedIdentifier } from '@expo/snapback-contract/ids';
 import {
   createLiveQueryAuthorizationFence,
   createLiveQueryInstanceAllocator,
@@ -525,7 +526,11 @@ const allocatorForClientStore = (clientStoreId) => {
   return allocator;
 };
 
+// UUID_V7 stays exact for `authorizationStreamIncarnation`, which is an
+// opaque incarnation marker with its own persisted format. Object ids use
+// SNAPBACK_ID, which accepts the pre-LLP-0148 spelling too.
 const UUID_V7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const SNAPBACK_ID = { test: (value) => isMintedIdentifier(value) };
 
 const authorityDescriptorIsValid = (descriptor) => (
   descriptor !== null
@@ -535,7 +540,7 @@ const authorityDescriptorIsValid = (descriptor) => (
     === 'authorityInstanceId,descriptorVersion,sessionGeneration'
   && descriptor.descriptorVersion === 1
   && typeof descriptor.authorityInstanceId === 'string'
-  && UUID_V7.test(descriptor.authorityInstanceId)
+  && SNAPBACK_ID.test(descriptor.authorityInstanceId)
   && Number.isSafeInteger(descriptor.sessionGeneration)
   && descriptor.sessionGeneration >= 0
 );
@@ -1238,12 +1243,12 @@ const projectAuthSessionResponse = (value, requestOffer = null, expectedAppId = 
       : authority.kind === 'humanSession'
         ? (
             authority.isAuthenticated !== true
-            || !UUID_V7.test(authority.userId ?? '')
-            || !UUID_V7.test(authority.sessionId ?? '')
+            || !SNAPBACK_ID.test(authority.userId ?? '')
+            || !SNAPBACK_ID.test(authority.sessionId ?? '')
           )
         : (
             authority.isAuthenticated !== true
-            || !UUID_V7.test(authority.userId ?? '')
+            || !SNAPBACK_ID.test(authority.userId ?? '')
             || authority.sessionId !== null
           ))
     || (authority.kind === 'humanSession'
