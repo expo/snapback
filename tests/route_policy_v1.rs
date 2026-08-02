@@ -187,6 +187,9 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("GET", "/"),
         ("GET", "/health"),
         ("GET", "/inspect"),
+        // LLP 0062 §5: the app-data-plane envelope surface.
+        ("GET", "/app-api/current"),
+        ("GET", "/app-api/envelope/{sha256}"),
         ("GET", "/auth/session"),
         ("POST", "/auth/request-code"),
         ("POST", "/auth/exchange"),

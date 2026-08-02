@@ -24676,6 +24676,136 @@ mod tests {
         assert_ne!(snapback.functions.bundle_hash, functions.bundle_hash);
     }
 
+    fn envelope_members_for(
+        declaration: &str,
+    ) -> crate::api_envelope::ApiEnvelopeMembersV1 {
+        let mut member_digests = std::collections::BTreeMap::new();
+        member_digests.insert(
+            crate::api_envelope::DECLARATION_MEMBER_KEY.to_string(),
+            crate::api_envelope::member_digest(declaration),
+        );
+        crate::api_envelope::ApiEnvelopeMembersV1 {
+            operations: std::collections::BTreeMap::new(),
+            declarations: crate::api_envelope::ApiEnvelopeDeclarationsV1 {
+                app_bindings: declaration.to_string(),
+            },
+            member_digests,
+        }
+    }
+
+    /// The envelope's full server-side lifecycle: compose at activation,
+    /// discover the digest, fetch the retained bytes, rotate on redeploy
+    /// keeping exactly one predecessor, and refuse a composition whose
+    /// members do not bind.
+    ///
+    /// @ref LLP 0062#5-distribution-the-server-advertises-the-server-is-the-version-authority — server-composed at activation (2026-08-01 ruling).
+    #[test]
+    fn app_api_envelope_composes_serves_and_rotates_across_redeploys() {
+        let mut snapback = LocalSnapback::memory().unwrap();
+        let (schema, functions) = auth_artifact_pair(AuthMode::Sessions, 'a');
+        let prepared = snapback
+            .prepare_auth_provision_with_routes(
+                EnsureAppMode::Sessions,
+                Some(schema),
+                Some(functions),
+                None,
+                None,
+                Some(envelope_members_for("export declare const api: unknown;\n")),
+            )
+            .unwrap();
+        let (outcome, _) = snapback.commit_auth_provision(prepared, "test").unwrap();
+        assert_eq!(outcome.api_envelope.as_deref(), Some("composed"));
+
+        // The staged (pending-restart) generation is not the active one, so
+        // discovery honestly reports nothing yet: dev is still active.
+        assert!(snapback.app_api_discovery().unwrap().is_none());
+
+        // The persisted record survives and its bytes are retrievable by
+        // digest — the serving path's only input.
+        let state = snapback.db.load_api_envelope_state().unwrap().unwrap();
+        let first = state.current.expect("first activation recorded an envelope");
+        let bytes = snapback
+            .app_api_envelope_bytes(&first.digest)
+            .unwrap()
+            .expect("composed bytes are retained");
+        let (parsed, identity) =
+            crate::api_envelope::parse_and_validate(bytes.as_bytes()).expect("served bytes admit");
+        assert_eq!(identity, first.digest);
+        assert_eq!(parsed.tuple.auth_mode, "sessions");
+
+        // A redeploy with different members rotates: the new envelope is
+        // current, the predecessor stays fetchable for the deploy race
+        // window, and nothing older survives.
+        let (schema_b, functions_b) = auth_artifact_pair(AuthMode::Sessions, 'b');
+        let prepared_b = snapback
+            .prepare_auth_provision_with_routes(
+                EnsureAppMode::Sessions,
+                Some(schema_b),
+                Some(functions_b),
+                None,
+                None,
+                Some(envelope_members_for("export declare const api: never;\n")),
+            )
+            .unwrap();
+        snapback.commit_auth_provision(prepared_b, "test").unwrap();
+        let rotated = snapback.db.load_api_envelope_state().unwrap().unwrap();
+        let second = rotated.current.expect("redeploy recorded an envelope");
+        assert_ne!(second.digest, first.digest);
+        assert_eq!(rotated.previous.as_deref(), Some(first.digest.as_str()));
+        assert!(
+            snapback
+                .app_api_envelope_bytes(&first.digest)
+                .unwrap()
+                .is_some(),
+            "the predecessor stays fetchable through the deploy race window"
+        );
+    }
+
+    /// A composition whose members do not bind to their digest map refuses
+    /// the activation outright — nothing durable, no envelope, no partial
+    /// state.
+    #[test]
+    fn app_api_envelope_composition_failure_refuses_activation() {
+        let mut snapback = LocalSnapback::memory().unwrap();
+        let (schema, functions) = auth_artifact_pair(AuthMode::Sessions, 'a');
+        let mut members = envelope_members_for("export declare const api: unknown;\n");
+        // The declaration changed while its digest did not.
+        members.declarations.app_bindings = "export declare const api: never;\n".to_string();
+        let prepared = snapback
+            .prepare_auth_provision_with_routes(
+                EnsureAppMode::Sessions,
+                Some(schema),
+                Some(functions),
+                None,
+                None,
+                Some(members),
+            )
+            .unwrap();
+        let error = snapback
+            .commit_auth_provision(prepared, "test")
+            .expect_err("a failing composition refuses activation");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_APP_API_COMPOSITION_FAILED");
+        assert!(
+            snapback.db.load_api_envelope_state().unwrap().is_none(),
+            "a refused activation records no envelope state"
+        );
+    }
+
+    /// An activation without envelope members is explicitly envelope-less:
+    /// admissible, marked, and never a stale predecessor served as current.
+    #[test]
+    fn app_api_envelope_absent_members_activate_without_an_envelope() {
+        let mut snapback = LocalSnapback::memory().unwrap();
+        let (schema, functions) = auth_artifact_pair(AuthMode::Sessions, 'a');
+        let prepared = snapback
+            .prepare_auth_provision(EnsureAppMode::Sessions, Some(schema), Some(functions), None)
+            .unwrap();
+        let (outcome, _) = snapback.commit_auth_provision(prepared, "test").unwrap();
+        assert_eq!(outcome.api_envelope.as_deref(), Some("absent"));
+        let state = snapback.db.load_api_envelope_state().unwrap().unwrap();
+        assert!(state.current.is_none());
+    }
+
     #[test]
     fn sessions_preflight_prepares_module_source_and_export_before_staging() {
         for (source, export, expected) in [
