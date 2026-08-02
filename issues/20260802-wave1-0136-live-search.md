@@ -1,0 +1,29 @@
+# Wave-1 remainder: implement LLP 0136 — live search by coarse re-execution
+
+**Status:** Open
+**Systems:** Live queries, Search, Wire Protocol, Realtime
+**Related:** LLP 0136 (Accepted 2026-07-31, design-only — src/live_matcher.rs
+has no search path; full_text_search_v1 ships non-live), LLP 0073, LLP 0091,
+LLP 0094 (its Appendix B wire amendments), LLP 0155 Move 1 (delta/replace
+classification vocabulary — coordinate)
+
+Implement `live_full_text_search_v1`: live search subscriptions delivered by
+coarse re-execution on table-scoped invalidation. Normative boundaries from
+the spec: v1 restricted to non-auth-scoped subscriptions (sessions-mode
+`owner.v1` refused at admission with a stable reason), offer-gated wire
+negotiation, per-table wake-amplification ceilings.
+
+At landing, apply the spec's own fold-ons: Appendix A's LLP 0073 amendment
+("apply only on acceptance" — acceptance happened, the fold never did) and
+Appendix B's dated 0091/0094 wire amendments — coordinate with the hygiene
+ticket so they land exactly once.
+
+Collision note: this touches src/live_matcher.rs and the delivery
+classification machinery that 0155 Move 1 and the register-cliff ticket
+(20260802-convex-erg-04) also orbit — check both lanes' state before
+starting, and do not run this concurrently with erg-04.
+
+**Exit:** the spec's acceptance obligations as tests (including refusal at
+admission for auth-scoped subscriptions and the ceiling behavior); the
+campfire demo's "design-only" nonclaim flipped honestly; capability id
+registered; dated implementation-record amendment + 0115 CV-11 row updated.
