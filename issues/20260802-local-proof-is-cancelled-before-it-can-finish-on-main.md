@@ -46,6 +46,14 @@ The cancel was a cost optimization for GitHub-hosted minutes. Those lanes now
 run on self-hosted `expo-large`, where a superseded run costs queue capacity
 rather than dollars, so the trade the comment describes has changed.
 
+## Constraint: the landing cadence is fixed (Charlie, 2026-08-02)
+
+The burst cadence on main is deliberate and stays. Any answer that slows
+landings, gates them, or asks agents to wait for a lane is out of scope — do
+not re-propose one. The proof has to fit around the cadence, not the reverse.
+That rules out option 1 below as stated (its queue grows during a burst) and
+makes options 2 and 3 the only shapes worth considering.
+
 ## Options
 
 1. **Don't cancel on main, keep cancelling on PRs.**
