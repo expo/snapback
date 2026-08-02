@@ -29,6 +29,13 @@ updated honestly; dated implementation-record amendment on the LLP.
 
 ## Running log
 
+- **2026-08-02 — main-proof greening handoff.** Gate 8 currently reports
+  `clippy::too_many_arguments` on the test-only `register` helper in
+  `src/push.rs` (landed by `769e7139`). The main-proof lane is leaving this
+  actively owned file untouched to avoid colliding with PUSH-01 send/ledger
+  work; please absorb the warning in the next push landing or signal that the
+  seam is free.
+
 - **2026-08-02 — registry slice implemented, pending landing; send and ledger
   remain.** Prepared PUSH-01a as
   `issues/closed/20260802-push-01a-0143-device-token-registry.md`. The pending

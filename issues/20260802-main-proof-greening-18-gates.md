@@ -53,3 +53,25 @@ but the shape should be similar.
 
 **Exit:** a completed local-proof run on main with zero failed gates; this
 ticket closes citing that run id.
+
+## Running log
+
+- **2026-08-02 — fresh verdict and Rust cluster.** Runs `30765472576` and
+  `30765119646` completed only as cancelled workflow records and emitted no
+  keep-going verdict, so `30762866599` remains the newest completed run with a
+  `KEEP-GOING SUMMARY`; main run `30765621395` is queued and the earlier
+  queue-coalesced run `30763720394` is still in progress. Local
+  `scripts/ibex-doctor` and `scripts/bootstrap-ibex-runtime` are green. Gate 9
+  reproduces as exactly three live-delta fixture failures: `eda8f231` correctly
+  restricted raw-row delta publication to exact schema-derived document
+  contracts, while three older hand-built fixtures still carried the default
+  `Unknown` result contract but expected `live_delta`. The fix-forward keeps
+  the production refusal and makes those fixtures codegen-shaped. Gate 8 also
+  exposes Clippy debt from settlement (`9cad757e`, `38d74e1a`), telemetry
+  (`bf73583d`, `f204fecd`), and the July 31 asset train. Fixing commit
+  `5a2091c5` makes the three live-delta tests pass, extends the exact target
+  capability inventory for `settlement.bounded_skew`, and clears every Clippy
+  finding outside the actively owned push seam.
+  One additional Clippy finding is in the actively owned PUSH-01 lane
+  (`src/push.rs` test helper `register`, landed by `769e7139`); it is recorded
+  here as skipped-for-owner until that lane lands or confirms the seam is free.
