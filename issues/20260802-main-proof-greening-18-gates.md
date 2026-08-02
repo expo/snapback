@@ -239,3 +239,14 @@ ticket closes citing that run id.
   fresh-tree procedure without weakening snippet matching or accepting a stale
   review manifest. The generated-artifact gate, all 142 guide snippets, shell
   syntax, and ref-check pass locally; CI confirmation pending.
+
+- **2026-08-02 — exact-link doctor capacity.** Gate 5 repeatedly reaches the
+  exact five-minute timeout on the hosted proof even though the cached
+  bootstrap build and runtime qualification pass. The doctor must retain its
+  clean disposable target because that is what proves the current checkout,
+  and CI intentionally serializes Cargo to avoid linker SIGBUS failures. The
+  shared exact-link probe now uses a fifteen-minute bound, matching the
+  repository's existing clean package-build ceiling; process-group termination,
+  temporary-target cleanup, and refusal to substitute the cached binary are
+  unchanged. All 12 focused exact-link/doctor tests and ref-check pass locally;
+  hosted confirmation pending.

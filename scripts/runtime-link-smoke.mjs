@@ -38,6 +38,10 @@ import {
 
 const DEFAULT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const MAX_OUTPUT_BYTES = 2 * 1024 * 1024;
+// A clean, disposable target on the serialized CI runner can legitimately
+// spend more than five minutes compiling before it reaches the final link.
+// Keep the probe bounded while leaving enough room for that exact build.
+export const DEFAULT_RUNTIME_LINK_TIMEOUT_MS = 15 * 60_000;
 
 function boundedAppend(current, chunk) {
   const next = current + chunk;
@@ -217,7 +221,7 @@ export async function runRuntimeLinkProbe({
   root = DEFAULT_ROOT,
   cargoCommand = 'cargo',
   environment = process.env,
-  timeoutMs = 5 * 60_000,
+  timeoutMs = DEFAULT_RUNTIME_LINK_TIMEOUT_MS,
   targetDirectory = null,
   keepTarget = false,
 } = {}) {

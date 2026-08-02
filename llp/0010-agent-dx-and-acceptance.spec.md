@@ -5,7 +5,11 @@
 **Systems:** Developer experience, Testing, API, Runtime, Build, Sync, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-08-01 (CV-3 packaged-consumer custody amendment: the
+**Revised:** 2026-08-02 (the shared exact-link probe now allows fifteen
+minutes for its bounded build: a clean disposable target with CI's required
+single Cargo job exceeded the former five-minute ceiling even though the
+checkout's cached bootstrap build succeeded; timeout termination and target
+cleanup are unchanged). 2026-08-01 (CV-3 packaged-consumer custody amendment: the
 installable CLI now exposes `runtime-qualify --persist` / `--verify`, keeping
 the same digest-bound schema under the app-owned
 `.snapback/runtime-readiness.json` path and never writing into read-only
@@ -182,7 +186,10 @@ separately and never substitutes for that proof. Text and JSON modes carry the
 same `snapback.runtime-recovery.v1` record: selected binary and resolver rung,
 expected checkout commit/dirty state, actual binary stamp when inspectable,
 automatic-reuse reason, exact producer inputs, and safe bootstrap or explicit
-binary-override recovery.
+binary-override recovery. The shared probe remains bounded and kills its Cargo
+process group before cleaning the temporary target on timeout; its fifteen-minute
+deadline admits a clean serialized hosted build without accepting a stale or
+cached substitute.
 
 ### Bootstrap diagnostic codes
 

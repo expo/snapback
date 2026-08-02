@@ -17,6 +17,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import test from 'node:test';
 
 import {
+  DEFAULT_RUNTIME_LINK_TIMEOUT_MS,
   extractMissingSymbols,
   runRuntimeLinkProbe,
   stageLinuxLoaderClosure,
@@ -41,6 +42,10 @@ function writeFixture(path, contents = '') {
 function probeTempDirectories() {
   return new Set(readdirSync(tmpdir()).filter((name) => name.startsWith('snapback-runtime-link-')));
 }
+
+test('default exact-link deadline admits a serialized clean CI build', () => {
+  assert.equal(DEFAULT_RUNTIME_LINK_TIMEOUT_MS, 15 * 60_000);
+});
 
 test('Linux exact-link probe stages the public bin/../lib loader closure', () => {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-runtime-link-linux-closure-'));
