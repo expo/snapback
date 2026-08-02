@@ -67,9 +67,23 @@ jobs:
           # with the native engine under test.
           key: ${{ runner.os }}-hermes-${{ hashFiles('vendor/ibex/scripts/hermes-version.sh', 'vendor/ibex/scripts/apply-hermes-patches.sh', 'vendor/ibex/scripts/build-hermes-linux.sh', 'vendor/ibex/patches/hermes/*.patch', 'vendor/ibex/Cargo.toml') }}
 
+      # The self-hosted expo image ships no Rust toolchain (cargo ENOENT),
+      # unlike GitHub's ubuntu-latest. Install rustup bare, then let
+      # rust-toolchain.toml select the reviewed compiler authority.
+      - name: Install the pinned Rust toolchain
+        run: |
+          if ! command -v rustup >/dev/null 2>&1; then
+            curl --proto '=https' --tlsv1.2 -fsSL https://sh.rustup.rs \
+              | sh -s -- -y --default-toolchain none --profile minimal
+          fi
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/.cargo/bin:$PATH"
+          rustup toolchain install
+          rustup show active-toolchain
+
       # Cargo registry + target cache: without it every run cold-compiles the
-      # full dependency tree (and the ibex-runtime C++ glue) on a 2-core
-      # runner — the dominant per-run cost.
+      # full dependency tree (and the ibex-runtime C++ glue) — the dominant
+      # per-run cost.
       - name: Cache Rust build
         uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
 
