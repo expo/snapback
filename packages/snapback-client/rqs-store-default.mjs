@@ -114,17 +114,19 @@ export function resolveDefaultRqsStore({ baseUrl } = {}) {
   if (globalThis.navigator?.product === 'ReactNative') {
     if (nativeRqsFiles === null) return memoryFallback('no-native-files-registered');
     try {
+      const store = createFileRqsResumeStore({
+        directory: nativeRqsFiles.directory,
+        files: nativeRqsFiles.files,
+        identity: originIdentity(baseUrl),
+      });
+      const durable = store.durability().durable === true;
       return {
-        store: createFileRqsResumeStore({
-          directory: nativeRqsFiles.directory,
-          files: nativeRqsFiles.files,
-          identity: originIdentity(baseUrl),
-        }),
+        store,
         info: Object.freeze({
           source: 'default',
           implementation: 'file',
-          durable: true,
-          reason: null,
+          durable,
+          reason: durable ? null : 'native-files-no-power-loss-cut',
         }),
       };
     } catch (error) {

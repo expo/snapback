@@ -540,6 +540,14 @@ const authorityDescriptorIsValid = (descriptor) => (
   && descriptor.sessionGeneration >= 0
 );
 
+const sameAuthorityDescriptor = (left, right) => (
+  authorityDescriptorIsValid(left)
+  && authorityDescriptorIsValid(right)
+  && left.descriptorVersion === right.descriptorVersion
+  && left.authorityInstanceId === right.authorityInstanceId
+  && left.sessionGeneration === right.sessionGeneration
+);
+
 const requireAuthorityDescriptor = (descriptor, code = 'SNAPBACK_AUTH_HANDSHAKE_INVALID') => {
   if (authorityDescriptorIsValid(descriptor)) {
     return Object.freeze({ ...descriptor });
@@ -5114,13 +5122,45 @@ export class SnapbackClient {
     authorityDescriptor = null,
     authorityCapture = null,
   } = {}) {
+    const store = this.#offlineQueueStore();
+    let resolvedAuthorityDescriptor = authorityDescriptor;
+    if (!resolvedAuthorityDescriptor && store && clientMutationIds.length > 0) {
+      const selected = (await store.outboxRecords())
+        .filter((record) => clientMutationIds.includes(record.id));
+      const descriptors = new Map(selected
+        .map((record) => record.settlementAuthorityDescriptor
+          ?? record.settlement?.authorityDescriptor
+          ?? null)
+        .filter(Boolean)
+        .map((record) => [
+          record.authorityInstanceId,
+          record,
+        ]));
+      if (selected.some((record) => !(
+        record.settlementAuthorityDescriptor ?? record.settlement?.authorityDescriptor
+      ))) {
+        const error = new Error(
+          'SNAPBACK_OUTBOX_ACK_AUTHORITY_UNKNOWN: retained settlement has no authority descriptor',
+        );
+        error.code = 'SNAPBACK_OUTBOX_ACK_AUTHORITY_UNKNOWN';
+        throw error;
+      }
+      if (descriptors.size > 1) {
+        const error = new Error(
+          'SNAPBACK_OUTBOX_ACK_AUTHORITY_MIXED: acknowledge one authority cohort per request',
+        );
+        error.code = 'SNAPBACK_OUTBOX_ACK_AUTHORITY_MIXED';
+        throw error;
+      }
+      resolvedAuthorityDescriptor = descriptors.values().next().value ?? null;
+    }
     const body = {
       auth: SnapbackClient.auth(userId),
       clientMutationIds,
     };
-    if (authorityDescriptor) {
+    if (resolvedAuthorityDescriptor) {
       body.authorityDescriptor = requireAuthorityDescriptor(
-        authorityDescriptor,
+        resolvedAuthorityDescriptor,
         'SNAPBACK_AUTHORITY_DESCRIPTOR_INVALID',
       );
     }
@@ -5131,7 +5171,6 @@ export class SnapbackClient {
       undefined,
       { expectedAuthorityCapture: authorityCapture },
     );
-    const store = this.#offlineQueueStore();
     if (store && clientMutationIds.length > 0) {
       await store.outboxConfirmAcknowledgements(
         clientMutationIds,
@@ -5171,6 +5210,8 @@ export class SnapbackClient {
     const capable = store
       && typeof store.outboxEnqueue === 'function'
       && typeof store.outboxPending === 'function'
+      && typeof store.outboxRecords === 'function'
+      && typeof store.outboxMarkAcknowledgementsReady === 'function'
       && typeof store.outboxDurablyConsume === 'function';
     if (!capable) {
       return fail(
@@ -5243,6 +5284,70 @@ export class SnapbackClient {
     }
     this.__outboxListeners.add(listener);
     return () => { this.__outboxListeners.delete(listener); };
+  }
+
+  /// Complete settlements retained across a response-loss/crash cut. Reading
+  /// does not make them ACK-eligible; the application first recovers/publishes
+  /// them, then calls markMutationSettlementsConsumed or acknowledgeMutations.
+  async #currentSettlementRecoveryCohort(devUserId = null) {
+    const userId = typeof devUserId === 'string' ? devUserId : null;
+    if (this.authProtocols.authClient == null) {
+      return { userId, authorityDescriptor: null, enforceAuthorityDescriptor: false };
+    }
+    const session = await this.authSession();
+    const authorityDescriptor = requireAuthorityDescriptor(
+      session?.authorityDescriptor,
+      'SNAPBACK_AUTHORITY_DESCRIPTOR_INVALID',
+    );
+    return {
+      // `record.userId` is the dev-mode body selector, not the authenticated
+      // session principal. Sessions are isolated by the re-attested descriptor.
+      userId: session?.activeMode === 'sessions' ? null : userId,
+      authorityDescriptor,
+      enforceAuthorityDescriptor: true,
+    };
+  }
+
+  async settledMutations({ userId = null } = {}) {
+    const store = this.#offlineQueueStore();
+    if (!store || typeof store.outboxRecords !== 'function') return [];
+    const cohort = await this.#currentSettlementRecoveryCohort(userId);
+    return (await store.outboxRecords())
+      .filter((record) => record?.status === 'settled')
+      .filter((record) => (record.userId ?? null) === cohort.userId)
+      .filter((record) => (
+        !cohort.enforceAuthorityDescriptor
+        || sameAuthorityDescriptor(
+          record.settlementAuthorityDescriptor ?? record.settlement?.authorityDescriptor,
+          cohort.authorityDescriptor,
+        )
+      ))
+      .map((record) => Object.freeze({
+        clientMutationId: record.id,
+        function: record.function,
+        settlement: structuredClone(record.settlement),
+        settledAt: record.settledAt,
+        authorityDescriptor: record.settlementAuthorityDescriptor
+          ?? record.settlement?.authorityDescriptor
+          ?? null,
+      }));
+  }
+
+  async markMutationSettlementsConsumed(clientMutationIds = [], { userId = null } = {}) {
+    const store = this.#offlineQueueStore(true);
+    if (typeof store.outboxMarkAcknowledgementsReady !== 'function') {
+      const error = new Error(
+        'SNAPBACK_OFFLINE_QUEUE_STORE_INCAPABLE: store cannot publish settlement consumption',
+      );
+      error.code = 'SNAPBACK_OFFLINE_QUEUE_STORE_INCAPABLE';
+      throw error;
+    }
+    const cohort = await this.#currentSettlementRecoveryCohort(userId);
+    return store.outboxMarkAcknowledgementsReady(
+      clientMutationIds,
+      cohort.userId,
+      cohort.enforceAuthorityDescriptor ? cohort.authorityDescriptor : undefined,
+    );
   }
 
   /// Terminal-auth fact for rigs and admin tools (0137 A6 f3): a pure
@@ -5514,7 +5619,11 @@ export class SnapbackClient {
     // obligations for this auth identity on the next mutation. A request
     // may not acknowledge its own current id.
     let sentAcknowledgements = [];
-    if (queueStore && acknowledgedClientMutationIds.length === 0) {
+    if (
+      queueStore
+      && body.authorityDescriptor
+      && acknowledgedClientMutationIds.length === 0
+    ) {
       try {
         sentAcknowledgements = (await queueStore.outboxPendingAcknowledgements(
           typeof userId === 'string' ? userId : null,
@@ -5538,19 +5647,20 @@ export class SnapbackClient {
       body.acknowledgedClientMutationIds = acknowledgedClientMutationIds;
     }
     if (ctxLedger) body.ctx_ledger = ctxLedger;
+    const durableMutationRecord = clientMutationId ? {
+      id: clientMutationId,
+      function: name,
+      args,
+      userId: typeof userId === 'string' ? userId : null,
+      readSet,
+      correlation,
+      authorityDescriptor: body.authorityDescriptor ?? null,
+      ctxLedger: ctxLedger ?? null,
+      capturedNow: Date.now(),
+    } : null;
     let durableOnlineRecord = false;
-    if (queueStore && clientMutationId) {
-      await queueStore.outboxEnqueue({
-        id: clientMutationId,
-        function: name,
-        args,
-        userId: typeof userId === 'string' ? userId : null,
-        readSet,
-        correlation,
-        authorityDescriptor: body.authorityDescriptor ?? null,
-        ctxLedger: ctxLedger ?? null,
-        capturedNow: Date.now(),
-      });
+    if (queueStore && durableMutationRecord) {
+      await queueStore.outboxEnqueue(durableMutationRecord);
       durableOnlineRecord = true;
     }
     let reservationRetryAuthorityCapture = authorityCapture;
@@ -5655,8 +5765,10 @@ export class SnapbackClient {
             // {generatedIds} ledger unless the caller supplied one
             // (LLP 0008 §Replay environment contract governs when one
             // exists — replay then transmits it verbatim).
-            const queued = await this.#enqueueOfflineMutation(queueStore, {
-              id: clientMutationId ?? createClientMutationId(),
+            const queued = await this.#enqueueOfflineMutation(
+              queueStore,
+              durableMutationRecord ?? {
+              id: createClientMutationId(),
               function: name,
               args,
               userId: typeof userId === 'string' ? userId : null,
@@ -5665,7 +5777,8 @@ export class SnapbackClient {
               authorityDescriptor: body.authorityDescriptor ?? null,
               ctxLedger: ctxLedger ?? null,
               capturedNow: Date.now(),
-            });
+              },
+            );
             if (queued) return queued;
           }
           if (durableOnlineRecord) {

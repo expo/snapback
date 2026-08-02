@@ -5135,6 +5135,16 @@ impl LocalSnapback {
         })
     }
 
+    pub(crate) fn descriptor_for_prepared_authority(
+        &mut self,
+        authority: &PreparedAuthority,
+    ) -> SnapbackResult<AuthorityDescriptor> {
+        authority.validate_admission("authority descriptor publication")?;
+        self.persist_and_validate_prepared_service_authority(authority)?;
+        let incarnation = self.db.ensure_authorization_stream_incarnation()?;
+        descriptor_for_authority(authority, incarnation.as_str())
+    }
+
     pub(crate) fn acknowledge_client_mutations_with_authority_descriptor(
         &mut self,
         authority: &PreparedAuthority,

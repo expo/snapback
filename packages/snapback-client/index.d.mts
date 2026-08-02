@@ -132,8 +132,23 @@ export interface MutationOutput<Result> {
   readonly changed_count: number;
   readonly result: Result;
   readonly ctx_ledger?: unknown;
+  readonly authorityDescriptor: AuthorityDescriptorV1;
   readonly receipt: Readonly<Record<string, unknown>>;
   readonly attribution?: FunctionAttribution;
+}
+
+export interface AuthorityDescriptorV1 {
+  readonly descriptorVersion: 1;
+  readonly authorityInstanceId: string;
+  readonly sessionGeneration: number;
+}
+
+export interface SettledMutation {
+  readonly clientMutationId: string;
+  readonly function: string;
+  readonly settlement: MutationOutput<unknown>;
+  readonly settledAt: number;
+  readonly authorityDescriptor: AuthorityDescriptorV1 | null;
 }
 
 export interface ActionOutput<Result> {
@@ -775,6 +790,7 @@ export class SnapbackClient {
       readonly args?: FunctionArgs<Ref>;
       readonly userId?: string;
       readonly clientMutationId?: string | null;
+      readonly authorityDescriptor?: AuthorityDescriptorV1 | null;
       readonly queue?: 'auto' | boolean;
     },
   ): Promise<MutationOutput<FunctionResult<Ref>>>;
@@ -784,6 +800,7 @@ export class SnapbackClient {
       readonly args?: Record<string, unknown>;
       readonly userId?: string;
       readonly clientMutationId?: string | null;
+      readonly authorityDescriptor?: AuthorityDescriptorV1 | null;
       readonly queue?: 'auto' | boolean;
     },
   ): Promise<MutationOutput<Result>>;
@@ -791,6 +808,20 @@ export class SnapbackClient {
   readonly rqsStoreInfo: RqsStoreInfo;
   /** Drain the durable outbox in sequence order (single-flight). */
   replayQueuedMutations(): Promise<OutboxReplayOutcome>;
+  /** Complete settlements recoverable after a crash before caller publication. */
+  settledMutations(options?: { readonly userId?: string | null }): Promise<readonly SettledMutation[]>;
+  /** Make recovered settlements eligible for same-authority ACK piggyback. */
+  markMutationSettlementsConsumed(
+    clientMutationIds: readonly string[],
+    options?: { readonly userId?: string | null },
+  ): Promise<number>;
+  /** Send a standalone authority-bound settlement acknowledgement. */
+  acknowledgeMutations(options: {
+    readonly userId?: string;
+    readonly clientMutationIds?: readonly string[];
+    readonly authorityDescriptor?: AuthorityDescriptorV1 | null;
+    readonly authorityCapture?: unknown;
+  }): Promise<unknown>;
   /** Live queued-intent facts for UI projection (LLP 0114 React arm). */
   outboxStatus(): Promise<OutboxStatus>;
   /** Fires after every outbox transition (queue/replay/settle-failure) and

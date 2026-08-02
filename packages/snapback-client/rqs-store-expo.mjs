@@ -68,6 +68,10 @@ export function createExpoFilesAdapter(fileSystem) {
   assertFileSystem(fileSystem);
 
   return {
+    // Expo's current File/Directory projection has no file or directory sync
+    // primitive and its compatibility replacement can be non-atomic. It is
+    // useful persistence, but cannot claim LLP 0043's publication boundary.
+    powerLossDurable: false,
     async mkdir(path) {
       const directory = new fileSystem.Directory(path);
       try {

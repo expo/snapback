@@ -15,6 +15,8 @@
 // @ref LLP 0008#mutation-replay-and-conflict-semantics — ordering uses the
 //   sequence, never a wall clock; drop-and-mark-failed, never retried.
 
+import { canonicalizeClientValueV1 } from './canonical-client-value.mjs';
+
 /// Refusal bounds: exactly-once wins over opportunistic eviction (LLP 0043).
 /// At the cap the store refuses a new record rather than evicting a pending
 /// one. Values sized for a client-held queue, not the server ledger.
@@ -117,6 +119,11 @@ export function normalizeOutboxRecordInput(record) {
   };
 }
 
+const durableReplayIdentity = (record) => {
+  const { capturedNow: _claimOnly, ...identity } = normalizeOutboxRecordInput(record);
+  return identity;
+};
+
 /// Serialized-size guard shared by every arm.
 export function outboxRecordBytes(stored) {
   return utf8Length(JSON.stringify(stored));
@@ -146,9 +153,22 @@ export const outboxOps = {
   enqueue(state, input, now) {
     const normalized = normalizeOutboxRecordInput(input);
     if (state.records[normalized.id]) {
-      // Idempotent re-enqueue of the same durable identity (retry after an
-      // ambiguous enqueue) returns the existing record unchanged.
-      return { state, result: state.records[normalized.id] };
+      // Idempotence is the complete replay identity, never the opaque id
+      // alone. Rebinding one id to another function/input/auth cohort would
+      // let local recovery state disagree with the server's durable ledger.
+      const existing = state.records[normalized.id];
+      const retainedIdentity = durableReplayIdentity(existing);
+      if (
+        canonicalizeClientValueV1(retainedIdentity)
+          !== canonicalizeClientValueV1(durableReplayIdentity(normalized))
+      ) {
+        throw outboxError(
+          'SNAPBACK_OUTBOX_IDENTITY_MISMATCH',
+          'client mutation id is already bound to another durable replay identity',
+          { id: normalized.id },
+        );
+      }
+      return { state, result: existing };
     }
     if (Object.keys(state.records).length >= OUTBOX_MAX_RECORDS) throw outboxFullError();
     const stored = {
@@ -194,16 +214,20 @@ export const outboxOps = {
   discard(state, id) {
     return outboxOps.settle(state, id);
   },
-  recordAck(state, id, userId, authorityDescriptor = null) {
+  recordAck(state, id, userId, authorityDescriptor = null, ready = true) {
     if (state.acks.some((ack) => ack.id === id)) return { state, result: false };
     if (state.acks.length >= OUTBOX_MAX_PENDING_ACKS) throw outboxAckFullError();
-    const descriptor = authorityDescriptor ?? state.records[id]?.authorityDescriptor ?? null;
+    const descriptor = authorityDescriptor
+      ?? state.records[id]?.settlementAuthorityDescriptor
+      ?? state.records[id]?.authorityDescriptor
+      ?? null;
     const acks = [...state.acks, {
       id,
       userId: typeof userId === 'string' ? userId : null,
       authorityInstanceId: typeof descriptor?.authorityInstanceId === 'string'
         ? descriptor.authorityInstanceId
         : null,
+      ready,
     }];
     return { state: { ...state, acks }, result: true };
   },
@@ -222,6 +246,10 @@ export const outboxOps = {
     const stored = {
       ...existing,
       status: 'settled',
+      // The request descriptor is immutable replay identity. The server echo
+      // is a separate custody fact used only to expose and ACK the settlement.
+      settlementAuthorityDescriptor:
+        settlement?.authorityDescriptor ?? existing.settlementAuthorityDescriptor ?? null,
       settlement,
       settledAt: now,
       failure: null,
@@ -233,8 +261,36 @@ export const outboxOps = {
       ...afterConfirmed,
       records: { ...afterConfirmed.records, [id]: stored },
     };
-    const acknowledged = outboxOps.recordAck(withSettlement, id, userId);
+    const acknowledged = outboxOps.recordAck(
+      withSettlement,
+      id,
+      userId,
+      stored.settlementAuthorityDescriptor,
+      false,
+    );
     return { state: acknowledged.state, result: stored };
+  },
+  markAcksReady(state, ids, userId = undefined, authorityDescriptor = undefined) {
+    const selected = new Set(ids);
+    const expectedUser = typeof userId === 'string' ? userId : null;
+    const expectedAuthority = typeof authorityDescriptor?.authorityInstanceId === 'string'
+      ? authorityDescriptor.authorityInstanceId
+      : null;
+    let changed = 0;
+    const acks = state.acks.map((ack) => {
+      if (
+        !selected.has(ack.id)
+        || ack.ready === true
+        || (userId !== undefined && ack.userId !== expectedUser)
+        || (authorityDescriptor !== undefined
+          && (ack.authorityInstanceId ?? null) !== expectedAuthority)
+      ) return ack;
+      changed += 1;
+      return { ...ack, ready: true };
+    });
+    return changed === 0
+      ? { state, result: 0 }
+      : { state: { ...state, acks }, result: changed };
   },
   confirmAcks(state, ids, userId = undefined, authorityDescriptor = undefined) {
     const requested = new Set(ids);
@@ -280,6 +336,7 @@ export const pendingAcknowledgementsFor = (
   authorityDescriptor = null,
 ) => state.acks
   .filter((ack) => ack.userId === (typeof userId === 'string' ? userId : null))
+  .filter((ack) => ack.ready === true)
   .filter((ack) => (
     (ack.authorityInstanceId ?? null)
       === (typeof authorityDescriptor?.authorityInstanceId === 'string'

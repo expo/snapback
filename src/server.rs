@@ -69,7 +69,8 @@ use crate::local::{
     live_stream_text, live_stream_text_with_server_observed,
 };
 use crate::manifest::{
-    ActionReturnValue, ActionStep, AuthInput, AuthMode, AuthRequirement, CtxAnswerLedger,
+    ActionReturnValue, ActionStep, AuthInput, AuthMode, AuthRequirement, AuthorityDescriptor,
+    CtxAnswerLedger,
     FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput, MutationAcknowledgementRequest,
     MutationAcknowledgementResponse, MutationOutput, MutationRequest, QueryOutput, ReadDependency,
     SchemaManifest, SeedData,
@@ -6580,6 +6581,10 @@ pub struct MutationResponse {
     pub result: Value,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ctx_ledger: Option<CtxAnswerLedger>,
+    /// The exact server-derived authority cohort that owns this settlement.
+    /// Clients persist it with the ACK proof; it grants no authority.
+    #[serde(rename = "authorityDescriptor")]
+    pub authority_descriptor: AuthorityDescriptor,
     pub receipt: Receipt,
     /// Server-derived attribution (LLP 0055). Admitted explicitly so the
     /// served bytes and the closed generated schema agree: the route used to
@@ -6704,6 +6709,7 @@ impl MutationResponse {
         output: MutationOutput,
         receipt: Receipt,
         attribution: Option<FunctionAttribution>,
+        authority_descriptor: AuthorityDescriptor,
     ) -> Self {
         // Exhaustive destructuring makes an added MutationOutput field a
         // compile error here instead of silent drift in the public envelope.
@@ -6718,6 +6724,7 @@ impl MutationResponse {
             changed_count,
             result,
             ctx_ledger,
+            authority_descriptor,
             receipt,
             attribution,
         }
@@ -18744,10 +18751,13 @@ async fn invoke_mutation(
     let stage_authority_descriptor = request.authority_descriptor.clone();
     let stage_acknowledgements = request.acknowledged_client_mutation_ids.clone();
     let stage_authority = authority.clone();
-    let (result, receipt) = with_snapback_staged_authorization_write(
+    let (result, receipt, response_authority_descriptor) =
+        with_snapback_staged_authorization_write(
         &state,
         move |snapback| {
-            snapback.stage_recorded_authorization_mutation(
+            let response_authority_descriptor =
+                snapback.descriptor_for_prepared_authority(&stage_authority)?;
+            let (preflight, staged) = snapback.stage_recorded_authorization_mutation(
                 &stage_name,
                 stage_input.clone(),
                 stage_client_mutation_id.clone(),
@@ -18755,9 +18765,14 @@ async fn invoke_mutation(
                 &stage_acknowledgements,
                 "http",
                 stage_authority.clone(),
-            )
+            )?;
+            Ok((preflight, (response_authority_descriptor, staged)))
         },
-        move |snapback, staged| snapback.commit_staged_recorded_authorization_mutation(staged),
+        move |snapback, (response_authority_descriptor, staged)| {
+            snapback
+                .commit_staged_recorded_authorization_mutation(staged)
+                .map(|(result, receipt)| (result, receipt, response_authority_descriptor))
+        },
     )
     .await
     .map_err(ApiError::from)
@@ -18773,6 +18788,7 @@ async fn invoke_mutation(
             output,
             receipt,
             attribution,
+            response_authority_descriptor,
         ))),
         Err(error) => Err(ApiError::with_receipt(error, receipt).with_attribution(attribution)),
     }
@@ -31213,6 +31229,10 @@ globalThis.__snapbackHandlers = {
         assert_eq!(queued["receipt"]["mutation"], "queuedWrite");
         assert_eq!(queued["receipt"]["outcome"], "confirmed");
         assert_eq!(queued["receipt"]["transport"], "http");
+        assert_eq!(
+            queued["authorityDescriptor"], authority_descriptor,
+            "the settlement response must echo the exact descriptor that owns its ACK cohort"
+        );
         assert_eq!(
             queued["attribution"],
             json!({

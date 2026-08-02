@@ -2792,6 +2792,11 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
         changed_count: 1,
         result: json!({ "id": "todo_1" }),
         ctx_ledger: None,
+        authority_descriptor: AuthorityDescriptor {
+            descriptor_version: 1,
+            authority_instance_id: "018f0d90-7b24-7a22-8c33-445566778899".to_owned(),
+            session_generation: 1,
+        },
         receipt: Receipt::Mutation {
             enqueues: Vec::new(),
             mutation_id: "mut_direct_1".to_owned(),

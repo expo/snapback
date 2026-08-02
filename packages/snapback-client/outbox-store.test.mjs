@@ -25,6 +25,67 @@ import {
 } from './outbox-shared.mjs';
 
 const originalFetch = globalThis.fetch;
+const TEST_AUTHORITY_DESCRIPTOR = Object.freeze({
+  descriptorVersion: 1,
+  authorityInstanceId: '018f0d90-7b24-7a22-8c33-445566778899',
+  sessionGeneration: 1,
+});
+const TEST_SESSION_USER_ID = '018f0d90-7b25-7a22-8c33-445566778899';
+
+const sessionHandshake = (authorityDescriptor) => ({
+  protocolVersion: 1,
+  serverStartupNonce: 'outbox-recovery-test',
+  authorizationStreamIncarnation: '018f0d90-7b26-7a22-8c33-445566778899',
+  transitionGeneration: 1,
+  activeMode: 'sessions',
+  desiredMode: 'sessions',
+  modeState: 'settled',
+  appDataAvailability: 'available',
+  quarantineCode: null,
+  clientProtocols: {
+    authClient: 1,
+    authInvalidation: null,
+    authorityDescriptor: 1,
+    authorizedLease: null,
+  },
+  availability: {
+    onlineRequestResponse: { available: true, reason: null },
+    authScopedLive: {
+      available: false,
+      minimumAuthInvalidationProtocol: 1,
+      reason: 'SNAPBACK_AUTH_POLICY_UNAVAILABLE',
+    },
+    retainedReads: {
+      available: false,
+      minimumAuthInvalidationProtocol: 1,
+      minimumAuthorizedLeaseProtocol: 1,
+      reason: 'SNAPBACK_AUTH_POLICY_UNAVAILABLE',
+    },
+    queuedReplay: {
+      available: true,
+      minimumAuthorityDescriptorProtocol: 1,
+      reason: null,
+    },
+  },
+  provider: { key: 'email-code', available: true },
+  transports: ['bearer'],
+  authority: {
+    kind: 'humanSession',
+    userId: TEST_SESSION_USER_ID,
+    sessionId: '018f0d90-7b27-7a22-8c33-445566778899',
+    isAuthenticated: true,
+  },
+  authorityDescriptor,
+  deploymentIdentity: {
+    schemaVersion: 'snapback.v1',
+    authMode: 'sessions',
+    appId: 'outbox-recovery-test',
+    schemaHash: `snapback.v1:sessions:schema:sha256:${'a'.repeat(64)}`,
+    bundleHash: `snapback.v1:sessions:function:sha256:${'b'.repeat(64)}`,
+    inputsHash: `snapback.v1:sessions:inputs:sha256:${'c'.repeat(64)}`,
+  },
+  authorizedLease: null,
+});
 
 // Immediate-grant Web Locks double (single context; enough for the outbox
 // contract — ownership contention is rqs-store.test.mjs territory).
@@ -58,8 +119,24 @@ async function exerciseOutboxContract(store, { label }) {
   assert.equal(first.status, 'pending');
   assert.equal(first.capturedNow, 1234, `${label}: captured clock retained as labeled claim`);
   // Idempotent re-enqueue of the same durable identity.
-  const re = await store.outboxEnqueue({ id: 'cm-1', function: 'createThing' });
+  const re = await store.outboxEnqueue({
+    id: 'cm-1',
+    function: 'createThing',
+    args: { title: 'a' },
+    userId: 'user_a',
+    capturedNow: 1234,
+  });
   assert.equal(re.sequence, 1, `${label}: re-enqueue returns the existing record`);
+  await assert.rejects(
+    () => store.outboxEnqueue({
+      id: 'cm-1',
+      function: 'createThing',
+      args: { title: 'different' },
+      userId: 'user_a',
+      capturedNow: 1234,
+    }),
+    (error) => error.code === 'SNAPBACK_OUTBOX_IDENTITY_MISMATCH',
+  );
   assert.equal(await store.outboxEmpty(), false, `${label}: pending -> non-empty`);
   assert.deepEqual(
     (await store.outboxPending()).map((r) => r.id),
@@ -83,6 +160,8 @@ async function exerciseOutboxContract(store, { label }) {
   // LLP 0090 resume rule — but it stays visible in outboxRecords().
   assert.equal(await store.outboxEmpty(), true, `${label}: only failed records left -> empty for resume`);
   assert.deepEqual((await store.outboxPending()), []);
+  assert.deepEqual(await store.outboxPendingAcknowledgements('user_a', 64), []);
+  await store.outboxMarkAcknowledgementsReady(['cm-2']);
   assert.deepEqual(await store.outboxPendingAcknowledgements('user_a', 64), ['cm-2']);
   assert.deepEqual(
     await store.outboxPendingAcknowledgements('user_b', 64),
@@ -163,6 +242,7 @@ test('ACK custody is scoped by authority instance as well as user', async () => 
     authorityDescriptor: first,
   });
   await store.outboxDurablyConsume('cm-authority', { result: { ok: true } }, 'user_a');
+  await store.outboxMarkAcknowledgementsReady(['cm-authority']);
   assert.deepEqual(await store.outboxPendingAcknowledgements('user_a', 64, first), ['cm-authority']);
   assert.deepEqual(await store.outboxPendingAcknowledgements('user_a', 64, second), []);
   assert.equal(await store.outboxConfirmAcknowledgements(['cm-authority'], 'user_a', second), 0);
@@ -257,6 +337,8 @@ test('file arm retains a consumed settlement and ACK obligation across relaunch'
   const retained = (await relaunched.outboxRecords()).find((record) => record.id === 'cm-settled');
   assert.equal(retained.status, 'settled');
   assert.deepEqual(retained.settlement.result, { id: 'thing_1' });
+  assert.deepEqual(await relaunched.outboxPendingAcknowledgements('user_a'), []);
+  await relaunched.outboxMarkAcknowledgementsReady(['cm-settled']);
   assert.deepEqual(await relaunched.outboxPendingAcknowledgements('user_a'), ['cm-settled']);
   await relaunched.outboxConfirmAcknowledgements(['cm-settled']);
   assert.deepEqual(await relaunched.outboxRecords(), []);
@@ -404,7 +486,11 @@ test('mutate queues on connectivity failure and replays exactly-once', async (t)
   globalThis.fetch = async (_url, init) => {
     const body = JSON.parse(init.body);
     delivered.push(body);
-    return Response.json({ result: { ok: true }, version: 7 });
+    return Response.json({
+      result: { ok: true },
+      version: 7,
+      authorityDescriptor: TEST_AUTHORITY_DESCRIPTOR,
+    });
   };
   const outcome = await client.replayQueuedMutations();
   assert.deepEqual(
@@ -416,21 +502,39 @@ test('mutate queues on connectivity failure and replays exactly-once', async (t)
     [queued.clientMutationId, queuedUpdate.clientMutationId],
     'replay is ordered by sequence and keeps the minted durable identity',
   );
-  // Settled ids became ACK obligations; the next mutation piggybacks them.
-  const acks = await store.outboxPendingAcknowledgements(null, 64);
+  // Settlements survive the crash-before-publication cut and do not become
+  // ACK-eligible until the application explicitly consumes the recovery API.
+  assert.deepEqual(await store.outboxPendingAcknowledgements(null, 64), []);
+  const recovered = await client.settledMutations();
+  assert.deepEqual(
+    recovered.map((entry) => entry.clientMutationId).sort(),
+    [queued.clientMutationId, queuedUpdate.clientMutationId].sort(),
+  );
+  await client.markMutationSettlementsConsumed(
+    recovered.map((entry) => entry.clientMutationId),
+  );
+  // Consumed ids became ACK obligations; the next mutation piggybacks them.
+  const acks = await store.outboxPendingAcknowledgements(
+    null,
+    64,
+    TEST_AUTHORITY_DESCRIPTOR,
+  );
   assert.deepEqual(
     [...acks].sort(),
     [queued.clientMutationId, queuedUpdate.clientMutationId].sort(),
   );
   delivered.length = 0;
-  await client.mutate('createThing', { args: { title: 'online' } });
+  await client.mutate('createThing', {
+    args: { title: 'online' },
+    authorityDescriptor: TEST_AUTHORITY_DESCRIPTOR,
+  });
   assert.deepEqual(
     [...(delivered[0].acknowledgedClientMutationIds ?? [])].sort(),
     [...acks].sort(),
     'next mutation carries the exactly-once ledger GC piggyback',
   );
   assert.deepEqual(
-    await store.outboxPendingAcknowledgements(null, 64),
+    await store.outboxPendingAcknowledgements(null, 64, TEST_AUTHORITY_DESCRIPTOR),
     [],
     'a successful response confirms the sent acknowledgements',
   );
@@ -453,7 +557,11 @@ test('explicit-id online publication is durable before delivery and retires only
   );
   assert.equal(beforeResponse.status, 'pending', 'intent commits before network publication');
 
-  releaseResponse(Response.json({ result: { id: 'thing_1' }, version: 4 }));
+  releaseResponse(Response.json({
+    result: { id: 'thing_1' },
+    version: 4,
+    authorityDescriptor: TEST_AUTHORITY_DESCRIPTOR,
+  }));
   const result = await delivery;
   assert.deepEqual(result.result, { id: 'thing_1' });
   const retained = (await store.outboxRecords()).find(
@@ -461,7 +569,11 @@ test('explicit-id online publication is durable before delivery and retires only
   );
   assert.equal(retained.status, 'settled');
   assert.deepEqual(retained.settlement.result, { id: 'thing_1' });
-  assert.deepEqual(await store.outboxPendingAcknowledgements(null), ['cm-online-durable']);
+  assert.deepEqual(await store.outboxPendingAcknowledgements(null), []);
+  assert.deepEqual(
+    (await client.settledMutations()).map((entry) => entry.clientMutationId),
+    ['cm-online-durable'],
+  );
 
   globalThis.fetch = async () => Response.json({ acknowledged: 1 });
   await client.acknowledgeMutations({ clientMutationIds: ['cm-online-durable'] });
@@ -533,6 +645,116 @@ test('explicit-id server refusal is failed locally and never acknowledged', asyn
   const record = (await store.outboxRecords()).find((item) => item.id === 'cm-online-refused');
   assert.equal(record.status, 'failed');
   assert.deepEqual(await store.outboxPendingAcknowledgements(null), []);
+});
+
+test('explicit id cannot be rebound to another durable replay identity', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  await store.outboxEnqueue({
+    id: 'cm-bound-once',
+    function: 'createThing',
+    args: { title: 'first' },
+    userId: null,
+    readSet: [],
+    correlation: null,
+    authorityDescriptor: null,
+    ctxLedger: null,
+    capturedNow: 1,
+  });
+  let calls = 0;
+  globalThis.fetch = async () => { calls += 1; return Response.json({}); };
+  const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
+  await assert.rejects(
+    () => client.mutate('createThing', {
+      args: { title: 'different' },
+      clientMutationId: 'cm-bound-once',
+    }),
+    (error) => error.code === 'SNAPBACK_OUTBOX_IDENTITY_MISMATCH',
+  );
+  assert.equal(calls, 0, 'identity mismatch refuses before delivery');
+  assert.deepEqual((await store.outboxPending())[0].args, { title: 'first' });
+});
+
+test('server settlement descriptor enriches ACK custody without rebinding request identity', async () => {
+  const store = createDurableTestStore();
+  const intent = {
+    id: 'cm-descriptor-enrichment',
+    function: 'createThing',
+    args: { title: 'same request' },
+    userId: null,
+    readSet: [],
+    correlation: null,
+    authorityDescriptor: null,
+    ctxLedger: null,
+    capturedNow: 1,
+  };
+  await store.outboxEnqueue(intent);
+  await store.outboxDurablyConsume(
+    intent.id,
+    { result: { id: 'thing_1' }, authorityDescriptor: TEST_AUTHORITY_DESCRIPTOR },
+    null,
+  );
+  const retained = await store.outboxEnqueue({ ...intent, capturedNow: 2 });
+  assert.equal(retained.status, 'settled');
+  assert.equal(retained.authorityDescriptor, null, 'captured request identity stays immutable');
+  assert.deepEqual(retained.settlementAuthorityDescriptor, TEST_AUTHORITY_DESCRIPTOR);
+});
+
+test('crash recovery exposes and consumes only the re-attested authority cohort', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const predecessor = {
+    ...TEST_AUTHORITY_DESCRIPTOR,
+    authorityInstanceId: '018f0d90-7b28-7a22-8c33-445566778899',
+  };
+  for (const [id, descriptor, secret] of [
+    ['cm-predecessor-settlement', predecessor, 'predecessor-only'],
+    ['cm-current-settlement', TEST_AUTHORITY_DESCRIPTOR, 'current-only'],
+  ]) {
+    await store.outboxEnqueue({
+      id,
+      function: 'createThing',
+      args: {},
+      userId: null,
+      authorityDescriptor: null,
+    });
+    await store.outboxDurablyConsume(
+      id,
+      { result: { secret }, authorityDescriptor: descriptor },
+      null,
+    );
+  }
+  globalThis.fetch = async (url) => {
+    assert.match(String(url), /\/auth\/session$/);
+    return Response.json(sessionHandshake(TEST_AUTHORITY_DESCRIPTOR));
+  };
+  const client = new SnapbackClient('https://recovery.example', {
+    bearerToken: 'sbs_current_recovery_bearer',
+    authClientProtocol: 1,
+    rqsStore: store,
+  });
+  const recovered = await client.settledMutations();
+  assert.deepEqual(
+    recovered.map((entry) => entry.clientMutationId),
+    ['cm-current-settlement'],
+  );
+  assert.deepEqual(recovered[0].settlement.result, { secret: 'current-only' });
+  assert.equal(
+    await client.markMutationSettlementsConsumed([
+      'cm-predecessor-settlement',
+      'cm-current-settlement',
+    ]),
+    1,
+    'a successor cannot make its predecessor settlement ACK-eligible',
+  );
+  assert.deepEqual(
+    await store.outboxPendingAcknowledgements(null, 64, TEST_AUTHORITY_DESCRIPTOR),
+    ['cm-current-settlement'],
+  );
+  assert.deepEqual(
+    await store.outboxPendingAcknowledgements(null, 64, predecessor),
+    [],
+  );
 });
 
 test('post-response persistence failure remains pending and is never published as failed', async (t) => {

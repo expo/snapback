@@ -313,7 +313,14 @@ durable record from replayable `pending` to non-replayable `settled`, retaining
 the complete response and adding its auth-tagged acknowledgement obligation in
 the same store transaction. The file arm flushes bytes and synchronizes the
 parent directory after its atomic rename. If that write cannot commit, the result is not
-published, is not marked failed, and the original id remains replayable. A typed server refusal is a
+published, is not marked failed, and the original id remains replayable. On
+relaunch, read `client.settledMutations()` before new work and either call
+`markMutationSettlementsConsumed(ids)` to make those results piggyback-ACK
+eligible or send `acknowledgeMutations(...)` directly. Until then, automatic
+ACK delivery cannot delete the recovery copy. In authenticated mode recovery
+first re-attests the current session and returns only settlements from that
+exact server-echoed authority cohort; predecessor results remain opaque in the
+store until their authority returns. A typed server refusal is a
 visible terminal `failed` record and is never acknowledged as the current id;
 a receipt-less outcome stays pending.
 
@@ -328,13 +335,20 @@ durable RQS store (the Node default is file-backed), or explicitly opt out of
 queue custody and its guarantee.
 
 ACK records are scoped by user and, when supplied, the server-issued authority
-instance. Piggyback selects only the current cohort. For standalone session or
+instance echoed on every successful mutation response. That settlement
+descriptor is stored separately from the immutable descriptor captured with
+the original request, so enrichment cannot change its replay identity.
+Piggyback selects only
+the current cohort and only results explicitly marked consumed. For standalone session or
 service-principal completion, pass that record's `authorityDescriptor`; the
 server compares it before GC and the client removes only matching local
 proofs. An authority change therefore retains the predecessor proof rather
 than leaking its id into, or deleting it under, the successor. A volatile
 memory fallback reports `durable: false`, does not auto-queue, and refuses
-`queue: true` before network dispatch.
+`queue: true` before network dispatch. The current Expo file adapter makes the
+same conservative report because its File/Directory API exposes no fsync cut
+and has a non-atomic compatibility replacement; it can cache RQS rows but does
+not own durable settlement publication.
 
 Deploying a bundle that removes or renames the mutation does not strand an
 already committed result. Until ACK, the server can recover it through the

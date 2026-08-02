@@ -110,7 +110,7 @@ test('Expo store defaults under Paths.document, survives relaunch, and reclaims 
   const first = createExpoRqsResumeStore({ fileSystem });
   await first.whenLockSettled();
   assert.equal(first.isWriter(), true);
-  assert.deepEqual(first.durability(), { implementation: 'file', durable: true });
+  assert.deepEqual(first.durability(), { implementation: 'file', durable: false });
   assert.equal((await first.commit(key, makeEntry())).persisted, true);
   assert.equal(expectedDirectory.exists, true);
   assert.deepEqual((await first.load(key)).rows, ROWS);
@@ -160,7 +160,7 @@ test('corrupt bytes fail closed in place until explicit wipe', async (t) => {
   await second.close();
 });
 
-test('default ladder registers Expo for RN, isolates origins, resets, and leaves node intact', async (t) => {
+test('default ladder registers Expo for RN without claiming power-loss durability, isolates origins, resets, and leaves node intact', async (t) => {
   const fake = await makeFake(t);
   const originalNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
   const restoreNavigator = () => {
@@ -185,7 +185,7 @@ test('default ladder registers Expo for RN, isolates origins, resets, and leaves
     await two.store.whenLockSettled();
     assert.deepEqual(
       { implementation: one.info.implementation, durable: one.info.durable },
-      { implementation: 'file', durable: true },
+      { implementation: 'file', durable: false },
     );
     const key = rqsEntryKey('listCells', {});
     await one.store.commit(key, makeEntry(1));

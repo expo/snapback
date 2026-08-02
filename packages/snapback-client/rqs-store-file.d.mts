@@ -9,6 +9,7 @@ export const RQS_FILE_STORE_FORMAT: string;
 /** Injectable filesystem adapter (the Node default lazily loads `node:fs`;
  * Hermes/React Native hosts inject their own over the platform FS). */
 export interface RqsFilesAdapter {
+  readonly powerLossDurable?: boolean;
   mkdir(path: string): Promise<void>;
   /** null when the file does not exist. */
   readFile(path: string): Promise<string | null>;

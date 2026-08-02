@@ -227,10 +227,19 @@ transitions are:
 2. **settled / acknowledgement-pending** — after an authoritative result is
    received, one atomic store transaction retains the complete response,
    marks the intent non-replayable, and adds the ACK obligation tagged by
-   both user and authority-instance descriptor when that protocol is present.
+   both user and the server-echoed authority-instance descriptor. The ACK is
+   not eligible for automatic delivery yet.
    Only after that transaction commits may the result be published to the
    caller. There is no intermediate published-but-unrecoverable state.
-3. **acknowledged / removed** — only proof that the server processed a
+3. **durably consumed / acknowledgement-ready** — after a crash or relaunch,
+   `settledMutations()` re-attests the current authority and republishes only
+   responses from that exact user/authority cohort; nonmatching predecessor
+   results remain opaque and retained. The application
+   then calls `markMutationSettlementsConsumed(ids)` to admit piggyback ACK,
+   or sends an explicit standalone ACK for those ids. This explicit cut
+   prevents a later mutation from deleting the only recovery copy before its
+   result has been observed.
+4. **acknowledged / removed** — only proof that the server processed a
    standalone or piggyback ACK permits one atomic local transition to remove
    both the retained settlement and its ACK obligation.
 
@@ -254,6 +263,10 @@ of queue custody and accept that stdout/report publication is not durable
 recovery. An in-memory injected store is an explicitly reported degraded test
 arm, not a durable-consumption claim: automatic queueing is disabled on it and
 `queue: true` produces a typed durability refusal before dispatch.
+The Expo File/Directory adapter currently reports `durable: false` for this
+purpose: its API exposes neither a file/directory sync primitive nor an always
+atomic replacement. It may persist RQS cache state but cannot own settlement
+publication until the platform supplies that cut.
 
 Piggyback is the normal amortized path: pending ACKs for the same user and
 authority-instance cohort
@@ -263,7 +276,10 @@ callers and quiet apps. Both are idempotent. A lost or receipt-less ACK response
 retains the local obligation and retries it; a successful standalone response,
 a successful mutation response, or a rejected mutation carrying the
 provider-core receipt proves the server ACK stage ran and permits local GC.
-An optional descriptor on the standalone request is re-attested before GC;
+Every successful mutation response echoes its server-derived descriptor, which
+the client stores with the settlement separately from the immutable request
+descriptor that is part of the replay identity. A descriptor on the standalone request
+is re-attested before GC;
 local confirmation is restricted to that exact cohort, so a new grant or
 authority cannot silently discard an old cohort's only retry proof.
 

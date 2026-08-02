@@ -221,6 +221,13 @@ export function createMemoryRqsResumeStore({
       return pendingAcknowledgementsFor(outbox, userId, limit, authorityDescriptor);
     },
 
+    async outboxMarkAcknowledgementsReady(ids, userId = undefined, authorityDescriptor = undefined) {
+      requireWriter();
+      const applied = outboxOps.markAcksReady(outbox, ids, userId, authorityDescriptor);
+      outbox = applied.state;
+      return applied.result;
+    },
+
     async outboxConfirmAcknowledgements(ids, userId = undefined, authorityDescriptor = undefined) {
       requireWriter();
       const applied = outboxOps.confirmAcks(outbox, ids, userId, authorityDescriptor);

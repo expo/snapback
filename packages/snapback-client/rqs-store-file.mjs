@@ -126,6 +126,7 @@ export function createNodeFilesAdapter() {
   };
   const missing = (error) => error?.code === 'ENOENT';
   return {
+    powerLossDurable: true,
     trackLockForExitCleanup(path) {
       exitLockCleanup.paths.add(path);
       if (!exitLockCleanup.hooked && typeof globalThis.process?.on === 'function') {
@@ -411,7 +412,7 @@ export function createFileRqsResumeStore({
     /// Degradation-mode capability fact (DK-9: capability reports name the
     /// store implementation and degradation mode in force).
     durability() {
-      return { implementation: 'file', durable: true };
+      return { implementation: 'file', durable: files.powerLossDurable === true };
     },
 
     /// LLP 0090 D3 outbox rule input: false whenever this arm's own durable
@@ -505,6 +506,13 @@ export function createFileRqsResumeStore({
         limit,
         authorityDescriptor,
       ));
+    },
+
+    async outboxMarkAcknowledgementsReady(ids, userId = undefined, authorityDescriptor = undefined) {
+      requireOpen();
+      return serialized(async () => (await outboxWrite(
+        (outbox) => outboxOps.markAcksReady(outbox, ids, userId, authorityDescriptor),
+      )).result);
     },
 
     async outboxConfirmAcknowledgements(ids, userId = undefined, authorityDescriptor = undefined) {
