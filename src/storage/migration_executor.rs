@@ -2587,6 +2587,7 @@ impl LocalDatabase {
                 None,
                 constants.publication_timestamp_ms,
                 None,
+                "migration/backfill-page",
                 Some(BACKFILL_BATCH_ROWS),
                 boundary.as_ref(),
                 true,
@@ -2621,6 +2622,7 @@ impl LocalDatabase {
                     &bindings,
                     constants.publication_timestamp_ms,
                     None,
+                    "migration/backfill-expression",
                 )?;
                 let existing = row.get(field).cloned().unwrap_or(Value::Null);
                 if existing == value {
@@ -2718,6 +2720,7 @@ impl LocalDatabase {
                         &bindings,
                         constants.publication_timestamp_ms,
                         None,
+                        "migration/backfill-fields",
                     )?;
                     if row.get(dest_field).cloned().unwrap_or(Value::Null) != value {
                         content_changed = true;
@@ -2814,6 +2817,7 @@ impl LocalDatabase {
                     &bindings,
                     constants.publication_timestamp_ms,
                     None,
+                    "migration/copy-expression",
                 )?;
                 let field_manifest = dest_table.field(field);
                 let sql_value =
@@ -3138,6 +3142,7 @@ fn run_data_proof(
                                 &bindings,
                                 constants.publication_timestamp_ms,
                                 None,
+                                "migration/verify-fields",
                             )?;
                             if row.get(dest).cloned().unwrap_or(Value::Null) != value {
                                 content_changed = true;
@@ -3238,6 +3243,7 @@ fn run_data_proof(
                                 &bindings,
                                 constants.publication_timestamp_ms,
                                 None,
+                                "migration/verify-writes",
                             )?;
                             if !value.is_null() {
                                 content_changed = true;
@@ -3393,6 +3399,7 @@ fn read_id_page(
         None,
         0,
         None,
+        "migration/page",
         Some(BACKFILL_BATCH_ROWS),
         boundary.as_ref(),
         true,

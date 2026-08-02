@@ -5718,6 +5718,17 @@ pub struct SettlementMintClaim {
     pub occurrence: u32,
 }
 
+/// One server-observed HostPlan mint. This is retained inside the exactly-once
+/// output so duplicate delivery can reconstruct the same private receipt map;
+/// the direct HTTP response exposes only the map, not this internal ledger.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(crate) struct SettlementMintObservation {
+    pub id: String,
+    pub site: String,
+    pub occurrence: u32,
+}
+
 fn settlement_claim_set_version() -> u32 {
     1
 }
@@ -6128,6 +6139,20 @@ pub struct MutationOutput {
     /// server-retained (D1 wire split).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ctx_ledger: Option<CtxAnswerLedger>,
+    /// Server-owned logical mint observations retained for lane-L receipt
+    /// reconstruction. The public mutation envelope exhaustively strips this
+    /// implementation ledger and exposes only its claim-keyed `idMap`.
+    ///
+    /// @ref LLP 0133#divergence-on-settle — authoritative ids are paired only
+    ///   by logical mint identity, never by their ctx-ledger positions.
+    #[doc(hidden)]
+    #[serde(
+        default,
+        rename = "_settlementMintObservations",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    #[schemars(skip)]
+    pub(crate) settlement_mint_observations: Vec<SettlementMintObservation>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]

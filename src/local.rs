@@ -44,7 +44,8 @@ use crate::live_matcher::{
 use crate::live_wire::{
     AuthorizationInvalidationSnapshot, LiveDeltaOpKind, LiveDeltaWireOp, LiveEnvelope,
     LiveSocketServerFrame, MutationReceiptOutcome, Receipt, ResumeFromToken, ResumeMeta,
-    ResumeWire, SettlementClaim, SettlementClaimDisposition, SubscriptionReceiptEvent,
+    ResumeWire, SettlementClaim, SettlementClaimDisposition, SettlementIdMapDisposition,
+    SettlementIdMapEntry, SubscriptionReceiptEvent,
 };
 use crate::manifest::{
     ActionPlan, ActionReturnValue, ActionStep, ArtifactGeneration, AuthInput, AuthMode,
@@ -53,7 +54,7 @@ use crate::manifest::{
     FunctionResultContract, FunctionRuntime, HandlerInput, HandlerPlan, MutationOutput,
     MutationSettlement, MutationStep, PermissionScopeExpr, PublicFunctionManifest,
     PublicSchemaManifest, QueryOutput, QueryPlan, SNAPBACK_SCHEMA_VERSION, SchemaManifest, SeedData,
-    SettlementLane,
+    SettlementLane, SettlementMintObservation,
     TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX, ValueExpr, auth_fingerprint, ctx_ledger_version,
     legacy_auth_fingerprint,
 };
@@ -1637,6 +1638,7 @@ fn accepted_claim_ledger(ledger: Option<&CtxAnswerLedger>) -> Vec<SettlementClai
 fn rederived_claim_ledger(
     settlement: &MutationSettlement,
     ledger: Option<&CtxAnswerLedger>,
+    authoritative_mints: &[SettlementMintObservation],
 ) -> Vec<SettlementClaim> {
     let Some(recorded) = settlement.claims.as_ref() else {
         return Vec::new();
@@ -1651,28 +1653,107 @@ fn rederived_claim_ledger(
             skew_ms: None,
         });
     }
-    // Ticket 04 adds authoritative logical-mint observations and fills these
-    // values only on an exact (site, occurrence) match. Until then, retaining
-    // the claim with `null` authority is safer than positional guessing.
-    // @ref LLP 0133#divergence-on-settle — an absent logical match is never
-    //   inferred from equal counts or positional coincidence.
+    let authoritative = authoritative_mints_by_key(authoritative_mints);
+    let claim_counts = recorded.mints.iter().fold(BTreeMap::new(), |mut counts, mint| {
+        *counts
+            .entry((mint.site.clone(), mint.occurrence))
+            .or_insert(0_usize) += 1;
+        counts
+    });
     claims.extend(recorded.mints.iter().map(|mint| SettlementClaim {
         field_or_slot: format!("{}[{}]", mint.site, mint.occurrence),
         claimed: Value::String(mint.claimed.clone()),
-        authoritative: Value::Null,
+        authoritative: exact_authoritative_mint(mint, &claim_counts, &authoritative)
+            .map_or(Value::Null, |id| Value::String(id.to_owned())),
         disposition: SettlementClaimDisposition::ReDerived,
         skew_ms: None,
     }));
     claims
 }
 
+fn authoritative_mints_by_key(
+    observations: &[SettlementMintObservation],
+) -> BTreeMap<(String, u32), Vec<String>> {
+    observations.iter().fold(BTreeMap::new(), |mut by_key, mint| {
+        by_key
+            .entry((mint.site.clone(), mint.occurrence))
+            .or_insert_with(Vec::new)
+            .push(mint.id.clone());
+        by_key
+    })
+}
+
+fn exact_authoritative_mint<'a>(
+    claim: &crate::manifest::SettlementMintClaim,
+    claim_counts: &BTreeMap<(String, u32), usize>,
+    authoritative: &'a BTreeMap<(String, u32), Vec<String>>,
+) -> Option<&'a str> {
+    if claim.site.is_empty()
+        || claim_counts.get(&(claim.site.clone(), claim.occurrence)) != Some(&1)
+    {
+        return None;
+    }
+    let candidates = authoritative.get(&(claim.site.clone(), claim.occurrence))?;
+    (candidates.len() == 1).then(|| candidates[0].as_str())
+}
+
+fn settlement_id_map(
+    settlement: &MutationSettlement,
+    authoritative_mints: &[SettlementMintObservation],
+) -> Option<Vec<SettlementIdMapEntry>> {
+    if settlement.lane != SettlementLane::ReDerive {
+        return None;
+    }
+    // Exact key equality is the complete construction rule. Equal total
+    // counts, neighboring ctx-ledger positions, or a plausible table prefix
+    // cannot rescue a missing key. Duplicate keys are ambiguous and therefore
+    // become unmapped too.
+    // @ref LLP 0133#divergence-on-settle — no cross-site or count-based id
+    //   pairing; within-site occurrence is the explicitly retained OQ2 residue.
+    let recorded = settlement.claims.as_ref();
+    let claim_counts = recorded.into_iter().flat_map(|claims| &claims.mints).fold(
+        BTreeMap::new(),
+        |mut counts, mint| {
+            *counts
+                .entry((mint.site.clone(), mint.occurrence))
+                .or_insert(0_usize) += 1;
+            counts
+        },
+    );
+    let authoritative = authoritative_mints_by_key(authoritative_mints);
+    Some(
+        recorded
+            .into_iter()
+            .flat_map(|claims| &claims.mints)
+            .map(|mint| {
+                let authoritative = exact_authoritative_mint(mint, &claim_counts, &authoritative)
+                    .map(str::to_owned);
+                SettlementIdMapEntry {
+                    speculative: mint.claimed.clone(),
+                    disposition: if authoritative.is_some() {
+                        SettlementIdMapDisposition::Mapped
+                    } else {
+                        SettlementIdMapDisposition::Unmapped
+                    },
+                    authoritative,
+                    site: mint.site.clone(),
+                    occurrence: mint.occurrence,
+                }
+            })
+            .collect(),
+    )
+}
+
 fn settlement_claim_ledger(
     settlement: &MutationSettlement,
     ledger: Option<&CtxAnswerLedger>,
+    authoritative_mints: &[SettlementMintObservation],
 ) -> Vec<SettlementClaim> {
     match settlement.lane {
         SettlementLane::ReplayAccept => accepted_claim_ledger(ledger),
-        SettlementLane::ReDerive => rederived_claim_ledger(settlement, ledger),
+        SettlementLane::ReDerive => {
+            rederived_claim_ledger(settlement, ledger, authoritative_mints)
+        }
     }
 }
 
@@ -11636,13 +11717,21 @@ impl LocalSnapback {
             .function(name)
             .map(|function| function.write_set_summary.tables.clone())
             .filter(|tables| !tables.is_empty());
-        let (outcome, rollback_reason, snapshot_version, claim_ledger, enqueues, result) =
+        let (outcome, rollback_reason, snapshot_version, claim_ledger, id_map, enqueues, result) =
             match result {
                 Ok(commit) => (
                     MutationReceiptOutcome::Confirmed,
                     None,
                     Some(commit.output.version),
-                    settlement_claim_ledger(settlement, commit.output.ctx_ledger.as_ref()),
+                    settlement_claim_ledger(
+                        settlement,
+                        commit.output.ctx_ledger.as_ref(),
+                        &commit.output.settlement_mint_observations,
+                    ),
+                    settlement_id_map(
+                        settlement,
+                        &commit.output.settlement_mint_observations,
+                    ),
                     commit.job_enqueues.clone(),
                     Ok(commit),
                 ),
@@ -11653,7 +11742,8 @@ impl LocalSnapback {
                     // values (§3.3 privacy).
                     Some(error.diagnostic.code.clone()),
                     Some(version),
-                    Vec::new(),
+                    settlement_claim_ledger(settlement, None, &[]),
+                    settlement_id_map(settlement, &[]),
                     Vec::new(),
                     Err(error),
                 ),
@@ -11661,7 +11751,8 @@ impl LocalSnapback {
                     MutationReceiptOutcome::Rejected,
                     Some(version_error.diagnostic.code.clone()),
                     None,
-                    Vec::new(),
+                    settlement_claim_ledger(settlement, None, &[]),
+                    settlement_id_map(settlement, &[]),
                     Vec::new(),
                     Err(version_error),
                 ),
@@ -11675,6 +11766,7 @@ impl LocalSnapback {
             //   selects policy per mutation and is echoed as observed fact.
             settlement_lane: settlement.lane,
             claim_ledger: Some(claim_ledger),
+            id_map,
             rollback_reason,
             affected_tables,
             snapshot_version,
@@ -23666,7 +23758,7 @@ fn eval_action_expr(
     metadata: &CronRunMetadata,
     snapback: &LocalSnapback,
 ) -> SnapbackResult<Value> {
-    let generate_id = || Ok(snapback.db.generate_id());
+    let generate_id = |_site: &str| Ok(snapback.db.generate_id());
     let env = crate::value_expr::ExprEnv {
         args: &input.args,
         auth_user_id: input.auth.user_id.as_deref(),
@@ -24469,7 +24561,8 @@ mod tests {
         RetryReservationKind, SnapbackError, SnapbackResult, StagedNestedMutation,
         next_secret_read_reset_generation, now_millis,
         refuse_unprovenanced_host_plan_authority_creation, reserve_unique_generation,
-        validate_bounded_children_schema_plan, validate_function_schema_references,
+        settlement_id_map, validate_bounded_children_schema_plan,
+        validate_function_schema_references,
     };
     use crate::admin::ServerProfile;
     use crate::auth::admission::AdmissionController;
@@ -24495,10 +24588,10 @@ mod tests {
         IndexManifest, MembershipManifest, MembershipPredicate, MembershipResourceRef,
         MembershipScope, MutationOutput, MutationPlan, MutationSettlement, MutationStep,
         PermissionScopeExpr, QueryPlan, ReturnValue, SchemaManifest, SeedData, SettlementClaimSet,
-        SettlementIdentityClaims, SettlementLane, SettlementMintClaim, TableManifest, ValueExpr,
-        ctx_ledger_version,
+        SettlementIdentityClaims, SettlementLane, SettlementMintClaim, SettlementMintObservation,
+        TableManifest, ValueExpr, ctx_ledger_version,
     };
-    use crate::live_wire::Receipt;
+    use crate::live_wire::{Receipt, SettlementIdMapDisposition};
     use crate::runtime::ExecutedIbexMutation;
     use crate::search::types::{
         SEARCH_ANALYZER, SEARCH_CAPABILITY, SEARCH_PARSER, SearchFieldClassV1,
@@ -38441,12 +38534,35 @@ globalThis.__snapbackHandlers = {
                 return_value: Some(ReturnValue::ChangedCount),
             })),
         );
+        let branch_function = FunctionDefinition::new(
+            "writeBranchId",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![MutationStep::Insert {
+                    table: "items".to_owned(),
+                    values: BTreeMap::from([
+                        ("capturedAt".to_owned(), ValueExpr::Literal(json!(0))),
+                        ("observedAt".to_owned(), ValueExpr::Literal(json!(0))),
+                        (
+                            "token".to_owned(),
+                            ValueExpr::If {
+                                cond: Box::new(ValueExpr::Arg("serverBranch".to_owned())),
+                                then: Box::new(ValueExpr::RuntimeId),
+                                r#else: Box::new(ValueExpr::RuntimeId),
+                            },
+                        ),
+                    ]),
+                    bind_id_as: None,
+                }],
+                return_value: Some(ReturnValue::ChangedCount),
+            })),
+        );
         let mut snapback = LocalSnapback::memory().expect("memory lane settlement fixture");
         snapback
             .apply_schema(schema)
             .expect("apply lane settlement schema");
         let diagnostics = snapback.load_functions(FunctionManifest {
-            functions: vec![function],
+            functions: vec![function, branch_function],
             ..FunctionManifest::default()
         });
         assert!(
@@ -38574,12 +38690,12 @@ globalThis.__snapbackHandlers = {
                 mints: vec![
                     SettlementMintClaim {
                         claimed: ids[0].to_owned(),
-                        site: "insert:items".to_owned(),
+                        site: "plan/steps/0/insert/row-id".to_owned(),
                         occurrence: 0,
                     },
                     SettlementMintClaim {
                         claimed: ids[1].to_owned(),
-                        site: "value:token".to_owned(),
+                        site: "plan/steps/0/insert/values/token".to_owned(),
                         occurrence: 0,
                     },
                 ],
@@ -38643,16 +38759,41 @@ globalThis.__snapbackHandlers = {
         assert_eq!(time_claim["claimed"], 7);
         assert_eq!(time_claim["authoritative"], authoritative.now);
         assert_eq!(time_claim["disposition"], "re-derived");
-        assert!(
-            local_claims
-                .iter()
-                .filter(|claim| {
-                    claim["claimed"] == LOCAL_ROW || claim["claimed"] == LOCAL_TOKEN
-                })
-                .all(|claim| {
-                    claim["authoritative"].is_null() && claim["disposition"] == "re-derived"
-                })
+        let row_claim = local_claims
+            .iter()
+            .find(|claim| claim["claimed"] == LOCAL_ROW)
+            .expect("row id claim");
+        assert_eq!(row_claim["authoritative"], authoritative.ids[0]);
+        let token_claim = local_claims
+            .iter()
+            .find(|claim| claim["claimed"] == LOCAL_TOKEN)
+            .expect("field id claim");
+        assert_eq!(token_claim["authoritative"], authoritative.ids[1]);
+        let id_map = local_receipt["idMap"].as_array().expect("lane-L id map");
+        assert_eq!(id_map[0]["speculative"], LOCAL_ROW);
+        assert_eq!(id_map[0]["authoritative"], authoritative.ids[0]);
+        assert_eq!(id_map[0]["disposition"], "mapped");
+        assert_eq!(id_map[1]["speculative"], LOCAL_TOKEN);
+        assert_eq!(id_map[1]["authoritative"], authoritative.ids[1]);
+        assert_eq!(id_map[1]["disposition"], "mapped");
+
+        let (duplicate, duplicate_receipt) = invoke_synthetic_settlement(
+            &mut snapback,
+            "writeClockAndId",
+            captured_lane_input(7, [LOCAL_ROW, LOCAL_TOKEN]),
+            "cm_llp0133_lane_l",
+            local_settlement,
+        )
+        .expect("exact lane-L duplicate replays");
+        assert_eq!(
+            duplicate.expect("duplicate output").ctx_ledger,
+            Some(authoritative.clone())
         );
+        assert_eq!(
+            serde_json::to_value(duplicate_receipt).unwrap()["idMap"],
+            local_receipt["idMap"]
+        );
+        assert_eq!(snapback.db.scan_table("items", 10, 0).unwrap().total, 1);
 
         let queued_input = captured_lane_input(9, [QUEUED_ROW, QUEUED_TOKEN]);
         let mut relabeled = synthetic_lane_l_settlement(9, [QUEUED_ROW, QUEUED_TOKEN]);
@@ -38679,6 +38820,7 @@ globalThis.__snapbackHandlers = {
         assert_eq!(queued_row["observedAt"], 9);
         let queued_receipt = serde_json::to_value(queued_receipt).unwrap();
         assert_eq!(queued_receipt["settlementLane"], "replay-accept");
+        assert!(queued_receipt.get("idMap").is_none());
         assert!(
             queued_receipt["claimLedger"]
                 .as_array()
@@ -38690,6 +38832,78 @@ globalThis.__snapbackHandlers = {
                 })
         );
         assert!(!queued_receipt.to_string().contains("re-derived"));
+    }
+
+    /// LLP 0133 acceptance sketch 3, server half. The synthetic local branch
+    /// records one token mint in the `else` instruction while settlement runs
+    /// the equally-sized `then` branch. Only the shared row-id site maps; the
+    /// other equal-position id is explicitly unmapped.
+    #[test]
+    fn llp0133_sketch_3_id_map_never_cross_pairs_sites_or_excess_occurrences() {
+        const LOCAL_ROW: &str = "018f0d90-7b37-7a22-8c33-445566778899";
+        const LOCAL_TOKEN: &str = "018f0d90-7b38-7a22-8c33-445566778899";
+        let mut snapback = lane_settlement_snapback();
+        let mut settlement = synthetic_lane_l_settlement(19, [LOCAL_ROW, LOCAL_TOKEN]);
+        settlement.claims.as_mut().unwrap().mints[1].site =
+            "plan/steps/0/insert/values/token/else".to_owned();
+        let mut input = captured_lane_input(19, [LOCAL_ROW, LOCAL_TOKEN]);
+        input.args = json!({ "serverBranch": true });
+
+        let (output, receipt) = invoke_synthetic_settlement(
+            &mut snapback,
+            "writeBranchId",
+            input,
+            "cm_llp0133_mint_branch_divergence",
+            settlement,
+        )
+        .expect("branch-divergent lane-L stages");
+        let output = output.expect("branch-divergent lane-L settles");
+        let authoritative = output.ctx_ledger.expect("authoritative answers");
+        assert_eq!(authoritative.ids.len(), 2);
+        let receipt = serde_json::to_value(receipt).unwrap();
+        let id_map = receipt["idMap"].as_array().expect("lane-L id map");
+        assert_eq!(id_map.len(), 2);
+        assert_eq!(id_map[0]["speculative"], LOCAL_ROW);
+        assert_eq!(id_map[0]["authoritative"], authoritative.ids[0]);
+        assert_eq!(id_map[0]["disposition"], "mapped");
+        assert_eq!(id_map[1]["speculative"], LOCAL_TOKEN);
+        assert!(id_map[1]["authoritative"].is_null());
+        assert_eq!(id_map[1]["disposition"], "unmapped");
+        assert_ne!(id_map[1]["authoritative"], authoritative.ids[1]);
+
+        let count_divergent = MutationSettlement {
+            lane: SettlementLane::ReDerive,
+            claims: Some(SettlementClaimSet {
+                version: 1,
+                now: None,
+                mints: vec![
+                    SettlementMintClaim {
+                        claimed: "local-0".to_owned(),
+                        site: "plan/steps/0/insert-each/row-id".to_owned(),
+                        occurrence: 0,
+                    },
+                    SettlementMintClaim {
+                        claimed: "local-1".to_owned(),
+                        site: "plan/steps/0/insert-each/row-id".to_owned(),
+                        occurrence: 1,
+                    },
+                ],
+            }),
+            ..MutationSettlement::default()
+        };
+        let map = settlement_id_map(
+            &count_divergent,
+            &[SettlementMintObservation {
+                id: "authoritative-0".to_owned(),
+                site: "plan/steps/0/insert-each/row-id".to_owned(),
+                occurrence: 0,
+            }],
+        )
+        .expect("lane-L map");
+        assert_eq!(map[0].authoritative.as_deref(), Some("authoritative-0"));
+        assert_eq!(map[0].disposition, SettlementIdMapDisposition::Mapped);
+        assert_eq!(map[1].authoritative, None);
+        assert_eq!(map[1].disposition, SettlementIdMapDisposition::Unmapped);
     }
 
     /// LLP 0133 acceptance sketch 10. The harness changes the staged plan

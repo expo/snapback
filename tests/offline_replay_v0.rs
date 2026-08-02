@@ -193,7 +193,7 @@ async fn synthetic_lane_l_wire_submission_rederives_before_commit() {
                 now: Some(17),
                 mints: vec![SettlementMintClaim {
                     claimed: CLAIMED_ID.to_owned(),
-                    site: "insert:todos".to_owned(),
+                    site: "plan/steps/0/insert/row-id".to_owned(),
                     occurrence: 0,
                 }],
             }),
@@ -221,9 +221,19 @@ async fn synthetic_lane_l_wire_submission_rederives_before_commit() {
     assert_eq!(response["receipt"]["settlementLane"], "re-derive");
     assert_eq!(response["receipt"]["claimLedger"][1]["claimed"], CLAIMED_ID);
     assert_eq!(
+        response["receipt"]["claimLedger"][1]["authoritative"],
+        response["result"]
+    );
+    assert_eq!(
         response["receipt"]["claimLedger"][1]["disposition"],
         "re-derived"
     );
+    assert_eq!(response["receipt"]["idMap"][0]["speculative"], CLAIMED_ID);
+    assert_eq!(
+        response["receipt"]["idMap"][0]["authoritative"],
+        response["result"]
+    );
+    assert_eq!(response["receipt"]["idMap"][0]["disposition"], "mapped");
 }
 
 #[test]

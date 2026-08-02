@@ -559,6 +559,23 @@ pub struct SettlementClaim {
     pub skew_ms: Option<u64>,
 }
 
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum SettlementIdMapDisposition {
+    Mapped,
+    Unmapped,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SettlementIdMapEntry {
+    pub speculative: String,
+    pub authoritative: Option<String>,
+    pub site: String,
+    pub occurrence: u32,
+    pub disposition: SettlementIdMapDisposition,
+}
+
 /// A retention-ring receipt (LLP 0034 §3.2): connectionless facts about
 /// mutations and subscription lifecycle, served by the receipts snapshot and
 /// echoed in live-subscribe/unsubscribe outputs. Privacy (§3.3): receipts
@@ -596,6 +613,10 @@ pub enum Receipt {
             skip_serializing_if = "Option::is_none"
         )]
         claim_ledger: Option<Vec<SettlementClaim>>,
+        /// Private lane-L id reconciliation. `Some([])` is the explicit
+        /// no-mints map; `None` means this is lane Q or a fan-out projection.
+        #[serde(default, rename = "idMap", skip_serializing_if = "Option::is_none")]
+        id_map: Option<Vec<SettlementIdMapEntry>>,
         /// The diagnostic CODE only — messages may embed argument values
         /// (§3.3 privacy). `null` on confirmed mutations.
         #[serde(rename = "rollbackReason")]
@@ -694,8 +715,14 @@ impl Receipt {
     /// @ref LLP 0133#receipts — claimed values never cross the fan-out
     ///   boundary to another subscriber.
     pub fn into_fanout_value(mut self) -> Value {
-        if let Self::Mutation { claim_ledger, .. } = &mut self {
+        if let Self::Mutation {
+            claim_ledger,
+            id_map,
+            ..
+        } = &mut self
+        {
             *claim_ledger = None;
+            *id_map = None;
         }
         self.into_value()
     }
@@ -999,6 +1026,7 @@ mod tests {
                 disposition: SettlementClaimDisposition::Accepted,
                 skew_ms: None,
             }]),
+            id_map: None,
             rollback_reason: None,
             affected_tables: Some(vec!["todos".into()]),
             snapshot_version: Some(9),
@@ -1044,6 +1072,13 @@ mod tests {
                 disposition: SettlementClaimDisposition::Accepted,
                 skew_ms: None,
             }]),
+            id_map: Some(vec![SettlementIdMapEntry {
+                speculative: "private-id".into(),
+                authoritative: Some("authoritative-id".into()),
+                site: "plan/steps/0/insert/row-id".into(),
+                occurrence: 0,
+                disposition: SettlementIdMapDisposition::Mapped,
+            }]),
             rollback_reason: None,
             affected_tables: Some(vec!["todos".into()]),
             snapshot_version: Some(9),
@@ -1058,6 +1093,11 @@ mod tests {
             fanout.get("claimLedger").is_none(),
             "subscriber fan-out omits the private claim ledger"
         );
+        assert!(
+            fanout.get("idMap").is_none(),
+            "subscriber fan-out omits private id reconciliation"
+        );
+        assert!(!fanout.to_string().contains("authoritative-id"));
 
         let disposed = Receipt::Subscription {
             event: SubscriptionReceiptEvent::Disposed,

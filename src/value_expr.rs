@@ -70,7 +70,7 @@ pub struct ExprEnv<'a> {
     /// Fresh-id source (`RuntimeId`). Pluggable because callers differ
     /// (storage `new_id`, cron actions use the store's generator); absent in
     /// the matcher, where `RuntimeId` is unanalyzable by definition.
-    pub runtime_id: Option<&'a dyn Fn() -> SnapbackResult<String>>,
+    pub runtime_id: Option<&'a dyn Fn(&str) -> SnapbackResult<String>>,
 }
 
 pub enum ExprError {
@@ -106,10 +106,27 @@ impl ExprError {
 pub type ExprResult = Result<Value, ExprError>;
 
 pub fn eval_value_expr(expr: &ValueExpr, env: &ExprEnv<'_>) -> ExprResult {
-    eval_at_depth(expr, env, 0)
+    eval_at_depth(expr, env, 0, "")
 }
 
-fn eval_at_depth(expr: &ValueExpr, env: &ExprEnv<'_>, depth: usize) -> ExprResult {
+fn child_path(path: &str, child: impl std::fmt::Display) -> String {
+    if path.is_empty() {
+        format!("/{child}")
+    } else {
+        format!("{path}/{child}")
+    }
+}
+
+fn escaped_path_segment(value: &str) -> String {
+    value.replace('~', "~0").replace('/', "~1")
+}
+
+fn eval_at_depth(
+    expr: &ValueExpr,
+    env: &ExprEnv<'_>,
+    depth: usize,
+    path: &str,
+) -> ExprResult {
     if depth > MAX_EXPR_DEPTH {
         return Err(ExprError::Fail(SnapbackError::error(
             "SNAPBACK_PLAN_BOUNDS",
@@ -188,7 +205,7 @@ fn eval_at_depth(expr: &ValueExpr, env: &ExprEnv<'_>, depth: usize) -> ExprResul
         },
         ValueExpr::Literal(value) => Ok(value.clone()),
         ValueExpr::RuntimeId => match env.runtime_id {
-            Some(generate) => generate().map(Value::String).map_err(ExprError::Fail),
+            Some(generate) => generate(path).map(Value::String).map_err(ExprError::Fail),
             None => Err(ExprError::Unanalyzable("RuntimeId")),
         },
         ValueExpr::RuntimeNow => match env.now_ms {
@@ -196,16 +213,16 @@ fn eval_at_depth(expr: &ValueExpr, env: &ExprEnv<'_>, depth: usize) -> ExprResul
             None => Err(ExprError::Unanalyzable("RuntimeNow")),
         },
         ValueExpr::Field { base, key } => {
-            let base = eval_at_depth(base, env, depth + 1)?;
+            let base = eval_at_depth(base, env, depth + 1, &child_path(path, "base"))?;
             Ok(field_access(&base, key))
         }
         ValueExpr::Binary { op, left, right } => {
-            let left = eval_at_depth(left, env, depth + 1)?;
-            let right = eval_at_depth(right, env, depth + 1)?;
+            let left = eval_at_depth(left, env, depth + 1, &child_path(path, "left"))?;
+            let right = eval_at_depth(right, env, depth + 1, &child_path(path, "right"))?;
             eval_binary(*op, left, right)
         }
         ValueExpr::Unary { op, expr } => {
-            let value = eval_at_depth(expr, env, depth + 1)?;
+            let value = eval_at_depth(expr, env, depth + 1, &child_path(path, "expr"))?;
             match op {
                 UnaryOp::Not => Ok(Value::Bool(!truthy(&value))),
                 UnaryOp::Neg => {
@@ -219,32 +236,46 @@ fn eval_at_depth(expr: &ValueExpr, env: &ExprEnv<'_>, depth: usize) -> ExprResul
             }
         }
         ValueExpr::If { cond, then, r#else } => {
-            let cond = eval_at_depth(cond, env, depth + 1)?;
+            let cond = eval_at_depth(cond, env, depth + 1, &child_path(path, "cond"))?;
             if truthy(&cond) {
-                eval_at_depth(then, env, depth + 1)
+                eval_at_depth(then, env, depth + 1, &child_path(path, "then"))
             } else {
-                eval_at_depth(r#else, env, depth + 1)
+                eval_at_depth(r#else, env, depth + 1, &child_path(path, "else"))
             }
         }
         ValueExpr::Concat(parts) => {
             let mut output = String::new();
-            for part in parts {
-                let value = eval_at_depth(part, env, depth + 1)?;
+            for (index, part) in parts.iter().enumerate() {
+                let value =
+                    eval_at_depth(part, env, depth + 1, &child_path(path, index))?;
                 output.push_str(&stringify_for_concat(&value)?);
             }
             Ok(Value::String(output))
         }
         ValueExpr::Call { func, args } => {
             let mut values = Vec::with_capacity(args.len());
-            for arg in args {
-                values.push(eval_at_depth(arg, env, depth + 1)?);
+            for (index, arg) in args.iter().enumerate() {
+                values.push(eval_at_depth(
+                    arg,
+                    env,
+                    depth + 1,
+                    &child_path(path, index),
+                )?);
             }
             eval_call(func, values)
         }
         ValueExpr::Record { fields } => {
             let mut output = Map::new();
             for (key, field_expr) in fields {
-                output.insert(key.clone(), eval_at_depth(field_expr, env, depth + 1)?);
+                output.insert(
+                    key.clone(),
+                    eval_at_depth(
+                        field_expr,
+                        env,
+                        depth + 1,
+                        &child_path(path, escaped_path_segment(key)),
+                    )?,
+                );
             }
             Ok(Value::Object(output))
         }
@@ -796,7 +827,7 @@ pub(crate) fn validate_value_expr(expr: &ValueExpr) -> Result<(), SnapbackError>
 mod tests {
     use super::*;
 
-    fn test_id() -> SnapbackResult<String> {
+    fn test_id(_site: &str) -> SnapbackResult<String> {
         Ok("id-test".to_owned())
     }
 

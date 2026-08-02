@@ -7,9 +7,9 @@ use crate::manifest::{
     MutationOutput, MutationPlan, MutationSettlement, MutationStep, OrderDirection, OrderExpr,
     PORTABLE_STORAGE_VERSION_MAX, QUERY_INTERNAL_OVERFETCH_MAX, QUERY_MAX_FILTER_BINDINGS,
     QUERY_MAX_IN_ITEMS, QueryOutput, QueryPlan, ReadDependency, ReturnValue, SchemaManifest,
-    SeedData, TableManifest, ValueExpr, auth_fingerprint, effective_query_limit,
-    replay_opaque_id_is_valid, validate_ctx_answer_ledger, validate_portable_timestamp_millis,
-    validate_query_plan_shape,
+    SeedData, SettlementMintObservation, TableManifest, ValueExpr, auth_fingerprint,
+    effective_query_limit, replay_opaque_id_is_valid, validate_ctx_answer_ledger,
+    validate_portable_timestamp_millis, validate_query_plan_shape,
 };
 use rusqlite::types::{Value as SqlValue, ValueRef};
 use rusqlite::{
@@ -1029,6 +1029,7 @@ fn reset_and_seed_transaction(
                 changed_count,
                 result: Value::Null,
                 ctx_ledger: None,
+                settlement_mint_observations: Vec::new(),
             })
         }
     };
@@ -3283,6 +3284,7 @@ impl LocalDatabase {
                 changed_count,
                 result: Value::Null,
                 ctx_ledger: None,
+                settlement_mint_observations: Vec::new(),
             },
             authorization,
         })
@@ -3705,13 +3707,16 @@ impl LocalDatabase {
         // ctx-answer ledger (LLP 0051 D1's `generatedIds`), reported by
         // dry-run as `deterministicInputs`.
         let plan_ids = RefCell::new(PlanIdSource::new(replay_ledger));
-        let next_id = || plan_ids.borrow_mut().next();
+        let next_id = |site: &str| plan_ids.borrow_mut().next_for(site, None);
         // Row ids carry their table's prefix; ids minted inside field
         // expressions go through `next_id` and stay generic (LLP 0148 §D6).
-        let next_id_for = |table: &str| plan_ids.borrow_mut().next_for(Some(table));
+        let next_id_for = |site: &str, table: &str| {
+            plan_ids.borrow_mut().next_for(site, Some(table))
+        };
 
-        for step in &plan.steps {
+        for (step_index, step) in plan.steps.iter().enumerate() {
             check_live()?;
+            let step_site = format!("plan/steps/{step_index}");
             match step {
                 MutationStep::Insert {
                     table,
@@ -3723,7 +3728,7 @@ impl LocalDatabase {
                     //   without seating its bootstrap holder (bootstrap path
                     //   only); a HostPlan generic insert cannot do that.
                     enforce_protected_resource_insert_guard(&schema, &table.name)?;
-                    let id = next_id_for(&table.name)?;
+                    let id = next_id_for(&format!("{step_site}/insert/row-id"), &table.name)?;
                     if let Some(binding) = bind_id_as {
                         let value = Value::String(id.clone());
                         bindings.insert(binding.clone(), value.clone());
@@ -3732,7 +3737,14 @@ impl LocalDatabase {
                         }
                     }
 
-                    let row = eval_value_map(values, input, &bindings, now_ms, &next_id)?;
+                    let row = eval_value_map(
+                        values,
+                        input,
+                        &bindings,
+                        now_ms,
+                        &next_id,
+                        &format!("{step_site}/insert/values"),
+                    )?;
                     let changed_fields = changed_field_names(&row);
                     if projection_sources.contains(&table.name) {
                         projection_pre_images
@@ -3763,10 +3775,24 @@ impl LocalDatabase {
                         continue;
                     }
                     let id = expect_string(
-                        eval_expr(id, input, &bindings, now_ms, Some(&next_id))?,
+                        eval_expr(
+                            id,
+                            input,
+                            &bindings,
+                            now_ms,
+                            Some(&next_id),
+                            &format!("{step_site}/patch/id"),
+                        )?,
                         "patch id",
                     )?;
-                    let row = eval_value_map(values, input, &bindings, now_ms, &next_id)?;
+                    let row = eval_value_map(
+                        values,
+                        input,
+                        &bindings,
+                        now_ms,
+                        &next_id,
+                        &format!("{step_site}/patch/values"),
+                    )?;
                     let changed_fields = changed_field_names(&row);
                     if projection_sources.contains(&table.name)
                         && !projection_pre_images.contains_key(&(table.name.clone(), id.clone()))
@@ -3798,7 +3824,14 @@ impl LocalDatabase {
                 MutationStep::Delete { table, id } => {
                     let table = schema_table(&schema, table)?;
                     let id = expect_string(
-                        eval_expr(id, input, &bindings, now_ms, Some(&next_id))?,
+                        eval_expr(
+                            id,
+                            input,
+                            &bindings,
+                            now_ms,
+                            Some(&next_id),
+                            &format!("{step_site}/delete/id"),
+                        )?,
                         "delete id",
                     )?;
                     // @ref LLP 0056 — deleting a resource row does not silently
@@ -3850,7 +3883,14 @@ impl LocalDatabase {
                 } => {
                     let table = schema_table(&schema, table)?;
                     let id = expect_string(
-                        eval_expr(id, input, &bindings, now_ms, Some(&next_id))?,
+                        eval_expr(
+                            id,
+                            input,
+                            &bindings,
+                            now_ms,
+                            Some(&next_id),
+                            &format!("{step_site}/get/id"),
+                        )?,
                         "get id",
                     )?;
                     let document = get_document_from_tx(&tx, table, &id, next_version)?;
@@ -3933,11 +3973,25 @@ impl LocalDatabase {
                 } => {
                     let table = schema_table(&schema, table)?;
                     let id = expect_string(
-                        eval_expr(id, input, &bindings, now_ms, Some(&next_id))?,
+                        eval_expr(
+                            id,
+                            input,
+                            &bindings,
+                            now_ms,
+                            Some(&next_id),
+                            &format!("{step_site}/assert-current-relation/id"),
+                        )?,
                         "current relation row id",
                     )?;
                     let scope_id = expect_string(
-                        eval_expr(scope_id, input, &bindings, now_ms, Some(&next_id))?,
+                        eval_expr(
+                            scope_id,
+                            input,
+                            &bindings,
+                            now_ms,
+                            Some(&next_id),
+                            &format!("{step_site}/assert-current-relation/scope-id"),
+                        )?,
                         "current relation scope id",
                     )?;
                     let row = get_document_from_tx(&tx, table, &id, next_version)?;
@@ -3974,6 +4028,7 @@ impl LocalDatabase {
                         direct_bindings.as_ref(),
                         now_ms,
                         Some(&next_id),
+                        &format!("{step_site}/guard/condition"),
                     )?
                     .iter()
                     .all(crate::value_expr::truthy);
@@ -3997,12 +4052,26 @@ impl LocalDatabase {
                             "actor-aware authorization bindings cannot depend on runtime clock or id inputs",
                         ));
                     }
-                    let value = eval_expr(expr, input, &bindings, now_ms, Some(&next_id))?;
+                    let value = eval_expr(
+                        expr,
+                        input,
+                        &bindings,
+                        now_ms,
+                        Some(&next_id),
+                        &format!("{step_site}/let/expression"),
+                    )?;
                     if let (Some(direct_input), Some(direct_bindings)) =
                         (direct_input.as_ref(), direct_bindings.as_mut())
                     {
                         let direct_value = if projection_dependent {
-                            eval_expr(expr, direct_input, direct_bindings, now_ms, Some(&next_id))?
+                            eval_expr(
+                                expr,
+                                direct_input,
+                                direct_bindings,
+                                now_ms,
+                                Some(&next_id),
+                                &format!("{step_site}/let/expression"),
+                            )?
                         } else {
                             value.clone()
                         };
@@ -4016,7 +4085,14 @@ impl LocalDatabase {
                     operation,
                 } => {
                     let id = expect_string(
-                        eval_expr(id, input, &bindings, now_ms, Some(&next_id))?,
+                        eval_expr(
+                            id,
+                            input,
+                            &bindings,
+                            now_ms,
+                            Some(&next_id),
+                            &format!("{step_site}/assert-source-changed/id"),
+                        )?,
                         "source id",
                     )?;
                     let expected = match operation {
@@ -4074,6 +4150,7 @@ impl LocalDatabase {
                         direct_bindings.as_ref(),
                         now_ms,
                         Some(&next_id),
+                        &format!("{step_site}/delete-where"),
                         None,
                         None,
                         false,
@@ -4140,7 +4217,14 @@ impl LocalDatabase {
                 } => {
                     let table = schema_table(&schema, table)?;
                     enforce_protected_resource_insert_guard(&schema, &table.name)?;
-                    let source_value = eval_expr(source, input, &bindings, now_ms, Some(&next_id))?;
+                    let source_value = eval_expr(
+                        source,
+                        input,
+                        &bindings,
+                        now_ms,
+                        Some(&next_id),
+                        &format!("{step_site}/insert-each/source"),
+                    )?;
                     let Value::Array(items) = source_value else {
                         return Err(SnapbackError::error(
                             "SNAPBACK_PLAN_SOURCE_INVALID",
@@ -4165,13 +4249,23 @@ impl LocalDatabase {
                         // The item binding is scoped to this step's value maps.
                         let mut item_bindings = bindings.clone();
                         item_bindings.insert(item_as.clone(), item);
-                        let id = next_id_for(&table.name)?;
+                        let id = next_id_for(
+                            &format!("{step_site}/insert-each/row-id"),
+                            &table.name,
+                        )?;
                         if projection_sources.contains(&table.name) {
                             projection_pre_images
                                 .entry((table.name.clone(), id.clone()))
                                 .or_insert(None);
                         }
-                        let row = eval_value_map(values, input, &item_bindings, now_ms, &next_id)?;
+                        let row = eval_value_map(
+                            values,
+                            input,
+                            &item_bindings,
+                            now_ms,
+                            &next_id,
+                            &format!("{step_site}/insert-each/values"),
+                        )?;
                         let changed_fields = changed_field_names(&row);
                         let document =
                             insert_document(&tx, table, &id, &row, next_version, now_ms)?;
@@ -4245,14 +4339,28 @@ impl LocalDatabase {
             Some(ReturnValue::Document { table, id }) => {
                 let table = schema_table(&schema, table)?;
                 let id = expect_string(
-                    eval_expr(id, input, &bindings, now_ms, Some(&next_id))?,
+                    eval_expr(
+                        id,
+                        input,
+                        &bindings,
+                        now_ms,
+                        Some(&next_id),
+                        "plan/return/document/id",
+                    )?,
                     "document id",
                 )?;
                 get_document_from_tx(&tx, table, &id, next_version)?.unwrap_or(Value::Null)
             }
             Some(ReturnValue::ChangedCount) | None => json!(changes.len()),
             Some(ReturnValue::Expr(expr)) => {
-                eval_expr(expr, input, &bindings, now_ms, Some(&next_id))?
+                eval_expr(
+                    expr,
+                    input,
+                    &bindings,
+                    now_ms,
+                    Some(&next_id),
+                    "plan/return/expression",
+                )?
             }
         };
 
@@ -4278,6 +4386,7 @@ impl LocalDatabase {
             changed_count: changes.len(),
             result,
             ctx_ledger: Some(output_ledger),
+            settlement_mint_observations: plan_ids.borrow().observations.clone(),
         };
         let authorization_predecessor = if apply {
             auth_stream::read_authorization_version_on(&tx)?
@@ -4895,6 +5004,7 @@ impl LocalDatabase {
             changed_count: changes.len(),
             result,
             ctx_ledger: options.ctx_ledger,
+            settlement_mint_observations: Vec::new(),
         };
         let authorization_predecessor = if options.apply {
             auth_stream::read_authorization_version_on(&tx)?
@@ -6337,6 +6447,7 @@ impl LocalDatabase {
             None,
             now_ms,
             None,
+            "projection/root-scan",
             None,
             None,
             false,
@@ -6428,6 +6539,7 @@ impl LocalDatabase {
                 None,
                 now_ms,
                 None,
+                "projection/output-scan",
                 None,
                 None,
                 false,
@@ -6666,6 +6778,7 @@ fn projection_logical_row(
                 None,
                 now_ms,
                 None,
+                "projection/joined-lookup",
                 Some(2),
                 None,
                 false,
@@ -6896,6 +7009,7 @@ fn maintain_projections_in_tx(
                 None,
                 now_ms,
                 None,
+                "projection/root-reverse-lookup",
                 Some(plan.fan_out_limit as usize + 1),
                 None,
                 false,
@@ -6963,6 +7077,7 @@ fn maintain_projections_in_tx(
                         None,
                         now_ms,
                         None,
+                        "projection/root-lookup",
                         Some(1),
                         None,
                         false,
@@ -7444,6 +7559,7 @@ fn query_on_with_storage_limit_visibility_keyset(
             None,
             now_millis(),
             None,
+            "query",
             Some(storage_limit),
             keyset,
             force_id_order,
@@ -10586,7 +10702,8 @@ fn build_query_sql(
     bindings: &BTreeMap<String, Value>,
     direct_bindings: Option<&BTreeMap<String, Value>>,
     now_ms: u64,
-    runtime_id: Option<&dyn Fn() -> SnapbackResult<String>>,
+    runtime_id: Option<&dyn Fn(&str) -> SnapbackResult<String>>,
+    runtime_id_site: &str,
     sql_limit: Option<usize>,
     keyset: Option<&KeysetAfter>,
     force_id_order: bool,
@@ -10607,7 +10724,8 @@ fn build_query_sql(
     let mut in_items = 0usize;
     let mut filter_bindings = 0usize;
 
-    for filter in &plan.filters {
+    for (filter_index, filter) in plan.filters.iter().enumerate() {
+        let filter_site = format!("{runtime_id_site}/filter/{filter_index}");
         ensure_field_or_system(table, &filter.field)?;
         match filter.op {
             FilterOp::Eq => {
@@ -10619,6 +10737,7 @@ fn build_query_sql(
                     direct_bindings,
                     now_ms,
                     runtime_id,
+                    &filter_site,
                 )? {
                     if value.is_null()
                         && authorization_expr_depends_on_projection(
@@ -10646,6 +10765,7 @@ fn build_query_sql(
                     direct_bindings,
                     now_ms,
                     runtime_id,
+                    &filter_site,
                 )? {
                     if value.is_null()
                         && authorization_expr_depends_on_projection(
@@ -10718,6 +10838,7 @@ fn build_query_sql(
                     direct_bindings,
                     now_ms,
                     runtime_id,
+                    &filter_site,
                 )? {
                     if value.is_null()
                         && authorization_expr_depends_on_projection(
@@ -10745,7 +10866,7 @@ fn build_query_sql(
     // role evaluation for guests. A row-field resource ref correlates against
     // the outer row; a query-argument ref binds a fixed value.
     // @ref LLP 0056#rule-helpers — the declaration-bound membership predicate.
-    for predicate in &plan.membership_filters {
+    for (predicate_index, predicate) in plan.membership_filters.iter().enumerate() {
         let (clause, extra) = build_membership_exists_sql(
             schema,
             table,
@@ -10754,6 +10875,7 @@ fn build_query_sql(
             bindings,
             now_ms,
             runtime_id,
+            &format!("{runtime_id_site}/membership/{predicate_index}"),
             &mut filter_bindings,
         )?;
         where_parts.push(clause);
@@ -10816,7 +10938,8 @@ fn build_membership_exists_sql(
     input: &HandlerInput,
     bindings: &BTreeMap<String, Value>,
     now_ms: u64,
-    runtime_id: Option<&dyn Fn() -> SnapbackResult<String>>,
+    runtime_id: Option<&dyn Fn(&str) -> SnapbackResult<String>>,
+    runtime_id_site: &str,
     filter_bindings: &mut usize,
 ) -> SnapbackResult<(String, Vec<SqlValue>)> {
     let Some((mtable, membership)) =
@@ -10870,6 +10993,7 @@ fn build_membership_exists_sql(
                     bindings,
                     now_ms,
                     runtime_id,
+                    runtime_id_site,
                 )?;
                 add_query_filter_bindings(filter_bindings, 1, resource_field)?;
                 params.push(json_to_sql_value(
@@ -11645,13 +11769,22 @@ fn eval_value_map(
     input: &HandlerInput,
     bindings: &BTreeMap<String, Value>,
     now_ms: u64,
-    runtime_id: &dyn Fn() -> SnapbackResult<String>,
+    runtime_id: &dyn Fn(&str) -> SnapbackResult<String>,
+    site: &str,
 ) -> SnapbackResult<Map<String, Value>> {
     let mut output = Map::new();
     for (key, expr) in values {
+        let site_key = key.replace('~', "~0").replace('/', "~1");
         output.insert(
             key.clone(),
-            eval_expr(expr, input, bindings, now_ms, Some(runtime_id))?,
+            eval_expr(
+                expr,
+                input,
+                bindings,
+                now_ms,
+                Some(runtime_id),
+                &format!("{site}/{site_key}"),
+            )?,
         );
     }
     Ok(output)
@@ -11665,9 +11798,13 @@ fn eval_expr(
     input: &HandlerInput,
     bindings: &BTreeMap<String, Value>,
     now_ms: u64,
-    runtime_id: Option<&dyn Fn() -> SnapbackResult<String>>,
+    runtime_id: Option<&dyn Fn(&str) -> SnapbackResult<String>>,
+    site: &str,
 ) -> SnapbackResult<Value> {
-    let default_id = || Ok(new_id());
+    let default_id = |_path: &str| Ok(new_id());
+    let scoped_id = |path: &str| {
+        runtime_id.unwrap_or(&default_id)(&format!("{site}{path}"))
+    };
     let env = crate::value_expr::ExprEnv {
         args: &input.args,
         auth_user_id: input.auth.user_id.as_deref(),
@@ -11680,7 +11817,7 @@ fn eval_expr(
         auth_is_delegated: input.auth.authorization_is_delegated,
         bindings: Some(bindings),
         now_ms: Some(now_ms),
-        runtime_id: Some(runtime_id.unwrap_or(&default_id)),
+        runtime_id: Some(&scoped_id),
     };
     crate::value_expr::eval_value_expr(expr, &env).map_err(|error| error.into_snapback())
 }
@@ -11698,7 +11835,8 @@ fn eval_authorization_decision_values(
     bindings: &BTreeMap<String, Value>,
     direct_bindings: Option<&BTreeMap<String, Value>>,
     now_ms: u64,
-    runtime_id: Option<&dyn Fn() -> SnapbackResult<String>>,
+    runtime_id: Option<&dyn Fn(&str) -> SnapbackResult<String>>,
+    site: &str,
 ) -> SnapbackResult<Vec<Value>> {
     let is_actor_aware =
         authorization_expr_depends_on_projection(expr, input, bindings, direct_bindings);
@@ -11709,7 +11847,7 @@ fn eval_authorization_decision_values(
             "actor-aware authorization decisions cannot depend on runtime clock or id inputs",
         ));
     }
-    let delegated = eval_expr(expr, input, bindings, now_ms, runtime_id)?;
+    let delegated = eval_expr(expr, input, bindings, now_ms, runtime_id, site)?;
     if !input.auth.authorization_is_delegated || !is_actor_aware {
         return Ok(vec![delegated]);
     }
@@ -11726,6 +11864,7 @@ fn eval_authorization_decision_values(
             direct_bindings.unwrap_or(bindings),
             now_ms,
             runtime_id,
+            site,
         )?,
     ])
 }
@@ -16081,6 +16220,8 @@ struct PlanIdSource<'a> {
     replay: Option<&'a CtxAnswerLedger>,
     cursor: usize,
     generated: Vec<String>,
+    occurrences: BTreeMap<String, u32>,
+    observations: Vec<SettlementMintObservation>,
 }
 
 impl<'a> PlanIdSource<'a> {
@@ -16089,14 +16230,13 @@ impl<'a> PlanIdSource<'a> {
             replay,
             cursor: 0,
             generated: Vec::new(),
+            occurrences: BTreeMap::new(),
+            observations: Vec::new(),
         }
     }
 
-    fn next(&mut self) -> SnapbackResult<String> {
-        self.next_for(None)
-    }
-
-    /// The ledgered allocator, told which table the id is being minted for.
+    /// The ledgered allocator, told both the stable logical mint site and the
+    /// table whose id is being minted.
     ///
     /// `Some(table)` mints the table's LLP 0148 prefix; `None` — an id minted
     /// inside a field expression, where no target table is in scope — mints the
@@ -16108,7 +16248,11 @@ impl<'a> PlanIdSource<'a> {
     /// cannot disagree about one.
     ///
     /// @ref LLP 0148#d6-app-document-ids-take-a-per-table-prefix
-    fn next_for(&mut self, table: Option<&str>) -> SnapbackResult<String> {
+    /// @ref LLP 0133#divergence-on-settle — first-hand observations retain
+    ///   exact (site, occurrence) identity; raw answer position is never a
+    ///   settlement pairing key. Within one repeated site, occurrence remains
+    ///   positional—the explicitly scoped fan-out residue graduated by OQ2.
+    fn next_for(&mut self, site: &str, table: Option<&str>) -> SnapbackResult<String> {
         if self.generated.len() >= CTX_ANSWER_LEDGER_MAX_IDS {
             return Err(SnapbackError::error(
                 "SNAPBACK_CTX_LEDGER_LIMIT_EXCEEDED",
@@ -16137,6 +16281,13 @@ impl<'a> PlanIdSource<'a> {
         };
         self.cursor += 1;
         self.generated.push(id.clone());
+        let occurrence = self.occurrences.entry(site.to_owned()).or_default();
+        self.observations.push(SettlementMintObservation {
+            id: id.clone(),
+            site: site.to_owned(),
+            occurrence: *occurrence,
+        });
+        *occurrence += 1;
         Ok(id)
     }
 
@@ -25478,6 +25629,7 @@ mod membership_write_tests {
             None,
             0,
             None,
+            "query-test",
             None,
             None,
             false,

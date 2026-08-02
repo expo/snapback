@@ -323,6 +323,16 @@
               },
               "type": "array"
             },
+            "idMap": {
+              "description": "Private lane-L id reconciliation. `Some([])` is the explicit\nno-mints map; `None` means this is lane Q or a fan-out projection.",
+              "items": {
+                "$ref": "#/$defs/SettlementIdMapEntry"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            },
             "kind": {
               "const": "mutation",
               "type": "string"
@@ -769,6 +779,45 @@
         "re-derived"
       ],
       "type": "string"
+    },
+    "SettlementIdMapDisposition": {
+      "enum": [
+        "mapped",
+        "unmapped"
+      ],
+      "type": "string"
+    },
+    "SettlementIdMapEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "authoritative": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "disposition": {
+          "$ref": "#/$defs/SettlementIdMapDisposition"
+        },
+        "occurrence": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "site": {
+          "type": "string"
+        },
+        "speculative": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "speculative",
+        "site",
+        "occurrence",
+        "disposition"
+      ],
+      "type": "object"
     },
     "SettlementLane": {
       "description": "Settle-time trust policy selected by an ordinary client-attested mutation\nlabel. The default preserves the pre-0133 queued replay contract for older\nrequest and retained-artifact decoders.\n\n@ref LLP 0133#the-two-settlement-lanes — the label selects replay acceptance\n  or server re-derivation without granting authority.",

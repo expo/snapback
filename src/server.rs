@@ -6736,6 +6736,7 @@ impl MutationResponse {
             changed_count,
             result,
             ctx_ledger,
+            settlement_mint_observations: _,
         } = output;
         Self {
             version,
