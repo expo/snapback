@@ -11,6 +11,7 @@
     "contract-data.manifest.json",
     "api.mjs",
     "api.d.ts",
+    "api-envelope.members.json",
     "package.json",
     "operations/acceptHandCard.args.schema.json",
     "operations/myHand.args.schema.json",
@@ -33,11 +34,23 @@
   "cronJobs": [],
   "custody": {
     "consumer-committed": 0,
-    "regenerable-cache": 20,
+    "regenerable-cache": 21,
     "review-manifest": 1
   },
   "ephemeralCollections": [],
   "files": [
+    {
+      "bytes": 2680,
+      "consumer": "tooling",
+      "custody": "regenerable-cache",
+      "logicalKind": "generated-projection",
+      "path": "api-envelope.members.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:26d9ab44d7af7f7a5dbff2d64b33c182eeb83ecd36957cbf69ede6da9dc4a435"
+    },
     {
       "bytes": 6583,
       "consumer": "client-bundler",
@@ -311,9 +324,9 @@
     "counts": {
       "custody": {
         "consumerCommitted": 0,
-        "regenerableCache": 20,
+        "regenerableCache": 21,
         "reviewManifest": 1,
-        "total": 21
+        "total": 22
       },
       "degradedResults": 2,
       "ephemeralCollections": 0,

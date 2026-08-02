@@ -27,6 +27,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "fixtures",
+      "bundleHash": "snapback.v1:sessions:function:sha256:ab58ec332310b74c8fde817952b140ce01134a887e8c36beb6e21207ec6fa4f9",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:b2be9352d4551a42f9f5d1f36a90dd9a58a5aa733f345b68f424dca7b8c8bb0b",
+      "schemaHash": "snapback.v1:sessions:schema:sha256:613e8acdf7cb59e84bf07e4551e2fd14bb5f2d018b0e709c1b15aa371d9ae3bb",
+      "schemaVersion": "snapback.v1"
+    },
     "id": "fixtures:addMember",
     "implementationHash": "sha256:b2aa9656acc794a6b0a913f7a7aeb09db97db8dd38b1476593bcd09711a62837",
     "kind": "Mutation",
@@ -67,6 +74,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "fixtures",
+      "bundleHash": "snapback.v1:sessions:function:sha256:ab58ec332310b74c8fde817952b140ce01134a887e8c36beb6e21207ec6fa4f9",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:b2be9352d4551a42f9f5d1f36a90dd9a58a5aa733f345b68f424dca7b8c8bb0b",
+      "schemaHash": "snapback.v1:sessions:schema:sha256:613e8acdf7cb59e84bf07e4551e2fd14bb5f2d018b0e709c1b15aa371d9ae3bb",
+      "schemaVersion": "snapback.v1"
+    },
     "id": "fixtures:clearPhoto",
     "implementationHash": "sha256:27077933d7ee2aeaad287285a87af61b9d5434de27808db2dc809f9d642d1cbb",
     "kind": "Mutation",
@@ -111,6 +125,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "fixtures",
+      "bundleHash": "snapback.v1:sessions:function:sha256:ab58ec332310b74c8fde817952b140ce01134a887e8c36beb6e21207ec6fa4f9",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:b2be9352d4551a42f9f5d1f36a90dd9a58a5aa733f345b68f424dca7b8c8bb0b",
+      "schemaHash": "snapback.v1:sessions:schema:sha256:613e8acdf7cb59e84bf07e4551e2fd14bb5f2d018b0e709c1b15aa371d9ae3bb",
+      "schemaVersion": "snapback.v1"
+    },
     "id": "fixtures:createMixedPlan",
     "implementationHash": "sha256:c8ab6d775909aeb43f74d473aa1adb78dfc5927dccc6ba7b8185eb55834df836",
     "kind": "Mutation",
@@ -142,6 +163,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "fixtures",
+      "bundleHash": "snapback.v1:sessions:function:sha256:ab58ec332310b74c8fde817952b140ce01134a887e8c36beb6e21207ec6fa4f9",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:b2be9352d4551a42f9f5d1f36a90dd9a58a5aa733f345b68f424dca7b8c8bb0b",
+      "schemaHash": "snapback.v1:sessions:schema:sha256:613e8acdf7cb59e84bf07e4551e2fd14bb5f2d018b0e709c1b15aa371d9ae3bb",
+      "schemaVersion": "snapback.v1"
+    },
     "id": "fixtures:createNotePlan",
     "implementationHash": "sha256:34ac94d40e011fdc666be9348a2cadcd189b0f9e538ad0f42ba3a67815955f27",
     "kind": "Mutation",
@@ -169,6 +197,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "fixtures",
+      "bundleHash": "snapback.v1:sessions:function:sha256:ab58ec332310b74c8fde817952b140ce01134a887e8c36beb6e21207ec6fa4f9",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:b2be9352d4551a42f9f5d1f36a90dd9a58a5aa733f345b68f424dca7b8c8bb0b",
+      "schemaHash": "snapback.v1:sessions:schema:sha256:613e8acdf7cb59e84bf07e4551e2fd14bb5f2d018b0e709c1b15aa371d9ae3bb",
+      "schemaVersion": "snapback.v1"
+    },
     "id": "fixtures:createOpenDocPlan",
     "implementationHash": "sha256:906faba05842d2f6ce3b544775e3d1e2368a3ff0c923130e7faf466cb595f138",
     "kind": "Mutation",
@@ -196,6 +231,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "fixtures",
+      "bundleHash": "snapback.v1:sessions:function:sha256:ab58ec332310b74c8fde817952b140ce01134a887e8c36beb6e21207ec6fa4f9",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:b2be9352d4551a42f9f5d1f36a90dd9a58a5aa733f345b68f424dca7b8c8bb0b",
+      "schemaHash": "snapback.v1:sessions:schema:sha256:613e8acdf7cb59e84bf07e4551e2fd14bb5f2d018b0e709c1b15aa371d9ae3bb",
+      "schemaVersion": "snapback.v1"
+    },
     "id": "fixtures:createPhoto",
     "implementationHash": "sha256:24206a9e0dd7a18451c38a2b35ffbf8e8bc6e9474bc55d060c22746467a1beef",
     "kind": "Mutation",
@@ -223,6 +265,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "fixtures",
+      "bundleHash": "snapback.v1:sessions:function:sha256:ab58ec332310b74c8fde817952b140ce01134a887e8c36beb6e21207ec6fa4f9",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:b2be9352d4551a42f9f5d1f36a90dd9a58a5aa733f345b68f424dca7b8c8bb0b",
+      "schemaHash": "snapback.v1:sessions:schema:sha256:613e8acdf7cb59e84bf07e4551e2fd14bb5f2d018b0e709c1b15aa371d9ae3bb",
+      "schemaVersion": "snapback.v1"
+    },
     "id": "fixtures:createPhotoPlan",
     "implementationHash": "sha256:e983163e27b698db93e0b7977f77735b8c95f044dd6d235a051b2d7d256f4f9d",
     "kind": "Mutation",
@@ -246,6 +295,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "fixtures",
+      "bundleHash": "snapback.v1:sessions:function:sha256:ab58ec332310b74c8fde817952b140ce01134a887e8c36beb6e21207ec6fa4f9",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:b2be9352d4551a42f9f5d1f36a90dd9a58a5aa733f345b68f424dca7b8c8bb0b",
+      "schemaHash": "snapback.v1:sessions:schema:sha256:613e8acdf7cb59e84bf07e4551e2fd14bb5f2d018b0e709c1b15aa371d9ae3bb",
+      "schemaVersion": "snapback.v1"
+    },
     "id": "fixtures:createWorkspace",
     "implementationHash": "sha256:151d09f635493ca4f6dd79148563d1ac98f9e11592435707bdc551e656570eb9",
     "kind": "Mutation",
@@ -291,6 +347,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "fixtures",
+      "bundleHash": "snapback.v1:sessions:function:sha256:ab58ec332310b74c8fde817952b140ce01134a887e8c36beb6e21207ec6fa4f9",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:b2be9352d4551a42f9f5d1f36a90dd9a58a5aa733f345b68f424dca7b8c8bb0b",
+      "schemaHash": "snapback.v1:sessions:schema:sha256:613e8acdf7cb59e84bf07e4551e2fd14bb5f2d018b0e709c1b15aa371d9ae3bb",
+      "schemaVersion": "snapback.v1"
+    },
     "id": "fixtures:forgePhoto",
     "implementationHash": "sha256:facba1fc80008bc2d98690d99a42382704a1b8327e69d52ba7117c0cfc523c58",
     "kind": "Mutation",
@@ -315,6 +378,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "fixtures",
+      "bundleHash": "snapback.v1:sessions:function:sha256:ab58ec332310b74c8fde817952b140ce01134a887e8c36beb6e21207ec6fa4f9",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:b2be9352d4551a42f9f5d1f36a90dd9a58a5aa733f345b68f424dca7b8c8bb0b",
+      "schemaHash": "snapback.v1:sessions:schema:sha256:613e8acdf7cb59e84bf07e4551e2fd14bb5f2d018b0e709c1b15aa371d9ae3bb",
+      "schemaVersion": "snapback.v1"
+    },
     "id": "fixtures:leaveWorkspace",
     "implementationHash": "sha256:48e9bdca5ce7b9e0405293c6db526f50b484b54df9db0e3c329f4bfb7473c93f",
     "kind": "Mutation",

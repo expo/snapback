@@ -11,6 +11,7 @@
     "contract-data.manifest.json",
     "api.mjs",
     "api.d.ts",
+    "api-envelope.members.json",
     "package.json",
     "routes.manifest.json",
     "seed.artifact.json",
@@ -90,13 +91,25 @@
   "cronJobs": [],
   "custody": {
     "consumer-committed": 0,
-    "regenerable-cache": 77,
+    "regenerable-cache": 78,
     "review-manifest": 1
   },
   "ephemeralCollections": [
     "incidentPresence"
   ],
   "files": [
+    {
+      "bytes": 31347,
+      "consumer": "tooling",
+      "custody": "regenerable-cache",
+      "logicalKind": "generated-projection",
+      "path": "api-envelope.members.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:712d74b7efb01f7b8a41a340a7e57bfddc015d6a428a2cc5eac90d19a695df45"
+    },
     {
       "bytes": 13198,
       "consumer": "client-bundler",
@@ -1144,9 +1157,9 @@
     "counts": {
       "custody": {
         "consumerCommitted": 0,
-        "regenerableCache": 77,
+        "regenerableCache": 78,
         "reviewManifest": 1,
-        "total": 78
+        "total": 79
       },
       "degradedResults": 0,
       "ephemeralCollections": 1,

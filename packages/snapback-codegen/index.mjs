@@ -30,6 +30,10 @@ import { join, resolve, dirname, relative, isAbsolute, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parse as parseJavaScript } from 'acorn';
 import { computeEffectCeiling } from './effect-ceiling.mjs';
+import {
+  API_ENVELOPE_MEMBERS_FILE,
+  buildApiEnvelopeMembers,
+} from './api-envelope-members.mjs';
 import { build as esbuild } from 'esbuild';
 import ts from 'typescript';
 import { OUTGREW_IR_CLASSES, PINNED_FUNCTIONS, v } from './define.mjs';
@@ -3040,6 +3044,8 @@ export async function generateInProcess(backendDir, options = {}) {
   const providerBindingTypes = renderProviderBindingTypes(providerBindingMetadata);
   const contractModules = renderContractModules(contractManifest, functionManifest.functions, functionsModule, ephemeralCollections, schemaDef);
   const operationSchemas = renderOperationSchemas(appId, functionManifest.functions, functionsModule);
+  // @ref LLP 0062#5-distribution-the-server-advertises-the-server-is-the-version-authority — codegen supplies only the members it owns; the server composes the envelope.
+  const apiEnvelopeMembers = buildApiEnvelopeMembers(functionManifest, operationSchemas);
   validateContractModuleFilenames(contractModules, err);
   if (diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
@@ -3116,7 +3122,7 @@ export async function generateInProcess(backendDir, options = {}) {
     generatedAt,
     schemaHash,
     bundleHash,
-    artifacts: ['schema.manifest.json', 'functions.manifest.json', 'capability.manifest.json', 'provider-introspection.json', 'provider-bindings.json', 'provider-bindings.d.ts', 'contract-data.manifest.json', 'api.mjs', 'api.d.ts', 'package.json', ...(routesManifest ? ['routes.manifest.json'] : []), ...(seedArtifact ? ['seed.artifact.json'] : []), ...(seedAssetFixtures ? ['seed.asset-fixtures.artifact.json'] : []), ...operationArtifactFiles, ...remoteServiceArtifactFiles, ...contractArtifactFiles],
+    artifacts: ['schema.manifest.json', 'functions.manifest.json', 'capability.manifest.json', 'provider-introspection.json', 'provider-bindings.json', 'provider-bindings.d.ts', 'contract-data.manifest.json', 'api.mjs', 'api.d.ts', API_ENVELOPE_MEMBERS_FILE, 'package.json', ...(routesManifest ? ['routes.manifest.json'] : []), ...(seedArtifact ? ['seed.artifact.json'] : []), ...(seedAssetFixtures ? ['seed.asset-fixtures.artifact.json'] : []), ...operationArtifactFiles, ...remoteServiceArtifactFiles, ...contractArtifactFiles],
     tables: Object.keys(tables),
     ephemeralCollections: ephemeralCollections.map((collection) => collection.name),
     functions: functionManifest.functions.map((f) => ({ id: f.id, name: f.name, kind: f.kind })),
@@ -3150,6 +3156,7 @@ export async function generateInProcess(backendDir, options = {}) {
       contractManifest,
       apiModule,
       apiTypes,
+      apiEnvelopeMembers,
       operationSchemas,
       remoteServicePublication,
       contractModules,
@@ -8556,6 +8563,7 @@ function writeGeneratedOutput(outDir, {
   contractManifest,
   apiModule,
   apiTypes,
+  apiEnvelopeMembers,
   operationSchemas,
   remoteServicePublication,
   contractModules,
@@ -8581,6 +8589,9 @@ function writeGeneratedOutput(outDir, {
   writeFileSync(join(outDir, 'contract-data.manifest.json'), stableJson(contractManifest) + '\n');
   writeFileSync(join(outDir, 'api.mjs'), apiModule);
   writeFileSync(join(outDir, 'api.d.ts'), apiTypes);
+  if (apiEnvelopeMembers) {
+    writeFileSync(join(outDir, API_ENVELOPE_MEMBERS_FILE), stableJson(apiEnvelopeMembers) + '\n');
+  }
   if (seedArtifact) {
     writeFileSync(join(outDir, 'seed.artifact.json'), canonicalSeedArtifactJson(seedArtifact));
   }

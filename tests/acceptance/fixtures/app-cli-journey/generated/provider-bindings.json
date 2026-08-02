@@ -1,0 +1,58 @@
+{
+  "artifactKind": "providerBindingMetadata",
+  "bindings": {
+    "actions": [],
+    "ephemeral": [],
+    "mutations": [
+      {
+        "argumentsType": "{ \"body\": string; \"title\": string }",
+        "effects": {
+          "invalidates": [
+            "notes"
+          ],
+          "writes": [
+            "notes"
+          ]
+        },
+        "name": "createNote",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        },
+        "resultType": "unknown"
+      }
+    ],
+    "queries": [
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": false,
+          "initialSnapshot": false,
+          "mode": "snapshot",
+          "transports": [
+            {
+              "kind": "request",
+              "role": "primary"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "notes"
+          ]
+        },
+        "name": "listNotes",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"authorId\": string; \"body\": string; \"title\": string }>"
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v1"
+  },
+  "schemaVersion": "provider-binding-metadata.v1",
+  "source": {
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:bd324babb86c374d6d174db3b5c190b2f50cb6df9ae23bc6fa00932253a129e3",
+    "introspectionSchemaVersion": "provider-introspection.v1"
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "appId": "fixtures",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "auth": {
+    "mode": "sessions"
+  },
+  "ephemeralCollections": [],
+  "generatedAt": 0,
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:bd324babb86c374d6d174db3b5c190b2f50cb6df9ae23bc6fa00932253a129e3",
+  "portabilityFlags": [],
+  "requiredCapabilities": [
+    "auth.sessions.v1"
+  ],
+  "schemaHash": "snapback.v1:sessions:schema:sha256:0611c6707fbe58778289bd3aec03273bf21a22c6810dc55be77591c3190f4702",
+  "schemaVersion": "snapback.v1",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "Principal",
+          "name": "authorId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "title",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "body",
+          "optional": false
+        }
+      ],
+      "indexes": [],
+      "name": "notes",
+      "syncable": true
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

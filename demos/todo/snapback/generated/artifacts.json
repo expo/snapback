@@ -11,6 +11,7 @@
     "contract-data.manifest.json",
     "api.mjs",
     "api.d.ts",
+    "api-envelope.members.json",
     "package.json",
     "operations/createTodo.args.schema.json",
     "operations/deleteTodo.args.schema.json",
@@ -42,11 +43,23 @@
   "cronJobs": [],
   "custody": {
     "consumer-committed": 0,
-    "regenerable-cache": 29,
+    "regenerable-cache": 30,
     "review-manifest": 1
   },
   "ephemeralCollections": [],
   "files": [
+    {
+      "bytes": 4334,
+      "consumer": "tooling",
+      "custody": "regenerable-cache",
+      "logicalKind": "generated-projection",
+      "path": "api-envelope.members.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:7015c916884d1e9885b6931810dcb722910ea39feda40857a387d06ccec6ade8"
+    },
     {
       "bytes": 6928,
       "consumer": "client-bundler",
@@ -443,9 +456,9 @@
     "counts": {
       "custody": {
         "consumerCommitted": 0,
-        "regenerableCache": 29,
+        "regenerableCache": 30,
         "reviewManifest": 1,
-        "total": 30
+        "total": 31
       },
       "degradedResults": 4,
       "ephemeralCollections": 0,

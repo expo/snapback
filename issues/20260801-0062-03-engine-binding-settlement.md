@@ -32,3 +32,10 @@ want a real-server harness rather than the journey fake.
 **Note 2026-08-01:** the settlement/ACK remainder's four goldens ride the
 real-server harness that `20260801-0062-09-codegen-members-and-live-journey.md`
 builds; execute them together.
+
+**Note 2026-08-01 (0062-09 landed):** the real-server harness exists now —
+`tests/acceptance/app-cli-served-journey.mjs` boots a sessions binary, drives
+provision/discovery/fetch/verify/cache, and rotates the generation. The four
+settlement goldens (deploy-mid-call refetch, deploy-mid-watch resync,
+removed-function terminal recovery, kill-between-dispatch-and-ACK replay)
+extend that suite rather than needing their own harness.

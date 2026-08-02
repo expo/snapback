@@ -8881,6 +8881,22 @@ fn auth_app_data_refusal(spec: RouteSpec, runtime: &AppState) -> Option<Snapback
     None
 }
 
+/// The bare public artifact routes whose whole contract is that anything can
+/// fetch them without negotiating (LLP 0062 §5's "bare, credential-free,
+/// non-redirecting path"). The app-api discovery and envelope routes are the
+/// engine's *first* contact with a server — it cannot offer an auth-client
+/// protocol before it has learned the app exists, and neither route reads or
+/// mints authority. Same structural-properties-AND-closed-path-set rule as
+/// the pasteable delivery lanes below: a future public route does not inherit
+/// the exemption by shape alone.
+fn bare_public_artifact_route(spec: RouteSpec) -> bool {
+    spec.class == RouteClass::AppData
+        && spec.policy == RoutePolicy::Public
+        && spec.invocation_authority == InvocationAuthority::None
+        && spec.credential_resolution == CredentialResolution::None
+        && matches!(spec.path, "/app-api/current" | "/app-api/envelope/{sha256}")
+}
+
 /// The pasteable asset-delivery lanes (LLP 0044 §Delivery profiles, dated
 /// note 2026-07-31, author-approved). On these two routes the URL itself is
 /// the entire authority — the public alias serves static-public bytes with
@@ -8915,6 +8931,7 @@ fn session_online_protocol_refusal(
         || auth_diagnostic_app_route(spec.path)
         || spec.path == "/app/ensure"
         || pasteable_delivery_route(spec)
+        || bare_public_artifact_route(spec)
         || runtime.auth_mode_state().active != crate::manifest::AuthMode::Sessions
     {
         return None;

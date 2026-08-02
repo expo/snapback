@@ -22,6 +22,7 @@ export interface FunctionReference<Name extends string, Kind extends FunctionKin
   implementationHash: string;
   argsContractHash: string;
   resultContractHash: string;
+  expectedGeneration: Readonly<{ schemaVersion: SchemaVersion; appId: string; schemaHash: string; bundleHash: string; inputsHash: string }>;
   argumentSchema: Readonly<Record<string, unknown>>;
   readonly __args?: Args;
   readonly __result?: Result;

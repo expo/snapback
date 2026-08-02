@@ -1768,6 +1768,11 @@ export async function loadGenerated(
   }
   const versionedSeedPath = optionalGeneratedArtifact('seed.artifact.json');
   const routesPath = optionalGeneratedArtifact('routes.manifest.json');
+  // @ref LLP 0062#5-distribution-the-server-advertises-the-server-is-the-version-authority — codegen's envelope members ride the provision intent; the server composes.
+  const apiEnvelopePath = optionalGeneratedArtifact('api-envelope.members.json');
+  const apiEnvelopeMembers = apiEnvelopePath
+    ? JSON.parse(readFileSync(apiEnvelopePath, 'utf8'))
+    : null;
   const artifact = versionedSeedPath
     ? JSON.parse(readFileSync(versionedSeedPath, 'utf8'))
     : null;
@@ -1837,6 +1842,7 @@ export async function loadGenerated(
             schema: schemaManifest,
             functions: functionsManifest,
             ...(routes ? { routes } : {}),
+            ...(apiEnvelopeMembers ? { apiEnvelope: apiEnvelopeMembers } : {}),
           });
         } else if (routes) {
           await client.ensureApp({ routes });

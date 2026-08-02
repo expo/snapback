@@ -11,6 +11,7 @@
     "contract-data.manifest.json",
     "api.mjs",
     "api.d.ts",
+    "api-envelope.members.json",
     "package.json",
     "contract/runtime-links.ts",
     "contract/webCursors.ephemeral.ts",
@@ -28,13 +29,25 @@
   "cronJobs": [],
   "custody": {
     "consumer-committed": 0,
-    "regenerable-cache": 15,
+    "regenerable-cache": 16,
     "review-manifest": 1
   },
   "ephemeralCollections": [
     "webCursors"
   ],
   "files": [
+    {
+      "bytes": 299,
+      "consumer": "tooling",
+      "custody": "regenerable-cache",
+      "logicalKind": "generated-projection",
+      "path": "api-envelope.members.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:c6c9444f343b0f7b72c4d5be112a01fe8f07b1c425ff67ed539229bbaaf16808"
+    },
     {
       "bytes": 5977,
       "consumer": "client-bundler",
@@ -232,9 +245,9 @@
     "counts": {
       "custody": {
         "consumerCommitted": 0,
-        "regenerableCache": 15,
+        "regenerableCache": 16,
         "reviewManifest": 1,
-        "total": 16
+        "total": 17
       },
       "degradedResults": 0,
       "ephemeralCollections": 1,

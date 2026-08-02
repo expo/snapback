@@ -1,0 +1,204 @@
+{
+  "artifactKind": "contractDataManifest",
+  "bundleHash": "snapback.v1:sessions:function:sha256:09a16763995d6c20709a06136c762083cdf1aef0c0c014f45ef2403bdd59038f",
+  "capabilities": {
+    "branchableFixtures": false,
+    "derivedOptimisticOverlays": true,
+    "forceStates": true,
+    "headlessBoot": true,
+    "initialSnapshot": true,
+    "localReplica": false,
+    "offlineReplay": true,
+    "optimisticMutations": true,
+    "rowSyncState": true,
+    "serverRunnableQueries": true,
+    "subscriptions": true
+  },
+  "ephemeral": {},
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:bd324babb86c374d6d174db3b5c190b2f50cb6df9ae23bc6fa00932253a129e3",
+  "manifestVersion": 2,
+  "mutations": {
+    "createNote": {
+      "argOrder": [
+        "title",
+        "body"
+      ],
+      "args": {
+        "body": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "title": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:035a0c33bf052e607c8dac0ebe5a32f42fe735463dea711b63ea2f594bc5080c",
+      "implementationHash": "sha256:a15bd14ec59d4f86571f17b4b867e6fb65fffb1e2810a1bdc337749d8c399d9d",
+      "invalidates": [
+        "notes"
+      ],
+      "name": "createNote",
+      "optimistic": true,
+      "plan": {
+        "return_value": {
+          "Binding": "id"
+        },
+        "steps": [
+          {
+            "Insert": {
+              "bind_id_as": "id",
+              "table": "notes",
+              "values": {
+                "authorId": "AuthUserId",
+                "body": {
+                  "Arg": "body"
+                },
+                "title": {
+                  "Arg": "title"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "serverRunnable": true,
+      "writes": [
+        "notes"
+      ]
+    }
+  },
+  "provider": "snapback",
+  "queries": {
+    "listNotes": {
+      "argOrder": [],
+      "args": {},
+      "argsHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "defaultLive": false,
+      "ephemeral": false,
+      "implementationHash": "sha256:cdd924caecacaa563d7d57c5229e56f50d354235330b60b1806bd78de2130eac",
+      "initialSnapshot": false,
+      "livePush": false,
+      "localRunnable": false,
+      "mode": "snapshot",
+      "name": "listNotes",
+      "reads": [
+        "notes"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "authorId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "body": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "title": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "notes"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "authorId",
+              "required": true,
+              "value": {
+                "kind": "principal"
+              }
+            },
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "body",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "notes"
+      },
+      "resultHash": "sha256:0277dae8dfe65b8109b028de347686fb0b7e9d2caf57b32cb155b74837470957",
+      "serverRunnable": true,
+      "subscription": "none"
+    }
+  },
+  "receipts": "mutation+subscription",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:0611c6707fbe58778289bd3aec03273bf21a22c6810dc55be77591c3190f4702",
+  "schemaVersion": "snapback.v1"
+}

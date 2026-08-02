@@ -11,6 +11,7 @@
     "contract-data.manifest.json",
     "api.mjs",
     "api.d.ts",
+    "api-envelope.members.json",
     "package.json",
     "operations/applyFeedTick.args.schema.json",
     "operations/applyLiveFeedSnapshot.args.schema.json",
@@ -73,11 +74,23 @@
   ],
   "custody": {
     "consumer-committed": 0,
-    "regenerable-cache": 43,
+    "regenerable-cache": 44,
     "review-manifest": 1
   },
   "ephemeralCollections": [],
   "files": [
+    {
+      "bytes": 9216,
+      "consumer": "tooling",
+      "custody": "regenerable-cache",
+      "logicalKind": "generated-projection",
+      "path": "api-envelope.members.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:3ebf8964cb16d01279756f4e3366e3d424d5640524b6fcb250678fa77443e3a5"
+    },
     {
       "bytes": 9730,
       "consumer": "client-bundler",
@@ -672,9 +685,9 @@
     "counts": {
       "custody": {
         "consumerCommitted": 0,
-        "regenerableCache": 43,
+        "regenerableCache": 44,
         "reviewManifest": 1,
-        "total": 44
+        "total": 45
       },
       "degradedResults": 7,
       "ephemeralCollections": 0,

@@ -26,3 +26,45 @@ Two halves complete the served story end to end:
 Also riding here: flipping `appCliTarget` true once 0062-05 mints the
 eligibility capability id, so discovery advertises what the engine can
 already consume.
+
+---
+
+**RESOLVED 2026-08-01.** Both halves landed.
+
+*Codegen member emission:* `packages/snapback-codegen/api-envelope-members.mjs`
+builds `{operations, declarations, memberDigests}` from the function manifest
+and the already-rendered operation schemas — operations keyed by stable id,
+`appBindings` carrying kind-specific callable signatures (LiveQuery →
+`AsyncIterable<unknown>`, everything else → `Promise<unknown>`), digests over
+JCS-canonical schema bytes and the raw declaration text. Emitted as
+`generated/api-envelope.members.json` and listed in the artifact index; the
+managed provision path (`packages/snapback-cli`) attaches it and
+`SnapbackClient.ensureApp` carries it on the provision intent only.
+`api-envelope-members.test.mjs` is the **third leg of the cross-language
+anchor**: the member digests are pinned verbatim against the same anchor the
+Rust authority and the engine already pin, so a canonicalization or domain
+drift in any of the three breaks that side's suite.
+
+*Live-binary journey:* `tests/acceptance/app-cli-served-journey.mjs` with the
+minimal sessions fixture `tests/acceptance/fixtures/app-cli-journey/`.
+16/16 against a real spawned binary: codegen emits → cold sessions boot is
+honestly envelope-absent (and the engine refuses in identity terms, exit-7
+class, not "unavailable") → managed provision composes → discovery names the
+envelope and carries the active tuple → content-addressed fetch verifies
+client-side → composed members round-trip byte-equal to codegen's → a tampered
+byte refuses → the engine drives the served surface with zero local artifact
+files, carrying the five-key generation → offline introspection serves from the
+verified cache → redeploy recomposes, rotates the envelope identity, and the
+engine follows → sessions bearer custody still works.
+
+*Defect found and fixed by the journey:* the `/app-api/*` routes are
+credential-free by construction, but the sessions-mode protocol-offer gate
+refused them, so an engine could never discover a sessions app — the same
+class the pasteable delivery lanes hit (a bare public artifact route cannot
+negotiate a protocol it has not yet learned exists). `src/server.rs` gains
+`bare_public_artifact_route`, the same structural-properties-AND-closed-path-set
+predicate shape as `pasteable_delivery_route`, so no future public route
+inherits the exemption by shape alone.
+
+*Not done here:* the 0062-03 settlement goldens. The harness they wanted now
+exists (this journey), and the four cases are unchanged — see that ticket.

@@ -1,0 +1,272 @@
+{
+  "acknowledgedExperimentalCapabilities": [
+    "args_contract_v1",
+    "result_contract_v1"
+  ],
+  "appId": "fixtures",
+  "artifactKind": "functionManifest",
+  "bundleHash": "snapback.v1:sessions:function:sha256:09a16763995d6c20709a06136c762083cdf1aef0c0c014f45ef2403bdd59038f",
+  "config": [],
+  "cronJobs": [],
+  "functions": [
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "title",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "body",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:035a0c33bf052e607c8dac0ebe5a32f42fe735463dea711b63ea2f594bc5080c",
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "createNote",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "insert"
+            ],
+            "table": "notes"
+          }
+        ]
+      },
+      "exportedName": "createNote",
+      "handlerForm": "plan",
+      "id": "fixtures:createNote",
+      "implementationHash": "sha256:a15bd14ec59d4f86571f17b4b867e6fb65fffb1e2810a1bdc337749d8c399d9d",
+      "kind": "Mutation",
+      "name": "createNote",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "runtime": {
+        "HostPlan": {
+          "Mutation": {
+            "return_value": {
+              "Binding": "id"
+            },
+            "steps": [
+              {
+                "Insert": {
+                  "bind_id_as": "id",
+                  "table": "notes",
+                  "values": {
+                    "authorId": "AuthUserId",
+                    "body": {
+                      "Arg": "body"
+                    },
+                    "title": {
+                      "Arg": "title"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "notes",
+        "tables": [
+          "notes"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": []
+      },
+      "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "userId"
+      ],
+      "bundleEntrypoint": "listNotes",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "notes"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "listNotes",
+      "handlerForm": "plan",
+      "id": "fixtures:listNotes",
+      "implementationHash": "sha256:cdd924caecacaa563d7d57c5229e56f50d354235330b60b1806bd78de2130eac",
+      "kind": "Query",
+      "name": "listNotes",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "notes",
+        "tables": [
+          "notes"
+        ]
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "notes"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "authorId",
+              "required": true,
+              "value": {
+                "kind": "principal"
+              }
+            },
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "body",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "notes"
+      },
+      "resultContractHash": "sha256:0277dae8dfe65b8109b028de347686fb0b7e9d2caf57b32cb155b74837470957",
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "authorId",
+                "op": "Eq",
+                "value": "AuthUserId"
+              }
+            ],
+            "indexed_by": null,
+            "limit": null,
+            "membershipFilters": [],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "_createdAt"
+              }
+            ],
+            "table": "notes"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "online-only",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:bd324babb86c374d6d174db3b5c190b2f50cb6df9ae23bc6fa00932253a129e3",
+  "schemaVersion": "snapback.v1",
+  "unsupportedDependencyDiagnostics": [
+    {
+      "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+      "details": {
+        "function": "createNote"
+      },
+      "message": "createNote: no precise result contract was declared; runtime enforcement is limited to the general result budget",
+      "severity": "info",
+      "subsystem": "function"
+    }
+  ]
+}

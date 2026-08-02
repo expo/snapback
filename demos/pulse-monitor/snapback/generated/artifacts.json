@@ -11,6 +11,7 @@
     "contract-data.manifest.json",
     "api.mjs",
     "api.d.ts",
+    "api-envelope.members.json",
     "package.json",
     "operations/applyProbe.args.schema.json",
     "operations/liveServices.args.schema.json",
@@ -37,11 +38,23 @@
   ],
   "custody": {
     "consumer-committed": 0,
-    "regenerable-cache": 18,
+    "regenerable-cache": 19,
     "review-manifest": 1
   },
   "ephemeralCollections": [],
   "files": [
+    {
+      "bytes": 2258,
+      "consumer": "tooling",
+      "custody": "regenerable-cache",
+      "logicalKind": "generated-projection",
+      "path": "api-envelope.members.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:26248e3802220c3f6668f5a12467b877d4bf7d92e0cfccd87f446f7378ae36c3"
+    },
     {
       "bytes": 6434,
       "consumer": "client-bundler",
@@ -291,9 +304,9 @@
     "counts": {
       "custody": {
         "consumerCommitted": 0,
-        "regenerableCache": 18,
+        "regenerableCache": 19,
         "reviewManifest": 1,
-        "total": 19
+        "total": 20
       },
       "degradedResults": 2,
       "ephemeralCollections": 0,

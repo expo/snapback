@@ -4754,6 +4754,11 @@ export class SnapbackClient {
     routes = null,
     intent = null,
     requestedMode = null,
+    // The codegen-owned API envelope members (LLP 0062 §5, server-composes
+    // ruling). Provision-only: the server composes and self-verifies the
+    // envelope from its own projection plus these members, and an activation
+    // without them is explicitly envelope-less rather than degraded.
+    apiEnvelope = null,
   } = {}) {
     const explicitProvision = intent !== null || requestedMode !== null;
     if (explicitProvision) {
@@ -4773,6 +4778,7 @@ export class SnapbackClient {
       // functions manifest; its hash becomes the routeManifestHash
       // generation component server-side.
       ...(routes ? { routes } : {}),
+      ...(apiEnvelope && explicitProvision ? { apiEnvelope } : {}),
     };
     // @ref LLP 0058#complete-candidate-pair-preflight — explicit mode
     // provisioning is AdminWrite even when hashes already match; the client

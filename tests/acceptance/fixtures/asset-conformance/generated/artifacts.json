@@ -11,6 +11,7 @@
     "contract-data.manifest.json",
     "api.mjs",
     "api.d.ts",
+    "api-envelope.members.json",
     "package.json",
     "operations/addMember.args.schema.json",
     "operations/clearPhoto.args.schema.json",
@@ -54,13 +55,25 @@
   "cronJobs": [],
   "custody": {
     "consumer-committed": 0,
-    "regenerable-cache": 41,
+    "regenerable-cache": 42,
     "review-manifest": 1
   },
   "ephemeralCollections": [],
   "files": [
     {
-      "bytes": 9255,
+      "bytes": 8191,
+      "consumer": "tooling",
+      "custody": "regenerable-cache",
+      "logicalKind": "generated-projection",
+      "path": "api-envelope.members.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:8e47a185b32bcc052c7074231df3ccce794f3f3fe5211164b2b8fb62c5361c59"
+    },
+    {
+      "bytes": 9396,
       "consumer": "client-bundler",
       "custody": "regenerable-cache",
       "logicalKind": "typed-api",
@@ -69,10 +82,10 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:d74781658e7e9dff0eba93df4a1cae5f2797e34a52664dede4dcee46f80a11a4"
+      "sha256": "sha256:c1522b98ce2abc30119b0eebc6cccd84ba528f193ff422073a3b5acedfbeeae5"
     },
     {
-      "bytes": 11878,
+      "bytes": 16578,
       "consumer": "client-bundler",
       "custody": "regenerable-cache",
       "logicalKind": "typed-api",
@@ -81,7 +94,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:c5fbe4c4c29addfe45c9801c6d06863e197128fd27c5bb1ee0805b0e85582d5a"
+      "sha256": "sha256:89a0e4a416511fe2366f48a66aa22d90ad5a843e488cd5537c5ac81318a49da9"
     },
     {
       "bytes": 9018,
@@ -619,9 +632,9 @@
     "counts": {
       "custody": {
         "consumerCommitted": 0,
-        "regenerableCache": 41,
+        "regenerableCache": 42,
         "reviewManifest": 1,
-        "total": 42
+        "total": 43
       },
       "degradedResults": 10,
       "ephemeralCollections": 0,

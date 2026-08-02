@@ -1,0 +1,19 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/fixtures/createNote.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "body": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "title",
+    "body"
+  ],
+  "title": "fixtures:createNote arguments",
+  "type": "object"
+}
