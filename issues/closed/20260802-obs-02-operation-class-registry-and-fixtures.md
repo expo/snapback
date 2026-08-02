@@ -1,7 +1,7 @@
 # D-02: Operation-class registry, OQ1 ratification vs LLP 0104, boundary-protocol fixture corpus (LLP 0154 checklist 2)
 
-**Status:** Open — unblocked 2026-08-02 (identity representation ruled;
-depends on obs-01 closing on the amended schema)
+**Status:** Closed — implemented 2026-08-02 in
+`52b50e384a7ead4698bc257de6738781cbf2ecc4`
 **Program:** 20260802-obs-00-program.md
 **Depends on:** 20260802-obs-01
 **Systems:** Observability, Testing
@@ -46,7 +46,7 @@ disagree, that's a decision-packet append, not a silent fix.
   the amended schema (one added column + two meta fields against the landed
   substrate at bf73583d) before this ticket starts.
 - **2026-08-02 — implementation and proof complete (implementation commit:
-  `IMPLEMENTATION_COMMIT_PENDING`).** Added the closed
+  `52b50e384a7ead4698bc257de6738781cbf2ecc4`).** Added the closed
   `operation-class.v1.json` registry, one shared
   `telemetry.projection-fixtures-v1.json` corpus, pure telemetry/metering
   projections, stable per-metric event IDs, and typed registry admission at
@@ -57,7 +57,7 @@ disagree, that's a decision-packet append, not a silent fix.
   `backend_requests = 1`, measured-fact allowlists, retry/dedup behavior, and
   fail-closed version/unit/duplicate rules.
 
-  The focused post-rebase proof passes 62 tests: 47 telemetry-store tests, 11
+  The focused post-rebase proof passes 62 tests: 47 telemetry-module tests, 11
   registry/projection contract tests, and four independent committed-corpus
   consumer tests. Of those, this change adds 27 hand-authored tests (12 store
   boundary tests, 11 contract tests, and four independent consumer tests).
@@ -79,3 +79,11 @@ disagree, that's a decision-packet append, not a silent fix.
   `demos/todo-v2/snapback/generated/contract/runtime-links.ts`, plus stale
   `guide/guide-manifest.generated.json`. The capability stays explicitly GAP
   until D-04; this ticket makes no claimable guide promotion.
+
+## Resolution
+
+Implemented by `52b50e384a7ead4698bc257de6738781cbf2ecc4` and closed
+2026-08-02. The registry, shared corpus, pure projections, typed production
+admission, independent consumers, store-boundary fixtures, and dated LLP 0154
+OQ1 ratification satisfy checklist 2 while preserving OBS-01 as the sole
+telemetry substrate. The proof and inherited failures are recorded above.
