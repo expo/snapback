@@ -220,7 +220,11 @@ chmodSync(currentBinary, 0o755);
 
 const rustProof = spawnSync(
   'cargo',
-  ['test', '--lib', 'versioned_seed_conformance', '--', '--nocapture'],
+  // @ref LLP 0109#18-dated-amendment-the-membership-fixture-lane-lands-2026-08-01 —
+  // The closed evidence consumes both the original conformance witnesses and
+  // the `versioned_seed_membership_fixture_*` pair. Filter on their shared
+  // family prefix so required witnesses cannot sit outside the producer run.
+  ['test', '--lib', 'versioned_seed', '--', '--nocapture'],
   { cwd: root, encoding: 'utf8' },
 );
 if (rustProof.status !== 0) {
