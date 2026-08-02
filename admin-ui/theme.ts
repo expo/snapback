@@ -224,6 +224,8 @@ export interface NavSection {
 export function navSections(): NavSection[] {
   return [
     { key: 'Overview', label: 'Overview' },
+    { key: 'Health', label: 'Health' },
+    { key: 'Logs', label: 'Logs' },
     { key: 'Schema', label: 'Schema' },
     { key: 'Data', label: 'Data' },
     { key: 'Functions', label: 'Functions' },

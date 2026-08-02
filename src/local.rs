@@ -363,6 +363,9 @@ pub struct InspectState {
     pub ephemeral: EphemeralDiagnostics,
     pub cron: CronInspectState,
     pub maintenance: MaintenanceDiagnostics,
+    /// Current loss-tolerant telemetry producer state. Raw retained events do
+    /// not appear here; this is the D3 buffer depth/drop/freshness instant.
+    pub telemetry: crate::telemetry::BufferDiagnostics,
     #[serde(rename = "pushRegistry")]
     pub push_registry: crate::push::PushRegistryInspectionV1,
     #[serde(rename = "recentDiagnostics", alias = "recent_diagnostics")]
@@ -666,6 +669,7 @@ impl From<InspectState> for PublicInspect {
             ephemeral,
             cron,
             maintenance,
+            telemetry: _,
             push_registry: _,
             recent_diagnostics,
             capability_gaps,
@@ -6172,6 +6176,7 @@ impl LocalSnapback {
             ephemeral: EphemeralDiagnostics::default(),
             cron,
             maintenance: self.maintenance.clone(),
+            telemetry: self.telemetry.diagnostics(),
             push_registry: self.db.push_registry_inspection()?,
             recent_diagnostics: self.recent_diagnostics.iter().cloned().collect(),
             capability_gaps,
@@ -25847,6 +25852,28 @@ mod tests {
 
         let public: PublicInspect = snapback.inspect().expect("inspect").into();
         assert_eq!(public.maintenance, snapback.maintenance);
+    }
+
+    #[test]
+    fn gated_inspect_reports_telemetry_buffer_state_and_public_projection_drops_it() {
+        let mut snapback = LocalSnapback::memory().unwrap();
+        snapback.telemetry.point(
+            "log",
+            "inspect-buffer-fixture",
+            None,
+            None,
+            None,
+            None,
+            crate::telemetry::Priority::Normal,
+        );
+        let expected = snapback.telemetry.diagnostics();
+        let inspect = snapback.inspect().unwrap();
+        assert_eq!(inspect.telemetry, expected);
+        let public = serde_json::to_value(PublicInspect::from(inspect)).unwrap();
+        assert!(
+            public.get("telemetry").is_none(),
+            "anonymous inspect remains its exhaustive identity-only projection"
+        );
     }
 
     fn drain_live_stream_through_test_sink(

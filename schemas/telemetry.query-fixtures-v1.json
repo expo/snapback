@@ -1,0 +1,153 @@
+{
+  "events": {
+    "request": {
+      "kind": "http_request",
+      "limit": 2
+    },
+    "response": {
+      "events": [
+        {
+          "classV": 1,
+          "code": null,
+          "correlation": null,
+          "details": null,
+          "durationMs": 2.0,
+          "generation": "gen_fixture",
+          "id": 7,
+          "kind": "http_request",
+          "name": "/health",
+          "observation": "obs_fixture",
+          "phase": "joined",
+          "recordedTsMs": 1001,
+          "release": "sha256:fixture",
+          "status": 200,
+          "tsMs": 1000
+        }
+      ],
+      "nextCursor": null,
+      "schemaVersion": "snapback.telemetry.events.v1",
+      "variance": {
+        "capabilityOutcome": "exact",
+        "dropsLifetime": {},
+        "dropsSinceBoot": {},
+        "fieldExactness": {},
+        "freshnessWatermark": 1001,
+        "retentionBoundaryMs": 0,
+        "samplingFactor": 1.0,
+        "storeBackend": "local-sqlite-sibling",
+        "truncation": {}
+      }
+    }
+  },
+  "export": {
+    "header": {
+      "appId": "app_fixture",
+      "environment": "local",
+      "recordType": "header",
+      "schemaVersion": "snapback.telemetry.export.v1",
+      "snapshot": {
+        "id": 7,
+        "recordedTsMs": 1001
+      },
+      "variance": {
+        "capabilityOutcome": "exact",
+        "dropsLifetime": {},
+        "dropsSinceBoot": {},
+        "fieldExactness": {},
+        "freshnessWatermark": 1001,
+        "retentionBoundaryMs": 0,
+        "samplingFactor": 1.0,
+        "storeBackend": "local-sqlite-sibling",
+        "truncation": {}
+      }
+    },
+    "page": {
+      "nextCursor": null,
+      "records": [],
+      "schemaVersion": "snapback.telemetry.export-page.v1",
+      "snapshot": {
+        "id": 7,
+        "recordedTsMs": 1001
+      }
+    },
+    "request": {
+      "kind": "http_request"
+    }
+  },
+  "schemaVersion": "snapback.telemetry.query-fixtures.v1",
+  "stats": {
+    "namedFilterFolded": {
+      "expected": {
+        "fieldExactness": "boundedByHeavyHitterFolding",
+        "namedFilterMayBeFolded": true,
+        "statusCounts": []
+      },
+      "request": {
+        "kind": "http_request",
+        "name": "z-folded-name"
+      }
+    },
+    "request": {
+      "fromMs": 0,
+      "toMs": 2000
+    },
+    "response": {
+      "coverage": {
+        "endMs": 1001,
+        "partitions": [
+          {
+            "bucketEndMs": 3600000,
+            "bucketStartMs": 0,
+            "count": 1,
+            "coverageEndMs": 1001,
+            "coverageStartMs": 1001,
+            "errorCount": 0,
+            "foldedCount": 0,
+            "kind": "http_request",
+            "name": "/health",
+            "tier": "hourly",
+            "watermarkId": 7
+          }
+        ],
+        "rawTailEndId": null,
+        "rawTailRows": 0,
+        "rawTailStartId": null,
+        "rollupRows": 1,
+        "rollupWatermarkId": 7,
+        "startMs": 1001
+      },
+      "latency": [
+        {
+          "count": 1,
+          "name": "/health",
+          "p50Ms": 2.0,
+          "p95Ms": 2.0
+        }
+      ],
+      "schemaVersion": "snapback.telemetry.stats.v1",
+      "statusCounts": [
+        {
+          "count": 1,
+          "kind": "http_request",
+          "statusClass": "ok"
+        },
+        {
+          "count": 0,
+          "kind": "http_request",
+          "statusClass": "error"
+        }
+      ],
+      "variance": {
+        "capabilityOutcome": "approximate",
+        "dropsLifetime": {},
+        "dropsSinceBoot": {},
+        "fieldExactness": {},
+        "freshnessWatermark": 1001,
+        "retentionBoundaryMs": 0,
+        "samplingFactor": 1.0,
+        "storeBackend": "local-sqlite-sibling",
+        "truncation": {}
+      }
+    }
+  }
+}

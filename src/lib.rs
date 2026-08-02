@@ -125,6 +125,8 @@ pub mod telemetry;
 #[doc(hidden)]
 pub mod telemetry_contract;
 #[doc(hidden)]
+pub mod telemetry_query;
+#[doc(hidden)]
 pub mod value_expr;
 pub(crate) mod warm_vm;
 #[doc(hidden)]

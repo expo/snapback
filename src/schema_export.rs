@@ -401,6 +401,52 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
             schemars::schema_for!(AdapterQueryResponse),
         ),
         finish("inspect.schema.json", schemars::schema_for!(InspectState)),
+        // @ref LLP 0154#d5--the-query-and-export-contract — typed query and
+        // export carriers are Rust-owned, generated, committed, and drift-gated.
+        finish(
+            "telemetry.events.request.schema.json",
+            schemars::schema_for!(crate::telemetry_query::TelemetryEventsRequestV1),
+        ),
+        finish(
+            "telemetry.events.response.schema.json",
+            schemars::schema_for!(crate::telemetry_query::TelemetryEventsResponseV1),
+        ),
+        finish(
+            "telemetry.stats.request.schema.json",
+            schemars::schema_for!(crate::telemetry_query::TelemetryStatsRequestV1),
+        ),
+        finish(
+            "telemetry.stats.response.schema.json",
+            schemars::schema_for!(crate::telemetry_query::TelemetryStatsResponseV1),
+        ),
+        finish(
+            "telemetry.export.request.schema.json",
+            schemars::schema_for!(crate::telemetry_query::TelemetryExportRequestV1),
+        ),
+        finish(
+            "telemetry.export.header.schema.json",
+            schemars::schema_for!(crate::telemetry_query::TelemetryExportHeaderV1),
+        ),
+        finish(
+            "telemetry.export.event.schema.json",
+            schemars::schema_for!(crate::telemetry_query::TelemetryExportEventV1),
+        ),
+        finish(
+            "telemetry.export.page.schema.json",
+            schemars::schema_for!(crate::telemetry_query::TelemetryExportPageV1),
+        ),
+        finish(
+            "telemetry.agent-export.request.schema.json",
+            schemars::schema_for!(crate::telemetry_query::TelemetryAgentExportRequestV1),
+        ),
+        finish(
+            "telemetry.agent-export.page.schema.json",
+            schemars::schema_for!(crate::telemetry_query::TelemetryAgentExportPageV1),
+        ),
+        finish(
+            "telemetry.sql-result.schema.json",
+            schemars::schema_for!(crate::telemetry_query::TelemetrySqlResultV1),
+        ),
         finish(
             "inspect.public.schema.json",
             schemars::schema_for!(PublicInspect),
@@ -755,6 +801,10 @@ pub fn artifact_instances() -> Vec<SchemaArtifact> {
         SchemaArtifact {
             file: crate::telemetry_contract::PROJECTION_FIXTURE_CORPUS_FILE,
             schema: sorted_keys(crate::telemetry_contract::projection_fixture_corpus()),
+        },
+        SchemaArtifact {
+            file: crate::telemetry_query::QUERY_FIXTURE_CORPUS_FILE,
+            schema: sorted_keys(crate::telemetry_query::query_fixture_corpus()),
         },
         SchemaArtifact {
             file: "data-tier.profile.json",

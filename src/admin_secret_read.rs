@@ -46,6 +46,8 @@ const MINT_PROOF_DOMAIN: &[u8] = b"snapback/admin-secret-read/mint-proof/v1\0";
 pub enum SecretReadScope {
     AdminInspect,
     Receipts,
+    TelemetryEvents,
+    TelemetryExport,
     Table(String),
     FunctionRun(String),
     FunctionExplain(String),
@@ -54,7 +56,9 @@ pub enum SecretReadScope {
 impl SecretReadScope {
     fn validate(&self) -> SnapbackResult<()> {
         match self {
-            Self::AdminInspect | Self::Receipts => Ok(()),
+            Self::AdminInspect | Self::Receipts | Self::TelemetryEvents | Self::TelemetryExport => {
+                Ok(())
+            }
             Self::Table(name) | Self::FunctionRun(name) | Self::FunctionExplain(name) => {
                 if name.trim().is_empty() || name.contains('*') || name.len() > MAX_SCOPE_NAME_BYTES
                 {

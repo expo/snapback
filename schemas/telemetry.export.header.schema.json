@@ -1,0 +1,125 @@
+{
+  "$defs": {
+    "TelemetryCapabilityOutcomeV1": {
+      "enum": [
+        "exact",
+        "approximate",
+        "boundedWindow",
+        "unsupported"
+      ],
+      "type": "string"
+    },
+    "TelemetryCursorV1": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "recordedTsMs": {
+          "format": "int64",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "recordedTsMs",
+        "id"
+      ],
+      "type": "object"
+    },
+    "TelemetryVarianceV1": {
+      "properties": {
+        "capabilityOutcome": {
+          "$ref": "#/$defs/TelemetryCapabilityOutcomeV1"
+        },
+        "dropsLifetime": {
+          "additionalProperties": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "object"
+        },
+        "dropsSinceBoot": {
+          "additionalProperties": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "object"
+        },
+        "fieldExactness": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "freshnessWatermark": {
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "retentionBoundaryMs": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "samplingFactor": {
+          "format": "double",
+          "type": "number"
+        },
+        "storeBackend": {
+          "type": "string"
+        },
+        "truncation": {
+          "additionalProperties": true,
+          "type": "object"
+        }
+      },
+      "required": [
+        "storeBackend",
+        "fieldExactness",
+        "samplingFactor",
+        "retentionBoundaryMs",
+        "dropsSinceBoot",
+        "dropsLifetime",
+        "truncation",
+        "capabilityOutcome"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/telemetry.export.header.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "appId": {
+      "type": "string"
+    },
+    "environment": {
+      "type": "string"
+    },
+    "recordType": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "type": "string"
+    },
+    "snapshot": {
+      "$ref": "#/$defs/TelemetryCursorV1"
+    },
+    "variance": {
+      "$ref": "#/$defs/TelemetryVarianceV1"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "recordType",
+    "appId",
+    "environment",
+    "snapshot",
+    "variance"
+  ],
+  "title": "TelemetryExportHeaderV1",
+  "type": "object"
+}

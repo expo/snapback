@@ -1,0 +1,45 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/telemetry.sql-result.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "columns": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "elapsedMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "rows": {
+      "items": {
+        "items": true,
+        "type": "array"
+      },
+      "type": "array"
+    },
+    "schemaVersion": {
+      "type": "string"
+    },
+    "steps": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "truncated": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "columns",
+    "rows",
+    "steps",
+    "elapsedMs",
+    "truncated"
+  ],
+  "title": "TelemetrySqlResultV1",
+  "type": "object"
+}
