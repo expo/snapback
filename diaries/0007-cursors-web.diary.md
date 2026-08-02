@@ -347,3 +347,15 @@ pre-portability pin fails on its leaked bytes instead of being skipped. The
 new dist also gained `assets/exact-contract/app.contract.*.witness.json` — a
 0.1.7 witness artifact with relative provenance paths, exactly the shape the
 hygiene gate wants.
+
+## 2026-08-02 — Exact 0.1.10 registry closure
+
+The Contract surface now pins the complete Exact 0.1.10 registry closure,
+with a regenerated frozen lock and tracked production `dist/web` rebuilt from
+that install. This shares All Aboard's production-runtime boundary repair and
+the devtools packaging fixes without adding a surface-local shim.
+
+`node scripts/check-required-surface-builds.mjs` regenerated the ignored
+codegen graph from the committed review manifest and production-built both
+required Contract surfaces; cursors-web completed from its own frozen
+registry lock.

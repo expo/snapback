@@ -497,16 +497,28 @@ async function main() {
       return rects;
     });
 
-    await suite.check('pager arena installs the effective touch-action policy on claim regions', async () => {
+    await suite.check('pager arena preserves browser-owned edges and scopes touch-action to interior cells', async () => {
       const policy = await page.eval(`(() => {
         const header = document.querySelector('[data-testid="station-header"]');
         const board = document.querySelector('[data-testid="board-content"]');
         const pager = document.querySelector('[data-testid="hero-pager"]');
         pager.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 77, isPrimary: true, button: 0, buttons: 1, bubbles: true, clientX: 120, clientY: 480 }));
         pager.dispatchEvent(new PointerEvent('pointercancel', { pointerId: 77, isPrimary: true, button: 0, bubbles: true, clientX: 120, clientY: 480 }));
-        return { header: getComputedStyle(header).touchAction, board: getComputedStyle(board).touchAction };
+        return {
+          header: getComputedStyle(header).touchAction,
+          board: getComputedStyle(board).touchAction,
+          stationCell: getComputedStyle(document.querySelector('[data-testid="station-pager"] [data-exact-pager-cell="current"]')).touchAction,
+          heroCell: getComputedStyle(document.querySelector('[data-testid="hero-pager"] [data-exact-pager-cell="current"]')).touchAction,
+          edgeGuards: Array.from(document.querySelectorAll('[data-exact-motion-edge-guard]')).map((guard) => getComputedStyle(guard).touchAction),
+        };
       })()`);
-      if (policy.header !== 'pan-y' || policy.board !== 'pan-y') {
+      if (
+        policy.header !== 'auto' ||
+        policy.board !== 'auto' ||
+        policy.stationCell !== 'pan-y' ||
+        policy.heroCell !== 'pan-y' ||
+        policy.edgeGuards.some((value) => value !== 'auto')
+      ) {
         throw new Error(`framework pager policy missing: ${JSON.stringify(policy)}`);
       }
       return policy;

@@ -2273,3 +2273,27 @@ demos/all-aboard/snapback` regenerates it — the error's own remediation line
 points at the CLI, but running codegen directly needs the outbound-actions env
 var that `scripts/check-generated-artifacts` knows about and the error does
 not mention.
+
+## 2026-08-02 — Exact 0.1.10 closes the production-route cold-clone failure
+
+The Contract surface's lockstep Exact suite now pins the published 0.1.10
+closure. The upstream repair started with the missing
+`isCompiledComponent` production export, then closed the wider rewritten
+runtime namespace with a router-derived parity gate. The cold consumer also
+found two packaging/host-boundary defects that an in-workspace test could not:
+module-lexer dependencies had to be declared in the devtools package, and the
+external Contract-web preset had been selecting the production-only direct
+DOM host during `vite dev`. Preserving the full renderer pair in development
+restored geolocation SVG updates, pager pointer/wheel/key input, and
+long-press delivery as one class.
+
+The touch-policy check now asserts LLP 0336's accepted edge-preserving shape:
+the claim regions and edge guards stay browser-owned (`auto`), while the
+interior pager cells carry `pan-y`. This is a semantic realignment, not a
+weakened check; the suite still drives both swipes, wheel paging, arrow keys,
+mnemonics, and long-press afterward.
+
+Evidence: the required registry production build passed, and
+`scripts/cold-clone-check.sh` completed its frozen registry install,
+production build, and all 34 browser checks (`34/34`, 92s). That is the exit
+witness for the closed production-runtime ticket.

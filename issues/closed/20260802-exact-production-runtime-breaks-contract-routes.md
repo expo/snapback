@@ -1,6 +1,6 @@
 # Exact 0.1.7 production runtime breaks every Contract route; cold-clone acceptance is 1/34
 
-**Status:** Open
+**Status:** Resolved
 **Impact:** 4
 **Urgency:** 3
 **Ease:** 2
@@ -83,3 +83,34 @@ fixed here.
 Exit: an Exact release whose production runtime boots the All Aboard Contract
 surface, the Snapback pin bumped to it, and
 `scripts/cold-clone-check.sh` green at 34/34.
+
+## Resolution — 2026-08-02
+
+Exact published the complete 20-package `@ccheever/exact-*` closure at
+`0.1.10` from `9cf261622bf23f1ac510d799011cbef852180bc9`. The upstream
+fix chain did more than add the missing classifier: the production runtime
+now exports `isCompiledComponent`, a derived router-boundary parity test
+checks every runtime value used through the production rewrite on web and
+native, the published devtools graph declares its module-lexer dependencies,
+the full web entry installs image prop semantics, and the external
+Contract-web preset preserves the full renderer host pair during development
+while retaining the lightweight direct host for production builds. The
+reported AOT `ident` closure fault did not recur in the final registry build
+or browser boot.
+
+Snapback now pins `0.1.10` in both lock-owned Contract surfaces
+(`all-aboard` and `cursors-web`) with regenerated frozen locks and rebuilt
+tracked production artifacts. The pager CSS assertion was realigned to
+Exact LLP 0336's accepted ENG-24312 shape: claim regions and browser-owned
+edge guards remain `touch-action: auto`, while interior horizontal-pager
+cells carry `pan-y`.
+
+Final evidence:
+
+- `node scripts/check-required-surface-builds.mjs` — both required registry
+  surfaces production-built successfully.
+- `scripts/cold-clone-check.sh` — frozen registry install, production build,
+  and browser acceptance all passed: `34/34` (browser leg 92s).
+
+Exit criteria are satisfied; this ticket is closed on the cold-clone
+evidence, not merely on the upstream export patch.
