@@ -49,6 +49,7 @@ import {
   admitDeclaredRefusal,
   parseHandlerEnvelope,
 } from '../../packages/snapback-harness/envelope.mjs';
+import { ID_PREFIXES, mintId } from '../../packages/snapback-contract/ids.mjs';
 // RQS — the Cloudflare arm (LLP 0090 rollout step 4, ENG-25455). The token/
 // digest algebra is the shared packages/snapback-client/rqs.mjs module,
 // re-exported through rqs-host.mjs (never forked); rqs-host adds this arm's
@@ -967,6 +968,29 @@ export class Coordinator {
 
   newId() {
     return crypto.randomUUID();
+  }
+
+  // The hosted proof has dev/anonymous authority only, but the shared
+  // MutationResponse still binds every settlement to one server-derived
+  // authority cohort. Persist the cohort across DO eviction and rotate it on
+  // destructive reset (which drops _snapback_meta), exactly like the data
+  // version stream below. Session generation is therefore honestly zero.
+  //
+  // @ref LLP 0039#replay-parity-and-the-authority-instance-id — settlement
+  //   output names its owning authority even on a target without replay
+  // @ref LLP 0148#d5-one-registry-one-minting-helper — shared `aut_` mint
+  authorityDescriptor() {
+    const key = 'authority_instance_id';
+    let authorityInstanceId = this.readMeta(key);
+    if (!authorityInstanceId) {
+      authorityInstanceId = mintId(ID_PREFIXES.authorityInstance);
+      this.writeMeta(key, authorityInstanceId);
+    }
+    return {
+      descriptorVersion: 1,
+      authorityInstanceId,
+      sessionGeneration: 0,
+    };
   }
 
   functionByName(name) {
@@ -4562,6 +4586,9 @@ export class Coordinator {
   //   correlation echoes the caller's opaque value verbatim.
   async kitMutation(name, payload) {
     const receivedAtMs = Date.now();
+    // Mint/read before invoking the handler: a metadata failure must not turn
+    // an already-committed mutation into an ambiguous missing response.
+    const authorityDescriptor = this.authorityDescriptor();
     const result = await this.invokeHandler(name, 'mutation', (payload && payload.args) || {});
     if (!result.ok) return kitFailure(result);
     const commit = this.commit(result.host);
@@ -4585,6 +4612,7 @@ export class Coordinator {
       version: commit.version,
       changed_count: commit.changes.length,
       result: result.value,
+      authorityDescriptor,
       receipt,
     });
   }

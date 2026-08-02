@@ -100,7 +100,12 @@ async function main() {
       'kit mutation success validates against mutation.output.schema.json',
       'mutation',
       mutated.body,
-      mutated.status === 200,
+      mutated.status === 200
+        && mutated.body.authorityDescriptor?.descriptorVersion === 1
+        && /^aut_[0-9a-hjkmnp-tv-z]{26}$/u.test(
+          String(mutated.body.authorityDescriptor?.authorityInstanceId),
+        )
+        && mutated.body.authorityDescriptor?.sessionGeneration === 0,
     );
     const receipt = mutated.body.receipt ?? {};
     check(
