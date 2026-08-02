@@ -217,6 +217,7 @@ const inventories = [
       'ephemeral-resubscribe-race.test.mjs',
       'exact-conformance.test.mjs',
       'exact-package.test.mjs',
+      'ids.test.mjs',
       'index.test.mjs',
       'keyed-provider.test.mjs',
       'lifecycle-generation-exhaustion.test.mjs',
@@ -409,7 +410,7 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // update: @expo/snapback-client's bearer-rotation, Expo RQS store/resume, and
 // WebCrypto fallback; plus @expo/snapback-react's authorization-denial,
 // cold-boot-binding, and WebCrypto fallback.
-assert.equal(total, 152, 'reviewed package/admin test count changed');
+assert.equal(total, 153, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }
