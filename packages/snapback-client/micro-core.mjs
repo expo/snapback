@@ -319,4 +319,3 @@ export function createMicroCoreRuntime({
   //   compares the monotone capture; cancellation is never its substitute.
   return Object.freeze({ invoke, setIdentity, dispose, [MICRO_CORE_INTERNALS]: internals });
 }
-
