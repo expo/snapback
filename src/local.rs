@@ -44,7 +44,7 @@ use crate::live_matcher::{
 use crate::live_wire::{
     AuthorizationInvalidationSnapshot, LiveDeltaOpKind, LiveDeltaWireOp, LiveEnvelope,
     LiveSocketServerFrame, MutationReceiptOutcome, Receipt, ResumeFromToken, ResumeMeta,
-    ResumeWire, SubscriptionReceiptEvent,
+    ResumeWire, SettlementClaim, SettlementClaimDisposition, SubscriptionReceiptEvent,
 };
 use crate::manifest::{
     ActionPlan, ActionReturnValue, ActionStep, ArtifactGeneration, AuthInput, AuthMode,
@@ -52,7 +52,7 @@ use crate::manifest::{
     FunctionDefinition, FunctionInvocationFacts, FunctionKind, FunctionManifest,
     FunctionResultContract, FunctionRuntime, HandlerInput, HandlerPlan, MutationOutput,
     MutationStep, PermissionScopeExpr, PublicFunctionManifest, PublicSchemaManifest, QueryOutput,
-    QueryPlan, SNAPBACK_SCHEMA_VERSION, SchemaManifest, SeedData,
+    QueryPlan, SNAPBACK_SCHEMA_VERSION, SchemaManifest, SeedData, SettlementLane,
     TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX, ValueExpr, auth_fingerprint, ctx_ledger_version,
     legacy_auth_fingerprint,
 };
@@ -1595,6 +1595,34 @@ impl<'a> MutationReceiptPublication<'a> {
 enum StagedMutationExecution {
     HostPlan(crate::manifest::MutationPlan),
     Buffered(Box<BufferedCommitPayload>),
+}
+
+fn accepted_claim_ledger(ledger: Option<&CtxAnswerLedger>) -> Vec<SettlementClaim> {
+    let Some(ledger) = ledger else {
+        return Vec::new();
+    };
+    let mut claims = Vec::with_capacity(ledger.ids.len() + 1);
+    claims.push(SettlementClaim {
+        field_or_slot: "runtime.now".to_owned(),
+        claimed: json!(ledger.now),
+        authoritative: json!(ledger.now),
+        disposition: SettlementClaimDisposition::Accepted,
+        skew_ms: None,
+    });
+    claims.extend(
+        ledger
+            .ids
+            .iter()
+            .enumerate()
+            .map(|(index, id)| SettlementClaim {
+                field_or_slot: format!("runtime.id[{index}]"),
+                claimed: Value::String(id.clone()),
+                authoritative: Value::String(id.clone()),
+                disposition: SettlementClaimDisposition::Accepted,
+                skew_ms: None,
+            }),
+    );
+    claims
 }
 
 /// A durable cron claim paired with its process-local finite admission root.
@@ -11509,14 +11537,16 @@ impl LocalSnapback {
             .function(name)
             .map(|function| function.write_set_summary.tables.clone())
             .filter(|tables| !tables.is_empty());
-        let (outcome, rollback_reason, snapshot_version, enqueues, result) = match result {
-            Ok(commit) => (
-                MutationReceiptOutcome::Confirmed,
-                None,
-                Some(commit.output.version),
-                commit.job_enqueues.clone(),
-                Ok(commit),
-            ),
+        let (outcome, rollback_reason, snapshot_version, claim_ledger, enqueues, result) =
+            match result {
+                Ok(commit) => (
+                    MutationReceiptOutcome::Confirmed,
+                    None,
+                    Some(commit.output.version),
+                    accepted_claim_ledger(commit.output.ctx_ledger.as_ref()),
+                    commit.job_enqueues.clone(),
+                    Ok(commit),
+                ),
             Err(error) => match self.db.current_version() {
                 Ok(version) => (
                     MutationReceiptOutcome::Rejected,
@@ -11525,12 +11555,14 @@ impl LocalSnapback {
                     Some(error.diagnostic.code.clone()),
                     Some(version),
                     Vec::new(),
+                    Vec::new(),
                     Err(error),
                 ),
                 Err(version_error) => (
                     MutationReceiptOutcome::Rejected,
                     Some(version_error.diagnostic.code.clone()),
                     None,
+                    Vec::new(),
                     Vec::new(),
                     Err(version_error),
                 ),
@@ -11540,6 +11572,12 @@ impl LocalSnapback {
             mutation_id: receipt_mutation_id,
             mutation: name.to_owned(),
             outcome,
+            // Ticket 01 labels every pre-existing settlement as lane Q. The
+            // request-selected lane is threaded by the lane-L slice.
+            // @ref LLP 0133#the-two-settlement-lanes — shipped replay keeps
+            //   its accepted captured-environment policy.
+            settlement_lane: SettlementLane::ReplayAccept,
+            claim_ledger: Some(claim_ledger),
             rollback_reason,
             affected_tables,
             snapshot_version,
@@ -11549,7 +11587,10 @@ impl LocalSnapback {
             received_at_ms: now_millis(),
         };
         if retain {
-            self.receipts.push_global(receipt.clone().into_value());
+            // @ref LLP 0133#receipts — the global receipt ring is a fan-out
+            //   boundary and must never retain submitting-authority claims.
+            self.receipts
+                .push_global(receipt.clone().into_fanout_value());
         }
         (result.map(|commit| commit.output), receipt)
     }
@@ -38215,6 +38256,59 @@ globalThis.__snapbackHandlers = {
             .expect("apply guarded schema");
         snapback.load_functions(guarded_functions());
         snapback
+    }
+
+    /// LLP 0133 acceptance sketch 1 plus ticket 01's adversarial privacy leg:
+    /// the shipped pin is labeled and its accepted claims reach only the
+    /// submitting response, never the subscriber-visible global receipt ring.
+    #[test]
+    fn llp0133_sketch_1_lane_q_receipt_and_fanout_privacy() {
+        let mut snapback = guarded_snapback();
+        let authority = InvocationGate::prepare_dev_input(
+            InvocationSource::LocalMutation,
+            ServerProfile::Test,
+            &input(),
+        )
+        .expect("prepare lane-Q authority");
+        let (result, receipt) = snapback.invoke_mutation_recording_with_authority_descriptor(
+            "hostInsert",
+            input(),
+            None,
+            None,
+            "test",
+            authority,
+        );
+        result.expect("lane-Q mutation settles");
+
+        let direct = serde_json::to_value(receipt).expect("direct receipt serializes");
+        assert_eq!(direct["settlementLane"], "replay-accept");
+        let claims = direct["claimLedger"]
+            .as_array()
+            .expect("submitting response carries its claim ledger");
+        assert!(claims.iter().all(|claim| {
+            claim["disposition"] == "accepted" && claim["claimed"] == claim["authoritative"]
+        }));
+        let accepted_id = claims
+            .iter()
+            .find(|claim| claim["fieldOrSlot"] == "runtime.id[0]")
+            .expect("insert id is ledgered")["claimed"]
+            .as_str()
+            .expect("id claim is a string");
+        assert_eq!(
+            snapback.db.scan_table("items", 10, 0).unwrap().rows[0]["_id"],
+            accepted_id,
+            "lane Q durably writes the captured id"
+        );
+
+        let receipt_snapshot = snapback.receipts_snapshot(None);
+        let fanout = receipt_snapshot["global"]
+            .as_array()
+            .and_then(|receipts| receipts.last())
+            .expect("fan-out receipt");
+        assert_eq!(fanout["settlementLane"], "replay-accept");
+        assert!(fanout.get("claimLedger").is_none());
+        assert!(fanout.get("idMap").is_none());
+        assert!(!fanout.to_string().contains(accepted_id));
     }
 
     /// LLP 0131 acceptance 1–2 (the Split-Ledger shape): a split vector

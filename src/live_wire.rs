@@ -33,6 +33,7 @@ use crate::diagnostic::Diagnostic;
 use crate::ephemeral::{
     DeleteRequest, EphemeralMessage, PublishRequest, RealtimeEnvelope, SubscribeRequest,
 };
+use crate::manifest::SettlementLane;
 
 /// A durable-lane fan-out envelope: what a live-query subscriber receives,
 /// unwrapped, on the WebSocket (and wrapped in [`RealtimeEnvelope::Durable`]
@@ -533,6 +534,31 @@ fn nullable_storage_version_schema(generator: &mut schemars::SchemaGenerator) ->
     generator.subschema_for::<Option<u64>>()
 }
 
+/// How settlement treated one client-captured application value. Divergence
+/// remains visible in the claimed/authoritative pair rather than becoming a
+/// fourth disposition.
+///
+/// @ref LLP 0133#receipts — settlement receipts carry labeled claims, while
+///   fan-out projections omit their values entirely.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum SettlementClaimDisposition {
+    Accepted,
+    AcceptedBoundedSkew,
+    ReDerived,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SettlementClaim {
+    pub field_or_slot: String,
+    pub claimed: Value,
+    pub authoritative: Value,
+    pub disposition: SettlementClaimDisposition,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub skew_ms: Option<u64>,
+}
+
 /// A retention-ring receipt (LLP 0034 §3.2): connectionless facts about
 /// mutations and subscription lifecycle, served by the receipts snapshot and
 /// echoed in live-subscribe/unsubscribe outputs. Privacy (§3.3): receipts
@@ -559,6 +585,17 @@ pub enum Receipt {
         mutation_id: String,
         mutation: String,
         outcome: MutationReceiptOutcome,
+        /// Server-observed settlement policy. Safe to retain in fan-out.
+        #[serde(rename = "settlementLane", default)]
+        settlement_lane: SettlementLane,
+        /// Private settlement evidence. `None` is the fan-out projection;
+        /// the submitting authority's direct response always carries `Some`.
+        #[serde(
+            default,
+            rename = "claimLedger",
+            skip_serializing_if = "Option::is_none"
+        )]
+        claim_ledger: Option<Vec<SettlementClaim>>,
         /// The diagnostic CODE only — messages may embed argument values
         /// (§3.3 privacy). `null` on confirmed mutations.
         #[serde(rename = "rollbackReason")]
@@ -649,6 +686,18 @@ impl Receipt {
     /// non-string-keyed maps.
     pub fn into_value(self) -> Value {
         serde_json::to_value(&self).expect("receipt serializes to JSON")
+    }
+
+    /// Project a receipt across the subscriber-visible global ring. Claim
+    /// values are authority-private even when the lane itself is public.
+    ///
+    /// @ref LLP 0133#receipts — claimed values never cross the fan-out
+    ///   boundary to another subscriber.
+    pub fn into_fanout_value(mut self) -> Value {
+        if let Self::Mutation { claim_ledger, .. } = &mut self {
+            *claim_ledger = None;
+        }
+        self.into_value()
     }
 }
 
@@ -942,6 +991,14 @@ mod tests {
             mutation_id: "mut_1".into(),
             mutation: "addTodo".into(),
             outcome: MutationReceiptOutcome::Confirmed,
+            settlement_lane: SettlementLane::ReplayAccept,
+            claim_ledger: Some(vec![SettlementClaim {
+                field_or_slot: "runtime.now".into(),
+                claimed: json!(7),
+                authoritative: json!(7),
+                disposition: SettlementClaimDisposition::Accepted,
+                skew_ms: None,
+            }]),
             rollback_reason: None,
             affected_tables: Some(vec!["todos".into()]),
             snapshot_version: Some(9),
@@ -959,6 +1016,13 @@ mod tests {
                 "mutationId": "mut_1",
                 "mutation": "addTodo",
                 "outcome": "confirmed",
+                "settlementLane": "replay-accept",
+                "claimLedger": [{
+                    "fieldOrSlot": "runtime.now",
+                    "claimed": 7,
+                    "authoritative": 7,
+                    "disposition": "accepted"
+                }],
                 "rollbackReason": null,
                 "affectedTables": ["todos"],
                 "snapshotVersion": 9,
@@ -966,6 +1030,33 @@ mod tests {
                 "correlation": null,
                 "receivedAtMs": 1,
             })
+        );
+
+        let fanout = Receipt::Mutation {
+            mutation_id: "mut_private".into(),
+            mutation: "addTodo".into(),
+            outcome: MutationReceiptOutcome::Confirmed,
+            settlement_lane: SettlementLane::ReplayAccept,
+            claim_ledger: Some(vec![SettlementClaim {
+                field_or_slot: "runtime.id[0]".into(),
+                claimed: json!("private-id"),
+                authoritative: json!("private-id"),
+                disposition: SettlementClaimDisposition::Accepted,
+                skew_ms: None,
+            }]),
+            rollback_reason: None,
+            affected_tables: Some(vec!["todos".into()]),
+            snapshot_version: Some(9),
+            enqueues: Vec::new(),
+            transport: "http".into(),
+            correlation: Value::Null,
+            received_at_ms: 1,
+        }
+        .into_fanout_value();
+        assert_eq!(fanout["settlementLane"], "replay-accept");
+        assert!(
+            fanout.get("claimLedger").is_none(),
+            "subscriber fan-out omits the private claim ledger"
         );
 
         let disposed = Receipt::Subscription {

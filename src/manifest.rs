@@ -5671,6 +5671,30 @@ pub struct AuthorityDescriptor {
 /// representation and every generated Snapback client.
 pub const AUTHORITY_DESCRIPTOR_MAX_SESSION_GENERATION: u64 = 9_007_199_254_740_991;
 
+/// Settle-time trust policy selected by an ordinary client-attested mutation
+/// label. The default preserves the pre-0133 queued replay contract for older
+/// request and retained-artifact decoders.
+///
+/// @ref LLP 0133#the-two-settlement-lanes — the label selects replay acceptance
+///   or server re-derivation without granting authority.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Deserialize,
+    Eq,
+    PartialEq,
+    Serialize,
+    schemars::JsonSchema,
+)]
+#[serde(rename_all = "kebab-case")]
+pub enum SettlementLane {
+    #[default]
+    ReplayAccept,
+    ReDerive,
+}
+
 /// Client-visible mutation request envelope. The idempotency key is mutation
 /// only: queries remain server-authoritative reads and are never queued or
 /// ledgered as writes (LLP 0043 M1/M2).

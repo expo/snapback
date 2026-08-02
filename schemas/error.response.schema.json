@@ -126,6 +126,16 @@
                 "null"
               ]
             },
+            "claimLedger": {
+              "description": "Private settlement evidence. `None` is the fan-out projection;\nthe submitting authority's direct response always carries `Some`.",
+              "items": {
+                "$ref": "#/$defs/SettlementClaim"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            },
             "correlation": {
               "description": "Adapter-supplied opaque correlation, echoed verbatim (capped)."
             },
@@ -160,6 +170,11 @@
                 "string",
                 "null"
               ]
+            },
+            "settlementLane": {
+              "$ref": "#/$defs/SettlementLane",
+              "default": "replay-accept",
+              "description": "Server-observed settlement policy. Safe to retain in fan-out."
             },
             "snapshotVersion": {
               "description": "`null` only when the rejected invocation could not safely read the\ndurable cursor; never fabricate zero from a storage failure.",
@@ -268,6 +283,51 @@
           "type": "object"
         }
       ]
+    },
+    "SettlementClaim": {
+      "additionalProperties": false,
+      "properties": {
+        "authoritative": true,
+        "claimed": true,
+        "disposition": {
+          "$ref": "#/$defs/SettlementClaimDisposition"
+        },
+        "fieldOrSlot": {
+          "type": "string"
+        },
+        "skewMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "fieldOrSlot",
+        "claimed",
+        "authoritative",
+        "disposition"
+      ],
+      "type": "object"
+    },
+    "SettlementClaimDisposition": {
+      "description": "How settlement treated one client-captured application value. Divergence\nremains visible in the claimed/authoritative pair rather than becoming a\nfourth disposition.\n\n@ref LLP 0133#receipts — settlement receipts carry labeled claims, while\n  fan-out projections omit their values entirely.",
+      "enum": [
+        "accepted",
+        "accepted-bounded-skew",
+        "re-derived"
+      ],
+      "type": "string"
+    },
+    "SettlementLane": {
+      "description": "Settle-time trust policy selected by an ordinary client-attested mutation\nlabel. The default preserves the pre-0133 queued replay contract for older\nrequest and retained-artifact decoders.\n\n@ref LLP 0133#the-two-settlement-lanes — the label selects replay acceptance\n  or server re-derivation without granting authority.",
+      "enum": [
+        "replay-accept",
+        "re-derive"
+      ],
+      "type": "string"
     },
     "SubscriptionReceiptEvent": {
       "enum": [
