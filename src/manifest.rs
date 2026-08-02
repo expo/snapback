@@ -6593,7 +6593,7 @@ impl CapabilityMaturity {
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-relation-activity-publication.v1.json");
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256: &str =
-    "sha256:2ce65f620949a0504afaacad72f31cb76bcec3e1fc91a9ac4eed004df85f3dc7";
+    "sha256:314da86c5aefc0ae116df77f68d4b80da463cf1fc48edcd7b6f65ff0b47c0a31";
 const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/relation-activity-publication-v1.receipt.json");
 
@@ -6663,19 +6663,19 @@ fn local_relation_activity_publication_verified_for(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:92de57785058e19f130f5a8393294af920e194efa120fab8a39df0eb567a9b16"
+                    "sha256:6991aa0f397ed5329ca982135eeeb6c6bfad1c405cc59d3c5693d60d76f765b8"
                         .to_owned(),
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:5f3d739ad92675dab6c674a1d92c1cb55c5b3763731b8a2933738b7d929aad7f"
+                    "sha256:073a3e24896bafe318fefcc1f5e24c84ae616fd93eabeb993fc0233ed3d1b959"
                         .to_owned(),
                 ),
             ])
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/define.mjs".to_owned(),
-                "sha256:76d6164646f1f0eecb564f630c830b3240e4fb12331dcc6011a971f805250c87"
+                "sha256:6da12759f2fd2276a23771c1bf1e56d50417325619b303bc2991e01fc5b51c74"
                     .to_owned(),
             )])
         && carrier.package_closure_sha256.is_none()
