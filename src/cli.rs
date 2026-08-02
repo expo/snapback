@@ -740,6 +740,11 @@ pub enum HostCommand {
         #[command(subcommand)]
         command: AssetsCommand,
     },
+    /// Typed local observability reads and the local-only SQL hatch.
+    Telemetry {
+        #[command(subcommand)]
+        command: TelemetryCommand,
+    },
     /// Mint one short-lived, scoped administrative data-read lease. This is a
     /// ready-file-only operation because the proof root is local operator
     /// authority and can never be discovered from a URL.
@@ -759,6 +764,10 @@ pub enum HostCommand {
         function: Vec<String>,
         #[arg(long)]
         explain_function: Vec<String>,
+        #[arg(long)]
+        telemetry_events: bool,
+        #[arg(long)]
+        telemetry_export: bool,
         #[arg(long, default_value_t = 60)]
         ttl_seconds: u64,
         #[arg(long, default_value_t = 500)]
@@ -800,6 +809,112 @@ pub enum HostCommand {
     Migrate {
         #[command(subcommand)]
         command: MigrateCommand,
+    },
+}
+
+#[derive(clap::Args, Clone, Default)]
+pub struct TelemetryFilterArgs {
+    #[arg(long)]
+    kind: Option<String>,
+    #[arg(long)]
+    name: Option<String>,
+    #[arg(long)]
+    status: Option<i64>,
+    #[arg(long)]
+    code: Option<String>,
+    #[arg(long)]
+    correlation: Option<String>,
+    #[arg(long, visible_alias = "since")]
+    from_ms: Option<i64>,
+    #[arg(long, visible_alias = "until")]
+    to_ms: Option<i64>,
+    #[arg(long)]
+    text: Option<String>,
+}
+
+impl TelemetryFilterArgs {
+    fn query_pairs(&self, stats: bool) -> Vec<(&'static str, String)> {
+        let mut pairs = Vec::new();
+        for (key, value) in [
+            ("kind", self.kind.as_ref()),
+            ("name", self.name.as_ref()),
+        ] {
+            if let Some(value) = value {
+                pairs.push((key, value.clone()));
+            }
+        }
+        if !stats {
+            if let Some(value) = self.status {
+                pairs.push(("status", value.to_string()));
+            }
+            for (key, value) in [
+                ("code", self.code.as_ref()),
+                ("correlation", self.correlation.as_ref()),
+                ("text", self.text.as_ref()),
+            ] {
+                if let Some(value) = value {
+                    pairs.push((key, value.clone()));
+                }
+            }
+        }
+        if let Some(value) = self.from_ms {
+            pairs.push(("fromMs", value.to_string()));
+        }
+        if let Some(value) = self.to_ms {
+            pairs.push(("toMs", value.to_string()));
+        }
+        pairs
+    }
+}
+
+#[derive(clap::Subcommand)]
+pub enum TelemetryCommand {
+    /// Closed aggregate projection under ordinary admin authority.
+    Stats {
+        #[command(flatten)]
+        target: TargetArgs,
+        #[command(flatten)]
+        filter: TelemetryFilterArgs,
+    },
+    /// One bounded raw-event page under a scoped secret-read lease.
+    Events {
+        #[command(flatten)]
+        target: TargetArgs,
+        #[command(flatten)]
+        filter: TelemetryFilterArgs,
+        #[arg(long)]
+        cursor_recorded_ts_ms: Option<i64>,
+        #[arg(long)]
+        cursor_id: Option<i64>,
+        #[arg(long, value_parser = ["asc", "desc"], default_value = "asc")]
+        order: String,
+        #[arg(long, default_value_t = crate::telemetry_query::DEFAULT_EVENT_LIMIT)]
+        limit: usize,
+        #[arg(long)]
+        secret_read_lease: Option<String>,
+    },
+    /// Snapshot-bounded NDJSON stream under a scoped secret-read lease.
+    Export {
+        #[command(flatten)]
+        target: TargetArgs,
+        #[command(flatten)]
+        filter: TelemetryFilterArgs,
+        #[arg(long)]
+        secret_read_lease: Option<String>,
+    },
+    /// Local-only read-only SQL over the visibility views; never networked.
+    Query {
+        sql: String,
+        #[arg(long, default_value = ".snapback/dev.sqlite3")]
+        db: PathBuf,
+        #[arg(long, default_value_t = crate::telemetry_query::DEFAULT_SQL_ROW_BUDGET)]
+        max_rows: usize,
+        #[arg(long, default_value_t = crate::telemetry_query::DEFAULT_SQL_STEP_BUDGET)]
+        max_steps: u64,
+        #[arg(long, default_value_t = crate::telemetry_query::DEFAULT_SQL_TIME_BUDGET_MS)]
+        max_time_ms: u64,
+        #[arg(long, default_value_t = crate::telemetry_query::DEFAULT_SQL_BYTE_BUDGET)]
+        max_bytes: usize,
     },
 }
 
@@ -1308,6 +1423,8 @@ pub async fn run_from_env() -> anyhow::Result<()> {
             table,
             function,
             explain_function,
+            telemetry_events,
+            telemetry_export,
             ttl_seconds,
             row_budget,
             byte_budget,
@@ -1318,6 +1435,12 @@ pub async fn run_from_env() -> anyhow::Result<()> {
             }
             if receipts {
                 scopes.insert(SecretReadScope::Receipts);
+            }
+            if telemetry_events {
+                scopes.insert(SecretReadScope::TelemetryEvents);
+            }
+            if telemetry_export {
+                scopes.insert(SecretReadScope::TelemetryExport);
             }
             scopes.extend(table.into_iter().map(SecretReadScope::Table));
             scopes.extend(function.into_iter().map(SecretReadScope::FunctionRun));
@@ -1342,6 +1465,7 @@ pub async fn run_from_env() -> anyhow::Result<()> {
             println!("{}", serde_json::to_string_pretty(&response)?);
             Ok(())
         }
+        Some(HostCommand::Telemetry { command }) => telemetry_command(command),
         Some(HostCommand::Auth { command }) => match command {
             AuthCommand::Backup { db, output } => auth_backup(&db, &output).await,
             AuthCommand::Restore { from, db } => auth_restore(&from, &db),
@@ -1891,6 +2015,188 @@ fn post_host_op(target: &TargetArgs, request: Value) -> anyhow::Result<Value> {
             .into_json()
             .context("host-ops error response was not JSON")?),
         Err(error) => Err(error).context("host-ops request failed"),
+    }
+}
+
+fn telemetry_secret_read_lease(
+    target: &TargetArgs,
+    explicit: Option<String>,
+    scope: SecretReadScope,
+    row_budget: u64,
+    byte_budget: u64,
+) -> anyhow::Result<String> {
+    if let Some(lease) = explicit.filter(|lease| !lease.trim().is_empty()) {
+        return Ok(lease);
+    }
+    let ready_file = target.ready_file.as_deref().context(
+        "raw telemetry reads require --ready-file for automatic scoped lease minting or --secret-read-lease",
+    )?;
+    let response = mint_secret_read_via_http(
+        ready_file,
+        target.token.clone(),
+        SecretReadMintSpec {
+            scopes: std::collections::BTreeSet::from([scope]),
+            ttl_ms: 60_000,
+            row_budget,
+            byte_budget,
+        },
+    )?;
+    response
+        .get("lease")
+        .and_then(Value::as_str)
+        .map(ToOwned::to_owned)
+        .context("secret-read mint response carried no lease")
+}
+
+fn telemetry_get(
+    target: &TargetArgs,
+    path: &str,
+    query: Vec<(&'static str, String)>,
+    secret_read_lease: Option<&str>,
+) -> anyhow::Result<ureq::Response> {
+    let resolved = resolve_http_target_for_operation(target, false)?;
+    let token = target
+        .token
+        .clone()
+        .or_else(|| std::env::var("SNAPBACK_ADMIN_TOKEN").ok())
+        .filter(|token| !token.is_empty())
+        .or(resolved.minted_token);
+    let mut request = ureq::get(&format!("{}{path}", resolved.server_url));
+    for (key, value) in &query {
+        request = request.query(key, value);
+    }
+    if let Some(token) = token {
+        request = request.set("x-snapback-admin-token", &token);
+    }
+    if let Some(lease) = secret_read_lease {
+        request = request.set(crate::admin_secret_read::SECRET_READ_LEASE_HEADER, lease);
+    }
+    match request.call() {
+        Ok(response) => Ok(response),
+        Err(ureq::Error::Status(status, response)) => {
+            let body = response
+                .into_string()
+                .unwrap_or_else(|_| "<unreadable response>".to_owned());
+            anyhow::bail!("telemetry request failed with HTTP {status}: {body}")
+        }
+        Err(error) => Err(error).context("telemetry request failed"),
+    }
+}
+
+fn telemetry_json_get(
+    target: &TargetArgs,
+    path: &str,
+    query: Vec<(&'static str, String)>,
+    secret_read_lease: Option<&str>,
+) -> anyhow::Result<Value> {
+    telemetry_get(target, path, query, secret_read_lease)?
+        .into_json()
+        .context("telemetry response was not JSON")
+}
+
+fn telemetry_command(command: TelemetryCommand) -> anyhow::Result<()> {
+    match command {
+        TelemetryCommand::Stats { target, filter } => {
+            anyhow::ensure!(
+                filter.status.is_none()
+                    && filter.code.is_none()
+                    && filter.correlation.is_none()
+                    && filter.text.is_none(),
+                "telemetry stats supports only --kind, --name, --from-ms, and --to-ms"
+            );
+            let response = telemetry_json_get(
+                &target,
+                "/_snapback/api/telemetry/stats",
+                filter.query_pairs(true),
+                None,
+            )?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+        TelemetryCommand::Events {
+            target,
+            filter,
+            cursor_recorded_ts_ms,
+            cursor_id,
+            order,
+            limit,
+            secret_read_lease,
+        } => {
+            let lease = telemetry_secret_read_lease(
+                &target,
+                secret_read_lease,
+                SecretReadScope::TelemetryEvents,
+                u64::try_from(limit).unwrap_or(u64::MAX),
+                4 * 1024 * 1024,
+            )?;
+            let mut query = filter.query_pairs(false);
+            if let Some(value) = cursor_recorded_ts_ms {
+                query.push(("cursorRecordedTsMs", value.to_string()));
+            }
+            if let Some(value) = cursor_id {
+                query.push(("cursorId", value.to_string()));
+            }
+            query.push(("order", order));
+            query.push(("limit", limit.to_string()));
+            let response = telemetry_json_get(
+                &target,
+                "/_snapback/api/telemetry/events",
+                query,
+                Some(&lease),
+            )?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+        TelemetryCommand::Export {
+            target,
+            filter,
+            secret_read_lease,
+        } => {
+            let lease = telemetry_secret_read_lease(
+                &target,
+                secret_read_lease,
+                SecretReadScope::TelemetryExport,
+                100_000,
+                64 * 1024 * 1024,
+            )?;
+            let response = telemetry_get(
+                &target,
+                "/_snapback/api/telemetry/export",
+                filter.query_pairs(false),
+                Some(&lease),
+            )?;
+            anyhow::ensure!(
+                response
+                    .header("content-type")
+                    .is_some_and(|value| value.starts_with("application/x-ndjson")),
+                "telemetry export response was not NDJSON"
+            );
+            let mut reader = response.into_reader();
+            let mut stdout = std::io::stdout().lock();
+            std::io::copy(&mut reader, &mut stdout)?;
+            Ok(())
+        }
+        TelemetryCommand::Query {
+            sql,
+            db,
+            max_rows,
+            max_steps,
+            max_time_ms,
+            max_bytes,
+        } => {
+            let response = crate::telemetry_query::query_local_sql(
+                &crate::telemetry::Telemetry::path_for_database(&db),
+                &sql,
+                crate::telemetry_query::TelemetrySqlBudgetV1 {
+                    max_rows,
+                    max_steps,
+                    max_time_ms,
+                    max_bytes,
+                },
+            )?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
     }
 }
 
@@ -4581,7 +4887,7 @@ mod tests {
     use super::{
         Args, AssetsCommand, AuthCommand, AuthConstructionFailure, AuthCoordinatorReadinessReceipt,
         AuthProgramConstructionReceipts, BEFORE_STARTUP_TARGET_RESERVATION, Cli, HostCommand,
-        ManagedPath, ReadyFileTarget, ResolvedHttpTarget, TargetArgs, bind_first_available,
+        ManagedPath, ReadyFileTarget, ResolvedHttpTarget, TargetArgs, TelemetryCommand, bind_first_available,
         bind_listener, managed_startup_paths, mint_secret_read_via_http, parse_run_args,
         path_with_filename_suffix, prepare_database_path, prepare_database_path_for_startup,
         reject_misdirected_serve_flags, resolve_http_target, runtime_auth_program_readiness,
@@ -6029,6 +6335,8 @@ mod tests {
             table: Vec::new(),
             function: Vec::new(),
             explain_function: Vec::new(),
+            telemetry_events: false,
+            telemetry_export: false,
             ttl_seconds: 60,
             row_budget: 10,
             byte_budget: 1_000,
@@ -6056,6 +6364,85 @@ mod tests {
         let resolved_debug = format!("{resolved:?}");
         assert!(!resolved_debug.contains(SENTINEL), "{resolved_debug}");
         assert!(resolved_debug.contains("[REDACTED]"), "{resolved_debug}");
+    }
+
+    #[test]
+    fn telemetry_cli_pins_all_verbs_and_since_until_export_spelling() {
+        let stats = Cli::parse_from([
+            "snapback",
+            "telemetry",
+            "stats",
+            "--url",
+            "http://127.0.0.1:4287",
+            "--kind",
+            "http_request",
+        ]);
+        assert!(matches!(
+            stats.command,
+            Some(HostCommand::Telemetry {
+                command: TelemetryCommand::Stats { .. }
+            })
+        ));
+
+        let events = Cli::parse_from([
+            "snapback",
+            "telemetry",
+            "events",
+            "--url",
+            "http://127.0.0.1:4287",
+            "--secret-read-lease",
+            "sbrl_test",
+            "--limit",
+            "7",
+        ]);
+        assert!(matches!(
+            events.command,
+            Some(HostCommand::Telemetry {
+                command: TelemetryCommand::Events { limit: 7, .. }
+            })
+        ));
+
+        let export = Cli::parse_from([
+            "snapback",
+            "telemetry",
+            "export",
+            "--url",
+            "http://127.0.0.1:4287",
+            "--secret-read-lease",
+            "sbrl_test",
+            "--since",
+            "100",
+            "--until",
+            "200",
+        ]);
+        match export.command {
+            Some(HostCommand::Telemetry {
+                command: TelemetryCommand::Export { filter, .. },
+            }) => {
+                assert_eq!(filter.from_ms, Some(100));
+                assert_eq!(filter.to_ms, Some(200));
+                assert_eq!(
+                    filter.query_pairs(false),
+                    vec![("fromMs", "100".to_owned()), ("toMs", "200".to_owned())]
+                );
+            }
+            _ => panic!("telemetry export command did not parse"),
+        }
+
+        let query = Cli::parse_from([
+            "snapback",
+            "telemetry",
+            "query",
+            "SELECT count(*) FROM telemetry_events_visible",
+            "--db",
+            "state.sqlite3",
+        ]);
+        assert!(matches!(
+            query.command,
+            Some(HostCommand::Telemetry {
+                command: TelemetryCommand::Query { .. }
+            })
+        ));
     }
 
     #[test]

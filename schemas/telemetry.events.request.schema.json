@@ -1,0 +1,90 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/telemetry.events.request.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "code": {
+      "default": null,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "correlation": {
+      "default": null,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "cursorId": {
+      "default": null,
+      "format": "int64",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "cursorRecordedTsMs": {
+      "default": null,
+      "format": "int64",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "fromMs": {
+      "default": null,
+      "format": "int64",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "kind": {
+      "default": null,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "limit": {
+      "default": 100,
+      "format": "uint",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "name": {
+      "default": null,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "status": {
+      "default": null,
+      "format": "int64",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "text": {
+      "default": null,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "toMs": {
+      "default": null,
+      "format": "int64",
+      "type": [
+        "integer",
+        "null"
+      ]
+    }
+  },
+  "title": "TelemetryEventsRequestV1",
+  "type": "object"
+}

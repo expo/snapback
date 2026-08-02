@@ -4,6 +4,10 @@
 export interface AdminContractLinks {
   inspect(args: Record<string, never>): unknown;
   refresh(args: Record<string, never>): unknown;
+  telemetryLogs(args: Record<string, never>): unknown;
+  refreshTelemetry(args: Record<string, never>): unknown;
+  loadOlderTelemetryLogs(args: Record<string, never>): unknown;
+  loadTelemetryLogs(args: { kind: string; name: string; code: string; text: string }): unknown;
   tableScan(args: Record<string, never>): unknown;
   loadTable(args: { table: string; offset: number }): unknown;
   runResult(args: Record<string, never>): unknown;

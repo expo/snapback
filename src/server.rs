@@ -14742,6 +14742,48 @@ pub fn operation_registry() -> Vec<OperationSpec> {
             EffectPolicy::None,
             SessionModeOverlay::secret_read(),
         ),
+        // @ref LLP 0154#d5--the-query-contract-typed-operations-projected-everywhere —
+        //   typed telemetry operations are one-to-one host-op projections;
+        //   export is a finite continuable page on this JSON carrier.
+        operation(
+            "host_ops.telemetry.stats",
+            "/_snapback/api/host-ops",
+            HostOps,
+            RouteClass::SystemApi,
+            RoutePolicy::AdminRead,
+            CredentialResolution::AdminCredential,
+            InvocationAuthority::Operator,
+            LegacyBodyPolicy::NotApplicable,
+            EffectPolicy::None,
+            ResponseSensitivity::OperatorMetadata,
+            SessionModeOverlay::NONE,
+        ),
+        operation(
+            "host_ops.telemetry.events",
+            "/_snapback/api/host-ops",
+            HostOps,
+            RouteClass::SystemApi,
+            RoutePolicy::AdminSecretRead,
+            CredentialResolution::AdminSecretReadLease,
+            InvocationAuthority::Operator,
+            LegacyBodyPolicy::NotApplicable,
+            EffectPolicy::None,
+            ResponseSensitivity::SensitiveApplicationData,
+            SessionModeOverlay::NONE,
+        ),
+        operation(
+            "host_ops.telemetry.export",
+            "/_snapback/api/host-ops",
+            HostOps,
+            RouteClass::SystemApi,
+            RoutePolicy::AdminSecretRead,
+            CredentialResolution::AdminSecretReadLease,
+            InvocationAuthority::Operator,
+            LegacyBodyPolicy::NotApplicable,
+            EffectPolicy::None,
+            ResponseSensitivity::SensitiveApplicationData,
+            SessionModeOverlay::NONE,
+        ),
         // The asset operator surface (LLP 0044 §Seeds and agent DX): the
         // function.run posture — admin-write everywhere, dev-admitted
         // authority inside the executor, legacy body userId rejected under
@@ -15296,6 +15338,9 @@ pub(crate) fn host_ops_operation_spec(
         "asset.rotateSigningKey" => "host_ops.asset.rotateSigningKey",
         "asset.exportCut" => "host_ops.asset.exportCut",
         "asset.importCut" => "host_ops.asset.importCut",
+        "telemetry.stats" => "host_ops.telemetry.stats",
+        "telemetry.events" => "host_ops.telemetry.events",
+        "telemetry.export" => "host_ops.telemetry.export",
         // @ref LLP 0024#http-projection — pinned-unbuilt and CLI-only
         // operations resolve to registered AdminWrite policies so an
         // authenticated request reaches the structured UNIMPLEMENTED /
@@ -16912,6 +16957,38 @@ fn auth_host_operation_input<T: serde::de::DeserializeOwned>(
     })
 }
 
+fn telemetry_host_operation_input<T: serde::de::DeserializeOwned + Default>(
+    request: &crate::host_ops::HostOpsRequest,
+) -> Result<T, SnapbackError> {
+    let has_unrelated_fields = request.schema.is_some()
+        || request.functions.is_some()
+        || request.seed.is_some()
+        || request.function.is_some()
+        || request.args.is_some()
+        || request.user_id.is_some()
+        || request.kind.is_some();
+    if has_unrelated_fields {
+        return Err(SnapbackError::error(
+            "SNAPBACK_TELEMETRY_QUERY_INVALID",
+            "telemetry",
+            "telemetry host operations accept only their closed input object",
+        ));
+    }
+    request
+        .input
+        .clone()
+        .map(serde_json::from_value)
+        .transpose()
+        .map(|value| value.unwrap_or_default())
+        .map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_TELEMETRY_QUERY_INVALID",
+                "telemetry",
+                "telemetry host-operation input is not the pinned request shape",
+            )
+        })
+}
+
 async fn auth_host_result(
     runtime: &AppState,
     request: crate::host_ops::HostOpsRequest,
@@ -17245,6 +17322,146 @@ async fn host_ops_handler_inner(
             },
         )
         .await?;
+        return Ok(Json(result));
+    }
+
+    if matches!(
+        request.operation.as_str(),
+        "telemetry.stats" | "telemetry.events" | "telemetry.export"
+    ) {
+        crate::admin::authorize_host_operation(
+            &ctx,
+            &headers,
+            &request.operation,
+            None,
+            false,
+            policy_mode,
+            &secret_reads,
+            None,
+        )?;
+        let secret_scope = match request.operation.as_str() {
+            "telemetry.events" => Some(
+                crate::admin_secret_read::SecretReadScope::TelemetryEvents,
+            ),
+            "telemetry.export" => Some(
+                crate::admin_secret_read::SecretReadScope::TelemetryExport,
+            ),
+            _ => None,
+        };
+        let secret_scopes = secret_scope
+            .clone()
+            .map(|scope| std::collections::BTreeSet::from([scope]));
+        if let Some(scopes) = secret_scopes.as_ref() {
+            crate::admin::preflight_secret_read(
+                &secret_reads,
+                &headers,
+                scopes.clone(),
+            )?;
+        }
+        let (outcome, rows) = match request.operation.as_str() {
+            "telemetry.events" => match telemetry_host_operation_input::<
+                crate::telemetry_query::TelemetryEventsRequestV1,
+            >(&request)
+            .and_then(|input| runtime.telemetry.query_events(&input))
+            {
+                Ok(response) => {
+                    let rows = response.events.len();
+                    (
+                        serde_json::to_value(response).map_err(|_| {
+                            SnapbackError::error(
+                                "SNAPBACK_TELEMETRY_QUERY_SERIALIZATION_FAILED",
+                                "telemetry",
+                                "failed to serialize the telemetry events response",
+                            )
+                        }),
+                        rows,
+                    )
+                }
+                Err(error) => (Err(error), 0),
+            },
+            "telemetry.export" => match telemetry_host_operation_input::<
+                crate::telemetry_query::TelemetryAgentExportRequestV1,
+            >(&request)
+            .and_then(|input| {
+                runtime.telemetry.agent_export_page(
+                    &input,
+                    runtime.telemetry_export_continuation_key.as_ref(),
+                )
+            }) {
+                Ok(response) => {
+                    let rows = response.records.len();
+                    (
+                        serde_json::to_value(response).map_err(|_| {
+                            SnapbackError::error(
+                                "SNAPBACK_TELEMETRY_QUERY_SERIALIZATION_FAILED",
+                                "telemetry",
+                                "failed to serialize the telemetry export page",
+                            )
+                        }),
+                        rows,
+                    )
+                }
+                Err(error) => (Err(error), 0),
+            },
+            _ => {
+                let outcome = telemetry_host_operation_input::<
+                crate::telemetry_query::TelemetryStatsRequestV1,
+            >(&request)
+            .and_then(|input| runtime.telemetry.query_stats(&input))
+            .and_then(|response| {
+                serde_json::to_value(response).map_err(|_| {
+                    SnapbackError::error(
+                        "SNAPBACK_TELEMETRY_QUERY_SERIALIZATION_FAILED",
+                        "telemetry",
+                        "failed to serialize the telemetry stats response",
+                    )
+                })
+            });
+                (outcome, 0)
+            }
+        };
+        let mut result = with_snapback(&state, move |snapback| {
+            crate::host_ops::telemetry_query_result(
+                snapback,
+                &request,
+                server_url,
+                profile,
+                outcome,
+            )
+        })
+        .await;
+        if requested_operation == "telemetry.export" && result.ok {
+            let page_bytes = serde_json::to_vec(&result.data).map(|bytes| bytes.len());
+            let envelope_bytes = serde_json::to_vec(&result).map(|bytes| bytes.len());
+            let envelope_within_allowance = page_bytes
+                .ok()
+                .zip(envelope_bytes.ok())
+                .is_some_and(|(page, envelope)| {
+                    envelope.saturating_sub(page)
+                        <= crate::host_ops::TELEMETRY_EXPORT_HOST_ENVELOPE_ALLOWANCE
+                });
+            if !envelope_within_allowance {
+                result.ok = false;
+                result.data = serde_json::Value::Object(Default::default());
+                result.diagnostics.push(
+                    SnapbackError::error(
+                        "SNAPBACK_TELEMETRY_EXPORT_ENVELOPE_BOUND_EXCEEDED",
+                        "telemetry",
+                        "telemetry export host metadata exceeded its fixed MCP lease allowance",
+                    )
+                    .diagnostic,
+                );
+            }
+        }
+        if let Some(scopes) = secret_scopes.filter(|_| result.ok) {
+            crate::admin::reserve_secret_read_json(
+                &secret_reads,
+                &headers,
+                scopes,
+                rows,
+                &result,
+            )?;
+        }
         return Ok(Json(result));
     }
 
@@ -23411,6 +23628,8 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID" => StatusCode::UNAUTHORIZED,
         "SNAPBACK_CONNECTION_GRANT_LIMIT_EXCEEDED"
         | "SNAPBACK_ADMIN_SECRET_READ_BUDGET_EXHAUSTED"
+        | "SNAPBACK_TELEMETRY_STATS_WORK_LIMIT_EXCEEDED"
+        | "SNAPBACK_TELEMETRY_QUERY_WORK_LIMIT_EXCEEDED"
         | "SNAPBACK_ADMIN_SECRET_READ_LEASE_CAPACITY_EXCEEDED"
         | "SNAPBACK_ADMIN_SECRET_READ_PROOF_CAPACITY_EXCEEDED"
         | "SNAPBACK_AUTH_THROTTLED"
@@ -38035,6 +38254,8 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_BUNDLE_PENDING_CAPACITY",
         "SNAPBACK_BUNDLE_RATE_LIMITED",
         "SNAPBACK_ADMIN_SECRET_READ_BUDGET_EXHAUSTED",
+        "SNAPBACK_TELEMETRY_STATS_WORK_LIMIT_EXCEEDED",
+        "SNAPBACK_TELEMETRY_QUERY_WORK_LIMIT_EXCEEDED",
         "SNAPBACK_ADMIN_SECRET_READ_LEASE_CAPACITY_EXCEEDED",
         "SNAPBACK_ADMIN_SECRET_READ_PROOF_CAPACITY_EXCEEDED",
         "SNAPBACK_AUTH_THROTTLED",

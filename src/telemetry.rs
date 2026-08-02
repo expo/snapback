@@ -20,6 +20,7 @@ use crate::telemetry_contract::{
     admit_operation_class, telemetry_projection_for_class,
 };
 use rusqlite::{Connection, OpenFlags, OptionalExtension, Transaction, params, params_from_iter};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
@@ -346,7 +347,7 @@ impl Drop for ObservationSpan {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BufferDiagnostics {
     pub depth: usize,
@@ -1241,6 +1242,130 @@ impl Telemetry {
             drops_since_boot: buffer.drops_since_boot.clone(),
             last_flush_watermark: buffer.last_flush_watermark,
         }
+    }
+
+    /// Read one bounded page from the existing generation-bound visibility
+    /// view. Querying first drains the in-process buffer through the ordinary
+    /// OBS-01 flush path; it never writes through a second seam.
+    ///
+    /// @ref LLP 0154#d5--the-query-and-export-contract — typed events use
+    ///   deterministic `(recorded_ts_ms,id)` ordering and a bounded page.
+    pub fn query_events(
+        &self,
+        request: &crate::telemetry_query::TelemetryEventsRequestV1,
+    ) -> SnapbackResult<crate::telemetry_query::TelemetryEventsResponseV1> {
+        self.force_flush()?;
+        let diagnostics = self.diagnostics();
+        let context = crate::telemetry_query::QueryContext {
+            drops_since_boot: diagnostics.drops_since_boot,
+            last_flush_watermark: diagnostics.last_flush_watermark,
+        };
+        let mut store = self
+            .producer
+            .shared
+            .store
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let connection = store.ensure_connection(wall_now_ms())?;
+        crate::telemetry_query::query_events(connection, request, &context)
+    }
+
+    /// Answer aggregate telemetry from one SQLite read owner: rollups through
+    /// their durable watermark plus the visible raw tail above it.
+    ///
+    /// @ref LLP 0154#d5--the-query-and-export-contract — stats never add two
+    ///   independently observed answers or overlap the rollup/raw partitions.
+    pub fn query_stats(
+        &self,
+        request: &crate::telemetry_query::TelemetryStatsRequestV1,
+    ) -> SnapbackResult<crate::telemetry_query::TelemetryStatsResponseV1> {
+        self.force_flush()?;
+        let diagnostics = self.diagnostics();
+        let context = crate::telemetry_query::QueryContext {
+            drops_since_boot: diagnostics.drops_since_boot,
+            last_flush_watermark: diagnostics.last_flush_watermark,
+        };
+        let mut store = self
+            .producer
+            .shared
+            .store
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let connection = store.ensure_connection(wall_now_ms())?;
+        crate::telemetry_query::query_stats(connection, request, &context)
+    }
+
+    /// Freeze one export snapshot and its self-describing NDJSON header.
+    ///
+    /// @ref LLP 0154#d9--export-not-retention — export stamps trusted
+    ///   store-level app/environment identity onto every emitted event.
+    pub fn begin_export(
+        &self,
+        request: &crate::telemetry_query::TelemetryExportRequestV1,
+    ) -> SnapbackResult<crate::telemetry_query::TelemetryExportHeaderV1> {
+        self.force_flush()?;
+        let diagnostics = self.diagnostics();
+        let context = crate::telemetry_query::QueryContext {
+            drops_since_boot: diagnostics.drops_since_boot,
+            last_flush_watermark: diagnostics.last_flush_watermark,
+        };
+        let mut store = self
+            .producer
+            .shared
+            .store
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let connection = store.ensure_connection(wall_now_ms())?;
+        crate::telemetry_query::begin_export(connection, request, &context)
+    }
+
+    /// Read one bounded page that cannot advance beyond a previously frozen
+    /// export snapshot. Callers unfold pages into NDJSON; no page or core API
+    /// materializes the complete export.
+    pub fn export_page(
+        &self,
+        request: &crate::telemetry_query::TelemetryExportRequestV1,
+        header: &crate::telemetry_query::TelemetryExportHeaderV1,
+        after: Option<&crate::telemetry_query::TelemetryCursorV1>,
+        limit: usize,
+    ) -> SnapbackResult<crate::telemetry_query::TelemetryExportPageV1> {
+        let mut store = self
+            .producer
+            .shared
+            .store
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let connection = store.ensure_connection(wall_now_ms())?;
+        crate::telemetry_query::export_page(connection, request, header, after, limit)
+    }
+
+    /// Return one finite JSON export page for agent carriers. Unlike the
+    /// HTTP/CLI NDJSON stream, every call declares and proves its row and byte
+    /// ceiling and advances only with a startup-bound continuation token.
+    pub fn agent_export_page(
+        &self,
+        request: &crate::telemetry_query::TelemetryAgentExportRequestV1,
+        continuation_key: &[u8; 32],
+    ) -> SnapbackResult<crate::telemetry_query::TelemetryAgentExportPageV1> {
+        self.force_flush()?;
+        let diagnostics = self.diagnostics();
+        let context = crate::telemetry_query::QueryContext {
+            drops_since_boot: diagnostics.drops_since_boot,
+            last_flush_watermark: diagnostics.last_flush_watermark,
+        };
+        let mut store = self
+            .producer
+            .shared
+            .store
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let connection = store.ensure_connection(wall_now_ms())?;
+        crate::telemetry_query::agent_export_page(
+            connection,
+            request,
+            &context,
+            continuation_key,
+        )
     }
 
     #[cfg(test)]
@@ -3447,6 +3572,758 @@ mod tests {
     }
 
     #[test]
+    fn typed_events_cursor_stats_and_export_share_the_visible_store() {
+        let telemetry = Telemetry::in_memory_with_identity(
+            "01900000-0000-7000-8000-000000000001",
+            identity("app-query", "preview-query"),
+            config(),
+        )
+        .unwrap();
+        for (name, status, duration) in [("one", 200, 2.0), ("two", 500, 16.0)] {
+            let mut event = joined("ignored", "http_request", 0);
+            event.name = name.to_owned();
+            event.status = Some(status);
+            event.duration_ms = Some(duration);
+            if status >= 500 {
+                event.code = Some("SNAPBACK_FIXTURE_FAILED".to_owned());
+            }
+            telemetry.enqueue(event, true);
+        }
+
+        let first = telemetry
+            .query_events(&crate::telemetry_query::TelemetryEventsRequestV1 {
+                filter: crate::telemetry_query::TelemetryFilterV1 {
+                    kind: Some("http_request".to_owned()),
+                    ..Default::default()
+                },
+                limit: 1,
+                ..Default::default()
+            })
+            .unwrap();
+        assert_eq!(first.events.len(), 1);
+        let cursor = first.next_cursor.expect("bounded first page has cursor");
+        let second = telemetry
+            .query_events(&crate::telemetry_query::TelemetryEventsRequestV1 {
+                filter: crate::telemetry_query::TelemetryFilterV1 {
+                    kind: Some("http_request".to_owned()),
+                    ..Default::default()
+                },
+                cursor_recorded_ts_ms: Some(cursor.recorded_ts_ms),
+                cursor_id: Some(cursor.id),
+                order: crate::telemetry_query::TelemetryEventOrderV1::Asc,
+                limit: 1,
+            })
+            .unwrap();
+        assert_eq!(second.events.len(), 1);
+        assert_ne!(first.events[0].id, second.events[0].id);
+
+        let newest = telemetry
+            .query_events(&crate::telemetry_query::TelemetryEventsRequestV1 {
+                filter: crate::telemetry_query::TelemetryFilterV1 {
+                    kind: Some("http_request".to_owned()),
+                    ..Default::default()
+                },
+                order: crate::telemetry_query::TelemetryEventOrderV1::Desc,
+                limit: 1,
+                ..Default::default()
+            })
+            .unwrap();
+        assert_eq!(newest.order, crate::telemetry_query::TelemetryEventOrderV1::Desc);
+        assert_eq!(newest.events[0].id, second.events[0].id);
+        let older_cursor = newest.next_cursor.expect("newest-first page continues older");
+        let older = telemetry
+            .query_events(&crate::telemetry_query::TelemetryEventsRequestV1 {
+                filter: crate::telemetry_query::TelemetryFilterV1 {
+                    kind: Some("http_request".to_owned()),
+                    ..Default::default()
+                },
+                cursor_recorded_ts_ms: Some(older_cursor.recorded_ts_ms),
+                cursor_id: Some(older_cursor.id),
+                order: crate::telemetry_query::TelemetryEventOrderV1::Desc,
+                limit: 1,
+            })
+            .unwrap();
+        assert_eq!(older.events[0].id, first.events[0].id);
+
+        let stats = telemetry
+            .query_stats(&crate::telemetry_query::TelemetryStatsRequestV1 {
+                filter: crate::telemetry_query::TelemetryStatsFilterV1 {
+                    kind: Some("http_request".to_owned()),
+                    ..Default::default()
+                },
+            })
+            .unwrap();
+        assert_eq!(
+            stats
+                .status_counts
+                .iter()
+                .map(|count| (count.status_class.as_str(), count.count))
+                .collect::<Vec<_>>(),
+            [("ok", 1), ("error", 1)]
+        );
+        assert_eq!(stats.coverage.raw_tail_rows, 0);
+        assert!(stats.coverage.rollup_rows > 0);
+
+        let export_request = crate::telemetry_query::TelemetryExportRequestV1 {
+            filter: crate::telemetry_query::TelemetryFilterV1 {
+                kind: Some("http_request".to_owned()),
+                ..Default::default()
+            },
+        };
+        let header = telemetry.begin_export(&export_request).unwrap();
+        telemetry.point(
+            "http_request",
+            "after_snapshot",
+            Some(200),
+            None,
+            None,
+            None,
+            Priority::Normal,
+        );
+        telemetry.force_flush().unwrap();
+        let first_page = telemetry
+            .export_page(&export_request, &header, None, 1)
+            .unwrap();
+        let second_page = telemetry
+            .export_page(
+                &export_request,
+                &header,
+                first_page.next_cursor.as_ref(),
+                1,
+            )
+            .unwrap();
+        assert_eq!(first_page.records.len(), 1);
+        assert_eq!(second_page.records.len(), 1);
+        assert!(second_page.next_cursor.is_none());
+        let records = first_page
+            .records
+            .iter()
+            .chain(&second_page.records)
+            .collect::<Vec<_>>();
+        assert!(
+            records
+                .iter()
+                .all(|record| record.event.name != "after_snapshot")
+        );
+        for record in serde_json::to_value(&records).unwrap().as_array().unwrap() {
+            assert_eq!(record["appId"], "app-query");
+            assert_eq!(record["environment"], "preview-query");
+        }
+    }
+
+    #[test]
+    fn agent_export_pages_are_bounded_snapshot_frozen_and_token_authenticated() {
+        let telemetry = Telemetry::in_memory_with_identity(
+            "01900000-0000-7000-8000-000000000001",
+            identity("app-agent-export", "preview-agent-export"),
+            config(),
+        )
+        .unwrap();
+        for name in ["agent-one", "agent-two"] {
+            telemetry.point(
+                "http_request",
+                name,
+                Some(200),
+                None,
+                None,
+                None,
+                Priority::Normal,
+            );
+        }
+        let key = [41_u8; 32];
+        let first = telemetry
+            .agent_export_page(
+                &crate::telemetry_query::TelemetryAgentExportRequestV1 {
+                    filter: crate::telemetry_query::TelemetryFilterV1 {
+                        kind: Some("http_request".to_owned()),
+                        ..Default::default()
+                    },
+                    max_rows: 1,
+                    ..Default::default()
+                },
+                &key,
+            )
+            .unwrap();
+        assert_eq!(first.page_rows, 1);
+        assert_eq!(first.records.len(), 1);
+        assert!(first.truncated);
+        assert!(first.page_bytes <= first.declared_bounds.max_bytes);
+        assert_eq!(serde_json::to_vec(&first).unwrap().len(), first.page_bytes);
+
+        telemetry.point(
+            "http_request",
+            "after-agent-snapshot",
+            Some(200),
+            None,
+            None,
+            None,
+            Priority::Normal,
+        );
+        let token = first.continuation_token.clone().unwrap();
+        let second = telemetry
+            .agent_export_page(
+                &crate::telemetry_query::TelemetryAgentExportRequestV1 {
+                    continuation_token: Some(token.clone()),
+                    max_rows: 1,
+                    ..Default::default()
+                },
+                &key,
+            )
+            .unwrap();
+        assert_eq!(second.header.snapshot, first.header.snapshot);
+        assert_eq!(second.page_rows, 1);
+        assert!(!second.truncated);
+        assert!(second.continuation_token.is_none());
+        assert!(
+            first
+                .records
+                .iter()
+                .chain(&second.records)
+                .all(|record| record.event.name != "after-agent-snapshot")
+        );
+
+        telemetry.begin_generation_transition();
+        telemetry
+            .finish_generation_transition("01900000-0000-7000-8000-000000000002")
+            .unwrap();
+        let stale = telemetry
+            .agent_export_page(
+                &crate::telemetry_query::TelemetryAgentExportRequestV1 {
+                    continuation_token: Some(token.clone()),
+                    ..Default::default()
+                },
+                &key,
+            )
+            .expect_err("reset-bound token must not resume in a new generation");
+        assert_eq!(
+            stale.diagnostic.code,
+            "SNAPBACK_TELEMETRY_EXPORT_CONTINUATION_STALE"
+        );
+
+        let mut tampered = token.into_bytes();
+        let last = tampered.last_mut().unwrap();
+        *last = if *last == b'A' { b'B' } else { b'A' };
+        let error = telemetry
+            .agent_export_page(
+                &crate::telemetry_query::TelemetryAgentExportRequestV1 {
+                    continuation_token: Some(String::from_utf8(tampered).unwrap()),
+                    ..Default::default()
+                },
+                &key,
+            )
+            .expect_err("tampered continuation must fail closed");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_TELEMETRY_EXPORT_CONTINUATION_INVALID"
+        );
+    }
+
+    #[test]
+    fn streaming_export_snapshot_rejects_generation_rebind_between_pages() {
+        let telemetry = Telemetry::in_memory_with_identity(
+            "01900000-0000-7000-8000-000000000001",
+            identity("app-stream-reset", "preview-stream-reset"),
+            config(),
+        )
+        .unwrap();
+        for name in ["before-reset-one", "before-reset-two"] {
+            telemetry.point(
+                "log",
+                name,
+                None,
+                None,
+                None,
+                None,
+                Priority::Normal,
+            );
+        }
+        let request = crate::telemetry_query::TelemetryExportRequestV1::default();
+        let header = telemetry.begin_export(&request).unwrap();
+        let first = telemetry.export_page(&request, &header, None, 1).unwrap();
+        let cursor = first.next_cursor.expect("two rows require a second page");
+
+        telemetry.begin_generation_transition();
+        telemetry
+            .finish_generation_transition("01900000-0000-7000-8000-000000000002")
+            .unwrap();
+        telemetry.point(
+            "log",
+            "successor-generation",
+            None,
+            None,
+            None,
+            None,
+            Priority::Normal,
+        );
+        let error = telemetry
+            .export_page(&request, &header, Some(&cursor), 1)
+            .expect_err("a frozen stream may not cross a generation/app-incarnation rebind");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_TELEMETRY_EXPORT_SNAPSHOT_STALE"
+        );
+    }
+
+    #[test]
+    fn typed_read_freshness_survives_a_clean_process_reopen() {
+        let dir = tempfile::tempdir().unwrap();
+        let app_path = dir.path().join("freshness.sqlite3");
+        let incarnation = "01900000-0000-7000-8000-000000000001";
+        let telemetry = Telemetry::open_for_database(&app_path, incarnation, config()).unwrap();
+        telemetry.point(
+            "http_request",
+            "persisted-freshness",
+            Some(200),
+            None,
+            None,
+            None,
+            Priority::Normal,
+        );
+        let before = telemetry
+            .query_events(&crate::telemetry_query::TelemetryEventsRequestV1::default())
+            .unwrap()
+            .variance
+            .freshness_watermark
+            .expect("flushed event establishes freshness");
+        drop(telemetry);
+
+        let reopened = Telemetry::open_for_database(&app_path, incarnation, config()).unwrap();
+        assert_eq!(
+            reopened.diagnostics().last_flush_watermark,
+            None,
+            "a new process has no inherited in-memory watermark"
+        );
+        let events_freshness = reopened
+            .query_events(&crate::telemetry_query::TelemetryEventsRequestV1::default())
+            .unwrap()
+            .variance
+            .freshness_watermark
+            .expect("events recover persisted freshness");
+        let stats_freshness = reopened
+            .query_stats(&crate::telemetry_query::TelemetryStatsRequestV1::default())
+            .unwrap()
+            .variance
+            .freshness_watermark
+            .expect("stats recover persisted freshness");
+        assert!(events_freshness >= before);
+        assert!(stats_freshness >= before);
+    }
+
+    #[test]
+    fn stats_historical_partial_window_snaps_and_reports_its_actual_coverage() {
+        let mut query_config = config();
+        query_config.max_days = 1;
+        query_config.hourly_days = 1;
+        let telemetry = Telemetry::in_memory_with_identity(
+            "01900000-0000-7000-8000-000000000001",
+            identity("app-stats", "preview-stats"),
+            query_config.clone(),
+        )
+        .unwrap();
+        let base = wall_now_ms();
+        let (generation, first_recorded, second_recorded) = {
+            let mut store = telemetry.producer.shared.store.lock().unwrap();
+            let generation = store.generation.clone();
+            store
+                .flush(
+                    vec![joined_named(&generation, "http_request", "old-route", 1)],
+                    BTreeMap::new(),
+                    base,
+                    true,
+                )
+                .unwrap();
+            let first_recorded = store
+                .conn
+                .as_ref()
+                .unwrap()
+                .query_row(
+                    "SELECT min(recorded_ts_ms) FROM telemetry_events WHERE name='old-route'",
+                    [],
+                    |row| row.get::<_, i64>(0),
+                )
+                .unwrap();
+            let mut failed = joined_named(&generation, "http_request", "old-route", 2);
+            failed.status = Some(500);
+            failed.code = Some("SNAPBACK_OLD_FAILED".to_owned());
+            store
+                .flush(vec![failed], BTreeMap::new(), base + 1_000, true)
+                .unwrap();
+            let second_recorded = store
+                .conn
+                .as_ref()
+                .unwrap()
+                .query_row(
+                    "SELECT max(recorded_ts_ms) FROM telemetry_events WHERE name='old-route'",
+                    [],
+                    |row| row.get::<_, i64>(0),
+                )
+                .unwrap();
+            let compact_clock = base + 2 * DAY_MS;
+            let tx = store.conn.as_mut().unwrap().transaction().unwrap();
+            maintain(&tx, &query_config, compact_clock).unwrap();
+            tx.commit().unwrap();
+            store
+                .flush(
+                    vec![joined_named(&generation, "http_request", "new-ok", 3)],
+                    BTreeMap::new(),
+                    compact_clock + 1_000,
+                    true,
+                )
+                .unwrap();
+            store
+                .conn
+                .as_ref()
+                .unwrap()
+                .execute(
+                    "UPDATE telemetry_rollup_daily SET folded_count=3 WHERE name='old-route'",
+                    [],
+                )
+                .unwrap();
+            (generation, first_recorded, second_recorded)
+        };
+        assert!(!generation.is_empty());
+
+        let stats = telemetry
+            .query_stats(&crate::telemetry_query::TelemetryStatsRequestV1 {
+                filter: crate::telemetry_query::TelemetryStatsFilterV1 {
+                    kind: Some("http_request".to_owned()),
+                    from_ms: Some(first_recorded + 1),
+                    to_ms: Some(second_recorded + 2 * DAY_MS),
+                    ..Default::default()
+                },
+            })
+            .unwrap();
+        assert!(stats.coverage.partitions.iter().any(|p| p.tier == "daily"));
+        assert!(stats.coverage.partitions.iter().any(|p| p.tier == "hourly"));
+        assert_eq!(
+            stats.variance.field_exactness["statusCounts"],
+            "exactAtReportedSnappedBucketWindow"
+        );
+        assert_eq!(
+            stats.variance.truncation["partialBucketOverlap"],
+            json!(true)
+        );
+        assert_eq!(
+            stats.variance.truncation["heavyHittersFoldedAsOther"],
+            json!(true)
+        );
+        assert_eq!(stats.variance.truncation["foldedCount"], json!(3));
+        assert_eq!(
+            stats.variance.truncation["snappedToBucketBoundaries"],
+            json!(true)
+        );
+        assert!(stats.coverage.start_ms.is_some_and(|start| start <= first_recorded));
+        assert_eq!(
+            stats.variance.truncation["reportedWindow"]["startMs"],
+            json!(stats.coverage.start_ms)
+        );
+        assert!(stats.variance.truncation["histogramPercentileErrorBounds"].is_object());
+    }
+
+    #[test]
+    fn stats_partial_retained_edge_uses_raw_rows_without_double_counting() {
+        let telemetry = Telemetry::in_memory_with_identity(
+            "01900000-0000-7000-8000-000000000001",
+            identity("app-stats-edge", "preview-stats-edge"),
+            config(),
+        )
+        .unwrap();
+        let base = wall_now_ms();
+        let (second_recorded, third_recorded) = {
+            let mut store = telemetry.producer.shared.store.lock().unwrap();
+            let generation = store.generation.clone();
+            store
+                .flush(
+                    vec![joined_named(&generation, "http_request", "edge-route", 1)],
+                    BTreeMap::new(),
+                    base,
+                    true,
+                )
+                .unwrap();
+            store
+                .flush(
+                    vec![joined_named(&generation, "http_request", "edge-route", 2)],
+                    BTreeMap::new(),
+                    base + 1,
+                    true,
+                )
+                .unwrap();
+            let second_recorded = store
+                .conn
+                .as_ref()
+                .unwrap()
+                .query_row(
+                    "SELECT max(recorded_ts_ms) FROM telemetry_events WHERE name='edge-route'",
+                    [],
+                    |row| row.get::<_, i64>(0),
+                )
+                .unwrap();
+            store
+                .flush(
+                    vec![joined_named(&generation, "http_request", "edge-route", 3)],
+                    BTreeMap::new(),
+                    base + 2,
+                    false,
+                )
+                .unwrap();
+            let third_recorded = store
+                .conn
+                .as_ref()
+                .unwrap()
+                .query_row(
+                    "SELECT max(recorded_ts_ms) FROM telemetry_events WHERE name='edge-route'",
+                    [],
+                    |row| row.get::<_, i64>(0),
+                )
+                .unwrap();
+            (second_recorded, third_recorded)
+        };
+
+        let stats = telemetry
+            .query_stats(&crate::telemetry_query::TelemetryStatsRequestV1 {
+                filter: crate::telemetry_query::TelemetryStatsFilterV1 {
+                    kind: Some("http_request".to_owned()),
+                    from_ms: Some(second_recorded),
+                    to_ms: Some(third_recorded),
+                    ..Default::default()
+                },
+            })
+            .unwrap();
+        let total = stats
+            .status_counts
+            .iter()
+            .map(|entry| entry.count)
+            .sum::<u64>();
+        assert_eq!(total, 2, "the excluded first rolled row must not leak in");
+        assert_eq!(stats.coverage.rollup_rows, 0);
+        assert_eq!(
+            stats.coverage.raw_edge_rows, 2,
+            "the public typed read flushes and rolls the pending third event before composing"
+        );
+        assert_eq!(stats.coverage.raw_tail_rows, 0);
+        assert_eq!(stats.coverage.start_ms, Some(second_recorded));
+        assert_eq!(stats.coverage.end_ms, Some(third_recorded));
+        assert_eq!(
+            stats.variance.truncation["rawEdgeSubstitution"],
+            json!(true)
+        );
+        assert_eq!(
+            stats.variance.truncation["snappedToBucketBoundaries"],
+            json!(false)
+        );
+        assert_eq!(
+            stats.variance.field_exactness["statusCounts"],
+            "exactDisjointRollupsPlusRawTailAndRetainedEdges"
+        );
+        assert_eq!(
+            stats.named_counts
+                .iter()
+                .find(|entry| entry.name == "edge-route")
+                .map(|entry| entry.count),
+            Some(2)
+        );
+        assert_eq!(
+            stats.series.iter().map(|point| point.count).sum::<u64>(),
+            2
+        );
+    }
+
+    #[test]
+    fn stats_retained_edge_substitution_is_bucket_wide_across_names() {
+        let telemetry = Telemetry::in_memory_with_identity(
+            "01900000-0000-7000-8000-000000000001",
+            identity("app-stats-edge-names", "preview-stats-edge-names"),
+            config(),
+        )
+        .unwrap();
+        let base = wall_now_ms();
+        let (from, to) = {
+            let mut store = telemetry.producer.shared.store.lock().unwrap();
+            let generation = store.generation.clone();
+            for (name, offset) in [
+                ("wide", 0),
+                ("narrow", 1),
+                ("narrow", 2),
+                ("wide", 3),
+            ] {
+                store
+                    .flush(
+                        vec![joined_named(&generation, "http_request", name, offset + 1)],
+                        BTreeMap::new(),
+                        base + i64::try_from(offset).unwrap(),
+                        true,
+                    )
+                    .unwrap();
+            }
+            let connection = store.conn.as_ref().unwrap();
+            let from = connection
+                .query_row(
+                    "SELECT min(recorded_ts_ms) FROM telemetry_events WHERE name='narrow'",
+                    [],
+                    |row| row.get::<_, i64>(0),
+                )
+                .unwrap();
+            let to = connection
+                .query_row(
+                    "SELECT max(recorded_ts_ms) FROM telemetry_events WHERE name='wide'",
+                    [],
+                    |row| row.get::<_, i64>(0),
+                )
+                .unwrap();
+            (from, to)
+        };
+
+        let stats = telemetry
+            .query_stats(&crate::telemetry_query::TelemetryStatsRequestV1 {
+                filter: crate::telemetry_query::TelemetryStatsFilterV1 {
+                    kind: Some("http_request".to_owned()),
+                    from_ms: Some(from),
+                    to_ms: Some(to),
+                    ..Default::default()
+                },
+            })
+            .unwrap();
+        assert_eq!(
+            stats
+                .status_counts
+                .iter()
+                .map(|entry| entry.count)
+                .sum::<u64>(),
+            3,
+            "the narrow-name rollup must not overlap the wide-name raw substitution"
+        );
+        assert_eq!(stats.coverage.rollup_rows, 0);
+        assert_eq!(stats.coverage.raw_edge_rows, 3);
+        assert_eq!(
+            stats
+                .named_counts
+                .iter()
+                .map(|entry| (entry.name.as_str(), entry.count))
+                .collect::<BTreeMap<_, _>>(),
+            BTreeMap::from([("narrow", 2), ("wide", 1)])
+        );
+    }
+
+    #[test]
+    fn named_stats_filter_reports_when_heavy_hitter_folding_can_hide_the_name() {
+        let mut query_config = config();
+        query_config.top_names_per_hour = 1;
+        let telemetry = Telemetry::in_memory_with_identity(
+            "01900000-0000-7000-8000-000000000001",
+            identity("app-folded", "preview-folded"),
+            query_config.clone(),
+        )
+        .unwrap();
+        let base = wall_now_ms();
+        {
+            let mut store = telemetry.producer.shared.store.lock().unwrap();
+            let generation = store.generation.clone();
+            store
+                .flush(
+                    vec![
+                        joined_named(&generation, "http_request", "kept-name", 1),
+                        joined_named(&generation, "http_request", "z-folded-name", 2),
+                    ],
+                    BTreeMap::new(),
+                    base,
+                    true,
+                )
+                .unwrap();
+            let tx = store.conn.as_mut().unwrap().transaction().unwrap();
+            maintain(&tx, &query_config, base + HOUR_MS).unwrap();
+            tx.commit().unwrap();
+        }
+        let stats = telemetry
+            .query_stats(&crate::telemetry_query::TelemetryStatsRequestV1 {
+                filter: crate::telemetry_query::TelemetryStatsFilterV1 {
+                    kind: Some("http_request".to_owned()),
+                    name: Some("z-folded-name".to_owned()),
+                    ..Default::default()
+                },
+            })
+            .unwrap();
+        assert!(stats.status_counts.is_empty());
+        assert_eq!(
+            stats.variance.field_exactness["statusCounts"],
+            "boundedByHeavyHitterFolding"
+        );
+        assert_eq!(
+            stats.variance.truncation["namedFilterMayBeFolded"],
+            json!(true)
+        );
+        assert!(stats.variance.truncation["foldedCount"].as_u64().unwrap() > 0);
+    }
+
+    #[test]
+    fn stats_refuses_raw_tail_above_the_explicit_work_bound() {
+        let telemetry = Telemetry::in_memory_with_identity(
+            "01900000-0000-7000-8000-000000000001",
+            identity("app-stats-bound", "preview-stats-bound"),
+            config(),
+        )
+        .unwrap();
+        let error = {
+            let mut store = telemetry.producer.shared.store.lock().unwrap();
+            let generation = store.generation.clone();
+            let base = wall_now_ms();
+            let transaction = store.conn.as_mut().unwrap().transaction().unwrap();
+            {
+                let mut insert = transaction
+                    .prepare(
+                        "INSERT INTO telemetry_events(observation,phase,generation,class_v,ts_ms,recorded_ts_ms,kind,name,status,duration_ms,subject,code,correlation,release,details) VALUES(?1,'joined',?2,1,?3,?3,'http_request','bounded-route',200,1.0,NULL,NULL,NULL,NULL,NULL)",
+                    )
+                    .unwrap();
+                for index in 0..=crate::telemetry_query::MAX_STATS_RAW_TAIL_ROWS {
+                    insert
+                        .execute(rusqlite::params![
+                            format!("obs-stats-bound-{index}"),
+                            generation,
+                            base + i64::try_from(index + 1).unwrap(),
+                        ])
+                        .unwrap();
+                }
+            }
+            transaction.commit().unwrap();
+            let connection = store.conn.as_ref().unwrap();
+            crate::telemetry_query::query_stats(
+                connection,
+                &crate::telemetry_query::TelemetryStatsRequestV1::default(),
+                &crate::telemetry_query::QueryContext {
+                    drops_since_boot: BTreeMap::new(),
+                    last_flush_watermark: None,
+                },
+            )
+            .expect_err("an unbounded raw tail must require a narrower filter")
+        };
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_TELEMETRY_STATS_WORK_LIMIT_EXCEEDED"
+        );
+        assert_eq!(
+            error.diagnostic.details["maximumRows"],
+            json!(crate::telemetry_query::MAX_STATS_RAW_TAIL_ROWS)
+        );
+    }
+
+    #[test]
+    fn typed_query_validation_fails_before_store_read() {
+        let telemetry = Telemetry::in_memory_with_identity(
+            "01900000-0000-7000-8000-000000000001",
+            identity("app-query", "preview-query"),
+            config(),
+        )
+        .unwrap();
+        let error = telemetry
+            .query_events(&crate::telemetry_query::TelemetryEventsRequestV1 {
+                cursor_recorded_ts_ms: Some(1),
+                cursor_id: None,
+                ..Default::default()
+            })
+            .expect_err("half cursor refuses");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_TELEMETRY_QUERY_INVALID");
+    }
+
+    #[test]
     fn explicit_store_identity_rejects_empty_axes() {
         for (app_id, environment) in [("", "preview"), ("app", ""), ("   ", "preview")] {
             let error = TelemetryStoreIdentity::new(app_id, environment)
@@ -5273,6 +6150,30 @@ mod tests {
             )
             .unwrap();
         assert_eq!((rollup, raw_tail), (1, 1));
+        let before = crate::telemetry_query::query_stats(
+            store.conn.as_ref().unwrap(),
+            &crate::telemetry_query::TelemetryStatsRequestV1 {
+                filter: crate::telemetry_query::TelemetryStatsFilterV1 {
+                    kind: Some("function_run".to_owned()),
+                    ..Default::default()
+                },
+            },
+            &crate::telemetry_query::QueryContext {
+                drops_since_boot: BTreeMap::new(),
+                last_flush_watermark: None,
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            before
+                .status_counts
+                .iter()
+                .map(|entry| entry.count)
+                .sum::<u64>(),
+            2,
+            "a reopened reader composes the durable rollup and raw tail once each"
+        );
+        assert_eq!((before.coverage.rollup_rows, before.coverage.raw_tail_rows), (1, 1));
         store
             .flush(Vec::new(), BTreeMap::new(), base + 3, true)
             .unwrap();
@@ -5294,6 +6195,30 @@ mod tests {
             .unwrap();
         assert_eq!((after_rollup, after_tail), (2, 0));
         assert!(after_watermark > watermark);
+        let after = crate::telemetry_query::query_stats(
+            store.conn.as_ref().unwrap(),
+            &crate::telemetry_query::TelemetryStatsRequestV1 {
+                filter: crate::telemetry_query::TelemetryStatsFilterV1 {
+                    kind: Some("function_run".to_owned()),
+                    ..Default::default()
+                },
+            },
+            &crate::telemetry_query::QueryContext {
+                drops_since_boot: BTreeMap::new(),
+                last_flush_watermark: None,
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            after
+                .status_counts
+                .iter()
+                .map(|entry| entry.count)
+                .sum::<u64>(),
+            2,
+            "advancing the watermark after restart preserves the total"
+        );
+        assert_eq!((after.coverage.rollup_rows, after.coverage.raw_tail_rows), (2, 0));
     }
 
     #[test]

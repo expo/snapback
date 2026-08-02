@@ -1,0 +1,282 @@
+{
+  "$defs": {
+    "TelemetryCapabilityOutcomeV1": {
+      "enum": [
+        "exact",
+        "approximate",
+        "boundedWindow",
+        "unsupported"
+      ],
+      "type": "string"
+    },
+    "TelemetryCoveragePartitionV1": {
+      "properties": {
+        "bucketEndMs": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "bucketStartMs": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "count": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "coverageEndMs": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "coverageStartMs": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "errorCount": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "foldedCount": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "tier": {
+          "type": "string"
+        },
+        "watermarkId": {
+          "format": "int64",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "tier",
+        "bucketStartMs",
+        "bucketEndMs",
+        "coverageStartMs",
+        "coverageEndMs",
+        "watermarkId",
+        "kind",
+        "name",
+        "count",
+        "errorCount",
+        "foldedCount"
+      ],
+      "type": "object"
+    },
+    "TelemetryCoverageV1": {
+      "properties": {
+        "endMs": {
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "partitions": {
+          "items": {
+            "$ref": "#/$defs/TelemetryCoveragePartitionV1"
+          },
+          "type": "array"
+        },
+        "rawTailEndId": {
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "rawTailRows": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "rawTailStartId": {
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "rollupRows": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "rollupWatermarkId": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "startMs": {
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "rollupWatermarkId",
+        "rollupRows",
+        "rawTailRows",
+        "partitions"
+      ],
+      "type": "object"
+    },
+    "TelemetryLatencyV1": {
+      "properties": {
+        "count": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "name": {
+          "type": "string"
+        },
+        "p50Ms": {
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "p95Ms": {
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "count"
+      ],
+      "type": "object"
+    },
+    "TelemetryStatusCountV1": {
+      "properties": {
+        "count": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "statusClass": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "statusClass",
+        "count"
+      ],
+      "type": "object"
+    },
+    "TelemetryVarianceV1": {
+      "properties": {
+        "capabilityOutcome": {
+          "$ref": "#/$defs/TelemetryCapabilityOutcomeV1"
+        },
+        "dropsLifetime": {
+          "additionalProperties": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "object"
+        },
+        "dropsSinceBoot": {
+          "additionalProperties": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "object"
+        },
+        "fieldExactness": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "freshnessWatermark": {
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "retentionBoundaryMs": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "samplingFactor": {
+          "format": "double",
+          "type": "number"
+        },
+        "storeBackend": {
+          "type": "string"
+        },
+        "truncation": {
+          "additionalProperties": true,
+          "type": "object"
+        }
+      },
+      "required": [
+        "storeBackend",
+        "fieldExactness",
+        "samplingFactor",
+        "retentionBoundaryMs",
+        "dropsSinceBoot",
+        "dropsLifetime",
+        "truncation",
+        "capabilityOutcome"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/telemetry.stats.response.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "coverage": {
+      "$ref": "#/$defs/TelemetryCoverageV1"
+    },
+    "latency": {
+      "items": {
+        "$ref": "#/$defs/TelemetryLatencyV1"
+      },
+      "type": "array"
+    },
+    "schemaVersion": {
+      "type": "string"
+    },
+    "statusCounts": {
+      "items": {
+        "$ref": "#/$defs/TelemetryStatusCountV1"
+      },
+      "type": "array"
+    },
+    "variance": {
+      "$ref": "#/$defs/TelemetryVarianceV1"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "statusCounts",
+    "latency",
+    "coverage",
+    "variance"
+  ],
+  "title": "TelemetryStatsResponseV1",
+  "type": "object"
+}

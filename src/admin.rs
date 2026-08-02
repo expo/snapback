@@ -22,18 +22,21 @@ use crate::local::{EphemeralApi, InspectState, LocalSnapback, ReadLane};
 use crate::manifest::{AuthMode, FunctionKind, HandlerInput};
 use crate::runtime::CapabilityState;
 use crate::server::{
-    ApiError, AuthTerminalLifecycle, ConnectionRegistry, EffectPolicy, HealthResponse,
-    InvocationAuthority, PolicyAuthMode, PolicyAuthPosture, RegisteredRoute, ResponseSensitivity,
-    RoutePolicy, SessionModeOverlay, SharedSnapback, committed_mode_terminal_reason,
-    static_public_content_security_policy, system_api_route, system_static_route,
+    ApiError, AuthTerminalLifecycle, ConnectionRegistry, CredentialResolution, EffectPolicy,
+    HealthResponse, InvocationAuthority, LegacyBodyPolicy, PolicyAuthMode, PolicyAuthPosture,
+    RegisteredRoute, ResponseSensitivity, RouteClass, RoutePolicy, RouteSpec, SessionModeOverlay,
+    SharedSnapback, committed_mode_terminal_reason, static_public_content_security_policy,
+    system_api_route, system_static_route,
 };
 use anyhow::Context as _;
 use axum::Json;
+use axum::body::{Body, Bytes};
 use axum::extract::{Extension, FromRef, Path, Query, State};
 use axum::http::{HeaderMap, HeaderName, StatusCode, header};
 use axum::response::{Html, IntoResponse, Response};
 use axum::routing::{get, post};
 use base64::Engine as _;
+use futures_util::StreamExt as _;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest as _, Sha256};
 use std::collections::{BTreeSet, HashMap};
@@ -774,6 +777,9 @@ pub struct AppState {
     pub(crate) allow_insecure_dev_auth: bool,
     /// Digest-only registry for reset-bounded administrative data leases.
     pub secret_reads: SecretReadLeaseRegistry,
+    /// Process-local HMAC root for immutable telemetry export continuations.
+    /// A restart deliberately invalidates outstanding agent-page tokens.
+    pub(crate) telemetry_export_continuation_key: Arc<[u8; 32]>,
     /// Bounded most-recent-first ring of recent function runs and artifact
     /// loads, projected by `app.inspect` as `data.recentInvocations`.
     ///
@@ -846,6 +852,9 @@ impl AppState {
     ) -> (Self, SecretReadOperator) {
         let (secret_reads, operator) =
             SecretReadLeaseRegistry::new(read.secret_read_reset_generation());
+        let mut telemetry_export_continuation_key = [0_u8; 32];
+        getrandom::fill(&mut telemetry_export_continuation_key)
+            .expect("system entropy is required for telemetry export continuations");
         let auth_admission = read.admission_controller();
         let connections = ConnectionRegistry::default();
         let auth_terminal_lifecycle =
@@ -887,6 +896,9 @@ impl AppState {
                 ),
                 allow_insecure_dev_auth: false,
                 secret_reads,
+                telemetry_export_continuation_key: Arc::new(
+                    telemetry_export_continuation_key,
+                ),
                 recent_invocations: crate::host_ops::RecentInvocationRing::default(),
                 secret_read_mint: None,
                 impersonation_capabilities: None,
@@ -1764,6 +1776,26 @@ pub(crate) fn reserve_secret_read_json<T: Serialize>(
     Ok(())
 }
 
+fn reserve_secret_read_bytes(
+    secret_reads: &SecretReadLeaseRegistry,
+    headers: &HeaderMap,
+    scopes: &BTreeSet<SecretReadScope>,
+    rows: usize,
+    bytes: usize,
+) -> Result<(), ApiError> {
+    let bearer = headers
+        .get(SECRET_READ_LEASE_HEADER)
+        .and_then(|value| value.to_str().ok());
+    let permit = secret_reads.authorize(bearer)?;
+    secret_reads.reserve(
+        &permit,
+        scopes,
+        u64::try_from(rows).unwrap_or(u64::MAX),
+        u64::try_from(bytes).unwrap_or(u64::MAX),
+    )?;
+    Ok(())
+}
+
 pub(crate) fn preflight_secret_read(
     secret_reads: &SecretReadLeaseRegistry,
     headers: &HeaderMap,
@@ -1921,6 +1953,18 @@ pub(crate) fn admin_route_registrations() -> Vec<RegisteredRoute> {
     let write = |method, path, sensitivity| {
         system_api_route(method, path, RoutePolicy::AdminWrite, sensitivity)
     };
+    let secret_read = |path| {
+        RouteSpec::new(
+            "GET",
+            path,
+            RouteClass::SystemApi,
+            RoutePolicy::AdminSecretRead,
+            CredentialResolution::AdminSecretReadLease,
+            InvocationAuthority::Operator,
+            LegacyBodyPolicy::NotApplicable,
+            ResponseSensitivity::SensitiveApplicationData,
+        )
+    };
     vec![
         RegisteredRoute::new(system_static_route("GET", "/_snapback/admin"), get(console)),
         RegisteredRoute::new(
@@ -1941,6 +1985,26 @@ pub(crate) fn admin_route_registrations() -> Vec<RegisteredRoute> {
                 ResponseSensitivity::OperatorMetadata,
             ),
             get(admin_health),
+        ),
+        // @ref LLP 0154#d5--the-query-contract-typed-operations-projected-everywhere —
+        //   closed aggregates use ordinary admin authority; raw rows and
+        //   snapshot exports use fixed, budgeted secret-read scopes.
+        // @ref LLP 0031#enforcement — each telemetry carrier is installed
+        //   from the same route metadata that drives authorization/no-store.
+        RegisteredRoute::new(
+            read(
+                "/_snapback/api/telemetry/stats",
+                ResponseSensitivity::OperatorMetadata,
+            ),
+            get(admin_telemetry_stats),
+        ),
+        RegisteredRoute::new(
+            secret_read("/_snapback/api/telemetry/events"),
+            get(admin_telemetry_events),
+        ),
+        RegisteredRoute::new(
+            secret_read("/_snapback/api/telemetry/export"),
+            get(admin_telemetry_export),
         ),
         RegisteredRoute::new(
             write(
@@ -2060,6 +2124,162 @@ pub(crate) fn admin_route_registrations() -> Vec<RegisteredRoute> {
             post(admin_ephemeral_cleanup),
         ),
     ]
+}
+
+async fn admin_telemetry_stats(
+    State(runtime): State<AppState>,
+    Query(request): Query<crate::telemetry_query::TelemetryStatsRequestV1>,
+) -> Result<Json<crate::telemetry_query::TelemetryStatsResponseV1>, ApiError> {
+    Ok(Json(runtime.telemetry.query_stats(&request)?))
+}
+
+async fn admin_telemetry_events(
+    State(runtime): State<AppState>,
+    State(secret_reads): State<SecretReadLeaseRegistry>,
+    headers: HeaderMap,
+    Query(request): Query<crate::telemetry_query::TelemetryEventsRequestV1>,
+) -> Result<Json<crate::telemetry_query::TelemetryEventsResponseV1>, ApiError> {
+    let scopes = BTreeSet::from([SecretReadScope::TelemetryEvents]);
+    preflight_secret_read(&secret_reads, &headers, scopes.clone())?;
+    let response = runtime.telemetry.query_events(&request)?;
+    reserve_secret_read_json(
+        &secret_reads,
+        &headers,
+        scopes,
+        response.events.len(),
+        &response,
+    )?;
+    Ok(Json(response))
+}
+
+fn append_ndjson<T: Serialize>(target: &mut Vec<u8>, value: &T) -> Result<(), ApiError> {
+    serde_json::to_writer(&mut *target, value).map_err(|error| {
+        ApiError::from(SnapbackError::error(
+            "SNAPBACK_TELEMETRY_EXPORT_SERIALIZATION_FAILED",
+            "telemetry",
+            format!("failed to serialize telemetry export record: {error}"),
+        ))
+    })?;
+    target.push(b'\n');
+    Ok(())
+}
+
+struct TelemetryExportStreamState {
+    telemetry: crate::telemetry::Telemetry,
+    request: crate::telemetry_query::TelemetryExportRequestV1,
+    header: crate::telemetry_query::TelemetryExportHeaderV1,
+    cursor: Option<crate::telemetry_query::TelemetryCursorV1>,
+    secret_reads: SecretReadLeaseRegistry,
+    headers: HeaderMap,
+    scopes: BTreeSet<SecretReadScope>,
+}
+
+fn export_page_chunk(
+    telemetry: &crate::telemetry::Telemetry,
+    request: &crate::telemetry_query::TelemetryExportRequestV1,
+    header: &crate::telemetry_query::TelemetryExportHeaderV1,
+    cursor: Option<&crate::telemetry_query::TelemetryCursorV1>,
+) -> Result<
+    (
+        Vec<u8>,
+        usize,
+        Option<crate::telemetry_query::TelemetryCursorV1>,
+    ),
+    ApiError,
+> {
+    let page = telemetry.export_page(
+        request,
+        header,
+        cursor,
+        crate::telemetry_query::MAX_EVENT_LIMIT,
+    )?;
+    let rows = page.records.len();
+    let mut bytes = Vec::new();
+    for record in page.records {
+        append_ndjson(&mut bytes, &record)?;
+    }
+    Ok((bytes, rows, page.next_cursor))
+}
+
+async fn admin_telemetry_export(
+    State(runtime): State<AppState>,
+    State(secret_reads): State<SecretReadLeaseRegistry>,
+    headers: HeaderMap,
+    Query(request): Query<crate::telemetry_query::TelemetryExportRequestV1>,
+) -> Result<Response, ApiError> {
+    let scopes = BTreeSet::from([SecretReadScope::TelemetryExport]);
+    preflight_secret_read(&secret_reads, &headers, scopes.clone())?;
+
+    // Freeze the header exactly once, then unfold only bounded pages below
+    // that snapshot. New rows can never enter a long-running export.
+    let header = runtime.telemetry.begin_export(&request)?;
+    let (first_page, first_rows, cursor) =
+        export_page_chunk(&runtime.telemetry, &request, &header, None)?;
+    let mut first_chunk = Vec::new();
+    append_ndjson(&mut first_chunk, &header)?;
+    first_chunk.extend(first_page);
+    reserve_secret_read_bytes(
+        &secret_reads,
+        &headers,
+        &scopes,
+        first_rows,
+        first_chunk.len(),
+    )?;
+
+    let state = cursor.map(|cursor| TelemetryExportStreamState {
+        telemetry: runtime.telemetry,
+        request,
+        header,
+        cursor: Some(cursor),
+        secret_reads,
+        headers,
+        scopes,
+    });
+    let tail = futures_util::stream::try_unfold(state, |state| async move {
+        let Some(mut state) = state else {
+            return Ok::<_, std::io::Error>(None);
+        };
+        let (bytes, rows, cursor) = export_page_chunk(
+            &state.telemetry,
+            &state.request,
+            &state.header,
+            state.cursor.as_ref(),
+        )
+        .map_err(|error| std::io::Error::other(format!("{error:?}")))?;
+        reserve_secret_read_bytes(
+            &state.secret_reads,
+            &state.headers,
+            &state.scopes,
+            rows,
+            bytes.len(),
+        )
+        .map_err(|error| std::io::Error::other(format!("{error:?}")))?;
+        state.cursor = cursor;
+        let next = state.cursor.is_some().then_some(state);
+        Ok(Some((Bytes::from(bytes), next)))
+    });
+    let body = Body::from_stream(
+        futures_util::stream::once(
+            async move { Ok::<_, std::io::Error>(Bytes::from(first_chunk)) },
+        )
+        .chain(tail),
+    );
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "application/x-ndjson")
+        .header(
+            header::CONTENT_DISPOSITION,
+            "attachment; filename=telemetry.ndjson",
+        )
+        .body(body)
+        .map_err(|error| {
+            SnapbackError::error(
+                "SNAPBACK_TELEMETRY_EXPORT_RESPONSE_FAILED",
+                "telemetry",
+                format!("failed to construct telemetry export response: {error}"),
+            )
+            .into()
+        })
 }
 
 /// Serve the console page: the built Contract bundle's `index.html`.
@@ -2781,6 +3001,416 @@ fn now_millis() -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn telemetry_routes_pin_authority_sensitivity_and_no_sql_carrier() {
+        let routes = crate::server::route_registry()
+            .into_iter()
+            .filter(|route| route.path.starts_with("/_snapback/api/telemetry/"))
+            .map(|route| (route.path, route))
+            .collect::<BTreeMap<_, _>>();
+        assert_eq!(
+            routes.keys().copied().collect::<BTreeSet<_>>(),
+            BTreeSet::from([
+                "/_snapback/api/telemetry/events",
+                "/_snapback/api/telemetry/export",
+                "/_snapback/api/telemetry/stats",
+            ]),
+            "SQL is deliberately absent from the network route family"
+        );
+        let stats = routes["/_snapback/api/telemetry/stats"];
+        assert_eq!(stats.path_policy, RoutePolicy::AdminRead);
+        assert_eq!(
+            stats.credential_resolution,
+            CredentialResolution::AdminCredential
+        );
+        assert_eq!(
+            stats.response_sensitivity,
+            ResponseSensitivity::OperatorMetadata
+        );
+        for path in [
+            "/_snapback/api/telemetry/events",
+            "/_snapback/api/telemetry/export",
+        ] {
+            let route = routes[path];
+            assert_eq!(route.path_policy, RoutePolicy::AdminSecretRead, "{path}");
+            assert_eq!(
+                route.credential_resolution,
+                CredentialResolution::AdminSecretReadLease,
+                "{path}"
+            );
+            assert_eq!(
+                route.response_sensitivity,
+                ResponseSensitivity::SensitiveApplicationData,
+                "{path}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn telemetry_routes_enforce_scopes_budgets_no_store_and_frozen_paged_export() {
+        use crate::admin_secret_read::SecretReadLeaseRequest;
+        use crate::telemetry::{Priority, TelemetryConfig, TelemetryStoreIdentity};
+        use axum::body::{Body, to_bytes};
+        use axum::http::Request;
+        use tower::ServiceExt as _;
+
+        let mut context = ServerContext::detached();
+        context.admin_token = Some("ordinary-admin".to_owned());
+        let (mut state, operator) = AppState::from_snapback_with_secret_read_operator(
+            LocalSnapback::memory().unwrap(),
+            context,
+        );
+        let telemetry = crate::telemetry::Telemetry::in_memory_with_identity(
+            "01900000-0000-7000-8000-000000000099",
+            TelemetryStoreIdentity::new("app-route-proof", "environment-route-proof").unwrap(),
+            TelemetryConfig::default(),
+        )
+        .unwrap();
+        for index in 0..1_101 {
+            telemetry.point(
+                "log",
+                &format!("export-row-{index:04}"),
+                None,
+                None,
+                None,
+                Some(serde_json::json!({ "index": index })),
+                Priority::Normal,
+            );
+        }
+        state.telemetry = telemetry.clone();
+        let router = crate::server::app(state);
+
+        let stats = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/_snapback/api/telemetry/stats?kind=log")
+                    .header(header::AUTHORIZATION, "Bearer ordinary-admin")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(stats.status(), StatusCode::OK);
+        assert_eq!(stats.headers()[header::CACHE_CONTROL], "no-store, private");
+
+        let ordinary_admin_is_not_raw_authority = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/_snapback/api/telemetry/events?kind=log&limit=5")
+                    .header(header::AUTHORIZATION, "Bearer ordinary-admin")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            ordinary_admin_is_not_raw_authority.status(),
+            StatusCode::UNAUTHORIZED
+        );
+        assert_eq!(
+            ordinary_admin_is_not_raw_authority.headers()[header::CACHE_CONTROL],
+            "no-store, private"
+        );
+
+        let wrong_scope = operator
+            .mint(SecretReadLeaseRequest {
+                scopes: BTreeSet::from([SecretReadScope::TelemetryExport]),
+                ttl: Duration::from_secs(60),
+                row_budget: 10,
+                byte_budget: 1_000_000,
+            })
+            .unwrap();
+        let wrong_scope = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/_snapback/api/telemetry/events?kind=log&limit=5")
+                    .header(SECRET_READ_LEASE_HEADER, wrong_scope.bearer())
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(wrong_scope.status(), StatusCode::FORBIDDEN);
+
+        let events_lease = operator
+            .mint(SecretReadLeaseRequest {
+                scopes: BTreeSet::from([SecretReadScope::TelemetryEvents]),
+                ttl: Duration::from_secs(60),
+                row_budget: 5,
+                byte_budget: 1_000_000,
+            })
+            .unwrap();
+        let events = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/_snapback/api/telemetry/events?kind=log&limit=5")
+                    .header(SECRET_READ_LEASE_HEADER, events_lease.bearer())
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(events.status(), StatusCode::OK);
+        assert_eq!(events.headers()[header::CACHE_CONTROL], "no-store, private");
+        let events_body = to_bytes(events.into_body(), 1_000_000).await.unwrap();
+        assert_eq!(
+            serde_json::from_slice::<serde_json::Value>(&events_body).unwrap()["events"]
+                .as_array()
+                .unwrap()
+                .len(),
+            5
+        );
+
+        let undersized_export = operator
+            .mint(SecretReadLeaseRequest {
+                scopes: BTreeSet::from([SecretReadScope::TelemetryExport]),
+                ttl: Duration::from_secs(60),
+                row_budget: 10,
+                byte_budget: 1_000_000,
+            })
+            .unwrap();
+        let refused = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/_snapback/api/telemetry/export?kind=log")
+                    .header(SECRET_READ_LEASE_HEADER, undersized_export.bearer())
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(refused.status(), StatusCode::TOO_MANY_REQUESTS);
+
+        let export_lease = operator
+            .mint(SecretReadLeaseRequest {
+                scopes: BTreeSet::from([SecretReadScope::TelemetryExport]),
+                ttl: Duration::from_secs(60),
+                row_budget: 2_000,
+                byte_budget: 64 * 1024 * 1024,
+            })
+            .unwrap();
+        let export = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/_snapback/api/telemetry/export?kind=log")
+                    .header(SECRET_READ_LEASE_HEADER, export_lease.bearer())
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(export.status(), StatusCode::OK);
+        assert_eq!(export.headers()[header::CACHE_CONTROL], "no-store, private");
+        assert_eq!(
+            export.headers()[header::CONTENT_TYPE],
+            "application/x-ndjson"
+        );
+
+        // The response already froze its upper cursor and prefetched page 1.
+        // A row admitted before later pages are polled must remain outside it.
+        telemetry.point(
+            "log",
+            "after-export-snapshot",
+            None,
+            None,
+            None,
+            None,
+            Priority::Normal,
+        );
+        telemetry.force_flush().unwrap();
+        let export_body = to_bytes(export.into_body(), 64 * 1024 * 1024)
+            .await
+            .unwrap();
+        let lines = export_body
+            .split(|byte| *byte == b'\n')
+            .filter(|line| !line.is_empty())
+            .map(|line| serde_json::from_slice::<serde_json::Value>(line).unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(lines.len(), 1 + 1_101, "header plus every frozen event");
+        assert_eq!(lines[0]["recordType"], "header");
+        assert!(
+            lines[1..]
+                .iter()
+                .all(|line| line["name"] != "after-export-snapshot")
+        );
+
+        let host_stats = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/_snapback/api/host-ops")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .header(header::AUTHORIZATION, "Bearer ordinary-admin")
+                    .body(Body::from(
+                        r#"{"operation":"telemetry.stats","input":{"kind":"log"}}"#,
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(host_stats.status(), StatusCode::OK);
+        let host_stats = serde_json::from_slice::<serde_json::Value>(
+            &to_bytes(host_stats.into_body(), 2_000_000).await.unwrap(),
+        )
+        .unwrap();
+        assert_eq!(host_stats["operation"], "telemetry.stats");
+        assert_eq!(host_stats["ok"], true);
+        assert_eq!(host_stats["data"]["schemaVersion"], "snapback.telemetry.stats.v1");
+
+        let host_events_lease = operator
+            .mint(SecretReadLeaseRequest {
+                scopes: BTreeSet::from([SecretReadScope::TelemetryEvents]),
+                ttl: Duration::from_secs(60),
+                row_budget: 3,
+                byte_budget: 1_000_000,
+            })
+            .unwrap();
+        let host_events = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/_snapback/api/host-ops")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .header(SECRET_READ_LEASE_HEADER, host_events_lease.bearer())
+                    .body(Body::from(
+                        r#"{"operation":"telemetry.events","input":{"kind":"log","limit":3}}"#,
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(host_events.status(), StatusCode::OK);
+        assert_eq!(
+            host_events.headers()[header::CACHE_CONTROL],
+            "no-store, private"
+        );
+        let host_events = serde_json::from_slice::<serde_json::Value>(
+            &to_bytes(host_events.into_body(), 2_000_000).await.unwrap(),
+        )
+        .unwrap();
+        assert_eq!(host_events["operation"], "telemetry.events");
+        assert_eq!(host_events["ok"], true);
+        assert_eq!(host_events["data"]["events"].as_array().unwrap().len(), 3);
+
+        let export_page_bytes = 32 * 1024;
+        let export_lease = operator
+            .mint(SecretReadLeaseRequest {
+                scopes: BTreeSet::from([SecretReadScope::TelemetryExport]),
+                ttl: Duration::from_secs(60),
+                row_budget: 2,
+                byte_budget: (export_page_bytes
+                    + crate::host_ops::TELEMETRY_EXPORT_HOST_ENVELOPE_ALLOWANCE)
+                    as u64,
+            })
+            .unwrap();
+        let host_export = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/_snapback/api/host-ops")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .header(SECRET_READ_LEASE_HEADER, export_lease.bearer())
+                    .body(Body::from(
+                        serde_json::to_vec(&serde_json::json!({
+                            "operation": "telemetry.export",
+                            "input": {
+                                "kind": "log",
+                                "maxRows": 2,
+                                "maxBytes": export_page_bytes,
+                            }
+                        }))
+                        .unwrap(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(host_export.status(), StatusCode::OK);
+        assert_eq!(
+            host_export.headers()[header::CACHE_CONTROL],
+            "no-store, private"
+        );
+        let host_export = serde_json::from_slice::<serde_json::Value>(
+            &to_bytes(host_export.into_body(), 2_000_000).await.unwrap(),
+        )
+        .unwrap();
+        assert_eq!(host_export["operation"], "telemetry.export");
+        assert_eq!(host_export["ok"], true);
+        assert_eq!(host_export["authority"]["scope"], "telemetry.export");
+        assert_eq!(host_export["data"]["pageRows"], 2);
+        assert_eq!(host_export["data"]["truncated"], true);
+        assert_eq!(
+            serde_json::to_vec(&host_export["data"]).unwrap().len(),
+            host_export["data"]["pageBytes"].as_u64().unwrap() as usize,
+        );
+        let outer_overhead = serde_json::to_vec(&host_export).unwrap().len()
+            - serde_json::to_vec(&host_export["data"]).unwrap().len();
+        assert!(
+            outer_overhead <= crate::host_ops::TELEMETRY_EXPORT_HOST_ENVELOPE_ALLOWANCE,
+            "MCP's explicit lease allowance must cover the complete host envelope"
+        );
+        let first_snapshot = host_export["data"]["header"]["snapshot"].clone();
+        let continuation = host_export["data"]["continuationToken"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+
+        let continuation_lease = operator
+            .mint(SecretReadLeaseRequest {
+                scopes: BTreeSet::from([SecretReadScope::TelemetryExport]),
+                ttl: Duration::from_secs(60),
+                row_budget: 2,
+                byte_budget: (export_page_bytes
+                    + crate::host_ops::TELEMETRY_EXPORT_HOST_ENVELOPE_ALLOWANCE)
+                    as u64,
+            })
+            .unwrap();
+        let continued_export = router
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/_snapback/api/host-ops")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .header(SECRET_READ_LEASE_HEADER, continuation_lease.bearer())
+                    .body(Body::from(
+                        serde_json::to_vec(&serde_json::json!({
+                            "operation": "telemetry.export",
+                            "input": {
+                                "continuationToken": continuation,
+                                "maxRows": 2,
+                                "maxBytes": export_page_bytes,
+                            }
+                        }))
+                        .unwrap(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(continued_export.status(), StatusCode::OK);
+        let continued_export = serde_json::from_slice::<serde_json::Value>(
+            &to_bytes(continued_export.into_body(), 2_000_000)
+                .await
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(continued_export["ok"], true);
+        assert_eq!(
+            continued_export["data"]["header"]["snapshot"],
+            first_snapshot
+        );
+    }
 
     #[tokio::test]
     async fn declared_scope_preflight_stops_before_the_query_execution_sentinel() {

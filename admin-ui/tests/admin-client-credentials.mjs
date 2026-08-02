@@ -515,6 +515,36 @@ await assert.rejects(
   'guide pages from another build are rejected',
 );
 
+const telemetryRequests = [];
+fetchOverride = async (url, options = {}) => {
+  telemetryRequests.push({ url, options });
+  return response(200, { events: [], statusCounts: [] });
+};
+const telemetryClient = new AdminClient('http://snapback.test/_snapback/api', { token: MASTER });
+telemetryClient.setSecretReadLease(SECRET_READ);
+await telemetryClient.telemetryStats({ kind: 'http_request', fromMs: 10, ignored: MASTER });
+await telemetryClient.telemetryEvents({ kind: 'log', text: 'needle / value', order: 'desc', limit: 25 });
+assert.equal(
+  telemetryRequests[0].url,
+  'http://snapback.test/_snapback/api/telemetry/stats?kind=http_request&fromMs=10',
+  'Health uses only the closed telemetry.stats query vocabulary',
+);
+assert.equal(
+  telemetryRequests[0].options.headers['x-snapback-secret-read-lease'],
+  undefined,
+  'aggregate Health reads do not attach raw-read authority',
+);
+assert.equal(
+  telemetryRequests[1].url,
+  'http://snapback.test/_snapback/api/telemetry/events?kind=log&text=needle+%2F+value&order=desc&limit=25',
+  'Logs encodes the closed telemetry.events filter vocabulary',
+);
+assert.equal(
+  telemetryRequests[1].options.headers['x-snapback-secret-read-lease'],
+  SECRET_READ,
+  'Logs attaches the memory-only raw-read lease',
+);
+
 delete globalThis.fetch;
 delete globalThis.indexedDB;
 delete globalThis.localStorage;
