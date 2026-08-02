@@ -5,7 +5,8 @@
 **Systems:** Sync, Realtime, API, Client integration, Deployment, Auth
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-24
-**Revised:** 2026-08-01 (D3 default-store lifecycle and outbox rendering
+**Revised:** 2026-08-02 (non-normative mixed-route register-gradient
+amendment proposal — see Revision history); 2026-08-01 (D3 default-store lifecycle and outbox rendering
 notes — see Revision history);
 2026-07-31 (LLP 0129 Phase 0 amendment — see Revision
 history); 2026-07-25 (step-5 native implementation amendment — see
@@ -27,6 +28,26 @@ Revision history); 2026-07-24 (v0.6 — see Revision history)
 - **Implementation amendment** (2026-07-31, LLP 0129 Phase 0, wave-1 lane C5) — three deltas registered without design change. (1) **Default-on Channel B:** the opt-in `rqsStore` seam becomes the client default (`resolveDefaultRqsStore`: IndexedDB on web, the step-5 file store on node, in-memory fallback; `client.rqsStoreInfo` reports the DK-9 degradation fact; `rqsStore: null` / `SNAPBACK_CLIENT_RQS_STORE=off` opt out). (2) **The outbox rule gains a real subject and wider enforcement:** the RQS store arms now carry the LLP 0043 M2 queued-intent outbox (`outbox-shared.mjs`; store format v2 with fail-closed v1 migration and IndexedDB database version 2), `outboxEmpty()` answers from the store's own pending queue, and the D3 rule — a non-empty outbox never resumes — is enforced on **every** fresh subscribe, not only relaunch seeding: an in-session reconnect holding a token but pending intent drops the token, takes the full snapshot, and only then replays (delta-resume-with-pending stays the deferred milestone). (3) **Cold-boot offline survival:** a relaunch that seeded a verified persisted entry and then loses the fresh subscribe to a *connectivity* refusal keeps the handle alive rendering retained rows (connection `'stale'`, bounded-backoff re-entry) instead of failing the boot — retained display stays under 0043's never-presented-as-current rule; every non-connectivity refusal still fails loudly. Proof: `demos/public-dashboard/tests/acceptance/offline-local-first.mjs`.
 - **Implementation amendment (D3 outbox rendering note)** (2026-08-01, sweep finding 0137-a1-f6) — the D3 outbox rule is clarified as a protocol rule, not a display rule: a relaunch with pending queued intent now renders the verified persisted rows marked `retained` (pre-intent, no fabricated overlay, `handle.pendingIntentsAtSeed` naming the queued count) while the resume token is withheld entirely, so `resumeFromToken` is still never sent with a non-empty outbox and reconnect still takes the 0043 full-resync-then-ordered-replay path. The prior implementation's blank-on-pending-outbox posture is retired as an over-application that made offline capture and retained render mutually exclusive. Normative text in the D3 dated note; proof in `rqs-resume-suite.mjs` (both arms) and the offline acceptance. In the same landing, the LLP 0114 React arm gained its projection of the existing client facts (per-query `freshness`/`retention` on the hook result, `useSnapbackOutbox`/`observeSnapbackOutbox` over `client.outboxStatus()`/`subscribeOutbox`) — surfacing only, no new claims (sweep finding 0137-a1-f5).
 - **Implementation amendment (D3 default-store lifecycle)** (2026-08-01) — a `SnapbackClient` owns a store selected by the default ladder and `closeAuth()` releases that store's single-writer role after unregistering auth participants; a store explicitly passed through `rqsStore` remains caller-owned. Sequential short-lived clients can therefore hand the per-origin writer role over deliberately instead of silently leaving every successor as a non-persisting reader. The one-client-per-app recommendation remains the ordinary shape. Proof: `packages/snapback-client/outbox-store.test.mjs` constructs, closes, and replaces default clients in one process and pins injected-store non-ownership.
+- **Amendment proposal (2026-08-02, non-normative — mixed-route register
+  gradient)** — reproduction on current main found that the LLP 0112/codegen
+  all-`LiveQuery` rule is the cliff: `[LiveQuery, LiveQuery]` and
+  `[LiveQuery, defineJsLiveQuery]` routes receive one generated register
+  group, while `[LiveQuery, Query]` remains a valid read-bundle route but
+  receives no generated group. This does not degrade the sibling's matcher
+  or `live_delta` class; it removes the route-level registered-boot artifact.
+  A local codegen relaxation is insufficient because D1.2's `mode` applies
+  to the whole bundle request and LLP 0112 format 1 admits only registered
+  live children. A successor amendment should specify a versioned mixed
+  profile that (1) evaluates all children at one pinned snapshot, (2) creates
+  pending registrations only for children carrying the existing live
+  capability, (3) returns ordinary children as read-only rows without a
+  liveness claim, (4) projects per-child boot/delivery provenance plus the
+  group's weakest aggregate state, and (5) pins partial failure, authority,
+  idempotency, attach cleanup, and width/resource bounds. It must use a new
+  artifact/wire version rather than reinterpret LLP 0112 format 1, and must
+  cross-check LLP 0157 plan/materialization identity without making plan
+  shape imply liveness. Until author review accepts such a profile, D1.2 and
+  LLP 0112's all-live contract remain unchanged.
 
 ## Summary
 

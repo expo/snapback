@@ -45,3 +45,14 @@ clients (consciously deferred), hosted lifecycle (own future program).
 - House rules as in 20260802-0133-00: @ref annotations, ref-check, sketches as
   exit tests, ticket → issues/closed/ with resolution note, docs land with
   code.
+
+## Running log
+
+- **2026-08-02 — G-04 reproduced; protocol amendment proposed.** Current
+  main retains live delivery and delta classification per child. The actual
+  cliff is LLP 0112's generated format-1 all-`LiveQuery` group gate: a mixed
+  route stays read-bundle-valid but loses registered boot as a group. Because
+  LLP 0090's read/register mode is whole-request, an honest gradient requires
+  a versioned mixed profile rather than a local codegen relaxation. The
+  non-normative proposal is recorded in LLP 0090; implementation is gated on
+  author acceptance and no change was made to the separately owned LLP 0157.
