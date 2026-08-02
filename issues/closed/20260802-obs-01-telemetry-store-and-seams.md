@@ -1,6 +1,6 @@
 # D-01: Telemetry store, span seams, config, reset fence, id prefixes (LLP 0154 checklist 1)
 
-**Status:** In progress — LLP 0154 is Accepted; admission identity representation remains author-blocked
+**Status:** Closed
 **Program:** 20260802-obs-00-program.md
 **Systems:** Observability, Server, Runtime, Storage
 
@@ -82,3 +82,43 @@ atomicity, retention floor monotonicity, reset fence); prefixes visible in
   the same three inherited live-matcher failures, and one ignored. This is an
   evidence landing rather than ticket closure: the D2 identity representation
   remains author-blocked and no substitute representation was invented.
+- **2026-08-02 — identity/release tranche implemented; one production carrier
+  remains author-blocked.** The fixed nullable `telemetry_events.release`
+  column now captures the exact bundle identity at admission (including
+  long-lived terminal records), pre-activation rows remain NULL, both function
+  publication paths set the release before their lifecycle marker, and
+  `release` is no longer admitted through capped `details`. Additive migration
+  installs that column plus nullable `telemetry_meta.app_id`/`environment`;
+  the explicit `TelemetryStoreIdentity` creation/rebind path rejects empty
+  axes, stores exact untruncated values, atomically rotates generation with an
+  identity change, and prevents identity-less predecessor rows from being
+  relabeled. The export composition seam overwrites payload identity from meta
+  and fails closed with `SNAPBACK_TELEMETRY_IDENTITY_UNBOUND` when the trusted
+  binding is absent. Normal `LocalSnapback` construction deliberately remains
+  unbound: the repo has `SchemaManifest.app_id` but no local environment
+  carrier (hosted `TargetDescriptor.environment_id` is not threaded into
+  Local), and the dated source question is appended to the author decision
+  packet. No target-profile/path/`local` surrogate was invented; therefore
+  D-01 remains open and no LLP implementation-complete amendment is recorded.
+- **2026-08-02 — descriptor carrier ruling implemented; D-01 closed.** Commit
+  `f204fecdd4593bf059cfc139d801fb6632d5cdf0` adds the typed production
+  `cli::run_for_target(Args, TargetDescriptor)` seam and descriptor-bound
+  `LocalSnapback::open_for_target` / `memory_for_target` constructors. They
+  pair the current schema's exact `app_id` with the descriptor's opaque
+  `environment_id`; legacy `run`/`open`/`memory` remain explicitly unbound and
+  cannot adopt a previously pinned identity. Reset, restore, and app-id-changing
+  schema publication carry the descriptor authority through an atomic telemetry
+  generation rotation, while same-app publication and same-descriptor restart
+  do not rotate. Predecessor rows remain physically present but generation-
+  hidden, never relabeled.
+
+## Resolution
+
+Resolved by `f204fecdd4593bf059cfc139d801fb6632d5cdf0` on 2026-08-02. Focused
+proof is green for all 38 telemetry store tests, the real typed runner, exact
+release admission, descriptor restart/unbind, schema app-id rotation, and
+descriptor-bound public reset. The full library run is 1,705 passed, the same
+three inherited live-matcher delta failures, and one ignored. The full
+`packages/snapback-cli` suite passes with the bootstrapped runtime supplied via
+`SNAPBACK_RUNTIME_BINARY`; `./ref-check --verbose` and the guide check pass.
+D-02 is released against this single ingestion substrate.
