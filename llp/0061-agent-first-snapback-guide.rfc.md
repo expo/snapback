@@ -380,6 +380,19 @@ exports, codegen declarations, CLI flags) are seeded by the Phase 1 sweep
 and maintained by hand; index ids are stable and are reserved now as the
 resource ids any later projection (MCP, console) uses.
 
+**Size budget raised to 40 KiB (2026-08-02).** The budget bounds what an
+agent pays to load the index (§Plan's ~15-tool-use budget), and it started at
+32 KiB. Classifying LLP 0062's two `/app-api` routes — mandatory, since the
+route join refuses any unclassified declared route — put the page 88 bytes
+over, with no slack left to reclaim: no trailing whitespace, no double blank
+lines, and no duplicated `notAuthorFacing` rationales to merge. Raised to
+40960 bytes in `scripts/guide-lib.mjs` rather than dropping required rows.
+Note the two halves of the page grow differently: the authored capability
+table is roughly stable, while the surface map grows with every route the
+server declares, so this number will be hit again. The recorded next step
+when it is: split the mechanical surface map into its own generated page with
+its own budget, instead of raising this one a second time.
+
 Deliberately still deferred from 0365: the JSON registry file, joins over
 *every* enumerable surface, and the deferral-exception ledger.
 **Escalation trigger:** if the hand-maintained portion misses a shipped

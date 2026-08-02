@@ -126,8 +126,16 @@ const isAuthReservedIdentifier = (name) => {
 // human-recognition property actively misleading rather than merely imprecise.
 // The registry is generated from the Rust `ids::ALL`, so this list cannot
 // drift from what the runtime actually mints.
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
+// A source checkout reads the Rust-derived public artifacts in place so tests
+// always see the newest committed bytes. Published packages carry the same
+// tree under runtime-artifacts/; in an install, REPO_ROOT is node_modules and
+// has no repository-level schemas directory.
+const TOOLCHAIN_ARTIFACT_ROOT = existsSync(join(REPO_ROOT, 'schemas'))
+  ? REPO_ROOT
+  : join(dirname(fileURLToPath(import.meta.url)), 'runtime-artifacts');
 const ID_REGISTRY = JSON.parse(
-  readFileSync(new URL('../../schemas/id-registry.v1.json', import.meta.url), 'utf8'),
+  readFileSync(join(TOOLCHAIN_ARTIFACT_ROOT, 'schemas', 'id-registry.v1.json'), 'utf8'),
 );
 const SYSTEM_ID_PREFIXES = new Set(ID_REGISTRY.kinds.map((entry) => entry.prefix));
 const deriveTablePrefix = (name) =>
@@ -356,14 +364,6 @@ export function crossCheckContractQueryBinding(name, binding) {
 //   it emits against the committed schemas/ before writing; failures are structured
 //   diagnostics.
 // @ref LLP 0032#decision-docket — DK-7 / P3(c) emit-time validation (defense in depth).
-const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
-// A source checkout reads the Rust-derived public artifacts in place so tests
-// always see the newest committed bytes. Published packages carry the same
-// tree under runtime-artifacts/; in an install, REPO_ROOT is node_modules and
-// has no repository-level schemas directory.
-const TOOLCHAIN_ARTIFACT_ROOT = existsSync(join(REPO_ROOT, 'schemas'))
-  ? REPO_ROOT
-  : join(dirname(fileURLToPath(import.meta.url)), 'runtime-artifacts');
 const DEFINITION_PACKAGE_IMPORTS = new Map([
   ['@expo/snapback-codegen/define', join(dirname(fileURLToPath(import.meta.url)), 'define.mjs')],
   ['@expo/snapback-codegen/standard-patterns', join(dirname(fileURLToPath(import.meta.url)), 'standard-patterns.mjs')],
