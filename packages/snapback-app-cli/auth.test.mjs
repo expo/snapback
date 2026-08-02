@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { chmod, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 
 import { deriveServiceAuthorityInstanceId } from '@expo/snapback-client';
 
@@ -48,7 +48,13 @@ await assert.rejects(
   'a live malformed source is terminal and never falls back to anonymous',
 );
 
-const scratch = await mkdtemp(join(process.cwd(), '.auth-test-'));
+// @ref LLP 0062#4-auth-the-existing-model-projected--with-explicit-selection
+// — the positive custody fixture must satisfy the real unsafe-ancestor rule,
+// including on CI runners whose checkout parent is intentionally shared.
+const privateTestRoot = resolve(
+  process.env.SNAPBACK_APP_CLI_TEST_PRIVATE_ROOT ?? process.cwd(),
+);
+const scratch = await mkdtemp(join(privateTestRoot, '.auth-test-'));
 await chmod(scratch, 0o700);
 const authorityRoot = join(scratch, 'authority');
 const profilePath = join(scratch, 'profile.json');

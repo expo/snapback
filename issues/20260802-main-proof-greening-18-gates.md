@@ -210,3 +210,13 @@ ticket closes citing that run id.
   spellings. All 27 behavior-backed profiles now pass below their immutable
   minified, gzip, and Brotli ceilings; the complete Contract package suite and
   ref-check pass, and only `current.v1.json` is refreshed.
+
+- **2026-08-02 — app-CLI custody fixture.** Gate 16's production refusal was
+  correct: the Expo large checkout lives below a shared `/home/runner`
+  ancestor that does not satisfy LLP 0062's exact unsafe-ancestor custody
+  rule. The fix does not relax that rule. `auth.test.mjs` accepts a test-only
+  private-root override, while the workflow creates a run-scoped owner-0700
+  root below root-owned `/opt`, validates its exact path family, and removes it
+  on exit. The complete seven-file app-CLI package suite passes locally with
+  the explicit-root path, along with workflow parsing and ref-check; CI
+  confirmation pending.

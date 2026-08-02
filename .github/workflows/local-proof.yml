@@ -143,7 +143,19 @@ jobs:
           CARGO_PROFILE_TEST_DEBUG: "0"
           SNAPBACK_VERIFY_EXACT: "1"
           CHROME_BIN: ${{ steps.setup-chrome.outputs.chrome-path }}
+          SNAPBACK_APP_CLI_TEST_PRIVATE_ROOT: /opt/snapback-app-cli-test-${{ github.run_id }}
           # One red round names every broken gate instead of only the first
           # (issues/20260802-verify-local-proof-stops-at-the-first-failure.md).
           SNAPBACK_PROOF_KEEP_GOING: "1"
-        run: scripts/verify-local-proof
+        run: |
+          # @ref LLP 0062#4-auth-the-existing-model-projected--with-explicit-selection
+          # The shared runner checkout has an unsafe /home/runner ancestor;
+          # prove real credential custody from a private, root-safe hierarchy.
+          case "$SNAPBACK_APP_CLI_TEST_PRIVATE_ROOT" in
+            /opt/snapback-app-cli-test-[0-9]*) ;;
+            *) echo "refusing unsafe app-CLI test root" >&2; exit 2 ;;
+          esac
+          sudo install -d -m 0700 -o "$(id -u)" -g "$(id -g)" \
+            "$SNAPBACK_APP_CLI_TEST_PRIVATE_ROOT"
+          trap 'sudo rm -rf -- "$SNAPBACK_APP_CLI_TEST_PRIVATE_ROOT"' EXIT
+          scripts/verify-local-proof
