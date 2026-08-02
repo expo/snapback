@@ -1211,6 +1211,47 @@
       ],
       "type": "string"
     },
+    "BufferDiagnostics": {
+      "properties": {
+        "depth": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "dropsSinceBoot": {
+          "additionalProperties": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "object"
+        },
+        "lastFlushWatermark": {
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "normalDepth": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "reservedDepth": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "depth",
+        "normalDepth",
+        "reservedDepth",
+        "dropsSinceBoot"
+      ],
+      "type": "object"
+    },
     "CapabilityManifest": {
       "properties": {
         "appCliTarget": {
@@ -6825,6 +6866,10 @@
     },
     "targetProfileId": {
       "type": "string"
+    },
+    "telemetry": {
+      "$ref": "#/$defs/BufferDiagnostics",
+      "description": "Current loss-tolerant telemetry producer state. Raw retained events do\nnot appear here; this is the D3 buffer depth/drop/freshness instant."
     }
   },
   "required": [
@@ -6845,6 +6890,7 @@
     "ephemeral",
     "cron",
     "maintenance",
+    "telemetry",
     "pushRegistry",
     "recentDiagnostics",
     "capabilityGaps"

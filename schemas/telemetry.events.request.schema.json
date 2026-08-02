@@ -1,4 +1,13 @@
 {
+  "$defs": {
+    "TelemetryEventOrderV1": {
+      "enum": [
+        "asc",
+        "desc"
+      ],
+      "type": "string"
+    }
+  },
   "$id": "https://schemas.snapback.dev/snapback.v0/telemetry.events.request.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
@@ -60,6 +69,10 @@
         "string",
         "null"
       ]
+    },
+    "order": {
+      "$ref": "#/$defs/TelemetryEventOrderV1",
+      "default": "asc"
     },
     "status": {
       "default": null,

@@ -170,7 +170,11 @@ try {
   const telemetryEvents = await client.call('snapback_telemetry_events', {
     kind: 'http_request', limit: 5,
   });
-  assert.equal(telemetryEvents.structuredContent.operation, 'telemetry.events');
+  assert.equal(
+    telemetryEvents.structuredContent.operation,
+    'telemetry.events',
+    JSON.stringify(telemetryEvents.structuredContent),
+  );
   assert.equal(telemetryEvents.structuredContent.ok, true, JSON.stringify(telemetryEvents.structuredContent));
   assert.equal(telemetryEvents.structuredContent.authority.mode, 'adminSecretRead');
   assert.equal(telemetryEvents.structuredContent.authority.scope, 'telemetry.events');
@@ -181,24 +185,18 @@ try {
     kind: 'http_request', maxRows: 1, maxBytes: 32 * 1024,
   });
   assert.equal(telemetryExport.structuredContent.operation, 'telemetry.export');
-  assert.equal(telemetryExport.structuredContent.ok, true, JSON.stringify(telemetryExport.structuredContent));
+  assert.notEqual(telemetryExport.isError, true, JSON.stringify(telemetryExport));
+  // This real-process acceptance intentionally exercises ordinary `snapback
+  // start`, whose compatibility seam has no authoritative TargetDescriptor.
+  // @ref LLP 0154#d1--telemetry-store-a-sibling-sqlite-database-generation-bound —
+  //   the MCP wrapper must not invent an environment identity; the bound
+  //   finite-page success path lives in native host-op acceptance + fixtures.
+  assert.equal(telemetryExport.structuredContent.ok, false);
   assert.equal(telemetryExport.structuredContent.authority.scope, 'telemetry.export');
-  assert.equal(telemetryExport.structuredContent.data.pageRows, 1);
-  assert.equal(telemetryExport.structuredContent.data.truncated, true);
   assert.equal(
-    Buffer.byteLength(JSON.stringify(telemetryExport.structuredContent.data)),
-    telemetryExport.structuredContent.data.pageBytes,
+    telemetryExport.structuredContent.diagnostics[0].code,
+    'SNAPBACK_TELEMETRY_IDENTITY_UNBOUND',
   );
-  assert.equal(typeof telemetryExport.structuredContent.data.continuationToken, 'string');
-  const exportSnapshot = telemetryExport.structuredContent.data.header.snapshot;
-  const continuedExport = await client.call('snapback_telemetry_export', {
-    continuationToken: telemetryExport.structuredContent.data.continuationToken,
-    maxRows: 1,
-    maxBytes: 32 * 1024,
-  });
-  assert.equal(continuedExport.structuredContent.ok, true, JSON.stringify(continuedExport.structuredContent));
-  assert.deepEqual(continuedExport.structuredContent.data.header.snapshot, exportSnapshot);
-  assert.equal(continuedExport.structuredContent.data.pageRows, 1);
 
   // Mutation without an authority tuple: structured refusal with a
   // machine-readable next hint — and a successful tool result, not an error.

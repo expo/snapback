@@ -93,10 +93,16 @@
   "$id": "https://schemas.snapback.dev/snapback.v0/telemetry.export.header.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
+    "appDbIncarnation": {
+      "type": "string"
+    },
     "appId": {
       "type": "string"
     },
     "environment": {
+      "type": "string"
+    },
+    "generation": {
       "type": "string"
     },
     "recordType": {
@@ -117,6 +123,8 @@
     "recordType",
     "appId",
     "environment",
+    "generation",
+    "appDbIncarnation",
     "snapshot",
     "variance"
   ],

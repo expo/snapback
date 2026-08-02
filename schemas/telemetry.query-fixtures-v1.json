@@ -1,8 +1,78 @@
 {
+  "agentExport": {
+    "continuationRequest": {
+      "continuationToken": "sbtel1.eyJ2ZXJzaW9uIjoic25hcGJhY2sudGVsZW1ldHJ5LmV4cG9ydC1jb250aW51YXRpb24udjEifQ.Zml4dHVyZS1tYWM",
+      "maxBytes": 65536,
+      "maxRows": 2
+    },
+    "page": {
+      "continuationToken": "sbtel1.eyJ2ZXJzaW9uIjoic25hcGJhY2sudGVsZW1ldHJ5LmV4cG9ydC1jb250aW51YXRpb24udjEifQ.Zml4dHVyZS1tYWM",
+      "declaredBounds": {
+        "maxBytes": 65536,
+        "maxRows": 2
+      },
+      "header": {
+        "appDbIncarnation": "01900000-0000-7000-8000-000000000001",
+        "appId": "app_fixture",
+        "environment": "local",
+        "generation": "gen_fixture",
+        "recordType": "header",
+        "schemaVersion": "snapback.telemetry.export.v1",
+        "snapshot": {
+          "id": 7,
+          "recordedTsMs": 1001
+        },
+        "variance": {
+          "capabilityOutcome": "exact",
+          "dropsLifetime": {},
+          "dropsSinceBoot": {},
+          "fieldExactness": {},
+          "freshnessWatermark": 1001,
+          "retentionBoundaryMs": 0,
+          "samplingFactor": 1.0,
+          "storeBackend": "local-sqlite-sibling",
+          "truncation": {}
+        }
+      },
+      "pageBytes": 1138,
+      "pageRows": 1,
+      "records": [
+        {
+          "appId": "app_fixture",
+          "classV": 1,
+          "code": null,
+          "correlation": null,
+          "details": null,
+          "durationMs": 2.0,
+          "environment": "local",
+          "generation": "gen_fixture",
+          "id": 7,
+          "kind": "http_request",
+          "name": "/health",
+          "observation": "obs_fixture",
+          "phase": "joined",
+          "recordType": "event",
+          "recordedTsMs": 1001,
+          "release": "sha256:fixture",
+          "schemaVersion": "snapback.telemetry.export.v1",
+          "status": 200,
+          "tsMs": 1000
+        }
+      ],
+      "schemaVersion": "snapback.telemetry.agent-export-page.v1",
+      "truncated": true
+    },
+    "request": {
+      "kind": "http_request",
+      "maxBytes": 65536,
+      "maxRows": 2
+    }
+  },
   "events": {
     "request": {
       "kind": "http_request",
-      "limit": 2
+      "limit": 2,
+      "order": "desc"
     },
     "response": {
       "events": [
@@ -25,6 +95,7 @@
         }
       ],
       "nextCursor": null,
+      "order": "desc",
       "schemaVersion": "snapback.telemetry.events.v1",
       "variance": {
         "capabilityOutcome": "exact",
@@ -41,8 +112,10 @@
   },
   "export": {
     "header": {
+      "appDbIncarnation": "01900000-0000-7000-8000-000000000001",
       "appId": "app_fixture",
       "environment": "local",
+      "generation": "gen_fixture",
       "recordType": "header",
       "schemaVersion": "snapback.telemetry.export.v1",
       "snapshot": {
@@ -109,6 +182,7 @@
             "watermarkId": 7
           }
         ],
+        "rawEdgeRows": 0,
         "rawTailEndId": null,
         "rawTailRows": 0,
         "rawTailStartId": null,
@@ -124,7 +198,25 @@
           "p95Ms": 2.0
         }
       ],
+      "namedCounts": [
+        {
+          "count": 1,
+          "errorCount": 0,
+          "kind": "http_request",
+          "name": "/health"
+        }
+      ],
       "schemaVersion": "snapback.telemetry.stats.v1",
+      "series": [
+        {
+          "bucketEndMs": 3600000,
+          "bucketStartMs": 0,
+          "count": 1,
+          "errorCount": 0,
+          "kind": "http_request",
+          "name": "/health"
+        }
+      ],
       "statusCounts": [
         {
           "count": 1,

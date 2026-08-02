@@ -86,6 +86,11 @@
           },
           "type": "array"
         },
+        "rawEdgeRows": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
         "rawTailEndId": {
           "format": "int64",
           "type": [
@@ -126,6 +131,7 @@
         "rollupWatermarkId",
         "rollupRows",
         "rawTailRows",
+        "rawEdgeRows",
         "partitions"
       ],
       "type": "object"
@@ -158,6 +164,70 @@
       "required": [
         "name",
         "count"
+      ],
+      "type": "object"
+    },
+    "TelemetryNamedCountV1": {
+      "properties": {
+        "count": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "errorCount": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "name",
+        "count",
+        "errorCount"
+      ],
+      "type": "object"
+    },
+    "TelemetrySeriesPointV1": {
+      "properties": {
+        "bucketEndMs": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "bucketStartMs": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "count": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "errorCount": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "bucketStartMs",
+        "bucketEndMs",
+        "kind",
+        "name",
+        "count",
+        "errorCount"
       ],
       "type": "object"
     },
@@ -257,8 +327,20 @@
       },
       "type": "array"
     },
+    "namedCounts": {
+      "items": {
+        "$ref": "#/$defs/TelemetryNamedCountV1"
+      },
+      "type": "array"
+    },
     "schemaVersion": {
       "type": "string"
+    },
+    "series": {
+      "items": {
+        "$ref": "#/$defs/TelemetrySeriesPointV1"
+      },
+      "type": "array"
     },
     "statusCounts": {
       "items": {
@@ -274,6 +356,8 @@
     "schemaVersion",
     "statusCounts",
     "latency",
+    "namedCounts",
+    "series",
     "coverage",
     "variance"
   ],

@@ -1,0 +1,90 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/telemetry.agent-export.request.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "code": {
+      "default": null,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "continuationToken": {
+      "default": null,
+      "maxLength": 65536,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "correlation": {
+      "default": null,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "fromMs": {
+      "default": null,
+      "format": "int64",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "kind": {
+      "default": null,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "maxBytes": {
+      "default": 4194304,
+      "format": "uint",
+      "maximum": 4194304,
+      "minimum": 1024,
+      "type": "integer"
+    },
+    "maxRows": {
+      "default": 100,
+      "format": "uint",
+      "maximum": 500,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "name": {
+      "default": null,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "status": {
+      "default": null,
+      "format": "int64",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "text": {
+      "default": null,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "toMs": {
+      "default": null,
+      "format": "int64",
+      "type": [
+        "integer",
+        "null"
+      ]
+    }
+  },
+  "title": "TelemetryAgentExportRequestV1",
+  "type": "object"
+}

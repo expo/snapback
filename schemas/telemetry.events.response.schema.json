@@ -27,6 +27,13 @@
       ],
       "type": "object"
     },
+    "TelemetryEventOrderV1": {
+      "enum": [
+        "asc",
+        "desc"
+      ],
+      "type": "string"
+    },
     "TelemetryEventV1": {
       "properties": {
         "classV": {
@@ -189,6 +196,9 @@
         }
       ]
     },
+    "order": {
+      "$ref": "#/$defs/TelemetryEventOrderV1"
+    },
     "schemaVersion": {
       "type": "string"
     },
@@ -198,6 +208,7 @@
   },
   "required": [
     "schemaVersion",
+    "order",
     "events",
     "variance"
   ],

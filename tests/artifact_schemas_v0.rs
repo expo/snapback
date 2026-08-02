@@ -1492,6 +1492,7 @@ fn representative_inspect() -> InspectState {
             last_permission_resolution_failure_ms: Some(7),
             last_journal_prune_failure_ms: Some(8),
         },
+        telemetry: Default::default(),
         push_registry: snapback::push::PushRegistryInspectionV1 {
             live_tokens: 1,
             retired_tokens: 2,
