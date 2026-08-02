@@ -87,10 +87,18 @@ result types — the composition Spec owns those shapes.
   and 2,792 references with zero errors/unchecked; the guide check passes 46
   pages, 142 snippets, 91 routes, and 29 host operations with its 17 inherited
   freshness warnings. `git diff --check` is clean.
+- **2026-08-02 — final landing rebase and generated closure.** The landing was
+  rebased onto `origin/main` `a32d151a`; the implementation commit became
+  `d9ebc2b1`. Regeneration refreshed the committed typed APIs, review
+  manifests, and their bound artifact identities, and registered the new
+  proof as test 159 in the canonical package inventory. The complete codegen
+  suite (including the concurrent settlement suite), generated-type compile,
+  generated-artifact idempotence check, package inventory, ref-check, and
+  guide check all pass on a clean worktree after that refresh.
 
 ## Resolution
 
-Implementation commit `f7112bd0` closes the admitted G-02 remainder:
+Implementation commit `d9ebc2b1` closes the admitted G-02 remainder:
 result-only `v.doc(table)` references resolve from the app schema into the
 existing document contract/hash, and generated handler/helper/context types
 project the same schema/function/result artifacts with exact read/write,

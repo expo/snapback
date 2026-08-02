@@ -353,7 +353,7 @@
   },
   "schemaVersion": "provider-binding-metadata.v1",
   "source": {
-    "inputsHash": "86a42e31423cefcafb16c5fe63d595f976a6860db962ff4671e1bdf7810f9524",
+    "inputsHash": "9b68b139fb8efbb71e7c83fdbce3dc997589e0fc3079dd1e2be576c3b28096fb",
     "introspectionSchemaVersion": "provider-introspection.v1"
   }
 }

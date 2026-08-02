@@ -19,10 +19,10 @@
     "contract/webCursors.publish.ts",
     "contract/webCursors.publish.contract-meta.ts"
   ],
-  "bundleHash": "sha256:941af7bc643851cc",
+  "bundleHash": "sha256:91a38043ec6b7819",
   "cache": {
-    "graphPath": "../../.snapback/codegen-cache/86174fb7ec60c21c59b07636952ec10f638f55e13c66296d9bd3b15f0788f3c3",
-    "key": "86174fb7ec60c21c59b07636952ec10f638f55e13c66296d9bd3b15f0788f3c3",
+    "graphPath": "../../.snapback/codegen-cache/816efcd1e9f33c6fb3e283c94ddb8923ef770ea25e3c89364c44f9b962e738ff",
+    "key": "816efcd1e9f33c6fb3e283c94ddb8923ef770ea25e3c89364c44f9b962e738ff",
     "regenerationRule": "regenerate-or-fail-closed"
   },
   "config": [],
@@ -49,7 +49,7 @@
       "sha256": "sha256:c6c9444f343b0f7b72c4d5be112a01fe8f07b1c425ff67ed539229bbaaf16808"
     },
     {
-      "bytes": 6442,
+      "bytes": 11120,
       "consumer": "client-bundler",
       "custody": "regenerable-cache",
       "logicalKind": "typed-api",
@@ -58,7 +58,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:b99580f1ea791b452b296682a5e446ff50997cc45c158f6b5e1514331965cf81"
+      "sha256": "sha256:419426447e8cd0f3570f6e3dfdd1f010cf8fcf38805ff6f19b3c495c03ae97eb"
     },
     {
       "bytes": 1562,
@@ -94,7 +94,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:5624bf08ae610162e481e9afa271118e9c3b5c662f602ca1717ffe34dfdac7b8"
+      "sha256": "sha256:fbd8258542863bad8d1732dae74334b4f023dd108856caa6708bb11a24877ee5"
     },
     {
       "bytes": 867,
@@ -166,7 +166,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:86692a0977fd1e6753d6c94880fc8ade48a166a9ffb54c9f155d82bcba11db76"
+      "sha256": "sha256:7b314e9c6edb084fbaabc8edc8fe126f6cf499f559e236fa98c64caa860e9fc6"
     },
     {
       "bytes": 523,
@@ -202,7 +202,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:2de58859aa1df2c99b8f07900358434247ddfe08ce2d04105c13ec23f11c43c1"
+      "sha256": "sha256:360e463f933a8fc3dbc8fdf9f7e29fab635d7736a26be5f6fc77c351f14569d4"
     },
     {
       "bytes": 3619,
@@ -214,7 +214,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:794e0090e453e7c2183f94a18378fa20b172f30a8578d47bd1f1267482089a69"
+      "sha256": "sha256:ed3bdbcfce96856c784cd6d923faa3d2954c93927592409df3a4e295b8ecb5a9"
     },
     {
       "bytes": 2859,
@@ -226,19 +226,19 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:63d8c9fd3b8007e62f1676db904fc429c44342b8ad88d49c7c3fa597ad4f70b3"
+      "sha256": "sha256:732387688b968f908da43a23caf3ffc02e31cf971ad53e018e12aeea5e263aec"
     }
   ],
   "functions": [],
   "generatedAt": 0,
-  "inputsHash": "86174fb7ec60c21c59b07636952ec10f638f55e13c66296d9bd3b15f0788f3c3",
+  "inputsHash": "816efcd1e9f33c6fb3e283c94ddb8923ef770ea25e3c89364c44f9b962e738ff",
   "manifestVersion": 2,
   "reviewManifest": {
     "authority": "@expo/snapback-codegen/review-manifest.schema.json",
     "custody": "review-manifest",
     "path": "artifacts.json"
   },
-  "schemaHash": "sha256:e36fda49c856e33e",
+  "schemaHash": "sha256:e6c227c8c1701adf",
   "schemaVersion": "snapback.v0",
   "summary": {
     "appId": "cursors-web",
@@ -263,7 +263,7 @@
       "warnings": 0
     },
     "degradedResults": [],
-    "inputsHash": "86174fb7ec60c21c59b07636952ec10f638f55e13c66296d9bd3b15f0788f3c3",
+    "inputsHash": "816efcd1e9f33c6fb3e283c94ddb8923ef770ea25e3c89364c44f9b962e738ff",
     "schemaVersion": "snapback.codegen-summary.v1"
   },
   "tables": []

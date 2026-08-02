@@ -186,6 +186,7 @@ const inventories = [
       'remote-service-publication.test.mjs',
       'retainability-profile.test.mjs',
       'review-surface.test.mjs',
+      'schema-reference-type-flow.test.mjs',
       'search-ast-fixtures.test.mjs',
       'search-result-contracts.test.mjs',
       'seed-artifact.test.mjs',
@@ -419,7 +420,10 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // @expo/snapback-codegen gains the bounded-skew settlement authoring suite;
 // @expo/snapback-client gains the explicit push-registry subpath custody and
 // protocol suite.
-assert.equal(total, 158, 'reviewed package/admin test count changed');
+// 158 -> 159 (2026-08-02, LLP 0127 Move-1 type flow):
+// @expo/snapback-codegen gains the schema-reference expansion, generated
+// handler/context interior, authority-capability, and checkJs mismatch suite.
+assert.equal(total, 159, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

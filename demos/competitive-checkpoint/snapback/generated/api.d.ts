@@ -92,32 +92,81 @@ export interface GeneratedDataModel {
   models: { _id: Id<'models'>; _version: number; _createdAt: number; _updatedAt: number; slug: string; displayName: string; provider: null | string };
   conversationCards: { _id: Id<'conversationCards'>; _version: number; _createdAt: number; _updatedAt: number; ownerId: Principal; title: string; modelName: null | string };
 }
+export type GeneratedTableName = keyof GeneratedDataModel & string;
+export type GeneratedReadableTableName = Exclude<GeneratedTableName, never>;
+export type GeneratedInsertableTableName = Exclude<GeneratedReadableTableName, never>;
+export type GeneratedPatchableTableName = GeneratedReadableTableName;
+export type GeneratedDeletableTableName = Exclude<GeneratedReadableTableName, never>;
+export interface GeneratedInsertModel {
+  "conversations": { "ownerId": Principal; "slug": string; "title": string; "model": string; "pageKey": string; "createdAt": number; "updatedAt": number };
+  "messages": { "ownerId": Principal; "conversationId": Id<'conversations'>; "role": string; "content": string; "status": string; "attemptId": string; "idempotencyKey": string; "sequence": number; "lastProgressAt": number; "pageKey": string; "effectMayHaveExecuted"?: null | boolean };
+  "models": { "slug": string; "displayName": string; "provider"?: null | string };
+  "conversationCards": { "ownerId": Principal; "title": string; "modelName"?: null | string };
+}
+export interface GeneratedPatchModel {
+  "conversations": { "ownerId"?: Principal; "slug"?: string; "title"?: string; "model"?: string; "pageKey"?: string; "createdAt"?: number; "updatedAt"?: number };
+  "messages": { "ownerId"?: Principal; "conversationId"?: Id<'conversations'>; "role"?: string; "content"?: string; "status"?: string; "attemptId"?: string; "idempotencyKey"?: string; "sequence"?: number; "lastProgressAt"?: number; "pageKey"?: string; "effectMayHaveExecuted"?: null | boolean };
+  "models": { "slug"?: string; "displayName"?: string; "provider"?: null | string };
+  "conversationCards": { "ownerId"?: Principal; "title"?: string; "modelName"?: null | string };
+}
+export interface GeneratedIndexNames {
+  "conversations": "by_owner_slug" | "by_owner_page_key" | "by_owner_created" | "by_model";
+  "messages": "by_owner_conversation" | "by_owner_attempt" | "by_owner_idempotency";
+  "models": "models_by_slug";
+  "conversationCards": "cards_by_owner";
+}
+export interface GeneratedQueryBuilder<Table extends GeneratedReadableTableName> {
+  withIndex(index: GeneratedIndexNames[Table]): GeneratedQueryBuilder<Table>;
+  eq<Field extends keyof GeneratedDataModel[Table] & string>(field: Field, value: GeneratedDataModel[Table][Field]): GeneratedQueryBuilder<Table>;
+  in<Field extends keyof GeneratedDataModel[Table] & string>(field: Field, values: ReadonlyArray<GeneratedDataModel[Table][Field]>): GeneratedQueryBuilder<Table>;
+  lt<Field extends keyof GeneratedDataModel[Table] & string>(field: Field, value: GeneratedDataModel[Table][Field]): GeneratedQueryBuilder<Table>;
+  lte<Field extends keyof GeneratedDataModel[Table] & string>(field: Field, value: GeneratedDataModel[Table][Field]): GeneratedQueryBuilder<Table>;
+  gt<Field extends keyof GeneratedDataModel[Table] & string>(field: Field, value: GeneratedDataModel[Table][Field]): GeneratedQueryBuilder<Table>;
+  gte<Field extends keyof GeneratedDataModel[Table] & string>(field: Field, value: GeneratedDataModel[Table][Field]): GeneratedQueryBuilder<Table>;
+  order<Field extends keyof GeneratedDataModel[Table] & string>(field: Field, direction?: "asc" | "desc" | "Asc" | "Desc"): GeneratedQueryBuilder<Table>;
+  take(limit: number): GeneratedQueryBuilder<Table>;
+  collect(): Promise<Array<GeneratedDataModel[Table]>>;
+  first(): Promise<GeneratedDataModel[Table] | null>;
+}
+export interface GeneratedQueryDatabase {
+  get<Table extends GeneratedReadableTableName>(table: Table, id: Id<Table>): Promise<GeneratedDataModel[Table] | null>;
+  query<Table extends GeneratedReadableTableName>(table: Table): GeneratedQueryBuilder<Table>;
+}
+export interface GeneratedMutationDatabase extends GeneratedQueryDatabase {
+  insert<Table extends GeneratedInsertableTableName>(table: Table, values: GeneratedInsertModel[Table]): Promise<Id<Table>>;
+  patch<Table extends GeneratedPatchableTableName>(table: Table, id: Id<Table>, values: GeneratedPatchModel[Table]): Promise<unknown>;
+  delete<Table extends GeneratedDeletableTableName>(table: Table, id: Id<Table>): Promise<unknown>;
+}
+export interface GeneratedAnonymousAuthContext { readonly userId: null; readonly sessionId: null; readonly isAuthenticated: false }
+export interface GeneratedAuthenticatedAuthContext { readonly userId: Principal; readonly sessionId: string | null; readonly isAuthenticated: true; readonly provider?: string; readonly roles: readonly string[]; readonly kind: "human" | "agent"; readonly actor?: { readonly userId: Principal; readonly kind: "agent"; readonly grantId: string } }
+export type GeneratedAuthContext = GeneratedAnonymousAuthContext | GeneratedAuthenticatedAuthContext;
+export interface GeneratedRuntimeContext { now(): number; id(): string }
 export interface GeneratedPermissions {
 }
 export interface GeneratedMembership {
 }
-export interface GeneratedQueryContext { readonly permissions: GeneratedPermissions }
-export interface GeneratedMutationContext extends GeneratedQueryContext { readonly membership: GeneratedMembership }
-export interface GeneratedActionContext {}
+export interface GeneratedQueryContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> { readonly db: GeneratedQueryDatabase; readonly permissions: GeneratedPermissions; readonly auth: Auth; readonly runtime: GeneratedRuntimeContext; readonly assets: any; isDirectHuman(): boolean; refuse(code: string, details?: unknown): never }
+export interface GeneratedMutationContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> extends GeneratedQueryContext<Auth> { readonly db: GeneratedMutationDatabase; readonly membership: GeneratedMembership; readonly jobs: { enqueue(name: string, args: Readonly<Record<string, unknown>>, options?: Readonly<Record<string, unknown>>): Promise<unknown> } }
+export interface GeneratedActionContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> { readonly auth: Auth; readonly runtime: GeneratedRuntimeContext; readonly assets: any; readonly secrets: { get(name: string): any; rotating(name: string): any }; readonly run: unknown; readonly cron: unknown; isDirectHuman(): boolean; runMutation(name: string, args: Readonly<Record<string, unknown>>): Promise<unknown>; fetch(request: Readonly<Record<string, unknown>>): Promise<any>; fetchStream(request: Readonly<Record<string, unknown>>): Promise<any>; readonly streamAttempt: any; refuse(code: string, details?: unknown): never }
 export interface GeneratedFunctionContexts {
-  applyReplyProgress: GeneratedMutationContext;
-  cancelReply: GeneratedMutationContext;
-  completeReply: GeneratedMutationContext;
-  conversationBySlug: GeneratedQueryContext;
-  conversationsWithModel: GeneratedQueryContext;
-  createConversation: GeneratedMutationContext;
-  deleteConversation: GeneratedMutationContext;
-  firstConversationPage: GeneratedQueryContext;
-  getConversation: GeneratedQueryContext;
-  listConversationCards: GeneratedQueryContext;
-  listConversations: GeneratedQueryContext;
-  listMessages: GeneratedQueryContext;
-  nextConversationPage: GeneratedQueryContext;
-  registerModel: GeneratedMutationContext;
-  settleReply: GeneratedMutationContext;
-  startReply: GeneratedMutationContext;
-  streamReply: GeneratedActionContext;
-  updateConversation: GeneratedMutationContext;
+  applyReplyProgress: GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
+  cancelReply: GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
+  completeReply: GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
+  conversationBySlug: GeneratedQueryContext<GeneratedAuthenticatedAuthContext>;
+  conversationsWithModel: GeneratedQueryContext<GeneratedAuthenticatedAuthContext>;
+  createConversation: GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
+  deleteConversation: GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
+  firstConversationPage: GeneratedQueryContext<GeneratedAuthenticatedAuthContext>;
+  getConversation: GeneratedQueryContext<GeneratedAuthenticatedAuthContext>;
+  listConversationCards: GeneratedQueryContext<GeneratedAuthenticatedAuthContext>;
+  listConversations: GeneratedQueryContext<GeneratedAuthenticatedAuthContext>;
+  listMessages: GeneratedQueryContext<GeneratedAuthenticatedAuthContext>;
+  nextConversationPage: GeneratedQueryContext<GeneratedAuthenticatedAuthContext>;
+  registerModel: GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
+  settleReply: GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
+  startReply: GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
+  streamReply: GeneratedActionContext<GeneratedAuthenticatedAuthContext>;
+  updateConversation: GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
 }
 export interface GeneratedEphemeral {
 }
@@ -145,6 +194,8 @@ export interface GeneratedApi {
   ephemeral: GeneratedEphemeral;
   groups: GeneratedQueryGroups;
 }
+export type GeneratedFunctionName = keyof GeneratedFunctionContexts & keyof GeneratedApi;
+export type GeneratedHandler<Name extends GeneratedFunctionName> = GeneratedApi[Name] extends FunctionReference<string, FunctionKind, infer Args, infer Result> ? (ctx: GeneratedFunctionContexts[Name], args: Args) => Result | Promise<Result> : never;
 export declare const ephemeral: GeneratedEphemeral;
 export declare const groups: GeneratedQueryGroups;
 export interface GeneratedAssetUploadDefaults {

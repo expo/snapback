@@ -93,7 +93,7 @@ Program G closes with all four filesystem tickets resolved on current main:
 
 - G-01 (`2cb96f4f`) verified that Wave-1 C2 already shipped LLP 0070's honest
   action-callee `runAfter` class and added its missing crash/reopen proof.
-- G-02 (`f7112bd0`) landed result-side schema references and manifest-derived
+- G-02 (`d9ebc2b1`) landed result-side schema references and manifest-derived
   typed interiors within the LLP 0157 Draft boundary.
 - G-03 verified Wave-1 C1 (`4d72c407`) had already landed the decided
   context-reader helper slice and closed as a duplicate.
