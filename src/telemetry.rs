@@ -15,6 +15,10 @@
 
 use crate::diagnostic::{DiagnosticSeverity, SnapbackError, SnapbackResult};
 use crate::ids::{self, Kind as IdKind};
+use crate::telemetry_contract::{
+    AdmittedObservationClassV1, OperationClassIdV1, TelemetryProjectionModeV1,
+    admit_operation_class, telemetry_projection_for_class,
+};
 use rusqlite::{Connection, OpenFlags, OptionalExtension, Transaction, params, params_from_iter};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
@@ -27,7 +31,6 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 const DAY_MS: i64 = 86_400_000;
 const HOUR_MS: i64 = 3_600_000;
-const CLASS_REGISTRY_FOUNDATION_VERSION: u32 = 1;
 const DETAILS_MAX_BYTES: usize = 8 * 1024;
 const NAME_MAX_BYTES: usize = 3_000;
 const CORRELATION_MAX_BYTES: usize = 512;
@@ -78,7 +81,6 @@ impl TelemetryStoreIdentity {
         }
         Ok(identity)
     }
-
 }
 
 fn default_max_days() -> u32 {
@@ -237,12 +239,10 @@ impl Phase {
 #[derive(Clone, Debug)]
 struct Event {
     sequence: u64,
-    observation: String,
+    admission: AdmittedObservationClassV1,
     phase: Phase,
     generation: String,
-    class_v: u32,
     ts_ms: i64,
-    kind: String,
     name: String,
     status: Option<i64>,
     duration_ms: Option<f64>,
@@ -260,11 +260,10 @@ struct Event {
 #[derive(Debug)]
 pub struct ObservationSpan {
     telemetry: Telemetry,
-    observation: Option<String>,
+    admission: Option<AdmittedObservationClassV1>,
     generation: String,
     ts_ms: i64,
     started: Instant,
-    kind: String,
     name: String,
     correlation: Option<String>,
     release: Option<String>,
@@ -279,7 +278,7 @@ impl ObservationSpan {
             return;
         }
         self.active = false;
-        let Some(observation) = self.observation.clone() else {
+        let Some(admission) = self.admission.clone() else {
             return;
         };
         let phase = if self.long_lived {
@@ -297,12 +296,10 @@ impl ObservationSpan {
         };
         self.telemetry.enqueue_bound(Event {
             sequence: 0,
-            observation,
+            admission,
             phase,
             generation: self.generation.clone(),
-            class_v: CLASS_REGISTRY_FOUNDATION_VERSION,
             ts_ms: self.ts_ms,
-            kind: self.kind.clone(),
             name: self.name.clone(),
             status,
             duration_ms: Some(self.started.elapsed().as_secs_f64() * 1000.0),
@@ -322,21 +319,19 @@ impl Drop for ObservationSpan {
             return;
         }
         self.active = false;
-        let Some(observation) = self.observation.clone() else {
+        let Some(admission) = self.admission.clone() else {
             return;
         };
         self.telemetry.enqueue_bound(Event {
             sequence: 0,
-            observation,
+            admission,
             phase: if self.long_lived {
                 Phase::Terminal
             } else {
                 Phase::Joined
             },
             generation: self.generation.clone(),
-            class_v: CLASS_REGISTRY_FOUNDATION_VERSION,
             ts_ms: self.ts_ms,
-            kind: self.kind.clone(),
             name: self.name.clone(),
             status: Some(499),
             duration_ms: Some(self.started.elapsed().as_secs_f64() * 1000.0),
@@ -397,7 +392,11 @@ impl Buffer {
     }
 
     fn count_drop(&mut self, event: &Event, reason: &str) {
-        let key = format!("{}:{}:{reason}", event.kind, event.priority.as_str());
+        let key = format!(
+            "{}:{}:{reason}",
+            event.admission.telemetry_kind,
+            event.priority.as_str()
+        );
         *self.drops_since_boot.entry(key.clone()).or_default() += 1;
         *self.pending_drop_counters.entry(key).or_default() += 1;
         self.pending_drop_since.get_or_insert_with(Instant::now);
@@ -491,16 +490,16 @@ impl Drop for Producer {
                 && config.max_days > 0
                 && buffer.accepting
                 && let Ok(observation) = ids::mint(IdKind::Observation)
+                && let Ok(admission) =
+                    admit_operation_class(OperationClassIdV1::LIFECYCLE, observation)
             {
                 let generation = buffer.current_generation.clone();
                 let event = Event {
                     sequence: 0,
-                    observation,
+                    admission,
                     phase: Phase::Point,
                     generation,
-                    class_v: CLASS_REGISTRY_FOUNDATION_VERSION,
                     ts_ms: wall_now_ms(),
-                    kind: "lifecycle".to_owned(),
                     name: "graceful_shutdown".to_owned(),
                     status: Some(200),
                     duration_ms: None,
@@ -646,8 +645,8 @@ impl Telemetry {
             producer: Arc::new(Producer { shared }),
         };
         if unclean_predecessor && enabled {
-            telemetry.point(
-                "lifecycle",
+            telemetry.point_classified(
+                OperationClassIdV1::LIFECYCLE,
                 "detected_unclean_predecessor",
                 Some(200),
                 None,
@@ -663,6 +662,7 @@ impl Telemetry {
         telemetry_path(database_path)
     }
 
+    #[cfg(test)]
     pub fn start_span(
         &self,
         kind: &str,
@@ -671,23 +671,58 @@ impl Telemetry {
         details: Option<Value>,
         long_lived: bool,
     ) -> ObservationSpan {
+        let class_id = match (kind, long_lived) {
+            ("function_run", false) => OperationClassIdV1::FUNCTION_QUERY,
+            ("http_request", false) => OperationClassIdV1::HTTP_CARRIER,
+            ("live_subscribe", true) => OperationClassIdV1::LIVE_SUBSCRIBE,
+            ("ws_connect", true) => OperationClassIdV1::STREAM_CONNECT,
+            ("job_run", false) => OperationClassIdV1::JOB_SCHEDULER,
+            _ => OperationClassIdV1::SYSTEM_UNMATCHED,
+        };
+        self.start_span_with_class(class_id, name, correlation, details, long_lived)
+    }
+
+    /// Admit one registry-owned operation class. The exact class and its
+    /// telemetry kind are resolved together before either projection sees the
+    /// observation; production callers never supply a free-form kind string.
+    pub(crate) fn start_classified_span(
+        &self,
+        class_id: OperationClassIdV1,
+        name: &str,
+        correlation: Option<&str>,
+        details: Option<Value>,
+    ) -> ObservationSpan {
+        let long_lived = telemetry_projection_for_class(class_id)
+            .map(|projection| projection == TelemetryProjectionModeV1::AdmissionTerminal)
+            .unwrap_or(false);
+        self.start_span_with_class(class_id, name, correlation, details, long_lived)
+    }
+
+    fn start_span_with_class(
+        &self,
+        class_id: OperationClassIdV1,
+        name: &str,
+        correlation: Option<&str>,
+        details: Option<Value>,
+        long_lived: bool,
+    ) -> ObservationSpan {
         // Telemetry is loss-tolerant: an unavailable OS CSPRNG drops this
         // observation instead of weakening LLP 0154's random-body identity
         // contract or failing an application operation.
-        let observation = ids::mint(IdKind::Observation).ok();
+        let admission = ids::mint(IdKind::Observation)
+            .ok()
+            .and_then(|observation| admit_operation_class(class_id, observation).ok());
         let ts_ms = wall_now_ms();
         let details = scrub_details(details);
         let release = self.current_release();
-        let admission = (long_lived && observation.is_some()).then(|| Event {
+        let admission_event = (long_lived && admission.is_some()).then(|| Event {
             sequence: 0,
-            observation: observation
+            admission: admission
                 .clone()
-                .expect("checked telemetry observation identity"),
+                .expect("checked classified telemetry observation"),
             phase: Phase::Admission,
             generation: String::new(),
-            class_v: CLASS_REGISTRY_FOUNDATION_VERSION,
             ts_ms,
-            kind: cap(kind, 64),
             name: cap(name, NAME_MAX_BYTES),
             status: None,
             duration_ms: None,
@@ -701,15 +736,14 @@ impl Telemetry {
             priority: Priority::Normal,
             enqueued_at: Instant::now(),
         });
-        let generation = self.admit_span(admission);
-        let active = generation.is_some() && observation.is_some();
+        let generation = self.admit_span(admission_event);
+        let active = generation.is_some() && admission.is_some();
         ObservationSpan {
             telemetry: self.clone(),
-            observation,
+            admission,
             generation: generation.unwrap_or_default(),
             ts_ms,
             started: Instant::now(),
-            kind: cap(kind, 64),
             name: cap(name, NAME_MAX_BYTES),
             correlation: correlation.map(|value| cap(value, CORRELATION_MAX_BYTES)),
             release,
@@ -719,6 +753,7 @@ impl Telemetry {
         }
     }
 
+    #[cfg(test)]
     pub fn point(
         &self,
         kind: &str,
@@ -729,17 +764,38 @@ impl Telemetry {
         details: Option<Value>,
         priority: Priority,
     ) {
+        let class_id = match kind {
+            "lifecycle" => OperationClassIdV1::LIFECYCLE,
+            "log" => OperationClassIdV1::LOG,
+            "diagnostic" => OperationClassIdV1::DIAGNOSTIC,
+            _ => OperationClassIdV1::SYSTEM_UNMATCHED,
+        };
+        self.point_classified(class_id, name, status, code, correlation, details, priority);
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn point_classified(
+        &self,
+        class_id: OperationClassIdV1,
+        name: &str,
+        status: Option<i64>,
+        code: Option<&str>,
+        correlation: Option<&str>,
+        details: Option<Value>,
+        priority: Priority,
+    ) {
         let Ok(observation) = ids::mint(IdKind::Observation) else {
+            return;
+        };
+        let Ok(admission) = admit_operation_class(class_id, observation) else {
             return;
         };
         self.enqueue_current(Event {
             sequence: 0,
-            observation,
+            admission,
             phase: Phase::Point,
             generation: String::new(),
-            class_v: CLASS_REGISTRY_FOUNDATION_VERSION,
             ts_ms: wall_now_ms(),
-            kind: cap(kind, 64),
             name: cap(name, NAME_MAX_BYTES),
             status,
             duration_ms: None,
@@ -783,8 +839,8 @@ impl Telemetry {
             .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
             .is_ok()
         {
-            self.point(
-                "lifecycle",
+            self.point_classified(
+                OperationClassIdV1::LIFECYCLE,
                 "process_ready",
                 Some(200),
                 None,
@@ -809,8 +865,8 @@ impl Telemetry {
         if severity_rank(severity) < severity_rank(config.min_level) {
             return;
         }
-        self.point(
-            "log",
+        self.point_classified(
+            OperationClassIdV1::LOG,
             level,
             None,
             None,
@@ -841,8 +897,8 @@ impl Telemetry {
             severity,
             DiagnosticSeverity::Error | DiagnosticSeverity::Fatal
         );
-        self.point(
-            "diagnostic",
+        self.point_classified(
+            OperationClassIdV1::DIAGNOSTIC,
             code,
             Some(if failure { 500 } else { 200 }),
             Some(code),
@@ -1794,8 +1850,7 @@ impl Store {
                     && match current_identity.as_ref() {
                         Some(identity) => {
                             app_id.as_deref() == Some(identity.app_id.as_str())
-                                && environment.as_deref()
-                                    == Some(identity.environment_id.as_str())
+                                && environment.as_deref() == Some(identity.environment_id.as_str())
                         }
                         None => app_id.is_none() && environment.is_none(),
                     } =>
@@ -1929,6 +1984,7 @@ impl Store {
         self.rebind_with_optional_identity(app_db_incarnation, self.identity.clone(), now_ms)
     }
 
+    #[cfg(test)]
     fn rebind_with_identity(
         &mut self,
         app_db_incarnation: &str,
@@ -2048,7 +2104,11 @@ impl Store {
         let mut replacement_drops = BTreeMap::new();
         let events = if replacement_generation.is_some() {
             for event in &events {
-                let key = format!("{}:{}:storeReplaced", event.kind, event.priority.as_str());
+                let key = format!(
+                    "{}:{}:storeReplaced",
+                    event.admission.telemetry_kind,
+                    event.priority.as_str()
+                );
                 *replacement_drops.entry(key).or_default() += 1;
             }
             Vec::new()
@@ -2490,13 +2550,13 @@ fn insert_batch(tx: &Transaction<'_>, events: &[Event], stamp: i64) -> SnapbackR
         }
         sql.push_str("(?,?,?,?,?,?,?,?,?,?,NULL,?,?,?,?)");
         values.extend([
-            event.observation.clone().into(),
+            event.admission.observation_id.clone().into(),
             event.phase.as_str().to_owned().into(),
             event.generation.clone().into(),
-            i64::from(event.class_v).into(),
+            i64::from(event.admission.registry_version).into(),
             event.ts_ms.into(),
             stamp.into(),
-            event.kind.clone().into(),
+            event.admission.telemetry_kind.clone().into(),
             event.name.clone().into(),
             event.status.into(),
             event.duration_ms.into(),
@@ -2932,10 +2992,11 @@ fn enforce_rollup_cap(tx: &Transaction<'_>, generation: &str, cap: usize) -> Sna
 
 fn event_storage_upper_bound(event: &Event) -> u64 {
     let payload = event
-        .observation
+        .admission
+        .observation_id
         .len()
         .saturating_add(event.generation.len())
-        .saturating_add(event.kind.len())
+        .saturating_add(event.admission.telemetry_kind.len())
         .saturating_add(event.name.len())
         .saturating_add(event.code.as_ref().map_or(0, String::len))
         .saturating_add(event.correlation.as_ref().map_or(0, String::len))
@@ -2991,7 +3052,11 @@ fn select_events_under_file_cap(
             available -= bytes;
             retained.push((index, event));
         } else {
-            let key = format!("{}:{}:fileCap", event.kind, event.priority.as_str());
+            let key = format!(
+                "{}:{}:fileCap",
+                event.admission.telemetry_kind,
+                event.priority.as_str()
+            );
             *drops.entry(key).or_default() += 1;
         }
     }
@@ -3181,12 +3246,16 @@ mod tests {
     fn joined(generation: &str, kind: &str, sequence: u64) -> Event {
         Event {
             sequence,
-            observation: ids::mint(IdKind::Observation).expect("test CSPRNG"),
+            admission: AdmittedObservationClassV1 {
+                observation_id: ids::mint(IdKind::Observation).expect("test CSPRNG"),
+                registry_version: crate::telemetry_contract::OPERATION_CLASS_REGISTRY_VERSION,
+                operation_class: "test.fixture",
+                telemetry_kind: kind.to_owned(),
+                telemetry_projection: TelemetryProjectionModeV1::JoinedTerminal,
+            },
             phase: Phase::Joined,
             generation: generation.to_owned(),
-            class_v: 1,
             ts_ms: 1_000,
-            kind: kind.to_owned(),
             name: "fixture".to_owned(),
             status: Some(200),
             duration_ms: Some(4.0),
@@ -4549,7 +4618,7 @@ mod tests {
     }
 
     #[test]
-    fn retention_floor_prevents_decrease_raise_and_disable_resurrection() {
+    fn max_days_7_to_1_to_7_without_sweep_never_resurrects_raw_rows() {
         let mut store = Store::memory("01900000-0000-7000-8000-000000000001", config()).unwrap();
         let generation = store.generation.clone();
         let day = DAY_MS;
@@ -4589,25 +4658,61 @@ mod tests {
                 base + 10 * day,
             )
             .unwrap();
-        let visible: i64 = store
+        let (raw, visible): (i64, i64) = store
             .conn
             .as_ref()
             .unwrap()
-            .query_row("SELECT count(*) FROM telemetry_events_visible", [], |row| {
-                row.get(0)
-            })
+            .query_row(
+                "SELECT (SELECT count(*) FROM telemetry_events),
+                        (SELECT count(*) FROM telemetry_events_visible)",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
             .unwrap();
+        assert_eq!(
+            raw, 1,
+            "no maintenance sweep occurred during the transition"
+        );
         assert_eq!(
             visible, 0,
             "raising retention cannot resurrect a hidden raw row"
         );
+    }
+
+    #[test]
+    fn max_days_n_to_0_to_n_without_sweep_exposes_only_later_batches() {
+        let mut store = Store::memory("01900000-0000-7000-8000-000000000001", config()).unwrap();
+        let generation = store.generation.clone();
+        let base: i64 = store
+            .conn
+            .as_ref()
+            .unwrap()
+            .query_row(
+                "SELECT observation_clock_ms FROM telemetry_meta",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        store
+            .flush(
+                vec![joined_named(
+                    &generation,
+                    "function_run",
+                    "before_disable",
+                    1,
+                )],
+                BTreeMap::new(),
+                base + 1,
+                false,
+            )
+            .unwrap();
         store
             .update_config(
                 TelemetryConfig {
                     max_days: 0,
                     ..config()
                 },
-                base + 10 * day,
+                base + 100,
             )
             .unwrap();
         store
@@ -4616,25 +4721,131 @@ mod tests {
                     max_days: 7,
                     ..config()
                 },
-                base + 5 * day,
+                base - HOUR_MS,
             )
             .unwrap();
-        let visible: i64 = store
+        store
+            .flush(
+                vec![joined_named(
+                    &generation,
+                    "function_run",
+                    "after_reenable",
+                    2,
+                )],
+                BTreeMap::new(),
+                base - HOUR_MS,
+                false,
+            )
+            .unwrap();
+        let (raw, visible, recorded, floor): (i64, i64, i64, i64) = store
             .conn
             .as_ref()
             .unwrap()
-            .query_row("SELECT count(*) FROM telemetry_events_visible", [], |row| {
-                row.get(0)
-            })
+            .query_row(
+                "SELECT
+                   (SELECT count(*) FROM telemetry_events),
+                   (SELECT count(*) FROM telemetry_events_visible),
+                   (SELECT recorded_ts_ms FROM telemetry_events WHERE name='after_reenable'),
+                   retention_floor
+                 FROM telemetry_meta WHERE singleton=1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
             .unwrap();
         assert_eq!(
-            visible, 0,
-            "disable/re-enable under rollback cannot resurrect raw rows"
+            raw, 2,
+            "no intervening sweep physically deletes the predecessor"
+        );
+        assert_eq!(visible, 1, "only the post-enable batch is visible");
+        assert!(
+            recorded > floor,
+            "rollback still issues a stamp above the disable floor"
         );
     }
 
     #[test]
-    fn generation_rebind_hides_in_flight_predecessor_rows() {
+    fn clock_rollback_against_retention_floor_never_resurrects_hidden_rows() {
+        let mut store = Store::memory("01900000-0000-7000-8000-000000000001", config()).unwrap();
+        let generation = store.generation.clone();
+        let base: i64 = store
+            .conn
+            .as_ref()
+            .unwrap()
+            .query_row(
+                "SELECT observation_clock_ms FROM telemetry_meta",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        store
+            .flush(
+                vec![joined_named(&generation, "function_run", "before_floor", 1)],
+                BTreeMap::new(),
+                base + DAY_MS,
+                false,
+            )
+            .unwrap();
+        store
+            .update_config(
+                TelemetryConfig {
+                    max_days: 1,
+                    ..config()
+                },
+                base + 10 * DAY_MS,
+            )
+            .unwrap();
+        let (floor, prior_clock): (i64, i64) = store
+            .conn
+            .as_ref()
+            .unwrap()
+            .query_row(
+                "SELECT retention_floor,observation_clock_ms FROM telemetry_meta WHERE singleton=1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+
+        store
+            .flush(
+                vec![joined_named(
+                    &generation,
+                    "function_run",
+                    "after_rollback",
+                    2,
+                )],
+                BTreeMap::new(),
+                base.saturating_sub(10 * DAY_MS),
+                false,
+            )
+            .unwrap();
+        let (current_floor, clock, visible, recorded): (i64, i64, i64, i64) = store
+            .conn
+            .as_ref()
+            .unwrap()
+            .query_row(
+                "SELECT retention_floor,
+                        observation_clock_ms,
+                        (SELECT count(*) FROM telemetry_events_visible),
+                        (SELECT recorded_ts_ms FROM telemetry_events WHERE name='after_rollback')
+                 FROM telemetry_meta WHERE singleton=1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .unwrap();
+        assert!(
+            current_floor >= floor,
+            "wall-clock rollback cannot relax the floor"
+        );
+        assert!(clock > prior_clock, "freshness high-water remains monotone");
+        assert!(
+            recorded > current_floor,
+            "the later batch receives a post-floor cursor"
+        );
+        assert_eq!(visible, 1, "only the later batch remains visible");
+    }
+
+    #[test]
+    fn reset_in_flight_generation_race_hides_predecessor_rows() {
         let mut store = Store::memory("01900000-0000-7000-8000-000000000001", config()).unwrap();
         let predecessor = store.generation.clone();
         store
@@ -4850,6 +5061,429 @@ mod tests {
     }
 
     #[test]
+    fn clock_rollback_across_hour_finalization_never_regresses_cursor_or_freshness() {
+        let mut store = Store::memory("01900000-0000-7000-8000-000000000001", config()).unwrap();
+        let generation = store.generation.clone();
+        let base: i64 = store
+            .conn
+            .as_ref()
+            .unwrap()
+            .query_row(
+                "SELECT observation_clock_ms FROM telemetry_meta",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let first_hour = hour_start(base).saturating_add(HOUR_MS);
+        store
+            .flush(
+                vec![joined_named(&generation, "function_run", "finalized", 1)],
+                BTreeMap::new(),
+                first_hour + 100,
+                true,
+            )
+            .unwrap();
+        let next_hour = first_hour.saturating_add(HOUR_MS);
+        store
+            .flush(Vec::new(), BTreeMap::new(), next_hour + 100, true)
+            .unwrap();
+        let (prior_clock, prior_recorded, prior_id): (i64, i64, i64) = store
+            .conn
+            .as_ref()
+            .unwrap()
+            .query_row(
+                "SELECT observation_clock_ms,
+                        (SELECT max(recorded_ts_ms) FROM telemetry_events),
+                        (SELECT max(id) FROM telemetry_events)
+                 FROM telemetry_meta WHERE singleton=1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+
+        store
+            .flush(
+                vec![joined_named(
+                    &generation,
+                    "function_run",
+                    "after_rollback",
+                    2,
+                )],
+                BTreeMap::new(),
+                base.saturating_sub(HOUR_MS),
+                true,
+            )
+            .unwrap();
+        let (clock, recorded, id, finalized): (i64, i64, i64, i64) = store
+            .conn
+            .as_ref()
+            .unwrap()
+            .query_row(
+                "SELECT (SELECT observation_clock_ms FROM telemetry_meta),
+                        e.recorded_ts_ms,
+                        e.id,
+                        coalesce((SELECT finalized FROM telemetry_rollup_hourly
+                                  WHERE generation=e.generation
+                                    AND kind=e.kind
+                                    AND name=e.name
+                                    AND bucket_start_ms=(e.recorded_ts_ms / 3600000) * 3600000),0)
+                 FROM telemetry_events e WHERE e.name='after_rollback'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .unwrap();
+        assert!(clock > prior_clock, "freshness high-water is monotone");
+        assert!(
+            (recorded, id) > (prior_recorded, prior_id),
+            "cursor order is monotone"
+        );
+        assert_eq!(finalized, 0, "rollback cannot insert into a finalized hour");
+    }
+
+    #[test]
+    fn hatch_and_server_share_the_same_generation_and_retention_boundary() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("telemetry.sqlite3");
+        let mut store = Store::open(
+            path.clone(),
+            "01900000-0000-7000-8000-000000000001",
+            config(),
+        )
+        .unwrap();
+        let predecessor = store.generation.clone();
+        store
+            .flush(
+                vec![joined_named(&predecessor, "function_run", "predecessor", 1)],
+                BTreeMap::new(),
+                wall_now_ms(),
+                false,
+            )
+            .unwrap();
+        store
+            .rebind("01900000-0000-7000-8000-000000000002", wall_now_ms())
+            .unwrap();
+        let successor = store.generation.clone();
+        store
+            .flush(
+                vec![joined_named(&successor, "function_run", "successor", 2)],
+                BTreeMap::new(),
+                wall_now_ms(),
+                false,
+            )
+            .unwrap();
+        let server = store
+            .conn
+            .as_ref()
+            .unwrap()
+            .query_row(
+                "SELECT count(*),min(name),max(name) FROM telemetry_events_visible",
+                [],
+                |row| {
+                    Ok((
+                        row.get::<_, i64>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                    ))
+                },
+            )
+            .unwrap();
+        let hatch = Connection::open_with_flags(
+            &path,
+            OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )
+        .unwrap()
+        .query_row(
+            "SELECT count(*),min(name),max(name) FROM telemetry_events_visible",
+            [],
+            |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                ))
+            },
+        )
+        .unwrap();
+        assert_eq!(server, (1, "successor".to_owned(), "successor".to_owned()));
+        assert_eq!(hatch, server);
+    }
+
+    #[test]
+    fn raw_tail_stats_compose_across_restart_without_double_count() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("telemetry.sqlite3");
+        let config = config();
+        let mut store = Store::open(
+            path.clone(),
+            "01900000-0000-7000-8000-000000000001",
+            config.clone(),
+        )
+        .unwrap();
+        store.ensure_connection(wall_now_ms()).unwrap();
+        let generation = store.generation.clone();
+        let base: i64 = store
+            .conn
+            .as_ref()
+            .unwrap()
+            .query_row(
+                "SELECT observation_clock_ms FROM telemetry_meta",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        store
+            .flush(
+                vec![joined_named(&generation, "function_run", "rolled", 1)],
+                BTreeMap::new(),
+                base + 1,
+                true,
+            )
+            .unwrap();
+        store
+            .flush(
+                vec![joined_named(&generation, "function_run", "raw_tail", 2)],
+                BTreeMap::new(),
+                base + 2,
+                false,
+            )
+            .unwrap();
+        drop(store);
+
+        let mut store = Store::open(path, "01900000-0000-7000-8000-000000000001", config).unwrap();
+        store.ensure_connection(base + 3).unwrap();
+        let (rollup, raw_tail, watermark): (i64, i64, i64) = store
+            .conn
+            .as_ref()
+            .unwrap()
+            .query_row(
+                "SELECT
+                   (SELECT coalesce(sum(count),0) FROM telemetry_rollup_visible WHERE kind='function_run'),
+                   (SELECT count(*) FROM telemetry_events_visible
+                    WHERE kind='function_run' AND phase IN ('point','joined','terminal')
+                      AND id>(SELECT rollup_watermark_id FROM telemetry_meta)),
+                   rollup_watermark_id
+                 FROM telemetry_meta WHERE singleton=1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!((rollup, raw_tail), (1, 1));
+        store
+            .flush(Vec::new(), BTreeMap::new(), base + 3, true)
+            .unwrap();
+        let (after_rollup, after_tail, after_watermark): (i64, i64, i64) = store
+            .conn
+            .as_ref()
+            .unwrap()
+            .query_row(
+                "SELECT
+                   (SELECT coalesce(sum(count),0) FROM telemetry_rollup_visible WHERE kind='function_run'),
+                   (SELECT count(*) FROM telemetry_events_visible
+                    WHERE kind='function_run' AND phase IN ('point','joined','terminal')
+                      AND id>(SELECT rollup_watermark_id FROM telemetry_meta)),
+                   rollup_watermark_id
+                 FROM telemetry_meta WHERE singleton=1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!((after_rollup, after_tail), (2, 0));
+        assert!(after_watermark > watermark);
+    }
+
+    #[test]
+    fn late_completion_buckets_by_recorded_time_not_admission_time() {
+        let mut store = Store::memory("01900000-0000-7000-8000-000000000001", config()).unwrap();
+        let generation = store.generation.clone();
+        let base: i64 = store
+            .conn
+            .as_ref()
+            .unwrap()
+            .query_row(
+                "SELECT observation_clock_ms FROM telemetry_meta",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let completion = hour_start(base).saturating_add(2 * HOUR_MS + 100);
+        let mut event = joined_named(&generation, "function_run", "late_completion", 1);
+        event.ts_ms = hour_start(base).saturating_sub(7 * DAY_MS);
+        store
+            .flush(vec![event], BTreeMap::new(), completion, true)
+            .unwrap();
+        let (admitted, recorded, bucket): (i64, i64, i64) = store
+            .conn
+            .as_ref()
+            .unwrap()
+            .query_row(
+                "SELECT e.ts_ms,e.recorded_ts_ms,r.bucket_start_ms
+                 FROM telemetry_events e JOIN telemetry_rollup_hourly r
+                   ON r.generation=e.generation AND r.kind=e.kind AND r.name=e.name
+                 WHERE e.name='late_completion'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!(bucket, hour_start(recorded));
+        assert_ne!(bucket, hour_start(admitted));
+    }
+
+    #[test]
+    fn mid_hour_maintenance_counts_each_phase_exactly_once_before_and_after_restart() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("telemetry.sqlite3");
+        let config = config();
+        let mut store = Store::open(
+            path.clone(),
+            "01900000-0000-7000-8000-000000000001",
+            config.clone(),
+        )
+        .unwrap();
+        store.ensure_connection(wall_now_ms()).unwrap();
+        let generation = store.generation.clone();
+        let mut point = joined_named(&generation, "phase_fixture", "point", 1);
+        point.phase = Phase::Point;
+        let mut admission = joined_named(&generation, "phase_fixture", "admission", 2);
+        admission.phase = Phase::Admission;
+        let mut terminal = joined_named(&generation, "phase_fixture", "terminal", 3);
+        terminal.phase = Phase::Terminal;
+        let joined = joined_named(&generation, "phase_fixture", "joined", 4);
+        let base: i64 = store
+            .conn
+            .as_ref()
+            .unwrap()
+            .query_row(
+                "SELECT observation_clock_ms FROM telemetry_meta",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        store
+            .flush(
+                vec![point, admission, terminal, joined],
+                BTreeMap::new(),
+                hour_start(base).saturating_add(HOUR_MS / 2),
+                true,
+            )
+            .unwrap();
+        let stats_partition = |conn: &Connection| {
+            conn.query_row(
+                "SELECT
+                   (SELECT coalesce(sum(count),0) FROM telemetry_rollup_visible WHERE kind='phase_fixture') +
+                   (SELECT count(*) FROM telemetry_events_visible
+                    WHERE kind='phase_fixture' AND phase IN ('point','joined','terminal')
+                      AND id>(SELECT rollup_watermark_id FROM telemetry_meta))",
+                [],
+                |row| row.get::<_, i64>(0),
+            )
+            .unwrap()
+        };
+        assert_eq!(stats_partition(store.conn.as_ref().unwrap()), 3);
+        drop(store);
+        let mut store = Store::open(path, "01900000-0000-7000-8000-000000000001", config).unwrap();
+        store.ensure_connection(base + 1).unwrap();
+        assert_eq!(stats_partition(store.conn.as_ref().unwrap()), 3);
+    }
+
+    #[test]
+    fn snapshot_bounded_export_excludes_later_rows_and_generations() {
+        let mut store = Store::memory("01900000-0000-7000-8000-000000000001", config()).unwrap();
+        let generation = store.generation.clone();
+        let base: i64 = store
+            .conn
+            .as_ref()
+            .unwrap()
+            .query_row(
+                "SELECT observation_clock_ms FROM telemetry_meta",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        store
+            .flush(
+                vec![
+                    joined_named(&generation, "function_run", "snapshot_a", 1),
+                    joined_named(&generation, "function_run", "snapshot_b", 2),
+                ],
+                BTreeMap::new(),
+                base + 1,
+                false,
+            )
+            .unwrap();
+        let (snapshot_generation, snapshot_boundary, snapshot_max_id): (String, i64, i64) = store
+            .conn
+            .as_ref()
+            .unwrap()
+            .query_row(
+                "SELECT generation,
+                        max(retention_floor,observation_clock_ms - max_days_mirror * 86400000),
+                        (SELECT max(id) FROM telemetry_events_visible)
+                 FROM telemetry_meta WHERE singleton=1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+        store
+            .flush(
+                vec![joined_named(
+                    &generation,
+                    "function_run",
+                    "after_snapshot",
+                    3,
+                )],
+                BTreeMap::new(),
+                base + 2,
+                false,
+            )
+            .unwrap();
+        store
+            .rebind("01900000-0000-7000-8000-000000000002", base + 3)
+            .unwrap();
+        let names = store
+            .conn
+            .as_ref()
+            .unwrap()
+            .prepare(
+                "SELECT name FROM telemetry_events
+                 WHERE generation=?1 AND recorded_ts_ms>?2 AND id<=?3
+                 ORDER BY recorded_ts_ms,id",
+            )
+            .unwrap()
+            .query_map(
+                params![snapshot_generation, snapshot_boundary, snapshot_max_id],
+                |row| row.get::<_, String>(0),
+            )
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(names, vec!["snapshot_a", "snapshot_b"]);
+    }
+
+    #[test]
+    fn persisted_rows_pin_the_registry_version() {
+        let mut store = Store::memory("01900000-0000-7000-8000-000000000001", config()).unwrap();
+        let generation = store.generation.clone();
+        store
+            .flush(
+                vec![joined(&generation, "function_run", 1)],
+                BTreeMap::new(),
+                wall_now_ms(),
+                false,
+            )
+            .unwrap();
+        let class_v: i64 = store
+            .conn
+            .as_ref()
+            .unwrap()
+            .query_row("SELECT class_v FROM telemetry_events", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(
+            class_v,
+            i64::from(crate::telemetry_contract::OPERATION_CLASS_REGISTRY_VERSION)
+        );
+    }
+
+    #[test]
     fn large_sweep_truncates_wal_after_commit() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("telemetry.sqlite3");
@@ -4931,7 +5565,7 @@ mod tests {
     }
 
     #[test]
-    fn estimator_miss_rolls_before_raw_interval_eviction() {
+    fn cap_exhaustion_rolls_before_raw_interval_eviction() {
         let dir = tempfile::tempdir().unwrap();
         let app_path = dir.path().join("app.sqlite3");
         let telemetry_path = Telemetry::path_for_database(&app_path);

@@ -1,0 +1,429 @@
+{
+  "artifactVersion": 1,
+  "classes": [
+    {
+      "id": "function.query",
+      "metering": [
+        {
+          "derivation": "acceptedOperation",
+          "metricId": "backend_requests",
+          "stage": "admission",
+          "unit": "request"
+        },
+        {
+          "derivation": "measured",
+          "metricId": "cpu_ms",
+          "stage": "terminal",
+          "unit": "cpu-ms"
+        },
+        {
+          "derivation": "measured",
+          "metricId": "data_transfer_bytes",
+          "stage": "terminal",
+          "unit": "byte"
+        }
+      ],
+      "relationship": "logical",
+      "telemetryKind": "function_run",
+      "telemetryProjection": "joinedTerminal",
+      "usageDisposition": "application"
+    },
+    {
+      "id": "function.mutation",
+      "metering": [
+        {
+          "derivation": "acceptedOperation",
+          "metricId": "backend_requests",
+          "stage": "admission",
+          "unit": "request"
+        },
+        {
+          "derivation": "measured",
+          "metricId": "cpu_ms",
+          "stage": "terminal",
+          "unit": "cpu-ms"
+        },
+        {
+          "derivation": "measured",
+          "metricId": "data_transfer_bytes",
+          "stage": "terminal",
+          "unit": "byte"
+        }
+      ],
+      "relationship": "logical",
+      "telemetryKind": "function_run",
+      "telemetryProjection": "joinedTerminal",
+      "usageDisposition": "application"
+    },
+    {
+      "id": "function.action",
+      "metering": [
+        {
+          "derivation": "acceptedOperation",
+          "metricId": "backend_requests",
+          "stage": "admission",
+          "unit": "request"
+        },
+        {
+          "derivation": "measured",
+          "metricId": "cpu_ms",
+          "stage": "terminal",
+          "unit": "cpu-ms"
+        },
+        {
+          "derivation": "measured",
+          "metricId": "data_transfer_bytes",
+          "stage": "terminal",
+          "unit": "byte"
+        }
+      ],
+      "relationship": "logical",
+      "telemetryKind": "function_run",
+      "telemetryProjection": "joinedTerminal",
+      "usageDisposition": "application"
+    },
+    {
+      "id": "function.http",
+      "metering": [
+        {
+          "derivation": "acceptedOperation",
+          "metricId": "backend_requests",
+          "stage": "admission",
+          "unit": "request"
+        },
+        {
+          "derivation": "measured",
+          "metricId": "cpu_ms",
+          "stage": "terminal",
+          "unit": "cpu-ms"
+        },
+        {
+          "derivation": "measured",
+          "metricId": "data_transfer_bytes",
+          "stage": "terminal",
+          "unit": "byte"
+        }
+      ],
+      "relationship": "logical",
+      "telemetryKind": "function_run",
+      "telemetryProjection": "joinedTerminal",
+      "usageDisposition": "application"
+    },
+    {
+      "id": "transport.http-carrier",
+      "metering": [],
+      "relationship": "carrier",
+      "telemetryKind": "http_request",
+      "telemetryProjection": "joinedTerminal",
+      "usageDisposition": "application"
+    },
+    {
+      "id": "transport.http-standalone",
+      "metering": [
+        {
+          "derivation": "acceptedOperation",
+          "metricId": "backend_requests",
+          "stage": "admission",
+          "unit": "request"
+        }
+      ],
+      "relationship": "standalone",
+      "telemetryKind": "http_request",
+      "telemetryProjection": "joinedTerminal",
+      "usageDisposition": "application"
+    },
+    {
+      "id": "live.subscribe",
+      "metering": [
+        {
+          "derivation": "acceptedOperation",
+          "metricId": "backend_requests",
+          "stage": "admission",
+          "unit": "request"
+        }
+      ],
+      "relationship": "logical",
+      "telemetryKind": "live_subscribe",
+      "telemetryProjection": "admissionTerminal",
+      "usageDisposition": "application"
+    },
+    {
+      "id": "live.resubscribe",
+      "metering": [
+        {
+          "derivation": "acceptedOperation",
+          "metricId": "backend_requests",
+          "stage": "admission",
+          "unit": "request"
+        }
+      ],
+      "relationship": "logical",
+      "telemetryKind": "live_subscribe",
+      "telemetryProjection": "admissionTerminal",
+      "usageDisposition": "application"
+    },
+    {
+      "id": "stream.connect",
+      "metering": [],
+      "relationship": "carrier",
+      "telemetryKind": "ws_connect",
+      "telemetryProjection": "admissionTerminal",
+      "usageDisposition": "application"
+    },
+    {
+      "id": "job.scheduler",
+      "metering": [],
+      "relationship": "scheduler",
+      "telemetryKind": "job_run",
+      "telemetryProjection": "joinedTerminal",
+      "usageDisposition": "application"
+    },
+    {
+      "id": "realtime.delivered",
+      "metering": [
+        {
+          "derivation": "measured",
+          "metricId": "realtime_messages",
+          "stage": "counter",
+          "unit": "delivered-message"
+        }
+      ],
+      "relationship": "logical",
+      "telemetryKind": "realtime_message",
+      "telemetryProjection": "counterOnly",
+      "usageDisposition": "application"
+    },
+    {
+      "id": "lifecycle",
+      "metering": [],
+      "relationship": "system",
+      "telemetryKind": "lifecycle",
+      "telemetryProjection": "point",
+      "usageDisposition": "system"
+    },
+    {
+      "id": "log",
+      "metering": [],
+      "relationship": "system",
+      "telemetryKind": "log",
+      "telemetryProjection": "point",
+      "usageDisposition": "system"
+    },
+    {
+      "id": "diagnostic",
+      "metering": [],
+      "relationship": "system",
+      "telemetryKind": "diagnostic",
+      "telemetryProjection": "point",
+      "usageDisposition": "system"
+    },
+    {
+      "id": "platform.export",
+      "metering": [
+        {
+          "derivation": "acceptedOperation",
+          "metricId": "backend_requests",
+          "stage": "admission",
+          "unit": "request"
+        }
+      ],
+      "relationship": "standalone",
+      "telemetryKind": "http_request",
+      "telemetryProjection": "joinedTerminal",
+      "usageDisposition": "application"
+    },
+    {
+      "id": "platform.restore",
+      "metering": [
+        {
+          "derivation": "acceptedOperation",
+          "metricId": "backend_requests",
+          "stage": "admission",
+          "unit": "request"
+        }
+      ],
+      "relationship": "standalone",
+      "telemetryKind": "http_request",
+      "telemetryProjection": "joinedTerminal",
+      "usageDisposition": "application"
+    },
+    {
+      "id": "platform.app-create",
+      "metering": [],
+      "relationship": "system",
+      "telemetryKind": "http_request",
+      "telemetryProjection": "joinedTerminal",
+      "usageDisposition": "system"
+    },
+    {
+      "id": "platform.environment-create",
+      "metering": [],
+      "relationship": "system",
+      "telemetryKind": "http_request",
+      "telemetryProjection": "joinedTerminal",
+      "usageDisposition": "system"
+    },
+    {
+      "id": "platform.code-activate",
+      "metering": [],
+      "relationship": "system",
+      "telemetryKind": "http_request",
+      "telemetryProjection": "joinedTerminal",
+      "usageDisposition": "system"
+    },
+    {
+      "id": "platform.environment-inspect",
+      "metering": [],
+      "relationship": "system",
+      "telemetryKind": "http_request",
+      "telemetryProjection": "joinedTerminal",
+      "usageDisposition": "system"
+    },
+    {
+      "id": "platform.suspend",
+      "metering": [],
+      "relationship": "system",
+      "telemetryKind": "http_request",
+      "telemetryProjection": "joinedTerminal",
+      "usageDisposition": "system"
+    },
+    {
+      "id": "platform.delete",
+      "metering": [],
+      "relationship": "system",
+      "telemetryKind": "http_request",
+      "telemetryProjection": "joinedTerminal",
+      "usageDisposition": "system"
+    },
+    {
+      "id": "platform.transfer",
+      "metering": [],
+      "relationship": "system",
+      "telemetryKind": "http_request",
+      "telemetryProjection": "joinedTerminal",
+      "usageDisposition": "system"
+    },
+    {
+      "id": "platform.preview-ttl-governance",
+      "metering": [],
+      "relationship": "system",
+      "telemetryKind": "http_request",
+      "telemetryProjection": "joinedTerminal",
+      "usageDisposition": "system"
+    },
+    {
+      "id": "platform.code-push",
+      "metering": [],
+      "relationship": "system",
+      "telemetryKind": "http_request",
+      "telemetryProjection": "joinedTerminal",
+      "usageDisposition": "system"
+    },
+    {
+      "id": "platform.schema-push",
+      "metering": [],
+      "relationship": "system",
+      "telemetryKind": "http_request",
+      "telemetryProjection": "joinedTerminal",
+      "usageDisposition": "system"
+    },
+    {
+      "id": "platform.permissions-push",
+      "metering": [],
+      "relationship": "system",
+      "telemetryKind": "http_request",
+      "telemetryProjection": "joinedTerminal",
+      "usageDisposition": "system"
+    },
+    {
+      "id": "platform.capabilities-read",
+      "metering": [],
+      "relationship": "system",
+      "telemetryKind": "http_request",
+      "telemetryProjection": "joinedTerminal",
+      "usageDisposition": "system"
+    },
+    {
+      "id": "platform.schema-lockdown",
+      "metering": [],
+      "relationship": "system",
+      "telemetryKind": "http_request",
+      "telemetryProjection": "joinedTerminal",
+      "usageDisposition": "system"
+    },
+    {
+      "id": "internal.repair",
+      "metering": [],
+      "relationship": "system",
+      "telemetryKind": "lifecycle",
+      "telemetryProjection": "point",
+      "usageDisposition": "system"
+    },
+    {
+      "id": "internal.health",
+      "metering": [],
+      "relationship": "system",
+      "telemetryKind": "http_request",
+      "telemetryProjection": "joinedTerminal",
+      "usageDisposition": "system"
+    },
+    {
+      "id": "internal.quota-notice",
+      "metering": [],
+      "relationship": "system",
+      "telemetryKind": "diagnostic",
+      "telemetryProjection": "point",
+      "usageDisposition": "system"
+    },
+    {
+      "id": "system.console-poll",
+      "metering": [],
+      "relationship": "system",
+      "telemetryKind": "http_request",
+      "telemetryProjection": "joinedTerminal",
+      "usageDisposition": "system"
+    },
+    {
+      "id": "system.control-api",
+      "metering": [],
+      "relationship": "system",
+      "telemetryKind": "http_request",
+      "telemetryProjection": "joinedTerminal",
+      "usageDisposition": "system"
+    },
+    {
+      "id": "system.telemetry",
+      "metering": [],
+      "relationship": "system",
+      "telemetryKind": "http_request",
+      "telemetryProjection": "joinedTerminal",
+      "usageDisposition": "system"
+    },
+    {
+      "id": "system.static-asset",
+      "metering": [],
+      "relationship": "system",
+      "telemetryKind": "http_request",
+      "telemetryProjection": "joinedTerminal",
+      "usageDisposition": "system"
+    },
+    {
+      "id": "system.unmatched",
+      "metering": [],
+      "relationship": "system",
+      "telemetryKind": "http_request",
+      "telemetryProjection": "joinedTerminal",
+      "usageDisposition": "system"
+    },
+    {
+      "id": "system.maintenance",
+      "metering": [],
+      "relationship": "system",
+      "telemetryKind": "lifecycle",
+      "telemetryProjection": "point",
+      "usageDisposition": "system"
+    }
+  ],
+  "registryVersion": 1,
+  "usageEventSchemaVersion": "snapback.usage-event.v1"
+}

@@ -1,0 +1,2223 @@
+{
+  "artifactVersion": 1,
+  "boundaryProtocol": [
+    {
+      "invariant": "retention_floor prevents raw-row resurrection",
+      "name": "max_days_7_to_1_to_7_without_sweep"
+    },
+    {
+      "invariant": "disable is a durable floor and re-enable exposes only later batches",
+      "name": "max_days_n_to_0_to_n_without_sweep"
+    },
+    {
+      "invariant": "new batch stamps remain strictly above the durable floor",
+      "name": "clock_rollback_against_retention_floor"
+    },
+    {
+      "invariant": "freshness and pagination order never regress into a finalized hour",
+      "name": "clock_rollback_across_hour_finalization"
+    },
+    {
+      "invariant": "both readers use telemetry_meta and the visibility views",
+      "name": "hatch_server_boundary_parity"
+    },
+    {
+      "invariant": "every counted-phase row appears in exactly one raw-or-rollup stats partition",
+      "name": "mid_hour_maintenance_exactly_once_before_after_restart"
+    },
+    {
+      "invariant": "predecessor rows may land but remain generation-hidden",
+      "name": "reset_in_flight_generation_race"
+    },
+    {
+      "invariant": "raw tail above the rollup watermark and durable rollups compose without duplication",
+      "name": "raw_tail_stats_across_restart"
+    },
+    {
+      "invariant": "a terminal row buckets by recorded completion time, not admission time",
+      "name": "late_completion_recorded_time_bucket"
+    },
+    {
+      "invariant": "whole raw intervals cross the rollup watermark before cap eviction",
+      "name": "cap_exhaustion_rolls_before_shed"
+    },
+    {
+      "invariant": "one captured generation, boundary, and max id bound the entire export",
+      "name": "snapshot_bounded_export"
+    }
+  ],
+  "cases": [
+    {
+      "deliveryAttempts": 1,
+      "expectedMetering": [
+        {
+          "eventId": "sha256:07ca6a5b378d1a4b71f279d659c571064a620e1821c543cb722e2c1d1f61f901",
+          "expoAppId": "app-fixture",
+          "metricId": "backend_requests",
+          "observedAtMs": 1010,
+          "occurredAtMs": 1000,
+          "operationClass": "platform.restore",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "quantity": 1,
+          "registryVersion": 1,
+          "releaseId": "release-fixture",
+          "requestOrJobId": "request-platform",
+          "schemaVersion": "snapback.usage-event.v1",
+          "snapbackEnvironmentId": "environment-fixture",
+          "source": "snapback-observation-span",
+          "stage": "admission",
+          "unit": "request"
+        },
+        {
+          "eventId": "sha256:7aff5fed9aeb7ba09e103f9ab320bc430fbb50b0a88d86826ce3e7d3e58330f5",
+          "expoAppId": "app-fixture",
+          "metricId": "backend_requests",
+          "observedAtMs": 1010,
+          "occurredAtMs": 1000,
+          "operationClass": "platform.export",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "quantity": 1,
+          "registryVersion": 1,
+          "releaseId": "release-fixture",
+          "requestOrJobId": "request-platform",
+          "schemaVersion": "snapback.usage-event.v1",
+          "snapbackEnvironmentId": "environment-fixture",
+          "source": "snapback-observation-span",
+          "stage": "admission",
+          "unit": "request"
+        }
+      ],
+      "expectedTelemetry": [
+        {
+          "appId": "app-fixture",
+          "correlation": "request-platform",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "http_request",
+          "observationId": "obs_platform_export00000000000",
+          "phase": "joined",
+          "recordedTsMs": 1090,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        },
+        {
+          "appId": "app-fixture",
+          "correlation": "request-platform",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "http_request",
+          "observationId": "obs_platform_restore0000000000",
+          "phase": "joined",
+          "recordedTsMs": 1090,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        }
+      ],
+      "expectedTelemetryCounters": [],
+      "name": "chargeable_platform_subset_only",
+      "observations": [
+        {
+          "appId": "app-fixture",
+          "correlationId": "request-platform",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [],
+          "observationId": "obs_platform_export00000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "platform.export",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1010,
+              "stage": "admission"
+            },
+            {
+              "recordedAtMs": 1090,
+              "stage": "terminal"
+            }
+          ]
+        },
+        {
+          "appId": "app-fixture",
+          "correlationId": "request-platform",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [],
+          "observationId": "obs_platform_restore0000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "platform.restore",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1010,
+              "stage": "admission"
+            },
+            {
+              "recordedAtMs": 1090,
+              "stage": "terminal"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "deliveryAttempts": 1,
+      "expectedMetering": [
+        {
+          "eventId": "sha256:3aee4a42c6984cfc60ca8485e14f3a6c04a3244b6055a7bc3c71a65e98217f3f",
+          "expoAppId": "app-fixture",
+          "metricId": "backend_requests",
+          "observedAtMs": 1010,
+          "occurredAtMs": 1000,
+          "operationClass": "function.query",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "quantity": 1,
+          "registryVersion": 1,
+          "releaseId": "release-fixture",
+          "requestOrJobId": "request-batch",
+          "schemaVersion": "snapback.usage-event.v1",
+          "snapbackEnvironmentId": "environment-fixture",
+          "source": "snapback-observation-span",
+          "stage": "admission",
+          "unit": "request"
+        },
+        {
+          "eventId": "sha256:8508bde28020704167eae6c1f225657d06c891bd1838b1c7d796db9a014e5399",
+          "expoAppId": "app-fixture",
+          "metricId": "backend_requests",
+          "observedAtMs": 1010,
+          "occurredAtMs": 1000,
+          "operationClass": "function.query",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "quantity": 1,
+          "registryVersion": 1,
+          "releaseId": "release-fixture",
+          "requestOrJobId": "request-batch",
+          "schemaVersion": "snapback.usage-event.v1",
+          "snapbackEnvironmentId": "environment-fixture",
+          "source": "snapback-observation-span",
+          "stage": "admission",
+          "unit": "request"
+        },
+        {
+          "eventId": "sha256:c0a4a48a5f17a3ce38602d3e9409c2f1b7e7f3699b315cf98b5570c124ec3fad",
+          "expoAppId": "app-fixture",
+          "metricId": "backend_requests",
+          "observedAtMs": 1010,
+          "occurredAtMs": 1000,
+          "operationClass": "function.query",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "quantity": 1,
+          "registryVersion": 1,
+          "releaseId": "release-fixture",
+          "requestOrJobId": "request-batch",
+          "schemaVersion": "snapback.usage-event.v1",
+          "snapbackEnvironmentId": "environment-fixture",
+          "source": "snapback-observation-span",
+          "stage": "admission",
+          "unit": "request"
+        }
+      ],
+      "expectedTelemetry": [
+        {
+          "appId": "app-fixture",
+          "correlation": "request-batch",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "function_run",
+          "observationId": "obs_batch_00000000000000000000",
+          "phase": "joined",
+          "recordedTsMs": 1090,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        },
+        {
+          "appId": "app-fixture",
+          "correlation": "request-batch",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "function_run",
+          "observationId": "obs_batch_10000000000000000000",
+          "phase": "joined",
+          "recordedTsMs": 1090,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        },
+        {
+          "appId": "app-fixture",
+          "correlation": "request-batch",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "function_run",
+          "observationId": "obs_batch_20000000000000000000",
+          "phase": "joined",
+          "recordedTsMs": 1090,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        }
+      ],
+      "expectedTelemetryCounters": [],
+      "name": "compound_batch_counts_each_accepted_logical_operation",
+      "observations": [
+        {
+          "appId": "app-fixture",
+          "correlationId": "request-batch",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [],
+          "observationId": "obs_batch_00000000000000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "function.query",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1010,
+              "stage": "admission"
+            },
+            {
+              "recordedAtMs": 1090,
+              "stage": "terminal"
+            }
+          ]
+        },
+        {
+          "appId": "app-fixture",
+          "correlationId": "request-batch",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [],
+          "observationId": "obs_batch_10000000000000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "function.query",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1010,
+              "stage": "admission"
+            },
+            {
+              "recordedAtMs": 1090,
+              "stage": "terminal"
+            }
+          ]
+        },
+        {
+          "appId": "app-fixture",
+          "correlationId": "request-batch",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [],
+          "observationId": "obs_batch_20000000000000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "function.query",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1010,
+              "stage": "admission"
+            },
+            {
+              "recordedAtMs": 1090,
+              "stage": "terminal"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "deliveryAttempts": 1,
+      "expectedMetering": [
+        {
+          "eventId": "sha256:05b77913fd02cfe65679164446fa24488662c3aa7fb1c2ac4b08e94e8dcfe6b0",
+          "expoAppId": "app-fixture",
+          "metricId": "cpu_ms",
+          "observedAtMs": 1090,
+          "occurredAtMs": 1000,
+          "operationClass": "function.action",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "quantity": 41,
+          "registryVersion": 1,
+          "releaseId": "release-fixture",
+          "requestOrJobId": "request-multi-metric",
+          "schemaVersion": "snapback.usage-event.v1",
+          "snapbackEnvironmentId": "environment-fixture",
+          "source": "snapback-observation-span",
+          "stage": "terminal",
+          "unit": "cpu-ms"
+        },
+        {
+          "eventId": "sha256:b66752e1ee7ac3c7e1116a779571369fd51f2f973e316cc9a66912b3ae3300fa",
+          "expoAppId": "app-fixture",
+          "metricId": "data_transfer_bytes",
+          "observedAtMs": 1090,
+          "occurredAtMs": 1000,
+          "operationClass": "function.action",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "quantity": 2048,
+          "registryVersion": 1,
+          "releaseId": "release-fixture",
+          "requestOrJobId": "request-multi-metric",
+          "schemaVersion": "snapback.usage-event.v1",
+          "snapbackEnvironmentId": "environment-fixture",
+          "source": "snapback-observation-span",
+          "stage": "terminal",
+          "unit": "byte"
+        },
+        {
+          "eventId": "sha256:fbf994787e4412d4cdef65db637a150459b43de0f1d00ec63f3b952698088f68",
+          "expoAppId": "app-fixture",
+          "metricId": "backend_requests",
+          "observedAtMs": 1010,
+          "occurredAtMs": 1000,
+          "operationClass": "function.action",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "quantity": 1,
+          "registryVersion": 1,
+          "releaseId": "release-fixture",
+          "requestOrJobId": "request-multi-metric",
+          "schemaVersion": "snapback.usage-event.v1",
+          "snapbackEnvironmentId": "environment-fixture",
+          "source": "snapback-observation-span",
+          "stage": "admission",
+          "unit": "request"
+        }
+      ],
+      "expectedTelemetry": [
+        {
+          "appId": "app-fixture",
+          "correlation": "request-multi-metric",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "function_run",
+          "observationId": "obs_multi_metric00000000000000",
+          "phase": "joined",
+          "recordedTsMs": 1090,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        }
+      ],
+      "expectedTelemetryCounters": [],
+      "name": "derived_multi_metric_event_ids",
+      "observations": [
+        {
+          "appId": "app-fixture",
+          "correlationId": "request-multi-metric",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [
+            {
+              "metricId": "cpu_ms",
+              "quantity": 41,
+              "stage": "terminal",
+              "unit": "cpu-ms"
+            },
+            {
+              "metricId": "data_transfer_bytes",
+              "quantity": 2048,
+              "stage": "terminal",
+              "unit": "byte"
+            }
+          ],
+          "observationId": "obs_multi_metric00000000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "function.action",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1010,
+              "stage": "admission"
+            },
+            {
+              "recordedAtMs": 1090,
+              "stage": "terminal"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "deliveryAttempts": 1,
+      "expectedMetering": [
+        {
+          "eventId": "sha256:bcaaa31d860717c1fd781c5ecaaa4d296484862ecc06f380de4c43b3ad2c6822",
+          "expoAppId": "app-fixture",
+          "metricId": "backend_requests",
+          "observedAtMs": 1010,
+          "occurredAtMs": 1000,
+          "operationClass": "function.http",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "quantity": 1,
+          "registryVersion": 1,
+          "releaseId": "release-fixture",
+          "requestOrJobId": "request-http",
+          "schemaVersion": "snapback.usage-event.v1",
+          "snapbackEnvironmentId": "environment-fixture",
+          "source": "snapback-observation-span",
+          "stage": "admission",
+          "unit": "request"
+        }
+      ],
+      "expectedTelemetry": [
+        {
+          "appId": "app-fixture",
+          "correlation": "request-http",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "http_request",
+          "observationId": "obs_http_carrier00000000000000",
+          "phase": "joined",
+          "recordedTsMs": 1090,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        },
+        {
+          "appId": "app-fixture",
+          "correlation": "request-http",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "function_run",
+          "observationId": "obs_http_function0000000000000",
+          "phase": "joined",
+          "recordedTsMs": 1090,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        }
+      ],
+      "expectedTelemetryCounters": [],
+      "name": "no_carrier_logical_double_count",
+      "observations": [
+        {
+          "appId": "app-fixture",
+          "correlationId": "request-http",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [],
+          "observationId": "obs_http_carrier00000000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "transport.http-carrier",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1010,
+              "stage": "admission"
+            },
+            {
+              "recordedAtMs": 1090,
+              "stage": "terminal"
+            }
+          ]
+        },
+        {
+          "appId": "app-fixture",
+          "correlationId": "request-http",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [],
+          "observationId": "obs_http_function0000000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "function.http",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1010,
+              "stage": "admission"
+            },
+            {
+              "recordedAtMs": 1090,
+              "stage": "terminal"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "deliveryAttempts": 1,
+      "expectedMetering": [
+        {
+          "eventId": "sha256:f6c0f37eba572a1672b65ca21d92a0172d1e21dfd2376dfdd56901756f8de739",
+          "expoAppId": "app-fixture",
+          "metricId": "backend_requests",
+          "observedAtMs": 1010,
+          "occurredAtMs": 1000,
+          "operationClass": "function.action",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "quantity": 1,
+          "registryVersion": 1,
+          "releaseId": "release-fixture",
+          "requestOrJobId": "job-1",
+          "schemaVersion": "snapback.usage-event.v1",
+          "snapbackEnvironmentId": "environment-fixture",
+          "source": "snapback-observation-span",
+          "stage": "admission",
+          "unit": "request"
+        }
+      ],
+      "expectedTelemetry": [
+        {
+          "appId": "app-fixture",
+          "correlation": "job-1",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "job_run",
+          "observationId": "obs_job_scheduler0000000000000",
+          "phase": "joined",
+          "recordedTsMs": 1090,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        },
+        {
+          "appId": "app-fixture",
+          "correlation": "job-1",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "function_run",
+          "observationId": "obs_job_action0000000000000000",
+          "phase": "joined",
+          "recordedTsMs": 1090,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        }
+      ],
+      "expectedTelemetryCounters": [],
+      "name": "no_job_action_double_count",
+      "observations": [
+        {
+          "appId": "app-fixture",
+          "correlationId": "job-1",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [],
+          "observationId": "obs_job_scheduler0000000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "job.scheduler",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1010,
+              "stage": "admission"
+            },
+            {
+              "recordedAtMs": 1090,
+              "stage": "terminal"
+            }
+          ]
+        },
+        {
+          "appId": "app-fixture",
+          "correlationId": "job-1",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [],
+          "observationId": "obs_job_action0000000000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "function.action",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1010,
+              "stage": "admission"
+            },
+            {
+              "recordedAtMs": 1090,
+              "stage": "terminal"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "deliveryAttempts": 1,
+      "expectedMetering": [],
+      "expectedTelemetry": [
+        {
+          "appId": "app-fixture",
+          "correlation": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "http_request",
+          "observationId": "obs_system_0000000000000000000",
+          "phase": "joined",
+          "recordedTsMs": 1090,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        },
+        {
+          "appId": "app-fixture",
+          "correlation": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "http_request",
+          "observationId": "obs_system_1000000000000000000",
+          "phase": "joined",
+          "recordedTsMs": 1090,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        },
+        {
+          "appId": "app-fixture",
+          "correlation": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "http_request",
+          "observationId": "obs_system_2000000000000000000",
+          "phase": "joined",
+          "recordedTsMs": 1090,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        },
+        {
+          "appId": "app-fixture",
+          "correlation": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "http_request",
+          "observationId": "obs_system_3000000000000000000",
+          "phase": "joined",
+          "recordedTsMs": 1090,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        },
+        {
+          "appId": "app-fixture",
+          "correlation": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "http_request",
+          "observationId": "obs_system_4000000000000000000",
+          "phase": "joined",
+          "recordedTsMs": 1090,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        },
+        {
+          "appId": "app-fixture",
+          "correlation": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "http_request",
+          "observationId": "obs_system_5000000000000000000",
+          "phase": "joined",
+          "recordedTsMs": 1090,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        },
+        {
+          "appId": "app-fixture",
+          "correlation": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "http_request",
+          "observationId": "obs_system_6000000000000000000",
+          "phase": "joined",
+          "recordedTsMs": 1090,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        },
+        {
+          "appId": "app-fixture",
+          "correlation": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "http_request",
+          "observationId": "obs_system_7000000000000000000",
+          "phase": "joined",
+          "recordedTsMs": 1090,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        },
+        {
+          "appId": "app-fixture",
+          "correlation": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "http_request",
+          "observationId": "obs_system_8000000000000000000",
+          "phase": "joined",
+          "recordedTsMs": 1090,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        },
+        {
+          "appId": "app-fixture",
+          "correlation": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "http_request",
+          "observationId": "obs_system_9000000000000000000",
+          "phase": "joined",
+          "recordedTsMs": 1090,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        },
+        {
+          "appId": "app-fixture",
+          "correlation": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "http_request",
+          "observationId": "obs_system_1000000000000000000",
+          "phase": "joined",
+          "recordedTsMs": 1090,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        },
+        {
+          "appId": "app-fixture",
+          "correlation": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "http_request",
+          "observationId": "obs_system_1100000000000000000",
+          "phase": "joined",
+          "recordedTsMs": 1090,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        },
+        {
+          "appId": "app-fixture",
+          "correlation": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "http_request",
+          "observationId": "obs_system_1200000000000000000",
+          "phase": "joined",
+          "recordedTsMs": 1090,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        },
+        {
+          "appId": "app-fixture",
+          "correlation": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "lifecycle",
+          "observationId": "obs_system_1300000000000000000",
+          "phase": "point",
+          "recordedTsMs": 1020,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        },
+        {
+          "appId": "app-fixture",
+          "correlation": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "http_request",
+          "observationId": "obs_system_1400000000000000000",
+          "phase": "joined",
+          "recordedTsMs": 1090,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        },
+        {
+          "appId": "app-fixture",
+          "correlation": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "diagnostic",
+          "observationId": "obs_system_1500000000000000000",
+          "phase": "point",
+          "recordedTsMs": 1020,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        },
+        {
+          "appId": "app-fixture",
+          "correlation": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "http_request",
+          "observationId": "obs_system_1600000000000000000",
+          "phase": "joined",
+          "recordedTsMs": 1090,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        },
+        {
+          "appId": "app-fixture",
+          "correlation": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "http_request",
+          "observationId": "obs_system_1700000000000000000",
+          "phase": "joined",
+          "recordedTsMs": 1090,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        },
+        {
+          "appId": "app-fixture",
+          "correlation": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "http_request",
+          "observationId": "obs_system_1800000000000000000",
+          "phase": "joined",
+          "recordedTsMs": 1090,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        },
+        {
+          "appId": "app-fixture",
+          "correlation": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "http_request",
+          "observationId": "obs_system_1900000000000000000",
+          "phase": "joined",
+          "recordedTsMs": 1090,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        },
+        {
+          "appId": "app-fixture",
+          "correlation": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "http_request",
+          "observationId": "obs_system_2000000000000000000",
+          "phase": "joined",
+          "recordedTsMs": 1090,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        },
+        {
+          "appId": "app-fixture",
+          "correlation": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "lifecycle",
+          "observationId": "obs_system_2100000000000000000",
+          "phase": "point",
+          "recordedTsMs": 1020,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        }
+      ],
+      "expectedTelemetryCounters": [],
+      "name": "nonchargeable_platform_and_system_exclusions",
+      "observations": [
+        {
+          "appId": "app-fixture",
+          "correlationId": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [],
+          "observationId": "obs_system_0000000000000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "platform.app-create",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1010,
+              "stage": "admission"
+            },
+            {
+              "recordedAtMs": 1090,
+              "stage": "terminal"
+            }
+          ]
+        },
+        {
+          "appId": "app-fixture",
+          "correlationId": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [],
+          "observationId": "obs_system_1000000000000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "platform.environment-create",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1010,
+              "stage": "admission"
+            },
+            {
+              "recordedAtMs": 1090,
+              "stage": "terminal"
+            }
+          ]
+        },
+        {
+          "appId": "app-fixture",
+          "correlationId": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [],
+          "observationId": "obs_system_2000000000000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "platform.code-activate",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1010,
+              "stage": "admission"
+            },
+            {
+              "recordedAtMs": 1090,
+              "stage": "terminal"
+            }
+          ]
+        },
+        {
+          "appId": "app-fixture",
+          "correlationId": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [],
+          "observationId": "obs_system_3000000000000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "platform.environment-inspect",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1010,
+              "stage": "admission"
+            },
+            {
+              "recordedAtMs": 1090,
+              "stage": "terminal"
+            }
+          ]
+        },
+        {
+          "appId": "app-fixture",
+          "correlationId": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [],
+          "observationId": "obs_system_4000000000000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "platform.suspend",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1010,
+              "stage": "admission"
+            },
+            {
+              "recordedAtMs": 1090,
+              "stage": "terminal"
+            }
+          ]
+        },
+        {
+          "appId": "app-fixture",
+          "correlationId": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [],
+          "observationId": "obs_system_5000000000000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "platform.delete",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1010,
+              "stage": "admission"
+            },
+            {
+              "recordedAtMs": 1090,
+              "stage": "terminal"
+            }
+          ]
+        },
+        {
+          "appId": "app-fixture",
+          "correlationId": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [],
+          "observationId": "obs_system_6000000000000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "platform.transfer",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1010,
+              "stage": "admission"
+            },
+            {
+              "recordedAtMs": 1090,
+              "stage": "terminal"
+            }
+          ]
+        },
+        {
+          "appId": "app-fixture",
+          "correlationId": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [],
+          "observationId": "obs_system_7000000000000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "platform.preview-ttl-governance",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1010,
+              "stage": "admission"
+            },
+            {
+              "recordedAtMs": 1090,
+              "stage": "terminal"
+            }
+          ]
+        },
+        {
+          "appId": "app-fixture",
+          "correlationId": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [],
+          "observationId": "obs_system_8000000000000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "platform.code-push",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1010,
+              "stage": "admission"
+            },
+            {
+              "recordedAtMs": 1090,
+              "stage": "terminal"
+            }
+          ]
+        },
+        {
+          "appId": "app-fixture",
+          "correlationId": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [],
+          "observationId": "obs_system_9000000000000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "platform.schema-push",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1010,
+              "stage": "admission"
+            },
+            {
+              "recordedAtMs": 1090,
+              "stage": "terminal"
+            }
+          ]
+        },
+        {
+          "appId": "app-fixture",
+          "correlationId": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [],
+          "observationId": "obs_system_1000000000000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "platform.permissions-push",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1010,
+              "stage": "admission"
+            },
+            {
+              "recordedAtMs": 1090,
+              "stage": "terminal"
+            }
+          ]
+        },
+        {
+          "appId": "app-fixture",
+          "correlationId": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [],
+          "observationId": "obs_system_1100000000000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "platform.capabilities-read",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1010,
+              "stage": "admission"
+            },
+            {
+              "recordedAtMs": 1090,
+              "stage": "terminal"
+            }
+          ]
+        },
+        {
+          "appId": "app-fixture",
+          "correlationId": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [],
+          "observationId": "obs_system_1200000000000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "platform.schema-lockdown",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1010,
+              "stage": "admission"
+            },
+            {
+              "recordedAtMs": 1090,
+              "stage": "terminal"
+            }
+          ]
+        },
+        {
+          "appId": "app-fixture",
+          "correlationId": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [],
+          "observationId": "obs_system_1300000000000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "internal.repair",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1020,
+              "stage": "point"
+            }
+          ]
+        },
+        {
+          "appId": "app-fixture",
+          "correlationId": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [],
+          "observationId": "obs_system_1400000000000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "internal.health",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1010,
+              "stage": "admission"
+            },
+            {
+              "recordedAtMs": 1090,
+              "stage": "terminal"
+            }
+          ]
+        },
+        {
+          "appId": "app-fixture",
+          "correlationId": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [],
+          "observationId": "obs_system_1500000000000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "internal.quota-notice",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1020,
+              "stage": "point"
+            }
+          ]
+        },
+        {
+          "appId": "app-fixture",
+          "correlationId": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [],
+          "observationId": "obs_system_1600000000000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "system.console-poll",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1010,
+              "stage": "admission"
+            },
+            {
+              "recordedAtMs": 1090,
+              "stage": "terminal"
+            }
+          ]
+        },
+        {
+          "appId": "app-fixture",
+          "correlationId": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [],
+          "observationId": "obs_system_1700000000000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "system.control-api",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1010,
+              "stage": "admission"
+            },
+            {
+              "recordedAtMs": 1090,
+              "stage": "terminal"
+            }
+          ]
+        },
+        {
+          "appId": "app-fixture",
+          "correlationId": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [],
+          "observationId": "obs_system_1800000000000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "system.telemetry",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1010,
+              "stage": "admission"
+            },
+            {
+              "recordedAtMs": 1090,
+              "stage": "terminal"
+            }
+          ]
+        },
+        {
+          "appId": "app-fixture",
+          "correlationId": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [],
+          "observationId": "obs_system_1900000000000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "system.static-asset",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1010,
+              "stage": "admission"
+            },
+            {
+              "recordedAtMs": 1090,
+              "stage": "terminal"
+            }
+          ]
+        },
+        {
+          "appId": "app-fixture",
+          "correlationId": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [],
+          "observationId": "obs_system_2000000000000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "system.unmatched",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1010,
+              "stage": "admission"
+            },
+            {
+              "recordedAtMs": 1090,
+              "stage": "terminal"
+            }
+          ]
+        },
+        {
+          "appId": "app-fixture",
+          "correlationId": "request-system",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [],
+          "observationId": "obs_system_2100000000000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "system.maintenance",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1020,
+              "stage": "point"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "deliveryAttempts": 1,
+      "expectedMetering": [
+        {
+          "eventId": "sha256:2f89fb9653ae8843bc5a4b8ae9ffca15f83090afa616e9841e8f0021e32da895",
+          "expoAppId": "app-fixture",
+          "metricId": "backend_requests",
+          "observedAtMs": 1010,
+          "occurredAtMs": 1000,
+          "operationClass": "function.query",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "quantity": 1,
+          "registryVersion": 1,
+          "releaseId": "release-fixture",
+          "requestOrJobId": "request-query",
+          "schemaVersion": "snapback.usage-event.v1",
+          "snapbackEnvironmentId": "environment-fixture",
+          "source": "snapback-observation-span",
+          "stage": "admission",
+          "unit": "request"
+        },
+        {
+          "eventId": "sha256:b34b555441dccc7c934fb450943e8b404e38bbfccfc1737d346be476d7a4969e",
+          "expoAppId": "app-fixture",
+          "metricId": "realtime_messages",
+          "observedAtMs": 1080,
+          "occurredAtMs": 1000,
+          "operationClass": "realtime.delivered",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "quantity": 3,
+          "registryVersion": 1,
+          "releaseId": "release-fixture",
+          "requestOrJobId": "connection-2",
+          "schemaVersion": "snapback.usage-event.v1",
+          "snapbackEnvironmentId": "environment-fixture",
+          "source": "snapback-observation-span",
+          "stage": "counter",
+          "unit": "delivered-message"
+        },
+        {
+          "eventId": "sha256:f6e43645ff544a39d6eeb5e50560b77f35a29834fa52589e2ce0a0e03937088b",
+          "expoAppId": "app-fixture",
+          "metricId": "backend_requests",
+          "observedAtMs": 1010,
+          "occurredAtMs": 1000,
+          "operationClass": "live.subscribe",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "quantity": 1,
+          "registryVersion": 1,
+          "releaseId": "release-fixture",
+          "requestOrJobId": "subscription-1",
+          "schemaVersion": "snapback.usage-event.v1",
+          "snapbackEnvironmentId": "environment-fixture",
+          "source": "snapback-observation-span",
+          "stage": "admission",
+          "unit": "request"
+        }
+      ],
+      "expectedTelemetry": [
+        {
+          "appId": "app-fixture",
+          "correlation": "request-query",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "function_run",
+          "observationId": "obs_query000000000000000000000",
+          "phase": "joined",
+          "recordedTsMs": 1090,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        },
+        {
+          "appId": "app-fixture",
+          "correlation": "request-carrier",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "http_request",
+          "observationId": "obs_http0000000000000000000000",
+          "phase": "joined",
+          "recordedTsMs": 1090,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        },
+        {
+          "appId": "app-fixture",
+          "correlation": "subscription-1",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "live_subscribe",
+          "observationId": "obs_subscribe00000000000000000",
+          "phase": "admission",
+          "recordedTsMs": 1010,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        },
+        {
+          "appId": "app-fixture",
+          "correlation": "subscription-1",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "live_subscribe",
+          "observationId": "obs_subscribe00000000000000000",
+          "phase": "terminal",
+          "recordedTsMs": 1090,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        },
+        {
+          "appId": "app-fixture",
+          "correlation": "connection-1",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "ws_connect",
+          "observationId": "obs_socket00000000000000000000",
+          "phase": "admission",
+          "recordedTsMs": 1010,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        },
+        {
+          "appId": "app-fixture",
+          "correlation": "connection-1",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "ws_connect",
+          "observationId": "obs_socket00000000000000000000",
+          "phase": "terminal",
+          "recordedTsMs": 1090,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        },
+        {
+          "appId": "app-fixture",
+          "correlation": "job-2",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "job_run",
+          "observationId": "obs_job00000000000000000000000",
+          "phase": "joined",
+          "recordedTsMs": 1090,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        },
+        {
+          "appId": "app-fixture",
+          "correlation": "process-1",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "lifecycle",
+          "observationId": "obs_lifecycle00000000000000000",
+          "phase": "point",
+          "recordedTsMs": 1020,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        },
+        {
+          "appId": "app-fixture",
+          "correlation": "request-log",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "log",
+          "observationId": "obs_log00000000000000000000000",
+          "phase": "point",
+          "recordedTsMs": 1020,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        },
+        {
+          "appId": "app-fixture",
+          "correlation": "request-diagnostic",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "diagnostic",
+          "observationId": "obs_diagnostic0000000000000000",
+          "phase": "point",
+          "recordedTsMs": 1020,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        }
+      ],
+      "expectedTelemetryCounters": [
+        {
+          "appId": "app-fixture",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "realtime_message",
+          "metricId": "realtime_messages",
+          "observationId": "obs_realtime000000000000000000",
+          "quantity": 3,
+          "recordedTsMs": 1080,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "unit": "delivered-message"
+        }
+      ],
+      "name": "per_class_record_timing_and_timestamp_semantics",
+      "observations": [
+        {
+          "appId": "app-fixture",
+          "correlationId": "request-query",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [],
+          "observationId": "obs_query000000000000000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "function.query",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1010,
+              "stage": "admission"
+            },
+            {
+              "recordedAtMs": 1090,
+              "stage": "terminal"
+            }
+          ]
+        },
+        {
+          "appId": "app-fixture",
+          "correlationId": "request-carrier",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [],
+          "observationId": "obs_http0000000000000000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "transport.http-carrier",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1010,
+              "stage": "admission"
+            },
+            {
+              "recordedAtMs": 1090,
+              "stage": "terminal"
+            }
+          ]
+        },
+        {
+          "appId": "app-fixture",
+          "correlationId": "subscription-1",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [],
+          "observationId": "obs_subscribe00000000000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "live.subscribe",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1010,
+              "stage": "admission"
+            },
+            {
+              "recordedAtMs": 1090,
+              "stage": "terminal"
+            }
+          ]
+        },
+        {
+          "appId": "app-fixture",
+          "correlationId": "connection-1",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [],
+          "observationId": "obs_socket00000000000000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "stream.connect",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1010,
+              "stage": "admission"
+            },
+            {
+              "recordedAtMs": 1090,
+              "stage": "terminal"
+            }
+          ]
+        },
+        {
+          "appId": "app-fixture",
+          "correlationId": "job-2",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [],
+          "observationId": "obs_job00000000000000000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "job.scheduler",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1010,
+              "stage": "admission"
+            },
+            {
+              "recordedAtMs": 1090,
+              "stage": "terminal"
+            }
+          ]
+        },
+        {
+          "appId": "app-fixture",
+          "correlationId": "process-1",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [],
+          "observationId": "obs_lifecycle00000000000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "lifecycle",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1020,
+              "stage": "point"
+            }
+          ]
+        },
+        {
+          "appId": "app-fixture",
+          "correlationId": "request-log",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [],
+          "observationId": "obs_log00000000000000000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "log",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1020,
+              "stage": "point"
+            }
+          ]
+        },
+        {
+          "appId": "app-fixture",
+          "correlationId": "request-diagnostic",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [],
+          "observationId": "obs_diagnostic0000000000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "diagnostic",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1020,
+              "stage": "point"
+            }
+          ]
+        },
+        {
+          "appId": "app-fixture",
+          "correlationId": "connection-2",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [
+            {
+              "metricId": "realtime_messages",
+              "quantity": 3,
+              "stage": "counter",
+              "unit": "delivered-message"
+            }
+          ],
+          "observationId": "obs_realtime000000000000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "realtime.delivered",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1080,
+              "stage": "counter"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "deliveryAttempts": 3,
+      "expectedMetering": [
+        {
+          "eventId": "sha256:5d6428a2a265467a707b4af92f3127230398f4faa97ef888a86cff38ff5a2925",
+          "expoAppId": "app-fixture",
+          "metricId": "backend_requests",
+          "observedAtMs": 1010,
+          "occurredAtMs": 1000,
+          "operationClass": "function.mutation",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "quantity": 1,
+          "registryVersion": 1,
+          "releaseId": "release-fixture",
+          "requestOrJobId": "request-retry",
+          "schemaVersion": "snapback.usage-event.v1",
+          "snapbackEnvironmentId": "environment-fixture",
+          "source": "snapback-observation-span",
+          "stage": "admission",
+          "unit": "request"
+        }
+      ],
+      "expectedTelemetry": [
+        {
+          "appId": "app-fixture",
+          "correlation": "request-retry",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "function_run",
+          "observationId": "obs_retry000000000000000000000",
+          "phase": "joined",
+          "recordedTsMs": 1090,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        }
+      ],
+      "expectedTelemetryCounters": [],
+      "name": "retry_and_event_id_dedup",
+      "observations": [
+        {
+          "appId": "app-fixture",
+          "correlationId": "request-retry",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [],
+          "observationId": "obs_retry000000000000000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "function.mutation",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1010,
+              "stage": "admission"
+            },
+            {
+              "recordedAtMs": 1090,
+              "stage": "terminal"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "deliveryAttempts": 1,
+      "expectedMetering": [
+        {
+          "eventId": "sha256:fd0b68191370065470f03e8837e571dce96ef470efe4132e9e8ec6d81f1ac95d",
+          "expoAppId": "app-fixture",
+          "metricId": "backend_requests",
+          "observedAtMs": 1010,
+          "occurredAtMs": 1000,
+          "operationClass": "function.query",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "quantity": 1,
+          "registryVersion": 1,
+          "releaseId": "release-fixture",
+          "requestOrJobId": "request-identity",
+          "schemaVersion": "snapback.usage-event.v1",
+          "snapbackEnvironmentId": "environment-fixture",
+          "source": "snapback-observation-span",
+          "stage": "admission",
+          "unit": "request"
+        }
+      ],
+      "expectedTelemetry": [
+        {
+          "appId": "app-fixture",
+          "correlation": "request-identity",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "kind": "function_run",
+          "observationId": "obs_identity000000000000000000",
+          "phase": "joined",
+          "recordedTsMs": 1090,
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "tsMs": 1000
+        }
+      ],
+      "expectedTelemetryCounters": [],
+      "name": "row_meta_identity_equals_c7_metering_envelope",
+      "observations": [
+        {
+          "appId": "app-fixture",
+          "correlationId": "request-identity",
+          "environment": "environment-fixture",
+          "generation": "gen_01j00000000000000000000000",
+          "meterFacts": [],
+          "observationId": "obs_identity000000000000000000",
+          "occurredAtMs": 1000,
+          "operationClass": "function.query",
+          "ownershipInterval": {
+            "expoAccountId": "account-fixture",
+            "id": "ownership-interval-fixture"
+          },
+          "registryVersion": 1,
+          "release": "release-fixture",
+          "stages": [
+            {
+              "recordedAtMs": 1010,
+              "stage": "admission"
+            },
+            {
+              "recordedAtMs": 1090,
+              "stage": "terminal"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "registryVersion": 1,
+  "rejections": [
+    {
+      "expectedCode": "SNAPBACK_OPERATION_CLASS_REGISTRY_UNSUPPORTED",
+      "name": "unsupported_registry_version",
+      "observation": {
+        "appId": "app-fixture",
+        "correlationId": "request-version",
+        "environment": "environment-fixture",
+        "generation": "gen_01j00000000000000000000000",
+        "meterFacts": [],
+        "observationId": "obs_unsupported000000000000000",
+        "occurredAtMs": 1000,
+        "operationClass": "function.query",
+        "ownershipInterval": {
+          "expoAccountId": "account-fixture",
+          "id": "ownership-interval-fixture"
+        },
+        "registryVersion": 2,
+        "release": "release-fixture",
+        "stages": [
+          {
+            "recordedAtMs": 1010,
+            "stage": "admission"
+          },
+          {
+            "recordedAtMs": 1090,
+            "stage": "terminal"
+          }
+        ]
+      }
+    },
+    {
+      "expectedCode": "SNAPBACK_OPERATION_CLASS_UNKNOWN",
+      "name": "unknown_operation_class",
+      "observation": {
+        "appId": "app-fixture",
+        "correlationId": "request-unknown",
+        "environment": "environment-fixture",
+        "generation": "gen_01j00000000000000000000000",
+        "meterFacts": [],
+        "observationId": "obs_unknown0000000000000000000",
+        "occurredAtMs": 1000,
+        "operationClass": "function.unknown",
+        "ownershipInterval": {
+          "expoAccountId": "account-fixture",
+          "id": "ownership-interval-fixture"
+        },
+        "registryVersion": 1,
+        "release": "release-fixture",
+        "stages": [
+          {
+            "recordedAtMs": 1010,
+            "stage": "admission"
+          },
+          {
+            "recordedAtMs": 1090,
+            "stage": "terminal"
+          }
+        ]
+      }
+    }
+  ]
+}

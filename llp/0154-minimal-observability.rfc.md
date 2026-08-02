@@ -183,6 +183,16 @@ opaque caller-supplied identity. The exact Rust API spelling and
 compatibility plumbing are implementation details. Ruled by Charlie in
 the 2026-08-02 side conversation and recorded in the author decision
 packet.)
+**Revised:** 2026-08-02 (dated implementation ratification, post-acceptance —
+OQ1 is resolved against LLP 0104 by the versioned
+`operation-class.v1.json` registry and the shared
+`telemetry.projection-fixtures-v1.json` corpus. Production seams now admit
+closed typed class ids through one registry-owned observation header before
+the existing telemetry projection; the reliable metering projection remains
+pure and transport-independent per C7. The exact projection, identity,
+timestamp, event-id, retry/dedup, and billable-instance rules are recorded in
+the OQ1 resolution below and the full deliverable-2 boundary corpus is pinned
+in Store-level tests.)
 **Related:** LLP 0000 (explainer; reserves Observability as an undrafted
 subsystem), LLP 0003 (storage core; app write lane), LLP 0010 (inspect
 loop; explicitly defers production observability), LLP 0012 (headless
@@ -1160,15 +1170,50 @@ pattern: BigQuery export, log drains, log streams):
 
 ## Open questions
 
-- **OQ1 — Span and registry ratification against LLP 0104 (hard gate
-  before the seams land).** The full projection matrix: exact field
-  names, admission-vs-terminal timing and the recorded-timestamp
-  semantics, the observation-id → derived per-metric `eventId` rule,
-  operation-class registry version semantics, batch/retry/dedup rules,
-  and the operation-instance billable rule (no job/action or
-  carrier/logical double count) — reconciled with LLP 0104's
-  admitted-operation vocabulary and proven by the deliverable-2 shared
-  fixtures, so "projection, not translation" is a CI property.
+- **OQ1 — Resolved 2026-08-02; ratified against LLP 0104.** Admission creates
+  one registry-owned header with `observation_id`, `registry_version`, exact
+  `operation_class`, broad `telemetry_kind`, and telemetry projection mode.
+  The shared fixture envelope spells the remaining cross-projection fields as
+  `generation`, `appId`, `environment`, nullable `release`, `occurredAtMs`,
+  `correlationId`, `ownershipInterval`, `stages`, and `meterFacts`.
+  Telemetry composes row + `telemetry_meta` into `appId`/`environment` at
+  egress; metering projects the identical values as LLP 0104's `expoAppId` /
+  `snapbackEnvironmentId`, with the ownership interval's `expoAccountId`
+  authoritative at `occurredAtMs`. Telemetry retains the fixed broad `kind`
+  vocabulary (`function_run`, `http_request`, `live_subscribe`, `ws_connect`,
+  `job_run`, `lifecycle`, `log`, `diagnostic`, and counter-only realtime),
+  while the shared header preserves query/mutation/action, carrier/logical,
+  scheduler/logical, platform-operation, and system-exclusion distinctions.
+
+  Timing is exact: `occurredAtMs` / telemetry `ts_ms` is the admission-bound
+  attribution time for every stage; admission, terminal, point, and counter
+  stage records each carry their own monotone recorded time; telemetry emits
+  joined short spans at terminal, admission+terminal long spans, point rows,
+  or counters according to the class; metering `observedAtMs` is the selected
+  stage's recorded time. Accepted query, mutation, action, HTTP-function,
+  subscribe/resubscribe, standalone transport, export, and restore classes
+  derive `backend_requests = 1` at admission — it is not caller-supplied and
+  cannot be omitted or overridden. CPU, transfer, and delivered-message
+  quantities are measured facts admitted only where the registry allows the
+  exact `(metric, stage, unit)` tuple. Duplicate stages, duplicate metric-stage
+  facts, unregistered classes, unsupported registry versions, negative
+  quantities, and unit mismatches fail closed in both projections.
+
+  Each usage `eventId` is `sha256:` over a domain-separated, length-framed
+  `(observation_id, metric_id, stage, schema_version)` tuple. At-least-once
+  retries therefore reproduce one id per metric and consumer dedup never
+  collapses distinct meters. A scheduler `job_run` contributes no independent
+  request meter; its invoked `function.action` does. An HTTP carrier contributes
+  no independent request meter when the logical function is admitted; a
+  registry-classified standalone accepted operation does. A compound batch
+  carries one observation per accepted logical operation. The chargeable
+  platform subset is exactly LLP 0104's `export` and `restore`; its complete
+  non-chargeable enumeration plus health, console polling, telemetry, static
+  assets, and maintenance are `system`. Registry v1 is stamped on telemetry
+  rows and usage events, and unsupported versions are never reinterpreted as
+  v1. The generated shared corpus is independently deserialized and asserted
+  by both projection views; no metering writer, second ingestion pipeline, or
+  network SQL endpoint is introduced.
 - **OQ2 — Phase-3 identity and settlement policy.** Anonymous-to-
   authenticated linking (default don't-link; app-declared linking with
   deletion applying to the whole link set), subject deletion/rotation

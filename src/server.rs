@@ -1388,12 +1388,11 @@ impl IbexActionHost for DetachedActionHost {
                     .as_ref()
                     .and_then(Value::as_str)
                     .map(str::to_owned);
-                let span = telemetry.start_span(
-                    "function_run",
+                let span = telemetry.start_classified_span(
+                    crate::telemetry_contract::OperationClassIdV1::FUNCTION_MUTATION,
                     name,
                     correlation.as_deref(),
                     None,
-                    false,
                 );
                 drop(snapback);
                 let output = (|| {
@@ -2423,12 +2422,11 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                     .as_ref()
                     .and_then(Value::as_str)
                     .map(str::to_owned);
-                let span = telemetry.start_span(
-                    "function_run",
+                let span = telemetry.start_classified_span(
+                    crate::telemetry_contract::OperationClassIdV1::FUNCTION_ACTION,
                     &function_name,
                     correlation.as_deref(),
                     None,
-                    false,
                 );
                 let mut host = DetachedActionHost {
                     state,
@@ -14178,12 +14176,11 @@ async fn telemetry_not_found(State(runtime): State<AppState>, request: Request<B
     // applies the D2 byte cap and allowlist before this attacker-controlled
     // value can enter the buffer.
     let raw_path = request.uri().path().to_owned();
-    let span = runtime.telemetry.start_span(
-        "http_request",
+    let span = runtime.telemetry.start_classified_span(
+        crate::telemetry_contract::OperationClassIdV1::SYSTEM_UNMATCHED,
         "_unmatched",
         None,
         Some(serde_json::json!({ "method": method, "rawPath": raw_path })),
-        false,
     );
     let response = StatusCode::NOT_FOUND.into_response();
     span.finish(Some(i64::from(response.status().as_u16())), None, None);
@@ -14199,6 +14196,25 @@ fn telemetry_observes_http_route(_spec: RouteSpec, method: &Method) -> bool {
     // observable here; checklist 2's class registry marks them `system` for
     // usage projections while retaining them in Logs.
     method != Method::OPTIONS
+}
+
+fn telemetry_operation_class_for_route(
+    spec: RouteSpec,
+) -> crate::telemetry_contract::OperationClassIdV1 {
+    if spec.path == "/health" {
+        return crate::telemetry_contract::OperationClassIdV1::INTERNAL_HEALTH;
+    }
+    match spec.class {
+        // The registered request is a transport carrier. Function admission
+        // is classified independently and is the single request meter.
+        RouteClass::AppData => crate::telemetry_contract::OperationClassIdV1::HTTP_CARRIER,
+        RouteClass::SystemStatic => {
+            crate::telemetry_contract::OperationClassIdV1::SYSTEM_STATIC_ASSET
+        }
+        RouteClass::SystemApi => {
+            crate::telemetry_contract::OperationClassIdV1::SYSTEM_CONTROL_API
+        }
+    }
 }
 
 pub(crate) fn router_from_registrations(
@@ -14226,12 +14242,11 @@ pub(crate) fn router_from_registrations(
                     // bounded request identity; the carrier remains distinct
                     // from any billable logical function_run it invokes.
                     let span = telemetry_observes_http_route(spec, request.method()).then(|| {
-                        runtime.telemetry.start_span(
-                            "http_request",
+                        runtime.telemetry.start_classified_span(
+                            telemetry_operation_class_for_route(spec),
                             spec.path,
                             None,
                             Some(serde_json::json!({ "method": request.method().as_str() })),
-                            false,
                         )
                     });
                     let mut response =
@@ -20675,12 +20690,11 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
         // observing predecessor state; the client reconnect policy retries.
         return;
     };
-    let socket_observation = LiveSocketObservation::new(runtime.telemetry.start_span(
-        "ws_connect",
+    let socket_observation = LiveSocketObservation::new(runtime.telemetry.start_classified_span(
+        crate::telemetry_contract::OperationClassIdV1::STREAM_CONNECT,
         "/live/{connection_id}/stream",
         Some(&connection_id),
         None,
-        true,
     ));
     let (writer, writes) = mpsc::channel(1);
     let (terminal_writer, terminal_writes) = mpsc::channel(1);
@@ -38248,6 +38262,21 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_TELEMETRY_TEST_CONFIG_FAILED",
         "SNAPBACK_TELEMETRY_TEST_FLUSH_FAILED",
         "SNAPBACK_TELEMETRY_TEST_REBIND_FAILED",
+        // @ref LLP 0154#open-questions — OQ1 projection/registry validation
+        // failures are internal contract and fixture failures. They do not
+        // classify application request input and retain the fail-safe 500
+        // projection if they ever cross an HTTP boundary.
+        "SNAPBACK_OBSERVATION_STAGE_DUPLICATE",
+        "SNAPBACK_OBSERVATION_STAGE_MISSING",
+        "SNAPBACK_OPERATION_CLASS_DERIVED_METER_SUPPLIED",
+        "SNAPBACK_OPERATION_CLASS_FIXTURE_DUPLICATE",
+        "SNAPBACK_OPERATION_CLASS_FIXTURE_MISMATCH",
+        "SNAPBACK_OPERATION_CLASS_METER_DUPLICATE",
+        "SNAPBACK_OPERATION_CLASS_METER_NOT_ALLOWED",
+        "SNAPBACK_OPERATION_CLASS_METER_QUANTITY_INVALID",
+        "SNAPBACK_OPERATION_CLASS_METER_UNIT_INVALID",
+        "SNAPBACK_OPERATION_CLASS_REGISTRY_UNSUPPORTED",
+        "SNAPBACK_OPERATION_CLASS_UNKNOWN",
         "SNAPBACK_CONNECTION_CLEANUP_FAILED",
         "SNAPBACK_CRON_RUN_RECORD_MISSING",
         "SNAPBACK_CRON_RUN_SKIPPED_OVERLAP",

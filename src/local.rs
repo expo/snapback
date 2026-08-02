@@ -3929,12 +3929,11 @@ impl LocalSnapback {
         let telemetry = self.telemetry.clone();
         if let Some(stored) = self.subscriptions.get_mut(subscription_id) {
             stored.observation.finish(200, None, "resumed");
-            stored.observation = LiveSubscriptionObservation::new(telemetry.start_span(
-                "live_subscribe",
+            stored.observation = LiveSubscriptionObservation::new(telemetry.start_classified_span(
+                crate::telemetry_contract::OperationClassIdV1::LIVE_RESUBSCRIBE,
                 name,
                 Some(connection_id),
                 None,
-                true,
             ));
         }
     }
@@ -3944,8 +3943,8 @@ impl LocalSnapback {
         //   construction admits start only; readiness belongs to the actual
         //   bound-server or direct-service cut and cannot survive a later
         //   startup failure as a lie.
-        self.telemetry.point(
-            "lifecycle",
+        self.telemetry.point_classified(
+            crate::telemetry_contract::OperationClassIdV1::LIFECYCLE,
             "process_start",
             Some(200),
             None,
@@ -3965,8 +3964,8 @@ impl LocalSnapback {
     ) -> SnapbackResult<()> {
         let incarnation = self.db.ensure_authorization_stream_incarnation()?;
         self.finish_telemetry_generation_transition(incarnation.as_str())?;
-        self.telemetry.point(
-            "lifecycle",
+        self.telemetry.point_classified(
+            crate::telemetry_contract::OperationClassIdV1::LIFECYCLE,
             lifecycle_name,
             Some(200),
             None,
@@ -4717,8 +4716,8 @@ impl LocalSnapback {
         if let Err(error) = self.persist_cron_state() {
             diagnostics.push(error.diagnostic);
         }
-        self.telemetry.point(
-            "lifecycle",
+        self.telemetry.point_classified(
+            crate::telemetry_contract::OperationClassIdV1::LIFECYCLE,
             "release_activation",
             Some(200),
             None,
@@ -4863,8 +4862,8 @@ impl LocalSnapback {
         if let Err(error) = self.persist_cron_state() {
             diagnostics.push(error.diagnostic);
         }
-        self.telemetry.point(
-            "lifecycle",
+        self.telemetry.point_classified(
+            crate::telemetry_contract::OperationClassIdV1::LIFECYCLE,
             "release_activation",
             Some(200),
             None,
@@ -5014,8 +5013,8 @@ impl LocalSnapback {
                     // rollback here would lie about the app database.
                     self.record_attached_diagnostics(vec![error.diagnostic]);
                 } else {
-                    self.telemetry.point(
-                        "lifecycle",
+                    self.telemetry.point_classified(
+                        crate::telemetry_contract::OperationClassIdV1::LIFECYCLE,
                         "reset_generation_rotation",
                         Some(200),
                         None,
@@ -5100,8 +5099,8 @@ impl LocalSnapback {
                 {
                     self.record_attached_diagnostics(vec![error.diagnostic]);
                 } else {
-                    self.telemetry.point(
-                        "lifecycle",
+                    self.telemetry.point_classified(
+                        crate::telemetry_contract::OperationClassIdV1::LIFECYCLE,
                         "reset_generation_rotation",
                         Some(200),
                         None,
@@ -6253,7 +6252,12 @@ impl LocalSnapback {
         let correlation = telemetry_correlation(&input.correlation);
         let span =
             self.telemetry
-                .start_span("function_run", name, correlation.as_deref(), None, false);
+                .start_classified_span(
+                    crate::telemetry_contract::OperationClassIdV1::FUNCTION_QUERY,
+                    name,
+                    correlation.as_deref(),
+                    None,
+                );
         let result =
             crate::runtime::with_runtime_log_telemetry(self.telemetry.clone(), correlation, || {
         execute_query_invocation(
@@ -11943,12 +11947,11 @@ impl LocalSnapback {
                 ));
             }
             let telemetry_correlation = telemetry_correlation(&input.correlation);
-            let mut observation = Some(self.telemetry.start_span(
-                "function_run",
+            let mut observation = Some(self.telemetry.start_classified_span(
+                crate::telemetry_contract::OperationClassIdV1::FUNCTION_MUTATION,
                 name,
                 telemetry_correlation.as_deref(),
                 None,
-                false,
             ));
             let telemetry = self.telemetry.clone();
             let execution = crate::runtime::with_runtime_log_telemetry(
@@ -12486,7 +12489,12 @@ impl LocalSnapback {
         let correlation = telemetry_correlation(&input.correlation);
         let span =
             self.telemetry
-                .start_span("function_run", name, correlation.as_deref(), None, false);
+                .start_classified_span(
+                    crate::telemetry_contract::OperationClassIdV1::FUNCTION_MUTATION,
+                    name,
+                    correlation.as_deref(),
+                    None,
+                );
         let result = (|| {
         let commit = match &function.runtime {
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan))
@@ -12628,12 +12636,11 @@ impl LocalSnapback {
             }
         };
         let correlation = telemetry_correlation(&input.correlation);
-        let span = self.telemetry.start_span(
-            "function_run",
+        let span = self.telemetry.start_classified_span(
+            crate::telemetry_contract::OperationClassIdV1::FUNCTION_MUTATION,
             name,
             correlation.as_deref(),
             None,
-            false,
         );
         let result = crate::runtime::with_runtime_log_telemetry(
             self.telemetry.clone(),
@@ -14392,12 +14399,11 @@ impl LocalSnapback {
             self.reserved_live_invocation(&authority, name, &subscription_input)?
         } else {
             let correlation = telemetry_correlation(&subscription_input.correlation);
-            let span = self.telemetry.start_span(
-                "function_run",
+            let span = self.telemetry.start_classified_span(
+                crate::telemetry_contract::OperationClassIdV1::FUNCTION_QUERY,
                 name,
                 correlation.as_deref(),
                 None,
-                false,
             );
             let result = crate::runtime::with_runtime_log_telemetry(
                 self.telemetry.clone(),
@@ -14708,12 +14714,11 @@ impl LocalSnapback {
             // required level-triggered rerun.
             self.premark_auth_scoped_live_connection(&input.connection_id);
         }
-        let observation = LiveSubscriptionObservation::new(self.telemetry.start_span(
-            "live_subscribe",
+        let observation = LiveSubscriptionObservation::new(self.telemetry.start_classified_span(
+            crate::telemetry_contract::OperationClassIdV1::LIVE_SUBSCRIBE,
             name,
             Some(&input.connection_id),
             None,
-            true,
         ));
         self.subscriptions.insert(
             subscription_id.clone(),
@@ -17516,12 +17521,11 @@ impl LocalSnapback {
             .into_iter()
             .zip(admissions)
             .map(|(claim, admission)| {
-                let observation = self.telemetry.start_span(
-                    "job_run",
+                let observation = self.telemetry.start_classified_span(
+                    crate::telemetry_contract::OperationClassIdV1::JOB_SCHEDULER,
                     &claim.metadata.job_name,
                     Some(&claim.metadata.run_id),
                     Some(claim.metadata.telemetry_details()),
-                    false,
                 );
                 AdmittedCronClaim {
                     claim,
@@ -17555,12 +17559,11 @@ impl LocalSnapback {
             return Err(error);
         }
         drop(effect);
-        let observation = self.telemetry.start_span(
-            "job_run",
+        let observation = self.telemetry.start_classified_span(
+            crate::telemetry_contract::OperationClassIdV1::JOB_SCHEDULER,
             &claim.metadata.job_name,
             Some(&claim.metadata.run_id),
             Some(claim.metadata.telemetry_details()),
-            false,
         );
         Ok(AdmittedCronClaim {
             claim,
@@ -17635,12 +17638,11 @@ impl LocalSnapback {
             }
         }
         for (claim, admission) in claims.into_iter().zip(admissions) {
-            let observation = self.telemetry.start_span(
-                "job_run",
+            let observation = self.telemetry.start_classified_span(
+                crate::telemetry_contract::OperationClassIdV1::JOB_SCHEDULER,
                 &claim.action,
                 Some(&claim.claim_id),
                 Some(claim.telemetry_details()),
-                false,
             );
             admitted.push(AdmittedJobClaim {
                 claim,
@@ -18719,8 +18721,15 @@ impl LocalSnapback {
                 crate::telemetry::Priority::Reserved,
             ),
         };
-        self.telemetry
-            .point("lifecycle", name, Some(status), code, None, None, priority);
+        self.telemetry.point_classified(
+            crate::telemetry_contract::OperationClassIdV1::LIFECYCLE,
+            name,
+            Some(status),
+            code,
+            None,
+            None,
+            priority,
+        );
         result
     }
 
@@ -18750,8 +18759,8 @@ impl LocalSnapback {
                 Some(error.diagnostic.code.as_str()),
             ),
         };
-        self.telemetry.point(
-            "lifecycle",
+        self.telemetry.point_classified(
+            crate::telemetry_contract::OperationClassIdV1::LIFECYCLE,
             name,
             Some(status),
             code,
@@ -19071,7 +19080,12 @@ impl LocalSnapback {
         let correlation = telemetry_correlation(&input.correlation);
         let observation =
             self.telemetry
-                .start_span("function_run", name, correlation.as_deref(), None, false);
+                .start_classified_span(
+                    crate::telemetry_contract::OperationClassIdV1::FUNCTION_ACTION,
+                    name,
+                    correlation.as_deref(),
+                    None,
+                );
         Ok(ManagedHostPlanAction {
             plan: plan.clone(),
             input,
@@ -19159,7 +19173,12 @@ impl LocalSnapback {
         let correlation = telemetry_correlation(&input.correlation);
         let span =
             self.telemetry
-                .start_span("function_run", name, correlation.as_deref(), None, false);
+                .start_classified_span(
+                    crate::telemetry_contract::OperationClassIdV1::FUNCTION_ACTION,
+                    name,
+                    correlation.as_deref(),
+                    None,
+                );
         let invocation_redactor = self.config.secret_redactor_for(&function.uses);
         let telemetry = self.telemetry.clone();
         let result =
@@ -21604,7 +21623,12 @@ impl ReadLane {
         let correlation = telemetry_correlation(&input.correlation);
         let span =
             self.telemetry
-                .start_span("function_run", name, correlation.as_deref(), None, false);
+                .start_classified_span(
+                    crate::telemetry_contract::OperationClassIdV1::FUNCTION_QUERY,
+                    name,
+                    correlation.as_deref(),
+                    None,
+                );
         let result = (|| {
         let reader = pool.checkout()?;
         let tx = reader.conn().unchecked_transaction()?;

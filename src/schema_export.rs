@@ -745,6 +745,17 @@ pub fn artifact_instances() -> Vec<SchemaArtifact> {
             file: "id-registry.v1.json",
             schema: sorted_keys(crate::ids::id_registry_artifact()),
         },
+        // @ref LLP 0154#d2--the-observation-span-classification-registry-and-phase-1-kinds —
+        // telemetry and metering consume one versioned class vocabulary and
+        // one CI-pinned projection corpus, without sharing a transport.
+        SchemaArtifact {
+            file: crate::telemetry_contract::OPERATION_CLASS_REGISTRY_FILE,
+            schema: sorted_keys(crate::telemetry_contract::operation_class_registry_artifact()),
+        },
+        SchemaArtifact {
+            file: crate::telemetry_contract::PROJECTION_FIXTURE_CORPUS_FILE,
+            schema: sorted_keys(crate::telemetry_contract::projection_fixture_corpus()),
+        },
         SchemaArtifact {
             file: "data-tier.profile.json",
             schema: sorted_keys(

@@ -45,3 +45,37 @@ disagree, that's a decision-packet append, not a silent fix.
   meta) against the C7 envelope's identity fields. obs-01 should close on
   the amended schema (one added column + two meta fields against the landed
   substrate at bf73583d) before this ticket starts.
+- **2026-08-02 — implementation and proof complete (implementation commit:
+  `IMPLEMENTATION_COMMIT_PENDING`).** Added the closed
+  `operation-class.v1.json` registry, one shared
+  `telemetry.projection-fixtures-v1.json` corpus, pure telemetry/metering
+  projections, stable per-metric event IDs, and typed registry admission at
+  the existing OBS-01 producer seams. No writer, queue, second ingestion
+  pipeline, or network SQL surface was added. LLP 0154's OQ1 now carries the
+  dated ratification against LLP 0104, including the exact chargeable platform
+  subset, complete system exclusions, timestamp stages, derived
+  `backend_requests = 1`, measured-fact allowlists, retry/dedup behavior, and
+  fail-closed version/unit/duplicate rules.
+
+  The focused post-rebase proof passes 62 tests: 47 telemetry-store tests, 11
+  registry/projection contract tests, and four independent committed-corpus
+  consumer tests. Of those, this change adds 27 hand-authored tests (12 store
+  boundary tests, 11 contract tests, and four independent consumer tests).
+  Every checklist-2 store boundary is an explicit SQL/state assertion, not a
+  generated-oracle-only fixture. `./ref-check --verbose` and
+  `git diff --check` also pass. The full library audit completed with 1,736
+  passed, 1 ignored, and four inherited failures:
+  `local::tests::generated_demo_manifests_pass_the_effect_ceiling_subset_check`
+  (ignored `demos/todo-v2` generated artifacts are absent in a fresh
+  worktree), `local::tests::rqs_mutation_after_answer_and_register_loses_no_ops`,
+  `local::tests::rqs_tokens_refresh_across_delta_replace_and_current_as_of`,
+  and `local::tests::standard_pattern_live_is_conservative_and_recorded`.
+  Isolated OBS-02 tests, including the reviewed diagnostic inventory, are
+  green.
+
+  `node scripts/check-guide.mjs` retains three inherited errors outside this
+  GAP-only slice: missing ignored snippet sources
+  `demos/todo-v2/snapback/generated/contract/setCompleted.mutation.ts` and
+  `demos/todo-v2/snapback/generated/contract/runtime-links.ts`, plus stale
+  `guide/guide-manifest.generated.json`. The capability stays explicitly GAP
+  until D-04; this ticket makes no claimable guide promotion.
