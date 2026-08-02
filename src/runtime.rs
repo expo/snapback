@@ -33,6 +33,55 @@ use std::sync::{Arc, Mutex as StdMutex, PoisonError};
 use std::sync::{OnceLock, mpsc};
 use std::time::Instant;
 
+#[derive(Clone)]
+struct RuntimeLogSink {
+    telemetry: crate::telemetry::Telemetry,
+    correlation: Option<String>,
+}
+
+thread_local! {
+    static RUNTIME_LOG_SINKS: RefCell<Vec<RuntimeLogSink>> = const { RefCell::new(Vec::new()) };
+}
+
+struct RuntimeLogSinkGuard;
+
+impl Drop for RuntimeLogSinkGuard {
+    fn drop(&mut self) {
+        RUNTIME_LOG_SINKS.with(|sinks| {
+            sinks.borrow_mut().pop();
+        });
+    }
+}
+
+/// Install the observation sink for one synchronous handler dispatch. A stack
+/// preserves the outer action context while nested runtime calls execute.
+pub(crate) fn with_runtime_log_telemetry<T>(
+    telemetry: crate::telemetry::Telemetry,
+    correlation: Option<String>,
+    run: impl FnOnce() -> T,
+) -> T {
+    RUNTIME_LOG_SINKS.with(|sinks| {
+        sinks.borrow_mut().push(RuntimeLogSink {
+            telemetry,
+            correlation,
+        });
+    });
+    let _guard = RuntimeLogSinkGuard;
+    run()
+}
+
+fn capture_runtime_log(level: &str, message: &Value) {
+    // @ref LLP 0154#d2--the-observation-span-classification-registry-and-phase-1-kinds —
+    // capture the existing trusted runtime.log host boundary; authored
+    // messages pass through Telemetry's strict details allowlist and caps.
+    RUNTIME_LOG_SINKS.with(|sinks| {
+        if let Some(sink) = sinks.borrow().last() {
+            sink.telemetry
+                .runtime_log(level, message, sink.correlation.as_deref());
+        }
+    });
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct RuntimeCapabilities {
@@ -1899,12 +1948,13 @@ impl<'a> IbexHostContext<'a> {
             // engines route through dispatch_host_call) and optionally echoed
             // to stderr, but the handler-visible result is always null.
             "runtime.log" => {
+                let level = args.get("level").and_then(Value::as_str).unwrap_or("log");
+                let message = args.get("message").cloned().unwrap_or(Value::Null);
+                capture_runtime_log(level, &message);
                 if matches!(
                     env::var("SNAPBACK_HANDLER_CONSOLE").ok().as_deref(),
                     Some("stderr")
                 ) {
-                    let level = args.get("level").and_then(Value::as_str).unwrap_or("log");
-                    let message = args.get("message").cloned().unwrap_or(Value::Null);
                     eprintln!("[snapback handler console.{level}] {message}");
                 }
                 Ok(Value::Null)

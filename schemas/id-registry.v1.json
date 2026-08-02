@@ -149,6 +149,16 @@
       "prefix": "agtk"
     },
     {
+      "body": "random",
+      "kind": "Observation",
+      "prefix": "obs"
+    },
+    {
+      "body": "random",
+      "kind": "Generation",
+      "prefix": "gen"
+    },
+    {
       "body": "timeOrdered",
       "kind": "Opaque",
       "prefix": "id"

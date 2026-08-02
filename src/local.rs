@@ -53,8 +53,8 @@ use crate::manifest::{
     FunctionDefinition, FunctionInvocationFacts, FunctionKind, FunctionManifest,
     FunctionResultContract, FunctionRuntime, HandlerInput, HandlerPlan, MutationOutput,
     MutationSettlement, MutationStep, PermissionScopeExpr, PublicFunctionManifest,
-    PublicSchemaManifest, QueryOutput, QueryPlan, SNAPBACK_SCHEMA_VERSION, SchemaManifest, SeedData,
-    SettlementLane, SettlementMintObservation, SettlementTimeObservation,
+    PublicSchemaManifest, QueryOutput, QueryPlan, SNAPBACK_SCHEMA_VERSION, SchemaManifest,
+    SeedData, SettlementLane, SettlementMintObservation, SettlementTimeObservation,
     TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX, ValueExpr, auth_fingerprint, ctx_ledger_version,
     legacy_auth_fingerprint,
 };
@@ -118,6 +118,10 @@ thread_local! {
     static FAIL_NEXT_LIVE_SCOPE_REGISTRATION: std::cell::Cell<bool> =
         const { std::cell::Cell::new(false) };
     static FAIL_NEXT_SCOPE_RETIREMENT_AUTH: std::cell::Cell<bool> =
+        const { std::cell::Cell::new(false) };
+    static INJECT_NEXT_PUBLICATION_WARNING: std::cell::Cell<bool> =
+        const { std::cell::Cell::new(false) };
+    static FAIL_NEXT_ADDITIONAL_JOB_ADMISSION: std::cell::Cell<bool> =
         const { std::cell::Cell::new(false) };
 }
 
@@ -1561,6 +1565,7 @@ pub(crate) struct StagedRecordedMutationCommit {
     settlement_time: Option<SettlementTimePolicy>,
     epoch_scopes: BTreeSet<String>,
     execution: StagedMutationExecution,
+    observation: crate::telemetry::ObservationSpan,
 }
 
 struct MutationReceiptPublication<'a> {
@@ -1673,19 +1678,24 @@ fn rederived_claim_ledger(
         });
     }
     let authoritative = authoritative_mints_by_key(authoritative_mints);
-    let claim_counts = recorded.mints.iter().fold(BTreeMap::new(), |mut counts, mint| {
+    let claim_counts = recorded
+        .mints
+        .iter()
+        .fold(BTreeMap::new(), |mut counts, mint| {
         *counts
             .entry((mint.site.clone(), mint.occurrence))
             .or_insert(0_usize) += 1;
         counts
     });
-    claims.extend(recorded.mints.iter().map(|mint| SettlementClaim {
+    claims.extend(recorded.mints.iter().map(|mint| {
+        SettlementClaim {
         field_or_slot: format!("{}[{}]", mint.site, mint.occurrence),
         claimed: Value::String(mint.claimed.clone()),
         authoritative: exact_authoritative_mint(mint, &claim_counts, &authoritative)
             .map_or(Value::Null, |id| Value::String(id.to_owned())),
         disposition: SettlementClaimDisposition::ReDerived,
         skew_ms: None,
+        }
     }));
     claims
 }
@@ -1693,7 +1703,9 @@ fn rederived_claim_ledger(
 fn authoritative_mints_by_key(
     observations: &[SettlementMintObservation],
 ) -> BTreeMap<(String, u32), Vec<String>> {
-    observations.iter().fold(BTreeMap::new(), |mut by_key, mint| {
+    observations
+        .iter()
+        .fold(BTreeMap::new(), |mut by_key, mint| {
         by_key
             .entry((mint.site.clone(), mint.occurrence))
             .or_insert_with(Vec::new)
@@ -1807,6 +1819,7 @@ fn admitted_settlement_time_policy(
 pub(crate) struct AdmittedCronClaim {
     claim: CronRunClaim,
     admission: AdmissionLease,
+    observation: crate::telemetry::ObservationSpan,
 }
 
 impl AdmittedCronClaim {
@@ -1832,6 +1845,7 @@ pub(crate) struct AdmittedJobClaim {
     /// retry scheduling reuse it so forced drains stay deterministic.
     pub(crate) drain_now_ms: u64,
     admission: AdmissionLease,
+    observation: crate::telemetry::ObservationSpan,
 }
 
 impl AdmittedJobClaim {
@@ -1849,6 +1863,8 @@ impl Deref for AdmittedJobClaim {
 }
 
 pub(crate) struct DetachedIbexAction {
+    pub function_name: String,
+    pub telemetry: crate::telemetry::Telemetry,
     pub module: crate::manifest::IbexModule,
     pub grants: Value,
     pub redactor: crate::config::SecretRedactor,
@@ -1924,6 +1940,7 @@ pub(crate) struct ManagedHostPlanAction {
     pub(crate) app_generation: u64,
     pub(crate) app_generation_fence: Arc<AtomicU64>,
     redactor: crate::config::SecretRedactor,
+    observation: Arc<StdMutex<Option<crate::telemetry::ObservationSpan>>>,
 }
 
 /// Staging outcome for a config-verify probe run (ENG-23493): entry checks
@@ -2887,6 +2904,10 @@ pub struct LocalSnapback {
     // is deployment state beside the database, never inside it; `reset()`
     // deliberately does not touch it (D2).
     config: ConfigStore,
+    // @ref LLP 0154#d1--telemetry-store-a-sibling-sqlite-database-generation-bound —
+    // observations live in an independently opened sibling store and are
+    // visibility-bound to the app database's authorization incarnation.
+    telemetry: crate::telemetry::Telemetry,
     runtime: RuntimeManager,
     ephemeral: LocalEphemeralBackend,
     // Physical mutex ownership is released before committed ephemeral
@@ -2981,6 +3002,12 @@ pub struct LocalSnapback {
     /// authentication complete. Session-mode auth-scoped live admission is
     /// unavailable while this is absent.
     auth_invalidation: Option<LocalInvalidationState>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum DiagnosticBoundary {
+    Attached,
+    Standalone,
 }
 
 struct LocalInvalidationState {
@@ -3093,11 +3120,66 @@ struct LiveSubscription {
     read_dependencies: Vec<CapturedReadDependency>,
     authorization: Option<LiveSubscriptionAuthorization>,
     effect_fence: Option<crate::ephemeral::ConnectionEffectFence>,
+    observation: LiveSubscriptionObservation,
     /// RQS token-refresh state, present iff the subscription is `rqsEligible`
     /// (LLP 0090 D1): the server-held digest accumulator plus the query/args
     /// identity every refreshed token binds. Minting is suppressed entirely
     /// when absent — auth-scoped subscriptions never carry it.
     rqs: Option<RqsLiveState>,
+}
+
+/// One admitted long-lived subscription observation, shared across the
+/// temporary clones used by fan-out and teardown planning. The inner option
+/// makes every terminal path single-consumption; the final-drop fallback
+/// closes paths retired by a future map operation that forgets an explicit
+/// cause rather than leaking an admission forever.
+///
+/// @ref LLP 0154#d2--the-observation-span-classification-registry-and-phase-1-kinds —
+///   live subscriptions persist one admission and one completion-bound
+///   terminal under the generation captured at admission.
+#[derive(Clone, Debug)]
+struct LiveSubscriptionObservation {
+    state: Arc<LiveSubscriptionObservationState>,
+}
+
+#[derive(Debug)]
+struct LiveSubscriptionObservationState {
+    span: StdMutex<Option<crate::telemetry::ObservationSpan>>,
+}
+
+impl LiveSubscriptionObservation {
+    fn new(span: crate::telemetry::ObservationSpan) -> Self {
+        Self {
+            state: Arc::new(LiveSubscriptionObservationState {
+                span: StdMutex::new(Some(span)),
+            }),
+        }
+    }
+
+    fn finish(&self, status: i64, code: Option<&str>, cause: &str) {
+        if let Some(span) = self
+            .state
+            .span
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .take()
+        {
+            span.finish(Some(status), code, Some(json!({ "cause": cause })));
+        }
+    }
+}
+
+impl Drop for LiveSubscriptionObservationState {
+    fn drop(&mut self) {
+        if let Some(span) = self
+            .span
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .take()
+        {
+            span.finish(Some(200), None, Some(json!({ "cause": "retired" })));
+        }
+    }
 }
 
 /// Server-side RQS refresh state for one eligible live subscription.
@@ -3736,21 +3818,104 @@ impl ManagedHostPlanAction {
                 hook();
             }
         });
-        let _publication = self.invocation.effect_guard("action result handoff")?;
+        let result = match self.invocation.effect_guard("action result handoff") {
+            Ok(_publication) => result,
+            Err(error) => Err(error),
+        };
+        if let Some(observation) = self
+            .observation
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .take()
+        {
+            finish_function_observation(observation, &result);
+        }
         result
     }
 }
 
 impl LocalSnapback {
     pub fn memory() -> SnapbackResult<Self> {
-        Self::from_database(LocalDatabase::memory()?)
+        let snapback = Self::from_database(LocalDatabase::memory()?)?;
+        snapback.record_process_start_lifecycle();
+        Ok(snapback)
     }
 
     pub fn open(path: impl AsRef<Path>) -> SnapbackResult<Self> {
-        let config = ConfigStore::open_for_database(path.as_ref())?;
+        let path = path.as_ref();
+        let config = ConfigStore::open_for_database(path)?;
         let mut snapback = Self::from_database(LocalDatabase::open(path)?)?;
+        let incarnation = snapback.db.ensure_authorization_stream_incarnation()?;
+        snapback.telemetry = crate::telemetry::Telemetry::open_for_database(
+            path,
+            incarnation.as_str(),
+            config.telemetry_config().clone(),
+        )?;
+        snapback.record_process_start_lifecycle();
         snapback.config = config;
         Ok(snapback)
+    }
+
+    pub(crate) fn telemetry(&self) -> crate::telemetry::Telemetry {
+        self.telemetry.clone()
+    }
+
+    fn renew_live_subscription_observation(
+        &mut self,
+        subscription_id: &str,
+        name: &str,
+        connection_id: &str,
+    ) {
+        let telemetry = self.telemetry.clone();
+        if let Some(stored) = self.subscriptions.get_mut(subscription_id) {
+            stored.observation.finish(200, None, "resumed");
+            stored.observation = LiveSubscriptionObservation::new(telemetry.start_span(
+                "live_subscribe",
+                name,
+                Some(connection_id),
+                None,
+                true,
+            ));
+        }
+    }
+
+    fn record_process_start_lifecycle(&self) {
+        // @ref LLP 0154#d2--the-observation-span-classification-registry-and-phase-1-kinds —
+        //   construction admits start only; readiness belongs to the actual
+        //   bound-server or direct-service cut and cannot survive a later
+        //   startup failure as a lie.
+        self.telemetry.point(
+            "lifecycle",
+            "process_start",
+            Some(200),
+            None,
+            None,
+            None,
+            crate::telemetry::Priority::Reserved,
+        );
+    }
+
+    pub(crate) fn begin_telemetry_generation_transition(&self) {
+        self.telemetry.begin_generation_transition();
+    }
+
+    pub(crate) fn rebind_telemetry_to_current_incarnation(
+        &mut self,
+        lifecycle_name: &str,
+    ) -> SnapbackResult<()> {
+        let incarnation = self.db.ensure_authorization_stream_incarnation()?;
+        self.telemetry
+            .finish_generation_transition(incarnation.as_str())?;
+        self.telemetry.point(
+            "lifecycle",
+            lifecycle_name,
+            Some(200),
+            None,
+            None,
+            None,
+            crate::telemetry::Priority::Reserved,
+        );
+        Ok(())
     }
 
     /// Internal provider/lifecycle lane for protected auth transactions.
@@ -4314,7 +4479,7 @@ impl LocalSnapback {
                         ),
                     ));
                 }
-                snapback.record_diagnostics(diagnostics.clone());
+                snapback.record_attached_diagnostics(diagnostics.clone());
                 Ok(diagnostics)
             },
         )?
@@ -4323,7 +4488,7 @@ impl LocalSnapback {
     pub fn load_functions(&mut self, manifest: FunctionManifest) -> Vec<Diagnostic> {
         if let Err(error) = manifest.validate_artifact() {
             let diagnostic = error.diagnostic;
-            self.record_diagnostics(vec![diagnostic.clone()]);
+            self.record_attached_diagnostics(vec![diagnostic.clone()]);
             return vec![diagnostic];
         }
 
@@ -4343,7 +4508,7 @@ impl LocalSnapback {
             .iter()
             .any(|diagnostic| diagnostic.severity == DiagnosticSeverity::Error)
         {
-            self.record_diagnostics(preflight.clone());
+            self.record_attached_diagnostics(preflight.clone());
             return preflight;
         }
 
@@ -4351,7 +4516,7 @@ impl LocalSnapback {
             Ok(generation) => generation,
             Err(error) => {
                 let diagnostic = error.diagnostic;
-                self.record_diagnostics(vec![diagnostic.clone()]);
+                self.record_attached_diagnostics(vec![diagnostic.clone()]);
                 return vec![diagnostic];
             }
         };
@@ -4375,7 +4540,7 @@ impl LocalSnapback {
                 Ok(None) => {}
                 Err(error) => {
                     preflight.push(error.diagnostic);
-                    self.record_diagnostics(preflight.clone());
+                    self.record_attached_diagnostics(preflight.clone());
                     return preflight;
                 }
             }
@@ -4430,7 +4595,16 @@ impl LocalSnapback {
         if let Err(error) = self.persist_cron_state() {
             diagnostics.push(error.diagnostic);
         }
-        self.record_diagnostics(diagnostics.clone());
+        self.telemetry.point(
+            "lifecycle",
+            "release_activation",
+            Some(200),
+            None,
+            None,
+            None,
+            crate::telemetry::Priority::Reserved,
+        );
+        self.record_attached_diagnostics(diagnostics.clone());
         diagnostics
     }
 
@@ -4497,6 +4671,7 @@ impl LocalSnapback {
         &mut self,
         manifest: FunctionManifest,
         generation: u64,
+        diagnostic_boundary: DiagnosticBoundary,
     ) -> Vec<Diagnostic> {
         debug_assert!(manifest.validate_artifact().is_ok());
         debug_assert!(validate_function_schema_references(&manifest, self.db.schema()).is_ok());
@@ -4529,7 +4704,10 @@ impl LocalSnapback {
                 Ok(None) => {}
                 Err(error) => {
                     diagnostics.push(error.diagnostic);
-                    self.record_diagnostics(diagnostics.clone());
+                    self.record_diagnostics_at_boundary(
+                        diagnostics.clone(),
+                        diagnostic_boundary,
+                    );
                     return diagnostics;
                 }
             }
@@ -4559,7 +4737,24 @@ impl LocalSnapback {
         if let Err(error) = self.persist_cron_state() {
             diagnostics.push(error.diagnostic);
         }
-        self.record_diagnostics(diagnostics.clone());
+        self.telemetry.point(
+            "lifecycle",
+            "release_activation",
+            Some(200),
+            None,
+            None,
+            None,
+            crate::telemetry::Priority::Reserved,
+        );
+        #[cfg(test)]
+        if INJECT_NEXT_PUBLICATION_WARNING.with(|inject| inject.replace(false)) {
+            diagnostics.push(Diagnostic::warning(
+                "SNAPBACK_CONFIG_TRANSIT_RULE",
+                "config",
+                "closed publication boundary fixture",
+            ));
+        }
+        self.record_diagnostics_at_boundary(diagnostics.clone(), diagnostic_boundary);
         diagnostics
     }
 
@@ -4574,7 +4769,7 @@ impl LocalSnapback {
     /// diagnostics. The caller supplies already-redacted closed facts; this
     /// seam deliberately accepts no path or keyring error carrier.
     pub(crate) fn record_startup_diagnostics(&mut self, diagnostics: &[Diagnostic]) {
-        self.record_diagnostics(diagnostics.to_vec());
+        self.record_standalone_diagnostics(diagnostics.to_vec());
     }
 
     pub fn reset(&mut self) -> SnapbackResult<()> {
@@ -4650,6 +4845,14 @@ impl LocalSnapback {
         coordinator.finish_stream_reset(carrier, attempt)
     }
 
+    fn keep_telemetry_closed_for_uncertain_reset(&self) {
+        // @ref LLP 0154#d1--telemetry-store-a-sibling-sqlite-database-generation-bound —
+        // durable predecessor/successor truth is unknown after an uncertain
+        // reset COMMIT. Only boot-time incarnation reconciliation may reopen
+        // the sibling; neither in-process generation is safe to expose.
+        self.telemetry.begin_generation_transition();
+    }
+
     /// Perform the destructive database half of a coordinator-premarked reset.
     /// In-memory generations move only when the durable stream successor is
     /// known to have committed (including exact post-COMMIT reconciliation).
@@ -4671,11 +4874,31 @@ impl LocalSnapback {
                 Ok(generation) => generation,
                 Err(error) => return AuthTransactionAttempt::RolledBack(error),
             };
+        self.telemetry.begin_generation_transition();
         match self
             .db
             .attempt_reset_and_seed_with_authorization_stream(seed, predecessor, successor)
         {
             AuthTransactionAttempt::Committed(seeded) => {
+                if let Err(error) = self
+                    .telemetry
+                    .finish_generation_transition(successor.as_str())
+                {
+                    // The app reset is already durable. Keep telemetry closed
+                    // if its independent sibling cannot rebind; reporting a
+                    // rollback here would lie about the app database.
+                    self.record_attached_diagnostics(vec![error.diagnostic]);
+                } else {
+                    self.telemetry.point(
+                        "lifecycle",
+                        "reset_generation_rotation",
+                        Some(200),
+                        None,
+                        None,
+                        None,
+                        crate::telemetry::Priority::Reserved,
+                    );
+                }
                 AuthTransactionAttempt::Committed(CoordinatedResetCommit {
                     seeded,
                     app_generation,
@@ -4683,8 +4906,18 @@ impl LocalSnapback {
                     next_secret_read_generation,
                 })
             }
-            AuthTransactionAttempt::RolledBack(error) => AuthTransactionAttempt::RolledBack(error),
+            AuthTransactionAttempt::RolledBack(error) => {
+                self.telemetry.cancel_generation_transition();
+                AuthTransactionAttempt::RolledBack(error)
+            }
             AuthTransactionAttempt::CommitUncertain(error) => {
+                // The auth coordinator marks this process globally rebuild-
+                // required because durable predecessor/successor truth is not
+                // known. Reassert the D1 fence: cancelling could expose the
+                // predecessor after a committed reset, while rebinding could
+                // expose a successor that rolled back. Boot-time durable-pair
+                // reconciliation is the existing recovery authority.
+                self.keep_telemetry_closed_for_uncertain_reset();
                 AuthTransactionAttempt::CommitUncertain(error)
             }
         }
@@ -4731,11 +4964,28 @@ impl LocalSnapback {
                 Ok(generation) => generation,
                 Err(error) => return AuthTransactionAttempt::RolledBack(error),
             };
+        self.telemetry.begin_generation_transition();
         match self
             .db
             .attempt_versioned_seed_reset_with_authorization_stream(request, predecessor, successor)
         {
             AuthTransactionAttempt::Committed((seeded, receipt)) => {
+                if let Err(error) = self
+                    .telemetry
+                    .finish_generation_transition(successor.as_str())
+                {
+                    self.record_attached_diagnostics(vec![error.diagnostic]);
+                } else {
+                    self.telemetry.point(
+                        "lifecycle",
+                        "reset_generation_rotation",
+                        Some(200),
+                        None,
+                        None,
+                        None,
+                        crate::telemetry::Priority::Reserved,
+                    );
+                }
                 AuthTransactionAttempt::Committed(CoordinatedVersionedSeedResetCommit {
                     reset: CoordinatedResetCommit {
                         seeded,
@@ -4746,8 +4996,14 @@ impl LocalSnapback {
                     receipt,
                 })
             }
-            AuthTransactionAttempt::RolledBack(error) => AuthTransactionAttempt::RolledBack(error),
+            AuthTransactionAttempt::RolledBack(error) => {
+                self.telemetry.cancel_generation_transition();
+                AuthTransactionAttempt::RolledBack(error)
+            }
             AuthTransactionAttempt::CommitUncertain(error) => {
+                // Same fail-closed durable-ambiguity rule as the legacy reset:
+                // only boot-time incarnation comparison can reopen telemetry.
+                self.keep_telemetry_closed_for_uncertain_reset();
                 AuthTransactionAttempt::CommitUncertain(error)
             }
         }
@@ -4817,6 +5073,9 @@ impl LocalSnapback {
         // indistinguishable from a healthy idle app.
         let dropped_subscriptions: Vec<LiveSubscription> =
             self.subscriptions.values().cloned().collect();
+        for subscription in &dropped_subscriptions {
+            subscription.observation.finish(200, None, "reset");
+        }
         self.subscriptions.clear();
         self.refresh_auth_scoped_live_connections();
         // The authenticated issuer names the pre-reset authorization
@@ -4906,7 +5165,7 @@ impl LocalSnapback {
         // persistence failure is diagnostic-only: returning an error here
         // would falsely imply the destructive operation rolled back.
         if let Err(error) = self.persist_cron_state() {
-            self.record_diagnostics(vec![error.diagnostic]);
+            self.record_attached_diagnostics(vec![error.diagnostic]);
         }
     }
 
@@ -5267,6 +5526,7 @@ impl LocalSnapback {
             let diagnostics = self.publish_preflighted_functions(
                 prepared.artifacts.functions,
                 publication_generation,
+                DiagnosticBoundary::Attached,
             );
             if let Some(routes) = routes.as_ref()
                 && !routes_matched
@@ -5418,7 +5678,7 @@ impl LocalSnapback {
             // Preserve load_functions' diagnostic trail while moving the
             // validation itself ahead of every hash comparison and effect.
             // Schema-header failures gain the same rejected-artifact record.
-            self.record_diagnostics(vec![error.diagnostic.clone()]);
+            self.record_attached_diagnostics(vec![error.diagnostic.clone()]);
             return Err(error);
         }
 
@@ -5865,6 +6125,12 @@ impl LocalSnapback {
         self.validate_expected_generation(&authority, expected_generation)?;
         let prepared = InvocationGate::prepare_function(authority, function)?;
         let input = prepared.canonicalize_input(input);
+        let correlation = telemetry_correlation(&input.correlation);
+        let span =
+            self.telemetry
+                .start_span("function_run", name, correlation.as_deref(), None, false);
+        let result =
+            crate::runtime::with_runtime_log_telemetry(self.telemetry.clone(), correlation, || {
         execute_query_invocation(
             function,
             name,
@@ -5882,6 +6148,9 @@ impl LocalSnapback {
                 target_profile: self.db.schema().target_profile.as_deref(),
             }),
         )
+            });
+        finish_function_observation(span, &result);
+        result
     }
 
     // -----------------------------------------------------------------
@@ -11548,6 +11817,20 @@ impl LocalSnapback {
                     StagedRecordedMutation::Done(Box::new(recorded)),
                 ));
             }
+            let telemetry_correlation = telemetry_correlation(&input.correlation);
+            let mut observation = Some(self.telemetry.start_span(
+                "function_run",
+                name,
+                telemetry_correlation.as_deref(),
+                None,
+                false,
+            ));
+            let telemetry = self.telemetry.clone();
+            let execution = crate::runtime::with_runtime_log_telemetry(
+                telemetry,
+                telemetry_correlation,
+                || {
+                    (|| -> SnapbackResult<_> {
             let client_mutation_digest = identity
                 .as_ref()
                 .map(ClientMutationIdentity::activity_digest);
@@ -11585,7 +11868,9 @@ impl LocalSnapback {
                         auth_fingerprint: None,
                     });
                     (
-                        self.authorization_commit_preflight_for_changes(preview.commit.changes),
+                                    self.authorization_commit_preflight_for_changes(
+                                        preview.commit.changes,
+                                    ),
                         StagedMutationExecution::HostPlan(plan.clone()),
                     )
                 }
@@ -11621,7 +11906,10 @@ impl LocalSnapback {
                         job_producer,
                         asset_admissions: executed.asset_admissions,
                     };
-                    crate::result_contract::validate_handler_result(&function, &payload.result)?;
+                                crate::result_contract::validate_handler_result(
+                                    &function,
+                                    &payload.result,
+                                )?;
                     let preview = self.db.dry_run_buffered_writes_with_jobs(
                         &input,
                         payload.writes.clone(),
@@ -11634,7 +11922,9 @@ impl LocalSnapback {
                         payload.asset_admissions.clone(),
                     )?;
                     (
-                        self.authorization_commit_preflight_for_changes(preview.changes),
+                                    self.authorization_commit_preflight_for_changes(
+                                        preview.changes,
+                                    ),
                         StagedMutationExecution::Buffered(Box::new(payload)),
                     )
                 }
@@ -11660,8 +11950,21 @@ impl LocalSnapback {
                     settlement_time,
                     epoch_scopes,
                     execution,
+                                // @ref LLP 0154#d2--the-observation-span-classification-registry-and-phase-1-kinds
+                                // Staging is admission, not a successful terminal.
+                                // The authoritative guarded commit owns completion.
+                                observation: observation
+                                    .take()
+                                    .expect("fresh staged mutation observation"),
                 })),
             ))
+                    })()
+                },
+            );
+            if let Some(observation) = observation {
+                finish_function_observation(observation, &execution);
+            }
+            execution
         })();
 
         match staged {
@@ -11706,21 +12009,24 @@ impl LocalSnapback {
             settlement_time,
             epoch_scopes,
             execution,
+            observation,
         } = *staged;
         let admission = prepared.admission_lease().clone();
-        self.ensure_permission_epoch_capacity(&epoch_scopes)?;
+        if let Err(error) = self.ensure_permission_epoch_capacity(&epoch_scopes) {
+            finish_function_observation(observation, &Err::<(), _>(error.clone()));
+            return Err(error);
+        }
         let result = match execution {
             StagedMutationExecution::HostPlan(plan) => match identity.as_ref() {
-                Some(identity) => {
-                    self.db
+                Some(identity) => self
+                    .db
                         .execute_mutation_idempotent_guarded_with_settlement_time(
                             &plan,
                             &input,
                             identity,
                             settlement_time.as_ref(),
                             || prepared.effect_guard("idempotent mutation transaction"),
-                        )
-                }
+                    ),
                 None => self.db.execute_mutation_guarded_with_settlement_time(
                     &plan,
                     &input,
@@ -11752,6 +12058,9 @@ impl LocalSnapback {
             .with_settlement(settlement),
             result,
         );
+        // @ref LLP 0133#re-derivation-semantics-lane-l — only the final
+        // guarded, recorded settlement is authoritative; preview is evidence.
+        finish_function_observation(observation, &recorded.0);
         Ok(recorded)
     }
 
@@ -11785,10 +12094,7 @@ impl LocalSnapback {
                         &commit.output.settlement_mint_observations,
                         commit.output.settlement_time_observation.as_ref(),
                     ),
-                    settlement_id_map(
-                        settlement,
-                        &commit.output.settlement_mint_observations,
-                    ),
+                    settlement_id_map(settlement, &commit.output.settlement_mint_observations),
                     commit.job_enqueues.clone(),
                     Ok(commit),
                 ),
@@ -11860,8 +12166,7 @@ impl LocalSnapback {
             effect,
         } = publication;
         match admission.effect_guard(effect) {
-            Ok(_publication) => {
-                self.record_mutation_commit(
+            Ok(_publication) => self.record_mutation_commit(
                     name,
                     transport,
                     correlation,
@@ -11869,10 +12174,9 @@ impl LocalSnapback {
                     &settlement,
                     result,
                     true,
-                )
-            }
+            ),
             Err(publication_error) => {
-                self.record_diagnostics(vec![publication_error.diagnostic.clone()]);
+                self.record_attached_diagnostics(vec![publication_error.diagnostic.clone()]);
                 match result {
                     Ok(commit) => {
                         let (_, receipt) = self.record_mutation_commit(
@@ -12054,6 +12358,11 @@ impl LocalSnapback {
         // post-commit path below is infallible by construction.
         let epoch_scopes = evaluate_permission_epoch_scopes(&function, &input)?;
         self.ensure_permission_epoch_capacity(&epoch_scopes)?;
+        let correlation = telemetry_correlation(&input.correlation);
+        let span =
+            self.telemetry
+                .start_span("function_run", name, correlation.as_deref(), None, false);
+        let result = (|| {
         let commit = match &function.runtime {
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan))
             | FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(
@@ -12089,13 +12398,19 @@ impl LocalSnapback {
                 }
             }
             FunctionRuntime::IbexModule(module) => {
-                let executed = crate::runtime::execute_ibex_mutation_prepared(
+                    let executed = crate::runtime::with_runtime_log_telemetry(
+                        self.telemetry.clone(),
+                        correlation.clone(),
+                        || {
+                            crate::runtime::execute_ibex_mutation_prepared(
                     module,
                     input.clone(),
                     &prepared,
                     DbRead::Live(&self.db),
                     Some(&self.warm_vms),
                     None,
+                            )
+                        },
                 )?;
                 crate::result_contract::validate_handler_result(&function, &executed.result)?;
                 let membership_plans = self
@@ -12104,7 +12419,9 @@ impl LocalSnapback {
                 let producer_mutation_id = receipt_mutation_id
                     .map(ToOwned::to_owned)
                     .or_else(|| identity.as_ref().map(|identity| identity.id.clone()))
-                    .unwrap_or_else(|| crate::ids::mint_time_ordered(crate::ids::Kind::Mutation));
+                        .unwrap_or_else(|| {
+                            crate::ids::mint_time_ordered(crate::ids::Kind::Mutation)
+                        });
                 let (job_enqueues, job_producer) = admit_job_enqueues(
                     &self.functions,
                     executed.job_enqueues,
@@ -12139,6 +12456,9 @@ impl LocalSnapback {
         };
 
         self.finish_mutation_commit(epoch_scopes, commit, &admission)
+        })();
+        finish_function_observation(span, &result);
+        result
     }
 
     fn invoke_host_plan_mutation_commit_guarded<G, Check, BeforeCommit>(
@@ -12182,6 +12502,18 @@ impl LocalSnapback {
                 ));
             }
         };
+        let correlation = telemetry_correlation(&input.correlation);
+        let span = self.telemetry.start_span(
+            "function_run",
+            name,
+            correlation.as_deref(),
+            None,
+            false,
+        );
+        let result = crate::runtime::with_runtime_log_telemetry(
+            self.telemetry.clone(),
+            correlation,
+            || {
         let commit = self
             .db
             .execute_mutation_guarded(plan, &input, check_live, || {
@@ -12192,6 +12524,10 @@ impl LocalSnapback {
                 Ok((admission_guard, caller_guard))
             })?;
         self.finish_mutation_commit(epoch_scopes, commit, prepared.admission_lease())
+            },
+        );
+        finish_function_observation(span, &result);
+        result
     }
 
     fn finish_mutation_commit(
@@ -12288,7 +12624,7 @@ impl LocalSnapback {
             Ok(())
         })();
         if let Err(error) = postcommit {
-            self.record_diagnostics(vec![error.diagnostic]);
+            self.record_attached_diagnostics(vec![error.diagnostic]);
         }
         Ok(commit)
     }
@@ -13930,6 +14266,18 @@ impl LocalSnapback {
         let query = if reserved_live {
             self.reserved_live_invocation(&authority, name, &subscription_input)?
         } else {
+            let correlation = telemetry_correlation(&subscription_input.correlation);
+            let span = self.telemetry.start_span(
+                "function_run",
+                name,
+                correlation.as_deref(),
+                None,
+                false,
+            );
+            let result = crate::runtime::with_runtime_log_telemetry(
+                self.telemetry.clone(),
+                correlation,
+                || {
             execute_query_invocation(
                 &function,
                 name,
@@ -13946,7 +14294,11 @@ impl LocalSnapback {
                     function_publication_generation: self.app_generation,
                     target_profile: self.db.schema().target_profile.as_deref(),
                 }),
-            )?
+                    )
+                },
+            );
+            finish_function_observation(span, &result);
+            result?
         };
         let permission_epochs = permission_epochs_from_dependencies(&query.read_dependencies);
 
@@ -14105,7 +14457,8 @@ impl LocalSnapback {
                     issuer_id: connection.issuer_id,
                     connection_generation: connection.connection_generation,
                 };
-                let owner_continuity_id = crate::ids::mint_time_ordered(crate::ids::Kind::OwnerContinuity);
+                let owner_continuity_id =
+                    crate::ids::mint_time_ordered(crate::ids::Kind::OwnerContinuity);
                 let registration = (|| {
                     state
                         .obligations
@@ -14196,7 +14549,9 @@ impl LocalSnapback {
                     }
                     _ => None,
                 };
-            self.subscriptions.remove(&old_id);
+            if let Some(retired) = self.subscriptions.remove(&old_id) {
+                retired.observation.finish(200, None, "superseded");
+            }
             if let (Some(state), Some((scope, candidate, retirement))) =
                 (self.auth_invalidation.as_mut(), prepared_retirement)
             {
@@ -14228,6 +14583,13 @@ impl LocalSnapback {
             // required level-triggered rerun.
             self.premark_auth_scoped_live_connection(&input.connection_id);
         }
+        let observation = LiveSubscriptionObservation::new(self.telemetry.start_span(
+            "live_subscribe",
+            name,
+            Some(&input.connection_id),
+            None,
+            true,
+        ));
         self.subscriptions.insert(
             subscription_id.clone(),
             LiveSubscription {
@@ -14240,6 +14602,7 @@ impl LocalSnapback {
                 read_dependencies: query.read_dependencies,
                 authorization: subscription_authorization,
                 effect_fence,
+                observation,
                 rqs: rqs_state,
             },
         );
@@ -14547,6 +14910,7 @@ impl LocalSnapback {
         // No fallible step remains after the retained producer is removed.
         self.touch_connection(&input.connection_id, now_millis());
         self.subscriptions.remove(&subscription.id);
+        subscription.observation.finish(200, None, "unsubscribed");
         self.refresh_auth_scoped_live_connections();
         let scope_retirement = match (self.auth_invalidation.as_mut(), prepared_retirement) {
             (Some(state), Some((scope, candidate, retirement))) => {
@@ -15077,7 +15441,8 @@ impl LocalSnapback {
                     issuer_id: connection.issuer_id.clone(),
                     connection_generation: connection.connection_generation,
                 };
-                let owner_continuity_id = crate::ids::mint_time_ordered(crate::ids::Kind::OwnerContinuity);
+                let owner_continuity_id =
+                    crate::ids::mint_time_ordered(crate::ids::Kind::OwnerContinuity);
                 let transfer_cause = if previous.is_some() {
                     Some(state.reserve_cause_sequence()?)
                 } else {
@@ -15346,10 +15711,11 @@ impl LocalSnapback {
                 .subscriptions
                 .get_mut(&subscription.id)
                 .expect("preflight validated retained live predecessor presence");
-            stored.connection_id = input.connection_id;
+            stored.connection_id = input.connection_id.clone();
             stored.read_dependencies = query.read_dependencies;
             stored.authorization = Some(authorization.clone());
             stored.effect_fence = subscription.effect_fence.clone();
+            self.renew_live_subscription_observation(&subscription.id, name, &input.connection_id);
             self.refresh_auth_scoped_live_connections();
             self.enqueue_subscription_durable(&subscription, invalidation_payload);
             return Ok(LiveResumeOutput {
@@ -15398,10 +15764,11 @@ impl LocalSnapback {
             let _publication = authority.effect_guard("live resume resnapshot publication")?;
             self.touch_connection(&input.connection_id, now_millis());
             if let Some(stored) = self.subscriptions.get_mut(&subscription.id) {
-                stored.connection_id = input.connection_id;
+                stored.connection_id = input.connection_id.clone();
                 stored.read_dependencies = query.read_dependencies;
                 stored.effect_fence = subscription.effect_fence.clone();
             }
+            self.renew_live_subscription_observation(&subscription.id, name, &input.connection_id);
             return Ok(LiveResumeOutput {
                 subscription_id: subscription.id,
                 mode: "resnapshot".to_owned(),
@@ -15422,9 +15789,10 @@ impl LocalSnapback {
         let _publication = authority.effect_guard("live resume publication")?;
         self.touch_connection(&input.connection_id, now_millis());
         if let Some(stored) = self.subscriptions.get_mut(&subscription.id) {
-            stored.connection_id = input.connection_id;
+            stored.connection_id = input.connection_id.clone();
             stored.effect_fence = subscription.effect_fence;
         }
+        self.renew_live_subscription_observation(&subscription.id, name, &input.connection_id);
         Ok(LiveResumeOutput {
             subscription_id: subscription.id,
             mode: "retained".to_owned(),
@@ -15960,6 +16328,8 @@ impl LocalSnapback {
         match &definition.runtime {
             FunctionRuntime::IbexModule(module) => {
                 StagedAction::Detached(Box::new(DetachedIbexAction {
+                    function_name: definition.name.clone(),
+                    telemetry: self.telemetry.clone(),
                     module: module.clone(),
                     // @ref LLP 0036#runtime-exposure-d5-d8 — grants are
                     // computed per invocation from the function's `uses`
@@ -16377,6 +16747,38 @@ impl LocalSnapback {
         }
     }
 
+    pub fn set_telemetry_config(
+        &mut self,
+        config: crate::telemetry::TelemetryConfig,
+    ) -> SnapbackResult<crate::config::WriteOutcome> {
+        let previous = self.config.telemetry_config().clone();
+        // @ref LLP 0154#d4--maintenance-rides-the-flush-path-no-cron — the
+        // retention floor is monotonic, so a policy must be durable before
+        // the telemetry sibling is allowed to advance it.
+        let outcome = self.config.set_telemetry_config(config.clone())?;
+        match self.telemetry.update_config(config) {
+            Ok(()) => Ok(outcome),
+            Err(runtime_error) => {
+                if let Err(compensation_error) = self.config.set_telemetry_config(previous) {
+                    // Neither durable config value can now be trusted as a
+                    // description of the live sibling policy. Close admission
+                    // until restart performs a fresh durable rebind.
+                    self.telemetry.begin_generation_transition();
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_TELEMETRY_CONFIG_TRANSITION_FAILED",
+                        "telemetry",
+                        "the telemetry runtime rejected a durable config transition and the previous durable config could not be restored; telemetry admission is closed until restart",
+                    )
+                    .with_details(json!({
+                        "runtimeCode": runtime_error.diagnostic.code,
+                        "compensationCode": compensation_error.diagnostic.code,
+                    })));
+                }
+                Err(runtime_error)
+            }
+        }
+    }
+
     /// `config.plan` facts for this target: v1 is always the in-server,
     /// immediately-applying `local-file-immediate` locus, and saying so pins
     /// the contract hosted backends will answer differently.
@@ -16425,7 +16827,7 @@ impl LocalSnapback {
         let outcome = self
             .config
             .set(name, values, append, source, now_millis())?;
-        self.record_diagnostics(vec![
+        self.record_attached_diagnostics(vec![
             Diagnostic::info(
                 "SNAPBACK_CONFIG_WRITE",
                 "config",
@@ -16454,7 +16856,7 @@ impl LocalSnapback {
         source: &str,
     ) -> SnapbackResult<ConfigWriteOutcome> {
         let outcome = self.config.unset(name)?;
-        self.record_diagnostics(vec![
+        self.record_attached_diagnostics(vec![
             Diagnostic::info(
                 "SNAPBACK_CONFIG_WRITE",
                 "config",
@@ -16645,7 +17047,7 @@ impl LocalSnapback {
                 ),
             ));
         }
-        self.record_diagnostics(vec![
+        self.record_attached_diagnostics(vec![
             Diagnostic::info(
                 "SNAPBACK_CONFIG_VERIFY",
                 "config",
@@ -16851,6 +17253,7 @@ impl LocalSnapback {
             .filter(|subscription| subscription.connection_id == connection_id)
         {
             dropped_subscriptions += 1;
+            subscription.observation.finish(200, None, "disconnected");
             self.receipts.push_global(
                 Receipt::Subscription {
                     event: SubscriptionReceiptEvent::Disposed,
@@ -16908,7 +17311,7 @@ impl LocalSnapback {
         match self.tick_cron(now_ms) {
             Ok(records) => records,
             Err(error) => {
-                self.record_cron_tick_error(error);
+                self.record_cron_tick_error(error, DiagnosticBoundary::Standalone);
                 Vec::new()
             }
         }
@@ -16987,7 +17390,20 @@ impl LocalSnapback {
         Ok(claims
             .into_iter()
             .zip(admissions)
-            .map(|(claim, admission)| AdmittedCronClaim { claim, admission })
+            .map(|(claim, admission)| {
+                let observation = self.telemetry.start_span(
+                    "job_run",
+                    &claim.metadata.job_name,
+                    Some(&claim.metadata.run_id),
+                    Some(claim.metadata.telemetry_details()),
+                    false,
+                );
+                AdmittedCronClaim {
+                    claim,
+                    admission,
+                    observation,
+                }
+            })
             .collect())
     }
 
@@ -17014,16 +17430,31 @@ impl LocalSnapback {
             return Err(error);
         }
         drop(effect);
-        Ok(AdmittedCronClaim { claim, admission })
+        let observation = self.telemetry.start_span(
+            "job_run",
+            &claim.metadata.job_name,
+            Some(&claim.metadata.run_id),
+            Some(claim.metadata.telemetry_details()),
+            false,
+        );
+        Ok(AdmittedCronClaim {
+            claim,
+            admission,
+            observation,
+        })
     }
 
     /// Route a cron tick's *machinery* error (claim/persist/finish failure)
     /// into the diagnostics ring with a counter — the same policy as
     /// [`Self::tick_cron_recording`], callable from the server's detached
     /// cron flow.
-    pub(crate) fn record_cron_tick_error(&mut self, error: SnapbackError) {
+    pub(crate) fn record_cron_tick_error(
+        &mut self,
+        error: SnapbackError,
+        diagnostic_boundary: DiagnosticBoundary,
+    ) {
         self.cron_tick_errors += 1;
-        self.record_diagnostics(vec![error.diagnostic]);
+        self.record_diagnostics_at_boundary(vec![error.diagnostic], diagnostic_boundary);
     }
 
     /// Set-based claim of every due one-off job at the supplied clock — the
@@ -17036,6 +17467,7 @@ impl LocalSnapback {
         now_ms: u64,
         limit: usize,
         drive: &str,
+        diagnostic_boundary: DiagnosticBoundary,
     ) -> SnapbackResult<Vec<AdmittedJobClaim>> {
         self.db.ensure_migration_lane_open()?;
         // Admission precedes the durable claim write, mirroring cron: if the
@@ -17048,23 +17480,48 @@ impl LocalSnapback {
         let mut admitted = Vec::with_capacity(claims.len());
         let mut admissions = vec![first_admission];
         for _ in 1..claims.len() {
-            match self.admission.admit() {
+            #[cfg(test)]
+            let next_admission = if FAIL_NEXT_ADDITIONAL_JOB_ADMISSION
+                .with(|fail| fail.replace(false))
+            {
+                Err(SnapbackError::error(
+                    "SNAPBACK_AUTH_MODE_PENDING",
+                    "auth",
+                    "closed partial-claim admission fixture",
+                ))
+            } else {
+                self.admission.admit()
+            };
+            #[cfg(not(test))]
+            let next_admission = self.admission.admit();
+            match next_admission {
                 Ok(admission) => admissions.push(admission),
                 Err(error) => {
                     // Claims beyond the admitted prefix stay claimed; their
                     // leases expire and a successor drain re-claims them —
                     // the same recovery path as a crash after claim
                     // (LLP 0070 §Claims and fencing). Record and stop.
-                    self.record_diagnostics(vec![error.diagnostic]);
+                    self.record_diagnostics_at_boundary(
+                        vec![error.diagnostic],
+                        diagnostic_boundary,
+                    );
                     break;
                 }
             }
         }
         for (claim, admission) in claims.into_iter().zip(admissions) {
+            let observation = self.telemetry.start_span(
+                "job_run",
+                &claim.action,
+                Some(&claim.claim_id),
+                Some(claim.telemetry_details()),
+                false,
+            );
             admitted.push(AdmittedJobClaim {
                 claim,
                 drain_now_ms: now_ms,
                 admission,
+                observation,
             });
         }
         Ok(admitted)
@@ -17079,6 +17536,7 @@ impl LocalSnapback {
         result: Result<Value, Diagnostic>,
     ) -> SnapbackResult<crate::jobs::JobDrainRecord> {
         let admission = claim.admission_lease().clone();
+        let observation = claim.observation;
         let outcome = match result {
             Ok(_) => crate::jobs::JobAttemptOutcome::Succeeded,
             Err(diagnostic) => {
@@ -17089,9 +17547,16 @@ impl LocalSnapback {
         // The effect guard linearizes only the SQLite terminal publication;
         // it owns the admission mutex, so it MUST drop before live fan-out
         // (which takes admission-controller entry points of its own).
-        let (disposition, changed_row) = {
+        let terminal_publication = (|| {
             let _publication = admission.effect_guard("job result publication")?;
-            self.db.finish_job(&claim.claim, &outcome, now_ms)?
+            self.db.finish_job(&claim.claim, &outcome, now_ms)
+        })();
+        let (disposition, changed_row) = match terminal_publication {
+            Ok(terminal) => terminal,
+            Err(error) => {
+                observation.finish(Some(500), Some(&error.diagnostic.code), None);
+                return Err(error);
+            }
         };
         if let Some(changed_row) = changed_row
             && disposition != crate::jobs::JobFinishDisposition::StalePublication
@@ -17107,10 +17572,10 @@ impl LocalSnapback {
                         frame_version,
                         &admission,
                     ) {
-                        self.record_diagnostics(vec![error.diagnostic]);
+                        self.record_attached_diagnostics(vec![error.diagnostic]);
                     }
                 }
-                Err(error) => self.record_diagnostics(vec![error.diagnostic]),
+                Err(error) => self.record_attached_diagnostics(vec![error.diagnostic]),
             }
         }
         let (disposition_name, next_available_at_ms) = match &disposition {
@@ -17128,9 +17593,9 @@ impl LocalSnapback {
         if let crate::jobs::JobAttemptOutcome::Failed(diagnostic) = &outcome
             && disposition == crate::jobs::JobFinishDisposition::Dead
         {
-            self.record_diagnostics(vec![diagnostic.clone()]);
+            self.record_attached_diagnostics(vec![diagnostic.clone()]);
         }
-        Ok(crate::jobs::JobDrainRecord {
+        let record = crate::jobs::JobDrainRecord {
             job_id: claim.claim.job_id.clone(),
             queue: claim.claim.queue.clone(),
             action: claim.claim.action.clone(),
@@ -17140,7 +17605,10 @@ impl LocalSnapback {
             disposition: disposition_name.to_owned(),
             diagnostic_code,
             next_available_at_ms,
-        })
+        };
+        let (status, code) = record.telemetry_terminal();
+        observation.finish(Some(status), code, None);
+        Ok(record)
     }
 
     /// The handler input a claimed job passes to its action: the immutable
@@ -17215,7 +17683,7 @@ impl LocalSnapback {
     /// state, so this records only scheduler-machinery faults.
     pub(crate) fn record_asset_runner_error(&mut self, error: SnapbackError) {
         self.asset_runner_errors += 1;
-        self.record_diagnostics(vec![error.diagnostic]);
+        self.record_standalone_diagnostics(vec![error.diagnostic]);
     }
 
     /// Swallowed asset-runner scheduler errors, surfaced for tests/inspection.
@@ -17262,7 +17730,7 @@ impl LocalSnapback {
                     "causeCode": error.diagnostic.code.clone(),
                     "failureCount": *count,
                 }));
-            self.record_diagnostics(vec![diagnostic]);
+            self.record_standalone_diagnostics(vec![diagnostic]);
         }
     }
 
@@ -17370,6 +17838,12 @@ impl LocalSnapback {
                     .map(|authorization| authorization.scope_id.clone())
             })
             .collect::<Vec<_>>();
+        for subscription in self.subscriptions.values().filter(|subscription| {
+            subscription.connection_id == connection_id
+                && subscription.effect_fence.as_ref() == Some(effect_fence)
+        }) {
+            subscription.observation.finish(200, None, "disconnected");
+        }
         self.subscriptions.retain(|_, subscription| {
             subscription.connection_id != connection_id
                 || subscription.effect_fence.as_ref() != Some(effect_fence)
@@ -17717,7 +18191,7 @@ impl LocalSnapback {
         // while Local is held.
         // @ref LLP 0059#durable-authorization-stream — both dev and sessions
         // create the stream record before an app-data listener can bind.
-        db.ensure_authorization_stream_incarnation()?;
+        let auth_stream_incarnation = db.ensure_authorization_stream_incarnation()?;
         // @ref LLP 0076#settlement-and-retry — the startup reconciler: a
         // persisted StreamAttemptV1 row whose runner died with its process is
         // settled `failed` with the conservative effect fact folded from the
@@ -17738,6 +18212,10 @@ impl LocalSnapback {
             }
         }
         let runtime = RuntimeManager::detect();
+        let telemetry = crate::telemetry::Telemetry::in_memory(
+            auth_stream_incarnation.as_str(),
+            crate::telemetry::TelemetryConfig::default(),
+        )?;
         let cron = LocalCronRuntime::from_persisted(db.load_cron_state()?)?;
         let auth_mode = db.auth_mode_snapshot()?.state;
         // @ref LLP 0081#4-execution-journaling-and-crash-recovery — the
@@ -17795,6 +18273,7 @@ impl LocalSnapback {
             preflighted_artifact_pairs: VecDeque::new(),
             functions_loaded: false,
             config: ConfigStore::in_memory(),
+            telemetry,
             runtime,
             ephemeral: LocalEphemeralBackend::new(),
             managed_local_handoff: Arc::new(crate::exec_guard::ManagedLocalHandoff::default()),
@@ -18004,6 +18483,7 @@ impl LocalSnapback {
         successor_schema: &SchemaManifest,
         rehearsal: Option<&crate::migration::MigrationRehearsalPlanV1>,
     ) -> SnapbackResult<crate::storage::migration_executor::MigrationReceiptV1> {
+        let result = (|| {
         // @ref LLP 0081#4-execution-journaling-and-crash-recovery — the
         //   publication fires LLP 0053's activation obligations for
         //   auth-scoped state: every auth-scoped subscription gets a durable
@@ -18070,16 +18550,16 @@ impl LocalSnapback {
             ));
         }
         let audience = self.migrate_resolved_audience()?;
-        let receipt =
-            self.db
-                .migrate_apply(crate::storage::migration_executor::MigrationApplyRequest {
+            let receipt = self.db.migrate_apply(
+                crate::storage::migration_executor::MigrationApplyRequest {
                     artifact,
                     approval,
                     successor_schema,
                     audience: &audience,
                     now_ms: now_millis(),
                     rehearsal,
-                })?;
+                },
+            )?;
         // The successor is authoritative: refresh every schema projection
         // the serving process holds, then retire every retained live
         // subscription with a clear-retained resync — no predecessor
@@ -18088,6 +18568,24 @@ impl LocalSnapback {
         self.refresh_read_manifests();
         self.retire_live_subscriptions_for_publication()?;
         Ok(receipt)
+        })();
+        let (name, status, code, priority) = match &result {
+            Ok(_) => (
+                "migration_success",
+                200,
+                None,
+                crate::telemetry::Priority::Reserved,
+            ),
+            Err(error) => (
+                "migration_failure",
+                500,
+                Some(error.diagnostic.code.as_str()),
+                crate::telemetry::Priority::Reserved,
+            ),
+        };
+        self.telemetry
+            .point("lifecycle", name, Some(status), code, None, None, priority);
+        result
     }
 
     /// The §6 fast rollback under the original operation's approval —
@@ -18097,6 +18595,9 @@ impl LocalSnapback {
         artifact: &crate::migration::MigrationPlanArtifactV1,
         approval: &crate::migration::MigrationApprovalV1,
     ) -> SnapbackResult<crate::storage::migration_executor::MigrationRollbackReceiptV1> {
+        let result: SnapbackResult<
+            crate::storage::migration_executor::MigrationRollbackReceiptV1,
+        > = (|| {
         let audience = self.migrate_resolved_audience()?;
         let receipt = self
             .db
@@ -18104,6 +18605,25 @@ impl LocalSnapback {
         // The republished predecessor is authoritative again.
         self.refresh_read_manifests();
         Ok(receipt)
+        })();
+        let (name, status, code) = match &result {
+            Ok(_) => ("migration_success", 200, None),
+            Err(error) => (
+                "migration_failure",
+                500,
+                Some(error.diagnostic.code.as_str()),
+            ),
+        };
+        self.telemetry.point(
+            "lifecycle",
+            name,
+            Some(status),
+            code,
+            None,
+            Some(json!({ "cause": "rollback" })),
+            crate::telemetry::Priority::Reserved,
+        );
+        result
     }
 
     /// The publication consequence for every retained live subscription
@@ -18200,6 +18720,9 @@ impl LocalSnapback {
                 })?
             };
             self.subscriptions.remove(&subscription.id);
+            subscription
+                .observation
+                .finish(200, None, "schema_publication");
             self.receipts.push_global(
                 Receipt::Subscription {
                     event: SubscriptionReceiptEvent::Disposed,
@@ -18232,6 +18755,7 @@ impl LocalSnapback {
             auth_scoped_live_connections: self.auth_scoped_live_connections.clone(),
             pool: self.db.reader_pool(),
             warm_vms: self.warm_vms.clone(),
+            telemetry: self.telemetry.clone(),
             admission: self.admission.clone(),
             secret_read_reset_generation: self.secret_read_reset_generation.clone(),
             resume_keyring: self.resume_keyring.clone(),
@@ -18345,7 +18869,14 @@ impl LocalSnapback {
         result: Result<Value, Diagnostic>,
     ) -> SnapbackResult<CronRunRecord> {
         let admission = claim.admission_lease().clone();
-        let _publication = admission.effect_guard("cron result ledger publication")?;
+        let observation = claim.observation;
+        let _publication = match admission.effect_guard("cron result ledger publication") {
+            Ok(publication) => publication,
+            Err(error) => {
+                observation.finish(Some(500), Some(&error.diagnostic.code), None);
+                return Err(error);
+            }
+        };
         // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S5.D8
         // (semantics LLP 0029 G6): measure real wall-clock around the run so
         // durationMs is not always zero. finished_at stays logically
@@ -18354,13 +18885,15 @@ impl LocalSnapback {
         // stamped the claim with.
         let result = result.map_err(|diagnostic| self.config.redact_diagnostic(diagnostic));
         let elapsed_ms = now_millis().saturating_sub(started_wall_ms);
-        let finished_at_ms = claim.started_at_ms.saturating_add(elapsed_ms);
+        let finished_at_ms = claim.claim.started_at_ms.saturating_add(elapsed_ms);
         let record = self.cron.finish_run(claim.claim, finished_at_ms, result);
+        let (status, code) = record.telemetry_terminal();
+        observation.finish(Some(status), code, None);
         self.persist_cron_state()?;
         if record.outcome == CronRunOutcome::Failed
             && let Some(diagnostic) = &record.diagnostic
         {
-            self.record_diagnostics(vec![diagnostic.clone()]);
+            self.record_attached_diagnostics(vec![diagnostic.clone()]);
         }
         Ok(record)
     }
@@ -18398,14 +18931,20 @@ impl LocalSnapback {
                 format!("{name} is not a host-plan action"),
             ));
         };
+        let input = prepared.canonicalize_input(input);
+        let correlation = telemetry_correlation(&input.correlation);
+        let observation =
+            self.telemetry
+                .start_span("function_run", name, correlation.as_deref(), None, false);
         Ok(ManagedHostPlanAction {
             plan: plan.clone(),
-            input: prepared.canonicalize_input(input),
+            input,
             metadata,
             invocation: prepared,
             app_generation: self.app_generation,
             app_generation_fence: self.app_generation_fence.clone(),
             redactor: self.config.secret_redactor_for(&function.uses),
+            observation: Arc::new(StdMutex::new(Some(observation))),
         })
     }
 
@@ -18481,11 +19020,19 @@ impl LocalSnapback {
         // validates the declared argument contract before any dispatch or
         // external effect.
         crate::args_contract::validate_function_args(&function, &input.args)?;
+        let correlation = telemetry_correlation(&input.correlation);
+        let span =
+            self.telemetry
+                .start_span("function_run", name, correlation.as_deref(), None, false);
         let invocation_redactor = self.config.secret_redactor_for(&function.uses);
-        let result = match (&function.kind, &function.runtime) {
-            (FunctionKind::Action, FunctionRuntime::HostPlan(HandlerPlan::Action(plan))) => {
-                self.invoke_action_plan(plan, input, metadata, &prepared)
-            }
+        let telemetry = self.telemetry.clone();
+        let result =
+            crate::runtime::with_runtime_log_telemetry(telemetry, correlation, || {
+                match (&function.kind, &function.runtime) {
+                    (
+                        FunctionKind::Action,
+                        FunctionRuntime::HostPlan(HandlerPlan::Action(plan)),
+                    ) => self.invoke_action_plan(plan, input, metadata, &prepared),
             (FunctionKind::Action, FunctionRuntime::IbexModule(module)) => {
                 let runtime = self.runtime.clone();
                 // @ref LLP 0036#runtime-exposure-d5-d8 — grants are computed
@@ -18511,7 +19058,8 @@ impl LocalSnapback {
                 "runtime",
                 format!("{name} is not an action"),
             )),
-        };
+                }
+            });
         let result = result.map_err(|error| {
             // In-lock actions cannot race config rotation, but scrub at the
             // creation boundary so no public envelope observes raw secret
@@ -18528,7 +19076,10 @@ impl LocalSnapback {
                 hook();
             }
         });
-        let _publication = prepared.effect_guard("action result handoff")?;
+        let result = prepared
+            .effect_guard("action result handoff")
+            .and_then(|_publication| result);
+        finish_function_observation(span, &result);
         result
     }
 
@@ -18653,7 +19204,7 @@ impl LocalSnapback {
         let frame_version = match self.db.current_version() {
             Ok(version) => version,
             Err(error) => {
-                self.record_diagnostics(vec![error.diagnostic]);
+                self.record_attached_diagnostics(vec![error.diagnostic]);
                 return;
             }
         };
@@ -18665,7 +19216,7 @@ impl LocalSnapback {
             frame_version,
             &admission,
         ) {
-            self.record_diagnostics(vec![error.diagnostic]);
+            self.record_attached_diagnostics(vec![error.diagnostic]);
         }
     }
 
@@ -19470,7 +20021,7 @@ impl LocalSnapback {
             match projected {
                 Ok(projection) => preprojected.push((subscription.clone(), projection)),
                 Err(error) if fail_closed_on_preprojection_error => return Err(error),
-                Err(error) => self.record_diagnostics(vec![error.diagnostic]),
+                Err(error) => self.record_attached_diagnostics(vec![error.diagnostic]),
             }
         }
         self.live_delivery.authorization_blast_radius.for_event(
@@ -19629,6 +20180,20 @@ impl LocalSnapback {
             .collect::<BTreeSet<_>>();
         for (subscription, payload) in subscriptions.iter().zip(payloads) {
             self.subscriptions.remove(&subscription.id);
+            let cause = if subscription.expected_generation.is_some() {
+                "artifact_identity_mismatch"
+            } else {
+                "auth_deployment_activated"
+            };
+            if subscription.expected_generation.is_some() {
+                subscription.observation.finish(
+                    500,
+                    Some("SNAPBACK_ARTIFACT_IDENTITY_MISMATCH"),
+                    cause,
+                );
+            } else {
+                subscription.observation.finish(200, None, cause);
+            }
             self.receipts.push_global(
                 Receipt::Subscription {
                     event: SubscriptionReceiptEvent::Disposed,
@@ -20340,7 +20905,7 @@ impl LocalSnapback {
             "reason": reason,
             "error": diagnostic.details,
         });
-        self.record_diagnostics(vec![diagnostic]);
+        self.record_attached_diagnostics(vec![diagnostic]);
         let recovery = (|| -> SnapbackResult<()> {
             // A caller at a known committed frame must not re-read a damaged
             // head and then turn an already-confirmed mutation into an error.
@@ -20396,7 +20961,7 @@ impl LocalSnapback {
                             &_publication,
                         )
                     {
-                        self.record_diagnostics(vec![error.diagnostic]);
+                        self.record_attached_diagnostics(vec![error.diagnostic]);
                     }
                     if let Ok(payload) =
                         serde_json::to_vec(&LiveEnvelope::authorization_invalidation(
@@ -20433,7 +20998,7 @@ impl LocalSnapback {
             Ok(())
         })();
         if let Err(error) = recovery {
-            self.record_diagnostics(vec![error.diagnostic]);
+            self.record_attached_diagnostics(vec![error.diagnostic]);
         }
     }
 
@@ -20599,9 +21164,25 @@ impl LocalSnapback {
             })
     }
 
-    fn record_diagnostics(&mut self, diagnostics: Vec<Diagnostic>) {
+    fn record_attached_diagnostics(&mut self, diagnostics: Vec<Diagnostic>) {
+        self.record_diagnostics_at_boundary(diagnostics, DiagnosticBoundary::Attached);
+    }
+
+    fn record_standalone_diagnostics(&mut self, diagnostics: Vec<Diagnostic>) {
+        self.record_diagnostics_at_boundary(diagnostics, DiagnosticBoundary::Standalone);
+    }
+
+    fn record_diagnostics_at_boundary(
+        &mut self,
+        diagnostics: Vec<Diagnostic>,
+        boundary: DiagnosticBoundary,
+    ) {
         for diagnostic in diagnostics {
             let diagnostic = self.config.redact_diagnostic(diagnostic);
+            if boundary == DiagnosticBoundary::Standalone {
+                self.telemetry
+                    .standalone_diagnostic(&diagnostic.code, &diagnostic.severity);
+            }
             self.recent_diagnostics.push_back(diagnostic);
             while self.recent_diagnostics.len() > MAX_RECENT_DIAGNOSTICS {
                 let evict = self
@@ -20671,6 +21252,7 @@ pub struct ReadLane {
     // (exclusive ownership per checkout), warming extras on miss up to the
     // pool bound.
     warm_vms: Arc<crate::warm_vm::WarmVmPool>,
+    telemetry: crate::telemetry::Telemetry,
     admission: AdmissionController,
     secret_read_reset_generation: Arc<AtomicU64>,
     // Shared with the write lane: relational pagination cursors are MAC'd
@@ -20883,14 +21465,22 @@ impl ReadLane {
         )?;
         let prepared = InvocationGate::prepare_function(authority, function)?;
         let input = prepared.canonicalize_input(input);
-
+        let correlation = telemetry_correlation(&input.correlation);
+        let span =
+            self.telemetry
+                .start_span("function_run", name, correlation.as_deref(), None, false);
+        let result = (|| {
         let reader = pool.checkout()?;
         let tx = reader.conn().unchecked_transaction()?;
         // Pin the WAL snapshot now (the first read fixes it), before any
         // handler work, so rows, captured read versions, and the reported
         // version all come from this snapshot.
         crate::storage::current_version_on(&tx)?;
-        let invocation = execute_query_invocation(
+            let invocation = crate::runtime::with_runtime_log_telemetry(
+                self.telemetry.clone(),
+                correlation,
+                || {
+                    execute_query_invocation(
             function,
             name,
             DbRead::Pinned {
@@ -20909,8 +21499,13 @@ impl ReadLane {
                 function_publication_generation: manifests.app_generation,
                 target_profile: manifests.schema.target_profile.as_deref(),
             }),
+                    )
+                },
         )?;
         Ok(invocation.output)
+        })();
+        finish_function_observation(span, &result);
+        result
     }
 
     pub(crate) fn execute_detached_ibex_mutation(
@@ -21827,9 +22422,7 @@ fn validate_function_schema_references(
                         _ => None,
                     });
                     let target = target.expect("manifest structural validation found the sink");
-                    let declared = table(target)?
-                        .field(&declaration.field)
-                        .ok_or_else(|| {
+                    let declared = table(target)?.field(&declaration.field).ok_or_else(|| {
                             SnapbackError::error(
                                 "SNAPBACK_BOUNDED_SKEW_DECLARATION_INVALID",
                                 "runtime",
@@ -24595,6 +25188,24 @@ fn asset_media_type_admitted(accepted: &[String], declared: &str) -> bool {
     })
 }
 
+fn finish_function_observation<T>(
+    span: crate::telemetry::ObservationSpan,
+    result: &SnapbackResult<T>,
+) {
+    match result {
+        Ok(_) => span.finish(Some(200), None, None),
+        Err(error) => span.finish(
+            Some(500),
+            Some(&error.diagnostic.code),
+            Some(json!({ "severity": error.diagnostic.severity.clone() })),
+        ),
+    }
+}
+
+fn telemetry_correlation(value: &Option<Value>) -> Option<String> {
+    value.as_ref().and_then(Value::as_str).map(str::to_owned)
+}
+
 /// Append one verified chunk to restricted staging at the exact offset,
 /// durably (flush + fsync) before the acknowledged offset advances.
 fn now_millis() -> u64 {
@@ -24646,14 +25257,16 @@ mod tests {
         AuthorizationInvalidationAckInput, BEFORE_ACTION_RESULT_HANDOFF_HOOK,
         BEFORE_CONFIG_VERIFY_PUBLICATION_HOOK, BEFORE_MUTATION_POSTCOMMIT_HOOK,
         BEFORE_QUERY_RESULT_HANDOFF_HOOK, DetachedIbexMutation, DetachedMutationRead,
-        EnsureAppMode, FAIL_NEXT_LIVE_SCOPE_REGISTRATION, FAIL_NEXT_SCOPE_RETIREMENT_AUTH,
+        DiagnosticBoundary, EnsureAppMode, FAIL_NEXT_ADDITIONAL_JOB_ADMISSION,
+        FAIL_NEXT_LIVE_SCOPE_REGISTRATION, FAIL_NEXT_SCOPE_RETIREMENT_AUTH,
+        INJECT_NEXT_PUBLICATION_WARNING,
         LiveInvalidationAdmission, LiveResumeInput, LiveSubscribeInput, LiveUnsubscribeInput,
         LocalSnapback, MAX_LIVE_SUBSCRIPTIONS, MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION,
         MY_MEMBERSHIPS_LIVE_FUNCTION, MaintenanceOperation, PublicInspect, RetryEpisodeKey,
-        RetryReservationKind, SnapbackError, SnapbackResult, StagedNestedMutation,
-        next_secret_read_reset_generation, now_millis,
-        refuse_unprovenanced_host_plan_authority_creation, reserve_unique_generation,
-        settlement_id_map, validate_bounded_children_schema_plan,
+        RetryReservationKind, SnapbackError, SnapbackResult, StagedMutationExecution,
+        StagedNestedMutation, StagedRecordedMutation, next_secret_read_reset_generation,
+        now_millis, refuse_unprovenanced_host_plan_authority_creation, reserve_unique_generation,
+        settlement_id_map, telemetry_correlation, validate_bounded_children_schema_plan,
         validate_function_schema_references,
     };
     use crate::admin::ServerProfile;
@@ -24671,6 +25284,7 @@ mod tests {
         AuthModeStateRecord, AuthProgramReadiness, DeploymentIdentity, FUNCTION_V1_PREFIX,
         INPUTS_V1_PREFIX, SCHEMA_V1_PREFIX, STARTUP_ARTIFACT_FORMAT_VERSION, StartupArtifacts,
     };
+    use crate::live_wire::{Receipt, SettlementIdMapDisposition};
     use crate::manifest::{
         ActionPlan, ArtifactGeneration, AuthInput, AuthManifest, AuthMode, AuthorityDescriptor,
         BoundedSkewDeclaration, ConfigEntryDefinition, CronActivationPolicy, CronJitterPolicy,
@@ -24683,7 +25297,6 @@ mod tests {
         SettlementIdentityClaims, SettlementLane, SettlementMintClaim, SettlementMintObservation,
         TableManifest, ValueExpr, ctx_ledger_version,
     };
-    use crate::live_wire::{Receipt, SettlementIdMapDisposition};
     use crate::runtime::ExecutedIbexMutation;
     use crate::search::types::{
         SEARCH_ANALYZER, SEARCH_CAPABILITY, SEARCH_PARSER, SearchFieldClassV1,
@@ -25135,9 +25748,7 @@ mod tests {
         assert_ne!(snapback.functions.bundle_hash, functions.bundle_hash);
     }
 
-    fn envelope_members_for(
-        declaration: &str,
-    ) -> crate::api_envelope::ApiEnvelopeMembersV1 {
+    fn envelope_members_for(declaration: &str) -> crate::api_envelope::ApiEnvelopeMembersV1 {
         let mut member_digests = std::collections::BTreeMap::new();
         member_digests.insert(
             crate::api_envelope::DECLARATION_MEMBER_KEY.to_string(),
@@ -25182,7 +25793,9 @@ mod tests {
         // The persisted record survives and its bytes are retrievable by
         // digest — the serving path's only input.
         let state = snapback.db.load_api_envelope_state().unwrap().unwrap();
-        let first = state.current.expect("first activation recorded an envelope");
+        let first = state
+            .current
+            .expect("first activation recorded an envelope");
         let bytes = snapback
             .app_api_envelope_bytes(&first.digest)
             .unwrap()
@@ -31706,7 +32319,7 @@ globalThis.__snapbackHandlers = {
             },
             constants: MigrationConstants {
                 publication_timestamp_ms: 2_000_000_000_000,
-                rollback_timestamp_ms: None,
+                rollback_timestamp_ms: Some(2_000_000_000_001),
                 values: BTreeMap::new(),
             },
             boundaries: Default::default(),
@@ -31781,6 +32394,79 @@ globalThis.__snapbackHandlers = {
             .migrate_apply_artifact(&artifact, &fresh, &successor)
             .expect("a binding pair publishes");
         assert_eq!(receipt.state.kind(), "released");
+        let rollback_error = snapback
+            .migrate_rollback_artifact(&artifact, &fresh)
+            .expect_err("a released artifact refuses fast rollback");
+        snapback.telemetry.force_flush().expect("flush migration lifecycle");
+        assert_eq!(
+            snapback.telemetry.event_outcomes_for_test(
+                "lifecycle",
+                "migration_success",
+                "point"
+            ),
+            vec![(Some(200), None)]
+        );
+        assert_eq!(
+            snapback.telemetry.event_outcomes_for_test(
+                "lifecycle",
+                "migration_failure",
+                "point"
+            ),
+            vec![
+                (
+                    Some(500),
+                    Some("SNAPBACK_MIGRATION_PRECONDITION_FAILED".to_owned())
+                ),
+                (Some(500), Some(rollback_error.diagnostic.code.clone())),
+            ]
+        );
+        assert_eq!(
+            snapback
+                .telemetry
+                .event_details_for_test("lifecycle", "migration_failure")[1]
+                .as_ref()
+                .and_then(|details| details.get("cause")),
+            Some(&json!("rollback"))
+        );
+
+        let mut rollback_snapback = LocalSnapback::memory().expect("rollback lifecycle fixture");
+        rollback_snapback
+            .apply_schema(predecessor)
+            .expect("apply rollback predecessor");
+        let rollback_approval = approve(&mut rollback_snapback, &artifact);
+        crate::storage::migration_executor::arm_migration_kill_point("released", 0);
+        let published_held = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            rollback_snapback.migrate_apply_artifact(
+                &artifact,
+                &rollback_approval,
+                &successor,
+            )
+        }));
+        crate::storage::migration_executor::disarm_migration_kill_point();
+        assert!(published_held.is_err(), "fixture stops at published-held");
+        rollback_snapback
+            .migrate_rollback_artifact(&artifact, &rollback_approval)
+            .expect("published-held artifact rolls back");
+        rollback_snapback
+            .telemetry
+            .force_flush()
+            .expect("flush successful rollback lifecycle");
+        assert_eq!(
+            rollback_snapback.telemetry.event_outcomes_for_test(
+                "lifecycle",
+                "migration_success",
+                "point"
+            ),
+            vec![(Some(200), None)]
+        );
+        assert_eq!(
+            rollback_snapback
+                .telemetry
+                .event_details_for_test("lifecycle", "migration_success")[0]
+                .as_ref()
+                .and_then(|details| details.get("cause")),
+            Some(&json!("rollback"))
+        );
     }
 
     // @ref LLP 0081#6-compatibility-and-deployment-ordering — the
@@ -32464,7 +33150,11 @@ globalThis.__snapbackHandlers = {
         snapback
             .synchronize_auth_mode_admission(&settled)
             .expect("publish settled sessions admission");
-        let diagnostics = snapback.publish_preflighted_functions(predecessor_functions, 41);
+        let diagnostics = snapback.publish_preflighted_functions(
+            predecessor_functions,
+            41,
+            DiagnosticBoundary::Attached,
+        );
         assert!(
             diagnostics.iter().all(|diagnostic| !matches!(
                 diagnostic.severity,
@@ -33656,7 +34346,7 @@ globalThis.__snapbackHandlers = {
         state
     }
 
-    fn cron_gate_snapback() -> LocalSnapback {
+    fn install_cron_gate(mut snapback: LocalSnapback) -> LocalSnapback {
         let manifest = FunctionManifest {
             functions: vec![FunctionDefinition::new(
                 "cronAction",
@@ -33689,7 +34379,6 @@ globalThis.__snapbackHandlers = {
             }],
             ..FunctionManifest::default()
         };
-        let mut snapback = LocalSnapback::memory().expect("memory cron gate fixture");
         let diagnostics = snapback.load_functions(manifest);
         assert!(
             diagnostics
@@ -33699,6 +34388,57 @@ globalThis.__snapbackHandlers = {
             "cron gate fixture must load: {diagnostics:?}"
         );
         snapback
+    }
+
+    fn cron_gate_snapback() -> LocalSnapback {
+        install_cron_gate(LocalSnapback::memory().expect("memory cron gate fixture"))
+    }
+
+    #[test]
+    fn failed_cron_keeps_attached_diagnostic_without_standalone_duplicate() {
+        let directory = tempfile::tempdir().expect("failed cron telemetry directory");
+        let database_path = directory.path().join("failed-cron.sqlite3");
+        let mut snapback = install_cron_gate(
+            LocalSnapback::open(&database_path).expect("failed cron fixture"),
+        );
+        let claim = snapback
+            .claim_manual_cron_run("gatedCron", 10)
+            .expect("claim failed cron fixture");
+        let record = snapback
+            .finish_cron_claim(
+                claim,
+                now_millis(),
+                Err(crate::diagnostic::Diagnostic::error(
+                    "SNAPBACK_CRON_TEST_FAILURE",
+                    "cron",
+                    "closed fixture failure",
+                )),
+            )
+            .expect("publish failed cron terminal");
+        assert_eq!(record.outcome, crate::cron::CronRunOutcome::Failed);
+        assert!(
+            snapback
+                .recent_diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "SNAPBACK_CRON_TEST_FAILURE")
+        );
+        snapback.telemetry.force_flush().expect("flush failed cron telemetry");
+        assert_eq!(
+            snapback.telemetry.event_outcomes_for_test(
+                "job_run",
+                "gatedCron",
+                "joined"
+            ),
+            vec![(Some(500), Some("SNAPBACK_CRON_TEST_FAILURE".to_owned()))]
+        );
+        assert_eq!(
+            snapback.telemetry.event_count_for_test(
+                "diagnostic",
+                "SNAPBACK_CRON_TEST_FAILURE",
+                "point"
+            ),
+            0,
+        );
     }
 
     #[test]
@@ -33809,7 +34549,11 @@ globalThis.__snapbackHandlers = {
 
     #[test]
     fn timeout_retirement_suppresses_cron_finish_and_result_ledger_publication() {
-        let mut snapback = cron_gate_snapback();
+        let directory = tempfile::tempdir().expect("cron telemetry fixture directory");
+        let database_path = directory.path().join("cron-telemetry.sqlite3");
+        let mut snapback = install_cron_gate(
+            LocalSnapback::open(&database_path).expect("file-backed cron gate fixture"),
+        );
         let claim = snapback
             .claim_manual_cron_run("gatedCron", 20)
             .expect("admitted manual claim");
@@ -33834,6 +34578,25 @@ globalThis.__snapbackHandlers = {
         );
         assert_eq!(snapback.cron.persisted_value().unwrap(), before);
         assert_eq!(snapback.cron_state_writes(), writes);
+        snapback
+            .telemetry
+            .force_flush()
+            .expect("flush rejected cron terminal");
+        let raw = rusqlite::Connection::open(crate::telemetry::Telemetry::path_for_database(
+            &database_path,
+        ))
+        .expect("open cron telemetry sibling");
+        let (phase, status, code): (String, i64, String) = raw
+            .query_row(
+                "SELECT phase,status,code FROM telemetry_events WHERE kind='job_run' AND name='gatedCron' ORDER BY id DESC LIMIT 1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .expect("cron publication guard terminal observation");
+        assert_eq!(
+            (phase.as_str(), status, code.as_str()),
+            ("joined", 500, "SNAPBACK_AUTH_MODE_PENDING")
+        );
     }
 
     fn result_handoff_snapback() -> LocalSnapback {
@@ -38554,6 +39317,482 @@ globalThis.__snapbackHandlers = {
         snapback
     }
 
+    #[test]
+    fn served_staging_and_managed_action_emit_function_and_runtime_log_observations() {
+        fn stage_and_commit(
+            snapback: &mut LocalSnapback,
+            database_path: &std::path::Path,
+            name: &str,
+            input: HandlerInput,
+        ) {
+            let correlation =
+                telemetry_correlation(&input.correlation).expect("staged observation correlation");
+            let authority = InvocationGate::prepare_dev_input(
+                InvocationSource::LocalMutation,
+                ServerProfile::Test,
+                &input,
+            )
+            .expect("prepare staged mutation authority");
+            let (preflight, staged) = snapback
+                .stage_recorded_authorization_mutation(
+                    name,
+                    input,
+                    None,
+                    None,
+                    &[],
+                    "test",
+                    authority,
+                )
+                .expect("stage served mutation");
+            snapback
+                .telemetry
+                .force_flush()
+                .expect("flush staged observations");
+            let raw = rusqlite::Connection::open(crate::telemetry::Telemetry::path_for_database(
+                database_path,
+            ))
+            .expect("open staged telemetry sibling");
+            let staged_successes: i64 = raw
+                .query_row(
+                    "SELECT COUNT(*) FROM telemetry_events WHERE kind='function_run' AND name=?1 AND phase='joined' AND status=200 AND correlation=?2",
+                    rusqlite::params![name, correlation],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert_eq!(
+                staged_successes, 0,
+                "staging cannot publish a successful terminal observation"
+            );
+            drop(raw);
+            let (result, _receipt) = snapback
+                .try_with_direct_authorization_write(preflight, move |snapback| {
+                    snapback.commit_staged_recorded_authorization_mutation(staged)
+                })
+                .expect("reserve staged mutation")
+                .expect("record staged mutation");
+            result.expect("commit staged mutation");
+        }
+
+        let directory = tempfile::tempdir().expect("function telemetry fixture directory");
+        let database_path = directory.path().join("function-telemetry.sqlite3");
+        let mut snapback =
+            LocalSnapback::open(&database_path).expect("file-backed function fixture");
+        snapback
+            .apply_schema(reload_schema("function-telemetry", false))
+            .expect("apply function telemetry schema");
+        let mut manifest = guarded_functions();
+        let ibex = manifest
+            .functions
+            .iter_mut()
+            .find(|function| function.name == "ibexInsert")
+            .expect("Ibex fixture function");
+        ibex.runtime = FunctionRuntime::IbexModule(IbexModule {
+            source: "globalThis.__snapbackHandlers = { async ibexInsert() { console.log('staged-log'); return null; } };"
+                .to_owned(),
+            export: "ibexInsert".to_owned(),
+        });
+        manifest.functions.push(FunctionDefinition::new(
+            "emptyAction",
+            FunctionKind::Action,
+            FunctionRuntime::HostPlan(HandlerPlan::Action(ActionPlan {
+                steps: Vec::new(),
+                return_value: None,
+            })),
+        ));
+        let diagnostics = snapback.load_functions(manifest);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.severity
+                    != crate::diagnostic::DiagnosticSeverity::Error),
+            "telemetry fixture must load: {diagnostics:?}"
+        );
+
+        let with_correlation = |correlation: &str| HandlerInput {
+            correlation: Some(json!(correlation)),
+            ..input()
+        };
+        stage_and_commit(
+            &mut snapback,
+            &database_path,
+            "hostInsert",
+            with_correlation("host-staged"),
+        );
+        stage_and_commit(
+            &mut snapback,
+            &database_path,
+            "ibexInsert",
+            with_correlation("ibex-staged"),
+        );
+
+        let refused_input = with_correlation("host-refused");
+        let refused_authority = InvocationGate::prepare_dev_input(
+            InvocationSource::LocalMutation,
+            ServerProfile::Test,
+            &refused_input,
+        )
+        .expect("prepare refused staged mutation authority");
+        let (refused_preflight, mut refused_staged) = snapback
+            .stage_recorded_authorization_mutation(
+                "hostInsert",
+                refused_input,
+                None,
+                None,
+                &[],
+                "test",
+                refused_authority,
+            )
+            .expect("stage mutation before authoritative refusal");
+        match &mut refused_staged {
+            StagedRecordedMutation::Ready(staged) => {
+                staged.execution = StagedMutationExecution::HostPlan(MutationPlan {
+                    steps: vec![MutationStep::Insert {
+                        table: "missing_after_stage".to_owned(),
+                        values: BTreeMap::new(),
+                        bind_id_as: None,
+                    }],
+                    return_value: Some(ReturnValue::ChangedCount),
+                });
+            }
+            StagedRecordedMutation::Done(_) => panic!("fresh refusal fixture must stage"),
+        }
+        let (refused, _receipt) = snapback
+            .try_with_direct_authorization_write(refused_preflight, move |snapback| {
+                snapback.commit_staged_recorded_authorization_mutation(refused_staged)
+            })
+            .expect("reserve refused mutation")
+            .expect("record refused mutation");
+        refused.expect_err("authoritative commit must refuse the changed staged plan");
+
+        let action_input = with_correlation("managed-action");
+        let authority = InvocationGate::prepare_admitted_dev_input(
+            InvocationSource::LocalAction,
+            ServerProfile::Test,
+            &action_input,
+            snapback
+                .admission
+                .admit_dev()
+                .expect("admit managed action fixture"),
+        )
+        .expect("prepare managed action authority");
+        let function = snapback
+            .function("emptyAction")
+            .expect("managed action function")
+            .clone();
+        let prepared =
+            InvocationGate::prepare_function(authority, &function).expect("prepare managed action");
+        let action = snapback
+            .stage_managed_host_plan_action(
+                "emptyAction",
+                action_input,
+                super::manual_action_metadata("test", "emptyAction"),
+                prepared,
+            )
+            .expect("stage managed action");
+        let action_controller = snapback.admission.clone();
+        BEFORE_ACTION_RESULT_HANDOFF_HOOK.with(|slot| {
+            *slot.borrow_mut() = Some(Box::new(move || {
+                assert_eq!(
+                    action_controller
+                        .retire_current_epoch_for_test()
+                        .unwrap_err()
+                        .diagnostic
+                        .code,
+                    "SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT"
+                );
+            }));
+        });
+        assert_eq!(
+            action
+                .finish(Ok(Value::Null))
+                .expect_err("retired managed action result")
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_MODE_PENDING"
+        );
+
+        snapback
+            .telemetry
+            .force_flush()
+            .expect("flush function observations");
+        let raw = rusqlite::Connection::open(crate::telemetry::Telemetry::path_for_database(
+            &database_path,
+        ))
+        .expect("open function telemetry sibling");
+        for (name, correlation) in [("hostInsert", "host-staged"), ("ibexInsert", "ibex-staged")] {
+            let count: i64 = raw
+                .query_row(
+                    "SELECT COUNT(*) FROM telemetry_events WHERE kind='function_run' AND name=?1 AND phase='joined' AND status=200 AND correlation=?2",
+                    rusqlite::params![name, correlation],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert_eq!(count, 1, "one completed function span for {name}");
+        }
+        let refused_terminal: (i64, String) = raw
+            .query_row(
+                "SELECT status,code FROM telemetry_events WHERE kind='function_run' AND name='hostInsert' AND phase='joined' AND correlation='host-refused' ORDER BY id DESC LIMIT 1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("authoritative refusal observation");
+        assert_eq!(refused_terminal.0, 500);
+        assert!(!refused_terminal.1.is_empty());
+        let refused_successes: i64 = raw
+            .query_row(
+                "SELECT COUNT(*) FROM telemetry_events WHERE kind='function_run' AND name='hostInsert' AND phase='joined' AND status=200 AND correlation='host-refused'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            refused_successes, 0,
+            "authoritative refusal cannot retain staging status=200"
+        );
+        let managed_failure: (i64, String) = raw
+            .query_row(
+                "SELECT status,code FROM telemetry_events WHERE kind='function_run' AND name='emptyAction' AND phase='joined' AND correlation='managed-action' ORDER BY id DESC LIMIT 1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("managed action handoff terminal");
+        assert_eq!(
+            (managed_failure.0, managed_failure.1.as_str()),
+            (500, "SNAPBACK_AUTH_MODE_PENDING")
+        );
+        let logged: i64 = raw
+            .query_row(
+                "SELECT COUNT(*) FROM telemetry_events WHERE kind='log' AND name='log' AND correlation='ibex-staged' AND details LIKE '%staged-log%'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(logged, 1, "runtime.log stays bound to the staged handler");
+    }
+
+    #[test]
+    fn telemetry_config_persist_failure_restores_the_previous_runtime_policy() {
+        let directory = tempfile::tempdir().expect("config telemetry fixture directory");
+        let database_path = directory.path().join("config-telemetry.sqlite3");
+        let mut snapback = LocalSnapback::open(&database_path).expect("file-backed config fixture");
+        snapback.telemetry.point(
+            "lifecycle",
+            "before_failed_config",
+            Some(200),
+            None,
+            None,
+            None,
+            crate::telemetry::Priority::Normal,
+        );
+        snapback
+            .telemetry
+            .force_flush()
+            .expect("establish telemetry before failed config transition");
+        let telemetry_path = crate::telemetry::Telemetry::path_for_database(&database_path);
+        let raw = rusqlite::Connection::open(&telemetry_path)
+            .expect("open telemetry sibling before failed config transition");
+        let floor_before: i64 = raw
+            .query_row(
+                "SELECT retention_floor FROM telemetry_meta WHERE singleton=1",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let visible_before: i64 = raw
+            .query_row(
+                "SELECT COUNT(*) FROM telemetry_events_visible WHERE name='before_failed_config'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(visible_before, 1);
+        drop(raw);
+        let config_path = crate::config::ConfigStore::path_for_database(&database_path);
+        std::fs::create_dir(&config_path).expect("block atomic config rename with a directory");
+
+        let mut disabled = crate::telemetry::TelemetryConfig::default();
+        disabled.max_days = 0;
+        let error = snapback
+            .set_telemetry_config(disabled)
+            .expect_err("config persistence must fail");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_CONFIG_STORE_IO");
+        assert_eq!(
+            snapback.config.telemetry_config(),
+            &crate::telemetry::TelemetryConfig::default(),
+            "failed persistence does not publish a new durable config"
+        );
+
+        let raw = rusqlite::Connection::open(&telemetry_path)
+            .expect("reopen telemetry sibling after failed config transition");
+        let floor_after: i64 = raw
+            .query_row(
+                "SELECT retention_floor FROM telemetry_meta WHERE singleton=1",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let visible_after: i64 = raw
+            .query_row(
+                "SELECT COUNT(*) FROM telemetry_events_visible WHERE name='before_failed_config'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            floor_after, floor_before,
+            "failed persistence cannot advance the privacy floor"
+        );
+        assert_eq!(
+            visible_after, 1,
+            "failed persistence cannot hide an existing event"
+        );
+        drop(raw);
+
+        snapback.telemetry.point(
+            "lifecycle",
+            "config_compensation_probe",
+            Some(200),
+            None,
+            None,
+            None,
+            crate::telemetry::Priority::Normal,
+        );
+        snapback
+            .telemetry
+            .force_flush()
+            .expect("the compensated runtime accepts observations");
+        let raw =
+            rusqlite::Connection::open(&telemetry_path).expect("open unchanged telemetry sibling");
+        let count: i64 = raw
+            .query_row(
+                "SELECT COUNT(*) FROM telemetry_events WHERE kind='lifecycle' AND name='config_compensation_probe'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn telemetry_runtime_config_failure_compensates_the_durable_config() {
+        let directory = tempfile::tempdir().expect("runtime config failure fixture directory");
+        let database_path = directory.path().join("runtime-config-failure.sqlite3");
+        let mut snapback = LocalSnapback::open(&database_path).expect("file-backed config fixture");
+        let previous = crate::telemetry::TelemetryConfig::default();
+        let mut replacement = previous.clone();
+        replacement.max_days = previous.max_days.saturating_sub(1);
+
+        snapback.telemetry.point(
+            "lifecycle",
+            "before_runtime_config_failure",
+            Some(200),
+            None,
+            None,
+            None,
+            crate::telemetry::Priority::Normal,
+        );
+        snapback
+            .telemetry
+            .force_flush()
+            .expect("establish telemetry sibling before injected runtime failure");
+        snapback.telemetry.fail_next_config_update_for_test();
+        let error = snapback
+            .set_telemetry_config(replacement)
+            .expect_err("injected runtime transition must fail");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_TELEMETRY_TEST_CONFIG_FAILED"
+        );
+        assert_eq!(snapback.config.telemetry_config(), &previous);
+        let reopened = crate::config::ConfigStore::open(
+            crate::config::ConfigStore::path_for_database(&database_path),
+        )
+        .expect("reopen compensated durable config");
+        assert_eq!(reopened.telemetry_config(), &previous);
+
+        snapback.telemetry.point(
+            "lifecycle",
+            "runtime_config_compensation_probe",
+            Some(200),
+            None,
+            None,
+            None,
+            crate::telemetry::Priority::Normal,
+        );
+        snapback
+            .telemetry
+            .force_flush()
+            .expect("prior runtime policy remains live after failed transition");
+        let raw = rusqlite::Connection::open(crate::telemetry::Telemetry::path_for_database(
+            &database_path,
+        ))
+        .expect("open runtime compensation telemetry sibling");
+        let count: i64 = raw
+            .query_row(
+                "SELECT COUNT(*) FROM telemetry_events_visible WHERE name='runtime_config_compensation_probe'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn uncertain_reset_fence_drops_observations_until_boot_reconciliation() {
+        let directory = tempfile::tempdir().expect("reset telemetry fixture directory");
+        let database_path = directory.path().join("reset-telemetry.sqlite3");
+        let snapback =
+            LocalSnapback::open(&database_path).expect("file-backed reset telemetry fixture");
+        snapback.telemetry.point(
+            "lifecycle",
+            "before_uncertain_reset",
+            Some(200),
+            None,
+            None,
+            None,
+            crate::telemetry::Priority::Normal,
+        );
+        snapback
+            .telemetry
+            .force_flush()
+            .expect("establish telemetry sibling before transition");
+
+        snapback.keep_telemetry_closed_for_uncertain_reset();
+        snapback.telemetry.point(
+            "lifecycle",
+            "after_uncertain_reset",
+            Some(200),
+            None,
+            None,
+            None,
+            crate::telemetry::Priority::Normal,
+        );
+        snapback
+            .telemetry
+            .force_flush()
+            .expect("flush fail-closed drop accounting");
+
+        let raw = rusqlite::Connection::open(crate::telemetry::Telemetry::path_for_database(
+            &database_path,
+        ))
+        .expect("open reset telemetry sibling");
+        let before: i64 = raw
+            .query_row(
+                "SELECT COUNT(*) FROM telemetry_events WHERE name='before_uncertain_reset'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let after: i64 = raw
+            .query_row(
+                "SELECT COUNT(*) FROM telemetry_events WHERE name='after_uncertain_reset'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!((before, after), (1, 0));
+    }
+
     fn lane_settlement_snapback() -> LocalSnapback {
         let schema = SchemaManifest {
             schema_hash: Some("lane-settlement-schema".to_owned()),
@@ -38803,6 +40042,116 @@ globalThis.__snapbackHandlers = {
         }
     }
 
+    #[test]
+    fn dropped_staged_function_carriers_record_reserved_cancellation() {
+        let directory = tempfile::tempdir().expect("cancelled function telemetry directory");
+        let database_path = directory.path().join("cancelled-functions.sqlite3");
+        let mut snapback =
+            LocalSnapback::open(&database_path).expect("file-backed cancellation fixture");
+        snapback
+            .apply_schema(reload_schema("cancelled-functions", false))
+            .expect("apply cancellation fixture schema");
+        let mut manifest = guarded_functions();
+        manifest.functions.push(FunctionDefinition::new(
+            "emptyAction",
+            FunctionKind::Action,
+            FunctionRuntime::HostPlan(HandlerPlan::Action(ActionPlan {
+                steps: Vec::new(),
+                return_value: None,
+            })),
+        ));
+        let diagnostics = snapback.load_functions(manifest);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.severity
+                    != crate::diagnostic::DiagnosticSeverity::Error),
+            "cancellation fixture must load: {diagnostics:?}"
+        );
+
+        let mutation_input = HandlerInput {
+            correlation: Some(json!("cancelled-staged-mutation")),
+            ..input()
+        };
+        let mutation_authority = InvocationGate::prepare_dev_input(
+            InvocationSource::LocalMutation,
+            ServerProfile::Test,
+            &mutation_input,
+        )
+        .expect("prepare staged cancellation authority");
+        let (preflight, staged) = snapback
+            .stage_recorded_authorization_mutation(
+                "hostInsert",
+                mutation_input,
+                None,
+                None,
+                &[],
+                "test",
+                mutation_authority,
+            )
+            .expect("stage cancellable mutation");
+        assert!(matches!(staged, StagedRecordedMutation::Ready(_)));
+        drop(staged);
+        drop(preflight);
+
+        let action_input = HandlerInput {
+            correlation: Some(json!("cancelled-managed-action")),
+            ..input()
+        };
+        let authority = InvocationGate::prepare_admitted_dev_input(
+            InvocationSource::LocalAction,
+            ServerProfile::Test,
+            &action_input,
+            snapback
+                .admission
+                .admit_dev()
+                .expect("admit managed cancellation fixture"),
+        )
+        .expect("prepare managed cancellation authority");
+        let function = snapback
+            .function("emptyAction")
+            .expect("managed cancellation function")
+            .clone();
+        let prepared =
+            InvocationGate::prepare_function(authority, &function).expect("prepare managed action");
+        let action = snapback
+            .stage_managed_host_plan_action(
+                "emptyAction",
+                action_input,
+                super::manual_action_metadata("test", "emptyAction"),
+                prepared,
+            )
+            .expect("stage cancellable managed action");
+        drop(action);
+
+        snapback
+            .telemetry
+            .force_flush()
+            .expect("flush carrier cancellations");
+        let raw = rusqlite::Connection::open(crate::telemetry::Telemetry::path_for_database(
+            &database_path,
+        ))
+        .expect("open cancellation telemetry sibling");
+        for (name, correlation) in [
+            ("hostInsert", "cancelled-staged-mutation"),
+            ("emptyAction", "cancelled-managed-action"),
+        ] {
+            let (phase, status, code, details):
+                (String, i64, Option<String>, String) = raw
+                .query_row(
+                    "SELECT phase,status,code,details FROM telemetry_events WHERE kind='function_run' AND name=?1 AND correlation=?2",
+                    rusqlite::params![name, correlation],
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+                )
+                .expect("cancelled carrier terminal");
+            assert_eq!((phase.as_str(), status, code), ("joined", 499, None));
+            assert_eq!(
+                serde_json::from_str::<Value>(&details).unwrap()["cause"],
+                "cancelled"
+            );
+        }
+    }
+
     fn captured_lane_input(now: u64, ids: [&str; 2]) -> HandlerInput {
         HandlerInput {
             ctx_ledger: Some(CtxAnswerLedger {
@@ -38926,8 +40275,7 @@ globalThis.__snapbackHandlers = {
                 .unwrap()
                 .iter()
                 .all(|claim| {
-                    claim["claimed"] == claim["authoritative"]
-                        && claim["disposition"] == "accepted"
+                    claim["claimed"] == claim["authoritative"] && claim["disposition"] == "accepted"
                 })
         );
         assert!(!queued_receipt.to_string().contains("re-derived"));
@@ -39171,7 +40519,14 @@ globalThis.__snapbackHandlers = {
             pinned,
         )
         .expect("lane-Q declaration is inert");
-        assert_eq!(pinned_output.expect("lane Q settles").ctx_ledger.unwrap().now, 23);
+        assert_eq!(
+            pinned_output
+                .expect("lane Q settles")
+                .ctx_ledger
+                .unwrap()
+                .now,
+            23
+        );
         let pinned_row = snapback
             .db
             .scan_table("items", 10, 0)
@@ -39258,11 +40613,7 @@ globalThis.__snapbackHandlers = {
         );
         assert_eq!(snapback.db.scan_table("items", 10, 0).unwrap().total, 0);
         assert_eq!(
-            snapback
-                .db
-                .scan_table("permissions", 10, 0)
-                .unwrap()
-                .total,
+            snapback.db.scan_table("permissions", 10, 0).unwrap().total,
             0
         );
         assert_eq!(snapback.durable_version().unwrap(), 0);
@@ -39283,11 +40634,7 @@ globalThis.__snapbackHandlers = {
         );
         assert_eq!(snapback.db.scan_table("items", 10, 0).unwrap().total, 1);
         assert_eq!(
-            snapback
-                .db
-                .scan_table("permissions", 10, 0)
-                .unwrap()
-                .total,
+            snapback.db.scan_table("permissions", 10, 0).unwrap().total,
             0
         );
         assert_eq!(snapback.durable_version().unwrap(), 1);
@@ -39901,9 +41248,7 @@ globalThis.__snapbackHandlers = {
 
         let diagnostics = snapback.load_functions(FunctionManifest::default());
         assert!(
-            diagnostics
-                .iter()
-                .all(|diagnostic| {
+            diagnostics.iter().all(|diagnostic| {
                     diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error
                 }),
             "{diagnostics:?}"
@@ -40173,6 +41518,193 @@ globalThis.__snapbackHandlers = {
             supersedes: None,
             resume_from_token: None,
         }
+    }
+
+    #[test]
+    fn live_subscription_observations_join_once_and_record_disconnect_cause() {
+        let directory = tempfile::tempdir().expect("live telemetry fixture directory");
+        let database_path = directory.path().join("live-telemetry.sqlite3");
+        let mut snapback = live_limit_snapback();
+        snapback.telemetry = crate::telemetry::Telemetry::open_for_database(
+            &database_path,
+            "01900000-0000-7000-8000-000000000001",
+            crate::telemetry::TelemetryConfig::default(),
+        )
+        .expect("file-backed live telemetry");
+
+        let unsubscribed = snapback
+            .subscribe_live("listItems", live_limit_input("live-unsubscribe", json!({})))
+            .expect("subscribe first live observation");
+        snapback
+            .telemetry
+            .force_flush()
+            .expect("flush admission before completion");
+        let raw = rusqlite::Connection::open(crate::telemetry::Telemetry::path_for_database(
+            &database_path,
+        ))
+        .expect("open live telemetry sibling");
+        let admission_only: i64 = raw
+            .query_row(
+                "SELECT count(*) FROM telemetry_events WHERE kind='live_subscribe' AND phase='admission'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let premature_terminal: i64 = raw
+            .query_row(
+                "SELECT count(*) FROM telemetry_events WHERE kind='live_subscribe' AND phase='terminal'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!((admission_only, premature_terminal), (1, 0));
+
+        snapback
+            .unsubscribe_live(
+                "listItems",
+                LiveUnsubscribeInput {
+                    subscription_id: unsubscribed.subscription_id,
+                    connection_id: "live-unsubscribe".to_owned(),
+                    auth: Default::default(),
+                },
+            )
+            .expect("explicit unsubscribe terminal");
+        snapback
+            .subscribe_live("listItems", live_limit_input("live-disconnect", json!({})))
+            .expect("subscribe disconnect observation");
+        snapback.disconnect_topology_for_transport("live-disconnect", 1);
+        snapback
+            .telemetry
+            .force_flush()
+            .expect("flush live terminals");
+
+        let mut statement = raw
+            .prepare(
+                "SELECT observation,phase,generation,correlation,details,recorded_ts_ms FROM telemetry_events WHERE kind='live_subscribe' ORDER BY id",
+            )
+            .unwrap();
+        let rows = statement
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, Option<String>>(3)?,
+                    row.get::<_, Option<String>>(4)?,
+                    row.get::<_, i64>(5)?,
+                ))
+            })
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        let mut by_observation = BTreeMap::<String, Vec<_>>::new();
+        for row in rows {
+            by_observation.entry(row.0.clone()).or_default().push(row);
+        }
+        assert_eq!(by_observation.len(), 2);
+        let mut causes = BTreeSet::new();
+        for records in by_observation.values() {
+            assert_eq!(records.len(), 2, "one admission and one terminal");
+            assert_eq!(records[0].1, "admission");
+            assert_eq!(records[1].1, "terminal");
+            assert_eq!(records[0].2, records[1].2, "generation is admission-bound");
+            assert_eq!(
+                records[0].3, records[1].3,
+                "correlation remains connection-bound"
+            );
+            let details: Value =
+                serde_json::from_str(records[1].4.as_deref().expect("terminal cause details"))
+                    .unwrap();
+            causes.insert(details["cause"].as_str().unwrap().to_owned());
+            if records[0].3.as_deref() == Some("live-unsubscribe") {
+                assert!(
+                    records[1].5 > records[0].5,
+                    "a later flush timestamps completion after admission"
+                );
+            }
+        }
+        assert_eq!(
+            causes,
+            BTreeSet::from(["disconnected".to_owned(), "unsubscribed".to_owned()])
+        );
+    }
+
+    #[test]
+    fn live_resume_retires_predecessor_before_successor_admission() {
+        let directory = tempfile::tempdir().expect("resume telemetry fixture directory");
+        let database_path = directory.path().join("resume-telemetry.sqlite3");
+        let mut snapback = live_limit_snapback();
+        snapback.telemetry = crate::telemetry::Telemetry::open_for_database(
+            &database_path,
+            "01900000-0000-7000-8000-000000000001",
+            crate::telemetry::TelemetryConfig::default(),
+        )
+        .expect("file-backed resume telemetry");
+        let subscribed = snapback
+            .subscribe_live("listItems", live_limit_input("resume-before", json!({})))
+            .expect("initial live subscription");
+        snapback
+            .resume_live(
+                "listItems",
+                LiveResumeInput {
+                    subscription_id: subscribed.subscription_id.clone(),
+                    connection_id: "resume-after".to_owned(),
+                    auth: AuthInput::default(),
+                    recorded_permission_epochs: subscribed.permission_epochs,
+                },
+            )
+            .expect("authoritative retained resume");
+        snapback
+            .unsubscribe_live(
+                "listItems",
+                LiveUnsubscribeInput {
+                    subscription_id: subscribed.subscription_id,
+                    connection_id: "resume-after".to_owned(),
+                    auth: AuthInput::default(),
+                },
+            )
+            .expect("finish resumed successor");
+        snapback.telemetry.force_flush().expect("flush resume spans");
+        let raw = rusqlite::Connection::open(crate::telemetry::Telemetry::path_for_database(
+            &database_path,
+        ))
+        .expect("open resume telemetry");
+        let rows = raw
+            .prepare(
+                "SELECT observation,phase,correlation,details FROM telemetry_events WHERE kind='live_subscribe' ORDER BY id",
+            )
+            .unwrap()
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, Option<String>>(2)?,
+                    row.get::<_, Option<String>>(3)?,
+                ))
+            })
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(rows.len(), 4);
+        assert_eq!(
+            rows.iter()
+                .map(|row| (row.1.as_str(), row.2.as_deref()))
+                .collect::<Vec<_>>(),
+            vec![
+                ("admission", Some("resume-before")),
+                ("terminal", Some("resume-before")),
+                ("admission", Some("resume-after")),
+                ("terminal", Some("resume-after")),
+            ],
+            "the resume commit retires the predecessor before admitting its successor"
+        );
+        assert_eq!(rows[0].0, rows[1].0);
+        assert_eq!(rows[2].0, rows[3].0);
+        assert_ne!(rows[0].0, rows[2].0);
+        let predecessor: Value = serde_json::from_str(rows[1].3.as_deref().unwrap()).unwrap();
+        let successor: Value = serde_json::from_str(rows[3].3.as_deref().unwrap()).unwrap();
+        assert_eq!(predecessor["cause"], "resumed");
+        assert_eq!(successor["cause"], "unsubscribed");
     }
 
     fn install_test_invalidation(
@@ -43403,8 +44935,7 @@ globalThis.__snapbackHandlers = {
         };
         let functions = FunctionManifest::default();
 
-        let facts =
-            super::invocation_facts_from_manifests(AuthMode::Sessions, &schema, &functions)
+        let facts = super::invocation_facts_from_manifests(AuthMode::Sessions, &schema, &functions)
             .expect("facts derivation must not fail the invocation");
         assert!(
             facts.is_none(),
@@ -44408,6 +45939,303 @@ globalThis.__snapbackHandlers = {
     /// publication through the ordinary live machinery — no privileged
     /// channel, no sleeping.
     #[test]
+    fn retired_job_publication_emits_a_failure_terminal() {
+        let directory = tempfile::tempdir().expect("job telemetry fixture directory");
+        let database_path = directory.path().join("job-telemetry.sqlite3");
+        let mut snapback =
+            LocalSnapback::open(&database_path).expect("file-backed job telemetry fixture");
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![
+                FunctionDefinition::new(
+                    "scheduleOnly",
+                    FunctionKind::Mutation,
+                    FunctionRuntime::IbexModule(IbexModule {
+                        source: "globalThis.__snapbackHandlers = { async scheduleOnly(ctx) { return await ctx.jobs.enqueue('inertNotify', {}); } };"
+                            .to_owned(),
+                        export: "scheduleOnly".to_owned(),
+                    }),
+                ),
+                FunctionDefinition::new(
+                    "inertNotify",
+                    FunctionKind::Action,
+                    FunctionRuntime::HostPlan(HandlerPlan::Action(ActionPlan {
+                        steps: Vec::new(),
+                        return_value: None,
+                    })),
+                ),
+            ],
+            acknowledged_experimental_capabilities: vec!["jobs_one_off_v1".to_owned()],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.severity
+                    != crate::diagnostic::DiagnosticSeverity::Error),
+            "job telemetry fixture must load: {diagnostics:?}"
+        );
+        let output = snapback
+            .invoke_mutation("scheduleOnly", HandlerInput::default())
+            .expect("enqueue telemetry fixture job");
+        let available_at = output.result["availableAtMs"]
+            .as_u64()
+            .expect("enqueue returns availability");
+        let mut claims = snapback
+            .claim_due_jobs(
+                available_at,
+                1,
+                "telemetry-test",
+                DiagnosticBoundary::Attached,
+            )
+            .expect("claim telemetry fixture job");
+        assert_eq!(claims.len(), 1);
+        assert_eq!(
+            snapback
+                .admission
+                .retire_current_epoch_for_test()
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT"
+        );
+        assert_eq!(
+            snapback
+                .finish_job_claim(claims.remove(0), Ok(Value::Null))
+                .expect_err("retired job result publication")
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_MODE_PENDING"
+        );
+
+        snapback
+            .telemetry
+            .force_flush()
+            .expect("flush rejected job terminal");
+        let raw = rusqlite::Connection::open(crate::telemetry::Telemetry::path_for_database(
+            &database_path,
+        ))
+        .expect("open job telemetry sibling");
+        let (phase, status, code): (String, i64, String) = raw
+            .query_row(
+                "SELECT phase,status,code FROM telemetry_events WHERE kind='job_run' AND name='inertNotify' ORDER BY id DESC LIMIT 1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .expect("job publication guard terminal observation");
+        assert_eq!(
+            (phase.as_str(), status, code.as_str()),
+            ("joined", 500, "SNAPBACK_AUTH_MODE_PENDING")
+        );
+    }
+
+    #[test]
+    fn dead_job_keeps_attached_diagnostic_without_standalone_duplicate() {
+        let directory = tempfile::tempdir().expect("dead job telemetry directory");
+        let database_path = directory.path().join("dead-job.sqlite3");
+        let mut snapback = LocalSnapback::open(&database_path).expect("dead job fixture");
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![
+                FunctionDefinition::new(
+                    "scheduleDead",
+                    FunctionKind::Mutation,
+                    FunctionRuntime::IbexModule(IbexModule {
+                        source: "globalThis.__snapbackHandlers = { async scheduleDead(ctx) { return await ctx.jobs.enqueue('failOnce', {}, { maxAttempts: 1 }); } };"
+                            .to_owned(),
+                        export: "scheduleDead".to_owned(),
+                    }),
+                ),
+                FunctionDefinition::new(
+                    "failOnce",
+                    FunctionKind::Action,
+                    FunctionRuntime::HostPlan(HandlerPlan::Action(ActionPlan {
+                        steps: Vec::new(),
+                        return_value: None,
+                    })),
+                ),
+            ],
+            acknowledged_experimental_capabilities: vec!["jobs_one_off_v1".to_owned()],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.severity
+                    != crate::diagnostic::DiagnosticSeverity::Error),
+            "dead job fixture loads: {diagnostics:?}"
+        );
+        let output = snapback
+            .invoke_mutation("scheduleDead", HandlerInput::default())
+            .expect("enqueue dead job fixture");
+        let available_at = output.result["availableAtMs"].as_u64().unwrap();
+        let mut claims = snapback
+            .claim_due_jobs(
+                available_at,
+                1,
+                "telemetry-test",
+                DiagnosticBoundary::Attached,
+            )
+            .expect("claim dead job fixture");
+        let failure = crate::diagnostic::Diagnostic::error(
+            "SNAPBACK_JOB_TEST_FAILURE",
+            "jobs",
+            "closed fixture failure",
+        );
+        let record = snapback
+            .finish_job_claim(claims.remove(0), Err(failure))
+            .expect("publish dead job terminal");
+        assert_eq!(record.disposition, "dead");
+        assert!(
+            snapback
+                .recent_diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "SNAPBACK_JOB_TEST_FAILURE"),
+            "the attached diagnostic remains in the bounded operator ring"
+        );
+        snapback.telemetry.force_flush().expect("flush dead job telemetry");
+        assert_eq!(
+            snapback.telemetry.event_outcomes_for_test(
+                "job_run",
+                "failOnce",
+                "joined"
+            ),
+            vec![(Some(500), Some("SNAPBACK_JOB_TEST_FAILURE".to_owned()))]
+        );
+        assert_eq!(
+            snapback.telemetry.event_count_for_test(
+                "diagnostic",
+                "SNAPBACK_JOB_TEST_FAILURE",
+                "point"
+            ),
+            0,
+        );
+    }
+
+    #[test]
+    fn startup_and_http_publication_project_diagnostics_at_their_declared_boundary() {
+        for (boundary, expected_standalone) in [
+            (DiagnosticBoundary::Standalone, 1),
+            (DiagnosticBoundary::Attached, 0),
+        ] {
+            let directory = tempfile::tempdir().expect("publication boundary directory");
+            let database_path = directory.path().join("publication-boundary.sqlite3");
+            let mut snapback =
+                LocalSnapback::open(&database_path).expect("publication boundary fixture");
+            let generation = snapback
+                .reserve_function_publication_generation()
+                .expect("reserve publication generation");
+            INJECT_NEXT_PUBLICATION_WARNING.with(|inject| inject.set(true));
+            let diagnostics = snapback.publish_preflighted_functions(
+                FunctionManifest::default(),
+                generation,
+                boundary,
+            );
+            assert!(
+                diagnostics
+                    .iter()
+                    .any(|diagnostic| diagnostic.code == "SNAPBACK_CONFIG_TRANSIT_RULE"),
+                "the production publication seam received its deterministic warning"
+            );
+            assert!(
+                snapback
+                    .recent_diagnostics
+                    .iter()
+                    .any(|diagnostic| diagnostic.code == "SNAPBACK_CONFIG_TRANSIT_RULE"),
+                "both boundaries retain the warning in the operator ring"
+            );
+            snapback
+                .telemetry
+                .force_flush()
+                .expect("flush publication boundary telemetry");
+            assert_eq!(
+                snapback.telemetry.event_count_for_test(
+                    "diagnostic",
+                    "SNAPBACK_CONFIG_TRANSIT_RULE",
+                    "point",
+                ),
+                expected_standalone,
+                "startup owns a standalone point while HTTP publication stays attached"
+            );
+        }
+    }
+
+    #[test]
+    fn autonomous_and_forced_partial_job_claims_project_at_their_declared_boundary() {
+        for (boundary, expected_standalone) in [
+            (DiagnosticBoundary::Standalone, 1),
+            (DiagnosticBoundary::Attached, 0),
+        ] {
+            let directory = tempfile::tempdir().expect("job boundary directory");
+            let database_path = directory.path().join("job-boundary.sqlite3");
+            let mut snapback = LocalSnapback::open(&database_path).expect("job boundary fixture");
+            let diagnostics = snapback.load_functions(FunctionManifest {
+                functions: vec![
+                    FunctionDefinition::new(
+                        "scheduleBoundaryJob",
+                        FunctionKind::Mutation,
+                        FunctionRuntime::IbexModule(IbexModule {
+                            source: "globalThis.__snapbackHandlers = { async scheduleBoundaryJob(ctx) { return await ctx.jobs.enqueue('boundaryJob', {}); } };"
+                                .to_owned(),
+                            export: "scheduleBoundaryJob".to_owned(),
+                        }),
+                    ),
+                    FunctionDefinition::new(
+                        "boundaryJob",
+                        FunctionKind::Action,
+                        FunctionRuntime::HostPlan(HandlerPlan::Action(ActionPlan {
+                            steps: Vec::new(),
+                            return_value: None,
+                        })),
+                    ),
+                ],
+                acknowledged_experimental_capabilities: vec!["jobs_one_off_v1".to_owned()],
+                ..FunctionManifest::default()
+            });
+            assert!(
+                diagnostics.iter().all(|diagnostic| diagnostic.severity
+                    != crate::diagnostic::DiagnosticSeverity::Error),
+                "job boundary fixture loads: {diagnostics:?}"
+            );
+            let first = snapback
+                .invoke_mutation("scheduleBoundaryJob", HandlerInput::default())
+                .expect("enqueue first boundary job");
+            let second = snapback
+                .invoke_mutation("scheduleBoundaryJob", HandlerInput::default())
+                .expect("enqueue second boundary job");
+            let now_ms = first.result["availableAtMs"]
+                .as_u64()
+                .unwrap()
+                .max(second.result["availableAtMs"].as_u64().unwrap());
+
+            FAIL_NEXT_ADDITIONAL_JOB_ADMISSION.with(|fail| fail.set(true));
+            let claims = snapback
+                .claim_due_jobs(now_ms, 2, "boundary-test", boundary)
+                .expect("claim admitted prefix");
+            assert_eq!(claims.len(), 1, "the second durable claim loses admission");
+            assert!(
+                snapback
+                    .recent_diagnostics
+                    .iter()
+                    .any(|diagnostic| diagnostic.code == "SNAPBACK_AUTH_MODE_PENDING"),
+                "partial admission failure remains in the bounded operator ring"
+            );
+            drop(claims);
+            snapback
+                .telemetry
+                .force_flush()
+                .expect("flush job boundary telemetry");
+            assert_eq!(
+                snapback.telemetry.event_count_for_test(
+                    "diagnostic",
+                    "SNAPBACK_AUTH_MODE_PENDING",
+                    "point",
+                ),
+                expected_standalone,
+                "autonomous drain owns a standalone point while forced drain stays attached"
+            );
+        }
+    }
+
+    #[test]
     fn job_status_live_query_updates_across_the_job_lifecycle() {
         let mut snapback = LocalSnapback::memory().expect("memory instance");
         let manifest = FunctionManifest {
@@ -44504,7 +46332,12 @@ globalThis.__snapbackHandlers = {
 
         // Injected-clock claim: the subscription observes the claimed state.
         let mut claims = snapback
-            .claim_due_jobs(available_at, 64, "forced-drain")
+            .claim_due_jobs(
+                available_at,
+                64,
+                "forced-drain",
+                DiagnosticBoundary::Attached,
+            )
             .expect("claim due jobs");
         assert_eq!(claims.len(), 1);
         let envelopes = rqs_drained_envelopes(&mut snapback, "conn-jobs");

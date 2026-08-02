@@ -231,6 +231,16 @@ pub struct ClaimedJob {
     pub idempotency_key: Option<String>,
 }
 
+impl ClaimedJob {
+    /// Bounded admission facts for the non-billable scheduled wrapper. The
+    /// action itself is observed independently as a logical function run.
+    ///
+    /// @ref LLP 0154#d2--the-observation-span-classification-registry-and-phase-1-kinds
+    pub(crate) fn telemetry_details(&self) -> Value {
+        serde_json::json!({ "attempt": self.attempt, "trigger": "job" })
+    }
+}
+
 /// Terminal classification a finished attempt publishes.
 #[derive(Clone, Debug)]
 pub enum JobAttemptOutcome {
@@ -272,6 +282,17 @@ pub struct JobDrainRecord {
     pub diagnostic_code: Option<String>,
     #[serde(rename = "nextAvailableAtMs")]
     pub next_available_at_ms: Option<u64>,
+}
+
+impl JobDrainRecord {
+    pub(crate) fn telemetry_terminal(&self) -> (i64, Option<&str>) {
+        match self.disposition.as_str() {
+            "succeeded" => (200, None),
+            "retry_pending" | "dead" => (500, self.diagnostic_code.as_deref()),
+            "stale_publication" => (409, None),
+            _ => (500, self.diagnostic_code.as_deref()),
+        }
+    }
 }
 
 pub fn create_jobs_infra(conn: &Connection) -> SnapbackResult<()> {

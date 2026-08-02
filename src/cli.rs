@@ -5,7 +5,7 @@ use crate::admin_secret_read::{
 };
 use crate::host_ops::{HOST_OPS_RESULT_KIND, HostOpsArtifacts, HostOpsResult, HostReadyDescriptor};
 use crate::instance_lock::{DatabaseInstanceLock, StartupTargetReservation};
-use crate::local::LocalSnapback;
+use crate::local::{DiagnosticBoundary, LocalSnapback};
 use crate::manifest::SNAPBACK_SCHEMA_VERSION;
 use crate::server;
 use anyhow::Context;
@@ -245,6 +245,7 @@ async fn compose_auth_mode_startup_with_embedded(
                 snapback.publish_preflighted_functions(
                     carrier.functions.clone(),
                     publication_generation,
+                    DiagnosticBoundary::Standalone,
                 );
                 return Ok(snapshot.state);
             }
@@ -273,6 +274,7 @@ async fn compose_auth_mode_startup_with_embedded(
                     snapback.publish_preflighted_functions(
                         carrier.functions.clone(),
                         publication_generation,
+                        DiagnosticBoundary::Standalone,
                     );
                     return Ok(state.state);
                 }
@@ -373,7 +375,11 @@ async fn compose_auth_mode_startup_with_embedded(
             auth_runtime.mark_catalog_ready_after_mode_activation();
             drop(maintenance);
             snapback
-                .publish_preflighted_functions(carrier.functions.clone(), publication_generation);
+                .publish_preflighted_functions(
+                    carrier.functions.clone(),
+                    publication_generation,
+                    DiagnosticBoundary::Standalone,
+                );
             Ok(state)
         }
         (AuthMode::Sessions, AuthMode::Dev) => {
@@ -413,7 +419,11 @@ async fn compose_auth_mode_startup_with_embedded(
                 .await
                 .clear_mailbox_after_committed_reset();
             snapback
-                .publish_preflighted_functions(carrier.functions.clone(), publication_generation);
+                .publish_preflighted_functions(
+                    carrier.functions.clone(),
+                    publication_generation,
+                    DiagnosticBoundary::Standalone,
+                );
             Ok(result.state)
         }
         _ => Err(crate::auth::mode::mode_corrupt(
@@ -2188,6 +2198,27 @@ pub(crate) async fn run_embedded(
     run_composed(args, Some(embedded_startup_artifacts)).await
 }
 
+/// Apply the telemetry side of the already-durable declared-restore outcome.
+/// An idempotent replay is an ordinary boot: beginning a generation fence for
+/// it would discard this boot's process evidence even though no authority
+/// incarnation changed.
+// @ref LLP 0057#restore — only the non-idempotent restore branch rotates the
+//   authorization-stream incarnation; replay preserves authority created later.
+// @ref LLP 0154#d1--telemetry-store-a-sibling-sqlite-database-generation-bound —
+//   telemetry rotates exactly when the committed app incarnation rotates.
+fn apply_declared_restore_telemetry_outcome(
+    snapback: &mut LocalSnapback,
+    outcome: crate::auth::lifecycle::DeclaredRestoreOutcome,
+) -> crate::diagnostic::SnapbackResult<()> {
+    match outcome {
+        crate::auth::lifecycle::DeclaredRestoreOutcome::Applied { .. } => {
+            snapback.begin_telemetry_generation_transition();
+            snapback.rebind_telemetry_to_current_incarnation("restore_generation_rotation")
+        }
+        crate::auth::lifecycle::DeclaredRestoreOutcome::AlreadyApplied => Ok(()),
+    }
+}
+
 async fn run_composed(
     args: Args,
     embedded_startup_artifacts: Option<crate::auth::mode::StartupArtifacts>,
@@ -2388,7 +2419,7 @@ async fn run_composed(
                 // though its maintenance authority is acquired
                 // asynchronously; execute the transaction in the sanctioned
                 // startup blocking section.
-                startup_blocking(|| {
+                let restore = startup_blocking(|| {
                     crate::auth::lifecycle::apply_declared_restore(
                         snapback.auth_database_mut(),
                         maintenance.mailbox(),
@@ -2396,7 +2427,13 @@ async fn run_composed(
                         declaration_id,
                         provider.now_ms(),
                     )
-                })?;
+                });
+                match restore {
+                    Ok(outcome) => {
+                        apply_declared_restore_telemetry_outcome(&mut snapback, outcome)?
+                    }
+                    Err(error) => return Err(error.into()),
+                }
             }
             None if declaration_present => {
                 return Err(anyhow::Error::new(crate::diagnostic::SnapbackError::error(
@@ -3226,6 +3263,21 @@ fn managed_startup_paths(
             label: "config store",
             path: crate::config::ConfigStore::path_for_database(database),
         });
+        let telemetry = crate::telemetry::Telemetry::path_for_database(database);
+        paths.push(ManagedPath {
+            label: "telemetry store",
+            path: telemetry.clone(),
+        });
+        for (label, suffix) in [
+            ("telemetry SQLite WAL", "-wal"),
+            ("telemetry SQLite shared memory", "-shm"),
+            ("telemetry SQLite journal", "-journal"),
+        ] {
+            paths.push(ManagedPath {
+                label,
+                path: path_with_filename_suffix(&telemetry, suffix)?,
+            });
+        }
         paths.push(ManagedPath {
             label: "admin token",
             path: crate::admin::admin_token_sibling(database),
@@ -5329,6 +5381,106 @@ mod tests {
                 "019b0000-0000-7000-8000-000000000000",
             ])
             .is_err()
+        );
+    }
+
+    #[test]
+    fn declared_restore_telemetry_rotates_only_for_applied_and_preserves_replay_boot_evidence() {
+        let directory = tempfile::tempdir().unwrap();
+        let database_path = directory.path().join("app.sqlite3");
+        let mut snapback = crate::local::LocalSnapback::open(&database_path).unwrap();
+        let telemetry = snapback.telemetry();
+        let telemetry_path = crate::telemetry::Telemetry::path_for_database(&database_path);
+        telemetry.force_flush().unwrap();
+        let generation_before: String = rusqlite::Connection::open(&telemetry_path)
+            .unwrap()
+            .query_row(
+                "SELECT generation FROM telemetry_meta WHERE singleton=1",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        telemetry.point(
+            "lifecycle",
+            "current_boot_replay_witness",
+            Some(200),
+            None,
+            None,
+            None,
+            crate::telemetry::Priority::Reserved,
+        );
+        let boot_depth = telemetry.diagnostics().depth;
+
+        super::apply_declared_restore_telemetry_outcome(
+            &mut snapback,
+            crate::auth::lifecycle::DeclaredRestoreOutcome::AlreadyApplied,
+        )
+        .unwrap();
+        assert_eq!(
+            telemetry.diagnostics().depth,
+            boot_depth,
+            "idempotent replay must not clear this boot's process evidence"
+        );
+        telemetry.force_flush().unwrap();
+        let generation_after_replay: String = rusqlite::Connection::open(&telemetry_path)
+            .unwrap()
+            .query_row(
+                "SELECT generation FROM telemetry_meta WHERE singleton=1",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(generation_after_replay, generation_before);
+        assert_eq!(
+            telemetry.event_count_for_test("lifecycle", "process_start", "point"),
+            1,
+            "the replayed start keeps the current boot marker visible"
+        );
+        assert_eq!(
+            telemetry.event_count_for_test(
+                "lifecycle",
+                "current_boot_replay_witness",
+                "point",
+            ),
+            1,
+            "the replay leaves already-admitted current-boot evidence buffered"
+        );
+        assert_eq!(
+            telemetry.event_count_for_test(
+                "lifecycle",
+                "restore_generation_rotation",
+                "point",
+            ),
+            0,
+            "AlreadyApplied emits no restore rotation marker"
+        );
+
+        super::apply_declared_restore_telemetry_outcome(
+            &mut snapback,
+            crate::auth::lifecycle::DeclaredRestoreOutcome::Applied {
+                sessions_revoked: 0,
+                challenges_deleted: 0,
+            },
+        )
+        .unwrap();
+        telemetry.force_flush().unwrap();
+        let generation_after_apply: String = rusqlite::Connection::open(&telemetry_path)
+            .unwrap()
+            .query_row(
+                "SELECT generation FROM telemetry_meta WHERE singleton=1",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_ne!(generation_after_apply, generation_before);
+        assert_eq!(
+            telemetry.event_count_for_test(
+                "lifecycle",
+                "restore_generation_rotation",
+                "point",
+            ),
+            1,
+            "only Applied rotates and emits the restore marker"
         );
     }
 

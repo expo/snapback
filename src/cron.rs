@@ -75,6 +75,17 @@ pub enum CronRunTrigger {
     DemandCatchUp,
 }
 
+impl CronRunTrigger {
+    pub(crate) fn telemetry_name(&self) -> &'static str {
+        match self {
+            Self::Scheduled => "scheduled",
+            Self::Manual => "manual",
+            Self::Recovery => "recovery",
+            Self::DemandCatchUp => "demand_catch_up",
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum CronRunOutcome {
     Succeeded,
@@ -110,6 +121,31 @@ pub struct CronRunRecord {
     pub result: Option<Value>,
 }
 
+impl CronRunRecord {
+    /// Closed terminal facts for the `job_run` observation wrapper.
+    /// The invoked action has its own `function_run`; this carrier stays a
+    /// separate non-billable classification seam.
+    ///
+    /// @ref LLP 0154#d2--the-observation-span-classification-registry-and-phase-1-kinds
+    pub(crate) fn telemetry_terminal(&self) -> (i64, Option<&str>) {
+        match self.outcome {
+            CronRunOutcome::Succeeded => (200, None),
+            CronRunOutcome::Failed => (
+                500,
+                self.diagnostic
+                    .as_ref()
+                    .map(|diagnostic| diagnostic.code.as_str()),
+            ),
+            CronRunOutcome::Skipped => (
+                429,
+                self.diagnostic
+                    .as_ref()
+                    .map(|diagnostic| diagnostic.code.as_str()),
+            ),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct CronRunMetadata {
     #[serde(rename = "jobName")]
@@ -126,6 +162,15 @@ pub struct CronRunMetadata {
     pub slot_key: String,
     pub attempt: u32,
     pub trigger: CronRunTrigger,
+}
+
+impl CronRunMetadata {
+    pub(crate) fn telemetry_details(&self) -> Value {
+        serde_json::json!({
+            "attempt": self.attempt,
+            "trigger": self.trigger.telemetry_name(),
+        })
+    }
 }
 
 #[derive(Clone, Debug)]

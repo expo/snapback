@@ -72,9 +72,8 @@ use crate::manifest::{
     ActionReturnValue, ActionStep, ArtifactGeneration, AuthInput, AuthMode, AuthRequirement,
     AuthorityDescriptor, CtxAnswerLedger, FunctionCallRequest, FunctionInvocationFacts,
     FunctionKind, FunctionManifest, FunctionResponse, FunctionRuntime, HandlerInput,
-    MutationAcknowledgementRequest,
-    MutationAcknowledgementResponse, MutationOutput, MutationRequest, QueryOutput, ReadDependency,
-    SchemaManifest, SeedData,
+    MutationAcknowledgementRequest, MutationAcknowledgementResponse, MutationOutput,
+    MutationRequest, QueryOutput, ReadDependency, SchemaManifest, SeedData,
 };
 use crate::runtime::{
     ActionStreamChunk, ActionStreamOpened, ActionStreamRequest, CapabilityState, IbexActionHost,
@@ -1379,19 +1378,36 @@ impl IbexActionHost for DetachedActionHost {
             StagedNestedMutation::Detached(staged) => {
                 let crate::local::DetachedIbexMutation { binding, read } = *staged;
                 let input = binding.invocation.canonicalize_input(input);
+                let telemetry = snapback.telemetry();
+                let correlation = input
+                    .correlation
+                    .as_ref()
+                    .and_then(Value::as_str)
+                    .map(str::to_owned);
+                let span = telemetry.start_span(
+                    "function_run",
+                    name,
+                    correlation.as_deref(),
+                    None,
+                    false,
+                );
                 drop(snapback);
+                let output = (|| {
                 let module = match &binding.function.runtime {
                     FunctionRuntime::IbexModule(module) => module,
                     _ => unreachable!("detached nested mutation must be an Ibex module"),
                 };
-                let executed = match read {
+                    let executed = crate::runtime::with_runtime_log_telemetry(
+                        telemetry.clone(),
+                        correlation,
+                        || match read {
                     DetachedMutationRead::Lane(read) => read.execute_detached_ibex_mutation(
                         module,
                         input.clone(),
                         &binding.invocation,
                         &binding.schema,
                         self.deadline,
-                    )?,
+                            ),
                     DetachedMutationRead::Snapshot(db) => {
                         crate::runtime::execute_ibex_mutation_prepared(
                             module,
@@ -1400,9 +1416,10 @@ impl IbexActionHost for DetachedActionHost {
                             crate::storage::DbRead::Live(db.as_ref()),
                             None,
                             Some(self.deadline),
-                        )?
+                                )
                     }
-                };
+                        },
+                    )?;
 
                 // The handler ran exactly once off Local. Reenter only to
                 // preview its immutable buffered effects, then release Local
@@ -1443,10 +1460,19 @@ impl IbexActionHost for DetachedActionHost {
                 if let Some(unused) = unused {
                     unused.cancel();
                 }
-                let output = match outcome {
+                    match outcome {
                     Ok(result) => result,
                     Err(payload) => std::panic::resume_unwind(payload),
-                };
+                    }
+                })();
+                match &output {
+                    Ok(_) => span.finish(Some(200), None, None),
+                    Err(error) => span.finish(
+                        Some(500),
+                        Some(&error.diagnostic.code),
+                        Some(json!({ "severity": error.diagnostic.severity.clone() })),
+                    ),
+                }
                 if output.is_ok() {
                     // @ref LLP 0076#settlement-and-retry — a successful
                     // nested commit while an attempt cursor is open counts as
@@ -2378,6 +2404,8 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
             let stream_runner = stream_runner.clone();
             move || {
                 let crate::local::DetachedIbexAction {
+                    function_name,
+                    telemetry,
                     module,
                     grants,
                     redactor,
@@ -2386,6 +2414,18 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                     app_generation,
                     app_generation_fence,
                 } = *action;
+                let correlation = input
+                    .correlation
+                    .as_ref()
+                    .and_then(Value::as_str)
+                    .map(str::to_owned);
+                let span = telemetry.start_span(
+                    "function_run",
+                    &function_name,
+                    correlation.as_deref(),
+                    None,
+                    false,
+                );
                 let mut host = DetachedActionHost {
                     state,
                     abandoned,
@@ -2406,7 +2446,11 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                     automatic_retry_invocation,
                 };
                 let input = invocation.canonicalize_input(input);
-                let result = runtime.invoke_ibex_action_prepared(
+                let result = crate::runtime::with_runtime_log_telemetry(
+                    telemetry.clone(),
+                    correlation,
+                    || {
+                        runtime.invoke_ibex_action_prepared(
                     &module,
                     input,
                     &invocation,
@@ -2414,6 +2458,8 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                     &mut host,
                     grants,
                     Some(execution_deadline),
+                        )
+                    },
                 );
                 let result = match result {
                     Err(_error) if Instant::now() >= execution_deadline => {
@@ -2474,11 +2520,20 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                 crate::stream_attempt::global_stream_attempt_registry()
                     .terminalize_invocation(&stream_runner, terminal_cause);
                 host.flush_stream_attempts_trusted();
-                fenced
+                let result = fenced
                     // This is the earliest common envelope boundary and
                     // carries the staging-time values, so rotation cannot
                     // make an old secret invisible to the scrubber.
-                    .map_err(|error| redactor.redact_error(error))
+                    .map_err(|error| redactor.redact_error(error));
+                match &result {
+                    Ok(_) => span.finish(Some(200), None, None),
+                    Err(error) => span.finish(
+                        Some(500),
+                        Some(&error.diagnostic.code),
+                        Some(json!({ "severity": error.diagnostic.severity.clone() })),
+                    ),
+                }
+                result
             }
         },
         move |result| {
@@ -2754,7 +2809,10 @@ async fn dispatch_cron_tick_background(
                 tokio::spawn(async move {
                     let _permit = permit;
                     if let Err(error) = execute_cron_claim_detached(&state, claim).await {
-                        state.lock().await.record_cron_tick_error(error);
+                        state.lock().await.record_cron_tick_error(
+                            error,
+                            crate::local::DiagnosticBoundary::Attached,
+                        );
                     }
                 });
             }
@@ -2783,7 +2841,10 @@ async fn dispatch_cron_tick_background(
                 // persist this capacity outcome must not abandon later claims
                 // in the batch; record it and continue draining ownership.
                 if let Err(error) = finish {
-                    state.lock().await.record_cron_tick_error(error);
+                    state.lock().await.record_cron_tick_error(
+                        error,
+                        crate::local::DiagnosticBoundary::Attached,
+                    );
                 }
             }
         }
@@ -2836,14 +2897,30 @@ pub(crate) async fn jobs_drain_detached(
     state: &SharedSnapback,
     now_ms: u64,
     max_waves: usize,
+    diagnostic_boundary: crate::local::DiagnosticBoundary,
 ) -> SnapbackResult<Vec<crate::jobs::JobDrainRecord>> {
     let mut records = Vec::new();
     let waves = max_waves.clamp(1, crate::jobs::JOBS_DRAIN_MAX_WAVES);
     for _ in 0..waves {
-        let claims = with_snapback(state, move |snapback| {
-            snapback.claim_due_jobs(now_ms, crate::jobs::JOBS_CLAIM_BATCH, "forced-drain")
+        let claims = match with_snapback(state, move |snapback| {
+            snapback.claim_due_jobs(
+                now_ms,
+                crate::jobs::JOBS_CLAIM_BATCH,
+                "forced-drain",
+                diagnostic_boundary,
+            )
         })
-        .await?;
+        .await
+        {
+            Ok(claims) => claims,
+            Err(error) => {
+                state
+                    .lock()
+                    .await
+                    .record_cron_tick_error(error.clone(), diagnostic_boundary);
+                return Err(error);
+            }
+        };
         if claims.is_empty() {
             break;
         }
@@ -2861,7 +2938,16 @@ pub(crate) async fn jobs_drain_detached(
             .await;
         completed.sort_by_key(|(index, _)| *index);
         for (_, result) in completed {
-            records.push(result?);
+            match result {
+                Ok(record) => records.push(record),
+                Err(error) => {
+                    state.lock().await.record_cron_tick_error(
+                        error.clone(),
+                        crate::local::DiagnosticBoundary::Attached,
+                    );
+                    return Err(error);
+                }
+            }
         }
     }
     Ok(records)
@@ -2926,7 +3012,10 @@ pub fn spawn_jobs_worker(state: SharedSnapback, autonomy_disabled: bool) -> Join
                 match with_snapback(&state, |snapback| snapback.jobs_pending_count()).await {
                     Ok(pending) => pending,
                     Err(error) => {
-                        state.lock().await.record_cron_tick_error(error);
+                        state.lock().await.record_cron_tick_error(
+                            error,
+                            crate::local::DiagnosticBoundary::Standalone,
+                        );
                         continue;
                     }
                 };
@@ -2934,9 +3023,13 @@ pub fn spawn_jobs_worker(state: SharedSnapback, autonomy_disabled: bool) -> Join
                 continue;
             }
             let now = now_millis();
-            if let Err(error) = jobs_drain_detached(&state, now, 1).await {
-                state.lock().await.record_cron_tick_error(error);
-            }
+            let _ = jobs_drain_detached(
+                &state,
+                now,
+                1,
+                crate::local::DiagnosticBoundary::Standalone,
+            )
+            .await;
         }
     })
 }
@@ -3830,6 +3923,7 @@ fn spawn_retired_connection_cleanup_batch(
 /// remains owned and mint-only contained across asynchronous cleanup failure.
 async fn join_retired_connection_cleanup_batch(
     tasks: Vec<RetiredConnectionCleanupTask>,
+    telemetry: &crate::telemetry::Telemetry,
 ) -> Vec<BoundConnectionTerminalCapture> {
     let mut retry = Vec::new();
     for RetiredConnectionCleanupTask {
@@ -3847,6 +3941,10 @@ async fn join_retired_connection_cleanup_batch(
             };
             eprintln!(
                 "SNAPBACK_CONNECTION_CLEANUP_FAILED: retired connection cleanup task {failure_kind}; fail-closed retry retained"
+            );
+            telemetry.standalone_diagnostic(
+                "SNAPBACK_CONNECTION_CLEANUP_FAILED",
+                &crate::diagnostic::DiagnosticSeverity::Warning,
             );
             retry.push(retry_capture);
         }
@@ -13922,6 +14020,35 @@ async fn auth_mailbox(
     Ok(Json(response))
 }
 
+async fn telemetry_not_found(State(runtime): State<AppState>, request: Request<Body>) -> Response {
+    let method = request.method().as_str().to_owned();
+    // `Uri::path` excludes the query string. The details admission scrubber
+    // applies the D2 byte cap and allowlist before this attacker-controlled
+    // value can enter the buffer.
+    let raw_path = request.uri().path().to_owned();
+    let span = runtime.telemetry.start_span(
+        "http_request",
+        "_unmatched",
+        None,
+        Some(serde_json::json!({ "method": method, "rawPath": raw_path })),
+        false,
+    );
+    let response = StatusCode::NOT_FOUND.into_response();
+    span.finish(Some(i64::from(response.status().as_u16())), None, None);
+    response
+}
+
+#[derive(Clone, Debug)]
+struct TelemetryDiagnosticCode(String);
+
+fn telemetry_observes_http_route(_spec: RouteSpec, method: &Method) -> bool {
+    // CORS preflight is the router's inert method fallback, not an admitted
+    // application operation. Health/static/control/internal requests remain
+    // observable here; checklist 2's class registry marks them `system` for
+    // usage projections while retaining them in Logs.
+    method != Method::OPTIONS
+}
+
 pub(crate) fn router_from_registrations(
     registrations: Vec<RegisteredRoute>,
     runtime: AppState,
@@ -13942,8 +14069,28 @@ pub(crate) fn router_from_registrations(
                 let sender_nonce = SenderNonceResponse::default();
                 request.extensions_mut().insert(sender_nonce.clone());
                 async move {
+                    // @ref LLP 0154#d2--the-observation-span-classification-registry-and-phase-1-kinds —
+                    // the registered pattern, not the raw user path, is the
+                    // bounded request identity; the carrier remains distinct
+                    // from any billable logical function_run it invokes.
+                    let span = telemetry_observes_http_route(spec, request.method()).then(|| {
+                        runtime.telemetry.start_span(
+                            "http_request",
+                            spec.path,
+                            None,
+                            Some(serde_json::json!({ "method": request.method().as_str() })),
+                            false,
+                        )
+                    });
                     let mut response =
                         enforce_registered_route_policy(spec, runtime, request, next).await;
+                    if let Some(span) = span {
+                        let code = response
+                            .extensions()
+                            .get::<TelemetryDiagnosticCode>()
+                            .map(|code| code.0.as_str());
+                        span.finish(Some(i64::from(response.status().as_u16())), code, None);
+                    }
                     if let Some(value) = sender_nonce.value() {
                         response
                             .headers_mut()
@@ -13972,6 +14119,7 @@ pub(crate) fn router_from_registrations(
                 method_router.options(|| async { StatusCode::NO_CONTENT }),
             )
         })
+        .fallback(telemetry_not_found)
 }
 
 /// A direct Snapback HTTP service.
@@ -13996,6 +14144,7 @@ impl SnapbackApp {
         let address = listener.local_addr()?;
         let mut state = self.state;
         Arc::make_mut(&mut state.server).record_bound_address(address);
+        state.telemetry.record_process_ready();
         Ok(BoundSnapbackApp {
             listener,
             router: router_for_state(state),
@@ -14012,7 +14161,11 @@ impl Service<Request<Body>> for SnapbackApp {
         &mut self,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<(), Self::Error>> {
-        <Router as Service<Request<Body>>>::poll_ready(&mut self.router, cx)
+        let ready = <Router as Service<Request<Body>>>::poll_ready(&mut self.router, cx);
+        if matches!(ready, std::task::Poll::Ready(Ok(()))) {
+            self.state.telemetry.record_process_ready();
+        }
+        ready
     }
 
     fn call(&mut self, request: Request<Body>) -> Self::Future {
@@ -15844,7 +15997,8 @@ pub fn spawn_maintenance_worker(runtime: AppState) -> JoinHandle<()> {
             // retirement already made all old bearers unusable. A child
             // failure returns its independently retained exact capture for
             // retry instead of silently consuming the only cleanup witness.
-            retired_cleanup_retries = join_retired_connection_cleanup_batch(cleanup_tasks).await;
+            retired_cleanup_retries =
+                join_retired_connection_cleanup_batch(cleanup_tasks, &runtime.telemetry).await;
             // Resolve connection grants before entering the database owner.
             // A room obligation remains pending if any readable id was
             // replaced between snapshot and resolution; the next tick starts
@@ -16018,7 +16172,10 @@ pub fn spawn_cron_scheduler(state: SharedSnapback, autonomy_disabled: bool) -> J
                 // Tick-machinery errors go to the diagnostics ring; the
                 // recording is memory-only, so an inline lock is fine (the
                 // same argument as disconnect's inline lock).
-                state.lock().await.record_cron_tick_error(error);
+                state.lock().await.record_cron_tick_error(
+                    error,
+                    crate::local::DiagnosticBoundary::Standalone,
+                );
             }
         }
     })
@@ -19868,7 +20025,7 @@ async fn stream_live(
         .max_frame_size(MAX_LIVE_SOCKET_FRAME_BYTES)
         .protocols([LIVE_STREAM_SUBPROTOCOL])
         .on_upgrade(move |socket| {
-            live_stream(
+            run_live_stream(
                 socket,
                 LiveStreamTask {
                     runtime,
@@ -19981,11 +20138,13 @@ async fn live_socket_writer(
     notify: Arc<crate::ephemeral::DeliveryNotifier>,
     connection_id: String,
     generation: u64,
+    terminal_observation: LiveSocketTerminalObservation,
 ) {
     loop {
         let write = tokio::select! {
             biased;
             Some(event) = terminal_writes.recv() => {
+                terminal_observation.record(event);
                 finish_terminal_live_write(&mut sender, event).await;
                 break;
             }
@@ -20005,6 +20164,7 @@ async fn live_socket_writer(
             drop(publication_authority);
             drop(admission);
             if let Some(event) = notify.terminal_if_current(&connection_id, generation) {
+                terminal_observation.record(event);
                 finish_terminal_live_write(&mut sender, event).await;
             }
             break;
@@ -20028,6 +20188,7 @@ async fn live_socket_writer(
         drop(publication_authority);
         drop(admission);
         if let Some(event) = terminal {
+            terminal_observation.record(event);
             finish_terminal_live_write(&mut sender, event).await;
             break;
         }
@@ -20184,6 +20345,130 @@ struct LiveStreamTask {
     sender_successor_nonce: Option<String>,
 }
 
+#[cfg(test)]
+struct TestLiveStreamAbortHook {
+    connection_id: String,
+    sender: std::sync::mpsc::Sender<futures_util::future::AbortHandle>,
+}
+
+#[cfg(test)]
+static TEST_LIVE_STREAM_ABORT_HOOK: StdMutex<Option<TestLiveStreamAbortHook>> =
+    StdMutex::new(None);
+
+#[cfg(test)]
+fn install_test_live_stream_abort(
+    connection_id: String,
+) -> std::sync::mpsc::Receiver<futures_util::future::AbortHandle> {
+    let (sender, receiver) = std::sync::mpsc::channel();
+    let mut hook = TEST_LIVE_STREAM_ABORT_HOOK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    assert!(hook.is_none(), "only one live-stream abort hook may be armed");
+    *hook = Some(TestLiveStreamAbortHook {
+        connection_id,
+        sender,
+    });
+    receiver
+}
+
+async fn run_live_stream(socket: WebSocket, task: LiveStreamTask) {
+    #[cfg(test)]
+    {
+        let hook = {
+            let mut armed = TEST_LIVE_STREAM_ABORT_HOOK
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            if armed
+                .as_ref()
+                .is_some_and(|hook| hook.connection_id == task.connection_id)
+            {
+                armed.take()
+            } else {
+                None
+            }
+        };
+        if let Some(hook) = hook {
+            let (abort, registration) = futures_util::future::AbortHandle::new_pair();
+            hook.sender
+                .send(abort)
+                .expect("live-stream abort test receiver remains present");
+            let _ = futures_util::future::Abortable::new(live_stream(socket, task), registration)
+                .await;
+            return;
+        }
+    }
+    live_stream(socket, task).await;
+}
+
+/// Completion guard for one successfully attached WebSocket transport.
+/// Every return after notifier registration passes through this drop, so the
+/// admitted generation receives exactly one terminal even on auth closure or
+/// writer failure.
+/// The existing teardown carrier converges those exits without a closed
+/// reason enum, so Phase 1 records the honest generic `disconnected` cause;
+/// a finer vocabulary belongs to the versioned operation registry rather
+/// than being inferred from control-flow branches here.
+///
+/// @ref LLP 0154#d2--the-observation-span-classification-registry-and-phase-1-kinds —
+///   socket attach/detach is a long-lived admission + terminal span.
+struct LiveSocketObservation {
+    span: Option<crate::telemetry::ObservationSpan>,
+    terminal: LiveSocketTerminalObservation,
+}
+
+#[derive(Clone, Default)]
+struct LiveSocketTerminalObservation {
+    event: Arc<StdMutex<Option<crate::ephemeral::DeliveryTerminalEvent>>>,
+}
+
+impl LiveSocketTerminalObservation {
+    fn record(&self, event: crate::ephemeral::DeliveryTerminalEvent) {
+        self.event
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .get_or_insert(event);
+    }
+}
+
+impl LiveSocketObservation {
+    fn new(span: crate::telemetry::ObservationSpan) -> Self {
+        Self {
+            span: Some(span),
+            terminal: LiveSocketTerminalObservation::default(),
+        }
+    }
+
+    fn terminal(&self) -> LiveSocketTerminalObservation {
+        self.terminal.clone()
+    }
+
+    fn finish(mut self) {
+        if let Some(span) = self.span.take() {
+            let event = self
+                .terminal
+                .event
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner())
+                .take();
+            if let Some(event) = event {
+                let code_value = serde_json::to_value(event.code)
+                    .expect("closed live auth error code serializes");
+                let code = code_value
+                    .as_str()
+                    .expect("live auth error code serializes as a string");
+                let cause_value = serde_json::to_value(event.reason)
+                    .expect("closed live auth error reason serializes");
+                let cause = cause_value
+                    .as_str()
+                    .expect("live auth error reason serializes as a string");
+                span.finish(Some(500), Some(&code), Some(json!({ "cause": cause })));
+            } else {
+                span.finish(Some(200), None, Some(json!({ "cause": "disconnected" })));
+            }
+        }
+    }
+}
+
 async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
     let LiveStreamTask {
         runtime,
@@ -20238,6 +20523,13 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
         // observing predecessor state; the client reconnect policy retries.
         return;
     };
+    let socket_observation = LiveSocketObservation::new(runtime.telemetry.start_span(
+        "ws_connect",
+        "/live/{connection_id}/stream",
+        Some(&connection_id),
+        None,
+        true,
+    ));
     let (writer, writes) = mpsc::channel(1);
     let (terminal_writer, terminal_writes) = mpsc::channel(1);
     let writer_task = tokio::spawn(live_socket_writer(
@@ -20247,6 +20539,7 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
         notify.clone(),
         connection_id.clone(),
         generation,
+        socket_observation.terminal(),
     ));
     let handoff_cut = LiveHandoffCut {
         writer: &writer,
@@ -20294,9 +20587,11 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
             generation,
         )
         .await;
+        socket_observation.finish();
         return;
     };
     if let Some(event) = notify.terminal_if_current(&connection_id, generation) {
+        socket_observation.terminal.record(event);
         offer_terminal_live_write(&terminal_writer, event);
         drop(writer);
         drop(terminal_writer);
@@ -20309,6 +20604,7 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
             generation,
         )
         .await;
+        socket_observation.finish();
         return;
     }
     let initial_current = connection_act
@@ -20337,6 +20633,7 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
         .is_break()
     {
         if let Some(event) = notify.terminal_if_current(&connection_id, generation) {
+            socket_observation.terminal.record(event);
             offer_terminal_live_write(&terminal_writer, event);
         }
         drop(writer);
@@ -20350,6 +20647,7 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
             generation,
         )
         .await;
+        socket_observation.finish();
         return;
     }
     drop(initial_admission);
@@ -20575,6 +20873,7 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
             }
             _ = waker.notified() => {
                 if let Some(event) = notify.terminal_if_current(&connection_id, generation) {
+                    socket_observation.terminal.record(event);
                     offer_terminal_live_write(&terminal_writer, event);
                     break 'stream;
                 }
@@ -20680,9 +20979,10 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
         // publication remains unavailable, so no failed observer can reopen
         // authority. Surface only the stable cause code; durable ids and
         // provider/storage text must not enter an ungated process log.
-        report_live_service_terminal_observation_failure(&error, false);
+        report_live_service_terminal_observation_failure(&runtime.telemetry, &error, false);
     }
     if let Some(event) = notify.terminal_if_current(&connection_id, generation) {
+        socket_observation.terminal.record(event);
         offer_terminal_live_write(&terminal_writer, event);
     }
     drop(writer);
@@ -20696,15 +20996,24 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
         generation,
     )
     .await;
+    socket_observation.finish();
 }
 
 const LIVE_SERVICE_TERMINAL_RETRY_INITIAL_MS: u64 = 10;
 const LIVE_SERVICE_TERMINAL_RETRY_MAX_MS: u64 = 60_000;
 
-fn report_live_service_terminal_observation_failure(error: &SnapbackError, retrying: bool) {
+fn report_live_service_terminal_observation_failure(
+    telemetry: &crate::telemetry::Telemetry,
+    error: &SnapbackError,
+    retrying: bool,
+) {
     eprintln!(
         "SNAPBACK_LIVE_SERVICE_TERMINAL_OBSERVATION_FAILED: cause={} retrying={retrying}",
         error.diagnostic.code
+    );
+    telemetry.standalone_diagnostic(
+        "SNAPBACK_LIVE_SERVICE_TERMINAL_OBSERVATION_FAILED",
+        &crate::diagnostic::DiagnosticSeverity::Warning,
     );
 }
 
@@ -20749,7 +21058,11 @@ async fn observe_service_connection_terminal(
             {
                 Ok(()) => return,
                 Err(error) => {
-                    report_live_service_terminal_observation_failure(&error, true);
+                    report_live_service_terminal_observation_failure(
+                        &retry_runtime.telemetry,
+                        &error,
+                        true,
+                    );
                     retry_ms = retry_ms
                         .saturating_mul(2)
                         .min(LIVE_SERVICE_TERMINAL_RETRY_MAX_MS);
@@ -23476,6 +23789,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         let status = status_for_diagnostic_code(self.0.diagnostic.code.as_str());
+        let telemetry_code = TelemetryDiagnosticCode(self.0.diagnostic.code.clone());
         let mut response = (
             status,
             Json(ErrorResponse {
@@ -23491,6 +23805,7 @@ impl IntoResponse for ApiError {
         {
             response.headers_mut().insert(header::RETRY_AFTER, value);
         }
+        response.extensions_mut().insert(telemetry_code);
         response
     }
 }
@@ -23643,6 +23958,336 @@ mod tests {
             second.is_err(),
             "a second independent connection/lifecycle graph must be rejected"
         );
+    }
+
+    #[tokio::test]
+    async fn http_telemetry_uses_registered_names_codes_and_private_unmatched_details() {
+        let directory = tempfile::tempdir().expect("telemetry HTTP fixture directory");
+        let database_path = directory.path().join("http-telemetry.sqlite3");
+        let snapback = LocalSnapback::open(&database_path).expect("file-backed HTTP fixture");
+        let state = AppState::from_snapback(snapback, bound_loopback_context());
+        let telemetry = state.telemetry.clone();
+        let router = app(state);
+
+        let health = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/health")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(health.status(), StatusCode::OK);
+
+        let options = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("OPTIONS")
+                    .uri("/health")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert!(options.status().is_success());
+
+        let failed = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/auth/request-code")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .body(Body::from("{}"))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert!(!failed.status().is_success());
+
+        let unmatched = router
+            .oneshot(
+                Request::builder()
+                    .uri("/attacker/path?secret=must-not-survive")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(unmatched.status(), StatusCode::NOT_FOUND);
+
+        telemetry.force_flush().expect("flush HTTP observations");
+        let raw = rusqlite::Connection::open(crate::telemetry::Telemetry::path_for_database(
+            &database_path,
+        ))
+        .expect("open telemetry sibling");
+        let health_count: i64 = raw
+            .query_row(
+                "SELECT COUNT(*) FROM telemetry_events WHERE kind='http_request' AND name='/health' AND phase='joined'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            health_count, 1,
+            "the registered health operation is observed while inert OPTIONS is not"
+        );
+        let failure_code: Option<String> = raw
+            .query_row(
+                "SELECT code FROM telemetry_events WHERE kind='http_request' AND name='/auth/request-code' AND phase='joined' ORDER BY id DESC LIMIT 1",
+                [],
+                |row| row.get(0),
+            )
+            .expect("registered failure observation");
+        assert!(
+            failure_code
+                .as_deref()
+                .is_some_and(|code| code.starts_with("SNAPBACK_")),
+            "the handler diagnostic code crosses the response seam: {failure_code:?}"
+        );
+        let unmatched_details: String = raw
+            .query_row(
+                "SELECT details FROM telemetry_events WHERE kind='http_request' AND name='_unmatched' AND phase='joined' ORDER BY id DESC LIMIT 1",
+                [],
+                |row| row.get(0),
+            )
+            .expect("unmatched observation");
+        let unmatched_details: Value =
+            serde_json::from_str(&unmatched_details).expect("unmatched details JSON");
+        assert_eq!(unmatched_details["rawPath"], "/attacker/path");
+        assert_eq!(unmatched_details["method"], "GET");
+        assert!(!unmatched_details.to_string().contains("must-not-survive"));
+    }
+
+    #[test]
+    fn ws_connect_observation_joins_once_with_generic_disconnect_cause() {
+        let directory = tempfile::tempdir().expect("socket telemetry fixture directory");
+        let database_path = directory.path().join("socket-telemetry.sqlite3");
+        let telemetry = crate::telemetry::Telemetry::open_for_database(
+            &database_path,
+            "01900000-0000-7000-8000-000000000001",
+            crate::telemetry::TelemetryConfig::default(),
+        )
+        .expect("file-backed socket telemetry");
+
+        {
+            let observation = super::LiveSocketObservation::new(telemetry.start_span(
+                "ws_connect",
+                "/live/{connection_id}/stream",
+                Some("socket-fixture"),
+                None,
+                true,
+            ));
+            telemetry.force_flush().expect("flush socket admission");
+            let raw = rusqlite::Connection::open(crate::telemetry::Telemetry::path_for_database(
+                &database_path,
+            ))
+            .expect("open socket telemetry sibling");
+            let phases: Vec<String> = raw
+                .prepare("SELECT phase FROM telemetry_events WHERE kind='ws_connect' ORDER BY id")
+                .unwrap()
+                .query_map([], |row| row.get(0))
+                .unwrap()
+                .collect::<Result<_, _>>()
+                .unwrap();
+            assert_eq!(phases, vec!["admission"]);
+            observation.finish();
+        }
+        telemetry.force_flush().expect("flush socket terminal");
+
+        let raw = rusqlite::Connection::open(crate::telemetry::Telemetry::path_for_database(
+            &database_path,
+        ))
+        .expect("reopen socket telemetry sibling");
+        let rows = raw
+            .prepare(
+                "SELECT phase,generation,correlation,details,recorded_ts_ms FROM telemetry_events WHERE kind='ws_connect' ORDER BY id",
+            )
+            .unwrap()
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, Option<String>>(2)?,
+                    row.get::<_, Option<String>>(3)?,
+                    row.get::<_, i64>(4)?,
+                ))
+            })
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(rows.len(), 2);
+        assert_eq!(
+            (rows[0].0.as_str(), rows[1].0.as_str()),
+            ("admission", "terminal")
+        );
+        assert_eq!(rows[0].1, rows[1].1, "terminal keeps admitted generation");
+        assert_eq!(rows[0].2.as_deref(), Some("socket-fixture"));
+        assert_eq!(rows[1].2.as_deref(), Some("socket-fixture"));
+        assert!(rows[1].4 > rows[0].4, "terminal is completion-bound");
+        let details: Value =
+            serde_json::from_str(rows[1].3.as_deref().expect("disconnect cause details")).unwrap();
+        assert_eq!(details["cause"], "disconnected");
+    }
+
+    #[test]
+    fn ws_connect_observation_preserves_typed_terminal_code_and_reason() {
+        let directory = tempfile::tempdir().expect("typed socket telemetry directory");
+        let database_path = directory.path().join("typed-socket.sqlite3");
+        let telemetry = crate::telemetry::Telemetry::open_for_database(
+            &database_path,
+            "01900000-0000-7000-8000-000000000001",
+            crate::telemetry::TelemetryConfig::default(),
+        )
+        .expect("typed socket telemetry");
+        {
+            let observation = super::LiveSocketObservation::new(telemetry.start_span(
+                "ws_connect",
+                "/live/{connection_id}/stream",
+                Some("typed-socket"),
+                None,
+                true,
+            ));
+            observation.terminal.record(crate::ephemeral::DeliveryTerminalEvent {
+                code: crate::live_wire::LiveAuthErrorCode::SessionExpired,
+                reason: crate::live_wire::LiveAuthErrorReason::Revoked,
+                authority_disposition: crate::live_wire::LiveAuthorityDisposition::DurableDelete,
+                close_by: Instant::now(),
+            });
+            observation.finish();
+        }
+        telemetry.force_flush().expect("flush typed terminal");
+        let raw = rusqlite::Connection::open(
+            crate::telemetry::Telemetry::path_for_database(&database_path),
+        )
+        .expect("open typed socket telemetry");
+        let (status, code, details): (i64, String, String) = raw
+            .query_row(
+                "SELECT status,code,details FROM telemetry_events WHERE kind='ws_connect' AND phase='terminal'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .expect("typed socket terminal");
+        assert_eq!(status, 500);
+        assert_eq!(code, "SNAPBACK_AUTH_SESSION_EXPIRED");
+        assert_eq!(
+            serde_json::from_str::<Value>(&details).unwrap()["cause"],
+            "revoked"
+        );
+    }
+
+    #[test]
+    fn live_service_terminal_failure_emission_records_once() {
+        let directory = tempfile::tempdir().expect("service diagnostic directory");
+        let database_path = directory.path().join("service-diagnostic.sqlite3");
+        let config = crate::telemetry::TelemetryConfig {
+            buffer_capacity: 4,
+            priority_reserve: 2,
+            batch_size: 64,
+            max_age_ms: 60_000,
+            ..crate::telemetry::TelemetryConfig::default()
+        };
+        let telemetry = crate::telemetry::Telemetry::open_for_database(
+            &database_path,
+            "01900000-0000-7000-8000-000000000001",
+            config,
+        )
+        .expect("service diagnostic telemetry");
+        let error = crate::diagnostic::SnapbackError::error(
+            "SNAPBACK_TEST_SERVICE_FAILURE",
+            "auth",
+            "closed test failure",
+        );
+        super::report_live_service_terminal_observation_failure(&telemetry, &error, false);
+        for name in ["pressure-one", "pressure-two", "pressure-three"] {
+            telemetry.point(
+                "log",
+                name,
+                None,
+                None,
+                None,
+                None,
+                crate::telemetry::Priority::Normal,
+            );
+        }
+        telemetry.force_flush().expect("flush service diagnostic");
+        let raw = rusqlite::Connection::open(
+            crate::telemetry::Telemetry::path_for_database(&database_path),
+        )
+        .expect("open service diagnostic telemetry");
+        let count: i64 = raw
+            .query_row(
+                "SELECT count(*) FROM telemetry_events WHERE kind='diagnostic' AND name='SNAPBACK_LIVE_SERVICE_TERMINAL_OBSERVATION_FAILED' AND code='SNAPBACK_LIVE_SERVICE_TERMINAL_OBSERVATION_FAILED'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("service diagnostic count");
+        assert_eq!(count, 1);
+    }
+
+    #[tokio::test]
+    async fn successful_bind_records_process_ready_exactly_once() {
+        let directory = tempfile::tempdir().expect("ready telemetry directory");
+        let database_path = directory.path().join("ready.sqlite3");
+        let local = LocalSnapback::open(&database_path).expect("ready local instance");
+        let telemetry = local.telemetry();
+        let state = AppState::detached(local);
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind ready listener");
+        let _bound = super::app(state).bind(listener).expect("couple bound app");
+        telemetry.force_flush().expect("flush ready lifecycle");
+        let raw = rusqlite::Connection::open(
+            crate::telemetry::Telemetry::path_for_database(&database_path),
+        )
+        .expect("open ready telemetry");
+        let count: i64 = raw
+            .query_row(
+                "SELECT count(*) FROM telemetry_events WHERE kind='lifecycle' AND name='process_ready'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("process ready count");
+        assert_eq!(count, 1);
+
+        let direct_path = directory.path().join("direct-ready.sqlite3");
+        let direct_local = LocalSnapback::open(&direct_path).expect("direct local instance");
+        let direct_telemetry = direct_local.telemetry();
+        let direct_state = AppState::detached(direct_local);
+        let mut direct = super::app(direct_state);
+        direct_telemetry
+            .force_flush()
+            .expect("flush pre-ready lifecycle");
+        let direct_raw = rusqlite::Connection::open(
+            crate::telemetry::Telemetry::path_for_database(&direct_path),
+        )
+        .expect("open direct telemetry");
+        let before: i64 = direct_raw
+            .query_row(
+                "SELECT count(*) FROM telemetry_events WHERE kind='lifecycle' AND name='process_ready'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(before, 0, "construction alone is not readiness");
+        tower::ServiceExt::ready(&mut direct)
+            .await
+            .expect("direct service ready");
+        tower::ServiceExt::ready(&mut direct)
+            .await
+            .expect("direct service remains ready");
+        direct_telemetry.force_flush().expect("flush direct readiness");
+        let after: i64 = direct_raw
+            .query_row(
+                "SELECT count(*) FROM telemetry_events WHERE kind='lifecycle' AND name='process_ready'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(after, 1, "shared readiness authority is one-shot");
     }
 
     #[test]
@@ -24344,6 +24989,7 @@ globalThis.__snapbackHandlers = {
                 ..FunctionManifest::default()
             },
             42,
+            crate::local::DiagnosticBoundary::Attached,
         );
         assert!(
             diagnostics.iter().all(|diagnostic| !matches!(
@@ -25171,7 +25817,11 @@ globalThis.__snapbackHandlers = {
         snapback
             .synchronize_auth_mode_admission(&settled)
             .expect("synchronize settled sessions admission");
-        let diagnostics = snapback.publish_preflighted_functions(predecessor_functions, 43);
+        let diagnostics = snapback.publish_preflighted_functions(
+            predecessor_functions,
+            43,
+            crate::local::DiagnosticBoundary::Attached,
+        );
         assert!(
             diagnostics.iter().all(|diagnostic| !matches!(
                 diagnostic.severity,
@@ -37315,6 +37965,18 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_CONFIG_STORE_VERSION_UNSUPPORTED",
         "SNAPBACK_CONFIG_VERIFY",
         "SNAPBACK_CONFIG_WRITE",
+        // LLP 0154 Phase 1 telemetry policy/store diagnostics are operator
+        // and internal sibling-state failures, not request-shape classes.
+        // They therefore retain the fail-safe 500 projection if one ever
+        // crosses ApiError; the config host operation itself uses its normal
+        // HTTP-200 result envelope.
+        "SNAPBACK_TELEMETRY_CONFIG_INVALID",
+        "SNAPBACK_TELEMETRY_CONFIG_TRANSITION_FAILED",
+        "SNAPBACK_TELEMETRY_FILE_CAP_UNSATISFIABLE",
+        "SNAPBACK_TELEMETRY_STORE_IO",
+        "SNAPBACK_TELEMETRY_TEST_CONFIG_FAILED",
+        "SNAPBACK_TELEMETRY_TEST_FLUSH_FAILED",
+        "SNAPBACK_TELEMETRY_TEST_REBIND_FAILED",
         "SNAPBACK_CONNECTION_CLEANUP_FAILED",
         "SNAPBACK_CRON_RUN_RECORD_MISSING",
         "SNAPBACK_CRON_RUN_SKIPPED_OVERLAP",
@@ -38341,7 +39003,12 @@ globalThis.__snapbackHandlers = {
         );
         // Nothing is claimable at any clock: the forced drain over an empty
         // ledger returns no receipts.
-        let drained = super::jobs_drain_detached(&state, u64::MAX >> 12, 1)
+        let drained = super::jobs_drain_detached(
+            &state,
+            u64::MAX >> 12,
+            1,
+            crate::local::DiagnosticBoundary::Attached,
+        )
             .await
             .expect("drain runs");
         assert!(drained.is_empty(), "nothing may drain after rollback");
@@ -38421,7 +39088,12 @@ globalThis.__snapbackHandlers = {
         assert_eq!(shown["job"]["producerFunction"], "scheduleEvent");
 
         // Before the delay elapses (injected clock), nothing is due.
-        let early = super::jobs_drain_detached(&state, available_at - 1, 1)
+        let early = super::jobs_drain_detached(
+            &state,
+            available_at - 1,
+            1,
+            crate::local::DiagnosticBoundary::Attached,
+        )
             .await
             .expect("early drain");
         assert!(
@@ -38430,7 +39102,12 @@ globalThis.__snapbackHandlers = {
         );
 
         // At the injected due clock, the forced drain claims and executes.
-        let drained = super::jobs_drain_detached(&state, available_at, 1)
+        let drained = super::jobs_drain_detached(
+            &state,
+            available_at,
+            1,
+            crate::local::DiagnosticBoundary::Attached,
+        )
             .await
             .expect("due drain");
         assert_eq!(drained.len(), 1, "exactly the one due job is claimed");
@@ -38441,7 +39118,12 @@ globalThis.__snapbackHandlers = {
 
         // Exactly once per attempt fence: a second drain at the same clock
         // claims nothing.
-        let again = super::jobs_drain_detached(&state, available_at, 1)
+        let again = super::jobs_drain_detached(
+            &state,
+            available_at,
+            1,
+            crate::local::DiagnosticBoundary::Attached,
+        )
             .await
             .expect("repeat drain");
         assert!(again.is_empty(), "a settled job must not be re-claimed");
@@ -38675,6 +39357,24 @@ globalThis.__snapbackHandlers = {
                         return_value: None,
                     })),
                 ),
+                FunctionDefinition::new(
+                    "snapshotNestedSuccess",
+                    FunctionKind::Mutation,
+                    FunctionRuntime::IbexModule(IbexModule {
+                        source: "globalThis.__snapbackHandlers = { async snapshotNestedSuccess() { console.log('snapshot-success'); return null; } };"
+                            .to_owned(),
+                        export: "snapshotNestedSuccess".to_owned(),
+                    }),
+                ),
+                FunctionDefinition::new(
+                    "snapshotNestedCommitFailure",
+                    FunctionKind::Mutation,
+                    FunctionRuntime::IbexModule(IbexModule {
+                        source: "globalThis.__snapbackHandlers = { async snapshotNestedCommitFailure(ctx) { console.log('snapshot-failure'); await ctx.db.insert('missing_snapshot_table', {}); return null; } };"
+                            .to_owned(),
+                        export: "snapshotNestedCommitFailure".to_owned(),
+                    }),
+                ),
             ],
             ..FunctionManifest::default()
         }
@@ -38716,6 +39416,62 @@ globalThis.__snapbackHandlers = {
             stream_buffered_peak: Arc::new(AtomicU64::new(0)),
             automatic_retry_invocation: false,
         }
+    }
+
+    #[test]
+    fn snapshot_nested_mutation_observation_covers_handler_through_commit() {
+        let mut snapback = LocalSnapback::memory().expect("snapshot nested telemetry state");
+        let diagnostics = snapback.load_functions(generation_test_manifest());
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.severity
+                    != crate::diagnostic::DiagnosticSeverity::Error),
+            "snapshot nested telemetry functions load: {diagnostics:?}"
+        );
+        let state = Arc::new(Mutex::new(snapback));
+        let staged = stage_held_action(&state);
+        let telemetry = staged.telemetry.clone();
+        let mut host = held_action_host(state, &staged);
+
+        host.run_mutation(
+            "snapshotNestedSuccess",
+            HandlerInput {
+                correlation: Some(json!("snapshot-success")),
+                ..HandlerInput::default()
+            },
+        )
+        .expect("snapshot nested mutation commits");
+        let error = host
+            .run_mutation(
+                "snapshotNestedCommitFailure",
+                HandlerInput {
+                    correlation: Some(json!("snapshot-failure")),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect_err("post-handler preview rejects unknown table");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_UNKNOWN_TABLE");
+
+        telemetry.force_flush().expect("flush snapshot nested observations");
+        assert_eq!(
+            telemetry.event_outcomes_for_test(
+                "function_run",
+                "snapshotNestedSuccess",
+                "joined"
+            ),
+            vec![(Some(200), None)],
+        );
+        assert_eq!(
+            telemetry.event_outcomes_for_test(
+                "function_run",
+                "snapshotNestedCommitFailure",
+                "joined"
+            ),
+            vec![(Some(500), Some("SNAPBACK_UNKNOWN_TABLE".to_owned()))],
+            "the post-handler refusal replaces, rather than follows, a false success"
+        );
+        assert_eq!(telemetry.event_count_for_test("log", "log", "point"), 2);
     }
 
     #[test]
@@ -41629,8 +42385,11 @@ globalThis.__snapbackHandlers = {
             .iter()
             .map(|cleanup| cleanup.task.abort_handle())
             .collect::<Vec<_>>();
+        let cleanup_telemetry = state.telemetry.clone();
         let maintenance_waiter = tokio::spawn(async move {
-            let retry = super::join_retired_connection_cleanup_batch(cleanup_tasks).await;
+            let retry =
+                super::join_retired_connection_cleanup_batch(cleanup_tasks, &cleanup_telemetry)
+                    .await;
             assert!(retry.is_empty(), "successful cleanup has no retry capture");
         });
 
@@ -41676,6 +42435,14 @@ globalThis.__snapbackHandlers = {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn maintenance_cleanup_join_failure_retains_exact_retry_capture() {
         let state = AppState::detached(LocalSnapback::memory().expect("cleanup retry state"));
+        let telemetry_dir = tempfile::tempdir().expect("cleanup telemetry directory");
+        let telemetry_app = telemetry_dir.path().join("cleanup.sqlite3");
+        let telemetry = crate::telemetry::Telemetry::open_for_database(
+            &telemetry_app,
+            "01900000-0000-7000-8000-000000000001",
+            crate::telemetry::TelemetryConfig::default(),
+        )
+        .expect("cleanup telemetry");
         let connection_id = "maintenance-panic-retry";
         state
             .connections
@@ -41693,7 +42460,8 @@ globalThis.__snapbackHandlers = {
             retry_capture: capture.clone(),
             task: tokio::spawn(async { panic!("injected retired cleanup panic") }),
         };
-        let retry = super::join_retired_connection_cleanup_batch(vec![failed]).await;
+        let retry =
+            super::join_retired_connection_cleanup_batch(vec![failed], &telemetry).await;
         assert_eq!(retry, vec![capture.clone()]);
         let replacement = state
             .connections
@@ -41712,7 +42480,7 @@ globalThis.__snapbackHandlers = {
 
         let retried = super::spawn_retired_connection_cleanup_batch(&state, retry);
         assert!(
-            super::join_retired_connection_cleanup_batch(retried)
+            super::join_retired_connection_cleanup_batch(retried, &telemetry)
                 .await
                 .is_empty(),
             "the exact retained capture completes its idempotent retry"
@@ -41724,6 +42492,19 @@ globalThis.__snapbackHandlers = {
             "retry removes the retired connection's whole-id residue"
         );
         state.connections.lock().assert_grant_indexes_consistent();
+        telemetry.force_flush().expect("flush cleanup diagnostic");
+        let raw = rusqlite::Connection::open(
+            crate::telemetry::Telemetry::path_for_database(&telemetry_app),
+        )
+        .expect("open cleanup telemetry");
+        let count: i64 = raw
+            .query_row(
+                "SELECT count(*) FROM telemetry_events WHERE kind='diagnostic' AND name='SNAPBACK_CONNECTION_CLEANUP_FAILED' AND code='SNAPBACK_CONNECTION_CLEANUP_FAILED'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("query cleanup diagnostic");
+        assert_eq!(count, 1, "the emission boundary records exactly once");
     }
 
     /// @ref LLP 0059#locking-and-linearization — once the exact stage CAS
@@ -44669,9 +45450,12 @@ globalThis.__snapbackHandlers = {
 
     #[tokio::test]
     async fn terminal_socket_sends_closed_auth_error_then_4401() {
+        let directory = tempfile::tempdir().expect("terminal socket telemetry directory");
+        let database_path = directory.path().join("terminal-socket.sqlite3");
         let state = crate::admin::AppState::detached(
-            LocalSnapback::memory().expect("in-memory terminal socket state"),
+            LocalSnapback::open(&database_path).expect("file-backed terminal socket state"),
         );
+        let telemetry = state.telemetry.clone();
         let registry = state.connections.clone();
         let ephemeral = state.ephemeral.clone();
         let lifecycle = state.auth_terminal_lifecycle.clone();
@@ -44752,6 +45536,162 @@ globalThis.__snapbackHandlers = {
         };
         assert_eq!(u16::from(close.code), super::TERMINAL_AUTH_CLOSE_CODE);
         assert_eq!(close.reason, "auth_error");
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while notifier.is_registered(&grant.connection_id) {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("typed socket teardown completes");
+        tokio::time::timeout(Duration::from_secs(2), async {
+            loop {
+                telemetry.force_flush().expect("flush typed socket path");
+                if telemetry.event_count_for_test(
+                    "ws_connect",
+                    "/live/{connection_id}/stream",
+                    "terminal",
+                ) == 1
+                {
+                    break;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("typed socket observation completes");
+        let raw = rusqlite::Connection::open(
+            crate::telemetry::Telemetry::path_for_database(&database_path),
+        )
+        .expect("open typed socket path telemetry");
+        let (count, status, code, details): (i64, i64, String, String) = raw
+            .query_row(
+                "SELECT
+                    (SELECT count(*) FROM telemetry_events WHERE kind='ws_connect' AND phase='terminal'),
+                    status,code,details
+                 FROM telemetry_events
+                 WHERE kind='ws_connect' AND phase='terminal'
+                 ORDER BY id DESC LIMIT 1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .expect("writer-captured typed socket terminal");
+        assert_eq!(count, 1);
+        assert_eq!(status, 500);
+        assert_eq!(code, "SNAPBACK_AUTH_STREAM_RESET");
+        assert_eq!(
+            serde_json::from_str::<Value>(&details).unwrap()["cause"],
+            "reset"
+        );
+        server.abort();
+    }
+
+    #[tokio::test]
+    async fn aborted_live_stream_task_records_reserved_cancellation() {
+        let directory = tempfile::tempdir().expect("aborted socket telemetry directory");
+        let database_path = directory.path().join("aborted-socket.sqlite3");
+        let state = crate::admin::AppState::detached(
+            LocalSnapback::open(&database_path).expect("file-backed aborted socket state"),
+        );
+        let telemetry = state.telemetry.clone();
+        let ephemeral = state.ephemeral.clone();
+        let grant = state
+            .connections
+            .open(Some("aborted_socket".to_owned()), None, true)
+            .expect("aborted socket grant");
+        let abort_receiver =
+            super::install_test_live_stream_abort(grant.connection_id.clone());
+        let listener = TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind aborted socket server");
+        let address = listener.local_addr().expect("aborted socket address");
+        let server = tokio::spawn(async move {
+            super::app(state)
+                .bind(listener)
+                .expect("bind aborted socket app")
+                .serve()
+                .await
+                .expect("serve aborted socket app");
+        });
+
+        use tokio_tungstenite::tungstenite::client::IntoClientRequest as _;
+        let mut request = format!("ws://{address}/live/{}/stream", grant.connection_id)
+            .into_client_request()
+            .expect("aborted websocket request");
+        request.headers_mut().insert(
+            header::SEC_WEBSOCKET_PROTOCOL,
+            super::LIVE_STREAM_SUBPROTOCOL
+                .parse()
+                .expect("wire-version subprotocol offer"),
+        );
+        request.headers_mut().insert(
+            "x-snapback-connection-token",
+            grant.connection_token.parse().expect("connection token header"),
+        );
+        let (socket, _) = tokio_tungstenite::connect_async(request)
+            .await
+            .expect("connect abortable socket");
+        let notifier = ephemeral.delivery_notifier();
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while !notifier.is_registered(&grant.connection_id) {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("abortable live stream registers");
+        telemetry.force_flush().expect("flush socket admission before abort");
+        assert_eq!(
+            telemetry.event_count_for_test(
+                "ws_connect",
+                "/live/{connection_id}/stream",
+                "admission"
+            ),
+            1
+        );
+        let abort = tokio::time::timeout(Duration::from_secs(2), async {
+            loop {
+                if let Ok(abort) = abort_receiver.try_recv() {
+                    break abort;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("capture real live-stream abort handle");
+        abort.abort();
+        tokio::time::timeout(Duration::from_secs(2), async {
+            loop {
+                tokio::task::yield_now().await;
+                telemetry.force_flush().expect("flush aborted socket terminal");
+                if telemetry.event_count_for_test(
+                    "ws_connect",
+                    "/live/{connection_id}/stream",
+                    "terminal",
+                ) == 1
+                {
+                    break;
+                }
+            }
+        })
+        .await
+        .expect("aborted live-stream span falls back");
+        assert_eq!(
+            telemetry.event_outcomes_for_test(
+                "ws_connect",
+                "/live/{connection_id}/stream",
+                "terminal"
+            ),
+            vec![(Some(499), None)]
+        );
+        assert_eq!(
+            telemetry.event_details_for_test(
+                "ws_connect",
+                "/live/{connection_id}/stream"
+            )[1]
+                .as_ref()
+                .and_then(|details| details.get("cause")),
+            Some(&json!("cancelled"))
+        );
+        drop(socket);
         server.abort();
     }
 

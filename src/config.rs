@@ -9,6 +9,7 @@
 //! only to the runtime grant path; every other consumer sees names and status.
 
 use crate::diagnostic::{SnapbackError, SnapbackResult};
+use crate::telemetry::TelemetryConfig;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -217,6 +218,8 @@ struct ConfigFileState {
     version: u32,
     generation: u64,
     entries: BTreeMap<String, StoredEntry>,
+    #[serde(default, skip_serializing_if = "telemetry_config_is_default")]
+    telemetry: TelemetryConfig,
 }
 
 #[derive(Deserialize)]
@@ -230,8 +233,13 @@ impl Default for ConfigFileState {
             version: CONFIG_STORE_FORMAT_VERSION,
             generation: 0,
             entries: BTreeMap::new(),
+            telemetry: TelemetryConfig::default(),
         }
     }
+}
+
+fn telemetry_config_is_default(config: &TelemetryConfig) -> bool {
+    config == &TelemetryConfig::default()
 }
 
 /// Outcome facts of a write, for envelopes and the audit line — never values.
@@ -339,6 +347,34 @@ impl ConfigStore {
 
     pub fn generation(&self) -> u64 {
         self.state.generation
+    }
+
+    pub fn telemetry_config(&self) -> &TelemetryConfig {
+        &self.state.telemetry
+    }
+
+    /// Persist deployment-owned telemetry policy beside the app database.
+    ///
+    /// @ref LLP 0154#deliverables-checklist-phase-1 — telemetry
+    /// resource limits are ordinary local config and share neither the app
+    /// database nor commercial capability state.
+    pub fn set_telemetry_config(
+        &mut self,
+        config: TelemetryConfig,
+    ) -> SnapbackResult<WriteOutcome> {
+        config.validate()?;
+        let value_changed = self.state.telemetry != config;
+        if value_changed {
+            let mut state = self.state.clone();
+            state.telemetry = config;
+            state.generation = next_generation(state.generation)?;
+            self.persist_state(&state)?;
+            self.state = state;
+        }
+        Ok(WriteOutcome {
+            value_changed,
+            generation: self.state.generation,
+        })
     }
 
     pub fn entry(&self, name: &str) -> Option<&StoredEntry> {
@@ -1107,6 +1143,25 @@ mod tests {
         std::fs::write(&path, b"not json").unwrap();
         let error = ConfigStore::open(path).unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_CONFIG_STORE_INVALID");
+    }
+
+    #[test]
+    fn telemetry_config_is_backward_compatible_validated_and_persistent() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("dev.sqlite3.config.json");
+        std::fs::write(&path, br#"{"version":1,"generation":0,"entries":{}}"#).unwrap();
+        let mut store = ConfigStore::open(path.clone()).unwrap();
+        assert_eq!(store.telemetry_config(), &TelemetryConfig::default());
+
+        let mut config = TelemetryConfig::default();
+        config.max_days = 30;
+        let outcome = store.set_telemetry_config(config.clone()).unwrap();
+        assert!(outcome.value_changed);
+        assert_eq!(ConfigStore::open(path).unwrap().telemetry_config(), &config);
+
+        config.priority_reserve = config.buffer_capacity;
+        let error = store.set_telemetry_config(config).unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_TELEMETRY_CONFIG_INVALID");
     }
 
     #[test]

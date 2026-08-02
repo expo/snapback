@@ -734,6 +734,9 @@ pub struct AppState {
     pub snapback: SharedSnapback,
     pub read: ReadLane,
     pub ephemeral: EphemeralApi,
+    /// Cloneable loss-tolerant producer for request and detached-runtime
+    /// seams. It never lends the app database lock to telemetry.
+    pub telemetry: crate::telemetry::Telemetry,
     pub server: Arc<ServerContext>,
     /// Per-connection capability grants (ENG-23442): connection-scoped routes
     /// demand the token minted by `POST /connection/open`.
@@ -847,22 +850,24 @@ impl AppState {
         let connections = ConnectionRegistry::default();
         let auth_terminal_lifecycle =
             AuthTerminalLifecycle::new(connections.clone(), &ephemeral, snapback.clone());
-        let service_authority_fences = {
+        let (service_authority_fences, telemetry) = {
             let mut instance = snapback
                 .try_lock()
                 .expect("trusted app-state builder owns the detached instance");
+            let telemetry = instance.telemetry();
             let database = instance.auth_database_mut();
             assert!(
                 database.claim_app_state_graph(),
                 "one SharedSnapback may be wrapped by exactly one AppState graph; clone AppState for additional routers",
             );
-            database.service_authority_fence_registry()
+            (database.service_authority_fence_registry(), telemetry)
         };
         (
             Self {
                 snapback,
                 read,
                 ephemeral,
+                telemetry,
                 server: Arc::new(server),
                 connections,
                 bundle_pending: crate::bundle::PendingBundleRegistry::default(),
@@ -2687,7 +2692,13 @@ async fn admin_jobs_drain(
     let request = body.map(|Json(request)| request).unwrap_or_default();
     let now = request.now_ms.unwrap_or_else(now_millis);
     let waves = request.max_waves.unwrap_or(1);
-    let drained = crate::server::jobs_drain_detached(&snapback, now, waves).await?;
+    let drained = crate::server::jobs_drain_detached(
+        &snapback,
+        now,
+        waves,
+        crate::local::DiagnosticBoundary::Attached,
+    )
+    .await?;
     Ok(Json(serde_json::json!({
         "artifactKind": "snapback.jobs-drain/v0",
         "nowMs": now,

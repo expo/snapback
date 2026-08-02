@@ -91,6 +91,8 @@ pub enum Kind {
     Stream,
     Startup,
     AgentToken,
+    Observation,
+    Generation,
     /// An id minted inside a field expression, where no target table is in
     /// scope. Deliberately generic: guessing a table here would produce a
     /// prefix that lies, which §D6 forbids more strongly than it requires a
@@ -153,6 +155,11 @@ impl Kind {
             Kind::Stream => ("stm", TimeOrdered),
             Kind::Startup => ("srt", TimeOrdered),
             Kind::AgentToken => ("agtk", TimeOrdered),
+            // @ref LLP 0154#d2--the-observation-span-classification-registry-and-phase-1-kinds —
+            // observation correlation roots and telemetry generations are
+            // unconditional LLP 0148 registry members.
+            Kind::Observation => ("obs", Random),
+            Kind::Generation => ("gen", Random),
             Kind::Opaque => ("id", TimeOrdered),
         };
         Spec { prefix, body }
@@ -195,6 +202,8 @@ pub const ALL: &[Kind] = &[
     Kind::Stream,
     Kind::Startup,
     Kind::AgentToken,
+    Kind::Observation,
+    Kind::Generation,
     Kind::Opaque,
 ];
 
@@ -531,13 +540,17 @@ mod tests {
     }
 
     #[test]
-    fn user_ids_are_random_and_everything_else_is_time_ordered() {
-        assert_eq!(Kind::User.spec().body, Body::Random);
-        for kind in ALL.iter().filter(|k| **k != Kind::User) {
+    fn privacy_and_telemetry_ids_are_random_and_everything_else_is_time_ordered() {
+        for kind in [Kind::User, Kind::Observation, Kind::Generation] {
+            assert_eq!(kind.spec().body, Body::Random);
+        }
+        for kind in ALL.iter().filter(|kind| {
+            !matches!(kind, Kind::User | Kind::Observation | Kind::Generation)
+        }) {
             assert_eq!(
                 kind.spec().body,
                 Body::TimeOrdered,
-                "{kind:?} — only Kind::User takes a random body (§D3)"
+                "{kind:?} — random-body kinds are explicit registry exceptions"
             );
         }
         // Time-ordered ids mint in nondecreasing string order.
@@ -558,6 +571,14 @@ mod tests {
             .take_while(|(x, y)| x == y)
             .count();
         assert!(shared < 8, "user ids shared a {shared}-character prefix");
+
+        for kind in [Kind::Observation, Kind::Generation] {
+            let first = mint(kind).expect("csprng");
+            let second = mint(kind).expect("csprng");
+            assert_ne!(first, second);
+            assert!(looks_like(kind, &first));
+            assert_eq!(first.len(), kind.prefix().len() + 1 + BODY_LEN);
+        }
     }
 
     #[test]
