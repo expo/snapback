@@ -14,7 +14,6 @@ assert.deepEqual(workflowNames, [
   'linux-runtime-package.yml',
   'local-proof.yml',
   'public-package-proof.yml',
-  'qualified-package-staging.yml',
   'ref-check.yml',
   'required-surface-builds.yml',
 ]);
@@ -157,8 +156,8 @@ for (const name of workflowNames) {
     );
   }
 }
-assert.equal(setupNodeCount, 10, 'the Node-using workflow inventory changed; review and update this count');
-assert.equal(actionCount, 46, 'the reviewed workflow action inventory changed; review and update this count');
+assert.equal(setupNodeCount, 7, 'the Node-using workflow inventory changed; review and update this count');
+assert.equal(actionCount, 30, 'the reviewed workflow action inventory changed; review and update this count');
 
 const publicPackageProof = readFileSync(
   join(workflowDir, 'public-package-proof.yml'),
@@ -229,36 +228,25 @@ assert.match(
   /^\s+fetch-depth:\s*0\s*(?:#.*)?$/m,
   'canonical CI must fetch guide review identities so freshness is verifiable',
 );
+// The self-hosted expo runners do not carry the GitHub image's unused
+// Android/.NET toolchains, so the reviewed rm allowlist retired with the
+// migration; the pre-proof headroom gate remains.
 assert.match(
   localProof,
-  /Reclaim unused GitHub-hosted runner disk/,
-  'canonical CI must reclaim image toolchains the native proof never uses',
+  /Require workspace disk headroom/,
+  'canonical CI must gate on pre-proof disk headroom',
 );
-const reclaimStepStart = localProof.indexOf('      - name: Reclaim unused GitHub-hosted runner disk');
-const reclaimStepEnd = localProof.indexOf('\n      - ', reclaimStepStart + 1);
-assert(reclaimStepStart >= 0 && reclaimStepEnd > reclaimStepStart, 'disk reclaim step block must be bounded');
-const reclaimStep = localProof.slice(reclaimStepStart, reclaimStepEnd);
-const reclaimPaths = /readonly ci_unused_paths=\(\n([\s\S]*?)\n\s*\)/.exec(reclaimStep)?.[1]
-  .split('\n')
-  .map((line) => line.trim())
-  .filter(Boolean);
-assert.deepEqual(
-  reclaimPaths,
-  ['/usr/local/lib/android', '/usr/share/dotnet', '/usr/local/.ghcup'],
-  'canonical CI disk reclaim must remain an exact reviewed path allowlist',
-);
+const headroomStepStart = localProof.indexOf('      - name: Require workspace disk headroom');
+const headroomStepEnd = localProof.indexOf('\n      - ', headroomStepStart + 1);
+assert(headroomStepStart >= 0 && headroomStepEnd > headroomStepStart, 'disk headroom step block must be bounded');
+const headroomStep = localProof.slice(headroomStepStart, headroomStepEnd);
 assert.match(
-  reclaimStep,
-  /sudo rm -rf --one-file-system -- "\$ci_unused_path"/,
-  'disk reclaim must remain variable-safe and filesystem-bounded',
-);
-assert.match(
-  reclaimStep,
+  headroomStep,
   /SNAPBACK_CI_DISK_HEADROOM_LOW/,
-  'canonical CI must fail early with a stable diagnostic when cleanup leaves inadequate disk',
+  'canonical CI must fail early with a stable diagnostic when the runner starts too full',
 );
 assert.match(
-  reclaimStep,
+  headroomStep,
   /ci_required_kib=\$\(\(20 \* 1024 \* 1024\)\)/,
   'canonical CI must retain 20 GiB of pre-proof headroom for native clippy/test artifacts',
 );
@@ -269,8 +257,8 @@ for (const laterStep of [
   'Verify Snapback local proof',
 ]) {
   assert(
-    reclaimStepStart < localProof.indexOf(`- name: ${laterStep}`),
-    `disk reclaim must run before ${laterStep}`,
+    headroomStepStart < localProof.indexOf(`- name: ${laterStep}`),
+    `the disk headroom gate must run before ${laterStep}`,
   );
 }
 const hermesIdentityInputs = [
@@ -320,8 +308,10 @@ assert.match(
   /actions\/upload-artifact@[0-9a-f]{40}/,
   'Linux runtime workflow must retain its package and cold-install evidence',
 );
+// Qualified staging moved to EAS Workflows (4de409ab); the invariants below
+// guard the same proof surface in its new home.
 const qualifiedPackageStaging = readFileSync(
-  join(workflowDir, 'qualified-package-staging.yml'),
+  join(ROOT, '.eas', 'workflows', 'qualified-package-staging.yml'),
   'utf8',
 );
 for (const required of [
@@ -335,7 +325,7 @@ for (const required of [
   '--install-source staged',
   'snapback-darwin-arm64-staged-receipt.json',
   'snapback-linux-x64-staged-receipt.json',
-  'snapback-qualified-release-${{ github.sha }}',
+  'snapback-qualified-release',
 ]) {
   assert(
     qualifiedPackageStaging.includes(required),
@@ -344,8 +334,8 @@ for (const required of [
 }
 assert.match(
   qualifiedPackageStaging,
-  /candidate_tag="bakeoff-\$\{RELEASE_VERSION\/\/\.\/-\}-\$\{GITHUB_SHA:0:12\}"/,
-  'qualified package staging must bind the candidate tag to version and source SHA',
+  /candidate_tag="bakeoff-\$\{RELEASE_VERSION\/\/\.\/-\}-\$\{source_revision:0:12\}"/,
+  'qualified package staging must bind the candidate tag to version and source revision',
 );
 assert.equal(
   qualifiedPackageStaging.match(/SNAPBACK_BOOTSTRAP_CHECK=0 scripts\/bootstrap-ibex-runtime/g)?.length,
@@ -359,8 +349,8 @@ assert.equal(
 );
 assert.equal(
   qualifiedPackageStaging.match(/bin\/snapback build-identity/g)?.length,
-  2,
-  'qualified native builds must launch both packaged binaries through a supported identity command',
+  3,
+  'qualified native builds must launch both packaged binaries through a supported identity command, and assembly must revision-check the transported macOS runtime',
 );
 assert.doesNotMatch(
   qualifiedPackageStaging,
