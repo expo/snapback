@@ -5,7 +5,13 @@
 **Systems:** Competitive evaluation, Developer experience, Authoring, Application data API, Code generation, Runtime, Bootstrap, Packaging, Search, Relational queries, Scheduled work, Client integration, Documentation, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-08-02 (decision-sitting propagation: OQ5 is reaffirmed and
+**Revised:** 2026-08-02 (CV-9 implementation reconciliation: current main's
+Wave-1 C2 slice is confirmed as the honest `runAfter`-class surface, not merely
+an enqueue stub. A file-backed crash/reopen witness now closes its remaining
+attempt-ledger evidence gap: stored lease expiry receipts attempt 1, advances
+attempt/fence, rejects stale publication, and persists attempt-2 success. No
+`ctx.scheduler` alias or new production vocabulary was needed; LLP 0070's
+broader profile remains unclaimed.) 2026-08-02 (decision-sitting propagation: OQ5 is reaffirmed and
 carried into its owners — the locally provable npm closure follows LLP 0074's
 parallel gate and LLP 0134's maturity bar, independently of hosted work;
 source: `issues/20260802-author-decision-packet.md`). 2026-07-31 (§Sequencing 5 rerun-arm prep EXECUTED: the
@@ -429,7 +435,7 @@ relational query exist — and the remainder is CV-8, not a rediscovery.
 | CV-6 | Precise mutation results as the paved default | B (P1) | 1 | 0108 amendment, guide | 0117 | S | Open (OQ3 answered — decision 5: deferral confirmed, provisional lean recorded; sequenced post-A+E) |
 | CV-7 | Helper reuse via revived bounded static bundling | C (P1) | 2 | 0108 follow-on | 0118 | L | Landed 2026-07-31 (`4d72c407`: full option-1a same-file slice — context-readers admitted per 0127 decision 6, splice emission, v2 named-helper-content hash, cross-helper adversarial fixtures, spliced-bytes capability rescan; ticket issues/20260730-move2-capability-free-helper-cut.md; benchmark receipts against LLP 0035's baseline still open) |
 | CV-8 | Relational shapes: promote what exists, decide aggregates | C (P1) | 6 | 0110, 0080, 0113 | 0120 | L | In flight (0110 in Review, re-verified 2026-07-31; decision 3: sequence primitive first, then 3a; stable-promotion design LANDED as LLP 0134, Accepted 2026-07-31 under SD-4; sequence-primitive + 3a design passes LANDED as LLP 0135, Accepted 2026-07-31 under SD-4; both design tickets closed) |
-| CV-9 | Transactional one-off scheduling (`runAfter`-class) | C (P1) | 3 | 0070 (primary) + 0028 test-seam amendment | 0121 | M | Open (0070 is Draft; first implementation slice = 0127 slice 3-jobs, startable; receipt-association owner = 0070 per decision 7); implementation LANDED 2026-07-31 (wave-1 lane C2): transactional `ctx.jobs.enqueue` in the mutation commit, fenced claims + append-only attempt receipts, the injected-clock drain seam, the declared job-status live query, experimental `jobs_one_off_v1`; 0070 stays Draft; Dispatch-arm rerun evidence outstanding |
+| CV-9 | Transactional one-off scheduling (`runAfter`-class) | C (P1) | 3 | 0070 (primary) + 0028 test-seam amendment | 0121 | M | LANDED 2026-08-02: Wave-1 C2 (`e25ab2a3`, `804782a1`) already shipped the honest action-callee `runAfter` class — transactional delayed `ctx.jobs.enqueue`, rollback-schedules-nothing, fenced attempt receipts, injected-clock drain, declared status query, and experimental `jobs_one_off_v1`. The erg-01 reconciliation adds the missing file-backed crash/reopen witness: attempt 1 survives close/reopen, expires with `SNAPBACK_JOB_LEASE_EXPIRED`, attempt 2 advances the fence and succeeds, and the stale attempt cannot publish. No `ctx.scheduler` alias or production change; LLP 0070's complete profile stays unclaimed. Dispatch-arm rerun remains program measurement, not a primitive gap |
 | CV-10 | Numeric normalization at the search source/recheck boundary | D (P1) | 4 (rider) | code fix (`src/search/sqlite.rs`, `src/storage.rs`) + one-line 0073 pin | — | S | Landed 2026-07-30 (`c57ef9cd`: canonical-digest recheck + storage normalization + 0073 pin; ticket closed) |
 | CV-11 | Live/re-executing search story | D (P1) | 4 | 0073 + 0112/0114 | 0119 | L | Design half landed 2026-07-31 (LLP 0136, Accepted under SD-4: coarse re-execution on invalidation, non-auth-scoped v1, table-scoped ceilings, offer-gated negotiation); implementation + the 0114 rerun-arm prep remain open |
 | CV-12a | Portable range filters | D (P1) | 4 (rider) | 0073 (new design) | — | M | Open |
@@ -1088,6 +1094,21 @@ the dated 2026-07-31 amendment note, was absorbed into 0070's body as
 §First slice as shipped on 2026-08-01; the note is tombstoned.)
 The Dispatch arm's one-off path (the diary-visible half of the exit)
 ports at the successor rerun per §Sequencing 5.
+
+**2026-08-02 implementation reconciliation.** Commits `e25ab2a3` and
+`804782a1`, the current jobs code, and the external/in-tree evidence were
+rechecked against LLP 0070's shipped-first-slice contract. The implementation
+already provides the author-facing `runAfter` class through
+`ctx.jobs.enqueue(action, args, { delayMs, maxAttempts, ... })`; adding a
+parallel `ctx.scheduler` spelling would duplicate the owned vocabulary rather
+than close a capability gap. The only honest remainder was crash/reopen
+evidence beyond the existing in-memory stale-fence test. The new file-backed
+fixture closes that remainder by dropping the sole SQLite connection with
+attempt 1 unfinished, reopening, reclaiming only at lease expiry, verifying
+the first attempt's `lease_expired` / `SNAPBACK_JOB_LEASE_EXPIRED` receipt and
+strictly greater successor fence, rejecting the stale publication, and
+finishing attempt 2 to the exact terminal ledger. The broader LLP 0070
+acceptance corpus and capability tuple remain outside CV-9's landed slice.
 
 ### Tranche D — P1: mature portable search
 

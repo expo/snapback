@@ -5,7 +5,16 @@
 **Systems:** Background work, Actions, Webhooks, Cron, Storage, Runtime, Auth, Secrets, Deployment, Admin, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-08-01 (loop CONVERGED dual-family READY — Fable round 1,
+**Revised:** 2026-08-02 (CV-9 executable-evidence amendment: the shipped
+single-process SQLite slice now retains a file-backed crash/reopen witness.
+It commits and claims attempt 1, closes the only connection without a finish,
+reopens the same database, advances to the stored lease boundary, atomically
+records `lease_expired` / `SNAPBACK_JOB_LEASE_EXPIRED`, allocates attempt 2
+with a strictly greater fence, rejects the stale first publication, and
+persists attempt-2 success plus the terminal job projection. This closes the
+crash/reopen evidence remainder for the runAfter-class slice without adding a
+`ctx.scheduler` alias or widening the complete-RFC capability claim.)
+2026-08-01 (loop CONVERGED dual-family READY — Fable round 1,
 Codex round 3, zero unresolved concerns; artifacts
 reviews/0070-durable-background-work.{fable,codex}.md. Status
 advances Draft -> Review with the shipped first slice absorbed and
@@ -152,6 +161,21 @@ boot-admission fix. The executable evidence maps as follows:
   and fault corpus, rollback-schedules-nothing, drain receipts, admission
   narrowness, and — later than the 0.1.8 pass — the platform-owned
   job-status result contract with zero degraded advisories.
+
+**2026-08-02 crash/reopen evidence.**
+`src/jobs.rs::tests::file_backed_crash_reopen_expires_attempt_and_fences_successor`
+extends the first-slice fault corpus across a real SQLite close/reopen
+boundary. The fixture leaves attempt 1 claimed with no finish, proves the
+persisted lease remains exclusive until its exact boundary, then proves the
+successor transaction records attempt 1 as `lease_expired` with
+`SNAPBACK_JOB_LEASE_EXPIRED` before creating attempt 2 at a strictly greater
+fence. A retained pre-crash claim cannot publish, while attempt 2 can finish
+and the reopened database exposes the exact two-attempt ledger and terminal
+job state. This is evidence for the shipped first slice only; the broader
+restart/deploy/artifact corpus in §Acceptance and the complete
+`durable-work-single-process-sqlite-v1` tuple remain unclaimed. The witness
+passes through the existing storage state machine unchanged, so no production
+code or parallel `ctx.scheduler` vocabulary is warranted by this delta.
 
 The RFC remains Draft; nothing here claims a durable-background-work
 capability class or the `durable-work-single-process-sqlite-v1` tuple

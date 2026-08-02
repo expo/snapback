@@ -1075,6 +1075,136 @@ mod tests {
         assert_eq!(attempts[1].outcome.as_deref(), Some("succeeded"));
     }
 
+    // @ref LLP 0070#claims-and-fencing — a successor claim after process
+    // restart must terminally receipt the expired attempt and advance its fence.
+    #[test]
+    fn file_backed_crash_reopen_expires_attempt_and_fences_successor() {
+        let directory = tempfile::tempdir().expect("jobs fixture directory");
+        let database_path = directory.path().join("jobs.sqlite");
+        let first;
+
+        {
+            let mut conn = Connection::open(&database_path).expect("open file-backed sqlite");
+            create_jobs_infra(&conn).expect("jobs infra");
+            let tx = conn.transaction().unwrap();
+            let mut job = enqueue("job_reopen", 100);
+            job.max_attempts = 2;
+            insert_enqueued_jobs_in_tx(&tx, &producer(), 7, &[job], 100).unwrap();
+            tx.commit().unwrap();
+
+            let mut first_ids = || "claim_before_crash".to_owned();
+            let tx = conn.transaction().unwrap();
+            first = claim_due_jobs_in_tx(
+                &tx,
+                100,
+                JOBS_CLAIM_BATCH,
+                "autonomous-worker",
+                &mut first_ids,
+            )
+            .unwrap()
+            .remove(0);
+            tx.commit().unwrap();
+            assert_eq!(first.attempt, 1);
+            assert_eq!(first.fence, 1);
+
+            // Model a process crash: close the only database connection while
+            // attempt 1 remains claimed, with no finish publication.
+        }
+
+        let mut conn = Connection::open(&database_path).expect("reopen file-backed sqlite");
+        create_jobs_infra(&conn).expect("idempotent jobs infra on reopen");
+
+        let mut early_ids = || "claim_too_early".to_owned();
+        let tx = conn.transaction().unwrap();
+        let early = claim_due_jobs_in_tx(
+            &tx,
+            first.lease_expires_at_ms - 1,
+            JOBS_CLAIM_BATCH,
+            "autonomous-worker",
+            &mut early_ids,
+        )
+        .unwrap();
+        tx.commit().unwrap();
+        assert!(
+            early.is_empty(),
+            "the persisted attempt keeps its live lease"
+        );
+
+        let mut second_ids = || "claim_after_reopen".to_owned();
+        let tx = conn.transaction().unwrap();
+        let second = claim_due_jobs_in_tx(
+            &tx,
+            first.lease_expires_at_ms,
+            JOBS_CLAIM_BATCH,
+            "autonomous-worker",
+            &mut second_ids,
+        )
+        .unwrap()
+        .remove(0);
+        tx.commit().unwrap();
+        assert_eq!(second.attempt, 2);
+        assert_eq!(second.fence, first.fence + 1);
+        assert_ne!(second.claim_id, first.claim_id);
+
+        let attempts = job_attempts(&conn, "job_reopen").unwrap();
+        assert_eq!(attempts.len(), 2);
+        assert_eq!(attempts[0].attempt, 1);
+        assert_eq!(attempts[0].fence, first.fence);
+        assert_eq!(attempts[0].finished_at_ms, Some(first.lease_expires_at_ms));
+        assert_eq!(attempts[0].outcome.as_deref(), Some("lease_expired"));
+        assert_eq!(
+            attempts[0].diagnostic_code.as_deref(),
+            Some("SNAPBACK_JOB_LEASE_EXPIRED")
+        );
+        assert_eq!(attempts[1].attempt, 2);
+        assert_eq!(attempts[1].fence, second.fence);
+        assert_eq!(attempts[1].outcome, None);
+
+        let status = job_status_row(&conn, "job_reopen").unwrap().unwrap();
+        assert_eq!(status.state, JobState::Claimed);
+        assert_eq!(status.attempt_count, 2);
+        assert_eq!(status.max_attempts, 2);
+        assert_eq!(status.state_version, 3);
+        assert_eq!(status.terminal_at_ms, None);
+
+        // The pre-crash holder has lost its fence even though its claim value
+        // still exists in this test process.
+        let tx = conn.transaction().unwrap();
+        let stale = finish_job_in_tx(
+            &tx,
+            &first,
+            &JobAttemptOutcome::Succeeded,
+            first.lease_expires_at_ms + 1,
+        )
+        .unwrap();
+        tx.commit().unwrap();
+        assert_eq!(stale, JobFinishDisposition::StalePublication);
+
+        let terminal_at_ms = first.lease_expires_at_ms + 2;
+        let tx = conn.transaction().unwrap();
+        let disposition =
+            finish_job_in_tx(&tx, &second, &JobAttemptOutcome::Succeeded, terminal_at_ms).unwrap();
+        tx.commit().unwrap();
+        assert_eq!(disposition, JobFinishDisposition::Succeeded);
+
+        let status = job_status_row(&conn, "job_reopen").unwrap().unwrap();
+        assert_eq!(status.state, JobState::Succeeded);
+        assert_eq!(status.attempt_count, 2);
+        assert_eq!(status.state_version, 4);
+        assert_eq!(status.terminal_at_ms, Some(terminal_at_ms));
+        assert_eq!(status.last_error_code, None);
+
+        let attempts = job_attempts(&conn, "job_reopen").unwrap();
+        assert_eq!(attempts.len(), 2);
+        assert_eq!(attempts[0].outcome.as_deref(), Some("lease_expired"));
+        assert_eq!(
+            attempts[0].diagnostic_code.as_deref(),
+            Some("SNAPBACK_JOB_LEASE_EXPIRED")
+        );
+        assert_eq!(attempts[1].outcome.as_deref(), Some("succeeded"));
+        assert_eq!(attempts[1].diagnostic_code, None);
+    }
+
     #[test]
     fn failed_attempts_retry_with_deterministic_backoff_then_dead_letter() {
         let mut conn = memory_conn();
