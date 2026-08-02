@@ -56,7 +56,10 @@ windows-sys = { version = "0.61.2", features = [
 ] }
 
 [dev-dependencies]
-jsonschema = "0.46.8"
+# Default features pull resolve-http (reqwest + rustls + aws-lc-sys, compiled
+# from source) for remote $ref resolution. Every use is validator_for() over an
+# in-memory schema, so only the dependency-free resolve-file is kept.
+jsonschema = { version = "0.46.8", default-features = false, features = ["resolve-file"] }
 syn = { version = "2.0", features = ["full", "visit"] }
 tempfile = "3.23"
 # test-util enables tokio's paused clock so the admitted-body ingest deadline

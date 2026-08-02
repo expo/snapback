@@ -9,7 +9,7 @@ use axum::http;
 use base64::Engine as _;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use clap::ValueEnum;
-use ring::hmac;
+use hmac::{Hmac, Mac as _};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest as _, Sha256};
 use std::fmt;
@@ -421,11 +421,34 @@ fn parse_hosted_admission_envelope(bytes: &[u8]) -> SnapbackResult<HostedAdmissi
     })
 }
 
+/// Owning custody for the 32-byte hosted admission MAC key. The key outlives
+/// every individual verification, so it holds its own material and zeroizes on
+/// drop rather than leaving it resident in a shared handle.
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) struct HostedAdmissionMacKey([u8; 32]);
+
+impl HostedAdmissionMacKey {
+    #[cfg_attr(not(test), allow(dead_code))]
+    fn new(material: &[u8; 32]) -> Self {
+        Self(*material)
+    }
+
+    fn mac(&self) -> Hmac<Sha256> {
+        Hmac::<Sha256>::new_from_slice(&self.0).expect("HMAC-SHA-256 accepts every key length")
+    }
+}
+
+impl Drop for HostedAdmissionMacKey {
+    fn drop(&mut self) {
+        self.0.zeroize();
+    }
+}
+
 #[cfg_attr(not(test), allow(dead_code))]
 fn verify_hosted_admission_envelope(
     envelope: HostedAdmissionEnvelope,
     expected_key_id: &str,
-    verification_key: &hmac::Key,
+    verification_key: &HostedAdmissionMacKey,
 ) -> SnapbackResult<HostedAdmissionEnvelope> {
     if envelope.schema_version != HOSTED_ADMISSION_ENVELOPE_VERSION
         || envelope.key_id != expected_key_id
@@ -444,7 +467,9 @@ fn verify_hosted_admission_envelope(
         ));
     }
     let input = hosted_admission_mac_input(&envelope)?;
-    hmac::verify(verification_key, &input, &provided)
+    let mut mac = verification_key.mac();
+    mac.update(&input);
+    mac.verify_slice(&provided)
         .map_err(|_| hosted_admission_invalid("hosted admission MAC verification failed"))?;
     Ok(envelope)
 }
@@ -537,7 +562,7 @@ pub(crate) struct HostedServingAuthority {
     admission: Arc<RwLock<HostedAdmission>>,
     public_origin: Arc<str>,
     admission_key_id: Option<Arc<str>>,
-    admission_verification_key: Option<Arc<hmac::Key>>,
+    admission_verification_key: Option<Arc<HostedAdmissionMacKey>>,
     authentication_throttle_key: Arc<AuthenticationThrottleKey>,
     hosted_target_admission: Option<Arc<crate::deploy::HostedAdmissionV2>>,
 }
@@ -753,7 +778,7 @@ impl HostedServingAuthority {
         let mut key_array = [0_u8; 32];
         key_array.copy_from_slice(&material);
         material.zeroize();
-        let verification_key = hmac::Key::new(hmac::HMAC_SHA256, &key_array);
+        let verification_key = HostedAdmissionMacKey::new(&key_array);
         let envelope_result = read_hosted_admission_envelope(envelope_path).and_then(|envelope| {
             verify_hosted_admission_envelope(envelope, &key_file.key_id, &verification_key)
         });
@@ -1021,8 +1046,9 @@ mod tests {
             mac: String::new(),
         };
         let input = hosted_admission_mac_input(&envelope).unwrap();
-        envelope.mac =
-            URL_SAFE_NO_PAD.encode(hmac::sign(&hmac::Key::new(hmac::HMAC_SHA256, key), &input));
+        let mut mac = HostedAdmissionMacKey::new(key).mac();
+        mac.update(&input);
+        envelope.mac = URL_SAFE_NO_PAD.encode(mac.finalize().into_bytes());
         envelope
     }
 
