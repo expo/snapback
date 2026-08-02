@@ -28,8 +28,10 @@ mean.
   generated interior types (beyond the landed LLP 0131 args contracts)
 - 03 helper reuse slice — BLOCKED on the helper-class cutline author decision
   (in the decision packet); verify what lane C1 (CV-7) already landed first
-- 04 register cliff: one ordinary query must not degrade a whole register
-  group; verify current behavior, then fix or file the owning-design gap
+- 04 register cliff — CLOSED 2026-08-02 onto path (b), landed at `ceb205a6`
+  and re-verified on current main: the cliff is the all-live format-1 group
+  artifact, not sibling delivery; implementation waits for an accepted
+  mixed-route successor profile
 
 Every ticket starts with a verify-against-main step: the fleet lands fast and
 the survey's facts are hours old. Deliberately NOT here: aggregates (deferred
@@ -56,6 +58,13 @@ clients (consciously deferred), hosted lifecycle (own future program).
   a versioned mixed profile rather than a local codegen relaxation. The
   non-normative proposal is recorded in LLP 0090; implementation is gated on
   author acceptance and no change was made to the separately owned LLP 0157.
+- **2026-08-02 — G-04 path-(b) exit verified and closed.** Current main and
+  `eda8f231^` both pass the codegen mixed-route characterization; their
+  `live_delta_v0` suites pass 9/9 and 7/7 respectively. The two additional
+  current-main cases are the narrowed-contract replacement guards, not a
+  moved register cliff. The filesystem ticket is closed onto the successor
+  profile's acceptance gate; no gated implementation or capability claim was
+  added.
 - **2026-08-02 — G-03 closed as an already-landed duplicate.** Verification
   against current main found C1 commit `4d72c407` already implements the full
   context-reader-admitting LLP 0118 option-1a cut, with declared reads/writes

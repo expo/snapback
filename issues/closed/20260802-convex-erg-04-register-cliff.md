@@ -1,6 +1,7 @@
 # G-04: The register cliff — one ordinary query must not degrade a whole register group
 
-**Status:** Amendment proposed — implementation gated on mixed-route v2 design
+**Status:** Resolved — path (b) landed; implementation is gated on an
+accepted mixed-route successor profile
 **Program:** 20260802-convex-erg-00-program.md
 **Systems:** Live queries, Client integration, Codegen
 **Related:** LLP 0127 (reactivity-fee finding), LLP 0090 (resumable query
@@ -60,5 +61,42 @@ degradation, never upgrade of the unanalyzable.
   before implementation. LLP 0112 format 1 remains unchanged. LLP 0157 is a
   live, separately owned authoring lane; this ticket neither edits it nor
   treats composition-plan identity as a liveness decision. The implementation
-  half is re-scoped to the accepted successor profile and is blocked until
-  that author-level contract exists.
+  half is re-scoped to a successor profile and is blocked until that
+  author-level contract is accepted.
+- **2026-08-02 — current/pre-change verification and closure.** Re-verified
+  the path-(b) landing on current `origin/main`
+  (`046e7b9ee2ef00be0dec50e43697377b6b689f35`) and on the parent of the
+  delta-egress change (`eda8f231^` =
+  `87b4e9f9caf19ea2c9fd36814c10a072f46b034e`). On both revisions,
+  `npx --yes node@24.18.0 packages/snapback-codegen/authoring-validation.test.mjs`
+  passed and pinned
+  the same outcome: mixed and ordinary-query routes remain read-bundle-valid,
+  but only all-`LiveQuery` routes receive generated format-1 groups. After
+  `scripts/bootstrap-ibex-runtime`, the pre-change
+  `DYLD_FRAMEWORK_PATH=$PWD/vendor/ibex/ios/Frameworks cargo test --locked --test live_delta_v0`
+  suite passed 7/7; current main passed 9/9, including
+  the two post-`eda8f231` narrowed-contract validated-replacement cases. The
+  behavior change therefore did not create or move the route cliff and did
+  not degrade sibling live delivery. `./ref-check --verbose` passed with 158
+  LLP documents, 2,730 references, and zero errors.
+- **2026-08-02 — inherited clean-worktree proof prerequisites.** The complete
+  codegen package suite passed through `remote-service-publication.test.mjs`
+  before its inherited missing ignored
+  `demos/all-aboard/snapback/generated/functions.manifest.json` stopped
+  `data-tier-corpus.test.mjs`. Full `cargo test --locked --lib` likewise
+  stopped before tests because current main lacks the ignored generated
+  Todo/RBAC manifests included by `src/embed.rs`, `src/seed_identity.rs`, and
+  `src/storage.rs`. `node scripts/check-guide.mjs` retained the already
+  recorded missing competitive-checkpoint and todo-v2 generated snippet
+  sources plus the resulting stale guide manifest. This docs-only closure
+  changes none of those generators, demos, guide pages, or runtime sources;
+  the focused codegen and native comparisons above are green.
+
+## Resolution
+
+Commit `ceb205a6` landed the dated reproduction, the Program G ownership note,
+and LLP 0090's explicitly non-normative mixed-route register-gradient
+amendment proposal. That satisfies exit path (b): the implementation is
+re-scoped to a new versioned profile and cannot proceed until its author-level
+contract is accepted. This closure makes no code, capability, delivery,
+carrier, or LLP 0157 claim and does not reinterpret LLP 0112 format 1.
