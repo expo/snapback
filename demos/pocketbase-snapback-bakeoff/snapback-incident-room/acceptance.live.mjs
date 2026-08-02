@@ -121,13 +121,16 @@ try {
 
   await check('GAP: authenticated asset upload exposes 0.1.8 auth failure', async () => {
     const assets = createAssetClient(client, { chunkBytes: 5 });
-    const file = new Blob(['runbook contents'], { type: 'text/plain' });
+    // A real PNG signature: the intent accepts detectable types only, and
+    // this check measures the auth refusal that precedes detection anyway.
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    const file = new Blob([png], { type: 'image/png' });
     const task = assets.start({
       upload: api.incidentAttachment,
       file,
       userId: 'user_ada',
-      declaredFilename: 'runbook.txt',
-      declaredContentType: 'text/plain',
+      declaredFilename: 'runbook.png',
+      declaredContentType: 'image/png',
     });
     const completed = await task.done;
     assert.equal(completed.status, 'failed', JSON.stringify(completed));

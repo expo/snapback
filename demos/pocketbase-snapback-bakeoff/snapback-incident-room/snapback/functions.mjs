@@ -105,7 +105,10 @@ export const incidentAttachment = defineAssetUpload({
   args: {},
   auth: 'authenticated',
   reads: [],
-  accept: { mediaTypes: ['text/plain', 'image/png', 'image/jpeg'], maxBytes: 5_242_880 },
+  // Detectable types only: trusted detection reads bytes, and `text/plain`
+  // is not something bytes can prove, so declaring it refuses at generation
+  // (the undetectable-accept rule). Incident attachments are screenshots.
+  accept: { mediaTypes: ['image/png', 'image/jpeg'], maxBytes: 5_242_880 },
   delivery: { kind: 'private-strict' },
   access: { read: 'via-references' },
   image: { location: 'strip' },
