@@ -36843,6 +36843,17 @@ globalThis.__snapbackHandlers = {
     const INTERNAL_SERVER_ERROR_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_BENCH_HELPER_SPLICE_MISMATCH",
         "SNAPBACK_ACTION_CONTEXT_UNAVAILABLE",
+        // LLP 0062 §5 API-envelope admission refusals. These are admission-time
+        // invariants on a provisioner-supplied artifact, not request classes:
+        // no HTTP path produces them yet (serving and ingestion are ticket
+        // 0062-02), so the truthful projection is the fail-safe 500 until that
+        // producer deliberately chooses request classes for each cause.
+        "SNAPBACK_API_ENVELOPE_CORRESPONDENCE_FAILED",
+        "SNAPBACK_API_ENVELOPE_GRAMMAR_INVALID",
+        "SNAPBACK_API_ENVELOPE_MEMBER_DIGEST_MISMATCH",
+        "SNAPBACK_API_ENVELOPE_NONCANONICAL",
+        "SNAPBACK_API_ENVELOPE_TOO_LARGE",
+        "SNAPBACK_API_ENVELOPE_VERSION_UNSUPPORTED",
         // LLP 0070 first slice: internal job-ledger invariants — a corrupt
         // stored state, an exhausted per-job fence, or enqueues reaching
         // commit without producer provenance are Snapback faults, never 4xx.
