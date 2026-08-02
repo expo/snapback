@@ -42,5 +42,11 @@ cold-clone-check.sh now materializes the All Aboard codegen graph
 demos/all-aboard/snapback`) before step 1 and refuses drift of the committed
 review manifest. Reproduced the `SNAPBACK_CODEGEN_CACHE_INVALID` failure
 locally by deleting the regenerable cache, then verified the materialization
-plus surface build pass (same inputsHash digest the plugin expected). The
-full lane including the browser acceptance is verified by CI on the fix PR.
+plus surface build pass (same inputsHash digest the plugin expected).
+
+Scope note: this closes the codegen-materialization defect only. The lane is
+still red, now at step 2 for an unrelated upstream cause — the Exact 0.1.7
+production runtime does not boot any Contract route, so the acceptance scores
+1/34. That is tracked separately in
+issues/20260802-exact-production-runtime-breaks-contract-routes.md and is not
+fixable inside this repository.
