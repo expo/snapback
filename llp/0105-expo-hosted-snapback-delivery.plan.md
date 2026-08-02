@@ -529,11 +529,32 @@ platform/pricing facts.
   written **$1.00/M past 50M/mo** — ~6,700× the request coefficient,
   confirming P0.4's write-amplification measurement as the decisive
   margin input; stored data $0.20/GB-month; DO requests $0.15/M.
-- **P0.4 locally-decisive spikes:** see the dated receipts under
-  `demos/eas-phase0/receipts/` (write amplification, logical-storage
-  formula, missing-sample estimator) — these run against the real local
-  engine and pure protocol logic, need no WfP entitlement, and are the
-  blocking economics outputs Gate 0 names.
+- **P0.4 locally-decisive spikes, RUN 2026-08-01** (receipts under
+  `demos/eas-phase0/receipts/`): **write amplification** — measured on
+  the real local engine (todo backend, 200 mutations/shape): 8 provider
+  rows-written per insert mutation, 4 per update (journal coalescing
+  observed at 2:1 on updates); at the dated prices, insert-heavy write
+  cost is **~53× the request coefficient** ($8.00/M mutations vs
+  $0.15/M requests), answering Gate 0's directional question —
+  request/CPU pricing alone cannot cover write-heavy shapes, so the
+  logical database-write-unit meter (or write-cost-in-margin with this
+  amplification basis) is required for 0104 ratification #1; the
+  adversarial shape and five-app corpus rerun on the real DO target
+  with empirical index-write accounting. **Logical-storage formula** —
+  the three PRAGMAs answered on the local engine; billed non-freelist
+  bytes proven strictly below `databaseSize` after deletions (13
+  freelist pages excluded, customer-favorable); the reconciliation
+  contract (window, non-Snapback exclusion, allocation rule, 5%/two-
+  window escalation) recorded; DO-SQLite PRAGMA availability remains
+  the explicit OPEN Gate-0 item. **Missing-sample estimator** —
+  implemented with carry-forward + append-only credits; worst-case
+  pre-credit bound proven as gap × max(0, lastConfirmed −
+  min-true-in-gap) (operational form R × gap² under a declared max
+  shrink rate, enforceable via metered deletions) across 16 committed
+  scenarios + 500 fuzz runs, growth gaps under-billing
+  (customer-favorable) throughout. **Not yet run** from P0.4: the
+  account-budget/lease protocol proof and the transfer-fence state
+  machine — protocol-logic spikes sized for their own session.
 - **P0.5 dependency named:** hosted sessions (the 0137-a1expo-f5 gap's
   fix shape — hosted sessions routes + production challenge delivery)
   gates P0.5's app-plane auth proof; the spike cannot run before that

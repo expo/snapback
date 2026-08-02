@@ -1,0 +1,100 @@
+{
+  "receipt": "eas-phase0/p0.4/write-amplification",
+  "date": "2026-08-01",
+  "engine": "local snapback (file-backed SQLite), todo demo backend, dev mode",
+  "mutationsPerShape": 200,
+  "tables": [
+    "_snapback_asset_attempts_v1",
+    "_snapback_asset_blobs_v1",
+    "_snapback_asset_intent_artifacts_v1",
+    "_snapback_asset_intent_generations_v1",
+    "_snapback_asset_publications_v1",
+    "_snapback_asset_receipts_v1",
+    "_snapback_asset_records_v1",
+    "_snapback_asset_reference_edges_v1",
+    "_snapback_asset_renditions_v1",
+    "_snapback_asset_seed_fixtures_v1",
+    "_snapback_asset_signing_keys_v1",
+    "_snapback_asset_work_ledger_v1",
+    "_snapback_auth_retry_counters",
+    "_snapback_auth_retry_episodes",
+    "_snapback_authorized_lease_reservations",
+    "_snapback_changes",
+    "_snapback_client_mutation_auth_retention",
+    "_snapback_client_mutations",
+    "_snapback_job_attempts_v1",
+    "_snapback_jobs_v1",
+    "_snapback_membership_transitions",
+    "_snapback_meta",
+    "_snapback_relation_incarnations_v1",
+    "_snapback_search_builds",
+    "_snapback_search_frontiers",
+    "_snapback_search_generations",
+    "_snapback_search_journal_leases",
+    "_snapback_search_sources",
+    "_snapback_search_terms",
+    "_snapback_seed_installations_v1",
+    "_snapback_seed_operations_v1",
+    "_snapback_stream_attempts",
+    "_snapback_version",
+    "todos"
+  ],
+  "indexesByTable": {
+    "_snapback_asset_attempts_v1": 1,
+    "_snapback_asset_publications_v1": 1,
+    "_snapback_asset_receipts_v1": 1,
+    "_snapback_asset_records_v1": 1,
+    "_snapback_asset_reference_edges_v1": 2,
+    "_snapback_asset_renditions_v1": 1,
+    "_snapback_asset_work_ledger_v1": 1,
+    "_snapback_authorized_lease_reservations": 1,
+    "_snapback_changes": 3,
+    "_snapback_client_mutations": 2,
+    "_snapback_jobs_v1": 2,
+    "_snapback_membership_transitions": 1,
+    "_snapback_relation_incarnations_v1": 1,
+    "_snapback_search_generations": 1,
+    "_snapback_search_sources": 1,
+    "_snapback_search_terms": 1,
+    "todos": 1
+  },
+  "shapes": {
+    "insertHeavy": {
+      "durableRowDeltaPerMutation": 3,
+      "perTable": {
+        "_snapback_changes": 200,
+        "_snapback_relation_incarnations_v1": 200,
+        "todos": 200
+      },
+      "providerRowsWrittenPerMutation": 8,
+      "costPer1kMutationsUSD": 0.008
+    },
+    "updateHeavy": {
+      "durableRowDeltaPerMutation": 0.5,
+      "perTable": {
+        "_snapback_changes": 100
+      },
+      "providerRowsWrittenPerMutation": 4,
+      "costPer1kMutationsUSD": 0.004,
+      "note": "in-place app-row rewrite + all todos indexes counted per update (conservative), plus measured durable system-row appends"
+    }
+  },
+  "comparison": {
+    "requestCostPer1kUSD": 0.00015,
+    "verdictShape": "rows-written cost per mutation vs the request coefficient decides 0104 ratification #1"
+  },
+  "limits": [
+    "durable row-count deltas under-count transient rows inside retention windows and in-place updates (updates handled analytically)",
+    "index-entry accounting is analytic (DO/D1 bills each index entry as a row write); confirm empirically on the real DO target",
+    "p50 shape only; adversarial-but-admitted and the five-app corpus run on the real target per 0105"
+  ],
+  "gate0Verdict": {
+    "insertRowsWrittenPerMutation": 8,
+    "updateRowsWrittenPerMutation": 4,
+    "journalCoalescingObserved": "200 updates produced 100 journal rows \u2014 the engine batches update journal entries 2:1 in this shape",
+    "costInsertPerMillionMutationsUSD": 8.0,
+    "requestCoefficientPerMillionUSD": 0.15,
+    "ratio": 53.3,
+    "directionalAnswer": "rows-written cost is ~53x the request coefficient for insert-heavy shapes: request/CPU prices alone cannot cover write-heavy shapes, so 0104 ratification #1 needs either the logical database-write-unit meter specified in Phase 0 (0105 P0.4 clause) or write cost folded into margins with this measured amplification as the basis"
+  }
+}

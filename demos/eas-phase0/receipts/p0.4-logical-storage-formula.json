@@ -1,0 +1,25 @@
+{
+  "receipt": "eas-phase0/p0.4/logical-storage-formula",
+  "date": "2026-08-01",
+  "database": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/eas-p04-pwibVq/app.db",
+  "pragmas": {
+    "page_count": 152,
+    "freelist_count": 13,
+    "page_size": 4096
+  },
+  "pragmaAvailabilityLocal": "all three PRAGMAs (page_count, freelist_count, page_size) answered on the local engine",
+  "billedLogicalBytes": 569344,
+  "databaseSizeCrossCheck": 622592,
+  "fileBytes": 622592,
+  "crossCheckAgrees": true,
+  "freelistExcludedFromBilling": true,
+  "customerFavorableDelta": 53248,
+  "reconciliationContract": {
+    "scope": "per-object first-party samples reconcile IN AGGREGATE to the namespace-level provider stored-data bill (no per-stable-id provider feed assumed)",
+    "aggregationWindow": "calendar month, sampled at the estimator cadence",
+    "nonSnapbackResources": "namespace resources not owned by a Snapback environment are excluded from the allocation rule and absorbed by the platform, never billed to a customer",
+    "allocationRule": "customer share = customer billed logical bytes / sum of all Snapback-environment billed logical bytes in the namespace, applied to the provider stored-data line",
+    "toleranceEscalation": "aggregate |provider - sum(first-party)| / provider tracked per window; > 5% for two consecutive windows escalates to operations and freezes price changes until explained"
+  },
+  "gate0OpenItem": "DO-SQLite PRAGMA availability (page_count/freelist_count/page_size) is NOT proven by this local run; it is the explicit Gate-0 verification 0105 requires on the real target, and missing support there fails the DO-SQLite billing basis rather than falling back to databaseSize"
+}
