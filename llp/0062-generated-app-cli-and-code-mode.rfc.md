@@ -1,11 +1,28 @@
 # RFC 0062: Generated Per-App CLI and Code Mode
 
 **Type:** RFC
-**Status:** Review (implementation program shelved 2026-08-01 — see Revised)
+**Status:** Review (implementation program recommissioned 2026-08-01 — see Revised)
 **Systems:** Client integration, Developer experience, Tooling, API, Auth, Docs
 **Author:** Charlie Cheever / Claude Fable 5
 **Date:** 2026-07-17
-**Revised:** 2026-08-01 (author direction: the post-Node distribution is an app-bound, one-file Ibex executable, not a vague standalone wrapper — it embeds Ibex/Hermes, the generic trusted engine, and the app binding while fetching the current API envelope dynamically; ordinary app deploys do not rebuild it, and external `run analysis.ts` ingress is the specific Ibex contract gap; see §6). 2026-08-01 (author decision, Charlie Cheever, via the triage
+**Revised:** 2026-08-01, later same day (RECOMMISSIONED — author direction,
+Charlie Cheever, verbatim: "let's reawaken the downloadable terminal CLI
+interface program." The shelving is lifted the same day it landed; the
+fresh dependency-ordered program is `issues/20260801-0062-*`, derived from
+a code audit rather than the shelved ticket list, because the ground moved
+under the program even today: the two re-filed asks are already RESOLVED —
+call-time generation binding (generated references carry the complete
+artifact pair through every packaged call family; sessions dispatch checks
+the pair under one admission; typed generation resync on live) and the
+LLP 0043 settlement/acknowledgement lifecycle (durable intent-before-
+dispatch, fsync-and-ACK, never-ACK-unknown, removed-function terminal
+recovery) — and human session custody stays superseded by LLP 0096's
+`createExternalSessionClient` non-custodial bearer path. Still open and
+now programmed: envelope codegen + `/app-api/*` serving/ingestion, the
+shared result core, engine consumption of the landed binding/settlement
+protocols, credentialed lanes + eligibility descriptor, code mode, and
+the phase-2 one-file Ibex executable behind the ibex 0028/0029
+corrections plus the new external-script-ingress extension.) (author direction: the post-Node distribution is an app-bound, one-file Ibex executable, not a vague standalone wrapper — it embeds Ibex/Hermes, the generic trusted engine, and the app binding while fetching the current API envelope dynamically; ordinary app deploys do not rebuild it, and external `run analysis.ts` ingress is the specific Ibex contract gap; see §6). 2026-08-01 (author decision, Charlie Cheever, via the triage
 sweep: the 13-ticket app-cli implementation program is temporarily
 shelved — the tickets are closed as Shelved under `issues/closed/`
 (session-custody-store as Superseded by LLP 0096's
