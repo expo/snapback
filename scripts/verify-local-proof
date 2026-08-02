@@ -44,7 +44,6 @@ cd "$ROOT"
 
 run ./ref-check --verbose
 run python3 tests/ref_check_v0.py
-run node tests/demo_setup_v0.mjs
 run node tests/allowlist_install_v0.mjs
 run node --test tests/action_fetch_fence_v0.mjs
 run node tests/ci_workflows_v0.mjs
@@ -96,6 +95,11 @@ run scripts/ibex-doctor
 # LLP 0032 P3 artifact gates: regen-and-diff staleness + tsc over generated
 # types (the Rust-derived schema validation gate runs inside cargo test).
 run scripts/check-generated-artifacts
+# demo_setup provisions every discovered demo from its generated manifests.
+# Those are gitignored since 6e080ca2 (only artifacts.json stays tracked), so
+# on a clean checkout this test can only run after the regen gate above has
+# materialized them.
+run node tests/demo_setup_v0.mjs
 # @ref LLP 0049#deployment-identity-freshness-gate-2026-07-25 — recompute the
 # committed Cloudflare deployment-identity manifests here so the commit that
 # changes deploy inputs without regenerating fails, not the next deploy
