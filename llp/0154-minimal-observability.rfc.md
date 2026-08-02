@@ -1,7 +1,7 @@
 # LLP 0154: Minimal built-in observability and analytics
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Accepted
 **Systems:** Observability, Storage, Server, Admin console, CLI,
 Hosted execution, Developer experience
 **Author:** Charlie Cheever / Claude (Fable 5)
@@ -144,6 +144,15 @@ rounds 5 and 6, Codex NOT READY in rounds 5–7 with monotonically
 shrinking, fix-of-the-fix findings; these v0.9 repairs are applied
 per Codex's own resolutions but are themselves unreviewed. The author
 decides the status transition.)
+**Revised:** 2026-08-02 (ACCEPTED by Charlie Cheever in the 2026-08-02
+decision sitting — see `issues/20260802-author-decision-packet.md`. The
+asymmetric stop is recorded honestly: Fable READY in rounds 5–6, Codex
+NOT READY through round 7 with monotonically shrinking fix-of-the-fix
+findings, v0.9 repairs applied per Codex's own resolutions but themselves
+unreviewed; the author accepts on that record. Acceptance releases the
+Phase-1 deliverables program (`issues/20260802-obs-00-program.md`,
+tickets obs-01..04); Phases 2–3 and the OQ2/OQ3 retention and identity
+decisions remain gated as the document states.)
 **Related:** LLP 0000 (explainer; reserves Observability as an undrafted
 subsystem), LLP 0003 (storage core; app write lane), LLP 0010 (inspect
 loop; explicitly defers production observability), LLP 0012 (headless

@@ -1,7 +1,8 @@
 # G-03: Helper reuse slice — after the helper-class cutline decision
 
-**Status:** Blocked (author decision: helper-class cutline — see
-20260802-author-decision-packet.md item 2)
+**Status:** Open — UNBLOCKED 2026-08-02: cutline decided (context-reader
+helpers first; declared reads/writes as evidence, not ceilings — sitting
+record in 20260802-author-decision-packet.md ruling 2)
 **Program:** 20260802-convex-erg-00-program.md
 **Systems:** Codegen, Runtime, API
 **Related:** LLP 0118 (handler composition and helper reuse research),

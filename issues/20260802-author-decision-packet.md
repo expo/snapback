@@ -1,77 +1,79 @@
-# Author decision packet — everything currently waiting on Charlie, 2026-08-02
+# Author decision packet — RESOLVED 2026-08-02 (sitting record)
 
-**Status:** Open (standing packet — strike items as they're decided; close
-when empty)
-**Opened:** 2026-08-02, consolidating the backlog survey's decision queue plus
-the two items the Convex-gap synthesis surfaced. Each item names what's
-decided, the recommended default where a loop produced one, and what it
-unblocks.
+**Status:** Resolved except two standing conditionals (below); this file is
+now the provenance record for the 2026-08-02 decision sitting (Charlie
+Cheever, with Claude Fable 5 presenting). Propagation of each ruling into
+its owning LLP as a dated amendment is tracked by
+`issues/20260802-decision-propagation-amendments.md`.
 
-## Tier 1 — highest leverage per the corpus's own analysis
+## Rulings, 2026-08-02
 
-1. **npm default-channel gate** (LLP 0111-vs-0074 / OQ5; LLP 0122 packaging
-   coherence). The parity research calls this "the single highest-leverage
-   decision in this space." Decides which install channel is the paved
-   first-hour default. Pure decision; unblocks first-hour coherence work and
-   several capability-index rows stuck at "contributor source builds only."
-2. **Helper-class cutline** (LLP 0118 / LLP 0127 move 2). Which helper
-   classes are admitted into the closed module graph vs refused with a stable
-   reason. Unblocks Program G ticket 03 (verify lane C1's landing first —
-   G-03 has the details).
-3. **Identity packet** (one sitting, four rulings — Program C):
-   - 0151 credential ownership: both review families jointly recommend
-     **Option D**; awaiting adjudication.
-   - 0151 SMS tier placement: your tier-1 pin vs Codex's tier-2
-     recommendation (Fable: pick one).
-   - 0152 OQ14: is external CIAM a sibling paved path (0153's provider
-     class) or a Tier-2 escape hatch under 0151? Boundary gates both
-     sequencing plans.
-   - 0150 OQ2 (credential-kind coexistence; your provisional lean:
-     exclusive) and OQ3 (identifier/secret-class registrations — now
-     interacts with the shipped LLP 0148 registry).
-   - Plus two commissions: the completion-protocol implementing spec and the
-     lifecycle implementing spec (0151 names both; neither has owner or
-     number).
+Tier 1:
 
-## Tier 2 — acceptance calls on converged documents
+1. **npm default channel = the 0074 parallel gate.** The locally-provable
+   nine-package surface promotes to npm `latest` on its own qualification
+   bar (LLP 0134's maturity machinery), in parallel with hosted work;
+   hosted-dependent capabilities stay honestly gated in the capability
+   index. 0111's hosted-serialized promotion is superseded on this point.
+   (0115 OQ5 / 0122 option 5.)
+2. **Helper-class cutline = context-reader helpers first, declared
+   reads/writes as evidence, not ceilings.** (0118 OQ7 / 0127 move 2.)
+   Unblocks G-03.
+3. **Identity packet:**
+   - 0151 credential ownership: **Option D adopted** — app-owned
+     credentials for every provider; agent-executed registration where
+     APIs exist; deterministic guided walkthroughs (Google, Apple);
+     0036-owned config/secret state; preview-only dev broker at most;
+     the transparent Google-issuer relay stays the pre-pinned conditional.
+   - 0151 SMS OTP: **tier 2** (supported with vendor config, not paved
+     tier-1; promotable when a delivery-vendor owner exists).
+   - 0152 OQ14: external CIAM is a **sibling paved path** governed by
+     0153's provider class; 0151 stays first-party-focused.
+   - 0150 OQ2: **exclusive** — one agent principal, one credential kind
+     at a time; kind change supersedes.
 
-4. **0143 Expo push seam** — dual-family READY, zero unresolved concerns;
-   acceptance is explicitly your call. Unblocks Program F.
-5. **0147 compiled microclient** — Review; its precondition defect
-   (delta-lane egress) is now fixed (eda8f231). Acceptance authorizes the
-   additive Micro profile + server-egress trust boundary, nothing else.
-6. **0154 minimal observability** — v0.9 after the 7-round design-partner
-   loop (asymmetric stop). Acceptance releases Program D tickets obs-01
-   through obs-04 (20260802-obs-00-program.md — already filed and queued
-   for this wave).
-7. **0156 minimal error tracking** — Draft, refinement closing, "mostly
-   settled" per author 2026-08-02. Acceptance releases Program D tickets
-   obs-05/obs-06 (filed, sequenced after the 0154 substrate).
-8. **0140 D-1** — does the TypeScript checker leave the shipped codegen
-   closure? The one question that shapes the whole Vite/Rolldown/Oxc
-   migration (Program E holds cheaply until then).
-9. **0144 OQ1** — payload-violation fold (draft leans B3: admit code, drop
-   payload). This single ruling also fixes D2's union grammar and the wire
-   carrier key; OQ2–OQ8 can mostly ride implementation.
+Tier 2:
 
-## Tier 3 — post-acceptance follow-ups and low-urgency gates
+4. **LLP 0143 ACCEPTED** (header flipped, dated note). Push-seam
+   implementation released: `issues/20260802-push-01-0143-implementation.md`.
+5. **LLP 0147 ACCEPTED** (header flipped, dated note). Micro-profile
+   Phases A–B released with the stop rule:
+   `issues/20260802-pkg-02-0147-phase-ab-micro-core.md`.
+6. **LLP 0154 ACCEPTED** (header flipped, dated note; asymmetric stop
+   recorded honestly). obs-01..04 released.
+7. **LLP 0156: standing accept on loop close.** When the live refinement
+   loop concludes (dual-family READY or the author's loop session ends the
+   rounds), the doc is Accepted without a fresh sitting — the loop session
+   flips the header citing this record. obs-05/06 release then.
+8. **0140 D-1: keep the TypeScript checker** in the shipped codegen
+   closure; Oxc replaces syntax-only scanners. Admission semantics do not
+   weaken. **Program E stays parked** until the wave clears; D-1 is
+   recorded so Stage 0 can start whenever capacity opens.
+9. **0144 OQ1 = B3**: an invalid declared-refusal payload keeps its
+   admitted code and drops the payload with a diagnostic. Fixes D2's
+   union grammar and the wire carrier key; the extension axes are now
+   designable.
 
-10. **0155 author-gated open questions** (OQs 1–5, 11–16 at acceptance:
-    normalization's fate, aggregates, inspector owner, conformance-corpus
-    owner, Contract-arm semantics). Not blocking Stage 0/1 starts; the
-    Move-1 composition-algebra Spec will force several of them in order.
-11. **0149 Slice-0** — which artifact authority owns the consumption
-    descriptor (0062 envelope vs 0024 catalog vs shared DTO). Small, named
-    as deliberately the first 0149 decision.
-12. **0141 OQ1** — is any embedder profile beyond test/tooling real? Demand
-    gate for D2/D3; no urgency until an embedder shows up.
-13. **Aggregates scope** — deliberately NOT a sitting: deferred to LLP 0130
-    SD-2's evidence branch by the 0155 acceptance; arrives with evidence,
-    not opinion.
+Tier 3:
 
-## Not decisions, but standing
+10. **0149 Slice-0: the 0062 served envelope** owns the consumption
+    descriptor and operation-journal projection. (Implementation is
+    next-wave; the ruling unblocks 0149's slice sequence.)
+11. **0155 Move-1 composition-algebra Spec: authored by a dedicated Fable
+    session** with the standard dual-family loop; acceptance remains the
+    author's. Tracker: `issues/20260802-0155-move1-composition-spec-commission.md`.
 
-- LLP 0128's scale evidence program (Phase-0 workload envelopes) remains the
-  gate on any popular-app scale claim.
-- The 0135 §4 / 0136 Appendix A fold-on amendments into 0073/0091/0094/0120
-  are still unapplied — hygiene debt any session can clear.
+## Standing conditionals (not open decisions)
+
+- **0141 OQ1** (embedder demand): D2/D3 activate when a real embedder
+  profile appears — evidence-driven, no sitting needed.
+- **Aggregates**: deferred to LLP 0130 SD-2's evidence branch (0155
+  acceptance); arrives with evidence.
+- **CV-6 strictness** (0115 OQ3): decided after A+E land, per the
+  recorded ordering dependency.
+- 0150 OQ3 (identifier/secret-class registrations) and OQ8 (numeric
+  parameters) resolve at 0150 implementation time against the LLP 0148
+  registry and the acceptance matrix, per the doc.
+- The two 0151-commissioned implementing specs (completion protocol,
+  lifecycle) still need owners and numbers — assign when identity
+  implementation is scheduled (next wave).

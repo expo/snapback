@@ -1,7 +1,7 @@
 # LLP 0143: Expo push-notification seam
 
 **Type:** RFC
-**Status:** Review
+**Status:** Accepted
 **Systems:** Notifications, React/Expo, Actions, Auth, Secrets and config,
 Deployment, Testing, Documentation
 **Author:** Charlie Cheever / Claude (Fable 5)
@@ -91,6 +91,13 @@ and 1,000-id chunking): applied. Status remains Draft.)
 0137 Track B findings; direction decided by the author the same day: an
 integration seam to Expo's push service — option (a) — not a
 first-class Snapback delivery capability)
+**Revised:** 2026-08-02 (ACCEPTED by Charlie Cheever in the 2026-08-02
+decision sitting — see `issues/20260802-author-decision-packet.md` for the
+sitting record. The dual-family READY convergence with zero unresolved
+concerns stood; the nine open questions resolve during implementation as
+the document itself proposes. Acceptance authorizes the seam design;
+`notifications: false` remains the honest manifest claim until the
+implementation lands.)
 **Related:** LLP 0000, LLP 0027, LLP 0028, LLP 0036, LLP 0039, LLP 0045,
 LLP 0049, LLP 0053, LLP 0055, LLP 0064, LLP 0070, LLP 0100, LLP 0102,
 LLP 0137,

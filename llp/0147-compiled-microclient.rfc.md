@@ -1,7 +1,7 @@
 # LLP 0147: Ahead-of-time compiled microclient
 
 **Type:** RFC
-**Status:** Review
+**Status:** Accepted
 **Systems:** Client SDK, Client integration, Packaging, Code generation,
 Wire Protocol, Realtime, Auth, React/Expo, Developer experience, Testing
 **Author:** Charlie Cheever / Codex
@@ -62,6 +62,14 @@ families named: land D4's dated LLP 0012 fresh-admission clarification together
 with the `src/manifest.rs` mutation-envelope comment correction, and D3's dated
 LLP 0114 Micro-projection amendment. Loop record in
 `reviews/0147-compiled-microclient.super-refine.md`.)
+**Revised:** 2026-08-02 (ACCEPTED by Charlie Cheever in the 2026-08-02
+decision sitting — see `issues/20260802-author-decision-packet.md`. The
+precondition defect this loop found (live delta frames bypassing
+result-contract validation) was fixed on main as eda8f231 before
+acceptance. Per §Ratification, acceptance authorizes the additive Micro
+profile and the server-egress trust boundary only: no default change, no
+carrier claim, no met-size-target claim. Phases A–B may begin, with the
+stop-after-Phase-B rule in force.)
 **Related:** LLP 0000, LLP 0010, LLP 0012, LLP 0041, LLP 0043, LLP 0053,
 LLP 0058, LLP 0059, LLP 0063, LLP 0064, LLP 0077, LLP 0090, LLP 0093, LLP 0094,
 LLP 0095, LLP 0096, LLP 0108, LLP 0112, LLP 0114, LLP 0115, LLP 0122,

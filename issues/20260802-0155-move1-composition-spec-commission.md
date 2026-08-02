@@ -1,7 +1,8 @@
 # Commission tracker: the LLP 0155 Move-1 composition-algebra Spec
 
-**Status:** Open — design authoring, owner TBD (not ordinary implementation
-work; assign deliberately)
+**Status:** Open — ASSIGNED 2026-08-02: a dedicated Fable authoring session
+owns the draft, then the standard dual-family super-refine loop; acceptance
+is Charlie's (sitting ruling 11). NOT in the Sol execution queue.
 **Systems:** Relational queries, API, Codegen
 **Related:** LLP 0155 (Accepted v0.4 — its acceptance commissioned this
 Spec; Move 1 recast as LLP 0120 option-3a bounded-node composition), LLP
