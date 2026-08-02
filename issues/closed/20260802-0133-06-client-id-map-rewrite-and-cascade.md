@@ -1,6 +1,6 @@
 # 0133-06: Client store seam extension — id-map delivery, leaf rewrite, and the speculative-id cascade
 
-**Status:** Open
+**Status:** Closed
 **Program:** 20260802-0133-00-settlement-substrate-program.md
 **Systems:** Client integration, Sync
 **Depends on:** 0133-04 (receipt id-map shape)
@@ -44,3 +44,33 @@ synthetic receipts (no local capture exists yet):
   delivery-before-confirmation suppresses then splices; delayed delivery
   keeps the bridge marked via the seam's exposed layer status without
   flickering to pre-mutation state.
+
+## Resolution
+
+Resolved in `63d980b6` (`feat(client): reconcile speculative settlement
+ids`). The external-store matcher now receives the submitting receipt's
+private `idMap`, rechecks an already-delivered authoritative base when
+confirmation wins second, exposes confirmed bridge layers to inspection, and
+retains the existing first-post-confirmation delivery fallback. The shared
+durable outbox transition rewrites not-yet-submitted successor args by exact
+string-leaf equality, gates each actual submission on predecessor settlement,
+and transitively marks unresolved dependents failed with
+`SNAPBACK_SPECULATIVE_ID_UNRESOLVED`. The memory, IndexedDB, and file arms all
+carry the same atomic transition.
+
+Proving tests:
+
+- `LLP 0133 sketch 3 rewrites mapped speculative-id leaves before dependent submission`
+- `LLP 0133 sketch 3 rejection cascades transitively without dependent submission`
+- `LLP 0133 sketch 3 unmapped successful mint takes the same local cascade`
+- `LLP 0133 speculative-id submission fence blocks a pending mint predecessor`
+- the sketch-9 confirmation/delivery-order blocks in `external-store.test.mjs`
+- the complete `@expo/snapback-client` package suite and strict TypeScript check
+- `./ref-check --verbose`
+
+The full Rust library suite completed with 1,640 passing tests, one ignored,
+and the same three inherited live-query failures recorded by the earlier
+program tickets. The rewrite deliberately retains LLP 0133's specified floor:
+an exact copied leaf rewrites (false positive), while embedded or derived
+survivals remain untouched (false negative); no OQ2 typed-id or dataflow work
+landed.
