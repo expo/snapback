@@ -1,0 +1,63 @@
+{
+  "$defs": {
+    "ApiEnvelopeDeclarationsV1": {
+      "additionalProperties": false,
+      "description": "The app-only binding declarations the envelope publishes.\n\nDeliberately distinct from the local merged `types` output (LLP 0062\nround-10 residue #9): `appBindings` is the app's own generated surface,\ncarries no merged framework declarations, and is what a served consumer\nmaterializes. The merged local output stays a checkout-side artifact.",
+      "properties": {
+        "appBindings": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "appBindings"
+      ],
+      "type": "object"
+    },
+    "ApiEnvelopeOperationV1": {
+      "additionalProperties": false,
+      "description": "One operation's argument schema, keyed by the function's stable id.",
+      "properties": {
+        "argsSchema": true,
+        "name": {
+          "description": "The exported function name, for human-facing surfaces only. Selection\nis always by stable id.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "argsSchema"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/api.envelope-members.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The codegen-owned envelope members carried through the provision intent\nunder the 2026-08-01 server-composes ruling: codegen supplies only what it\nowns (operation argument schemas and the appBindings declaration, with its\nown digest map binding them), and the server composes the canonical\nenvelope from its own projection at activation.",
+  "properties": {
+    "declarations": {
+      "$ref": "#/$defs/ApiEnvelopeDeclarationsV1"
+    },
+    "memberDigests": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Digests over the supplied members, recomputed and compared at\ncomposition: the map binds the members to what codegen produced, so a\ntransport or tooling corruption refuses instead of activating.",
+      "type": "object"
+    },
+    "operations": {
+      "additionalProperties": {
+        "$ref": "#/$defs/ApiEnvelopeOperationV1"
+      },
+      "description": "Operation argument schemas keyed by stable function id.",
+      "type": "object"
+    }
+  },
+  "required": [
+    "operations",
+    "declarations",
+    "memberDigests"
+  ],
+  "title": "ApiEnvelopeMembersV1",
+  "type": "object"
+}

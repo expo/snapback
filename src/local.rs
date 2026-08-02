@@ -1067,6 +1067,12 @@ pub enum EnsureAppExplicitInput {
         seed: Option<Box<SeedData>>,
         #[serde(default)]
         routes: Option<Box<crate::bundle::RoutesManifest>>,
+        /// The codegen-owned envelope members (LLP 0062 §5, server-composes
+        /// ruling 2026-08-01): operation argument schemas + the appBindings
+        /// declaration + their binding digests. Absent means the activated
+        /// generation is explicitly envelope-less.
+        #[serde(default, rename = "apiEnvelope")]
+        api_envelope: Option<Box<crate::api_envelope::ApiEnvelopeMembersV1>>,
     },
 }
 
@@ -1133,6 +1139,14 @@ pub struct EnsureAppProvisionOutcome {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub routes: Option<String>,
     pub profile: String,
+    /// 'composed' | 'absent' — the envelope disposition of this activation
+    /// (LLP 0062 §5, server-composed). Absent from pre-envelope responses.
+    #[serde(
+        default,
+        rename = "apiEnvelope",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub api_envelope: Option<String>,
 }
 
 impl From<EnsureAppOutcome> for EnsureAppProvisionOutcome {
@@ -1144,6 +1158,7 @@ impl From<EnsureAppOutcome> for EnsureAppProvisionOutcome {
             seed: outcome.seed,
             routes: outcome.routes,
             profile: outcome.profile,
+            api_envelope: None,
         }
     }
 }
@@ -1166,6 +1181,7 @@ pub(crate) struct PreparedAuthProvision {
     artifacts: StartupArtifacts,
     deployment: DeploymentIdentity,
     routes: Option<crate::bundle::RoutesManifest>,
+    api_envelope: Option<crate::api_envelope::ApiEnvelopeMembersV1>,
 }
 
 #[derive(Clone, Debug)]
@@ -1292,6 +1308,7 @@ impl EnsureAppExplicitInput {
                 functions,
                 seed,
                 routes,
+                api_envelope: _,
             } => {
                 if schema.is_none() && functions.is_none() && seed.is_none() && routes.is_none() {
                     return Err(ensure_request_invalid(
@@ -4693,7 +4710,58 @@ impl LocalSnapback {
         functions: Option<FunctionManifest>,
         seed: Option<SeedData>,
     ) -> SnapbackResult<PreparedAuthProvision> {
-        self.prepare_auth_provision_with_routes(requested_mode, schema, functions, seed, None)
+        self.prepare_auth_provision_with_routes(requested_mode, schema, functions, seed, None, None)
+    }
+
+    /// The `/app-api/current` discovery document (LLP 0062 §5). Sessions
+    /// targets only: a dev-posture instance serves no discovery document —
+    /// the caller maps None to the typed refusal. The envelope marker is
+    /// verify-on-read: a stored record whose inputsHash disagrees with the
+    /// active generation reports the typed absent state, never a stale
+    /// envelope (the crash window between activation cut and record).
+    pub fn app_api_discovery(
+        &self,
+    ) -> SnapbackResult<Option<crate::api_envelope::AppApiDiscoveryV1>> {
+        let snapshot = self.db.auth_mode_snapshot()?;
+        if snapshot.state.active != AuthMode::Sessions {
+            return Ok(None);
+        }
+        let Some(deployment) = snapshot.state.active_deployment.clone() else {
+            return Ok(None);
+        };
+        let state = self.db.load_api_envelope_state()?;
+        let envelope = match state.and_then(|state| state.current) {
+            Some(current) if current.inputs_hash == deployment.inputs_hash => {
+                crate::api_envelope::AppApiDiscoveryEnvelopeV1::Current {
+                    sha256: current.digest,
+                }
+            }
+            _ => crate::api_envelope::AppApiDiscoveryEnvelopeV1::Absent,
+        };
+        Ok(Some(crate::api_envelope::AppApiDiscoveryV1 {
+            artifact_kind: "appApiDiscovery".to_string(),
+            format_version: "snapback.app-api-discovery.v1".to_string(),
+            app_id: deployment.app_id.clone(),
+            tuple: crate::api_envelope::AppApiDiscoveryTupleV1 {
+                schema_version: deployment.schema_version.clone(),
+                auth_mode: "sessions".to_string(),
+                schema_hash: Some(deployment.schema_hash.clone()),
+                bundle_hash: Some(deployment.bundle_hash.clone()),
+                inputs_hash: Some(deployment.inputs_hash.clone()),
+            },
+            envelope,
+            // The `app-cli.target` eligibility capability does not exist in
+            // the closed registry yet (LLP 0062 §4's phase gate); until it
+            // lands, every target is honestly capability-absent.
+            app_cli_target: false,
+            engine_range: None,
+        }))
+    }
+
+    /// The canonical bytes for a retained envelope digest (LLP 0062 §5's
+    /// current-plus-previous retention window).
+    pub fn app_api_envelope_bytes(&self, digest: &str) -> SnapbackResult<Option<String>> {
+        self.db.load_api_envelope_bytes(digest)
     }
 
     pub(crate) fn prepare_auth_provision_with_routes(
@@ -4703,6 +4771,7 @@ impl LocalSnapback {
         functions: Option<FunctionManifest>,
         seed: Option<SeedData>,
         routes: Option<crate::bundle::RoutesManifest>,
+        api_envelope: Option<crate::api_envelope::ApiEnvelopeMembersV1>,
     ) -> SnapbackResult<PreparedAuthProvision> {
         let requested_mode = requested_mode.auth_mode();
         let snapshot = self.db.auth_mode_snapshot()?;
@@ -4727,6 +4796,7 @@ impl LocalSnapback {
             artifacts,
             deployment,
             routes,
+            api_envelope,
         })
     }
 
@@ -4805,6 +4875,43 @@ impl LocalSnapback {
                 "same-mode sessions provisioning requires the closed activation admission",
             )));
         }
+
+        // The activation's identity, captured before the deployment moves
+        // into the durable cut: the envelope record binds to it.
+        let activation_inputs_hash = prepared.deployment.inputs_hash.clone();
+
+        // Server-composed api envelope (LLP 0062 §5, 2026-08-01 ruling):
+        // compose and self-verify BEFORE any durable effect, so a failing
+        // composition refuses activation with nothing written. The composed
+        // bytes persist only after the activation cut succeeds; the
+        // discovery read path verifies the record's inputsHash against the
+        // active generation, so the crash window between cut and record
+        // degrades to the typed absent marker, never a stale envelope.
+        let composed_envelope = match prepared.api_envelope.as_ref() {
+            Some(members) => Some(
+                crate::api_envelope::compose_api_envelope(
+                    &crate::manifest::PublicFunctionManifest::from(
+                        prepared.artifacts.functions.clone(),
+                    ),
+                    members,
+                    match prepared.requested_mode {
+                        AuthMode::Sessions => "sessions",
+                        AuthMode::Dev => "dev",
+                    },
+                )
+                .map_err(|refusal| {
+                    ModeCommitFailure::RolledBack(
+                        SnapbackError::error(
+                            "SNAPBACK_APP_API_COMPOSITION_FAILED",
+                            "app-api",
+                            "the api envelope failed composition self-verification; activation refused",
+                        )
+                        .with_details(serde_json::json!({ "refusal": refusal.to_string() })),
+                    )
+                })?,
+            ),
+            None => None,
+        };
 
         let comparison = if prepared.requested_mode == before.state.active {
             before.state.active_deployment.as_ref()
@@ -4930,6 +5037,19 @@ impl LocalSnapback {
                 Vec::new(),
             )
         };
+        // Persist the envelope disposition after the successful cut. Failure
+        // here is Uncertain, not silent: the activation is durable and the
+        // envelope record is not, which the verify-on-read rule tolerates,
+        // but the caller deserves the honest classification.
+        self.db
+            .record_api_envelope(
+                &activation_inputs_hash,
+                composed_envelope
+                    .as_ref()
+                    .map(|composed| (composed.digest.as_str(), composed.canonical.as_str())),
+            )
+            .map_err(ModeCommitFailure::Uncertain)?;
+
         Ok(AuthProvisionCommit {
             outcome: EnsureAppProvisionOutcome {
                 intent: EnsureAppIntent::Provision,
@@ -4957,6 +5077,14 @@ impl LocalSnapback {
                     .to_owned()
                 }),
                 profile: profile.to_owned(),
+                api_envelope: Some(
+                    if composed_envelope.is_some() {
+                        "composed"
+                    } else {
+                        "absent"
+                    }
+                    .to_owned(),
+                ),
             },
             state,
             diagnostics,

@@ -124,6 +124,64 @@
         }
       ]
     },
+    "ApiEnvelopeDeclarationsV1": {
+      "additionalProperties": false,
+      "description": "The app-only binding declarations the envelope publishes.\n\nDeliberately distinct from the local merged `types` output (LLP 0062\nround-10 residue #9): `appBindings` is the app's own generated surface,\ncarries no merged framework declarations, and is what a served consumer\nmaterializes. The merged local output stays a checkout-side artifact.",
+      "properties": {
+        "appBindings": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "appBindings"
+      ],
+      "type": "object"
+    },
+    "ApiEnvelopeMembersV1": {
+      "additionalProperties": false,
+      "description": "The codegen-owned envelope members carried through the provision intent\nunder the 2026-08-01 server-composes ruling: codegen supplies only what it\nowns (operation argument schemas and the appBindings declaration, with its\nown digest map binding them), and the server composes the canonical\nenvelope from its own projection at activation.",
+      "properties": {
+        "declarations": {
+          "$ref": "#/$defs/ApiEnvelopeDeclarationsV1"
+        },
+        "memberDigests": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Digests over the supplied members, recomputed and compared at\ncomposition: the map binds the members to what codegen produced, so a\ntransport or tooling corruption refuses instead of activating.",
+          "type": "object"
+        },
+        "operations": {
+          "additionalProperties": {
+            "$ref": "#/$defs/ApiEnvelopeOperationV1"
+          },
+          "description": "Operation argument schemas keyed by stable function id.",
+          "type": "object"
+        }
+      },
+      "required": [
+        "operations",
+        "declarations",
+        "memberDigests"
+      ],
+      "type": "object"
+    },
+    "ApiEnvelopeOperationV1": {
+      "additionalProperties": false,
+      "description": "One operation's argument schema, keyed by the function's stable id.",
+      "properties": {
+        "argsSchema": true,
+        "name": {
+          "description": "The exported function name, for human-facing surfaces only. Selection\nis always by stable id.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "argsSchema"
+      ],
+      "type": "object"
+    },
     "AppIdentity": {
       "description": "Optional presentation identity for the loaded app: how the instance should\nintroduce itself to a human. Everything here is public by construction — it\nis rendered on the public root page and flows into the public inspect\nprojection — so apps must not put secrets in it. The icon/wordmark URLs are\nordinary app-served or absolute URLs; the root page renders them as plain\n`<img>` references with attribute escaping.\n\n@ref LLP 0017#instance-home-page — the root page renders this identity when\n  the manifest declares it; absent, the page is Snapback-branded only.",
       "properties": {
@@ -1150,6 +1208,18 @@
         {
           "additionalProperties": false,
           "properties": {
+            "apiEnvelope": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ApiEnvelopeMembersV1"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "The codegen-owned envelope members (LLP 0062 §5, server-composes\nruling 2026-08-01): operation argument schemas + the appBindings\ndeclaration + their binding digests. Absent means the activated\ngeneration is explicitly envelope-less."
+            },
             "functions": {
               "anyOf": [
                 {

@@ -7614,6 +7614,25 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
             public_route("GET", "/inspect", ResponseSensitivity::PublicProjection),
             get(inspect),
         ),
+        // @ref LLP 0062#5-distribution-the-server-advertises-the-server-is-the-version-authority — the app-data-plane envelope routes: a
+        // never-cached discovery document and the immutable content-addressed
+        // envelope. Credential-free by construction (Public/None/None).
+        RegisteredRoute::new(
+            public_route(
+                "GET",
+                "/app-api/current",
+                ResponseSensitivity::PublicNoStore,
+            ),
+            get(app_api_current).layer(DefaultBodyLimit::max(0)),
+        ),
+        RegisteredRoute::new(
+            public_route(
+                "GET",
+                "/app-api/envelope/{sha256}",
+                ResponseSensitivity::PublicProjection,
+            ),
+            get(app_api_envelope).layer(DefaultBodyLimit::max(0)),
+        ),
         // @ref LLP 0057#routes-operations-and-dtos — provider routes carry
         // closed, independently enforced credential and response axes. Item 3
         // installs their state machines; item 4 supplies persisted activation.
@@ -15969,6 +15988,136 @@ async fn health(
 /// `/_snapback/api/inspect` twin.
 ///
 /// @ref LLP 0031#resolved-decisions — D3: the public payload is a typed projection of `InspectState`.
+/// `GET /app-api/current` — the never-cached discovery document.
+///
+/// Dev targets serve no discovery document (LLP 0062 §5: the engine uses
+/// `/inspect` and local artifacts there), so a dev-posture instance answers
+/// the typed refusal rather than an empty document.
+///
+/// @ref LLP 0062#5-distribution-the-server-advertises-the-server-is-the-version-authority — the discovery document's contents and no-store posture.
+async fn app_api_current(State(runtime): State<AppState>) -> Result<Response, ApiError> {
+    let discovery = with_snapback(&runtime.snapback, |snapback| snapback.app_api_discovery())
+        .await
+        .map_err(ApiError::from)?;
+    let Some(discovery) = discovery else {
+        return Err(SnapbackError::error(
+            "SNAPBACK_APP_API_UNAVAILABLE",
+            "app-api",
+            "app-api discovery is served by sessions targets only; dev targets use /inspect and local artifacts",
+        )
+        .into());
+    };
+    let body = serde_json::to_vec(&discovery).map_err(|error| {
+        SnapbackError::error(
+            "SNAPBACK_APP_API_STATE_PARSE_FAILED",
+            "app-api",
+            "discovery document could not be serialized",
+        )
+        .with_details(serde_json::json!({ "error": error.to_string() }))
+    })?;
+    let mut response = Response::new(axum::body::Body::from(body));
+    let headers = response.headers_mut();
+    headers.insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/json"),
+    );
+    headers.insert(
+        header::CACHE_CONTROL,
+        HeaderValue::from_static("no-store"),
+    );
+    Ok(response)
+}
+
+/// `GET /app-api/envelope/<sha256>` — the immutable, content-addressed
+/// envelope. Identity content-coding only, `Content-Digest` over the
+/// transmitted body, strong `ETag`, and the pinned cache directives in both
+/// directions: `immutable` on a verified hit, `no-store` on the evicted-hash
+/// miss (a rollback can make an evicted hash current again, so a cached
+/// negative would hide a valid envelope).
+///
+/// @ref LLP 0062#5-distribution-the-server-advertises-the-server-is-the-version-authority — the content-addressed envelope route and its header matrix.
+async fn app_api_envelope(
+    State(runtime): State<AppState>,
+    Path(digest): Path<String>,
+) -> Result<Response, ApiError> {
+    // The grammar is exact: 64 lowercase hex characters. A malformed hash is
+    // a typed 400 and never a lookup.
+    if digest.len() != 64 || !digest.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err(SnapbackError::error(
+            "SNAPBACK_APP_API_ENVELOPE_HASH_INVALID",
+            "app-api",
+            "envelope hash must be 64 lowercase hexadecimal characters",
+        )
+        .into());
+    }
+    if digest.bytes().any(|byte| byte.is_ascii_uppercase()) {
+        return Err(SnapbackError::error(
+            "SNAPBACK_APP_API_ENVELOPE_HASH_INVALID",
+            "app-api",
+            "envelope hash must be 64 lowercase hexadecimal characters",
+        )
+        .into());
+    }
+    let lookup = digest.clone();
+    let canonical = with_snapback(&runtime.snapback, move |snapback| {
+        snapback.app_api_envelope_bytes(&lookup)
+    })
+    .await
+    .map_err(ApiError::from)?;
+    let Some(canonical) = canonical else {
+        return Err(SnapbackError::error(
+            "SNAPBACK_APP_API_ENVELOPE_UNKNOWN",
+            "app-api",
+            "no retained envelope has that hash; refetch the current hash through /app-api/current",
+        )
+        .into());
+    };
+    let content_digest = {
+        use base64::Engine as _;
+        use sha2::{Digest as _, Sha256};
+        let mut hasher = Sha256::new();
+        hasher.update(canonical.as_bytes());
+        base64::engine::general_purpose::STANDARD.encode(hasher.finalize())
+    };
+    let mut response = Response::new(axum::body::Body::from(canonical));
+    let headers = response.headers_mut();
+    headers.insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/json"),
+    );
+    headers.insert(
+        header::CACHE_CONTROL,
+        // `no-transform` keeps one coherent integrity story: the body a
+        // client digests must be the body the server digested.
+        HeaderValue::from_static("public, max-age=31536000, immutable, no-transform"),
+    );
+    headers.insert(
+        header::CONTENT_ENCODING,
+        HeaderValue::from_static("identity"),
+    );
+    headers.insert(
+        HeaderName::from_static("content-digest"),
+        HeaderValue::from_str(&format!("sha-256=:{content_digest}:")).map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_APP_API_STATE_PARSE_FAILED",
+                "app-api",
+                "content digest header could not be encoded",
+            )
+        })?,
+    );
+    headers.insert(
+        header::ETAG,
+        HeaderValue::from_str(&format!("\"{digest}\"")).map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_APP_API_STATE_PARSE_FAILED",
+                "app-api",
+                "etag header could not be encoded",
+            )
+        })?,
+    );
+    Ok(response)
+}
+
 async fn inspect(
     State(runtime): State<AppState>,
 ) -> Result<Json<crate::local::PublicInspect>, ApiError> {
@@ -19052,6 +19201,7 @@ async fn ensure_app(
                     functions,
                     seed,
                     routes,
+                    api_envelope,
                 } => {
                     // HTTP provisioning always needs both AdminWrite (already
                     // consumed by the centralized operation gate) and the
@@ -19069,6 +19219,7 @@ async fn ensure_app(
                             functions.map(|manifest| *manifest),
                             seed.map(|seed| *seed),
                             routes.map(|routes| *routes),
+                            api_envelope.map(|members| *members),
                         )
                     })
                     .await?;

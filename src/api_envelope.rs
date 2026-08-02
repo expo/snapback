@@ -39,7 +39,7 @@ const MEMBER_DIGEST_DOMAIN: &str = "snapback:api-envelope-member:v1\n";
 /// round-10 residue #9): `appBindings` is the app's own generated surface,
 /// carries no merged framework declarations, and is what a served consumer
 /// materializes. The merged local output stays a checkout-side artifact.
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ApiEnvelopeDeclarationsV1 {
     #[serde(rename = "appBindings")]
@@ -47,7 +47,7 @@ pub struct ApiEnvelopeDeclarationsV1 {
 }
 
 /// One operation's argument schema, keyed by the function's stable id.
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ApiEnvelopeOperationV1 {
     /// The exported function name, for human-facing surfaces only. Selection
@@ -400,11 +400,172 @@ pub fn verify_correspondence(
 }
 
 pub fn schema_registrations() -> Vec<(&'static str, Value)> {
-    vec![(
-        "api.envelope.schema.json",
-        serde_json::to_value(schemars::schema_for!(ApiEnvelopeV1))
-            .expect("api envelope schema serializes"),
-    )]
+    vec![
+        (
+            "api.envelope.schema.json",
+            serde_json::to_value(schemars::schema_for!(ApiEnvelopeV1))
+                .expect("api envelope schema serializes"),
+        ),
+        (
+            "api.envelope-members.schema.json",
+            serde_json::to_value(schemars::schema_for!(ApiEnvelopeMembersV1))
+                .expect("api envelope members schema serializes"),
+        ),
+        (
+            "app-api.discovery.schema.json",
+            serde_json::to_value(schemars::schema_for!(AppApiDiscoveryV1))
+                .expect("app-api discovery schema serializes"),
+        ),
+    ]
+}
+
+/// The codegen-owned envelope members carried through the provision intent
+/// under the 2026-08-01 server-composes ruling: codegen supplies only what it
+/// owns (operation argument schemas and the appBindings declaration, with its
+/// own digest map binding them), and the server composes the canonical
+/// envelope from its own projection at activation.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ApiEnvelopeMembersV1 {
+    /// Operation argument schemas keyed by stable function id.
+    pub operations: BTreeMap<String, ApiEnvelopeOperationV1>,
+    pub declarations: ApiEnvelopeDeclarationsV1,
+    /// Digests over the supplied members, recomputed and compared at
+    /// composition: the map binds the members to what codegen produced, so a
+    /// transport or tooling corruption refuses instead of activating.
+    #[serde(rename = "memberDigests")]
+    pub member_digests: BTreeMap<String, String>,
+}
+
+/// The `/app-api/current` discovery document (sessions targets only).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AppApiDiscoveryV1 {
+    #[serde(rename = "artifactKind")]
+    pub artifact_kind: String,
+    #[serde(rename = "formatVersion")]
+    pub format_version: String,
+    #[serde(rename = "appId")]
+    pub app_id: String,
+    /// The active artifact tuple identity.
+    pub tuple: AppApiDiscoveryTupleV1,
+    /// The current envelope, or the typed absent marker (never a 404: an
+    /// envelope-less generation is an admissible state whose tuple still
+    /// binds).
+    pub envelope: AppApiDiscoveryEnvelopeV1,
+    /// Whether this target advertises the `app-cli.target` eligibility
+    /// capability (LLP 0062 §4). Advisory pre-flag; the engine still treats
+    /// absence as capability-absent.
+    #[serde(rename = "appCliTarget")]
+    pub app_cli_target: bool,
+    /// Advisory engine-version range. None until a range is published.
+    #[serde(rename = "engineRange")]
+    pub engine_range: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AppApiDiscoveryTupleV1 {
+    #[serde(rename = "schemaVersion")]
+    pub schema_version: String,
+    #[serde(rename = "authMode")]
+    pub auth_mode: String,
+    #[serde(rename = "schemaHash")]
+    pub schema_hash: Option<String>,
+    #[serde(rename = "bundleHash")]
+    pub bundle_hash: Option<String>,
+    #[serde(rename = "inputsHash")]
+    pub inputs_hash: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(tag = "state", rename_all = "kebab-case", deny_unknown_fields)]
+pub enum AppApiDiscoveryEnvelopeV1 {
+    Current {
+        sha256: String,
+    },
+    /// The generation activated without an envelope (provisioned before the
+    /// envelope amendment, or without the codegen-owned members).
+    Absent,
+}
+
+/// The server-composed envelope: canonical bytes plus their content address.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ComposedEnvelope {
+    pub canonical: String,
+    pub digest: String,
+}
+
+/// Compose the canonical envelope from the server's own projection plus the
+/// codegen-owned members, then self-verify the composition with the same
+/// admission rules a received envelope would face. A composition that fails
+/// its own verification refuses activation.
+///
+/// @ref LLP 0062#5-distribution-the-server-advertises-the-server-is-the-version-authority — the 2026-08-01 author ruling: server-composed at activation.
+pub fn compose_api_envelope(
+    projection: &PublicFunctionManifest,
+    members: &ApiEnvelopeMembersV1,
+    auth_mode: &str,
+) -> Result<ComposedEnvelope, EnvelopeRefusal> {
+    // Bind the received members to codegen's digest map before composing.
+    // Exactly the convention `verify_member_digests` enforces: an operation's
+    // digest covers its canonicalized args schema, and the declaration's
+    // covers its raw bytes. Two conventions would mean a composition that can
+    // never self-verify.
+    let mut expected: BTreeMap<String, String> = BTreeMap::new();
+    for (id, operation) in &members.operations {
+        let canonical = canonicalize(&operation.args_schema)?;
+        expected.insert(operation_member_key(id), member_digest(&canonical));
+    }
+    expected.insert(
+        DECLARATION_MEMBER_KEY.to_string(),
+        member_digest(&members.declarations.app_bindings),
+    );
+    if expected != members.member_digests {
+        return Err(EnvelopeRefusal::new(
+            "SNAPBACK_API_ENVELOPE_MEMBER_DIGEST_MISMATCH",
+            "supplied member digests do not match the supplied members",
+        ));
+    }
+
+    let functions = serde_json::to_value(projection).map_err(|err| {
+        EnvelopeRefusal::new(
+            "SNAPBACK_API_ENVELOPE_CORRESPONDENCE_FAILED",
+            format!("server projection is not serializable: {err}"),
+        )
+    })?;
+    let envelope = ApiEnvelopeV1 {
+        artifact_kind: API_ENVELOPE_ARTIFACT_KIND.to_string(),
+        format_version: API_ENVELOPE_FORMAT_V1.to_string(),
+        app_id: projection.app_id.clone(),
+        tuple: ApiEnvelopeTupleV1 {
+            schema_version: projection.schema_version.clone(),
+            auth_mode: auth_mode.to_string(),
+        },
+        inputs_hash: projection.inputs_hash.clone(),
+        bundle_hash: projection.bundle_hash.clone(),
+        functions,
+        operations: members.operations.clone(),
+        declarations: members.declarations.clone(),
+        member_digests: members.member_digests.clone(),
+    };
+    let value = serde_json::to_value(&envelope).map_err(|err| {
+        EnvelopeRefusal::new(
+            "SNAPBACK_API_ENVELOPE_GRAMMAR_INVALID",
+            format!("composed envelope is not serializable: {err}"),
+        )
+    })?;
+    let canonical = canonicalize(&value)?;
+
+    // Self-verification: the composed bytes must satisfy every rule a
+    // received envelope would — grammar, canonicity, member digests, and
+    // exact correspondence with the projection that produced them.
+    let (parsed, _) = parse_and_validate(canonical.as_bytes())?;
+    verify_member_digests(&parsed)?;
+    verify_correspondence(&parsed, projection)?;
+
+    let digest = envelope_digest(&canonical);
+    Ok(ComposedEnvelope { canonical, digest })
 }
 
 #[cfg(test)]
@@ -554,5 +715,114 @@ mod tests {
         let refusal =
             verify_correspondence(&envelope, &projection).expect_err("wrong app refuses");
         assert_eq!(refusal.code, "SNAPBACK_API_ENVELOPE_CORRESPONDENCE_FAILED");
+    }
+}
+
+#[cfg(test)]
+mod compose_tests {
+    use super::*;
+    use serde_json::json;
+
+    // `PublicFunctionManifest` is serialize-only by design (it is a
+    // projection, never parsed back), so the fixture is constructed.
+    fn projection() -> PublicFunctionManifest {
+        PublicFunctionManifest {
+            artifact_kind: "publicFunctionManifest".to_string(),
+            schema_version: "snapback.v1".to_string(),
+            app_id: "demo".to_string(),
+            bundle_hash: Some("b1".to_string()),
+            inputs_hash: Some("i1".to_string()),
+            generated_at: None,
+            unsupported_dependency_diagnostics: Vec::new(),
+            acknowledged_experimental_capabilities: Vec::new(),
+            functions: Vec::new(),
+            cron_jobs: Vec::new(),
+            config: Vec::new(),
+        }
+    }
+
+    // The zero-function projection with its declaration-only members: the
+    // degenerate-but-valid envelope the admission suite already covers.
+    // Operation/function pairing is exercised by the ghost test below.
+    fn members() -> ApiEnvelopeMembersV1 {
+        let declaration = "export declare const api: unknown;\n".to_string();
+        let mut member_digests = BTreeMap::new();
+        member_digests.insert(
+            DECLARATION_MEMBER_KEY.to_string(),
+            member_digest(&declaration),
+        );
+        ApiEnvelopeMembersV1 {
+            operations: BTreeMap::new(),
+            declarations: ApiEnvelopeDeclarationsV1 {
+                app_bindings: declaration,
+            },
+            member_digests,
+        }
+    }
+
+    #[test]
+    fn composes_and_self_verifies_from_the_server_projection() {
+        let composed = compose_api_envelope(&projection(), &members(), "sessions")
+            .expect("composition self-verifies");
+        assert_eq!(composed.digest.len(), 64);
+        // The composed bytes must survive the same admission a received
+        // envelope faces — that is the whole point of self-verification.
+        let (parsed, identity) =
+            parse_and_validate(composed.canonical.as_bytes()).expect("composed bytes admit");
+        assert_eq!(identity, composed.digest);
+        assert_eq!(parsed.app_id, "demo");
+        // Correspondence is trivially true by construction, which is exactly
+        // what the server-composes ruling buys.
+        verify_correspondence(&parsed, &projection()).expect("composition corresponds");
+    }
+
+    #[test]
+    fn composition_is_deterministic_for_the_same_inputs() {
+        let first = compose_api_envelope(&projection(), &members(), "sessions").expect("first");
+        let second = compose_api_envelope(&projection(), &members(), "sessions").expect("second");
+        assert_eq!(first.digest, second.digest);
+        assert_eq!(first.canonical, second.canonical);
+    }
+
+    #[test]
+    fn refuses_members_whose_digests_do_not_bind_them() {
+        let mut tampered = members();
+        // A member changed in transit while its digest map did not: the
+        // binding check refuses before anything is composed or activated.
+        tampered.declarations.app_bindings = "export declare const api: never;\n".to_string();
+        let refusal = compose_api_envelope(&projection(), &tampered, "sessions")
+            .expect_err("tampered members refuse");
+        assert_eq!(refusal.code, "SNAPBACK_API_ENVELOPE_MEMBER_DIGEST_MISMATCH");
+    }
+
+    #[test]
+    fn refuses_when_an_operation_has_no_activating_function() {
+        // The projection carries no functions, so an operation for a
+        // function that is not activating fails correspondence — the
+        // pairing rule survives composition.
+        let mut extra = members();
+        let args_schema = json!({ "type": "object" });
+        let canonical = canonicalize(&args_schema).expect("canonicalizes");
+        extra.operations.insert(
+            "demo:ghost".to_string(),
+            ApiEnvelopeOperationV1 {
+                name: "ghost".to_string(),
+                args_schema,
+            },
+        );
+        extra
+            .member_digests
+            .insert(operation_member_key("demo:ghost"), member_digest(&canonical));
+        let refusal =
+            compose_api_envelope(&projection(), &extra, "sessions").expect_err("ghost refuses");
+        assert_eq!(refusal.code, "SNAPBACK_API_ENVELOPE_CORRESPONDENCE_FAILED");
+    }
+
+    #[test]
+    fn the_auth_mode_rides_the_composed_tuple() {
+        let composed =
+            compose_api_envelope(&projection(), &members(), "sessions").expect("composes");
+        let (parsed, _) = parse_and_validate(composed.canonical.as_bytes()).expect("admits");
+        assert_eq!(parsed.tuple.auth_mode, "sessions");
     }
 }

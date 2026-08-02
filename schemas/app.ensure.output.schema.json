@@ -94,6 +94,13 @@
     "EnsureAppProvisionOutcome": {
       "additionalProperties": false,
       "properties": {
+        "apiEnvelope": {
+          "description": "'composed' | 'absent' — the envelope disposition of this activation\n(LLP 0062 §5, server-composed). Absent from pre-envelope responses.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "functions": {
           "type": "string"
         },

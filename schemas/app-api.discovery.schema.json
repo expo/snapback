@@ -1,0 +1,117 @@
+{
+  "$defs": {
+    "AppApiDiscoveryEnvelopeV1": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "sha256": {
+              "type": "string"
+            },
+            "state": {
+              "const": "current",
+              "type": "string"
+            }
+          },
+          "required": [
+            "state",
+            "sha256"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The generation activated without an envelope (provisioned before the\nenvelope amendment, or without the codegen-owned members).",
+          "properties": {
+            "state": {
+              "const": "absent",
+              "type": "string"
+            }
+          },
+          "required": [
+            "state"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "AppApiDiscoveryTupleV1": {
+      "additionalProperties": false,
+      "properties": {
+        "authMode": {
+          "type": "string"
+        },
+        "bundleHash": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "inputsHash": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "schemaHash": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "schemaVersion": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "authMode"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/app-api.discovery.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The `/app-api/current` discovery document (sessions targets only).",
+  "properties": {
+    "appCliTarget": {
+      "description": "Whether this target advertises the `app-cli.target` eligibility\ncapability (LLP 0062 §4). Advisory pre-flag; the engine still treats\nabsence as capability-absent.",
+      "type": "boolean"
+    },
+    "appId": {
+      "type": "string"
+    },
+    "artifactKind": {
+      "type": "string"
+    },
+    "engineRange": {
+      "description": "Advisory engine-version range. None until a range is published.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "envelope": {
+      "$ref": "#/$defs/AppApiDiscoveryEnvelopeV1",
+      "description": "The current envelope, or the typed absent marker (never a 404: an\nenvelope-less generation is an admissible state whose tuple still\nbinds)."
+    },
+    "formatVersion": {
+      "type": "string"
+    },
+    "tuple": {
+      "$ref": "#/$defs/AppApiDiscoveryTupleV1",
+      "description": "The active artifact tuple identity."
+    }
+  },
+  "required": [
+    "artifactKind",
+    "formatVersion",
+    "appId",
+    "tuple",
+    "envelope",
+    "appCliTarget"
+  ],
+  "title": "AppApiDiscoveryV1",
+  "type": "object"
+}
