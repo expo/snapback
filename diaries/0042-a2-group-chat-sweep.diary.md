@@ -192,3 +192,33 @@ dir, this arm's retained app sources as fixtures):
 
 The packaged-closure conformance test this diary asked for (presence
 beside a live query) is still worth pinning; the differentiator held.
+
+## 2026-08-02 — Move-1 type-flow retrofit
+
+The retained A2 backend is now the first improvement-sweep consumer of the
+result-side app schema reference and generated helper-interior types. The
+`listMessages` declaration moved from `results.documents('messages')` to
+`results.records(v.doc('messages'))`; codegen normalizes both spellings to the
+same effective descriptor and `resultContractHash`, so the served payload and
+client type did not change. The complete message contract still has one
+authored table-name spelling—zero repeated field spellings before and after—
+which is the honest result because A2 had already used the older top-level
+reference rather than manually copying its six app fields plus four system
+fields.
+
+The interior showed a real reduction elsewhere in the same arm. Four copies
+of the `messages/by_channel/channelId/collect` reader became one
+`messagesForChannel` helper typed from generated `GeneratedQueryDatabase` and
+`Id<'channels'>` artifacts: repeated reader spellings went from 4 to 1 (three
+eliminated). Running checkJs over the regenerated arm surfaced two genuine
+JavaScript-inference edges in the paged message/cursor union (the branded ids
+needed an explicitly widened output record, and `.at(-1)` needed an empty-page
+guard); after those local annotations the whole functions file checks cleanly.
+
+Compared with Convex, this now has the desired “write the schema once, consume
+it in a database helper and result contract” feel while retaining Snapback's
+explicit egress contract and read/write authority split. The remaining
+friction is discoverability: a `.js` type-only import must target generated
+`api.js` so TypeScript pairs it with `api.d.ts`, even though runtime consumers
+import `api.mjs`. The guide records that generated types are checker inputs,
+not new contract authority.

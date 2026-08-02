@@ -284,6 +284,14 @@ export const v = {
     assert(typeof table === 'string' && table.length > 0, 'v.id() expects a table name');
     return validator({ Id: { table } }, 'string');
   },
+  /** Result-contract-only reference to the complete stored document shape.
+   * Codegen resolves this marker against the app schema before hashing or
+   * emission; it is deliberately not an argument or stored-field validator.
+   * @ref LLP 0127#move-1--contracts-reference-nothing-respells */
+  doc: (table) => {
+    assert(typeof table === 'string' && table.length > 0, 'v.doc() expects a table name');
+    return validator({ AppSchemaRef: { authority: 'app', table } }, 'appSchemaRef');
+  },
   /** Framework-owned child stamp; application inserts/patches never author it.
    * @ref LLP 0110#protected-relation-incarnation-and-stamping */
   relationIncarnationOf: ({ foreignKeyField, parentTable } = {}) => {
@@ -415,12 +423,15 @@ export const results = Object.freeze({
       recordValidator?.__validator === true
         && (
           recordValidator.primitive === 'object'
+          || recordValidator.primitive === 'appSchemaRef'
           || (
             recordValidator.resultKind === 'union'
-            && recordValidator.variants.every((variant) => variant.primitive === 'object')
+            && recordValidator.variants.every(
+              (variant) => variant.primitive === 'object' || variant.primitive === 'appSchemaRef',
+            )
           )
         ),
-      'results.records() expects v.object(...) or a discriminated union of closed v.object(...) variants',
+      'results.records() expects v.object(...), v.doc(...), or a discriminated union of closed record variants',
     );
     const hasBounds = options.minItems !== undefined || options.maxItems !== undefined;
     if (hasBounds) {

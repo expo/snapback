@@ -12,6 +12,14 @@ import {
 } from '@expo/snapback-codegen/define';
 import { channelMembers } from './schema.mjs';
 
+/**
+ * @param {import('./generated/api.js').GeneratedQueryDatabase} db
+ * @param {import('./generated/api.js').Id<'channels'>} channelId
+ */
+async function messagesForChannel(db, channelId) {
+  return db.query('messages').withIndex('by_channel').eq('channelId', channelId).collect();
+}
+
 // ---- channels ----
 
 export const listPublicChannels = defineLiveQuery({
@@ -154,18 +162,14 @@ export const leaveChannel = defineJsMutation({
 export const listMessages = defineJsLiveQuery({
   args: { channelId: v.id('channels') },
   reads: ['messages', 'channels'],
-  result: results.documents('messages'),
+  result: results.records(v.doc('messages')),
   handler: async (ctx, args) => {
     const channel = await ctx.db.get('channels', args.channelId);
     if (!channel) throw new Error('channel not found');
     if (channel.visibility === 'private') {
       await ctx.permissions.channelMembers.requireRole(args.channelId, 'host', 'member');
     }
-    const rows = await ctx.db
-      .query('messages')
-      .withIndex('by_channel')
-      .eq('channelId', args.channelId)
-      .collect();
+    const rows = await messagesForChannel(ctx.db, args.channelId);
     rows.sort((a, b) =>
       a._version - b._version || (a._id < b._id ? -1 : a._id > b._id ? 1 : 0));
     return rows;
@@ -196,11 +200,7 @@ export const listMessagesPage = defineJsQuery({
     // the packaged 0.1.7 ctx.db chain ("undefined is not a function"), so the
     // page is computed over a collected channel read. Bounded storage work
     // for shared-visibility history is not expressible in this closure.
-    const rows = await ctx.db
-      .query('messages')
-      .withIndex('by_channel')
-      .eq('channelId', args.channelId)
-      .collect();
+    const rows = await messagesForChannel(ctx.db, args.channelId);
     rows.sort((a, b) =>
       a._version - b._version || (a._id < b._id ? -1 : a._id > b._id ? 1 : 0));
     let start = 0;
@@ -217,6 +217,7 @@ export const listMessagesPage = defineJsQuery({
     }
     const hasMore = start + 5 < rows.length;
     const page = rows.slice(start, start + 5);
+    /** @type {Array<{ kind: string, id: string, authorId: string, body: string, sentAt: number, commitOrder: number, cursor: string }>} */
     const out = page.map((row) => ({
       kind: 'message',
       id: row._id,
@@ -228,6 +229,7 @@ export const listMessagesPage = defineJsQuery({
     }));
     if (hasMore) {
       const last = page.at(-1);
+      if (!last) throw new Error('cursor page unexpectedly empty');
       out.push({
         kind: 'cursor',
         id: '',
@@ -291,11 +293,7 @@ export const markChannelRead = defineJsMutation({
     if (channel.visibility === 'private') {
       await ctx.permissions.channelMembers.requireRole(args.channelId, 'host', 'member');
     }
-    const rows = await ctx.db
-      .query('messages')
-      .withIndex('by_channel')
-      .eq('channelId', args.channelId)
-      .collect();
+    const rows = await messagesForChannel(ctx.db, args.channelId);
     let head = 0;
     for (const row of rows) if (row._version > head) head = row._version;
     const marks = await ctx.db
@@ -338,11 +336,7 @@ export const unreadCount = defineJsLiveQuery({
       .eq('userId', ctx.auth.userId)
       .collect();
     const marker = marks.length > 0 ? marks[0].lastReadVersion : 0;
-    const rows = await ctx.db
-      .query('messages')
-      .withIndex('by_channel')
-      .eq('channelId', args.channelId)
-      .collect();
+    const rows = await messagesForChannel(ctx.db, args.channelId);
     let unread = 0;
     for (const row of rows) {
       if (row._version > marker && row.authorId !== ctx.auth.userId) unread += 1;

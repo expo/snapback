@@ -5,7 +5,12 @@
 **Systems:** Competitive evaluation, Developer experience, Authoring, Application data API, Code generation, Runtime, Bootstrap, Packaging, Search, Relational queries, Scheduled work, Client integration, Documentation, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-08-02 (CV-9 implementation reconciliation: current main's
+**Revised:** 2026-08-02 (CV-17 / Move-1 type-flow implementation: result-side
+app schema references expand through the existing document contract/hash;
+generated handler, helper-boundary, and read/write context types consume the
+schema/function artifacts; the A2 arm and seeded checkJs mismatch close the
+pilot. CV-4b stored structured fields remains Open, and LLP 0157 composition
+shapes remain deferred while that Spec is Draft.) 2026-08-02 (CV-9 implementation reconciliation: current main's
 Wave-1 C2 slice is confirmed as the honest `runAfter`-class surface, not merely
 an enqueue stub. A file-backed crash/reopen witness now closes its remaining
 attempt-ledger evidence gap: stored lease expiry receipts attempt 1, advances
@@ -444,7 +449,7 @@ relational query exist — and the remainder is CV-8, not a rediscovery.
 | CV-14 | Semantic review summary for dense manifests | E (P2) | — | custody owner (confirm at start; 0062 family) | — | M | Open (claimed by no move; rides its custody trigger) |
 | CV-15 | Resolve `unpinned` harness wording for exact binaries | E (P2) | 5 | 0010 harness | 0123 | S | Landed 2026-07-31 (`5ac77b8d`; split: `pinned-binary-dirty-checkout` for exact clean-built binaries compared against a dirty checkout, `unpinned-binary` for binaries whose own stamp is dirty/unknown; kit README updated) |
 | CV-16 | Declaration-closed rejection unions as result-contract variants | B (P1) | 1 | 0108 family (0125 option 2) | 0125 | M | Confirmed (0127 decision 7, 2026-07-30) |
-| CV-17 | Typed-interior pilot (0117 option F) | B (P1) | 1 | 0108 clarification + codegen | 0117 | S | Confirmed (0127 decision 7, 2026-07-30) |
+| CV-17 | Typed-interior pilot (0117 option F) | B (P1) | 1 | 0108 clarification + codegen | 0117 | S | LANDED 2026-08-02 (G-02): generated `GeneratedHandler` and manifest-derived `ctx.db`/helper-boundary types preserve query-read versus mutation-write capability; A2 checkJs is green and a seeded handler/result mismatch fails at typecheck; checker consumes the declared effective contract and never mints one. Result-side `v.doc(table)` expands through the existing document witness/hash; args and stored fields still refuse. Composition/query-graph result types remain deferred to Draft LLP 0157 |
 
 ## Work items
 

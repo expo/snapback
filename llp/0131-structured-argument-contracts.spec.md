@@ -5,7 +5,11 @@
 **Systems:** Authoring, Code generation, Runtime, Application data API, Search, Client integration, Contract, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-07-31 (implementation record and rulings — the wave-1
+**Revised:** 2026-08-02 (Option-E placement executed without reopening the
+argument grammar: the distinct app-authority `v.doc(table)` marker is admitted
+only in result contracts, expands before hashing to LLP 0108's existing
+structural document contract, and refuses at argument/stored-field positions).
+2026-07-31 (implementation record and rulings — the wave-1
 lane C6/C2 landing recorded as this document's closing dated amendment:
 the Rust search-grammar narrowing blessed, explicit-null optionals ruled
 to the canonical-form projection, the `allowExtra` load-gate mechanism
@@ -1245,3 +1249,23 @@ landed replacements recorded here:
 This amendment closes issues/20260731-0131-implementation-divergences.md
 items 1–5, 7, and 9; item 6 was closed at lane C2's landing; item 8 is
 tracked residue owed elsewhere.
+
+## Amendment (2026-08-02): Option-E app schema reference placement
+
+Open question 2's dated-v2 placement is now executed for the result side only.
+`v.doc(table)` constructs a distinct `AppSchemaRef`-class authoring marker with
+`authority: 'app'`; it does not reuse the platform-owned search reference and
+it is not admitted by this Spec's argument grammar. LLP 0108 remains the
+result-contract owner: codegen resolves the marker against the app schema to
+the existing closed structural document contract before validation, emission,
+or hashing. Top-level use preserves the exact `results.documents(table)`
+witness; nested use embeds the same expanded object. The app reference itself
+never enters the deployed node grammar.
+
+The evolution consequence is therefore visible and fail-closed: changing the
+referenced table changes its expanded result contract and hash, while an
+unknown table refuses generation. A focused fixture also pins that arguments
+and stored schema fields reject `v.doc`, so this amendment neither widens the
+landed CV-4a grammar nor claims CV-4b. Generated interior types consume the
+expanded result/schema artifacts under LLP 0108's dated clarification; they
+do not infer a contract from handler behavior.

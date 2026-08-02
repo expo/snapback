@@ -18,6 +18,7 @@ export type FieldType =
   | 'Json'
   | 'Principal'
   | { readonly Id: { readonly table: string } }
+  | { readonly AppSchemaRef: { readonly authority: 'app'; readonly table: string } }
   | { readonly RelationIncarnation: { readonly foreignKeyField: string; readonly parentTable: string } }
   | { readonly AssetRef: { readonly upload?: string } };
 
@@ -52,6 +53,8 @@ export declare const v: {
   string(options?: { maxBytes?: number }): Validator<string, 'String', false>;
   principal(): Validator<string, 'Principal', false>;
   id<const Table extends string>(table: Table): Validator<string, { readonly Id: { readonly table: Table } }, false>;
+  /** Complete stored document shape, valid only inside a result contract. */
+  doc<const Table extends string>(table: Table): Validator<Readonly<Record<string, unknown>>, { readonly AppSchemaRef: { readonly authority: 'app'; readonly table: Table } }, false>;
   relationIncarnationOf<const ForeignKey extends string, const Parent extends string>(
     spec: { foreignKeyField: ForeignKey; parentTable: Parent },
   ): Validator<string, { readonly RelationIncarnation: { readonly foreignKeyField: ForeignKey; readonly parentTable: Parent } }, false>;

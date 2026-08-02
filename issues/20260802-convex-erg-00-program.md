@@ -30,8 +30,9 @@ mean.
   (in the decision packet); verify what lane C1 (CV-7) already landed first
 - 04 register cliff — CLOSED 2026-08-02 onto path (b), landed at `ceb205a6`
   and re-verified on current main: the cliff is the all-live format-1 group
-  artifact, not sibling delivery; implementation waits for an accepted
-  mixed-route successor profile
+  artifact, not sibling delivery. The mixed-route successor shape is now
+  author-endorsed (`e87c37d8`), but its design and implementation remain
+  deliberately sequenced after LLP 0157 acceptance; G-04 is not implemented.
 
 Every ticket starts with a verify-against-main step: the fleet lands fast and
 the survey's facts are hours old. Deliberately NOT here: aggregates (deferred
@@ -71,3 +72,17 @@ clients (consciously deferred), hosted lifecycle (own future program).
   retained as evidence rather than ceilings. Its current helper-sharing suite
   and LLP references are green; the redundant G-03 ticket moved to
   `issues/closed/` without changing code.
+- **2026-08-02 — G-02 implementation complete, closure verification in
+  progress.** Result-side app schema references expand through the existing
+  document contract/hash, generated handler and `ctx.db` interiors derive
+  from the same manifest artifacts, and A2 consumes both without changing its
+  served result witness. The focused schema-evolution, unknown-table,
+  args/stored-field refusal, capability split, and checkJs mismatch proofs are
+  green. LLP 0157 remains Draft; no composition/query-graph type was authored
+  or changed in this lane.
+- **2026-08-02 — G-04 gate updated from the author packet.** Commit
+  `e87c37d8` endorses the versioned mixed-route successor shape while
+  sequencing its design and implementation after LLP 0157 acceptance. This
+  changes the gate from “awaiting a ruling” to “accepted direction, deferred
+  sequence”; it does not make the successor implemented and G-02 leaves LLP
+  0157 untouched.

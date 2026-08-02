@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "ebfcca82f051c17bdcb164f9ed14e0baaf3ab397"
+    "commit": "9d1954a0634bf0ea96b46108c87a2d25b7dfe40f"
   },
   "nav": {
     ".": [
@@ -900,9 +900,9 @@
         "demos/todo-v2",
         "demos/signal-desk"
       ],
-      "reviewed": "2026-08-01",
+      "reviewed": "2026-08-02",
       "reviewedCommit": "HEAD",
-      "sha256": "d0fa588421c6cf6896277ae61c02c5797e9ea9017cc729891fb0e482dbf9aa5f",
+      "sha256": "3a4a459ef74f895fcdf94eda594d0024832e58b8ca79c1d80b92dc94374c62bd",
       "snippets": [
         {
           "lang": "js",
@@ -1199,7 +1199,7 @@
       "examples": [],
       "reviewed": "2026-08-02",
       "reviewedCommit": "63d980b654664d2c990f454cbcb78958d87d27b8",
-      "sha256": "da3944742bf1d6d982e1370f0df1c1e96d1d47e4d94ec84fc84ee1f5d9d154e5",
+      "sha256": "819f4d2322dcf91a630ca4c480cf9ecba3d9beeb42b8f3d60a9f81bc93f45504",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2499,5 +2499,5 @@
     "routes": 91,
     "hostOps": 29
   },
-  "contentHash": "e4c6335205aa698b2c41a49b86d8957b00d1c4b92448755e5243e28ac0d0fbd9"
+  "contentHash": "dc495d5c59f04fcdc85587a01c59f71d81b5c5b6865ac109e8805bece10adafa"
 }
