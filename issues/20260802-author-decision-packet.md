@@ -77,3 +77,17 @@ Tier 3:
 - The two 0151-commissioned implementing specs (completion protocol,
   lifecycle) still need owners and numbers — assign when identity
   implementation is scheduled (next wave).
+
+## Questions appended after the sitting
+
+- **2026-08-02 — LLP 0154 telemetry export carrier across host ops / control
+  MCP.** The accepted RFC requires `telemetry.export` to be snapshot-bounded
+  streaming and also projects the operation one-to-one through LLP 0024 host
+  ops and control MCP. The current `HostOpsResult` and MCP structured-content
+  carrier each return one finite JSON object; buffering the NDJSON payload,
+  returning a local path, or silently omitting the projection would each add a
+  contract not chosen by the RFC. Author ruling requested: introduce a stream
+  or resource carrier, explicitly permit a bounded non-streaming MCP
+  projection, or defer only the MCP export projection. This question does not
+  block the HTTP/CLI streaming export or the stats/events projections, and no
+  implementation session should infer an answer for the MCP export carrier.
