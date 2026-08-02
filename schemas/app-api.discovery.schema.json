@@ -68,6 +68,47 @@
         "authMode"
       ],
       "type": "object"
+    },
+    "AppCliTargetFactsV1": {
+      "additionalProperties": false,
+      "description": "The `app-cli.target` eligibility descriptor (LLP 0062 §4; dated LLP 0058\namendment 2026-08-01).\n\nDeliberately a **structured descriptor**, not a ninth entry in the closed\n`TargetCapabilityId` string set: §4 requires a target to state *which*\nprincipal classes it supports, whether it serves envelopes and accepts\ngeneration assertions, and the per-grant token cap the engine's admission\nbound must read rather than hardcode. A boolean could carry none of that.\n\nAbsence is the honest capability-absent report — §4's rule that the engine\n\"never infers any of this from a URL\" has teeth only because this fact\nexists to read. Facts state what the target *supports*; they never prove\ntransport locality, which is why the agent lane's loopback condition stays\nengine-enforced.",
+      "properties": {
+        "acceptsGenerationAssertions": {
+          "description": "Whether the target admits caller-asserted `expectedGeneration`\n(LLP 0012's call-time binding).",
+          "type": "boolean"
+        },
+        "capabilityId": {
+          "description": "The working capability id this descriptor answers for.",
+          "type": "string"
+        },
+        "perGrantTokenCap": {
+          "description": "The per-grant live-token cap the engine's cross-process admission\nbound reads. `None` where the target admits no agent lane — a\nhardcoded copy of LLP 0055's constant would drift silently.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "principalClasses": {
+          "description": "Closed principal-class vocabulary this target admits, from §4's\nmatrix: `anonymous`, `dev`, `session`, `agent`. A class the target\nrefuses is simply absent — the engine reports the refusal as a target\ncapability rather than a bug.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "servesEnvelopes": {
+          "description": "Whether the target composes and serves `/app-api/*` envelopes.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "capabilityId",
+        "principalClasses",
+        "servesEnvelopes",
+        "acceptsGenerationAssertions"
+      ],
+      "type": "object"
     }
   },
   "$id": "https://schemas.snapback.dev/snapback.v0/app-api.discovery.schema.json",
@@ -75,6 +116,17 @@
   "additionalProperties": false,
   "description": "The `/app-api/current` discovery document (sessions targets only).",
   "properties": {
+    "appCliDescriptor": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AppCliTargetFactsV1"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The `app-cli.target` descriptor itself, echoed here because LLP 0062\n§4 requires eligibility to ride the capability manifest \"and echoed by\nsessions discovery\": the engine reads this credential-free, before any\nprincipal is selected, so a refused lane is a stated target capability\nrather than an inference from the URL. Absent = capability-absent."
+    },
     "appCliTarget": {
       "description": "Whether this target advertises the `app-cli.target` eligibility\ncapability (LLP 0062 §4). Advisory pre-flag; the engine still treats\nabsence as capability-absent.",
       "type": "boolean"

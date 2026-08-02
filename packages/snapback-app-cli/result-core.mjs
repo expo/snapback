@@ -59,6 +59,11 @@ const EXACT_CODE_EXITS = new Map([
   ['SNAPBACK_APP_CLI_DISCOVERY_INVALID', EXIT.ARTIFACT_IDENTITY_MISMATCH],
   ['SNAPBACK_APP_CLI_ENVELOPE_VERSION_UNSUPPORTED', EXIT.VERSION_MISMATCH],
   ['SNAPBACK_APP_CLI_OFFLINE_CACHED_SURFACE', EXIT.USAGE],
+  // LLP 0062 §4: asking for a principal class the target does not advertise
+  // is a usage error against a stated capability — the same class as pointing
+  // served mode at a dev target, and deliberately not an auth refusal (no
+  // credential was ever presented).
+  ['SNAPBACK_APP_CLI_PRINCIPAL_UNSUPPORTED', EXIT.USAGE],
   // Server-side app-api refusals as the engine meets them on the wire:
   // pointing served mode at a dev target is a usage error; a stale hash is
   // identity establishment (refetch through /app-api/current).

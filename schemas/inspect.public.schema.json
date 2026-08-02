@@ -30,6 +30,47 @@
         }
       ]
     },
+    "AppCliTargetFactsV1": {
+      "additionalProperties": false,
+      "description": "The `app-cli.target` eligibility descriptor (LLP 0062 §4; dated LLP 0058\namendment 2026-08-01).\n\nDeliberately a **structured descriptor**, not a ninth entry in the closed\n`TargetCapabilityId` string set: §4 requires a target to state *which*\nprincipal classes it supports, whether it serves envelopes and accepts\ngeneration assertions, and the per-grant token cap the engine's admission\nbound must read rather than hardcode. A boolean could carry none of that.\n\nAbsence is the honest capability-absent report — §4's rule that the engine\n\"never infers any of this from a URL\" has teeth only because this fact\nexists to read. Facts state what the target *supports*; they never prove\ntransport locality, which is why the agent lane's loopback condition stays\nengine-enforced.",
+      "properties": {
+        "acceptsGenerationAssertions": {
+          "description": "Whether the target admits caller-asserted `expectedGeneration`\n(LLP 0012's call-time binding).",
+          "type": "boolean"
+        },
+        "capabilityId": {
+          "description": "The working capability id this descriptor answers for.",
+          "type": "string"
+        },
+        "perGrantTokenCap": {
+          "description": "The per-grant live-token cap the engine's cross-process admission\nbound reads. `None` where the target admits no agent lane — a\nhardcoded copy of LLP 0055's constant would drift silently.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "principalClasses": {
+          "description": "Closed principal-class vocabulary this target admits, from §4's\nmatrix: `anonymous`, `dev`, `session`, `agent`. A class the target\nrefuses is simply absent — the engine reports the refusal as a target\ncapability rather than a bug.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "servesEnvelopes": {
+          "description": "Whether the target composes and serves `/app-api/*` envelopes.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "capabilityId",
+        "principalClasses",
+        "servesEnvelopes",
+        "acceptsGenerationAssertions"
+      ],
+      "type": "object"
+    },
     "AppIdentity": {
       "description": "Optional presentation identity for the loaded app: how the instance should\nintroduce itself to a human. Everything here is public by construction — it\nis rendered on the public root page and flows into the public inspect\nprojection — so apps must not put secrets in it. The icon/wordmark URLs are\nordinary app-served or absolute URLs; the root page renders them as plain\n`<img>` references with attribute escaping.\n\n@ref LLP 0017#instance-home-page — the root page renders this identity when\n  the manifest declares it; absent, the page is Snapback-branded only.",
       "properties": {
@@ -674,6 +715,17 @@
     },
     "CapabilityManifest": {
       "properties": {
+        "appCliTarget": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AppCliTargetFactsV1"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `app-cli.target` eligibility descriptor (LLP 0062 §4; dated LLP\n0058 amendment 2026-08-01). Absence is capability-absent: the engine\nrefuses credentialed lanes rather than inferring eligibility from a\nURL or a correlated capability."
+        },
         "artifactKind": {
           "default": "capabilityManifest",
           "type": "string"

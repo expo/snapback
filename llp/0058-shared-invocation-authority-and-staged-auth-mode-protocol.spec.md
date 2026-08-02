@@ -5,7 +5,12 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Security, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-08-01 (same-mode provisioning note: the committed-carrier
+**Revised:** 2026-08-01, later same day (LLP 0062 §4 companion: the
+`app-cli.target` eligibility descriptor lands as a structured capability-manifest
+block — principal classes, envelope service, generation-assertion admission,
+per-grant token cap — echoed by sessions discovery, with absence as the honest
+capability-absent report; local declares, remote/conformance/hosted withhold).
+Prior: 2026-08-01 (same-mode provisioning note: the committed-carrier
 check proves "no foreign root in flight" — the transition's own private
 projection root may stay counted while after-Local publication owners drain,
 and the strict all-roots-dropped gate holds at successor publication; fixes
@@ -2005,6 +2010,60 @@ extension points listed when this Spec was authored were subsequently consumed:
 Cookies, opaque-Ibex authority-independence proofs, persisted trusted function
 artifacts, and a general must-understand mechanism remain out of scope. None is
 a fallback when the pinned v1 mechanism refuses.
+
+## Dated amendment: the `app-cli.target` eligibility descriptor (2026-08-01)
+
+[LLP 0062](./0062-generated-app-cli-and-code-mode.rfc.md) §4 requires a target
+to state, as a served fact, which app-CLI principal classes it admits. This
+Spec owns `supportedCapabilities`, so the descriptor lands here.
+
+**It is a structured descriptor, not a ninth entry in the closed
+`TargetCapabilityId` string set.** §4 needs a target to say *which* principal
+classes it supports, whether it serves envelopes, whether it accepts
+generation assertions, and the per-grant token cap the engine's cross-process
+admission bound must read rather than hardcode — LLP 0055's constant would
+drift silently against a copy. A boolean in the closed string set can carry
+none of that, so the descriptor follows LLP 0060's structured-descriptor
+pattern: an optional `appCliTarget` block on the capability manifest, carried
+on every tuple by `/inspect` and echoed by sessions discovery
+(`/app-api/current`'s `appCliDescriptor`) so the engine reads it
+credential-free, before any principal is selected.
+
+The v1 shape, `deny_unknown_fields` and Rust-owned under LLP 0037:
+
+- `capabilityId` — `"app-cli.target"`;
+- `principalClasses` — the closed vocabulary `anonymous | dev | session |
+  agent`, listing only classes the target actually admits;
+- `servesEnvelopes` — whether `/app-api/*` composition is available;
+- `acceptsGenerationAssertions` — whether caller-asserted `expectedGeneration`
+  is checked (this Spec's own admission, projected);
+- `perGrantTokenCap` — optional; present only where an agent lane exists.
+
+**Absence is capability-absent, and that is the load-bearing half.** §4's rule
+that the engine "never infers any of this from a URL" has teeth only because
+the fact exists to read: today a local dev server and a hosted gateway can
+advertise the same admissible tuple, so distinguishing them by URL, profile
+id, or correlated capabilities would be exactly the forbidden inference. A
+target that declares no descriptor admits `anonymous` only — the engine still
+calls anonymously and lets this Spec's invocation gate answer — and every
+credentialed lane refuses client-side with
+`SNAPBACK_APP_CLI_PRINCIPAL_UNSUPPORTED` rather than presenting a credential
+to a target that never claimed to accept one.
+
+Facts state what the target *supports*; they never prove transport locality
+(which is why LLP 0062 §4's agent lane keeps its loopback condition
+engine-enforced) and they stay distinct from the target's *current* auth
+posture, which LLP 0012 already separates from static support: the local
+target's descriptor lists `dev` and `session` together because it supports
+both tuples, while the active tuple says which applies right now.
+
+As declared 2026-08-01: the local target carries the descriptor
+(`anonymous`, `dev`, `session`; envelopes and generation assertions both
+true; no `perGrantTokenCap` until the agent lane lands). The
+remote-service, workerd-conformance, and Cloudflare targets withhold it —
+§4's matrix admits remote service only "once it advertises `app-cli.target`"
+and puts hosted out of phase 1 — so each is honestly capability-absent rather
+than inheriting a claim from the local declaration.
 
 ## Status
 

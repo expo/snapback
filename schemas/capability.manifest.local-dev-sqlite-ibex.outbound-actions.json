@@ -1,4 +1,14 @@
 {
+  "appCliTarget": {
+    "acceptsGenerationAssertions": true,
+    "capabilityId": "app-cli.target",
+    "principalClasses": [
+      "anonymous",
+      "dev",
+      "session"
+    ],
+    "servesEnvelopes": true
+  },
   "artifactKind": "capabilityManifest",
   "assetUpload": true,
   "assets": {

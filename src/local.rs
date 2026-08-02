@@ -4750,10 +4750,17 @@ impl LocalSnapback {
                 inputs_hash: Some(deployment.inputs_hash.clone()),
             },
             envelope,
-            // The `app-cli.target` eligibility capability does not exist in
-            // the closed registry yet (LLP 0062 §4's phase gate); until it
-            // lands, every target is honestly capability-absent.
-            app_cli_target: false,
+            // Echoes the served capability manifest's `app-cli.target`
+            // descriptor (LLP 0062 §4; dated LLP 0058 amendment). This is the
+            // advisory pre-flag only — the descriptor itself, with the
+            // principal classes and caps the engine actually gates on, rides
+            // `/inspect`. A target whose manifest declares no descriptor stays
+            // honestly capability-absent here.
+            app_cli_target: crate::manifest::CapabilityManifest::local_v0_declared()
+                .app_cli_target
+                .is_some(),
+            app_cli_descriptor: crate::manifest::CapabilityManifest::local_v0_declared()
+                .app_cli_target,
             engine_range: None,
         }))
     }

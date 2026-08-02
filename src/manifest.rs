@@ -6867,6 +6867,12 @@ pub struct CapabilityManifest {
     /// for targets without the subsystem.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub assets: Option<crate::assets::AssetTargetFactsV1>,
+    /// The `app-cli.target` eligibility descriptor (LLP 0062 §4; dated LLP
+    /// 0058 amendment 2026-08-01). Absence is capability-absent: the engine
+    /// refuses credentialed lanes rather than inferring eligibility from a
+    /// URL or a correlated capability.
+    #[serde(default, rename = "appCliTarget", skip_serializing_if = "Option::is_none")]
+    pub app_cli_target: Option<AppCliTargetFactsV1>,
 }
 
 /// The declared standard-pattern live posture (LLP 0065 §4).
@@ -6959,6 +6965,82 @@ impl RelationalQueryFacts {
                 "none".to_owned(),
                 "opaque-authorized-snapshot-v1".to_owned(),
             ],
+        }
+    }
+}
+
+/// The `app-cli.target` eligibility descriptor (LLP 0062 §4; dated LLP 0058
+/// amendment 2026-08-01).
+///
+/// Deliberately a **structured descriptor**, not a ninth entry in the closed
+/// `TargetCapabilityId` string set: §4 requires a target to state *which*
+/// principal classes it supports, whether it serves envelopes and accepts
+/// generation assertions, and the per-grant token cap the engine's admission
+/// bound must read rather than hardcode. A boolean could carry none of that.
+///
+/// Absence is the honest capability-absent report — §4's rule that the engine
+/// "never infers any of this from a URL" has teeth only because this fact
+/// exists to read. Facts state what the target *supports*; they never prove
+/// transport locality, which is why the agent lane's loopback condition stays
+/// engine-enforced.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AppCliTargetFactsV1 {
+    /// The working capability id this descriptor answers for.
+    #[serde(rename = "capabilityId", alias = "capability_id")]
+    pub capability_id: String,
+    /// Closed principal-class vocabulary this target admits, from §4's
+    /// matrix: `anonymous`, `dev`, `session`, `agent`. A class the target
+    /// refuses is simply absent — the engine reports the refusal as a target
+    /// capability rather than a bug.
+    #[serde(rename = "principalClasses", alias = "principal_classes")]
+    pub principal_classes: Vec<String>,
+    /// Whether the target composes and serves `/app-api/*` envelopes.
+    #[serde(rename = "servesEnvelopes", alias = "serves_envelopes")]
+    pub serves_envelopes: bool,
+    /// Whether the target admits caller-asserted `expectedGeneration`
+    /// (LLP 0012's call-time binding).
+    #[serde(
+        rename = "acceptsGenerationAssertions",
+        alias = "accepts_generation_assertions"
+    )]
+    pub accepts_generation_assertions: bool,
+    /// The per-grant live-token cap the engine's cross-process admission
+    /// bound reads. `None` where the target admits no agent lane — a
+    /// hardcoded copy of LLP 0055's constant would drift silently.
+    #[serde(
+        rename = "perGrantTokenCap",
+        alias = "per_grant_token_cap",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub per_grant_token_cap: Option<u32>,
+}
+
+impl AppCliTargetFactsV1 {
+    /// The local target's static support, both rows of §4's matrix at once.
+    ///
+    /// This is deliberately *static support*, which LLP 0012 keeps distinct
+    /// from the target's *current* auth posture: the local target admits the
+    /// dev-asserted lane on its dev tuple and human sessions on its sessions
+    /// tuple, and the active tuple — reported by `/inspect` and by
+    /// `/app-api/current` — says which applies right now. Advertising the
+    /// union here and the posture there is what lets the engine refuse a
+    /// mismatched lane as a target capability rather than a bug.
+    ///
+    /// `agent` is deliberately absent: LLP 0062 §4's agent lane needs
+    /// 0062-05's credentialed implementation and its per-grant cap; a target
+    /// must not advertise a class before the class exists.
+    pub fn local_v1() -> Self {
+        Self {
+            capability_id: "app-cli.target".to_owned(),
+            principal_classes: vec![
+                "anonymous".to_owned(),
+                "dev".to_owned(),
+                "session".to_owned(),
+            ],
+            serves_envelopes: true,
+            accepts_generation_assertions: true,
+            per_grant_token_cap: None,
         }
     }
 }
@@ -7086,6 +7168,7 @@ impl CapabilityManifest {
             standard_patterns: Some(StandardPatternFacts::local_v1()),
             full_text_search: Some(FullTextSearchFactsV1::local_v1()),
             assets: Some(crate::assets::AssetTargetFactsV1::local_v1()),
+            app_cli_target: Some(AppCliTargetFactsV1::local_v1()),
             supported_query_forms: vec![
                 "host-plan-single-table-eq".to_owned(),
                 "host-plan-single-table-in".to_owned(),
@@ -7243,6 +7326,11 @@ impl CapabilityManifest {
         manifest.assets = None;
         manifest.asset_upload = false;
         manifest.capability_gaps.push("assets".to_owned());
+        // LLP 0062 §4: the remote-service row is admissible "once it
+        // advertises `app-cli.target`" — until that qualification runs the
+        // engine must treat it as capability-absent, so the descriptor is
+        // withheld rather than inherited from the local declaration.
+        manifest.app_cli_target = None;
         ensure_relation_activity_capability_gaps(&mut manifest.capability_gaps);
         let mut facts =
             TargetCapabilityFacts::local_auth_aware().with_relation_activity_publication_withheld();
@@ -7276,6 +7364,9 @@ impl CapabilityManifest {
         manifest.assets = None;
         manifest.asset_upload = false;
         manifest.capability_gaps.push("assets".to_owned());
+        // The conformance twin proves handler execution, not the app-CLI
+        // surface: it serves no envelopes and has no row in §4's matrix.
+        manifest.app_cli_target = None;
         for withheld in [
             TargetCapabilityId::AssetLifecycleV1,
             TargetCapabilityId::AssetImageFinalizationV1,
@@ -7341,6 +7432,12 @@ impl CapabilityManifest {
         manifest.assets = None;
         manifest.asset_upload = false;
         manifest.capability_gaps.push("assets".to_owned());
+        // LLP 0062 §4 puts hosted **out of phase 1**: no hosted target
+        // ingests or serves envelopes today. Withholding is the honest
+        // capability-absent report; inheriting local's descriptor would
+        // advertise principal classes and an envelope surface this target
+        // does not have.
+        manifest.app_cli_target = None;
         manifest.supported_artifact_versions = vec![ArtifactVersion::V0];
         manifest.supported_auth_modes = vec![AuthMode::Dev];
         manifest.supported_artifact_auth_pairs = vec![SupportedArtifactAuthPair {

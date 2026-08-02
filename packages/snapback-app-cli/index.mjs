@@ -254,6 +254,12 @@ export {
   fetchServedEnvelope,
   loadServedApp,
   verifyEnvelopeBytes,
+  // The `app-cli.target` eligibility descriptor (LLP 0062 §4): read
+  // credential-free from discovery, before any principal is selected.
+  PRINCIPAL_CLASSES,
+  targetDescriptor,
+  targetAdmitsPrincipal,
+  refuseUnadmittedPrincipal,
   readCachedEnvelope,
   storeCachedEnvelope,
   defaultCacheDir,

@@ -577,3 +577,63 @@ export async function loadServedApp(baseUrl, {
   }
   return surfaceFromEnvelope(verified, discovered.discovery, { offline: false });
 }
+
+// --- the `app-cli.target` eligibility descriptor (LLP 0062 §4) --------------
+//
+// §4's rule is that the engine "never infers any of this from a URL" — and
+// that rule has teeth only because the target states its own eligibility. The
+// descriptor rides the capability manifest and is echoed by sessions
+// discovery, so the engine reads it credential-free, before selecting any
+// principal. Absence is capability-absent, never an assumed yes.
+
+/** The closed principal-class vocabulary of §4's matrix. */
+export const PRINCIPAL_CLASSES = Object.freeze(['anonymous', 'dev', 'session', 'agent']);
+
+/** Read the descriptor a discovery document echoes, or null when absent. */
+export const targetDescriptor = (discovery) => {
+  const descriptor = discovery?.appCliDescriptor ?? null;
+  if (descriptor === null || typeof descriptor !== 'object') return null;
+  if (descriptor.capabilityId !== 'app-cli.target') return null;
+  if (!Array.isArray(descriptor.principalClasses)) return null;
+  return descriptor;
+};
+
+/**
+ * Whether the target states it admits a principal class. A capability-absent
+ * target admits only `anonymous` — the engine still sends anonymous calls and
+ * lets the server's own invocation gate answer, which is exactly §4's
+ * "mirrors that and no more"; every credentialed lane refuses client-side
+ * rather than presenting a credential to a target that never claimed to take
+ * one.
+ */
+export function targetAdmitsPrincipal(discovery, principalClass) {
+  if (!PRINCIPAL_CLASSES.includes(principalClass)) {
+    throw envelopeError(
+      'SNAPBACK_APP_CLI_USAGE',
+      `unknown principal class '${principalClass}'`,
+      { admitted: PRINCIPAL_CLASSES },
+    );
+  }
+  const descriptor = targetDescriptor(discovery);
+  if (descriptor === null) return principalClass === 'anonymous';
+  return descriptor.principalClasses.includes(principalClass);
+}
+
+/**
+ * The typed refusal a credentialed lane raises when the target does not state
+ * the class. Presenting a credential anyway is the disclosure this refusal
+ * exists to prevent.
+ */
+export function refuseUnadmittedPrincipal(discovery, principalClass) {
+  const descriptor = targetDescriptor(discovery);
+  throw envelopeError(
+    'SNAPBACK_APP_CLI_PRINCIPAL_UNSUPPORTED',
+    descriptor === null
+      ? `this target advertises no app-cli.target capability, so '${principalClass}' cannot be presented`
+      : `this target does not admit the '${principalClass}' principal class`,
+    {
+      principalClass,
+      admitted: descriptor === null ? ['anonymous'] : descriptor.principalClasses,
+    },
+  );
+}

@@ -25,7 +25,13 @@ import {
   AuthCoordinator,
   createMemoryAuthCustodyStorage,
 } from '../../packages/snapback-contract/index.mjs';
-import { loadServedApp } from '../../packages/snapback-app-cli/envelope.mjs';
+import {
+  discoverServedApp,
+  loadServedApp,
+  refuseUnadmittedPrincipal,
+  targetAdmitsPrincipal,
+  targetDescriptor,
+} from '../../packages/snapback-app-cli/envelope.mjs';
 import {
   buildResultCore,
   diagnosticRecord,
@@ -293,6 +299,48 @@ try {
     'unknownOutcomeMintsNoAckObligation',
     afterUnknown.every((id) => beforeUnknown.has(id)),
     JSON.stringify({ before: [...beforeUnknown], after: afterUnknown }),
+  );
+
+  // --- 0062-05: the eligibility descriptor is served, echoed, consumed -----
+  // §4: the engine never infers eligibility from a URL, so the target states
+  // it. Read credential-free from discovery, before any principal selection.
+  const discoveryDoc = (await discoverServedApp(server.baseUrl)).discovery;
+  const descriptor = targetDescriptor(discoveryDoc);
+  check(
+    'targetServesTheEligibilityDescriptor',
+    descriptor !== null
+      && descriptor.capabilityId === 'app-cli.target'
+      && descriptor.servesEnvelopes === true
+      && descriptor.acceptsGenerationAssertions === true,
+    JSON.stringify(descriptor),
+  );
+  check(
+    'descriptorStatesItsPrincipalClasses',
+    targetAdmitsPrincipal(discoveryDoc, 'anonymous')
+      && targetAdmitsPrincipal(discoveryDoc, 'session')
+      // `agent` is deliberately not advertised until 0062-05's lane exists:
+      // a target must not claim a class it cannot serve.
+      && targetAdmitsPrincipal(discoveryDoc, 'agent') === false,
+    JSON.stringify(descriptor.principalClasses),
+  );
+  let unadmitted = null;
+  try {
+    refuseUnadmittedPrincipal(discoveryDoc, 'agent');
+  } catch (error) {
+    unadmitted = error;
+  }
+  check(
+    'unadmittedPrincipalRefusesBeforeAnyCredentialIsPresented',
+    unadmitted?.code === 'SNAPBACK_APP_CLI_PRINCIPAL_UNSUPPORTED'
+      && Array.isArray(unadmitted.diagnostic.details.admitted),
+    String(unadmitted?.code),
+  );
+  // A capability-absent target admits anonymous only — the engine still calls
+  // anonymously and lets the server's own gate answer.
+  check(
+    'capabilityAbsentTargetAdmitsAnonymousOnly',
+    targetAdmitsPrincipal({}, 'anonymous') === true
+      && targetAdmitsPrincipal({}, 'session') === false,
   );
 
   console.log(JSON.stringify({ ok: true, checks }, null, 2));

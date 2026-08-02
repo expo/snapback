@@ -458,6 +458,17 @@ pub struct AppApiDiscoveryV1 {
     /// absence as capability-absent.
     #[serde(rename = "appCliTarget")]
     pub app_cli_target: bool,
+    /// The `app-cli.target` descriptor itself, echoed here because LLP 0062
+    /// §4 requires eligibility to ride the capability manifest "and echoed by
+    /// sessions discovery": the engine reads this credential-free, before any
+    /// principal is selected, so a refused lane is a stated target capability
+    /// rather than an inference from the URL. Absent = capability-absent.
+    #[serde(
+        rename = "appCliDescriptor",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
+    pub app_cli_descriptor: Option<crate::manifest::AppCliTargetFactsV1>,
     /// Advisory engine-version range. None until a range is published.
     #[serde(rename = "engineRange")]
     pub engine_range: Option<String>,
