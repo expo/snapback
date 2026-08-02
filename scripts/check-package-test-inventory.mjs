@@ -141,7 +141,12 @@ const inventories = [
     packageDir: 'packages/snapback-app-cli',
     testDir: '.',
     suffix: '.test.mjs',
-    expectedFiles: ['attribution.test.mjs', 'package.test.mjs'],
+    expectedFiles: [
+      'attribution.test.mjs',
+      'envelope.test.mjs',
+      'package.test.mjs',
+      'result-core.test.mjs',
+    ],
   },
   {
     id: '@expo/snapback-codegen',
@@ -149,6 +154,7 @@ const inventories = [
     testDir: '.',
     suffix: '.test.mjs',
     expectedFiles: [
+      'api-envelope-members.test.mjs',
       'args-contract-goldens.test.mjs',
       'asset-thumbhash-vector.test.mjs',
       'asset-upload-authoring.test.mjs',
@@ -403,7 +409,7 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // update: @expo/snapback-client's bearer-rotation, Expo RQS store/resume, and
 // WebCrypto fallback; plus @expo/snapback-react's authorization-denial,
 // cold-boot-binding, and WebCrypto fallback.
-assert.equal(total, 149, 'reviewed package/admin test count changed');
+assert.equal(total, 152, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }
