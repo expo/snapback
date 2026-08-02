@@ -160,6 +160,21 @@ step_timer_start
 (cd "$ROOT" && run bun install --frozen-lockfile)
 step_timer_end "bun install (workspace)"
 
+# --- Snapback side: materialize the codegen graph the surface build verifies -
+# The digest-keyed codegen cache under demos/all-aboard/.snapback is ignored
+# (since 6e080ca2 only the artifacts.json review manifest stays tracked), and
+# the surface's Vite plugin verifies the graph fail-closed. A clean clone must
+# regenerate it, and the regeneration must reproduce the committed review
+# manifest byte for byte — drift fails the lane instead of resolving silently.
+banner "Materialize the All Aboard codegen graph"
+step_timer_start
+(cd "$ROOT" && run env SNAPBACK_OUTBOUND_ACTIONS=1 \
+    node packages/snapback-codegen/index.mjs demos/all-aboard/snapback)
+(cd "$ROOT" && run git diff --exit-code -- \
+    demos/all-aboard/snapback/generated/artifacts.json) \
+    || fail "regenerating the All Aboard codegen graph drifted the committed review manifest"
+step_timer_end "codegen graph"
+
 # --- Step 1: production build ------------------------------------------------
 
 banner "Step 1: production build of the Contract surface"

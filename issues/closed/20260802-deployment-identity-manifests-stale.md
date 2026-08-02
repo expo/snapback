@@ -27,3 +27,10 @@ un-deployable until someone regenerates and commits them.
 Exit: run `node cloudflare/scripts/generate-deployment-identity.mjs` on a
 current main checkout, commit both regenerated manifests, and the lane is
 green again.
+
+## Resolution — 2026-08-02
+
+Regenerated on a current main checkout; only
+`cloudflare/generated/deployment-identity.all-aboard.json` still drifted and
+is committed with this fix. `node
+cloudflare/scripts/generate-deployment-identity.mjs --check` passes locally.

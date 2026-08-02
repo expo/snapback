@@ -28,3 +28,13 @@ succeeds and the real failure surfaced.
 Exit: add the two demos to the expected list (they should provision through
 one reset like the others), rerun `node tests/demo_setup_v0.mjs`, and let
 local-proof proceed past it.
+
+## Resolution — 2026-08-02
+
+Added campfire and party-wall to the expected list. Root cause went deeper:
+since 6e080ca2 the generated manifests the test provisions from are
+gitignored, so the test can only run after `scripts/check-generated-artifacts`
+materializes them on a clean checkout — moved it there in verify-local-proof.
+party-wall was also missing from that regen gate; added, which refreshed its
+committed review manifest. `scripts/check-generated-artifacts` then
+`node tests/demo_setup_v0.mjs` pass locally (18 demos provision).
