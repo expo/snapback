@@ -7,7 +7,7 @@
 **Date:** 2026-07-17
 **Revised:** 2026-08-01, latest (Snapback phase 1 implemented: tickets 01–06
 and 09 are closed; the credentialed lanes and Node/POSIX code-mode host landed
-in `646ac082` with executable-mode correction `ae02a5b3`; phase 2 remains
+in `f245965c` with executable-mode correction `46adfb69`; phase 2 remains
 honestly blocked on ticket 07's reviewed Ibex external-script/worker contract
 and ticket 08's literal one-file packaging proof; see the dated implementation
 checkpoint below). Earlier same day (shared result core landed: the LLP 0024

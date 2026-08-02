@@ -61,8 +61,8 @@ app, grant)); the LLP 0055 dated amendment those last items require; and the
 
 ---
 
-**RESOLVED 2026-08-01.** The remaining lanes landed in `646ac082`, followed by
-the executable-entrypoint mode correction `ae02a5b3`.
+**RESOLVED 2026-08-01.** The remaining lanes landed in `f245965c`, followed by
+the executable-entrypoint mode correction `46adfb69`.
 
 - Principal selection is anonymous by default and explicit for `dev`,
   `session`, `agent`, and `auto`; `auto` refuses conflicts and never falls back

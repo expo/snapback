@@ -15,7 +15,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-01
-reviewed-commit: 646ac082db666e04989dc9fcd8a33f49610e4bd5
+reviewed-commit: f245965ccfdc3addd44554d709c1074adec0834f
 ---
 
 # Capability index
@@ -257,7 +257,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-01
-reviewed-commit: 646ac082db666e04989dc9fcd8a33f49610e4bd5
+reviewed-commit: f245965ccfdc3addd44554d709c1074adec0834f
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -1752,7 +1752,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-01
-reviewed-commit: 646ac082db666e04989dc9fcd8a33f49610e4bd5
+reviewed-commit: f245965ccfdc3addd44554d709c1074adec0834f
 ---
 
 # Agent principals and scoped grants
@@ -5636,7 +5636,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-01
-reviewed-commit: ae02a5b3ba7ae81124911fa65bb00d1dc243f153
+reviewed-commit: 46adfb698bc174a6697feaeafdcad2aa39189de2
 ---
 
 # The artifact-driven app CLI
