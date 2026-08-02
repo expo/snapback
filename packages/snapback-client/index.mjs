@@ -5541,6 +5541,10 @@ export class SnapbackClient {
           clientMutationId: record.id,
           authorityDescriptor: record.authorityDescriptor ?? null,
           ctxLedger: record.ctxLedger ?? null,
+          settlementLane: record.settlementLane ?? 'replay-accept',
+          settlementIdentity: record.settlementIdentity ?? null,
+          settlementClaims: record.settlementClaims ?? null,
+          boundedSkew: record.boundedSkew ?? null,
           queue: false,
           },
         );
@@ -5617,6 +5621,10 @@ export class SnapbackClient {
     clientMutationId = null,
     acknowledgedClientMutationIds = [],
     ctxLedger = null,
+    settlementLane = null,
+    settlementIdentity = null,
+    settlementClaims = null,
+    boundedSkew = null,
     authorityDescriptor = null,
     authorityCapture = null,
     // LLP 0129 Phase 0 (LLP 0043 M2): 'auto' queues this intent durably
@@ -5629,6 +5637,13 @@ export class SnapbackClient {
     const generation = expectedGeneration(ref);
     if (queue !== 'auto' && queue !== false && queue !== true) {
       throw new TypeError("mutate queue option must be 'auto', true, or false");
+    }
+    if (
+      settlementLane !== null
+      && settlementLane !== 'replay-accept'
+      && settlementLane !== 're-derive'
+    ) {
+      throw new TypeError("mutate settlementLane must be 'replay-accept' or 're-derive'");
     }
     const queueStore = queue === false ? null : this.#offlineQueueStore(queue === true);
     const body = { args, auth: SnapbackClient.auth(userId), read_set: readSet };
@@ -5679,6 +5694,14 @@ export class SnapbackClient {
       body.acknowledgedClientMutationIds = acknowledgedClientMutationIds;
     }
     if (ctxLedger) body.ctx_ledger = ctxLedger;
+    // This is an ordinary synthetic wire carrier, not a local executor. The
+    // server owns the selected policy and all authoritative answers.
+    // @ref LLP 0133#the-two-settlement-lanes — the client-attested label is
+    //   immutable outbox identity and grants no authority.
+    if (settlementLane !== null) body.settlementLane = settlementLane;
+    if (settlementIdentity !== null) body.settlementIdentity = settlementIdentity;
+    if (settlementClaims !== null) body.settlementClaims = settlementClaims;
+    if (boundedSkew !== null) body.boundedSkew = boundedSkew;
     const durableMutationRecord = clientMutationId ? {
       id: clientMutationId,
       function: name,
@@ -5689,6 +5712,10 @@ export class SnapbackClient {
       authorityDescriptor: body.authorityDescriptor ?? null,
       ctxLedger: ctxLedger ?? null,
       expectedGeneration: generation,
+      settlementLane: settlementLane ?? 'replay-accept',
+      settlementIdentity,
+      settlementClaims,
+      boundedSkew,
       capturedNow: Date.now(),
     } : null;
     let durableOnlineRecord = false;
@@ -5810,6 +5837,10 @@ export class SnapbackClient {
                 authorityDescriptor: body.authorityDescriptor ?? null,
                 ctxLedger: ctxLedger ?? null,
                 expectedGeneration: generation,
+                settlementLane: settlementLane ?? 'replay-accept',
+                settlementIdentity,
+                settlementClaims,
+                boundedSkew,
                 capturedNow: Date.now(),
               },
             );

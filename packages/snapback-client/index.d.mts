@@ -49,6 +49,28 @@ export interface ArtifactGeneration {
   readonly inputsHash: string;
 }
 
+export interface SettlementIdentityClaims {
+  readonly implementationHash: string;
+  readonly activation: ArtifactGeneration;
+}
+
+export interface SettlementMintClaim {
+  readonly claimed: string;
+  readonly site: string;
+  readonly occurrence: number;
+}
+
+export interface SettlementClaimSet {
+  readonly version?: 1;
+  readonly now?: number;
+  readonly mints?: readonly SettlementMintClaim[];
+}
+
+export interface BoundedSkewDeclaration {
+  readonly field: string;
+  readonly maxSkewMs: number;
+}
+
 export interface FunctionInvocationFacts {
   readonly activeGeneration: ArtifactGeneration;
 }
@@ -807,6 +829,10 @@ export class SnapbackClient {
       readonly userId?: string;
       readonly clientMutationId?: string | null;
       readonly authorityDescriptor?: AuthorityDescriptorV1 | null;
+      readonly settlementLane?: 'replay-accept' | 're-derive' | null;
+      readonly settlementIdentity?: SettlementIdentityClaims | null;
+      readonly settlementClaims?: SettlementClaimSet | null;
+      readonly boundedSkew?: BoundedSkewDeclaration | null;
       readonly queue?: 'auto' | boolean;
     },
   ): Promise<MutationOutput<FunctionResult<Ref>>>;
@@ -817,6 +843,10 @@ export class SnapbackClient {
       readonly userId?: string;
       readonly clientMutationId?: string | null;
       readonly authorityDescriptor?: AuthorityDescriptorV1 | null;
+      readonly settlementLane?: 'replay-accept' | 're-derive' | null;
+      readonly settlementIdentity?: SettlementIdentityClaims | null;
+      readonly settlementClaims?: SettlementClaimSet | null;
+      readonly boundedSkew?: BoundedSkewDeclaration | null;
       readonly queue?: 'auto' | boolean;
     },
   ): Promise<MutationOutput<Result>>;

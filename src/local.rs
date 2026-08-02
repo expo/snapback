@@ -1554,6 +1554,7 @@ pub(crate) struct StagedRecordedMutationCommit {
     correlation: Option<Value>,
     receipt_mutation_id: String,
     input: HandlerInput,
+    settlement: MutationSettlement,
     prepared: PreparedInvocation,
     identity: Option<ClientMutationIdentity>,
     epoch_scopes: BTreeSet<String>,
@@ -1565,6 +1566,7 @@ struct MutationReceiptPublication<'a> {
     transport: &'a str,
     correlation: Option<Value>,
     mutation_id: String,
+    settlement: MutationSettlement,
     admission: &'a AdmissionLease,
     effect: &'static str,
 }
@@ -1582,6 +1584,7 @@ impl<'a> MutationReceiptPublication<'a> {
             transport,
             correlation,
             mutation_id,
+            settlement: MutationSettlement::default(),
             admission,
             effect: "mutation receipt publication",
         }
@@ -1589,6 +1592,11 @@ impl<'a> MutationReceiptPublication<'a> {
 
     fn with_effect(mut self, effect: &'static str) -> Self {
         self.effect = effect;
+        self
+    }
+
+    fn with_settlement(mut self, settlement: MutationSettlement) -> Self {
+        self.settlement = settlement;
         self
     }
 }
@@ -1624,6 +1632,48 @@ fn accepted_claim_ledger(ledger: Option<&CtxAnswerLedger>) -> Vec<SettlementClai
             }),
     );
     claims
+}
+
+fn rederived_claim_ledger(
+    settlement: &MutationSettlement,
+    ledger: Option<&CtxAnswerLedger>,
+) -> Vec<SettlementClaim> {
+    let Some(recorded) = settlement.claims.as_ref() else {
+        return Vec::new();
+    };
+    let mut claims = Vec::with_capacity(recorded.mints.len() + usize::from(recorded.now.is_some()));
+    if let Some(claimed) = recorded.now {
+        claims.push(SettlementClaim {
+            field_or_slot: "runtime.now".to_owned(),
+            claimed: json!(claimed),
+            authoritative: ledger.map_or(Value::Null, |ledger| json!(ledger.now)),
+            disposition: SettlementClaimDisposition::ReDerived,
+            skew_ms: None,
+        });
+    }
+    // Ticket 04 adds authoritative logical-mint observations and fills these
+    // values only on an exact (site, occurrence) match. Until then, retaining
+    // the claim with `null` authority is safer than positional guessing.
+    // @ref LLP 0133#divergence-on-settle — an absent logical match is never
+    //   inferred from equal counts or positional coincidence.
+    claims.extend(recorded.mints.iter().map(|mint| SettlementClaim {
+        field_or_slot: format!("{}[{}]", mint.site, mint.occurrence),
+        claimed: Value::String(mint.claimed.clone()),
+        authoritative: Value::Null,
+        disposition: SettlementClaimDisposition::ReDerived,
+        skew_ms: None,
+    }));
+    claims
+}
+
+fn settlement_claim_ledger(
+    settlement: &MutationSettlement,
+    ledger: Option<&CtxAnswerLedger>,
+) -> Vec<SettlementClaim> {
+    match settlement.lane {
+        SettlementLane::ReplayAccept => accepted_claim_ledger(ledger),
+        SettlementLane::ReDerive => rederived_claim_ledger(settlement, ledger),
+    }
 }
 
 /// A durable cron claim paired with its process-local finite admission root.
@@ -10971,6 +11021,7 @@ impl LocalSnapback {
                     transport,
                     correlation,
                     receipt_mutation_id,
+                    &MutationSettlement::default(),
                     Err(error),
                     false,
                 )
@@ -11284,7 +11335,8 @@ impl LocalSnapback {
                         correlation,
                         id.clone(),
                         &admission,
-                    ),
+                    )
+                    .with_settlement(settlement.clone()),
                     Ok(commit),
                 );
                 return Ok((
@@ -11361,7 +11413,8 @@ impl LocalSnapback {
                         correlation.clone(),
                         receipt_mutation_id.clone(),
                         &admission,
-                    ),
+                    )
+                    .with_settlement(settlement.clone()),
                     Ok(commit),
                 );
                 return Ok((
@@ -11372,6 +11425,15 @@ impl LocalSnapback {
             let client_mutation_digest = identity
                 .as_ref()
                 .map(ClientMutationIdentity::activity_digest);
+            if settlement.lane == SettlementLane::ReDerive {
+                // The client ledger remains part of immutable request
+                // identity, but it cannot answer the authoritative run. The
+                // host-plan preview below records one server-owned clock/id
+                // sample and the commit replays only that internal sample.
+                // @ref LLP 0133#re-derivation-semantics-lane-l — lane L
+                //   discards client ctx answers before authoritative execution.
+                input.ctx_ledger = None;
+            }
             input.auth = input
                 .auth
                 .with_client_mutation_digest(client_mutation_digest.as_deref());
@@ -11462,6 +11524,7 @@ impl LocalSnapback {
                     correlation,
                     receipt_mutation_id,
                     input,
+                    settlement: settlement.clone(),
                     prepared,
                     identity,
                     epoch_scopes,
@@ -11480,7 +11543,8 @@ impl LocalSnapback {
                         error_correlation,
                         error_receipt_mutation_id,
                         &admission,
-                    ),
+                    )
+                    .with_settlement(settlement),
                     Err(error),
                 );
                 Ok((
@@ -11505,6 +11569,7 @@ impl LocalSnapback {
             correlation,
             receipt_mutation_id,
             input,
+            settlement,
             prepared,
             identity,
             epoch_scopes,
@@ -11546,7 +11611,8 @@ impl LocalSnapback {
                 correlation,
                 receipt_mutation_id,
                 &admission,
-            ),
+            )
+            .with_settlement(settlement),
             result,
         );
         Ok(recorded)
@@ -11558,6 +11624,7 @@ impl LocalSnapback {
         transport: &str,
         correlation: Option<Value>,
         receipt_mutation_id: String,
+        settlement: &MutationSettlement,
         result: SnapbackResult<MutationCommit>,
         retain: bool,
     ) -> (SnapbackResult<MutationOutput>, Receipt) {
@@ -11575,7 +11642,7 @@ impl LocalSnapback {
                     MutationReceiptOutcome::Confirmed,
                     None,
                     Some(commit.output.version),
-                    accepted_claim_ledger(commit.output.ctx_ledger.as_ref()),
+                    settlement_claim_ledger(settlement, commit.output.ctx_ledger.as_ref()),
                     commit.job_enqueues.clone(),
                     Ok(commit),
                 ),
@@ -11604,11 +11671,9 @@ impl LocalSnapback {
             mutation_id: receipt_mutation_id,
             mutation: name.to_owned(),
             outcome,
-            // Ticket 01 labels every pre-existing settlement as lane Q. The
-            // request-selected lane is threaded by the lane-L slice.
-            // @ref LLP 0133#the-two-settlement-lanes — shipped replay keeps
-            //   its accepted captured-environment policy.
-            settlement_lane: SettlementLane::ReplayAccept,
+            // @ref LLP 0133#the-two-settlement-lanes — the capture-time lane
+            //   selects policy per mutation and is echoed as observed fact.
+            settlement_lane: settlement.lane,
             claim_ledger: Some(claim_ledger),
             rollback_reason,
             affected_tables,
@@ -11641,12 +11706,21 @@ impl LocalSnapback {
             transport,
             correlation,
             mutation_id,
+            settlement,
             admission,
             effect,
         } = publication;
         match admission.effect_guard(effect) {
             Ok(_publication) => {
-                self.record_mutation_commit(name, transport, correlation, mutation_id, result, true)
+                self.record_mutation_commit(
+                    name,
+                    transport,
+                    correlation,
+                    mutation_id,
+                    &settlement,
+                    result,
+                    true,
+                )
             }
             Err(publication_error) => {
                 self.record_diagnostics(vec![publication_error.diagnostic.clone()]);
@@ -11657,6 +11731,7 @@ impl LocalSnapback {
                             transport,
                             correlation,
                             mutation_id,
+                            &settlement,
                             Ok(commit),
                             false,
                         );
@@ -11667,6 +11742,7 @@ impl LocalSnapback {
                         transport,
                         correlation,
                         mutation_id,
+                        &settlement,
                         Err(publication_error),
                         false,
                     ),
@@ -38293,6 +38369,96 @@ globalThis.__snapbackHandlers = {
         snapback
     }
 
+    fn lane_settlement_snapback() -> LocalSnapback {
+        let schema = SchemaManifest {
+            schema_hash: Some("lane-settlement-schema".to_owned()),
+            tables: vec![
+                TableManifest {
+                    name: "items".to_owned(),
+                    fields: vec![
+                        FieldManifest {
+                            name: "capturedAt".to_owned(),
+                            field_type: FieldType::Integer,
+                            optional: false,
+                        },
+                        FieldManifest {
+                            name: "observedAt".to_owned(),
+                            field_type: FieldType::Integer,
+                            optional: false,
+                        },
+                        FieldManifest {
+                            name: "token".to_owned(),
+                            field_type: FieldType::String,
+                            optional: false,
+                        },
+                    ],
+                    indexes: Vec::new(),
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    search_indexes: Vec::new(),
+                    membership: None,
+                    asset_sharing: None,
+                },
+                TableManifest {
+                    name: "permissions".to_owned(),
+                    fields: vec![
+                        FieldManifest {
+                            name: "ownerId".to_owned(),
+                            field_type: FieldType::Principal,
+                            optional: false,
+                        },
+                        FieldManifest {
+                            name: "nonce".to_owned(),
+                            field_type: FieldType::String,
+                            optional: false,
+                        },
+                    ],
+                    indexes: Vec::new(),
+                    syncable: true,
+                    permission_backing: true,
+                    permission_fields: Some(vec!["ownerId".to_owned()]),
+                    search_indexes: Vec::new(),
+                    membership: None,
+                    asset_sharing: None,
+                },
+            ],
+            ..SchemaManifest::default()
+        };
+        let function = FunctionDefinition::new(
+            "writeClockAndId",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![MutationStep::Insert {
+                    table: "items".to_owned(),
+                    values: BTreeMap::from([
+                        ("capturedAt".to_owned(), ValueExpr::RuntimeNow),
+                        ("observedAt".to_owned(), ValueExpr::RuntimeNow),
+                        ("token".to_owned(), ValueExpr::RuntimeId),
+                    ]),
+                    bind_id_as: None,
+                }],
+                return_value: Some(ReturnValue::ChangedCount),
+            })),
+        );
+        let mut snapback = LocalSnapback::memory().expect("memory lane settlement fixture");
+        snapback
+            .apply_schema(schema)
+            .expect("apply lane settlement schema");
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![function],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics.iter().all(|diagnostic| {
+                diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error
+            }),
+            "lane settlement fixture must load: {diagnostics:?}"
+        );
+        let _connection = install_test_invalidation(&mut snapback);
+        snapback
+    }
+
     /// LLP 0133 acceptance sketch 1 plus ticket 01's adversarial privacy leg:
     /// the shipped pin is labeled and its accepted claims reach only the
     /// submitting response, never the subscriber-visible global receipt ring.
@@ -38346,20 +38512,22 @@ globalThis.__snapbackHandlers = {
         assert!(!fanout.to_string().contains(accepted_id));
     }
 
-    fn invoke_guarded_settlement(
+    fn invoke_synthetic_settlement(
         snapback: &mut LocalSnapback,
+        name: &str,
+        input: HandlerInput,
         client_mutation_id: &str,
         settlement: MutationSettlement,
     ) -> SnapbackResult<(SnapbackResult<MutationOutput>, Receipt)> {
         let authority = InvocationGate::prepare_dev_input(
             InvocationSource::LocalMutation,
             ServerProfile::Test,
-            &input(),
+            &input,
         )?;
         let (preflight, staged) = snapback
             .stage_recorded_authorization_mutation_with_generation_and_settlement(
-                "hostInsert",
-                input(),
+                name,
+                input,
                 Some(client_mutation_id.to_owned()),
                 None,
                 &[],
@@ -38371,6 +38539,263 @@ globalThis.__snapbackHandlers = {
         snapback.try_with_direct_authorization_write(preflight, move |snapback| {
             snapback.commit_staged_recorded_authorization_mutation(staged)
         })?
+    }
+
+    fn invoke_guarded_settlement(
+        snapback: &mut LocalSnapback,
+        client_mutation_id: &str,
+        settlement: MutationSettlement,
+    ) -> SnapbackResult<(SnapbackResult<MutationOutput>, Receipt)> {
+        invoke_synthetic_settlement(
+            snapback,
+            "hostInsert",
+            input(),
+            client_mutation_id,
+            settlement,
+        )
+    }
+
+    fn synthetic_lane_l_settlement(now: u64, ids: [&str; 2]) -> MutationSettlement {
+        MutationSettlement {
+            lane: SettlementLane::ReDerive,
+            identity_claims: Some(SettlementIdentityClaims {
+                implementation_hash: "sha256:synthetic-local-handler".to_owned(),
+                activation: ArtifactGeneration {
+                    schema_version: "snapback.v1".to_owned(),
+                    app_id: "lane-settlement-test".to_owned(),
+                    schema_hash: "sha256:lane-schema".to_owned(),
+                    bundle_hash: "sha256:lane-bundle".to_owned(),
+                    inputs_hash: "sha256:lane-inputs".to_owned(),
+                },
+            }),
+            claims: Some(SettlementClaimSet {
+                version: 1,
+                now: Some(now),
+                mints: vec![
+                    SettlementMintClaim {
+                        claimed: ids[0].to_owned(),
+                        site: "insert:items".to_owned(),
+                        occurrence: 0,
+                    },
+                    SettlementMintClaim {
+                        claimed: ids[1].to_owned(),
+                        site: "value:token".to_owned(),
+                        occurrence: 0,
+                    },
+                ],
+            }),
+            bounded_skew: None,
+        }
+    }
+
+    fn captured_lane_input(now: u64, ids: [&str; 2]) -> HandlerInput {
+        HandlerInput {
+            ctx_ledger: Some(CtxAnswerLedger {
+                version: ctx_ledger_version(),
+                ids: ids.into_iter().map(str::to_owned).collect(),
+                now,
+                auth_fingerprint: None,
+            }),
+            ..HandlerInput::default()
+        }
+    }
+
+    /// LLP 0133 acceptance sketches 2 and 7. Lane L treats every supplied
+    /// ctx answer as a claim and uses one server sample; adversarial lane-Q
+    /// relabeling obtains only the already-shipped replay pin and an honest
+    /// accepted receipt.
+    #[test]
+    fn llp0133_sketches_2_and_7_apply_lane_policy_without_privilege() {
+        const LOCAL_ROW: &str = "018f0d90-7b31-7a22-8c33-445566778899";
+        const LOCAL_TOKEN: &str = "018f0d90-7b32-7a22-8c33-445566778899";
+        const QUEUED_ROW: &str = "018f0d90-7b33-7a22-8c33-445566778899";
+        const QUEUED_TOKEN: &str = "018f0d90-7b34-7a22-8c33-445566778899";
+        let mut snapback = lane_settlement_snapback();
+
+        let local_settlement = synthetic_lane_l_settlement(7, [LOCAL_ROW, LOCAL_TOKEN]);
+        let (local_output, local_receipt) = invoke_synthetic_settlement(
+            &mut snapback,
+            "writeClockAndId",
+            captured_lane_input(7, [LOCAL_ROW, LOCAL_TOKEN]),
+            "cm_llp0133_lane_l",
+            local_settlement.clone(),
+        )
+        .expect("lane-L stages");
+        let local_output = local_output.expect("lane-L settles");
+        let authoritative = local_output.ctx_ledger.expect("server answer ledger");
+        assert_eq!(authoritative.ids.len(), 2);
+        assert_ne!(authoritative.ids[0], LOCAL_ROW);
+        assert_ne!(authoritative.ids[1], LOCAL_TOKEN);
+        assert_ne!(authoritative.now, 7);
+
+        let local_row = &snapback.db.scan_table("items", 10, 0).unwrap().rows[0];
+        assert_eq!(local_row["_id"], authoritative.ids[0]);
+        assert_eq!(local_row["token"], authoritative.ids[1]);
+        assert_eq!(local_row["capturedAt"], authoritative.now);
+        assert_eq!(local_row["observedAt"], authoritative.now);
+        let local_receipt = serde_json::to_value(local_receipt).unwrap();
+        assert_eq!(local_receipt["settlementLane"], "re-derive");
+        let local_claims = local_receipt["claimLedger"].as_array().unwrap();
+        let time_claim = local_claims
+            .iter()
+            .find(|claim| claim["fieldOrSlot"] == "runtime.now")
+            .expect("time claim");
+        assert_eq!(time_claim["claimed"], 7);
+        assert_eq!(time_claim["authoritative"], authoritative.now);
+        assert_eq!(time_claim["disposition"], "re-derived");
+        assert!(
+            local_claims
+                .iter()
+                .filter(|claim| {
+                    claim["claimed"] == LOCAL_ROW || claim["claimed"] == LOCAL_TOKEN
+                })
+                .all(|claim| {
+                    claim["authoritative"].is_null() && claim["disposition"] == "re-derived"
+                })
+        );
+
+        let queued_input = captured_lane_input(9, [QUEUED_ROW, QUEUED_TOKEN]);
+        let mut relabeled = synthetic_lane_l_settlement(9, [QUEUED_ROW, QUEUED_TOKEN]);
+        relabeled.lane = SettlementLane::ReplayAccept;
+        let (queued_output, queued_receipt) = invoke_synthetic_settlement(
+            &mut snapback,
+            "writeClockAndId",
+            queued_input,
+            "cm_llp0133_relabel_q",
+            relabeled,
+        )
+        .expect("lane-Q stages");
+        let queued_output = queued_output.expect("lane-Q settles");
+        let queued_ledger = queued_output.ctx_ledger.expect("accepted answer ledger");
+        assert_eq!(queued_ledger.now, 9);
+        assert_eq!(queued_ledger.ids, [QUEUED_ROW, QUEUED_TOKEN]);
+        let queued_rows = snapback.db.scan_table("items", 10, 0).unwrap().rows;
+        let queued_row = queued_rows
+            .iter()
+            .find(|row| row["_id"] == QUEUED_ROW)
+            .expect("queued row keeps captured id");
+        assert_eq!(queued_row["token"], QUEUED_TOKEN);
+        assert_eq!(queued_row["capturedAt"], 9);
+        assert_eq!(queued_row["observedAt"], 9);
+        let queued_receipt = serde_json::to_value(queued_receipt).unwrap();
+        assert_eq!(queued_receipt["settlementLane"], "replay-accept");
+        assert!(
+            queued_receipt["claimLedger"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|claim| {
+                    claim["claimed"] == claim["authoritative"]
+                        && claim["disposition"] == "accepted"
+                })
+        );
+        assert!(!queued_receipt.to_string().contains("re-derived"));
+    }
+
+    /// LLP 0133 acceptance sketch 10. The harness changes the staged plan
+    /// after an authorization-neutral preview so the one-shot reservation
+    /// must reject before commit. A later complete retry re-derives afresh.
+    #[test]
+    fn llp0133_sketch_10_stale_reservation_rolls_back_then_retry_rederives() {
+        const LOCAL_ROW: &str = "018f0d90-7b35-7a22-8c33-445566778899";
+        const LOCAL_TOKEN: &str = "018f0d90-7b36-7a22-8c33-445566778899";
+        let mut snapback = lane_settlement_snapback();
+        let settlement = synthetic_lane_l_settlement(13, [LOCAL_ROW, LOCAL_TOKEN]);
+        let captured = captured_lane_input(13, [LOCAL_ROW, LOCAL_TOKEN]);
+        let authority = InvocationGate::prepare_dev_input(
+            InvocationSource::LocalMutation,
+            ServerProfile::Test,
+            &captured,
+        )
+        .unwrap();
+        let (preflight, mut staged) = snapback
+            .stage_recorded_authorization_mutation_with_generation_and_settlement(
+                "writeClockAndId",
+                captured.clone(),
+                Some("cm_llp0133_reservation_retry".to_owned()),
+                None,
+                &[],
+                "test",
+                authority,
+                None,
+                settlement.clone(),
+            )
+            .expect("first attempt stages");
+        let first_attempt_ledger = match &mut staged {
+            super::StagedRecordedMutation::Ready(staged) => {
+                let ledger = staged
+                    .input
+                    .ctx_ledger
+                    .clone()
+                    .expect("first server sample");
+                staged.execution = super::StagedMutationExecution::HostPlan(MutationPlan {
+                    steps: vec![MutationStep::Insert {
+                        table: "permissions".to_owned(),
+                        values: BTreeMap::from([
+                            ("ownerId".to_owned(), ValueExpr::Literal(json!("user-a"))),
+                            ("nonce".to_owned(), ValueExpr::RuntimeId),
+                        ]),
+                        bind_id_as: None,
+                    }],
+                    return_value: Some(ReturnValue::ChangedCount),
+                });
+                ledger
+            }
+            super::StagedRecordedMutation::Done(_) => panic!("fresh attempt must be executable"),
+        };
+        let (first_result, first_receipt) = snapback
+            .try_with_direct_authorization_write(preflight, move |snapback| {
+                snapback.commit_staged_recorded_authorization_mutation(staged)
+            })
+            .expect("reservation creation")
+            .expect("stale commit is recorded");
+        let error = first_result.expect_err("changed impact invalidates reservation");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_RESERVATION_STALE");
+        let first_receipt = serde_json::to_value(first_receipt).unwrap();
+        assert_eq!(first_receipt["settlementLane"], "re-derive");
+        assert_eq!(
+            first_receipt["rollbackReason"],
+            "SNAPBACK_AUTH_RESERVATION_STALE"
+        );
+        assert_eq!(snapback.db.scan_table("items", 10, 0).unwrap().total, 0);
+        assert_eq!(
+            snapback
+                .db
+                .scan_table("permissions", 10, 0)
+                .unwrap()
+                .total,
+            0
+        );
+        assert_eq!(snapback.durable_version().unwrap(), 0);
+
+        let (retry, retry_receipt) = invoke_synthetic_settlement(
+            &mut snapback,
+            "writeClockAndId",
+            captured,
+            "cm_llp0133_reservation_retry",
+            settlement,
+        )
+        .expect("complete retry stages");
+        let retry = retry.expect("complete retry settles");
+        let retry_ledger = retry.ctx_ledger.expect("fresh retry server answers");
+        assert_ne!(
+            retry_ledger.ids, first_attempt_ledger.ids,
+            "the abandoned attempt's derived ids never survive into retry"
+        );
+        assert_eq!(snapback.db.scan_table("items", 10, 0).unwrap().total, 1);
+        assert_eq!(
+            snapback
+                .db
+                .scan_table("permissions", 10, 0)
+                .unwrap()
+                .total,
+            0
+        );
+        assert_eq!(snapback.durable_version().unwrap(), 1);
+        assert_eq!(
+            serde_json::to_value(retry_receipt).unwrap()["settlementLane"],
+            "re-derive"
+        );
     }
 
     /// LLP 0133 acceptance sketch 8. Exact retries are answered from the

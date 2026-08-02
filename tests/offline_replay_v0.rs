@@ -8,9 +8,10 @@ use sha2::{Digest, Sha256};
 use snapback::admin::{AppState, ServerContext};
 use snapback::local::{LiveSubscribeInput, LocalSnapback};
 use snapback::manifest::{
-    AuthInput, CtxAnswerLedger, FunctionManifest, FunctionResultContract, HandlerInput,
-    MutationRequest, PORTABLE_TIMESTAMP_MAX_MS, PermissionScopeExpr, ResultValueContract,
-    SchemaManifest, auth_fingerprint,
+    ArtifactGeneration, AuthInput, CtxAnswerLedger, FunctionManifest, FunctionResultContract,
+    HandlerInput, MutationRequest, MutationSettlement, PORTABLE_TIMESTAMP_MAX_MS,
+    PermissionScopeExpr, ResultValueContract, SchemaManifest, SettlementClaimSet,
+    SettlementIdentityClaims, SettlementLane, SettlementMintClaim, auth_fingerprint,
 };
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -150,6 +151,79 @@ fn epoch(snapback: &mut LocalSnapback, connection: &str) -> u64 {
         .get(&format!("user:{USER}"))
         .copied()
         .unwrap_or_default()
+}
+
+#[tokio::test]
+async fn synthetic_lane_l_wire_submission_rederives_before_commit() {
+    const CLAIMED_ID: &str = "018f0d90-7b30-7a22-8c33-445566778899";
+    let app = snapback::server::router(memory());
+    let (schema, functions) = artifacts();
+    let create = functions
+        .functions
+        .iter()
+        .find(|function| function.name == "createTodo")
+        .expect("createTodo definition");
+    let request = MutationRequest {
+        input: HandlerInput {
+            ctx_ledger: Some(CtxAnswerLedger {
+                version: 1,
+                ids: vec![CLAIMED_ID.to_owned()],
+                now: 17,
+                auth_fingerprint: None,
+            }),
+            ..create_input(USER)
+        },
+        settlement: MutationSettlement {
+            lane: SettlementLane::ReDerive,
+            identity_claims: Some(SettlementIdentityClaims {
+                implementation_hash: create
+                    .implementation_hash
+                    .clone()
+                    .expect("createTodo implementation hash"),
+                activation: ArtifactGeneration {
+                    schema_version: "snapback.v1".to_owned(),
+                    app_id: "todo-v2".to_owned(),
+                    schema_hash: schema.schema_hash.expect("schema hash"),
+                    bundle_hash: functions.bundle_hash.expect("bundle hash"),
+                    inputs_hash: "sha256:synthetic-wire-claim".to_owned(),
+                },
+            }),
+            claims: Some(SettlementClaimSet {
+                version: 1,
+                now: Some(17),
+                mints: vec![SettlementMintClaim {
+                    claimed: CLAIMED_ID.to_owned(),
+                    site: "insert:todos".to_owned(),
+                    occurrence: 0,
+                }],
+            }),
+            bounded_skew: None,
+        },
+        expected_generation: None,
+        client_mutation_id: Some("cm_llp0133_wire_lane_l".to_owned()),
+        authority_descriptor: None,
+        acknowledged_client_mutation_ids: Vec::new(),
+    };
+
+    let response = app
+        .oneshot(post_json(
+            "/mutation/createTodo",
+            serde_json::to_value(request).unwrap(),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let response = response_json(response).await;
+    // @ref LLP 0133#re-derivation-semantics-lane-l — a synthetic lane-L
+    //   wire request cannot promote its captured runtime id into authority.
+    assert_ne!(response["result"], CLAIMED_ID);
+    assert_ne!(response["ctx_ledger"]["ids"][0], CLAIMED_ID);
+    assert_eq!(response["receipt"]["settlementLane"], "re-derive");
+    assert_eq!(response["receipt"]["claimLedger"][1]["claimed"], CLAIMED_ID);
+    assert_eq!(
+        response["receipt"]["claimLedger"][1]["disposition"],
+        "re-derived"
+    );
 }
 
 #[test]

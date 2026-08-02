@@ -540,6 +540,76 @@ test('mutate queues on connectivity failure and replays exactly-once', async (t)
   );
 });
 
+test('mixed lane-Q and lane-L intents replay in sequence with immutable per-item policy', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
+  globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
+
+  const laneQ = await client.mutate('createThing', {
+    args: { title: 'queued' },
+    settlementLane: 'replay-accept',
+    ctxLedger: { version: 1, ids: ['client-q-id'], now: 11 },
+  });
+  const laneL = await client.mutate('createThing', {
+    args: { title: 'local' },
+    settlementLane: 're-derive',
+    settlementIdentity: {
+      implementationHash: 'sha256:synthetic-local-handler',
+      activation: {
+        schemaVersion: 'snapback.v1',
+        appId: 'mixed-lane-test',
+        schemaHash: 'sha256:schema',
+        bundleHash: 'sha256:bundle',
+        inputsHash: 'sha256:inputs',
+      },
+    },
+    settlementClaims: {
+      version: 1,
+      now: 22,
+      mints: [{ claimed: 'client-l-id', site: 'insert:things', occurrence: 0 }],
+    },
+  });
+  assert.deepEqual(
+    (await store.outboxPending()).map(({ id, sequence, settlementLane }) => ({
+      id,
+      sequence,
+      settlementLane,
+    })),
+    [
+      { id: laneQ.clientMutationId, sequence: 1, settlementLane: 'replay-accept' },
+      { id: laneL.clientMutationId, sequence: 2, settlementLane: 're-derive' },
+    ],
+  );
+
+  const delivered = [];
+  globalThis.fetch = async (_url, init) => {
+    const body = JSON.parse(init.body);
+    delivered.push(body);
+    return Response.json({
+      result: { ok: true },
+      version: delivered.length,
+    });
+  };
+  const outcome = await client.replayQueuedMutations();
+  assert.deepEqual(
+    { replayed: outcome.replayed, failed: outcome.failed, remaining: outcome.remaining },
+    { replayed: 2, failed: 0, remaining: 0 },
+  );
+  // @ref LLP 0133#the-two-settlement-lanes — queue order is global, but
+  //   settlement policy remains attached to each immutable intent.
+  assert.deepEqual(
+    delivered.map((body) => [body.clientMutationId, body.settlementLane]),
+    [
+      [laneQ.clientMutationId, 'replay-accept'],
+      [laneL.clientMutationId, 're-derive'],
+    ],
+  );
+  assert.deepEqual(delivered[0].ctx_ledger, { version: 1, ids: ['client-q-id'], now: 11 });
+  assert.equal(delivered[1].settlementClaims.now, 22);
+  assert.equal(delivered[1].ctx_ledger, undefined);
+});
+
 test('queued generated mutation retains its call-time artifact generation through replay', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();

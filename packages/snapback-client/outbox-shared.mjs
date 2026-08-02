@@ -47,6 +47,7 @@ export const isConnectivityFailureError = (error) => (
 );
 
 const REPLAY_OPAQUE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/;
+const SETTLEMENT_LANES = new Set(['replay-accept', 're-derive']);
 
 function outboxError(code, message, details = {}) {
   const error = new Error(`${code}: ${message}`);
@@ -97,6 +98,13 @@ export function normalizeOutboxRecordInput(record) {
   if (typeof functionName !== 'string' || functionName.length === 0) {
     throw outboxError('SNAPBACK_OUTBOX_RECORD_INVALID', 'outbox record needs a function name');
   }
+  const settlementLane = record.settlementLane ?? 'replay-accept';
+  if (!SETTLEMENT_LANES.has(settlementLane)) {
+    throw outboxError(
+      'SNAPBACK_OUTBOX_RECORD_INVALID',
+      'outbox settlement lane must be replay-accept or re-derive',
+    );
+  }
   return {
     id,
     function: functionName,
@@ -116,6 +124,12 @@ export function normalizeOutboxRecordInput(record) {
     // the generation that authored the queued args; it never silently adopts
     // the currently discovered same-named mutation.
     expectedGeneration: record.expectedGeneration ?? null,
+    // @ref LLP 0133#the-two-settlement-lanes — mixed queues retain one
+    //   immutable policy and claim carrier per sequence-ordered mutation.
+    settlementLane,
+    settlementIdentity: record.settlementIdentity ?? null,
+    settlementClaims: record.settlementClaims ?? null,
+    boundedSkew: record.boundedSkew ?? null,
     // Client-captured wall-clock at enqueue. A labeled claim for receipts
     // and UI (LLP 0129 ledger row 1, decision 10 taxonomy) — never
     // transmitted as authority and never used for ordering.
