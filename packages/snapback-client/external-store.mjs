@@ -136,18 +136,32 @@ export function createExternalQueryStore({
       : Object.freeze([...(layer.apply(rows) ?? [])]),
     authoritativeRows,
   );
+  const settlementIdMap = (result) => {
+    const candidate = result?.receipt?.idMap ?? result?.idMap;
+    return Array.isArray(candidate)
+      ? Object.freeze(candidate.map((entry) => Object.freeze({ ...entry })))
+      : null;
+  };
+  const suppressWhenAuthoritative = (layer) => {
+    if (layer.suppressed) return true;
+    if (layer.isAuthoritative?.(authoritativeRows, {
+      id: layer.id,
+      status: layer.status,
+      result: layer.result,
+      idMap: layer.idMap,
+    }) === true) {
+      layer.suppressed = true;
+    }
+    return layer.suppressed;
+  };
   const acceptAuthoritativeRows = (rows) => {
     authoritativeRows = Object.freeze([...(rows ?? [])]);
     authoritativeRevision += 1;
     for (let index = optimisticLayers.length - 1; index >= 0; index -= 1) {
       const layer = optimisticLayers[index];
-      if (layer.isAuthoritative?.(authoritativeRows, {
-        id: layer.id,
-        status: layer.status,
-        result: layer.result,
-      }) === true) {
-        layer.suppressed = true;
-      }
+      // @ref LLP 0133#divergence-on-settle — map-aware retirement receives
+      //   the submitting receipt's private id-map; fan-out never carries it.
+      suppressWhenAuthoritative(layer);
       // A generated/provider matcher handles query-before-response ordering.
       // Without one, the conservative fallback is the first authoritative
       // delivery strictly after transport confirmation.
@@ -343,6 +357,7 @@ export function createExternalQueryStore({
         id,
         status: 'pending',
         result: undefined,
+        idMap: null,
         suppressed: false,
         confirmedAtRevision: null,
         isAuthoritative,
@@ -360,17 +375,29 @@ export function createExternalQueryStore({
       notify();
       try {
         const result = await call();
+        const idMap = settlementIdMap(result);
         if (layer) {
           layer.status = 'confirmed';
           layer.result = result;
+          layer.idMap = idMap;
           layer.confirmedAtRevision = authoritativeRevision;
+          // Delivery may win the race. Re-evaluate the latest authoritative
+          // base now that confirmation has supplied the id-map, then splice
+          // without waiting for a redundant subsequent delivery.
+          suppressWhenAuthoritative(layer);
           if (layer.suppressed) {
             const index = optimisticLayers.indexOf(layer);
             if (index >= 0) optimisticLayers.splice(index, 1);
           }
         }
         activeMutations.delete(id);
-        const settlement = Object.freeze({ status: 'confirmed', id, error: null, result });
+        const settlement = Object.freeze({
+          status: 'confirmed',
+          id,
+          error: null,
+          result,
+          idMap,
+        });
         snapshot = freezeSnapshot({
           ...snapshot,
           rows: materializeRows(),
@@ -384,7 +411,12 @@ export function createExternalQueryStore({
           if (index >= 0) optimisticLayers.splice(index, 1);
         }
         activeMutations.delete(id);
-        const settlement = Object.freeze({ status: 'rejected', id, error: serializedError(error) });
+        const settlement = Object.freeze({
+          status: 'rejected',
+          id,
+          error: serializedError(error),
+          idMap: settlementIdMap(error),
+        });
         snapshot = freezeSnapshot({
           ...snapshot,
           rows: materializeRows(),
@@ -404,6 +436,17 @@ export function createExternalQueryStore({
         ignoredLateDeliveries,
         lastDisposalError,
         optimisticLayers: optimisticLayers.length,
+        // A confirmed layer remains an explicit bridge until a map-aware
+        // matcher or the conservative post-confirmation delivery fallback
+        // retires it. This is inspection state, never an assertion that the
+        // speculative rows are authoritative.
+        // @ref LLP 0133#divergence-on-settle — delayed delivery must remain
+        //   visibly bridged without flickering to the pre-mutation base.
+        optimisticLayerStatuses: Object.freeze(optimisticLayers.map((layer) => Object.freeze({
+          id: layer.id,
+          status: layer.status === 'confirmed' ? 'bridging' : 'pending',
+          idMap: layer.idMap,
+        }))),
         pendingMutations: activeMutations.size,
         closed,
       });

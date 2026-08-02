@@ -169,6 +169,13 @@ export function createMemoryRqsResumeStore({
       return structuredClone(pendingOutboxRecords(outbox));
     },
 
+    async outboxPrepareSubmission(id) {
+      requireWriter();
+      const applied = outboxOps.prepareSubmission(outbox, id);
+      outbox = applied.state;
+      return structuredClone(applied.result);
+    },
+
     async outboxRecords() {
       requireOpen();
       return structuredClone(allOutboxRecords(outbox));

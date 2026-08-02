@@ -1,6 +1,13 @@
 export type ExternalConnection = 'connecting' | 'live' | 'polling' | 'stale' | 'disconnected' | null;
 export type ExternalStoreStatus = 'pending' | 'ready' | 'refreshing' | 'error';
 export type ExternalStoreFreshness = 'unknown' | 'retained' | 'current';
+export interface ExternalSettlementIdMapEntry {
+  readonly speculative: string;
+  readonly authoritative: string | null;
+  readonly site: string;
+  readonly occurrence: number;
+  readonly disposition: 'mapped' | 'unmapped';
+}
 export type ExternalProviderDelivery =
   | { kind: 'authoritative' }
   | { kind: 'retained' }
@@ -21,6 +28,7 @@ export interface ExternalStoreSnapshot<Row = unknown> {
     id: string | null;
     error: unknown;
     result?: unknown;
+    idMap?: readonly Readonly<ExternalSettlementIdMapEntry>[] | null;
     pendingCount: number;
     attempts: readonly Readonly<{ id: string; status: 'pending' }>[];
     lastSettlement: Readonly<{
@@ -28,6 +36,7 @@ export interface ExternalStoreSnapshot<Row = unknown> {
       id: string;
       error: unknown;
       result?: unknown;
+      idMap?: readonly Readonly<ExternalSettlementIdMapEntry>[] | null;
     }> | null;
   }>;
 }
@@ -52,7 +61,12 @@ export interface ExternalQueryStore<Row = unknown> {
     optimisticRows?: readonly Row[] | ((rows: readonly Row[]) => readonly Row[]);
     isAuthoritative?: (
       rows: readonly Row[],
-      mutation: { id: string; status: 'pending' | 'confirmed'; result?: unknown },
+      mutation: {
+        id: string;
+        status: 'pending' | 'confirmed';
+        result?: unknown;
+        idMap: readonly Readonly<ExternalSettlementIdMapEntry>[] | null;
+      },
     ) => boolean;
     id?: string;
   }): Promise<T>;

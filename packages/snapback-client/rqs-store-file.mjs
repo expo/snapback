@@ -451,6 +451,13 @@ export function createFileRqsResumeStore({
       return serialized(async () => pendingOutboxRecords((await readState()).outbox));
     },
 
+    async outboxPrepareSubmission(id) {
+      requireOpen();
+      return serialized(async () => (await outboxWrite(
+        (outbox) => outboxOps.prepareSubmission(outbox, id),
+      )).result);
+    },
+
     async outboxRecords() {
       requireOpen();
       return serialized(async () => allOutboxRecords((await readState()).outbox));

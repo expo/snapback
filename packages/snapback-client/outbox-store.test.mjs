@@ -101,6 +101,11 @@ const createDurableTestStore = () => {
 
 async function exerciseOutboxContract(store, { label }) {
   assert.equal(await store.outboxEmpty(), true, `${label}: starts empty`);
+  assert.equal(
+    typeof store.outboxPrepareSubmission,
+    'function',
+    `${label}: carries the settle-time submission fence`,
+  );
   const first = await store.outboxEnqueue({
     id: 'cm-1',
     function: 'createThing',
@@ -608,6 +613,231 @@ test('mixed lane-Q and lane-L intents replay in sequence with immutable per-item
   assert.deepEqual(delivered[0].ctx_ledger, { version: 1, ids: ['client-q-id'], now: 11 });
   assert.equal(delivered[1].settlementClaims.now, 22);
   assert.equal(delivered[1].ctx_ledger, undefined);
+});
+
+test('LLP 0133 sketch 3 rewrites mapped speculative-id leaves before dependent submission', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
+  globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
+
+  const mint = await client.mutate('mintParent', {
+    settlementLane: 're-derive',
+    settlementClaims: {
+      version: 1,
+      mints: [{ claimed: 'spec-parent', site: 'insert:parents:id', occurrence: 0 }],
+    },
+  });
+  const dependent = await client.mutate('mintChild', {
+    args: {
+      parentId: 'spec-parent',
+      deliberatelyCopiedLabel: 'spec-parent',
+      embeddedResidue: 'parent=spec-parent',
+    },
+    settlementLane: 're-derive',
+    settlementClaims: {
+      version: 1,
+      mints: [{ claimed: 'spec-child', site: 'insert:children:id', occurrence: 0 }],
+    },
+  });
+  const transitive = await client.mutate('attachChild', {
+    args: { childId: 'spec-child' },
+    settlementLane: 're-derive',
+    settlementClaims: { version: 1, mints: [] },
+  });
+
+  const delivered = [];
+  globalThis.fetch = async (_url, init) => {
+    const body = JSON.parse(init.body);
+    delivered.push(body);
+    if (body.clientMutationId === mint.clientMutationId) {
+      return Response.json({
+        result: { id: 'auth-parent' },
+        version: 1,
+        receipt: {
+          kind: 'mutation',
+          idMap: [{
+            speculative: 'spec-parent',
+            authoritative: 'auth-parent',
+            site: 'insert:parents:id',
+            occurrence: 0,
+            disposition: 'mapped',
+          }],
+        },
+      });
+    }
+    if (body.clientMutationId === dependent.clientMutationId) {
+      assert.equal(body.args.parentId, 'auth-parent');
+      assert.equal(
+        body.args.deliberatelyCopiedLabel,
+        'auth-parent',
+        'exact-leaf false positives are an intentional v0 scope limit',
+      );
+      assert.equal(
+        body.args.embeddedResidue,
+        'parent=spec-parent',
+        'embedded/derived ids are neither rewritten nor detected before OQ2',
+      );
+      return Response.json({
+        result: { id: 'auth-child' },
+        version: 2,
+        receipt: {
+          kind: 'mutation',
+          idMap: [{
+            speculative: 'spec-child',
+            authoritative: 'auth-child',
+            site: 'insert:children:id',
+            occurrence: 0,
+            disposition: 'mapped',
+          }],
+        },
+      });
+    }
+    assert.equal(body.clientMutationId, transitive.clientMutationId);
+    assert.equal(body.args.childId, 'auth-child');
+    return Response.json({
+      result: { ok: true },
+      version: 3,
+      receipt: { kind: 'mutation', idMap: [] },
+    });
+  };
+
+  const outcome = await client.replayQueuedMutations();
+  assert.deepEqual(
+    { replayed: outcome.replayed, failed: outcome.failed, remaining: outcome.remaining },
+    { replayed: 3, failed: 0, remaining: 0 },
+  );
+  assert.deepEqual(
+    delivered.map((body) => body.clientMutationId),
+    [mint.clientMutationId, dependent.clientMutationId, transitive.clientMutationId],
+    'the submission fence remains sequence-serial across both rewrite generations',
+  );
+});
+
+test('LLP 0133 sketch 3 rejection cascades transitively without dependent submission', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
+  globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
+
+  const mint = await client.mutate('mintParent', {
+    settlementLane: 're-derive',
+    settlementClaims: {
+      version: 1,
+      mints: [{ claimed: 'spec-parent', site: 'insert:parents:id', occurrence: 0 }],
+    },
+  });
+  await client.mutate('mintChild', {
+    args: { parentId: 'spec-parent' },
+    settlementLane: 're-derive',
+    settlementClaims: {
+      version: 1,
+      mints: [{ claimed: 'spec-child', site: 'insert:children:id', occurrence: 0 }],
+    },
+  });
+  await client.mutate('attachChild', {
+    args: { childId: 'spec-child' },
+    settlementLane: 're-derive',
+    settlementClaims: { version: 1, mints: [] },
+  });
+
+  let submissions = 0;
+  globalThis.fetch = async () => {
+    submissions += 1;
+    return Response.json({
+      diagnostic: { code: 'SNAPBACK_MUTATION_CONFLICT', message: 'mint refused' },
+      receipt: {
+        kind: 'mutation',
+        outcome: 'rejected',
+        mutationId: mint.clientMutationId,
+        idMap: [{
+          speculative: 'spec-parent',
+          authoritative: null,
+          site: 'insert:parents:id',
+          occurrence: 0,
+          disposition: 'unmapped',
+        }],
+      },
+    }, { status: 409 });
+  };
+  const outcome = await client.replayQueuedMutations();
+  assert.deepEqual(
+    { replayed: outcome.replayed, failed: outcome.failed, remaining: outcome.remaining },
+    { replayed: 0, failed: 3, remaining: 0 },
+  );
+  assert.equal(submissions, 1, 'neither direct nor transitive dependents cross transport');
+  const records = await store.outboxRecords();
+  assert.equal(records[0].failure.code, 'SNAPBACK_MUTATION_CONFLICT');
+  assert.deepEqual(
+    records.slice(1).map((record) => [record.status, record.failure.code]),
+    [
+      ['failed', 'SNAPBACK_SPECULATIVE_ID_UNRESOLVED'],
+      ['failed', 'SNAPBACK_SPECULATIVE_ID_UNRESOLVED'],
+    ],
+    'cascade failures are terminal and observable with the stable code',
+  );
+});
+
+test('LLP 0133 sketch 3 unmapped successful mint takes the same local cascade', async () => {
+  const store = createDurableTestStore();
+  await store.outboxEnqueue({
+    id: 'cm-mint-unmapped',
+    function: 'mintParent',
+    settlementLane: 're-derive',
+    settlementClaims: {
+      version: 1,
+      mints: [{ claimed: 'spec-parent', site: 'insert:parents:id', occurrence: 0 }],
+    },
+  });
+  await store.outboxEnqueue({
+    id: 'cm-dependent-unmapped',
+    function: 'useParent',
+    args: { parentId: 'spec-parent' },
+    settlementLane: 're-derive',
+  });
+  await store.outboxDurablyConsume('cm-mint-unmapped', {
+    result: { ok: true },
+    receipt: {
+      kind: 'mutation',
+      idMap: [{
+        speculative: 'spec-parent',
+        authoritative: null,
+        site: 'insert:parents:id',
+        occurrence: 0,
+        disposition: 'unmapped',
+      }],
+    },
+  });
+  const dependent = (await store.outboxRecords())
+    .find((record) => record.id === 'cm-dependent-unmapped');
+  assert.equal(dependent.status, 'failed');
+  assert.equal(dependent.failure.code, 'SNAPBACK_SPECULATIVE_ID_UNRESOLVED');
+});
+
+test('LLP 0133 speculative-id submission fence blocks a pending mint predecessor', async () => {
+  const store = createDurableTestStore();
+  await store.outboxEnqueue({
+    id: 'cm-pending-mint',
+    function: 'mintParent',
+    settlementLane: 're-derive',
+    settlementClaims: {
+      version: 1,
+      mints: [{ claimed: 'spec-parent', site: 'insert:parents:id', occurrence: 0 }],
+    },
+  });
+  await store.outboxEnqueue({
+    id: 'cm-blocked-dependent',
+    function: 'useParent',
+    args: { parentId: 'spec-parent' },
+    settlementLane: 're-derive',
+  });
+  const prepared = await store.outboxPrepareSubmission('cm-blocked-dependent');
+  assert.equal(prepared.status, 'blocked');
+  assert.equal(
+    (await store.outboxRecords()).find((record) => record.id === 'cm-blocked-dependent').status,
+    'pending',
+    'the fence delays rather than inventing a terminal outcome while the predecessor is pending',
+  );
 });
 
 test('queued generated mutation retains its call-time artifact generation through replay', async (t) => {

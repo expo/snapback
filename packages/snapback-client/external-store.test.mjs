@@ -282,6 +282,142 @@ assert.notEqual(
   unsubscribe();
 }
 
+// LLP 0133 acceptance sketch 9: both delivery orders converge through the
+// receipt id-map, while confirmation alone keeps an inspectable bridge.
+{
+  let controller;
+  let resolveMutation;
+  const seenMaps = [];
+  const store = createExternalQueryStore({
+    identity: 'llp0133-confirmation-before-delivery',
+    start(next) {
+      controller = next;
+      next.ready([{ id: 'base' }], 'live');
+      return { dispose() {} };
+    },
+  });
+  const unsubscribe = store.subscribe(() => {});
+  await tick();
+  const mutation = store.runMutation(
+    () => new Promise((resolve) => { resolveMutation = resolve; }),
+    {
+      id: 'local-mint',
+      optimisticRows: (rows) => [...rows, { id: 'speculative-row' }],
+      isAuthoritative: (rows, { idMap }) => {
+        seenMaps.push(idMap);
+        const authoritative = idMap?.find((entry) => entry.speculative === 'speculative-row')
+          ?.authoritative;
+        return typeof authoritative === 'string' && rows.some((row) => row.id === authoritative);
+      },
+    },
+  );
+  resolveMutation({
+    receipt: {
+      kind: 'mutation',
+      idMap: [{
+        speculative: 'speculative-row',
+        authoritative: 'authoritative-row',
+        site: 'insert:things:id',
+        occurrence: 0,
+        disposition: 'mapped',
+      }],
+    },
+  });
+  await mutation;
+  assert.deepEqual(
+    store.getSnapshot().rows,
+    [{ id: 'base' }, { id: 'speculative-row' }],
+    'confirmation retains the optimistic bridge instead of flickering to the base',
+  );
+  assert.equal(store.inspection().optimisticLayerStatuses[0].status, 'bridging');
+  assert.equal(
+    store.getSnapshot().mutation.idMap[0].authoritative,
+    'authoritative-row',
+    'the private receipt id-map reaches the store settlement seam',
+  );
+  controller.ready([{ id: 'base' }, { id: 'authoritative-row' }], 'live');
+  assert.deepEqual(store.getSnapshot().rows, [{ id: 'base' }, { id: 'authoritative-row' }]);
+  assert.equal(store.inspection().optimisticLayers, 0);
+  assert(seenMaps.some((idMap) => idMap?.[0]?.authoritative === 'authoritative-row'));
+  unsubscribe();
+}
+
+{
+  let controller;
+  let resolveMutation;
+  const store = createExternalQueryStore({
+    identity: 'llp0133-delivery-before-confirmation',
+    start(next) {
+      controller = next;
+      next.ready([{ id: 'base' }], 'live');
+      return { dispose() {} };
+    },
+  });
+  const unsubscribe = store.subscribe(() => {});
+  await tick();
+  const mutation = store.runMutation(
+    () => new Promise((resolve) => { resolveMutation = resolve; }),
+    {
+      id: 'local-mint-delivery-first',
+      optimisticRows: (rows) => [...rows, { id: 'speculative-row' }],
+      isAuthoritative: (rows, { idMap }) => {
+        const authoritative = idMap?.find((entry) => entry.speculative === 'speculative-row')
+          ?.authoritative;
+        return typeof authoritative === 'string' && rows.some((row) => row.id === authoritative);
+      },
+    },
+  );
+  controller.ready([{ id: 'base' }, { id: 'authoritative-row' }], 'live');
+  assert.deepEqual(
+    store.getSnapshot().rows,
+    [{ id: 'base' }, { id: 'authoritative-row' }, { id: 'speculative-row' }],
+    'delivery cannot use a private id-map before confirmation supplies it',
+  );
+  resolveMutation({
+    receipt: {
+      kind: 'mutation',
+      idMap: [{
+        speculative: 'speculative-row',
+        authoritative: 'authoritative-row',
+        site: 'insert:things:id',
+        occurrence: 0,
+        disposition: 'mapped',
+      }],
+    },
+  });
+  await mutation;
+  assert.deepEqual(
+    store.getSnapshot().rows,
+    [{ id: 'base' }, { id: 'authoritative-row' }],
+    'confirmation rechecks the already-delivered base and splices the overlay',
+  );
+  assert.equal(store.inspection().optimisticLayers, 0);
+  unsubscribe();
+}
+
+{
+  let controller;
+  const store = createExternalQueryStore({
+    identity: 'llp0133-confirmation-fallback',
+    start(next) {
+      controller = next;
+      next.ready([{ id: 'base' }], 'live');
+      return { dispose() {} };
+    },
+  });
+  const unsubscribe = store.subscribe(() => {});
+  await tick();
+  await store.runMutation(async () => ({ receipt: { kind: 'mutation', idMap: [] } }), {
+    id: 'fallback',
+    optimisticRows: (rows) => [...rows, { id: 'optimistic' }],
+  });
+  assert.equal(store.inspection().optimisticLayerStatuses[0].status, 'bridging');
+  controller.ready([{ id: 'server-shape' }], 'live');
+  assert.deepEqual(store.getSnapshot().rows, [{ id: 'server-shape' }]);
+  assert.equal(store.inspection().optimisticLayers, 0, 'first post-confirm delivery bounds fallback');
+  unsubscribe();
+}
+
 {
   let resolveOlder;
   let rejectNewer;

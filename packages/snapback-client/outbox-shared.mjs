@@ -150,6 +150,152 @@ export function outboxRecordBytes(stored) {
 /// Ordering rule: the client-local monotonic sequence, never a wall clock.
 export const outboxOrder = (a, b) => a.sequence - b.sequence;
 
+const settlementMintIds = (record) => (Array.isArray(record?.settlementClaims?.mints)
+  ? record.settlementClaims.mints
+    .map((mint) => mint?.claimed)
+    .filter((claimed) => typeof claimed === 'string')
+  : []);
+
+const rewriteStringLeaves = (value, replacements) => {
+  if (typeof value === 'string') return replacements.get(value) ?? value;
+  if (Array.isArray(value)) {
+    return value.map((item) => rewriteStringLeaves(item, replacements));
+  }
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [
+      key,
+      rewriteStringLeaves(item, replacements),
+    ]));
+  }
+  return value;
+};
+
+const hasStringLeaf = (value, candidates) => {
+  if (typeof value === 'string') return candidates.has(value);
+  if (Array.isArray(value)) return value.some((item) => hasStringLeaf(item, candidates));
+  return value !== null
+    && typeof value === 'object'
+    && Object.values(value).some((item) => hasStringLeaf(item, candidates));
+};
+
+const mutationReceipt = (settlement) => {
+  if (settlement?.receipt?.kind === 'mutation') return settlement.receipt;
+  if (settlement?.kind === 'mutation') return settlement;
+  return null;
+};
+
+// Resolve only ids attested by this client's own mint ledger. Receipt entries
+// outside that ledger do not gain rewrite authority, and every ambiguity is
+// treated as unmapped. Lane Q needs no rewrite because replay-accept preserves
+// the speculative ids themselves.
+//
+// @ref LLP 0133#divergence-on-settle — leaf rewrite is claim-ledger scoped;
+//   missing, duplicate, conflicting, or colliding map entries fail closed.
+const settlementIdResolution = (record, settlement) => {
+  if (record?.settlementLane !== 're-derive') {
+    return { replacements: new Map(), unresolved: new Set() };
+  }
+  const claimedMints = Array.isArray(record?.settlementClaims?.mints)
+    ? record.settlementClaims.mints
+    : [];
+  const claimed = settlementMintIds(record);
+  const claimCounts = new Map();
+  for (const id of claimed) claimCounts.set(id, (claimCounts.get(id) ?? 0) + 1);
+  const claimById = new Map(claimedMints
+    .filter((mint) => typeof mint?.claimed === 'string')
+    .map((mint) => [mint.claimed, mint]));
+  const entries = new Map();
+  const receiptMap = mutationReceipt(settlement)?.idMap;
+  for (const entry of Array.isArray(receiptMap) ? receiptMap : []) {
+    if (!claimCounts.has(entry?.speculative)) continue;
+    const candidates = entries.get(entry.speculative) ?? [];
+    candidates.push(entry);
+    entries.set(entry.speculative, candidates);
+  }
+  const replacements = new Map();
+  const unresolved = new Set();
+  const authoritativeOwners = new Map();
+  for (const [speculative, count] of claimCounts) {
+    const candidates = entries.get(speculative) ?? [];
+    const entry = candidates.length === 1 ? candidates[0] : null;
+    if (
+      count !== 1
+      || entry?.disposition !== 'mapped'
+      || typeof entry?.authoritative !== 'string'
+      || entry?.site !== claimById.get(speculative)?.site
+      || entry?.occurrence !== claimById.get(speculative)?.occurrence
+    ) {
+      unresolved.add(speculative);
+      continue;
+    }
+    const prior = authoritativeOwners.get(entry.authoritative);
+    if (prior !== undefined && prior !== speculative) {
+      unresolved.add(prior);
+      unresolved.add(speculative);
+      replacements.delete(prior);
+      continue;
+    }
+    authoritativeOwners.set(entry.authoritative, speculative);
+    replacements.set(speculative, entry.authoritative);
+  }
+  return { replacements, unresolved };
+};
+
+const cascadeFailure = (state, unresolvedIds, afterSequence) => {
+  if (unresolvedIds.size === 0) return { state, failedIds: [] };
+  const records = { ...state.records };
+  const failedIds = [];
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const candidate of Object.values(records).sort(outboxOrder)) {
+      if (
+        candidate.status !== 'pending'
+        || candidate.sequence <= afterSequence
+        || !hasStringLeaf(candidate.args, unresolvedIds)
+      ) continue;
+      records[candidate.id] = {
+        ...candidate,
+        status: 'failed',
+        failure: {
+          code: 'SNAPBACK_SPECULATIVE_ID_UNRESOLVED',
+          message: 'a predecessor speculative id has no authoritative mapping',
+        },
+      };
+      failedIds.push(candidate.id);
+      for (const minted of settlementMintIds(candidate)) unresolvedIds.add(minted);
+      changed = true;
+    }
+  }
+  return failedIds.length === 0
+    ? { state, failedIds }
+    : { state: { ...state, records }, failedIds };
+};
+
+const reconcileSettledMintIds = (state, record, settlement) => {
+  const { replacements, unresolved } = settlementIdResolution(record, settlement);
+  let records = state.records;
+  if (replacements.size > 0) {
+    records = { ...records };
+    for (const candidate of Object.values(records)) {
+      if (candidate.status !== 'pending' || candidate.sequence <= record.sequence) continue;
+      const args = rewriteStringLeaves(candidate.args, replacements);
+      if (canonicalizeClientValueV1(args) === canonicalizeClientValueV1(candidate.args)) continue;
+      const rewritten = { ...candidate, args };
+      if (outboxRecordBytes(rewritten) > OUTBOX_MAX_RECORD_BYTES) {
+        for (const minted of settlementMintIds(record)) unresolved.add(minted);
+        continue;
+      }
+      records[candidate.id] = rewritten;
+    }
+  }
+  return cascadeFailure(
+    records === state.records ? state : { ...state, records },
+    unresolved,
+    record.sequence,
+  );
+};
+
 /// Shared state-shape helpers for arms that hold the outbox as one JSON
 /// section ({ sequence, records: {id -> record}, acks: [{id, userId}] }).
 export const emptyOutboxState = () => ({ sequence: 0, records: {}, acks: [] });
@@ -224,10 +370,18 @@ export const outboxOps = {
         message: typeof failure?.message === 'string' ? failure.message : String(failure ?? ''),
       },
     };
-    return {
-      state: { ...state, records: { ...state.records, [id]: stored } },
-      result: true,
-    };
+    const failed = { ...state, records: { ...state.records, [id]: stored } };
+    // A terminal mint failure invalidates every leaf-visible dependent before
+    // any later submission slot. Each failed dependent contributes its own
+    // minted ids, so the same transition computes the transitive closure.
+    // @ref LLP 0133#divergence-on-settle — cascade is drop-and-mark-failed,
+    //   terminal, observable, and restricted to exact string leaves.
+    const cascaded = cascadeFailure(
+      failed,
+      new Set(settlementMintIds(existing)),
+      existing.sequence,
+    );
+    return { state: cascaded.state, result: true };
   },
   discard(state, id) {
     return outboxOps.settle(state, id);
@@ -261,6 +415,12 @@ export const outboxOps = {
     if (!existing) return { state, result: false };
     if (existing.status === 'settled') return { state: afterConfirmed, result: existing };
     if (existing.status !== 'pending') return { state, result: false };
+    // Rewrite every not-yet-submitted successor in the same durable
+    // transition that retains the minting settlement. An unmapped mint takes
+    // the same atomic cascade path as rejection.
+    // @ref LLP 0133#divergence-on-settle — authoritative id-map delivery
+    //   rewrites exact string leaves only; no typed-id/dataflow inference.
+    const reconciled = reconcileSettledMintIds(afterConfirmed, existing, settlement).state;
     const stored = {
       ...existing,
       status: 'settled',
@@ -276,8 +436,8 @@ export const outboxOps = {
       throw outboxOversizeError(outboxRecordBytes(stored));
     }
     const withSettlement = {
-      ...afterConfirmed,
-      records: { ...afterConfirmed.records, [id]: stored },
+      ...reconciled,
+      records: { ...reconciled.records, [id]: stored },
     };
     const acknowledged = outboxOps.recordAck(
       withSettlement,
@@ -287,6 +447,41 @@ export const outboxOps = {
       false,
     );
     return { state: acknowledged.state, result: stored };
+  },
+  prepareSubmission(state, id) {
+    let working = state;
+    let target = working.records[id];
+    if (!target || target.status !== 'pending') {
+      return {
+        state: working,
+        result: { status: target?.status ?? 'missing', record: target ?? null },
+      };
+    }
+    for (const predecessor of Object.values(working.records).sort(outboxOrder)) {
+      if (predecessor.sequence >= target.sequence) break;
+      const minted = new Set(settlementMintIds(predecessor));
+      if (minted.size === 0 || !hasStringLeaf(target.args, minted)) continue;
+      if (predecessor.status === 'pending') {
+        return { state: working, result: { status: 'blocked', record: null } };
+      }
+      if (predecessor.status === 'failed') {
+        working = cascadeFailure(working, minted, predecessor.sequence).state;
+      } else if (predecessor.status === 'settled') {
+        working = reconcileSettledMintIds(
+          working,
+          predecessor,
+          predecessor.settlement,
+        ).state;
+      }
+      target = working.records[id];
+      if (!target || target.status !== 'pending') {
+        return {
+          state: working,
+          result: { status: target?.status ?? 'missing', record: target ?? null },
+        };
+      }
+    }
+    return { state: working, result: { status: 'ready', record: target } };
   },
   markAcksReady(state, ids, userId = undefined, authorityDescriptor = undefined) {
     const selected = new Set(ids);

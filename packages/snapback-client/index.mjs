@@ -5235,6 +5235,7 @@ export class SnapbackClient {
     const capable = store
       && typeof store.outboxEnqueue === 'function'
       && typeof store.outboxPending === 'function'
+      && typeof store.outboxPrepareSubmission === 'function'
       && typeof store.outboxRecords === 'function'
       && typeof store.outboxMarkAcknowledgementsReady === 'function'
       && typeof store.outboxDurablyConsume === 'function';
@@ -5523,7 +5524,31 @@ export class SnapbackClient {
     let replayed = 0;
     let failed = 0;
     let stopped = false;
-    for (const record of pending) {
+    for (const queuedRecord of pending) {
+      let record = queuedRecord;
+      // Re-read and reconcile at the actual submission slot. The current
+      // implementation drains serially, but this gate is the normative fence
+      // a future pipelining client must preserve: no leaf-visible dependent
+      // crosses while its minting predecessor is pending or unresolved.
+      // @ref LLP 0133#divergence-on-settle — sequence order is a submission
+      //   fence, and cascade is checked again immediately before transport.
+      const prepared = await store.outboxPrepareSubmission(record.id);
+      if (prepared?.status === 'blocked') {
+        stopped = true;
+        break;
+      }
+      if (prepared?.status === 'failed') {
+        failed += 1;
+        this.#recordOutboxDiagnostic({
+          code: 'SNAPBACK_SPECULATIVE_ID_UNRESOLVED',
+          mutation: record.function,
+          clientMutationId: record.id,
+          reason: prepared.record?.failure?.message,
+        });
+        continue;
+      }
+      if (prepared?.status !== 'ready' || !prepared.record) continue;
+      record = prepared.record;
       try {
         // Redelivery under the SAME client-minted durable identity: the
         // server's settlement ledger returns the original result on a
@@ -5591,12 +5616,17 @@ export class SnapbackClient {
         }
         // LLP 0008: a mutation the server refused on replay is dropped and
         // marked failed, never retried — observable client state.
+        let markedFailed = false;
         try {
-          await store.outboxMarkFailed(record.id, {
+          markedFailed = await store.outboxMarkFailed(record.id, {
             code: error?.diagnostic?.code ?? error?.code ?? 'SNAPBACK_OUTBOX_REPLAY_FAILED',
             message: error?.message ?? String(error),
           });
-        } catch { /* the failure marking is best-effort; the record stays */ }
+        } catch { /* handled below: never submit a dependent past an unknown terminal */ }
+        if (!markedFailed) {
+          stopped = true;
+          break;
+        }
         failed += 1;
         this.#recordOutboxDiagnostic({
           code: 'SNAPBACK_OFFLINE_MUTATION_REPLAY_FAILED',
