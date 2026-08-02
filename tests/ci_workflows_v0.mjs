@@ -157,7 +157,10 @@ for (const name of workflowNames) {
   }
 }
 assert.equal(setupNodeCount, 7, 'the Node-using workflow inventory changed; review and update this count');
-assert.equal(actionCount, 30, 'the reviewed workflow action inventory changed; review and update this count');
+// 30 -> 31 (2026-08-02): the expo-large local-proof runner does not include
+// Chrome, so the required admin browser-security lane now provisions one
+// through a pinned action instead of inheriting an ambient browser.
+assert.equal(actionCount, 31, 'the reviewed workflow action inventory changed; review and update this count');
 
 const publicPackageProof = readFileSync(
   join(workflowDir, 'public-package-proof.yml'),
@@ -206,6 +209,21 @@ assert.match(
 
 const localProof = readFileSync(join(workflowDir, 'local-proof.yml'), 'utf8');
 assert.match(localProof, /SNAPBACK_VERIFY_EXACT:\s*"1"/, 'canonical CI must require Exact/admin checks');
+assert.match(
+  localProof,
+  /id:\s*setup-chrome[\s\S]*browser-actions\/setup-chrome@[0-9a-f]{40}[\s\S]*chrome-version:\s*stable/,
+  'canonical CI must provision a pinned stable Chrome for required browser acceptance',
+);
+assert.match(
+  localProof,
+  /CHROME_BIN:\s*\$\{\{ steps\.setup-chrome\.outputs\.chrome-path \}\}/,
+  'canonical CI must pass the action-owned Chrome path to the proof',
+);
+assert.doesNotMatch(
+  localProof,
+  /install-dependencies:\s*true/,
+  'the expo-large Chrome step must not invoke the unavailable apt-get dependency installer',
+);
 assert.match(
   localProof,
   /CARGO_BUILD_JOBS:\s*"1"/,

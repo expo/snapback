@@ -263,3 +263,11 @@ ticket closes citing that run id.
   public `./micro` barrel limited to type-only exports plus its two runtime
   constructors. The 162-file inventory, 71-subpath external TypeScript/runtime
   parity gate, and ref-check pass locally.
+
+- **2026-08-02 — completed verdict `30771582976`.** Eight gates remain at the
+  older `62408627` revision: workflow policy, bundle metrology, guide, doctor,
+  Clippy, Rust, versioned seed, and app CLI. Seven are already fixed on newer
+  main or belong to the active PUSH lane. The workflow-policy failure is the
+  expected action-count ratchet after Chrome provisioning (31 actual vs 30
+  reviewed); advance the count and add structural checks for the pinned stable
+  action, its exact `CHROME_BIN` output, and the no-`apt-get` posture.
