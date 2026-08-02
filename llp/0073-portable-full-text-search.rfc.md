@@ -5,7 +5,9 @@
 **Systems:** Search, Storage, Schema, Code generation, Auth, Client integration, Admin, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-08-01 (membership visibility amendment, commissioned by LLP 0100 §8a: third pushdown-compilable `membership` visibility variant with required equality-bound resource argument, one-snapshot seat resolution, outsider-empty ≡ nonexistent, authorization-version-bound continuations, and the two pinned post-revocation observables — see the dated section at the end). 2026-07-30 (Diary 0039 absorption, per LLP 0115 CV-5/10/11/12:
+**Revised:** 2026-08-02 (Accepted LLP 0136 design fold: a separately gated
+`live_full_text_search_v1` successor is registered without claiming its
+unimplemented path; ordinary search remains non-live); 2026-08-01 (membership visibility amendment, commissioned by LLP 0100 §8a: third pushdown-compilable `membership` visibility variant with required equality-bound resource argument, one-snapshot seat resolution, outsider-empty ≡ nonexistent, authorization-version-bound continuations, and the two pinned post-revocation observables — see the dated section at the end). 2026-07-30 (Diary 0039 absorption, per LLP 0115 CV-5/10/11/12:
 (a) numeric canonicalization pin — stored/filter scalar bytes at the
 source-content digest and authoritative-release recheck boundary use RFC 8785
 number spelling, matching LLP 0080's portable scalar semantics; the Pantry
@@ -770,7 +772,8 @@ another owner's matching row, and preregistered build/query budgets over a
 deterministic corpus. The Guide documents authoring, invocation, diagnostics,
 bounds, and nonclaims using CI-verified snippets.
 
-PostgreSQL and remote-service targets remain unsupported; live/offline search,
+PostgreSQL and remote-service targets remain unsupported; the separately
+specified live-search successor and offline search,
 relational visibility, native acceleration, sensitive fields, and counts,
 facets, or suggestions remain explicit nonclaims. Those targets or features
 must earn independent capability ids or the exact v1 target corpus before
@@ -844,7 +847,8 @@ The v1 pressure test covers an owner-partitioned message/incident table,
 ownership/visibility changes, pagination, prefix type-ahead, and message search.
 Membership joins, blocks, moderation relations, grouped document results,
 large-document extraction, comments/sharing relations, async frontiers,
-PostgreSQL, live subscriptions, and native accelerators are explicit nonclaims.
+PostgreSQL, the separately specified live-search successor, and native
+accelerators are explicit nonclaims until their own evidence lands.
 Each target receipt names its exact adapter/runtime profile, analyzer/table
 digest and Unicode version, index and policy digests, source heads,
 corpus/result hashes, effective limits, metrics, and every nonclaim.
@@ -854,8 +858,10 @@ corpus/result hashes, effective limits, metrics, and every nonclaim.
 This RFC does not provide semantic/vector search, embeddings, typo tolerance,
 arbitrary fuzzy matching, raw backend query syntax,
 global web search, analytics aggregation, or offline client search. It does not
-make opaque server functions automatically searchable. V1 also excludes live
-search subscriptions, membership/relational visibility, maintained or extracted
+make opaque server functions automatically searchable. Ordinary v1 search
+also excludes live subscriptions; Accepted LLP 0136 specifies a separately
+gated successor without changing this operation. V1 excludes
+membership/relational visibility, maintained or extracted
 projections, result grouping/collapsing, document-level aggregation, range
 filters, retained cross-request snapshots, native FTS acceleration, and
 asynchronous maintenance.
@@ -1006,3 +1012,18 @@ stale continuation after revocation refuses uniformly pre-evaluation
 (observable 1); generation-time refusals for unknown declarations,
 app-scoped declarations, out-of-vocabulary roles, and a membership index
 whose generated function lacks the required resource argument.
+
+## LLP 0136 acceptance fold — 2026-08-02
+
+Accepted LLP 0136 registers the design for a separately authored
+`defineLiveSearchQuery` operation under `live_full_text_search_v1`. It pairs
+`FunctionKind::LiveQuery` with the unchanged `SearchQueryPlanV1`, re-executes
+the bounded first page on table-granular invalidation, and delivers full
+authorized pages on the replace lane. Its v1 scope is first-page-only and
+non-auth-scoped; sessions-mode `owner.v1` refuses pending a negotiated
+successor. The ordinary `defineSearchQuery`, its `FunctionKind::Query`, and
+its `SNAPBACK_FUNCTION_NOT_LIVE` refusal are unchanged. Delta delivery,
+finer wake precision, continuation-page liveness, auth-scoped live search,
+retention/resume, and offline search remain nonclaims. The design is accepted
+but unimplemented; capability publication still requires LLP 0136's complete
+target evidence.

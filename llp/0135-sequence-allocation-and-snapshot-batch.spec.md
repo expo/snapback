@@ -6,7 +6,8 @@
 generation, Authorization, Live Queries, Diagnostics, Testing, Demo apps
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-07-31 (ACCEPTED under LLP 0130 SD-4's standing
+**Revised:** 2026-08-02 (the §4 acceptance folds landed as dated owner
+amendments; implementation/capability claims remain gated); 2026-07-31 (ACCEPTED under LLP 0130 SD-4's standing
 authorization: dual-family READY — Fable round 3, Codex round 4 —
 with the three conditions checked and satisfied: (1) zero unresolved
 MATERIAL concerns in either family's final round (Codex round 4
@@ -793,11 +794,11 @@ allocation against a missing or inactive scope incarnation and §1.7's
 no-reach refusal on a non-public counter, byte-indistinguishable
 between the absent and hidden causes (§1.7).
 
-## 4. Fold-on-acceptance amendments (drafted, not applied)
+## 4. Fold-on-acceptance amendments (applied 2026-08-02)
 
-This Spec has no normative effect while Draft and edits no other document
-now. Moving it to Accepted requires these same-landing dated amendments,
-drafted here so their scope is reviewable:
+This Spec was accepted before its required owner folds landed. The corpus
+hygiene reconciliation applied the amendments below on 2026-08-02, explicitly
+as design contracts rather than implementation or capability claims:
 
 1. **LLP 0110.** §2.1's primary-plan vocabulary gains the closed
    `AllocateSequence` step (point-shaped; the no-range-read admission

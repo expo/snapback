@@ -5,7 +5,9 @@
 **Systems:** Authoring, Code generation, Runtime, Data API, Client integration, Contract, Security, Artifacts, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-01, later same day (declared application refusals: `ctx.refuse` plus a manifest-declared closed code set, admitted only when declared and folded to the generic failure otherwise, carried as `appCode`/`appDetails` beside the platform code on both envelope decoders); 2026-08-01 (0137 a4-f1: §Admission rules gains the dated egress
+**Revised:** 2026-08-02 (Accepted LLP 0135 owner fold: JS-mutation sequence
+declarations, versioned implementation-identity extension, and
+`ctx.sequence.allocate` harness surface); 2026-08-01, later same day (declared application refusals: `ctx.refuse` plus a manifest-declared closed code set, admitted only when declared and folded to the generic failure otherwise, carried as `appCode`/`appDetails` beside the platform code on both envelope decoders); 2026-08-01 (0137 a4-f1: §Admission rules gains the dated egress
 seam note — with SNAPBACK_OUTBOUND_ACTIONS set at generation, `fetch` is an
 admitted global in inline handler/helper analysis, mirroring the module-form
 scanner; timers stay excluded; runtime remains the security boundary.)
@@ -1016,3 +1018,16 @@ quarantine dispositions for declared refusals (they participate in none
 today); i18n or user-facing message contracts (`appDetails` is app-owned
 JSON); a platform-wide refusal taxonomy; and refusal declarations
 participating in result-contract hashes.
+
+## LLP 0135 acceptance fold — 2026-08-02
+
+The JS-mutation manifest gains the per-kind `sequences` member, defaulting to
+the empty list. Sequence declarations participate in generation-time
+admission and authorize `ctx.sequence.allocate` only through LLP 0135's
+scope-visibility rule. The implementation-identity ordered field set gains
+`sequences` as a versioned extension with golden vectors over the extended
+preimage; an implementation must not reinterpret the frozen v1 hash. The
+harness exposes `ctx.sequence.allocate` only to an invocation prepared with
+that declaration. These accepted contracts do not assert the surface is
+implemented; LLP 0135's acceptance corpus and artifact regeneration gate the
+landing.

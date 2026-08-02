@@ -5,7 +5,9 @@
 **Systems:** Sync, Realtime, Storage, API, Auth, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-08-02 (DK-9 dated note: Accepted LLP 0155 commissions a
+**Revised:** 2026-08-02 (Accepted LLP 0135 mutation-replay fold: changesets
+requiring sequence-projected placement are withheld atomically until
+settlement); 2026-08-02 (DK-9 dated note: Accepted LLP 0155 commissions a
 semantic amendment — local plan evaluation over retained query-result
 fragments, and normalization only if later admitted — as deliberate new
 author policy, explicitly not the SQL-specific revisit trigger firing,
@@ -870,3 +872,12 @@ target now implements the negotiated item-6 live-invalidation and item-8
 retained-authorization surfaces under those gates. That implementation evidence
 does not make this broad RFC Accepted, does not admit retained opaque JavaScript
 queries, and does not claim hosted auth.
+
+## LLP 0135 acceptance fold — 2026-08-02
+
+Mutation replay preserves all-or-nothing presentation at changeset scope when
+sequence allocation is involved. If any row's visible placement depends on an
+authoritative sequence value, every row in that changeset is withheld from
+the optimistic overlay until settlement. This is a withholding extension,
+not a local sequence allocator, and it neither weakens server authority nor
+claims the sequence projection is implemented.

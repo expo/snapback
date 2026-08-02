@@ -6,7 +6,9 @@
 Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-07-31 (ACCEPTED under LLP 0130 SD-4's standing
+**Revised:** 2026-08-02 (Appendices A/B folded into LLP 0073/0091/0094 as
+staged accepted design contracts; implementation and capability evidence
+remain pending); 2026-07-31 (ACCEPTED under LLP 0130 SD-4's standing
 authorization: dual-family READY — Fable round 2, Codex round 3 —
 with the three conditions checked and satisfied: (1) zero unresolved
 MATERIAL concerns in either family's final round (Codex round 3
@@ -797,11 +799,11 @@ accelerator targets without their own evidence.
    auth-invalidation protocol version bump or a successor snapshot
    kind? (Appendix B §B.2 outlines both.)
 
-## Appendix A — draft LLP 0073 amendment (apply only on acceptance)
+## Appendix A — LLP 0073 amendment (folded 2026-08-02)
 
-To be added to LLP 0073's **Revised** header and §Implementation state
-*only when* `live_full_text_search_v1` acceptance evidence lands on a
-claiming target; nothing is edited before then:
+The design amendment below was folded into LLP 0073 on 2026-08-02 without
+claiming implementation. `live_full_text_search_v1` still cannot advertise on
+a target until its complete acceptance evidence lands:
 
 > YYYY-MM-DD (live search under its own capability id, per LLP 0136 and
 > LLP 0115 CV-11: a separately authored `defineLiveSearchQuery` operation
@@ -825,6 +827,10 @@ Spec's residual nonclaims. CV-11's exit is satisfied on the shipped-path
 fork at that moment, not before.
 
 ## Appendix B — wire routing and the auth-scoped successor
+
+The B.1/B.1a design contracts were folded into LLP 0091/0094 on 2026-08-02
+as staged, explicitly unimplemented amendments. Their implementation
+checklists below remain mandatory at the code landing.
 
 **B.1 The replace-envelope cursor member (lands with
 implementation).** A dated LLP 0091 §0B amendment adds one optional

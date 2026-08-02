@@ -5,7 +5,9 @@
 **Systems:** Sync, Realtime, API, Auth, Client integration
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-24
-**Revised:** 2026-07-25 (dated amendment: step-5 native persistence knobs —
+**Revised:** 2026-08-02 (Accepted LLP 0136 staged wire fold: optional
+live-search cursor on `LiveReplace`, implementation- and offer-gated);
+2026-07-25 (dated amendment: step-5 native persistence knobs —
 native cadence/budget pinned to the web §0A.5 values, the flush trigger
 mapped to the host lifecycle seam, and constrained processes pinned as
 never-writers, closing OQ2, ENG-25456); 2026-07-24 (dated amendments: step-1 implementation
@@ -945,3 +947,19 @@ ordering):
    tags for fixture keys; refusal vectors for bad MAC, unknown/retired
    key, expired `issuedAt`, oversize token, and each §0B.6 admission
    mismatch expressible at mint time.
+
+## Dated amendment: live-search replace cursor — 2026-08-02
+
+Accepted LLP 0136 reserves one optional `cursor` string member on
+`LiveEnvelope::LiveReplace`, populated only for live-search deliveries. On
+such a delivery, absence means the page is terminal; a cursor-mint failure is
+a failed wake that takes `resync_required`, never a cursor-less nonterminal
+page. The member is absent on every other replacement. Its wire addition is
+unknown-field-tolerable for old decoders but semantically load-bearing, so a
+server may admit live search only on a connection bound to the cursor-aware
+protocol in LLP 0094; tolerance is not negotiation.
+
+This is a staged accepted contract, not a schema or implementation claim.
+Landing it requires regenerated Rust-owned schemas, kit and LLP 0093 fixture
+updates, cursor-present/cursor-absent and old-decoder cases, and absorption by
+every LLP 0094–0096 replace renderer.

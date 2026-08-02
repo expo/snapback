@@ -5,7 +5,9 @@
 **Systems:** Application data API, Relational queries, Mutations, Code generation, Authorization, Live Queries, Storage portability, Contract/Exact, Diagnostics, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-01 (ACCEPTED by author direction — the 2026-08-01
+**Revised:** 2026-08-02 (Accepted LLP 0135 owner fold: sequence-allocation
+plan vocabulary, scope registration/incarnation stamping, bounded string
+order fields, and snapshot-batch OQ dispositions); 2026-08-01 (ACCEPTED by author direction — the 2026-08-01
 ballot, verbatim item 4: "accept 0110+0113". Loop state verified before the
 flip: the super-refine rounds (2026-07-27, three rounds, both families NOT
 READY) and the post-bakeoff vector delta loop (2026-07-28, three rounds;
@@ -1737,3 +1739,26 @@ Local/package publication remains separately gated by the source-embedded
 attestation described above. It cannot use hosted provisional authority, and
 its positive support stays false until its own complete reviewed carrier and
 receipt are committed.
+
+## LLP 0135 acceptance fold — 2026-08-02
+
+Accepted LLP 0135 extends this Spec's closed plan vocabulary with the
+point-shaped `AllocateSequence` step. Mode-effect formulas include zero or one
+sequence allocation as fixed host bookkeeping. A relation becomes registry
+enrolled when it is named as a bounded-children parent **or** declared as a
+sequence-counter scope; same-transaction registration, reviewed brownfield
+backfill, restore validation, and the protected `relationIncarnationOf`
+stamping boundary apply equally. Tables storing allocated values under a
+`(scopeId, relationIncarnation)`-prefixed unique constraint must stamp that
+incarnation.
+
+An order-field declaration may additionally carry `maxEncodedBytes` for a
+string field. The UTF-8 bound is single-valued per `(table, field)`, enforced
+by every central writer; conflicting declarations and oversized writes refuse
+with LLP 0135's registered diagnostic, and brownfield adoption must prove all
+existing values fit. Every snapshot-batch string order field requires the
+bound so the coordinated cursor has a static byte ceiling. Open question 4 is
+answered for sequence allocation, and `snapshot-batch.v1` is the admitted
+static multi-parent answer to open question 2. These are accepted design
+contracts; implementation and capability publication remain gated by LLP
+0135's executable acceptance and the qualification machinery here.

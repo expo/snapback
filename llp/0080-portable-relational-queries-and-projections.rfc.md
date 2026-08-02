@@ -5,7 +5,9 @@
 **Systems:** Application data API, Query planning, Storage portability, Live Queries, Authorization, Code generation, Maintained projections, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-08-02 (retention-section dated note: Accepted LLP 0155
+**Revised:** 2026-08-02 (Accepted LLP 0135 owner fold: snapshot-batch is the
+admitted static multi-child composition; aggregate admission stays open under
+LLP 0130 SD-2); 2026-08-02 (retention-section dated note: Accepted LLP 0155
 commissions a retention-class extension — local re-evaluation of admitted
 plans over retained query-result fragments with completeness witnesses —
 as a future dated amendment here or in the Move 1 composition-algebra
@@ -744,3 +746,15 @@ above does not open LLP 0063 Step 5.
    Aggregation is a Non-goal of v1 and of LLP 0110; this question is the
    load-bearing half of LLP 0115 CV-8 and must be decided in this RFC's
    frame, not inferred.
+
+## LLP 0135 acceptance fold — 2026-08-02
+
+For open question 1, `snapshot-batch.v1` is the admitted answer for static
+multi-child fan-out over already-admitted bounded nodes, with LLP 0135 owning
+its one-snapshot execution, sealed partial refusal, coordinated cursor,
+summed ceilings, and capability identity. This does not add general traversal
+or change the direct relational profile above. For open question 7, the
+fan-out half is therefore answered; the aggregate half remains open pending
+LLP 0130 SD-2 and still belongs in this RFC's noninterference and
+result-semantics frame. No implementation or maturity claim follows from this
+design fold.

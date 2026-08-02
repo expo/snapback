@@ -864,7 +864,11 @@ its decided scope, weakening no evidence boundary — recorded per SD-4. Its
 
 ## Status
 
-**Draft.** Authored 2026-07-31 as LLP 0115 CV-8 piece 2 under its execution
-ticket (`issues/20260731-cv8-piece2-stable-promotion-design.md`), within the
-program LLP 0130 governs. This document specifies the promotion path; it
-claims and promotes no maturity itself.
+**Accepted (2026-07-31)** under LLP 0130 SD-4's standing authorization, as
+recorded in the metadata header and review artifacts. This document specifies
+the promotion path; acceptance claims and promotes no capability maturity by
+itself. The paragraph below is retained as the pre-acceptance record.
+
+Originally **Draft**: authored 2026-07-31 as LLP 0115 CV-8 piece 2 under its
+execution ticket (`issues/20260731-cv8-piece2-stable-promotion-design.md`),
+within the program LLP 0130 governs.

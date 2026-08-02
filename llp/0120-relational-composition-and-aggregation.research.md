@@ -6,7 +6,9 @@
 Authoring, Code generation, Developer experience
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-07-30 (v0.2, round-1 dual-family fix application — both
+**Revised:** 2026-08-02 (Accepted LLP 0135 reconciliation: snapshot-batch is
+the admitted bounded multi-child composition and sequence allocation is its
+own primitive; aggregate design and maturity remain open); 2026-07-30 (v0.2, round-1 dual-family fix application — both
 reviews NOT READY:
 `reviews/0120-relational-composition-and-aggregation.fable.md` (C1 blocking,
 C2 material, C3–C8 detail, four suggestions) and
@@ -790,3 +792,15 @@ This is one part of the Convex-parity research series:
 | 0123 | runtime-readiness-and-operational-edges |
 | 0124 | product-breadth-storage-and-vector-search |
 | 0125 | concurrency-and-conflict-ergonomics |
+
+## Dated reconciliation: LLP 0135 acceptance — 2026-08-02
+
+Accepted LLP 0135 resolves only the two decisions this Research delegated to
+its successor. For open question 1, `snapshot-batch.v1` is the admitted answer
+for static multi-child fan-out over bounded nodes; the aggregate half remains
+open under LLP 0130 SD-2 and this document's noninterference/result-semantics
+requirements. For open question 2, sequence allocation is a dedicated
+point-shaped primitive, not a special case of maintained aggregation. LLP
+0135 owns both normative contracts and their implementation gates. Neither
+acceptance nor this reconciliation claims either capability is implemented or
+promoted.

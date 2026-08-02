@@ -5,7 +5,9 @@
 **Systems:** Wire Protocol, Realtime, Live Queries, Client SDK, HTTP surface, Cloudflare arm, Schema governance
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-25
-**Revised:** 2026-07-30 (operational: the shared Cloudflare deployment was
+**Revised:** 2026-08-02 (Accepted LLP 0136 staged wire fold:
+`liveSearchProtocol` offer semantics and closed-DTO routing, unimplemented);
+2026-07-30 (operational: the shared Cloudflare deployment was
 redeployed with the 2026-07-27 wire landings — B1 negotiation echo/refusal
 verified live and the §0C.6 pre-convergence-bytes caveat retired; see
 `issues/closed/20260727-cloudflare-redeploy-wire-landings.md`).
@@ -691,7 +693,7 @@ feature-off).
 
 | Family | Decoder (local arm) | Schema | Decided posture |
 | --- | --- | --- | --- |
-| `OpenConnectionRequest` (`src/server.rs:4081-4094`) | **closed** | `connection.open.input.schema.json`, closed | stays closed; the §0B.5 B1 member is the sanctioned evolution path |
+| `OpenConnectionRequest` (`src/server.rs:4081-4094`) | **closed** | `connection.open.input.schema.json`, closed | stays closed; the §0B.5 B1 member and LLP 0136's staged `liveSearchProtocol` member are sanctioned gated evolution paths |
 | `AuthorizationInvalidationAckInput` (`src/local.rs`) | **closed** | closed | stays closed |
 | manual-retry input (`src/local.rs`, `AuthorizationInvalidationManualRetryInput`) | **closed** | closed | stays closed |
 | `SessionLiveSocketClientMessage` (`src/server.rs`, sessions-mode socket) | **closed** (auth-mode-dependent third family) | `live.socket-client.sessions.schema.json`, closed (committed 2026-07-27, closing the §0F item-4 gap) | stays closed |
@@ -1306,3 +1308,23 @@ socket, and requires reconnect/resnapshot; it never continues under a replaced
 authority. Generated schemas, Rust authorities, hosted serializers, client
 validators, and the four-way old/new local/hosted corpus use this table
 literally.
+
+## LLP 0136 live-search protocol amendment — 2026-08-02
+
+Accepted LLP 0136 stages an optional integer `liveSearchProtocol` member on
+the closed `OpenConnectionRequest`. Value `1` binds cursor-aware live-search
+decoding to the connection lineage and is immutable across authenticated
+reopens. An unknown value refuses open with
+`SNAPBACK_SEARCH_LIVE_PROTOCOL_UNSUPPORTED`; absence creates a legacy lineage
+on which live-search subscribe refuses with
+`SNAPBACK_SEARCH_LIVE_CLIENT_UNSUPPORTED`. No response echo is added:
+unknown-refuses makes a successful offered open the binding witness, matching
+the `authInvalidationProtocol` precedent.
+
+This member is capability-preflighted: generated clients offer it only toward
+a target advertising `live_full_text_search_v1`, and the hosted open decoder
+must read and enforce it rather than silently feature it off. The staged
+amendment requires the §0C.5 matrix row, connection-record subscribe check,
+regenerated closed input schema, hosted decoder, and LLP 0093 offered/legacy/
+unknown fixtures when implementation lands. None is claimed present by this
+docs-only fold.

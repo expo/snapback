@@ -5,7 +5,9 @@
 **Systems:** Sync, Storage, Runtime, Client integration, Auth, Wire Protocol, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-08-02 (implementation record — the buildable-now
+**Revised:** 2026-08-02 (Accepted LLP 0135 owner fold: sequence allocation is
+a settlement-only host answer outside both captured-environment lanes);
+2026-08-02 (implementation record — the buildable-now
 settlement substrate landed through the six-ticket program: additive lane
 labels/private claim ledgers, exact settlement identity, synthetic lane-L
 re-derivation, logical-mint id maps, bounded-skew admission, and client
@@ -808,3 +810,14 @@ reservation, rewrite/cascade, and both delivery-order adversaries. This
 implementation unblocks LLP 0129 ledger row 1's settlement substrate only;
 rows 2–5 and the remaining Phase-1 evidence still bar any
 `Parity`-by-construction claim.
+
+## Amendment (2026-08-02): LLP 0135 sequence-answer boundary
+
+Sequence allocations are settlement-only host answers. They are outside both
+lane H's captured environment and lane L's re-derived environment; neither
+lane may replay them as handler input. Settlement retains and republishes the
+committed allocation so an idempotent replay never allocates twice. When LLP
+0129's local-execution admission vocabulary lands, operations that allocate a
+sequence must register as excluded from local execution unless that owner
+admits an explicit successor. This amendment records the accepted boundary;
+it does not claim the LLP 0135 primitive is implemented.

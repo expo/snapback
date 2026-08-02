@@ -5,7 +5,9 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-08-01 (settlement lifecycle amendment: the client crosses one
+**Revised:** 2026-08-02 (Accepted LLP 0135 overlay fold: a changeset requiring
+sequence-projected placement is withheld whole until settlement);
+2026-08-01 (settlement lifecycle amendment: the client crosses one
 atomic durable-consumption boundary before publishing a result, retaining the
 complete settlement and its ACK obligation until receipt-proven server GC;
 ACK capacity refuses instead of evicting recovery state; and a removed
@@ -517,3 +519,13 @@ malformed/wrong-bound lease refusal, clock rollback, and the renewal/head race.
 The broader acceptance rows (richer conflict UI and the explicitly later
 delta-resume-with-pending milestone) remain future work; they do not widen the
 shipped Parity predicate or ratify this Draft on the author's behalf.
+
+## LLP 0135 acceptance fold — 2026-08-02
+
+M2's all-or-nothing changeset presentation rule gains one withholding case: if
+any row in a changeset requires sequence-projected placement, the client
+withholds the entire changeset from optimistic presentation until settlement
+returns the authoritative allocation. It may not guess, locally allocate, or
+show the unaffected subset. This extends the existing changeset-atomicity
+rule and does not claim the sequence surface or its client projection is
+implemented.

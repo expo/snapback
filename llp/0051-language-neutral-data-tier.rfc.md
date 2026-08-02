@@ -5,7 +5,9 @@
 **Systems:** Runtime, Codegen, Wire Protocol, Client SDK, Client integration, Conformance, Packaging, Security, Contract/Exact, Cloudflare
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-09
-**Revised:** 2026-07-27 (the three D6 private marker envelopes are now
+**Revised:** 2026-08-02 (Accepted LLP 0135 owner fold: sequence allocations
+are replay-stable settlement answers but never members of D1's ctx-answer
+ledger or capture environment); 2026-07-27 (the three D6 private marker envelopes are now
 IMPLEMENTED in D4's mechanism as served-shape authorities —
 `src/handler_wire.rs`, `handler.*` schemas, instances, drift gates, and
 real-bytes validation on both arms; LLP 0094 §0F items 2–4 landed the
@@ -1225,3 +1227,14 @@ disciplines.
   first-party-only modules defer signing entirely, and what the
   per-target binding manifest looks like for the CF deploy-time path.
   Gates Increment 6, nothing earlier.
+
+## LLP 0135 acceptance fold — 2026-08-02
+
+`AllocateSequence` is a settlement-evidence operation under Accepted LLP
+0135: replay republishes the retained allocated value and must never perform a
+second allocation. The value is nevertheless outside D1's closed `{ids,
+now}` ctx-answer ledger, and no captured-environment or trace lane transmits
+it. This distinction lets settlement prove exactly-once allocation without
+turning an authority-sensitive committed value into replayable handler input.
+Implementation remains gated by LLP 0135; this amendment records the owner
+boundary only.

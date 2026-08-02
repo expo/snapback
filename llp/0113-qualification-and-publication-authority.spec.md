@@ -5,7 +5,8 @@
 **Systems:** Auth, Wire Protocol, Capability publication, Storage, Realtime, Migrations, Deployment, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-28
-**Revised:** 2026-08-01 (ACCEPTED by author direction — the 2026-08-01
+**Revised:** 2026-08-02 (Accepted LLP 0135 owner fold: qualification-family
+registration rule for sequence allocation and snapshot batch); 2026-08-01 (ACCEPTED by author direction — the 2026-08-01
 ballot, verbatim item 4: "accept 0110+0113". Loop state verified before the
 flip: the author-authorized corrective delta round (2026-07-28) ended with
 both families NOT READY
@@ -734,3 +735,13 @@ on 2026-07-28 and entered the authorized super-refine loop on the same
 date. The 2026-07-28 revision applies terminal review dispositions after
 that round and is explicitly **unreviewed post-round**. Review artifacts
 may recommend revision but cannot ratify it.
+
+## LLP 0135 acceptance fold — 2026-08-02
+
+`sequence_allocation_v1` and `snapshot_batch_v1` do not enter §4's closed
+`familyKind` union by inference. When hosted qualification is first sought,
+the implementing change must add their exact sorted claim-id families through
+a dated amendment here, with the same closed-union, receipt, revocation, and
+publication requirements as every existing family. Until then no provisional
+or ordinary hosted support claim exists. This is the owner-routing rule from
+Accepted LLP 0135, not a family registration or implementation claim.

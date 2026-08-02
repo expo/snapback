@@ -27,3 +27,11 @@ applied") to their downstream docs if the hygiene ticket has not already.
 **Exit:** the spec's §5 executable acceptance implemented; capability ids
 registered in the manifest enum; demo workaround in the A6 arm replaceable;
 dated implementation-record amendment on the LLP; LLP 0115 board row updated.
+
+## Coordination log
+
+- **2026-08-02 — owner folds taken by corpus hygiene.** The
+  `20260802-corpus-hygiene-fold-on-amendments` lane applied LLP 0135 §4's
+  dated owner amendments and marked §4 folded. This implementation ticket
+  must not repeat them; it still owns code, executable acceptance, capability
+  registration, demo replacement, and the implementation record.

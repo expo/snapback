@@ -27,3 +27,12 @@ starting, and do not run this concurrently with erg-04.
 admission for auth-scoped subscriptions and the ceiling behavior); the
 campfire demo's "design-only" nonclaim flipped honestly; capability id
 registered; dated implementation-record amendment + 0115 CV-11 row updated.
+
+## Coordination log
+
+- **2026-08-02 — owner folds taken by corpus hygiene.** The
+  `20260802-corpus-hygiene-fold-on-amendments` lane folded LLP 0136 Appendix
+  A/B into LLP 0073/0091/0094 as staged, explicitly unimplemented contracts
+  and marked the appendices folded. This ticket must not duplicate those doc
+  amendments; it still owns every code/schema/fixture/capability and
+  implementation-record obligation they name.

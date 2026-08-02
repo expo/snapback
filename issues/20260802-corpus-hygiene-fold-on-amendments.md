@@ -1,6 +1,6 @@
 # Corpus hygiene: apply the unfolded fold-on amendments from the Wave-1 acceptances
 
-**Status:** Open
+**Status:** Reconciled — pending landing
 **Systems:** Docs
 **Related:** LLP 0135 §4, LLP 0136 Appendices A/B, LLP 0073, LLP 0091,
 LLP 0094, LLP 0120, LLP 0134
@@ -26,3 +26,18 @@ Docs-only; no code claims. Run ./ref-check --verbose after each fold.
 
 **Exit:** all three items landed as dated amendments in house style; this
 ticket closed with the commit list.
+
+## Running log
+
+- **2026-08-02 — reconciliation applied, no code claims.** The LLP 0135 §4
+  owner folds now appear as dated amendments in LLP 0110, 0080, 0051, 0108,
+  0133, 0113, 0043, and 0008; LLP 0120 records that snapshot-batch answers
+  bounded fan-out and sequence allocation is its own primitive while
+  aggregates remain open. LLP 0136's Appendix A/B contracts are folded into
+  LLP 0073, 0091, and 0094 as staged accepted designs with implementation,
+  schema regeneration, and capability evidence explicitly pending. LLP
+  0134's body Status now agrees with its Accepted header. LLP 0135/0136 mark
+  their fold lists applied so implementation lanes do not repeat them.
+- **2026-08-02 — proof.** `./ref-check --verbose` and the docs-only guide
+  check gate the landing. No runtime, schema artifact, guide capability, or
+  maturity claim changes in this ticket.
