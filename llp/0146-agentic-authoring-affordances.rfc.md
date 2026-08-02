@@ -26,10 +26,29 @@ observed; disposes D5 against the LLP 0110 relation family and the
 shipped last-holder guard; qualifies D6's replay guarantee to controlled
 seams; and rebuilds D7's remediation schema. Open questions grew from 7
 to 14.)
+2026-08-01 (v0.3, round-2 dual-family reconciliation — Fable READY,
+Codex NOT READY; artifacts appended to the same two files. Fable
+dispositioned all eight of its round-1 findings FIXED; Codex marked five
+FIXED and six PARTIALLY FIXED and raised one BLOCKING plus six MATERIAL.
+Records the verified offline/RQS disposition — retention refuses opaque
+JavaScript, so declaration drift has no retention effect today — instead
+of leaving it open. Splits D1's deltas by read/write class, since four
+collections collapsed into one union let a read/write swap cancel.
+Separates D3's static envelope delta from its dynamic observation delta
+after v0.2's reconciliation with LLP 0062 mistakenly keyed dynamic state
+to an immutable content address. Requires paired bundles for D4's
+observed-radius *change*. Moves D5's promoted-relation overlap test to
+the source side, where the incarnation actually lives, and requires a
+reverse index for `onTargetDelete`. Makes D6's reproduction class
+transitive rather than top-level. Adds the missing preconditions to D7's
+example and reassigns carrier ownership from LLP 0144 to the LLP
+0094/0095 family. Corrects the search disposition — search is one-shot,
+not live — and records the `functionTables` first-schema-table fallback
+that both families found independently.)
 **Related:** LLP 0008, LLP 0010, LLP 0017, LLP 0019, LLP 0020, LLP 0024,
-LLP 0040, LLP 0042, LLP 0054, LLP 0055, LLP 0061, LLP 0062, LLP 0080,
-LLP 0081, LLP 0097, LLP 0108, LLP 0110, LLP 0115, LLP 0127, LLP 0131,
-LLP 0134, LLP 0135, LLP 0144
+LLP 0040, LLP 0042, LLP 0054, LLP 0055, LLP 0056, LLP 0061, LLP 0062,
+LLP 0073, LLP 0080, LLP 0081, LLP 0094, LLP 0095, LLP 0097, LLP 0108,
+LLP 0110, LLP 0115, LLP 0127, LLP 0131, LLP 0134, LLP 0135, LLP 0144
 
 ## Summary
 
@@ -123,11 +142,17 @@ turn out to be projections over facts Snapback already computes.
 | Declared app refusal codes | Review | LLP 0144 |
 | Bounded recent-invocation ring in `app.inspect` | Shipped — **host operations only** | `RECENT_INVOCATIONS_CAPACITY = 128`, `src/host_ops.rs:57-105` |
 | `acceptance.run` host operation | **Pinned but unbuilt** | `guide/operating/host-ops.md:72` |
-| Captured read/write dependencies beside declared ones | Shipped, unchecked | `FunctionRunResult` in `src/local.rs:1447` |
+| Captured read/write dependencies beside declared ones | Shipped, unchecked | `FunctionRunResult` in `src/local.rs:1449` |
 
-The last two rows are the leverage. `acceptance.run` is a named hole in a
-ratified contract. And Snapback already computes *both* the declared and
-the observed dependency sets of every handler — and never compares them.
+The last row is the leverage: Snapback already computes *both* the declared
+and the observed dependency sets — on the supported successful query and
+mutation paths — and never compares them. (Not on *every* handler: actions
+construct empty captured sets by design, `src/local.rs:1705-1740`, which is
+why D1 carries a provenance state rather than assuming a capture exists.)
+
+`acceptance.run` is also a named hole in a ratified contract, but v0.2
+withdrew D2's claim to close it, so how much leverage that hole carries now
+depends on OQ9's answer rather than on anything this RFC decides.
 
 ## Candidate inventory and verdicts
 
@@ -186,9 +211,18 @@ FunctionRuntime::IbexModule(_) => {
 ```
 
 So a declared table set *does* reach the local delivery decision, on a
-named path. The fallback is conservative where the captured facts are
-complete — it can only add wake-ups — but where nothing was captured, an
-empty or wrong `read_set_summary.tables` decides delivery on its own.
+named path. Two qualifications keep the hazard correctly sized:
+
+- **An empty declared set is the safe direction.** `tables.is_empty()`
+  passes every change through the filter (`src/live_matcher.rs:151`), so an
+  undeclared handler is woken by everything. Only a **non-empty wrong** set
+  can suppress delivery.
+- **The fallback is reachable on success, not only on failure.** The
+  helper's comment cites "a handler that never ran, or captured nothing,"
+  but the condition it actually tests is the absence of a `Query`
+  dependency. A handler that ran successfully using only `ctx.db.get` point
+  reads captures `Row`/`MissingRow` facts and no `Query` fact, so it lands
+  on the declared arm too.
 Mutation commit validation is on firmer ground: it validates
 `executed.reads`, the runtime-captured set, forwarded from
 `src/local.rs:11111`, `:11568`, `:11797` and reaching the validator at
@@ -200,7 +234,12 @@ Here the critique's original claim is simply correct. `fanOut` selects
 affected subscriptions with
 `functionTables(fn).some((table) => changedTables.has(table))`
 (`cloudflare/src/coordinator.js:5163-5167`), and `functionTables` returns
-the function's declared `fn.tables` (`:5539-5542`). Captured reads are
+the function's declared `fn.tables` — **or, when that list is absent or
+empty, `[schema.tables[0].name]`** (`:5539-5542`). The fallback is a second
+and arguably worse miss on the same arm: a live query with no declared
+tables fans out on whichever table happens to be first in the schema, which
+is arbitrary rather than conservative, and "no declaration yet" is exactly
+the state a code-first agent leaves a handler in. Captured reads are
 recorded on this arm but deliberately unused: the coordinator's own header
 says "captured read sets are recorded but not yet validated"
 (`cloudflare/src/coordinator.js:22-23`), with serialisation standing in for
@@ -213,16 +252,31 @@ most likely to make.
 
 ### Other arms
 
-- **Relational, bounded-children, and search queries** never consult
-  captured deps for invalidation; they are deliberately table-granular over
-  the *plan's* declared sources (`plan.root`/`plan.joined`,
-  `plan.parent_table`/`plan.child_table`, `plan.table` —
-  `src/live_matcher.rs:170-182`). Because those tables come from the
-  generated plan rather than a hand-written declaration, an agent cannot
-  under-declare them; LLP 0080 §4 records the table-granularity as
-  intentional.
-- **Offline/RQS retention** is out of scope for this correction and gets no
-  claim here; its disposition is OQ12.
+- **Relational and bounded-children queries** never consult captured deps
+  for invalidation; they are deliberately table-granular over the *plan's*
+  declared sources (`plan.root`/`plan.joined`,
+  `plan.parent_table`/`plan.child_table` — `src/live_matcher.rs:170-179`).
+  Because those tables come from the generated plan rather than a
+  hand-written declaration, an agent cannot under-declare them; LLP 0080 §4
+  records the table-granularity as intentional.
+- **Search is not live at all.** Search executes as a one-shot
+  `FunctionKind::Query` over `HandlerPlan::SearchQuery`
+  (`src/local.rs:22591`), so it has no invalidation path to get wrong. It
+  does capture a `Query` dependency without a predicate, which — were it
+  ever passed to the matcher — yields a conservative `Some(true)` before any
+  plan-table arm is reached (`src/live_matcher.rs:237-257`). v0.2 grouped it
+  with plan-table live invalidation; that was inaccurate.
+- **Offline/RQS retention has a verified current disposition, and it is
+  "no effect."** Retention eligibility requires a `HostPlan(Query)` with a
+  complete, plan-consistent single-table summary; an opaque JavaScript
+  handler is refused outright with `undeclarable_retention(function,
+  "opaqueJavaScript")` (`src/manifest.rs:2981`, eligibility at
+  `:2299-2353`), and the Cloudflare arm applies the same rule
+  (`cloudflare/src/rqs-host.mjs:194-223`). Hand-authored declaration drift
+  is only possible in opaque JS handlers, and those are exactly the shape
+  retention excludes — so drift has no retention or RQS effect today. OQ12
+  is narrowed accordingly: it asks only what happens if eligibility later
+  expands to admit opaque handlers.
 
 ### What is common to every target
 
@@ -260,10 +314,22 @@ a conditionally-read table is unwitnessed on every invocation that skips
 its branch. Per invocation, therefore, emit two independent deltas plus a
 provenance state:
 
+**The deltas must preserve the read/write class.** `FunctionRunResult`
+carries four separate collections — declared reads, declared writes,
+captured reads, captured writes (`src/local.rs:1449-1458`) — and collapsing
+them into one table union lets a read/write swap cancel out: a handler
+declaring read A and write B while observably reading B and writing A has
+identical untagged unions on both sides despite two violations. So the
+report is four deltas, or equivalently class-tagged elements, with
+provenance tracked **per class** (a path can capture reads authoritatively
+while capturing no writes):
+
 ```
-missing:    captured \ declared          (authoritative when provenance = complete)
-extra:      declared \ captured-here     (data, not a verdict)
-provenance: complete | incomplete | unsupported
+missingReads:  capturedReads  \ declaredReads    (authoritative when readProvenance = complete)
+missingWrites: capturedWrites \ declaredWrites   (likewise, writeProvenance)
+extraReads:    declaredReads  \ capturedReads-here    (data, not a verdict)
+extraWrites:   declaredWrites \ capturedWrites-here   (data, not a verdict)
+readProvenance / writeProvenance: complete | incomplete | unsupported
 ```
 
 `incomplete` and `unsupported` are not decoration. Action results carry
@@ -379,15 +445,30 @@ discipline that entry lacks, under 0062's spelling:
 snapback-app introspect --changed-since <envelopeHash> --budget-bytes 32768
 ```
 
-**Hash custody is a required decision, not an implementation detail.** A
-prior hash alone cannot produce a delta unless something can recover what
-that hash denoted. Three shapes are possible — the server retains recent
-digest manifests; the client presents its prior digest for server-side
-diffing; or the hash resolves only to an artifact generation and the delta
-is computed against that. Each has a different retention, authority, and
-unknown-hash story, and an unknown hash must degrade to a full digest with
-a named reason rather than an error or, worse, an empty delta that reads as
-"nothing changed." OQ10 carries this.
+**But `envelopeHash` alone cannot key this digest, and v0.2 got that
+wrong.** LLP 0062's envelope is "content-addressed and immutable"
+(`llp/0062:246-260`) — a static address for generated bytes. The digest
+proposed here also carries *dynamic* observation state: row-count
+magnitudes, recent refusal codes, D1 conformance verdicts. Those change
+repeatedly while the envelope hash stands still, so one envelope hash
+cannot identify which prior digest a caller actually saw. Reusing 0062's
+spelling was right; reusing its hash space as the sole delta key was not.
+
+The digest therefore has **two sections with two delta keys**:
+
+- **Static section** — schema, operation signatures, contracts, capability
+  gaps. Keyed by `envelopeHash`; delta is exactly 0062's cheap diff.
+- **Dynamic section** — counts, recent refusals, conformance verdicts.
+  Keyed by a `digestCursor` bound to `(envelopeHash, observation state)`,
+  which is the only thing that can say "since what."
+
+**Custody remains a required decision.** Something must recover what a prior
+cursor denoted: the server retains recent digest manifests, the client
+presents its prior digest for server-side diffing, or the cursor resolves
+only coarsely and the dynamic section is always sent whole. Each differs in
+retention, expiry, and authority. An unknown or expired cursor must degrade
+to a full digest with a named reason — never an error, and never an empty
+delta, which reads as "nothing changed." OQ10 carries this.
 
 Contents: artifact identities, schema summary, operation signatures with
 argument and result contracts (LLP 0131), capability gaps, row-count
@@ -445,11 +526,14 @@ Given two artifact generations, emit a stable semantic diff:
 conflate them. On the local target, delivery is decided primarily by
 captured dependencies, so a handler's real fan-out can change with a code
 edit that leaves every declaration identical — two artifacts cannot detect
-that. D4 therefore reports the *declared* radius from artifacts alone, and
-reports an *observed* radius only when an observation bundle (a D2 receipt
-or a D6 scenario run over the new generation) is supplied. Where only the
-declared radius is available, the diff says so rather than implying
-completeness.
+that. D4 therefore reports the *declared* radius from artifacts alone. An
+**observed radius change** requires *paired, comparable* observation
+bundles — one per generation, exercised under the same acceptance profile,
+tests, data or seed identity, authority, and target, with the same
+evidence-provenance rules. A single bundle over the new generation yields a
+**current observed radius**, not a diff: absence on the old side would
+otherwise be indistinguishable from "that path was never exercised." The
+output must label which of the two it is.
 
 For an agent, "what did my edit *mean*?" is at least as important as "what
 exists now?" — and it is the question the agent is worst at answering for
@@ -521,15 +605,38 @@ deletion, or orphan cleanup" (`llp/0110:917`). `onTargetDelete: 'restrict'`
 is exactly a referential constraint on that territory, and layering restrict
 over a read profile that *hides* orphans would put two deletion semantics
 on one shape. **D5 therefore applies only to ad-hoc application relations,
-not to promoted bounded-relation incarnations**, which keep `hide-orphans.v1`;
-codegen must refuse an `existsRelation` whose target is a promoted
-incarnation. Whether the two should ever converge is OQ13.
+not to promoted bounded-relation incarnations**, which keep `hide-orphans.v1`.
 
-Codegen must **prove boundedness**: an invariant that cannot name a
-supporting index is a generation error, not a slow commit. It must also
-define transaction-final-state semantics (the invariant is evaluated once
-against the buffered final state, not per statement) and its behaviour
-against pre-existing rows at migration time.
+**The overlap test is on the source side, not the target.** v0.2 said
+codegen must refuse an `existsRelation` whose *target* is a promoted
+incarnation. That names the wrong side of the relationship: a
+`RelationIncarnation` is a protected *field on the child/source row*,
+paired with a required foreign-key field, and "the paired required
+foreign-key field is the complete relationship declaration"
+(`src/manifest.rs:829-840`). The correct test is therefore: refuse an
+`existsRelation` whose **source table and `sourceFields` coincide with a
+declared incarnation's `foreign_key_field`/`parent_table` pair**. Whether
+the two vocabularies should ever converge is OQ13.
+
+Codegen must **prove boundedness in both directions**: `targetIndex` bounds
+insert and update validation on the source side, but `onTargetDelete:
+'restrict'` needs an indexed **reverse** lookup — "are there source rows
+pointing at this target?" — which `targetIndex` does not provide. An
+invariant that cannot name both supporting indexes is a generation error,
+not a slow commit.
+
+D5 must also define three semantics v0.2 left implicit:
+
+- **Transaction-final-state.** The invariant is evaluated once against the
+  buffered final state, not per statement, so a mutation that transiently
+  violates and repairs within one transaction commits.
+- **Target-key updates.** Changing a target row's key is a deletion from
+  the source's perspective and takes the `onTargetDelete` path.
+- **Concurrency.** A concurrent source-insert and target-delete must not
+  both commit. That needs captured row or range dependencies on the checked
+  side — the same race contract the existing membership relations spell out
+  explicitly (`llp/0056:564-588`), and the reason those guards capture a
+  survivor rather than merely counting.
 
 *Acceptance:* both directions refuse with the invariant's name in the
 refusal; an invariant without a supporting index fails codegen; an
@@ -576,15 +683,31 @@ scenario JSON runnable by `snapback scenario replay`. This is the decisive
 property: an agent can reliably fix a five-step counterexample and cannot
 reliably interpret a ten-thousand-event fuzz log.
 
+Shrinking is itself probabilistic where the run is, so it needs a **fixed
+trial budget and a stated success criterion** (e.g. "reproduced in k of n
+trials"). Without them, "minimal" and "reproduction rate" are unstable
+across runs and an agent cannot tell a fixed bug from a lucky trial.
+
 **Replay is guaranteed only over controlled seams**, and v0.1's acceptance
 criterion overreached by requiring every shrunk violation to reproduce.
 Recording an ordering the runner does not control does not make that
 ordering enforceable on replay. A shrunk scenario therefore carries a
-**reproduction class**: `deterministic` (every step is a controlled seam —
-replay must reproduce), or `observed` (the violation depended on an
-uncontrolled ordering — replay attempts it and reports a reproduction rate,
-never a guarantee). An `observed` counterexample is still far more useful
-than a raw log, but it must not be presented as a regression test.
+**reproduction class**: `deterministic` (replay must reproduce) or
+`observed` (replay attempts it and reports a reproduction rate, never a
+guarantee). An `observed` counterexample is still far more useful than a raw
+log, but it must not be presented as a regression test.
+
+**The classification test is transitive, not top-level.** "Every step is a
+controlled seam" does not establish `deterministic`: a controlled top-level
+step still executes *through* SQLite, sockets, threads, or an action, any
+of which can supply the ordering the violation actually depended on.
+Classification must therefore follow event and effect provenance through the
+step — or, failing that, conservatively mark any run that touched an
+uncontrolled subsystem as `observed`. LLP 0054's exact-replay proposal takes
+the stricter route, requiring every nondeterministic input that affects
+observable behaviour to pass through an injected interface
+(`llp/0054:243-257`); D6 does not adopt that, and so must not borrow its
+guarantee.
 
 **Relationship to LLP 0054.** That document is unratified research
 (`llp/0054:414-419`). D6 ratifies its controlled-seam framing and its
@@ -620,12 +743,14 @@ consumer infer automation safety from the wrong field:
       "riskClass": "authority-widening",
       "machineApplicable": false,
       "requiresApproval": true,
-      "authorityEffect": "widens" },
+      "authorityEffect": "widens",
+      "precondition": { "grantableScope": "…" } },
     { "kind": "useDifferentPrincipal",
       "riskClass": "authority-sensitive",
       "machineApplicable": false,
       "requiresApproval": true,
-      "authorityEffect": "changes-effective-principal" },
+      "authorityEffect": "changes-effective-principal",
+      "precondition": { "principalAvailable": "…" } },
     { "kind": "replaceIdentifier",
       "riskClass": "mechanical",
       "machineApplicable": true,
@@ -649,11 +774,18 @@ identifier replacement, and regeneration — each carrying an artifact-hash
 precondition so a stale artifact cannot silently apply a repair. Never to
 authority widening, destructive schema change, or policy choices.
 
-The carrier is not settled here: LLP 0144 owns the refusal wire envelope and
-requires caller-visible disclosure, so whether `remediations[]` rides that
-envelope, a sibling field, or a separate lookup — and how it projects to
-CLI, HTTP, and MCP — is OQ6, now widened to cover the carrier as well as the
-registry.
+Every remediation carries a precondition — including the two authority
+entries above, which v0.2's example omitted while the surrounding text
+required them.
+
+**Carrier ownership is not LLP 0144's.** v0.2 said it was; that is wrong.
+LLP 0144 keeps the application refusal *inside diagnostic details* and
+explicitly assigns first-class envelope-shape changes to LLP 0094: "This is
+a wire-shape change owned by LLP 0094 (the wire-envelope contract), not this
+document" (`llp/0144:323-326`). So whether `remediations[]` becomes an
+envelope field, a diagnostic-details member, or a separate lookup belongs to
+the LLP 0094/0095 wire-contract family, with LLP 0144's disclosure
+constraints still binding on the content. OQ6 is rewritten accordingly.
 
 *Suggestion.* Unknown operation, unknown field, and wrong-arg-shape refusals
 answer with type-aware candidates drawn from the served manifest: available
@@ -815,10 +947,17 @@ subsystems with their own design risk and should not run concurrently with
 Wave 1.
 
 **One item jumps the waves.** The Cloudflare fan-out disposition (OQ8) is
-not a Wave 3 concern: it is a live-delivery defect on a shipped arm, and
-whichever of the three shapes is chosen — captured-read consumption,
-conservative widening, or required strict mode — it should land with Wave 1
-rather than wait for strict mode's authoring-contract decision.
+not a Wave 3 concern: it is a live-delivery defect on a shipped arm, and it
+should land with Wave 1 rather than wait for strict mode's
+authoring-contract decision.
+
+That commitment is conditional on which shape wins, and v0.2 stated it too
+flatly. Shapes 1 and 2 — captured-read consumption and conservative
+widening — are Wave 1 work outright. Shape 3 *is* strict mode, which
+Sequencing otherwise places in Wave 3; if it wins, the target-scoped subset
+required to make Cloudflare fan-out correct jumps to Wave 1 with it, and
+the rest of strict mode stays in Wave 3. Choosing shape 3 therefore costs
+more schedule than the other two, which is itself an input to OQ8.
 
 **Deferred lane.** C9 after D7; C10 after D1; C11 when LLP 0097 becomes
 implementable.
@@ -849,9 +988,10 @@ value an agent cannot exploit while its model of the app is still wrong.
    LLP 0054 own the property catalogue with D6 owning generation and
    shrinking?
 6. **D7 remediation carrier and registry.** Do remediation kinds live in a
-   registry keyed by refusal code, and does `remediations[]` ride LLP 0144's
-   refusal envelope, a sibling field, or a separate lookup? What is the
-   disclosure behaviour across the CLI, HTTP, and MCP projections?
+   registry keyed by refusal code? The carrier is an LLP 0094/0095
+   wire-contract decision, not LLP 0144's: envelope field, diagnostic-details
+   member, or separate lookup — and what is the disclosure behaviour across
+   the CLI, HTTP, and MCP projections?
 7. **CV-14 custody.** D4 claims LLP 0115 CV-14, which rides a custody
    trigger in the 0062 family. Does claiming it here satisfy the trigger, or
    must the custody owner ratify?
@@ -874,10 +1014,12 @@ value an agent cannot exploit while its model of the app is still wrong.
     protected-last-member because memberships already enforce it. Should a
     generic protected-cardinality invariant exist, and if so does it reuse
     or supersede the shipped rule?
-12. **Offline/RQS arm disposition.** The correction is scoped to the local
-    and Cloudflare arms. What does retention/replay on the JS arm consume —
-    captured dependencies, declarations, or neither — and does under-
-    declaration have an observable effect there?
+12. **Offline/RQS arm, if eligibility expands.** The current disposition is
+    verified and closed: retention refuses opaque JavaScript
+    (`src/manifest.rs:2981`), which is the only shape where hand-authored
+    drift can occur, so drift has no retention effect today. The open part
+    is conditional — if eligibility ever admits opaque handlers, does
+    retention consume captured dependencies, declarations, or refuse?
 13. **D5 versus the bounded-relation family.** D5 applies only to ad-hoc
     relations and must refuse promoted incarnations. Should the two
     eventually converge on one relation vocabulary, and who owns that?

@@ -64,3 +64,62 @@ What I verified, versus inferred, to establish the following:
 §D3. Serving a delta against a prior digest *hash* requires the server to reconstruct what that digest contained (persisting digest-hash → generation/state identity, or having the client present the prior digest). Since this flag is "where most of the token saving actually lives," the mechanism question belongs in OQ3 or the D3 body.
 
 TOOL_USES: 48
+
+## Round 2 — 2026-08-01 (delta-scoped)
+
+**Reviewer family:** Claude Fable
+**Provider / runtime:** Anthropic Claude Code, `claude-fable-5`, fresh
+non-author subagent
+**Effort:** session-inherited
+**Date:** 2026-08-01
+**Method:** fresh non-author subagent context, read-only delta review of the
+working tree; permitted to read only this family's round-1 artifact above,
+blind to the codex artifact and the super-refine journal. SHA-pinned target
+and instruction capsule.
+**Instruction capsule SHA-256:** `430e8c16522abd3ad5d8b96ed22166e6756ae503d9f3d0d30336e1761149f103`
+**Target:** `llp/0146-agentic-authoring-affordances.rfc.md` (v0.2, 901 lines, Draft)
+**Target SHA-256:** `111b7b364b219e516d1667f9dd0a7efbec46346291cb4eaa58cc7fff3bcd9e29`
+**Repo revision at review start:** working tree at v0.2 (pushed as `c28264cf`)
+**Tool uses:** 14
+**Status:** completed
+**Verdict:** READY
+
+## Verbatim review
+
+## Overall assessment
+**Verdict: READY**
+
+Every finding I raised in round 1 — four MATERIAL, four DETAIL — is genuinely fixed in v0.2, not merely acknowledged, and I verified each fix against the code or corpus rather than taking the Revised block's word. The rebuilt correction, which is the document's load-bearing spine, is true and precisely cited on both targets: I confirmed the local matcher's declared-summary fallback fires exactly when no `Query` dependency was captured (`src/live_matcher.rs:230-234`, with the quoted comment verbatim) and that the `IbexModule` arm then filters on declared `read_set_summary.tables` (`:147-155`), and I confirmed the Cloudflare `fanOut` selects subscriptions solely by declared `fn.tables` (`cloudflare/src/coordinator.js:5165`, `functionTables` at `:5539-5542`) with the header's own "captured read sets are recorded but not yet validated" admission at `:22`. The declared-table live-delivery defect on Cloudflare is real, reachable, and correctly elevated to the reason D1 goes first. The three withdrawals are honest — I verified the shipped last-holder guard (`src/storage.rs:13192-13203`, `:13220-13221`) and the pinned-unbuilt `acceptance.run` framing that D2 no longer claims to close — and the new text (independent-delta conformance evidence, hash custody, reproduction classes, four-axis remediations, promoted-incarnation refusal) is internally consistent and scoped to what the evidence supports. Remaining issues are detail-level.
+
+## Round-1 finding dispositions
+
+- **MATERIAL-1 (query explain / checkpoint falsely "Shipped") — FIXED.** Baseline rows now read "Pinned, unbuilt" for query explain and explain-denial (llp/0146:116-117) with the correct witness — I re-verified `explain_function` serves only `mutationDryRun` and emits `SNAPBACK_EXPLAIN_KIND_UNIMPLEMENTED` at `src/host_ops.rs:1717-1721`, and `guide/operating/host-ops.md:66` matches. The checkpoint row is replaced by "Quiesced backup and restore | Shipped (operator, not agent-facing)" with the correct `src/cli.rs:900-907` witness (verified: `Backup`/`Restore` variants). The Summary sentence is corrected to "partly executed" with the explain-denial half named unbuilt (llp/0146:40-44).
+- **MATERIAL-2 (per-invocation `overDeclared` semantically wrong) — FIXED.** D1 now emits two independent deltas plus a provenance state, with `extra` explicitly "data, not a verdict" (llp/0146:263-267); over-declaration is judged only at D2's aggregate coverage scope (llp/0146:284-288); the acceptance line encodes the conditional-read case exactly as my finding required (llp/0146:311-312). The provenance grounding is real: I verified `action_run_result` constructs empty captured sets (`src/local.rs:1711-1726`, within the cited 1705-1740).
+- **MATERIAL-3 (refusal codes assigned to LLP 0144's app-code registry) — FIXED.** The cost line now names them **platform** codes under the LLP 0010 discipline and cites 0144's own platform/app distinction (llp/0146:317-321); I re-verified `llp/0144:4` (Status: Review) and `:135-137`. The relocated ceiling-sequencing attribution to LLP 0108 is also correct — "Ceiling enforcement is sequenced as its own later decision, decoupled from this slice" appears verbatim at llp/0108:~882-883, so the citation is no longer resting only on 0115's decision record.
+- **MATERIAL-4 (D5 never engaged the LLP 0110/0134/0135 relation family) — FIXED.** A full disposition section exists (llp/0146:514-526) with exactly the facts I demanded, all re-verified: `RelationIncarnation { foreign_key_field, parent_table }` at `src/manifest.rs:836-841`, `hide-orphans.v1` as the only parent-deletion policy (`llp/0110:169, :329-333`), the referential-constraints exclusion (`llp/0110:917`). The resolution is the one I sketched — D5 applies only to ad-hoc relations, codegen refuses promoted incarnations, convergence is OQ13 — and 0110/0134/0135 are now in Related (llp/0146:31-32).
+- **DETAIL-1 (0144 status) — FIXED.** Row says "Review" (llp/0146:123); `llp/0144:4` confirms.
+- **DETAIL-2 (ring shipped, host-ops-only) — FIXED.** Row says "Shipped — host operations only" (llp/0146:124), and D1 surface 1 carries the wiring caveat (llp/0146:283-287); verified `src/host_ops.rs:57-105`, "One recorded host operation" at `:63-64`.
+- **DETAIL-3 (five-vs-six count) — FIXED.** Summary says "Six candidates" (llp/0146:63); C8's row says "Partially absorbed into D7" (llp/0146:143); Declined 2's title self-labels "(deferred, opt-in)".
+- **DETAIL-4 (`--changed-since` mechanism unexamined) — FIXED.** The hash-custody paragraph names the three shapes and the unknown-hash degradation requirement (llp/0146:382-390), carried by OQ10. The reconciliation with LLP 0062 is genuine: `introspect --changed-since <envelopeHash>` exists verbatim at `llp/0062:1520-1521`.
+
+## Strengths
+
+Verified, not inferred: the full local-fallback chain (`live_subscription_may_be_affected` at `src/live_matcher.rs:129`, helper at `:195`, the `None`-on-no-Query-dependency return with quoted comment at `:230-234`, the declared-tables arm at `:147-155`); the Cloudflare fan-out filter and `functionTables`; commit validation on `executed.reads` (`src/local.rs:11111/:11568/:11797` all exact, reaching `validate_captured_read_set` at `src/storage.rs:4457`); the `FunctionRunResult` doc comment and both set pairs (`src/local.rs:1440-1458`); the sole external `captured_reads` consumer (`src/admin.rs:1781`); the migration-derivation reuse claim in D4 (`derive_intents` doc and `SNAPBACK_MIGRATION_PLAN_INVALID`, `src/migration.rs:896-923`; preview at `src/cli.rs:779-813`); the last-holder guard both directions (`src/storage.rs:13192-13203`, `:13221`); LLP 0054's unratified status (`0054:414-419`); CV-14 still Open (`0115:435`); the LLP 0080 §4 table-granularity @ref sitting directly on the relational arm (`src/live_matcher.rs:170-173`) — so the "other arms" disposition (plan-derived tables, agent cannot under-declare) is right. Inferred-plausible, not independently verified: D5's "membership existence is likewise covered by the existing resource-existence checks" and the exact v0.1-example provenance claims in D7. The new OQ8/OQ12/OQ14 set honestly names every seam the correction opened, and the Status section's insistence that the Cloudflare defect be ticketed independently of the RFC's fate is exactly the right separation of product defect from proposal.
+
+## Findings
+
+**DETAIL-1 — "an empty or wrong `read_set_summary.tables`" lumps the safe case with the hazardous one, locally**
+§The correction, local target (llp/0146:190-191). In the fallback arm, `tables.is_empty()` passes *every* change through the filter (`src/live_matcher.rs:151`), so an empty declared set is the conservative direction locally — it can only add wake-ups. Only a **non-empty wrong** set can suppress delivery. The sentence "an empty or wrong `read_set_summary.tables` decides delivery on its own" is literally true but implies the empty case shares the hazard. One clause fixes it. (Adjacent strengthening the document could also claim: the fallback is reachable not just for handlers that "never ran, or captured nothing" but for any handler whose capture has only `Row`/`MissingRow` facts and no `Query` dependency — `src/live_matcher.rs:226-234` — so a point-read-only handler that ran successfully still lands on the declared arm.)
+
+**DETAIL-2 — On Cloudflare, the *undeclared* case is silently narrowed, not conservative — unmentioned**
+§Cloudflare arm / OQ8. `functionTables` falls back to `[schema.tables[0].name]` when `fn.tables` is empty (`cloudflare/src/coordinator.js:5539-5542`): a live query with no declared tables fans out only on the first schema table. That is a second, arguably worse, reachable miss on the same arm — the document's stated defect (declares A, reads B) is verified true, but the no-declaration case deserves a sentence, since it sharpens OQ8's "unwitnessed function" widening option and is exactly the state a code-first agent leaves a handler in.
+
+**DETAIL-3 — "The last two rows are the leverage" is mild residue of D2's withdrawn claim**
+§What already ships (llp/0146:128-129). v0.1 could call `acceptance.run` "the leverage" because D2 claimed to close it; v0.2's D2 explicitly does not (llp/0146:328-336), leaving the hole's relevance hanging on OQ9's maybe. The framing sentence should either be scoped to the captured/declared row alone or say the hole's leverage is conditional on OQ9. This is the only withdrawal residue I found; the D5 and D6 withdrawals are clean.
+
+**DETAIL-4 — OQ8's third option is in tension with Wave 3 sequencing**
+§Sequencing (llp/0146:817-821) says the OQ8 disposition "should land with Wave 1 … whichever of the three shapes is chosen," but the third shape is required strict mode on that target, and strict mode is Wave 3 machinery (llp/0146:813-815). If option 3 wins, either it jumps the waves too or the "lands with Wave 1" commitment fails. One sentence resolving the conditional (e.g., "if the strict-mode shape is chosen, its target-scoped subset jumps with it") closes the gap.
+
+None of these blocks. The document now decides exactly as much as it has evidence for, names its fourteen open items as open, and every factual claim I checked about the codebase and corpus is true.
+
+TOOL_USES: 14

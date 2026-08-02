@@ -133,3 +133,136 @@ The underlying local-runtime conclusion is mostly right, but the RFC must replac
 **DETAIL-2 — The candidate count is wrong**
 
 §“Decision inventory,” `llp/0146-agentic-authoring-affordances.rfc.md:38-43,105-119`. The RFC says five candidates are declined or deferred, but C8 through C13 comprise six candidates. Update the count.
+
+## Round 2 — 2026-08-01 (delta-scoped)
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** `codex-cli` 0.146.0, `codex exec`, model
+`gpt-5.6-sol`, `model_reasoning_effort=xhigh`, sandbox `read-only`
+**Date:** 2026-08-01
+**Method:** fresh non-author `codex exec` context, read-only delta review;
+permitted to read only this family's round-1 artifact above, blind to the
+fable artifact and the super-refine journal — verified after the fact
+(the only occurrences of those filenames in the transcript are the prompt
+echo, an unrelated `git status` listing, and citations inside other LLPs).
+The prompt additionally carried a correction notice about round 1's
+confabulated LLP filenames, instructing path resolution by directory
+listing; the filenames in this round are correct.
+**Instruction capsule SHA-256:** `430e8c16522abd3ad5d8b96ed22166e6756ae503d9f3d0d30336e1761149f103`
+**Target:** `llp/0146-agentic-authoring-affordances.rfc.md` (v0.2, 901 lines, Draft)
+**Target SHA-256:** `111b7b364b219e516d1667f9dd0a7efbec46346291cb4eaa58cc7fff3bcd9e29`
+**Repo revision at review start:** working tree at v0.2 (pushed as `c28264cf`)
+**Status:** completed
+**Verdict:** NOT READY
+
+## Verbatim review
+
+## Overall assessment
+
+**Verdict: NOT READY**
+
+v0.2 correctly repairs the central local-versus-Cloudflare account, but the correction remains incomplete: OQ12 leaves the current retention/RQS disposition open even though admission code already settles it. More importantly, D1’s revised evidence shape still cannot distinguish read from write conformance. These are load-bearing contract gaps, not merely permissible open policy choices. D3–D7 also contain several material delta-introduced contradictions described below.
+
+## Round-1 finding dispositions
+
+- **BLOCKING-1 — PARTIALLY FIXED:** local fallback and Cloudflare fan-out are now accurately described, but the required retention/RQS disposition remains OQ12 despite being source-resolvable (`src/manifest.rs:2299-2353,2973-2982`).
+- **MATERIAL-1 — FIXED:** query-plan explain is correctly marked pinned/unbuilt (`llp/0146-agentic-authoring-affordances.rfc.md:112-117`; `src/host_ops.rs:1715-1721`).
+- **MATERIAL-2 — PARTIALLY FIXED:** missing/extra deltas and provenance were added, but read/write classes remain collapsed and the baseline still falsely says both sets exist for “every handler” (`llp/0146-agentic-authoring-affordances.rfc.md:128-130,255-275`).
+- **MATERIAL-3 — FIXED:** D2 explicitly withdraws the `acceptance.run` closure claim and leaves its relationship open (`llp/0146-agentic-authoring-affordances.rfc.md:328-335`).
+- **MATERIAL-4 — PARTIALLY FIXED:** D3 reuses LLP 0062’s command and names custody, expiry, unknown-hash fallback, and authority as open, but its static `envelopeHash` cannot identify the newly dynamic digest state.
+- **MATERIAL-5 — PARTIALLY FIXED:** D4 reuses migration derivation and separates declared from observed radius, but one new-generation observation bundle cannot establish an observed-radius change.
+- **MATERIAL-6 — FIXED:** protected-last-member and membership-resource existence are honestly withdrawn against shipped enforcement (`src/storage.rs:13074-13094,13192-13263,14663-14710`).
+- **MATERIAL-7 — PARTIALLY FIXED:** global replay is withdrawn, but the new `deterministic` classification still overclaims from controlled top-level steps.
+- **MATERIAL-8 — PARTIALLY FIXED:** risk, machine applicability, approval, and authority effect are separated and principal changes now require approval, but two examples omit mandatory preconditions and wire ownership is misstated.
+- **DETAIL-1 — FIXED:** the local capture, registration, matching, validation, and `FunctionRunResult` anchors now point to the relevant code.
+- **DETAIL-2 — FIXED:** the declined/deferred count is now six (`llp/0146-agentic-authoring-affordances.rfc.md:63-64`).
+
+## Strengths
+
+I verified the rebuilt correction’s main claims. The local matcher first considers captured dependencies, returns to the runtime-specific arm when no query dependency exists, and the Ibex fallback filters through `read_set_summary.tables` (`src/live_matcher.rs:129-168,195-257`). Cloudflare selects affected live functions using `functionTables(fn)` over changed tables, while captured reads are recorded but unused for fan-out (`cloudflare/src/coordinator.js:5150-5167,5539-5542`; `cloudflare/src/host-ops.js:562-611`).
+
+D2’s withdrawal is direct and complete. D4 correctly recognizes and reuses the existing deterministic schema derivation and preview (`src/migration.rs:896-926`; `src/cli.rs:779-813`). The D5 withdrawals accurately reflect the shipped membership guards. D6 no longer calls uncontrolled execution globally deterministic, and D7 correctly changes `useDifferentPrincipal` to approval-requiring.
+
+## Findings
+
+**BLOCKING-1 — The required retention/RQS disposition is left open even though current source settles it**
+
+The correction says retention/RQS is out of scope and defers its factual disposition to OQ12 (`llp/0146-agentic-authoring-affordances.rfc.md:214-225,877-880`).
+
+Verified source answers the current-state question:
+
+- Local RQS eligibility requires a `HostPlan(Query)` with a complete plan-consistent single-table summary; opaque Ibex/JavaScript is ineligible (`src/manifest.rs:2299-2353`).
+- General retainable-query admission likewise rejects opaque JavaScript as `opaqueJavaScript` (`src/manifest.rs:2973-2982`).
+- Cloudflare applies the same HostPlan-plus-summary eligibility rule (`cloudflare/src/rqs-host.mjs:194-223`).
+- Its behind-head RQS path has neither table-set nor witness replay and always falls back to a fresh replacement (`cloudflare/src/coordinator.js:1192-1198`).
+
+Therefore hand-authored declaration drift has no current retention/RQS effect: the opaque-JS shape where such drift could occur is excluded. The RFC must record this verified disposition and reserve OQ12 only for future expanded eligibility.
+
+**MATERIAL-1 — D1’s deltas do not preserve the read/write dependency class**
+
+D1 defines only:
+
+```text
+missing: captured \ declared
+extra:   declared \ captured-here
+```
+
+(`llp/0146-agentic-authoring-affordances.rfc.md:255-267`).
+
+Verified source carries four separate collections: declared reads, declared writes, captured reads, and captured writes (`src/local.rs:1449-1458`). Collapsing them permits a read/write swap to disappear—for example, declared-read A/declared-write B versus observed-read B/observed-write A has equal untagged table unions despite two violations. Provenance may also differ by class.
+
+The same section internally contradicts the baseline claim that both sets are computed for “every handler”: actions intentionally return empty captured sets (`llp/0146-agentic-authoring-affordances.rfc.md:128-130,269-275`; `src/local.rs:1705-1740`).
+
+D1 must define four deltas or class-tagged elements, with provenance per dependency class, and qualify the shipped baseline to supported successful query/mutation paths.
+
+**MATERIAL-2 — D3 reuses a static envelope hash for dynamic state that the hash cannot identify**
+
+D3 insists on LLP 0062’s `<envelopeHash>` hash space while adding row-count magnitudes, recent refusal codes, and D1 observations (`llp/0146-agentic-authoring-affordances.rfc.md:371-395`).
+
+Verified LLP 0062 defines `envelopeHash` as the SHA-256 content address of an immutable generated envelope (`llp/0062-generated-app-cli-and-code-mode.rfc.md:246-260,1011-1032`). Row counts and recent refusals can change repeatedly while that hash remains constant. Consequently, one envelope hash cannot identify which prior dynamic digest the caller observed.
+
+OQ10’s options do not resolve this as written: retaining digest manifests requires a digest-snapshot identifier; presenting prior digest bytes is not the hash-only interface; resolving only to a generation cannot diff dynamic sections (`llp/0146-agentic-authoring-affordances.rfc.md:382-390,868-872`).
+
+D3 must separate static envelope deltas from dynamic observation deltas or introduce a digest-snapshot identity/cursor bound to the envelope plus runtime observation state.
+
+**MATERIAL-3 — D4 cannot calculate an observed-radius change from only a new-generation observation**
+
+D4 says an observed radius may be reported when “an observation bundle” over the new generation is supplied (`llp/0146-agentic-authoring-affordances.rfc.md:444-463`). That provides a current observed radius, not a change between predecessor and successor.
+
+This is a design inference from the proposed inputs: an observed delta requires comparable bundles for both generations, exercised under the same profile, tests/scenarios, data/seed, authority, target, and evidence-provenance rules. Otherwise absence on the old side may simply mean it was not exercised.
+
+D4 must require paired comparable observations or label the result “current observed radius” rather than an observed-radius diff.
+
+**MATERIAL-4 — D5’s promoted-relation refusal and reverse enforcement are not decidable as written**
+
+D5 says codegen must refuse an `existsRelation` whose “target is a promoted incarnation” (`llp/0146-agentic-authoring-affordances.rfc.md:514-526`). Verified schema says a relation incarnation is a protected field on the child/source row, paired with a foreign-key field and a `parent_table`; it is not the target table or row (`src/manifest.rs:829-840`; `llp/0110-bounded-children-and-activity-patterns.spec.md:969-1000`). The proposed criterion therefore identifies the wrong side of the relationship.
+
+The example also names only `targetIndex`. That bounds source insert/update validation, but `onTargetDelete: restrict` requires an indexed reverse lookup over source rows. Target-key updates need the same treatment, and concurrent source-insert/target-delete safety needs captured row/range dependencies—the kind of race contract existing membership relations spell out explicitly (`llp/0056-scoped-roles-and-memberships.rfc.md:564-588`).
+
+D5 must define overlap using the source foreign-key/incarnation declaration, require or infer a source-side supporting index, and specify update and concurrency capture semantics.
+
+**MATERIAL-5 — D6’s reproduction-class test does not account for uncontrolled behavior inside controlled steps**
+
+D6 defines `deterministic` as every scenario step being a controlled seam, while acknowledging that SQLite, sockets, threads, actions, and external effects remain uncontrolled (`llp/0146-agentic-authoring-affordances.rfc.md:552-560,579-598`).
+
+A controlled top-level step can still execute through one of those uncontrolled subsystems. Thus “every step is controlled” does not prove that the observed violation was independent of uncontrolled ordering. LLP 0054’s exact-replay proposal instead requires all nondeterministic inputs affecting observable behavior to pass through injected interfaces (`llp/0054-tigerbeetle-lessons-for-snapback.research.md:243-257`).
+
+D6 must classify from transitive event/effect provenance, or conservatively mark any run touching an uncontrolled seam as `observed`. Probabilistic shrinking also needs a fixed trial budget and success criterion; otherwise “minimal” and “reproduction rate” are unstable.
+
+**MATERIAL-6 — D7 still violates its own precondition rule and assigns wire ownership incorrectly**
+
+D7 says every remediation carries a precondition, but `requestGrant` and `useDifferentPrincipal` have none in the revised example (`llp/0146-agentic-authoring-affordances.rfc.md:605-635`). The four safety axes are improved, but the example remains invalid under its own rule.
+
+It also says LLP 0144 “owns the refusal wire envelope” (`llp/0146-agentic-authoring-affordances.rfc.md:652-656`). Verified LLP 0144 explicitly assigns first-class envelope-shape changes to LLP 0094 and keeps the current application refusal inside diagnostic details (`llp/0144-declared-app-refusal-codes.rfc.md:318-328`).
+
+Add preconditions or explicitly make them optional for named remediation classes, and assign carrier/projection ownership to the 0094/0095 wire-contract family while retaining 0144’s refusal and disclosure constraints.
+
+**DETAIL-1 — The “other arms” search disposition is factually inaccurate**
+
+The RFC groups search with plan-table invalidation and says it never consults captured dependencies (`llp/0146-agentic-authoring-affordances.rfc.md:214-223`). Current search execution is one-shot `FunctionKind::Query`, not `LiveQuery`, and it captures a `Query` dependency with no predicate (`src/local.rs:22591-22680`). If passed to the matcher, the missing predicate produces a conservative `Some(true)` before the plan-table fallback (`src/live_matcher.rs:237-257`).
+
+Describe current search as non-live; do not characterize it as plan-table live invalidation.
+
+**DETAIL-2 — `functionTables` is not exactly “the declared fn.tables”**
+
+The RFC says `functionTables` returns declared `fn.tables` (`llp/0146-agentic-authoring-affordances.rfc.md:197-207`). Verified code returns the first schema table when `fn.tables` is absent or empty (`cloudflare/src/coordinator.js:5539-5542`). This does not change the demonstrated A-versus-B defect, but the factual description should include the fallback.

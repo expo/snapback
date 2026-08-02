@@ -230,4 +230,95 @@ ones. The Codex prompt additionally carries a correction notice about its
 confabulated LLP filenames, instructing it to resolve paths by listing
 `llp/` and matching the number prefix.
 
-Results are appended when the reviews are actually received.
+### Round 2 results
+
+**Fable READY. Codex NOT READY** (1 BLOCKING, 6 MATERIAL, 2 DETAIL).
+
+Dispositions of round-1 findings: Fable marked all eight of its own FIXED,
+each re-verified against code rather than taken from the Revised block.
+Codex marked five FIXED and six PARTIALLY FIXED.
+
+**Both families independently found the same thing neither found in round
+1, and which the author had found while writing the ticket:**
+`functionTables` falls back to `[schema.tables[0].name]` when `fn.tables` is
+absent or empty (`cloudflare/src/coordinator.js:5539-5542`). Fable drew the
+sharper inference — a live query with *no* declared tables fans out on
+whichever table happens to be first in the schema, "exactly the state a
+code-first agent leaves a handler in," which is arguably a worse miss than
+the declares-A-reads-B case the RFC leads with. Recorded in the Cloudflare
+subsection and in the ticket.
+
+**Fable's DETAIL-1 corrected v0.2's own new text.** v0.2 wrote that "an
+empty or wrong `read_set_summary.tables` decides delivery on its own."
+Verified: `tables.is_empty()` passes *every* change through the filter
+(`src/live_matcher.rs:151`), so an empty declared set is the conservative
+direction locally; only a **non-empty wrong** set can suppress delivery.
+Fable also sharpened reachability — the fallback fires for any capture
+holding only `Row`/`MissingRow` facts and no `Query` fact, so a
+*successful* point-read-only handler lands on the declared arm, not just
+one that "never ran."
+
+**Codex's BLOCKING-1 was a demand to close an open question, not to fix a
+design.** v0.2 deferred the offline/RQS disposition to OQ12 as "out of
+scope." Codex showed the source settles it: retention eligibility requires
+a `HostPlan(Query)` with a complete plan-consistent single-table summary,
+and an opaque JavaScript handler is refused with
+`undeclarable_retention(function, "opaqueJavaScript")`
+(`src/manifest.rs:2981`, eligibility at `:2299-2353`; the Cloudflare arm
+applies the same rule at `cloudflare/src/rqs-host.mjs:194-223`). Verified.
+Since opaque JS is the only shape where hand-authored drift can occur, and
+retention excludes exactly that shape, drift has no retention effect today.
+v0.3 records the disposition and narrows OQ12 to the conditional case.
+
+**Two round-2 findings are defects v0.2 introduced by applying round-1
+findings**, which is the loop working as intended:
+
+- **D3's hash space.** Round-1 Codex MATERIAL-4 said D3 duplicated
+  LLP 0062's `introspect --changed-since <envelopeHash>`. v0.2 adopted that
+  spelling — but 0062's envelope is "content-addressed and immutable"
+  (`llp/0062:246-260`), while the digest also carries row counts, recent
+  refusals, and conformance verdicts, which change while the hash stands
+  still. Verified. v0.3 splits the digest into a static section keyed by
+  `envelopeHash` and a dynamic section keyed by a `digestCursor` bound to
+  `(envelopeHash, observation state)`.
+- **D7's carrier.** v0.2 asserted LLP 0144 owns the refusal wire envelope.
+  0144 says the opposite: it keeps the application refusal inside
+  diagnostic details and assigns first-class envelope-shape changes to
+  LLP 0094 — "a wire-shape change owned by LLP 0094 (the wire-envelope
+  contract), not this document" (`llp/0144:323-326`). Verified. Ownership
+  reassigned to the 0094/0095 family.
+
+**Codex's sharpest genuinely-new finding** is MATERIAL-1: D1's two-delta
+model collapses the read/write class. `FunctionRunResult` carries four
+collections (`src/local.rs:1449-1458`), and an untagged union lets a
+read/write swap cancel — declared-read A plus declared-write B against
+observed-read B plus observed-write A has identical unions on both sides
+despite two violations. v0.3 moves to four class-tagged deltas with
+per-class provenance.
+
+**Other round-2 findings applied, all verified:** D5's promoted-relation
+overlap test named the wrong side (a `RelationIncarnation` is a protected
+field on the *child/source* row paired with a foreign-key field —
+`src/manifest.rs:829-840`), and `onTargetDelete: restrict` needs a
+source-side reverse index that `targetIndex` does not supply; D4's observed
+radius needs *paired* comparable bundles or it is a current radius, not a
+diff; D6's `deterministic` class must be transitive, since a controlled
+top-level step can still run through SQLite, sockets, threads, or an
+action; D7's example omitted the preconditions its own text required;
+search is a one-shot `FunctionKind::Query` (`src/local.rs:22591`), not the
+live plan-table arm v0.2 grouped it with; and Fable's residue and
+sequencing-tension details (the "leverage" framing after D2's withdrawal,
+and OQ8's third shape being Wave 3 machinery inside a Wave 1 commitment).
+
+**No round-2 finding was refuted.** One reviewer characterisation was
+narrowed: Codex's MATERIAL-2 also asserted the baseline "falsely says both
+sets exist for every handler" — the baseline sentence did overreach and is
+now qualified to the supported successful query and mutation paths.
+
+### v0.3 fix pass
+
+Applied every round-2 finding from both families. `./ref-check --verbose`
+passes (148 LLP docs, 0 errors). Document grew 901 → 1043 lines.
+
+v0.3 SHA-256:
+`9d3658ad85ed9c9402d5373e069c3469ed1acfe377b81accd678c168f00393c4`
