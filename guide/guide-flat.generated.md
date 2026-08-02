@@ -3289,7 +3289,7 @@ id: backend.assets
 order: 9
 audience: agent-first
 capabilities: [backend.assets]
-authorities: [llp/0044-asset-storage-pipeline.rfc.md, src/assets.rs, src/local.rs, src/server.rs, packages/snapback-codegen/define.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, src/assets.rs, src/local.rs, src/server.rs, packages/snapback-codegen/define.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md]
 examples: [demos/party-wall]
 status: current
 targets: [local]
@@ -3492,6 +3492,19 @@ email fetches with no Snapback headers — including on sessions-mode
 servers, where every other asset route requires the auth-client
 protocol offer. Signed issuance and strict delivery keep full
 per-request authorization.
+
+On a sessions-mode server, a plain signed-out request to a
+`private-strict` byte URL that omits the auth-client protocol offer is
+malformed before the server can decide whether it is unauthorized. It
+therefore returns HTTP 400 with
+`SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED`, not 401 or 403; send
+`x-snapback-auth-client-protocol: 1` (and the session bearer when signed in)
+on strict delivery requests. Public-immutable and already-issued signed byte
+URLs are the pasteable exception: plain HTTP clients need no protocol offer
+and receive their ordinary 200/403/404 delivery semantics. This ordering is
+the reviewed status posture in [LLP 0012](repo:llp/0012-headless-integration-contract.spec.md)
+and the per-profile offer contract in
+[LLP 0096](repo:llp/0096-auth-profiles-for-protocol-clients.spec.md).
 
 ## Images
 

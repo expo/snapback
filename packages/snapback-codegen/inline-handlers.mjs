@@ -148,6 +148,18 @@ const QUERY_BUILDER_VERBS = new Set([
   'first',
 ]);
 
+// @ref LLP 0004#ctxdb-contract — keep generation-time member admission in
+// lockstep with the handler runtime's finite ctx.db object. This catches a
+// familiar-API typo such as Convex's `update` before it becomes an opaque
+// runtime "undefined is not a function" failure.
+const CTX_DB_MEMBERS = new Set([
+  'get',
+  'query',
+  'insert',
+  'patch',
+  'delete',
+]);
+
 function staticString(node, checker = null, boundary = null, seen = new Set()) {
   if (!node) return null;
   if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
@@ -237,6 +249,22 @@ function queryChainProblem(node) {
     current = current.expression.expression;
   }
   return null;
+}
+
+function ctxDbMemberProblem(node, checker, boundary) {
+  if (!ts.isPropertyAccessExpression(node) && !ts.isElementAccessExpression(node)) {
+    return null;
+  }
+  const receiver = node.expression;
+  const rootedAtCtxDb = ts.isPropertyAccessExpression(receiver)
+    && receiver.name.text === 'db'
+    && ts.isIdentifier(receiver.expression)
+    && receiver.expression.text === 'ctx';
+  if (!rootedAtCtxDb) return null;
+  const member = staticMemberName(node, checker, boundary);
+  if (member === null || CTX_DB_MEMBERS.has(member)) return null;
+  return `${member} is not a ctx.db member in inline_handler_v1 `
+    + '(use query, get, insert, patch, or delete; use patch for partial updates)';
 }
 
 function reflectionProblem(node, checker, boundary) {
@@ -429,6 +457,10 @@ function selfContainedProblems(expression, checker, sourceFile) {
       const reason = reflectionProblem(node, checker, expression);
       if (reason) {
         forbidden.push({ node, reason });
+      }
+      const dbMemberReason = ctxDbMemberProblem(node, checker, expression);
+      if (dbMemberReason) {
+        forbidden.push({ node, reason: dbMemberReason });
       }
     }
     const chainReason = queryChainProblem(node);

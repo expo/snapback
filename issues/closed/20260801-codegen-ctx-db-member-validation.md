@@ -1,6 +1,6 @@
 # Codegen validates ctx.db.query chains but not unknown ctx.db members
 
-**Status:** OPEN — carried from round-1 clip-locker friction F3;
+**Status:** CLOSED — carried from round-1 clip-locker friction F3;
 round 2 did not exercise it (builder never reached for `update`), so
 the gap is unverified-fixed and remains real by inspection
 
@@ -16,3 +16,15 @@ generation with the correct spelling named.
 
 Evidence: round-1 baseline F3
 (demos/upload-bakeoff/reports/round2/round1-baseline.md §App C).
+
+## Resolution
+
+Fixed 2026-08-01. Inline-handler admission now mirrors the runtime's finite
+`ctx.db` surface (`get`, `query`, `insert`, `patch`, and `delete`) and refuses
+an unknown direct member before artifact replacement. The diagnostic for the
+reported `ctx.db.update(...)` spelling explicitly names `patch` as the repair.
+
+`packages/snapback-codegen/authoring-validation.test.mjs` pins both halves:
+`update` refuses at generation with the named remediation, while the equivalent
+`patch` mutation still generates. The focused test and the complete
+`@expo/snapback-codegen` package suite pass.

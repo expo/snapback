@@ -54,6 +54,24 @@ async function sha256Canonical(value) {
   return sha256Hex(utf8.encode(canonicalizeClientValueV1(value)));
 }
 
+// @ref LLP 0114#offline-binding-receipt-dated-amendment-2026-08-01 —
+// Generated artifacts are validated deployment metadata, not user-authored
+// query arguments. Keep the same getter-free canonical JSON implementation,
+// but do not impose CanonicalClientValueV1's 4,096-node store-key budget on a
+// complete function catalog. The separate artifact profile remains finite.
+async function sha256GeneratedManifest(value) {
+  return sha256Hex(utf8.encode(canonicalizeClientValueV1(value, {
+    limits: {
+      maxDepth: 64,
+      maxNodes: 65_536,
+      maxObjectFields: 1_024,
+      maxArrayEntries: 4_096,
+      maxStringUtf8Bytes: 4 * 1024 * 1024,
+      maxKeyUtf8Bytes: 16 * 1024 * 1024,
+    },
+  })));
+}
+
 async function sha256Text(value) {
   return sha256Hex(utf8.encode(value));
 }
@@ -235,7 +253,7 @@ async function adoptPersistedBindingReceipt(client, generated, cause) {
     || typeof receipt.generatedManifestDigest !== 'string'
     || !receipt.deployment
     || typeof receipt.deployment !== 'object'
-    || receipt.generatedManifestDigest !== await sha256Canonical(generated)
+    || receipt.generatedManifestDigest !== await sha256GeneratedManifest(generated)
   ) return null;
   // The digest equality above proves the presented generated manifest is
   // byte-identical to the one online admission proved equal to the
@@ -599,7 +617,7 @@ export async function prepareReactBindingForClient(client, options = {}) {
     persistBindingReceipt(client, {
       formatVersion: BINDING_RECEIPT_FORMAT_VERSION,
       appId: generated.functions.appId,
-      generatedManifestDigest: await sha256Canonical(generated),
+      generatedManifestDigest: await sha256GeneratedManifest(generated),
       deployment: { ...deploymentIdentity },
       routeManifestHash,
       authMode: session?.activeMode ?? null,

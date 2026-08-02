@@ -11,7 +11,9 @@ identity into the persisted RQS store, and a transport-provenance
 connectivity failure at prepare time re-runs the complete admission against
 that persisted identity — making the process-cold offline boot reachable for
 external consumers; `binding.source` names the provenance; see the dated
-section). 2026-08-01 (authorization-denial projection: a server-answered
+section; the receipt digest uses a distinct finite generated-artifact
+canonicalization profile rather than consuming the public React-argument
+node budget). 2026-08-01 (authorization-denial projection: a server-answered
 denial on a handle's fresh subscribe — e.g. a bearer custody transition to a
 lesser-privileged successor, 0137 A1-Expo f4 — publishes the `error` variant
 with the denial diagnostic instead of an empty `ready`; an `error` snapshot
@@ -1361,6 +1363,16 @@ byte-identical to the one the online admission proved equal to the deployed
 manifest, so the deployed view IS the generated manifest and every per-item
 check re-runs unchanged. The prepared binding names its provenance:
 `binding.source` is `'deployment' | 'persisted-receipt'`.
+
+The receipt digest reuses the getter-free canonical JSON implementation but
+does **not** classify the complete generated manifest as a React query
+argument. It has a separate finite artifact profile: depth 64, 65,536 nodes,
+1,024 fields per object, 4,096 array entries, 4 MiB per string, and 16 MiB
+canonical bytes. `CanonicalClientValueV1`'s public 4,096-node/262,144-byte
+limits remain unchanged for query arguments and store keys. This distinction
+is load-bearing: an admitted function catalog may legitimately exceed the
+argument-node budget; an artifact beyond the separate receipt profile refuses
+instead of silently producing an unbound offline receipt.
 
 The asynchronous-admission rule of this spec is unchanged: admission
 completes (against the persisted identity) before a synchronous provider is

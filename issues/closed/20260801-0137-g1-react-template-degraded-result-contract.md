@@ -1,5 +1,6 @@
 # 0137 G1: react template's own createTodo generates a degraded-result advisory
 
+**Status:** CLOSED
 **Date:** 2026-08-01
 **Source:** LLP 0137 Stage 1 (G1 package qualification), external-consumer smoke arm
 **Finding record:** `demos/improvement-sweep/arms/g1-public-package-qualification/findings/0137-g1-f1-react-template-degraded-result-contract.json`
@@ -39,3 +40,14 @@ contracts.
 
 Fresh external scaffold + generate prints zero degraded advisories; a
 template acceptance assertion pins it.
+
+## Resolution
+
+Fixed 2026-08-01. The React template's declarative `createTodo` now pairs its
+`returns: returnBinding('todoId')` plan return with the precise public result
+contract `results.value(v.id('todos'))`. The advisory remains unchanged for
+genuinely omitted contracts.
+
+`packages/snapback-cli/package.test.mjs` now scaffolds and generates the React
+starter and asserts zero degraded-result entries. The CLI package suite passes,
+including that fresh-scaffold witness.

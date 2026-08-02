@@ -5,6 +5,7 @@ import {
   defineMutation,
   insert,
   lit,
+  results,
   returnBinding,
   v,
 } from '@expo/snapback-codegen/define';
@@ -22,5 +23,6 @@ export const createTodo = defineMutation({
     title: arg('title'),
     completed: lit(false),
   }, { bindIdAs: 'todoId' }),
+  result: results.value(v.id('todos')),
   returns: returnBinding('todoId'),
 });

@@ -153,6 +153,11 @@ console.log(JSON.stringify({
   assert.match(reactManifest.dependencies['@expo/snapback-react'], /^\^\d+\.\d+\.\d+/);
   const generatedReact = await generateApp(join(reactProject, 'snapback'));
   assert.equal(generatedReact.ok, true, JSON.stringify(generatedReact.diagnostics));
+  assert.equal(
+    generatedReact.summary.counts.degradedResults,
+    0,
+    `the untouched React starter must generate without degraded-result advisories: ${JSON.stringify(generatedReact.summary.degradedResults)}`,
+  );
   assert.match(readFileSync(join(reactProject, 'src', 'App.tsx'), 'utf8'), /useSnapbackQueries/);
 
   const git = (...args) => {

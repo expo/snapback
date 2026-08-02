@@ -1043,6 +1043,55 @@ export const listTodos = defineJsQuery({
   );
 }
 
+// Round-2 clip-locker F3: validate the finite ctx.db object itself, not only
+// verbs chained from ctx.db.query(). The diagnostic names Snapback's `patch`
+// spelling so a Convex-shaped `update` typo is repairable at generation.
+{
+  const diagnostics = await invalidCase({
+    functions: `
+import { defineJsMutation, results, v } from '${defineUrl}';
+export const updateTodo = defineJsMutation({
+  args: { id: v.id('todos'), title: v.string() },
+  reads: [],
+  writes: ['todos'],
+  result: results.value(v.null()),
+  handler: async (ctx, args) => {
+    await ctx.db.update('todos', args.id, { title: args.title });
+    return null;
+  },
+});
+`,
+  });
+  assert(
+    diagnostics.some((diagnostic) => (
+      diagnostic.code === 'SNAPBACK_INLINE_HANDLER_SYNTAX_FORBIDDEN'
+      && /update is not a ctx\.db member.*use patch/.test(
+        `${diagnostic.message ?? ''} ${JSON.stringify(diagnostic.details ?? {})}`,
+      )
+    )),
+    `expected a ctx.db member refusal naming patch, got ${JSON.stringify(diagnostics)}`,
+  );
+}
+
+// The corresponding Snapback spelling remains admitted.
+{
+  await validCase({
+    functions: `
+import { defineJsMutation, results, v } from '${defineUrl}';
+export const updateTodo = defineJsMutation({
+  args: { id: v.id('todos'), title: v.string() },
+  reads: [],
+  writes: ['todos'],
+  result: results.value(v.null()),
+  handler: async (ctx, args) => {
+    await ctx.db.patch('todos', args.id, { title: args.title });
+    return null;
+  },
+});
+`,
+  });
+}
+
 // The supported range/keyset chain still generates.
 {
   await validCase({
