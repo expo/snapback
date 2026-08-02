@@ -17,6 +17,13 @@ export const groups = Object.freeze({
           "appId": "team-chat",
           "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
           "artifactKind": "functionReference",
+          "expectedGeneration": {
+            "appId": "team-chat",
+            "bundleHash": "sha256:252407a09e5fce2b",
+            "inputsHash": "ca7d6fef2336b4b488dbba4cb7f4b1ac5c96df6bb1e2ec7f92c9b71f9d0ab6a9",
+            "schemaHash": "sha256:3d0d5de9c23e0d39",
+            "schemaVersion": "snapback.v0"
+          },
           "id": "team-chat:listMyRooms",
           "implementationHash": "sha256:6eb415a2b0ccd1701c3d9eb9f62f974f65cc6bd504ecbfbb41b11f5303cd16df",
           "kind": "LiveQuery",
@@ -32,6 +39,13 @@ export const groups = Object.freeze({
           "appId": "team-chat",
           "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
           "artifactKind": "functionReference",
+          "expectedGeneration": {
+            "appId": "team-chat",
+            "bundleHash": "sha256:252407a09e5fce2b",
+            "inputsHash": "ca7d6fef2336b4b488dbba4cb7f4b1ac5c96df6bb1e2ec7f92c9b71f9d0ab6a9",
+            "schemaHash": "sha256:3d0d5de9c23e0d39",
+            "schemaVersion": "snapback.v0"
+          },
           "id": "team-chat:unreadDeliveries",
           "implementationHash": "sha256:07eab2e1a86a3f45ecd9af97d8893355befcdbcdd175d626d952f941ba0571a8",
           "kind": "LiveQuery",
@@ -65,6 +79,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "team-chat",
+      "bundleHash": "sha256:252407a09e5fce2b",
+      "inputsHash": "ca7d6fef2336b4b488dbba4cb7f4b1ac5c96df6bb1e2ec7f92c9b71f9d0ab6a9",
+      "schemaHash": "sha256:3d0d5de9c23e0d39",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "team-chat:acceptInvite",
     "implementationHash": "sha256:ecffc35e5337d00911a7e80c497d1f46f60a22937239be811038b73cb5e07831",
     "kind": "Mutation",
@@ -92,6 +113,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "team-chat",
+      "bundleHash": "sha256:252407a09e5fce2b",
+      "inputsHash": "ca7d6fef2336b4b488dbba4cb7f4b1ac5c96df6bb1e2ec7f92c9b71f9d0ab6a9",
+      "schemaHash": "sha256:3d0d5de9c23e0d39",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "team-chat:createRoom",
     "implementationHash": "sha256:32901737dee5a7fea3342b2b13886fa7c969781c7cd1a4545f02def6d36b0217",
     "kind": "Mutation",
@@ -109,6 +137,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "team-chat",
+      "bundleHash": "sha256:252407a09e5fce2b",
+      "inputsHash": "ca7d6fef2336b4b488dbba4cb7f4b1ac5c96df6bb1e2ec7f92c9b71f9d0ab6a9",
+      "schemaHash": "sha256:3d0d5de9c23e0d39",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "team-chat:firstInboxPage",
     "implementationHash": "sha256:489d8c5778cf593acf131f993872c34c515d56e48a2b4299f926339e52887faa",
     "kind": "LiveQuery",
@@ -132,6 +167,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "team-chat",
+      "bundleHash": "sha256:252407a09e5fce2b",
+      "inputsHash": "ca7d6fef2336b4b488dbba4cb7f4b1ac5c96df6bb1e2ec7f92c9b71f9d0ab6a9",
+      "schemaHash": "sha256:3d0d5de9c23e0d39",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "team-chat:firstRoomMessagePage",
     "implementationHash": "sha256:97ec539014564376065d6bd1a247fd7e3dcf3c03ad58f9f703de6af318d8c236",
     "kind": "Query",
@@ -154,6 +196,13 @@ export const api = Object.freeze({
             "appId": "team-chat",
             "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
             "artifactKind": "functionReference",
+            "expectedGeneration": {
+              "appId": "team-chat",
+              "bundleHash": "sha256:252407a09e5fce2b",
+              "inputsHash": "ca7d6fef2336b4b488dbba4cb7f4b1ac5c96df6bb1e2ec7f92c9b71f9d0ab6a9",
+              "schemaHash": "sha256:3d0d5de9c23e0d39",
+              "schemaVersion": "snapback.v0"
+            },
             "id": "team-chat:listMyRooms",
             "implementationHash": "sha256:6eb415a2b0ccd1701c3d9eb9f62f974f65cc6bd504ecbfbb41b11f5303cd16df",
             "kind": "LiveQuery",
@@ -169,6 +218,13 @@ export const api = Object.freeze({
             "appId": "team-chat",
             "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
             "artifactKind": "functionReference",
+            "expectedGeneration": {
+              "appId": "team-chat",
+              "bundleHash": "sha256:252407a09e5fce2b",
+              "inputsHash": "ca7d6fef2336b4b488dbba4cb7f4b1ac5c96df6bb1e2ec7f92c9b71f9d0ab6a9",
+              "schemaHash": "sha256:3d0d5de9c23e0d39",
+              "schemaVersion": "snapback.v0"
+            },
             "id": "team-chat:unreadDeliveries",
             "implementationHash": "sha256:07eab2e1a86a3f45ecd9af97d8893355befcdbcdd175d626d952f941ba0571a8",
             "kind": "LiveQuery",
@@ -206,6 +262,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "team-chat",
+      "bundleHash": "sha256:252407a09e5fce2b",
+      "inputsHash": "ca7d6fef2336b4b488dbba4cb7f4b1ac5c96df6bb1e2ec7f92c9b71f9d0ab6a9",
+      "schemaHash": "sha256:3d0d5de9c23e0d39",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "team-chat:inviteMember",
     "implementationHash": "sha256:b466bb826e8283a75f34a3c6fceb5c3a63d4856b05967bb25d7a30fef86ab94d",
     "kind": "Mutation",
@@ -229,6 +292,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "team-chat",
+      "bundleHash": "sha256:252407a09e5fce2b",
+      "inputsHash": "ca7d6fef2336b4b488dbba4cb7f4b1ac5c96df6bb1e2ec7f92c9b71f9d0ab6a9",
+      "schemaHash": "sha256:3d0d5de9c23e0d39",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "team-chat:leaveRoom",
     "implementationHash": "sha256:e23d5d0547dd546b748ba0a832f5747beb1945a7ddfcc88dd206da52dab8913c",
     "kind": "Mutation",
@@ -245,6 +315,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "team-chat",
+      "bundleHash": "sha256:252407a09e5fce2b",
+      "inputsHash": "ca7d6fef2336b4b488dbba4cb7f4b1ac5c96df6bb1e2ec7f92c9b71f9d0ab6a9",
+      "schemaHash": "sha256:3d0d5de9c23e0d39",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "team-chat:listMyRooms",
     "implementationHash": "sha256:6eb415a2b0ccd1701c3d9eb9f62f974f65cc6bd504ecbfbb41b11f5303cd16df",
     "kind": "LiveQuery",
@@ -268,6 +345,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "team-chat",
+      "bundleHash": "sha256:252407a09e5fce2b",
+      "inputsHash": "ca7d6fef2336b4b488dbba4cb7f4b1ac5c96df6bb1e2ec7f92c9b71f9d0ab6a9",
+      "schemaHash": "sha256:3d0d5de9c23e0d39",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "team-chat:markRoomRead",
     "implementationHash": "sha256:7f49471985073740c12fdaeb8ab15421b069275dc4763ef0a592882e6d89e2f2",
     "kind": "Mutation",
@@ -291,6 +375,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "team-chat",
+      "bundleHash": "sha256:252407a09e5fce2b",
+      "inputsHash": "ca7d6fef2336b4b488dbba4cb7f4b1ac5c96df6bb1e2ec7f92c9b71f9d0ab6a9",
+      "schemaHash": "sha256:3d0d5de9c23e0d39",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "team-chat:nextInboxPage",
     "implementationHash": "sha256:788911e821ee659bc0e41a971eb1218bdf74523ace21806bb357e594b5ff56bf",
     "kind": "LiveQuery",
@@ -318,6 +409,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "team-chat",
+      "bundleHash": "sha256:252407a09e5fce2b",
+      "inputsHash": "ca7d6fef2336b4b488dbba4cb7f4b1ac5c96df6bb1e2ec7f92c9b71f9d0ab6a9",
+      "schemaHash": "sha256:3d0d5de9c23e0d39",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "team-chat:nextRoomMessagePage",
     "implementationHash": "sha256:9b591f930dbc78fe2ffc74399a5cc718c01dc71d35de1660ac0f5fd3d8789aa5",
     "kind": "Query",
@@ -345,6 +443,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "team-chat",
+      "bundleHash": "sha256:252407a09e5fce2b",
+      "inputsHash": "ca7d6fef2336b4b488dbba4cb7f4b1ac5c96df6bb1e2ec7f92c9b71f9d0ab6a9",
+      "schemaHash": "sha256:3d0d5de9c23e0d39",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "team-chat:ownerRemoveMember",
     "implementationHash": "sha256:2f78669885facb442a078a01a70a9e6bb68129efac2eab85837dd3ecc88ab811",
     "kind": "Mutation",
@@ -368,6 +473,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "team-chat",
+      "bundleHash": "sha256:252407a09e5fce2b",
+      "inputsHash": "ca7d6fef2336b4b488dbba4cb7f4b1ac5c96df6bb1e2ec7f92c9b71f9d0ab6a9",
+      "schemaHash": "sha256:3d0d5de9c23e0d39",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "team-chat:roomDetails",
     "implementationHash": "sha256:9cb29f223665331c774d50078d3f10a42a5174196ad18418d1833e2ca07ef2b0",
     "kind": "LiveQuery",
@@ -391,6 +503,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "team-chat",
+      "bundleHash": "sha256:252407a09e5fce2b",
+      "inputsHash": "ca7d6fef2336b4b488dbba4cb7f4b1ac5c96df6bb1e2ec7f92c9b71f9d0ab6a9",
+      "schemaHash": "sha256:3d0d5de9c23e0d39",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "team-chat:roomMessages",
     "implementationHash": "sha256:c0ae31b3e2e97531c1647c6b354e5c5669740a85b3f78dcea956637db84a9c12",
     "kind": "LiveQuery",
@@ -418,6 +537,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "team-chat",
+      "bundleHash": "sha256:252407a09e5fce2b",
+      "inputsHash": "ca7d6fef2336b4b488dbba4cb7f4b1ac5c96df6bb1e2ec7f92c9b71f9d0ab6a9",
+      "schemaHash": "sha256:3d0d5de9c23e0d39",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "team-chat:sendMessage",
     "implementationHash": "sha256:892294d47bc2ce211bc8c4e93a5b60b7bf337c31858e685e29097dca3df2a961",
     "kind": "Mutation",
@@ -434,6 +560,13 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "expectedGeneration": {
+      "appId": "team-chat",
+      "bundleHash": "sha256:252407a09e5fce2b",
+      "inputsHash": "ca7d6fef2336b4b488dbba4cb7f4b1ac5c96df6bb1e2ec7f92c9b71f9d0ab6a9",
+      "schemaHash": "sha256:3d0d5de9c23e0d39",
+      "schemaVersion": "snapback.v0"
+    },
     "id": "team-chat:unreadDeliveries",
     "implementationHash": "sha256:07eab2e1a86a3f45ecd9af97d8893355befcdbcdd175d626d952f941ba0571a8",
     "kind": "LiveQuery",
