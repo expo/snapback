@@ -1,6 +1,6 @@
 # 0133-03: Lane-L server re-derivation settlement path, driven by synthetic submissions
 
-**Status:** Open
+**Status:** Closed
 **Program:** 20260802-0133-00-settlement-substrate-program.md
 **Systems:** Runtime, Sync, Storage, Auth
 **Depends on:** 0133-01, 0133-02
@@ -46,3 +46,29 @@ No local evaluator exists yet; that is the point.
   settles exactly once with the fresh run's re-derived values.
 - Mixed queues (lane-Q and lane-L intents in one outbox) replay in client
   sequence order with per-mutation lane policy (§rule 3).
+
+## Resolution
+
+Closed 2026-08-02 by `e266c633` (`feat(settlement): rederive lane-L
+submissions`). The server now discards client runtime answers for lane L,
+records one server-owned answer ledger for preview and commit, retains client
+values only as receipt claims, and keeps lane Q on the established
+replay-accept pin. The client outbox durably retains the lane and synthetic
+claim carrier per sequence-ordered item. No local mutation evaluator or
+speculative receipt was added.
+
+Proof:
+
+- `local::tests::llp0133_sketches_2_and_7_apply_lane_policy_without_privilege`
+- `local::tests::llp0133_sketch_10_stale_reservation_rolls_back_then_retry_rederives`
+- `synthetic_lane_l_wire_submission_rederives_before_commit`
+- `mixed lane-Q and lane-L intents replay in sequence with immutable per-item policy`
+- `bun run --cwd packages/snapback-client test` (green)
+- `./ref-check --verbose` (green: 157 LLP docs, 4,060 refs, 0 errors)
+
+The complete Rust library run proved 1,638 passing tests and inherited the
+same three deterministic live-query failures already present at the ticket's
+start: `rqs_mutation_after_answer_and_register_loses_no_ops`,
+`rqs_tokens_refresh_across_delta_replace_and_current_as_of`, and
+`standard_pattern_live_is_conservative_and_recorded`. Each is unrelated to
+the settlement files and was already recorded by ticket 02.
