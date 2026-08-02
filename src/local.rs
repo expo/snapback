@@ -5135,6 +5135,22 @@ impl LocalSnapback {
         })
     }
 
+    pub(crate) fn acknowledge_client_mutations_with_authority_descriptor(
+        &mut self,
+        authority: &PreparedAuthority,
+        authority_descriptor: Option<&AuthorityDescriptor>,
+        ids: &[String],
+    ) -> SnapbackResult<u64> {
+        if let Some(supplied) = authority_descriptor {
+            authority.validate_admission("client mutation acknowledgement")?;
+            self.persist_and_validate_prepared_service_authority(authority)?;
+            let incarnation = self.db.ensure_authorization_stream_incarnation()?;
+            let expected = descriptor_for_authority(authority, incarnation.as_str())?;
+            require_current_descriptor(Some(supplied), &expected)?;
+        }
+        self.acknowledge_client_mutations_with_authority(authority, ids)
+    }
+
     /// Administrative recovery for settlements whose original client can no
     /// longer deliver an acknowledgement. The HTTP boundary supplies an
     /// `AuthInput`, never a caller-chosen raw fingerprint, so targeted purge
@@ -10769,6 +10785,61 @@ impl LocalSnapback {
         crate::storage::AuthorizationCommitPreflight,
         StagedRecordedMutation,
     )> {
+        // @ref LLP 0043#settlement-consumption-and-acknowledgement-lifecycle-2026-08-01
+        // A committed settlement is independent of the continued existence
+        // of executable code. Re-attest the live authority and the exact
+        // durable identity first; only a cache miss proceeds to active
+        // function selection. This path never dispatches a handler.
+        if let Some(id) = client_mutation_id.as_ref() {
+            authority.validate_admission("client mutation settlement recovery")?;
+            self.persist_and_validate_prepared_service_authority(&authority)?;
+            let incarnation = self.db.ensure_authorization_stream_incarnation()?;
+            let expected = descriptor_for_authority(&authority, incarnation.as_str())?;
+            if authority.active_mode() == AuthMode::Sessions || authority_descriptor.is_some() {
+                require_current_descriptor(authority_descriptor.as_ref(), &expected)?;
+            }
+            let mut canonical_input = input.clone();
+            canonical_input.auth = authority.canonical_auth_input();
+            let identity = ClientMutationIdentity::for_authority(
+                id.clone(),
+                name.to_owned(),
+                &canonical_input,
+                expected.authority_instance_id,
+            );
+            if let Some(output) = self.db.client_mutation_result(&identity)? {
+                if !acknowledged_client_mutation_ids.is_empty() {
+                    self.acknowledge_client_mutations_with_authority(
+                        &authority,
+                        acknowledged_client_mutation_ids,
+                    )?;
+                }
+                let admission = authority.admission_lease().clone();
+                let correlation = capped_correlation(input.correlation.clone());
+                let commit = MutationCommit {
+                    output,
+                    changes: Vec::new(),
+                    read_dependencies: Vec::new(),
+                    write_dependencies: Vec::new(),
+                    job_enqueues: Vec::new(),
+                    job_changes: Vec::new(),
+                    authorization: None,
+                };
+                let recorded = self.record_mutation_commit_after_publication_guard(
+                    MutationReceiptPublication::new(
+                        name,
+                        transport,
+                        correlation,
+                        id.clone(),
+                        &admission,
+                    ),
+                    Ok(commit),
+                );
+                return Ok((
+                    self.authorization_commit_preflight_for_changes(Vec::new()),
+                    StagedRecordedMutation::Done(Box::new(recorded)),
+                ));
+            }
+        }
         let function = self.function(name)?.clone();
         let prepared = InvocationGate::prepare_function(authority.clone(), &function)?;
         // The live credential/grant is authorizing; the queued descriptor is
@@ -11196,8 +11267,39 @@ impl LocalSnapback {
         receipt_mutation_id: Option<&str>,
         authority: PreparedAuthority,
     ) -> SnapbackResult<MutationCommit> {
-        // @ref LLP 0058#gate-algorithm — function lookup and requirement
-        // enforcement precede replay-settlement lookup and every effect.
+        // @ref LLP 0043#settlement-consumption-and-acknowledgement-lifecycle-2026-08-01
+        // Recovery of an already-committed identity is non-executing and does
+        // not depend on the old function remaining in the active bundle.
+        if let Some(id) = client_mutation_id.as_ref() {
+            authority.validate_admission("client mutation settlement recovery")?;
+            self.persist_and_validate_prepared_service_authority(&authority)?;
+            let incarnation = self.db.ensure_authorization_stream_incarnation()?;
+            let expected = descriptor_for_authority(&authority, incarnation.as_str())?;
+            if authority.active_mode() == AuthMode::Sessions || authority_descriptor.is_some() {
+                require_current_descriptor(authority_descriptor.as_ref(), &expected)?;
+            }
+            let mut canonical_input = input.clone();
+            canonical_input.auth = authority.canonical_auth_input();
+            let identity = ClientMutationIdentity::for_authority(
+                id.clone(),
+                name.to_owned(),
+                &canonical_input,
+                expected.authority_instance_id,
+            );
+            if let Some(output) = self.db.client_mutation_result(&identity)? {
+                return Ok(MutationCommit {
+                    output,
+                    changes: Vec::new(),
+                    read_dependencies: Vec::new(),
+                    write_dependencies: Vec::new(),
+                    job_enqueues: Vec::new(),
+                    job_changes: Vec::new(),
+                    authorization: None,
+                });
+            }
+        }
+        // @ref LLP 0058#gate-algorithm — fresh execution still performs
+        // function lookup and requirement enforcement before every effect.
         let function = self.function(name)?.clone();
         let prepared = InvocationGate::prepare_function(authority, &function)?;
         self.persist_and_validate_prepared_service_authority(prepared.authority())?;
@@ -37704,6 +37806,109 @@ globalThis.__snapbackHandlers = {
         );
         assert_eq!(snapback.durable_version().unwrap(), 1);
         assert_eq!(snapback.db.scan_table("items", 10, 0).unwrap().total, 1);
+    }
+
+    #[test]
+    fn committed_settlement_survives_function_removal_until_acknowledged() {
+        const AUTHORITY: &str = "018f0d90-7b24-7a22-8c33-445566778899";
+        const OTHER_AUTHORITY: &str = "018f0d90-7b25-7a22-8c33-445566778899";
+        let mut snapback = guarded_snapback();
+        let settled = snapback
+            .invoke_mutation_recording_with_authority_descriptor(
+                "hostInsert",
+                input(),
+                Some("cm_removed_function".to_owned()),
+                Some(descriptor(AUTHORITY)),
+                "http",
+                session_authority(AUTHORITY),
+            )
+            .0
+            .expect("first delivery settles");
+        assert_eq!(snapback.db.scan_table("items", 10, 0).unwrap().total, 1);
+
+        let diagnostics = snapback.load_functions(FunctionManifest::default());
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| {
+                    diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error
+                }),
+            "{diagnostics:?}"
+        );
+
+        let recovered = snapback
+            .invoke_mutation_recording_with_authority_descriptor(
+                "hostInsert",
+                input(),
+                Some("cm_removed_function".to_owned()),
+                Some(descriptor(AUTHORITY)),
+                "http",
+                session_authority(AUTHORITY),
+            )
+            .0
+            .expect("removed function still exposes its committed settlement");
+        assert_eq!(recovered.result, settled.result);
+        assert_eq!(recovered.version, settled.version);
+        assert_eq!(
+            snapback.db.scan_table("items", 10, 0).unwrap().total,
+            1,
+            "settlement recovery never dispatches removed code"
+        );
+
+        let stale = snapback
+            .invoke_mutation_recording_with_authority_descriptor(
+                "hostInsert",
+                input(),
+                Some("cm_removed_function".to_owned()),
+                Some(descriptor(OTHER_AUTHORITY)),
+                "http",
+                session_authority(AUTHORITY),
+            )
+            .0
+            .expect_err("descriptor drift refuses before settlement lookup");
+        assert_eq!(stale.diagnostic.code, "SNAPBACK_AUTH_STALE_RESULT");
+
+        let stale_ack = snapback
+            .acknowledge_client_mutations_with_authority_descriptor(
+                &session_authority(AUTHORITY),
+                Some(&descriptor(OTHER_AUTHORITY)),
+                &["cm_removed_function".to_owned()],
+            )
+            .expect_err("standalone ACK descriptor drift refuses before GC");
+        assert_eq!(stale_ack.diagnostic.code, "SNAPBACK_AUTH_STALE_RESULT");
+        snapback
+            .invoke_mutation_recording_with_authority_descriptor(
+                "hostInsert",
+                input(),
+                Some("cm_removed_function".to_owned()),
+                Some(descriptor(AUTHORITY)),
+                "http",
+                session_authority(AUTHORITY),
+            )
+            .0
+            .expect("stale standalone ACK retained the settlement");
+
+        assert_eq!(
+            snapback
+                .acknowledge_client_mutations_with_authority(
+                    &session_authority(AUTHORITY),
+                    &["cm_removed_function".to_owned()],
+                )
+                .expect("acknowledge settlement"),
+            1
+        );
+        let retired = snapback
+            .invoke_mutation_recording_with_authority_descriptor(
+                "hostInsert",
+                input(),
+                Some("cm_removed_function".to_owned()),
+                Some(descriptor(AUTHORITY)),
+                "http",
+                session_authority(AUTHORITY),
+            )
+            .0
+            .expect_err("after ACK, removed function is unknown");
+        assert_eq!(retired.diagnostic.code, "SNAPBACK_UNKNOWN_FUNCTION");
     }
 
     #[test]

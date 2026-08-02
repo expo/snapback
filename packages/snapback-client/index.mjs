@@ -5108,11 +5108,38 @@ export class SnapbackClient {
     );
   }
 
-  acknowledgeMutations({ userId, clientMutationIds = [], authorityCapture = null } = {}) {
-    return this.#req('POST', '/client-mutations/acknowledge', {
+  async acknowledgeMutations({
+    userId,
+    clientMutationIds = [],
+    authorityDescriptor = null,
+    authorityCapture = null,
+  } = {}) {
+    const body = {
       auth: SnapbackClient.auth(userId),
       clientMutationIds,
-    }, undefined, { expectedAuthorityCapture: authorityCapture });
+    };
+    if (authorityDescriptor) {
+      body.authorityDescriptor = requireAuthorityDescriptor(
+        authorityDescriptor,
+        'SNAPBACK_AUTHORITY_DESCRIPTOR_INVALID',
+      );
+    }
+    const response = await this.#req(
+      'POST',
+      '/client-mutations/acknowledge',
+      body,
+      undefined,
+      { expectedAuthorityCapture: authorityCapture },
+    );
+    const store = this.#offlineQueueStore();
+    if (store && clientMutationIds.length > 0) {
+      await store.outboxConfirmAcknowledgements(
+        clientMutationIds,
+        typeof userId === 'string' ? userId : null,
+        body.authorityDescriptor ?? null,
+      );
+    }
+    return response;
   }
 
   // -------------------------------------------------------------------
@@ -5144,11 +5171,17 @@ export class SnapbackClient {
     const capable = store
       && typeof store.outboxEnqueue === 'function'
       && typeof store.outboxPending === 'function'
-      && typeof store.outboxSettle === 'function';
+      && typeof store.outboxDurablyConsume === 'function';
     if (!capable) {
       return fail(
         'SNAPBACK_OFFLINE_QUEUE_STORE_INCAPABLE',
         'the configured rqsStore does not carry the outbox contract',
+      );
+    }
+    if (store.durability?.()?.durable !== true) {
+      return fail(
+        'SNAPBACK_OFFLINE_QUEUE_DURABILITY_REQUIRED',
+        'queued settlement publication requires a restart-safe store; the resolved store is volatile',
       );
     }
     return store;
@@ -5190,7 +5223,7 @@ export class SnapbackClient {
         : await store.outboxPending();
       for (const record of records) {
         if (record?.status === 'failed') failed += 1;
-        else pending += 1;
+        else if (record?.status === 'pending') pending += 1;
       }
     } catch { /* counts stay zero; the store remains the authority */ }
     return Object.freeze({
@@ -5347,6 +5380,10 @@ export class SnapbackClient {
       store = null;
     }
     if (!store) return { replayed: 0, failed: 0, remaining: 0 };
+    if (typeof store.whenLockSettled === 'function') await store.whenLockSettled();
+    if (typeof store.isWriter === 'function' && store.isWriter() !== true) {
+      return { replayed: 0, failed: 0, remaining: 0, stopped: true };
+    }
     let pending;
     try {
       pending = await store.outboxPending();
@@ -5362,7 +5399,7 @@ export class SnapbackClient {
         // server's settlement ledger returns the original result on a
         // duplicate, so a crash between settle and remove cannot double-
         // apply (LLP 0043 M2 exactly-once).
-        await this.mutate(record.function, {
+        const settlement = await this.mutate(record.function, {
           args: record.args,
           userId: record.userId ?? undefined,
           readSet: record.readSet ?? [],
@@ -5372,10 +5409,25 @@ export class SnapbackClient {
           ctxLedger: record.ctxLedger ?? null,
           queue: false,
         });
-        await store.outboxSettle(record.id);
+        let consumed;
         try {
-          await store.outboxRecordAcknowledgement(record.id, record.userId ?? null);
-        } catch { /* ACK obligation is best-effort bookkeeping */ }
+          consumed = await store.outboxDurablyConsume(
+            record.id,
+            settlement,
+            record.userId ?? null,
+          );
+        } catch (error) {
+          error.outboxSettlementPersistenceFailure = true;
+          throw error;
+        }
+        if (!consumed) {
+          const error = new Error(
+            'SNAPBACK_OUTBOX_SETTLEMENT_NOT_DURABLE: settlement publication lost its outbox record',
+          );
+          error.code = 'SNAPBACK_OUTBOX_SETTLEMENT_NOT_DURABLE';
+          error.outboxSettlementPersistenceFailure = true;
+          throw error;
+        }
         replayed += 1;
         this.#recordOutboxDiagnostic({
           code: 'SNAPBACK_OFFLINE_MUTATION_REPLAYED',
@@ -5383,6 +5435,16 @@ export class SnapbackClient {
           clientMutationId: record.id,
         });
       } catch (error) {
+        if (error?.outboxSettlementPersistenceFailure === true) {
+          stopped = true;
+          this.#recordOutboxDiagnostic({
+            code: error.code ?? 'SNAPBACK_OUTBOX_SETTLEMENT_NOT_DURABLE',
+            mutation: record.function,
+            clientMutationId: record.id,
+            reason: error?.message ?? String(error),
+          });
+          break;
+        }
         if (isConnectivityFailureError(error)) {
           // Still offline: keep the record pending and preserve order.
           stopped = true;
@@ -5457,6 +5519,7 @@ export class SnapbackClient {
         sentAcknowledgements = (await queueStore.outboxPendingAcknowledgements(
           typeof userId === 'string' ? userId : null,
           64,
+          body.authorityDescriptor ?? null,
         )).filter((id) => id !== clientMutationId);
       } catch {
         sentAcknowledgements = [];
@@ -5475,6 +5538,21 @@ export class SnapbackClient {
       body.acknowledgedClientMutationIds = acknowledgedClientMutationIds;
     }
     if (ctxLedger) body.ctx_ledger = ctxLedger;
+    let durableOnlineRecord = false;
+    if (queueStore && clientMutationId) {
+      await queueStore.outboxEnqueue({
+        id: clientMutationId,
+        function: name,
+        args,
+        userId: typeof userId === 'string' ? userId : null,
+        readSet,
+        correlation,
+        authorityDescriptor: body.authorityDescriptor ?? null,
+        ctxLedger: ctxLedger ?? null,
+        capturedNow: Date.now(),
+      });
+      durableOnlineRecord = true;
+    }
     let reservationRetryAuthorityCapture = authorityCapture;
     let reservationRetryExternalBearer = null;
     let reservationRetryExternalTransportGeneration = null;
@@ -5522,18 +5600,32 @@ export class SnapbackClient {
         if (json?.receipt) {
           this.recordReceipt(json.receipt, json?.[AUTHORITY_CAPTURE] ?? null);
         }
-        // The response proves the origin ran its piggyback ACK stage
-        // (LLP 0043): retire the sent obligations, and record the GC
-        // obligation for this settled durable identity.
-        await confirmSentAcknowledgements();
-        if (queueStore && clientMutationId) {
+        // Publication crosses one durable boundary: retain the complete
+        // settlement and its GC obligation atomically before returning it.
+        if (durableOnlineRecord) {
+          let consumed;
           try {
-            await queueStore.outboxRecordAcknowledgement(
+            consumed = await queueStore.outboxDurablyConsume(
               clientMutationId,
+              json,
               typeof userId === 'string' ? userId : null,
+              sentAcknowledgements,
             );
-          } catch { /* the obligation is bookkeeping, never the result */ }
+          } catch (error) {
+            error.outboxSettlementPersistenceFailure = true;
+            throw error;
+          }
+          if (!consumed) {
+            const error = new Error(
+              'SNAPBACK_OUTBOX_SETTLEMENT_NOT_DURABLE: settlement publication lost its outbox record',
+            );
+            error.code = 'SNAPBACK_OUTBOX_SETTLEMENT_NOT_DURABLE';
+            error.outboxSettlementPersistenceFailure = true;
+            throw error;
+          }
         }
+        // The response proves the origin ran its piggyback ACK stage.
+        await confirmSentAcknowledgements();
         if (attempt > 1) {
           this.#recordReservationRetryDiagnostic({
             code: 'SNAPBACK_AUTH_RESERVATION_RETRY_SETTLED',
@@ -5544,6 +5636,7 @@ export class SnapbackClient {
         }
         return json;
       } catch (error) {
+        if (error?.outboxSettlementPersistenceFailure === true) throw error;
         // A REJECTED mutation still produced its receipt (it rides the error
         // envelope) — retain it before rethrowing.
         if (error?.receipt) this.recordReceipt(error.receipt);
@@ -5574,6 +5667,12 @@ export class SnapbackClient {
               capturedNow: Date.now(),
             });
             if (queued) return queued;
+          }
+          if (durableOnlineRecord) {
+            await queueStore.outboxMarkFailed(clientMutationId, {
+              code: error?.diagnostic?.code ?? error?.code ?? 'SNAPBACK_MUTATION_REFUSED',
+              message: error?.message ?? String(error),
+            });
           }
           throw error;
         }

@@ -187,6 +187,14 @@ export function createNodeFilesAdapter() {
         throw error;
       }
     },
+    async syncDirectory(path) {
+      const handle = await (await fs()).open(path, 'r');
+      try {
+        await handle.sync();
+      } finally {
+        await handle.close();
+      }
+    },
     processId() {
       return globalThis.process?.pid ?? 0;
     },
@@ -205,7 +213,7 @@ export function createNodeFilesAdapter() {
 
 const REQUIRED_ADAPTER_METHODS = [
   'mkdir', 'readFile', 'writeFile', 'writeFileExclusive', 'rename', 'unlink',
-  'readdir', 'processId', 'processAlive',
+  'readdir', 'syncDirectory', 'processId', 'processAlive',
 ];
 
 // Same-process single-writer registry: two store instances in one process on
@@ -352,8 +360,8 @@ export function createFileRqsResumeStore({
     };
   };
 
-  // Atomic replace: temp write + rename lands the entry, its bookkeeping,
-  // and any evictions as one unit.
+  // Atomic and power-loss durable replace: flush temp contents, rename, then
+  // sync the parent directory before publication may proceed.
   const writeState = async (state) => {
     await files.mkdir(directory);
     await files.writeFile(tmpPath, JSON.stringify({
@@ -365,6 +373,7 @@ export function createFileRqsResumeStore({
         : { reactBindingReceipt: state.reactBindingReceipt }),
     }));
     await files.rename(tmpPath, blobPath);
+    await files.syncDirectory(directory);
   };
 
   // Writer-gated outbox transition committed atomically with the whole blob
@@ -453,6 +462,20 @@ export function createFileRqsResumeStore({
       )).result);
     },
 
+    async outboxDurablyConsume(id, settlement, userId = null, confirmedAcknowledgements = []) {
+      requireOpen();
+      return serialized(async () => (await outboxWrite(
+        (outbox) => outboxOps.durablyConsume(
+          outbox,
+          id,
+          settlement,
+          userId,
+          now(),
+          confirmedAcknowledgements,
+        ),
+      )).result);
+    },
+
     async outboxMarkFailed(id, failure) {
       requireOpen();
       return serialized(async () => (await outboxWrite(
@@ -467,26 +490,27 @@ export function createFileRqsResumeStore({
       )).result);
     },
 
-    async outboxRecordAcknowledgement(id, userId = null) {
+    async outboxRecordAcknowledgement(id, userId = null, authorityDescriptor = null) {
       requireOpen();
       return serialized(async () => (await outboxWrite(
-        (outbox) => outboxOps.recordAck(outbox, id, userId),
+        (outbox) => outboxOps.recordAck(outbox, id, userId, authorityDescriptor),
       )).result);
     },
 
-    async outboxPendingAcknowledgements(userId = null, limit = 64) {
+    async outboxPendingAcknowledgements(userId = null, limit = 64, authorityDescriptor = null) {
       requireOpen();
       return serialized(async () => pendingAcknowledgementsFor(
         (await readState()).outbox,
         userId,
         limit,
+        authorityDescriptor,
       ));
     },
 
-    async outboxConfirmAcknowledgements(ids) {
+    async outboxConfirmAcknowledgements(ids, userId = undefined, authorityDescriptor = undefined) {
       requireOpen();
       return serialized(async () => (await outboxWrite(
-        (outbox) => outboxOps.confirmAcks(outbox, ids),
+        (outbox) => outboxOps.confirmAcks(outbox, ids, userId, authorityDescriptor),
       )).result);
     },
 

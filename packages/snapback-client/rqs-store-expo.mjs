@@ -154,6 +154,11 @@ export function createExpoFilesAdapter(fileSystem) {
       }
     },
 
+    // Expo's synchronous File/Directory API exposes no separate directory
+    // descriptor. Completion of moveSync is its strongest publication cut;
+    // adapters for platforms with an fsync primitive must perform it here.
+    async syncDirectory() {},
+
     processId() {
       return launchId;
     },

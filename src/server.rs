@@ -18245,8 +18245,11 @@ async fn acknowledge_mutations(
 ) -> Result<Json<MutationAcknowledgementResponse>, ApiError> {
     let Json(request) = input.map_err(ApiError::from_json_rejection)?;
     let acknowledged = with_snapback(&state, move |snapback| {
-        snapback
-            .acknowledge_client_mutations_with_authority(&authority, &request.client_mutation_ids)
+        snapback.acknowledge_client_mutations_with_authority_descriptor(
+            &authority,
+            request.authority_descriptor.as_ref(),
+            &request.client_mutation_ids,
+        )
     })
     .await?;
     Ok(Json(MutationAcknowledgementResponse { acknowledged }))
@@ -26532,6 +26535,7 @@ globalThis.__snapbackHandlers = {
             Extension(prepared("different-owner")),
             Ok(Json(MutationAcknowledgementRequest {
                 auth: retained_auth.clone(),
+                authority_descriptor: None,
                 client_mutation_ids: vec![retained_id.clone()],
             })),
         )
@@ -26549,6 +26553,7 @@ globalThis.__snapbackHandlers = {
                     user_id: Some("different-owner".to_owned()),
                     ..AuthInput::default()
                 },
+                authority_descriptor: None,
                 client_mutation_ids: vec![retained_id],
             })),
         )

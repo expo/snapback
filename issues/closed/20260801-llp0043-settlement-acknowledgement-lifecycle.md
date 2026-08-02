@@ -1,7 +1,7 @@
 # Settlement acknowledgement lifecycle: durable consumption, retention,
 # terminal outcomes (LLP 0043)
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 5
 **Urgency:** 3
 **Ease:** 2
@@ -63,3 +63,20 @@ crash-ordering guarantees.
   terminal outcome — all green against a live server.
 - Replay under changed authority refuses with zero dispatch, wired to
   this state machine's records.
+
+## Resolution — 2026-08-01
+
+LLP 0043 now pins the atomic `pending → settled/ACK-pending → removed`
+lifecycle, publication ordering, process-per-invocation durability rule,
+standalone/piggyback retry behavior, capacity refusal, and the removed-function
+terminal outcome. The JS client store arms retain the complete settlement and
+ACK in one transaction, refuse ACK eviction, and delete both only after server
+confirmation. Explicit-id online calls persist intent before dispatch;
+receipt-less outcomes remain replayable and typed refusals are never ACKed.
+
+The server now re-attests current authority and the exact durable identity
+before active-function lookup, so a committed result remains recoverable with
+zero dispatch after code removal; after authenticated ACK GC, ordinary unknown
+function selection resumes. Store relaunch, client replay/ACK, authority drift,
+removed-function, and retention-bound tests cover the transition and crash
+cuts.

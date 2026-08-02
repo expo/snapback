@@ -5,7 +5,13 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-08-01 (0137 A1-Expo f2: connectivity classification for the
+**Revised:** 2026-08-01 (settlement lifecycle amendment: the client crosses one
+atomic durable-consumption boundary before publishing a result, retaining the
+complete settlement and its ACK obligation until receipt-proven server GC;
+ACK capacity refuses instead of evicting recovery state; and a removed
+function's committed settlement remains recoverable through a non-executing,
+authority-bound lookup until ACK, after which the function is unknown.)
+2026-08-01 (0137 A1-Expo f2: connectivity classification for the
 M2 enqueue is transport provenance — the fetch dispatch itself rejected, so no
 HTTP status, server diagnostic, or receipt can exist — independent of the
 rejection's constructor. Expo/RN fetch rejects connection failures with a
@@ -209,6 +215,70 @@ retain the predecessor rule that a nonzero cursor must agree while zero may be
 the historical migration sentinel. Upgrade adds the nullable field without
 backfilling it from the replay payload, because copying the value being checked
 would fabricate independent provenance and could launder existing corruption.
+
+#### Settlement consumption and acknowledgement lifecycle (2026-08-01)
+
+One durable client record owns the whole lifecycle. Its normative states and
+transitions are:
+
+1. **pending** — the complete intent, original `clientMutationId`, replay
+   inputs, and authority descriptor are durable before an explicit-id online
+   delivery or offline replay. A receipt-less transport outcome stays pending.
+2. **settled / acknowledgement-pending** — after an authoritative result is
+   received, one atomic store transaction retains the complete response,
+   marks the intent non-replayable, and adds the ACK obligation tagged by
+   both user and authority-instance descriptor when that protocol is present.
+   Only after that transaction commits may the result be published to the
+   caller. There is no intermediate published-but-unrecoverable state.
+3. **acknowledged / removed** — only proof that the server processed a
+   standalone or piggyback ACK permits one atomic local transition to remove
+   both the retained settlement and its ACK obligation.
+
+A typed server refusal becomes a visible terminal `failed` record and is never
+ACKed as the current id: no server settlement exists to collect. An ambiguous
+or locally unpersistable result remains pending and replays under the same id;
+the persistence error must not enter drop-and-mark-failed.
+Unknown outcomes are never ACKed. Local ACK capacity is a correctness bound:
+at the cap, new settlement consumption refuses rather than discarding an old
+ACK or publishing a result without recovery state. Server retention pressure
+has the same shape: it refuses a new identity rather than evicting an
+unacknowledged result.
+
+"Durably consumed" means recovery does not depend on the current process or
+its stdout. A long-lived provider must commit the complete settlement to its
+durable client store. The file arm flushes the replacement bytes and
+synchronizes the parent directory after rename before returning success. A
+process-per-invocation caller must also use such a
+store (the packaged Node arm's file store is the default) or explicitly opt out
+of queue custody and accept that stdout/report publication is not durable
+recovery. An in-memory injected store is an explicitly reported degraded test
+arm, not a durable-consumption claim: automatic queueing is disabled on it and
+`queue: true` produces a typed durability refusal before dispatch.
+
+Piggyback is the normal amortized path: pending ACKs for the same user and
+authority-instance cohort
+ride a later mutation, excluding that mutation's own id. Standalone
+`POST /client-mutations/acknowledge` is the completion path for one-shot
+callers and quiet apps. Both are idempotent. A lost or receipt-less ACK response
+retains the local obligation and retries it; a successful standalone response,
+a successful mutation response, or a rejected mutation carrying the
+provider-core receipt proves the server ACK stage ran and permits local GC.
+An optional descriptor on the standalone request is re-attested before GC;
+local confirmation is restricted to that exact cohort, so a new grant or
+authority cannot silently discard an old cohort's only retry proof.
+
+A committed settlement outlives executable-code removal. Before selecting an
+active mutation function, the server revalidates the live prepared authority,
+compares the supplied descriptor when required, canonicalizes the request
+under that authority, and looks up the exact `(clientMutationId, function,
+input, auth fingerprint, authority instance)` identity. A hit republishes the
+stored result without handler dispatch or successor result-contract
+validation. Changed user, grant, authority instance, credential generation,
+descriptor, function name, or input refuses with zero dispatch. A miss then
+uses ordinary active-function selection; therefore, after authenticated ACK
+GC, replay of an id whose function was removed returns
+`SNAPBACK_UNKNOWN_FUNCTION`. Renames are removals plus additions and follow the
+same rule.
 
 The client removes a local ACK proof only after a successful standalone ACK or
 a mutation response proves that the origin ran the piggyback ACK stage. A

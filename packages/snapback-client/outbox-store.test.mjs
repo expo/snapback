@@ -18,6 +18,11 @@ import { createMemoryRqsResumeStore } from './rqs-store-memory.mjs';
 import { createFileRqsResumeStore, RQS_FILE_STORE_FORMAT_V1 } from './rqs-store-file.mjs';
 import { createIndexedDbRqsResumeStore } from './rqs-store.mjs';
 import { resolveDefaultRqsStore } from './rqs-store-default.mjs';
+import {
+  OUTBOX_MAX_PENDING_ACKS,
+  emptyOutboxState,
+  outboxOps,
+} from './outbox-shared.mjs';
 
 const originalFetch = globalThis.fetch;
 
@@ -25,6 +30,12 @@ const originalFetch = globalThis.fetch;
 // contract — ownership contention is rqs-store.test.mjs territory).
 const grantingLocks = {
   request: (_name, _options, callback) => Promise.resolve(callback({ mode: 'exclusive' })),
+};
+
+const createDurableTestStore = () => {
+  const store = createMemoryRqsResumeStore();
+  store.durability = () => ({ implementation: 'memory-test-double', durable: true });
+  return store;
 };
 
 async function exerciseOutboxContract(store, { label }) {
@@ -61,13 +72,17 @@ async function exerciseOutboxContract(store, { label }) {
   const failed = (await store.outboxRecords()).find((r) => r.id === 'cm-1');
   assert.equal(failed.status, 'failed');
   assert.equal(failed.failure.code, 'X');
-  // Settle removes; ACK obligations are per-identity.
-  assert.equal(await store.outboxSettle('cm-2'), true);
+  // Durable consumption retains the complete settlement and creates its ACK
+  // obligation atomically. It leaves the replay lane but remains recoverable
+  // until the server confirms ledger GC.
+  const settlement = { result: { ok: true }, version: 7 };
+  const consumed = await store.outboxDurablyConsume('cm-2', settlement, 'user_a');
+  assert.equal(consumed.status, 'settled');
+  assert.deepEqual(consumed.settlement, settlement);
   // A failed record is terminal (never replayed), so it does not block the
   // LLP 0090 resume rule — but it stays visible in outboxRecords().
   assert.equal(await store.outboxEmpty(), true, `${label}: only failed records left -> empty for resume`);
   assert.deepEqual((await store.outboxPending()), []);
-  await store.outboxRecordAcknowledgement('cm-2', 'user_a');
   assert.deepEqual(await store.outboxPendingAcknowledgements('user_a', 64), ['cm-2']);
   assert.deepEqual(
     await store.outboxPendingAcknowledgements('user_b', 64),
@@ -76,6 +91,11 @@ async function exerciseOutboxContract(store, { label }) {
   );
   await store.outboxConfirmAcknowledgements(['cm-2']);
   assert.deepEqual(await store.outboxPendingAcknowledgements('user_a', 64), []);
+  assert.equal(
+    (await store.outboxRecords()).some((record) => record.id === 'cm-2'),
+    false,
+    `${label}: confirmation retires the retained settlement`,
+  );
   // Explicit discard of the failed record; wipe clears everything.
   assert.equal(await store.outboxDiscard('cm-1'), true);
   await store.outboxEnqueue({ id: 'cm-3', function: 'createThing' });
@@ -88,6 +108,67 @@ test('memory arm carries the outbox contract', async () => {
   await exerciseOutboxContract(store, { label: 'memory' });
   assert.deepEqual(store.durability(), { implementation: 'memory', durable: false });
   await store.close();
+});
+
+test('ACK pressure refuses settlement publication without losing pending intent', () => {
+  const pending = outboxOps.enqueue(
+    emptyOutboxState(),
+    { id: 'cm-pressure', function: 'createThing' },
+    1,
+  ).state;
+  const full = {
+    ...pending,
+    acks: Array.from({ length: OUTBOX_MAX_PENDING_ACKS }, (_, index) => ({
+      id: `cm-old-${index}`,
+      userId: null,
+    })),
+  };
+  assert.throws(
+    () => outboxOps.durablyConsume(full, 'cm-pressure', { result: { ok: true } }, null, 2),
+    (error) => error.code === 'SNAPBACK_OUTBOX_ACK_FULL',
+  );
+  assert.equal(full.records['cm-pressure'].status, 'pending');
+  assert.equal(full.acks[0].id, 'cm-old-0', 'old recovery obligations are never evicted');
+
+  const advanced = outboxOps.durablyConsume(
+    full,
+    'cm-pressure',
+    { result: { ok: true } },
+    null,
+    2,
+    ['cm-old-0'],
+  ).state;
+  assert.equal(advanced.records['cm-pressure'].status, 'settled');
+  assert.equal(advanced.acks.length, OUTBOX_MAX_PENDING_ACKS);
+  assert.equal(advanced.acks.some((ack) => ack.id === 'cm-old-0'), false);
+  assert.equal(advanced.acks.some((ack) => ack.id === 'cm-pressure'), true);
+});
+
+test('ACK custody is scoped by authority instance as well as user', async () => {
+  const first = {
+    descriptorVersion: 1,
+    authorityInstanceId: '018f0d90-7b24-7a22-8c33-445566778899',
+    sessionGeneration: 1,
+  };
+  const second = {
+    descriptorVersion: 1,
+    authorityInstanceId: '018f0d90-7b25-7a22-8c33-445566778899',
+    sessionGeneration: 1,
+  };
+  const store = createMemoryRqsResumeStore();
+  await store.outboxEnqueue({
+    id: 'cm-authority',
+    function: 'createThing',
+    userId: 'user_a',
+    authorityDescriptor: first,
+  });
+  await store.outboxDurablyConsume('cm-authority', { result: { ok: true } }, 'user_a');
+  assert.deepEqual(await store.outboxPendingAcknowledgements('user_a', 64, first), ['cm-authority']);
+  assert.deepEqual(await store.outboxPendingAcknowledgements('user_a', 64, second), []);
+  assert.equal(await store.outboxConfirmAcknowledgements(['cm-authority'], 'user_a', second), 0);
+  assert.equal((await store.outboxRecords())[0].status, 'settled');
+  assert.equal(await store.outboxConfirmAcknowledgements(['cm-authority'], 'user_a', first), 1);
+  assert.deepEqual(await store.outboxRecords(), []);
 });
 
 test('memory arm carries the optional React binding receipt outside entry accounting', async () => {
@@ -158,6 +239,30 @@ test('file arm outbox survives relaunch and refuses non-writers', async () => {
   await relaunched.close();
 });
 
+test('file arm retains a consumed settlement and ACK obligation across relaunch', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'snapback-outbox-settlement-'));
+  const store = createFileRqsResumeStore({ directory, identity: 'origin:settlement' });
+  await store.whenLockSettled();
+  await store.outboxEnqueue({ id: 'cm-settled', function: 'createThing', args: { n: 1 } });
+  await store.outboxDurablyConsume(
+    'cm-settled',
+    { result: { id: 'thing_1' }, version: 9 },
+    'user_a',
+  );
+  await store.close();
+
+  const relaunched = createFileRqsResumeStore({ directory, identity: 'origin:settlement' });
+  await relaunched.whenLockSettled();
+  assert.deepEqual(await relaunched.outboxPending(), [], 'settled work is never re-executed');
+  const retained = (await relaunched.outboxRecords()).find((record) => record.id === 'cm-settled');
+  assert.equal(retained.status, 'settled');
+  assert.deepEqual(retained.settlement.result, { id: 'thing_1' });
+  assert.deepEqual(await relaunched.outboxPendingAcknowledgements('user_a'), ['cm-settled']);
+  await relaunched.outboxConfirmAcknowledgements(['cm-settled']);
+  assert.deepEqual(await relaunched.outboxRecords(), []);
+  await relaunched.close();
+});
+
 test('file arm migrates a v1 blob in place (entries kept, empty outbox)', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'snapback-outbox-v1-'));
   const store = createFileRqsResumeStore({ directory, identity: 'origin:v1' });
@@ -218,6 +323,21 @@ test('client constructor reports the resolved store (DK-9 degradation fact)', ()
   assert.equal(optedOut.rqsStoreInfo.source, 'disabled');
 });
 
+test('volatile store never claims the durable settlement-publication path', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createMemoryRqsResumeStore();
+  const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
+  let calls = 0;
+  globalThis.fetch = async () => { calls += 1; throw new TypeError('fetch failed'); };
+  await assert.rejects(
+    () => client.mutate('createThing', { args: {}, queue: true }),
+    (error) => error.code === 'SNAPBACK_OFFLINE_QUEUE_DURABILITY_REQUIRED',
+  );
+  assert.equal(calls, 0, 'required durable custody refuses before dispatch');
+  await assert.rejects(() => client.mutate('createThing', { args: {} }), TypeError);
+  assert.equal((await store.outboxRecords()).length, 0, 'auto mode never queues into memory');
+});
+
 test('closeAuth releases an owned default store for the next sequential client', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'snapback-client-handoff-'));
   const previousDir = process.env.SNAPBACK_CLIENT_RQS_DIR;
@@ -255,7 +375,7 @@ test('closeAuth releases an owned default store for the next sequential client',
 
 test('mutate queues on connectivity failure and replays exactly-once', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
-  const store = createMemoryRqsResumeStore();
+  const store = createDurableTestStore();
   const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
 
   // Offline: fetch refuses at the transport (TypeError, like undici).
@@ -316,9 +436,158 @@ test('mutate queues on connectivity failure and replays exactly-once', async (t)
   );
 });
 
+test('explicit-id online publication is durable before delivery and retires only after ACK', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
+  let releaseResponse;
+  globalThis.fetch = async () => new Promise((resolve) => { releaseResponse = resolve; });
+
+  const delivery = client.mutate('createThing', {
+    args: { title: 'online' },
+    clientMutationId: 'cm-online-durable',
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  const beforeResponse = (await store.outboxRecords()).find(
+    (record) => record.id === 'cm-online-durable',
+  );
+  assert.equal(beforeResponse.status, 'pending', 'intent commits before network publication');
+
+  releaseResponse(Response.json({ result: { id: 'thing_1' }, version: 4 }));
+  const result = await delivery;
+  assert.deepEqual(result.result, { id: 'thing_1' });
+  const retained = (await store.outboxRecords()).find(
+    (record) => record.id === 'cm-online-durable',
+  );
+  assert.equal(retained.status, 'settled');
+  assert.deepEqual(retained.settlement.result, { id: 'thing_1' });
+  assert.deepEqual(await store.outboxPendingAcknowledgements(null), ['cm-online-durable']);
+
+  globalThis.fetch = async () => Response.json({ acknowledged: 1 });
+  await client.acknowledgeMutations({ clientMutationIds: ['cm-online-durable'] });
+  assert.deepEqual(await store.outboxRecords(), [], 'standalone ACK proof retires recovery state');
+});
+
+test('standalone ACK confirms only its exact authority cohort', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const first = {
+    descriptorVersion: 1,
+    authorityInstanceId: '018f0d90-7b24-7a22-8c33-445566778899',
+    sessionGeneration: 1,
+  };
+  const second = {
+    descriptorVersion: 1,
+    authorityInstanceId: '018f0d90-7b25-7a22-8c33-445566778899',
+    sessionGeneration: 1,
+  };
+  const store = createDurableTestStore();
+  await store.outboxEnqueue({
+    id: 'cm-standalone-cohort',
+    function: 'createThing',
+    userId: 'user_a',
+    authorityDescriptor: first,
+  });
+  await store.outboxDurablyConsume(
+    'cm-standalone-cohort',
+    { result: { ok: true } },
+    'user_a',
+  );
+  const bodies = [];
+  globalThis.fetch = async (_url, init) => {
+    bodies.push(JSON.parse(init.body));
+    return Response.json({ acknowledged: 0 });
+  };
+  const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
+  await client.acknowledgeMutations({
+    userId: 'user_a',
+    clientMutationIds: ['cm-standalone-cohort'],
+    authorityDescriptor: second,
+  });
+  assert.equal((await store.outboxRecords())[0].status, 'settled');
+  assert.deepEqual(bodies[0].authorityDescriptor, second);
+
+  await client.acknowledgeMutations({
+    userId: 'user_a',
+    clientMutationIds: ['cm-standalone-cohort'],
+    authorityDescriptor: first,
+  });
+  assert.deepEqual(await store.outboxRecords(), []);
+  assert.deepEqual(bodies[1].authorityDescriptor, first);
+});
+
+test('explicit-id server refusal is failed locally and never acknowledged', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
+  globalThis.fetch = async () => Response.json(
+    { diagnostic: { code: 'SNAPBACK_VALIDATION', message: 'bad args' } },
+    { status: 400 },
+  );
+  await assert.rejects(
+    () => client.mutate('createThing', {
+      args: { bad: true },
+      clientMutationId: 'cm-online-refused',
+    }),
+    /SNAPBACK_VALIDATION/,
+  );
+  const record = (await store.outboxRecords()).find((item) => item.id === 'cm-online-refused');
+  assert.equal(record.status, 'failed');
+  assert.deepEqual(await store.outboxPendingAcknowledgements(null), []);
+});
+
+test('post-response persistence failure remains pending and is never published as failed', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const consume = store.outboxDurablyConsume.bind(store);
+  store.outboxDurablyConsume = async () => {
+    const error = new Error('simulated fsync failure');
+    error.code = 'EIO';
+    throw error;
+  };
+  const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
+  globalThis.fetch = async () => Response.json({ result: { id: 'thing_1' }, version: 4 });
+  await assert.rejects(
+    () => client.mutate('createThing', {
+      args: { title: 'online' },
+      clientMutationId: 'cm-persist-failure',
+    }),
+    (error) => error.code === 'EIO',
+  );
+  let record = (await store.outboxRecords()).find((item) => item.id === 'cm-persist-failure');
+  assert.equal(record.status, 'pending');
+  assert.deepEqual(await store.outboxPendingAcknowledgements(null), []);
+
+  store.outboxDurablyConsume = consume;
+  const replayed = await client.replayQueuedMutations();
+  assert.equal(replayed.replayed, 1);
+  record = (await store.outboxRecords()).find((item) => item.id === 'cm-persist-failure');
+  assert.equal(record.status, 'settled', 'same id recovers the committed server settlement');
+});
+
+test('replay persistence failure stops without drop-and-mark-failed', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
+  globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
+  const queued = await client.mutate('createThing', { args: { title: 'offline' } });
+  store.outboxDurablyConsume = async () => {
+    const error = new Error('simulated fsync failure');
+    error.code = 'EIO';
+    throw error;
+  };
+  globalThis.fetch = async () => Response.json({ result: { id: 'thing_1' }, version: 4 });
+  const outcome = await client.replayQueuedMutations();
+  assert.deepEqual(
+    { replayed: outcome.replayed, failed: outcome.failed, remaining: outcome.remaining, stopped: outcome.stopped },
+    { replayed: 0, failed: 0, remaining: 1, stopped: true },
+  );
+  const record = (await store.outboxRecords()).find((item) => item.id === queued.clientMutationId);
+  assert.equal(record.status, 'pending');
+});
+
 test('replay drop-and-mark-failed on server refusal, pending kept on connectivity', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
-  const store = createMemoryRqsResumeStore();
+  const store = createDurableTestStore();
   const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
   globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
   const a = await client.mutate('createThing', { args: { n: 1 } });
@@ -374,7 +643,7 @@ test('replay drop-and-mark-failed on server refusal, pending kept on connectivit
 // carrier — the raw transport error surfaced instead of {queued:true}.
 test('mutate queues when the carrier fetch rejects a plain Error (Expo shape)', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
-  const store = createMemoryRqsResumeStore();
+  const store = createDurableTestStore();
   const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
 
   // The exact witnessed Expo simulator rejection shape: name 'Error'.
@@ -406,7 +675,7 @@ test('mutate queues when the carrier fetch rejects a plain Error (Expo shape)', 
 
 test('caller aborts and server answers are never classified as connectivity', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
-  const store = createMemoryRqsResumeStore();
+  const store = createDurableTestStore();
   const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
 
   // A caller-owned abort is not an outage: fail loud, never enqueue.
@@ -436,7 +705,7 @@ test('caller aborts and server answers are never classified as connectivity', as
 
 test('outboxStatus and subscribeOutbox project the queue facts (LLP 0114 React-arm seam)', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
-  const store = createMemoryRqsResumeStore();
+  const store = createDurableTestStore();
   const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
 
   // No outbox-capable store -> supported: false, never a guessed empty queue.

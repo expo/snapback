@@ -19,6 +19,8 @@ export interface RqsFilesAdapter {
   /** false when the path was already gone. */
   unlink(path: string): Promise<boolean>;
   readdir(path: string): Promise<readonly string[]>;
+  /** Persist the directory entry created by rename before publication. */
+  syncDirectory(path: string): Promise<void>;
   processId(): number;
   processAlive(pid: number): boolean;
 }

@@ -181,6 +181,20 @@ export function createMemoryRqsResumeStore({
       return applied.result;
     },
 
+    async outboxDurablyConsume(id, settlement, userId = null, confirmedAcknowledgements = []) {
+      requireWriter();
+      const applied = outboxOps.durablyConsume(
+        outbox,
+        id,
+        settlement,
+        userId,
+        now(),
+        confirmedAcknowledgements,
+      );
+      outbox = applied.state;
+      return structuredClone(applied.result);
+    },
+
     async outboxMarkFailed(id, failure) {
       requireWriter();
       const applied = outboxOps.markFailed(outbox, id, failure);
@@ -195,21 +209,21 @@ export function createMemoryRqsResumeStore({
       return applied.result;
     },
 
-    async outboxRecordAcknowledgement(id, userId = null) {
+    async outboxRecordAcknowledgement(id, userId = null, authorityDescriptor = null) {
       requireWriter();
-      const applied = outboxOps.recordAck(outbox, id, userId);
+      const applied = outboxOps.recordAck(outbox, id, userId, authorityDescriptor);
       outbox = applied.state;
       return applied.result;
     },
 
-    async outboxPendingAcknowledgements(userId = null, limit = 64) {
+    async outboxPendingAcknowledgements(userId = null, limit = 64, authorityDescriptor = null) {
       requireOpen();
-      return pendingAcknowledgementsFor(outbox, userId, limit);
+      return pendingAcknowledgementsFor(outbox, userId, limit, authorityDescriptor);
     },
 
-    async outboxConfirmAcknowledgements(ids) {
+    async outboxConfirmAcknowledgements(ids, userId = undefined, authorityDescriptor = undefined) {
       requireWriter();
-      const applied = outboxOps.confirmAcks(outbox, ids);
+      const applied = outboxOps.confirmAcks(outbox, ids, userId, authorityDescriptor);
       outbox = applied.state;
       return applied.result;
     },

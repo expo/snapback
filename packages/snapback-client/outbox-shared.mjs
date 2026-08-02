@@ -65,6 +65,12 @@ export const outboxFullError = () => outboxError(
     + 'refused rather than evicting an unsettled record (exactly-once wins)',
 );
 
+export const outboxAckFullError = () => outboxError(
+  'SNAPBACK_OUTBOX_ACK_FULL',
+  `the durable outbox holds ${OUTBOX_MAX_PENDING_ACKS} unconfirmed settlement acknowledgements; `
+    + 'new settlement publication is refused rather than discarding recovery state',
+);
+
 export const outboxOversizeError = (bytes) => outboxError(
   'SNAPBACK_OUTBOX_RECORD_OVERSIZE',
   `serialized outbox record is ${bytes} bytes (max ${OUTBOX_MAX_RECORD_BYTES})`,
@@ -188,19 +194,73 @@ export const outboxOps = {
   discard(state, id) {
     return outboxOps.settle(state, id);
   },
-  recordAck(state, id, userId) {
+  recordAck(state, id, userId, authorityDescriptor = null) {
     if (state.acks.some((ack) => ack.id === id)) return { state, result: false };
-    const acks = [...state.acks, { id, userId: typeof userId === 'string' ? userId : null }];
-    // ACK obligations are GC proofs; at the bound the oldest is dropped —
-    // the server's admin purge is the recovery for a leaked settled result.
-    while (acks.length > OUTBOX_MAX_PENDING_ACKS) acks.shift();
+    if (state.acks.length >= OUTBOX_MAX_PENDING_ACKS) throw outboxAckFullError();
+    const descriptor = authorityDescriptor ?? state.records[id]?.authorityDescriptor ?? null;
+    const acks = [...state.acks, {
+      id,
+      userId: typeof userId === 'string' ? userId : null,
+      authorityInstanceId: typeof descriptor?.authorityInstanceId === 'string'
+        ? descriptor.authorityInstanceId
+        : null,
+    }];
     return { state: { ...state, acks }, result: true };
   },
-  confirmAcks(state, ids) {
-    const confirmed = new Set(ids);
+  /// Atomically cross the durable-consumption boundary: retain the complete
+  /// settlement for recovery and create its server-GC obligation in the same
+  /// store transaction. Publication may happen only after this transition.
+  durablyConsume(state, id, settlement, userId, now, confirmedAcknowledgements = []) {
+    // A successful mutation response proves its piggyback ACK stage too.
+    // Retire those obligations in this same transaction so an ACK-full store
+    // can make room without a crash gap before retaining the new settlement.
+    const afterConfirmed = outboxOps.confirmAcks(state, confirmedAcknowledgements).state;
+    const existing = afterConfirmed.records[id];
+    if (!existing) return { state, result: false };
+    if (existing.status === 'settled') return { state: afterConfirmed, result: existing };
+    if (existing.status !== 'pending') return { state, result: false };
+    const stored = {
+      ...existing,
+      status: 'settled',
+      settlement,
+      settledAt: now,
+      failure: null,
+    };
+    if (outboxRecordBytes(stored) > OUTBOX_MAX_RECORD_BYTES) {
+      throw outboxOversizeError(outboxRecordBytes(stored));
+    }
+    const withSettlement = {
+      ...afterConfirmed,
+      records: { ...afterConfirmed.records, [id]: stored },
+    };
+    const acknowledged = outboxOps.recordAck(withSettlement, id, userId);
+    return { state: acknowledged.state, result: stored };
+  },
+  confirmAcks(state, ids, userId = undefined, authorityDescriptor = undefined) {
+    const requested = new Set(ids);
+    const expectedUser = typeof userId === 'string' ? userId : null;
+    const expectedAuthority = typeof authorityDescriptor?.authorityInstanceId === 'string'
+      ? authorityDescriptor.authorityInstanceId
+      : null;
+    const confirmed = new Set(state.acks
+      .filter((ack) => requested.has(ack.id))
+      .filter((ack) => userId === undefined || ack.userId === expectedUser)
+      .filter((ack) => (
+        authorityDescriptor === undefined || (ack.authorityInstanceId ?? null) === expectedAuthority
+      ))
+      .map((ack) => ack.id));
     const acks = state.acks.filter((ack) => !confirmed.has(ack.id));
-    if (acks.length === state.acks.length) return { state, result: 0 };
-    return { state: { ...state, acks }, result: state.acks.length - acks.length };
+    const records = { ...state.records };
+    for (const id of confirmed) {
+      if (records[id]?.status === 'settled') delete records[id];
+    }
+    if (acks.length === state.acks.length && Object.keys(records).length === Object.keys(state.records).length) {
+      return { state, result: 0 };
+    }
+    return {
+      state: { ...state, acks, records },
+      result: state.acks.length - acks.length,
+    };
   },
 };
 
@@ -213,7 +273,18 @@ export const allOutboxRecords = (state) => Object.values(state.records).sort(out
 /// Pending acknowledgements for one auth identity: only records matching the
 /// current userId are exposed/sent (LLP 0043: returning to the prior user can
 /// finish GC without sending their ids under another user).
-export const pendingAcknowledgementsFor = (state, userId, limit) => state.acks
+export const pendingAcknowledgementsFor = (
+  state,
+  userId,
+  limit,
+  authorityDescriptor = null,
+) => state.acks
   .filter((ack) => ack.userId === (typeof userId === 'string' ? userId : null))
+  .filter((ack) => (
+    (ack.authorityInstanceId ?? null)
+      === (typeof authorityDescriptor?.authorityInstanceId === 'string'
+        ? authorityDescriptor.authorityInstanceId
+        : null)
+  ))
   .slice(0, limit)
   .map((ack) => ack.id);

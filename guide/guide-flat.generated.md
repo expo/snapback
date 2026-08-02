@@ -5501,7 +5501,9 @@ The session entry points are:
 - `authRequestCode(email)` and `authExchange({ challengeId, code })`;
 - `authRefresh()` and `authLogout()`;
 - `authSession({ force })` for the exact server/mode/authority projection;
-- `closeAuth()` to unregister/close the client-side auth participants;
+- `closeAuth()` to unregister/close the client-side auth participants and
+  release a store resolved by the default persistence ladder (an injected
+  `rqsStore` remains caller-owned);
 - `currentAuthorityDescriptor()` and `currentAuthorizationScope()` for
   adapter fences;
 - `registerAuthBarrierParticipant(participant)` for a state owner that must
@@ -5572,8 +5574,9 @@ lifecycle; they are not additional client methods.
 - **Do not treat the readable connection label as the granted wire id.** Use
   the overlay/grant authority fact for connection-owned keys and raw frames.
 - **Do not reuse a connection id across unrelated custody/lifecycle owners.**
-- **Do not forget `dispose()` / `closeAuth()`.** Handles, overlays, and
-  coordinator participants own resources.
+- **Do not forget `dispose()` / `closeAuth()`.** Handles, overlays,
+  coordinator participants, and default-resolved persistence stores own
+  resources.
 
 ---
 
@@ -6256,11 +6259,11 @@ AppState.addEventListener('change', (state) => {
 Two sharp edges, stated plainly:
 
 - **Construct one client for the app, not one per operation.** The durable
-  store is single-writer per origin; the first client's store instance
-  holds the writer lock for the whole launch and there is currently no
-  client API that releases it, so later clients in the same process
-  silently degrade to non-persisting readers
-  (`issues/20260801-rqs-default-store-lifecycle-sequential-clients.md`).
+  store is single-writer per origin. If a shell deliberately replaces the
+  client, `await client.closeAuth()` performs final cleanup and releases a
+  store resolved by the default ladder before the successor is constructed.
+  A store passed through `rqsStore` remains caller-owned and must be closed by
+  that caller.
 - For bare React Native (no expo-file-system), implement the nine-method
   files adapter against `createFileRqsResumeStore` yourself, or inject a
   store per client via the `rqsStore` option
@@ -8353,15 +8356,23 @@ or a runtime/glue contract skew fails here rather than at the first handler
 invocation. This is the identity to quote in a bug report or a packaged
 consumer's readiness note.
 
-The result is printed, not persisted: packaged installs carry no
-`runtime-readiness.json` receipt today, and the repo-side digest-bound receipt
-that doctor re-verifies is a source-checkout artifact
-([LLP 0010](repo:llp/0010-agent-dx-and-acceptance.spec.md)). Persisting a
-consumer-side receipt under the app's managed `.snapback/` state is
-[an open item](repo:issues/20260801-0137-g1-guide-gap-packaged-runtime-readiness-receipt.md);
-until it lands, retain the command's output if you need evidence. Doctor's
-live six-boundary qualification stays authoritative either way — a receipt
-would complement it, never replace it.
+Persist the live verdict and its binary/Hermes digests in the app's managed
+state, then re-verify it later without writing or launching the runtime:
+
+```sh
+snapback runtime-qualify --persist
+snapback runtime-qualify --verify
+```
+
+The first command still performs the restricted-VM qualification and writes
+`.snapback/runtime-readiness.json`; the second recomputes the installed
+runtime bytes and refuses binary or framework drift. Use `--receipt <path>`
+on both commands only when another app-owned custody path is required. The
+receipt uses the same `snapback.runtime-readiness.v1` schema as the repo-side
+bootstrap proof ([LLP 0010](repo:llp/0010-agent-dx-and-acceptance.spec.md))
+but never writes into read-only `node_modules`. Doctor's live six-boundary
+qualification stays authoritative — this retained identity complements it,
+never replaces it.
 
 ## Preserve the first useful failure
 
@@ -9694,11 +9705,39 @@ assert.deepEqual(client.state.rows, []);
 assert.equal(second.pendingCount(), 0);
 ```
 
-The client retains a successful/rejected settlement until the server proves it
-received the acknowledgement. A Snapback-origin terminal receipt proves the
-origin saw the request and any piggyback acknowledgements. A receipt-less
-proxy/network failure proves neither, so both records remain durable for the
-next reconnect.
+Before returning an authoritative result, the client atomically changes the
+durable record from replayable `pending` to non-replayable `settled`, retaining
+the complete response and adding its auth-tagged acknowledgement obligation in
+the same store transaction. The file arm flushes bytes and synchronizes the
+parent directory after its atomic rename. If that write cannot commit, the result is not
+published, is not marked failed, and the original id remains replayable. A typed server refusal is a
+visible terminal `failed` record and is never acknowledged as the current id;
+a receipt-less outcome stays pending.
+
+The client removes the retained settlement and ACK together only after the
+server proves it processed the acknowledgement. A later mutation normally
+piggybacks same-authority ACKs; `client.acknowledgeMutations(...)` is the
+standalone completion path for one-shot or otherwise quiet callers. A
+Snapback-origin terminal receipt proves the origin saw a piggyback ACK stage.
+A receipt-less proxy/network failure proves neither, so both records remain
+durable for retry. Process stdout alone is not this recovery boundary: use a
+durable RQS store (the Node default is file-backed), or explicitly opt out of
+queue custody and its guarantee.
+
+ACK records are scoped by user and, when supplied, the server-issued authority
+instance. Piggyback selects only the current cohort. For standalone session or
+service-principal completion, pass that record's `authorityDescriptor`; the
+server compares it before GC and the client removes only matching local
+proofs. An authority change therefore retains the predecessor proof rather
+than leaking its id into, or deleting it under, the successor. A volatile
+memory fallback reports `durable: false`, does not auto-queue, and refuses
+`queue: true` before network dispatch.
+
+Deploying a bundle that removes or renames the mutation does not strand an
+already committed result. Until ACK, the server can recover it through the
+exact current-authority-bound settlement identity without dispatching removed
+code. After ACK garbage collection, the same call follows ordinary function
+selection and returns `SNAPBACK_UNKNOWN_FUNCTION`.
 
 ## Migration boundaries: quarantine, don't fail
 

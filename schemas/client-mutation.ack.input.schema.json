@@ -22,6 +22,33 @@
         }
       },
       "type": "object"
+    },
+    "AuthorityDescriptor": {
+      "additionalProperties": false,
+      "description": "Opaque server-issued consistency descriptor for one queued mutation.\nPossession grants no authority; the invocation gate first resolves a live\ncredential and only then compares this value with its prepared authority.\n\n@ref LLP 0039#replay-parity-and-the-authority-instance-id — this is a\n  dedicated MutationRequest channel, never a ctx-answer-ledger member.",
+      "properties": {
+        "authorityInstanceId": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        "descriptorVersion": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "sessionGeneration": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "descriptorVersion",
+        "authorityInstanceId",
+        "sessionGeneration"
+      ],
+      "type": "object"
     }
   },
   "$id": "https://schemas.snapback.dev/snapback.v0/client-mutation.ack.input.schema.json",
@@ -31,6 +58,17 @@
   "properties": {
     "auth": {
       "$ref": "#/$defs/AuthInput"
+    },
+    "authorityDescriptor": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AuthorityDescriptor"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Optional exact authority cohort for durable client ACK custody. When\npresent it is compared before any settlement GC."
     },
     "clientMutationIds": {
       "items": {

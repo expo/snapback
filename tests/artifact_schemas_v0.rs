@@ -2953,6 +2953,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
         "client-mutation.ack.input.schema.json",
         &serde_json::to_value(MutationAcknowledgementRequest {
             auth: input.auth.clone(),
+            authority_descriptor: None,
             client_mutation_ids: vec!["cm_acknowledged".to_owned()],
         })
         .unwrap(),

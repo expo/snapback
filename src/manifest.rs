@@ -5642,6 +5642,15 @@ pub struct MutationRequest {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct MutationAcknowledgementRequest {
     pub auth: AuthInput,
+    /// Optional exact authority cohort for durable client ACK custody. When
+    /// present it is compared before any settlement GC.
+    #[serde(
+        default,
+        rename = "authorityDescriptor",
+        alias = "authority_descriptor",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub authority_descriptor: Option<AuthorityDescriptor>,
     #[schemars(
         length(max = CLIENT_MUTATION_ACK_MAX_IDS),
         inner(

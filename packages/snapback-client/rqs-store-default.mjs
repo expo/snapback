@@ -27,7 +27,7 @@ import { createMemoryRqsResumeStore } from './rqs-store-memory.mjs';
 
 const REQUIRED_NATIVE_FILES_METHODS = [
   'mkdir', 'readFile', 'writeFile', 'writeFileExclusive', 'rename', 'unlink',
-  'readdir', 'processId', 'processAlive',
+  'readdir', 'syncDirectory', 'processId', 'processAlive',
 ];
 
 let nativeRqsFiles = null;
