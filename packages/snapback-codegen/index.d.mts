@@ -79,6 +79,41 @@ export function targetArtifactAuthProblems(
   details: Readonly<Record<string, unknown>>;
 }>>;
 
+export interface MicroProfileCapabilityInput {
+  readonly selectedKinds?: readonly string[];
+}
+
+export type MicroProfileCapabilityProblem = Readonly<{
+  code:
+    | 'CODEGEN_MICRO_ARGS_CONTRACT_CAPABILITY_REQUIRED'
+    | 'CODEGEN_MICRO_RESULT_CONTRACT_CAPABILITY_REQUIRED'
+    | 'CODEGEN_MICRO_LIVE_CAPABILITY_REQUIRED';
+  message: string;
+}>;
+
+/** Stable fail-closed capability diagnostics for a generated Micro profile. */
+export function microProfileCapabilityProblems(
+  profile: MicroProfileCapabilityInput | null | undefined,
+  capabilityManifest: TargetCapabilityManifest | null | undefined,
+): MicroProfileCapabilityProblem[];
+
+export interface MicroProfileArtifactDigests {
+  readonly runtimeEntryDigest?: string;
+  readonly declarationDigest?: string;
+}
+
+export type MicroProfileArtifactProblem = Readonly<{
+  code: 'CODEGEN_MICRO_RUNTIME_DIGEST_DRIFT' | 'CODEGEN_MICRO_DECLARATION_DIGEST_DRIFT';
+  message: string;
+}>;
+
+/** Recomputes the generated runtime/declaration digests recorded by a profile. */
+export function verifyMicroProfileArtifacts(
+  profile: MicroProfileArtifactDigests | null | undefined,
+  runtimeEntry: string,
+  declaration: string,
+): MicroProfileArtifactProblem[];
+
 export type SnapbackTargetProfile = 'local-dev-sqlite-ibex' | 'remote-service-sqlite-ibex';
 
 export type GenerateOptions = Readonly<{ targetProfile?: SnapbackTargetProfile }>;

@@ -250,3 +250,16 @@ ticket closes citing that run id.
   temporary-target cleanup, and refusal to substitute the cached binary are
   unchanged. All 12 focused exact-link/doctor tests and ref-check pass locally;
   hosted confirmation pending.
+
+- **2026-08-02 — concurrent Micro landing inventory.** LLP 0147 Phase B landed
+  while this greening pass was waiting for CI and added two maintained client
+  suites plus one maintained codegen suite without updating gate 1's canonical
+  inventory. Register all three and advance the reviewed total from 159 to 162;
+  the focused inventory passes. The same landing added public runtime values
+  behind `./micro/core` and two root codegen profile-verification helpers but
+  omitted their declarations; the full 71-subpath export-type gate catches both
+  runtime/type mismatches. Add narrow declarations matching the intentional
+  internal-link and deterministic-verifier contracts, while keeping the
+  public `./micro` barrel limited to type-only exports plus its two runtime
+  constructors. The 162-file inventory, 71-subpath external TypeScript/runtime
+  parity gate, and ref-check pass locally.
