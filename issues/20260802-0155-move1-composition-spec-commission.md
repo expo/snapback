@@ -1,8 +1,17 @@
 # Commission tracker: the LLP 0155 Move-1 composition-algebra Spec
 
-**Status:** Open — ASSIGNED 2026-08-02: a dedicated Fable authoring session
-owns the draft, then the standard dual-family super-refine loop; acceptance
-is Charlie's (sitting ruling 11). NOT in the Sol execution queue.
+**Status:** Open — DRAFTED 2026-08-02: the commissioned Spec exists as
+**LLP 0157** (`llp/0157-composition-algebra-and-completeness.spec.md`,
+v0.1 Draft) with the dated LLP 0080 boundary note landed in the same
+change. Key structural choice: LLP 0135 Part 2 already specifies the
+option-3a execution substrate (cursor grammar `sbsb1`, one-snapshot,
+seal-entirely, dedup), so 0157 adopts it verbatim and owns the layers
+above — node algebra, plan identity, completeness witness,
+classification, sugar rule, inspection model, Move-2 store interface.
+This also un-waits the wave1-0135 snapshot-batch half (cursor grammar
+was 0135's all along). Remaining for this ticket: the LLP 0005
+dual-family review loop, then Charlie's acceptance (SD-4 applies if the
+loop converges in-scope).
 **Systems:** Relational queries, API, Codegen
 **Related:** LLP 0155 (Accepted v0.4 — its acceptance commissioned this
 Spec; Move 1 recast as LLP 0120 option-3a bounded-node composition), LLP

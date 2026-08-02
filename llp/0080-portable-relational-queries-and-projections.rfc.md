@@ -55,6 +55,18 @@ left joins cannot derive owner identity from the omissible side; stale
 0074/0075 self-references now name 0080/0081); 2026-07-20 (post-review
 reconciliation: bounded shared write ceiling, visibility/limit ordering,
 rebuild fencing, and v1 visibility profiles are pinned)
+**Revised:** 2026-08-02 (composition-boundary note, commissioned by
+Accepted LLP 0155 §Move 1 / OQ1 and recorded per its acceptance: the
+composable read surface above this RFC's closed two-source plan is owned
+by the successor Spec
+[LLP 0157](./0157-composition-algebra-and-completeness.spec.md) —
+composition algebra, plan identity, completeness witness,
+classification, inspection — over LLP 0135 Part 2's snapshot-batch
+execution substrate. This RFC's own admitted shapes, retention class,
+and stable surface are unchanged; `relational_query_v1` participates as
+an admitted node class governed here. This RFC's OQ1
+client-composition alternative is superseded for multi-child
+single-snapshot reads by that substrate.)
 **Related:** LLP 0004, LLP 0007, LLP 0008, LLP 0010, LLP 0011, LLP 0012, LLP 0037, LLP 0051, LLP 0053, LLP 0056, LLP 0063, LLP 0065, LLP 0081
 
 ## Summary
