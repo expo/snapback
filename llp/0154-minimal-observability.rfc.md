@@ -56,6 +56,94 @@ sentinel for patternless requests; Phase 1 strips all query strings; a
 resource-safety envelope (C8) independent of commercial tiers; buffer
 depth/drop counters joined to the LLP 0010 inspect surface; lifecycle
 inventory closed as a Phase-1 allowlist.)
+**Revised:** 2026-08-02 (v0.5, round-3 super-refine — both families NOT
+READY on v0.4, with mostly disjoint residue converging on localized
+repairs; both endorse the converged architecture and neither reopens it.
+From Fable: dual timestamps (`ts_ms` stays the admission-bound
+attribution time; a new `recorded_ts_ms` stamped at persistence drives
+visibility, retention, ordering, freshness, and rollup bucketing — fixing
+long-lived spans whose terminals were born outside the retention window),
+an explicit `phase` column, `telemetry_meta` promoted to the single
+read-boundary authority shared with the out-of-process hatch, and the
+Cloudflare arm declared classification-only by default. From Codex: the
+observation id demoted to correlation root with per-metric derived
+LLP 0104 `eventId`s and the per-class billable rule replaced by an
+operation-instance rule (job admission is not independently billable —
+the invoked logical operation is), a monotonic retention floor making the
+read-time boundary irreversible under config changes and clock rollback,
+`stats` re-authorized as one consistent SQLite read (rollups ≤ watermark
+plus visible raw rows above it; memory is an accelerator, never the
+authority), rollups restructured as open hourly buckets finalized behind
+the watermark and compacted into bounded historical tiers with per-field
+exactness labels, `telemetry.export` added to the typed operations, and
+the Phase-2 hosted projection specified as an operation gateway with its
+own authorization envelope. Phase-1 IP capture is dropped entirely;
+`gen_`/`obs_` grammar was restated locally because LLP 0148 was absent
+from the loop's worktree at rounds 1–3 — it landed concurrently
+mid-loop, and v0.6 corrects the wording.)
+**Revised:** 2026-08-02 (v0.6, round-4 super-refine — focused delta
+check, both families NOT READY on v0.5-introduced defects. Codex found
+two BLOCKING algebra defects: the `stats` union omitted rows already
+folded into a still-open hourly bucket (fixed: buckets open+finalized
+cover rows at-or-below the watermark, the raw tail is strictly above it
+— an exact coverage partition with response metadata); and the retention
+floor only advanced at sweeps, so config transitions or clock rollback
+between sweeps could resurrect hidden rows (fixed: the floor advances
+durably at boot, every flush, and every retention-config transition,
+and both boundary and timestamps derive from a persisted nondecreasing
+observation clock, which also repairs the append-ordered-rollup claim
+both families questioned). Tier coverage intervals, the daily-tier
+horizon and eviction rule, and partial-window exactness labeling are
+now explicit. Fable found the v0.5 restatement "LLP 0148 is not in this
+checkout's ancestry" had become false — 0148 landed into the shared
+worktree mid-loop — fixed by citing 0148 directly and making prefix
+registration unconditional; plus the rollup phase filter and the
+Cloudflare generation source, now stated.)
+**Revised:** 2026-08-02 (v0.7, round-5 super-refine — spot-check split:
+Fable READY (all v0.6 repairs sound, three wording residues), Codex NOT
+READY with two real mechanism catches inside the v0.6 hunks, both
+fixed: `telemetry_events.id` becomes `AUTOINCREMENT` because SQLite's
+default rowid allocator reuses ids after deletes, which would let
+post-reclamation rows fall at-or-below the durable watermark and vanish
+from both sides of the stats partition; and the visibility predicate
+becomes strict with `max_days = 0` making the views empty outright,
+because an inclusive bound left rows stamped exactly at the observation
+clock visible after a disable transition. Consistency residue both
+families flagged is swept: one boundary formula stated in both places,
+`observation_clock_ms` and the per-tier aggregate floors added to the
+`telemetry_meta` sketch, the D1 rollup-view scoping corrected to tier
+horizons (aggregates are subject-free, so outliving raw retention is
+C5-consistent), eviction respecified as whole coverage intervals with
+durable aggregate floors so partial windows report not-fully-covered,
+and deliverable 1's prefix registration made unconditional.)
+**Revised:** 2026-08-02 (v0.8, round-6 super-refine — spot-check split
+again: Fable READY (second consecutive; all six v0.7 repairs sound, two
+wording residues), Codex NOT READY on three findings inside the v0.7
+hunks, all fixed: the observation clock now issues **strictly
+increasing** stamps (`max(wall, high_water + 1)`), closing the
+post-re-enable invisibility edge where a stamp could equal the captured
+disable-floor under clock rollback; `max_days = 0` is defined as the
+whole-subsystem off switch (both views empty while disabled, aggregates
+reappearing on re-enable) and D7's "raw rows only" rule is scoped to
+while-enabled, dissolving the plural-views contradiction both families
+flagged; and the boundary formula gains its day→millisecond conversion
+at both sites. Fable's remaining gloss residue (the D2 rollup-view
+comment) is reworded to name the tier-horizon/aggregate-floor
+boundary.)
+**Revised:** 2026-08-02 (v0.9, round-7 super-refine — Codex-only
+spot-check of the v0.8 hunks, NOT READY on three strictly-narrower
+findings, all applied: strict clock issuance moved from per-row to
+**per-flush-batch** (`max(wall, high_water + 1)` shared by the batch),
+bounding clock drift to ≤ 1 ms per flush instead of unbounded at
+> 1,000 rows/second while preserving the floor argument; the
+floor-advance instruction gains its missing day→millisecond conversion;
+the no-resurrection claim is scoped to **raw rows** with aggregates'
+re-enable reappearance named as designed off-switch behavior. Loop
+closed here under the corpus's asymmetric stopping rule: Fable READY in
+rounds 5 and 6, Codex NOT READY in rounds 5–7 with monotonically
+shrinking, fix-of-the-fix findings; these v0.9 repairs are applied
+per Codex's own resolutions but are themselves unreviewed. The author
+decides the status transition.)
 **Related:** LLP 0000 (explainer; reserves Observability as an undrafted
 subsystem), LLP 0003 (storage core; app write lane), LLP 0010 (inspect
 loop; explicitly defers production observability), LLP 0012 (headless
@@ -246,8 +334,11 @@ exact values.
   `OperatorMetadata` projection; raw events require `AdminSecretRead`
   leases), scrubbing and an allowlist/redactor at admission (D2),
   restrictive file permissions, and deletion semantics (D1 generations;
-  Phase 3 subject deletion). Phase 1 persists **no user subject** at
-  all. What C5 does *not* mean: telemetry is excluded from the LLP 0104
+  Phase 3 subject deletion). Phase 1 persists **no stable application
+  subject identifier and no IP addresses** — the `subject` column exists
+  in the schema but is invariantly NULL until Phase 3's identity policy,
+  and there is no Phase-1 IP knob at all. What C5 does *not* mean:
+  telemetry is excluded from the LLP 0104
   billed logical-bytes basis, from LLP 0007 backup/portability, and from
   app exports — out of the customer-data *accounting*, not out of the
   customer-data *duty of care*.
@@ -267,10 +358,13 @@ exact values.
 - **C8 — A resource-safety envelope, independent of commercial tiers.**
   Whatever LLP 0104-process entitlements arms later adopt, the telemetry
   subsystem itself enforces validated hard bounds: a `max_days` ceiling,
-  a telemetry file-size cap (shed-on-full, counted), rollup row and
-  operation-name cardinality budgets (D7), per-query work budgets (rows,
-  steps, time), and per-event byte caps. "Operator-free" local
-  configuration means no plan gate, not unbounded storage (C3).
+  a telemetry file-size cap covering main+WAL (shed-on-full, counted,
+  and a shed-at-cap cycle still arms maintenance so the file self-heals
+  under pressure rather than only at boot), rollup budgets — per-hour
+  name cardinality *and* a total rollup row budget enforced by the D7
+  historical tiers — per-query work budgets (rows, steps, time), and
+  per-event byte caps. "Operator-free" local configuration means no plan
+  gate, not unbounded storage (C3).
 
 ## Design
 
@@ -320,11 +414,21 @@ Properties:
   - The reset/restore fence (D3) clears the buffer before new
     admissions; in-flight batches from the old generation may still
     land, which is why visibility is filtered, not raced: **every read
-    surface — Tier-1 operations, CLI, export, and the SQL hatch — reads
-    through a `telemetry_events_visible` view** scoped to the current
-    generation and the retention window (D4), and the hatch's authorizer
-    denies the base tables. Old-generation rows are swept
-    opportunistically by D4 maintenance.
+    surface — typed operations, CLI, export, and the SQL hatch — reads
+    through visibility views only** (`telemetry_events_visible` for raw
+    rows, `telemetry_rollup_visible` for aggregates), each scoped to
+    the current generation — the raw view additionally bounded by the
+    read-time retention boundary (D4), the rollup view by the D7 tier
+    horizons (aggregates are classification-only and subject-free in
+    Phase 1, so outliving raw retention is C5-consistent) — and
+    the hatch's authorizer denies every base table. **`telemetry_meta`
+    is the single read-boundary authority**: it durably holds the
+    current generation, the app-DB incarnation binding, the mirrored
+    `max_days` (refreshed at boot and on config change), and the
+    monotonic retention floor (D4) — so the in-process server and the
+    out-of-process CLI hatch agree on generation *and* retention with
+    zero coordination. Old-generation rows are swept opportunistically
+    by D4 maintenance.
   - Crash matrix (normative): admission stamps the in-memory current
     generation; a crash between app-DB reset commit and telemetry
     rebind is healed at next boot by the pair comparison (the stale
@@ -339,8 +443,9 @@ Properties:
 Each instrumented seam emits a two-stage **observation span** (C4):
 
 - **Admission record** (immutable, written when the operation is
-  admitted): observation id (LLP 0148-prefixed, unique — the idempotency
-  key for bill-grade sinks), operation class + **registry version**,
+  admitted): observation id (unique — the **correlation root**, not a
+  bill-event id; see the identity rule below), operation class +
+  **registry version**,
   app/environment identity, `generation`, release identity
   (function-bundle hash / deployment id), admission time `ts_ms`
   (the attribution-bound timestamp per LLP 0104's admission-bound
@@ -351,6 +456,19 @@ Each instrumented seam emits a two-stage **observation span** (C4):
   `duration_ms`, Diagnostic `code` when the operation terminated with
   one.
 
+**Identity rule (normative).** The observation id is the correlation
+root shared by all projections. It is **not** the LLP 0104 `eventId`:
+one operation instance can yield several metering facts (request, CPU,
+transfer, shadow meters), each of which is its own 0104 usage event.
+Bill-grade event ids are **derived deterministically** as
+`(observation_id, metric_id, stage, schema_version)`, which keeps
+retries idempotent per metric without collapsing distinct meters into
+one event. Identifiers follow LLP 0148 (Accepted, in-tree): `obs_` and
+`gen_` under its grammar with random 26-char Crockford-base32 bodies.
+LLP 0148 requires every identifier kind to be a registry row, and
+neither prefix is registered yet — Phase 1 adds the `Observation` and
+`Generation` rows unconditionally (deliverable 1).
+
 **Projection matrix (normative skeleton; OQ1 ratifies the full table
 against LLP 0104's classification):**
 
@@ -360,43 +478,96 @@ against LLP 0104's classification):**
 | transport request (http_request) | joined row at terminal | not billable (carrier of a logical call; billable only when it maps to no logical call, per the registry) | terminal, redacted |
 | live subscription      | admission + terminal rows  | admission (subscription meter) | lifecycle only     |
 | realtime frames        | **counters only (D7)**     | frame meter (counters)     | none                   |
-| job run                | joined row at terminal     | admission                  | terminal               |
+| job run                | joined row at terminal     | scheduler admission **not** independently billable; the invoked logical operation is the billable instance (per LLP 0104's accepted-operation basis) | terminal |
 | lifecycle              | single row                 | not billable               | mirrored               |
 | log line               | single row (capped)        | not billable               | per LLP 0072 policy    |
 
-Exactly one record per class is billable; the registry is versioned and
-the version is stamped on every persisted row, so a class-table change
-never reinterprets old rows.
+**Billable-instance rule:** billing is per accepted *operation
+instance*, not per record or per class — each operation instance yields
+exactly one set of derived metering events (identity rule above), a
+carrier request whose logical call is billed is itself not, and a
+scheduler admission is not billed separately from the operation it
+invokes. No path may double-count a job/action or a carrier/logical
+pair; the OQ1 fixture proves it. The registry is versioned and the
+version is stamped on every persisted row, so a class-table change never
+reinterprets old rows.
 
 The telemetry projection persists spans as fixed columns —
 schema-on-write, capped sizes, no per-app migrations:
 
 ```sql
 CREATE TABLE telemetry_events (
-  id           INTEGER PRIMARY KEY,
-  observation  TEXT NOT NULL,             -- span id (obs_…)
-  generation   TEXT NOT NULL,             -- D1 binding (gen_…)
-  class_v      INTEGER NOT NULL,          -- registry version
-  ts_ms        INTEGER NOT NULL,          -- admission time
-  kind         TEXT NOT NULL,
-  name         TEXT NOT NULL,
-  status       INTEGER,
-  duration_ms  REAL,
-  code         TEXT,                      -- Diagnostic code, when failed
-  correlation  TEXT,
-  details      TEXT                       -- JSON, allowlisted + capped
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,  -- non-reusing: the
+                                      -- watermark partition needs ids that
+                                      -- never fall back below a durable
+                                      -- watermark after full reclamation
+  observation    TEXT NOT NULL,           -- span correlation root (obs_…)
+  phase          TEXT NOT NULL,           -- 'point' | 'admission' | 'terminal' | 'joined'
+  generation     TEXT NOT NULL,           -- D1 binding (gen_…)
+  class_v        INTEGER NOT NULL,        -- registry version
+  ts_ms          INTEGER NOT NULL,        -- admission time (attribution, LLP 0104)
+  recorded_ts_ms INTEGER NOT NULL,        -- persistence time (observation)
+  kind           TEXT NOT NULL,
+  name           TEXT NOT NULL,
+  status         INTEGER,
+  duration_ms    REAL,
+  subject        TEXT,                    -- invariantly NULL until Phase 3 (C5)
+  code           TEXT,                    -- Diagnostic code, when failed
+  correlation    TEXT,
+  details        TEXT                     -- JSON, allowlisted + capped
 );
--- all reads go through this view (D1):
+-- all raw reads go through this view (D1); rollup reads use
+-- telemetry_rollup_visible with the same generation scoping but its
+-- own tier-horizon/aggregate-floor boundary (see trailing note):
 CREATE VIEW telemetry_events_visible AS
   SELECT * FROM telemetry_events
   WHERE generation = (SELECT generation FROM telemetry_meta)
-    AND ts_ms >= /* now − max_days (D4, read-time enforced) */;
+    AND (SELECT max_days_mirror FROM telemetry_meta) > 0  -- disabled ⇒ empty
+    AND recorded_ts_ms > /* strict: the read-time boundary from
+                            telemetry_meta (the ONLY formula, D4):
+                            max(observation_clock − max_days*86_400_000,
+                                retention_floor) */;
+-- rollup reads use telemetry_rollup_visible: same generation scoping
+-- and the same disabled-guard, but bounded by the D7 tier horizons and
+-- aggregate floors, NOT by max_days (D1, D7).
 ```
 
-There is deliberately **no subject column content in Phase 1** (C5): the
-distinct-user metrics that would need it are Phase 3, so Phase 1 carries
-correlation ids only. The schema reserves the column position for Phase
-3 rather than migrating later.
+**Two timestamps, two jobs (normative).** `ts_ms` is the admission-bound
+attribution timestamp — the span's LLP 0104-aligned identity, shared by
+all records of the span. `recorded_ts_ms` is stamped when the record is
+persisted and drives everything observational: visibility, retention,
+`telemetry.events` ordering, the freshness watermark, and rollup
+bucketing. It is read from the **observation clock** — a persisted clock in
+`telemetry_meta` that issues **strictly increasing per-flush-batch**
+stamps: each flush batch takes one stamp `max(wall clock,
+high_water + 1)` shared by all rows in the batch, and the high-water
+advances at every flush and boot. Batch granularity bounds drift: the
+clock can run ahead of wall time by at most 1 ms per flush (flushes are
+≥ 3 s apart or 256 rows), so sustained load cannot push
+`recorded_ts_ms` into future query ranges the way per-row increments
+would above 1,000 rows/second; within a batch, ordering is
+`(recorded_ts_ms, id)` with ids strictly increasing. Strict issuance
+(not merely nondecreasing) matters at the retention boundary: the floor
+only ever captures a past clock value, so every later batch stamp
+strictly exceeds every captured floor — re-enabling after a disable is
+visible immediately even if wall time still lags the clock. Monotone
+stamps also mean freshness never regresses, event cursors never
+re-sort, and under wall-clock rollback new rows land in the current
+open bucket, never inside an already-finalized hour. Without the timestamp split, the terminal record of a long-lived
+span (a week-old websocket's disconnect) would be born outside the
+retention window and invisible the moment it was written. A long span's
+terminal therefore aggregates into the hour it *ended* — accepted, and
+with the monotone clock the rollup watermark is genuinely
+append-ordered (D7). The `phase` column
+makes the span stage explicit rather than inferred from NULL status:
+short-lived classes persist one `joined` row at terminal; long-lived
+classes (`ws_connect`, `live_subscribe`) persist `admission` and
+`terminal` rows; `lifecycle`/`log`/`diagnostic` persist `point` rows.
+`telemetry.stats` counts `point`/`joined`/`terminal` rows only.
+
+The `subject` column is deliberately **invariantly NULL in Phase 1**
+(C5): the distinct-user metrics that would need it are Phase 3, so Phase
+1 carries correlation ids only.
 
 Phase-1 `kind` values, each mapped to one existing server seam:
 
@@ -450,7 +621,9 @@ not merely a byte cap — before persistence. `details` carries no
 request/response bodies; for `diagnostic` and `log` rows it may carry
 operator-only context (source paths, handler text) under the redactor,
 which is C5-sensitive content served only under the D5 raw-read
-authority. No IP persistence unless `log_ip` is enabled.
+authority. No IP persistence in Phase 1, and no knob for it — if IP
+capture ever arrives it is a Phase-3 decision made with the identity
+policy (C5).
 
 ### D3 — Write path: buffered, batched, priority-aware, event-driven
 
@@ -459,16 +632,19 @@ A bounded in-memory buffer with a dedicated flusher:
 - Producers (the D2 seams) push fire-and-forget records into a bounded
   channel; the hot path never touches SQLite and never blocks on
   telemetry.
-- **Two priority classes.** Failure and terminal-outcome records
-  (`status >= 500`, Warning+ codes, `job_run`/`ws_connect` terminals,
-  `lifecycle`) have reserved capacity; successful high-volume records
-  (`http_request`, `function_run` successes, `log`) shed first. Within
-  the low-priority class, drop-oldest — under sustained overload, the
+- **Two priority classes.** Failure and terminal-outcome records have
+  reserved capacity; successful high-volume records (`http_request`,
+  `function_run` successes, `log`) shed first. "Failure" is defined
+  per class by the registry's failure predicate (`status >= 500` for
+  transport requests, error outcomes for `function_run`/`job_run`,
+  Warning+ codes anywhere), not by an HTTP-only rule. Within the
+  low-priority class, drop-oldest — under sustained overload, the
   recent records an agent is debugging with survive. Drops are counted
-  by kind, priority, and reason; the counters surface on Health, in
-  every Tier-1 variance envelope, and — because the buffer is exactly
-  the seam between "current instant" and "recent past" — as buffer
-  depth/drop/last-flush fields on the LLP 0010 inspect surface.
+  by kind, priority, and reason; **lifetime counters persist in
+  `telemetry_meta` (updated at flush), and surfaces report both**: the
+  variance envelope and the LLP 0010 inspect fields (buffer depth,
+  drops, last-flush watermark) carry since-boot deltas, the Health page
+  shows both lifetime and since-boot, labeled.
 - The flusher writes a batch when **N records accumulate (default 256)**
   or when the **oldest buffered record reaches a maximum age (default
   3000 ms)** — age-from-first-buffered, not debounce-from-latest, so a
@@ -491,18 +667,53 @@ older than a threshold (default 6h) or the hour boundary was crossed:
 
 1. **Roll up first**: fold rows above the rollup watermark into hourly
    aggregates and advance the watermark atomically (same transaction).
-2. **Then delete**: retention-sweep raw rows older than `max_days`
-   (default 7) **and** below the watermark — aggregation always precedes
-   deletion, so an app that goes idle and resumes past the retention
-   window cannot lose unaggregated history.
+2. **Then delete**: retention-sweep raw rows with `recorded_ts_ms`
+   older than `max_days` (default 7) **and** below the watermark —
+   aggregation always precedes deletion, so an app that goes idle and
+   resumes past the retention window cannot lose unaggregated history.
+   Each sweep **advances the monotonic `retention_floor` in
+   `telemetry_meta`** to the boundary it enforced.
 3. Sweep old-generation rows; occasionally `PRAGMA
    wal_checkpoint(TRUNCATE)` / `PRAGMA optimize`.
 
 **The boot flush always runs maintenance**, so a process that was long
-idle heals its retention debt at startup. Independent of sweep timing,
-**retention is enforced at read time**: every surface reads
-`telemetry_events_visible` (D1), which applies the `max_days` boundary —
-the sweep is space reclamation, not the privacy boundary (C5).
+idle heals its retention debt at startup, and **a shed-due-to-cap flush
+cycle arms maintenance too** (C8), so a server at its file cap reclaims
+space instead of starving until reboot. Independent of sweep timing,
+**retention is enforced at read time**: every surface reads the
+visibility views (D1), whose predicate is **strict** —
+`recorded_ts_ms > max(observation_clock − max_days × 86_400_000,
+retention_floor)` (`max_days` converts to milliseconds; this is the one
+boundary formula, and the D2 view snippet states the same one).
+**`max_days = 0` is the whole-subsystem off switch**: the disabled-guard
+empties *both* views — raw and rollup alike — while disabled (aggregate
+rows stay on disk and reappear on re-enable; D7's "raw rows only" rule
+describes which knob governs which lifetime *while enabled*). Strictness
+matters at the disable transition: floor := the observation clock at
+disable, every stamp already issued is ≤ that value, so a strict
+comparison hides all pre-disable rows — an inclusive one would leave
+rows stamped exactly at the clock visible — while D2's strictly
+increasing issuance guarantees every post-re-enable stamp exceeds the
+captured floor, so new rows are visible immediately even if wall time
+still lags the clock. The
+no-resurrection guarantee is a **durable boundary protocol**, not a
+sweep side effect: the floor advances to
+`observation_clock − max_days × 86_400_000` **at boot, at every flush,
+and at every
+retention-config transition** — a `max_days` decrease captures the
+tighter boundary durably before it applies, and a transition to
+`max_days = 0` (persistence off) sets the floor to the current
+observation clock, so re-enabling later cannot reveal pre-disable rows
+even though no flush ran while off. Because the observation clock is
+nondecreasing and the floor is monotone and persisted in
+`telemetry_meta`, raising `max_days`, lower-then-raise sequences,
+disable/re-enable, and clock rollback can never resurrect **raw rows**
+that were ever hidden — for the in-process server and the
+out-of-process hatch alike, with no sweep required. (Aggregate rows
+reappearing after a disable/re-enable cycle is the designed D7
+off-switch behavior, not resurrection: they were suspended by the
+guard, never boundary-hidden.) The sweep is space reclamation,
+not the privacy boundary (C5).
 
 This deliberately does **not** use LLP 0028 cron: cron scheduler state
 persists inside the app database (`META_CRON_STATE`), so a telemetry
@@ -538,11 +749,21 @@ The operations:
 - `telemetry.events` — filterable, cursor-paginated listing over
   `telemetry_events_visible` (`kind`, `name`, `status`, `code`,
   `correlation`, time range, text match); deterministic ordering
-  (`ts_ms`, `id`); bounded page sizes.
+  (`recorded_ts_ms`, `id`); bounded page sizes.
 - `telemetry.stats` — bucketed counts and aggregates: counts by
-  kind/status class, latency percentiles per `name` from D7 histograms
-  **merged with the in-memory unrolled tail**, so results are fresh to
-  the last flush, not the last rollup.
+  kind/status class, latency percentiles per `name`. **Authority is one
+  consistent SQLite read over an exact coverage partition**: rollup
+  buckets — open *and* finalized — cover precisely the rows at-or-below
+  the watermark, and the raw tail is the visible rows strictly above
+  it; the union counts every row exactly once, is correct across
+  restarts and independent of rollup cadence, and is fresh to the last
+  flush. Responses carry the coverage metadata (watermark position,
+  bucket coverage intervals) so the partition is checkable. An
+  in-memory accumulator may accelerate the union; it is never the
+  authority.
+- `telemetry.export` — snapshot-bounded streaming composition over
+  `telemetry.events` (same filters, same visibility views, NDJSON
+  framing); the CLI's `export` verb is this operation, not a side door.
 - Phase 3 adds `telemetry.usage`.
 
 **Sensitivity split (C5, LLP 0031):** `telemetry.stats` is a **closed
@@ -554,12 +775,16 @@ and therefore require **scoped, budgeted `AdminSecretRead` leases**
 with `no-store` response semantics.
 
 **The variance envelope.** Every response carries: store backend,
-**per-field** exactness (counts exact; histogram percentiles approximate
-with bucket-error bounds), sampling factor (if any), freshness watermark
-(latest flushed `ts_ms`), raw-retention boundary, drop counters since
-boot, truncation facts, and — per query — a capability outcome:
-`exact | approximate | bounded-window | unsupported`. Backends answer
-honestly instead of simulating each other.
+**per-field** exactness — window totals exact when the reported window
+is fully covered (D7's partial-window rule); per-name counts exact
+until heavy-hitter folding occurred in the window, then approximate and
+flagged; histogram percentiles approximate with bucket-error bounds —
+sampling factor (if any), freshness watermark (latest flushed
+`recorded_ts_ms`), the read-time retention boundary, drop counters
+(since-boot; lifetime available), truncation facts, and — per query — a
+capability outcome: `exact | approximate | bounded-window |
+unsupported`. Backends answer honestly instead of simulating each
+other.
 
 **The SQL hatch — local CLI only, not a network surface.** v0.2's
 network endpoint is deleted (see Alternatives). The escape hatch
@@ -570,17 +795,24 @@ survives where it is safe and where agents actually need it:
   deny-by-default authorizer** — *inspired by, and stricter than*, the
   Ibex boundary precedent (which is allow-by-default except
   `ATTACH`/`DETACH`/`load_extension` and tests those refusals) —
-  allowing only read actions against `telemetry_events_visible` and the
-  rollup views, denying the base tables, all pragmas, attach/detach,
-  and extension loading; single statement with rejected tails;
-  memory-only temp state; row, step, and time budgets (C8). Adversarial
-  tests beyond the Ibex refusal set are part of the deliverable.
+  allowing only read actions against the visibility views
+  (`telemetry_events_visible`, `telemetry_rollup_visible`), denying
+  every base table, all pragmas, attach/detach, and extension loading.
+  Implementation note: SQLite's authorizer fires base-table read
+  callbacks during view expansion, so the policy is attribution-aware —
+  base-table reads are allowed only when attributed to the visibility
+  views (the callback's view context makes this expressible), and a
+  naive literal deny-on-base-tables would break the views themselves.
+  Single statement with rejected tails; memory-only temp state; row,
+  step, and time budgets (C8). Adversarial tests beyond the Ibex
+  refusal set are part of the deliverable.
   Implementation note: the rusqlite authorizer API (`hooks` feature) is
   already compiled in transitively via the vendored `ibex-runtime`'s
   feature unification — declare it explicitly in Snapback's `Cargo.toml`
   rather than relying on unification.
-- Because the hatch reads the same visibility view, generation fencing
-  and read-time retention hold there too (D1, D4).
+- Because the hatch reads the same visibility views, whose boundary
+  comes from `telemetry_meta` (D1), generation fencing and read-time
+  retention hold there too with zero coordination (D1, D4).
 
 ### D6 — Console pages (Phase 1: Health and Logs)
 
@@ -613,26 +845,65 @@ Rollups are maintained by D4 flush-path maintenance:
 telemetry_rollup_hourly(generation, hour, kind, name,
                         count, error_count,
                         latency_histogram)   -- fixed log-spaced buckets
+telemetry_rollup_daily(...)                  -- compacted tier, same shape
 telemetry_meta(generation, app_db_incarnation,
-               rollup_watermark_id, last_sweep_ms, drop_counters)
+               max_days_mirror, retention_floor,
+               observation_clock_ms,        -- the D2 nondecreasing clock
+               aggregate_floor_hourly, aggregate_floor_daily,
+               rollup_watermark_id, last_sweep_ms,
+               drop_counters_lifetime)
+-- reads use telemetry_rollup_visible (generation-scoped union of tiers)
 ```
 
-- **State machine:** buckets and `rollup_watermark_id` (the highest
-  rolled `telemetry_events.id`) update in one transaction; retention
-  deletes only rows at-or-below the watermark (D4); `telemetry.stats`
-  merges finalized hourly rows with the in-memory unrolled tail, so
-  nothing is double-counted and nothing recent is missing.
+- **State machine:** hourly buckets are keyed by `recorded_ts_ms`,
+  which is monotone by the D2 observation clock — so the stream is
+  **append-ordered relative to the watermark**: no late record can land
+  behind an already-finalized hour, even under wall-clock rollback,
+  which dissolves the late-completion/top-N retroactivity problem by
+  construction. Buckets and `rollup_watermark_id` (the highest rolled
+  `telemetry_events.id`) update in one transaction; an hour is **open**
+  until the watermark passes its end and **finalized** after; every
+  bucket row carries its **coverage interval** (the `recorded_ts_ms`
+  range and watermark position it aggregates); retention deletes only
+  rows at-or-below the watermark (D4). Rollups fold **the same phase
+  set `stats` counts** (`point`/`joined`/`terminal`; `admission` rows
+  are never folded), so the D5 coverage partition — buckets open and
+  finalized ≤ watermark, raw tail strictly above — counts every
+  counted-phase row exactly once, restart-safe.
+- **Bounded historical tiers (C8):** hourly rows are kept for a bounded
+  window (default 90 days), then compacted into daily rows; the daily
+  tier has its own horizon (default 730 days), beyond which — or
+  whenever the total rollup row budget is exceeded — eviction removes
+  **whole coverage intervals** (an entire hour or day bucket, all names
+  at once, oldest first), never individual rows, and advances a durable
+  per-tier **aggregate floor** in `telemetry_meta`
+  (`aggregate_floor_hourly`/`_daily`), counted and visible. A window
+  overlapping an evicted interval is thereby reported not-fully-covered
+  rather than silently partial, which is what keeps the exactness
+  labels honest. While enabled, `max_days` governs **raw rows only**;
+  the tier horizons and aggregate floors govern aggregates
+  (`telemetry_rollup_visible` scopes to generation + these floors, D1).
+  `max_days = 0` is the whole-subsystem off switch and empties both
+  views (D4).
+  Rows ≈ hours × active names within the hourly window plus days ×
+  names within the daily horizon — bounded by construction, not hope.
+- **Partial windows are labeled, not fudged:** a query window that cuts
+  through a bucket is served exactly from visible raw rows where the
+  window lies within raw retention; beyond raw retention the response
+  snaps to bucket-aligned boundaries and reports the actual covered
+  window in the variance envelope. "Exact" is claimed only when the
+  reported window is fully covered.
 - **Mergeable by construction:** counters add; fixed-bucket histograms
-  add; any window (day, week, month) is a sum over hourly rows, with
-  percentiles from the merged histogram. Stored scalar percentiles and
-  exact daily `DISTINCT` scalars were rejected in review as
-  non-aggregable. Exactness is per-field in the variance envelope:
-  counts exact, percentiles approximate with known bucket error.
+  add; any window is a sum over tier rows, with percentiles from the
+  merged histogram. Stored scalar percentiles and exact daily
+  `DISTINCT` scalars were rejected in review as non-aggregable.
 - **Cardinality budget (C8):** `name` includes app-defined
-  route/function/job names that accumulate across deployments while
-  rollups are kept indefinitely. Each hour keeps the top-N names per
-  kind by count (default N=200); the remainder folds into `_other` and
-  the fold is counted and visible — no silent truncation.
+  route/function/job names that accumulate across deployments. Each
+  hour keeps the top-N names per kind by count (default N=200); the
+  remainder folds into `_other`, the fold is counted and visible — no
+  silent truncation — and per-name figures for a window containing
+  folds are flagged approximate in the variance envelope (window
+  totals stay exact).
 - **Distinct-user metrics are deliberately absent from Phase 1** —
   Phase 1 stores no subject at all (C5). Phase 3's gate is a
   **deletion-compatible aggregate strategy** decided with the identity
@@ -663,17 +934,35 @@ latency with telemetry on vs off.
   its own delivery/drop accounting — not this store.
 - *Cloudflare:* no local durable file exists. The worker owns
   **`writeDataPoint` only** (non-blocking; writes only on traffic,
-  keeping observed-zero idle billing intact). The **query operations are
-  served by the control plane**, which holds the account-scoped
-  Analytics Engine credential under LLP 0072's custody rules — the
-  worker cannot answer `telemetry.events`/`stats` itself, and the
-  console/CLI on this arm reach the control-plane projection of the
-  same typed operations (D5's transport-neutral contract exists for
-  exactly this). The arm is **partial and says so**: AE is sampled and
-  retention-capped (~3 months), so responses carry `approximate` /
-  `bounded-window` capability outcomes, and long-window history does
-  not exist unless OQ4 lands rollup persistence. Registry rows for the
-  control-plane projection land with Phase 2.
+  keeping observed-zero idle billing intact), and its payload is
+  **classification-only by default (C5)**: kind, name pattern, status
+  class, duration, code, generation — never `log`/`diagnostic`
+  details, never `_unmatched` raw paths, never free text. Analytics
+  Engine has fixed retention, no deletion, and no per-row read
+  authority, so the C5 apparatus cannot follow data into it; the
+  classification-only projection is what makes that acceptable, and
+  the raw-detail product (`telemetry.events` detail, the Logs modal)
+  is honestly `unsupported` on this arm unless a future decision
+  changes the projection. The arm's `generation` does not come from a
+  sibling file (none exists): the deployment/environment identity in
+  the control plane's trusted target descriptor stands in for the
+  D1 incarnation binding, rotating on reset/redeploy — pinned
+  concretely with the Phase-2 registry rows. The **query operations are served by the
+  control plane** as a real operation gateway: it holds the
+  account-scoped AE credential under LLP 0072's custody rules,
+  resolves the caller's deployment/environment identity and current
+  generation from trusted target descriptors (never from
+  caller-supplied strings), authorizes the caller independently of
+  that provider credential — including the D5 sensitivity split, with
+  raw-read authority, row/byte budgets, audit, and `no-store`
+  semantics intact — and serves `telemetry.events`/`stats`/`export`
+  through the same pinned schemas and capability outcomes (D5's
+  transport-neutral contract exists for exactly this). The arm is
+  **partial and says so**: AE is sampled and retention-capped
+  (~3 months), so responses carry `approximate` / `bounded-window`
+  outcomes, and long-window history does not exist unless OQ4 lands
+  rollup persistence. Registry rows for the control-plane projection
+  land with Phase 2.
 
 **Phase 3 — declared product analytics.**
 
@@ -712,25 +1001,42 @@ latency with telemetry on vs off.
 Long retention and ad-hoc analysis are export problems (the universal
 pattern: BigQuery export, log drains, log streams):
 
-- `snapback telemetry export --since --until` streams NDJSON of visible
-  raw events (AdminSecretRead authority, C5; current generation and
-  retention window by construction).
+- `snapback telemetry export --since --until` is the `telemetry.export`
+  typed operation (D5): snapshot-bounded NDJSON over the visibility
+  views (AdminSecretRead authority, C5; current generation and
+  retention boundary by construction).
 - A later optional forwarder (Convex-style log stream: batched HTTP to a
   webhook/PostHog endpoint, best-effort, HMAC-signed) is noted as future
   work, not v1.
 
 ## Deliverables checklist (Phase 1)
 
-1. `telemetry.rs` (store, `telemetry_meta` generation protocol, buffer
-   with priority classes, flusher, watermarked flush-path maintenance,
-   histogram rollups, visibility view) + span seams in
-   `src/server.rs`/`src/cron.rs`/`src/jobs.rs`/`src/runtime.rs` (`log`
-   capture); config knobs (`max_days`, `min_level`, `log_ip`, buffer
+1. `telemetry.rs` (store, `telemetry_meta` read-boundary authority and
+   generation protocol, buffer with priority classes, flusher,
+   watermarked flush-path maintenance with the monotonic retention
+   floor, tiered histogram rollups, both visibility views) + span seams
+   in `src/server.rs`/`src/cron.rs`/`src/jobs.rs`/`src/runtime.rs`
+   (`log` capture); config knobs (`max_days`, `min_level`, buffer
    sizes, C8 caps) in the config store; reset/restore fence wired into
-   the existing reset transition and its incarnation authority.
+   the existing reset transition and its incarnation authority; the
+   `obs_`/`gen_` prefixes registered in the LLP 0148 registry
+   (`Observation` and `Generation` rows) as part of this deliverable —
+   unconditionally.
 2. The operation-class registry (versioned) and the OQ1 projection-matrix
-   ratification against LLP 0104, checked by a shared fixture both the
-   telemetry and metering projections deserialize.
+   ratification against LLP 0104, checked by shared fixtures both the
+   telemetry and metering projections deserialize — covering derived
+   multi-metric event ids, no job/action or carrier/logical double
+   count, per-class record timing and timestamp semantics
+   (admission/terminal/recorded), retry/dedup, registry-version
+   behavior, reset/in-flight generation races, raw-tail stats across
+   restart, late-completion bucketing, cap exhaustion, and
+   snapshot-bounded export. Boundary-protocol fixtures: 7→1→7 and
+   N→0→N `max_days` transitions with no intervening sweep, clock
+   rollback against the floor *and* across an hour-finalization
+   boundary (pagination cursors and freshness must not regress),
+   hatch/server boundary parity, and a mid-hour maintenance run
+   proving every counted-phase row lands exactly once in the stats
+   partition before and after restart.
 3. Typed operations with pinned JSON Schemas + fixtures; local routes
    with LLP 0031 registry rows (stats = OperatorMetadata; events/export
    = AdminSecretRead + no-store); the variance envelope; `snapback
@@ -799,12 +1105,13 @@ pattern: BigQuery export, log drains, log streams):
 
 - **OQ1 — Span and registry ratification against LLP 0104 (hard gate
   before the seams land).** The full projection matrix: exact field
-  names and admission-vs-terminal timing, stable observation identity,
-  operation-class registry version semantics, batch/retry rules, and
-  which record is billable per class — reconciled with LLP 0104's
-  admitted-operation vocabulary and checked by a shared fixture that
-  both projections deserialize, so "projection, not translation" is a
-  CI property.
+  names, admission-vs-terminal timing and the recorded-timestamp
+  semantics, the observation-id → derived per-metric `eventId` rule,
+  operation-class registry version semantics, batch/retry/dedup rules,
+  and the operation-instance billable rule (no job/action or
+  carrier/logical double count) — reconciled with LLP 0104's
+  admitted-operation vocabulary and proven by the deliverable-2 shared
+  fixtures, so "projection, not translation" is a CI property.
 - **OQ2 — Phase-3 identity and settlement policy.** Anonymous-to-
   authenticated linking (default don't-link; app-declared linking with
   deletion applying to the whole link set), subject deletion/rotation

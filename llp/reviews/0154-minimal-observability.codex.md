@@ -1,5 +1,349 @@
 # LLP 0154 minimal observability review — Codex family
 
+## Round 7 — 2026-08-02 (spot-check of the v0.8 hunks; loop closed after)
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** `codex-cli` 0.146.0, `codex exec`, model
+`gpt-5.6-sol`, `model_reasoning_effort=xhigh`, sandbox `read-only`
+**Date:** 2026-08-02
+**Redacted:** no (repository-local content sent to OpenAI per the author's
+explicit request)
+**Method:** fresh non-author `codex exec` context, read-only sandbox,
+mutually blind (instructed not to read `llp/reviews/` for 0154).
+SHA-pinned target and capsule. Codex-only round: the three v0.8 repairs
+addressed exclusively this family's round-6 findings (Fable was READY in
+rounds 5 and 6).
+**Instruction capsule SHA-256:** `db08c43f5421d55efc1de4a7130f6f64cee9449505fbad2b4a5a54d3c43c2adf`
+**Target:** `llp/0154-minimal-observability.rfc.md` (1110 lines, Draft, v0.8)
+**Target SHA-256:** `896076b0f28831da9638a0b7c42f6ab0cf0708a0d3a7102efb4c4b7e99299fb0`
+**Status:** completed
+**Verdict:** NOT READY (1 MAJOR — per-row strict clock drifts under load;
+1 missed unit-conversion site; 1 MINOR wording scope)
+
+**Coordinator note (loop closure):** the round-7 findings were applied as
+v0.9 (per-flush-batch strict issuance bounding drift to ≤1 ms per flush;
+the missing day→millisecond conversion at the floor-advance site; the
+no-resurrection claim scoped to raw rows). The loop was then closed under
+the corpus's asymmetric stopping rule — Fable READY×2 (rounds 5–6),
+Codex NOT READY×3 (rounds 5–7) with monotonically shrinking,
+fix-of-the-fix findings — matching the LLP 0150 precedent. The v0.9
+repairs follow Codex's own prescribed resolutions but are themselves
+unreviewed. The author decides the status transition.
+
+### Verbatim review (round 7)
+
+1. **Per-repair verdict**
+
+- **Strict observation clock — UNSOUND.** The rule closes post-re-enable invisibility, but incrementing a millisecond timestamp per row drives `recorded_ts_ms` ahead of wall time above 1,000 persisted rows/second, distorting the retention and hourly-bucketing semantics it governs (`llp/0154-minimal-observability.rfc.md:523`, `llp/0154-minimal-observability.rfc.md:527`, `llp/0154-minimal-observability.rfc.md:534`).
+- **`max_days = 0` semantics — SOUND.** D4 explicitly hides both views while preserving aggregates for re-enable, and D7 consistently scopes “raw rows only” to enabled operation (`llp/0154-minimal-observability.rfc.md:668`, `llp/0154-minimal-observability.rfc.md:859`, `llp/0154-minimal-observability.rfc.md:862`).
+- **Day-to-millisecond conversion — UNSOUND.** The two principal boundary formulas now multiply by `86_400_000`, but the normative floor-advance instruction still subtracts bare `max_days` from the millisecond clock (`llp/0154-minimal-observability.rfc.md:665`, `llp/0154-minimal-observability.rfc.md:680`).
+
+2. **New defects**
+
+- **MAJOR:** Strict scalar-millisecond issuance creates load-dependent clock drift, potentially placing events in future query ranges and buckets and shortening real-time retention (`llp/0154-minimal-observability.rfc.md:523`, `llp/0154-minimal-observability.rfc.md:527`).
+- **MINOR:** Saying aggregate rows reappear after re-enable conflicts with the later unqualified claim that disable/re-enable can never resurrect “rows that were ever hidden”; the latter needs explicit raw-row scope (`llp/0154-minimal-observability.rfc.md:668`, `llp/0154-minimal-observability.rfc.md:686`).
+
+3. **Overall**
+
+The off-switch repair resolves its round-6 contradiction, but the strict-clock repair introduces a material physical-time drift defect and the unit repair remains incomplete in the floor-update protocol; the aggregate no-resurrection wording is additionally inconsistent but minor. Verdict: NOT READY
+
+## Round 6 — 2026-08-02 (spot-check of the v0.7 hunks)
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** `codex-cli` 0.146.0, `codex exec`, model
+`gpt-5.6-sol`, `model_reasoning_effort=xhigh`, sandbox `read-only`
+**Date:** 2026-08-02
+**Redacted:** no (repository-local content sent to OpenAI per the author's
+explicit request)
+**Method:** fresh non-author `codex exec` context, read-only sandbox,
+mutually blind (instructed not to read `llp/reviews/` for 0154).
+SHA-pinned target and capsule. Narrowest round: the six v0.7 repairs
+only.
+**Instruction capsule SHA-256:** `1608ebb92e5c0455ff5dbbcd9fba67a9517a6143bfaa02e9a5b0d625443183bc`
+**Target:** `llp/0154-minimal-observability.rfc.md` (1079 lines, Draft, v0.7)
+**Target SHA-256:** `0867e971ab6c5caaf250a400988d5140387d332688c76d212db2fb0865886fa7`
+**Status:** completed
+**Verdict:** NOT READY (5 of 6 repairs sound; 1 BLOCKING edge in the
+strict-boundary repair, plus the plural-views contradiction and a
+day-to-millisecond dimension bug — all one-line fixes)
+
+### Verbatim review (round 6)
+
+*(Coordinator note: citations were emitted as absolute-path links and are
+preserved verbatim.)*
+
+## 1. Per-repair verdict
+
+1. **AUTOINCREMENT id — SOUND:** `telemetry_events.id` now uses `INTEGER PRIMARY KEY AUTOINCREMENT`, preventing committed IDs from falling below the durable rollup watermark after reclamation ([llp/0154:472–475](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:472), [line 810](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:810)).
+2. **Strict/disabled boundary and unified formula — UNSOUND:** Although D2 and D4 now use the same strict predicate, the merely nondecreasing observation clock can stamp post-re-enable rows exactly at the disable floor during clock rollback, leaving those new rows invisible ([llp/0154:509–513](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:509), [line 643](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:643), [line 655](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:655)).
+3. **`telemetry_meta` sketch — SOUND:** The sketch now includes `observation_clock_ms`, `aggregate_floor_hourly`, and `aggregate_floor_daily` alongside the retention and watermark state ([llp/0154:796–801](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:796)).
+4. **D1 rollup-view scoping — SOUND:** D1 now scopes raw rows to the retention boundary and aggregates to tier horizons, with the requested subject-free C5 rationale ([llp/0154:389–395](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:389)).
+5. **Whole-interval budget eviction — SOUND:** D7 evicts complete hour/day coverage intervals, advances durable per-tier floors, and marks overlapping queries not fully covered ([llp/0154:820–832](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:820)).
+6. **Unconditional prefix registration — SOUND:** Deliverable 1 now requires both LLP 0148 registry rows unconditionally, matching D2’s normative requirement ([llp/0154:967–969](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:967), [line 440](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:440)).
+
+## 2. New defects
+
+- **BLOCKING — post-enable invisibility under clock rollback:** After disable sets `retention_floor = observation_clock`, re-enabling while wall time remains behind that clock produces `recorded_ts_ms == retention_floor`; the new strict predicate hides every such newly persisted row until the wall clock surpasses the floor ([llp/0154:509–513](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:509), [line 643](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:643), [line 655](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:655)).
+
+- **MAJOR — raw/rollup visibility contradiction:** D1 and D7 say `max_days` governs raw rows only and rollups remain governed by tier horizons, but D4 says `max_days = 0` makes “the views” empty, leaving `telemetry_rollup_visible` behavior contradictory ([llp/0154:389–395](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:389), [line 641](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:641), [line 830](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:830)).
+
+- **MAJOR — dimensionally incomplete boundary formula:** The asserted single formula subtracts `max_days` directly from a millisecond clock without specifying conversion to milliseconds, so its normative reading yields the wrong retention boundary ([llp/0154:497–500](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:497), [line 643](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:643)).
+
+## 3. Overall
+
+Five repairs are locally sound, but the strict-boundary repair creates a loss-of-visibility case under the RFC’s explicitly supported clock-rollback scenario, while the rollup-disable semantics remain contradictory and the unified formula lacks its required day-to-millisecond conversion. Verdict: NOT READY
+
+## Round 5 — 2026-08-02 (spot-check of the v0.6 hunks)
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** `codex-cli` 0.146.0, `codex exec`, model
+`gpt-5.6-sol`, `model_reasoning_effort=xhigh`, sandbox `read-only`
+**Date:** 2026-08-02
+**Redacted:** no (repository-local content sent to OpenAI per the author's
+explicit request)
+**Method:** fresh non-author `codex exec` context, read-only sandbox,
+mutually blind (instructed not to read `llp/reviews/` for 0154).
+SHA-pinned target and capsule. Narrowest round: spot-check of the v0.6
+repairs only.
+**Instruction capsule SHA-256:** `baae989f0ec8f9e3d9d5db6b9668807c824ca4a30b2e1831dca6d57cf6f036c8`
+**Target:** `llp/0154-minimal-observability.rfc.md` (1037 lines, Draft, v0.6)
+**Target SHA-256:** `54191faeead9104dd92e9aec46fffccee9135119de5bd5501b9aa379c361ca4f`
+**Status:** completed
+**Verdict:** NOT READY (2 BLOCKING mechanism catches — rowid reuse vs the
+durable watermark, and the inclusive boundary at `max_days = 0` — plus
+consistency residue shared with the other family's round-5 findings)
+
+### Verbatim review (round 5)
+
+*(Coordinator note: citations were emitted as absolute-path links and are
+preserved verbatim.)*
+
+## 1. Per-repair verdict
+
+- **Observation clock — UNSOUND.** D2 defines the persisted high-water correctly, but the normative `telemetry_meta` shape omits any observation-clock field, leaving the repair inconsistent with its storage definition ([0154:482](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:482), [0154:764](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:764)).
+
+- **Durable boundary protocol — UNSOUND.** D4 states the intended formula, but the visibility view still says `max(now − max_days, retention_floor)` and uses inclusive `>=`, so under rollback an `N→0` transition can leave rows exactly at the observation-clock high-water visible ([0154:470](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:470), [0154:617](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:617), [0154:623](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:623)).
+
+- **Exact coverage partition and phase set — UNSOUND.** The partition relies on all new rows having `id > rollup_watermark_id`, but `telemetry_events.id` is only `INTEGER PRIMARY KEY` without a non-reusing allocator, so retention can empty the table and allow new IDs below the durable watermark ([0154:451](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:451), [0154:668](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:668), [0154:776](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:776)).
+
+- **D7 tier coverage, horizon, eviction, and exactness — UNSOUND.** D7 says `max_days` governs raw rows only, contradicting D1’s requirement that `telemetry_rollup_visible` use the same retention boundary, while row-level budget eviction lacks a per-window completeness rule ([0154:373](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:373), [0154:468](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:468), [0154:786](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:786), [0154:794](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:794)).
+
+- **LLP 0148 wording and registration — UNSOUND.** D2 and the v0.5 history now correctly recognize Accepted LLP 0148 and require unconditional registration, but deliverable 1 still conditions registration on “when the trees merge” ([0148:4](/Users/ccheever/projects/snapback/llp/0148-prefixed-identifiers.decision.md:4), [0154:81](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:81), [0154:418](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:418), [0154:926](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:926)).
+
+- **Cloudflare `generation` provenance — SOUND.** D8 now derives generation from the control plane’s trusted target descriptor, specifies reset/redeploy rotation, and rejects caller-supplied identity ([0154:850](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:850), [0154:857](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:857)).
+
+- **Expanded boundary-protocol fixtures — SOUND.** Deliverable 2 explicitly covers `7→1→7`, `N→0→N`, rollback across the floor and hour finalization, hatch/server parity, and mid-hour exact partitioning across restart ([0154:928](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:928), [0154:936](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:936)).
+
+## 2. New defects
+
+- **BLOCKING:** `max_days = 0` is not an empty visibility boundary because rows equal to the observation clock satisfy the view’s inclusive `>=` predicate.
+
+- **BLOCKING:** The durable ID watermark is incompatible with a reusable SQLite `INTEGER PRIMARY KEY`; after complete raw-row reclamation, new rows can fall at or below the old watermark and disappear from both sides of the stats union.
+
+- **MAJOR:** The observation-clock high-water is absent from the listed `telemetry_meta` schema, and the visibility-view snippet still names `now`, leaving two competing clock definitions.
+
+- **MAJOR:** D1 makes aggregate visibility obey the raw retention boundary while D7 gives aggregates independent 90/730-day horizons.
+
+- **MAJOR:** Budget eviction is specified per tier row rather than per complete coverage interval, without durable incomplete-bucket metadata sufficient to support the exactness claim.
+
+- **MINOR:** Deliverable 1 retains the obsolete “when the trees merge” condition for LLP 0148 registration.
+
+## 3. Overall
+
+The Cloudflare provenance and fixture-list repairs are sound, and the phase filter itself is now explicit, but the v0.6 boundary remains incorrect at `max_days = 0`, while reusable event IDs invalidate the claimed exact watermark partition after full raw reclamation; the clock-schema and tier-retention contradictions add material implementation ambiguity. These exceed the READY threshold. Verdict: NOT READY
+
+## Round 4 — 2026-08-02 (focused delta check of v0.5)
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** `codex-cli` 0.146.0, `codex exec`, model
+`gpt-5.6-sol`, `model_reasoning_effort=xhigh`, sandbox `read-only`
+**Date:** 2026-08-02
+**Redacted:** no (repository-local content sent to OpenAI per the author's
+explicit request)
+**Method:** fresh non-author `codex exec` context, read-only sandbox,
+mutually blind (states it read no LLP 0154 review artifact). SHA-pinned
+target and capsule. Focused delta check of the v0.5 repairs.
+**Instruction capsule SHA-256:** `75e708f3ed5af9318cd75549b2d369c47e9d37eeda446392360dd45752ab1663`
+**Target:** `llp/0154-minimal-observability.rfc.md` (975 lines, Draft, v0.5)
+**Target SHA-256:** `ac9237603cdf8bec1d5ed19431bf01f0583988a786b43a689a8d4673c14ed945`
+**Repo revision at review start:** shared worktree advanced concurrently
+(HEAD `cbbb58ec` at coordination time; the loop began at `4f7890eb`)
+**Status:** completed
+**Verdict:** NOT READY (2 BLOCKING in the v0.5 retention/rollup algebra,
+2 MATERIAL, 1 MINOR)
+
+### Verbatim review (round 4)
+
+*(Coordinator note: citations were emitted as absolute-path links and are
+preserved verbatim.)*
+
+## 1. Overall assessment
+
+I verified the 975-line target matches SHA-256 `ac9237603cdf8bec1d5ed19431bf01f0583988a786b43a689a8d4673c14ed945`, read it fully, and checked the relevant repository substrate without reading any LLP 0154 review artifact. Most identity, phase, privacy, export, authorization, and hosted-gateway repairs are sound. However, v0.5 introduces two blocking defects in its retention and rollup algebra, plus material timestamp/tiering defects. Phase 1 remains unimplemented, so runtime behavior and the dated external landscape claims were not verifiable; this is an RFC-and-substrate assessment. Verdict: NOT READY
+
+## 2. Delta verification
+
+- **Dual timestamps — PARTIAL.** Keeping `ts_ms` admission-bound correctly matches LLP 0104’s attribution rule ([llp/0104:67](/Users/ccheever/projects/snapback/llp/0104-expo-hosted-metering-and-commercial-contract.spec.md:67)). Using `recorded_ts_ms` makes late terminal observations visible and gives deterministic `(recorded_ts_ms,id)` ordering ([llp/0154:459](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:459)). It is not sufficient for append-ordered rollups under wall-clock rollback; see concern 3.
+
+- **`phase` and per-class row rules — SOUND.** Explicit `point | admission | terminal | joined` rows, one joined row for short operations, paired rows for long-lived operations, and exclusion of admissions from `stats` give an unambiguous counting rule ([llp/0154:469](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:469)).
+
+- **Identity and billable-instance rule — SOUND at RFC level.** Separating the correlation root from per-metric `eventId`s aligns with LLP 0104’s separate `eventId`, `schemaVersion`, metric, and quantity fields ([llp/0104:64](/Users/ccheever/projects/snapback/llp/0104-expo-hosted-metering-and-commercial-contract.spec.md:64)). The carrier/logical and scheduler/invoked-operation rules also match the accepted-logical-operation basis ([llp/0104:181](/Users/ccheever/projects/snapback/llp/0104-expo-hosted-metering-and-commercial-contract.spec.md:181), [llp/0154:419](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:419)). OQ1 appropriately remains a hard pre-implementation ratification gate.
+
+- **`telemetry_meta` as shared authority — PARTIAL.** Mirroring generation and configuration into the telemetry database is a coherent way to make in-process and direct-file readers agree ([llp/0154:351](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:351)). The claimed irreversible retention floor is not maintained on all boundary advances; see concern 2.
+
+- **Visibility views and SQL authorizer — PARTIAL.** Denying base tables while permitting reads attributed to the two views is implementable, and the dependency claim is correct: Snapback omits `hooks` directly while vendored Ibex enables it ([Cargo.toml:33](/Users/ccheever/projects/snapback/Cargo.toml:33), [vendor/ibex/Cargo.toml:59](/Users/ccheever/projects/snapback/vendor/ibex/Cargo.toml:59)). The existing Ibex policy is indeed only an allow-by-default precedent ([abi.rs:3075](/Users/ccheever/projects/snapback/vendor/ibex/src/host/abi.rs:3075)). The rollup view still lacks sound partial-boundary semantics; see concern 4.
+
+- **`telemetry.stats` consistent SQLite authority — NOT SOUND.** Making SQLite rather than memory authoritative is correct, but the stated union omits rows already rolled into an open hourly bucket; see concern 1.
+
+- **`telemetry.export` typed operation — SOUND.** It uses the same filters, visibility boundary, raw-read authority, and snapshot-bounded composition rather than creating a side channel ([llp/0154:639](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:639), [llp/0154:851](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:851)).
+
+- **Tiered rollups and per-field exactness — PARTIAL.** Mergeable counters/histograms and heavy-hitter disclosure are sound. Open-bucket coverage, partial-window exactness, aggregate retention, and the daily-tier bound are incomplete; see concerns 1 and 4.
+
+- **Cloudflare classification-only projection and operation gateway — SOUND.** The payload excludes free text and raw details, reports raw detail as unsupported, derives target identity from trusted descriptors, and separates caller authorization from provider-credential custody ([llp/0154:786](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:786)). That matches LLP 0072’s ownership of hosted metrics, credentials, narrow inspection grants, and target descriptors ([llp/0072:162](/Users/ccheever/projects/snapback/llp/0072-trusted-single-tenant-control-plane.rfc.md:162), [llp/0072:190](/Users/ccheever/projects/snapback/llp/0072-trusted-single-tenant-control-plane.rfc.md:190), [llp/0072:271](/Users/ccheever/projects/snapback/llp/0072-trusted-single-tenant-control-plane.rfc.md:271)).
+
+- **Subject/IP posture — SOUND.** Phase 1 makes `subject` invariantly NULL, removes IP capture entirely, and keeps raw details behind `AdminSecretRead` ([llp/0154:263](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:263), [llp/0154:523](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:523)). This matches LLP 0031’s raw-sensitive-data boundary ([llp/0031:183](/Users/ccheever/projects/snapback/llp/0031-server-route-taxonomy.spec.md:183)).
+
+- **`obs_`/`gen_` grammar — PARTIAL.** The grammar matches LLP 0148 ([llp/0148:102](/Users/ccheever/projects/snapback/llp/0148-prefixed-identifiers.decision.md:102)), but the document’s “not in this checkout” and “when the trees merge” condition is now stale; see concern 5.
+
+- **Expanded fixtures and OQ1 — PARTIAL.** The new identity, deduplication, reset-race, retention, raw-tail, late-completion, and export cases are valuable ([llp/0154:871](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:871)). They need the additional cases below before they prove the repaired design.
+
+## 3. Concerns
+
+1. **BLOCKING — `telemetry.stats` does not partition rolled and raw data.** Maintenance folds every row above the watermark into an hourly aggregate and advances the watermark ([llp/0154:575](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:575)). The current hour remains “open” after that operation ([llp/0154:730](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:730)), while `stats` reads only finalized rollups plus raw rows above the watermark ([llp/0154:632](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:632)). Rows rolled into the open hour are therefore neither finalized-rollup input nor raw-tail input.
+   **Resolution:** Define an exact coverage partition. With open buckets behind the watermark, `stats` must include their rolled contributions through the watermark and raw rows strictly above it, with coverage metadata preventing overlap. Add a fixture that runs maintenance mid-hour and proves every row is counted exactly once before and after restart.
+
+2. **BLOCKING — the monotonic floor does not make the live read boundary irreversible.** The floor advances only during a sweep ([llp/0154:577](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:577)), but the visibility boundary continuously uses live `now − max_days` and claims that config changes, disable/enable, and clock rollback cannot resurrect anything ([llp/0154:586](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:586)). Lowering then raising `max_days` before the next sweep resurrects rows; a clock rollback can resurrect rows hidden since the previous sweep; and `max_days = 0` short-circuits persistence, so it cannot rely on a later flush to advance the floor ([llp/0154:565](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:565)).
+   **Resolution:** Choose a durable boundary protocol compatible with the read-only hatch—for example, a persisted observation-clock high-water plus `visible_after_ms`, advanced atomically on flush, boot, and every configuration transition. Alternatively weaken the contract to opportunistic retention rather than “ever hidden.” Add 7→1→7, N→0→N, no-sweep, hatch-parity, and clock-rollback fixtures.
+
+3. **MATERIAL — `recorded_ts_ms` is not specified as monotonic, so it does not guarantee append-ordered rollups.** v0.5 says a persistence timestamp makes the stream strictly append-ordered ([llp/0154:459](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:459), [llp/0154:730](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:730)). A wall-clock rollback allows a newly inserted, higher-id row to land in an earlier, already-finalized hour. It can also sort before an issued event cursor and move the reported freshness timestamp backward.
+   **Resolution:** Define `recorded_ts_ms` from a durable nondecreasing observation clock, or define late-bucket reopening/upsert semantics. Test rollback across an hour-finalization boundary, event pagination, and freshness reporting—not only rollback “against the floor.”
+
+4. **MATERIAL — tier coverage, exactness, and bounded retention are underspecified.** The variance envelope promises exact window totals ([llp/0154:652](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:652)), while D7 says any window is a sum of hourly/daily rows ([llp/0154:747](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:747)). A query or retention boundary cutting through an hourly or daily bucket cannot obtain exact totals from that aggregate alone. Separately, the daily tier has no named horizon or eviction rule: “days × names beyond” is not itself bounded ([llp/0154:742](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:742)).
+   **Resolution:** Give every aggregate row an explicit coverage interval; use raw visible rows for partial boundary buckets or require aligned windows and report the actual covered window. Define whether `max_days` governs raw rows, aggregates, or both, and specify the daily horizon/budget-eviction behavior. Adjust exactness labels accordingly.
+
+5. **MINOR — the LLP 0148 merge condition is obsolete.** LLP 0154 still says LLP 0148 is absent and registration waits for a tree merge ([llp/0154:400](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:400)), but LLP 0148 is present, Accepted, and requires every new identifier kind to be a registry row ([llp/0148:193](/Users/ccheever/projects/snapback/llp/0148-prefixed-identifiers.decision.md:193)). The current generated registry contains neither prefix ([schemas/id-registry.v1.json:5](/Users/ccheever/projects/snapback/schemas/id-registry.v1.json:5)).
+   **Resolution:** Remove the ancestry/merge qualification and state directly that Phase 1 adds `Observation`/`Generation` registry rows with their chosen body-randomness property.
+
+## 4. Open questions
+
+None. My position remains NOT READY.
+
+## 5. Recommended next step
+
+Revise to v0.6 with an explicit rollup coverage partition, a durable no-resurrection boundary protocol, monotonic observation-time semantics, and fully specified tier/window retention. Extend deliverable 2 with the exact fixtures named above, update the LLP 0148 wording, then run another focused delta review before the author considers moving the RFC to Review. `./ref-check --verbose` currently reports 0 errors. I could not record this review under `llp/reviews/` because the sandbox is read-only.
+
+## Round 3 — 2026-08-02
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** `codex-cli` 0.146.0, `codex exec`, model
+`gpt-5.6-sol`, `model_reasoning_effort=xhigh`, sandbox `read-only`
+**Date:** 2026-08-02
+**Redacted:** no (repository-local content sent to OpenAI per the author's
+explicit request for a Codex design-partner review)
+**Method:** fresh non-author `codex exec` context, read-only sandbox over
+the working tree; mutually blind — instructed not to read any
+`llp/reviews/` artifact concerning LLP 0154; the review states "did not
+consult LLP 0154 review contents." SHA-pinned target and instruction
+capsule. Focused re-review of the v0.4 round-2 repairs.
+**Instruction capsule SHA-256:** `8dfed19adfe4ca0e6168a7c2529cb3d2f97a0b543fa67045e5ad0eee77828d99`
+**Target:** `llp/0154-minimal-observability.rfc.md` (827 lines, Draft, v0.4)
+**Target SHA-256:** `564dbdd9786d79733c842403a97cb29f44618493ebb42e37ff0dbf7ff6f55036`
+**Repo revision at review start:** `main` `4f7890eb` (target file untracked)
+**Status:** completed
+**Verdict:** NOT READY
+
+### Verbatim review (round 3)
+
+*(Editorial note by the review coordinator: the reviewer's file citations
+were emitted as absolute-path markdown links; they are preserved verbatim
+below.)*
+
+## 1. Overall assessment
+
+v0.4 is a substantial improvement: the two-stage span, reset-incarnation binding, sensitivity split, typed-operation direction, idle-settle rule, and corrected authorizer description are well grounded in the repository. I verified the supplied SHA-256 and 827-line count, read the target fully, and did not consult LLP 0154 review contents. However, the metering identity still permits collisions, retention is reversible, rollups can omit flushed rows and grow without bound, and the Cloudflare authorization contract remains incomplete. I could not verify the external landscape claims or proposed performance numbers; no telemetry implementation exists yet to test, and LLP 0148 is absent from this checkout. Verdict: NOT READY
+
+## 2. Strengths
+
+- C4/D2 now correctly recognizes that billing attribution happens at admission while outcome and duration arrive later. That matches LLP 0104’s admission-bound `occurredAt` contract ([0154:228](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:228), [0104:64](/Users/ccheever/projects/snapback/llp/0104-expo-hosted-metering-and-commercial-contract.spec.md:64)).
+
+- D1 is anchored to a real durable authority. The authorization incarnation rotates inside the destructive reset transaction, and the server keeps successor publication fenced afterward ([0154:305](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:305), [storage.rs:930](/Users/ccheever/projects/snapback/src/storage.rs:930), [server.rs:17335](/Users/ccheever/projects/snapback/src/server.rs:17335)). Filtering old in-flight batches rather than trying to race them is the right model.
+
+- C5/D5’s aggregate-versus-raw split matches the existing route taxonomy: closed operator metadata may use ordinary admin authority, while raw application-derived material requires scoped secret-read authority ([0154:548](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:548), [0031:199](/Users/ccheever/projects/snapback/llp/0031-server-route-taxonomy.spec.md:199)). The implementation already has finite TTL, row, and byte budgets suitable for new telemetry scopes ([admin_secret_read.rs:30](/Users/ccheever/projects/snapback/src/admin_secret_read.rs:30)).
+
+- The corrected rusqlite statement is verified: Snapback does not declare `hooks`, Ibex does, and Ibex’s existing authorizer is indeed allow-default except for attach/detach/extension loading ([Cargo.toml:33](/Users/ccheever/projects/snapback/Cargo.toml:33), [vendor/ibex/Cargo.toml:59](/Users/ccheever/projects/snapback/vendor/ibex/Cargo.toml:59), [abi.rs:3075](/Users/ccheever/projects/snapback/vendor/ibex/src/host/abi.rs:3075)). A new deny-by-default policy is accurately described.
+
+- C2 and deliverable 5 now preserve the actual measured invariant by separating bounded provisioning settlement from the idle window ([0154:212](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:212), [0035:279](/Users/ccheever/projects/snapback/llp/0035-local-target-benchmarks.research.md:279)).
+
+- The `log`, `_unmatched`, lifecycle allowlist, diagnostic-emission boundary, and field scrubbing make Phase 1 much more implementable ([0154:401](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:401)). `runtime.log` is a real existing host-call seam ([runtime.rs:1895](/Users/ccheever/projects/snapback/src/runtime.rs:1895)).
+
+## 3. Concerns
+
+1. **MATERIAL — An observation ID cannot also be the universal bill-event idempotency key.**
+
+   Evidence: D2 calls the observation ID “the idempotency key for bill-grade sinks” ([0154:341](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:341)). LLP 0104 instead defines each usage event as an `eventId` plus one metric and integer quantity ([0104:64](/Users/ccheever/projects/snapback/llp/0104-expo-hosted-metering-and-commercial-contract.spec.md:64)); one logical operation can produce request, CPU, transfer, and shadow-meter facts. Reusing one ID would either collapse distinct meter events or require a new multi-metric event shape contrary to LLP 0104. The skeleton also makes `job run` admission billable and gives transport requests a fallback billable case ([0154:357](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:357)), while LLP 0104 bills accepted logical operations and does not independently enumerate scheduler runs ([0104:187](/Users/ccheever/projects/snapback/llp/0104-expo-hosted-metering-and-commercial-contract.spec.md:187)). That risks job/action or carrier/logical-call double counting.
+
+   Resolution: make `observation_id` the correlation root. Derive a distinct deterministic metering `eventId` from `(observation_id, metric_id, stage/sequence, schema_version)`. Replace “exactly one record per class is billable” with an operation-instance rule, and explicitly classify scheduler admission versus the invoked action.
+
+2. **MATERIAL — The read-time retention boundary is reversible and incomplete for rollups.**
+
+   Evidence: the view is defined as `ts_ms >= now − max_days` ([0154:389](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:389)), while sweeps are only opportunistic reclamation ([0154:501](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:501)). Raising `max_days`, toggling from `0` back to a positive value, or moving the clock backward can therefore reveal unswept rows that were previously hidden. The proposed metadata has no durable retention floor ([0154:612](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:612)). Moreover, D1 says every read uses `telemetry_events_visible`, but stats and the SQL hatch also read rollup views whose current-generation and retention semantics are not defined ([0154:538](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:538), [0154:568](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:568)).
+
+   Resolution: persist a nondecreasing raw-retention floor or immutable per-event expiry policy, define whether policy increases may affect existing rows, and handle clock rollback explicitly. Define separate current-generation raw and rollup visibility views; deny every base table in the SQL hatch.
+
+3. **MATERIAL — `telemetry.stats` can omit flushed-but-unrolled rows.**
+
+   Evidence: a flush moves batches into SQLite ([0154:472](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:472)), while rollup maintenance runs only after the configured threshold or hour transition ([0154:485](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:485)). Stats nevertheless merges rollups with an “in-memory unrolled tail” ([0154:542](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:542)). Once a batch is flushed, its authoritative unrolled rows are in SQLite, not necessarily memory; an unspecified cache also fails across restart and before boot maintenance completes.
+
+   Resolution: query `rollup rows ≤ watermark` plus visible raw rows `> watermark` in one consistent read. An in-memory cache may accelerate that union but must never be its authority.
+
+4. **MATERIAL — The top-N rollup cannot simultaneously be incremental, indefinitely retained, bounded, and exact as written.**
+
+   Evidence: rollup rows are kept indefinitely, with up to 200 names per kind per hour ([0154:631](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:631)), yet C8 requires hard file-size and total rollup-row budgets ([0154:267](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:267)). This still grows linearly forever. There is also an exactness problem: rows use admission time but joined rows arrive at terminal completion ([0154:339](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:339)); a late completion can change an already-folded hour’s top N, but its earlier contribution cannot be extracted from `_other`. The variance envelope currently says counts are exact without qualifying these breakdowns ([0154:556](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:556)).
+
+   Resolution: define bounded rollup retention/downsampling and a total row budget. Either retain complete per-name state until a declared lateness/finalization boundary or use a bounded heavy-hitter algorithm and label per-name results approximate. Keep only total counts exact where that is actually guaranteed.
+
+5. **MATERIAL — The Cloudflare repair fixes credential location, not the complete authorization contract.**
+
+   Evidence: D8 correctly puts the account-scoped Analytics Engine credential in the control plane, but does not define how a caller’s admin authority is mapped to an immutable app/environment target, how the current reset generation is selected, or how raw-read budgets and audit apply ([0154:664](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:664)). Those obligations matter because raw events require `AdminSecretRead` ([0154:548](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:548)). LLP 0072 supplies credential-custody principles but explicitly does not define a hosted multi-tenant service ([0072:172](/Users/ccheever/projects/snapback/llp/0072-trusted-single-tenant-control-plane.rfc.md:172), [0072:950](/Users/ccheever/projects/snapback/llp/0072-trusted-single-tenant-control-plane.rfc.md:950)). Separately, D5’s operation list omits `telemetry.export`, despite presenting export as a cross-surface CLI capability ([0154:536](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:536), [0154:710](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:710)).
+
+   Resolution: specify a Phase-2 control-plane authorization envelope with host-resolved deployment/environment identity, current stream incarnation, raw-read authority, row/byte budgets, audit, and `no-store`. Define export either as a typed streaming operation or explicitly as a snapshot-bounded composition over `telemetry.events`.
+
+6. **MINOR — “Subject-free” is directionally right but internally imprecise.**
+
+   Evidence: the RFC says Phase 1 persists no user identity ([0154:84](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:84)) while permitting optional IP persistence ([0154:445](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:445)). The shown schema contains no subject column, yet the text says its column position is reserved ([0154:374](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:374), [0154:396](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:396)).
+
+   Resolution: say “no stable application subject identifier” and either remove Phase-1 IP capture or identify it as a separately opted-in address datum. Remove the nonexistent reserved-column claim or show the actual nullable column and invariant.
+
+7. **MINOR — The identifier dependency is unavailable.**
+
+   Evidence: D1/D2 rely on LLP 0148 for `gen_` and `obs_` identifiers ([0154:305](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:305), [0154:341](/Users/ccheever/projects/snapback/llp/0154-minimal-observability.rfc.md:341)), but this checkout contains no `llp/0148-*`; the root LLP says 0148 remains reserved on a parallel ref ([0000:9](/Users/ccheever/projects/snapback/llp/0000-snapback.explainer.md:9)). I therefore could not check the grammar.
+
+   Resolution: land LLP 0148 before this dependency is normative, or define the required prefixes and entropy/uniqueness rules locally in LLP 0154.
+
+## 4. Design proposals
+
+- **Strong — Split correlation identity from projection-event identity.** Keep one stable observation ID across admission and terminal stages, then deterministically derive one ID per metering/log/telemetry projection event. This makes retries idempotent without conflating multiple metrics.
+
+- **Strong — Make visibility durable state.** Add a singleton current-generation binding plus a nondecreasing raw-retention floor, and define current-generation raw and aggregate views separately. Raw-tail queries, export, and the SQL hatch should all consume those views.
+
+- **Strong — Use persisted open buckets and bounded historical tiers.** Query raw rows above the watermark; maintain explicitly open hourly buckets; compact closed history into bounded daily/monthly tiers; state exactness independently for totals, names, and percentiles.
+
+- **Moderate — Make the hosted projection a real operation gateway.** The control plane should resolve the deployment and generation from trusted descriptors, authorize the caller independently of its provider credential, and expose `events`, `stats`, and export through the same schemas and capability outcomes.
+
+## 5. Open questions
+
+- **OQ1:** Correctly identified as a hard gate, but it must resolve concern 1 before Review. The shared fixture should prove derived event IDs, accepted logical-operation classification, no job/action or carrier/logical double count, admission attribution, terminal metrics, retry/deduplication, and registry-version behavior.
+
+- **OQ2:** Keep this entirely in Phase 3. Default don’t-link is right, and mutation-scoped events should release only on commit. Distinct-user metrics should not ship until deletion semantics choose either retractable per-subject contribution state or an explicit, honest non-retractability contract.
+
+- **OQ3:** Safety limits should be settled independently of pricing. Phase 1 needs concrete bounds for raw days, total main/WAL/SHM bytes, rollup rows/history, query work, and behavior at capacity. Hosted defaults can be chosen at Phase-2 landing; commercial entitlements may only narrow within the safety envelope.
+
+- **OQ4:** Cap Cloudflare history at the Analytics Engine window for v1. The variance envelope makes honest partial parity acceptable; Durable Object rollups add enough state and failure surface that they should require measured demand. Current-generation filtering and authorization still need to be defined even with the capped option.
+
+## 6. Recommended next step
+
+Revise to v0.5 while remaining Draft, resolving concerns 1–5 and folding concerns 6–7 into the cleanup. Add normative fixtures for multi-metric event IDs, reset/in-flight generation races, retention-policy changes and clock rollback, raw-tail queries across restart, late completion/top-N behavior, total-cap exhaustion, and snapshot-bounded export. Then run one focused round-4 re-review before moving to Review. The sandbox was read-only, so I could not create the LLP 0005 review artifact under `llp/reviews/`.
+
 ## Round 2 — 2026-08-02
 
 **Reviewer family:** OpenAI Codex

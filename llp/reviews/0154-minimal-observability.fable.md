@@ -1,5 +1,146 @@
 # LLP 0154 minimal observability review — Fable family
 
+## Round 6 — 2026-08-02 (spot-check of the v0.7 hunks)
+
+**Reviewer family:** Claude (Fable 5)
+**Provider / runtime:** Claude Code `general-purpose` subagent
+(`claude-fable-5`), fresh non-author session (distinct from rounds 1–5)
+**Date:** 2026-08-02
+**Redacted:** no (repository-local review)
+**Method:** fresh non-author agent context, read-only, mutually blind (no
+`llp/reviews/` access for 0154); SHA-pinned target verified. Narrowest
+round: the six v0.7 repairs only.
+**Target:** `llp/0154-minimal-observability.rfc.md` (1079 lines, Draft, v0.7)
+**Target SHA-256:** `0867e971ab6c5caaf250a400988d5140387d332688c76d212db2fb0865886fa7`
+**Status:** completed
+**Verdict:** READY (all six repairs sound; two one-sentence wording
+residues; second consecutive Fable READY)
+
+### Verbatim review (round 6)
+
+1. **Per-repair verdict**
+
+- **[B1] AUTOINCREMENT id — SOUND.** `llp/0154-minimal-observability.rfc.md:472` declares `id INTEGER PRIMARY KEY AUTOINCREMENT` with an accurate rationale comment (lines 472–475), and since `rollup_watermark_id` is the highest rolled `telemetry_events.id` (line 815), a strictly-increasing, never-reused id space guarantees post-reclamation rows cannot land at-or-below the durable watermark and fall out of both sides of the stats partition.
+- **[B2] Strict boundary predicate + disabled-means-empty — SOUND.** The view predicate at lines 496–500 is strict (`recorded_ts_ms >`) with an explicit `max_days_mirror > 0` disabled-guard, D4 states the identical formula `recorded_ts_ms > max(observation_clock − max_days, retention_floor)` at lines 642–644 and declares it "the one boundary formula; the D2 view snippet states the same one" (line 645), and the stale `now`-based formula is gone; the transition argument at lines 646–649 (floor := observation clock on disable, every stamp ≤ clock, strict comparison hides everything) is correct, and the transition-to-zero floor rule at lines 655–658 closes the re-enable path.
+- **[M] `observation_clock_ms` in `telemetry_meta` — SOUND.** The sketch at lines 796–801 now carries `observation_clock_ms` (annotated "the D2 nondecreasing clock", line 798), matching D2's requirement that the clock be persisted in `telemetry_meta` (lines 508–511).
+- **[M] D1 rollup-view scoping — SOUND.** Lines 392–395 now scope `telemetry_rollup_visible` to "the D7 tier horizons (aggregates are classification-only and subject-free in Phase 1, so outliving raw retention is C5-consistent)", consistent with D7's "`max_days` governs raw rows only; the tier horizons and aggregate floors govern aggregates" (lines 830–832).
+- **[M] Whole-coverage-interval eviction — SOUND.** Lines 826–831 respecify eviction as removing "whole coverage intervals (an entire hour or day bucket, all names at once, oldest first), never individual rows", advancing durable `aggregate_floor_hourly`/`aggregate_floor_daily` (present in the meta sketch, line 800), with the explicit consequence that overlapping windows report not-fully-covered — restoring the D5 per-field exactness claim (lines 726–728).
+- **[m] Unconditional prefix registration — SOUND.** Deliverable 1 (lines 966–969) registers the `obs_`/`gen_` prefixes "as part of this deliverable — unconditionally", matching D2 (lines 440–442); no "when the trees merge" or equivalent conditional language remains anywhere in the document.
+
+2. **New defects**
+
+- **MINOR (wording):** the D2 snippet's comment "rollup reads use `telemetry_rollup_visible` with the same generation/boundary scoping" (lines 491–492) can be misread as applying the raw retention boundary to the rollup view, which D1 (lines 392–395) and D7 (lines 830–832) explicitly reject in favor of tier horizons and aggregate floors. One clarifying word ("its own boundary" or "floor scoping") would remove the ambiguity.
+- **MINOR (wording tension):** D4's "`max_days = 0` making the views empty outright" (line 644, plural) implies the disabled-guard also empties `telemetry_rollup_visible`, while D7 says `max_days` "governs raw rows only" (line 831). Treating `max_days = 0` as a whole-subsystem off switch is a defensible and probably intended semantic (D3 line 617 disables persistence entirely), but the two sentences should acknowledge each other.
+- No mechanism defects introduced: I checked the strict predicate against the stats coverage partition (tail rows above the watermark are folded by D4 step 1 regardless of visibility, so aggregation-before-deletion still holds at boot), the deliverable-2 fixture list still exercises the new N→0→N and clock-rollback cases (lines 978–984), and the AUTOINCREMENT change does not disturb the append-ordered watermark claim.
+
+3. **Overall**
+
+All six v0.7 repairs land as described in the Revised header and each one resolves its round-5 finding at the mechanism level: the id space can no longer sink below the durable watermark, the boundary predicate is strict with an explicit disabled-guard and a single formula stated identically in D2 and D4, `telemetry_meta` now sketches every field the boundary protocol depends on, the rollup view's longer horizon is both corrected and justified against C5, eviction operates on whole coverage intervals with durable per-tier floors so exactness labels stay honest, and the prefix registration is unconditional. The v0.7 hunks introduced no new mechanism defects; the only residue is two wording-level ambiguities (the D2 snippet's "same generation/boundary scoping" gloss and the `max_days = 0`-empties-both-views vs. "raw rows only" tension), both of which are one-sentence fixes that do not affect the design's correctness. Verdict: READY
+
+## Round 5 — 2026-08-02 (spot-check of the v0.6 hunks)
+
+**Reviewer family:** Claude (Fable 5)
+**Provider / runtime:** Claude Code `general-purpose` subagent
+(`claude-fable-5`), fresh non-author session (distinct from rounds 1–4)
+**Date:** 2026-08-02
+**Redacted:** no (repository-local review)
+**Method:** fresh non-author agent context, read-only, mutually blind (no
+`llp/reviews/` access for 0154); SHA-pinned target verified. Narrowest
+round: spot-check of the v0.6 repairs only.
+**Target:** `llp/0154-minimal-observability.rfc.md` (1037 lines, Draft, v0.6)
+**Target SHA-256:** `54191faeead9104dd92e9aec46fffccee9135119de5bd5501b9aa379c361ca4f`
+**Status:** completed
+**Verdict:** READY (all v0.6 repairs sound; 3 MINOR wording residues)
+
+### Verbatim review (round 5)
+
+1. **Per-repair verdict**
+
+- **Observation clock (D2) — SOUND.** `recorded_ts_ms` is now read from a persisted nondecreasing clock in `telemetry_meta` (`max(wall clock, persisted high-water)`, high-water advanced at every flush and boot), making it monotone per store so freshness/cursors never regress and rollback-era rows land in the current open bucket (llp/0154-minimal-observability.rfc.md:481-493) — this resolves M3, and D7 now legitimately claims append-ordering from it (0154:771-776).
+- **Durable boundary protocol (D4) — SOUND.** The floor advances durably to `observation_clock − max_days` at boot, every flush, and every retention-config transition, with `max_days = 0` explicitly setting the floor to the current clock, and the read boundary is `max(observation_clock − max_days, retention_floor)` (0154:618-631); combined with the nondecreasing clock this closes both B2 resurrection paths (7→1→7 / N→0→N with no intervening sweep, and clock rollback), and the sweep is correctly demoted to space reclamation (0154:630-631).
+- **Exact coverage partition (D5/D7) — SOUND.** `stats` is now one consistent read over buckets *open and finalized* covering rows at-or-below the watermark plus a raw tail *strictly above* it, with coverage metadata in the response (0154:670-678); the id-keyed watermark plus id/`recorded_ts_ms` co-monotonicity makes the partition exact, and B1's omitted open-bucket rows are included by construction (0154:771-780).
+- **Rollup phase filter — SOUND.** Rollups fold exactly the phase set `stats` counts (`point`/`joined`/`terminal`; `admission` never folded) (0154:781-785), matching D2's `stats` phase rule (0154:498).
+- **Tier coverage / daily horizon / partial windows (D7) — SOUND.** Per-bucket coverage intervals (0154:778-780), the daily tier's 730-day horizon with counted, visible budget eviction (0154:786-793), the partial-window labeling rule (0154:794-799), and the variance envelope's cross-reference to it with per-field exactness (0154:691-697) are all now explicit — resolving M4.
+- **LLP 0148 wording (D2 + v0.5 header) — SOUND, with one residue (defect 1 below).** D2 now cites 0148 as "Accepted, in-tree" with registration unconditional via deliverable 1 (0154:418-422), and the v0.5 header entry honestly records the mid-loop landing (0154:81-83); verified against the repo: 0148 is Accepted (llp/0148-prefixed-identifiers.decision.md:4), its grammar is 26-char lowercase Crockford base32 (0148:107) matching D2's claim, registration-per-kind is real (0148:195-197), and neither `obs_` nor `gen_` exists in schemas/id-registry.v1.json (verified by JSON search — no `obs_`/`gen_` kinds), so "neither prefix is registered yet" is accurate.
+- **Cloudflare `generation` provenance (D8) — SOUND.** The arm's generation is now sourced: the control plane's trusted target descriptor stands in for the D1 incarnation binding, rotating on reset/redeploy, pinned with Phase-2 registry rows (0154:851-854).
+- **Boundary-protocol fixtures (deliverable 2) — SOUND.** The fixture list now names 7→1→7 and N→0→N with no intervening sweep, clock rollback against the floor and across hour finalization (cursor/freshness non-regression), hatch/server boundary parity, and the mid-hour exactly-once stats-partition proof across restart (0154:936-942) — covering every repaired mechanism.
+
+2. **New defects**
+
+- **[MINOR] Deliverable 1 still says the `obs_`/`gen_` prefixes are "registered in the LLP 0148 registry when the trees merge"** (0154:925-927), leftover conditional wording that contradicts D2's "Phase 1 adds the `Observation` and `Generation` rows unconditionally (deliverable 1)" (0154:421-422) and the v0.6 header's "making prefix registration unconditional" (0154:99-100). The m5 repair was applied to D2 and the header but not to the deliverable it delegates to.
+- **[MINOR] The `telemetry_meta` field sketch omits the observation clock.** D2 says the persisted high-water lives in `telemetry_meta` (0154:482-484), but the D7 schema sketch enumerates seven fields without it (0154:764-767) and D1's "single read-boundary authority" enumeration also lists generation/incarnation/`max_days`/floor only (0154:375-382). New in v0.6 since the clock is a v0.6 mechanism.
+- **[MINOR] Two boundary formulas.** The D2 view comment states the boundary as `max(now − max_days, retention_floor)` (0154:473-474) while D4 states `max(observation_clock − max_days, retention_floor)` (0154:621-622). They are in fact equivalent — the floor advances to `high-water − max_days` at exactly the events that advance the high-water, so `max(now−max_days, floor) = max(obs_clock−max_days, floor)` — but the document never states that equivalence, and an implementer of the out-of-process hatch could reasonably wonder which clock to evaluate.
+
+3. **Overall**
+
+The v0.6 hash matches (54191fae…) and every enumerated repair is genuinely present and mechanically sound: the persisted nondecreasing observation clock repairs both the monotonicity defect (M3) and, jointly with floor advancement at boot/flush/config transitions, the between-sweeps resurrection defect (B2); the open-plus-finalized-buckets-≤-watermark / raw-tail-strictly-above partition repairs the `stats` undercount (B1) with checkable coverage metadata; tier horizons, eviction, and partial-window labeling close M4; the LLP 0148 wording now matches the repo's actual state (Accepted, in-tree, prefixes unregistered), and the rollup phase filter and Cloudflare generation source from the other family are both stated. The three defects the v0.6 hunks left behind are consistency residue, not mechanism errors — a stale conditional in deliverable 1, a schema sketch missing the new clock field, and an unstated equivalence between two boundary formulas — all MINOR and fixable with wording-only edits. Verdict: READY
+
+## Round 4 — 2026-08-02 (focused delta check of v0.5)
+
+**Reviewer family:** Claude (Fable 5)
+**Provider / runtime:** Claude Code `general-purpose` subagent
+(`claude-fable-5`), fresh non-author session (distinct from rounds 1–3)
+**Date:** 2026-08-02
+**Redacted:** no (repository-local review)
+**Method:** fresh non-author agent context, read-only, mutually blind
+(no `llp/reviews/` access for 0154); SHA-pinned target verified. Focused
+delta check: are the v0.5 repairs sound, and did they introduce new
+defects.
+**Target:** `llp/0154-minimal-observability.rfc.md` (975 lines, Draft, v0.5)
+**Target SHA-256:** `ac9237603cdf8bec1d5ed19431bf01f0583988a786b43a689a8d4673c14ed945`
+**Repo revision at review start:** shared worktree advanced concurrently
+(HEAD `cbbb58ec` at coordination time; the loop began at `4f7890eb`)
+**Status:** completed
+**Verdict:** NOT READY (one MATERIAL — a false repository fact introduced
+by v0.5 itself, with no design consequence; three one-sentence MINORs;
+every substantive v0.5 repair verified sound; "does not need another full
+round" after the reword)
+
+**Coordinator note on the MATERIAL finding:** the reviewer is right and
+the root cause is fleet concurrency — LLP 0148 landed into this shared
+working tree *between* round 3 (when both families correctly observed it
+absent) and the v0.5 edit (which wrongly restated that observation as a
+current fact). The v0.6 fix rewords both sites, cites 0148 directly, and
+makes the prefix registration unconditional.
+
+### Verbatim review (round 4)
+
+**1. Overall assessment**
+
+I verified the target at SHA-256 `ac9237…d945` (975 lines, v0.5) and checked each v0.5 repair area against the repository. The delta work is genuinely sound: the dual-timestamp split is applied consistently across visibility, retention, ordering, and rollup bucketing; the identity rule and operation-instance billable rule now align with LLP 0104's actual admission-bound `occurredAt`, `eventId`-dedup, and accepted-operation vocabulary; `telemetry_meta` is a coherent single read-boundary authority whose zero-coordination claim holds for the out-of-process hatch; the attribution-aware authorizer note is technically correct (rusqlite 0.31 exposes the view-accessor context, and the `hooks` feature-unification claim checks out at the manifest and lockfile level); the tiered-rollup state machine, consistent-read `stats` authority, typed `telemetry.export`, and Cloudflare classification-only/operation-gateway restructuring are internally consistent and honest. However, v0.5 introduced one verifiably false factual claim: it asserts twice that "LLP 0148 is not in this checkout's ancestry," while `llp/0148-prefixed-identifiers.decision.md` exists in this repository and its landing commits are ancestors of HEAD — the doc's own Related header cites 0148, contradicting the body. The locally-defined grammar happens to match 0148 exactly and `obs_`/`gen_` collide with nothing in the generated registry, so there is no design consequence, but a document entering Review in this corpus cannot carry a checkable false statement about the corpus, and the "when the trees merge" registration deferral is conditioned on a state that does not exist. Everything else I checked is at most MINOR. Verdict: NOT READY
+
+**2. Delta verification**
+
+- **Dual timestamps (`ts_ms`/`recorded_ts_ms`).** Sound. The schema carries both (llp/0154:439-440), the normative split (llp/0154:459-473) is applied consistently: visibility view filters on `recorded_ts_ms` (llp/0154:455), retention sweeps on it (llp/0154:577), `telemetry.events` orders by `(recorded_ts_ms, id)` (llp/0154:630-631), freshness watermark is latest flushed `recorded_ts_ms` (llp/0154:656), rollup buckets key on it (llp/0154:730). `ts_ms` as admission-bound attribution matches LLP 0104's discipline exactly (llp/0104:67-73). The long-span-terminal motivation is real and the accepted cost (terminal aggregates into the ending hour) is stated. One residual gap under clock rollback — Concern 2.
+- **`phase` column and per-class row rules.** Sound. The four values (llp/0154:436) map consistently onto the projection matrix (llp/0154:409-417) and the per-class rule (llp/0154:469-473); counting only `point`/`joined`/`terminal` in `stats` avoids double-counting long-lived spans. The rollup fold does not state the same phase filter — Concern 3.
+- **Identity rule / operation-instance billable rule / job classification.** Sound against LLP 0104 as it exists: `eventId` is "globally unique, idempotent" with consumer dedup by `eventId` (llp/0104:66, 90), so deterministic derivation from `(observation_id, metric_id, stage, schema_version)` (llp/0154:398-400) preserves idempotency per metric; the request unit is "One accepted query, mutation, action, HTTP function, live subscribe/resubscribe, or chargeable platform operation" with batches of N accepted operations billing as N (llp/0104:99, 193) — scheduler admission is indeed not in that list, so "the invoked logical operation is the billable instance" (llp/0154:415, 419-427) is a correct reading, and OQ1 still gates the full matrix (llp/0154:947-955). Shadow meters exist (llp/0104:39, 200) supporting the multi-metric premise.
+- **`telemetry_meta` as single read-boundary authority.** Sound. D1's authority statement (llp/0154:359-365), the D7 schema row (llp/0154:723-726), the view SQL (llp/0154:452-457), and the hatch's zero-coordination claim (llp/0154:687-689) are mutually consistent; the mirrored `max_days` refresh story covers the out-of-process CLI. The incarnation authority it binds to is real: durable authorization-stream witness with `incarnation` and rotation inside reset (src/storage.rs:282-290, 949) and the publication fence (src/server.rs:550-582).
+- **Monotonic `retention_floor`.** Sound. Advanced at each sweep (llp/0154:581-582), enforced at read time as `max(now − max_days, retention_floor)` (llp/0154:592-595), explicitly covering config raises, toggle-off/on, and clock rollback; fixtures cover it (llp/0154:877-878).
+- **`telemetry.stats` consistent-read re-authorization.** Sound. "Finalized rollups ∪ visible raw tail above the watermark, one consistent SQLite read, memory never the authority" (llp/0154:633-638) is restated identically in D7 (llp/0154:738-741) — no contradiction between the two sites.
+- **`telemetry.export` as typed operation.** Sound. D5 defines it as snapshot-bounded composition over `telemetry.events` (llp/0154:639-641) and D9's CLI verb is declared to be that operation, with AdminSecretRead authority (llp/0154:851-854); deliverable 2 fixtures include snapshot-bounded export (llp/0154:879-880).
+- **Tiered rollups.** Sound modulo Concerns 2–3. Open-until-watermark-passes/finalized-after semantics, id-keyed watermark in the same transaction, retention deleting only at-or-below watermark (llp/0154:730-741), 90-day hourly window compacting to daily with the row budget enforced by tier retention (llp/0154:742-746), and per-field exactness in the envelope (llp/0154:652-657) fit together. The "append-ordered by construction" claim is the one place with an unstated assumption (Concern 2).
+- **Cloudflare classification-only default + control-plane operation gateway.** Sound as specified. The classification-only payload enumeration and its C5 rationale (llp/0154:786-796), the honest `unsupported` for raw-detail surfaces (llp/0154:795-797), and the gateway holding the AE credential under LLP 0072 custody (which is real: llp/0072:14, 728-732) with independent caller authorization and trusted target descriptors (llp/0154:797-810) resolve the credential-locus problem cleanly. One MINOR provenance gap on `generation` for this arm — Concern 4.
+- **Subject invariantly NULL + no Phase-1 IP.** Sound and consistent everywhere it appears (llp/0154:275-277, 445, 474-477, 531-533); no residual IP-knob text survives anywhere in the document.
+- **Local `obs_`/`gen_` grammar + registration obligation.** The grammar content is correct — it matches LLP 0148 verbatim (`prefix := [a-z][a-z0-9]{1,11}`, 26-char lowercase Crockford base32: llp/0148-prefixed-identifiers.decision.md:105-111) and neither `obs` nor `gen` collides with any registered prefix in schemas/id-registry.v1.json — but the premise is false in this repository. Concern 1.
+- **Authorizer implementation notes.** Sound. rusqlite 0.31's `AuthContext` exposes `accessor: Option<&str>` documented as the "inner-most trigger or view" (rusqlite-0.31.0 hooks.rs:44-53, 611-613), so attribution-aware view-scoped allow is expressible as claimed (llp/0154:676-680). The Ibex precedent is characterized accurately (vendor/ibex/src/host/abi.rs:3075-3084; refusal tests abi.rs:10832-10863). The `hooks` transitivity claim is true (Cargo.toml:33 omits `hooks`, vendor/ibex/Cargo.toml:59 declares it, single rusqlite 0.31.0 in Cargo.lock:2826-2827) and the doc rightly directs declaring it explicitly (llp/0154:684-686, 886).
+- **Expanded deliverable-2 fixtures and OQ1.** Sound; the fixture list (llp/0154:871-880) covers each v0.5 mechanism. One coverage nit in Concern 2.
+- **Carried-over substrate claims spot-checked, all accurate:** ~44k-line server.rs with exactly 2 `eprintln!` (44,937 lines, count 2); `DiagnosticSeverity` = Info/Warning/Error/Fatal (src/diagnostic.rs:11-19); `runtime.log` host call (src/runtime.rs:1901-1906); cron terminal state (src/cron.rs:97-103); cron state in the app DB (src/storage.rs:150, 2698, 2729) and LLP 0028's source-manifest presupposition (llp/0028:18-19); LLP 0031 classes incl. `SensitiveApplicationData` and `AdminSecretRead` for raw reads (llp/0031:183-188, 207); LLP 0035 idle evidence (llp/0035:277-296); explainer 7,200s window, non-goal, reserved slot (llp/0000:596, 716-718, 955); LLP 0010:747; config-sibling precedent (src/config.rs:265-272); control MCP 1:1 host-ops (packages/snapback-cli/mcp-control.mjs:4-8) and guide MCP resources-only (src/guide_mcp.rs:8, 184-193); LLP 0024 "One core, thin projections" (llp/0024:111); no observability row in guide/capabilities.md.
+
+**3. Concerns**
+
+1. **MATERIAL — v0.5 asserts a false repository fact: "LLP 0148 is not in this checkout's ancestry."** Evidence: the claim appears in the revision header (llp/0154:81-83) and normatively in D2 (llp/0154:400-404), and conditions deliverable 1's registration on "when the trees merge" (llp/0154:404, 869-870). But `llp/0148-prefixed-identifiers.decision.md` exists in this working tree, and its landing commits ee707feb and 74900baf are ancestors of HEAD (verified with `git merge-base --is-ancestor`). The doc's own Related header cites 0148 (llp/0154:97-98), contradicting the body. Mitigation already in place by luck: the locally defined grammar is character-for-character LLP 0148's and `obs_`/`gen_` are absent from schemas/id-registry.v1.json. Resolution (minutes-scale): reword both sites, cite 0148 instead of restating the grammar (or label the restatement as a copy), make the deliverable-1 registration unconditional, and soften the header attribution.
+2. **MINOR — the "append-ordered by construction" watermark claim silently assumes `recorded_ts_ms` monotonicity, which the doc's own threat model contradicts.** Under clock rollback, a higher-id row can carry a `recorded_ts_ms` inside an hour the id-keyed watermark has already finalized (llp/0154:730-735 vs 594). Resolution: clamp `recorded_ts_ms` nondecreasing per telemetry connection, or route regressed rows into the current open bucket; add a fixture line.
+3. **MINOR — rollup phase filtering is unstated.** `stats` counts `point`/`joined`/`terminal` only (llp/0154:473) but the D4 fold never says `admission` rows are excluded (llp/0154:574-575) — if folded, the union would count admission rows below the watermark but not above it. Resolution: state that rollups aggregate the same phase set `stats` counts.
+4. **MINOR — Cloudflare `generation` provenance is undefined.** The classification-only payload includes `generation` (llp/0154:790) but D1's protocol is sibling-file/`telemetry_meta`-based, which the CF arm lacks (llp/0154:786); D8 doesn't say how a CF generation is minted or rotated. Resolution: one sentence naming the CF generation source (deployment/environment identity from the target descriptor), or defer explicitly to the Phase-2 registry-row landing.
+
+**4. Open questions**
+
+None beyond the document's own OQ1–OQ4, which remain correctly scoped.
+
+**5. Recommended next step.** Author applies the Concern-1 rewording and the three one-sentence MINOR patches; none touches the converged architecture. Given that every other v0.5 repair verified sound against the repository, that edit does not need another full round — a delta acknowledgment (or the next reviewer's spot-check of those four hunks) suffices to enter Review.
+
+**Not checked / limitations:** no code or SQLite behavior executed (read-only) — authorizer view-expansion verified at the rusqlite API-surface level, feature unification at manifest+lockfile level; external-platform figures outside this delta; nothing read under `llp/reviews/` for 0154.
+
 ## Round 3 — 2026-08-02
 
 **Reviewer family:** Claude (Fable 5)
