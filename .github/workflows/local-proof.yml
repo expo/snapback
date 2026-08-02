@@ -8,11 +8,16 @@ on:
 permissions:
   contents: read
 
-# Agents push to main in bursts; only the newest commit's proof matters, so
-# cancel superseded runs instead of paying for each.
+# Agents push to main in bursts with a median commit gap far below one proof
+# duration, so cancel-in-progress starved the lane completely: 39 of the 40
+# runs before 2026-08-02 ended cancelled or superseded and main had no verdict
+# for days (issues/20260802-local-proof-is-cancelled-before-it-can-finish-on-main.md).
+# Let the running proof finish; GitHub coalesces the queue to the newest
+# pending run, so the lane yields one verdict per proof duration on the then-
+# latest commit instead of zero verdicts ever.
 concurrency:
   group: local-proof-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   local-proof:
@@ -126,4 +131,7 @@ jobs:
           CARGO_PROFILE_DEV_DEBUG: "0"
           CARGO_PROFILE_TEST_DEBUG: "0"
           SNAPBACK_VERIFY_EXACT: "1"
+          # One red round names every broken gate instead of only the first
+          # (issues/20260802-verify-local-proof-stops-at-the-first-failure.md).
+          SNAPBACK_PROOF_KEEP_GOING: "1"
         run: scripts/verify-local-proof

@@ -5,11 +5,55 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VERIFY_EXACT="${SNAPBACK_VERIFY_EXACT:-auto}"
 
+# Default is fail-fast (a normal local run stops at the first broken gate).
+# --keep-going / SNAPBACK_PROOF_KEEP_GOING=1 runs every gate, prints a
+# PASS/FAIL summary, and exits non-zero if any failed, so one red CI round
+# names every broken gate instead of only the first
+# (issues/20260802-verify-local-proof-stops-at-the-first-failure.md). Gates
+# downstream of a failed producer (e.g. the built binary) may fail as a
+# cascade; the summary shows them all and the first failure is authoritative.
+KEEP_GOING=0
+case "${SNAPBACK_PROOF_KEEP_GOING:-}" in
+    1|true|TRUE|yes|on) KEEP_GOING=1 ;;
+esac
+for proof_arg in "$@"; do
+    case "$proof_arg" in
+        --keep-going) KEEP_GOING=1 ;;
+        *)
+            printf '[snapback-verify] unknown argument: %s\n' "$proof_arg" >&2
+            exit 2
+            ;;
+    esac
+done
+FAILED_GATES=()
+
 run() {
     printf '\n[snapback-verify] $'
     printf ' %q' "$@"
     printf '\n'
+    if [ "$KEEP_GOING" = "1" ]; then
+        local gate_status=0
+        "$@" || gate_status=$?
+        if [ "$gate_status" -ne 0 ]; then
+            printf '\n[snapback-verify] FAIL (exit %d):' "$gate_status"
+            printf ' %q' "$@"
+            printf '\n'
+            FAILED_GATES+=("$(printf '%q ' "$@")")
+        fi
+        return 0
+    fi
     "$@"
+}
+
+finish() {
+    if [ "$KEEP_GOING" = "1" ] && [ "${#FAILED_GATES[@]}" -gt 0 ]; then
+        printf '\n[snapback-verify] KEEP-GOING SUMMARY: %d gate(s) failed\n' \
+            "${#FAILED_GATES[@]}"
+        for failed_gate in "${FAILED_GATES[@]}"; do
+            printf '  FAIL  %s\n' "$failed_gate"
+        done
+        exit 1
+    fi
 }
 
 exact_available() {
@@ -338,4 +382,5 @@ if [ "$VERIFY_EXACT" != "0" ]; then
     fi
 fi
 
+finish
 printf '\n[snapback-verify] local proof checks complete\n'

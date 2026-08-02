@@ -47,3 +47,18 @@ reporting a cascade of derived errors as separate findings.
 
 Exit: one CI round on a broken lane names every failing gate, and the
 dependent stages are reported as skipped rather than as extra failures.
+
+## Resolution (2026-08-02)
+
+**Status: Resolved.** `scripts/verify-local-proof` gains exactly the
+suggested shape: `--keep-going` flag or `SNAPBACK_PROOF_KEEP_GOING=1` runs
+every gate through the shared `run()` wrapper, prints a per-failure `FAIL
+(exit N): <command>` line inline plus a final `KEEP-GOING SUMMARY` naming
+every failed gate, and exits 1 if any failed. Default stays fail-fast with
+the failing gate's own exit code. CI passes the env var in
+`local-proof.yml`. Unknown arguments exit 2. Verified by standalone harness
+on /bin/bash 3.2 and modern bash: continue-past-failure + summary + exit 1;
+fail-fast stops at first gate with exit 3; all-pass keep-going exits 0 with
+no summary; `bash -n` clean. Known accepted shape: gates downstream of a
+failed producer (e.g. the built binary) fail as a cascade — the summary
+shows all, first failure is authoritative.

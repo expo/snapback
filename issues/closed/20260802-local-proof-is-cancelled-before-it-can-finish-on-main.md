@@ -76,3 +76,16 @@ split is more work than it is worth right now.
 
 Exit: `local-proof` produces a completed verdict on main regularly enough that
 a landing which breaks it is identified while it is still the newest landing.
+
+## Resolution (2026-08-02)
+
+**Status: Resolved.** `local-proof.yml` concurrency now sets
+`cancel-in-progress: false` with the starvation evidence recorded in the
+comment: the running proof completes and GitHub coalesces the queue to the
+newest pending run, so the lane yields one verdict per proof duration on the
+then-latest commit. Landed together with the keep-going fix for the sibling
+ticket so the first completed round names every broken gate at once.
+Verified: `node tests/ci_workflows_v0.mjs` passes (7 workflows, 30 immutable
+pins). Watch item: the first post-landing run on main is the proof of the
+fix — if it still shows cancelled, the group key needs a per-SHA suffix
+instead.
