@@ -17,3 +17,14 @@ resolved ask's server re-attestation).
 Done when: goldens cover deploy-mid-call refusal → refetch → success,
 deploy-mid-watch resync, removed-function terminal recovery with zero
 dispatch, and a kill-between-dispatch-and-ACK replay.
+
+**Progress (2026-08-01, binding half DONE):** the engine now extracts the
+complete five-key artifact identity from the loaded index and asserts it
+as `expectedGeneration` on every call family — mutation, query, and live
+establishment — falling back to the server's legacy unchecked path only
+for pre-identity indexes. Wire-asserted by the package journey test
+(all three families checked against the captured bodies). Remaining in
+this ticket: the settlement/ACK store wiring into the CLI mutation path
+and the four goldens (deploy-mid-call refetch, deploy-mid-watch resync,
+removed-function recovery, kill-between-dispatch-and-ACK replay), which
+want a real-server harness rather than the journey fake.

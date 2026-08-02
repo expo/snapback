@@ -116,7 +116,10 @@ try {
   await writeFile(join(directory, 'artifacts.json'), JSON.stringify({
     artifactKind: 'artifactIndex',
     appId: 'journey',
+    schemaVersion: 'snapback.v0',
+    schemaHash: 'sha256:journey-schema',
     bundleHash: 'sha256:test',
+    inputsHash: 'journey-inputs',
   }));
   await writeFile(join(directory, 'functions.manifest.json'), JSON.stringify({
     artifactKind: 'functionManifest',
@@ -191,8 +194,28 @@ try {
       `engine request to ${call.path} must not carry an admin token header`,
     );
   }
+  // @ref LLP 0062#1-engine-plus-data-never-program-source--served-or-generated —
+  // call-time generation binding: the loaded index carries the complete
+  // artifact identity, so every ordinary call and the live establishment must
+  // assert it on the wire (the resolved 20260801-llp0012 ask's client half).
+  const expectedGeneration = {
+    schemaVersion: 'snapback.v0',
+    appId: 'journey',
+    schemaHash: 'sha256:journey-schema',
+    bundleHash: 'sha256:test',
+    inputsHash: 'journey-inputs',
+  };
+  for (const path of ['/mutation/createTodo', '/query/listTodosOnce', '/live/listTodos/subscribe']) {
+    const call = calls.find((entry) => entry.path === path);
+    assert.deepEqual(
+      call.body.expectedGeneration,
+      expectedGeneration,
+      `${path} must assert the generated artifact identity`,
+    );
+  }
   console.log('package.test.mjs: packaged discover/pair/mutate/subscribe/verify journey passes');
   console.log('package.test.mjs: planted SNAPBACK_ADMIN_TOKEN never left the engine');
+  console.log('package.test.mjs: every call family asserted the artifact generation');
 } finally {
   await new Promise((resolve) => server.close(resolve));
   await rm(directory, { recursive: true, force: true });

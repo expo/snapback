@@ -72,10 +72,23 @@ export async function loadAppArtifacts(directory) {
       argsSchema: `operations/${fn.name}.args.schema.json`,
     });
   });
+  // @ref LLP 0062#1-engine-plus-data-never-program-source--served-or-generated —
+  // call-time generation binding: when the artifact index carries the complete
+  // generated artifact identity, every call this engine makes asserts it, so a
+  // deploy between discovery and dispatch refuses server-side instead of
+  // executing against a surface the arguments were not validated for. An index
+  // predating the identity fields keeps the server's legacy unchecked path.
+  const GENERATION_KEYS = ['schemaVersion', 'appId', 'schemaHash', 'bundleHash', 'inputsHash'];
+  const generation = GENERATION_KEYS.every(
+    (key) => typeof index[key] === 'string' && index[key].length > 0,
+  )
+    ? Object.freeze(Object.fromEntries(GENERATION_KEYS.map((key) => [key, index[key]])))
+    : null;
   return Object.freeze({
     root,
     appId: index.appId,
     bundleHash: manifest.bundleHash ?? index.bundleHash ?? null,
+    generation,
     functions: Object.freeze(functions),
   });
 }
@@ -140,12 +153,19 @@ const lookupFunction = (artifacts, name) => {
   return fn;
 };
 
+// The client's call families accept either a bare name (the server's legacy
+// unchecked path) or a selector carrying the generated artifact identity; the
+// engine always sends the identity when the loaded index provides one.
+const functionSelector = (artifacts, fn) => (artifacts.generation === null
+  ? fn.name
+  : Object.freeze({ name: fn.name, expectedGeneration: artifacts.generation }));
+
 export async function invokeAppFunction(client, artifacts, name, args = {}) {
   const fn = lookupFunction(artifacts, name);
   if (fn.kind === 'liveQuery') {
     throw diagnosticError('SNAPBACK_APP_CLI_CALL_REQUIRES_ORDINARY_FUNCTION', `'${name}' is live; use subscribe`);
   }
-  return client[fn.kind === 'mutation' ? 'mutate' : fn.kind](name, { args });
+  return client[fn.kind === 'mutation' ? 'mutate' : fn.kind](functionSelector(artifacts, fn), { args });
 }
 
 export async function subscribeAppFunction(client, artifacts, name, {
@@ -156,7 +176,7 @@ export async function subscribeAppFunction(client, artifacts, name, {
   if (fn.kind !== 'liveQuery') {
     throw diagnosticError('SNAPBACK_APP_CLI_SUBSCRIBE_REQUIRES_LIVE_QUERY', `'${name}' is not a live query`);
   }
-  return client.subscribeLive(name, { args, connectionId });
+  return client.subscribeLive(functionSelector(artifacts, fn), { args, connectionId });
 }
 
 // Acceptance seam for the packaged outcome: discovery -> pairing -> scoped
