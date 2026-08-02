@@ -8,9 +8,10 @@
 // the demo harness, and verify-local-proof all trust and re-verify the same
 // artifact instead of each holding a private, unpersisted opinion.
 //
-// Custody: the receipt lives at `<binary>.runtime-readiness.json`, so it is
-// created and destroyed with the binary it describes (cargo clean removes
-// both). Trust never derives from the file's presence or location alone —
+// Source-checkout custody defaults to `<binary>.runtime-readiness.json`, so it
+// is created and destroyed with the binary it describes. Packaged consumers
+// may instead provide an app-owned `.snapback/` receipt path. Trust never
+// derives from the file's presence or location alone —
 // consumption always recomputes the binary digest and the current framework
 // artifact digests and compares. A framework refresh after issuance therefore
 // invalidates the receipt (framework-drift) without any bookkeeping, and a
@@ -48,6 +49,12 @@ const HASH_CHUNK_BYTES = 1024 * 1024;
 /// can derive its location from the one fact they already hold.
 export function runtimeReadinessReceiptPath(binaryPath) {
   return `${resolve(binaryPath)}.runtime-readiness.json`;
+}
+
+function resolvedReceiptPath(binaryPath, receiptPath = null) {
+  return receiptPath === null
+    ? runtimeReadinessReceiptPath(binaryPath)
+    : resolve(receiptPath);
 }
 
 /// The Hermes runtime artifacts a built binary is qualified against — the
@@ -123,6 +130,7 @@ export function digestRuntimeArtifacts(root, {
 export function issueRuntimeReadinessReceipt({
   root,
   binaryPath,
+  receiptPath = null,
   qualification,
   issuer = 'unknown',
   platform = process.platform,
@@ -157,7 +165,7 @@ export function issueRuntimeReadinessReceipt({
       report: qualification.report ?? null,
     },
   };
-  const receiptPath = runtimeReadinessReceiptPath(binaryPath);
+  receiptPath = resolvedReceiptPath(binaryPath, receiptPath);
   const temporary = `${receiptPath}.${randomUUID()}.tmp`;
   writeFileSync(temporary, `${JSON.stringify(receipt, null, 2)}\n`);
   renameSync(temporary, receiptPath);
@@ -196,12 +204,13 @@ function refusal(reason, message, { receiptPath, binaryPath, root, details = {} 
 export function verifyRuntimeReadinessReceipt({
   root,
   binaryPath,
+  receiptPath = null,
   platform = process.platform,
   artifacts = null,
 }) {
   root = resolve(root);
   binaryPath = resolve(binaryPath);
-  const receiptPath = runtimeReadinessReceiptPath(binaryPath);
+  receiptPath = resolvedReceiptPath(binaryPath, receiptPath);
   const context = { receiptPath, binaryPath, root };
   if (!existsSync(binaryPath)) {
     return refusal('binary-missing', `the selected runtime binary does not exist: ${binaryPath}`, context);

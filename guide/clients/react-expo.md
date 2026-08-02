@@ -163,11 +163,11 @@ AppState.addEventListener('change', (state) => {
 Two sharp edges, stated plainly:
 
 - **Construct one client for the app, not one per operation.** The durable
-  store is single-writer per origin; the first client's store instance
-  holds the writer lock for the whole launch and there is currently no
-  client API that releases it, so later clients in the same process
-  silently degrade to non-persisting readers
-  (`issues/20260801-rqs-default-store-lifecycle-sequential-clients.md`).
+  store is single-writer per origin. If a shell deliberately replaces the
+  client, `await client.closeAuth()` performs final cleanup and releases a
+  store resolved by the default ladder before the successor is constructed.
+  A store passed through `rqsStore` remains caller-owned and must be closed by
+  that caller.
 - For bare React Native (no expo-file-system), implement the nine-method
   files adapter against `createFileRqsResumeStore` yourself, or inject a
   store per client via the `rqsStore` option

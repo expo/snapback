@@ -5,7 +5,11 @@
 **Systems:** Developer experience, Testing, API, Runtime, Build, Sync, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-31 (CV-3 landed: the qualification verdict is now a
+**Revised:** 2026-08-01 (CV-3 packaged-consumer custody amendment: the
+installable CLI now exposes `runtime-qualify --persist` / `--verify`, keeping
+the same digest-bound schema under the app-owned
+`.snapback/runtime-readiness.json` path and never writing into read-only
+runtime packages; live qualification remains authoritative). 2026-07-31 (CV-3 landed: the qualification verdict is now a
 persisted digest-bound readiness receipt — `<binary>.runtime-readiness.json`,
 `snapback.runtime-readiness.v1` — issued by every kept-target probe run and
 by `verify-local-proof`, re-verified by digest recomputation on every
@@ -933,6 +937,15 @@ the landed subcommand shape is posture-neutral by process isolation —
 LLP 0123's 2026-07-31 note has the finding, and the standing
 first-VM-only-Enforce fact stays with LLP 0009 via
 issues/20260731-first-vm-only-strict-host-context.md).
+
+**CV-3 packaged-consumer custody amendment (2026-08-01).** The installable
+CLI now exposes `snapback runtime-qualify --persist` and `--verify`. It keeps
+the same schema and live-qualification authority but stores the receipt at
+the app-owned `.snapback/runtime-readiness.json` path rather than beside the
+read-only packaged binary. The artifact set is the selected package's binary
+and Hermes framework/library; verification recomputes both and refuses drift.
+An explicit `--receipt` path remains app-owned. Acceptance:
+`packages/snapback-cli/package.test.mjs`.
 
 ## Open Questions
 

@@ -141,6 +141,24 @@ export interface RuntimeSelectionOptions {
 
 export function resolveRuntimeBinary(options?: RuntimeSelectionOptions): ResolvedRuntime;
 
+export interface PackagedRuntimeReadinessOptions extends RuntimeSelectionOptions {
+  readonly projectRoot?: string;
+  readonly receiptPath?: string;
+  readonly verify?: boolean;
+  readonly env?: EnvironmentVariables;
+}
+
+/** Live-qualify and persist, or re-verify, app-custodied runtime readiness. */
+export function packagedRuntimeReadiness(options?: PackagedRuntimeReadinessOptions): Readonly<{
+  schemaVersion: 'snapback.runtime-readiness-verification.v1';
+  operation: 'persist' | 'verify';
+  ok: boolean;
+  reason: string;
+  receiptPath: string;
+  receipt: unknown;
+  diagnostic: CliDiagnostic | null;
+}>;
+
 export interface DoctorReport {
   schemaVersion: 'snapback.cli-doctor.v2';
   ok: boolean;

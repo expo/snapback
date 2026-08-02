@@ -69,7 +69,13 @@ import {
 import {
   createRuntimeRecoveryRecord,
   inspectRuntimeBinary,
+  qualifyRuntimeBinary,
 } from './runtime-recovery.mjs';
+import {
+  digestRuntimeArtifacts,
+  issueRuntimeReadinessReceipt,
+  verifyRuntimeReadinessReceipt,
+} from './runtime-readiness.mjs';
 import {
   loadComparatorProfile,
   readComparatorReceipt,
@@ -208,6 +214,73 @@ export function resolveRuntimeBinary(options = {}) {
     });
   }
   return { binary, source: packageName, platform };
+}
+
+function packagedRuntimeArtifacts(binary) {
+  const runtimeRoot = dirname(dirname(resolve(binary)));
+  const candidates = process.platform === 'darwin'
+    ? [join(runtimeRoot, 'Frameworks', 'hermesvm.framework', 'hermesvm')]
+    : [join(runtimeRoot, 'lib', 'libhermesvm.so')];
+  return digestRuntimeArtifacts(runtimeRoot, { candidates });
+}
+
+// @ref LLP 0010#native-runtime-bootstrap — packaged consumers persist the
+// same digest-bound readiness schema in app-owned state; the live restricted
+// VM qualification remains authoritative and verification recomputes every
+// runtime byte instead of trusting receipt presence.
+export function packagedRuntimeReadiness(options = {}) {
+  const runtime = resolveRuntimeBinary(options);
+  const projectRoot = resolve(options.projectRoot ?? process.cwd());
+  const receiptPath = resolve(
+    options.receiptPath ?? join(projectRoot, '.snapback', 'runtime-readiness.json'),
+  );
+  const runtimeRoot = dirname(dirname(runtime.binary));
+  const artifacts = packagedRuntimeArtifacts(runtime.binary);
+  if (options.verify === true) {
+    const verdict = verifyRuntimeReadinessReceipt({
+      root: runtimeRoot,
+      binaryPath: runtime.binary,
+      receiptPath,
+      artifacts,
+    });
+    return {
+      schemaVersion: 'snapback.runtime-readiness-verification.v1',
+      operation: 'verify',
+      ...verdict,
+    };
+  }
+  const qualification = qualifyRuntimeBinary(runtime.binary, options.env);
+  if (!qualification.ok) {
+    throw diagnosticError(
+      'SNAPBACK_IBEX_RUNTIME_VM_CREATE_FAILED',
+      `the packaged runtime could not create its restricted no-eval handler VM: ${qualification.reason}`,
+      { qualification: qualification.report, binary: runtime.binary },
+    );
+  }
+  mkdirSync(dirname(receiptPath), { recursive: true });
+  issueRuntimeReadinessReceipt({
+    root: runtimeRoot,
+    binaryPath: runtime.binary,
+    receiptPath,
+    qualification: {
+      probe: 'restricted-no-eval-handler-vm',
+      ok: true,
+      report: qualification.report,
+    },
+    issuer: 'snapback-cli-runtime-qualify',
+    artifacts,
+  });
+  const verdict = verifyRuntimeReadinessReceipt({
+    root: runtimeRoot,
+    binaryPath: runtime.binary,
+    receiptPath,
+    artifacts,
+  });
+  return {
+    schemaVersion: 'snapback.runtime-readiness-verification.v1',
+    operation: 'persist',
+    ...verdict,
+  };
 }
 
 function doctorDiagnostic(code, subsystem, message, details = undefined) {
@@ -2507,6 +2580,24 @@ export async function runCli(argv, options = {}) {
     const result = await doctor(options);
     printResult(result, json);
     return result.ok ? 0 : 1;
+  }
+  if (command === 'runtime-qualify' && (args.includes('--persist') || args.includes('--verify'))) {
+    const persist = takeBooleanFlag(args, '--persist');
+    const verify = takeBooleanFlag(args, '--verify');
+    const receiptPath = takeFlag(args, '--receipt');
+    if (persist === verify || args.length > 0) {
+      throw diagnosticError(
+        'SNAPBACK_CLI_ARGUMENT_INVALID',
+        'usage: snapback runtime-qualify <--persist|--verify> [--receipt <path>] [--json]',
+      );
+    }
+    const verdict = packagedRuntimeReadiness({
+      ...options,
+      verify,
+      ...(receiptPath === null ? {} : { receiptPath }),
+    });
+    printResult(verdict, json);
+    return verdict.ok ? 0 : 1;
   }
   if (command === 'accept') {
     const subcommand = args.shift();

@@ -1689,6 +1689,7 @@ export class SnapbackClient {
       const resolved = resolveDefaultRqsStore({ baseUrl: this.baseUrl });
       this.rqsStore = resolved.store;
       this.rqsStoreInfo = resolved.info;
+      this.__ownsRqsStore = resolved.store !== null;
     } else if (rqsStore) {
       this.rqsStore = rqsStore;
       const durability = typeof rqsStore.durability === 'function'
@@ -1700,6 +1701,7 @@ export class SnapbackClient {
         durable: durability?.durable ?? null,
         reason: null,
       });
+      this.__ownsRqsStore = false;
     } else {
       this.rqsStore = null;
       this.rqsStoreInfo = Object.freeze({
@@ -1708,7 +1710,9 @@ export class SnapbackClient {
         durable: false,
         reason: 'explicit-opt-out',
       });
+      this.__ownsRqsStore = false;
     }
+    this.__rqsStoreClosePromise = null;
     if (offlineQueue !== 'auto' && typeof offlineQueue !== 'boolean') {
       throw new TypeError("offlineQueue must be 'auto', true, or false");
     }
@@ -4699,9 +4703,20 @@ export class SnapbackClient {
   }
 
   async closeAuth() {
-    for (const controller of this.__authControllers) controller.abort();
-    await this.__authParticipantUnregister?.();
+    let firstError = null;
+    for (const controller of this.__authControllers) {
+      try { controller.abort(); } catch (error) { firstError ??= error; }
+    }
+    try { await this.__authParticipantUnregister?.(); } catch (error) { firstError ??= error; }
     this.__authParticipantUnregister = null;
+    // @ref LLP 0090#d3-channel-b--persisted-device-snapshot — the client
+    // owns stores resolved by the default ladder, so final client cleanup
+    // releases their single-writer lease. Injected stores remain caller-owned.
+    if (this.__ownsRqsStore && typeof this.rqsStore?.close === 'function') {
+      this.__rqsStoreClosePromise ??= Promise.resolve().then(() => this.rqsStore.close());
+      try { await this.__rqsStoreClosePromise; } catch (error) { firstError ??= error; }
+    }
+    if (firstError) throw firstError;
   }
   // @ref LLP 0031#migration-plan — system writes moved from ungated root
   //   /admin/* aliases to the gated /_snapback/api/* namespace (D5). Per

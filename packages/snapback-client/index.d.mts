@@ -653,6 +653,9 @@ export interface SnapbackLocalResourceInspection {
 
 export class SnapbackClient {
   constructor(baseUrl: string, options?: SnapbackClientOptions);
+  /** Final auth/client cleanup. Also releases a client-owned default RQS
+   * store; an explicitly injected store remains caller-owned. */
+  closeAuth(): Promise<void>;
   health(): Promise<unknown>;
   inspect(): Promise<unknown>;
   captureAuthority(): unknown;

@@ -218,6 +218,41 @@ test('client constructor reports the resolved store (DK-9 degradation fact)', ()
   assert.equal(optedOut.rqsStoreInfo.source, 'disabled');
 });
 
+test('closeAuth releases an owned default store for the next sequential client', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'snapback-client-handoff-'));
+  const previousDir = process.env.SNAPBACK_CLIENT_RQS_DIR;
+  const previousSwitch = process.env.SNAPBACK_CLIENT_RQS_STORE;
+  try {
+    process.env.SNAPBACK_CLIENT_RQS_DIR = directory;
+    delete process.env.SNAPBACK_CLIENT_RQS_STORE;
+    const first = new SnapbackClient('http://127.0.0.1:4400');
+    await first.rqsStore.whenLockSettled();
+    assert.equal(first.rqsStore.isWriter(), true);
+    await first.closeAuth();
+
+    const second = new SnapbackClient('http://127.0.0.1:4400');
+    await second.rqsStore.whenLockSettled();
+    assert.equal(second.rqsStore.isWriter(), true, 'the successor acquires the released writer role');
+    const record = await second.rqsStore.outboxEnqueue({ id: 'cm-successor', function: 'createThing' });
+    assert.equal(record.id, 'cm-successor', 'the successor persists instead of silently reading');
+    await second.closeAuth();
+
+    let injectedClosed = 0;
+    const injected = createMemoryRqsResumeStore();
+    const injectedClose = injected.close.bind(injected);
+    injected.close = async () => { injectedClosed += 1; await injectedClose(); };
+    const callerOwned = new SnapbackClient('http://127.0.0.1:4400', { rqsStore: injected });
+    await callerOwned.closeAuth();
+    assert.equal(injectedClosed, 0, 'client cleanup never closes an injected store');
+    await injected.close();
+  } finally {
+    if (previousDir === undefined) delete process.env.SNAPBACK_CLIENT_RQS_DIR;
+    else process.env.SNAPBACK_CLIENT_RQS_DIR = previousDir;
+    if (previousSwitch === undefined) delete process.env.SNAPBACK_CLIENT_RQS_STORE;
+    else process.env.SNAPBACK_CLIENT_RQS_STORE = previousSwitch;
+  }
+});
+
 test('mutate queues on connectivity failure and replays exactly-once', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createMemoryRqsResumeStore();

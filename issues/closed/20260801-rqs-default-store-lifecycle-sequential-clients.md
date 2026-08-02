@@ -39,3 +39,13 @@ belongs in the client.
 Witness: construct client A, commit through it, dispose it, construct
 client B in the same process — B's store is the writer and B's flush
 persists.
+
+---
+
+**Resolved 2026-08-01.** `SnapbackClient.closeAuth()` now closes only a store
+the client obtained from the default resolution ladder, after unregistering
+its auth participant. An injected store remains caller-owned. The regression
+constructs two sequential clients over one origin in one process, proves the
+successor becomes writer and persists queued state, and separately proves
+client cleanup never closes an injected store. LLP 0090 and the headless/Expo
+guide now state the custody and handoff contract.

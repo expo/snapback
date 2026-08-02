@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { chmodSync, linkSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PassThrough } from 'node:stream';
@@ -23,6 +23,7 @@ import {
   inspectTarget,
   inspectTargetAdmin,
   listBackups,
+  packagedRuntimeReadiness,
   queryControlLogs,
   scaffoldApp,
   sealHostedAdmissionEnvelope,
@@ -95,6 +96,47 @@ try {
   assert.equal(report.runtimeRecovery.schemaVersion, 'snapback.runtime-recovery.v1');
   assert.equal(report.runtimeRecovery.selectedBinary, fakeRuntime);
   assert.equal(report.probe, 'launch-only');
+
+  const packagedRuntimeRoot = join(root, 'packaged-runtime');
+  const packagedBinary = join(packagedRuntimeRoot, 'bin', 'snapback');
+  mkdirSync(join(packagedRuntimeRoot, 'bin'), { recursive: true });
+  const packagedArtifact = process.platform === 'darwin'
+    ? join(packagedRuntimeRoot, 'Frameworks', 'hermesvm.framework', 'hermesvm')
+    : join(packagedRuntimeRoot, 'lib', 'libhermesvm.so');
+  mkdirSync(join(packagedArtifact, '..'), { recursive: true });
+  writeFileSync(packagedArtifact, 'packaged hermes fixture');
+  writeFileSync(packagedBinary, `#!/usr/bin/env node
+console.log(JSON.stringify({
+  schemaVersion: 'snapback.runtime-qualify.v1',
+  probe: 'restricted-no-eval-handler-vm',
+  ok: true,
+  binary: { gitCommit: 'packaged-ready', gitDirty: false, crateVersion: '1.2.3', buildProfile: 'release' },
+}));
+`);
+  chmodSync(packagedBinary, 0o755);
+  const packagedProject = join(root, 'packaged-consumer');
+  const persistedReadiness = packagedRuntimeReadiness({
+    runtimeBinary: packagedBinary,
+    projectRoot: packagedProject,
+  });
+  assert.equal(persistedReadiness.ok, true);
+  assert.equal(
+    persistedReadiness.receiptPath,
+    join(packagedProject, '.snapback', 'runtime-readiness.json'),
+  );
+  assert.equal(existsSync(persistedReadiness.receiptPath), true);
+  const reverifiedReadiness = packagedRuntimeReadiness({
+    runtimeBinary: packagedBinary,
+    projectRoot: packagedProject,
+    verify: true,
+  });
+  assert.equal(reverifiedReadiness.ok, true);
+  writeFileSync(packagedArtifact, 'drifted packaged hermes fixture');
+  assert.equal(packagedRuntimeReadiness({
+    runtimeBinary: packagedBinary,
+    projectRoot: packagedProject,
+    verify: true,
+  }).reason, 'framework-drift');
 
   const project = join(root, 'todo-contract');
   const scaffold = scaffoldApp(project);

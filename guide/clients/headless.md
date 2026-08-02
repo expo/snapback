@@ -369,7 +369,9 @@ The session entry points are:
 - `authRequestCode(email)` and `authExchange({ challengeId, code })`;
 - `authRefresh()` and `authLogout()`;
 - `authSession({ force })` for the exact server/mode/authority projection;
-- `closeAuth()` to unregister/close the client-side auth participants;
+- `closeAuth()` to unregister/close the client-side auth participants and
+  release a store resolved by the default persistence ladder (an injected
+  `rqsStore` remains caller-owned);
 - `currentAuthorityDescriptor()` and `currentAuthorizationScope()` for
   adapter fences;
 - `registerAuthBarrierParticipant(participant)` for a state owner that must
@@ -440,5 +442,6 @@ lifecycle; they are not additional client methods.
 - **Do not treat the readable connection label as the granted wire id.** Use
   the overlay/grant authority fact for connection-owned keys and raw frames.
 - **Do not reuse a connection id across unrelated custody/lifecycle owners.**
-- **Do not forget `dispose()` / `closeAuth()`.** Handles, overlays, and
-  coordinator participants own resources.
+- **Do not forget `dispose()` / `closeAuth()`.** Handles, overlays,
+  coordinator participants, and default-resolved persistence stores own
+  resources.

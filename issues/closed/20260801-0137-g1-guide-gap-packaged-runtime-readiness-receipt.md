@@ -53,3 +53,13 @@ Remaining: ask 2 — `runtime-qualify --persist` (or doctor) writing the
 digest-bound receipt under the app's managed `.snapback/` state, never inside
 read-only `node_modules`. That is code, not documentation; this ticket stays
 open for it.
+
+---
+
+**Resolved 2026-08-01.** The packaged CLI now owns
+`runtime-qualify --persist` and `runtime-qualify --verify`. The live command
+writes the existing `snapback.runtime-readiness.v1` schema to
+`.snapback/runtime-readiness.json`; verification recomputes the selected
+binary and packaged Hermes artifact digests, and neither path writes into the
+runtime package. Package tests pin issuance, re-verification, and framework
+drift; the guide documents the two-command journey.

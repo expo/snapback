@@ -178,15 +178,23 @@ or a runtime/glue contract skew fails here rather than at the first handler
 invocation. This is the identity to quote in a bug report or a packaged
 consumer's readiness note.
 
-The result is printed, not persisted: packaged installs carry no
-`runtime-readiness.json` receipt today, and the repo-side digest-bound receipt
-that doctor re-verifies is a source-checkout artifact
-([LLP 0010](repo:llp/0010-agent-dx-and-acceptance.spec.md)). Persisting a
-consumer-side receipt under the app's managed `.snapback/` state is
-[an open item](repo:issues/20260801-0137-g1-guide-gap-packaged-runtime-readiness-receipt.md);
-until it lands, retain the command's output if you need evidence. Doctor's
-live six-boundary qualification stays authoritative either way — a receipt
-would complement it, never replace it.
+Persist the live verdict and its binary/Hermes digests in the app's managed
+state, then re-verify it later without writing or launching the runtime:
+
+```sh
+snapback runtime-qualify --persist
+snapback runtime-qualify --verify
+```
+
+The first command still performs the restricted-VM qualification and writes
+`.snapback/runtime-readiness.json`; the second recomputes the installed
+runtime bytes and refuses binary or framework drift. Use `--receipt <path>`
+on both commands only when another app-owned custody path is required. The
+receipt uses the same `snapback.runtime-readiness.v1` schema as the repo-side
+bootstrap proof ([LLP 0010](repo:llp/0010-agent-dx-and-acceptance.spec.md))
+but never writes into read-only `node_modules`. Doctor's live six-boundary
+qualification stays authoritative — this retained identity complements it,
+never replaces it.
 
 ## Preserve the first useful failure
 
