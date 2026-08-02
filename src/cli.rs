@@ -131,8 +131,19 @@ fn emit_startup_artifact_refusal(error: &crate::diagnostic::SnapbackError) {
 /// before listener bind. Valid pending failures become a durable diagnostic
 /// posture; settled-state failures remain nonmutating startup refusals.
 // @ref LLP 0058#consume-ordering-dev-to-sessions — every fallible pair/provider/readiness operation precedes consume and listener bind.
+#[cfg(test)]
 async fn compose_auth_mode_startup(
     args: &Args,
+    snapback: &mut LocalSnapback,
+    auth_runtime: &mut crate::auth::runtime::AuthRuntime,
+    readiness: &crate::auth::mode::AuthProgramReadiness,
+) -> crate::diagnostic::SnapbackResult<crate::auth::mode::AuthModeStateRecord> {
+    compose_auth_mode_startup_with_embedded(args, None, snapback, auth_runtime, readiness).await
+}
+
+async fn compose_auth_mode_startup_with_embedded(
+    args: &Args,
+    embedded_startup_artifacts: Option<&crate::auth::mode::StartupArtifacts>,
     snapback: &mut LocalSnapback,
     auth_runtime: &mut crate::auth::runtime::AuthRuntime,
     readiness: &crate::auth::mode::AuthProgramReadiness,
@@ -156,37 +167,43 @@ async fn compose_auth_mode_startup(
         snapshot = snapback.auth_database_mut().auth_mode_snapshot()?;
     }
 
-    let carrier = match args.startup_artifacts.as_deref() {
-        Some(path) => match read_auth_startup_artifacts(path) {
-            Ok(carrier) => Some(carrier),
-            Err(error)
-                if matches!(
-                    snapshot.state.mode_state,
-                    AuthModeStatus::PendingRestart | AuthModeStatus::Quarantined
-                ) =>
-            {
-                return quarantine_pending_startup(
-                    snapback,
-                    with_expected_deployment(
-                        error,
-                        snapshot.state.requested_deployment.as_ref(),
-                        None,
-                    ),
-                );
-            }
-            Err(error) => {
-                return Err(with_expected_deployment(
-                    error,
-                    snapshot
-                        .state
-                        .requested_deployment
-                        .as_ref()
-                        .or(snapshot.state.active_deployment.as_ref()),
-                    None,
-                ));
-            }
-        },
-        None => None,
+    let carrier_result = match (
+        args.startup_artifacts.as_deref(),
+        embedded_startup_artifacts,
+    ) {
+        (Some(_), Some(_)) => Err(crate::diagnostic::SnapbackError::error(
+            "SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH",
+            "auth-mode",
+            "startup cannot combine path-backed and embedded artifact carriers",
+        )),
+        (Some(path), None) => read_auth_startup_artifacts(path).map(Some),
+        (None, Some(carrier)) => Ok(Some(carrier.clone())),
+        (None, None) => Ok(None),
+    };
+    let carrier = match carrier_result {
+        Ok(carrier) => carrier,
+        Err(error)
+            if matches!(
+                snapshot.state.mode_state,
+                AuthModeStatus::PendingRestart | AuthModeStatus::Quarantined
+            ) =>
+        {
+            return quarantine_pending_startup(
+                snapback,
+                with_expected_deployment(error, snapshot.state.requested_deployment.as_ref(), None),
+            );
+        }
+        Err(error) => {
+            return Err(with_expected_deployment(
+                error,
+                snapshot
+                    .state
+                    .requested_deployment
+                    .as_ref()
+                    .or(snapshot.state.active_deployment.as_ref()),
+                None,
+            ));
+        }
     };
 
     if snapshot.state.mode_state == AuthModeStatus::Settled {
@@ -2155,6 +2172,26 @@ fn verify_live_descriptor_identity(
 }
 
 pub async fn run(args: Args) -> anyhow::Result<()> {
+    run_composed(args, None).await
+}
+
+/// Composed startup for the supported embedding façade. Keeping the embedded
+/// carrier out of [`Args`] preserves the CLI DTO while still feeding the exact
+/// same lifecycle as a path-backed startup artifact.
+///
+/// @ref LLP 0141#d4-production-posture-construction — baked artifacts join the
+///   complete CLI-owned provider, worker, readiness, and bind sequence.
+pub(crate) async fn run_embedded(
+    args: Args,
+    embedded_startup_artifacts: crate::auth::mode::StartupArtifacts,
+) -> anyhow::Result<()> {
+    run_composed(args, Some(embedded_startup_artifacts)).await
+}
+
+async fn run_composed(
+    args: Args,
+    embedded_startup_artifacts: Option<crate::auth::mode::StartupArtifacts>,
+) -> anyhow::Result<()> {
     anyhow::ensure!(
         !(args.memory && args.restored_from_backup.is_some()),
         "SNAPBACK_AUTH_BACKUP_INVALID: in-memory startup cannot consume a restore declaration"
@@ -2487,8 +2524,9 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         false,
         false,
     );
-    let auth_mode_state = match compose_auth_mode_startup(
+    let auth_mode_state = match compose_auth_mode_startup_with_embedded(
         &args,
+        embedded_startup_artifacts.as_ref(),
         &mut snapback,
         &mut auth_runtime,
         &auth_program_readiness,

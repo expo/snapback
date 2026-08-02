@@ -5,7 +5,6 @@
 **Systems:** Client SDK, Client integration, Packaging, Code generation, Realtime, Auth, Offline sync, React, Developer experience, Testing, Competitive analysis
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-01
-**Revised:** 2026-08-01 (renumbered from LLP 0143 to LLP 0145 while reconciling with main, which had independently assigned LLP 0143 to the Expo push-notification seam; no substantive design change).
 **Revised:** 2026-08-01 (v0.2, round-1 super-refine corrections — both families
 NOT READY; reviews in `reviews/0145-client-bundle-architecture.codex.md` and
 `reviews/0145-client-bundle-architecture.fable.md`. Substantive changes: the
@@ -59,6 +58,19 @@ workspace state; admin removed from Options 2 and 6 per LLP 0115 decision 4;
 Option 4's build-time-validation claim narrowed; the profile artifact given
 capability class, carrier identity, and digests; the LLP 0053 dev-mode drift
 surfaced as OQ23.)
+**Revised:** 2026-08-01 (v0.9, round-5 super-refine corrections — Fable NOT
+READY on one MATERIAL plus residue. Substantive change: item 11's `auth/live`
+condition corrected from "auth-scoped live" to *any* live subscription in
+sessions mode, because LLP 0096 §2.2 states that authority independence is a
+server fact clients cannot branch on and "always offering is the conformant
+rule" — the v0.8 rebuild had imported §7's deployment-floor phrasing into the
+client contract, where it inverts. Also: the scoping and posture tables
+reconditioned to match; the gate count corrected to nine entries after v0.8
+added 11d; the hosted row's release cell made inheriting; admin decision
+reattributed as 0127 decision 4 recorded in LLP 0115; LLP 0041 cited rather
+than orphaned in Related; the LLP 0053 `clear_retained` dev-path projection
+added as evidence for OQ23; OQ24 added on whether codegen may branch on
+declared `authorityIndependent`.)
 **Revised:** 2026-08-01 (v1.0, round-5 super-refine corrections — both families
 NOT READY; both judged the loop should close after one frozen consistency pass.
 Two genuine mechanism defects, neither a propagation failure: exact-identity
@@ -77,24 +89,41 @@ spike-carrier exception replaced with "unqualified experimental evidence"; the
 dev-obligation scope qualified as current-code behavior in both categorical
 sites; the browser default corrected to persistence-preferred with reported
 memory fallback.)
-**Revised:** 2026-08-01 (v0.9, round-5 super-refine corrections — Fable NOT
-READY on one MATERIAL plus residue. Substantive change: item 11's `auth/live`
-condition corrected from "auth-scoped live" to *any* live subscription in
-sessions mode, because LLP 0096 §2.2 states that authority independence is a
-server fact clients cannot branch on and "always offering is the conformant
-rule" — the v0.8 rebuild had imported §7's deployment-floor phrasing into the
-client contract, where it inverts. Also: the scoping and posture tables
-reconditioned to match; the gate count corrected to nine entries after v0.8
-added 11d; the hosted row's release cell made inheriting; admin decision
-reattributed as 0127 decision 4 recorded in LLP 0115; LLP 0041 cited rather
-than orphaned in Related; the LLP 0053 `clear_retained` dev-path projection
-added as evidence for OQ23; OQ24 added on whether codegen may branch on
-declared `authorityIndependent`.)
+**Revised:** 2026-08-01 (renumbered from LLP 0143 to LLP 0145 while reconciling
+with main, which had independently assigned LLP 0143 to the Expo
+push-notification seam; no substantive design change.)
+**Revised:** 2026-08-01 (v1.1, round-6 close-out — the loop's final frozen pass;
+Fable READY, Codex NOT READY on one blocking gate defect, both families
+recommending no further broad review after these corrections. Gate 12a's
+extension list, which v1.0 had enumerated as four families, now requires every
+remaining LLP 0077 Acceptance class the existing runner does not witness —
+reconnect, rotation, expiry, reset/restore, and authorization invalidation
+among them — because enumerating four and stopping reproduced the very defect
+the gate was written to remove. Also: OQ20 recast around the three atomic
+identity mechanisms with admission-alone explicitly excluded; OQ22's
+spike-own-carrier exception deleted; gate 12 now requires that nothing publish
+*or change durable state* and its LLP 0059 attribution corrected; pre-handler
+refusal distinguished from post-commit suppression; the profile artifact's
+teaching example moved off the disavowed auth-scoped conditioning; row 4's byte
+saving conditioned on OQ24; the fifth artifact field attributed to gate 11d
+rather than the corpus; F2's line count pinned to the published 0.1.8 artifact;
+OQ14's self-reference repaired after the renumber; an orphan table header,
+a misplaced list conjunction, and the Revised ordering fixed.)
+**Revised:** 2026-08-01 (v1.2, author adjudication — Charlie Cheever decided
+OQ14, OQ22, OQ6, and OQ23 and abstained on the Phase C posture; recorded as
+D-A through D-D in a new §Decisions, with the four open questions converted to
+pointers, gate 13 carrying D-B's relative bar, and a companion dated amendment
+landed in LLP 0053 for D-A. Status stays Draft: the super-refine loop closed
+without dual-READY, so promotion remains the author's call.)
+**Revised:** 2026-08-01 (successor link — Draft LLP 0147 now owns the proposed
+Full/Micro profile contract and ahead-of-time compiled client boundary under
+D-D; this Research remains the evidence and option-analysis base.)
 **Related:** LLP 0000, LLP 0005, LLP 0008, LLP 0012, LLP 0041, LLP 0043, LLP 0053,
 LLP 0059, LLP 0060, LLP 0063, LLP 0064, LLP 0077, LLP 0090, LLP 0091,
 LLP 0092, LLP 0093, LLP 0094, LLP 0095, LLP 0096, LLP 0098, LLP 0107, LLP 0108,
 LLP 0112, LLP 0114, LLP 0115, LLP 0122, LLP 0126, LLP 0129, LLP 0130,
 LLP 0133, LLP 0137, LLP 0138, LLP 0139,
+LLP 0147,
 Diary 0050,
 https://firebase.google.com/docs/firestore/solutions/firestore-lite,
 https://pocketbase.io/docs/how-to-use/,
@@ -360,7 +389,9 @@ of Snapback's live and auth runtime.
 
 ### F2. Snapback's public package boundary does not match its capability boundary
 
-`packages/snapback-client/index.mjs` is approximately 10,800 lines, and the
+`packages/snapback-client/index.mjs` is approximately 10,800 lines in the
+published 0.1.8 artifact every measurement here binds to (10,832 exactly; the
+workspace copy moves under concurrent work and is not the referent), and the
 ordinary `SnapbackClient` class begins in that root. Its dependency graph
 includes the React admission path, query-authorization invalidation, auth
 invalidation, sender proof, result-contract validation, RQS, memory and file
@@ -810,8 +841,8 @@ admin code.
 - preserves exact argument and result types;
 - can encode version, operation, retry, and authorization expectations
   mechanically;
-- yields a very small and explicit audit surface; and
-- can hide modular composition behind one generated, ergonomic import;
+- yields a very small and explicit audit surface;
+- can hide modular composition behind one generated, ergonomic import; and
 - has a precedent in the corpus — LLP 0112's generated query-group bundles
   already move per-application selection into codegen, so this option extends
   an established mechanism rather than inventing one.
@@ -1157,11 +1188,14 @@ That entry point should be accompanied by a generated **profile artifact**
 joining the selected operations, the modules they pull in, the arm and lane
 tuple, the auth posture, the carrier, and the explicit nonclaims — so that an
 authoring agent can be told mechanically, at generation or typecheck time, that
-an auth-scoped live subscription requires `auth/live` or that a hosted target
+any live subscription in sessions mode requires `auth/live` — the
+always-offer rule of item 11, not the auth-scoped conditioning — or that a
+hosted target
 requires the sender lane, rather than discovering it from a runtime refusal.
 
-Five fields the first sketch omitted, all of which the corpus already requires
-of anything making a carrier or profile claim: the **capability class** being
+Five fields the first sketch omitted — four of which the corpus already
+requires of anything making a carrier or profile claim, and the fifth of which
+this document's own gate 11d does: the **capability class** being
 claimed (which, per §Proposed architecture, is not the same axis as the
 packaging profile); the **immutable carrier and OS identity** for each claimed
 carrier; **source and artifact digests** binding the artifact to what was
@@ -1251,8 +1285,6 @@ all four axes report available with null minima, and that a dev-mode-only
 target "claims no profile; the axes are open there without negotiation." The
 correct scoping:
 
-| Posture | Item 9 (fence) | Item 12 (release) | Item 10 (obligations) | Item 11 (carriers) |
-| --- | --- | --- | --- | --- |
 The three items have three *different* predicates, and collapsing them — as a
 v0.9 draft of this table did — charges obligation machinery where no obligation
 exists and release machinery to a client that never subscribes:
@@ -1281,7 +1313,13 @@ not automatically the live row. Note the fourth row, which is the one the
 collapsed table could not express: a sessions client whose live targets are all
 declared `authorityIndependent` still offers the `auth/live` carrier — it
 cannot know it is safe not to — but receives no obligations, so item 10's
-machinery is genuinely absent from its closure.
+machinery can be absent from its closure. That last step is conditional on
+OQ24: omitting the machinery means trusting declared `authorityIndependent`
+facts at build time, which is the same knowledge class OQ24 leaves open for the
+carrier, and a target whose declaration changes under a stale generated client
+would deliver frames to a client with no seam — which lands in OQ12's
+unanswered never-ACK question. The row states a real byte saving; it does not
+state a settled one.
 
 **One caveat on the local-dev row, which this research cannot settle.** The row
 says local dev receives no obligation frames, and that is what the code does —
@@ -1572,7 +1610,7 @@ through 14 with 11a, 11b, 11c, 11d, and 12a — close it:
 
 11c. **Deployment and operation identity, fail-closed before any effect.**
     Negative cases that must refuse **before invocation** — not merely before
-    publication, because a mutation or action that reached the server has
+    publication, because a mutation or action that reached handler execution has
     already committed or produced its effect, and suppressing the response
     afterwards is not a refusal: a client generated against a different app; a
     stale bundle; a mismatched operation id or kind; a same-named operation
@@ -1607,10 +1645,14 @@ through 14 with 11a, 11b, 11c, 11d, and 12a — close it:
     user-A completion of each class — success, failure, timeout, abort,
     terminal auth error, socket callback, reconnect, **grant open,
     subscription establishment, and client-store write** — to land *after* a
-    transition to user B, and assert nothing publishes. The class list must
+    transition to user B, and assert nothing publishes **or changes durable
+    state** — LLP 0059 requires stale work neither to expose nor to commit, so a
+    silent durable write is as much a failure as a visible one. The class list must
     enumerate **every** completion and publication class item 9 names — a v0.8
     draft of this gate listed seven of ten, omitting exactly the three that
-    LLP 0059's own two-context acceptance singles out. This gate is
+    LLP 0059's fence enumeration and two-context acceptance require. (The
+    acceptance names grant open and client-store write explicitly; subscription
+    fencing comes from the fence enumeration rather than that list.) This gate is
     same-context; gate 11d is the cross-context half, and neither substitutes
     for the other. Passing gate 7 with an `AbortController` and failing this
     one is the expected failure mode.
@@ -1636,9 +1678,19 @@ through 14 with 11a, 11b, 11c, 11d, and 12a — close it:
     So this gate requires *extending* the matrix, not reusing it: named
     client-driven checks for refresh and key-family preservation, logout and
     lost-response retirement, key deletion or loss with no bearer fallback, and
-    deletion-only migration — with the check identifiers and the microclient's
-    artifact digest bound into the receipt. Making the microclient drive the
-    existing 43 does not add the missing ones.
+    deletion-only migration — **at minimum, plus every remaining LLP 0077
+    Acceptance class the existing runner does not already witness.** That
+    residue is not small: 0077 also requires reconnect, rotation, expiry,
+    reset/restore, and authorization invalidation to compose with the
+    generation barriers, and 0077 itself records served expiry/restore,
+    key-recovery, the two-process replay race, the reopen-after-logout check,
+    and the end-to-end v1 migration flow as unimplemented. Enumerating four
+    families and stopping — as a v1.0 draft of this gate did — would let an
+    implementer add those four and claim the gate while other mandatory
+    transitions stay unwitnessed, which is the same defect this gate was
+    written to remove, one layer down. Check identifiers and the
+    microclient's artifact digest bind into the receipt. Making the
+    microclient drive the existing 43 does not add any of the missing ones.
 
     Two things this gate must not be read as permitting. The existing matrix
     instrument is a standalone Node harness that generates its own key, signs
@@ -1655,9 +1707,16 @@ through 14 with 11a, 11b, 11c, 11d, and 12a — close it:
     representative mobile device. §Risks already says these must be measured;
     measuring without a threshold does not gate anything — and the v0.2 draft
     of this gate undercut itself by permitting measure-only treatment, which
-    turns a gate back into a report. If the author decides the first spike
-    should be measure-only on some axis, that is a decision to record with a
-    reason, not a standing escape in the gate text.
+    turns a gate back into a report.
+
+    **The pre-registered bar (D-B) is relative, not absolute.** No thin Snapback
+    client has been measured, so an absolute number today would be a guess. The
+    bar is therefore: the thin client's reconnect bytes, reconnect latency, and
+    startup must not be **worse than the current Full client on the same
+    workload**. That can fail, which is what makes it a gate, and it tests
+    §Risks' own thesis directly. Absolute numbers freeze at the first
+    attribution run under LLP 0063 Workstream 8's rule — frozen before any
+    optimization, never loosened, tightening only.
 14. **The whole application, with a ceiling — against a capability-matched
     baseline.** Phase C's spike deliberately omits file upload and delivery,
     presence, and scheduled work, and §Phase C says plainly that its bytes are
@@ -1770,6 +1829,66 @@ needs to see them resolved rather than vanished.
   Yes, in Swift. See §F8. What remains open is the JavaScript byte question,
   not the protocol-tractability question.
 
+## Decisions (Charlie Cheever, 2026-08-01)
+
+Four of the questions below were adjudicated after the super-refine loop
+closed. They are recorded here rather than deleted from the open list, so a
+reader can see what was decided and on what basis.
+
+**D-A — OQ23, dev-mode invalidation obligations: amend LLP 0053.** The Accepted
+text defines every non-`authorityIndependent` subscription as obligation-backed
+and carves out no mode, while the shipped server gates obligation delivery to
+sessions mode. The code is right and the text is over-broad: in dev mode the
+client asserts its own identity, so there is no authority to revoke and the
+obligation is semantically vacuous — a caller who names its own user can name a
+different one. LLP 0053's own description of `clear_retained` as "a versioned
+compatibility projection for dev/authority-independent paths" shows the
+Accepted text already anticipated dev paths receiving a projection rather than
+the security machinery. Resolution: a dated amendment to LLP 0053 carving out
+dev mode, landed alongside this decision. Charlie recorded no strong opinion
+and accepted the recommendation provisionally ("for now"), so this is
+explicitly revisitable; the premise to re-test if it is revisited is whether
+any deployment gives dev mode a genuine authorization boundary.
+
+**D-B — OQ6, gate 13 thresholds: one relative bar now, absolutes frozen at the
+first run.** Pre-registering absolute reconnect and startup numbers today would
+be guessing, since no thin Snapback client has been measured; pure measure-only
+does not gate anything. Gate 13 therefore pre-registers a single relative
+threshold — the thin client's reconnect bytes, reconnect latency, and startup
+must not be **worse than the current Full client on the same workload** — and
+freezes absolute numbers at the first attribution run, following LLP 0063
+Workstream 8's rule that numbers freeze at the first run before any
+optimization, never loosen, and tighten only. The relative bar can fail, which
+is what makes it a gate, and it tests this document's own stated risk that
+conservative resnapshot moves cost to the network.
+
+**D-C — OQ22, capability class: claim no carrier for the first spike.** Gate
+11b is unsatisfiable today — LLP 0064's seven-fact receipt is the Expo `Online`
+bar and includes optimistic settlement and offline retention that this profile
+disclaims, and LLP 0064 defines no browser receipt at all. Rather than mint a
+class for a client that does not exist yet, the first spike produces explicitly
+**unqualified experimental evidence** and claims no carrier. A narrower class
+and its receipt facts are minted into LLP 0064 (still Draft, so the amendment
+stays cheap) *after* the spike demonstrates what the profile actually does.
+
+**D-D — OQ14, graduation ownership: a new RFC for the profile contract; LLP
+0041 keeps packaging.** LLP 0122 is excluded by its own text ("research
+input… no decisions"); LLP 0115 CV-1 owns execution, not contract. The
+two-profile question is not only packaging — it carries auth postures, a
+conformance class, the OQ20 identity mechanism, and a set of explicit
+nonclaims — so it needs its own RFC, with LLP 0041 retaining publication and
+packaging mechanics as the lead packaging owner. **This document becomes Active
+when that successor lands**, not Superseded: its measurements and option
+analysis remain the evidence base.
+
+**Not decided — the Phase C auth posture.** Charlie recorded no opinion. The
+orchestrator's working recommendation, which the successor RFC or the spike's
+commissioning should confirm or overturn, is: declare **local dev** for the
+first measurement, then repeat under **sessions**, so the auth lanes' cost is
+learned as a marginal figure rather than conflated into one number. Hosted is
+unavailable as a product target regardless (§Online profile). This is not an
+author decision and must not be cited as one.
+
 ## Open questions
 
 1. What fraction of current demos require Full behavior rather than the
@@ -1805,9 +1924,10 @@ needs to see them resolved rather than vanished.
     tolerance written down anywhere?
 13. What packaging names replace "Full" and "Online" so they cannot be confused
     with the Online/Parity capability classes?
-14. Which document owns the two-profile decision when the spike graduates — a
-    successor RFC, an LLP 0122 extension since LLP 0137 records that 0122 owns
-    packaging analysis, or both — and does 0143 then go Active or feed it?
+14. **DECIDED (D-D).** A new RFC owns the two-profile contract; LLP 0041
+    retains packaging and publication as lead packaging owner; LLP 0122 is
+    excluded by its own no-decisions charter. This document becomes Active when
+    that successor lands.
 15. Do the benchmark fixtures land in-tree under LLP 0063 Workstream 8's
     freezing rules or as a separate instrument, and who re-runs them at each
     client release?
@@ -1834,27 +1954,23 @@ needs to see them resolved rather than vanished.
     first is available now and expensive; the second is a different program.
     Note that LLP 0098 is Draft and claims no capability, so a hosted claim
     also waits on that ratification.
-20. Does the thin profile keep a generated-client admission handshake to
-    enforce deployment and operation identity, or does it propose a wire
-    carrier to the protocol authorities? It cannot claim exactness with
-    neither, and admission is one of the larger things a thin profile would
-    otherwise want to drop.
+20. Which of the three atomic mechanisms in §Minimal runtime contract does the
+    successor RFC pick — a per-invocation deployment/operation tuple, a
+    server-minted admission lease, or immutable deployment pinning — and does
+    the thin profile keep whole-artifact admission alongside it? Whole-artifact
+    admission *by itself* is not an eligible answer: it cannot close the
+    time-of-check/time-of-use window at the effect boundary, which is the whole
+    point of that passage.
 21. Are actions in the initial profile at all? Gating them properly costs
     acceptance work; dropping them narrows what the paved road covers.
-22. What capability class and receipt facts does a thin profile claim? LLP
-    0064's seven-fact Expo receipt is the `Online` class bar and includes
-    optimistic settlement and offline retention, which this profile disclaims;
-    LLP 0064 defines no browser receipt at all. A narrower class must be minted
-    or amended, and browser receipt facts defined, before gate 11b is
-    satisfiable for any carrier beyond the spike's own.
-23. Does LLP 0053's obligation semantics apply in dev mode? The Accepted text
-    defines every non-`authorityIndependent` subscription as obligation-backed
-    and carves out no mode; the shipped code gates obligation admission to
-    sessions. That is a spec/code drift this research surfaced and cannot
-    settle, and the local-dev row of the scoping table depends on the answer.
-    Does the reconciliation amend LLP 0053 to match the shipped behavior, or
-    LLP 0096 to state that dev mode suspends the semantic obligation rather
-    than only its negotiation?
+22. **DECIDED (D-C).** The first spike claims no carrier and produces
+    unqualified experimental evidence; a narrower capability class and its
+    receipt facts are minted into LLP 0064 after the spike shows what the
+    profile actually does. Gate 11b stays unsatisfiable until then, by design.
+23. **DECIDED (D-A).** Dev-mode obligation scope is resolved in LLP 0053's
+    favour of the shipped behavior, by dated amendment landed with this
+    revision. Recorded as provisional; the premise to re-test is whether any
+    deployment gives dev mode a genuine authorization boundary.
 24. May a *generated* client use build-time knowledge of declared
     `authorityIndependent` targets to omit the live carrier for them? LLP 0096
     reserves that omission to targets the **server** proves independent, and

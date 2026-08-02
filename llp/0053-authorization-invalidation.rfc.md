@@ -5,6 +5,17 @@
 **Systems:** Sync, Realtime, Auth, Storage, API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-12
+**Revised:** 2026-08-01 (dev-mode scope clarified, per Charlie Cheever's
+adjudication of LLP 0145 OQ23 — provisional, recorded as revisitable. §"Auth-scoped"
+is defined fail-closed" classified functions without qualifying which modes
+*deliver* obligations, which read as requiring obligation backing in dev mode
+and contradicted the shipped server, where admission is gated on
+`AuthMode::Sessions`. The code was right: dev mode's identity is
+caller-asserted, so there is no authority to revoke and the obligation is
+vacuous rather than unenforced — consistent with this document's own
+description of `clear_retained` as a projection for dev/authority-independent
+paths. The function classification is unchanged; only the delivery scope is
+stated. Surfaced by the LLP 0145 super-refine loop, round 4.)
 **Revised:** 2026-08-01 (0137 a4-f5 witness-gated action pass-through: a
 nested mutation's trusted `SNAPBACK_AUTH_PERMISSION_DENIED` now survives
 the ACTION boundary via a host-recorded denial witness
@@ -314,6 +325,19 @@ re-parented folder, a visibility flip, or an ordinary delete:
 dependence" reading would hand best-effort removals to precisely the opaque,
 online-only queries the conservative matcher is supposed to be protecting — which
 is attempt five's defect wearing a different hat.
+
+**Scope: sessions mode.** The definition above classifies *functions*, and it
+classifies them the same way in every mode. What is mode-dependent is whether
+obligations are *delivered*: the server admits and delivers them only in
+sessions mode, and this section does not require otherwise. Dev mode has no
+authority to revoke — the client asserts its own identity, so a caller who
+names one user can name another — which makes an invalidation obligation
+semantically vacuous there rather than merely unenforced. This is consistent
+with the treatment of `clear_retained` below as "a versioned compatibility
+projection for dev/authority-independent paths, never a session-mode security
+carrier." A dev-mode client therefore claims no auth profile, negotiates no
+invalidation carrier, and receives no obligation frames; it is not thereby
+non-conforming. See LLP 0096 §3.2 for the negotiation half.
 
 This closes the gap between the reframe and the outbox: the matcher may decide
 *what* the client should no longer see, but it may not be trusted to *tell* the

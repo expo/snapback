@@ -1324,3 +1324,159 @@ M1–M6, one frozen, focused consistency pass is appropriate. Another broad pros
 review round is unlikely to be the best instrument." The Fable family
 independently reached the same conclusion in the same round. Round 6 is
 therefore scoped as that single frozen pass.
+
+
+## Round 6 — 2026-08-01 (frozen consistency pass)
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, `codex exec`, model `gpt-5.6-sol`
+**Reasoning effort:** `ultra` (CLI banner)
+**Sandbox:** read-only
+**Date:** 2026-08-01
+**Method:** fresh CLI runner; own-family artifact only; no `super-refine`
+contents opened; blind to the fable artifact.
+**Instruction capsule SHA-256:** `8135dc213b17b515f18999698d6a4d643362e01d2a5a4f5cb8861afae8f34d02`
+**Target:** v1.0, 1,887 lines, pinned as `llp/0143-client-bundle-architecture.research.md`
+**Target SHA-256:** `37592dcc882407a24d1a71c240587282048732bb83a5c56b4c12c5940b8b34fe`
+**Repo revision at review start:** `0c0040ff` on `main`
+**Status:** completed
+**Verdict:** NOT READY
+
+**Process event.** A concurrent fleet session renumbered this document
+0143 → 0145 and committed it mid-review, so the pinned path disappeared from
+the worktree. The reviewer completed the review from the hash-identical
+immutable blob and read all code evidence at `0c0040ff`, recording: "The
+content stayed frozen; the worktree did not. That is a process defect." The
+orchestrator accepts the charge — the freeze was announced and then broken by a
+session outside this loop's control. The review remains valid: the other
+family independently proved byte-exactly that the 0145 file differs from the
+pinned revision only in title, one inserted Revised line, and two artifact
+path strings, and the orchestrator reproduced that reconstruction to the hash.
+
+## Verbatim review
+
+## 1. Overall assessment
+
+The target initially matched the required SHA-256 exactly, contained 1,887 lines, and the repository was at `0c0040ff`. During review, the shared checkout advanced through other revisions and the target disappeared from the worktree. I therefore completed the review from the hash-identical immutable blob while reading all code and LLP evidence from `0c0040ff`. The content stayed frozen; the worktree did not. That is a process defect.
+
+I opened only the permitted Codex review artifact. A filename-only search exposed the name of a prohibited `super-refine` file, but I did not open its contents or the other family’s artifact.
+
+Load-bearing claims verified true:
+
+- At `0c0040ff`, admission is a separate inspection request (`packages/snapback-client/react-binding.mjs:205-231`), while query, action, mutation, and live invocation reduce references to names (`packages/snapback-client/index.mjs:4869-4878`, `:5063-5072`, `:5379-5403`, `:5593-5608`, `:10608-10617`). The TOCTOU diagnosis is therefore correct for the pinned revision.
+- Every row of the three-predicate table is true. Obligation backing excludes `authorityIndependent` live functions (`llp/0053-authorization-invalidation.rfc.md:276-290`, `:311-316`); sessions clients must nevertheless offer `auth/live` for every live subscribe/unsubscribe (`llp/0096-auth-profiles-for-protocol-clients.spec.md:223-231`); release exists only for subscriptions (`llp/0095-client-lifecycle-and-conformance.spec.md:130-165`).
+- `authProfileSet` matches LLP 0096’s exact-version `arm × lane × profile-set` model (`llp/0096-auth-profiles-for-protocol-clients.spec.md:113-124`, `:574-590`).
+- `custodyOwner` correctly distinguishes caller-owned external bearers from first-party and sender custody. The external constructor is explicitly non-custodial and mutually exclusive with coordinator/sender ownership (`packages/snapback-client/index.mjs:1494-1519`).
+- Gate 11d’s shared-record, Web Locks/fenced-CAS, reload-after-ownership, and two-context requirements match LLP 0059 (`llp/0059-session-projection-and-client-barrier.spec.md:1629-1636`, `:1904-1909`, `:2039-2074`).
+- The browser default is accurately described as persistence-preferred with reported memory fallback (`packages/snapback-client/rqs-store-default.mjs:49-78`; `llp/0129-local-first-program.plan.md:405-410`, `:431-446`).
+
+However, gate 12a remains materially incomplete, and two open questions contradict corrections in the body. These are document defects, not questions that require running code.
+
+NOT READY
+
+## 2. Disposition table
+
+| Round-5 finding | Disposition | Evidence |
+|---|---|---|
+| B1 — Non-atomic exact-identity admission | PARTIALLY RESOLVED | The TOCTOU passage and gate 11c are correct (`0143:1320-1350`, `:1572-1589`), but OQ20 again offers the existing admission handshake as an alternative sufficient for exactness (`:1836-1840`). |
+| B2 — Gate 12a overstates matrix coverage | RESOLVED-BUT-NEW-DEFECT | The existing 43-check instrument is now described accurately, but the prescribed extension omits other mandatory LLP 0077 lifecycle classes. See N1. |
+| M1 — Carrier, obligation, and release predicates conflated | RESOLVED-BUT-NEW-DEFECT | All six rows are semantically correct, but `0143:1253-1254` leaves an orphan duplicate table header before the actual table at `:1269`. |
+| M2 — Missing exact auth profile-set | RESOLVED | `authProfileSet` records exact identifiers and versions and is digest-bound into receipts (`0143:1167-1178`), matching LLP 0096. |
+| M3 — Custody ownership unrepresented | RESOLVED | `custodyOwner` is added and gate 11d is correctly scoped by ownership rather than sessions posture (`0143:1171-1178`, `:1591-1604`). |
+| M4 — Stale categorical dev-invalidation claims | RESOLVED | Both categorical sites now identify sessions-only obligation delivery as current-code behavior and preserve OQ23 (`0143:153-164`, `:1757-1766`). |
+| M5 — Gate 12 omitted authority-fenced classes | RESOLVED-BUT-NEW-DEFECT | All ten intended classes are listed, but the executable outcome and supporting attribution need correction. See D1. |
+| M6 — Undefined spike-carrier exception | PARTIALLY RESOLVED | Gate 11b correctly permits only unqualified experimental evidence (`0143:1564-1570`), but OQ22 resurrects the spike-own-carrier exception (`:1843-1848`). |
+| D1 — Browser default overstated | RESOLVED | The persistence-preferred default and reported memory fallback are now accurate (`0143:1702-1710`). |
+
+## 3. New findings
+
+### N1 — BLOCKING — Gate 12a’s extension list is not complete enough to satisfy LLP 0077
+
+Gate 12a correctly identifies that the existing runner has 43 checks and lacks refresh, logout, and key-loss coverage (`0143:1622-1633`; `demos/competitive-checkpoint/tests/acceptance/hosted-sender-matrix.mjs:130`). It then requires new checks only for refresh/key preservation, logout/lost-response retirement, key loss, and deletion-only migration (`0143:1635-1640`).
+
+LLP 0077 additionally requires reconnect, rotation, expiry, reset/restore, and authorization invalidation to compose with generation barriers (`llp/0077-sender-constrained-browser-auth.spec.md:1247-1251`). The existing runner contains none of those lifecycle tests, and LLP 0077 itself records remaining served expiry/restore and broader pressure coverage as unimplemented (`:321-326`).
+
+As written, an implementer could add the four named families and claim gate 12a while still omitting other mandatory transitions. Require every unwitnessed LLP 0077 Acceptance transition, either by exhaustive enumeration or by saying “at minimum these checks, plus every remaining LLP 0077 Acceptance class.”
+
+### N2 — MATERIAL — OQ20 restores admission-only exactness
+
+The corrected body says separate inspection cannot guarantee effect-boundary identity and requires an atomic per-invocation tuple, an admission lease, or immutable deployment pinning (`0143:1332-1350`).
+
+OQ20 nevertheless asks whether the client keeps “a generated-client admission handshake” or adds a wire carrier, and says exactness merely requires one of those (`0143:1836-1840`). That restores the unsafe mechanism and omits two of the three candidate atomic designs. Rewrite OQ20 around choosing an atomic mechanism; current whole-artifact admission alone is not an eligible answer.
+
+### N3 — MATERIAL — OQ22 resurrects the spike-carrier exception
+
+Gate 11b now says it is unsatisfiable for every carrier until a capability class and receipt facts are ratified; the spike produces only unqualified experimental evidence (`0143:1564-1570`).
+
+OQ22 instead says this work is necessary only before gate 11b is satisfiable “for any carrier beyond the spike’s own” (`0143:1843-1848`). That is the exact exception round 5 required removing. Delete “beyond the spike’s own” and state that no carrier claim, including the spike’s carrier, satisfies gate 11b before the class lands.
+
+### D1 — DETAIL — Gate 12’s outcome and attribution are imprecise
+
+Gate 12 adds `client-store write` but only asserts that “nothing publishes” (`0143:1605-1609`). LLP 0059 requires stale work neither to expose nor commit, and its acceptance requires no visible or durable effect (`llp/0059-session-projection-and-client-barrier.spec.md:1679-1685`, `:2755-2759`). Say “nothing publishes or changes durable state.”
+
+The following sentence says LLP 0059’s two-context acceptance singles out all three newly added classes. It explicitly names grant open and client-store write, but not subscription establishment (`:2755-2759`). Subscription fencing remains required by `:1679-1682`; only the attribution is wrong.
+
+Additional editorial residue:
+
+- `0143:1253-1254` is an empty duplicate table.
+- The metadata orders v1.0 before v0.9 (`0143:61-91`).
+- “Reached the server has already committed” at `0143:1573-1576` should say “reached handler/invocation execution”; pre-handler server refusal is possible.
+
+## 4. Stopping judgement
+
+This revision has not reached the stated stopping point. The remaining blockers are narrow consistency defects in the document itself: an incomplete hosted-security gate and two open questions that contradict the corrected body. None requires implementation evidence to settle.
+
+After those corrections, the remaining byte-size, runtime-cost, carrier, and operational questions are appropriately delegated to the spike and its receipts. Another broad prose review should not be necessary.
+
+## 5. Open questions
+
+The author must still answer:
+
+1. Does gate 12a require every currently unwitnessed LLP 0077 Acceptance transition? It should.
+2. Which three atomic exact-identity candidates remain open in OQ20, with current admission explicitly excluded as sufficient by itself?
+3. Is there any spike-own-carrier exception to gate 11b? The body says no.
+4. Will the review target be restored and reconciled against a stable repository revision before disposition, given the checkout moved during this review?
+
+## 6. Verdict
+
+NOT READY
+## Orchestrator verification and disposition (outside the verbatim body)
+
+All findings verified and applied in v1.1.
+
+- **N1 (BLOCKING)** — confirmed at `llp/0077-sender-constrained-browser-auth.spec.md:1249-1251`:
+  beyond refresh, key loss, and deletion-only migration, LLP 0077 requires
+  "HTTP, connection-open, WebSocket upgrade, reconnect, logout, rotation,
+  expiry, reset/restore, and authorization invalidation compose with existing
+  generation barriers," and `:321-326` records served expiry/restore,
+  key-recovery, the two-process replay race, the reopen-after-logout check, and
+  the v1 migration flow as unimplemented. The v1.0 gate enumerated four
+  families and stopped — reproducing, one layer down, the exact defect round 5
+  wrote the gate to remove. Gate 12a now carries an "at minimum, plus every
+  remaining LLP 0077 Acceptance class" clause with the residue named.
+- **N2, N3 (MATERIAL)** — both confirmed, and both were independently found by
+  the Fable family in the same round as DETAILs. OQ20 had restored
+  admission-only exactness after the body withdrew it; OQ22 had restored the
+  spike-own-carrier exception after gate 11b deleted it. Two unpropagated
+  open-question echoes of v1.0's own corrections. Both recast.
+- **D1** — confirmed on both limbs: gate 12 asserted only "nothing publishes"
+  where LLP 0059 requires stale work neither to expose nor commit, and the
+  "singles out" attribution covered grant open and client-store write but not
+  subscription establishment, which comes from the fence enumeration instead.
+  Also applied the pre-handler-refusal precision: a request refused before
+  handler execution has committed nothing.
+
+**Severity divergence, recorded.** Fable rated the two open-question echoes
+DETAIL and returned READY; Codex rated them MATERIAL and, with N1, returned NOT
+READY. That is a disagreement about severity, not about facts — both families
+found the same two defects independently and described them identically. N1 is
+Codex's alone and is the substantive blocker.
+
+**Convergence on stopping.** Codex: "The remaining blockers are narrow
+consistency defects in the document itself… None requires implementation
+evidence to settle. After those corrections, the remaining byte-size,
+runtime-cost, carrier, and operational questions are appropriately delegated to
+the spike and its receipts. Another broad prose review should not be
+necessary." Fable reached the same conclusion from a READY verdict. Both
+families therefore agree on the disposition even where they disagree on the
+verdict.

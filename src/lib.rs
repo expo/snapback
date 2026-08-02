@@ -1,63 +1,129 @@
 //! Core Snapback runtime components.
+//!
+//! # Public API stability
+//!
+//! [`embed`] is the sole supported Rust embedding API. Public items outside
+//! that module remain reachable for source compatibility, but they are hidden
+//! from the generated documentation and carry no stability promise.
+//!
+//! While the crate is `0.x`, patch releases preserve `snapback::embed` source
+//! compatibility and a minor release may make a breaking embedding-API change.
+//! The Rust crate version and Snapback's wire-protocol version are independent.
+//!
+//! @ref LLP 0141#d1-curate-the-public-surface-before-anyone-depends-on-it —
+//!   one documented façade owns the supported Rust embedding contract.
 
 // SnapbackResult intentionally carries structured diagnostic details across the
 // public API; narrowing it is a larger compatibility decision than clippy's
 // result-size heuristic.
 #![allow(clippy::result_large_err)]
 
+pub mod embed;
+
+#[doc(hidden)]
 pub mod admin;
+#[doc(hidden)]
 pub mod admin_impersonation;
+#[doc(hidden)]
 pub mod admin_secret_read;
+#[doc(hidden)]
 pub mod api_envelope;
+#[doc(hidden)]
 pub mod app_data_result;
+#[doc(hidden)]
 pub mod assets;
+#[doc(hidden)]
 pub mod assets_cut;
+#[doc(hidden)]
 pub mod assets_image;
+#[doc(hidden)]
 pub mod assets_s3;
+#[doc(hidden)]
 pub mod assets_store;
+#[doc(hidden)]
 pub mod assets_video;
+#[doc(hidden)]
 pub mod auth;
+#[doc(hidden)]
 pub mod bench;
 pub(crate) mod bounded_children_cursor;
+#[doc(hidden)]
 pub mod branches;
+#[doc(hidden)]
 pub mod bundle;
+#[doc(hidden)]
 pub mod cli;
+#[doc(hidden)]
 pub mod config;
+#[doc(hidden)]
 pub mod contract_exact;
+#[doc(hidden)]
 pub mod cron;
+#[doc(hidden)]
 pub mod data_tier;
+#[doc(hidden)]
 pub mod deploy;
+#[doc(hidden)]
 pub mod diagnostic;
+#[doc(hidden)]
 pub mod ephemeral;
+#[doc(hidden)]
 pub mod exec_guard;
+#[doc(hidden)]
 pub mod guide;
+#[doc(hidden)]
 pub mod guide_mcp;
+#[doc(hidden)]
 pub mod handler_wire;
+#[doc(hidden)]
 pub mod host_ops;
+#[doc(hidden)]
 pub mod identity;
+#[doc(hidden)]
 pub mod ids;
+#[doc(hidden)]
 pub mod instance_lock;
+#[doc(hidden)]
 pub mod jobs;
 pub(crate) mod live_matcher;
+#[doc(hidden)]
 pub mod live_wire;
+#[doc(hidden)]
 pub mod local;
+#[doc(hidden)]
 pub mod manifest;
 pub(crate) mod membership_rules;
+#[doc(hidden)]
 pub mod migration;
+#[doc(hidden)]
 pub mod args_contract;
+#[doc(hidden)]
 pub mod result_contract;
+#[doc(hidden)]
 pub mod rqs;
+#[doc(hidden)]
 pub mod runtime;
+#[doc(hidden)]
 pub mod schema_export;
+#[doc(hidden)]
 pub mod search;
 pub(crate) mod secure_file;
+#[doc(hidden)]
 pub mod seed_identity;
+#[doc(hidden)]
 pub mod server;
+#[doc(hidden)]
 pub mod service_profile;
+#[doc(hidden)]
 pub mod storage;
+#[doc(hidden)]
 pub mod stream_attempt;
+#[doc(hidden)]
 pub mod value_expr;
 pub(crate) mod warm_vm;
+#[doc(hidden)]
 pub mod wire_fixtures;
+#[doc(hidden)]
 pub mod wire_version;
+#[doc(hidden)]
 pub mod workerd_exec;

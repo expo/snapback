@@ -1,7 +1,7 @@
 # LLP 0141: Snapback as an embeddable Rust library
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Implemented
 **Systems:** Packaging, Distribution, HTTP surface, Runtime, Security/authorization, Developer experience, Local server lifecycle
 **Author:** Charlie Cheever / Claude (Opus 5)
 **Date:** 2026-08-01
@@ -43,6 +43,18 @@ correction applied to §Current state and D4, and D7's heading still read
 the `handle_host_call` range citation overshooting by six lines; the
 function closes at `src/runtime.rs:2124`. No new design finding in either
 family; both report the surviving text settled.)
+2026-08-02 (implementation — Charlie Cheever asked to implement the RFC's
+proposed scope. D1 lands as the documented `snapback::embed` façade with the
+existing 48 modules retained under `#[doc(hidden)]` for source compatibility;
+the `0.x` promise is patch-compatible/minor-breaking and is independent of
+`wire_version`. D4 lands as `embed::production(include_bytes!(…))`, feeding the
+baked closed artifact carrier into the exact CLI-owned auth, worker, readiness,
+listener, and shutdown lifecycle, plus `examples/embedded_todo.rs`. D5 lands as
+a fixed `SelfHostedSingleTenant` native-code posture with no hosted-admission,
+route-registration, or native-operation controls on the façade. D2/D3 remain
+demand-gated and unbuilt; D6 remains a separate blocking distribution program,
+so Implemented names the D1/D4/D5 decision set defined by D7 rather than
+claiming crates.io or one-portable-file completion.)
 **Related:** LLP 0009, LLP 0010, LLP 0024, LLP 0031, LLP 0033, LLP 0041,
 LLP 0044, LLP 0051, LLP 0060, LLP 0064, LLP 0070, LLP 0093, LLP 0099,
 LLP 0102, LLP 0122, LLP 0139
@@ -53,10 +65,10 @@ PocketBase ships as a Go library as well as a binary. An author writes their own
 `main.go`, calls `pocketbase.New()`, hangs custom routes and hooks off the app,
 and compiles one portable executable that is simultaneously the backend and the
 custom business logic. This RFC asks whether Snapback should offer the same
-shape, and concludes: **yes for embedding, no for the router — and only D1, D4,
-and D5 are proposed as decisions today.** D5 is normative: it constrains
-anything built later, so it is proposed for acceptance alongside the two it
-governs, not deferred with them.
+shape, and concludes: **yes for embedding, no for the router. D1, D4, and D5
+are the implemented decision set.** D5 is normative: it constrains anything
+built later and lands alongside the two surfaces it governs rather than being
+deferred with them.
 
 Four findings drive the design.
 
@@ -67,8 +79,9 @@ Four findings drive the design.
    names as *"the public embedded network path."* Four public constructors
    already exist (`AppState::from_snapback`,
    `AppState::from_snapback_with_secret_read_operator`, `AppState::detached`,
-   `LocalSnapback::open`). What is missing is a curated API, a *composed
-   production-posture* construction path, and a distributable crate.
+   `LocalSnapback::open`). The implementation adds the curated API and
+   *composed production-posture* construction path. A distributable crate
+   remains the separate D6 program.
 2. **The specific PocketBase affordance —
    `se.Router.GET("/hello", handler)` — is the one thing Snapback has
    deliberately closed,** by two separate invariants (LLP 0060 §D1's plaintext
@@ -134,13 +147,13 @@ it:
 Only the fourth is an "extend Snapback" story. No request for it exists in the
 corpus today (OQ1).
 
-## Current state (as built)
+## Baseline before implementation
 
 Recorded so later revisions can tell design from description. Every claim below
 was re-verified during the round-1 reconciliation; the first draft got four of
 them wrong.
 
-**The lib target exists but has no curated surface.** `Cargo.toml` declares
+**The lib target existed but had no curated surface.** `Cargo.toml` declares
 `[lib] name = "snapback"`, and `src/lib.rs` exports **48 `pub mod`
 declarations** with five `pub(crate)` exceptions and no `#[doc(hidden)]`
 discipline. This does not make every internal type public — `server.rs` contains
@@ -158,7 +171,7 @@ names `server::app(state).bind(listener)` *"the public embedded network path"*
 and specifies its posture semantics, including that a detached or `Unknown`
 posture fails closed for sessions.
 
-**Construction is partly public already.** `AppState::new`
+**Construction was partly public already.** `AppState::new`
 (`src/admin.rs:827`) takes `SharedSnapback`, `ReadLane`, `EphemeralApi`, and
 more — but four public constructors already exist and are what the test suite
 uses: `AppState::from_snapback(LocalSnapback, ServerContext)`
@@ -265,7 +278,9 @@ repository* cannot build without fetching Hermes artifacts first (LLP 0010
 
 ## Design
 
-### D1. Curate the public surface before anyone depends on it — **proposed**
+### D1. Curate the public surface before anyone depends on it
+
+**Implementation status:** Implemented (2026-08-02).
 
 Independent of everything else, 48 bare `pub mod` declarations are a liability.
 The moment one external consumer exists, every internal refactor in `server.rs`
@@ -280,6 +295,15 @@ stability promise**. Either way the boundary must be written down.
 
 What the promise *is* — and how a `0.x` crate version relates to the LLP 0093
 wire protocol and `wire_version` — is OQ16.
+
+**As built (2026-08-02):** `src/embed.rs` is the sole documented façade. It
+exports the composed production builder and the evidenced low-level
+test/tooling seam (`LocalSnapback`, `AppState`, `server::app`, and the bound app
+types). The 48 legacy public modules remain addressable but carry
+`#[doc(hidden)]`; crate-level documentation states that they have no stability
+promise. For `0.x`, patch releases preserve `snapback::embed` source
+compatibility while minor releases may break it. Rust API versioning is
+independent of LLP 0093's wire protocol and `wire_version`.
 
 ### D2. Registration, not mounting — **designed, demand-gated**
 
@@ -384,7 +408,9 @@ this repository at Snapback's build time. An extended server needs a
 runtime-composed index, a manifest-row mechanism, or an explicit disclaimer that
 the index describes the stock surface only (OQ13).
 
-### D4. Production-posture construction — **proposed**
+### D4. Production-posture construction
+
+**Implementation status:** Implemented (2026-08-02).
 
 The deploy shape — one branded executable containing server and app bundle — is
 the cheapest high-value item here and needs no extension API: `include_bytes!`
@@ -405,7 +431,23 @@ D4 delivers the *bundle-baking* half of the single-binary story. The
 D4 is a prerequisite for D2 and D3 being usable by anyone outside this
 repository.
 
-### D5. Security posture: gated, not global — **proposed as constraint**
+**As built (2026-08-02):** `embed::production(&[u8])` parses a closed startup
+carrier before startup can touch state; `production_from_manifests` constructs
+the same carrier from the ordinary generated schema/functions pair (the normal
+`artifacts.json` is an index, not a runtime carrier). Both return a
+`ProductionBuilder`. `serve()` feeds the baked owned carrier through a private
+`cli::run_embedded` entry into the ordinary `cli::run` composition: database
+ownership, auth provider and mode activation, config/function publication,
+revocation/coordinator/invalidation/lease readiness, critical workers,
+listener-derived transport posture, readiness publication, and graceful
+shutdown remain one code path. `examples/embedded_todo.rs` is the documented
+branded-binary template. The builder can select database, listener, readiness,
+and declared-restore inputs; it cannot select hosted admission or omit the
+production workers.
+
+### D5. Security posture: gated, not global
+
+**Implementation status:** Implemented as a constraint (2026-08-02).
 
 LLP 0009's floor is that application code gets no ambient access to SQLite, the
 filesystem, the network, environment variables, or secrets, and that all useful
@@ -432,6 +474,13 @@ linked — survives.
 
 A server with registered native extensions must not claim a hosted-tenant
 isolation posture.
+
+**As built (2026-08-02):** the façade reports the closed
+`NativeCodePosture::SelfHostedSingleTenant` value and constructs only
+`AuthDeploymentTarget::Local`; it exposes no hosted-edge/admission setter. D3
+remains absent, so there is no native operation loader to misclassify. If D3 is
+later activated, its feature/artifact split must preserve this structural
+boundary rather than adding a configuration boolean to this builder.
 
 **License direction corrected.** Snapback is MIT (LLP 0033, Accepted), so
 outbound linking imposes nothing on anyone; the first draft had this backwards.
@@ -464,14 +513,14 @@ PocketBase's `go get` + `go build` → static binary is the bar. This is an
 LLP 0122-scale packaging program and it is entirely separate from the API
 design.
 
-### D7. Scope: decide three, gate the rest — **proposed**
+### D7. Scope: implement three, gate the rest — **implemented**
 
 Reviewers converged on the observation that v0.1 decided four surfaces while
 having evidence for one. Accordingly:
 
-- **Proposed for acceptance now:** D1 (curate the surface), D4 (production-posture
-  construction and the single-binary template), D5 as a standing constraint on
-  anything built later.
+- **Implemented:** D1 (curated surface), D4 (production-posture construction and
+  the baked-bundle template), and D5 as a standing constraint on anything built
+  later.
 - **Designed but demand-gated:** D2 (route registration) and D3 (native
   capability and host-op extension). Neither is built until a named consumer
   exists (OQ1). Both carry unresolved semantics (OQ7–OQ13) that should be closed
@@ -503,13 +552,12 @@ This keeps the RFC honest about what it knows.
 
 1. Is any embedder profile beyond test/tooling real? No request exists in the
    corpus. D2/D3 should not be built until one does.
-2. Which surfaces are in scope for a first release — construction only, or
-   registration too?
+2. **Resolved 2026-08-02:** construction only. Registration remains demand-gated.
 
 **D1**
 
-3. Full `pub(crate)` narrowing, or `#[doc(hidden)]` plus a written disclaimer as
-   the first step?
+3. **Resolved 2026-08-02:** `#[doc(hidden)]` plus the crate-level disclaimer,
+   preserving source compatibility while the façade settles.
 
 **D2**
 
@@ -549,8 +597,9 @@ This keeps the RFC honest about what it knows.
 
 **D1 / D6**
 
-16. What stability and semver policy does `snapback::embed` carry relative to
-    the LLP 0093 wire protocol and `wire_version`?
+16. **Resolved 2026-08-02:** during `0.x`, patches preserve façade source
+    compatibility and minors may break it; the Rust API version is independent
+    of LLP 0093's wire protocol and `wire_version`.
 17. What does "single binary" mean on macOS, where Hermes is a dynamically
     loaded framework — one executable file, or one relocatable bundle? And what
     is the full publication graph (Snapback, Ibex, Ibex's internal crates,

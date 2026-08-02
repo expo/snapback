@@ -531,3 +531,120 @@ admission/invocation TOCTOU and a gate naming lifecycle coverage its instrument
 lacks. Both verified; both fixed in v1.0. Round 6 is therefore scoped as the
 single frozen consistency pass both families asked for, with the target held
 immutable for its duration.
+
+
+## Round 6 — 2026-08-01 (frozen consistency pass)
+
+**Reviewer family:** Claude Fable
+**Provider / runtime:** Anthropic Claude Code, `claude-fable-5`, fresh
+non-author subagent
+**Effort:** session-inherited
+**Date:** 2026-08-01
+**Method:** fresh non-author subagent context; own-family artifact only; no
+`super-refine` path; blind to the codex artifact, which was reviewing the same
+frozen revision concurrently.
+**Instruction capsule SHA-256:** `00df97af10636ebbce6c9afe939221ab88b3039115ab1589e47563f386d8f562`
+**Target:** v1.0, 1,887 lines, pinned as `llp/0143-client-bundle-architecture.research.md`
+**Target SHA-256:** `37592dcc882407a24d1a71c240587282048732bb83a5c56b4c12c5940b8b34fe`
+**Repo revision at review start:** `0c0040ff` on `main`
+**Tool uses:** 44
+**Status:** completed
+**Verdict:** READY
+
+**Process event, and how this reviewer handled it.** The same concurrent
+renumber that disrupted the codex run hit this one. Rather than abort or
+hand-wave, the reviewer bounded the delta byte-exactly: reversing the title,
+deleting the one inserted renumber `Revised` line, and reverting two
+`reviews/0145-*` path strings reproduces the pinned hash. **The orchestrator
+independently re-ran that reconstruction and it matches
+`37592dcc…8b34fe` exactly.** Every substantive line reviewed is byte-identical
+to what is committed as LLP 0145; the freeze broke in path and number only.
+This review therefore applies verbatim to the 0145 file.
+
+## Verbatim review
+
+# LLP 0143 review — round 6 (frozen consistency pass, independent reviewer, Claude/Fable family)
+
+Target: the revision pinned by the capsule as `llp/0143-client-bundle-architecture.research.md`, SHA-256 `37592dcc882407a24d1a71c240587282048732bb83a5c56b4c12c5940b8b34fe`, 1887 lines, verified at review start and read in full from that verified state. Repo at `0c0040ff` on `main`. Blindness rules honored: the only file read under `llp/reviews/` was my own family's artifact; no `super-refine` path and no codex artifact was read.
+
+**Process event the capsule requires me to report: the pinned path no longer exists, and the end-of-review hash does not match — but the content freeze held.** During this review a concurrent session renumbered the document to `llp/0145-client-bundle-architecture.research.md` (now 1888 lines, SHA-256 `3cd1c3b444aac92cf3e5df506eb738491c7aaaae24e138581ec6203bcea67535`), because main had independently assigned LLP 0143 to the Expo push-notification seam RFC; both review artifacts were renamed and the root explainer's index was updated. I bounded the delta byte-exactly: reversing the title, deleting the one inserted renumber Revised line (line 8), and reverting the two `reviews/0145-*`→`reviews/0143-*` path strings reproduces the pinned hash exactly. Every substantive line of the revision under review is therefore byte-identical to what I reviewed; the freeze was broken in path and number only, not in content. This review applies verbatim to the 0145 file. Line numbers below are pinned-revision lines; for the current 0145 file add 1 to any line ≥ 8. The renumber leaves one stale self-reference inside the document, filed as N8.
+
+## Overall assessment
+
+The v0.9+v1.0 delta is the cleanest this document has received, and — for the first time since round 2 — the revision under review introduced no MATERIAL defect. I verified the hard new claims from scratch rather than from my family's prior authority.
+
+The two round-5 mechanism corrections are accurate against the tree on every limb. The TOCTOU passage's premises all hold: generated references really carry the full identity tuple (`demos/signal-desk/snapback/generated/api.mjs:40-52`); invocation really reduces to the name alone (published 0.1.8 at `.../node_modules/@expo/snapback-client/index.mjs:10608-10609`); the server really dispatches by path name (`src/server.rs:10124-10128`); admission really is a client-side tuple comparison (`react-binding.mjs:132-139`); and LLP 0094:21 confirms "no expected-operation wire". The passage neither overclaims nor underclaims: it asserts no mechanism exists today, requires the successor RFC to pick one of three, keeps admission's present value, and gate 11c's mandated rollout-interleaving negatives would refuse even a wrongly-built implementation of the lease option. Gate 12a now describes its instrument exactly: the runner pins `EXPECTED_CHECKS = 43` (`demos/competitive-checkpoint/tests/acceptance/hosted-sender-matrix.mjs:130`) and contains zero refresh, logout, or key-loss checks, while LLP 0077's Acceptance separately requires precisely the four legs the gate now demands as extensions (0077:1247-1251).
+
+The other v1.0 structural changes verify too. The three-predicate table says something true in every row: the always-offer inversion is verbatim LLP 0096 (0096:228-231, corroborated at :503); item 10's selective-delivery predicate is grounded (0053:312-313, :2259); `auth/rr` is per-request (0096:172); dev mode claims no profile (0096 §4.1). The two new artifact fields are corpus-grounded: `authProfileSet` matches LLP 0096's machine claim literally (0096:577, :114-119), and `custodyOwner`'s justification is tree-true — `createExternalSessionClient` is documented as "the explicit non-custodial protocol client seam" and throws when combined with `authCoordinator`/`agentAuthority`/`senderConstrained` (`packages/snapback-client/index.mjs:1497-1514`). The gate-11d custody rescoping is consistent with §F7 at every site I checked. The corrected browser default is code-exact (`rqs-store-default.mjs:61-65, 94-97`). The dev-obligation "as the code behaves today" qualifier is present in both categorical sites, and the decision-4 attribution is verbatim (llp/0115:484-485).
+
+What this pass found is residue, all DETAIL-grade. None of these states a false load-bearing claim, changes a contract row, alters a gate's substance, or moves any decision the document recommends. They are a single close-out edit, not a review round.
+
+**READY**
+
+## Disposition table
+
+| # | Round-5 finding | Disposition | Justification |
+| --- | --- | --- | --- |
+| 1 | MATERIAL — `auth/live` conditioned on "auth-scoped" (four sites) | **PARTIALLY RESOLVED** (residue DETAIL-grade) | Three of four sites fixed and verified: item 11 bullet 2 states the inverted rule with the governing quote (0096:228-231); the posture table reads "if it subscribes to any live function"; the scoping table is rebuilt on three predicates with the new all-authority-independent row still offering the carrier; OQ24 carries the codegen question. Residue: the profile-artifact sentence still teaches "an auth-scoped live subscription requires `auth/live`" — true as an implication, but the disavowed conditioning at the artifact's generation-time teaching surface. |
+| 2 | DETAIL — gate-count not updated for 11d | **RESOLVED** | "nine entries, 11 through 14 with 11a, 11b, 11c, 11d, and 12a"; the list has exactly nine. |
+| 3 | DETAIL — hosted row's item-12 cell contradicted its inheritance rule | **RESOLVED** | Reads "as its sessions row" in both cells, with "it is not automatically the live row". |
+| 4 | DETAIL — "LLP 0115 decision 4" attribution (four sites) | **RESOLVED** | All four read "0127 decision 4, recorded in LLP 0115"; verified against llp/0115:484-485. |
+| 5 | DETAIL — LLP 0041 orphaned in Related | **RESOLVED** | Cited load-bearing in Option 6 and OQ18. |
+| 6 | DETAIL — two mechanical nits | **PARTIALLY RESOLVED** | Related is now numerically ordered; the Option 4 conjunction fix removed the wrong one. Cosmetic. |
+| 7 | DETAIL — OQ23 should cite the `clear_retained` dev-path projection | **RESOLVED** | Quote and leans-toward-intended framing present; verified at llp/0053:1168-1170. |
+
+## New findings
+
+No BLOCKING or MATERIAL. Eight DETAILs and one verification note: an orphaned empty table header the v1.0 rebuild left above the new scoping table (N1); OQ22 still speaking the v0.8 framing gate 11b withdrew (N2); gate 12's "exactly the three" attribution imprecise for subscription establishment, which comes from the fence enumeration rather than the two-context acceptance (N3); the Revised header out of chronological order (N4); row 4's byte-saving claim stated unconditionally on knowledge OQ24 leaves open (N5); "all of which the corpus already requires" over-covering `custodyOwner`, which this document's gate 11d requires rather than the corpus (N6); OQ20 not updated to the three-mechanism menu (N7); OQ14's bare "0143" self-reference now pointing at the Expo push RFC after the renumber (N8); and a verification note that F2's line-count referent is rotting under the shared worktree — true of the published 0.1.8 artifact (10,832) but the workspace copy has grown to 11,174 under concurrent sessions (N9).
+
+## Stopping judgement
+
+The capsule's question: is this revision there? **Yes. READY, said plainly.**
+
+Three grounds. First, the round-over-round trend completed: R2 through R5 each found one MATERIAL introduced by the revision under review; this round found none. Second, everything this pass found is DETAIL — none states a false load-bearing claim or changes what the document decides, gates, or recommends; all of it is a single close-out edit pass needing no further review round. Third, the remaining first-order uncertainty is exactly the kind that marks the loop's natural limit, and the document names each piece honestly: whether 10-25 kB gzip is reachable (Phase C), the gate-13 thresholds (measurement), the comparative table's receipt status (Phase A's harness), gate 11b's class-minting, the OQ23 dev-mode reconciliation, and the OQ24 codegen decision. Another reading round would re-read clean text while the actual risk sits in unrun code.
+
+I am not softening anything to reach this signal: the R5-1 residue is the remnant of a MATERIAL and I checked hard whether it could re-create the original failure. It cannot on its own — one illustrative clause against three corrected normative sites, an explicit "a v0.8 draft got this backwards" warning, and OQ24 carrying the generation-time question — but it must be in the close-out edit. Recommendation: apply both families' round-6 DETAILs in one pass, without re-review, and commission Phase A.
+
+## Open questions
+
+1. Renumber follow-through: fix OQ14's "0143" self-reference (N8); confirm nothing else in the corpus still cites "LLP 0143" meaning this research.
+2. Does the author accept the close-out shape — one edit pass applying both families' round-6 findings, no further review round — landing together with the Phase A commissioning?
+3. Carried author decisions the spike cannot start without: the declared posture for Phase C; gate 13's pre-registered thresholds (OQ6); OQ14's graduation ownership; and OQ24's codegen-branching decision, which N5 makes slightly more pressing.
+4. Does F2's line-count sentence get pinned to the published 0.1.8 artifact (N9)?
+
+## Verdict
+
+READY
+
+## Orchestrator verification and disposition (outside the verbatim body)
+
+The byte-exact renumber reconstruction was independently re-run by the
+orchestrator and matches `37592dcc…8b34fe`. All eight DETAILs and the
+verification note applied in v1.1, together with the codex family's findings.
+
+- **N1, N4** — orphan table header deleted; Revised entries reordered
+  chronologically with the renumber note last.
+- **N2, N7** — the two open-question echoes. Both families found these
+  independently in the same round; the codex family rated them MATERIAL. OQ22's
+  spike-own-carrier exception deleted outright; OQ20 recast around the three
+  atomic mechanisms with admission-alone explicitly excluded.
+- **N3** — attribution corrected to "LLP 0059's fence enumeration and
+  two-context acceptance," with a parenthetical noting subscription fencing
+  comes from the enumeration. The codex family found the same imprecision.
+- **N5** — row 4's closure omission now conditioned on OQ24, with the
+  stale-declaration drift case and its OQ12 landing named.
+- **N6** — softened to "four of which the corpus already requires… and the
+  fifth of which this document's own gate 11d does."
+- **N8** — repaired; the renumbering session had updated the title, artifact
+  paths, and root explainer but missed this body self-reference.
+- **N9** — F2 now pins its line count to the published 0.1.8 artifact and
+  states explicitly that the workspace copy is not the referent. This is a
+  durable fix for a shared-worktree hazard, not a one-off correction.
+- **R5-1 residue** — the profile-artifact teaching example moved off the
+  disavowed auth-scoped conditioning to the always-offer rule.
+
+**Method note worth preserving.** Asked to report a broken freeze, this
+reviewer neither aborted nor waved it through: it reconstructed the pinned
+revision byte-exactly and proved the break was confined to path and number.
+That is the right response to mid-review drift in a shared checkout, and it is
+what made this round's verdict usable at all.
