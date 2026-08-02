@@ -1,6 +1,6 @@
 # G-01: Scheduling — verify C2's landed jobs seam against LLP 0070's runAfter, then close the remainder
 
-**Status:** In progress
+**Status:** Closed
 **Program:** 20260802-convex-erg-00-program.md
 **Systems:** Scheduling, Runtime, Storage
 **Related:** LLP 0070 (owns `runAfter` per the LLP 0115 coverage audit v0.2),
@@ -102,3 +102,29 @@ one.
   attempt; a crashed attempt is observable, not silent.
 - Capability fact/guide row updated only if the whole contract ships (GAP row
   otherwise).
+
+## Resolution — 2026-08-02
+
+Resolved by implementation commit
+`2cb96f4fecc739f5d996206ac8936aaa2536c83a`
+(`test(jobs): prove crash recovery across reopen`). The landing verifies that
+Wave-1 C2 already shipped LLP 0070's honest action-callee `runAfter` class and
+adds only its missing file-backed crash/reopen evidence. No production code,
+`ctx.scheduler` alias, guide claim, or broader capability tuple was added.
+
+Proof on the rebased implementation commit:
+
+- `scripts/bootstrap-ibex-runtime` — pass, including exact link/launch and
+  restricted no-eval handler-VM qualification;
+- exact crash/reopen witness — 1/1 pass;
+- `cargo test --lib jobs::tests` — 7/7 pass;
+- complete `packages/snapback-codegen` test suite — pass, including
+  `jobs-authoring.test.mjs`;
+- `cargo test --lib` — 1,641 pass, 1 ignored, with only the three inherited
+  `src/local.rs` live-matcher failures named in the running log;
+- `rustfmt --check --edition 2024 src/jobs.rs` and `git diff --check` — pass;
+- `./ref-check --verbose` — 157 LLP documents, 2,884 refs, zero errors and
+  zero unchecked; and
+- `node scripts/check-guide.mjs` — ran with only the inherited missing
+  generated snippet sources/stale guide manifest recorded above; no guide file
+  changed.
