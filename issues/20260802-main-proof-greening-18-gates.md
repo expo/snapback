@@ -94,3 +94,18 @@ ticket closes citing that run id.
   closure fix `91a0a718` and supplemental immutable ledger `745345fd`; the
   primary PKG-01 baseline was not weakened or refrozen. Gate 4's fast guide
   check also passes locally (17 freshness warnings, no errors).
+
+- **2026-08-02 — Chrome lifecycle cluster.** Gate 7 was introduced by Stage 0
+  evidence landing `f2cdfc3d`: its correct same-profile `SIGKILL`/relaunch
+  witness privately duplicated Chrome's debugging-port, profile, and
+  process-tree ownership, which the shared-lifecycle inventory correctly
+  refused. Once that duplicate was removed, the inventory also exposed four
+  older fixed-port launchers in the retained SpacetimeDB Todo bakeoff
+  (`d4d8fc21`). Fixing commit `c5bb5bc3` extends the shared launcher with a
+  caller-retained profile and explicit hard-stop leg while keeping port,
+  signal, and whole-tree attestation centralized; Stage 0 and all four older
+  smoke scripts now consume it. The focused Chrome lifecycle test, the full
+  server-process lifecycle test, syntax checks, guide check, and ref-check all
+  pass. The Stage 0 product harness itself could not be rerun in this checkout
+  because its optional `playwright-core` install is absent, so no retained
+  evidence receipt or capability claim was rewritten.
