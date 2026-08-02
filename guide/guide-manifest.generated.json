@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "50103befe39b9684d88ce6a0493a408770f2c96f"
+    "commit": "ae02a5b3ba7ae81124911fa65bb00d1dc243f153"
   },
   "nav": {
     ".": [
@@ -287,8 +287,8 @@
         "demos/_kit/tests/auth-handshake.mjs"
       ],
       "reviewed": "2026-08-01",
-      "reviewedCommit": "HEAD",
-      "sha256": "d8f81e7b3c7c820186ea3816ffdf862c21b1521deb36bd655f9e21c93f5dda10",
+      "reviewedCommit": "646ac082db666e04989dc9fcd8a33f49610e4bd5",
+      "sha256": "e4e042d104ee182cb8871d84810a531a09db83bb89b18287a00724b2806c8bcb",
       "snippets": []
     },
     "auth.native-apps": {
@@ -1187,8 +1187,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-01",
-      "reviewedCommit": "HEAD",
-      "sha256": "b2869f0337fc775777c39efa5b5da695b1db6a9f84ea9dda154b4777de54a28b",
+      "reviewedCommit": "646ac082db666e04989dc9fcd8a33f49610e4bd5",
+      "sha256": "8259376b9cf5056f0b72735df7da184cd6d5cd5772b0cf06cd21713e02792186",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1220,8 +1220,8 @@
         "demos/todo/snapback/generated"
       ],
       "reviewed": "2026-08-01",
-      "reviewedCommit": "HEAD",
-      "sha256": "1a404ae66959d02f9cc59437dcbeb1aae386b051ccfabea8cf3bdcf76b4f094c",
+      "reviewedCommit": "ae02a5b3ba7ae81124911fa65bb00d1dc243f153",
+      "sha256": "ee8647dc62368dd72acc67453a44838263e2021ed46ef2add77f9d43ab27974f",
       "snippets": []
     },
     "clients.contract-adapter": {
@@ -1827,9 +1827,9 @@
         "demos/card-game",
         "demos/partiful-matrix"
       ],
-      "reviewed": "2026-07-27",
-      "reviewedCommit": "8399da34f8bdebb2776395ee5751b57c2bd2e71f",
-      "sha256": "3a09824b3e54e204b917f4d1cb32f88643cdd1c4984aaff8eb64cc4be2197fdb",
+      "reviewed": "2026-08-01",
+      "reviewedCommit": "646ac082db666e04989dc9fcd8a33f49610e4bd5",
+      "sha256": "08b0f56a84cdd9c2b3fd8367d93b402d5f19f23eb6e114bac45e75a4c4442ac6",
       "snippets": []
     },
     "operating.admin-console": {
@@ -2481,5 +2481,5 @@
     "routes": 89,
     "hostOps": 29
   },
-  "contentHash": "81e03546df809d8bd0342574986ad26468d5ac0b8b31f39d6bff20969259a204"
+  "contentHash": "a35877d58c402ce4eca9c09ff847f4f557d37bdf876628a7172811120161f43d"
 }

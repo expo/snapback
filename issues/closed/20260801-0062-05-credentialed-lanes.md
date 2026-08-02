@@ -1,6 +1,6 @@
 # 0062-05: credentialed lanes and the eligibility descriptor
 
-**Status:** OPEN. **Authority:** LLP 0062 §4 (auth projection, never
+**Status:** CLOSED 2026-08-01. **Authority:** LLP 0062 §4 (auth projection, never
 silently promoted; the phase-1 matrix), residue #2 (stage-(a)
 capability-absent bootstrap; descriptor pinned before credentialed
 lanes — LLP 0058 amendment, ENG-25409), #7 (challenge-code custody/
@@ -58,3 +58,29 @@ credential-by-reference profile, per-invocation short-TTL mint with the
 release primitive, and the cross-process admission bound keyed by (target,
 app, grant)); the LLP 0055 dated amendment those last items require; and the
 §7 dev-auth cells plus credentialed-lane acceptance families.
+
+---
+
+**RESOLVED 2026-08-01.** The remaining lanes landed in `646ac082`, followed by
+the executable-entrypoint mode correction `ae02a5b3`.
+
+- Principal selection is anonymous by default and explicit for `dev`,
+  `session`, `agent`, and `auto`; `auto` refuses conflicts and never falls back
+  from an invalid discovered credential.
+- Sessions use the LLP 0096 non-custodial external-session client. Dev identity
+  stays an assertion on dev targets only.
+- The POSIX/literal-loopback agent lane uses reference-only credential
+  profiles, secure-file checks, short-lived mint/reattest/renew/release,
+  server-relative lifetimes, an authority fence, and a cross-process admission
+  lease below the advertised per-grant token cap.
+- `POST /auth/agents/token/release` is public-no-store, carrier-only, exact and
+  idempotent; LLP 0031 and LLP 0055 carry the dated amendments.
+
+Evidence: `auth.test.mjs` covers selection, custody, release, renewal, admission,
+redirect, and loopback fences; `package.test.mjs` covers a full
+discover/pair/mutate/subscribe/release journey and planted-secret
+non-transmission; Rust route/storage tests cover exact release and sibling
+isolation; `app-cli-served-journey.mjs` is green 20/20 and proves anonymous
+preflight, dev refusal on a sessions target, credential-owning code-mode parent,
+and non-custodial session dispatch. The full app-CLI/client suites and required
+Rust library/pinned suites were green at closure.

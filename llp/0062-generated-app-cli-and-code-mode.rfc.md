@@ -5,7 +5,12 @@
 **Systems:** Client integration, Developer experience, Tooling, API, Auth, Docs
 **Author:** Charlie Cheever / Claude Fable 5
 **Date:** 2026-07-17
-**Revised:** 2026-08-01, latest (shared result core landed: the LLP 0024
+**Revised:** 2026-08-01, latest (Snapback phase 1 implemented: tickets 01–06
+and 09 are closed; the credentialed lanes and Node/POSIX code-mode host landed
+in `646ac082` with executable-mode correction `ae02a5b3`; phase 2 remains
+honestly blocked on ticket 07's reviewed Ibex external-script/worker contract
+and ticket 08's literal one-file packaging proof; see the dated implementation
+checkpoint below). Earlier same day (shared result core landed: the LLP 0024
 amendment with `AppDataResultCoreV1` + the wrapper-to-core mapping, the
 engine taxonomy module in `packages/snapback-app-cli/result-core.mjs`,
 residues #8/#10 frozen — unknown codes fall back by wire locus and never
@@ -1661,6 +1666,17 @@ direction or implementation reconciliation, not additional review rounds.
   cross-repo blocker is narrowed to a reviewed Ibex lane for caller-supplied
   local `run analysis.ts` input under a distinct restricted principal and
   broker-only authority; the target URL is no longer runtime-selected.
+
+- **2026-08-01 Snapback phase-1 implementation checkpoint** — tickets 01–06
+  and 09 are implemented and closed. The local target now advertises and
+  enforces anonymous, dev-assertion, non-custodial session, and loopback agent
+  lanes; short-lived agent tokens have exact release/renewal and cross-process
+  admission; and `run script.ts` executes the frozen erasable-TypeScript profile
+  behind a credential-owning broker parent with bounded live/call/output
+  lifecycles. The Node/POSIX implementation and live served acceptance are the
+  phase-1 product. This does **not** claim the downloadable one-file product:
+  ticket 07 waits for reviewed Ibex contracts and ticket 08 stays blocked until
+  the literal app-bound executable and host-portable acceptance land.
 
 - **r1** — anonymous model corrected to the three-valued
   `authRequirement`; one public source-stripped envelope; envelope

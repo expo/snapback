@@ -9,8 +9,8 @@ examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game, demos/
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-07-27
-reviewed-commit: 8399da34f8bdebb2776395ee5751b57c2bd2e71f
+reviewed: 2026-08-01
+reviewed-commit: 646ac082db666e04989dc9fcd8a33f49610e4bd5
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
