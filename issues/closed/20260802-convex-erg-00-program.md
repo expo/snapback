@@ -1,6 +1,6 @@
 # Convex-ergonomics completion program (Program G)
 
-**Status:** Open (program)
+**Status:** Resolved 2026-08-02
 **Opened:** 2026-08-02, from Charlie's close-the-Convex-gap directive on the
 parity synthesis (LLP 0116–0127 series + capability-index GAP rows + the
 2026-08-02 backlog survey)
@@ -86,3 +86,21 @@ clients (consciously deferred), hosted lifecycle (own future program).
   changes the gate from “awaiting a ruling” to “accepted direction, deferred
   sequence”; it does not make the successor implemented and G-02 leaves LLP
   0157 untouched.
+
+## Resolution
+
+Program G closes with all four filesystem tickets resolved on current main:
+
+- G-01 (`2cb96f4f`) verified that Wave-1 C2 already shipped LLP 0070's honest
+  action-callee `runAfter` class and added its missing crash/reopen proof.
+- G-02 (`f7112bd0`) landed result-side schema references and manifest-derived
+  typed interiors within the LLP 0157 Draft boundary.
+- G-03 verified Wave-1 C1 (`4d72c407`) had already landed the decided
+  context-reader helper slice and closed as a duplicate.
+- G-04 (`ceb205a6`) closed through its author-decision path. The mixed-route
+  successor direction is endorsed by `e87c37d8`, but design and
+  implementation remain sequenced after LLP 0157 acceptance; the successor
+  is not implemented and no capability claim is made here.
+
+The remaining composition and mixed-route work is therefore deliberately
+owned by the accepted sequencing gates, not an open Program G ticket.

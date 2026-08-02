@@ -1,6 +1,6 @@
 # G-02: LLP 0127 move-1 type-flow remainder — schema-referencing contract nodes and generated interior types
 
-**Status:** Open
+**Status:** Resolved 2026-08-02
 **Program:** 20260802-convex-erg-00-program.md
 **Systems:** Codegen, API, Client integration
 **Related:** LLP 0127 move 1, LLP 0115 (CV-4 family; 0131 landed CV-4a+CV-5),
@@ -87,3 +87,20 @@ result types — the composition Spec owns those shapes.
   and 2,792 references with zero errors/unchecked; the guide check passes 46
   pages, 142 snippets, 91 routes, and 29 host operations with its 17 inherited
   freshness warnings. `git diff --check` is clean.
+
+## Resolution
+
+Implementation commit `f7112bd0` closes the admitted G-02 remainder:
+result-only `v.doc(table)` references resolve from the app schema into the
+existing document contract/hash, and generated handler/helper/context types
+project the same schema/function/result artifacts with exact read/write,
+membership, last-holder, optional-null, and auth authority distinctions. It
+does not add a deployed reference node, widen argument or stored-field
+grammar, or generate any LLP 0157-owned composition shape.
+
+The A2 arm proves the demo boundary honestly: whole-document field
+respellings were already 0 and remain 0, while four repeated context-reader
+chains become one shared typed helper. The current-main proof is the final
+running-log entry above: complete codegen and Rust library suites green,
+regenerated A2 strict checkJs green, guide/ref checks green, and the LLP 0115
+CV-17 row updated.

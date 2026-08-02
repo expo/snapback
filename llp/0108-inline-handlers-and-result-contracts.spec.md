@@ -1064,4 +1064,5 @@ declared contract. It does **not** inspect handler behavior to invent, widen,
 or replace that contract; omission remains the explicit degraded `unknown`
 case specified above. The A2 improvement-sweep proof and
 `schema-reference-type-flow.test.mjs` pin this direction, including authority
-nullability and the query-write capability refusal.
+nullability and the query-write capability refusal. Implementation commit
+`f7112bd0` carries the codegen, A2, guide, and proof corpus for this amendment.

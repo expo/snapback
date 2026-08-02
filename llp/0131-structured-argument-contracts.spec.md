@@ -1268,4 +1268,5 @@ unknown table refuses generation. A focused fixture also pins that arguments
 and stored schema fields reject `v.doc`, so this amendment neither widens the
 landed CV-4a grammar nor claims CV-4b. Generated interior types consume the
 expanded result/schema artifacts under LLP 0108's dated clarification; they
-do not infer a contract from handler behavior.
+do not infer a contract from handler behavior. Implementation commit
+`f7112bd0` executes this placement without changing the argument grammar.
