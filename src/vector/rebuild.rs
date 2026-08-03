@@ -694,6 +694,10 @@ fn quarantine_and_commit(
             message
         ],
     )?;
+    tx.execute(
+        "DELETE FROM _snapback_vector_journal_leases WHERE operation_id=?1",
+        params![build.operation_id],
+    )?;
     tx.commit()?;
     Err(rebuild_error(code, message))
 }
@@ -956,6 +960,14 @@ pub fn resume_rebuild(
                         &build,
                         "SNAPBACK_VECTOR_INDEX_UNAVAILABLE",
                         "vector catch-up journal suffix is unavailable",
+                    );
+                }
+                if error.diagnostic.code == "SNAPBACK_VECTOR_INDEX_CORRUPT" {
+                    return quarantine_and_commit(
+                        tx,
+                        &build,
+                        "SNAPBACK_VECTOR_INDEX_CORRUPT",
+                        "vector catch-up candidate failed authoritative verification",
                     );
                 }
                 return Err(error);
@@ -1618,6 +1630,16 @@ mod tests {
                 .unwrap()
                 .state,
             VectorRebuildStateV1::Quarantined
+        );
+        assert_eq!(
+            conn.query_row(
+                "SELECT COUNT(*) FROM _snapback_vector_journal_leases
+                 WHERE operation_id=?1",
+                params![approval.operation_id],
+                |row| row.get::<_, i64>(0)
+            )
+            .unwrap(),
+            0
         );
     }
 
