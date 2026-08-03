@@ -89,3 +89,10 @@ gate corpus), and checklist 7 (guide/cross-references and the final dated LLP
 open for the author-blocked multiple-unhandled fingerprint choice and the
 hosted-JS tracking-authority/observation-owner boundary recorded there; this
 surface checkpoint does not infer either authority.
+
+Wave policy keeps the mechanically required route/host-op classifications in
+`guide/capabilities.md` with this tranche, but defers the generated
+`guide-manifest.generated.json` and `guide-flat.generated.md` freshness update
+to the end-wave guide landing. Until then the guide generator reports that
+expected carrier drift; checklist 7 remains the owner of the capability flip,
+guide page, and final generated projections.

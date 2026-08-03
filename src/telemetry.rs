@@ -1889,7 +1889,7 @@ impl Telemetry {
     /// visibility view. This is an ordinary OperatorMetadata read: templates,
     /// messages, and stacks do not occur in its DTO.
     ///
-    /// @ref LLP 0156#e14--surface-typed-operations-projected-everywhere — the
+    /// @ref LLP 0156#e14--surface-typed-operations-projected-everywhere-d5-discipline — the
     ///   closed list is cursor-bounded and release-sequence aware.
     pub fn query_error_issues(
         &self,

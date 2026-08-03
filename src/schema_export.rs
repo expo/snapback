@@ -470,7 +470,7 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
             "telemetry.sql-result.schema.json",
             schemars::schema_for!(crate::telemetry_query::TelemetrySqlResultV1),
         ),
-        // @ref LLP 0156#e14--surface-typed-operations-projected-everywhere —
+        // @ref LLP 0156#e14--surface-typed-operations-projected-everywhere-d5-discipline —
         //   the issue-triage operations and their two authority-tier response
         //   shapes are Rust-owned, committed, and drift-gated.
         finish(

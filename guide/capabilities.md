@@ -145,6 +145,9 @@ here (or listed here but gone from the code).
 | /_snapback/api/cron/{name}/run | backend.cron |
 | /_snapback/api/data/{table} | operating.admin-console |
 | /_snapback/api/ephemeral/cleanup | notAuthorFacing (operator maintenance) |
+| /_snapback/api/errors/issue | backend.error-tracking-v1 |
+| /_snapback/api/errors/issues | backend.error-tracking-v1 |
+| /_snapback/api/errors/transition | backend.error-tracking-v1 |
 | /_snapback/api/functions/load | backend.functions |
 | /_snapback/api/functions/{name}/run | testing.acceptance |
 | /_snapback/api/health | operating.inspect |
@@ -233,6 +236,9 @@ here (or listed here but gone from the code).
 | host_ops.asset.importCut | notAuthorFacing (operator consistent-cut restore) |
 | host_ops.auth.mintSession | operating.host-ops |
 | host_ops.auth.rescueCollidingTable | operating.host-ops |
+| host_ops.errors.issue | backend.error-tracking-v1 |
+| host_ops.errors.issues | backend.error-tracking-v1 |
+| host_ops.errors.transition | backend.error-tracking-v1 |
 | host_ops.function.explain | operating.host-ops |
 | host_ops.function.explain.impersonated | operating.host-ops |
 | host_ops.function.run.query | operating.host-ops |

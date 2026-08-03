@@ -15036,7 +15036,7 @@ pub fn operation_registry() -> Vec<OperationSpec> {
             ResponseSensitivity::SensitiveApplicationData,
             SessionModeOverlay::NONE,
         ),
-        // @ref LLP 0156#e14--surface-typed-operations-projected-everywhere —
+        // @ref LLP 0156#e14--surface-typed-operations-projected-everywhere-d5-discipline —
         //   control carriers preserve the structural/raw/write split of the
         //   operation itself; the shared host-ops route cannot weaken it.
         operation(
@@ -24151,7 +24151,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_TELEMETRY_QUERY_INVALID"
         | "SNAPBACK_TELEMETRY_SQL_DENIED"
         | "SNAPBACK_TELEMETRY_SQL_FAILED"
-        // @ref LLP 0156#e14--surface-typed-operations-projected-everywhere —
+        // @ref LLP 0156#e14--surface-typed-operations-projected-everywhere-d5-discipline —
         //   malformed selectors/ids/transitions and unknown or pruned release
         //   names are non-retryable as written; clients must correct the
         //   request, using the returned known-release list where applicable.

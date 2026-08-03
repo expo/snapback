@@ -577,7 +577,7 @@ pub(crate) fn query_issues(
         values.push(SqlValue::Integer(to));
     }
     if let Some(sequence) = since_seq {
-        // @ref LLP 0156#e14--surface-typed-operations-projected-everywhere —
+        // @ref LLP 0156#e14--surface-typed-operations-projected-everywhere-d5-discipline —
         //   the post-release preset is acceptance-sequence based, including
         //   regressions strictly after activation.
         sql.push_str(" AND (first_seen_seq>=? OR last_regressed_seq>?)");

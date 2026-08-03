@@ -2006,7 +2006,7 @@ pub(crate) fn admin_route_registrations() -> Vec<RegisteredRoute> {
             secret_read("/_snapback/api/telemetry/export"),
             get(admin_telemetry_export),
         ),
-        // @ref LLP 0156#e14--surface-typed-operations-projected-everywhere —
+        // @ref LLP 0156#e14--surface-typed-operations-projected-everywhere-d5-discipline —
         //   the list is structural OperatorMetadata; only the detail route can
         //   reveal retained templates/stacks and therefore requires a bounded
         //   secret-read lease and inherits no-store.
