@@ -17,6 +17,7 @@
 //! buffered writes die with the errored invocation.
 
 use crate::diagnostic::{SnapbackError, SnapbackResult};
+use crate::error_tracking::extract_failure_carrier;
 use crate::manifest::IbexModule;
 use crate::runtime::{
     IbexHostContext, dispatch_host_call, parse_handler_output, unhandled_rejection_error,
@@ -859,7 +860,11 @@ pub(crate) fn run_handler_workerd(
     if !response.unhandled_rejections.is_empty() {
         return Err(unhandled_rejection_error(
             module,
-            response.unhandled_rejections,
+            response
+                .unhandled_rejections
+                .iter()
+                .map(|message| extract_failure_carrier(None, Some(message), None))
+                .collect(),
         ));
     }
     if !response.rejection_detection_supported {

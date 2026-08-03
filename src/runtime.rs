@@ -4,6 +4,10 @@ use crate::auth::invocation::ResolvedAppAuthority;
 use crate::auth::invocation::{HandlerAuthProjection, PreparedInvocation};
 use crate::cron::CronRunMetadata;
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
+use crate::error_tracking::{
+    AppRefusalTrackingV1, FailureCarrierV1, PrivateFailureContextV1,
+    UNCLASSIFIED_ERROR_CLASS, extract_failure_carrier, validated_error_class,
+};
 use crate::live_matcher::{
     compare_sort_keys, query_dependency_metadata, row_matches_query_filters, sort_key,
 };
@@ -410,6 +414,7 @@ impl RuntimeManager {
             true,
         )?;
         invocation.declared_refusals = prepared.declared_refusals().to_vec();
+        invocation.tracked_refusals = prepared.tracked_refusals().to_vec();
         invocation.declared_sequences = prepared.sequences().to_vec();
         let result = run_ibex_handler_with_context(module, &mut invocation, pool);
         // A terminal role denial fails the (dry-run) mutation and never commits,
@@ -469,6 +474,8 @@ impl RuntimeManager {
             host,
             grants,
         )?;
+        invocation.declared_refusals = prepared.declared_refusals().to_vec();
+        invocation.tracked_refusals = prepared.tracked_refusals().to_vec();
         // Actions always run fresh by the DK-4 scope fence. Per-invocation
         // config grants therefore cannot leak through a pooled VM.
         run_ibex_handler_with_context_until(module, &mut invocation, None, deadline)
@@ -496,6 +503,7 @@ pub(crate) fn execute_ibex_mutation_prepared(
         true,
     )?;
     invocation.declared_refusals = prepared.declared_refusals().to_vec();
+    invocation.tracked_refusals = prepared.tracked_refusals().to_vec();
     invocation.declared_sequences = prepared.sequences().to_vec();
     let result = run_ibex_handler_with_context_until(module, &mut invocation, pool, deadline);
     // A terminal role denial fails the mutation before commit and preserves the
@@ -555,6 +563,7 @@ pub(crate) fn run_ibex_query_with_reads_prepared(
     )?;
     invocation.protected_query_profile = protected_query_profile;
     invocation.declared_refusals = prepared.declared_refusals().to_vec();
+    invocation.tracked_refusals = prepared.tracked_refusals().to_vec();
     // The shipped DK-4 reset does not restore module lexical/imported state.
     // Protected queries therefore take a fresh realm even if a caller
     // accidentally supplies the warm pool.
@@ -629,6 +638,7 @@ pub(crate) fn run_ibex_asset_authorizer_prepared(
     )?;
     invocation.protected_query_profile = true;
     invocation.declared_refusals = prepared.declared_refusals().to_vec();
+    invocation.tracked_refusals = prepared.tracked_refusals().to_vec();
     let value = run_ibex_handler_with_context(module, &mut invocation, None);
     if let Some(denial) = invocation.take_terminal_denial() {
         return Err(denial);
@@ -1162,6 +1172,11 @@ pub(crate) struct IbexHostContext<'a> {
     /// and empty by default, so any path that does not deliberately carry the
     /// declaration folds every claimed `appCode` (LLP 0108).
     declared_refusals: Vec<String>,
+    /// The immutable subset whose admitted application refusals are eligible
+    /// for error tracking. Empty by default and never consulted for admission.
+    ///
+    /// @ref LLP 0108#tracked-refusal-opt-in
+    tracked_refusals: Vec<String>,
     /// Host-owned counter reach declarations for this exact function.
     declared_sequences: Vec<SequenceDeclaration>,
     writes: Vec<BufferedWrite>,
@@ -1274,6 +1289,7 @@ impl<'a> IbexHostContext<'a> {
             },
             protected_query_profile: false,
             declared_refusals: Vec::new(),
+            tracked_refusals: Vec::new(),
             declared_sequences: Vec::new(),
             writes: Vec::new(),
             sequence_allocations: Vec::new(),
@@ -1334,6 +1350,7 @@ impl<'a> IbexHostContext<'a> {
             mode: IbexInvocationMode::Action,
             protected_query_profile: false,
             declared_refusals: Vec::new(),
+            tracked_refusals: Vec::new(),
             declared_sequences: Vec::new(),
             writes: Vec::new(),
             sequence_allocations: Vec::new(),
@@ -2969,7 +2986,11 @@ fn run_ibex_handler_with_context_until(
     // @ref LLP 0144#invariants-for-any-extension — engine output is still a
     // handler claim. Adjudicate the declared set only after the executor join
     // so the Ibex and workerd-v8 legs cannot drift on admission again.
-    let result = admit_declared_refusal(&invocation.declared_refusals, result);
+    let result = admit_declared_refusal(
+        &invocation.declared_refusals,
+        &invocation.tracked_refusals,
+        result,
+    );
     // Witness restoration remains action-scoped; actions stay on Ibex, while
     // applying these empty-witness seams after the join is harmless for V8.
     let result = restore_denial_witness(invocation, claimed_code.as_deref(), result);
@@ -3047,9 +3068,15 @@ fn restore_denial_witness(
     result: SnapbackResult<Value>,
 ) -> SnapbackResult<Value> {
     match result {
-        Err(error) if claimed_code == Some("SNAPBACK_AUTH_PERMISSION_DENIED") => {
+        Err(mut error) if claimed_code == Some("SNAPBACK_AUTH_PERMISSION_DENIED") => {
             match invocation.denial_witness.take() {
-                Some(witness) => Err(witness),
+                Some(witness) => {
+                    let context = error.take_private_failure_context();
+                    Err(match context {
+                        Some(context) => witness.with_private_failure_context(context),
+                        None => witness,
+                    })
+                }
                 None => Err(error),
             }
         }
@@ -3067,13 +3094,19 @@ fn restore_stream_refusal(
     result: SnapbackResult<Value>,
 ) -> SnapbackResult<Value> {
     match result {
-        Err(error) => {
+        Err(mut error) => {
             match invocation
                 .stream_refusal
                 .take()
                 .filter(|recorded| recorded.diagnostic.code == error.diagnostic.code)
             {
-                Some(recorded) => Err(recorded),
+                Some(recorded) => {
+                    let context = error.take_private_failure_context();
+                    Err(match context {
+                        Some(context) => recorded.with_private_failure_context(context),
+                        None => recorded,
+                    })
+                }
                 None => Err(error),
             }
         }
@@ -3163,7 +3196,9 @@ fn remaining_deadline_ms(deadline: Instant) -> SnapbackResult<u32> {
 /// settles. Values remain rooted and are rendered through trap-free native
 /// inspection; handler code cannot inspect, forge, or drain this queue.
 /// @ref LLP 0009#harness-control-plane-boundary
-fn inspect_unhandled_rejections(runtime: *mut HermesRuntimeOpaque) -> SnapbackResult<Vec<String>> {
+fn inspect_unhandled_rejections(
+    runtime: *mut HermesRuntimeOpaque,
+) -> SnapbackResult<Vec<FailureCarrierV1>> {
     const EMPTY: u32 = 0;
     const AVAILABLE: u32 = 1;
     const DROPPED: u32 = 2;
@@ -3218,7 +3253,7 @@ fn rejection_inspection_invalid(message: &str) -> SnapbackError {
 fn render_and_release_async_failure(
     runtime: *mut HermesRuntimeOpaque,
     handle: HermesValueHandle,
-) -> SnapbackResult<String> {
+) -> SnapbackResult<FailureCarrierV1> {
     let rendered = render_async_failure(runtime, handle);
     let released = unsafe { ex_hermes_value_release(runtime, handle) };
     match (rendered, released) {
@@ -3234,8 +3269,17 @@ fn render_and_release_async_failure(
 fn render_async_failure(
     runtime: *mut HermesRuntimeOpaque,
     handle: HermesValueHandle,
-) -> Result<String, String> {
+) -> Result<FailureCarrierV1, String> {
     const THROW_FIELD_MESSAGE: u32 = 1 << 0;
+    const THROW_FIELD_STACK: u32 = 1 << 1;
+    const THROW_FIELD_POSITIONS: u32 = 1 << 2;
+    const THROW_FIELD_MESSAGE_TRUNCATED: u32 = 1 << 3;
+    const THROW_FIELD_STACK_TRUNCATED: u32 = 1 << 4;
+    const THROW_FIELDS_KNOWN: u32 = THROW_FIELD_MESSAGE
+        | THROW_FIELD_STACK
+        | THROW_FIELD_POSITIONS
+        | THROW_FIELD_MESSAGE_TRUNCATED
+        | THROW_FIELD_STACK_TRUNCATED;
     const VALUE_INVALID: u32 = 0;
     const VALUE_FUNCTION: u32 = 8;
     const VALUE_OBJECT: u32 = 9;
@@ -3262,31 +3306,62 @@ fn render_async_failure(
             &mut stack,
         )
     };
-    let decoded_message = if metadata_fault == 0 && metadata_fields & THROW_FIELD_MESSAGE != 0 {
-        copy_native_utf8(
-            message.data,
-            message.length,
-            SAFE_TEXT_MAX_BYTES,
-            "error message",
-        )
-    } else if metadata_fault == 0 {
-        Ok(None)
-    } else {
+    let decoded = if metadata_fault != 0 {
         Err(format!(
             "Ibex safe throw inspection failed with fault {metadata_fault}"
         ))
+    } else if metadata_fields & !THROW_FIELDS_KNOWN != 0 {
+        Err("Ibex safe throw inspection returned unknown metadata flags".to_owned())
+    } else if metadata_fields & THROW_FIELD_MESSAGE_TRUNCATED != 0
+        && metadata_fields & THROW_FIELD_MESSAGE == 0
+    {
+        Err("Ibex safe throw inspection truncated an absent message".to_owned())
+    } else if metadata_fields & THROW_FIELD_STACK_TRUNCATED != 0
+        && metadata_fields & THROW_FIELD_STACK == 0
+    {
+        Err("Ibex safe throw inspection truncated an absent stack".to_owned())
+    } else {
+        let decoded_message = if metadata_fields & THROW_FIELD_MESSAGE != 0 {
+            copy_native_utf8(
+                message.data,
+                message.length,
+                SAFE_TEXT_MAX_BYTES,
+                "error message",
+            )
+        } else {
+            Ok(None)
+        };
+        let decoded_stack = if metadata_fields & THROW_FIELD_STACK != 0 {
+            copy_native_utf8(
+                stack.data,
+                stack.length,
+                SAFE_TEXT_MAX_BYTES,
+                "error stack",
+            )
+        } else {
+            Ok(None)
+        };
+        decoded_message.and_then(|message| decoded_stack.map(|stack| (message, stack)))
     };
     unsafe {
         ex_hermes_free_string(message.data.cast());
         ex_hermes_free_string(stack.data.cast());
     }
-    if let Some(message) = decoded_message? {
-        if !message.is_empty() {
-            return Ok(message);
-        }
-        if error_class != 0 {
-            return Ok(error_class_name(error_class).to_owned());
-        }
+    let (decoded_message, decoded_stack) = decoded?;
+    let raw_error_class = error_class_name(error_class)?;
+    if decoded_message.as_deref().is_some_and(|message| !message.is_empty())
+        || decoded_stack.is_some()
+        || error_class != 0
+    {
+        return Ok(FailureCarrierV1 {
+            error_class: validated_error_class(raw_error_class),
+            message: decoded_message,
+            stack: decoded_stack,
+            message_extraction_truncated: metadata_fields
+                & THROW_FIELD_MESSAGE_TRUNCATED
+                != 0,
+            stack_extraction_truncated: metadata_fields & THROW_FIELD_STACK_TRUNCATED != 0,
+        });
     }
 
     let kind = unsafe { ex_hermes_value_kind(runtime, handle) };
@@ -3294,7 +3369,11 @@ fn render_async_failure(
         return Err("Ibex returned a stale asynchronous-failure value".to_owned());
     }
     if matches!(kind, VALUE_FUNCTION | VALUE_OBJECT | VALUE_ARRAY) {
-        return Ok("unserializable rejection reason".to_owned());
+        return Ok(extract_failure_carrier(
+            None,
+            Some("unserializable rejection reason"),
+            None,
+        ));
     }
 
     let mut data = ptr::null_mut();
@@ -3324,7 +3403,13 @@ fn render_async_failure(
     unsafe {
         ex_hermes_free_string(data.cast());
     }
-    text
+    text.map(|message| FailureCarrierV1 {
+        error_class: UNCLASSIFIED_ERROR_CLASS.to_owned(),
+        message: Some(message),
+        stack: None,
+        message_extraction_truncated: truncated == 1,
+        stack_extraction_truncated: false,
+    })
 }
 
 fn copy_native_utf8(
@@ -3349,19 +3434,20 @@ fn copy_native_utf8(
         .map_err(|_| format!("Ibex {label} was not valid UTF-8"))
 }
 
-fn error_class_name(error_class: u32) -> &'static str {
+fn error_class_name(error_class: u32) -> Result<Option<&'static str>, String> {
     match error_class {
-        1 => "Error",
-        2 => "AggregateError",
-        3 => "EvalError",
-        4 => "RangeError",
-        5 => "ReferenceError",
-        6 => "SyntaxError",
-        7 => "TypeError",
-        8 => "URIError",
-        9 => "TimeoutError",
-        10 => "QuitError",
-        _ => "Error",
+        0 => Ok(None),
+        1 => Ok(Some("Error")),
+        2 => Ok(Some("AggregateError")),
+        3 => Ok(Some("EvalError")),
+        4 => Ok(Some("RangeError")),
+        5 => Ok(Some("ReferenceError")),
+        6 => Ok(Some("SyntaxError")),
+        7 => Ok(Some("TypeError")),
+        8 => Ok(Some("URIError")),
+        9 => Ok(Some("TimeoutError")),
+        10 => Ok(Some("QuitError")),
+        _ => Err("Ibex safe throw inspection returned an unknown error class".to_owned()),
     }
 }
 
@@ -3373,8 +3459,18 @@ fn error_class_name(error_class: u32) -> &'static str {
 /// fails the mutation; silently swallowing them is the one wrong option.
 pub(crate) fn unhandled_rejection_error(
     module: &IbexModule,
-    rejections: Vec<String>,
+    rejections: Vec<FailureCarrierV1>,
 ) -> SnapbackError {
+    let public_rejections = rejections
+        .iter()
+        .map(|carrier| {
+            carrier
+                .message
+                .clone()
+                .filter(|message| !message.is_empty())
+                .unwrap_or_else(|| carrier.error_class.clone())
+        })
+        .collect::<Vec<_>>();
     SnapbackError::error(
         "SNAPBACK_HANDLER_UNHANDLED_REJECTION",
         "runtime",
@@ -3382,8 +3478,12 @@ pub(crate) fn unhandled_rejection_error(
     )
     .with_details(json!({
         "function": module.export,
-        "rejections": rejections,
+        "rejections": public_rejections,
     }))
+    .with_private_failure_context(PrivateFailureContextV1 {
+        carriers: rejections,
+        app_refusal_tracking: None,
+    })
 }
 
 /// Unwrap the invoke IIFE's tagged completion envelope. The tag is
@@ -3405,9 +3505,10 @@ pub(crate) fn unhandled_rejection_error(
 /// handler failure, and the app payload is dropped with it.
 fn admit_declared_refusal(
     declared: &[String],
+    tracked: &[String],
     result: SnapbackResult<Value>,
 ) -> SnapbackResult<Value> {
-    let Err(error) = result else {
+    let Err(mut error) = result else {
         return result;
     };
     if error.diagnostic.code != "SNAPBACK_APP_REFUSAL" {
@@ -3421,7 +3522,8 @@ fn admit_declared_refusal(
         .unwrap_or_default()
         .to_owned();
     if claimed.is_empty() || !declared.iter().any(|code| code == &claimed) {
-        return Err(SnapbackError::error(
+        let context = error.take_private_failure_context();
+        let folded = SnapbackError::error(
             "SNAPBACK_HANDLER_FAILED",
             "runtime",
             "JavaScript handler failed",
@@ -3429,13 +3531,54 @@ fn admit_declared_refusal(
         .with_details(json!({
             "function": error.diagnostic.details.get("function").cloned().unwrap_or(Value::Null),
             "message": "handler raised an undeclared application refusal",
-        })));
+        }));
+        return Err(match context {
+            Some(context) => folded.with_private_failure_context(context),
+            None => folded,
+        });
     }
-    Err(error)
+    let mut context = error.take_private_failure_context().unwrap_or_default();
+    context.app_refusal_tracking = Some(if tracked.iter().any(|code| code == &claimed) {
+        AppRefusalTrackingV1::Tracked
+    } else {
+        AppRefusalTrackingV1::AdmittedUntracked
+    });
+    Err(error.with_private_failure_context(context))
 }
 
 pub(crate) fn parse_handler_output(module: &IbexModule, output: String) -> SnapbackResult<Value> {
     parse_handler_output_with_claim(module, output).0
+}
+
+fn handler_failure_carrier(object: &Map<String, Value>) -> FailureCarrierV1 {
+    let mut carrier = extract_failure_carrier(
+        object.get("errorClass").and_then(Value::as_str),
+        object.get("message").and_then(Value::as_str),
+        object.get("stack").and_then(Value::as_str),
+    );
+    // The harness already bounds and flags extraction. Re-apply the Rust
+    // validator/bound defensively because the envelope is still handler-side
+    // bytes, and preserve either side's truncation witness.
+    carrier.error_class = validated_error_class(Some(&carrier.error_class));
+    carrier.message_extraction_truncated |= object
+        .get("messageExtractionTruncated")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    carrier.stack_extraction_truncated |= object
+        .get("stackExtractionTruncated")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    carrier
+}
+
+fn with_handler_failure_carrier(
+    error: SnapbackError,
+    carrier: FailureCarrierV1,
+) -> SnapbackError {
+    error.with_private_failure_context(PrivateFailureContextV1 {
+        carriers: vec![carrier],
+        app_refusal_tracking: None,
+    })
 }
 
 /// [`parse_handler_output`] plus the RAW (pre-fold) claimed code from a
@@ -3471,6 +3614,7 @@ pub(crate) fn parse_handler_output_with_claim(
             .get("message")
             .and_then(Value::as_str)
             .unwrap_or("JavaScript handler failed");
+        let carrier = handler_failure_carrier(object);
         // A claimed application refusal carries its app code and JSON details
         // through to `admit_declared_refusal`, which drops both unless the
         // function declared the code (LLP 0108).
@@ -3478,30 +3622,31 @@ pub(crate) fn parse_handler_output_with_claim(
             let app_code = object.get("appCode").and_then(Value::as_str);
             if let Some(app_code) = app_code {
                 return (
-                    Err(SnapbackError::error(
-                        code,
-                        "runtime",
-                        "application refusal",
-                    )
-                    .with_details(json!({
-                        "function": module.export,
-                        "message": message,
-                        "appCode": app_code,
-                        "appDetails": object.get("appDetails").cloned().unwrap_or(Value::Null),
-                    }))),
+                    Err(with_handler_failure_carrier(
+                        SnapbackError::error(code, "runtime", "application refusal").with_details(
+                            json!({
+                                "function": module.export,
+                                "message": message,
+                                "appCode": app_code,
+                                "appDetails": object.get("appDetails").cloned().unwrap_or(Value::Null),
+                            }),
+                        ),
+                        carrier,
+                    )),
                     claimed,
                 );
             }
         }
         return (
-            Err(
+            Err(with_handler_failure_carrier(
                 SnapbackError::error(code, "runtime", "JavaScript handler failed").with_details(
                     json!({
                         "function": module.export,
                         "message": message,
                     }),
                 ),
-            ),
+                carrier,
+            )),
             claimed,
         );
     }
@@ -4456,6 +4601,7 @@ mod action_db_boundary_tests {
 #[cfg(test)]
 mod parse_handler_output_tests {
     use super::parse_handler_output;
+    use crate::error_tracking::{AppRefusalTrackingV1, UNCLASSIFIED_ERROR_CLASS};
     use crate::manifest::IbexModule;
     use serde_json::{Value, json};
 
@@ -4477,31 +4623,68 @@ mod parse_handler_output_tests {
     /// is dropped, so a handler can never mint semantics it did not declare.
     #[test]
     fn application_refusal_is_admitted_only_when_declared() {
-        let envelope = r#"{"r":{"__snapbackOk":false,"code":"SNAPBACK_APP_REFUSAL","message":"STALE_MOVE","appCode":"STALE_MOVE","appDetails":{"expected":1,"actual":2}}}"#;
+        let envelope = r#"{"r":{"__snapbackOk":false,"code":"SNAPBACK_APP_REFUSAL","message":"STALE_MOVE","errorClass":"RefusalError","stack":"at refuse (handler.js:1:1)","messageExtractionTruncated":false,"stackExtractionTruncated":false,"appCode":"STALE_MOVE","appDetails":{"expected":1,"actual":2}}}"#;
         let declared = vec!["STALE_MOVE".to_owned(), "INVITE_CONSUMED".to_owned()];
 
         let admitted = super::admit_declared_refusal(
             &declared,
+            &["STALE_MOVE".to_owned()],
             parse_handler_output(&module(), envelope.to_owned()),
         )
         .expect_err("refusal is an error");
         assert_eq!(admitted.diagnostic.code, "SNAPBACK_APP_REFUSAL");
         assert_eq!(admitted.diagnostic.details["appCode"], "STALE_MOVE");
         assert_eq!(admitted.diagnostic.details["appDetails"]["expected"], 1);
+        let context = admitted
+            .private_failure_context()
+            .expect("admitted refusal retains private carrier");
+        assert_eq!(
+            context.app_refusal_tracking,
+            Some(AppRefusalTrackingV1::Tracked)
+        );
+        assert_eq!(context.carriers[0].error_class, "RefusalError");
+        assert_eq!(
+            context.carriers[0].stack.as_deref(),
+            Some("at refuse (handler.js:1:1)")
+        );
+
+        let admitted_untracked = super::admit_declared_refusal(
+            &declared,
+            &[],
+            parse_handler_output(&module(), envelope.to_owned()),
+        )
+        .expect_err("untracked refusal is still admitted");
+        assert_eq!(admitted_untracked.diagnostic.code, "SNAPBACK_APP_REFUSAL");
+        assert_eq!(
+            admitted_untracked
+                .private_failure_context()
+                .and_then(|context| context.app_refusal_tracking),
+            Some(AppRefusalTrackingV1::AdmittedUntracked)
+        );
 
         // Undeclared on this function: folds, payload dropped.
         let folded = super::admit_declared_refusal(
             &["INVITE_CONSUMED".to_owned()],
+            &[],
             parse_handler_output(&module(), envelope.to_owned()),
         )
         .expect_err("undeclared refusal is an error");
         assert_eq!(folded.diagnostic.code, "SNAPBACK_HANDLER_FAILED");
         assert!(folded.diagnostic.details.get("appCode").is_none());
         assert!(folded.diagnostic.details.get("appDetails").is_none());
+        assert_eq!(
+            folded
+                .private_failure_context()
+                .expect("fold preserves private exception carrier")
+                .carriers[0]
+                .error_class,
+            "RefusalError"
+        );
 
         // No declaration at all — the default for every path that does not
         // deliberately carry the manifest's set.
         let undeclared = super::admit_declared_refusal(
+            &[],
             &[],
             parse_handler_output(&module(), envelope.to_owned()),
         )
@@ -4512,6 +4695,7 @@ mod parse_handler_output_tests {
         // gets the ordinary generic failure, never a typed refusal.
         let forged = super::admit_declared_refusal(
             &declared,
+            &[],
             parse_handler_output(
                 &module(),
                 r#"{"r":{"__snapbackOk":false,"code":"SNAPBACK_APP_REFUSAL","message":"nope"}}"#
@@ -4520,6 +4704,30 @@ mod parse_handler_output_tests {
         )
         .expect_err("forged refusal is an error");
         assert_eq!(forged.diagnostic.code, "SNAPBACK_HANDLER_FAILED");
+    }
+
+    #[test]
+    fn failure_envelope_preserves_validated_private_carrier_without_public_widening() {
+        let error = parse_handler_output(
+            &module(),
+            r#"{"r":{"__snapbackOk":false,"code":null,"message":"bounded failure","errorClass":"bad-class","stack":"at handler (app.js:2:3)","messageExtractionTruncated":true,"stackExtractionTruncated":false}}"#.to_owned(),
+        )
+        .expect_err("failure envelope returns an error");
+
+        assert_eq!(error.diagnostic.code, "SNAPBACK_HANDLER_FAILED");
+        assert_eq!(error.diagnostic.details["message"], "bounded failure");
+        assert!(error.diagnostic.details.get("errorClass").is_none());
+        assert!(error.diagnostic.details.get("stack").is_none());
+        let context = error
+            .private_failure_context()
+            .expect("private carrier is retained");
+        assert_eq!(context.carriers.len(), 1);
+        let carrier = &context.carriers[0];
+        assert_eq!(carrier.error_class, UNCLASSIFIED_ERROR_CLASS);
+        assert_eq!(carrier.message.as_deref(), Some("bounded failure"));
+        assert_eq!(carrier.stack.as_deref(), Some("at handler (app.js:2:3)"));
+        assert!(carrier.message_extraction_truncated);
+        assert!(!carrier.stack_extraction_truncated);
     }
 
     #[test]
@@ -4630,6 +4838,113 @@ mod parse_handler_output_tests {
                 "output: {output}"
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod private_failure_carrier_tests {
+    use super::{IbexHostContext, run_ibex_handler_with_context};
+    use crate::auth::admission::AdmissionLease;
+    use crate::auth::invocation::{HandlerAuthProjection, ResolvedAppAuthority};
+    use crate::manifest::{HandlerInput, IbexModule};
+    use crate::storage::{DbRead, LocalDatabase, MembershipWriter};
+    use serde_json::json;
+
+    fn run(source: &str) -> crate::diagnostic::SnapbackError {
+        let db = LocalDatabase::memory().expect("memory database");
+        let authority = ResolvedAppAuthority::Anonymous;
+        let mut invocation = IbexHostContext::new_with_projection(
+            DbRead::Live(&db),
+            HandlerInput::default(),
+            HandlerAuthProjection::from_authority(&authority),
+            AdmissionLease::unmanaged(0, 0),
+            MembershipWriter::from_resolved(&authority),
+            true,
+        )
+        .expect("runtime context");
+        let module = IbexModule {
+            source: source.to_owned(),
+            export: "probe".to_owned(),
+        };
+        run_ibex_handler_with_context(&module, &mut invocation, None)
+            .expect_err("probe must fail")
+    }
+
+    #[test]
+    fn ordinary_throw_preserves_private_settle_carrier() {
+        let error = run(
+            r#"
+            globalThis.__snapbackHandlers = {
+              async probe() { throw new TypeError('settle carrier'); }
+            };
+            "#,
+        );
+        assert_eq!(error.diagnostic.code, "SNAPBACK_HANDLER_FAILED");
+        assert!(error.diagnostic.details.get("errorClass").is_none());
+        assert!(error.diagnostic.details.get("stack").is_none());
+        let carriers = &error
+            .private_failure_context()
+            .expect("private settle carrier")
+            .carriers;
+        assert_eq!(carriers.len(), 1);
+        assert_eq!(carriers[0].error_class, "TypeError");
+        assert_eq!(carriers[0].message.as_deref(), Some("settle carrier"));
+        assert!(carriers[0].stack.as_deref().is_some_and(|stack| !stack.is_empty()));
+    }
+
+    #[test]
+    fn one_unhandled_rejection_decodes_ibex_structured_metadata_before_release() {
+        let error = run(
+            r#"
+            globalThis.__snapbackHandlers = {
+              async probe() {
+                Promise.reject(new TypeError('detached carrier'));
+                return null;
+              }
+            };
+            "#,
+        );
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_HANDLER_UNHANDLED_REJECTION"
+        );
+        assert_eq!(error.diagnostic.details["rejections"], json!(["detached carrier"]));
+        let carriers = &error
+            .private_failure_context()
+            .expect("private async carrier")
+            .carriers;
+        assert_eq!(carriers.len(), 1);
+        assert_eq!(carriers[0].error_class, "TypeError");
+        assert_eq!(carriers[0].message.as_deref(), Some("detached carrier"));
+        assert!(carriers[0].stack.as_deref().is_some_and(|stack| !stack.is_empty()));
+    }
+
+    #[test]
+    fn multiple_unhandled_rejections_preserve_queue_order_without_a_winner() {
+        let error = run(
+            r#"
+            globalThis.__snapbackHandlers = {
+              async probe() {
+                Promise.reject(new Error('first carrier'));
+                Promise.reject(new TypeError('second carrier'));
+                return null;
+              }
+            };
+            "#,
+        );
+        assert_eq!(
+            error.diagnostic.details["rejections"],
+            json!(["first carrier", "second carrier"])
+        );
+        let carriers = &error
+            .private_failure_context()
+            .expect("ordered async carriers")
+            .carriers;
+        assert_eq!(carriers.len(), 2);
+        assert_eq!(carriers[0].message.as_deref(), Some("first carrier"));
+        assert_eq!(carriers[0].error_class, "Error");
+        assert_eq!(carriers[1].message.as_deref(), Some("second carrier"));
+        assert_eq!(carriers[1].error_class, "TypeError");
     }
 }
 

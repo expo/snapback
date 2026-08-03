@@ -342,10 +342,25 @@ globalThis.__snapbackHandlers = {
         configurable: true,
         get: function() { throw new Error('code-getter-trap'); }
       });
-    } else {
+    } else if (args.getter === 'message') {
       Object.defineProperty(failure, 'message', {
         configurable: true,
         get: function() { throw new Error('message-getter-trap'); }
+      });
+    } else if (args.getter === 'name') {
+      Object.defineProperty(failure, 'name', {
+        configurable: true,
+        get: function() { throw new Error('name-getter-trap'); }
+      });
+    } else if (args.getter === 'constructor') {
+      Object.defineProperty(failure, 'constructor', {
+        configurable: true,
+        get: function() { throw new Error('constructor-getter-trap'); }
+      });
+    } else if (args.getter === 'stack') {
+      Object.defineProperty(failure, 'stack', {
+        configurable: true,
+        get: function() { throw new Error('stack-getter-trap'); }
       });
     }
     throw failure;

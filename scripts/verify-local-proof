@@ -90,6 +90,7 @@ run ./ref-check --verbose
 run python3 tests/ref_check_v0.py
 run node tests/allowlist_install_v0.mjs
 run node --test tests/action_fetch_fence_v0.mjs
+run node --test packages/snapback-harness/envelope.test.mjs
 run node tests/ci_workflows_v0.mjs
 run node tests/cargo_target_headroom_v0.mjs
 run node --test tests/runtime_link_smoke_v0.mjs

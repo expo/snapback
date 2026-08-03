@@ -329,6 +329,26 @@ pub struct FailureCarrierV1 {
     pub stack_extraction_truncated: bool,
 }
 
+/// Host-admitted application-refusal tracking state. Admission and tracking
+/// are deliberately distinct: every value here was admitted against the
+/// function's `refusals`, while only `Tracked` was also present in its
+/// immutable `trackedRefusals` authority.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum AppRefusalTrackingV1 {
+    AdmittedUntracked,
+    Tracked,
+}
+
+/// Runtime-private failure context carried beside a public Diagnostic. It is
+/// never serialized; the later D-05 emission tranche consumes it at the
+/// observation seam. A vector is required because Ibex can report more than
+/// one unhandled rejection in deterministic queue order.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub(crate) struct PrivateFailureContextV1 {
+    pub carriers: Vec<FailureCarrierV1>,
+    pub app_refusal_tracking: Option<AppRefusalTrackingV1>,
+}
+
 pub fn extract_failure_carrier(
     error_class: Option<&str>,
     message: Option<&str>,

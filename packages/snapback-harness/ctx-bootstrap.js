@@ -30,6 +30,7 @@
   var trustedPromiseThen = TrustedPromise && TrustedPromise.prototype.then;
   var trustedRegExpExec = RegExp.prototype.exec;
   var snapbackCodePattern = /^(?:Error:\s*)?(SNAPBACK_[A-Z0-9_]+)(?::|\b)/;
+  var snapbackErrorClassPattern = /^[A-Za-z_$][A-Za-z0-9_$]{0,63}$/;
   var harnessPromiseThen = trustedPromiseThen;
   var trustedArrayJoin = Array.prototype.join;
   var trustedArraySlice = Array.prototype.slice;
@@ -1192,29 +1193,89 @@
       activeActionFetchHost = previousActionFetchHost;
     }
   };
-  function __snapbackSafeString(value) {
+  var SNAPBACK_FAILURE_EXTRACTION_MAX_BYTES = 16 * 1024;
+  function __snapbackBoundedSafeString(value) {
     var text = trustedString(value);
     var out = "";
+    var bytes = 0;
+    var truncated = false;
     for (var i = 0; i < text.length; i++) {
       var code = trustedReflectApply(trustedStringCharCodeAt, text, [i]);
+      var units = 1;
+      var width = 0;
+      var valueText = "";
       if (code >= 0xD800 && code <= 0xDBFF) {
         if (i + 1 < text.length) {
           var next = trustedReflectApply(trustedStringCharCodeAt, text, [i + 1]);
           if (next >= 0xDC00 && next <= 0xDFFF) {
-            out += trustedReflectApply(trustedStringCharAt, text, [i]) +
+            valueText = trustedReflectApply(trustedStringCharAt, text, [i]) +
               trustedReflectApply(trustedStringCharAt, text, [i + 1]);
-            i++;
-            continue;
+            units = 2;
+            width = 4;
           }
         }
-        out += "\uFFFD";
+        if (width === 0) {
+          valueText = "\uFFFD";
+          width = 3;
+        }
       } else if (code >= 0xDC00 && code <= 0xDFFF) {
-        out += "\uFFFD";
+        valueText = "\uFFFD";
+        width = 3;
       } else {
-        out += trustedReflectApply(trustedStringCharAt, text, [i]);
+        valueText = trustedReflectApply(trustedStringCharAt, text, [i]);
+        width = code <= 0x7F ? 1 : (code <= 0x7FF ? 2 : 3);
+      }
+      if (bytes + width > SNAPBACK_FAILURE_EXTRACTION_MAX_BYTES) {
+        truncated = true;
+        break;
+      }
+      out += valueText;
+      bytes += width;
+      i += units - 1;
+    }
+    return { value: out, truncated: truncated };
+  }
+  function __snapbackSafeString(value) {
+    return __snapbackBoundedSafeString(value).value;
+  }
+  function __snapbackValidatedErrorClass(error) {
+    // Each access/conversion is independent. A poisoned name, constructor, or
+    // constructor.name must not suppress the remaining candidate or the
+    // separately extracted message/stack.
+    var rawName = null;
+    var nameAvailable = false;
+    try {
+      rawName = error === null || error === undefined ? null : error.name;
+      nameAvailable = rawName !== null && rawName !== undefined;
+    } catch (_) {}
+    if (nameAvailable) {
+      var nameCandidate = null;
+      try { nameCandidate = trustedString(rawName); } catch (_) { nameAvailable = false; }
+      if (nameAvailable) {
+        return nameCandidate !== "unclassified" &&
+          trustedReflectApply(trustedRegExpExec, snapbackErrorClassPattern, [nameCandidate])
+          ? nameCandidate
+          : "unclassified";
       }
     }
-    return out;
+    var constructor = null;
+    try {
+      constructor = error === null || error === undefined ? null : error.constructor;
+    } catch (_) {}
+    var rawConstructorName = null;
+    try { rawConstructorName = constructor && constructor.name; } catch (_) {}
+    if (rawConstructorName !== null && rawConstructorName !== undefined) {
+      var constructorCandidate = null;
+      try { constructorCandidate = trustedString(rawConstructorName); } catch (_) {}
+      if (
+        constructorCandidate !== null &&
+        constructorCandidate !== "unclassified" &&
+        trustedReflectApply(trustedRegExpExec, snapbackErrorClassPattern, [constructorCandidate])
+      ) {
+        return constructorCandidate;
+      }
+    }
+    return "unclassified";
   }
   function __snapbackJsonReplacer(_key, value) {
     return typeof value === "string" ? __snapbackSafeString(value) : value;
@@ -1240,8 +1301,25 @@
       var rawCode = null;
       try { rawCode = error && error.__snapbackCode; } catch (_) {}
       var code = typeof rawCode === "string" ? rawCode : null;
-      var message = "handler failure could not be safely inspected";
-      try { message = __snapbackSafeString(error && error.message || error); } catch (_) {}
+      var messageRecord = {
+        value: "handler failure could not be safely inspected",
+        truncated: false
+      };
+      try {
+        messageRecord = __snapbackBoundedSafeString(error && error.message || error);
+      } catch (_) {}
+      var stackRecord = { value: null, truncated: false };
+      try {
+        var rawStack = error === null || error === undefined ? null : error.stack;
+        if (rawStack !== null && rawStack !== undefined) {
+          stackRecord = __snapbackBoundedSafeString(rawStack);
+        }
+      } catch (_) {}
+      var errorClass = __snapbackValidatedErrorClass(error);
+      var encodedCarrier = ',"errorClass":' + trustedJsonStringify(errorClass) +
+        ',"stack":' + trustedJsonStringify(stackRecord.value, __snapbackJsonReplacer) +
+        ',"messageExtractionTruncated":' + (messageRecord.truncated ? 'true' : 'false') +
+        ',"stackExtractionTruncated":' + (stackRecord.truncated ? 'true' : 'false');
       // A declared application refusal carries its claimed app code and JSON
       // details beside the platform code. Both stay claims: the host admits
       // them only against the function's declared refusal set.
@@ -1257,7 +1335,7 @@
         if (encodedDetails === undefined) encodedDetails = "null";
         return '{"r":{"__snapbackOk":false,"code":' +
           trustedJsonStringify(code) + ',"message":' +
-          trustedJsonStringify(message, __snapbackJsonReplacer) + ',"appCode":' +
+          trustedJsonStringify(messageRecord.value, __snapbackJsonReplacer) + encodedCarrier + ',"appCode":' +
           trustedJsonStringify(appCode) + ',"appDetails":' +
           encodedDetails + '}}';
       }
@@ -1267,7 +1345,7 @@
       // handler failure into a forged success.
       return '{"r":{"__snapbackOk":false,"code":' +
         trustedJsonStringify(code) + ',"message":' +
-        trustedJsonStringify(message, __snapbackJsonReplacer) + '}}';
+        trustedJsonStringify(messageRecord.value, __snapbackJsonReplacer) + encodedCarrier + '}}';
     }
   };
   installTrustedFunction("__snapbackInvoke", snapbackInvoke);

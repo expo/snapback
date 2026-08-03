@@ -84,6 +84,16 @@ impl SecretRedactor {
 
     pub(crate) fn redact_error(&self, mut error: SnapbackError) -> SnapbackError {
         error.diagnostic = self.redact_diagnostic(error.diagnostic);
+        if let Some(context) = error.private_failure_context_mut() {
+            for carrier in &mut context.carriers {
+                if let Some(message) = carrier.message.as_mut() {
+                    *message = self.redact_text(message);
+                }
+                if let Some(stack) = carrier.stack.as_mut() {
+                    *stack = self.redact_text(stack);
+                }
+            }
+        }
         error
     }
 }
@@ -972,6 +982,36 @@ mod tests {
         let serialized = serde_json::to_string(&diagnostic).unwrap();
         assert!(!serialized.contains("top-secret-value"), "{serialized}");
         assert!(serialized.contains("[REDACTED]"), "{serialized}");
+    }
+
+    #[test]
+    fn action_error_redaction_scrubs_private_failure_message_and_stack() {
+        use crate::error_tracking::{FailureCarrierV1, PrivateFailureContextV1};
+
+        let redactor = SecretRedactor::new(vec!["top-secret-value".to_owned()]);
+        let error = SnapbackError::error(
+            "SNAPBACK_HANDLER_FAILED",
+            "runtime",
+            "JavaScript handler failed",
+        )
+        .with_private_failure_context(PrivateFailureContextV1 {
+            carriers: vec![FailureCarrierV1 {
+                error_class: "Error".to_owned(),
+                message: Some("vendor echoed top-secret-value".to_owned()),
+                stack: Some("at handler (top-secret-value:1:1)".to_owned()),
+                message_extraction_truncated: false,
+                stack_extraction_truncated: false,
+            }],
+            app_refusal_tracking: None,
+        });
+
+        let redacted = redactor.redact_error(error);
+        let carrier = &redacted
+            .private_failure_context()
+            .expect("private failure context survives redaction")
+            .carriers[0];
+        assert_eq!(carrier.message.as_deref(), Some("vendor echoed [REDACTED]"));
+        assert_eq!(carrier.stack.as_deref(), Some("at handler ([REDACTED]:1:1)"));
     }
 
     #[test]
