@@ -848,6 +848,7 @@ pub struct SequenceAllocationFact {
     pub scope_table: String,
     pub scope_row_id: String,
     pub scope_incarnation: String,
+    #[schemars(range(min = 1, max = SEQUENCE_MAX_SAFE_INTEGER))]
     pub value: u64,
 }
 
@@ -3592,10 +3593,11 @@ impl LocalDatabase {
         declarations: &BTreeMap<String, crate::manifest::SequenceDeclaration>,
         trusted_active_generation: bool,
     ) -> SnapbackResult<()> {
-        let mut predecessor_tables =
-            sequence_scope_tables_from_declarations(self.sequence_declarations.as_ref());
+        let mut predecessor_tables = BTreeSet::new();
         let successor_tables = sequence_scope_tables_from_declarations(declarations);
         if trusted_active_generation {
+            predecessor_tables
+                .extend(sequence_scope_tables_from_declarations(&self.sequence_declarations));
             predecessor_tables.extend(successor_tables.iter().copied());
         }
         for table in &successor_tables {
@@ -3649,8 +3651,9 @@ impl LocalDatabase {
         declarations: BTreeMap<String, crate::manifest::SequenceDeclaration>,
         trusted_active_generation: bool,
     ) -> SnapbackResult<()> {
-        let mut predecessor = self.sequence_declarations.as_ref().clone();
+        let mut predecessor = BTreeMap::new();
         if trusted_active_generation {
+            predecessor.extend(self.sequence_declarations.as_ref().clone());
             predecessor.extend(declarations.clone());
         }
         let trusted_relation_parent_tables = schema_relation_parent_tables(&self.schema)
@@ -16575,6 +16578,13 @@ fn apply_sequence_allocations_in_tx(
     allocations: &[SequenceAllocationFact],
 ) -> SnapbackResult<()> {
     for allocation in allocations {
+        if allocation.value > SEQUENCE_MAX_SAFE_INTEGER {
+            return Err(SnapbackError::error(
+                "SNAPBACK_SEQUENCE_EXHAUSTED",
+                "storage",
+                "sequence counter has exhausted the JavaScript-safe integer domain",
+            ));
+        }
         validate_sequence_allocation_fact(allocation)?;
         let scope = schema_table(schema, &allocation.scope_table)?;
         let scope_exists = tx
@@ -16601,13 +16611,6 @@ fn apply_sequence_allocations_in_tx(
                 "SNAPBACK_RELATION_PARENT_UNAVAILABLE",
                 "storage",
                 "relation parent is missing or inactive",
-            ));
-        }
-        if allocation.value > SEQUENCE_MAX_SAFE_INTEGER {
-            return Err(SnapbackError::error(
-                "SNAPBACK_SEQUENCE_EXHAUSTED",
-                "storage",
-                "sequence counter has exhausted the JavaScript-safe integer domain",
             ));
         }
         let stored = tx
