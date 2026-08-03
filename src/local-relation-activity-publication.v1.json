@@ -11,7 +11,7 @@
     "src/storage.rs": "sha256:9cebba09f69d9f3dc474b0e8c5f6f148ce66c800ed1567e482341aa187baac19"
   },
   "schemaSourceSha256": {
-    "packages/snapback-codegen/define.mjs": "sha256:77b9f8caa843efc8531424513b4d62688a7913c8195fcfb97d7ae8d507722022"
+    "packages/snapback-codegen/define.mjs": "sha256:76d57397d7843067b32dd9f5e125f9617e4ff519d7a2a7885630b8ccb679bc8f"
   },
   "packageClosureSha256": null,
   "buildProvenanceRequirement": "source-commit-and-embedded-carrier-sha256"

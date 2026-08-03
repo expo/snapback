@@ -41,7 +41,7 @@ assert.deepEqual(carrier.capabilityIds, ['bounded_children_v1', 'write_activity_
 assert.equal(carrier.qualificationReceiptSha256, sha256(receiptBytes));
 assert.equal(
   sha256(carrierBytes),
-  'sha256:82a4f8444cc4bee726f663ae58ef9f2b17a3fefad9cd4a0026ddfcef57808b99',
+  'sha256:968a76b85f1720db48398b9dbb04ab600f4e0fadcc67afb3d15b3ad2fc31538b',
 );
 for (const [source, expected] of Object.entries({
   ...carrier.executorSourceSha256,
