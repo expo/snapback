@@ -3741,6 +3741,99 @@ impl LocalDatabase {
         self.with_pinned_read_view(|db| query_relational_on(&db, plan, input, cursor))
     }
 
+    /// Admit one approved exact-vector generation rebuild against the active
+    /// schema. The executor owns its fixed snapshot and journal-floor lease;
+    /// application mutations remain on their ordinary transaction path.
+    pub fn begin_vector_rebuild(
+        &mut self,
+        plan: &crate::vector::VectorRebuildPlanV1,
+        approval: &crate::migration::MigrationApprovalV1,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::vector::VectorRebuildProgressV1> {
+        crate::vector::rebuild::begin_rebuild(
+            &mut self.conn,
+            &self.schema,
+            plan,
+            approval,
+            now_ms,
+        )
+    }
+
+    pub fn resume_vector_rebuild(
+        &mut self,
+        operation_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::vector::VectorRebuildProgressV1> {
+        crate::vector::rebuild::resume_rebuild(
+            &mut self.conn,
+            &self.schema,
+            operation_id,
+            now_ms,
+        )
+    }
+
+    pub fn activate_vector_rebuild(
+        &mut self,
+        operation_id: &str,
+    ) -> SnapbackResult<crate::vector::VectorRebuildReceiptV1> {
+        crate::vector::rebuild::activate_rebuild(&mut self.conn, &self.schema, operation_id)
+    }
+
+    pub fn rollback_vector_generation(
+        &mut self,
+        table: &str,
+        index: &str,
+    ) -> SnapbackResult<crate::vector::VectorRebuildReceiptV1> {
+        crate::vector::rebuild::rollback_generation(
+            &mut self.conn,
+            &self.schema,
+            table,
+            index,
+        )
+    }
+
+    pub fn inspect_vector_rebuild(
+        &self,
+        operation_id: &str,
+    ) -> SnapbackResult<crate::vector::VectorRebuildProgressV1> {
+        crate::vector::rebuild::inspect_rebuild(&self.conn, operation_id)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn inject_vector_release_drift_for_test(
+        &self,
+        table: &str,
+        row_id: &str,
+    ) -> SnapbackResult<()> {
+        let next = next_storage_version(current_version_on(&self.conn)?)?;
+        let table = quote_ident(table)?;
+        let changed = self.conn.execute(
+            &format!("UPDATE {table} SET \"_version\"=?2 WHERE \"_id\"=?1"),
+            params![row_id, version_to_sql_integer(next)?],
+        )?;
+        if changed != 1 {
+            return Err(crate::vector::diagnostics::index_corrupt());
+        }
+        set_version(&self.conn, next)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn vector_generation_status_for_test(
+        &self,
+        table: &str,
+        index: &str,
+    ) -> SnapbackResult<String> {
+        self.conn
+            .query_row(
+                "SELECT status FROM _snapback_vector_generations
+                 WHERE table_name=?1 AND index_name=?2
+                 ORDER BY generation DESC LIMIT 1",
+                params![table, index],
+                |row| row.get(0),
+            )
+            .map_err(SnapbackError::from)
+    }
+
     /// Run one complete query invocation against a snapshot-bound view of this
     /// database. The file-backed read lane already supplies a transaction; this
     /// gives direct-library, live-subscription, and in-memory fallback queries

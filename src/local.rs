@@ -49356,4 +49356,268 @@ globalThis.__snapbackHandlers = {
         let _ = std::fs::remove_file(&path);
         let _ = std::fs::remove_file(dir.join("resume-keyring.json"));
     }
+
+    // @ref LLP 0132#candidate-to-release-consistency — both local query
+    //   lanes execute the same snapshot-bound exact-vector adapter. A
+    //   release mismatch returns no page and the read lane quarantines the
+    //   exact generation only after dropping its query-only transaction.
+    #[test]
+    fn vector_runtime_uses_resolved_owner_and_quarantines_read_lane_drift() {
+        use crate::manifest::{
+            AuthRequirement, AuthorizationInputDimension, TableManifest,
+            args_contract_hash, expected_vector_args_contract,
+            expected_vector_result_contract, result_contract_hash,
+        };
+        use crate::migration::{
+            MIGRATION_APPROVAL_SCHEMA_VERSION, MigrationApprovalV1, MigrationAudienceV1,
+            MigrationCeilings, new_operation_id,
+        };
+        use crate::vector::rebuild::VECTOR_REBUILD_PLAN_SCHEMA_VERSION;
+        use crate::vector::sqlite::manifest_digest;
+        use crate::vector::{
+            VECTOR_CAPABILITY, VECTOR_DISTANCE_PROFILE_ID, VECTOR_ORDERING_PROFILE_ID,
+            VECTOR_REBUILD_EXECUTOR, VECTOR_RESULT_PROJECTION, VectorFieldClassV1,
+            VectorIndexManifestV1, VectorMaintenanceLimitsV1, VectorMetricV1, VectorQueryPlanV1,
+            VectorRebuildPlanBodyV1, VectorRebuildPlanV1, VectorRebuildStateV1,
+            VectorTieBreakV1, VectorVisibilityV1,
+        };
+
+        let index = VectorIndexManifestV1 {
+            format_version: 1,
+            name: "by_embedding".to_owned(),
+            semantic_version: "documents.embedding.v1".to_owned(),
+            vector_field: "embedding".to_owned(),
+            dimensions: 2,
+            metric: VectorMetricV1::L2sq,
+            distance_profile: VECTOR_DISTANCE_PROFILE_ID.to_owned(),
+            ordering_profile: VECTOR_ORDERING_PROFILE_ID.to_owned(),
+            field_classifications: BTreeMap::from([
+                ("embedding".to_owned(), VectorFieldClassV1::Private),
+                ("owner".to_owned(), VectorFieldClassV1::Private),
+                ("status".to_owned(), VectorFieldClassV1::Private),
+                ("title".to_owned(), VectorFieldClassV1::Private),
+            ]),
+            equality_filters: vec!["status".to_owned()],
+            stored_fields: vec!["title".to_owned()],
+            visibility: VectorVisibilityV1::Owner {
+                field: "owner".to_owned(),
+            },
+            tie_break: VectorTieBreakV1::IdAsc,
+            max_indexed_vectors_per_partition: 32,
+            max_scalar_pairs: 64,
+            maintenance_limits: VectorMaintenanceLimitsV1::default(),
+        };
+        let schema = SchemaManifest {
+            tables: vec![TableManifest {
+                name: "documents".to_owned(),
+                fields: vec![
+                    FieldManifest {
+                        name: "embedding".to_owned(),
+                        field_type: FieldType::Vector { dimensions: 2 },
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "owner".to_owned(),
+                        field_type: FieldType::Principal,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "status".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "title".to_owned(),
+                        field_type: FieldType::Real,
+                        optional: false,
+                    },
+                ],
+                indexes: Vec::new(),
+                syncable: false,
+                permission_backing: false,
+                permission_fields: None,
+                search_indexes: Vec::new(),
+                vector_indexes: vec![index.clone()],
+                search_live_limits: None,
+                membership: None,
+                asset_sharing: None,
+            }],
+            ..SchemaManifest::default()
+        };
+
+        let directory = tempfile::tempdir().expect("vector runtime tempdir");
+        let path = directory.path().join("vector-runtime.sqlite");
+        let mut snapback = LocalSnapback::open(&path).expect("open file-backed vector fixture");
+        snapback.apply_schema(schema).expect("apply vector schema");
+        snapback
+            .seed(SeedData {
+                tables: BTreeMap::from([(
+                    "documents".to_owned(),
+                    vec![json!({
+                        "_id": "doc-a",
+                        "embedding": [1.0, 0.0],
+                        "owner": "alice",
+                        "status": "ready",
+                        "title": 7.0,
+                    })
+                    .as_object()
+                    .cloned()
+                    .expect("seed row")],
+                )]),
+            })
+            .expect("seed vector row");
+
+        let resolved = snapback
+            .migrate_resolved_audience()
+            .expect("resolve vector rebuild audience");
+        let audience = MigrationAudienceV1 {
+            project_id: None,
+            target_id: None,
+            environment_id: None,
+            deployment_id: None,
+            release_id: None,
+            database_id: resolved.database_id,
+            stream_incarnation: resolved.stream_incarnation,
+            activation_generation: resolved.activation_generation,
+            target_profile_id: resolved.target_profile_id,
+        };
+        let plan = VectorRebuildPlanV1::seal(VectorRebuildPlanBodyV1 {
+            schema_version: VECTOR_REBUILD_PLAN_SCHEMA_VERSION.to_owned(),
+            executor: VECTOR_REBUILD_EXECUTOR.to_owned(),
+            table: "documents".to_owned(),
+            index: index.name.clone(),
+            semantic_version: index.semantic_version.clone(),
+            manifest_digest: manifest_digest(&index).expect("vector manifest digest"),
+            predecessor_generation: None,
+            audience: audience.clone(),
+            ceilings: MigrationCeilings {
+                max_affected_rows: 32,
+                max_bytes: 1_000_000,
+                max_writes: 32,
+                max_barrier_downtime_ms: 10_000,
+            },
+            max_batch_rows: 1,
+            journal_lease_ms: 10_000,
+        })
+        .expect("seal vector rebuild plan");
+        let approval = MigrationApprovalV1 {
+            schema_version: MIGRATION_APPROVAL_SCHEMA_VERSION.to_owned(),
+            plan_digest: plan.plan_digest.clone(),
+            observation_digest: "runtime-vector-observation-v1".to_owned(),
+            policy_digest: "runtime-vector-policy-v1".to_owned(),
+            audience,
+            approver: "operator:vector-runtime-test".to_owned(),
+            generator_is_approver: false,
+            issued_at_ms: 1,
+            expires_at_ms: 100_000,
+            operation_id: new_operation_id(),
+        };
+        snapback
+            .db
+            .begin_vector_rebuild(&plan, &approval, 10)
+            .expect("begin vector rebuild");
+        let mut now_ms = 11;
+        loop {
+            let progress = snapback
+                .db
+                .inspect_vector_rebuild(&approval.operation_id)
+                .expect("inspect vector rebuild");
+            if progress.state == VectorRebuildStateV1::Verified {
+                break;
+            }
+            assert!(now_ms < 100, "vector rebuild must converge");
+            snapback
+                .db
+                .resume_vector_rebuild(&approval.operation_id, now_ms)
+                .expect("resume vector rebuild");
+            now_ms += 1;
+        }
+        snapback
+            .db
+            .activate_vector_rebuild(&approval.operation_id)
+            .expect("activate vector generation");
+
+        let args_contract = expected_vector_args_contract(&index);
+        let result_contract = expected_vector_result_contract(
+            snapback.db.schema().table("documents").expect("documents table"),
+            &index,
+        )
+        .expect("vector result contract");
+        let mut function = FunctionDefinition::new(
+            "nearestDocuments",
+            FunctionKind::Query,
+            FunctionRuntime::HostPlan(HandlerPlan::VectorQuery(VectorQueryPlanV1 {
+                table: "documents".to_owned(),
+                index: index.name.clone(),
+                distance_profile: VECTOR_DISTANCE_PROFILE_ID.to_owned(),
+                result_projection: VECTOR_RESULT_PROJECTION.to_owned(),
+                required_capability: VECTOR_CAPABILITY.to_owned(),
+            })),
+        );
+        function.args_contract_hash =
+            Some(args_contract_hash(&args_contract).expect("vector args contract hash"));
+        function.args_contract = Some(args_contract);
+        function.result_contract_hash =
+            Some(result_contract_hash(&result_contract).expect("vector result contract hash"));
+        function.result_contract = result_contract;
+        function.required_capabilities = vec![
+            VECTOR_CAPABILITY.to_owned(),
+            "args_contract_v1".to_owned(),
+            "result_contract_v1".to_owned(),
+        ];
+        function.auth_requirement = Some(AuthRequirement::Authenticated);
+        function.authorization_dependence = vec![AuthorizationInputDimension::AuthUserId];
+
+        // Capability publication is a later checkpoint. Install the already
+        // validated function directly so this runtime acceptance test cannot
+        // turn the target claim on before its full evidence matrix is green.
+        snapback.functions = FunctionManifest {
+            functions: vec![function],
+            ..FunctionManifest::default()
+        };
+        snapback.functions_loaded = true;
+        snapback.refresh_read_manifests();
+        let input = || HandlerInput {
+            args: json!({
+                "vector": [1.0, 0.0],
+                "k": 1,
+                "filters": [{ "field": "status", "op": "eq", "value": "ready" }],
+            }),
+            auth: AuthInput {
+                user_id: Some("alice".to_owned()),
+                ..AuthInput::default()
+            },
+            ..HandlerInput::default()
+        };
+
+        let direct = snapback
+            .invoke_query("nearestDocuments", input())
+            .expect("write-lane vector query");
+        assert_eq!(direct.rows.len(), 1);
+        assert_eq!(direct.rows[0]["rowId"], json!("doc-a"));
+        assert_eq!(direct.rows[0]["fields"]["title"], json!(7.0));
+
+        let lane = snapback.read_lane();
+        assert!(lane.available(), "file-backed vector fixture has a read lane");
+        let read = lane
+            .invoke_query("nearestDocuments", input())
+            .expect("read-lane vector query");
+        assert_eq!(read.rows, direct.rows);
+
+        snapback
+            .db
+            .inject_vector_release_drift_for_test("documents", "doc-a")
+            .expect("inject release drift outside maintenance");
+        let error = lane
+            .invoke_query("nearestDocuments", input())
+            .expect_err("same-snapshot release mismatch must fail closed");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_VECTOR_INDEX_CORRUPT");
+        assert_eq!(
+            snapback
+                .db
+                .vector_generation_status_for_test("documents", "by_embedding")
+                .expect("inspect exact generation status"),
+            "quarantined"
+        );
+    }
 }
