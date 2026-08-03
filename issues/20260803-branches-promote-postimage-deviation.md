@@ -36,6 +36,17 @@ would ship the exact mechanism 0097 rejected.
    RFC's corpus exists, but the guard belongs to 0097's implementation lane
    regardless of 0162's fate).
 
+## Second divergence (added 2026-08-03, round 5 of the 0162 loop)
+
+LLP 0097 §Design 1 reads as an immutable materialized base plus a separate
+overlay ("Reads resolve against the branch overlay over the materialized
+base"), but the landed code makes the materialized copy itself the writable
+fork (`src/branches.rs:403-408`: "The materialized base (P0.3) is a writable
+fork"). A reader of Accepted 0097 would conclude an immutable base exists;
+it does not, which is load-bearing for LLP 0162 §4's net-diff substrate
+requirement (immutable base or first-write preimages). Reconcile 0097's text
+or the substrate when this lane is picked up.
+
 ## Notes
 
 This ticket exists so the correction is not hostage to LLP 0162's acceptance;
