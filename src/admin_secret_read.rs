@@ -48,6 +48,7 @@ pub enum SecretReadScope {
     Receipts,
     TelemetryEvents,
     TelemetryExport,
+    ErrorsIssue,
     Table(String),
     FunctionRun(String),
     FunctionExplain(String),
@@ -56,7 +57,11 @@ pub enum SecretReadScope {
 impl SecretReadScope {
     fn validate(&self) -> SnapbackResult<()> {
         match self {
-            Self::AdminInspect | Self::Receipts | Self::TelemetryEvents | Self::TelemetryExport => {
+            Self::AdminInspect
+            | Self::Receipts
+            | Self::TelemetryEvents
+            | Self::TelemetryExport
+            | Self::ErrorsIssue => {
                 Ok(())
             }
             Self::Table(name) | Self::FunctionRun(name) | Self::FunctionExplain(name) => {

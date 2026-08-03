@@ -745,6 +745,11 @@ pub enum HostCommand {
         #[command(subcommand)]
         command: TelemetryCommand,
     },
+    /// Typed error-triage reads and authored issue transitions.
+    Errors {
+        #[command(subcommand)]
+        command: ErrorsCommand,
+    },
     /// Mint one short-lived, scoped administrative data-read lease. This is a
     /// ready-file-only operation because the proof root is local operator
     /// authority and can never be discovered from a URL.
@@ -768,6 +773,8 @@ pub enum HostCommand {
         telemetry_events: bool,
         #[arg(long)]
         telemetry_export: bool,
+        #[arg(long)]
+        errors_issue: bool,
         #[arg(long, default_value_t = 60)]
         ttl_seconds: u64,
         #[arg(long, default_value_t = 500)]
@@ -915,6 +922,64 @@ pub enum TelemetryCommand {
         max_time_ms: u64,
         #[arg(long, default_value_t = crate::telemetry_query::DEFAULT_SQL_BYTE_BUDGET)]
         max_bytes: usize,
+    },
+}
+
+#[derive(clap::Subcommand)]
+pub enum ErrorsCommand {
+    /// List structural issue metadata; defaults to the newest retained release.
+    Issues {
+        #[command(flatten)]
+        target: TargetArgs,
+        #[arg(long)]
+        state: Option<String>,
+        #[arg(long)]
+        kind: Option<String>,
+        #[arg(long)]
+        name: Option<String>,
+        #[arg(long)]
+        subsystem: Option<String>,
+        #[arg(long)]
+        failure_disposition: Option<String>,
+        #[arg(long)]
+        release: Option<String>,
+        #[arg(long)]
+        since: Option<String>,
+        #[arg(long)]
+        from_ms: Option<i64>,
+        #[arg(long)]
+        to_ms: Option<i64>,
+        #[arg(long, value_parser = ["last-seen", "count"], default_value = "last-seen")]
+        order: String,
+        #[arg(long)]
+        cursor: Option<String>,
+        #[arg(long, default_value_t = crate::errors_query::DEFAULT_ISSUE_LIMIT)]
+        limit: usize,
+    },
+    /// Read raw exemplars for one issue under a scoped secret-read lease.
+    Issue {
+        #[command(flatten)]
+        target: TargetArgs,
+        issue: String,
+        #[arg(long)]
+        secret_read_lease: Option<String>,
+    },
+    /// Apply one state-sequence CAS transition.
+    Transition {
+        #[command(flatten)]
+        target: TargetArgs,
+        issue: String,
+        #[arg(long, value_parser = ["open", "resolved", "ignored"])]
+        to: String,
+        #[arg(long)]
+        expect_seq: i64,
+    },
+    /// Deploy-hook form: atomically resolve open/regressed issues older than a release.
+    Resolve {
+        #[command(flatten)]
+        target: TargetArgs,
+        #[arg(long)]
+        open_before: String,
     },
 }
 
@@ -1425,6 +1490,7 @@ pub async fn run_from_env() -> anyhow::Result<()> {
             explain_function,
             telemetry_events,
             telemetry_export,
+            errors_issue,
             ttl_seconds,
             row_budget,
             byte_budget,
@@ -1441,6 +1507,9 @@ pub async fn run_from_env() -> anyhow::Result<()> {
             }
             if telemetry_export {
                 scopes.insert(SecretReadScope::TelemetryExport);
+            }
+            if errors_issue {
+                scopes.insert(SecretReadScope::ErrorsIssue);
             }
             scopes.extend(table.into_iter().map(SecretReadScope::Table));
             scopes.extend(function.into_iter().map(SecretReadScope::FunctionRun));
@@ -1466,6 +1535,7 @@ pub async fn run_from_env() -> anyhow::Result<()> {
             Ok(())
         }
         Some(HostCommand::Telemetry { command }) => telemetry_command(command),
+        Some(HostCommand::Errors { command }) => errors_command(command),
         Some(HostCommand::Auth { command }) => match command {
             AuthCommand::Backup { db, output } => auth_backup(&db, &output).await,
             AuthCommand::Restore { from, db } => auth_restore(&from, &db),
@@ -2193,6 +2263,160 @@ fn telemetry_command(command: TelemetryCommand) -> anyhow::Result<()> {
                     max_time_ms,
                     max_bytes,
                 },
+            )?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+    }
+}
+
+fn errors_json_post(target: &TargetArgs, value: Value) -> anyhow::Result<Value> {
+    let resolved = resolve_http_target_for_operation(target, false)?;
+    let token = target
+        .token
+        .clone()
+        .or_else(|| std::env::var("SNAPBACK_ADMIN_TOKEN").ok())
+        .filter(|token| !token.is_empty())
+        .or(resolved.minted_token);
+    let mut request = ureq::post(&format!(
+        "{}/_snapback/api/errors/transition",
+        resolved.server_url
+    ));
+    if let Some(token) = token {
+        request = request.set("x-snapback-admin-token", &token);
+    }
+    match request.send_json(value) {
+        Ok(response) => response
+            .into_json()
+            .context("errors transition response was not JSON"),
+        Err(ureq::Error::Status(status, response)) => {
+            let body = response
+                .into_string()
+                .unwrap_or_else(|_| "<unreadable response>".to_owned());
+            anyhow::bail!("errors transition failed with HTTP {status}: {body}")
+        }
+        Err(error) => Err(error).context("errors transition request failed"),
+    }
+}
+
+fn errors_command(command: ErrorsCommand) -> anyhow::Result<()> {
+    match command {
+        ErrorsCommand::Issues {
+            target,
+            state,
+            kind,
+            name,
+            subsystem,
+            failure_disposition,
+            release,
+            mut since,
+            from_ms,
+            to_ms,
+            order,
+            cursor,
+            limit,
+        } => {
+            let mut query = Vec::new();
+            for (key, value) in [
+                ("state", state),
+                ("kind", kind),
+                ("name", name),
+                ("subsystem", subsystem),
+                ("failureDisposition", failure_disposition),
+                ("release", release),
+            ] {
+                if let Some(value) = value {
+                    query.push((key, value));
+                }
+            }
+            if let Some(value) = from_ms {
+                query.push(("fromMs", value.to_string()));
+            }
+            if let Some(value) = to_ms {
+                query.push(("toMs", value.to_string()));
+            }
+            if let Some(value) = cursor {
+                query.push(("cursor", value));
+            }
+            query.push((
+                "order",
+                if order == "last-seen" { "lastSeen" } else { "count" }.to_owned(),
+            ));
+            query.push(("limit", limit.to_string()));
+
+            // The CLI's default view is the newest retained release. Resolve
+            // that name from the typed response rather than an ambient deploy
+            // variable so activation pruning still fails honestly.
+            if since.is_none() {
+                let releases = telemetry_json_get(
+                    &target,
+                    "/_snapback/api/errors/issues",
+                    vec![("limit", "1".to_owned())],
+                    None,
+                )?;
+                since = releases
+                    .get("knownReleases")
+                    .and_then(Value::as_array)
+                    .and_then(|releases| releases.last())
+                    .and_then(Value::as_str)
+                    .map(ToOwned::to_owned);
+            }
+            if let Some(since) = since {
+                query.push(("since", since));
+            }
+            let response = telemetry_json_get(
+                &target,
+                "/_snapback/api/errors/issues",
+                query,
+                None,
+            )?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+        ErrorsCommand::Issue {
+            target,
+            issue,
+            secret_read_lease,
+        } => {
+            let lease = telemetry_secret_read_lease(
+                &target,
+                secret_read_lease,
+                SecretReadScope::ErrorsIssue,
+                1_000,
+                4 * 1024 * 1024,
+            )?;
+            let response = telemetry_json_get(
+                &target,
+                "/_snapback/api/errors/issue",
+                vec![("issue", issue)],
+                Some(&lease),
+            )?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+        ErrorsCommand::Transition {
+            target,
+            issue,
+            to,
+            expect_seq,
+        } => {
+            let response = errors_json_post(
+                &target,
+                json!({ "issue": issue, "to": to, "expectSeq": expect_seq }),
+            )?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+        ErrorsCommand::Resolve {
+            target,
+            open_before,
+        } => {
+            let response = errors_json_post(
+                &target,
+                json!({
+                    "selector": { "openBefore": open_before },
+                    "to": "resolved",
+                }),
             )?;
             println!("{}", serde_json::to_string_pretty(&response)?);
             Ok(())

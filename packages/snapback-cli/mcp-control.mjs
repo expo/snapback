@@ -269,6 +269,70 @@ const CONTROL_TOOLS = [
     annotations: { readOnlyHint: true, openWorldHint: false },
   },
   {
+    name: 'snapback_errors_issues',
+    operation: 'errors.issues',
+    title: 'List error issues',
+    description: 'Read structural issue titles and counters; defaults may be narrowed with the release-sequence since preset.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        state: { type: 'string', enum: ['open', 'resolved', 'ignored', 'regressed'] },
+        kind: { type: 'string' }, name: { type: 'string' }, subsystem: { type: 'string' },
+        failureDisposition: { type: 'string' }, release: { type: 'string' }, since: { type: 'string' },
+        fromMs: { type: 'integer' }, toMs: { type: 'integer' },
+        order: { type: 'string', enum: ['lastSeen', 'count'], default: 'lastSeen' },
+        cursor: { type: 'string' },
+        limit: { type: 'integer', minimum: 1, maximum: 500, default: 100 },
+      },
+    },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
+  {
+    name: 'snapback_errors_issue',
+    operation: 'errors.issue',
+    title: 'Inspect one error issue',
+    description: 'Read raw retained templates and stack heads through an automatically minted scoped, budgeted secret-read lease.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['issue'],
+      properties: { issue: { type: 'string' } },
+    },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
+  {
+    name: 'snapback_errors_transition',
+    operation: 'errors.transition',
+    title: 'Transition error issue state',
+    description: 'Apply one state-sequence CAS, or atomically resolve open/regressed issues older than a release.',
+    inputSchema: {
+      oneOf: [
+        {
+          type: 'object', additionalProperties: false,
+          required: ['issue', 'to', 'expectSeq'],
+          properties: {
+            issue: { type: 'string' },
+            to: { type: 'string', enum: ['open', 'resolved', 'ignored'] },
+            expectSeq: { type: 'integer', minimum: 0 },
+          },
+        },
+        {
+          type: 'object', additionalProperties: false,
+          required: ['selector', 'to'],
+          properties: {
+            selector: {
+              type: 'object', additionalProperties: false,
+              required: ['openBefore'], properties: { openBefore: { type: 'string' } },
+            },
+            to: { const: 'resolved' },
+          },
+        },
+      ],
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  },
+  {
     name: 'snapback_reset',
     operation: 'app.reset',
     title: 'Reset local app state',
@@ -739,6 +803,19 @@ export class McpControlServer {
           { secretReadLease: lease },
         );
       }
+      case 'snapback_errors_issues': {
+        const limit = Number.isInteger(args.limit) ? args.limit : 100;
+        return this.servedResult({ operation: 'errors.issues', input: { ...args, limit } });
+      }
+      case 'snapback_errors_issue': {
+        const lease = this.secretReadLease('errors-issue', 1_000, 4 * 1024 * 1024);
+        return this.servedResult(
+          { operation: 'errors.issue', input: args },
+          { secretReadLease: lease },
+        );
+      }
+      case 'snapback_errors_transition':
+        return this.servedResult({ operation: 'errors.transition', input: args });
       case 'snapback_reset': {
         const { refusal } = this.checkAuthority(args.authority, {
           required: true,

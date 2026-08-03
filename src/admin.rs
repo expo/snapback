@@ -2006,6 +2006,29 @@ pub(crate) fn admin_route_registrations() -> Vec<RegisteredRoute> {
             secret_read("/_snapback/api/telemetry/export"),
             get(admin_telemetry_export),
         ),
+        // @ref LLP 0156#e14--surface-typed-operations-projected-everywhere —
+        //   the list is structural OperatorMetadata; only the detail route can
+        //   reveal retained templates/stacks and therefore requires a bounded
+        //   secret-read lease and inherits no-store.
+        RegisteredRoute::new(
+            read(
+                "/_snapback/api/errors/issues",
+                ResponseSensitivity::OperatorMetadata,
+            ),
+            get(admin_error_issues),
+        ),
+        RegisteredRoute::new(
+            secret_read("/_snapback/api/errors/issue"),
+            get(admin_error_issue),
+        ),
+        RegisteredRoute::new(
+            write(
+                "POST",
+                "/_snapback/api/errors/transition",
+                ResponseSensitivity::OperatorMetadata,
+            ),
+            post(admin_errors_transition),
+        ),
         RegisteredRoute::new(
             write(
                 "POST",
@@ -2150,6 +2173,36 @@ async fn admin_telemetry_events(
         &response,
     )?;
     Ok(Json(response))
+}
+
+async fn admin_error_issues(
+    State(runtime): State<AppState>,
+    Query(request): Query<crate::errors_query::ErrorsIssuesRequestV1>,
+) -> Result<Json<crate::errors_query::ErrorsIssuesResponseV1>, ApiError> {
+    Ok(Json(runtime.telemetry.query_error_issues(&request)?))
+}
+
+async fn admin_error_issue(
+    State(runtime): State<AppState>,
+    State(secret_reads): State<SecretReadLeaseRegistry>,
+    headers: HeaderMap,
+    Query(request): Query<crate::errors_query::ErrorsIssueRequestV1>,
+) -> Result<Json<crate::errors_query::ErrorsIssueResponseV1>, ApiError> {
+    let scopes = BTreeSet::from([SecretReadScope::ErrorsIssue]);
+    preflight_secret_read(&secret_reads, &headers, scopes.clone())?;
+    let response = runtime.telemetry.query_error_issue(&request)?;
+    let rows = 1usize
+        .saturating_add(response.exemplars.len())
+        .saturating_add(response.transitions.len());
+    reserve_secret_read_json(&secret_reads, &headers, scopes, rows, &response)?;
+    Ok(Json(response))
+}
+
+async fn admin_errors_transition(
+    State(runtime): State<AppState>,
+    Json(request): Json<crate::errors_query::ErrorsTransitionRequestV1>,
+) -> Result<Json<crate::errors_query::ErrorsTransitionResponseV1>, ApiError> {
+    Ok(Json(runtime.telemetry.transition_errors(&request)?))
 }
 
 fn append_ndjson<T: Serialize>(target: &mut Vec<u8>, value: &T) -> Result<(), ApiError> {

@@ -378,6 +378,61 @@ pub(crate) struct ErrorTransitionHistoryFloor {
     pub history_truncated: bool,
 }
 
+fn project_error_issue_state(
+    state: ErrorIssueState,
+) -> crate::errors_query::ErrorsIssueStateV1 {
+    match state {
+        ErrorIssueState::Open => crate::errors_query::ErrorsIssueStateV1::Open,
+        ErrorIssueState::Resolved => crate::errors_query::ErrorsIssueStateV1::Resolved,
+        ErrorIssueState::Ignored => crate::errors_query::ErrorsIssueStateV1::Ignored,
+        ErrorIssueState::Regressed => crate::errors_query::ErrorsIssueStateV1::Regressed,
+    }
+}
+
+fn project_transition_result(
+    result: ErrorTransitionResult,
+) -> crate::errors_query::ErrorTransitionResultV1 {
+    use crate::errors_query::{ErrorTransitionOutcomeV1, ErrorTransitionResultV1};
+    match result {
+        ErrorTransitionResult::Applied {
+            issue,
+            state,
+            state_seq,
+        } => ErrorTransitionResultV1 {
+            issue,
+            outcome: ErrorTransitionOutcomeV1::Applied,
+            state: Some(project_error_issue_state(state)),
+            state_seq: Some(state_seq),
+        },
+        ErrorTransitionResult::Conflict {
+            issue,
+            state,
+            state_seq,
+        } => ErrorTransitionResultV1 {
+            issue,
+            outcome: ErrorTransitionOutcomeV1::Conflict,
+            state: Some(project_error_issue_state(state)),
+            state_seq: Some(state_seq),
+        },
+        ErrorTransitionResult::Invalid {
+            issue,
+            state,
+            state_seq,
+        } => ErrorTransitionResultV1 {
+            issue,
+            outcome: ErrorTransitionOutcomeV1::Invalid,
+            state: Some(project_error_issue_state(state)),
+            state_seq: Some(state_seq),
+        },
+        ErrorTransitionResult::Missing { issue } => ErrorTransitionResultV1 {
+            issue,
+            outcome: ErrorTransitionOutcomeV1::Missing,
+            state: None,
+            state_seq: None,
+        },
+    }
+}
+
 struct ErrorIssueTransition<'a> {
     issue: &'a str,
     to: ErrorIssueState,
@@ -1813,6 +1868,167 @@ impl Telemetry {
             .unwrap_or_else(|poisoned| poisoned.into_inner());
         let connection = store.ensure_connection(wall_now_ms())?;
         crate::telemetry_query::query_stats(connection, request, &context)
+    }
+
+    /// Read the structural-only issue list from the existing error-group
+    /// visibility view. This is an ordinary OperatorMetadata read: templates,
+    /// messages, and stacks do not occur in its DTO.
+    ///
+    /// @ref LLP 0156#e14--surface-typed-operations-projected-everywhere — the
+    ///   closed list is cursor-bounded and release-sequence aware.
+    pub fn query_error_issues(
+        &self,
+        request: &crate::errors_query::ErrorsIssuesRequestV1,
+    ) -> SnapbackResult<crate::errors_query::ErrorsIssuesResponseV1> {
+        self.force_flush()?;
+        let diagnostics = self.diagnostics();
+        let context = crate::telemetry_query::QueryContext {
+            drops_since_boot: diagnostics.drops_since_boot,
+            last_flush_watermark: diagnostics.last_flush_watermark,
+        };
+        let mut store = self
+            .producer
+            .shared
+            .store
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let connection = store.ensure_connection(wall_now_ms())?;
+        crate::errors_query::query_issues(connection, request, &context)
+    }
+
+    /// Read one raw-tier issue detail with retained exemplars and transition
+    /// history. Carrier authorization is intentionally outside this core so
+    /// HTTP, CLI, and MCP all call the same operation.
+    pub fn query_error_issue(
+        &self,
+        request: &crate::errors_query::ErrorsIssueRequestV1,
+    ) -> SnapbackResult<crate::errors_query::ErrorsIssueResponseV1> {
+        self.force_flush()?;
+        let diagnostics = self.diagnostics();
+        let context = crate::telemetry_query::QueryContext {
+            drops_since_boot: diagnostics.drops_since_boot,
+            last_flush_watermark: diagnostics.last_flush_watermark,
+        };
+        let mut store = self
+            .producer
+            .shared
+            .store
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let connection = store.ensure_connection(wall_now_ms())?;
+        crate::errors_query::query_issue(connection, request, &context)
+    }
+
+    /// Apply either the single CAS form or the one-transaction release
+    /// selector form, then project the shared transition result contract.
+    ///
+    /// @ref LLP 0156#e13--the-issue-state-machine — callers provide a CAS for
+    ///   one row; the bulk selector supplies its own atomic snapshot.
+    pub fn transition_errors(
+        &self,
+        request: &crate::errors_query::ErrorsTransitionRequestV1,
+    ) -> SnapbackResult<crate::errors_query::ErrorsTransitionResponseV1> {
+        use crate::errors_query::ErrorsIssueStateV1;
+
+        let to = match request.to {
+            ErrorsIssueStateV1::Open => ErrorIssueState::Open,
+            ErrorsIssueStateV1::Resolved => ErrorIssueState::Resolved,
+            ErrorsIssueStateV1::Ignored => ErrorIssueState::Ignored,
+            ErrorsIssueStateV1::Regressed => {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_ERROR_TRANSITION_INVALID",
+                    "telemetry",
+                    "regressed is a flusher-owned transition target",
+                ));
+            }
+        };
+        let (release, activation_seq, rows) = match (
+            request.issue.as_deref(),
+            request.expect_seq,
+            request.selector.as_ref(),
+        ) {
+            (Some(issue), Some(expect_seq), None) if !issue.is_empty() && expect_seq >= 0 => {
+                let row = self.transition_error_issue(issue, to, expect_seq)?;
+                (None, None, vec![project_transition_result(row)])
+            }
+            (None, None, Some(selector)) if request.to == ErrorsIssueStateV1::Resolved => {
+                if selector.open_before.is_empty() {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_ERROR_TRANSITION_INVALID",
+                        "telemetry",
+                        "bulk errors transition requires a nonempty openBefore release",
+                    ));
+                }
+                let result = self.resolve_errors_open_before(&selector.open_before)?;
+                if !result.known_release {
+                    let known_releases = self.error_known_releases()?;
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_ERROR_RELEASE_UNKNOWN_OR_PRUNED",
+                        "telemetry",
+                        "bulk error transition release is unknown or below the retained activation floor",
+                    )
+                    .with_details(json!({
+                        "release": selector.open_before,
+                        "knownReleases": known_releases,
+                        "activationFloorSeq": result.activation_floor_seq,
+                    })));
+                }
+                (
+                    Some(result.release),
+                    result.activation_seq,
+                    result.rows.into_iter().map(project_transition_result).collect(),
+                )
+            }
+            _ => {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_ERROR_TRANSITION_INVALID",
+                    "telemetry",
+                    "errors transition requires exactly one of {issue, expectSeq} or {selector}",
+                ));
+            }
+        };
+        let diagnostics = self.diagnostics();
+        let context = crate::telemetry_query::QueryContext {
+            drops_since_boot: diagnostics.drops_since_boot,
+            last_flush_watermark: diagnostics.last_flush_watermark,
+        };
+        let mut store = self
+            .producer
+            .shared
+            .store
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let connection = store.ensure_connection(wall_now_ms())?;
+        Ok(crate::errors_query::ErrorsTransitionResponseV1 {
+            schema_version: "snapback.errors.transition.v1".to_owned(),
+            release,
+            activation_seq,
+            activation_floor_seq: crate::errors_query::activation_floor(connection)?,
+            rows,
+            variance: crate::errors_query::transition_variance(connection, &context)?,
+        })
+    }
+
+    fn error_known_releases(&self) -> SnapbackResult<Vec<String>> {
+        let mut store = self
+            .producer
+            .shared
+            .store
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let connection = store.ensure_connection(wall_now_ms())?;
+        let response = crate::errors_query::query_issues(
+            connection,
+            &crate::errors_query::ErrorsIssuesRequestV1 {
+                limit: 1,
+                ..Default::default()
+            },
+            &crate::telemetry_query::QueryContext {
+                drops_since_boot: BTreeMap::new(),
+                last_flush_watermark: None,
+            },
+        )?;
+        Ok(response.known_releases)
     }
 
     /// Freeze one export snapshot and its self-describing NDJSON header.
