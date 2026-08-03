@@ -558,6 +558,10 @@ pub(crate) fn query_issues(
         values.push(SqlValue::Text(state.as_str().to_owned()));
     }
     if let Some(release) = &request.release {
+        // @ref LLP 0156#e12--the-store-classification-only-tables-raw-tier-exemplars —
+        //   the release facet is first/last equality, while activation order
+        //   is reserved for `since` and bulk resolve. Unknown/below-floor
+        //   names were refused above rather than silently returning empty.
         sql.push_str(" AND (first_release=? OR last_release=?)");
         values.extend([
             SqlValue::Text(release.clone()),
@@ -777,6 +781,20 @@ fn error_variance(
             row.get(0)
         })?
     };
+    let exemplar_stale = if issue.is_some() {
+        observations > 0 && exemplar_count == 0
+    } else {
+        connection.query_row(
+            "SELECT EXISTS(
+               SELECT 1 FROM error_groups_visible g
+               WHERE g.count>0 AND NOT EXISTS(
+                 SELECT 1 FROM error_exemplars_visible x WHERE x.issue=g.issue
+               )
+             )",
+            [],
+            |row| row.get::<_, i64>(0).map(|value| value != 0),
+        )?
+    };
     let (transition_floor, transition_truncated): (Option<i64>, bool) = if let Some(issue) = issue {
         let row: (i64, Option<i64>) = connection.query_row(
             "SELECT state_seq,(SELECT min(seq) FROM error_transitions_visible WHERE issue=?1)
@@ -836,7 +854,11 @@ fn error_variance(
         overflow_fold_count: meta.overflow_fold_count,
         overflow_fold_scope: "cumulativeSinceGenerationStart".to_owned(),
         group_horizon_start_ms: meta.group_horizon_start_ms,
-        exemplar_stale: observations > exemplar_count,
+        // Ring replacement is reported by the three explicit truncation/drop
+        // counters. "Stale" is the distinct retention state LLP 0156 names:
+        // the durable group still has occurrences but every raw exemplar has
+        // aged out of the visible raw horizon.
+        exemplar_stale,
         exemplar_truncated,
         exemplar_drop_counters: BTreeMap::from([
             ("depth".to_owned(), depth),
@@ -928,7 +950,7 @@ pub fn errors_fixture_corpus() -> Value {
         "overflowFoldCount": 0,
         "overflowFoldScope": "cumulativeSinceGenerationStart",
         "groupHorizonStartMs": 0,
-        "exemplarStale": true,
+        "exemplarStale": false,
         "exemplarTruncated": false,
         "exemplarDropCounters": { "depth": 0, "bytes": 0, "flush": 0 },
         "suppressionCounters": { "cooldown": 0, "rollout": 0 },

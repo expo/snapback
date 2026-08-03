@@ -9963,40 +9963,68 @@ mod tests {
             .current_generation
             .clone();
         telemetry.enqueue(
-            eligible_failure_event(
-                &generation,
-                0,
-                1,
-                "0123456789abcdef0123456789abcdef",
-                FailureDispositionV1::Fault,
-                None,
-                Some("database timeout {number}".to_owned()),
-            ),
+            release_activation_event(&generation, 0, "release-before"),
             true,
         );
+        let mut old = eligible_failure_event(
+            &generation,
+            0,
+            1,
+            "0123456789abcdef0123456789abcdef",
+            FailureDispositionV1::Fault,
+            None,
+            Some("database timeout {number}".to_owned()),
+        );
+        old.release = Some("release-before".to_owned());
+        telemetry.enqueue(old, true);
+        let mut bridge_before = eligible_failure_event(
+            &generation,
+            0,
+            1,
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            FailureDispositionV1::Fault,
+            None,
+            Some("bridge before deploy {number}".to_owned()),
+        );
+        bridge_before.release = Some("release-before".to_owned());
+        telemetry.enqueue(bridge_before, true);
         telemetry.enqueue(
             release_activation_event(&generation, 0, "release-errors-api"),
             true,
         );
-        telemetry.enqueue(
-            eligible_failure_event(
-                &generation,
-                0,
-                1,
-                "fedcba9876543210fedcba9876543210",
-                FailureDispositionV1::Fault,
-                None,
-                Some("successor timeout {number}".to_owned()),
-            ),
-            true,
+        let mut bridge_after = eligible_failure_event(
+            &generation,
+            0,
+            1,
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            FailureDispositionV1::Fault,
+            None,
+            Some("bridge after deploy {number}".to_owned()),
         );
+        bridge_after.release = Some("release-errors-api".to_owned());
+        telemetry.enqueue(bridge_after, true);
+        let mut successor = eligible_failure_event(
+            &generation,
+            0,
+            1,
+            "fedcba9876543210fedcba9876543210",
+            FailureDispositionV1::Fault,
+            None,
+            Some("successor timeout {number}".to_owned()),
+        );
+        successor.release = Some("release-errors-api".to_owned());
+        successor.correlation = Some("corr_fixture".to_owned());
+        telemetry.enqueue(successor, true);
         telemetry.force_flush().unwrap();
 
         let all = telemetry
             .query_error_issues(&crate::errors_query::ErrorsIssuesRequestV1::default())
             .unwrap();
-        assert_eq!(all.issues.len(), 2);
-        assert_eq!(all.known_releases, vec!["release-errors-api"]);
+        assert_eq!(all.issues.len(), 3);
+        assert_eq!(
+            all.known_releases,
+            vec!["release-before", "release-errors-api"]
+        );
         assert_eq!(all.variance.transition_history_floor_seq, None);
         let structural = serde_json::to_string(&all).unwrap();
         assert!(!structural.contains("titleTemplate"));
@@ -10009,14 +10037,40 @@ mod tests {
             })
             .unwrap();
         assert_eq!(since.issues.len(), 1);
-        assert!(since.issues[0].first_seen_seq >= 2);
+        assert!(since.issues[0].first_seen_seq >= 4);
+        let first_release = telemetry
+            .query_error_issues(&crate::errors_query::ErrorsIssuesRequestV1 {
+                release: Some("release-before".to_owned()),
+                ..Default::default()
+            })
+            .unwrap();
+        let last_release = telemetry
+            .query_error_issues(&crate::errors_query::ErrorsIssuesRequestV1 {
+                release: Some("release-errors-api".to_owned()),
+                ..Default::default()
+            })
+            .unwrap();
+        assert_eq!(first_release.issues.len(), 2);
+        assert_eq!(last_release.issues.len(), 2);
+        assert_eq!(
+            first_release
+                .issues
+                .iter()
+                .filter(|first| last_release
+                    .issues
+                    .iter()
+                    .any(|last| last.issue == first.issue))
+                .count(),
+            1,
+            "release= matches first_release or last_release equality; it does not substitute activation ordering"
+        );
         let first_page = telemetry
             .query_error_issues(&crate::errors_query::ErrorsIssuesRequestV1 {
                 limit: 1,
                 ..Default::default()
             })
             .unwrap();
-        let cursor = first_page.next_cursor.expect("two issues yield a cursor");
+        let cursor = first_page.next_cursor.expect("three issues yield a cursor");
         let spliced = telemetry
             .query_error_issues(&crate::errors_query::ErrorsIssuesRequestV1 {
                 kind: Some("different-kind".to_owned()),
@@ -10044,7 +10098,7 @@ mod tests {
         assert_eq!(
             detail.exemplars[0].telemetry_events_query.input,
             json!({
-                "correlation": "fedcba9876543210fedcba9876543210",
+                "correlation": "corr_fixture",
                 "fromMs": recorded_ts_ms.saturating_sub(60_000).max(0),
                 "toMs": recorded_ts_ms.saturating_add(60_000),
                 "order": "asc",
@@ -10052,7 +10106,32 @@ mod tests {
             }),
             "raw detail must return the pinned ready-to-run correlation query"
         );
-
+        assert!(!detail.variance.exemplar_stale);
+        {
+            let mut store = telemetry
+                .producer
+                .shared
+                .store
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            let connection = store.ensure_connection(wall_now_ms()).unwrap();
+            connection
+                .execute(
+                    "DELETE FROM error_exemplars WHERE issue=?1",
+                    params![since.issues[0].issue],
+                )
+                .unwrap();
+        }
+        let aged_out = telemetry
+            .query_error_issue(&crate::errors_query::ErrorsIssueRequestV1 {
+                issue: since.issues[0].issue.clone(),
+            })
+            .unwrap();
+        assert!(aged_out.exemplars.is_empty());
+        assert!(
+            aged_out.variance.exemplar_stale,
+            "stale means the group survives after every raw exemplar aged out"
+        );
         let wrong_kind = telemetry
             .query_error_issue(&crate::errors_query::ErrorsIssueRequestV1 {
                 issue: "obs_00000000000000000000000000".to_owned(),
@@ -10082,7 +10161,7 @@ mod tests {
                 to: crate::errors_query::ErrorsIssueStateV1::Resolved,
             }))
             .unwrap();
-        assert_eq!(bulk.activation_seq, Some(2));
+        assert_eq!(bulk.activation_seq, Some(4));
         assert_eq!(bulk.rows.len(), 1);
         assert_eq!(
             bulk.rows[0].outcome,
@@ -10100,7 +10179,7 @@ mod tests {
         );
         assert_eq!(
             unknown.diagnostic.details["knownReleases"],
-            json!(["release-errors-api"])
+            json!(["release-before", "release-errors-api"])
         );
         let unknown_release = telemetry
             .query_error_issues(&crate::errors_query::ErrorsIssuesRequestV1 {
@@ -10111,6 +10190,35 @@ mod tests {
         assert_eq!(
             unknown_release.diagnostic.code,
             "SNAPBACK_ERROR_RELEASE_UNKNOWN_OR_PRUNED"
+        );
+        {
+            let mut store = telemetry
+                .producer
+                .shared
+                .store
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            let connection = store.ensure_connection(wall_now_ms()).unwrap();
+            connection
+                .execute(
+                    "UPDATE telemetry_meta SET release_activation_floor_seq=1 WHERE singleton=1",
+                    [],
+                )
+                .unwrap();
+        }
+        let below_floor = telemetry
+            .query_error_issues(&crate::errors_query::ErrorsIssuesRequestV1 {
+                release: Some("release-before".to_owned()),
+                ..Default::default()
+            })
+            .unwrap_err();
+        assert_eq!(
+            below_floor.diagnostic.code,
+            "SNAPBACK_ERROR_RELEASE_UNKNOWN_OR_PRUNED"
+        );
+        assert_eq!(
+            below_floor.diagnostic.details["knownReleases"],
+            json!(["release-errors-api"])
         );
     }
 
