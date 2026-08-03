@@ -82,6 +82,19 @@ export function routeRegisterGroupEligible(
   }>>>,
 ): boolean;
 
+/** Closed mixed-route v2 predicate shared with the route authoring fixture. */
+export function routeMixedGroupEligible(
+  queries: ReadonlyArray<Readonly<{
+    function: string;
+    args?: Readonly<Record<string, unknown>>;
+  }>>,
+  functionsModule: Readonly<Record<string, Readonly<{
+    __kind?: string;
+    searchPlan?: unknown;
+    args?: Readonly<Record<string, Readonly<{ primitive?: string }>>>;
+  }>>>,
+): boolean;
+
 export interface ContractMutationDescriptor {
   readonly name: string;
   readonly args: unknown;
