@@ -87,3 +87,9 @@ LLP; LLP 0115 board row updated.
   executor, cursor publication, or target claim is implied. Resume the held
   snapshot half only with the LLP 0157 composition-spec work and the two
   recorded author rulings resolved.
+- **2026-08-02 — end-of-wave greening residue.** Rust 1.97 clippy reports
+  `clippy::collapsible-if` in `src/value_expr.rs`'s sequence-allocation
+  binding-order validator (landed with the sequence checkpoint). Its focused
+  correctness tests remain green; unrelated feature lanes may allow only this
+  named lint while retaining `-D warnings` for their own code. The single
+  end-of-wave greening pass owns the mechanical cleanup.
