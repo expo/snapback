@@ -5,7 +5,17 @@
 **Systems:** Schema evolution, Migrations, Storage portability, Deployment, Backup and restore, Code generation, CLI, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-07-26 (open question 7 answered — author decision, delegated:
+**Revised:** 2026-08-03 (dated amendment — author ruling, Charlie Cheever,
+via LLP 0160 OQ6: the settlement path for an incompatible client's
+quarantined offline mutations is **explicit tombstone-and-re-entry** — each
+quarantined mutation is recorded as a stable, redacted tombstone the client
+can observe, never silently replayed or dropped, and the action is
+re-entered against the successor schema. This blesses the shipped behavior
+as normative and supersedes the former resync-before-replay settlement
+wording at its three sites; §4's underlying "rather than silently replayed
+or dropped" principle is unchanged. Source:
+`issues/20260802-author-decision-packet.md` 2026-08-03 follow-ons; LLP 0160
+G4′b's ruling gate clears to a conformance audit.) 2026-07-26 (open question 7 answered — author decision, delegated:
 `single-instance-container-vm.v1` carries the first separately admitted
 migration-executor conformance profile, aligning with LLP 0072's recorded
 first-adapter selection; the Durable Object profile is the explicit second
@@ -443,8 +453,11 @@ same rules. Client behavior across publication is posture-aware: a client
 whose artifacts the compatibility declaration admits takes the existing
 handshake/resync path; an incompatible client receives a stable
 upgrade-required refusal, with its client-custodied offline mutations
-quarantined for the resync-before-replay path rather than silently replayed
-or dropped; no pre-publication cursor can replay through the raised
+quarantined and settled by explicit tombstone-and-re-entry rather than
+silently replayed or dropped (2026-08-03 amendment: each quarantined
+mutation becomes a stable, redacted tombstone the client can observe, and
+the action is re-entered against the successor schema); no
+pre-publication cursor can replay through the raised
 floor. Before reopening, the successor proves LLP 0007's exact
 head/change-journal high-water cut. A future stream-incarnation bump may replace
 this profile, but v1 does not leave the mechanism implicit.
@@ -563,7 +576,7 @@ contract to own, not a generic row rewrite. Client-custodied offline
 mutation queues are outside this posture entirely: disconnected outboxes
 cannot be proven empty, so they are governed by §4's posture-aware client
 path (compatible resnapshot, or upgrade-required refusal with
-resync-before-replay quarantine). Work admitted before the barrier remains
+tombstone-and-re-entry quarantine per the 2026-08-03 amendment). Work admitted before the barrier remains
 fenced until publication
 or rollback. A target with retained work that proves neither admitted posture
 refuses with `SNAPBACK_MIGRATION_RETAINED_WORK_INCOMPATIBLE`; draining currently
@@ -760,7 +773,8 @@ A separate implementation-conformance suite — the LLP 0081 half of
   cursor, observes the raised retention floor, and takes one authorized
   successor resnapshot; an incompatible client receives the stable
   upgrade-required refusal and its quarantined offline mutation settles
-  through resync-before-replay; the reopened store passes LLP 0007's
+  by explicit tombstone-and-re-entry (2026-08-03 amendment); the reopened
+  store passes LLP 0007's
   head/journal cut and the publication transaction's LLP 0053 activation
   obligations are witnessed under a dropped-acknowledgement fault;
 - empty, dual-compatible, and incompatible retained-work fixtures

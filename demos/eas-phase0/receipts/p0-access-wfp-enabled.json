@@ -1,0 +1,13 @@
+{
+  "receipt": "eas-phase0/access/workers-for-platforms-enabled",
+  "date": "2026-08-03",
+  "supersedes": "p0-access-wfp.json (2026-08-01, error 10121 purchase-gated)",
+  "probe": {
+    "endpoint": "GET /client/v4/accounts/{account}/workers/dispatch/namespaces",
+    "tokenPosture": "account-scoped API token from the LLP 0040 credential store; account id and token not reproduced here",
+    "account": { "type": "standard", "name": "ccheever@expo.io account", "idRedacted": true }
+  },
+  "result": { "success": true, "namespaces": 0, "errors": [] },
+  "verdict": "ENABLED: Charlie purchased the Workers for Platforms add-on 2026-08-03; the dispatch-namespaces list endpoint returns success (empty, as expected pre-spike). P0.1's real-dispatch-namespace half, P0.2 ingress/WS routing, and the WfP-bound Gate-0 items are unblocked. Production-account custody question (Expo-owned org vs this proof account) remains open per the enablement ticket's own note.",
+  "enablementTicket": "issues/closed/20260801-eas-phase0-wfp-enablement.md"
+}

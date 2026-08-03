@@ -484,7 +484,7 @@ provider). The experience work is leverage on rigor already paid for.
 | G2 | R | The applier's non-additive refusal family mostly names no migration-workflow next step; the message-text fix is an S-sized slice needing zero rendering infrastructure, enumerated across the family | 2 | S–M |
 | G3′ | R | No scaffold for the ambiguous intent classes or the publication timestamp (whose monotonicity admission-check the scaffold must anticipate); unambiguous intents already derive | 2b | M |
 | G4′a | R | First-party presentation/copy over shipped `migrationBoundary()` state | 8 | S–M |
-| G4′b | D or A (OQ6) | Cross-artifact settlement: shipped tombstone-and-re-entry vs. 0081's "settles through resync-before-replay" acceptance — author ruling; plus non-JS carriers (protocol half to LLP 0093 per OQ3) | 8 | ruling first, then sized |
+| G4′b | D-audit (OQ6 ruled 2026-08-03: tombstone-and-re-entry blessed; dated 0081 amendment landed) | Cross-artifact settlement: audit the shipped tombstone-and-re-entry path against the amended 0081 text; plus non-JS carriers (protocol half restated in LLP 0093 per the OQ3 blessing) | 8 | S–M audit |
 | G5 | R | No `snapback migrate status`; recovery experience (operation discovery — including the second-operator collision case under 0081's one-migration-per-app rule — resume, cancellation surfaces) rides with it; the transport choice is load-bearing on the single-writer profile | 6, 9 | M |
 | G6 | R | No guide page walks preview→approve→rehearse→apply→verify→rollback→activation; `guide/capabilities.md` has no reviewed-migration row (LLP 0061 requires a guide page or an explicit GAP row; a migration retrieval-eval case is this RFC's recommendation) | all | S |
 | G7 | R (informational) / A-blocked (receipt-qualifying) | Fork-accelerated rehearsal: informational what-if is pure experience work once 0158 ships; receipt qualification is blocked on 0158's custody/fidelity proofs plus a dated 0081 §7 amendment | 5 | blocked on LLP 0158 |
@@ -528,7 +528,10 @@ ruling.
    Proposed: this RFC's acceptance claims the presentation half
    (G4′a), and the protocol fact — including G4′b's non-JS carriers —
    is restated in LLP 0093's client-protocol spec, closing LLP 0037
-   CC-8.7's unnamed-owner gap. The author decides.
+   CC-8.7's unnamed-owner gap. The author decides. **ANSWERED 2026-08-03
+   (Charlie Cheever): the proposed split is blessed as stated** — the
+   presentation half lands here (G4′a); the protocol restatement lands in
+   LLP 0093 when G4′b's work reaches it.
 4. Is G8's stress fixture part of
    `RELATIONAL_MIGRATION_COUPLED_SUITE_V1` or a separately named soak
    corpus? (G8's D-half arguably belongs in the coupled suite by
@@ -544,7 +547,11 @@ ruling.
    0081 §4's own "rather than silently replayed or dropped" is
    arguably satisfied by the explicit redacted tombstone, so the two
    0081 passages may already be in tension. Author decision; G4′b is
-   blocked on it.
+   blocked on it. **ANSWERED 2026-08-03 (Charlie Cheever): tombstone-and-
+   re-entry is blessed as normative.** The dated LLP 0081 amendment landed
+   with this ruling (same commit); G4′b's ruling gate is cleared — its
+   remaining scope is the conformance audit of the shipped path against the
+   amended text plus the OQ3 protocol half.
 7. **The G9b rollback-input ruling:** conform the CLI to §2's
    `rollback migration-receipt.json`, or amend §2 to bless the shipped
    approved-plan input (which the code defends as deliberate)? Author

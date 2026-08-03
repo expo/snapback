@@ -273,3 +273,16 @@ and ratified all of them. Deltas and additions from the review:
   ratification for Draft LLPs 0068–0072
   (`issues/20260726-step6-ratification-and-independent-review.md`) remains
   open — it needs its own pass when Step 6 work resumes.
+
+- **2026-08-03 — 0160 rulings + EAS enablement (Charlie Cheever).**
+  (1) 0160 OQ6: tombstone-and-re-entry blessed as normative for
+  incompatible-client offline-mutation settlement; dated LLP 0081
+  amendment landed at its three sites; G4′b cleared to a conformance
+  audit. (2) 0160 OQ3: the compatibility-verdict ownership split blessed
+  as proposed (presentation half in 0160/G4′a; protocol fact restated in
+  LLP 0093, closing 0037 CC-8.7). (3) 0160 OQ7 (G9b rollback input):
+  routing approved — the ruling arrives with the tranche-3 drift audit's
+  evidence. (4) Workers for Platforms purchased on the ccheever@expo.io
+  account; the dispatch-namespaces probe now succeeds (receipt
+  `demos/eas-phase0/receipts/p0-access-wfp-enabled.json`); EAS Phase 0's
+  WfP-bound spikes are unblocked.
