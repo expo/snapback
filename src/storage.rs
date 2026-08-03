@@ -281,6 +281,28 @@ pub struct ChangedRow {
     pub changed_fields: Vec<String>,
 }
 
+/// One authoritative change-journal row with the commit version that owns it.
+/// Derived catch-up executors consume this narrow carrier instead of reaching
+/// into the private `_snapback_changes` grammar themselves.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct VersionedChangedRow {
+    pub version: u64,
+    pub change: ChangedRow,
+}
+
+/// One source-commit seam for all synchronous derived indexes. Query modules
+/// consume their own read paths; storage owns the write ordering so adding a
+/// later vector query executor cannot accidentally bypass atomic maintenance.
+fn maintain_derived_indexes_in_tx(
+    tx: &Transaction<'_>,
+    schema: &SchemaManifest,
+    changes: &[ChangedRow],
+    version: u64,
+) -> SnapbackResult<()> {
+    crate::search::maintain_search_indexes_in_tx(tx, schema, changes, version)?;
+    crate::vector::sqlite::maintain_vector_indexes_in_tx(tx, schema, changes, version)
+}
+
 /// The one durable authorization-stream witness. The incarnation closes reset
 /// and restore ABA; the JS-safe epoch advances for ordinary authorization
 /// events within that stream.
@@ -1029,10 +1051,17 @@ fn reset_and_seed_transaction(
         "_snapback_search_builds",
         "_snapback_search_journal_leases",
         "_snapback_search_generations",
+        "_snapback_vector_build_snapshot",
+        "_snapback_vector_journal_leases",
+        "_snapback_vector_builds",
+        "_snapback_vector_sources",
+        "_snapback_vector_frontiers",
+        "_snapback_vector_generations",
     ] {
         tx.execute(&format!("DELETE FROM {table}"), [])?;
     }
     crate::search::sqlite::activate_manifest_in_tx(tx, schema, 0)?;
+    crate::vector::sqlite::stage_manifest_in_tx(tx, schema, 0)?;
 
     let seeded = match seed {
         None => None,
@@ -1068,7 +1097,7 @@ fn reset_and_seed_transaction(
                     changes.len().saturating_sub(direct_application_rows),
                 )?;
             }
-            crate::search::maintain_search_indexes_in_tx(tx, schema, &changes, 1)?;
+            maintain_derived_indexes_in_tx(tx, schema, &changes, 1)?;
             // Reset seed is another declaration-privileged writer. Judge its
             // complete same-transaction resource/roster state before the reset
             // cut can publish, including closed roles, referential integrity,
@@ -2383,7 +2412,25 @@ impl LocalDatabase {
         validate_portable_timestamp_millis(now_ms)?;
         let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Immediate)?;
         let head = current_version_on(&tx)?;
-        let version_floor = version_to_sql_integer(head.saturating_sub(retain_versions))?;
+        let mut version_floor = head.saturating_sub(retain_versions);
+        // @ref LLP 0073#rebuilds-and-migrations — an unexpired derived-index
+        // journal-floor lease prevents pruning the suffix an approved catch-up
+        // operation still needs. A snapshot at S needs every change > S, so
+        // pruning may advance through S but no farther.
+        let vector_lease_floor: Option<i64> = tx.query_row(
+            "SELECT MIN(floor_version) FROM _snapback_vector_journal_leases
+             WHERE expires_at_ms >= ?1",
+            params![timestamp_to_sql_millis(now_ms)?],
+            |row| row.get(0),
+        )?;
+        if let Some(vector_lease_floor) = vector_lease_floor {
+            let vector_lease_floor = decode_required_storage_version(
+                SqlValue::Integer(vector_lease_floor),
+                "vector journal lease floor",
+            )?;
+            version_floor = version_floor.min(next_storage_version(vector_lease_floor)?);
+        }
+        let version_floor = version_to_sql_integer(version_floor)?;
         let time_floor = timestamp_to_sql_millis(now_ms.saturating_sub(retain_ms))?;
         // A corrupt older version can sort below both floors while a later,
         // valid row remains the prunable MAX. Validate the whole journal via
@@ -3130,7 +3177,7 @@ impl LocalDatabase {
             direct_application_rows,
             derived_projection_rows,
         )?;
-        crate::search::maintain_search_indexes_in_tx(&tx, &schema, &changes, next_version)?;
+        maintain_derived_indexes_in_tx(&tx, &schema, &changes, next_version)?;
         validate_membership_activation(&tx, &schema, next_version)?;
         if !changes.is_empty() {
             set_version(&tx, next_version)?;
@@ -3351,7 +3398,7 @@ impl LocalDatabase {
             next_version,
             &self.order_field_bounds,
         )?;
-        crate::search::maintain_search_indexes_in_tx(&tx, &schema, &changes, next_version)?;
+        maintain_derived_indexes_in_tx(&tx, &schema, &changes, next_version)?;
         validate_membership_activation(&tx, &schema, next_version)?;
         tx.rollback()?;
         Ok(changes)
@@ -3384,7 +3431,7 @@ impl LocalDatabase {
         let changed_count = changes.len();
 
         if changed_count > 0 {
-            crate::search::maintain_search_indexes_in_tx(&tx, &schema, &changes, next_version)?;
+            maintain_derived_indexes_in_tx(&tx, &schema, &changes, next_version)?;
             set_version(&tx, next_version)?;
         }
         let authorization_predecessor = auth_stream::read_authorization_version_on(&tx)?;
@@ -4866,7 +4913,7 @@ impl LocalDatabase {
         // @ref LLP 0073#index-maintenance — derived postings are replaced
         // after projection convergence and before the source head publishes;
         // any bound/storage failure aborts the complete mutation.
-        crate::search::maintain_search_indexes_in_tx(&tx, &schema, &changes, next_version)?;
+        maintain_derived_indexes_in_tx(&tx, &schema, &changes, next_version)?;
         // @ref LLP 0044#typed-references-and-atomic-attachment — host plans
         //   have no handler execution to call attach in, so the commit
         //   boundary derives the admission from the field's schema-declared
@@ -5526,7 +5573,7 @@ impl LocalDatabase {
                 ProjectionEffectCeiling::MutationV1,
             )?;
         }
-        crate::search::maintain_search_indexes_in_tx(&tx, &schema, &changes, next_version)?;
+        maintain_derived_indexes_in_tx(&tx, &schema, &changes, next_version)?;
 
         // @ref LLP 0044#typed-references-and-atomic-attachment — the commit
         //   hook is the authority: every asset-field write in this changeset
@@ -5895,6 +5942,7 @@ impl LocalDatabase {
             ",
         )?;
         crate::search::sqlite::create_infra(&self.conn)?;
+        crate::vector::sqlite::create_infra(&self.conn)?;
         // @ref LLP 0070#job-identity-and-enqueue — the durable one-off job and
         // append-only attempt tables live in the same SQLite database as
         // application data so `ctx.jobs.enqueue` inserts inside the mutation's
@@ -12401,6 +12449,153 @@ fn changes_to_table_since(
     Ok(changes)
 }
 
+/// Read a complete-commit batch for a derived catch-up executor. The returned
+/// cutoff never splits one application commit: if the first outstanding
+/// commit alone exceeds `row_limit`, that complete commit is returned so its
+/// same-version row coalescing remains deterministic.
+///
+/// @ref LLP 0073#rebuilds-and-migrations — catch-up advances gap-free from a
+///   journal-floor lease and persists one complete source-version boundary.
+pub(crate) fn versioned_changes_to_table_batch(
+    conn: &Connection,
+    table: &str,
+    after: u64,
+    through: u64,
+    row_limit: usize,
+) -> SnapbackResult<(Vec<VersionedChangedRow>, u64)> {
+    if after > through || row_limit == 0 {
+        return Err(SnapbackError::error(
+            "SNAPBACK_VECTOR_MAINTENANCE_FAILED",
+            "vector",
+            "vector catch-up journal range is invalid",
+        ));
+    }
+    ensure_change_journal_versions_valid(conn, Some(table))?;
+    validate_storage_version_at_most(after, through, "vector catch-up cursor")?;
+
+    let mut grouped = conn.prepare_cached(
+        "SELECT version,COUNT(*) FROM _snapback_changes
+         WHERE table_name=?1 AND version>?2 AND version<=?3
+         GROUP BY version ORDER BY version",
+    )?;
+    let groups = grouped.query_map(
+        params![
+            table,
+            version_to_sql_integer(after)?,
+            version_to_sql_integer(through)?
+        ],
+        |row| Ok((row.get::<_, SqlValue>(0)?, row.get::<_, i64>(1)?)),
+    )?;
+    let mut cutoff = through;
+    let mut selected_rows = 0_usize;
+    let mut selected_any = false;
+    for group in groups {
+        let (version, count) = group?;
+        let version = decode_required_committed_version(version, "vector catch-up version")?;
+        validate_storage_version_at_most(version, through, "vector catch-up version")?;
+        let count = usize::try_from(count).map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_STORAGE_VERSION_CORRUPT",
+                "storage",
+                "vector catch-up journal group count is invalid",
+            )
+        })?;
+        if selected_any && selected_rows.saturating_add(count) > row_limit {
+            break;
+        }
+        selected_any = true;
+        selected_rows = selected_rows.saturating_add(count);
+        cutoff = version;
+        if selected_rows >= row_limit {
+            break;
+        }
+    }
+    if !selected_any {
+        return Ok((Vec::new(), through));
+    }
+
+    let mut statement = conn.prepare_cached(
+        "SELECT version,row_id,op,row_json FROM _snapback_changes
+         WHERE table_name=?1 AND version>?2 AND version<=?3
+         ORDER BY version,id",
+    )?;
+    let rows = statement.query_map(
+        params![
+            table,
+            version_to_sql_integer(after)?,
+            version_to_sql_integer(cutoff)?
+        ],
+        |row| {
+            Ok((
+                row.get::<_, SqlValue>(0)?,
+                row.get::<_, SqlValue>(1)?,
+                row.get::<_, SqlValue>(2)?,
+                row.get::<_, SqlValue>(3)?,
+            ))
+        },
+    )?;
+    let mut out = Vec::new();
+    for row in rows {
+        let (version, id, op, row_json) = row?;
+        let version = decode_required_committed_version(version, "vector catch-up version")?;
+        let id = decode_required_storage_text(id, "vector catch-up row id")?;
+        let op = decode_required_storage_text(op, "vector catch-up operation")?;
+        let row_json = decode_optional_storage_text(row_json, "vector catch-up row snapshot")?;
+        let op = match op.as_str() {
+            "insert" => ChangeOp::Insert,
+            "update" => ChangeOp::Update,
+            "delete" => ChangeOp::Delete,
+            _ => {
+                return Err(storage_version_corrupt(
+                    "vector catch-up journal operation is not recognized",
+                ));
+            }
+        };
+        let row = match (&op, row_json) {
+            (ChangeOp::Insert | ChangeOp::Update, Some(raw)) => {
+                let value: Value = serde_json::from_str(&raw).map_err(|_| {
+                    storage_version_corrupt("vector catch-up row snapshot is not valid JSON")
+                })?;
+                let object = value.as_object().ok_or_else(|| {
+                    storage_version_corrupt("vector catch-up row snapshot is not an object")
+                })?;
+                if object.get("_id").and_then(Value::as_str) != Some(id.as_str())
+                    || decode_json_committed_version(
+                        object.get("_version"),
+                        "vector catch-up row version",
+                    )? != version
+                {
+                    return Err(storage_version_corrupt(
+                        "vector catch-up row snapshot identity disagrees with the journal",
+                    ));
+                }
+                Some(value)
+            }
+            (ChangeOp::Delete, None) => None,
+            _ => {
+                return Err(storage_version_corrupt(
+                    "vector catch-up journal row has an invalid snapshot shape",
+                ));
+            }
+        };
+        out.push(VersionedChangedRow {
+            version,
+            change: ChangedRow {
+                table: table.to_owned(),
+                id,
+                op,
+                row,
+                changed_fields: Vec::new(),
+            },
+        });
+    }
+    Ok((out, cutoff))
+}
+
+pub(crate) fn change_journal_floor_on(conn: &Connection) -> SnapbackResult<u64> {
+    retention_floor_at_most(conn, current_version_on(conn)?)
+}
+
 /// The monotonic retention floor recorded by pruning (0 if none). A captured
 /// read below it cannot be validated precisely — the changes it would need were
 /// pruned — so validation must fall back to a conservative conflict.
@@ -17265,11 +17460,27 @@ fn sqlite_to_json(value: ValueRef<'_>, field_type: Option<&FieldType>) -> Snapba
                 Ok(Value::String(text))
             }
         }
-        ValueRef::Blob(_) => Err(SnapbackError::error(
-            "SNAPBACK_UNSUPPORTED_BLOB",
-            "storage",
-            "blob values are not supported in the v0 local store",
-        )),
+        ValueRef::Blob(bytes) => match field_type {
+            Some(FieldType::Vector { dimensions }) => {
+                let components =
+                    crate::vector::storage::decode_vector_binary64_le(bytes, *dimensions)?;
+                Ok(Value::Array(
+                    components
+                        .into_iter()
+                        .map(|component| {
+                            Number::from_f64(component)
+                                .map(Value::Number)
+                                .ok_or_else(crate::vector::diagnostics::index_corrupt)
+                        })
+                        .collect::<SnapbackResult<Vec<_>>>()?,
+                ))
+            }
+            _ => Err(SnapbackError::error(
+                "SNAPBACK_UNSUPPORTED_BLOB",
+                "storage",
+                "blob value has no declared portable storage profile",
+            )),
+        },
     }
 }
 
@@ -17361,12 +17572,20 @@ fn json_to_sql_value(value: &Value, field_type: Option<&FieldType>) -> SnapbackR
             .as_f64()
             .map(SqlValue::Real)
             .ok_or_else(|| type_error("real", value)),
-        Some(FieldType::Vector { .. }) => Err(SnapbackError::error(
-            "SNAPBACK_CAPABILITY_UNSUPPORTED",
-            "capability",
-            "vector storage is unavailable without vector_search_v1 target support",
-        )
-        .with_detail("capability", crate::vector::VECTOR_CAPABILITY)),
+        Some(FieldType::Vector { dimensions }) => {
+            let components = value
+                .as_array()
+                .ok_or_else(crate::vector::diagnostics::value_invalid)?
+                .iter()
+                .map(|component| {
+                    component
+                        .as_f64()
+                        .ok_or_else(crate::vector::diagnostics::value_invalid)
+                })
+                .collect::<SnapbackResult<Vec<_>>>()?;
+            crate::vector::storage::encode_vector_binary64_le(&components, *dimensions)
+                .map(SqlValue::Blob)
+        }
         Some(FieldType::Json) => {
             serde_json::to_string(value)
                 .map(SqlValue::Text)
@@ -17395,6 +17614,32 @@ fn normalize_json_value(value: Value, field_type: &FieldType) -> SnapbackResult<
             .and_then(Number::from_f64)
             .map(Value::Number)
             .ok_or_else(|| type_error("real", &value)),
+        FieldType::Vector { dimensions } if !value.is_null() => {
+            let components = value
+                .as_array()
+                .ok_or_else(crate::vector::diagnostics::value_invalid)?
+                .iter()
+                .map(|component| {
+                    component
+                        .as_f64()
+                        .ok_or_else(crate::vector::diagnostics::value_invalid)
+                })
+                .collect::<SnapbackResult<Vec<_>>>()?;
+            let bytes =
+                crate::vector::storage::encode_vector_binary64_le(&components, *dimensions)?;
+            let canonical =
+                crate::vector::storage::decode_vector_binary64_le(&bytes, *dimensions)?;
+            Ok(Value::Array(
+                canonical
+                    .into_iter()
+                    .map(|component| {
+                        Number::from_f64(component)
+                            .map(Value::Number)
+                            .ok_or_else(crate::vector::diagnostics::value_invalid)
+                    })
+                    .collect::<SnapbackResult<Vec<_>>>()?,
+            ))
+        }
         _ => {
             json_to_sql_value(&value, Some(field_type))?;
             Ok(value)
@@ -17484,9 +17729,9 @@ fn sqlite_type(field_type: &FieldType) -> &'static str {
         FieldType::Boolean | FieldType::Integer => "INTEGER",
         FieldType::Real => "REAL",
         // The portable v1 storage profile pins vectors to canonical binary64
-        // bytes in a BLOB. Current targets still advertise support=false and
-        // `json_to_sql_value` refuses every write, but a forged/direct schema
-        // must never turn pre-admission SQLite lowering into a process panic.
+        // bytes in a BLOB. Target publication remains separately gated; the
+        // internal SQLite adapter can build and transactionally maintain its
+        // unqualified shadow generations without flipping that claim.
         // @ref LLP 0132#index-maintenance-and-storage
         FieldType::Vector { .. } => "BLOB",
     }
@@ -18047,11 +18292,11 @@ mod asset_infra_tests {
 }
 
 #[cfg(test)]
-mod vector_storage_refusal_tests {
+mod vector_storage_carrier_tests {
     use super::*;
 
     #[test]
-    fn direct_vector_schema_lowers_without_panic_and_writes_refuse() {
+    fn direct_vector_schema_lowers_and_round_trips_canonical_bytes() {
         let mut db = LocalDatabase::memory().expect("memory database");
         db.apply_schema(SchemaManifest {
             required_capabilities: vec![crate::vector::VECTOR_CAPABILITY.to_owned()],
@@ -18086,22 +18331,31 @@ mod vector_storage_refusal_tests {
             .expect("vector column declaration");
         assert_eq!(declared, "BLOB");
 
-        let error = db
-            .seed(SeedData {
+        db.seed(SeedData {
                 tables: BTreeMap::from([(
                     "embeddings".to_owned(),
                     vec![Map::from_iter([
                         ("_id".to_owned(), json!("embedding_1")),
-                        ("embedding".to_owned(), json!([1.0, 2.0, 3.0])),
+                        ("embedding".to_owned(), json!([-0.0, 2.0, 3.0])),
                     ])],
                 )]),
             })
-            .expect_err("unsupported vector storage must refuse before SQL binding");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_CAPABILITY_UNSUPPORTED");
-        assert_eq!(
-            error.diagnostic.details["capability"],
-            crate::vector::VECTOR_CAPABILITY
-        );
+            .expect("internal vector storage admits canonical values");
+        let stored: Vec<u8> = db
+            .conn
+            .query_row(
+                "SELECT embedding FROM embeddings WHERE _id='embedding_1'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("canonical vector blob");
+        assert_eq!(stored.len(), 24);
+        assert_eq!(&stored[..8], &[0; 8], "negative zero canonicalizes");
+        let row = db
+            .get("embeddings", "embedding_1")
+            .expect("row reload")
+            .expect("stored row");
+        assert_eq!(row["embedding"], json!([0.0, 2.0, 3.0]));
     }
 }
 

@@ -671,6 +671,11 @@ impl LocalDatabase {
                     &schema_manifest,
                     current_version_on(tx)?,
                 )?;
+                crate::vector::sqlite::stage_manifest_in_tx(
+                    tx,
+                    &schema_manifest,
+                    current_version_on(tx)?,
+                )?;
 
                 let generation = current.state.next_generation()?;
                 let staged = StagedAuthModeRecord {
@@ -1138,6 +1143,7 @@ impl LocalDatabase {
         super::validate_sequence_activation(&tx, &manifest, &sequence_declarations)?;
         apply_schema_indexes(&tx, &manifest)?;
         crate::search::sqlite::activate_manifest_in_tx(&tx, &manifest, current_version_on(&tx)?)?;
+        crate::vector::sqlite::stage_manifest_in_tx(&tx, &manifest, current_version_on(&tx)?)?;
         let raw = serialize_json(&manifest)?;
         save_active_manifest_in(&tx, &current.state, &raw)?;
         let next = AuthModeStateRecord {
@@ -1356,6 +1362,11 @@ impl LocalDatabase {
                     &manifest,
                     current_version_on(tx)?,
                 )?;
+                crate::vector::sqlite::stage_manifest_in_tx(
+                    tx,
+                    &manifest,
+                    current_version_on(tx)?,
+                )?;
 
                 let raw = serialize_json(&manifest)?;
                 save_active_manifest_in(tx, &current.state, &raw)?;
@@ -1472,6 +1483,7 @@ impl LocalDatabase {
         super::validate_membership_activation(&tx, &manifest, current_version_on(&tx)?)?;
         apply_schema_indexes(&tx, &manifest)?;
         crate::search::sqlite::activate_manifest_in_tx(&tx, &manifest, current_version_on(&tx)?)?;
+        crate::vector::sqlite::stage_manifest_in_tx(&tx, &manifest, current_version_on(&tx)?)?;
         let raw = serialize_json(&manifest)?;
         save_active_manifest_in(&tx, &current.state, &raw)?;
         let authorization_predecessor = if activation_changed {

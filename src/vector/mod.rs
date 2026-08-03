@@ -11,6 +11,8 @@
 pub mod diagnostics;
 pub mod profile;
 pub mod query;
+pub mod rebuild;
+pub mod sqlite;
 pub mod storage;
 pub mod types;
 
@@ -20,4 +22,8 @@ pub use profile::{
     strict_distance,
 };
 pub use query::*;
+pub use rebuild::{
+    VECTOR_REBUILD_EXECUTOR, VectorRebuildPlanBodyV1, VectorRebuildPlanV1, VectorRebuildProgressV1,
+    VectorRebuildReceiptV1, VectorRebuildStateV1,
+};
 pub use types::*;
