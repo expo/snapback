@@ -175,6 +175,7 @@ const TARGET_CAPABILITY_IDS = new Set([
   'cron',
   'cron_action_run_mutation',
   'full_text_search_v1',
+  'live_full_text_search_v1',
   'host_plan_runtime',
   'ibex_ctx_db_host_bridge',
   'inline_handler_v1',
@@ -215,6 +216,7 @@ const EXPERIMENTAL_TARGET_CAPABILITY_IDS = new Set([
   'bounded_children_v1',
   'inline_handler_v1',
   'jobs_one_off_v1',
+  'live_full_text_search_v1',
   'sequence_allocation_v1',
   'snapshot_batch_v1',
   'registered_bundle_boot_v1',
@@ -933,6 +935,14 @@ export async function generateInProcess(backendDir, options = {}) {
       }
       searchIndexes.push(search);
     }
+    if (table.searchLiveLimitsDeclaration !== undefined && searchIndexes.length === 0) {
+      err(
+        'SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID',
+        'search',
+        `table ${name} searchLiveLimits requires at least one search index`,
+        { table: name },
+      );
+    }
 
     if (table.permissionFields !== undefined && !table.permissionBackingDeclared) {
       err('SCHEMA_PERMISSION_FIELDS_WITHOUT_BACKING', 'schema', `table ${name} declares permissionFields without permissionBacking`, { table: name });
@@ -1167,6 +1177,9 @@ export async function generateInProcess(backendDir, options = {}) {
       fields,
       indexes,
       ...(searchIndexes.length > 0 ? { searchIndexes } : {}),
+      ...(table.searchLiveLimitsDeclaration !== undefined
+        ? { searchLiveLimits: { ...table.searchLiveLimitsDeclaration } }
+        : {}),
       syncable: table.syncable,
       ...(table.permissionBackingDeclared ? { permissionBacking: true } : {}),
       ...(Array.isArray(table.permissionFields) ? { permissionFields: table.permissionFields } : {}),
@@ -1181,7 +1194,15 @@ export async function generateInProcess(backendDir, options = {}) {
   ) {
     schemaRequiredCapabilities.push('full_text_search_v1');
   }
-
+  if (
+    Object.values(tables).some((table) => (
+      table.searchLiveLimits !== undefined
+      || (table.searchIndexes ?? []).some((index) => index.liveLimits !== undefined)
+    ))
+    && !schemaRequiredCapabilities.includes('live_full_text_search_v1')
+  ) {
+    schemaRequiredCapabilities.push('live_full_text_search_v1');
+  }
   // SQLite index names are database-global and the physical spelling joins
   // table/index with `_`. Reserve the two declaration-derived membership
   // indexes in the same namespace as user indexes before emitting artifacts.
@@ -1456,7 +1477,7 @@ export async function generateInProcess(backendDir, options = {}) {
       if ('Record' in expr) for (const fieldExpr of Object.values(expr.Record.fields)) checkExpr(fieldExpr, where);
     };
 
-    if (def.__kind === 'Query' && def.searchPlan) {
+    if ((def.__kind === 'Query' || def.__kind === 'LiveQuery') && def.searchPlan) {
       const plan = def.searchPlan;
       const table = tables[plan.table];
       let searchIndex = null;
@@ -1466,6 +1487,33 @@ export async function generateInProcess(backendDir, options = {}) {
         searchIndex = (table.searchIndexes ?? []).find((candidate) => candidate.name === plan.index) ?? null;
         if (!searchIndex) {
           err('SNAPBACK_SEARCH_INDEX_UNAVAILABLE', 'search', `${name}: search query references unknown search index ${plan.table}.${plan.index}`, { function: name, table: plan.table, index: plan.index });
+        }
+      }
+      if (def.__kind === 'LiveQuery' && searchIndex) {
+        const publicRead = searchIndex.visibility?.kind === 'public-read';
+        if ((def.authorityIndependent === true) !== publicRead) {
+          err(
+            'FUNCTION_AUTHORITY_INDEPENDENT_INVALID',
+            'auth',
+            `${name}: live-search authorityIndependent must exactly match public-read visibility`,
+            { function: name, table: plan.table, index: plan.index },
+          );
+        }
+        if (def.publicInline === true) {
+          err(
+            'FUNCTION_PUBLIC_INLINE_INVALID',
+            'auth',
+            `${name}: search-plan functions cannot declare publicInline`,
+            { function: name },
+          );
+        }
+        if (searchIndex.visibility?.kind === 'membership') {
+          err(
+            'SNAPBACK_SEARCH_QUERY_PLAN_INVALID',
+            'search',
+            `${name}: live search does not admit membership visibility in v1`,
+            { function: name, table: plan.table, index: plan.index },
+          );
         }
       }
       const membershipVisibility = searchIndex?.visibility?.kind === 'membership';
@@ -1562,10 +1610,10 @@ export async function generateInProcess(backendDir, options = {}) {
       // 0073's membership resource is exactly one required sibling argument,
       // not a change to that Rust-owned request shape.
       try {
-        for (const problem of searchArgsSchemaProblems(
-          def.args ?? {},
-          plan.resourceArg === undefined ? {} : { resourceArg: plan.resourceArg },
-        )) {
+        for (const problem of searchArgsSchemaProblems(def.args ?? {}, {
+          ...(plan.resourceArg === undefined ? {} : { resourceArg: plan.resourceArg }),
+          ...(def.__kind === 'LiveQuery' ? { includeAfter: false } : {}),
+        })) {
           err('SNAPBACK_SEARCH_REQUEST_SCHEMA_MISMATCH', 'search', `${name}: ${problem}`, { function: name });
         }
       } catch (error) {
@@ -1577,14 +1625,14 @@ export async function generateInProcess(backendDir, options = {}) {
       }
       functions.push({
         name,
-        kind: 'Query',
+        kind: def.__kind,
         ...authoredFunctionManifestFields(def),
         runtime: { HostPlan: { SearchQuery: plan } },
         declaredReads: searchReads,
         declaredWrites: [],
         authScopeField: null,
         authorizationDependence: def.auth === 'authenticated' ? ['userId'] : [],
-        syncabilityClass: 'online-only',
+        syncabilityClass: def.__kind === 'LiveQuery' ? 'syncable-live' : 'online-only',
       });
       contractQueries[name] = {
         name,
@@ -4903,7 +4951,9 @@ function validateFunctionAuthDefinition(name, def, err) {
   if (def.authorityIndependent !== true) return;
 
   const queryKind = def.__kind === 'Query' || def.__kind === 'LiveQuery';
-  const hostPlanQuery = queryKind && def.plan && !def.js;
+  const plainHostPlanQuery = queryKind && def.plan && !def.js;
+  const liveSearchPlan = def.__kind === 'LiveQuery' && def.searchPlan && !def.js;
+  const hostPlanQuery = plainHostPlanQuery || liveSearchPlan;
   const publicRequirement = def.auth === 'public';
   // @ref LLP 0058#authority-independent-live-declaration — membership and
   // auth-scope declarations are authority dependencies even when the ordinary
@@ -4911,7 +4961,9 @@ function validateFunctionAuthDefinition(name, def, err) {
   const authorizationFree = hostPlanQuery
     && hostPlanAuthorizationDependence(def).length === 0;
   const ambientFree = hostPlanQuery
-    && (def.plan.filters ?? []).every((filter) => !authoredExprUsesAuthorityOrAmbientInput(filter.value));
+    && (liveSearchPlan || (def.plan.filters ?? []).every(
+      (filter) => !authoredExprUsesAuthorityOrAmbientInput(filter.value),
+    ));
   if (!(queryKind && hostPlanQuery && publicRequirement && authorizationFree && ambientFree)) {
     err(
       'FUNCTION_AUTHORITY_INDEPENDENT_INVALID',
@@ -5111,19 +5163,7 @@ function compileRoutesManifest(routesModule, functionsModule, appId, err) {
         assertLiteral(mapping, 'args');
       }
     }
-    const registerGroupEligible = queries.every((spec) => {
-      const fn = functionsModule[spec.function];
-      if (fn?.__kind !== 'LiveQuery') return false;
-      return Object.entries(spec.args ?? {}).every(([key, value]) => (
-        !(
-          value
-          && typeof value === 'object'
-          && !Array.isArray(value)
-          && Object.hasOwn(value, '$param')
-        )
-        || fn.args?.[key]?.primitive === 'string'
-      ));
-    });
+    const registerGroupEligible = routeRegisterGroupEligible(queries, functionsModule);
     compiled.push({
       route,
       queries: queries.map((spec) => ({ function: spec.function, args: spec.args ?? {} })),
@@ -5132,6 +5172,27 @@ function compileRoutesManifest(routesModule, functionsModule, appId, err) {
     });
   }
   return { formatVersion: 1, app: appId, routes: compiled };
+}
+
+/** @internal Focused authoring seam for the closed register-mode predicate. */
+export function routeRegisterGroupEligible(queries, functionsModule) {
+  return queries.every((spec) => {
+    const fn = functionsModule[spec.function];
+    if (fn?.__kind !== 'LiveQuery') return false;
+    // @ref LLP 0136#client-composition-llp-0112--llp-0114 — a literal AST
+    // must not let live search enter register mode before that path owns
+    // cursor and ceiling admission.
+    if (fn.searchPlan !== undefined) return false;
+    return Object.entries(spec.args ?? {}).every(([key, value]) => (
+      !(
+        value
+        && typeof value === 'object'
+        && !Array.isArray(value)
+        && Object.hasOwn(value, '$param')
+      )
+      || fn.args?.[key]?.primitive === 'string'
+    ));
+  });
 }
 
 // The stable function id: a pure function of (appId, exported name), so
@@ -5391,7 +5452,15 @@ function requiredCapabilities(fn) {
     ...(fn.handlerForm === 'inline' ? ['inline_handler_v1'] : []),
   ];
   if (fn.runtime?.HostPlan?.SearchQuery) {
-    return [runtimeCapability, 'full_text_search_v1', ...contractCapabilities];
+    return fn.kind === 'LiveQuery'
+      ? [
+          'live_subscriptions',
+          runtimeCapability,
+          'full_text_search_v1',
+          'live_full_text_search_v1',
+          ...contractCapabilities,
+        ]
+      : [runtimeCapability, 'full_text_search_v1', ...contractCapabilities];
   }
   // @ref LLP 0070#non-goals-and-claim-boundary — the jobs surface is an
   // experimental registry id while LLP 0070 is Draft; requiring it forces the
@@ -7860,7 +7929,9 @@ function renderApiTypes(
       );
     const args = search
       ? search.resourceArg === undefined
-        ? 'SearchRequestV1'
+        ? fn.kind === 'LiveQuery'
+          ? "Omit<SearchRequestV1, 'after'>"
+          : 'SearchRequestV1'
         : `SearchRequestV1 & ${typeForGeneratedArgs({
           [search.resourceArg]: def?.args?.[search.resourceArg],
         })}`

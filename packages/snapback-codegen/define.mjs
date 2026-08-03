@@ -120,6 +120,7 @@ const TARGET_CAPABILITIES = new Set([
   'settlement.bounded_skew',
   'permission_epoch_resync',
   'full_text_search_v1',
+  'live_full_text_search_v1',
   'bounded_children_v1',
   'snapshot_batch_v1',
   'write_activity_v1',
@@ -127,7 +128,7 @@ const TARGET_CAPABILITIES = new Set([
 const SEARCH_INDEX_SPEC_FIELDS = new Set([
   'semanticVersion', 'textFields', 'fieldClassifications', 'equalityFilters', 'storedFields',
   'highlightFields', 'visibility', 'sourceLimits', 'queryLimits',
-  'cursorLimits', 'maintenanceLimits',
+  'cursorLimits', 'maintenanceLimits', 'liveLimits',
 ]);
 const SEARCH_TEXT_FIELD_SPEC_FIELDS = new Set(['weight', 'classification']);
 const SEARCH_FIELD_CLASSIFICATIONS = new Set(['public', 'private', 'sensitive', 'forbidden']);
@@ -137,6 +138,10 @@ const SEARCH_CURSOR_LIMIT_FIELDS = new Set(['ttlMs', 'maxBytes']);
 const SEARCH_MAINTENANCE_LIMIT_FIELDS = new Set([
   'searchMaintenanceEffects', 'searchPostingOps', 'searchPositions', 'searchBytes',
 ]);
+const SEARCH_LIVE_LIMIT_FIELDS = new Set([
+  'maxLiveSubscriptions', 'maxLiveSubscriptionsPerConnection',
+]);
+const SEARCH_TABLE_LIVE_LIMIT_FIELDS = new Set(['maxLiveSubscriptionsPerTable']);
 // @ref LLP 0044#generated-upload-intents — the closed authoring surface for
 //   one upload intent; the client cannot supply or widen any declared fact.
 const ASSET_UPLOAD_FIELDS = new Set([
@@ -680,6 +685,7 @@ class TableBuilder {
     this.fields = fields;
     this.indexes = [];
     this.searchIndexes = [];
+    this.searchLiveLimitsDeclaration = undefined;
     this.syncable = false;
   }
 
@@ -847,6 +853,20 @@ class TableBuilder {
       },
       SEARCH_MAINTENANCE_LIMIT_FIELDS,
     );
+    let liveLimits;
+    if (spec.liveLimits !== undefined) {
+      // @ref LLP 0136#capability-id-and-claim-discipline-llp-0119-oq2-proposal
+      // — live-search ceilings are a closed optional sibling of the ordinary
+      // search limits. Presence requires the dedicated capability; it never
+      // inherits support from full_text_search_v1 + live_subscriptions.
+      liveLimits = lowerLimits(
+        spec.liveLimits,
+        'liveLimits',
+        { maxLiveSubscriptions: 64, maxLiveSubscriptionsPerConnection: 8 },
+        { maxLiveSubscriptions: 64, maxLiveSubscriptionsPerConnection: 8 },
+        SEARCH_LIVE_LIMIT_FIELDS,
+      );
+    }
     this.searchIndexes.push({
       formatVersion: 1,
       name,
@@ -868,7 +888,27 @@ class TableBuilder {
       queryLimits,
       cursorLimits,
       maintenanceLimits,
+      ...(liveLimits ? { liveLimits } : {}),
     });
+    return this;
+  }
+
+  /** Declare the one table-wide aggregate live-search subscription ceiling.
+   * @ref LLP 0136#capability-id-and-claim-discipline-llp-0119-oq2-proposal */
+  searchLiveLimits(spec = {}) {
+    assert(
+      this.searchLiveLimitsDeclaration === undefined,
+      'searchLiveLimits() may be declared only once per table',
+    );
+    assertKnownSpecFields(spec, 'searchLiveLimits()', SEARCH_TABLE_LIVE_LIMIT_FIELDS);
+    const resolved = { maxLiveSubscriptionsPerTable: 128, ...spec };
+    assert(
+      Number.isSafeInteger(resolved.maxLiveSubscriptionsPerTable)
+        && resolved.maxLiveSubscriptionsPerTable >= 1
+        && resolved.maxLiveSubscriptionsPerTable <= 128,
+      'searchLiveLimits() maxLiveSubscriptionsPerTable must be an integer in 1..128',
+    );
+    this.searchLiveLimitsDeclaration = resolved;
     return this;
   }
 
@@ -1231,6 +1271,7 @@ export function defineSchema(tables, options = {}) {
 }
 
 const SEARCH_QUERY_SPEC_FIELDS = new Set(['table', 'index', 'auth', 'resourceArg']);
+const LIVE_SEARCH_QUERY_SPEC_FIELDS = new Set(['table', 'index', 'auth']);
 
 // @ref LLP 0131#the-argument-contract-descriptor — PlatformSchemaRef is
 // deliberately not an app-authorable spelling in v1: no `v.*` builder emits
@@ -1323,6 +1364,63 @@ export function defineSearchQuery(spec) {
       resultProjection: 'search-page-v1',
       requiredCapability: 'full_text_search_v1',
       ...(membershipVisibility ? { resourceArg: spec.resourceArg } : {}),
+    },
+  };
+}
+
+/**
+ * Define a first-page-only live query carried by SearchQueryPlanV1.
+ * Runtime/wire publication remains gated by live_full_text_search_v1.
+ *
+ * @ref LLP 0136#authoring-surface — a live search is a distinct LiveQuery
+ * over the unchanged closed search plan, with no authored `after` member.
+ */
+export function defineLiveSearchQuery(spec) {
+  assertKnownSpecFields(spec, 'LiveSearchQuery', LIVE_SEARCH_QUERY_SPEC_FIELDS);
+  const table = spec.table?.__table === true ? spec.table : null;
+  assert(
+    table && typeof table.__tableName === 'string',
+    'defineLiveSearchQuery table must be a defineTable(...) installed in defineSchema(...)',
+  );
+  assert(
+    typeof spec.index === 'string' && spec.index.length > 0,
+    'defineLiveSearchQuery index is required',
+  );
+  const index = table.searchIndexes.find((candidate) => candidate.name === spec.index);
+  assert(
+    index,
+    `defineLiveSearchQuery names unknown search index ${table.__tableName}.${spec.index}`,
+  );
+  assert(
+    index.visibility.kind !== 'membership',
+    'defineLiveSearchQuery does not admit membership-visible indexes in v1',
+  );
+  const publicRead = index.visibility.kind === 'public-read';
+  const auth = spec.auth ?? (publicRead ? 'public' : 'authenticated');
+  assert(
+    AUTH_REQUIREMENTS.has(auth),
+    'LiveSearchQuery auth must be public, optional-user, or authenticated',
+  );
+  if (publicRead) {
+    assert(auth === 'public', 'public-read live search requires public auth');
+  } else {
+    assert(auth === 'authenticated', 'owner live search requires authenticated auth');
+  }
+  return {
+    [FN]: true,
+    __kind: 'LiveQuery',
+    auth,
+    ...(publicRead ? { authorityIndependent: true } : {}),
+    args: {
+      query: searchQueryAstRef(),
+      limit: v.optional(v.integer({ min: 1, max: 50 })),
+    },
+    searchPlan: {
+      table: table.__tableName,
+      index: spec.index,
+      parser: 'snapback-search-parser-v1',
+      resultProjection: 'search-page-v1',
+      requiredCapability: 'full_text_search_v1',
     },
   };
 }

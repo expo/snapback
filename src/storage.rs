@@ -10529,6 +10529,13 @@ fn validate_schema(manifest: &SchemaManifest) -> SnapbackResult<()> {
             let query_limits = &search.query_limits;
             let cursor_limits = &search.cursor_limits;
             let maintenance_limits = &search.maintenance_limits;
+            let live_limits_invalid = search.live_limits.as_ref().is_some_and(|limits| {
+                limits.max_live_subscriptions == 0
+                    || limits.max_live_subscriptions > 64
+                    || limits.max_live_subscriptions_per_connection == 0
+                    || limits.max_live_subscriptions_per_connection > 8
+                    || limits.max_live_subscriptions_per_connection > limits.max_live_subscriptions
+            });
             if source_limits.max_indexed_bytes == 0
                 || source_limits.max_indexed_bytes > 32 * 1024
                 || source_limits.max_tokens == 0
@@ -10554,6 +10561,7 @@ fn validate_schema(manifest: &SchemaManifest) -> SnapbackResult<()> {
                 || maintenance_limits.search_bytes == 0
                 || maintenance_limits.search_bytes as usize
                     > crate::search::types::SEARCH_MAX_BYTES_PER_COMMIT
+                || live_limits_invalid
             {
                 return Err(SnapbackError::error(
                     "SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID",
@@ -10628,6 +10636,20 @@ fn validate_schema(manifest: &SchemaManifest) -> SnapbackResult<()> {
                     }
                 }
             }
+        }
+        if let Some(limits) = &table.search_live_limits
+            && (table.search_indexes.is_empty()
+                || limits.max_live_subscriptions_per_table == 0
+                || limits.max_live_subscriptions_per_table > 128)
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID",
+                "search",
+                format!(
+                    "table {} searchLiveLimits requires a search index and a 1..128 aggregate ceiling",
+                    table.name
+                ),
+            ));
         }
 
         validate_membership_declaration(
@@ -18043,6 +18065,7 @@ mod guarded_commit_tests {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
             }],
@@ -18265,6 +18288,7 @@ mod guarded_commit_tests {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
             }],
@@ -18732,6 +18756,7 @@ mod guarded_commit_tests {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
                 },
@@ -18777,6 +18802,7 @@ mod guarded_commit_tests {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
                 },
@@ -18831,6 +18857,7 @@ mod guarded_commit_tests {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
                 },
@@ -19272,6 +19299,7 @@ mod guarded_commit_tests {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            search_live_limits: None,
             membership: None,
             asset_sharing: None,
         });
@@ -20785,6 +20813,7 @@ mod guarded_commit_tests {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
                 },
@@ -20807,6 +20836,7 @@ mod guarded_commit_tests {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
                 },
@@ -23267,6 +23297,7 @@ mod guarded_commit_tests {
             permission_backing: true,
             permission_fields: Some(vec!["userId".to_owned(), "boardId".to_owned()]),
             search_indexes: Vec::new(),
+            search_live_limits: None,
             membership: None,
             asset_sharing: None,
         };
@@ -23340,6 +23371,7 @@ mod guarded_commit_tests {
                     permission_backing: true,
                     permission_fields: Some(vec!["userId".to_owned(), "boardId".to_owned()]),
                     search_indexes: Vec::new(),
+                    search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
                 }],
@@ -24783,6 +24815,7 @@ mod membership_write_tests {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
                 },
@@ -24814,6 +24847,7 @@ mod membership_write_tests {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    search_live_limits: None,
                     membership: Some(MembershipManifest {
                         id: None,
                         principal: "userId".to_owned(),
@@ -24966,6 +25000,7 @@ mod membership_write_tests {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
             });
@@ -26652,6 +26687,7 @@ mod membership_write_tests {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                search_live_limits: None,
                 membership: Some(MembershipManifest {
                     id: Some("appRoles".to_owned()),
                     principal: "userId".to_owned(),

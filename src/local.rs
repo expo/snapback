@@ -13284,6 +13284,22 @@ impl LocalSnapback {
                         entry.route, spec.function
                     )));
                 }
+                if entry.register_group_eligible
+                    && matches!(
+                        &function.runtime,
+                        crate::manifest::FunctionRuntime::HostPlan(
+                            crate::manifest::HandlerPlan::SearchQuery(_)
+                        )
+                    )
+                {
+                    // @ref LLP 0136#client-composition-llp-0112--llp-0114 —
+                    // a literal AST cannot bypass codegen and enter register
+                    // mode before the cursor/ceiling path is implemented.
+                    return Err(routes_manifest_error(format!(
+                        "route {:?} asserts registerGroupEligible but query {:?} is a live-search child",
+                        entry.route, spec.function
+                    )));
+                }
                 let arg_types = crate::bundle::function_route_arg_types(function, schema);
                 if let Value::Object(map) = &spec.args {
                     for (key, value) in map {
@@ -22871,6 +22887,47 @@ fn validate_function_schema_references(
                     index.visibility,
                     crate::search::types::SearchVisibilityV1::Membership { .. }
                 );
+                if function.kind == FunctionKind::LiveQuery {
+                    // @ref LLP 0136#admission-path-decision — the authored
+                    // public authority-independent fact is valid only when
+                    // the exact schema-bound index has constant public-read
+                    // visibility. Membership-live is outside v1 altogether;
+                    // owner-live remains authority scoped for a later runtime
+                    // admission slice.
+                    if membership_visibility {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_SEARCH_QUERY_PLAN_INVALID",
+                            "search",
+                            "live search does not admit membership visibility in v1",
+                        ));
+                    }
+                    let public_read = matches!(
+                        index.visibility,
+                        crate::search::types::SearchVisibilityV1::PublicRead
+                    );
+                    if function.authority_independent != public_read {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_AUTHORITY_INDEPENDENT_INVALID",
+                            "auth",
+                            format!(
+                                "live search {} authorityIndependent must exactly match public-read visibility",
+                                function.name,
+                            ),
+                        ));
+                    }
+                    if function.args_contract.as_ref().is_some_and(|contract| {
+                        contract.fields.iter().any(|field| field.name == "after")
+                    }) {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_SEARCH_QUERY_PLAN_INVALID",
+                            "search",
+                            format!(
+                                "live search {} must not declare an after argument",
+                                function.name
+                            ),
+                        ));
+                    }
+                }
                 if membership_visibility != plan.resource_arg.is_some() {
                     return Err(SnapbackError::error(
                         "SNAPBACK_SEARCH_QUERY_PLAN_INVALID",
@@ -25993,6 +26050,7 @@ mod tests {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                search_live_limits: None,
                 membership: Some(MembershipManifest {
                     id: None,
                     principal: "userId".to_owned(),
@@ -26052,6 +26110,7 @@ mod tests {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            search_live_limits: None,
             membership: None,
             asset_sharing: None,
         };
@@ -26081,6 +26140,7 @@ mod tests {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            search_live_limits: None,
             membership: Some(MembershipManifest {
                 id: Some("event_members".to_owned()),
                 principal: "userId".to_owned(),
@@ -26169,6 +26229,7 @@ mod tests {
             query_limits: Default::default(),
             cursor_limits: Default::default(),
             maintenance_limits: Default::default(),
+            live_limits: None,
         };
         let schema = SchemaManifest {
             tables: vec![TableManifest {
@@ -26187,6 +26248,7 @@ mod tests {
                 ],
                 indexes: Vec::new(),
                 search_indexes: vec![search],
+                search_live_limits: None,
                 syncable: false,
                 permission_backing: false,
                 permission_fields: None,
@@ -26215,6 +26277,138 @@ mod tests {
         let error = validate_function_schema_references(&manifest, &schema)
             .expect_err("membership search without resourceArg must fail at load");
         assert_eq!(error.diagnostic.code, "SNAPBACK_SEARCH_QUERY_PLAN_INVALID");
+    }
+
+    #[test]
+    fn live_search_authority_fact_is_exactly_schema_public_read() {
+        let search = SearchIndexManifestV1 {
+            format_version: 1,
+            name: "search_events".to_owned(),
+            semantic_version: "events.live.v1".to_owned(),
+            analyzer: SEARCH_ANALYZER.to_owned(),
+            analyzer_tables_digest:
+                crate::search::unicode17_generated::ANALYZER_TABLES_DIGEST.to_owned(),
+            text_fields: BTreeMap::from([(
+                "title".to_owned(),
+                SearchTextFieldV1 {
+                    weight: 1,
+                    classification: SearchFieldClassV1::Public,
+                },
+            )]),
+            field_classifications: BTreeMap::new(),
+            equality_filters: Vec::new(),
+            stored_fields: vec!["title".to_owned()],
+            highlight_fields: Vec::new(),
+            visibility: SearchVisibilityV1::PublicRead,
+            tie_break: "score-desc-row-id-asc.v1".to_owned(),
+            source_limits: Default::default(),
+            query_limits: Default::default(),
+            cursor_limits: Default::default(),
+            maintenance_limits: Default::default(),
+            live_limits: None,
+        };
+        let schema = SchemaManifest {
+            tables: vec![TableManifest {
+                name: "events".to_owned(),
+                fields: vec![FieldManifest {
+                    name: "title".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                }],
+                indexes: Vec::new(),
+                search_indexes: vec![search],
+                search_live_limits: None,
+                syncable: false,
+                permission_backing: false,
+                permission_fields: None,
+                membership: None,
+                asset_sharing: None,
+            }],
+            ..SchemaManifest::default()
+        };
+        let mut function = FunctionDefinition::new(
+            "live-search-events",
+            FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::SearchQuery(SearchQueryPlanV1 {
+                table: "events".to_owned(),
+                index: "search_events".to_owned(),
+                parser: SEARCH_PARSER.to_owned(),
+                result_projection: "search-page-v1".to_owned(),
+                required_capability: SEARCH_CAPABILITY.to_owned(),
+                resource_arg: None,
+            })),
+        );
+        function.auth_requirement = Some(crate::manifest::AuthRequirement::Public);
+        function.authority_independent = true;
+        function.required_capabilities = vec![
+            "full_text_search_v1".to_owned(),
+            "live_subscriptions".to_owned(),
+            "live_full_text_search_v1".to_owned(),
+        ];
+        let valid = FunctionManifest {
+            functions: vec![function.clone()],
+            ..FunctionManifest::default()
+        };
+        valid
+            .validate_artifact()
+            .expect("LiveQuery + SearchQuery is a structurally valid unpublished carrier");
+        validate_function_schema_references(&valid, &schema)
+            .expect("public-read binds authorityIndependent at pair activation");
+
+        let mut omitted = valid.clone();
+        omitted.functions[0].authority_independent = false;
+        assert_eq!(
+            validate_function_schema_references(&omitted, &schema)
+                .expect_err("public-read live search must carry the exact fact")
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTHORITY_INDEPENDENT_INVALID",
+        );
+
+        let mut owner_schema = schema.clone();
+        owner_schema.tables[0].search_indexes[0].visibility = SearchVisibilityV1::Owner {
+            field: "title".to_owned(),
+        };
+        assert_eq!(
+            validate_function_schema_references(&valid, &owner_schema)
+                .expect_err("owner visibility cannot forge authority independence")
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTHORITY_INDEPENDENT_INVALID",
+        );
+
+        let routes = crate::bundle::RoutesManifest {
+            format_version: crate::bundle::ROUTES_MANIFEST_FORMAT_VERSION,
+            app: valid.app_id.clone(),
+            routes: vec![crate::bundle::BundleRouteEntry {
+                route: "/".to_owned(),
+                queries: vec![crate::bundle::BundleQuerySpec {
+                    function: "live-search-events".to_owned(),
+                    args: serde_json::json!({ "query": {} }),
+                }],
+                persist: None,
+                register_group_eligible: true,
+            }],
+        };
+        let route_error = LocalSnapback::validate_routes_manifest_against(
+            &routes,
+            &valid,
+            &schema,
+        )
+        .expect_err("a direct route artifact cannot opt live search into register mode");
+        assert_eq!(route_error.diagnostic.code, "SNAPBACK_ROUTES_MANIFEST_INVALID");
+        assert!(route_error.diagnostic.message.contains("live-search child"));
+
+        let mut inline = valid;
+        inline.functions[0].public_inline = true;
+        assert_eq!(
+            inline
+                .validate_artifact()
+                .expect_err("search plans remain excluded from publicInline")
+                .diagnostic
+                .code,
+            "SNAPBACK_PUBLIC_INLINE_INVALID",
+        );
     }
 
     #[test]
@@ -27335,6 +27529,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                search_live_limits: None,
                 membership: None,
                 asset_sharing: sharing,
             }
@@ -27879,6 +28074,7 @@ globalThis.__snapbackHandlers = {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            search_live_limits: None,
             membership: None,
             asset_sharing: None,
         };
@@ -28699,6 +28895,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
                 },
@@ -28714,6 +28911,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
                 },
@@ -28743,6 +28941,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    search_live_limits: None,
                     membership: Some(crate::manifest::MembershipManifest {
                         id: Some("channelSeats".to_owned()),
                         principal: "userId".to_owned(),
@@ -30220,6 +30419,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
             }],
@@ -32376,6 +32576,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: true,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
                 }],
@@ -32447,6 +32648,7 @@ globalThis.__snapbackHandlers = {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            search_live_limits: None,
             membership: None,
             asset_sharing: None,
         }];
@@ -32905,6 +33107,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
             }],
@@ -33170,6 +33373,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
             }],
@@ -33390,6 +33594,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
             }],
@@ -34883,6 +35088,7 @@ globalThis.__snapbackHandlers = {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            search_live_limits: None,
             membership: None,
             asset_sharing: None,
         });
@@ -35363,6 +35569,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
                 },
@@ -35382,6 +35589,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
                 },
@@ -35511,6 +35719,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
             },
@@ -35530,6 +35739,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
             },
@@ -35589,6 +35799,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
                 },
@@ -35608,6 +35819,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
                 },
@@ -35875,6 +36087,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
                 },
@@ -35894,6 +36107,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
                 },
@@ -36041,6 +36255,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
                 },
@@ -36060,6 +36275,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
                 },
@@ -36273,6 +36489,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
             };
@@ -37430,6 +37647,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
             };
@@ -38215,6 +38433,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
             };
@@ -38287,6 +38506,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    search_live_limits: None,
                     membership: Some(MembershipManifest {
                         id: Some("roomSeats".to_owned()),
                         principal: "userId".to_owned(),
@@ -39211,6 +39431,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
             }],
@@ -39588,6 +39809,7 @@ globalThis.__snapbackHandlers = {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            search_live_limits: None,
             membership: None,
             asset_sharing: None,
         };
@@ -40013,6 +40235,7 @@ globalThis.__snapbackHandlers = {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            search_live_limits: None,
             membership: None,
             asset_sharing: None,
         }];
@@ -40029,6 +40252,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
             });
@@ -40843,6 +41067,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
                 },
@@ -40865,6 +41090,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: true,
                     permission_fields: Some(vec!["ownerId".to_owned()]),
                     search_indexes: Vec::new(),
+                    search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
                 },
@@ -41830,6 +42056,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
             }],
@@ -42134,6 +42361,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: true,
                     permission_fields: Some(vec!["gameId".to_owned()]),
                     search_indexes: Vec::new(),
+                    search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
                 }],
@@ -42456,6 +42684,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
                 }],
@@ -43543,6 +43772,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: true,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
                 }],
@@ -43649,6 +43879,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: true,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
                 }],
@@ -43877,6 +44108,7 @@ globalThis.__snapbackHandlers = {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            search_live_limits: None,
             membership: None,
             asset_sharing: None,
         };
@@ -43909,6 +44141,7 @@ globalThis.__snapbackHandlers = {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            search_live_limits: None,
             membership: None,
             asset_sharing: None,
         };
@@ -43940,6 +44173,7 @@ globalThis.__snapbackHandlers = {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            search_live_limits: None,
             membership: None,
             asset_sharing: None,
         };
@@ -44914,6 +45148,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: true,
                 permission_fields: Some(vec!["ownerId".to_owned()]),
                 search_indexes: Vec::new(),
+                search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
             }],
@@ -46736,6 +46971,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
             }],

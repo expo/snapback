@@ -110,6 +110,7 @@ mod tests {
             query_limits: Default::default(),
             cursor_limits: Default::default(),
             maintenance_limits: Default::default(),
+            live_limits: None,
         };
         let tokens = analyze_field("body", "api api latency").unwrap();
         assert_eq!(

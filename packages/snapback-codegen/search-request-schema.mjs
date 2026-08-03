@@ -247,10 +247,14 @@ export function searchArgsSchemaProblems(args, options = {}) {
     throw new TypeError('search argument schema options must be an object');
   }
   const optionNames = Object.keys(options);
-  if (optionNames.some((name) => name !== 'resourceArg')) {
+  if (optionNames.some((name) => name !== 'resourceArg' && name !== 'includeAfter')) {
     throw new TypeError(`search argument schema options contain unknown fields [${optionNames}]`);
   }
   const resourceArg = options.resourceArg;
+  const includeAfter = options.includeAfter ?? true;
+  if (typeof includeAfter !== 'boolean') {
+    throw new TypeError('search argument schema includeAfter must be boolean');
+  }
   if (resourceArg !== undefined && (typeof resourceArg !== 'string' || resourceArg.length === 0)) {
     throw new TypeError('search argument schema resourceArg must be a non-empty string');
   }
@@ -268,11 +272,17 @@ export function searchArgsSchemaProblems(args, options = {}) {
   if (topLevel.afterKind !== 'string') problems.push('exported schema after is not a string');
 
   const names = Object.keys(args ?? {}).sort();
-  const expectedNames = ['after', 'limit', 'query', ...(resourceArg === undefined ? [] : [resourceArg])].sort();
+  const expectedNames = [
+    ...(includeAfter ? ['after'] : []),
+    'limit',
+    'query',
+    ...(resourceArg === undefined ? [] : [resourceArg]),
+  ].sort();
   if (names.join(',') !== expectedNames.join(',')) {
+    const expectedBase = includeAfter ? 'query, limit, after' : 'query, limit';
     const expected = resourceArg === undefined
-      ? '[query, limit, after]'
-      : `[query, limit, after, ${resourceArg}]`;
+      ? `[${expectedBase}]`
+      : `[${expectedBase}, ${resourceArg}]`;
     problems.push(`authored search arguments are [${names}] instead of ${expected}`);
     return problems;
   }
@@ -288,7 +298,7 @@ export function searchArgsSchemaProblems(args, options = {}) {
   if (args.limit?.fieldType !== 'Integer' || args.limit?.optional !== true) {
     problems.push('authored limit argument must be an optional integer');
   }
-  if (args.after?.fieldType !== 'String' || args.after?.optional !== true) {
+  if (includeAfter && (args.after?.fieldType !== 'String' || args.after?.optional !== true)) {
     problems.push('authored after argument must be an optional string');
   }
   if (resourceArg !== undefined && args[resourceArg]?.optional !== false) {
