@@ -548,3 +548,68 @@ reviewer; recorded verbatim below.
 5. **Recommended next step**
 
 Apply the two MATERIAL repairs — concern 1 (add safety-blocker to the §D2/Vocabulary/Guardrail-1 reason law and qualify S1's equality) and concern 2 (bind the filter comparison semantics and correct S6's parenthetical) — plus whichever NITs are cheap in the same pass. Both MATERIALs are localized consistency fixes with no architectural reach, so a **micro-delta round 5** scoped to exactly: §D2's rule paragraph, Vocabulary/Guardrail 1, S1's equality sentence, §D7 steps 3–4, and S6 — rather than another full delta — is proportionate. If both families verify those spot repairs clean, this document is at the READY bar; nothing else in v0.4 stands between it and convergence.
+
+---
+
+## Round 5 — 2026-08-03
+
+**Reviewer family:** Anthropic Claude (Fable 5)
+**Provider / runtime:** Claude Code `general-purpose` subagent, model
+`claude-fable-5`
+**Date:** 2026-08-03
+**Redacted:** no
+**Method:** fresh non-author Fable session (subagent with no authoring
+context) over the working tree at 9ebfa344 (v0.5); micro-delta round
+auditing round-4 resolution and probing the v0.5-changed text, with owner
+spot-checks (LLP 0053 strand rules, LLP 0157 §D3 closed vocabulary — both
+verified by the reviewer). Orchestrated by the authoring session, which
+does not count as a reviewer; recorded verbatim below.
+
+---
+
+# LLP 0166 v0.5 — Round 5 review (author-family / Fable)
+
+1. **Overall assessment**: **NOT READY — confidence 0.88.** V0.5 is a genuine, near-complete application of round 4: of the seventeen tracked round-4 findings and suggestion sets, fourteen verify as fully resolved in the current text — including the whole comparator surface (the three comparison families are now bound in §D7 step 3, S6's parenthetical is corrected to type-rank ordering with non-scalar refusal), the §D6 pending-intent precondition with its connected-attempt initiation and S5 leg, the unified retaining-reason law with §D5's union as the cited single source of truth across §Vocabulary/§D2/Guardrail 1/S1, the exact blocker-custody precedence, the de-duplicated pressure order, the payload-compaction event registered in the carried LLP 0157 amendment (I verified LLP 0157 §D3's vocabulary is closed at `llp/0157-composition-algebra-and-completeness.spec.md:988`, so the amendment is the right shape), discharge timing pinned to the next maintenance pass in both §D3 and S3, `writerGeneration` in §D1's survivals, and all eight suggestions. What keeps the round out of READY is three narrow residues of exactly the fix-introduced class this loop keeps catching, each a one-to-three-sentence repair: the broker's no-resurrection guarantee for released registrations outruns the bounded state that must implement it (B1 residue), one stale entry-level refusal sentence survives against the new "message-level everywhere" rule (N4 residue), and the document claims in three places that the provisional constants surface as inspection ceiling fields when the closed `StorePolicyInspectionV1` record has no fields for most of them (M7 residue). Nothing touches the architecture, the amendment set, the answer table, or any owner boundary; the owner facts I newly relied on (LLP 0053's discard-only dependent queue custody and strand rules, `llp/0053-authorization-invalidation.rfc.md:1066,1275,1854`; LLP 0157 §D3's closed event vocabulary) verify against the tree.
+
+2. **Round-4 resolution audit**
+
+| Finding | Status | Explanation (partial/unresolved only) |
+| --- | --- | --- |
+| Codex B1 (broker durable lifecycle) | partial | The machinery landed whole: `RegisterReleaseV1` carries `authorityPartitionDigest` with identical writer-side validation for forward and release, the fence language is corrected to what registration commits actually touch (the `storeMeta`-not-payload parenthetical is coherent), the reaped-context memory (256) and consumed-request memory (1,024) persist across restart, and release is idempotent. Residue: the flat guarantee that a fresh forward naming a released `registrationId` refuses — and the header's "delayed announces and forwards cannot resurrect … released registrations" — is not implementable beyond the 1,024-outcome window from any state the spec defines. See concern 1. |
+| Codex B2 (filter semantics + S6 contradiction) | resolved | |
+| Codex B3 (retirement vs pending-intent) | resolved | Precondition, refuse-and-wait with settlement/explicit-discard per the owner's strand rules, connected-attempt initiation, and the S5 pending-intent leg all present and owner-consistent. |
+| Codex M4 (blocker custody vs reason law + precedence) | resolved | |
+| Codex M5 (pressure order pinned duplication) | resolved | Step 1 excludes `pinned`; S3 aligned. |
+| Codex M6 (compaction vs LLP 0157 closed vocabulary) | resolved | The carried amendment registers the payload-compaction event with the correct preserved/discarded split; "no other semantics change" is now true of the amendment. |
+| Codex M7 (roster/accounting bounds + 16 KiB formula) | partial | The 64-live-context ceiling with refuse-and-run-volatile, the JCS byte formula, and the prose accounting closure all landed. Residue: the reaped-context (256) and consumed-request (1,024) ceilings — and the 16 KiB per-registration ceiling — have no fields in the closed inspection record, though the Revised header, §D5, and OQ4 claim the constants surface there. See concern 3. |
+| Codex suggestions ×4 | resolved | `effectiveRetentionRequest` field; envelope-`contextId` equality in the refusal list; `addressKey` rename; every listed broker fixture case is an S1 leg. |
+| Fable M1 (reason-law unification) | resolved | |
+| Fable M2 (S6 contradiction + filter binding) | resolved | |
+| Fable N3 (release partition binding) | resolved | Including the suggested S1 cross-partition-release probe. |
+| Fable N4 (refusal granularity) | partial | The normative sentence ("message-level everywhere," revision not consumed, no partial set) landed at `llp/0166-local-persistent-store.spec.md:582-588`, but the full-set-announce bullet still ends "a cross-partition demand refuses the entry" (`:613`) — a direct contradiction. See concern 2. |
+| Fable N5 (discharge timing) | resolved | |
+| Fable N6 (writerGeneration at wipe) | resolved | |
+| Fable suggestions ×4 | resolved | Single-source-of-truth note; the one-sentence three-family comparator binding; the S1 release probe; the §D6 connected-attempt note. |
+
+3. **New concerns**
+
+1. **MATERIAL — the released-registration no-resurrection guarantee outruns the persisted state.** §D2 states flatly that "a *fresh* forward naming a released `registrationId` refuses" (`llp/0166-local-persistent-store.spec.md:641-645`) and the Revised header promises delayed forwards "cannot resurrect … released registrations" (`:18-19`). Implementing that refusal requires the writer to remember which `registrationId`s were released; the only defined state is the consumed-request memory, bounded at the last 1,024 outcomes. A duplicate forward delayed past that window — or any forward naming a long-released id — is indistinguishable from a legitimate first-time forward and would commit, resurrecting a released durable registration that then persists and re-hydrates payload until explicitly released. The parallel reaped-context bullet honestly analyzes its overflow ("a bounded, self-healing window," `:600-603`); the consumed-request memory gets no such analysis, and its failure mode is *not* self-healing — nothing lapses a resurrected durable registration. An unbounded released-id set is not an out: §D3's total accounting bounds `storeMeta` by exactly the named caps. Fix (sentence-scale): either add a bounded released-registration memory with the same overflow honesty, or scope the refusal guarantee to the consumed-request window and record the residual hazard the way the reaped-context bullet does.
+
+2. **MATERIAL — §D2 contradicts its own refusal-granularity rule.** The granularity paragraph says a cross-partition demand "refuse[s] the whole message — its revision is not consumed, and no partial set applies" (`:582-588`); the full-set-announce bullet says "a cross-partition demand refuses the entry" (`:611-613`). Both cannot hold. Two conforming writers diverge on the same announce — one applies the set minus the bad entry at the advanced revision, the other applies nothing and leaves the revision unconsumed — which is demand-state divergence with compaction-exposure consequences, the exact hazard N4 named. Fix: one word — "refuses the entry" → "refuses the whole message" (or delete the trailing clause; the granularity paragraph already covers it).
+
+3. **MATERIAL — the constants-surface-in-inspection claim is false against the closed record.** Three places claim the provisional constants are observable as inspection ceiling fields: the Revised header ("the broker memories get ceilings surfaced in inspection," `:42-44`), §D5 ("The provisional §D2/§D3/§D5 constants surface as this record's ceiling fields," `:1105-1107`), and OQ4 ("they surface in the policy record so revision is observable," `:1773-1774`). The closed `StorePolicyInspectionV1` record (`:1052-1091`) surfaces `byteCeiling`/`recordCeiling`/`fragmentCeiling`, `durableCeiling`, and `liveContextCeiling` only — no fields exist for the 256 reaped-context memory, the 1,024 consumed-request outcomes, the 16 KiB per-registration ceiling, or the grace/heartbeat/handoff/concurrency values OQ4 lists. No behavioral hazard follows (the record is closed, so implementations cannot diverge), but a conforming implementation cannot make those three sentences true, and OQ4's revision-observability promise — the stated justification for shipping provisional values — is broken for most of them. Fix in either direction: add the missing ceiling fields (a `broker.reapedContextMemoryCeiling`/`consumedRequestCeiling` pair and `registrations.perRecordByteCeiling`, plus deciding whether cadence values surface), or narrow all three claim sites to the custody ceilings that actually surface.
+
+4. **NIT — reason-selection precedence is underivable-in-corner-cases.** S8 requires each address to carry exactly one `retainingReason`, but the union does not order itself when several kinds hold at once: a blocker-held payload during a `"none"`-pinned grace (release-grace vs safety-blocker), or a compacted stub still named by a live durable registration (registrations vs instance-bookkeeping — the stub comment "held only for fences/frontiers/registrations" muddies this by naming registrations inside the bookkeeping reason). One sentence pinning the precedence (registrations > safety-blocker > release-grace > instance-bookkeeping, or whatever the author intends) would close it.
+
+5. **NIT — the `in` operand is formally non-scalar.** Step 3 refuses "a **non-scalar** value … in a filter operand," while the record admits `op: "in"` with "a nonempty array of scalars." The intended reading (the array shape is admitted by the record; the element rule governs) is recoverable from context, but one clause — "for `in`, each *element* must be a scalar" — would remove the literal contradiction.
+
+4. **Suggestions** (non-blocking)
+
+- Prefer the additive direction for concern 3 (add the fields) — it keeps OQ4's observability promise intact rather than shrinking it, and S8's ceilings-match-constants leg then covers the broker memories for free.
+- If concern 1 takes the windowed-guarantee route, mirror the reaped-context bullet's phrasing so the two memories read as one design pattern; if it takes the released-id-memory route, add the corresponding overflow sentence and an S1 note that the corpus does not exercise overflow (or a synthetic overflow leg).
+- The transient between a `"none"`-pinned release and its next-maintenance-pass reclamation could name its inspection reason explicitly (release-grace with an immediate deadline, or a note that the row may briefly show the pre-release reason) — folds into NIT 4's precedence sentence.
+- When concern 2's one-word fix lands, S1's broker legs could add the malformed-announce probe (one bad entry ⇒ nothing applies, revision unconsumed) so the granularity choice is oracle-backed, not prose-only.
+
+5. **Recommended next step**
+
+One more micro-delta spot-repair pass: concerns 1–3 are each sentence-scale with no architectural consequence, and NITs 4–5 are optional single clauses. Then a round-6 delta round confined to those edits should be able to return dual READY — the round-4 machinery is otherwise fully and faithfully landed, and I found no defect in the v0.5-changed text beyond the three residues above.

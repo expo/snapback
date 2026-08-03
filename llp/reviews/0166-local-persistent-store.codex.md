@@ -376,3 +376,69 @@ reviewer; recorded verbatim below.
 5. **Recommended next step**.
 
 Keep LLP 0166 in Draft. Repair the three blocking protocols first, reconcile blocker custody and compaction with LLP 0157/0053, and close the broker/accounting bounds. Then run a focused round 5 over §D2, §D3/§D5, §D6/S5, and §D7/S6 with the same three owner-document spot-checks.
+---
+
+## Round 5 — 2026-08-03
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** `codex-cli` 0.146.0, `codex exec`, model
+`gpt-5.6-sol`, `model_reasoning_effort=xhigh`, sandbox `read-only`
+**Date:** 2026-08-03
+**Redacted:** no
+**Method:** fresh non-author `codex exec` context over the working tree at
+9ebfa344 (v0.5); micro-delta round auditing round-4 resolution and probing
+the v0.5-changed text, with owner spot-checks. Orchestrated by the
+authoring session, which does not count as a reviewer; recorded verbatim
+below.
+
+---
+
+1. **Overall assessment**: **NOT READY — 0.98 confidence.** V0.5 cleanly resolves retirement versus pending intent, blocker precedence, pressure ordering, compaction authorization, discharge timing, and `writerGeneration` preservation. Owner spot-checks confirm both [LLP 0053’s destructive retirement semantics](/Users/ccheever/projects/snapback-0166/llp/0053-authorization-invalidation.rfc.md:1062) and [LLP 0157’s closed event vocabulary](/Users/ccheever/projects/snapback-0166/llp/0157-composition-algebra-and-completeness.spec.md:988). It remains below READY because the durable broker can still resurrect a released registration under message reordering, multi-partition handoff cannot prove complete reconciliation, `in` contradicts the new non-scalar rule, and broker accounting remains non-total.
+
+2. **Round-4 resolution audit**:
+
+| Finding id | Status | Explanation |
+| --- | --- | --- |
+| Codex B1 — broker lifecycle | partial | Partition validation landed, but release-before-delayed-forward can resurrect demand; request identity and safe memory eviction are undefined; context-only handoff cannot reconcile partition sets. |
+| Codex B2 — filter semantics / S6 | partial | Range comparisons and mixed-type ordering are aligned, but `in` requires an array while the blanket non-scalar-operand rule rejects arrays. |
+| Codex B3 — retirement / pending intent | resolved | |
+| Codex M4 — blocker custody / reason law | resolved | |
+| Codex M5 — pressure order | resolved | |
+| Codex M6 — LLP 0157 compaction event | resolved | |
+| Codex M7 — roster/accounting bounds | partial | The 16 KiB JCS formula and count ceilings landed, but broker entries/messages remain byte-unbounded and their memory ceilings are absent from inspection. |
+| Codex suggestion 1 — effective retention inspection | resolved | |
+| Codex suggestion 2 — announced context binding | resolved | |
+| Codex suggestion 3 — family-neutral address key | resolved | |
+| Codex suggestion 4 — broker fixture | resolved | |
+| Fable M1 — reason-law unification | resolved | |
+| Fable M2 — filter binding / S6 | partial | Same `in` contradiction as Codex B2. |
+| Fable N3 — release partition binding | resolved | |
+| Fable N4 — refusal granularity | unresolved | The global rule says whole-message refusal; the per-partition rule still says “refuses the entry.” |
+| Fable N5 — discharge timing | resolved | |
+| Fable N6 — `writerGeneration` at wipe | resolved | |
+| Fable suggestion 1 — single reason source | partial | The union is declared authoritative, but Vocabulary, D2, and Guardrail 1 still re-enumerate it. Their lists currently agree. |
+| Fable suggestion 2 — comparison families | partial | The requested sentence landed but mishandles the `in` container. |
+| Fable suggestion 3 — release-partition probe | resolved | |
+| Fable suggestion 4 — connected convergence | resolved | |
+
+3. **New concerns** —
+
+1. **BLOCKING — Durable forward/release ordering is not closed.** Consider forward `F(request=f, registration=R)` being delayed, followed by release `L(request=l, registrationId=R)`. The writer sees unknown `R`, returns `released` as required, then later receives `F`. The consumed-request memory knows `l`, not `f`, and no released-registration tombstone or per-registration sequence exists, so `F` recreates `R`. Likewise, `requestId` has no uniqueness scope and `RegisterOutcomeV1` is not context-bound. The “last 1,024” memory also gives no safe behavior after eviction. The protocol therefore cannot implement its own fresh-forward refusal or delayed-forward guarantee in [§D2](/Users/ccheever/projects/snapback-0166/llp/0166-local-persistent-store.spec.md:625).
+
+2. **MATERIAL — Multi-partition writer handoff has no decidable completion condition.** The persisted roster contains only `contextId`s, while demands are replaced per `(contextId, partition)`. After a context re-announces one partition, the writer cannot know whether more partition announcements are pending, yet [handoff may finish once every context “re-announces”](/Users/ccheever/projects/snapback-0166/llp/0166-local-persistent-store.spec.md:650). Suppression can therefore end with another live partition absent from the rebuilt ledger, exposing actively rendered custody to compaction. Persist the prior pair roster or add a closed, atomic full-context announcement/completion record.
+
+3. **MATERIAL — Every valid `in` filter is simultaneously admitted and refused.** `TransformPlanV1` requires `in` to carry [a nonempty array of scalars](/Users/ccheever/projects/snapback-0166/llp/0166-local-persistent-store.spec.md:1250), but step 3 says [a non-scalar filter operand refuses execution](/Users/ccheever/projects/snapback-0166/llp/0166-local-persistent-store.spec.md:1286). Specify that the `in` container is the sole permitted array operand and validate each member as scalar.
+
+4. **MATERIAL — Broker accounting is still not total or fully inspectable.** The 64/256/1,024 count limits do not bound unconstrained `contextId`, `requestId`, refusal-code, or demand-message bytes. Moreover, `StorePolicyInspectionV1` exposes only `liveContextCount/liveContextCeiling`, omitting reaped-context and consumed-outcome counts and ceilings, contrary to the claim that provisional constants surface as ceiling fields in [§D5](/Users/ccheever/projects/snapback-0166/llp/0166-local-persistent-store.spec.md:1063). Add exact identifier/message encodings or byte ceilings and expose all enforced broker limits.
+
+5. **NIT — Refusal granularity still contradicts itself.** [The governing paragraph says whole-message refusal](/Users/ccheever/projects/snapback-0166/llp/0166-local-persistent-store.spec.md:582), while [the partition rule says a cross-partition demand refuses only the entry](/Users/ccheever/projects/snapback-0166/llp/0166-local-persistent-store.spec.md:604). Change the latter to “refuses the whole message.”
+
+4. **Suggestions** (non-blocking).
+
+- Consider echoing a broker epoch or `writerGeneration` in requests to simplify bounded rejection of stale messages.
+- Replace the repeated retaining-reason prose with references to the union’s exact kind names.
+- Extend S1 with release-before-first-forward, memory-eviction boundaries, request-ID collision, and partial multi-partition handoff fixtures.
+
+5. **Recommended next step**.
+
+Prepare a narrowly scoped v0.6: close forward/release sequencing and bounded replay, make handoff reconciliation partition-complete, repair `in`, finish broker byte accounting/inspection, and fix the refusal wording. Then run another micro-delta review limited to those broker, D3/D5 inspection, D7 step-3, and S1/S6 changes.
