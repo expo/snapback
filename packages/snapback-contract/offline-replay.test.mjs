@@ -548,13 +548,59 @@ second.dispose();
     plan: sequenceWwaPlan,
     sequenceAllocationCount: 1,
   });
+  const insertSequenceWwaPlan = {
+    steps: [
+      ...sequenceWwaPlan.steps.slice(0, 3),
+      {
+        Insert: {
+          table: 'todos',
+          values: {
+            title: { Arg: 'title' },
+            completed: { Literal: false },
+            userId: 'AuthUserId',
+          },
+          bind_id_as: 'todoId',
+        },
+      },
+      {
+        AssertSourceChanged: {
+          table: 'todos',
+          id: { Binding: 'todoId' },
+          operation: 'Insert',
+        },
+      },
+      {
+        Insert: {
+          table: 'activity',
+          values: {
+            sourceId: { Binding: 'todoId' },
+            occurredAt: 'RuntimeNow',
+          },
+          bind_id_as: 'activityId',
+        },
+      },
+    ],
+    return_value: { Binding: 'sequence' },
+  };
+  const withheldInsertDescriptor = buildContractMutationDescriptor({
+    name: 'createTodo',
+    args: jsManifest.mutations.createTodo.args,
+    argOrder: jsManifest.mutations.createTodo.argOrder,
+    writes: jsManifest.mutations.createTodo.writes,
+    plan: insertSequenceWwaPlan,
+    sequenceAllocationCount: 1,
+  });
+  const withheldMutations = {
+    setCompleted: withheldDescriptor,
+    createTodo: withheldInsertDescriptor,
+  };
   const withheldManifest = {
     ...jsManifest,
     inputsHash: 'offline-withheld-inputs',
     schemaHash: 'offline-withheld-schema',
     bundleHash: 'offline-withheld-bundle',
-    capabilities: contractCapabilitiesForMutations({ setCompleted: withheldDescriptor }),
-    mutations: { setCompleted: withheldDescriptor },
+    capabilities: contractCapabilitiesForMutations(withheldMutations),
+    mutations: withheldMutations,
   };
   const withheldClient = makeClient();
   withheldClient.state.rows = [{
@@ -602,25 +648,36 @@ second.dispose();
     false,
     'fresh atomic withholding queues intent without presenting app reducer rows',
   );
-  const [withheldQueued] = await withheldOnlineStore.pendingMutations();
-  assert.equal(withheldQueued.ctxLedger.ids.length, 1, 'patch WWA mints only its activity row id');
-  assert.equal(withheldQueued.ctxLedger.now >= 0, true);
+  await withheldOnline.links.createTodo({ title: 'insert withheld', orgId: 'org-1' });
+  assert.equal(
+    withheldOnline.boundary.current('todos').length,
+    1,
+    'insert-source WWA is also queued without an optimistic source row',
+  );
+  const withheldQueued = await withheldOnlineStore.pendingMutations();
+  assert.deepEqual(
+    withheldQueued.map((record) => record.ctxLedger.ids.length),
+    [1, 2],
+    'patch/delete WWA mint activity only; insert WWA mints source then activity',
+  );
+  assert.equal(withheldQueued.every((record) => record.ctxLedger.now >= 0), true);
   withheldOnline.dispose();
 
   const withheldRestoredStore = createMemorySnapbackClientStore({ state: withheldState });
   const withheldRestored = await withheldSurface(withheldRestoredStore);
   assert.equal(withheldRestored.retained(), true);
-  assert.equal(withheldRestored.pendingCount(), 1);
+  assert.equal(withheldRestored.pendingCount(), 2);
   assert.equal(
     withheldRestored.boundary.current('todos')[0].completed,
     false,
     'reload keeps the atomic pending intent withheld from presentation',
   );
   withheldClient.state.online = true;
-  assert.deepEqual(await withheldRestored.reconnect(), { replayed: 1, failed: 0 });
+  assert.deepEqual(await withheldRestored.reconnect(), { replayed: 2, failed: 0 });
   assert.equal(withheldRestored.pendingCount(), 0);
   assert.equal(withheldClient.state.rows[0].completed, true);
-  assert.equal(withheldClient.state.deliveries.length, 1);
+  assert.equal(withheldClient.state.rows[1].title, 'insert withheld');
+  assert.equal(withheldClient.state.deliveries.length, 2);
   withheldRestored.dispose();
 }
 

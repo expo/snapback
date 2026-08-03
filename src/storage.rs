@@ -16429,8 +16429,13 @@ fn validate_sequence_counter_rows(
         .map(|declaration| (declaration.name.as_str(), declaration.scope_table.as_str()))
         .collect::<BTreeSet<_>>();
     let mut statement = conn.prepare(
-        "SELECT counter_name, scope_table, scope_row_id, scope_incarnation, next_value
-           FROM _snapback_sequence_counters_v1",
+        "SELECT c.counter_name, c.scope_table, c.scope_row_id, c.scope_incarnation,
+                c.next_value, r.incarnation IS NOT NULL
+           FROM _snapback_sequence_counters_v1 c
+      LEFT JOIN _snapback_relation_incarnations_v1 r
+             ON r.table_name = c.scope_table
+            AND r.row_id = c.scope_row_id
+            AND r.incarnation = c.scope_incarnation",
     )?;
     let rows = statement.query_map([], |row| {
         Ok((
@@ -16439,14 +16444,22 @@ fn validate_sequence_counter_rows(
             row.get::<_, String>(2)?,
             row.get::<_, String>(3)?,
             row.get::<_, i64>(4)?,
+            row.get::<_, bool>(5)?,
         ))
     })?;
     for row in rows {
-        let (counter, scope_table, scope_row_id, scope_incarnation, next_value) = row?;
+        let (
+            counter,
+            scope_table,
+            scope_row_id,
+            scope_incarnation,
+            next_value,
+            registry_backed,
+        ) = row?;
         let declared = declared.contains(&(counter.as_str(), scope_table.as_str()));
         let successor_in_domain = u64::try_from(next_value)
             .is_ok_and(|value| (1..=SEQUENCE_MAX_SAFE_INTEGER + 1).contains(&value));
-        if !declared || !successor_in_domain {
+        if !declared || !successor_in_domain || !registry_backed {
             return Err(SnapbackError::error(
                 "SNAPBACK_SEQUENCE_ACTIVATION_STATE_INVALID",
                 "schema",
@@ -16459,6 +16472,7 @@ fn validate_sequence_counter_rows(
                 "scopeIncarnation": scope_incarnation,
                 "nextValue": next_value,
                 "declared": declared,
+                "registryBacked": registry_backed,
             })));
         }
     }
@@ -18606,6 +18620,705 @@ mod guarded_commit_tests {
             .iter()
             .map(|(key, value)| ((*key).to_owned(), value.clone()))
             .collect()
+    }
+
+    fn generated_sequence_declarations() -> BTreeMap<String, crate::manifest::SequenceDeclaration> {
+        BTreeMap::from([(
+            "jobs".to_owned(),
+            crate::manifest::SequenceDeclaration {
+                name: "jobs".to_owned(),
+                scope_table: "parents".to_owned(),
+                scope_access: crate::manifest::SequenceScopeAccess::ExistingOwner(
+                    crate::manifest::SequenceExistingOwnerAccess {
+                        kind: "existing-owner.v1".to_owned(),
+                        owner_field: "owner".to_owned(),
+                    },
+                ),
+            },
+        )])
+    }
+
+    fn generated_sequence_database() -> LocalDatabase {
+        let mut db = relation_database();
+        db.install_sequence_declarations(generated_sequence_declarations(), false)
+            .expect("fresh function generation enrolls its empty scope table");
+        db
+    }
+
+    fn insert_generated_sequence_scope(db: &mut LocalDatabase, owner: &str, title: &str) {
+        db.commit_buffered_writes(
+            &HandlerInput::default(),
+            vec![BufferedWrite::Insert {
+                table: "parents".to_owned(),
+                id: "parent-1".to_owned(),
+                values: object(&[("owner", json!(owner)), ("title", json!(title))]),
+            }],
+            Vec::new(),
+            Value::Null,
+        )
+        .expect("insert generated sequence scope");
+    }
+
+    fn generated_sequence_wwa_plan() -> MutationPlan {
+        let scope = ValueExpr::Arg("parentId".to_owned());
+        let source_id = ValueExpr::Binding("sourceId".to_owned());
+        MutationPlan {
+            steps: vec![
+                MutationStep::Get {
+                    table: "parents".to_owned(),
+                    id: scope.clone(),
+                    bind_as: "scopeOwner".to_owned(),
+                    else_error: Some("SNAPBACK_RELATION_PARENT_UNAVAILABLE".to_owned()),
+                },
+                MutationStep::Guard {
+                    cond: ValueExpr::Binary {
+                        op: crate::manifest::BinaryOp::Eq,
+                        left: Box::new(ValueExpr::Field {
+                            base: Box::new(ValueExpr::Binding("scopeOwner".to_owned())),
+                            key: "owner".to_owned(),
+                        }),
+                        right: Box::new(ValueExpr::AuthUserId),
+                    },
+                    else_error: "SNAPBACK_RELATION_PARENT_UNAVAILABLE".to_owned(),
+                },
+                MutationStep::AllocateSequence {
+                    counter: "jobs".to_owned(),
+                    scope: scope.clone(),
+                    into: "position".to_owned(),
+                },
+                MutationStep::Insert {
+                    table: "children".to_owned(),
+                    values: BTreeMap::from([
+                        ("parentId".to_owned(), scope.clone()),
+                        (
+                            "position".to_owned(),
+                            ValueExpr::Binding("position".to_owned()),
+                        ),
+                        ("body".to_owned(), ValueExpr::Arg("body".to_owned())),
+                    ]),
+                    bind_id_as: Some("sourceId".to_owned()),
+                },
+                MutationStep::AssertSourceChanged {
+                    table: "children".to_owned(),
+                    id: source_id.clone(),
+                    operation: crate::manifest::WriteWithActivitySourceOperation::Insert,
+                },
+                MutationStep::Insert {
+                    table: "activity".to_owned(),
+                    values: BTreeMap::from([
+                        ("parentId".to_owned(), scope),
+                        ("sourceId".to_owned(), source_id),
+                        ("operation".to_owned(), ValueExpr::Literal(json!("insert"))),
+                        ("actualActor".to_owned(), ValueExpr::AuthActorUserId),
+                        ("actorKind".to_owned(), ValueExpr::AuthActivityActorKind),
+                        ("mutationDigest".to_owned(), ValueExpr::ClientMutationDigest),
+                    ]),
+                    bind_id_as: Some("activityId".to_owned()),
+                },
+            ],
+            return_value: Some(ReturnValue::Binding("position".to_owned())),
+        }
+    }
+
+    fn generated_sequence_input(owner: &str, body: &str) -> HandlerInput {
+        HandlerInput {
+            args: json!({ "parentId": "parent-1", "body": body }),
+            auth: AuthInput {
+                user_id: Some(owner.to_owned()),
+                ..AuthInput::default()
+            }
+            .with_activity_provenance(Some(owner), Some("human"), None)
+            .with_client_mutation_digest(Some(&format!("sha256:{}", "0".repeat(64)))),
+            ..HandlerInput::default()
+        }
+    }
+
+    fn sequence_next(db: &LocalDatabase, incarnation: &str) -> Option<i64> {
+        db.conn
+            .query_row(
+                "SELECT next_value FROM _snapback_sequence_counters_v1
+                  WHERE counter_name = 'jobs' AND scope_table = 'parents'
+                    AND scope_row_id = 'parent-1' AND scope_incarnation = ?1",
+                params![incarnation],
+                |row| row.get(0),
+            )
+            .optional()
+            .expect("sequence counter lookup")
+    }
+
+    // @ref LLP 0135#12-allocation-surfaces — the generated WWA plan owns the
+    // allocation branch: dry-run rolls it back, app writes and the counter
+    // commit together, and an exact client-mutation replay is non-executing.
+    #[test]
+    fn generated_sequence_host_plan_is_atomic_gapless_and_exactly_replayable() {
+        let mut db = generated_sequence_database();
+        insert_generated_sequence_scope(&mut db, "user-1", "scope");
+        let incarnation = DbRead::Live(&db)
+            .active_relation_incarnation("parents", "parent-1")
+            .unwrap()
+            .expect("active parent incarnation");
+        let plan = generated_sequence_wwa_plan();
+        let input = generated_sequence_input("user-1", "first");
+
+        let preview = db
+            .dry_run_mutation(&plan, &input)
+            .expect("generated WWA dry-run");
+        assert_eq!(preview.commit.output.result, json!(1));
+        assert_eq!(preview.commit.sequence_allocations[0].value, 1);
+        assert_eq!(preview.generated_ids.len(), 2, "source plus activity ids");
+        assert_eq!(
+            sequence_next(&db, &incarnation),
+            None,
+            "dry-run burns no value"
+        );
+        assert_eq!(db.scan_table("children", 10, 0).unwrap().total, 0);
+        assert_eq!(db.scan_table("activity", 10, 0).unwrap().total, 0);
+
+        let identity = ClientMutationIdentity::new("cm_generated_sequence", "addJob", &input);
+        let fresh = db
+            .execute_mutation_idempotent(&plan, &input, &identity)
+            .expect("fresh generated WWA allocation");
+        assert_eq!(fresh.output.result, json!(1));
+        assert_eq!(fresh.output.changed_count, 2);
+        assert_eq!(fresh.sequence_allocations.len(), 1);
+        assert_eq!(fresh.sequence_allocations[0].value, 1);
+        assert_eq!(sequence_next(&db, &incarnation), Some(2));
+
+        let replay = db
+            .execute_mutation_idempotent(&plan, &input, &identity)
+            .expect("exact generated WWA replay");
+        assert_eq!(replay.output, fresh.output);
+        assert_eq!(replay.sequence_allocations, fresh.sequence_allocations);
+        assert!(replay.changes.is_empty());
+        assert_eq!(sequence_next(&db, &incarnation), Some(2));
+
+        let second = db
+            .execute_mutation(
+                &generated_sequence_wwa_plan(),
+                &generated_sequence_input("user-1", "second"),
+            )
+            .expect("next generated WWA allocation");
+        assert_eq!(second.output.result, json!(2));
+        assert_eq!(sequence_next(&db, &incarnation), Some(3));
+
+        let failing = MutationPlan {
+            steps: vec![
+                MutationStep::AllocateSequence {
+                    counter: "jobs".to_owned(),
+                    scope: ValueExpr::Literal(json!("parent-1")),
+                    into: "position".to_owned(),
+                },
+                MutationStep::Insert {
+                    table: "children".to_owned(),
+                    values: BTreeMap::from([
+                        (
+                            "parentId".to_owned(),
+                            ValueExpr::Literal(json!("missing-parent")),
+                        ),
+                        (
+                            "position".to_owned(),
+                            ValueExpr::Binding("position".to_owned()),
+                        ),
+                        (
+                            "body".to_owned(),
+                            ValueExpr::Literal(json!("must roll back")),
+                        ),
+                    ]),
+                    bind_id_as: None,
+                },
+            ],
+            return_value: Some(ReturnValue::Binding("position".to_owned())),
+        };
+        let error = db
+            .execute_mutation(&failing, &HandlerInput::default())
+            .expect_err("later app-write refusal rolls the allocation back");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_RELATION_PARENT_UNAVAILABLE"
+        );
+        assert_eq!(sequence_next(&db, &incarnation), Some(3));
+    }
+
+    #[test]
+    fn generated_sequence_scope_refusals_are_byte_identical() {
+        let plan = generated_sequence_wwa_plan();
+        let input = generated_sequence_input("user-2", "hidden");
+
+        let mut missing_db = generated_sequence_database();
+        let missing = missing_db
+            .execute_mutation(&plan, &input)
+            .expect_err("missing parent refuses");
+
+        let mut hidden_db = generated_sequence_database();
+        insert_generated_sequence_scope(&mut hidden_db, "user-1", "hidden");
+        let hidden = hidden_db
+            .execute_mutation(&plan, &input)
+            .expect_err("wrong owner refuses");
+
+        assert_eq!(
+            serde_json::to_vec(&missing.diagnostic).unwrap(),
+            serde_json::to_vec(&hidden.diagnostic).unwrap(),
+        );
+        for db in [&missing_db, &hidden_db] {
+            let counters: i64 = db
+                .conn
+                .query_row(
+                    "SELECT count(*) FROM _snapback_sequence_counters_v1",
+                    [],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert_eq!(counters, 0);
+        }
+    }
+
+    #[test]
+    fn generated_sequence_exhaustion_and_scope_recreation_are_incarnation_scoped() {
+        let mut db = generated_sequence_database();
+        insert_generated_sequence_scope(&mut db, "user-1", "first");
+        let predecessor = DbRead::Live(&db)
+            .active_relation_incarnation("parents", "parent-1")
+            .unwrap()
+            .expect("predecessor incarnation");
+        db.conn
+            .execute(
+                "INSERT INTO _snapback_sequence_counters_v1(
+                   counter_name, scope_table, scope_row_id, scope_incarnation, next_value
+                 ) VALUES('jobs', 'parents', 'parent-1', ?1, ?2)",
+                params![
+                    predecessor,
+                    i64::try_from(SEQUENCE_MAX_SAFE_INTEGER).unwrap()
+                ],
+            )
+            .unwrap();
+        let allocate = MutationPlan {
+            steps: vec![MutationStep::AllocateSequence {
+                counter: "jobs".to_owned(),
+                scope: ValueExpr::Literal(json!("parent-1")),
+                into: "position".to_owned(),
+            }],
+            return_value: Some(ReturnValue::Binding("position".to_owned())),
+        };
+        let maximum = db
+            .execute_mutation(&allocate, &HandlerInput::default())
+            .expect("MAX_SAFE_INTEGER is allocatable");
+        assert_eq!(maximum.output.result, json!(SEQUENCE_MAX_SAFE_INTEGER));
+        assert_eq!(
+            sequence_next(&db, &predecessor),
+            Some(i64::try_from(SEQUENCE_MAX_SAFE_INTEGER + 1).unwrap()),
+        );
+        for _ in 0..2 {
+            let error = db
+                .execute_mutation(&allocate, &HandlerInput::default())
+                .expect_err("post-maximum allocation refuses stably");
+            assert_eq!(error.diagnostic.code, "SNAPBACK_SEQUENCE_EXHAUSTED");
+        }
+
+        db.commit_buffered_writes(
+            &HandlerInput::default(),
+            vec![BufferedWrite::Delete {
+                table: "parents".to_owned(),
+                id: "parent-1".to_owned(),
+            }],
+            Vec::new(),
+            Value::Null,
+        )
+        .expect("delete predecessor scope");
+        insert_generated_sequence_scope(&mut db, "user-1", "successor");
+        let successor = DbRead::Live(&db)
+            .active_relation_incarnation("parents", "parent-1")
+            .unwrap()
+            .expect("successor incarnation");
+        assert_ne!(successor, predecessor);
+        let restarted = db
+            .execute_mutation(&allocate, &HandlerInput::default())
+            .expect("successor incarnation restarts at one");
+        assert_eq!(restarted.output.result, json!(1));
+        let identities: i64 = db
+            .conn
+            .query_row(
+                "SELECT count(*) FROM _snapback_sequence_counters_v1
+                  WHERE counter_name = 'jobs' AND scope_table = 'parents'
+                    AND scope_row_id = 'parent-1'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(identities, 2);
+    }
+
+    fn item_sequence_declarations() -> BTreeMap<String, crate::manifest::SequenceDeclaration> {
+        BTreeMap::from([(
+            "positions".to_owned(),
+            crate::manifest::SequenceDeclaration {
+                name: "positions".to_owned(),
+                scope_table: "items".to_owned(),
+                scope_access: crate::manifest::SequenceScopeAccess::ExistingOwner(
+                    crate::manifest::SequenceExistingOwnerAccess {
+                        kind: "existing-owner.v1".to_owned(),
+                        owner_field: "title".to_owned(),
+                    },
+                ),
+            },
+        )])
+    }
+
+    // Function/schema activation ordering is source-owned: an empty scope can
+    // enroll before seed, predecessor relation authority can be reused, but a
+    // new successor relation cannot silently bless brownfield sequence rows.
+    #[test]
+    fn sequence_enrollment_orders_fresh_brownfield_and_relation_activation() {
+        let mut fresh = database();
+        fresh
+            .install_sequence_declarations(item_sequence_declarations(), false)
+            .expect("functions-before-seed enrolls an empty scope");
+        fresh
+            .seed(SeedData {
+                tables: BTreeMap::from([(
+                    "items".to_owned(),
+                    vec![object(&[
+                        ("_id", json!("scope")),
+                        ("title", json!("fresh")),
+                    ])],
+                )]),
+            })
+            .expect("fresh seed follows enrollment");
+
+        let mut brownfield = database();
+        brownfield
+            .seed(SeedData {
+                tables: BTreeMap::from([(
+                    "items".to_owned(),
+                    vec![object(&[("_id", json!("scope")), ("title", json!("old"))])],
+                )]),
+            })
+            .unwrap();
+        let error = brownfield
+            .install_sequence_declarations(item_sequence_declarations(), false)
+            .expect_err("raw seed-before-functions requires reviewed backfill");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_RELATION_ACTIVATION_BACKFILL_REQUIRED"
+        );
+
+        let mut relation_predecessor = relation_database();
+        insert_generated_sequence_scope(&mut relation_predecessor, "user-1", "existing");
+        relation_predecessor
+            .install_sequence_declarations(generated_sequence_declarations(), false)
+            .expect("an already-active relation parent is trusted predecessor authority");
+
+        let mut simultaneous = database();
+        simultaneous
+            .seed(SeedData {
+                tables: BTreeMap::from([(
+                    "items".to_owned(),
+                    vec![object(&[("_id", json!("scope")), ("title", json!("old"))])],
+                )]),
+            })
+            .unwrap();
+        let mut successor_schema = schema();
+        successor_schema.tables.push(TableManifest {
+            name: "children".to_owned(),
+            fields: vec![
+                FieldManifest {
+                    name: "itemId".to_owned(),
+                    field_type: FieldType::Id {
+                        table: "items".to_owned(),
+                    },
+                    optional: false,
+                },
+                FieldManifest {
+                    name: "itemIncarnation".to_owned(),
+                    field_type: FieldType::RelationIncarnation {
+                        foreign_key_field: "itemId".to_owned(),
+                        parent_table: "items".to_owned(),
+                    },
+                    optional: false,
+                },
+            ],
+            indexes: Vec::new(),
+            syncable: true,
+            permission_backing: false,
+            permission_fields: None,
+            search_indexes: Vec::new(),
+            membership: None,
+            asset_sharing: None,
+        });
+        let tx = simultaneous.conn.transaction().unwrap();
+        let error = preflight_sequence_enrollments(
+            &tx,
+            &successor_schema,
+            &BTreeSet::new(),
+            &BTreeMap::new(),
+            &item_sequence_declarations(),
+        )
+        .expect_err("a simultaneous successor relation is not predecessor authority");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_RELATION_ACTIVATION_BACKFILL_REQUIRED"
+        );
+        tx.rollback().unwrap();
+    }
+
+    #[test]
+    fn sequence_enrollment_restore_retirement_and_re_adoption_fail_closed() {
+        let mut db = database();
+        db.install_sequence_declarations(item_sequence_declarations(), false)
+            .unwrap();
+        db.seed(SeedData {
+            tables: BTreeMap::from([(
+                "items".to_owned(),
+                vec![object(&[
+                    ("_id", json!("scope")),
+                    ("title", json!("active")),
+                ])],
+            )]),
+        })
+        .unwrap();
+
+        db.conn
+            .execute(
+                "DELETE FROM _snapback_sequence_scope_enrollments_v1 WHERE table_name = 'items'",
+                [],
+            )
+            .unwrap();
+        let error = match db.detached_read_snapshot() {
+            Ok(_) => panic!("detached restore must require the enrollment marker"),
+            Err(error) => error,
+        };
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_RELATION_ACTIVATION_BACKFILL_REQUIRED"
+        );
+        db.conn
+            .execute(
+                "INSERT INTO _snapback_sequence_scope_enrollments_v1(table_name, enrolled_by)
+                 VALUES('items', 'reviewed-test')",
+                [],
+            )
+            .unwrap();
+        let incarnation = DbRead::Live(&db)
+            .active_relation_incarnation("items", "scope")
+            .unwrap()
+            .unwrap();
+        db.conn
+            .execute(
+                "INSERT INTO _snapback_sequence_counters_v1(
+                   counter_name, scope_table, scope_row_id, scope_incarnation, next_value
+                 ) VALUES('orphanedCounter', 'items', 'scope', ?1, 1)",
+                params![incarnation],
+            )
+            .unwrap();
+        let error = match db.detached_read_snapshot() {
+            Ok(_) => panic!("detached restore must reject orphaned protected counter state"),
+            Err(error) => error,
+        };
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_SEQUENCE_ACTIVATION_STATE_INVALID"
+        );
+
+        let mut retirement = database();
+        retirement
+            .install_sequence_declarations(item_sequence_declarations(), false)
+            .unwrap();
+        retirement
+            .seed(SeedData {
+                tables: BTreeMap::from([(
+                    "items".to_owned(),
+                    vec![object(&[
+                        ("_id", json!("scope")),
+                        ("title", json!("retired")),
+                    ])],
+                )]),
+            })
+            .unwrap();
+        retirement
+            .install_sequence_declarations(BTreeMap::new(), false)
+            .expect("retirement with no counter state removes its marker");
+        let markers: i64 = retirement
+            .conn
+            .query_row(
+                "SELECT count(*) FROM _snapback_sequence_scope_enrollments_v1
+                  WHERE table_name = 'items'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(markers, 0);
+        let error = retirement
+            .install_sequence_declarations(item_sequence_declarations(), false)
+            .expect_err("re-adoption requires fresh reviewed authority");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_RELATION_ACTIVATION_BACKFILL_REQUIRED"
+        );
+    }
+
+    #[test]
+    fn sequence_exact_active_restart_recovers_marker_but_counter_retarget_refuses() {
+        let mut restart = database();
+        restart
+            .install_sequence_declarations(item_sequence_declarations(), false)
+            .unwrap();
+        restart
+            .seed(SeedData {
+                tables: BTreeMap::from([(
+                    "items".to_owned(),
+                    vec![object(&[
+                        ("_id", json!("scope")),
+                        ("title", json!("active")),
+                    ])],
+                )]),
+            })
+            .unwrap();
+        restart
+            .conn
+            .execute(
+                "DELETE FROM _snapback_sequence_scope_enrollments_v1 WHERE table_name = 'items'",
+                [],
+            )
+            .unwrap();
+        let error = restart
+            .install_sequence_declarations(item_sequence_declarations(), false)
+            .expect_err("untrusted publication cannot recover a missing active marker");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_RELATION_ACTIVATION_BACKFILL_REQUIRED"
+        );
+        restart
+            .install_sequence_declarations(item_sequence_declarations(), true)
+            .expect("the exact active generation may recover its missing marker on restart");
+
+        let allocate = MutationPlan {
+            steps: vec![MutationStep::AllocateSequence {
+                counter: "positions".to_owned(),
+                scope: ValueExpr::Literal(json!("scope")),
+                into: "position".to_owned(),
+            }],
+            return_value: Some(ReturnValue::Binding("position".to_owned())),
+        };
+        restart
+            .execute_mutation(&allocate, &HandlerInput::default())
+            .expect("create protected counter state");
+
+        let removal = restart
+            .install_sequence_declarations(BTreeMap::new(), false)
+            .expect_err("declaration removal cannot orphan protected counter state");
+        assert_eq!(
+            removal.diagnostic.code,
+            "SNAPBACK_SEQUENCE_ACTIVATION_STATE_INVALID"
+        );
+        let mut retargeted = item_sequence_declarations();
+        let declaration = retargeted.remove("positions").unwrap();
+        retargeted.insert(
+            "successorPositions".to_owned(),
+            crate::manifest::SequenceDeclaration {
+                name: "successorPositions".to_owned(),
+                ..declaration
+            },
+        );
+        let retarget = restart
+            .install_sequence_declarations(retargeted, false)
+            .expect_err("counter rename cannot silently adopt predecessor state");
+        assert_eq!(
+            retarget.diagnostic.code,
+            "SNAPBACK_SEQUENCE_ACTIVATION_STATE_INVALID"
+        );
+    }
+
+    #[test]
+    fn sequence_restore_rejects_fabricated_incarnation_but_keeps_historical_identity() {
+        let mut db = database();
+        db.install_sequence_declarations(item_sequence_declarations(), false)
+            .unwrap();
+        db.seed(SeedData {
+            tables: BTreeMap::from([(
+                "items".to_owned(),
+                vec![object(&[
+                    ("_id", json!("scope")),
+                    ("title", json!("first")),
+                ])],
+            )]),
+        })
+        .unwrap();
+        let fabricated = Uuid::now_v7().to_string();
+        db.conn
+            .execute(
+                "INSERT INTO _snapback_sequence_counters_v1(
+                   counter_name, scope_table, scope_row_id, scope_incarnation, next_value
+                 ) VALUES('positions', 'items', 'scope', ?1, 1)",
+                params![fabricated],
+            )
+            .unwrap();
+        let error = match db.detached_read_snapshot() {
+            Ok(_) => panic!("a fabricated scope incarnation must fail closed on restore"),
+            Err(error) => error,
+        };
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_SEQUENCE_ACTIVATION_STATE_INVALID"
+        );
+        assert_eq!(error.diagnostic.details["registryBacked"], json!(false));
+        db.conn
+            .execute(
+                "DELETE FROM _snapback_sequence_counters_v1 WHERE scope_incarnation = ?1",
+                params![fabricated],
+            )
+            .unwrap();
+
+        let allocate = MutationPlan {
+            steps: vec![MutationStep::AllocateSequence {
+                counter: "positions".to_owned(),
+                scope: ValueExpr::Literal(json!("scope")),
+                into: "position".to_owned(),
+            }],
+            return_value: Some(ReturnValue::Binding("position".to_owned())),
+        };
+        db.execute_mutation(&allocate, &HandlerInput::default())
+            .expect("create legitimate predecessor counter");
+        let predecessor = DbRead::Live(&db)
+            .active_relation_incarnation("items", "scope")
+            .unwrap()
+            .unwrap();
+        db.commit_buffered_writes(
+            &HandlerInput::default(),
+            vec![BufferedWrite::Delete {
+                table: "items".to_owned(),
+                id: "scope".to_owned(),
+            }],
+            Vec::new(),
+            Value::Null,
+        )
+        .unwrap();
+        db.commit_buffered_writes(
+            &HandlerInput::default(),
+            vec![BufferedWrite::Insert {
+                table: "items".to_owned(),
+                id: "scope".to_owned(),
+                values: object(&[("title", json!("second"))]),
+            }],
+            Vec::new(),
+            Value::Null,
+        )
+        .unwrap();
+        let successor = DbRead::Live(&db)
+            .active_relation_incarnation("items", "scope")
+            .unwrap()
+            .unwrap();
+        assert_ne!(successor, predecessor);
+        let historical_active: i64 = db
+            .conn
+            .query_row(
+                "SELECT active FROM _snapback_relation_incarnations_v1
+                  WHERE table_name = 'items' AND row_id = 'scope' AND incarnation = ?1",
+                params![predecessor],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(historical_active, 0);
+        db.detached_read_snapshot()
+            .expect("registry-backed inactive predecessor counter survives restore");
     }
 
     // @ref LLP 0110#protected-relation-incarnation-and-stamping — the

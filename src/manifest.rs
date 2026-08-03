@@ -8341,6 +8341,20 @@ impl CapabilityManifest {
             .into_iter()
             .filter(|capability| capability.is_supported_by(self, facts))
             .collect();
+        if self
+            .supported_capabilities
+            .contains(&TargetCapabilityId::SequenceAllocationV1)
+        {
+            self.capability_gaps
+                .retain(|gap| gap != "sequence_allocation_v1");
+        } else if !self
+            .capability_gaps
+            .iter()
+            .any(|gap| gap == "sequence_allocation_v1")
+        {
+            self.capability_gaps
+                .push("sequence_allocation_v1".to_owned());
+        }
         // @ref LLP 0058#capability-maturity — the maturity map annotates
         // exactly the emitted support set; stable ids are omitted, so a
         // manifest with only stable support serializes without the field.
@@ -8719,10 +8733,6 @@ mod membership_manifest_grammar_tests {
                 CapabilityMaturity::Experimental,
             ),
             (
-                TargetCapabilityId::SequenceAllocationV1,
-                CapabilityMaturity::Experimental,
-            ),
-            (
                 TargetCapabilityId::ResultContractV1,
                 CapabilityMaturity::Experimental,
             ),
@@ -8764,6 +8774,17 @@ mod membership_manifest_grammar_tests {
             ),
         ]);
         assert_eq!(disabled.capability_maturity, experimental);
+        assert!(
+            !disabled
+                .supported_capabilities
+                .contains(&TargetCapabilityId::SequenceAllocationV1)
+        );
+        assert!(
+            disabled
+                .capability_gaps
+                .iter()
+                .any(|gap| gap == "sequence_allocation_v1")
+        );
         assert!(
             disabled
                 .supported_capabilities
@@ -8881,6 +8902,38 @@ mod membership_manifest_grammar_tests {
             if id.is_grandfathered_direct_promotion_eligible() {
                 assert_eq!(id.maturity(), CapabilityMaturity::Experimental);
             }
+        }
+    }
+
+    #[test]
+    fn unpublished_sequence_capability_always_carries_a_structured_gap() {
+        for manifest in [
+            CapabilityManifest::local_v0(Vec::new()),
+            CapabilityManifest::local_v0_instance(Vec::new(), true),
+            CapabilityManifest::remote_service_sqlite_ibex_declared(),
+            CapabilityManifest::cloudflare_do_sqlite_v8(json!({})),
+        ] {
+            assert!(
+                !manifest
+                    .supported_capabilities
+                    .contains(&TargetCapabilityId::SequenceAllocationV1),
+                "{} must not publish the sequence substrate",
+                manifest.target_profile_id,
+            );
+            assert!(
+                manifest
+                    .capability_gaps
+                    .iter()
+                    .any(|gap| gap == "sequence_allocation_v1"),
+                "{} must carry the structured sequence GAP",
+                manifest.target_profile_id,
+            );
+            assert!(
+                !manifest
+                    .capability_maturity
+                    .contains_key(&TargetCapabilityId::SequenceAllocationV1),
+                "unsupported ids do not receive maturity annotations",
+            );
         }
     }
 
