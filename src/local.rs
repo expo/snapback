@@ -49703,15 +49703,17 @@ globalThis.__snapbackHandlers = {
         function.auth_requirement = Some(AuthRequirement::Authenticated);
         function.authorization_dependence = vec![AuthorizationInputDimension::UserId];
 
-        // Capability publication is a later checkpoint. Install the already
-        // validated function directly so this runtime acceptance test cannot
-        // turn the target claim on before its full evidence matrix is green.
-        snapback.functions = FunctionManifest {
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            acknowledged_experimental_capabilities: vec![VECTOR_CAPABILITY.to_owned()],
             functions: vec![function],
             ..FunctionManifest::default()
-        };
-        snapback.functions_loaded = true;
-        snapback.refresh_read_manifests();
+        });
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "qualified vector function must activate: {diagnostics:?}",
+        );
         let input = || HandlerInput {
             args: json!({
                 "vector": [1.0, 0.0],

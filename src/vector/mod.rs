@@ -1,12 +1,12 @@
-//! Numeric, transaction-neutral storage, and static carrier authority for
-//! Accepted LLP 0132's not-yet-published vector profile.
+//! Numeric, transactional storage, rebuild, runtime, and carrier authority for
+//! Accepted LLP 0132's exact portable-vector profile.
 //!
-//! This module deliberately registers no database adapter or executor. Target
-//! capability predicates remain false until separate implementation and
-//! qualification evidence land.
+//! The local SQLite target publishes the qualified exact-scan capability;
+//! derived and hosted targets remain fail-closed until their own evidence.
 //!
-//! @ref LLP 0132#capabilities-targets-and-staging — carriers and primitives
-//!   precede target support and never imply it.
+//! @ref LLP 0132#capabilities-targets-and-staging — the local claim is an
+//!   exact facts/implementation conjunction and never transfers to another
+//!   target by carrier reuse.
 
 pub mod diagnostics;
 pub mod profile;

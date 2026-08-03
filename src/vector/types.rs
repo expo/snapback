@@ -172,8 +172,9 @@ pub struct VectorPageV1 {
     pub items: Vec<VectorItemV1>,
 }
 
-/// Closed facts vocabulary for a future qualified target. Every current
-/// target leaves this block absent and reports the `vector_search_v1` GAP.
+/// Closed facts vocabulary for exact target qualification. The qualified
+/// local target publishes this block; other targets leave it absent and
+/// report the `vector_search_v1` GAP.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct VectorSearchFactsV1 {

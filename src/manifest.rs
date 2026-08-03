@@ -6232,8 +6232,9 @@ pub enum HandlerPlan {
     /// @ref LLP 0073#rust-owned-artifacts-and-operation-carrier — search is a
     /// Query-kind HostPlan and never gains live semantics by implication.
     SearchQuery(SearchQueryPlanV1),
-    /// Non-live exact vector retrieval. This static carrier has no registered
-    /// executor while every target reports `vector_search_v1` as a GAP.
+    /// Non-live exact vector retrieval. The local SQLite target executes this
+    /// plan under `vector_search_v1`; other targets refuse at capability
+    /// admission until independently qualified.
     ///
     /// @ref LLP 0132#query-surface
     VectorQuery(VectorQueryPlanV1),
@@ -7770,8 +7771,10 @@ pub enum TargetCapabilityId {
     /// complete LLP 0136 evidence/publication train lands.
     #[serde(rename = "live_full_text_search_v1")]
     LiveFullTextSearchV1,
-    /// Static LLP 0132 vocabulary only; every target reports a GAP until an
-    /// independent executor/storage/evidence publication lands.
+    /// Exact portable vector search. The local target publishes this at
+    /// experimental maturity only when its dedicated implementation fact and
+    /// complete closed profile are both present; every other target remains
+    /// a structured GAP.
     #[serde(rename = "vector_search_v1")]
     VectorSearchV1,
     #[serde(rename = "result_contract_v1")]
@@ -8086,10 +8089,20 @@ impl TargetCapabilityId {
                                 && facts.max_live_subscriptions_per_table > 0
                         })
             }
-            // @ref LLP 0132#capabilities-targets-and-staging — carrier/authoring
-            // vocabulary is not target support. No current target has the
-            // storage, executor, corpus, or publication evidence.
-            Self::VectorSearchV1 => false,
+            // @ref LLP 0132#capabilities-targets-and-staging — this is an
+            // exact conjunction, not an inference from vector-shaped schema
+            // carriers or generic HostPlan/SQLite support. Only the qualified
+            // local profile registers the executor, and its closed fact block
+            // must match every normative profile field byte-for-byte.
+            Self::VectorSearchV1 => {
+                facts.vector_search_v1_registered
+                    && facts.host_plan_runtime
+                    && facts.mutation_read_set_validator_registered
+                    && manifest.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
+                    && manifest.storage_engine == "sqlite"
+                    && manifest.vector_search.as_ref()
+                        == Some(&VectorSearchFactsV1::local_v1())
+            }
             Self::ResultContractV1 => facts.result_contract_v1_registered,
             // @ref LLP 0133#the-bounded-skew-opt-in — this fact names only
             //   the lane-L declaration/admission/check/receipt policy. Lane Q
@@ -8333,6 +8346,7 @@ pub struct TargetCapabilityFacts {
     migration_keyset_scan_v1_registered: bool,
     full_text_search_v1_registered: bool,
     live_full_text_search_v1_registered: bool,
+    vector_search_v1_registered: bool,
     inline_handler_v1_registered: bool,
     jobs_one_off_v1_registered: bool,
     result_contract_v1_registered: bool,
@@ -8391,6 +8405,12 @@ impl TargetCapabilityFacts {
             // Authoring and closed carriers exist, but no wire/runtime/live
             // acceptance or publication receipt exists in this checkpoint.
             live_full_text_search_v1_registered: false,
+            // @ref LLP 0132#capabilities-targets-and-staging — the local
+            // exact SQLite adapter, synchronous maintenance, resumable
+            // rebuild, runtime lane, and complete acceptance corpus are one
+            // registered implementation. Facts below still have to match
+            // exactly before the id can enter supportedCapabilities.
+            vector_search_v1_registered: true,
             inline_handler_v1_registered: true,
             // @ref LLP 0070#non-goals-and-claim-boundary — registered means
             // the local enqueue/drain implementation exists; the id's
@@ -8423,6 +8443,7 @@ impl TargetCapabilityFacts {
         Self {
             bounded_children_v1_registered: false,
             sequence_allocation_v1_registered: false,
+            vector_search_v1_registered: false,
             ibex_ctx_db_host_bridge_available: false,
             // The conformance profile has no jobs worker/drain instance;
             // fail closed like the other local-only registrations.
@@ -8666,8 +8687,8 @@ pub struct CapabilityManifest {
         skip_serializing_if = "Option::is_none"
     )]
     pub live_full_text_search: Option<LiveFullTextSearchFactsV1>,
-    /// Closed future-target facts. Absent on every current target while the
-    /// structured `vector_search_v1` GAP is present.
+    /// Closed exact-vector facts. Present on the qualified local target and
+    /// absent everywhere that reports the structured `vector_search_v1` GAP.
     #[serde(
         default,
         rename = "vectorSearch",
@@ -9122,7 +9143,9 @@ impl CapabilityManifest {
             standard_patterns: Some(StandardPatternFacts::local_v1()),
             full_text_search: Some(FullTextSearchFactsV1::local_v1()),
             live_full_text_search: None,
-            vector_search: None,
+            vector_search: capability_facts
+                .vector_search_v1_registered
+                .then(VectorSearchFactsV1::local_v1),
             assets: Some(crate::assets::AssetTargetFactsV1::local_v1()),
             app_cli_target: Some(AppCliTargetFactsV1::local_v1()),
             supported_query_forms: vec![
@@ -9567,13 +9590,19 @@ impl CapabilityManifest {
         {
             self.capability_gaps
                 .retain(|gap| gap != crate::vector::VECTOR_CAPABILITY);
-        } else if !self
-            .capability_gaps
-            .iter()
-            .any(|gap| gap == crate::vector::VECTOR_CAPABILITY)
-        {
-            self.capability_gaps
-                .push(crate::vector::VECTOR_CAPABILITY.to_owned());
+        } else {
+            // A derived target constructor can start from the local shape,
+            // but it may not inherit target authority merely by retaining a
+            // sibling fact block. Unsupported means absent plus GAP.
+            self.vector_search = None;
+            if !self
+                .capability_gaps
+                .iter()
+                .any(|gap| gap == crate::vector::VECTOR_CAPABILITY)
+            {
+                self.capability_gaps
+                    .push(crate::vector::VECTOR_CAPABILITY.to_owned());
+            }
         }
         // @ref LLP 0058#capability-maturity — the maturity map annotates
         // exactly the emitted support set; stable ids are omitted, so a
@@ -10091,7 +10120,7 @@ mod membership_manifest_grammar_tests {
     }
 
     #[test]
-    fn vector_capability_is_exact_experimental_gap_only_on_every_target() {
+    fn vector_capability_is_exact_on_local_and_gap_only_everywhere_else() {
         let id = TargetCapabilityId::VectorSearchV1;
         assert_eq!(serde_json::to_value(id).unwrap(), json!("vector_search_v1"));
         assert_eq!(
@@ -10103,6 +10132,43 @@ mod membership_manifest_grammar_tests {
         for manifest in [
             CapabilityManifest::local_v0_declared(),
             CapabilityManifest::local_v0_instance(Vec::new(), true),
+        ] {
+            assert!(
+                manifest.supported_capabilities.contains(&id),
+                "{} must publish the qualified local exact-vector profile",
+                manifest.target_profile_id,
+            );
+            assert_eq!(
+                manifest.capability_maturity.get(&id),
+                Some(&CapabilityMaturity::Experimental),
+            );
+            assert_eq!(
+                manifest.vector_search,
+                Some(VectorSearchFactsV1::local_v1()),
+            );
+            assert!(
+                !manifest
+                    .capability_gaps
+                    .iter()
+                    .any(|gap| gap == "vector_search_v1"),
+            );
+            assert_eq!(
+                manifest
+                    .require_capability("vector_search_v1")
+                    .expect_err("experimental vector support requires acknowledgment")
+                    .diagnostic
+                    .code,
+                "SNAPBACK_CAPABILITY_UNSUPPORTED",
+            );
+            manifest
+                .require_capability_acknowledging(
+                    "vector_search_v1",
+                    &BTreeSet::from([TargetCapabilityId::VectorSearchV1]),
+                )
+                .expect("acknowledged experimental vector support admits");
+        }
+
+        for manifest in [
             CapabilityManifest::remote_service_sqlite_ibex_declared(),
             CapabilityManifest::conformance_workerd_v8(json!({})),
             CapabilityManifest::cloudflare_do_sqlite_v8(json!({})),
@@ -10120,6 +10186,22 @@ mod membership_manifest_grammar_tests {
                 manifest.target_profile_id
             );
         }
+
+        let local = CapabilityManifest::local_v0_declared();
+        let mut missing_registration = TargetCapabilityFacts::local_auth_aware();
+        missing_registration.vector_search_v1_registered = false;
+        assert!(!id.is_supported_by(&local, missing_registration));
+
+        let mut tampered = local.clone();
+        tampered
+            .vector_search
+            .as_mut()
+            .expect("local vector facts")
+            .accelerator = "ann".to_owned();
+        assert!(!id.is_supported_by(
+            &tampered,
+            TargetCapabilityFacts::local_auth_aware(),
+        ));
     }
 
     fn snapshot_node_fixture(
@@ -10453,6 +10535,10 @@ mod membership_manifest_grammar_tests {
             ),
             (
                 TargetCapabilityId::RegisteredBundleBootV1,
+                CapabilityMaturity::Experimental,
+            ),
+            (
+                TargetCapabilityId::VectorSearchV1,
                 CapabilityMaturity::Experimental,
             ),
             (
