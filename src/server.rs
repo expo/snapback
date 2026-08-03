@@ -17827,15 +17827,9 @@ async fn host_ops_handler_inner(
             .await?;
         }
         let secret_scope = match request.operation.as_str() {
-            "telemetry.events" => Some(
-                crate::admin_secret_read::SecretReadScope::TelemetryEvents,
-            ),
-            "telemetry.export" => Some(
-                crate::admin_secret_read::SecretReadScope::TelemetryExport,
-            ),
-            "errors.issue" => Some(
-                crate::admin_secret_read::SecretReadScope::ErrorsIssue,
-            ),
+            "telemetry.events" => Some(crate::admin_secret_read::SecretReadScope::TelemetryEvents),
+            "telemetry.export" => Some(crate::admin_secret_read::SecretReadScope::TelemetryExport),
+            "errors.issue" => Some(crate::admin_secret_read::SecretReadScope::ErrorsIssue),
             _ => None,
         };
         let secret_scopes = secret_scope
@@ -17895,13 +17889,16 @@ async fn host_ops_handler_inner(
             {
                 Ok(response) => {
                     let rows = response.issues.len();
-                    (serde_json::to_value(response).map_err(|_| {
+                    (
+                        serde_json::to_value(response).map_err(|_| {
                         SnapbackError::error(
                             "SNAPBACK_ERRORS_QUERY_SERIALIZATION_FAILED",
                             "telemetry",
                             "failed to serialize the errors issues response",
                         )
-                    }), rows)
+                        }),
+                        rows,
+                    )
                 }
                 Err(error) => (Err(error), 0),
             },
@@ -17914,13 +17911,16 @@ async fn host_ops_handler_inner(
                     let rows = 1usize
                         .saturating_add(response.exemplars.len())
                         .saturating_add(response.transitions.len());
-                    (serde_json::to_value(response).map_err(|_| {
+                    (
+                        serde_json::to_value(response).map_err(|_| {
                         SnapbackError::error(
                             "SNAPBACK_ERRORS_QUERY_SERIALIZATION_FAILED",
                             "telemetry",
                             "failed to serialize the errors issue response",
                         )
-                    }), rows)
+                        }),
+                        rows,
+                    )
                 }
                 Err(error) => (Err(error), 0),
             },
@@ -17929,13 +17929,15 @@ async fn host_ops_handler_inner(
                     crate::errors_query::ErrorsTransitionRequestV1,
                 >(&request)
                 .and_then(|input| runtime.telemetry.transition_errors(&input))
-                .and_then(|response| serde_json::to_value(response).map_err(|_| {
+                .and_then(|response| {
+                    serde_json::to_value(response).map_err(|_| {
                     SnapbackError::error(
                         "SNAPBACK_ERRORS_QUERY_SERIALIZATION_FAILED",
                         "telemetry",
                         "failed to serialize the errors transition response",
                     )
-                }));
+                    })
+                });
                 (outcome, 0)
             }
             _ => {
@@ -19258,6 +19260,48 @@ async fn app_bundle(
         .await
         .map_err(ApiError::from)?
     };
+    let mixed_children = if mode == BundleMode::Register
+        && (request.format_version.is_some()
+            || request.profile.is_some()
+            || request.plan_hash.is_some()
+            || entry.mixed_group_eligible)
+    {
+        let entry_for_admission = entry.clone();
+        let format_version = request.format_version;
+        let profile = request.profile.clone();
+        let plan_hash = request.plan_hash.clone();
+        Some(
+            with_snapback(&state, move |snapback| {
+                bundle::admit_mixed_profile_v2(
+                    &entry_for_admission,
+                    format_version,
+                    profile.as_deref(),
+                    plan_hash.as_deref(),
+                    |name| snapback.function(name).ok().cloned(),
+                )
+                .map_err(|code| {
+                    SnapbackError::error(
+                        code,
+                        "realtime",
+                        "mixed bundle plan identity refused".to_owned(),
+                    )
+                })
+            })
+            .await
+            .map_err(ApiError::from)?,
+        )
+    } else {
+        if request.format_version.is_some()
+            || request.profile.is_some()
+            || request.plan_hash.is_some()
+        {
+            return Err(bundle_refusal(
+                code::MODE_INVALID,
+                "formatVersion/profile/planHash are reserved for mixed register bundles",
+            ));
+        }
+        None
+    };
     if mode == BundleMode::Register
         && authority.active_mode() == AuthMode::Sessions
         && request.authorization_namespaces.len() != entry.queries.len()
@@ -19330,6 +19374,9 @@ async fn app_bundle(
                 args_identity,
                 auth_invalidation_protocol: request.auth_invalidation_protocol,
                 authorization_namespaces: request.authorization_namespaces.clone(),
+                wire_format_version: request.format_version,
+                wire_profile: request.profile.clone(),
+                plan_hash: request.plan_hash.clone(),
             };
             let admission_outcome = runtime
                 .bundle_pending
@@ -19387,6 +19434,7 @@ async fn app_bundle(
                         effect_fence: prepared_open.bound.effect_fence(&opened.grant_id),
                         invalidation_connection: opened.grant.authorization_invalidation.clone(),
                         authorization_namespaces: request.authorization_namespaces.clone(),
+                        mixed_children: mixed_children.clone(),
                     };
                     let evaluated = {
                         let entry = entry.clone();
@@ -19469,6 +19517,7 @@ async fn app_bundle(
                         effect_fence,
                         invalidation_connection: invalidation_connection.clone(),
                         authorization_namespaces: request.authorization_namespaces.clone(),
+                        mixed_children: mixed_children.clone(),
                     };
                     let evaluated = {
                         let entry = entry.clone();
@@ -24119,6 +24168,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         // incarnation changes; unavailable parents and effectless activity
         // writes likewise conflict with the current durable state.
         | "SNAPBACK_BOUNDED_CHILDREN_PARENT_RESTART_REQUIRED"
+        | "SNAPBACK_SNAPSHOT_BATCH_RESTART_REQUIRED"
         | "SNAPBACK_RELATION_PARENT_UNAVAILABLE"
         | "SNAPBACK_RELATION_ACTIVATION_BACKFILL_REQUIRED"
         | "SNAPBACK_SEQUENCE_ACTIVATION_STATE_INVALID"
@@ -24415,6 +24465,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_RANDOM_UNAVAILABLE"
         | "SNAPBACK_RELATIONAL_CURSOR_MINT_UNAVAILABLE"
         | "SNAPBACK_BOUNDED_CHILDREN_CURSOR_MINT_UNAVAILABLE"
+        | "SNAPBACK_SNAPSHOT_BATCH_CURSOR_MINT_UNAVAILABLE"
         | "SNAPBACK_STANDARD_PATTERN_CURSOR_MINT_UNAVAILABLE"
         // LLP 0081 §4: the persisted fence and barrier failures are
         // transient serving refusals — the barrier clears at a terminal
@@ -24622,6 +24673,8 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID"
         | "SNAPBACK_SNAPSHOT_BATCH_NODE_INELIGIBLE"
         | "SNAPBACK_SNAPSHOT_BATCH_CEILING_EXCEEDED"
+        | "SNAPBACK_SNAPSHOT_BATCH_RESULT_CONTRACT_INVALID"
+        | "SNAPBACK_SNAPSHOT_BATCH_CURSOR_BUDGET_EXCEEDED"
         | "SNAPBACK_HOST_OP_CLI_ONLY"
         | "SNAPBACK_HOST_OP_FUNCTION_KIND_UNSUPPORTED"
         | "SNAPBACK_HOST_OP_FUNCTION_UNKNOWN"
@@ -24741,6 +24794,8 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_BOUNDED_CHILDREN_RESULT_CONTRACT_INVALID"
         | "SNAPBACK_BOUNDED_CHILDREN_CURSOR_INVALID"
         | "SNAPBACK_BOUNDED_CHILDREN_LIVE_CURSOR_UNSUPPORTED"
+        | "SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID"
+        | "SNAPBACK_SNAPSHOT_BATCH_LIVE_CURSOR_UNSUPPORTED"
         | "SNAPBACK_ACTIVITY_CLIENT_MUTATION_REQUIRED"
         | "SNAPBACK_RELATION_SCHEMA_INVALID"
         | "SNAPBACK_RELATION_FOREIGN_KEY_INVALID"
@@ -38589,6 +38644,10 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
         "SNAPBACK_SNAPSHOT_BATCH_NODE_INELIGIBLE",
         "SNAPBACK_SNAPSHOT_BATCH_CEILING_EXCEEDED",
+        "SNAPBACK_SNAPSHOT_BATCH_RESULT_CONTRACT_INVALID",
+        "SNAPBACK_SNAPSHOT_BATCH_CURSOR_BUDGET_EXCEEDED",
+        "SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID",
+        "SNAPBACK_SNAPSHOT_BATCH_LIVE_CURSOR_UNSUPPORTED",
         "SNAPBACK_SEARCH_CURSOR_RESTART",
         "SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID",
         "SNAPBACK_SEARCH_MAINTENANCE_LIMIT",
@@ -38926,6 +38985,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED",
         "SNAPBACK_RELATIONAL_DUPLICATE_UNIQUE_KEY",
         "SNAPBACK_BOUNDED_CHILDREN_PARENT_RESTART_REQUIRED",
+        "SNAPBACK_SNAPSHOT_BATCH_RESTART_REQUIRED",
         "SNAPBACK_RELATION_PARENT_UNAVAILABLE",
         "SNAPBACK_RELATION_ACTIVATION_BACKFILL_REQUIRED",
         "SNAPBACK_SEQUENCE_ACTIVATION_STATE_INVALID",
@@ -39035,6 +39095,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_HOST_FETCH_UNSUPPORTED",
         "SNAPBACK_RELATIONAL_CURSOR_MINT_UNAVAILABLE",
         "SNAPBACK_BOUNDED_CHILDREN_CURSOR_MINT_UNAVAILABLE",
+        "SNAPBACK_SNAPSHOT_BATCH_CURSOR_MINT_UNAVAILABLE",
         "SNAPBACK_STANDARD_PATTERN_CURSOR_MINT_UNAVAILABLE",
         "SNAPBACK_MIGRATION_FENCE_CLOSED",
         "SNAPBACK_MIGRATION_BARRIER_FAILED",
@@ -39595,10 +39656,7 @@ globalThis.__snapbackHandlers = {
                 StatusCode::BAD_REQUEST,
             ),
             ("SNAPBACK_VECTOR_VALUE_INVALID", StatusCode::BAD_REQUEST),
-            (
-                "SNAPBACK_VECTOR_MAINTENANCE_LIMIT",
-                StatusCode::BAD_REQUEST,
-            ),
+            ("SNAPBACK_VECTOR_MAINTENANCE_LIMIT", StatusCode::BAD_REQUEST),
             ("SNAPBACK_VECTOR_CORPUS_BOUND", StatusCode::CONFLICT),
             (
                 "SNAPBACK_VECTOR_INDEX_UNAVAILABLE",

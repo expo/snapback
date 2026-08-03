@@ -5,7 +5,11 @@
 **Systems:** Sync, Realtime, Auth, Storage, API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-12
-**Revised:** 2026-08-03 (Accepted LLP 0157 boundary: a composed materialization
+**Revised:** 2026-08-03 (Accepted LLP 0166 boundary: store-policy layer
+composes over this RFC's state — payload compaction preserves §GC
+survivals, wipe maps to owner transitions with LLP 0059 participation,
+unparseable reset rotates the store identity; demand never overrides a
+transition owned here.) 2026-08-03 (Accepted LLP 0157 boundary: a composed materialization
 uses its `qmk1` as this RFC's opaque `query_key` producer, while this RFC keeps
 instance allocation, authorization witnesses, dispositions, and barriers);
 2026-08-01 (dev-mode scope clarified, per Charlie Cheever's
@@ -2395,3 +2399,18 @@ minimum commit floors, pending-scope dispositions, terminal retirement, and
 the LLP 0059 participant barrier. `sessionGeneration` remains observability,
 not materialization equality. This boundary promotes no implementation or
 capability fact.
+
+**Dated boundary note (2026-08-03, LLP 0166 acceptance):** Accepted
+LLP 0166 owns the store-policy layer (registration demand, release
+grace, budget compaction, the multi-context demand broker) over this
+RFC's authorization state. Its payload compaction is custody reclamation
+only: it preserves the `query_instance_id`, fences, tombstones, and
+frontiers exactly as §GC requires, never lowers or releases a
+disposition, and is never a substitute for a barrier or disposition.
+Its `wipe` scoping maps client-wide transitions to this RFC's
+client-wide `delete` with the lease artifact as an LLP 0059 coordinator
+participant, and its unparseable-store destructive reset rotates the
+store identity (a fresh `client_store_id`), so this RFC's never-reuse
+holds by namespace rotation. Registration demand never resurrects,
+delays, or downgrades any transition owned here. This boundary promotes
+no implementation or capability fact.

@@ -11,7 +11,13 @@ use snapback::bench::{BenchConfig, run};
 
 fn main() -> anyhow::Result<()> {
     let json = std::env::args().any(|arg| arg == "--json");
-    let report = run(&BenchConfig::full())?;
+    let step0 = std::env::args().any(|arg| arg == "--agent-safe-step0");
+    let config = if step0 {
+        BenchConfig::agent_safe_step0()
+    } else {
+        BenchConfig::full()
+    };
+    let report = run(&config)?;
 
     if json {
         println!("{}", serde_json::to_string_pretty(&report)?);
@@ -37,6 +43,26 @@ fn main() -> anyhow::Result<()> {
     println!(
         "  single-writer throughput:          {:>10.0} mut/s (serial commits under the global mutex)",
         report.single_writer_mutations_per_sec
+    );
+    println!(
+        "    mutation latency p50 / p95:      {:>10.1} / {:.1} µs",
+        report.single_writer_mutation_p50_us, report.single_writer_mutation_p95_us
+    );
+    println!(
+        "  current point read p50 / p95:      {:>10.1} / {:.1} µs",
+        report.current_point_read_p50_us, report.current_point_read_p95_us
+    );
+    println!(
+        "  current range read p50 / p95:      {:>10.1} / {:.1} µs",
+        report.current_range_read_p50_us, report.current_range_read_p95_us
+    );
+    println!(
+        "  current plan read p50 / p95:       {:>10.1} / {:.1} µs",
+        report.current_query_plan_read_p50_us, report.current_query_plan_read_p95_us
+    );
+    println!(
+        "  allocated / retained bytes:        {:>10} / {} per row+operation",
+        report.allocated_write_bytes_per_changed_row, report.retained_bytes_per_changed_row
     );
     println!(
         "  matcher cost (skip path):          {:>10.2} µs/sub  (evaluated, not affected)",

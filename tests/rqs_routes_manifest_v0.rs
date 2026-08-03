@@ -170,6 +170,8 @@ fn wall_routes() -> RoutesManifest {
                 )],
                 persist: None,
                 register_group_eligible: true,
+                mixed_group_eligible: false,
+                mixed_profile: None,
             },
             BundleRouteEntry {
                 route: "/ranked/:rank".to_owned(),
@@ -179,6 +181,8 @@ fn wall_routes() -> RoutesManifest {
                 )],
                 persist: None,
                 register_group_eligible: false,
+                mixed_group_eligible: false,
+                mixed_profile: None,
             },
         ],
     }
@@ -414,6 +418,8 @@ fn routes_manifest_admission_refusals_are_coded() {
             queries: vec![query_spec("nope", json!({}))],
             persist: None,
             register_group_eligible: false,
+            mixed_group_eligible: false,
+            mixed_profile: None,
         }]),
         "unknown function",
     );
@@ -424,6 +430,8 @@ fn routes_manifest_admission_refusals_are_coded() {
             queries: vec![query_spec("paintCell", json!({}))],
             persist: None,
             register_group_eligible: false,
+            mixed_group_eligible: false,
+            mixed_profile: None,
         }]),
         "non-query function",
     );
@@ -437,6 +445,8 @@ fn routes_manifest_admission_refusals_are_coded() {
             )],
             persist: None,
             register_group_eligible: false,
+            mixed_group_eligible: false,
+            mixed_profile: None,
         }]),
         "dangling param reference",
     );
@@ -450,6 +460,8 @@ fn routes_manifest_admission_refusals_are_coded() {
             )],
             persist: None,
             register_group_eligible: false,
+            mixed_group_eligible: false,
+            mixed_profile: None,
         }]),
         "reference into an arg with no schema-derived type",
     );
@@ -460,6 +472,8 @@ fn routes_manifest_admission_refusals_are_coded() {
             queries: vec![query_spec("listCells", json!({}))],
             persist: None,
             register_group_eligible: false,
+            mixed_group_eligible: false,
+            mixed_profile: None,
         }]),
         "required arg not covered",
     );
@@ -473,6 +487,8 @@ fn routes_manifest_admission_refusals_are_coded() {
             )],
             persist: None,
             register_group_eligible: true,
+            mixed_group_eligible: false,
+            mixed_profile: None,
         }]),
         "registerGroupEligible with a non-string route-param target",
     );
@@ -487,12 +503,16 @@ fn routes_manifest_admission_refusals_are_coded() {
                 )],
                 persist: None,
                 register_group_eligible: false,
+                mixed_group_eligible: false,
+                mixed_profile: None,
             },
             BundleRouteEntry {
                 route: "/board/wall".to_owned(),
                 queries: vec![query_spec("listCells", json!({ "boardId": "wall" }))],
                 persist: None,
                 register_group_eligible: false,
+                mixed_group_eligible: false,
+                mixed_profile: None,
             },
         ]),
         "overlapping patterns",
@@ -502,6 +522,8 @@ fn routes_manifest_admission_refusals_are_coded() {
         queries: vec![query_spec("listCells", json!({ "boardId": "wall" }))],
         persist: None,
         register_group_eligible: false,
+        mixed_group_eligible: false,
+        mixed_profile: None,
     }]);
     wrong_version.format_version = 2;
     refuses(&mut snapback, wrong_version, "unknown format version");
@@ -510,6 +532,8 @@ fn routes_manifest_admission_refusals_are_coded() {
         queries: vec![query_spec("listCells", json!({ "boardId": "wall" }))],
         persist: None,
         register_group_eligible: false,
+        mixed_group_eligible: false,
+        mixed_profile: None,
     }]);
     wrong_app.app = "elsewhere".to_owned();
     refuses(&mut snapback, wrong_app, "app mismatch");

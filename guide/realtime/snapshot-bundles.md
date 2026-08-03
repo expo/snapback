@@ -4,12 +4,12 @@ id: realtime.snapshot-bundles
 order: 3
 audience: agent-first
 capabilities: [realtime.snapshot-bundles]
-authorities: [llp/0090-resumable-query-snapshots.rfc.md, llp/0092-rqs-manifest-bundle-and-channel-a-contract.spec.md, packages/snapback-client/index.mjs, packages/snapback-codegen/index.mjs]
+authorities: [llp/0090-resumable-query-snapshots.rfc.md, llp/0092-rqs-manifest-bundle-and-channel-a-contract.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-codegen/index.mjs, src/bundle.rs, src/local.rs]
 examples: [demos/public-dashboard]
 status: current
 targets: [local, cloudflare]
 maturity: partial
-reviewed: 2026-07-27
+reviewed: 2026-08-03
 reviewed-commit: HEAD
 ---
 
@@ -23,6 +23,29 @@ carry resumable-query tokens.
 The local target supports read and authenticated register mode. The Cloudflare
 target supports read-mode bundles and token resume; register mode remains
 deferred there.
+
+### Mix live and read-only children without losing the live siblings
+
+On the contributor local target, a route containing at least one generated
+`LiveQuery` and one generated `Query` receives a separate format-2 generated
+group with profile `mixed-route.v2`. Preparing that group still evaluates
+every child at one `commitVersion`. Only the `LiveQuery` children acquire
+subscriptions; ordinary `Query` children return an explicit
+`delivery.kind: "read-only"`, keep snapshot freshness, and never open a later
+ordinary subscription.
+
+The generated reference carries the LLP 0157 plan and per-child node hashes.
+The server rebuilds them from the served manifests before execution. A query's
+plan shape never makes it live: changing only its declaration from `Query` to
+`LiveQuery` changes the identity-bound capability and therefore rotates the
+node and group plan hashes.
+
+Mixed responses are wire `formatVersion: 2`, repeat
+`profile: "mixed-route.v2"` and `planHash`, and report a weakest aggregate of
+`read-only`. This is intentionally separate from the existing all-live
+format-1 group. Capability `mixed_bundle_boot_v2` is Experimental and local-
+only; a target without it refuses mixed-group preparation because an ordinary
+`Query` cannot honestly be upgraded into a live fallback.
 
 ## Declare the route and its query arguments
 

@@ -59,7 +59,7 @@ function primitiveKind(contract) {
   if (contract.kind === 'boolean') return 'boolean';
   if (['string', 'principal', 'assetRef', 'id'].includes(contract.kind)) return 'string';
   if (['integer', 'finiteReal'].includes(contract.kind)) return 'number';
-  if (contract.kind === 'array' || contract.kind === 'vector') return 'array';
+  if (contract.kind === 'array' || contract.kind === 'tuple' || contract.kind === 'vector') return 'array';
   if (contract.kind === 'object') return 'object';
   if (contract.kind === 'literal') {
     if (contract.value === null) return 'null';
@@ -123,6 +123,7 @@ function admitValueContract(contract, depth, budget, where) {
       case 'literal': return ['kind', 'value'];
       case 'json': return ['kind', 'maxDepth', 'maxBytes'];
       case 'array': return ['kind', 'element', 'maxItems'];
+      case 'tuple': return ['kind', 'elements'];
       case 'vector': return ['kind', 'dimensions'];
       case 'union': return ['kind', 'variants'];
       case 'object': return ['kind', 'fields', 'allowExtra'];
@@ -186,6 +187,14 @@ function admitValueContract(contract, depth, budget, where) {
         max: RESULT_CONTRACT_LIMITS_V1.maxArrayItems,
       });
       admitValueContract(contract.element, depth + 1, budget, `${where}.element`);
+      break;
+    case 'tuple':
+      if (!Array.isArray(contract.elements) || contract.elements.length < 1 || contract.elements.length > 8) {
+        throw invalid(`${where}.elements must contain 1–8 entries`);
+      }
+      for (let index = 0; index < contract.elements.length; index += 1) {
+        admitValueContract(contract.elements[index], depth + 1, budget, `${where}.elements[${index}]`);
+      }
       break;
     case 'vector':
       integer(contract.dimensions, `${where}.dimensions`, {
@@ -336,6 +345,13 @@ function valuePath(contract, value, path, depth, budget) {
           depth + 1,
           budget,
         );
+        if (child) return child;
+      }
+      return null;
+    case 'tuple':
+      if (!Array.isArray(value) || value.length !== contract.elements.length) return path;
+      for (let index = 0; index < value.length; index += 1) {
+        const child = valuePath(contract.elements[index], value[index], `${path}[${index}]`, depth + 1, budget);
         if (child) return child;
       }
       return null;

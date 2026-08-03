@@ -1,6 +1,6 @@
 # Wave-1 remainder: implement LLP 0135 — sequence allocation + snapshot-batch composition
 
-**Status:** Open
+**Status:** Closed 2026-08-03
 **Systems:** Runtime, Storage, API, Wire Protocol
 **Related:** LLP 0135 (Accepted 2026-07-31; handler-tier sequence substrate
 implemented 2026-08-02 but unpublished, snapshot half unblocked), LLP 0120
@@ -103,3 +103,18 @@ LLP; LLP 0115 board row updated.
   classifications and did not guess them. Per Charlie's relaxed landing
   cadence, the end-of-wave greening pass owns their batch registration; the
   feature's focused correctness suites remain green.
+
+## Resolution — 2026-08-03
+
+The released snapshot-batch half is complete on the contributor local target:
+exact LLP 0157 plan identity and `sbsb1` bytes, one-snapshot multi-node
+execution, structural parent authorization dedup, sealed tuple results,
+coordinated resume/restart, cursor-free-first-page live replacement, codegen,
+capability support, guide coverage, and executable three-node acceptance all
+land together with the dated LLP 0135 record and LLP 0115 board update.
+
+The sequence substrate had already landed and was verified rather than
+reimplemented. Its intentionally unfinished target-qualification/publication
+work now has the single-purpose follow-up
+`issues/20260803-sequence-allocation-qualification.md`; closing this mixed
+umbrella does not imply `sequence_allocation_v1` support.

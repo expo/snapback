@@ -80,6 +80,9 @@ export declare const v: {
     inner: Inner,
     options?: { maxItems?: number },
   ): Validator<ReadonlyArray<InferValidator<Inner>>, 'Json', false>;
+  tuple<const Elements extends readonly Validator[]>(
+    elements: Elements,
+  ): Validator<{ readonly [Index in keyof Elements]: InferValidator<Elements[Index]> }, 'Json', false>;
   union<const Variants extends readonly Validator[]>(
     variants: Variants,
   ): Validator<InferValidator<Variants[number]>, 'Json', false>;
@@ -683,6 +686,7 @@ export declare function throughScope(spec: {
   scopeIncarnationField: string;
 }): { kind: 'through-scope.v1'; scopeField: string; scopeIncarnationField: string };
 export declare function defineBoundedChildrenQuery(spec: unknown): unknown;
+export declare function defineSnapshotBatchQuery(spec: { nodes: readonly unknown[] }): unknown;
 
 export interface MaintainedProjectionSpec {
   /** Stable plan identity; the row-identity domain across rebuilds. */

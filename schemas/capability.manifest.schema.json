@@ -957,6 +957,7 @@
             "notifications.expoPushSeam",
             "live_subscriptions",
             "mutation_read_set_validation",
+            "mixed_bundle_boot_v2",
             "permission_epoch_resync",
             "registered_bundle_boot_v1",
             "relational_query_v1",

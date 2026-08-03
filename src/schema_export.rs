@@ -28,6 +28,7 @@ use crate::auth::wire::{
     MailboxResponse, MintSessionRequest, RequestCodeRequest, RequestCodeResponse,
     RescueCollidingTableRequest,
 };
+use crate::commit_envelope::{CommitEnvelopeV1, OperationIdentityV1};
 use crate::data_tier::{DataTierCorpusCase, DataTierCorpusManifest, DataTierProfile};
 use crate::deploy::{
     AdapterLifecycleRequest, AdapterLifecycleRequestV2, AdapterLifecycleResponse,
@@ -122,6 +123,16 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "capability.manifest.schema.json",
             schemars::schema_for!(CapabilityManifest),
+        ),
+        // @ref LLP 0163#owned-artifacts — the Rust identity/envelope types are
+        // the source of truth; schema presence is not a capability claim.
+        finish(
+            "operation.identity-v1.schema.json",
+            schemars::schema_for!(OperationIdentityV1),
+        ),
+        finish(
+            "commit.envelope-v1.schema.json",
+            schemars::schema_for!(CommitEnvelopeV1),
         ),
         // The one exported search request schema (LLP 0131 §The search
         // fixture / LLP 0115 CV-5): the Rust parser owns the AST grammar and

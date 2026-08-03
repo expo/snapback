@@ -5,7 +5,11 @@
 **Systems:** Application data API, Query planning, Storage portability, Live Queries, Authorization, Code generation, Maintained projections, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-08-03 (Accepted LLP 0157 boundary: this RFC continues to own
+**Revised:** 2026-08-03 (retention-class dated amendment landed with
+Accepted LLP 0166: the closed set gains `result-transform-snapshot-v1`
+— per-plan, owner-issued, own-fragments-only result transforms under
+LLP 0166 §D7's conformance gate, inheriting opaque-snapshot custody; the
+opaque-snapshot-only rule stands for every other plan.) 2026-08-03 (Accepted LLP 0157 boundary: this RFC continues to own
 `RelationalQueryPlanV1` and its result/cursor semantics; LLP 0157 owns its
 composition-node identity, completeness witness, and profile registration);
 2026-08-02 (Accepted LLP 0135 owner fold: snapshot-batch is the
@@ -394,6 +398,24 @@ rows.
 > with a boundary note here, per LLP 0155 OQ1); until it lands, v1's
 > opaque-snapshot-only rule above governs unchanged, and LLP 0155's
 > fragment baseline stays within it.
+
+> **Dated amendment (2026-08-03, with LLP 0166's acceptance):** the
+> commissioned extension lands. The closed retention set gains
+> `result-transform-snapshot-v1`: an admitted plan whose result is
+> retained as opaque authorized fragments with completeness witnesses
+> under LLP 0157 may additionally be served through LLP 0166 §D7's
+> closed `result-transform.v1` profile **over its own retained fragments
+> only**, for the local materialization LLP 0155 Move 2 describes, under
+> that Spec's conformance gate. Admission is per-plan and owner-issued.
+> The class inherits every `opaque-authorized-snapshot-v1` custody rule
+> (lease, authenticated principal, reconnect); it still never retains
+> unprojected joined rows, never re-authorizes a dependency closure
+> locally, never re-executes this RFC's plan pipeline locally, and never
+> permits cross-query evaluation. Plans without this class keep
+> opaque-snapshot-only semantics unchanged. (Per the concurrently landed
+> LLP 0157 amendment, reclassifying a plan to this class rotates its
+> plan identity and materialization key; the served manifests emit the
+> value only for owner-reclassified plans.)
 
 ### 5. Transactionally maintained projections
 

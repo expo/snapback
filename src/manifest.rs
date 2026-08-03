@@ -1,6 +1,7 @@
 use crate::auth::invocation::FunctionAttribution;
 use crate::diagnostic::{Diagnostic, PublicDiagnostic, SnapbackError, SnapbackResult};
 use crate::ephemeral::EphemeralCollection;
+use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
@@ -1423,19 +1424,16 @@ impl FunctionManifest {
             validate_sequence_declarations(function)?;
             if let FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatch(plan)) = &function.runtime {
                 validate_snapshot_batch_outer_result_contract(function, plan)?;
-                // @ref LLP 0135#23-seal-entirely-partial-refusal — the
-                // visible row contains a heterogeneous declaration-ordered
-                // tuple. LLP 0108's current result vocabulary has only a
-                // homogeneous array, so accepting any existing node here
-                // would weaken the sealed contract. Keep the normalized
-                // carrier unpublished until its owner pins the tuple node.
-                return Err(unsupported_capability_error(
-                    "snapshot_batch_v1",
-                    format!(
-                        "function {} cannot admit snapshot_batch_v1 until the exact heterogeneous tuple result-contract carrier is registered",
-                        function.name
-                    ),
+                let identity = snapshot_batch_identity_v1(function, plan)?;
+                if plan.normalized_composite_plan != identity.normalized_composite_plan
+                    || plan.plan_hash != identity.plan_hash
+                {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+                        "query",
+                        "snapshot batch emitted identity does not match the host reconstruction",
                 ));
+            }
             }
             for declaration in &function.sequences {
                 match sequence_declarations.get(&declaration.name) {
@@ -1985,9 +1983,9 @@ fn result_primitive_kind(contract: &ResultValueContract) -> ResultPrimitiveKind 
         ResultValueContract::Json { .. }
         | ResultValueContract::Union { .. }
         | ResultValueContract::PlatformSchemaRef { .. } => ResultPrimitiveKind::AnyJson,
-        ResultValueContract::Array { .. } | ResultValueContract::Vector { .. } => {
-            ResultPrimitiveKind::Array
-        }
+        ResultValueContract::Array { .. }
+        | ResultValueContract::Tuple { .. }
+        | ResultValueContract::Vector { .. } => ResultPrimitiveKind::Array,
         ResultValueContract::Object { .. } => ResultPrimitiveKind::Object,
     }
 }
@@ -2173,6 +2171,17 @@ fn validate_value_contract_node(
                 ));
             }
             validate_value_contract_node(function, element, depth + 1, object_fields, lane)?;
+        }
+        ResultValueContract::Tuple { elements } => {
+            if elements.is_empty() || elements.len() > 8 {
+                return Err(invalid_result_contract(
+                    function,
+                    "result tuple must contain 1–8 elements",
+                ));
+            }
+            for element in elements {
+                validate_value_contract_node(function, element, depth + 1, object_fields, lane)?;
+            }
         }
         // @ref LLP 0132#the-vvectordimensions-value — vectors are a dedicated
         // closed node in both lanes. They do not widen the ordinary array
@@ -3174,7 +3183,8 @@ impl ObservedEffects {
                 // audience authorization is evaluated by the Rust-owned
                 // executor against the intent's stored arguments.
                 self.read("_snapback_push_ledger_v1", "point", None);
-                self.authorization_inputs.insert("pushAudienceAuthorization");
+                self.authorization_inputs
+                    .insert("pushAudienceAuthorization");
             }
             HandlerPlan::RelationalQuery(plan) => {
                 self.read(&plan.root, "query", Some(&plan.root_index));
@@ -4239,10 +4249,9 @@ pub fn validate_bounded_children_plan_shape(plan: &BoundedChildrenQueryPlan) -> 
     Ok(())
 }
 
-/// Structural admission for the unpublished `snapshot-batch.v1` normalized
-/// carrier. This proves only the static tuple and its bounded-child members;
-/// execution, cursor custody, live delivery, and capability publication are
-/// deliberately outside this checkpoint.
+/// Structural admission for the released `snapshot-batch.v1` normalized
+/// carrier. Identity, result-contract, schema, and capability checks add the
+/// remaining release gates after this closed shape proof.
 ///
 /// @ref LLP 0135#21-composite-plan-shape — v1 is exactly two through eight
 ///   complete bounded-children plans with a summed `take` ceiling of 1,024.
@@ -4283,11 +4292,9 @@ pub fn validate_snapshot_batch_plan_shape(plan: &SnapshotBatchPlanV1) -> Snapbac
     Ok(())
 }
 
-/// One internally derived structural parent-authorization identity. It is
-/// intentionally not serialized: LLP 0135 fixes the semantic tuple but does
-/// not yet pin the closed record member spellings needed for its RFC 8785
-/// cross-language byte identity. The eventual canonical carrier must replace
-/// this checkpoint rather than treating Rust field names as wire authority.
+/// One internally derived structural parent-authorization identity. The dated
+/// LLP 0135 implementation record maps it to the exact closed
+/// `ParentAuthorizationKeyV1` JCS carrier used in plan and cursor identity.
 ///
 /// @ref LLP 0135#22-one-snapshot-execution-and-parent-authorization-dedup —
 ///   equality includes parent table, typed argument binding, and the complete
@@ -4301,12 +4308,192 @@ pub struct SnapshotBatchParentAuthorizationIdentityV1 {
 }
 
 /// One equivalence class in declaration order, with node positions retained
-/// for deterministic internal planning. No canonical bytes or plan-hash claim
-/// attaches to this unpublished representation.
+/// for deterministic planning and the normalized composite record.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SnapshotBatchParentAuthorizationGroupV1 {
     pub identity: SnapshotBatchParentAuthorizationIdentityV1,
     pub node_indices: Vec<usize>,
+}
+
+/// Host-recomputed LLP 0157 identity inputs used by `sbsb1` admission.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SnapshotBatchIdentityV1 {
+    pub normalized_composite_plan: Value,
+    pub plan_hash: String,
+    pub node_plan_hashes: Vec<String>,
+    pub parent_authorization_key_jcs: Vec<String>,
+    pub parent_authorization_key_digests: Vec<String>,
+}
+
+fn domain_hash(domain: &[u8], value: &Value) -> SnapbackResult<String> {
+    let canonical = crate::rqs::jcs(value).map_err(|_| {
+        SnapbackError::error(
+            "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+            "query",
+            "snapshot batch identity is not RFC 8785 canonicalizable",
+        )
+    })?;
+    let mut digest = Sha256::new();
+    digest.update(domain);
+    digest.update(canonical.as_bytes());
+    Ok(format!("sha256:{:x}", digest.finalize()))
+}
+
+/// Rebuild the exact LLP 0157 node/composite identity stack from an admitted
+/// function. No author-supplied plan hash or liveness inference is trusted.
+///
+/// @ref LLP 0157#d2--plan-identity — node records, merged bindings,
+///   classification, and structural parent groups are all PlanHashV1 input.
+pub fn snapshot_batch_identity_v1(
+    function: &FunctionDefinition,
+    plan: &SnapshotBatchPlanV1,
+) -> SnapbackResult<SnapshotBatchIdentityV1> {
+    let contract = function.args_contract.as_ref().ok_or_else(|| {
+        SnapbackError::error(
+            "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+            "query",
+            "snapshot batch identity requires a typed argument contract",
+        )
+    })?;
+    let groups = snapshot_batch_parent_authorization_groups(function, plan)?;
+    let mut node_records = Vec::with_capacity(plan.nodes.len());
+    let mut node_hashes = Vec::with_capacity(plan.nodes.len());
+    let mut merged = Vec::<Value>::new();
+    let mut merged_positions = BTreeMap::<String, usize>::new();
+
+    for (position, node) in plan.nodes.iter().enumerate() {
+        let field = contract
+            .fields
+            .iter()
+            .find(|field| field.name == node.parent_id_arg)
+            .expect("snapshot batch argument admission ran before identity");
+        let binding_contract = serde_json::json!({
+            "format": "snapback.argument-binding-contract.v1",
+            "required": field.required,
+            "value": field.value,
+        });
+        let contract_hash =
+            domain_hash(b"snapback:argument-binding-contract:v1:", &binding_contract)?;
+        let binding = serde_json::json!({
+            "name": field.name,
+            "contract": binding_contract,
+            "contractHash": contract_hash,
+        });
+        if let Some(index) = merged_positions.get(&field.name).copied() {
+            let entry = merged[index]
+                .as_object_mut()
+                .expect("host-created merged binding object");
+            let same = entry.get("contract") == binding.get("contract")
+                && entry.get("contractHash") == binding.get("contractHash");
+            if !same {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+                    "query",
+                    "one merged snapshot argument has incompatible node contracts",
+                ));
+            }
+            entry
+                .get_mut("sourcePositions")
+                .and_then(Value::as_array_mut)
+                .expect("host-created sourcePositions")
+                .push(Value::from(position));
+        } else {
+            merged_positions.insert(field.name.clone(), merged.len());
+            merged.push(serde_json::json!({
+                "name": field.name,
+                "contract": binding.get("contract").cloned().expect("binding contract"),
+                "contractHash": binding.get("contractHash").cloned().expect("binding hash"),
+                "sourcePositions": [position],
+            }));
+        }
+        let node_record = serde_json::json!({
+            "format": "snapback.node-plan.v1",
+            "classId": "bounded_children_v1",
+            "classVersion": 1,
+            "normalizedPlan": serde_json::to_value(node).map_err(|_| SnapbackError::error(
+                "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID", "query", "snapshot node does not serialize"
+            ))?,
+            "argumentBindings": [binding],
+            "capability": {
+                "exportKind": "internal",
+                "live": {"kind": "none"},
+                "retention": "none",
+                "requiredCapabilityIds": ["bounded_children_v1"],
+            },
+        });
+        let node_hash = domain_hash(b"snapback:node-plan:v1:", &node_record)?;
+        node_records.push(serde_json::json!({
+            "position": position,
+            "nodePlan": node_record,
+            "nodePlanHash": node_hash,
+        }));
+        node_hashes.push(node_hash);
+    }
+
+    let merged_record = serde_json::json!({
+        "format": "snapback.merged-args-contract.v1",
+        "bindings": merged,
+    });
+    let merged_hash = domain_hash(b"snapback:merged-args-contract:v1:", &merged_record)?;
+
+    let mut key_jcs = Vec::with_capacity(groups.len());
+    let mut key_digests = Vec::with_capacity(groups.len());
+    let mut normalized_groups = Vec::with_capacity(groups.len());
+    for group in groups {
+        let key = serde_json::json!({
+            "format": "snapback.parent-authorization-key.v1",
+            "parentTable": group.identity.parent_table,
+            "parentIdArgument": group.identity.parent_id_argument,
+            "parentIdType": {"kind": "id", "table": group.identity.parent_id_table},
+            "visibility": match group.identity.visibility {
+                BoundedParentVisibility::PublicRead => serde_json::json!({
+                    "kind": "public-read",
+                }),
+                BoundedParentVisibility::Owner { field } => serde_json::json!({
+                    "kind": "owner.v1",
+                    "field": field,
+                }),
+            },
+        });
+        let canonical = crate::rqs::jcs(&key).map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+                "query",
+                "parent authorization key is not canonicalizable",
+            )
+        })?;
+        let digest = domain_hash(b"snapback:parent-authorization-key:v1:", &key)?;
+        normalized_groups.push(serde_json::json!({
+            "members": group.node_indices,
+            "keyJcsBase64url": URL_SAFE_NO_PAD.encode(canonical.as_bytes()),
+        }));
+        key_jcs.push(canonical);
+        key_digests.push(digest);
+    }
+    let normalized = serde_json::json!({
+        "format": "snapback.normalized-composite-plan.v1",
+        "profileId": "snapshot-batch.v1",
+        "nodes": node_records,
+        "mergedArgsContractHash": merged_hash,
+        "classification": {
+            "callable": true,
+            "live": {
+                "kind": "admitted",
+                "delivery": "live_replace",
+                "pageDomain": "cursor-free-first-page",
+            },
+            "invalidation": "table-granular-resnapshot",
+            "retention": "none",
+        },
+        "parentAuthorizationGroups": normalized_groups,
+    });
+    Ok(SnapshotBatchIdentityV1 {
+        normalized_composite_plan: normalized.clone(),
+        plan_hash: domain_hash(b"snapback:plan-hash:v1:", &normalized)?,
+        node_plan_hashes: node_hashes,
+        parent_authorization_key_jcs: key_jcs,
+        parent_authorization_key_digests: key_digests,
+    })
 }
 
 /// Validate and derive the merged argument identities and parent-auth groups.
@@ -4410,15 +4597,12 @@ fn validate_snapshot_batch_argument_bindings(
     Ok(())
 }
 
-/// Check exactly the portion of LLP 0135's sealed one-row result that the
-/// current result-contract vocabulary can represent: row cardinality, the
-/// two closed discriminator objects, exact absent values, and the composite
-/// continuation bound. The visible `nodes` member is intentionally left
-/// uninterpreted here; whole-manifest admission always refuses immediately
-/// after this check until an owner-pinned heterogeneous tuple node exists.
+/// Check LLP 0135's complete sealed one-row outer result, including the exact
+/// declaration-ordered heterogeneous node tuple. Schema-aware validation later
+/// compares every tuple element with its node projection.
 fn validate_snapshot_batch_outer_result_contract(
     function: &FunctionDefinition,
-    _plan: &SnapshotBatchPlanV1,
+    plan: &SnapshotBatchPlanV1,
 ) -> SnapbackResult<()> {
     let invalid = || {
         SnapbackError::error(
@@ -4481,6 +4665,12 @@ fn validate_snapshot_batch_outer_result_contract(
                 ],
             })
     {
+        return Err(invalid());
+    }
+    let ResultValueContract::Tuple { elements } = &visible[1].value else {
+        return Err(invalid());
+    };
+    if elements.len() != plan.nodes.len() {
         return Err(invalid());
     }
     Ok(())
@@ -4956,6 +5146,15 @@ pub enum ResultValueContract {
         element: Box<ResultValueContract>,
         #[serde(rename = "maxItems", alias = "max_items")]
         max_items: usize,
+    },
+    /// A declaration-ordered heterogeneous fixed tuple. Snapshot-batch uses
+    /// this closed node so each visible child page keeps its own projection
+    /// contract instead of being widened to a homogeneous array.
+    ///
+    /// @ref LLP 0135#23-seal-entirely-partial-refusal — visible composite
+    ///   nodes are an exact static tuple, not a bag of widened values.
+    Tuple {
+        elements: Vec<ResultValueContract>,
     },
     /// One exact fixed-dimension binary64 vector. This is intentionally not
     /// encoded as an ordinary array: dimensions may reach 4,096 while the
@@ -5632,11 +5831,9 @@ pub struct BoundedChildrenQueryPlan {
     pub parent_deletion: String,
 }
 
-/// The unpublished normalized carrier for LLP 0135 Part 2. The only authored
-/// members are the profile discriminator and declaration-ordered complete
-/// bounded-child nodes. Merged argument identities and parent-authorization
-/// equivalence classes are host-derived; they are never trusted from an
-/// artifact.
+/// The released LLP 0157 normalized carrier for LLP 0135 Part 2. Codegen emits
+/// the complete normalized record and its domain-separated hash; the host
+/// reconstructs and compares both before treating either as identity.
 ///
 /// @ref LLP 0135#21-composite-plan-shape — v1 composes a static tuple of
 ///   complete bounded-children plans and no other node kind.
@@ -5645,6 +5842,10 @@ pub struct BoundedChildrenQueryPlan {
 pub struct SnapshotBatchPlanV1 {
     pub profile: String,
     pub nodes: Vec<BoundedChildrenQueryPlan>,
+    #[serde(rename = "normalizedCompositePlan")]
+    pub normalized_composite_plan: Value,
+    #[serde(rename = "planHash")]
+    pub plan_hash: String,
 }
 
 #[derive(
@@ -7781,6 +7982,8 @@ pub enum TargetCapabilityId {
     LiveSubscriptions,
     #[serde(rename = "mutation_read_set_validation")]
     MutationReadSetValidation,
+    #[serde(rename = "mixed_bundle_boot_v2")]
+    MixedBundleBootV2,
     #[serde(rename = "permission_epoch_resync")]
     PermissionEpochResync,
     #[serde(rename = "registered_bundle_boot_v1")]
@@ -7831,7 +8034,7 @@ pub enum TargetCapabilityId {
 }
 
 impl TargetCapabilityId {
-    pub const ALL: [Self; 32] = [
+    pub const ALL: [Self; 33] = [
         Self::AuthSessionsV1,
         Self::BoundedResponseStreamV1,
         Self::BoundedChildrenV1,
@@ -7844,6 +8047,7 @@ impl TargetCapabilityId {
         Self::ExpoPushSeamV1,
         Self::LiveSubscriptions,
         Self::MutationReadSetValidation,
+        Self::MixedBundleBootV2,
         Self::PermissionEpochResync,
         Self::RegisteredBundleBootV1,
         Self::RelationalQueryV1,
@@ -7880,6 +8084,7 @@ impl TargetCapabilityId {
             Self::ExpoPushSeamV1 => "notifications.expoPushSeam",
             Self::LiveSubscriptions => "live_subscriptions",
             Self::MutationReadSetValidation => "mutation_read_set_validation",
+            Self::MixedBundleBootV2 => "mixed_bundle_boot_v2",
             Self::PermissionEpochResync => "permission_epoch_resync",
             Self::RegisteredBundleBootV1 => "registered_bundle_boot_v1",
             Self::RelationalQueryV1 => "relational_query_v1",
@@ -7934,6 +8139,7 @@ impl TargetCapabilityId {
             // the RFC is accepted, and its presence never claims a
             // durable-work capability class or target tuple (claim boundary).
             | Self::JobsOneOffV1
+            | Self::MixedBundleBootV2
             | Self::RegisteredBundleBootV1
             | Self::SequenceAllocationV1
             | Self::SnapshotBatchV1
@@ -8078,6 +8284,12 @@ impl TargetCapabilityId {
                 manifest.mutation_isolation_mode == "handler-captured-read-set-validation"
                     && facts.mutation_read_set_validator_registered
             }
+            Self::MixedBundleBootV2 => {
+                facts.mixed_bundle_boot_v2_registered
+                    && facts.registered_bundle_boot_v1_registered
+                    && Self::LiveSubscriptions.is_supported_by(manifest, facts)
+                    && manifest.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
+            }
             Self::Cron => manifest.cron,
             Self::CronActionRunMutation => {
                 manifest.cron
@@ -8100,12 +8312,12 @@ impl TargetCapabilityId {
             //   target advertises only the code-owned registered execution
             //   seam; maturity remains experimental until LLP 0134 promotion.
             Self::SequenceAllocationV1 => facts.sequence_allocation_v1_registered,
-            // @ref LLP 0135#26-maturity-and-the-experimental-dependency-acknowledgment
-            //   — registry assignment and support are separate. This static
-            //   carrier checkpoint has no executor, cursor/live proof, tuple
-            //   contract, or LLP 0113 publication family, so every target's
-            //   positive predicate is intentionally false.
-            Self::SnapshotBatchV1 => false,
+            Self::SnapshotBatchV1 => {
+                facts.snapshot_batch_v1_registered
+                    && Self::BoundedChildrenV1.is_supported_by(manifest, facts)
+                    && Self::LiveSubscriptions.is_supported_by(manifest, facts)
+                    && manifest.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
+            }
             // Fail-closed dedicated fact (LLP 0081 §3): the privileged
             // migration scan is a target capability; a target without it
             // cannot claim migration proofs.
@@ -8154,8 +8366,7 @@ impl TargetCapabilityId {
                     && facts.mutation_read_set_validator_registered
                     && manifest.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
                     && manifest.storage_engine == "sqlite"
-                    && manifest.vector_search.as_ref()
-                        == Some(&VectorSearchFactsV1::local_v1())
+                    && manifest.vector_search.as_ref() == Some(&VectorSearchFactsV1::local_v1())
             }
             Self::ResultContractV1 => facts.result_contract_v1_registered,
             // @ref LLP 0133#the-bounded-skew-opt-in — this fact names only
@@ -8394,6 +8605,7 @@ fn local_relation_activity_publication_verified() -> bool {
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct TargetCapabilityFacts {
     bounded_children_v1_registered: bool,
+    snapshot_batch_v1_registered: bool,
     bounded_response_stream_v1_registered: bool,
     relational_query_v1_registered: bool,
     sequence_allocation_v1_registered: bool,
@@ -8417,6 +8629,7 @@ pub struct TargetCapabilityFacts {
     mutation_read_set_validator_registered: bool,
     permission_epoch_resync_registered: bool,
     registered_bundle_boot_v1_registered: bool,
+    mixed_bundle_boot_v2_registered: bool,
     write_activity_v1_registered: bool,
     local_relation_activity_publication_v1_verified: bool,
     asset_lifecycle_local_fs_registered: bool,
@@ -8448,6 +8661,10 @@ impl TargetCapabilityFacts {
             asset_reference_gc_registered: true,
             asset_video_finalization_registered: true,
             bounded_children_v1_registered: true,
+            // @ref LLP 0135#26-maturity-and-the-experimental-dependency-acknowledgment
+            //   — exact tuple execution, `sbsb1` custody, and first-page live
+            //   replacement are registered together on the local target.
+            snapshot_batch_v1_registered: true,
             bounded_response_stream_v1_registered: true,
             relational_query_v1_registered: true,
             // @ref LLP 0135#18-ceilings-receipts-and-capability — handler and
@@ -8490,6 +8707,10 @@ impl TargetCapabilityFacts {
             // local/auth-aware target implementation behind this positive
             // experimental capability fact.
             registered_bundle_boot_v1_registered: true,
+            // @ref LLP 0090#mixed-route-v2-implementation-amendment-2026-08-03
+            // — one pinned multi-child snapshot, identity-derived liveness,
+            // and live-only pending ownership are registered together.
+            mixed_bundle_boot_v2_registered: true,
             write_activity_v1_registered: true,
             local_relation_activity_publication_v1_verified,
         }
@@ -8498,6 +8719,8 @@ impl TargetCapabilityFacts {
     fn conformance_auth_aware() -> Self {
         Self {
             bounded_children_v1_registered: false,
+            snapshot_batch_v1_registered: false,
+            mixed_bundle_boot_v2_registered: false,
             sequence_allocation_v1_registered: false,
             vector_search_v1_registered: false,
             ibex_ctx_db_host_bridge_available: false,
@@ -8513,6 +8736,7 @@ impl TargetCapabilityFacts {
 
     fn with_relation_activity_publication_withheld(mut self) -> Self {
         self.bounded_children_v1_registered = false;
+        self.snapshot_batch_v1_registered = false;
         self.write_activity_v1_registered = false;
         self.local_relation_activity_publication_v1_verified = false;
         self
@@ -9108,6 +9332,7 @@ pub fn local_v0_default_capability_gaps() -> Vec<String> {
         "bounded_response_stream_v1".to_owned(),
         "bounded_children_v1".to_owned(),
         "snapshot_batch_v1".to_owned(),
+        "mixed_bundle_boot_v2".to_owned(),
         "notifications".to_owned(),
         "ephemeral_hosted_adapter".to_owned(),
         "ephemeral_multi_instance_sticky_routing".to_owned(),
@@ -9132,6 +9357,12 @@ fn ensure_relation_activity_capability_gaps(gaps: &mut Vec<String>) {
 fn ensure_snapshot_batch_capability_gap(gaps: &mut Vec<String>) {
     if !gaps.iter().any(|gap| gap == "snapshot_batch_v1") {
         gaps.push("snapshot_batch_v1".to_owned());
+    }
+}
+
+fn ensure_mixed_bundle_capability_gap(gaps: &mut Vec<String>) {
+    if !gaps.iter().any(|gap| gap == "mixed_bundle_boot_v2") {
+        gaps.push("mixed_bundle_boot_v2".to_owned());
     }
 }
 
@@ -9621,10 +9852,9 @@ impl CapabilityManifest {
                 .push("sequence_allocation_v1".to_owned());
         }
         // @ref LLP 0135#26-maturity-and-the-experimental-dependency-acknowledgment
-        //   — this checkpoint registers static maturity only. Until the
-        //   executor, cursor/live corpus, exact tuple contract, and LLP 0113
-        //   publication exist, every target reports the named GAP regardless
-        //   of which constructor supplied its initial gap list.
+        //   — static maturity and runtime support stay separate. Only the
+        //   exact contributor local target can satisfy the dedicated executor
+        //   fact plus every bounded/live dependency below.
         if self
             .supported_capabilities
             .contains(&TargetCapabilityId::SnapshotBatchV1)
@@ -9633,6 +9863,15 @@ impl CapabilityManifest {
                 .retain(|gap| gap != "snapshot_batch_v1");
         } else {
             ensure_snapshot_batch_capability_gap(&mut self.capability_gaps);
+        }
+        if self
+            .supported_capabilities
+            .contains(&TargetCapabilityId::MixedBundleBootV2)
+        {
+            self.capability_gaps
+                .retain(|gap| gap != "mixed_bundle_boot_v2");
+        } else {
+            ensure_mixed_bundle_capability_gap(&mut self.capability_gaps);
         }
         if self
             .supported_capabilities
@@ -10262,10 +10501,7 @@ mod membership_manifest_grammar_tests {
             .as_mut()
             .expect("local vector facts")
             .accelerator = "ann".to_owned();
-        assert!(!id.is_supported_by(
-            &tampered,
-            TargetCapabilityFacts::local_auth_aware(),
-        ));
+        assert!(!id.is_supported_by(&tampered, TargetCapabilityFacts::local_auth_aware(),));
     }
 
     fn snapshot_node_fixture(
@@ -10350,9 +10586,30 @@ mod membership_manifest_grammar_tests {
                 allow_extra: false,
             }
         };
-        // Deliberately only an outer-envelope fixture. Whole-manifest
-        // admission below must refuse before this homogeneous placeholder can
-        // be mistaken for LLP 0135's heterogeneous per-position tuple.
+        let page = || ResultValueContract::Object {
+            fields: vec![
+                ResultObjectFieldContract {
+                    name: "parent".to_owned(),
+                    required: true,
+                    value: ResultValueContract::Json {
+                        max_depth: 16,
+                        max_bytes: 1_048_576,
+                    },
+                },
+                ResultObjectFieldContract {
+                    name: "children".to_owned(),
+                    required: true,
+                    value: ResultValueContract::Array {
+                        element: Box::new(ResultValueContract::Json {
+                            max_depth: 16,
+                            max_bytes: 1_048_576,
+                        }),
+                        max_items: 1_024,
+                    },
+                },
+            ],
+            allow_extra: false,
+        };
         let result_contract = FunctionResultContract::Records {
             record: ResultValueContract::Union {
                 variants: vec![
@@ -10363,12 +10620,8 @@ mod membership_manifest_grammar_tests {
                     ),
                     outer(
                         "visible",
-                        ResultValueContract::Array {
-                            element: Box::new(ResultValueContract::Json {
-                                max_depth: 16,
-                                max_bytes: 1_048_576,
-                            }),
-                            max_items: plan.nodes.len(),
+                        ResultValueContract::Tuple {
+                            elements: (0..plan.nodes.len()).map(|_| page()).collect(),
                         },
                         ResultValueContract::Union {
                             variants: vec![
@@ -10400,6 +10653,19 @@ mod membership_manifest_grammar_tests {
             "args_contract_v1".to_owned(),
             "result_contract_v1".to_owned(),
         ];
+        let identity = {
+            let FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatch(plan)) = &function.runtime
+            else {
+                unreachable!("snapshot fixture")
+            };
+            snapshot_batch_identity_v1(&function, plan).expect("snapshot identity")
+        };
+        let FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatch(plan)) = &mut function.runtime
+        else {
+            unreachable!("snapshot fixture")
+        };
+        plan.normalized_composite_plan = identity.normalized_composite_plan;
+        plan.plan_hash = identity.plan_hash;
         function
     }
 
@@ -10414,6 +10680,8 @@ mod membership_manifest_grammar_tests {
                 snapshot_node_fixture("boardId", owner.clone(), 512),
                 snapshot_node_fixture("boardId", owner.clone(), 512),
             ],
+            normalized_composite_plan: Value::Null,
+            plan_hash: String::new(),
         };
         validate_snapshot_batch_plan_shape(&plan).expect("closed 2-node plan");
         let function = snapshot_function_fixture(plan.clone());
@@ -10422,6 +10690,63 @@ mod membership_manifest_grammar_tests {
             .expect("derive parent groups");
         assert_eq!(groups.len(), 1);
         assert_eq!(groups[0].node_indices, vec![0, 1]);
+        let identity = snapshot_batch_identity_v1(&function, &plan).expect("identity");
+        assert_eq!(
+            identity.parent_authorization_key_jcs,
+            vec!["{\"format\":\"snapback.parent-authorization-key.v1\",\"parentIdArgument\":\"boardId\",\"parentIdType\":{\"kind\":\"id\",\"table\":\"boards\"},\"parentTable\":\"boards\",\"visibility\":{\"field\":\"ownerId\",\"kind\":\"owner.v1\"}}".to_owned()],
+            "ParentAuthorizationKeyV1 uses the dated LLP 0135 closed record",
+        );
+
+        let mut js_node = snapshot_node_fixture(
+            "incidentId",
+            BoundedParentVisibility::Owner {
+                field: "ownerId".to_owned(),
+            },
+            25,
+        );
+        js_node.parent_table = "incidents".to_owned();
+        js_node.parent_projection = vec![
+            BoundedProjectionField {
+                name: "id".to_owned(),
+                field: "_id".to_owned(),
+            },
+            BoundedProjectionField {
+                name: "title".to_owned(),
+                field: "title".to_owned(),
+            },
+        ];
+        js_node.child_table = "tasks".to_owned();
+        js_node.child_foreign_key = "incidentId".to_owned();
+        js_node.child_relation_incarnation = "incidentIncarnation".to_owned();
+        js_node.child_index = "by_incident_position".to_owned();
+        js_node.child_projection = [
+            ("id", "_id"),
+            ("position", "position"),
+            ("body", "body"),
+            ("note", "note"),
+        ]
+        .into_iter()
+        .map(|(name, field)| BoundedProjectionField {
+            name: name.to_owned(),
+            field: field.to_owned(),
+        })
+        .collect();
+        let cross_language = snapshot_function_fixture(SnapshotBatchPlanV1 {
+            profile: "snapshot-batch.v1".to_owned(),
+            nodes: vec![js_node.clone(), js_node.clone(), js_node],
+            normalized_composite_plan: Value::Null,
+            plan_hash: String::new(),
+        });
+        let FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatch(cross_language_plan)) =
+            &cross_language.runtime
+        else {
+            unreachable!("snapshot fixture")
+        };
+        assert_eq!(
+            cross_language_plan.plan_hash,
+            "sha256:46f823237e192428ce488c6f7a993c4569097a3f036bfd8f7325437e38ed2c0e",
+            "Rust and JavaScript reconstruct one exact LLP 0157 PlanHashV1",
+        );
 
         let mut different_argument = plan.clone();
         different_argument.nodes[1].parent_id_arg = "otherBoardId".to_owned();
@@ -10482,13 +10807,15 @@ mod membership_manifest_grammar_tests {
     }
 
     #[test]
-    fn snapshot_batch_direct_artifact_and_public_kind_exist_but_load_stays_fail_closed() {
+    fn snapshot_batch_direct_artifact_and_public_kind_load_with_exact_tuple() {
         let plan = SnapshotBatchPlanV1 {
             profile: "snapshot-batch.v1".to_owned(),
             nodes: vec![
                 snapshot_node_fixture("boardId", BoundedParentVisibility::PublicRead, 8),
                 snapshot_node_fixture("boardId", BoundedParentVisibility::PublicRead, 8),
             ],
+            normalized_composite_plan: Value::Null,
+            plan_hash: String::new(),
         };
         let function = snapshot_function_fixture(plan);
         let runtime = serde_json::to_value(&function.runtime).expect("serialize private carrier");
@@ -10509,11 +10836,24 @@ mod membership_manifest_grammar_tests {
             ],
             ..FunctionManifest::default()
         };
-        let refusal = manifest
+        manifest
             .validate_artifact()
-            .expect_err("the unpinned heterogeneous tuple must not load approximately");
-        assert_eq!(refusal.diagnostic.code, "SNAPBACK_CAPABILITY_UNSUPPORTED");
-        assert!(refusal.diagnostic.message.contains("heterogeneous tuple"));
+            .expect("the exact heterogeneous tuple carrier is admitted");
+        let mut tampered = manifest.clone();
+        let FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatch(plan)) =
+            &mut tampered.functions[0].runtime
+        else {
+            unreachable!("snapshot fixture")
+        };
+        plan.plan_hash = format!("sha256:{}", "0".repeat(64));
+        assert_eq!(
+            tampered
+                .validate_artifact()
+                .expect_err("an artifact cannot supply a mismatched LLP 0157 identity")
+                .diagnostic
+                .code,
+            "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+        );
     }
 
     #[test]
@@ -10811,7 +11151,7 @@ mod membership_manifest_grammar_tests {
     }
 
     #[test]
-    fn snapshot_batch_registry_is_experimental_but_all_targets_stay_gap_only() {
+    fn snapshot_batch_registry_is_experimental_and_local_only() {
         assert_eq!(
             TargetCapabilityId::SnapshotBatchV1.maturity(),
             CapabilityMaturity::Experimental,
@@ -10819,6 +11159,28 @@ mod membership_manifest_grammar_tests {
         for manifest in [
             CapabilityManifest::local_v0_declared(),
             CapabilityManifest::local_v0_instance(Vec::new(), true),
+        ] {
+            assert!(
+                manifest
+                    .supported_capabilities
+                    .contains(&TargetCapabilityId::SnapshotBatchV1),
+                "{} must advertise the registered local executor",
+                manifest.target_profile_id,
+            );
+            assert_eq!(
+                manifest
+                    .capability_maturity
+                    .get(&TargetCapabilityId::SnapshotBatchV1),
+                Some(&CapabilityMaturity::Experimental),
+            );
+            assert!(
+                !manifest
+                    .capability_gaps
+                    .iter()
+                    .any(|gap| gap == "snapshot_batch_v1")
+            );
+        }
+        for manifest in [
             CapabilityManifest::remote_service_sqlite_ibex_declared(),
             CapabilityManifest::conformance_workerd_v8(json!({})),
             CapabilityManifest::cloudflare_do_sqlite_v8(json!({})),
@@ -10827,7 +11189,7 @@ mod membership_manifest_grammar_tests {
                 !manifest
                     .supported_capabilities
                     .contains(&TargetCapabilityId::SnapshotBatchV1),
-                "{} must not advertise the static carrier as runtime support",
+                "{} must not inherit local snapshot-batch runtime support",
                 manifest.target_profile_id,
             );
             assert!(

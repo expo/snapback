@@ -184,6 +184,17 @@
           ],
           "description": "LLP 0053 scope/invalidation projections for register-mode auth-scoped\nentries."
         },
+        "delivery": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MixedBundleDeliveryV2"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Present exactly on format 2. This is the per-child delivery claim;\nrows alone never imply liveness."
+        },
         "function": {
           "type": "string"
         },
@@ -316,6 +327,72 @@
         "mac"
       ],
       "type": "object"
+    },
+    "MixedBundleAggregateV2": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string"
+        },
+        "liveChildren": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "readOnlyChildren": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "weakest": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "weakest",
+        "liveChildren",
+        "readOnlyChildren"
+      ],
+      "type": "object"
+    },
+    "MixedBundleDeliveryV2": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "registered-live",
+              "type": "string"
+            },
+            "nodePlanHash": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "nodePlanHash"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "read-only",
+              "type": "string"
+            },
+            "nodePlanHash": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "nodePlanHash"
+          ],
+          "type": "object"
+        }
+      ]
     },
     "QueryNamespace": {
       "additionalProperties": false,
@@ -586,6 +663,16 @@
   "additionalProperties": false,
   "description": "`POST /app/bundle` response (LLP 0092 §0D.1).",
   "properties": {
+    "aggregate": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MixedBundleAggregateV2"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "commitVersion": {
       "description": "Single shared commit version — every entry was evaluated at this cut.",
       "format": "uint64",
@@ -611,8 +698,29 @@
       },
       "type": "array"
     },
+    "formatVersion": {
+      "description": "Present exactly on the mixed successor wire; absent keeps format 1\nbyte-compatible with LLP 0112.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
     "generation": {
       "type": "string"
+    },
+    "planHash": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "profile": {
+      "type": [
+        "string",
+        "null"
+      ]
     },
     "versionStream": {
       "type": "string"

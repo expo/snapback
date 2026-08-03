@@ -108,6 +108,20 @@ Charlie's.) 2026-08-03 (v0.7, Accepted by Charlie Cheever's explicit
 The §D8 ownership transition is active, with dated boundary notes landed in
 LLP 0043, LLP 0053, LLP 0080, LLP 0110, LLP 0114, and LLP 0135. Acceptance is
 semantic only: implementation and capability-publication gates remain.)
+2026-08-03 (v0.8, mixed-route implementation amendment: the registry admits
+exactly one new node class, `exported_query_v1`, and one new composite profile,
+`mixed-route.v2`. The class normalizes served exported Query/LiveQuery facts;
+the capability binding alone distinguishes registered-live from read-only.
+The profile reuses the v1 node/plan hash grammar, binds the route argument
+mapping, requires one pinned snapshot, and gives the aggregate the honest
+non-live meet. LLP 0090 owns the artifact/wire/execution amendment; LLP 0112
+format 1 remains unchanged.)
+2026-08-03 (dated amendment landed with Accepted LLP 0166: both §D2
+closed retention unions gain `result-transform-snapshot-v1` (per-plan
+opt-in; reclassification rotates node/plan identity and QMK; manifests
+emit it only for reclassified plans), and §D3's closed event vocabulary
+gains the payload-compaction event (dated row in the transition table).
+No other semantics change.)
 **Related:** LLP 0000, LLP 0004, LLP 0007, LLP 0008, LLP 0010, LLP 0012,
 LLP 0017, LLP 0039, LLP 0043, LLP 0048, LLP 0051, LLP 0053, LLP 0059,
 LLP 0073, LLP 0080,
@@ -229,16 +243,46 @@ The active node-class registry is exact:
 | --- | ---: | --- | --- | --- | --- |
 | `relational_query_v1` | 1 | LLP 0080 `RelationalQueryPlanV1` | admitted | not admitted until LLP 0135 OQ5's versioned successor | none |
 | `bounded_children_v1` | 1 | LLP 0110 `BoundedChildrenQueryPlanV1` | admitted | `snapshot-batch.v1` | required |
+| `exported_query_v1` | 1 | `ExportedQueryPlanV1` below, reconstructed from the served function manifest | not admitted as an algebra single-node API | `mixed-route.v2` | none |
 
-These are the only v1 classes. An LLP 0004/0007 single-table plan, JS/inline
-handler, maintained projection, search, aggregate, or unknown class refuses as
-a composition node; its existing non-composed API remains unchanged. A future
-class enters only by dated amendment citing its owner-normalized closed record,
-version, bounds, cursor profile, result encoding, capability binding, and
-single/multi admission.
+These are the only active classes. An LLP 0004/0007 single-table plan,
+maintained projection, search, aggregate, or unknown class refuses as a
+composition node; its existing non-composed API remains unchanged. JS/inline
+query implementations participate only through the exported function fact of
+`exported_query_v1`; their opaque handler body never becomes a normalized plan
+or liveness oracle. A future class enters only by dated amendment citing its
+owner-normalized closed record, version, bounds, cursor profile, result
+encoding, capability binding, and single/multi admission.
 
-**Growth stop rule.** V1 has exactly two node classes and two plan profiles
-(`single-node.v1`, `snapshot-batch.v1`). A successor may grow to at most six
+`ExportedQueryPlanV1` is the following closed record, rebuilt by the host from
+the served `FunctionDefinition` rather than trusted from the generated route:
+
+```ts
+{
+  format: "snapback.exported-query-plan.v1",
+  runtime: FunctionDefinition["runtime"],
+  argsContractHash: FunctionDefinition["argsContractHash"],
+  resultContractHash: FunctionDefinition["resultContractHash"],
+  authRequirement: FunctionDefinition["authRequirement"],
+  authorityIndependent: boolean,
+  authorizationDependence: FunctionDefinition["authorizationDependence"],
+  readSetSummary: FunctionDefinition["readSetSummary"],
+  effectCeiling: FunctionDefinition["effectCeiling"] | null
+}
+```
+
+Its argument bindings are the ordinary §D2 projections of the served function
+argument contract. Its result encoding is that function's validated row array;
+it has no cursor. Its bounded multi-node admission is LLP 0090
+`mixed-route.v2`: 1–32 route children under the existing bundle row/byte/time
+ceilings, with eligibility requiring at least one `Query` and one `LiveQuery`.
+The capability binding carries the served export kind, whole-result
+`live_replace` only for `LiveQuery`, `live:{kind:"none"}` for `Query`, the
+served retention fact, and the sorted unique required capability ids.
+
+**Growth stop rule.** The active registry has exactly three node classes and
+three plan profiles (`single-node.v1`, `snapshot-batch.v1`,
+`mixed-route.v2`). A successor may grow to at most six
 active classes and four plan profiles, one class or profile per reviewed
 amendment. A proposal that exceeds either ceiling, introduces a new
 algebra-wide identity/completeness/authorization axis instead of reusing
@@ -322,6 +366,7 @@ type NodeCapabilityBindingV1 = Readonly<{
   retention:
     | "none"
     | "opaque-authorized-snapshot-v1"
+    | "result-transform-snapshot-v1"   // dated 2026-08-03 amendment, below
   requiredCapabilityIds: readonly string[] // sorted, unique
 }>
 ```
@@ -339,9 +384,34 @@ type PlanCapabilityClassificationV1 = Readonly<{
         pageDomain: "cursor-free-first-page" | "whole-result"
       }
   invalidation: "none" | "table-granular-resnapshot" | "proved-disjoint"
-  retention: "none" | "opaque-authorized-snapshot-v1"
+  retention:
+    | "none"
+    | "opaque-authorized-snapshot-v1"
+    | "result-transform-snapshot-v1"   // dated 2026-08-03 amendment, below
 }>
 ```
+
+> **Dated amendment (2026-08-03, with LLP 0166's acceptance):** both
+> closed retention unions above gain `result-transform-snapshot-v1`
+> (LLP 0080's concurrently amended class). The value is owner-issued
+> like its peers and enters the same hash preimages: reclassifying a
+> plan therefore rotates its `NodePlanHashV1`, `PlanHashV1`, and
+> `QueryMaterializationKeyV1`. Adoption is per-plan opt-in — an
+> unreclassified plan's identity, addresses, and retained state are
+> byte-unchanged, and the served function/capability manifests (this
+> section's producers) emit the new value only for owner-reclassified
+> plans — and a reclassified plan derives a fresh materialization
+> address whose predecessor retires through ordinary lifecycle (fresh
+> establishment at the new address; the predecessor is never relabeled
+> in place). §D2's golden and near-miss vectors gain the new value; §D4
+> continues to treat classification as a restated owner fact; §D7's
+> storage profiles treat the class as `durable-fragments-v1`-eligible
+> under `opaque-authorized-snapshot-v1`'s custody rules; §D7's "local
+> plan evaluation over fragments" gate sentence reads on the revised
+> Move-2 profile (LLP 0155's dated §Move 2 note) — the gate itself is
+> unchanged; and §D3's closed event vocabulary gains the payload-
+> compaction event recorded in its transition table (dated row). No
+> other semantics change.
 
 The served function/capability manifests produce this record; an author does
 not assert it. A nested node uses `exportKind: "internal"`; a plan admitted as
@@ -428,7 +498,7 @@ is SHA-256 over `snapback:merged-args-contract:v1:` plus this record's JCS.
 ```ts
 {
   format: "snapback.normalized-composite-plan.v1",
-  profileId: "single-node.v1" | "snapshot-batch.v1",
+  profileId: "single-node.v1" | "snapshot-batch.v1" | "mixed-route.v2",
   nodes: readonly {
     position: number,                  // dense 0..N-1
     nodePlan: NodePlanRecordV1,
@@ -455,6 +525,19 @@ group, and each member list is ascending. Current `snapshot-batch.v1` contains
 only required `bounded_children_v1` nodes. Encoding bytes rather than a JSON
 reparse preserves the grouping identity exactly; the LLP 0135 OQ5 successor
 can therefore add relational nodes without inventing fake parents.
+
+For `mixed-route.v2`, nodes are the route-manifest order of
+`exported_query_v1` children and `parentAuthorizationGroups` is exactly empty.
+The merged binding is deliberately route-specific rather than
+`MergedArgsContractV1`: it is the JCS hash over domain
+`snapback:mixed-route-args:v2:` of the closed record
+`{format:"snapback.mixed-route-args.v2",route,queries}`, where `queries` is the
+route manifest's ordered `{function,args}` array. The host reconstructs and
+exact-compares this hash before execution. The composite classification is
+exactly `{callable:true,live:{kind:"none"},invalidation:"none",retention:"none"}`:
+the aggregate is honestly non-live because at least one child is read-only;
+per-child capability bindings retain their distinct liveness. This profile
+has no cursor, completeness proof, retention, parent group, or delta claim.
 
 `PlanHashV1` is SHA-256 over `snapback:plan-hash:v1:` plus this record's JCS
 bytes. Runtime argument values and provider/store/query-instance identities
@@ -1010,6 +1093,7 @@ completeness installation.
 | terminal retirement begins | `active → retiring`; reject render/write/proof inputs and perform LLP 0053's destructive transition |
 | terminal retirement finalizes | remove the record while preserving allocator/frontier high-water; no status exists |
 | explicit reinitialization after retirement | allocate a new `query_instance_id`; follow `initialize`, never reuse a predecessor proof |
+| payload compaction (LLP 0166 §D5 — dated 2026-08-03 amendment) | discard the record's held fragments, proofs, page-set manifests, and memberships without lowering or releasing any LLP 0053 disposition; derived status `unknown`; instance identity, fences, and frontiers preserved; a later establishment loads the same instance |
 
 Retained-boot failures are not a catch-all. Their exact v1 outcomes are:
 
@@ -1065,7 +1149,7 @@ coincidence, not from replaying deltas.
    each axis, and land as a dated amendment here plus whatever the
    owners require. Until then the classification of every plan is a
    restated owner fact, and the inspector shows it as such.
-5. **Mixed route is a distinct profile.** LLP 0090's proposed versioned
+5. **Mixed route is a distinct profile.** LLP 0090's implemented versioned
    mixed route preserves one `PlanHashV1`/capability binding per ordered
    child and computes its weakest aggregate boot state separately. It may
    register only explicit live children and must return `live.kind:"none"`
@@ -1731,12 +1815,15 @@ required output, and forbidden output.
    changed parent group, changed capability/liveness, changed contract,
    changed activation, changed args, and changed authority partition each
    rotate exactly the owning layer. A tampered supplied hash refuses.
-3. **A3 — liveness near-miss and mixed successor input.** Generate one
+3. **A3 — liveness near-miss and mixed successor.** Generate one
    `Query` and one `LiveQuery` over byte-identical normalized storage plans.
    Their explicit capability records and `NodePlanHashV1` differ. A mixed
-   profile planning fixture selects only the latter position for registration
-   from the bound fact while both positions receive read-only QMK-addressed
-   records; a classifier using node shape fails the fixture.
+   profile planning fixture and the executable local bundle select only the
+   latter position for registration from the bound fact while both positions
+   are evaluated at one pinned commit and the plain child receives explicit
+   read-only delivery. The prepared React provider starts no ordinary
+   subscription for that child, reports it as snapshot/idle, and keeps the
+   live sibling live; a classifier using node shape fails the fixture.
 4. **A4 — cursor grammar.** The committed `sbbc1` fixed-nonce vector remains
    byte-identical. Independent Rust/JS encoders reproduce one fixed-nonce
    maximum-width `sbsb1` vector. Cross-prefix, tamper, app, plan, authority,
@@ -1799,6 +1886,14 @@ required output, and forbidden output.
     contract takes validated `live_replace`; invalid stored data yields
     `resync_required` and no application payload. Any widened delta candidate
     must pass both directions before persistence.
+13. **A13 — mixed-route v2 version and cleanup.** A format-2 generated
+    reference round-trips its exact profile/plan/node hashes through codegen,
+    server admission, response delivery, and client installation. Removing or
+    changing any hash, export-kind binding, route argument mapping, or wire
+    discriminator refuses before publication. A child failure and attach
+    abandonment purge every live-child registration and grant while leaving
+    no state for the read-only child. Re-running the LLP 0112 format-1
+    acceptance yields byte-identical request/response shapes.
 
 ### Move-1 workload exit (LLP 0155 normative transcription)
 
@@ -1859,8 +1954,8 @@ The LLP 0114 UI-level react-store key remains unchanged and resolves to the
 new semantic address after admission.
 
 `sbbc1` does not migrate: its existing wire and fixed-nonce vector remain
-exact. `sbsb1` has no deployed predecessor. LLP 0090's mixed-route successor
-uses a new artifact/wire version as its amendment requires; it consumes this
+exact. `sbsb1` has no deployed predecessor. LLP 0090's implemented mixed-route
+profile uses a new artifact/wire version as its amendment requires; it consumes this
 Spec's per-child identity/capability facts and does not reinterpret LLP 0112
 format 1.
 
@@ -1912,7 +2007,10 @@ All actual responses, including every earlier NOT READY verdict, remain in the
 two provenance-tracked artifacts under `reviews/`; no prior verdict is
 rewritten or counted as READY.
 
-The acceptance-gated §D8 ownership transition is now effective. LLP 0155
+The acceptance-gated §D8 ownership transition is now effective. The v0.8
+dated amendment registers `exported_query_v1` and `mixed-route.v2`; the
+contributor local implementation advertises the separate Experimental
+`mixed_bundle_boot_v2` capability. LLP 0155
 Stage 1, the held snapshot-batch half of
 `issues/20260802-wave1-0135-sequences-snapshot-batch.md`, and LLP 0090's
 versioned mixed-route successor may consume this Spec without inventing

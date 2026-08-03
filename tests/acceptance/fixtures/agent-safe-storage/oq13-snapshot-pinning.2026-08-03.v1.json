@@ -1,0 +1,44 @@
+{
+  "schemaVersion": "snapback.oq13-snapshot-pinning-spike.v1",
+  "date": "2026-08-03",
+  "sourceRevision": "2ab36e28c74c450213b65f17ef81c0d6652ba33a",
+  "sourceDirty": true,
+  "runner": "examples/snapshot_pinning_spike.rs",
+  "sqliteVersion": "3.45.0",
+  "fixture": {
+    "rows": 4096,
+    "payloadBytes": 512,
+    "writerBatchRows": 32,
+    "pageSizeBytes": 4096,
+    "sourceBytesAfterCheckpoint": 2420736
+  },
+  "result": {
+    "pinnedVersion": 1,
+    "copiedVersion": 1,
+    "liveVersionAfterWriter": 129,
+    "pinnedDigest": "sha256:a8ca54aac93770bc197b63102bff8001c3e484cbd7fb2295f983ba5163bf3047",
+    "copiedDigest": "sha256:a8ca54aac93770bc197b63102bff8001c3e484cbd7fb2295f983ba5163bf3047",
+    "liveDigestAfterWriter": "sha256:52c08f305ce9cae7cc7aae94d0abd1c540e5e94fa59e86b36043684eac807975",
+    "backupPages": 591,
+    "backupSteps": 591,
+    "backupBusySteps": 0,
+    "backupLockedSteps": 0,
+    "backupElapsedMs": 55,
+    "writerCommits": 128,
+    "walBytesBeforeWriter": 0,
+    "walBytesWhilePinned": 3390792,
+    "walGrowthBytes": 3390792,
+    "walGrowthToSourceRatio": 1.4007277125634519,
+    "passiveCheckpointBusy": 0,
+    "passiveCheckpointLogFrames": 823,
+    "passiveCheckpointedFrames": 0,
+    "walBytesAfterReleaseAndTruncate": 0
+  },
+  "verdict": {
+    "backupUsesHeldSourceSnapshot": true,
+    "concurrentWritersMakeProgress": true,
+    "walGrowthHasIntrinsicDatabaseSizeBound": false,
+    "contractPosture": "budgeted-pin-or-stable-refusal",
+    "reason": "backup and independent scan can share one held source snapshot, but WAL retention is proportional to concurrent write volume and duration; admission must preflight a finite budget and abort with a stable refusal before the budget is exceeded"
+  }
+}

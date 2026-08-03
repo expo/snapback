@@ -5,7 +5,10 @@
 **Systems:** Storage, Sync, Auth, Diagnostics, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-03 (initial Draft — extracted from Accepted LLP 0162
+**Revised:** 2026-08-03 (implementation substrate — Rust-owned
+`OperationIdentityV1` and `CommitEnvelopeV1` landed with generated schemas and
+focused namespace/stream/bound-fact validation tests; no storage wiring,
+coverage, or capability claim); 2026-08-03 (initial Draft — extracted from Accepted LLP 0162
 §§0-2 under its OQ14 decision; carries the identity/envelope contracts so
 they can version independently of the profile umbrella)
 **Related:** LLP 0012, LLP 0037, LLP 0043, LLP 0055, LLP 0095, LLP 0133,
@@ -88,6 +91,14 @@ and their wire projections — all Rust-owned generated schemas per LLP 0037. Am
 LLP 0133/0043 (identity semantics, retention parameters) and LLP 0012/0095
 (client conformance) are dated in those documents and reference this Spec.
 
+The first generated artifacts are
+[`operation.identity-v1.schema.json`](../schemas/operation.identity-v1.schema.json)
+and
+[`commit.envelope-v1.schema.json`](../schemas/commit.envelope-v1.schema.json),
+both generated from
+[`src/commit_envelope.rs`](../src/commit_envelope.rs). Schema presence is an
+implementation substrate, not evidence that any lane has envelope coverage.
+
 ## Acceptance
 
 LLP 0162 Acceptance rows 1-4, 13, and 14 gate these components; this Spec
@@ -98,7 +109,10 @@ schemas.
 
 ## Open items
 
-1. Exact generated-schema shapes and diagnostic code spellings.
+1. *(Partially decided 2026-08-03.)* The operation-identity and commit-envelope
+   v1 schema shapes are fixed by the Rust-owned artifacts above. Suppression,
+   tombstone, epoch/range, explanation-projection, and protected-custody
+   record shapes, plus exact diagnostic spellings, remain open.
 2. Final parameter values: range size/window and ACK/retention parameters
    land by dated revision in LLP 0043; the detail/envelope/checkpoint
    windows stay with LLP 0162 OQ1 until this Spec and LLP 0165 land them.
@@ -107,3 +121,37 @@ schemas.
    Spec, and those amendments could still collapse it into
    `identity-horizon-passed`, but that is a future decision, not an open
    review question.
+
+## Implementation record — 2026-08-03
+
+The initial slice extends the shipped `ClientMutationIdentity` through
+`OperationIdentityV1::from_client_mutation`: the existing client mutation id,
+function, auth fingerprint, authority-instance id, and input fingerprint are
+preserved as the widened operation identity's key or compared facts. It does
+not introduce an independent retry identity.
+
+The generated schema makes the physical key exactly `(streamId,
+originatorClass, operationId)`, keeps audience as a compared bound fact, uses
+structurally disjoint authenticated issuance variants for finite client ranges
+and host incarnations, and stream-qualifies produced-commit versus observed-
+snapshot associations. The envelope requires digests/counts/provenance for
+read, write, ctx-answer, and effect fact sets; models lane-defined fields and
+bounded detail states explicitly; carries both effect-classification axes; and
+uses protected-lane custody references for non-inline secret-bearing detail.
+
+Focused tests establish that audience divergence collides rather than becoming
+novel, stream and originator partitions do become novel, a client-range
+issuance cannot validate in the host namespace, host derivation is stable by
+upstream identity plus commit ordinal, and envelope stream/audience facts must
+match their identity. These are schema/validation foundations only:
+
+| LLP 0162 acceptance row | State after this slice |
+| --- | --- |
+| 1 | **Partial** — v1 envelope and validation shape exist; atomic data/journal/envelope/suppression/receipt storage and crash cuts are missing. |
+| 2 | **Partial** — exact-replay versus bound-fact-divergence comparison exists at the type boundary; stored retry settlement, range issuance/persistence/exhaustion, suppression lifecycle, tombstones, floors, and crash corpus are not wired. |
+| 3 | **Missing** — durable provenance joins, bounded enumeration, detail dispositions, and fail-closed explanation authorization are not wired. |
+| 4 | **Missing** — covered-lane inventory/choke point and asymmetric retention corpus are not wired. |
+| 13 | **Gate artifact recorded separately** — candidate comparison has not run, so the row has not passed. |
+| 14 | **Partial** — host namespace/derivation validation exists; server authentication, admission exclusion, reclamation, and corpus legs are missing. |
+
+Every related capability therefore remains `Missing`.

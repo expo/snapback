@@ -84,7 +84,7 @@ function primitiveKind(contract) {
   if (contract.kind === 'boolean') return 'boolean';
   if (['string', 'principal', 'assetRef', 'id'].includes(contract.kind)) return 'string';
   if (['integer', 'finiteReal'].includes(contract.kind)) return 'number';
-  if (contract.kind === 'array' || contract.kind === 'vector') return 'array';
+  if (contract.kind === 'array' || contract.kind === 'tuple' || contract.kind === 'vector') return 'array';
   if (contract.kind === 'object') return 'object';
   if (contract.kind === 'literal') {
     if (contract.value === null) return 'null';
@@ -172,6 +172,11 @@ function validateEffectiveResultContract(contract) {
         invalidResultContract('array maxItems exceeds 1,024');
       }
       visit(value.element, depth + 1);
+    } else if (value.kind === 'tuple') {
+      if (!Array.isArray(value.elements) || value.elements.length < 1 || value.elements.length > 8) {
+        invalidResultContract('tuple must contain 1–8 elements');
+      }
+      for (const element of value.elements) visit(element, depth + 1);
     } else if (value.kind === 'vector') {
       if (!Number.isSafeInteger(value.dimensions)
         || value.dimensions < 1
@@ -282,6 +287,10 @@ export function validatorResultValue(validator, {
     value = scalar('array', {
       element: validatorResultValue(validator.element, { legacy, args, tables }),
       maxItems: options.maxItems ?? RESULT_MAX_ARRAY_ITEMS,
+    });
+  } else if (validator.resultKind === 'tuple') {
+    value = scalar('tuple', {
+      elements: validator.elements.map((element) => validatorResultValue(element, { legacy, args, tables })),
     });
   } else if (validator.resultKind === 'union') {
     value = scalar('union', {
@@ -825,6 +834,7 @@ function resultValueType(value) {
   if (value.kind === 'literal') return JSON.stringify(value.value);
   if (value.kind === 'json') return 'unknown';
   if (value.kind === 'array') return `ReadonlyArray<${resultValueType(value.element)}>`;
+  if (value.kind === 'tuple') return `readonly [${value.elements.map(resultValueType).join(', ')}]`;
   if (value.kind === 'vector') {
     return `ReadonlyArray<number> & { readonly length: ${value.dimensions} }`;
   }

@@ -1,7 +1,7 @@
 # G-04: The register cliff — one ordinary query must not degrade a whole register group
 
-**Status:** Resolved — path (b) landed; implementation is gated on an
-accepted mixed-route successor profile
+**Status:** Resolved — path (b) and the accepted mixed-route v2 successor
+implemented 2026-08-03
 **Program:** 20260802-convex-erg-00-program.md
 **Systems:** Live queries, Client integration, Codegen
 **Related:** LLP 0127 (reactivity-fee finding), LLP 0090 (resumable query
@@ -100,3 +100,15 @@ amendment proposal. That satisfies exit path (b): the implementation is
 re-scoped to a new versioned profile and cannot proceed until its author-level
 contract is accepted. This closure makes no code, capability, delivery,
 carrier, or LLP 0157 claim and does not reinterpret LLP 0112 format 1.
+
+**2026-08-03 implementation follow-through.** LLP 0090 now accepts the
+versioned successor and LLP 0157 registers its single new class/profile pair:
+`exported_query_v1` / `mixed-route.v2`. The contributor local target ships
+Experimental `mixed_bundle_boot_v2`: codegen emits a disjoint format-2 group;
+the host reconstructs the LLP 0157 plan identity, evaluates all children in
+one pinned read transaction, registers only capability-bound live children,
+and returns ordinary children with explicit read-only delivery. The React
+provider adopts live children, installs plain children as snapshot/idle stores,
+and reports the group weakest state honestly. LLP 0112 format 1 is unchanged.
+Focused Rust, codegen, and React executable acceptance covers identity,
+one-cut rows, registration count, delivery provenance, and mixed cleanup.

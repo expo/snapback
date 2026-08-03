@@ -1,11 +1,15 @@
 # LLP 0143: Expo push-notification seam
 
 **Type:** RFC
-**Status:** Accepted
+**Status:** Implemented
 **Systems:** Notifications, React/Expo, Actions, Auth, Secrets and config,
 Deployment, Testing, Documentation
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-01
+**Revised:** 2026-08-03 (PUSH-01 Exit: a physical iOS development build
+returned an allowlisted Expo ticket and receipt with `ok` status; the local
+`notifications.expoPushSeam` integration seam is shipped, while hosted remains
+Missing and the first-class LLP 0045 `notifications` boolean remains false.)
 **Revised:** 2026-08-02 (PUSH-01 packaged acceptance, generated ledger
 projection, and safe pre-transmit recovery amendment; the real dev-build
 receipt remains the final exit witness.) 2026-08-01 (loop CONVERGED dual-family READY — Fable round 3,
@@ -985,6 +989,34 @@ The client package acceptance covers concurrent first use, logout/account
 switch preservation, full reset, RQS separation, and corrupt-store refusal.
 This closes OQ2 without widening D4's capability claim or the real-receipt Exit
 witness.
+
+### 2026-08-03 — PUSH-01 physical-device Exit amendment
+
+PUSH-01's external acceptance gate ran on the temporary All Aboard SB-EXPO
+probe without placing its source or credentials in this repository. EAS build
+`7af395e4-38d8-4053-ab63-4dcda53fef75` produced an ad-hoc iOS development
+client for `dev.allaboard.sbexpo`; the paired physical phone loaded the probe
+through Metro and minted its token entirely inside the app. The probe neither
+rendered nor logged that token and discarded all free-form provider text.
+
+The retained closed evidence is:
+
+- witness `push-01-msdm9q33` under EAS project
+  `e9f81917-0af8-4449-a7c5-948422068c50`;
+- Expo ticket `019fc914-5711-753e-a8cb-39881feab344`, status `ok`, sent at
+  `2026-08-03T19:23:01.071Z`;
+- receipt status `ok` at `2026-08-03T19:23:11.445Z`, with no error code; and
+- a foreground device callback at `2026-08-03T19:23:01.818Z`, plus Charlie's
+  contemporaneous visual observation of the notification.
+
+Only the ticket and receipt are capability evidence. The callback and human
+observation are supplemental and do not establish a delivery contract. This
+amendment therefore promotes the **local** `notifications.expoPushSeam` guide
+row from partial to shipped, closes the real-device GAP, and advances this RFC
+to Implemented. It leaves the complete hosted conjunction Missing and keeps
+the distinct LLP 0045 `notifications` boolean false. Nothing here claims
+device delivery, display, read state, exactly-once behavior, latency,
+availability, or an SLA.
 
 ## Prior art
 

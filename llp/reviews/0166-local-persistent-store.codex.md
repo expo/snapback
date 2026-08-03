@@ -302,3 +302,293 @@ at 46127881, before this fix pass.
 5. **Recommended next step**
 
 Keep LLP 0166 in Draft. Resolve concerns 1–5 first, repair D1/D3 scoping, and recover or rerun the missing Fable review. Then run another focused dual-family review of D2, D3/D5, D6, and D7 before considering acceptance.
+---
+
+## Round 4 — 2026-08-03
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** `codex-cli` 0.146.0, `codex exec`, model
+`gpt-5.6-sol`, `model_reasoning_effort=xhigh`, sandbox `read-only`
+**Date:** 2026-08-03
+**Redacted:** no
+**Method:** fresh non-author `codex exec` context over the working tree at
+048a1852 (v0.4); focused delta round auditing round-3 resolution and
+probing the changed text, with owner spot-checks (LLP 0053 retirement
+semantics, LLP 0155 §Query execution, LLP 0157 §D3 event closure).
+Orchestrated by the authoring session, which does not count as a
+reviewer; recorded verbatim below.
+
+---
+
+1. **Overall assessment**: **NOT READY — 0.99 confidence.** V0.4 resolves the commission-narrowing, artifact, wipe, legacy scoping, grace-pin, multi-partition, and overlay-parity findings. It is still not ready because the broker lifecycle remains under-specified, `TransformPlanV1` is not total, and LLP 0053 terminal retirement conflicts with §D6’s pending-intent guarantee. The new blocker-custody, compaction, and budget text also contains material internal or owner-spec contradictions.
+
+2. **Round-3 resolution audit**:
+
+| Finding id | Status | Explanation |
+| --- | --- | --- |
+| Codex B1 — LLP 0155 commission narrowing | resolved | |
+| Codex B2 — transform totality / overlay parity | partial | Overlay parity is correctly split, but filter semantics remain undefined and S6 contradicts the mixed-type comparator. |
+| Codex B3 — broker lifecycle | partial | Per-partition announces and release messages landed, but unregister is not partition/fence-bound and reaped-context/retry replay safety is not implementable from the persisted state. |
+| Codex B4 — retention/grace/blocker totality | partial | Both axes are pinned, but blocker custody contradicts the sync-set/guardrail invariants and the pressure order duplicates `undemanded` pinned records. |
+| Codex B5 — terminal-retirement protocol | partial | `active → retiring` is a legal owner transition, but its LLP 0053 semantics make dependent queue custody discard-only, contradicting §D6. |
+| Codex M6 — wipe `storeMeta` projection | resolved | |
+| Codex M7 — D3 legacy scoping | resolved | |
+| Codex M8 — artifact restoration | resolved | |
+| Fable M1 — artifact restoration | resolved | |
+| Fable M2 — last-snapshot/S3 alignment | resolved | |
+| Fable M3 — `retentionRequest` through grace | resolved | |
+| Fable M4 — multi-partition broker | resolved | |
+| Fable N5 — registration byte cap | partial | A 16 KiB ceiling exists, but “serialized record bytes” has no carrier-independent byte formula. |
+| Fable N6 — liveness closure edges | resolved | |
+| Fable N7 — persisted handoff roster | resolved | |
+| Fable N8 — transform closure edges | partial | Direction and limit landed; filter comparison and mixed-type behavior remain non-total. |
+| Fable N9 — S1 family split | resolved | |
+| Suggestion 1 — wipe registrations | resolved | |
+| Suggestion 2 — clear `heldProofs` | resolved | |
+| Suggestion 3 — closed broker records | resolved | |
+| Suggestion 4 — suppression grace anchor | resolved | |
+| Suggestion 5 — `TransformHashV1` consumers | resolved | |
+| Suggestion 6 — corrupt-migration S5 leg | resolved | |
+
+3. **New concerns**
+
+1. **BLOCKING — The durable broker lifecycle is still not closed.** `RegisterReleaseV1` carries neither `authorityPartitionDigest` nor an expected fence; `RegisterForwardV1` also carries no expected fence even though the prose requires a “fence mismatch” refusal. The protocol therefore cannot implement the round-3 requirement that both register and unregister be authority/fence-bound. In addition, only the live context roster is persisted: after restart the writer cannot know that an old `contextId` was previously reaped, so a delayed announce can resurrect it despite §D2’s contrary guarantee. Finally, a delayed forward after release can recreate a durable registration unless consumed request or retired-registration identities are persisted. Define the partition/fence/context bindings and bounded durable replay state explicitly.
+
+2. **BLOCKING — `TransformPlanV1` remains non-total.** `basic-v1` lists operators but never defines `eq`/`ne`, range comparison, `in` membership, absent-field behavior, mixed-type filter operands, or non-scalar filter-field behavior. More directly, §D7 orders mixed scalar types through `null < boolean < number < string`, while S6 requires “mixed-type refuse.” Two conforming evaluators can produce different results, so the dual-runtime oracle still cannot be authoritative.
+
+3. **BLOCKING — LLP 0053 terminal retirement violates §D6’s pending-intent guarantee.** LLP 0053’s `active → retiring` commit immediately destroys the predecessor snapshot, lease, overlays, and live boundaries and makes dependent queue custody **discard-only**. Section D6 simultaneously says family convergence never drops or disrupts pending outbox intent. A lease predecessor referenced by pending intent therefore cannot safely enter step 1. Convergence needs a no-dependent-intent precondition, an owner-defined preservation/remapping protocol, or refusal until the intent settles or is explicitly discarded; S5 needs this crash/pending-intent leg.
+
+4. **MATERIAL — Blocker-held custody is inconsistent with the document-wide retention invariants.** D3 permits payload to survive after the five-part predicate fails, but Vocabulary, D2, Guardrail 1, and S1 say an unregistered `qmk1` record survives only through grace and enumerate only registration, grace, and legacy reasons. They omit `safety-blocker`. The “predicate fails” rule is also too broad: LLP 0053 `delete`/retirement must destroy payload regardless of a compaction blocker, while quarantine can itself require owner-held custody. State the precedence and exceptions explicitly. The inspection union also lacks a reason for a compacted stub retained solely for current-instance fences or non-payload obligations.
+
+5. **MATERIAL — The pressure order contradicts D5 and S3.** Step 1 selects every `undemanded` record, including pinned ones; step 3 again selects `undemanded` pinned records. Yet D5 and S3 say pinned-graced records fall only in step 3. Exclude pinned records from step 1 or revise the claimed priority and oracle.
+
+6. **MATERIAL — Clearing `heldProofs` has no legal LLP 0157 transition.** Same-instance rehydration is owner-correct: LLP 0053 preserves `query_instance_id` through compaction, and LLP 0157 `initialize` may load the current instance. But LLP 0157 declares its product-state event vocabulary closed and contains neither a payload-compaction event nor a compaction operation. V0.4 now mutates `heldProofs`, manifests, and memberships outside that vocabulary while claiming to consume LLP 0157 unchanged; the carried LLP 0157 amendment even says no other D1–D8 semantics change. Add the owner amendment or map compaction to an explicitly authorized owner transition.
+
+7. **MATERIAL — The new persisted broker roster breaks total accounting.** D3 says `storeMeta` is bounded by the record and registration caps, but arbitrarily many contexts—including contexts announcing empty sets—can enter the durable roster. No live-context, message, or roster-byte ceiling exists. The 16 KiB registration cap also lacks an exact encoding formula. Add bounded refusal semantics and surface the ceilings through inspection/OQ4.
+
+4. **Suggestions** (non-blocking).
+
+- Add `effectiveRetentionRequest` to `StorePolicyInspectionV1`; the new two-axis grace state currently exposes only its TTL half.
+- Require an announced registration’s `ownerContext.contextId` to equal the envelope’s `contextId`.
+- Rename inspection’s `materializationKey` to a family-neutral address key if legacy entries remain in the same `addresses` array.
+- Add a broker fixture covering commit, lost outcome, release, delayed forward, reap, writer restart, and delayed announce.
+
+5. **Recommended next step**.
+
+Keep LLP 0166 in Draft. Repair the three blocking protocols first, reconcile blocker custody and compaction with LLP 0157/0053, and close the broker/accounting bounds. Then run a focused round 5 over §D2, §D3/§D5, §D6/S5, and §D7/S6 with the same three owner-document spot-checks.
+---
+
+## Round 5 — 2026-08-03
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** `codex-cli` 0.146.0, `codex exec`, model
+`gpt-5.6-sol`, `model_reasoning_effort=xhigh`, sandbox `read-only`
+**Date:** 2026-08-03
+**Redacted:** no
+**Method:** fresh non-author `codex exec` context over the working tree at
+9ebfa344 (v0.5); micro-delta round auditing round-4 resolution and probing
+the v0.5-changed text, with owner spot-checks. Orchestrated by the
+authoring session, which does not count as a reviewer; recorded verbatim
+below.
+
+---
+
+1. **Overall assessment**: **NOT READY — 0.98 confidence.** V0.5 cleanly resolves retirement versus pending intent, blocker precedence, pressure ordering, compaction authorization, discharge timing, and `writerGeneration` preservation. Owner spot-checks confirm both [LLP 0053’s destructive retirement semantics](/Users/ccheever/projects/snapback-0166/llp/0053-authorization-invalidation.rfc.md:1062) and [LLP 0157’s closed event vocabulary](/Users/ccheever/projects/snapback-0166/llp/0157-composition-algebra-and-completeness.spec.md:988). It remains below READY because the durable broker can still resurrect a released registration under message reordering, multi-partition handoff cannot prove complete reconciliation, `in` contradicts the new non-scalar rule, and broker accounting remains non-total.
+
+2. **Round-4 resolution audit**:
+
+| Finding id | Status | Explanation |
+| --- | --- | --- |
+| Codex B1 — broker lifecycle | partial | Partition validation landed, but release-before-delayed-forward can resurrect demand; request identity and safe memory eviction are undefined; context-only handoff cannot reconcile partition sets. |
+| Codex B2 — filter semantics / S6 | partial | Range comparisons and mixed-type ordering are aligned, but `in` requires an array while the blanket non-scalar-operand rule rejects arrays. |
+| Codex B3 — retirement / pending intent | resolved | |
+| Codex M4 — blocker custody / reason law | resolved | |
+| Codex M5 — pressure order | resolved | |
+| Codex M6 — LLP 0157 compaction event | resolved | |
+| Codex M7 — roster/accounting bounds | partial | The 16 KiB JCS formula and count ceilings landed, but broker entries/messages remain byte-unbounded and their memory ceilings are absent from inspection. |
+| Codex suggestion 1 — effective retention inspection | resolved | |
+| Codex suggestion 2 — announced context binding | resolved | |
+| Codex suggestion 3 — family-neutral address key | resolved | |
+| Codex suggestion 4 — broker fixture | resolved | |
+| Fable M1 — reason-law unification | resolved | |
+| Fable M2 — filter binding / S6 | partial | Same `in` contradiction as Codex B2. |
+| Fable N3 — release partition binding | resolved | |
+| Fable N4 — refusal granularity | unresolved | The global rule says whole-message refusal; the per-partition rule still says “refuses the entry.” |
+| Fable N5 — discharge timing | resolved | |
+| Fable N6 — `writerGeneration` at wipe | resolved | |
+| Fable suggestion 1 — single reason source | partial | The union is declared authoritative, but Vocabulary, D2, and Guardrail 1 still re-enumerate it. Their lists currently agree. |
+| Fable suggestion 2 — comparison families | partial | The requested sentence landed but mishandles the `in` container. |
+| Fable suggestion 3 — release-partition probe | resolved | |
+| Fable suggestion 4 — connected convergence | resolved | |
+
+3. **New concerns** —
+
+1. **BLOCKING — Durable forward/release ordering is not closed.** Consider forward `F(request=f, registration=R)` being delayed, followed by release `L(request=l, registrationId=R)`. The writer sees unknown `R`, returns `released` as required, then later receives `F`. The consumed-request memory knows `l`, not `f`, and no released-registration tombstone or per-registration sequence exists, so `F` recreates `R`. Likewise, `requestId` has no uniqueness scope and `RegisterOutcomeV1` is not context-bound. The “last 1,024” memory also gives no safe behavior after eviction. The protocol therefore cannot implement its own fresh-forward refusal or delayed-forward guarantee in [§D2](/Users/ccheever/projects/snapback-0166/llp/0166-local-persistent-store.spec.md:625).
+
+2. **MATERIAL — Multi-partition writer handoff has no decidable completion condition.** The persisted roster contains only `contextId`s, while demands are replaced per `(contextId, partition)`. After a context re-announces one partition, the writer cannot know whether more partition announcements are pending, yet [handoff may finish once every context “re-announces”](/Users/ccheever/projects/snapback-0166/llp/0166-local-persistent-store.spec.md:650). Suppression can therefore end with another live partition absent from the rebuilt ledger, exposing actively rendered custody to compaction. Persist the prior pair roster or add a closed, atomic full-context announcement/completion record.
+
+3. **MATERIAL — Every valid `in` filter is simultaneously admitted and refused.** `TransformPlanV1` requires `in` to carry [a nonempty array of scalars](/Users/ccheever/projects/snapback-0166/llp/0166-local-persistent-store.spec.md:1250), but step 3 says [a non-scalar filter operand refuses execution](/Users/ccheever/projects/snapback-0166/llp/0166-local-persistent-store.spec.md:1286). Specify that the `in` container is the sole permitted array operand and validate each member as scalar.
+
+4. **MATERIAL — Broker accounting is still not total or fully inspectable.** The 64/256/1,024 count limits do not bound unconstrained `contextId`, `requestId`, refusal-code, or demand-message bytes. Moreover, `StorePolicyInspectionV1` exposes only `liveContextCount/liveContextCeiling`, omitting reaped-context and consumed-outcome counts and ceilings, contrary to the claim that provisional constants surface as ceiling fields in [§D5](/Users/ccheever/projects/snapback-0166/llp/0166-local-persistent-store.spec.md:1063). Add exact identifier/message encodings or byte ceilings and expose all enforced broker limits.
+
+5. **NIT — Refusal granularity still contradicts itself.** [The governing paragraph says whole-message refusal](/Users/ccheever/projects/snapback-0166/llp/0166-local-persistent-store.spec.md:582), while [the partition rule says a cross-partition demand refuses only the entry](/Users/ccheever/projects/snapback-0166/llp/0166-local-persistent-store.spec.md:604). Change the latter to “refuses the whole message.”
+
+4. **Suggestions** (non-blocking).
+
+- Consider echoing a broker epoch or `writerGeneration` in requests to simplify bounded rejection of stale messages.
+- Replace the repeated retaining-reason prose with references to the union’s exact kind names.
+- Extend S1 with release-before-first-forward, memory-eviction boundaries, request-ID collision, and partial multi-partition handoff fixtures.
+
+5. **Recommended next step**.
+
+Prepare a narrowly scoped v0.6: close forward/release sequencing and bounded replay, make handoff reconciliation partition-complete, repair `in`, finish broker byte accounting/inspection, and fix the refusal wording. Then run another micro-delta review limited to those broker, D3/D5 inspection, D7 step-3, and S1/S6 changes.
+---
+
+## Round 6 — 2026-08-03
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** `codex-cli` 0.146.0, `codex exec`, model
+`gpt-5.6-sol`, `model_reasoning_effort=xhigh`, sandbox `read-only`
+**Date:** 2026-08-03
+**Redacted:** no
+**Method:** fresh non-author `codex exec` context over the working tree at
+ac606e5c (v0.6); micro-delta round confined to the round-5 repairs.
+Orchestrated by the authoring session, which does not count as a
+reviewer; recorded verbatim below.
+
+---
+
+1. **Overall assessment**: **NOT READY — confidence 0.98.** Most round-5 repairs landed correctly, including the `in` rule, refusal granularity, context-bound request identity, generation fencing, precedence, and expanded inspection record. However, the overflow analysis is incorrect, release-of-unknown cannot satisfy the stated partition validation, handoff may still finish with an unreconciled live pair, and broker accounting/inspection remains incomplete. These are MATERIAL protocol defects, not preferences.
+
+2. **Round-5 resolution audit**:
+
+| Finding id | Status | Explanation |
+| --- | --- | --- |
+| Codex B1 | partial | Tombstones, per-context request IDs, context-bound outcomes, and generation fencing landed. The overflow premise is false, and release-of-unknown lacks partition-verifiable identity. |
+| Codex M2 | partial | The roster is pair-keyed, but the 30-second timeout can end suppression without reconciliation or reap. |
+| Codex M3 | resolved | |
+| Codex M4 | partial | Identifier/message limits and memory inspection landed, but roster pairs remain unbounded and two new limits are absent from inspection. |
+| Codex N5 | resolved | |
+| Fable M1 | partial | The bounded-state residual is acknowledged but analyzed incorrectly: release-before-first-forward needs only tombstone eviction, not eviction from both memories. |
+| Fable M2 | resolved | |
+| Fable M3 | partial | The previously missing fields landed, but OQ4 now includes 64-byte identifiers and 256 KiB messages without corresponding inspection fields. |
+| Fable N4 | resolved | |
+| Fable N5 | resolved | |
+| Fable suggestion 1 | partial | The additive direction was followed, but the resulting constants surface is still incomplete. |
+| Fable suggestion 2 | partial | The overflow sentence and S1 note landed, but the analysis they record is wrong. |
+| Fable suggestion 3 | resolved | |
+| Fable suggestion 4 | resolved | |
+
+3. **New concerns** —
+
+1. **MATERIAL — The overflow analysis is false for the exact release-before-first-forward schedule.** If release request `l` is consumed while forward request `f` remains delayed, then after the released-registration tombstone evicts, `f` is still an unseen request. Its arrival can recreate the registration even if the consumed outcome for `l` remains present. Only tombstone eviction is required; both memories need eviction only for replay of a previously consumed forward. S1 repeats the incorrect “two-memory” bound.
+
+2. **MATERIAL — Release-of-unknown cannot satisfy the stated partition check.** Forward and release supposedly receive identical validation that the registration’s address belongs to the supplied partition, but an unknown `registrationId` has no stored address. A store-scoped tombstone keyed only by that ID either lets one partition preempt a later forward in another partition or makes release-before-first-forward impossible. Additionally, “tombstone for every release outcome” could include refused releases. Tombstones need an explicit partition binding and should be created only atomically with a successful `released` outcome.
+
+3. **MATERIAL — Handoff completion still permits missing live demand.** Reconciliation ends when every pair re-announces or is reaped, **or** when the 30-second window elapses. Heartbeat reap occurs at 45 seconds, so the timeout can end suppression while a roster pair remains live and absent. That directly contradicts the next sentence and S1’s claim that partial handoff keeps suppression active until the pair reconciles.
+
+4. **MATERIAL — Broker bounds and inspection are still not total.** The roster is capped at 64 contexts, but one context can accumulate multiple partition pairs without a stated pair ceiling; neither `liveContextCount` nor the message-size ceiling bounds that accumulated state. The inspection record also omits the enforced 64-byte identifier and 256 KiB broker-message ceilings while §D5 and OQ4 claim every provisional constant surfaces. The LLP 0055 spot-check found grant caps per actor/effective user, not a cited per-context or per-store roster-pair ceiling that closes this bound.
+
+4. **Suggestions** (non-blocking).
+
+- Exercise the exact 1,024/1,025 tombstone and consumed-outcome boundaries rather than recording overflow only as prose analysis.
+- Expose `livePairCount` and its ceiling separately from live-context metrics.
+- Add an S1 timeout branch showing the required fail-closed behavior for unreconciled pairs.
+
+5. **Recommended next step**.
+
+Keep LLP 0166 in Draft. Repair the overflow cases, partition-key successful-release tombstones, remove or fail-close the unsafe handoff timeout, and complete pair accounting plus inspection fields. Then run another micro-delta round confined to those sentences and S1.
+---
+
+## Round 7 — 2026-08-03
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** `codex-cli` 0.146.0, `codex exec`, model
+`gpt-5.6-sol`, `model_reasoning_effort=xhigh`, sandbox `read-only`
+**Date:** 2026-08-03
+**Redacted:** no
+**Method:** fresh non-author `codex exec` context over the working tree at
+b58b3c5f (v0.7); micro-delta round confined to the round-6 repairs.
+Orchestrated by the authoring session, which does not count as a
+reviewer; recorded verbatim below.
+
+---
+
+1. **Overall assessment**: **NOT READY — confidence 0.99.** V0.7 resolves M1, M2, and M4, but M3 remains partial: handoff reconciliation is pair-scoped while heartbeat expiry is context-scoped, so one partition pair can keep a context alive indefinitely while another pair never re-announces or reaps. OQ4 also retains the deleted 30-second handoff window, regressing Fable round-5’s inspection-constants repair. These are MATERIAL protocol inconsistencies. The LLP 0155 OQ9 and LLP 0055 owner spot-checks support the cited budget and multi-grant premises but supply no missing pair-liveness rule.
+
+2. **Round-6 resolution audit**:
+
+| Finding id | Status | Explanation (partial/unresolved only) |
+| --- | --- | --- |
+| Codex M1 | resolved | |
+| Codex M2 | resolved | |
+| Codex M3 | partial | Any well-formed message refreshes the context-wide heartbeat. Pair A can therefore keep the context live while pair B remains unreconciled forever; B has no independent 45-second reap. |
+| Codex M4 | resolved | |
+| Suggestion 1 — boundary legs | resolved | |
+| Suggestion 2 — live-pair metrics | resolved | |
+| Suggestion 3 — timeout branch | partial | S1 adds the branch but assumes a silent pair receives a liveness reap that §D2 defines only for the whole context. |
+| Fable R5 C1 — released-registration window | resolved | |
+| Fable R5 C2 — refusal granularity | resolved | |
+| Fable R5 C3 — inspection constants | partial | OQ4 still declares a 30-second handoff constant, while `handoffWindowMs` was correctly removed from inspection. |
+| Fable R5 C4 — reason precedence | resolved | |
+| Fable R5 C5 — `in` operand | resolved | |
+
+3. **New concerns** —
+
+1. **MATERIAL — The claimed 45-second handoff bound is false for multi-partition contexts.** Because heartbeat refresh is context-wide, repeated re-announcements for one pair prevent the context from being reaped even if another persisted pair never re-announces. Suppression can therefore remain active indefinitely, contradicting §D2 and S1. The protocol needs pair-level heartbeat/reap semantics or another affirmative, fail-closed reconciliation mechanism.
+
+2. **MATERIAL — OQ4 still lists the removed “30-second handoff window.”** This contradicts the normative no-timeout rule and falsely claims that every listed constant surfaces in inspection. It also reopens the exact safety ambiguity M3 was meant to close.
+
+3. **NIT — The overflow paragraph calls the durable-registration residue “not self-healing, like the reaped-context window,” while the context window was explicitly defined as self-healing.** Remove the comparison or state that only boundedness is shared.
+
+4. **Suggestions** (non-blocking).
+
+- Split S1’s memory-boundary coverage into explicitly named release-before-first-forward and previously-consumed-forward schedules.
+- Clarify the earlier “same validation for both” sentence with the release-of-unknown partition-only exception already defined later.
+
+5. **Recommended next step**.
+
+Keep LLP 0166 in Draft. Define pair-level reconciliation expiry and exercise the case where pair A continues heartbeating while pair B remains silent; remove the stale OQ4 handoff constant; then run one final micro-delta round over §D2 liveness/handoff, S1, and OQ4.
+---
+
+## Round 8 — 2026-08-03
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** `codex-cli` 0.146.0, `codex exec`, model
+`gpt-5.6-sol`, `model_reasoning_effort=xhigh`, sandbox `read-only`
+**Date:** 2026-08-03
+**Redacted:** no
+**Method:** fresh non-author `codex exec` context over the working tree at
+32428d31 (v0.8); micro-delta round confined to the round-7 repairs. An
+earlier round-8 launch was killed by a session restart before producing
+output; this is the completed relaunch over the unchanged tree.
+Orchestrated by the authoring session, which does not count as a
+reviewer; recorded verbatim below.
+
+---
+
+1. **Overall assessment**: **READY — confidence 0.97.** V0.8 resolves every round-7 MATERIAL and NIT finding. Reconciliation now gives each roster pair an independent 45-second deadline, so pair A’s traffic cannot prevent silent pair B from being reaped; the text cleanly preserves context-scoped ordinary liveness and justifies the handoff-only split through mandatory full-set re-announcement. S1 exercises that exact schedule and the 129th-pair ceiling. The validation exception, overflow simile, named overflow schedules, and OQ4 cleanup also landed correctly. The retained LLP 0155 OQ9 budget attribution spot-checks accurately. I found only one editorial boundary-description NIT.
+
+2. **Round-7 resolution audit**:
+
+| Finding id | Status | Explanation |
+| --- | --- | --- |
+| Codex R7 M1 — pair-level reconciliation deadlines | resolved | |
+| Codex R7 M2 — phantom handoff window | resolved | |
+| Codex R7 N3 — overflow simile | resolved | |
+| Codex R7 suggestion 1 — named overflow schedules | resolved | |
+| Codex R7 suggestion 2 — validation exception | resolved | |
+| Fable R7 N1 — OQ4 deletion | resolved | |
+| Fable R7 N2 — overflow simile | resolved | |
+
+3. **New concerns**
+
+1. **NIT** — S1’s phrase “once the 1,025th-oldest tombstone evicts” is ordinally malformed. For a last-1,024 memory, insertion of the 1,025th total tombstone evicts the oldest target tombstone. The normative memory definition remains unambiguous, so this does not prevent READY.
+
+4. **Suggestions** (non-blocking).
+
+- Rewrite the boundary as: “with the target plus 1,023 newer tombstones it still refuses; inserting the 1,024th newer tombstone—the 1,025th total—evicts the target and exposes the documented residue.”
+
+5. **Recommended next step**.
+
+Record this READY review as round 8, optionally apply the S1 wording NIT editorially, then let the author conclude the super-refine loop and decide acceptance under LLP 0005.

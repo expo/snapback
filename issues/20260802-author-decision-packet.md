@@ -35,7 +35,7 @@ Tier 1:
 Tier 2:
 
 4. **LLP 0143 ACCEPTED** (header flipped, dated note). Push-seam
-   implementation released: `issues/20260802-push-01-0143-implementation.md`.
+   implementation released: `issues/closed/20260802-push-01-0143-implementation.md`.
 5. **LLP 0147 ACCEPTED** (header flipped, dated note). Micro-profile
    Phases A–B released with the stop rule:
    `issues/20260802-pkg-02-0147-phase-ab-micro-core.md`.

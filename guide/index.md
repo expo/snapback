@@ -72,6 +72,9 @@ you never build around a feature because you didn't know it existed.
   unique lookup, keyset pages, and declarative trusted defaults.
 - [Relational queries](./backend/relational-queries.md) — bounded two-source
   equi-joins with explicit visibility and closed projections (experimental).
+- [Snapshot batches](./backend/snapshot-batches.md) — 2–8 bounded child
+  pages evaluated at one snapshot with one coordinated `sbsb1` cursor
+  (experimental local target).
 - [Portable indexed text search](./backend/text-search.md) — weighted
   term/phrase/prefix search with structured ASTs, deterministic ranking,
   authorization partitions, highlights, and current-keyset cursors
@@ -90,7 +93,7 @@ you never build around a feature because you didn't know it existed.
   egress, config grants, and mutation-owned durable effects.
 - [Expo push notifications](./backend/expo-push.md) — protected token
   custody, declared audiences, crash-honest Expo tickets and receipts, and
-  the local/hosted boundary (partial).
+  the local/hosted boundary.
 - [Streamed actions](./backend/streamed-actions.md) — bounded pull-driven
   response streaming, the attempt control plane, and durable progress.
 - [Scheduled execution](./backend/cron.md) — action-backed jobs,

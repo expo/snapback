@@ -1,12 +1,135 @@
 # LLP 0166: The local persistent store
 
 **Type:** Spec
-**Status:** Draft
+**Status:** Accepted
 **Systems:** Client SDK, Client integration, Local sync, Offline sync, Storage,
 Live queries, Relational queries, Optimistic updates, Auth, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-03
-**Revised:** 2026-08-03 (v0.4, round-3 fixes: Codex round 3 returned
+**Revised:** 2026-08-03 (v1.0, **Accepted** by Charlie Cheever's explicit
+"flip to accept" direction after the dual-family loop converged
+dual-READY at round 8. The §D7 amendment set is landed dated in the same
+change: LLP 0008 DK-9, LLP 0080, LLP 0157 (both retention unions + the
+payload-compaction event), and LLP 0155 §Move 2; dated boundary notes
+landed in LLP 0043, LLP 0053, and LLP 0090. Acceptance is semantic only:
+implementation and capability gates remain, and the implementation
+program is a separate wave-3 commissioning.) 2026-08-03 (v0.9, loop conclusion: the dual-family
+super-refine loop converged **dual-READY at round 8** — Codex READY at
+0.97 confidence with one editorial NIT; Fable READY at 0.90, its second
+consecutive READY, with one editorial NIT — over the unchanged v0.8
+tree. Both NITs and both reviewers' editorial suggestions are applied:
+the client's re-announce-on-hello obligation is now a normative rule (on
+observing `WriterHelloV1`, a context re-announces each of its pairs'
+full sets within the heartbeat interval), with the clause that a
+reconciliation-reaped *pair* — unlike a reaped context — simply
+re-announces and re-appears under the same `contextId`; "live pair" is
+respelled "unreconciled pair" at the drift-prone sentence; and S1's
+tombstone boundary is re-worded ordinally (the target plus 1,023 newer
+tombstones still refuses; the 1,024th newer — 1,025th total — evicts
+the target and exposes the documented residue). The document enters
+**Review**; acceptance remains Charlie's under LLP 0130 SD-4's standing
+rule and the commission's explicit reservation.) 2026-08-03 (v0.8, round-7 fixes: Fable round 7 returned
+**READY** (0.87, two editorial NITs); Codex round 7 returned NOT READY
+(2 MATERIAL, 1 NIT), catching a real pair-liveness hole the READY missed.
+Applied all: handoff reconciliation gains **pair-level deadlines** — each
+roster pair must re-announce within the 45-second expiry of
+`WriterHelloV1` or is affirmatively reaped *as a pair*, even while its
+context stays live through another pair's traffic (full-set announce
+semantics make a pair's non-re-announcement an affirmative absence
+signal), so suppression is genuinely bounded and one partition can never
+hold the store's lifecycle hostage; ordinary (non-handoff) liveness
+remains context-scoped, and the split is stated; the phantom "30-second
+handoff window" is deleted from OQ4 with a parenthetical noting the
+suppression bound is the heartbeat expiry, not an independent constant;
+the overflow simile is restructured ("unlike the reaped-context window,
+not self-healing"); the "same validation for both" sentence names the
+release-of-unknown partition-only exception up front; S1 names the
+release-before-first-forward and previously-consumed-forward schedules
+separately, updates the partial-handoff leg to the pair-deadline reap
+(pair A heartbeating while pair B stays silent), and adds the
+129th-live-pair ceiling leg.) 2026-08-03 (v0.7, round-6 fixes: Codex round 6 returned
+NOT READY (4 MATERIAL); the Fable round-6 run was interrupted before
+producing a review and none is recorded. Applied all four: the overflow
+analysis is corrected — the release-before-first-forward residue depends
+only on the released-registration tombstone window (the two-memory
+condition applies only to replay of a previously consumed forward), with
+S1's phrasing fixed and exact 1,024/1,025 boundary legs added;
+tombstones are keyed `(partition, registrationId)`, created only
+atomically with a successful `released` outcome (refused releases leave
+none), and release-of-unknown validates the caller's partition only —
+cross-partition forwards are unaffected, so no partition can preempt
+another's ids; the unsafe 30-second handoff exit is removed —
+suppression ends only when every roster pair re-announces or is
+affirmatively liveness-reaped, bounding suppression by the 45-second
+heartbeat expiry, with the S1 timeout branch added; and pair accounting
+closes (128 live-pair ceiling; `livePairCount`/`livePairCeiling`,
+`identifierByteCeiling`, and `messageByteCeiling` surface in
+inspection).) 2026-08-03 (v0.6, round-5 fixes: Codex round 5 returned
+NOT READY (1 BLOCKING, 3 MATERIAL, 1 NIT); Fable round 5 returned
+NOT READY (3 MATERIAL, 2 NIT); the findings converged almost exactly.
+Applied all: the durable forward/release ordering is closed — every
+release outcome (including release-of-unknown) records a bounded
+**released-registration tombstone** (1,024, provisional) that refuses
+any later forward naming the id, `requestId` uniqueness is scoped per
+`contextId` with the consumed-request memory keyed on the pair,
+`RegisterOutcomeV1` is context-bound, forwards and releases carry and
+match the current `writerGeneration` (stale durable mutations refuse and
+re-sync), and the two-memory overflow analysis is stated with the same
+honesty as the reaped-context window (the residual requires both
+memories overflowed, is inspection-visible, and is recoverable by
+release); the persisted roster is keyed by `(contextId, partition)`
+pairs so handoff reconciliation is partition-complete and decidable; the
+`in` container is named as the sole permitted array operand with
+per-element scalar validation; broker byte accounting is total
+(64-byte identifier ceilings, a 256 KiB message ceiling) and the
+inspection record gains the missing broker memory counts/ceilings, the
+per-registration byte ceiling, and a `constants` object carrying the
+cadence values, making the constants-surface claim true; the stale
+"refuses the entry" clause is corrected to whole-message refusal; the
+retaining-reason precedence is pinned (registrations > release-grace >
+safety-blocker > instance-bookkeeping, with the `"none"`-pinned
+transient reporting an elapsed-deadline grace); S1 gains the
+release-before-first-forward, memory-boundary, requestId-scope,
+partial-multi-partition-handoff, and malformed-announce legs and S6 the
+`in`-element leg.) 2026-08-03 (v0.5, round-4 fixes: Codex round 4 returned
+NOT READY (3 BLOCKING, 4 MATERIAL); Fable round 4 returned NOT READY
+(2 MATERIAL, 4 NIT) and judged the document at the READY bar once the
+spot repairs land. Applied all: the broker's durable lifecycle is closed
+— `RegisterReleaseV1` gains partition binding, registration commits are
+validated against the address's authority state (barrier-blocked
+partitions refuse; the materialization-fence language is corrected to
+what registration commits actually touch), a bounded reaped-context
+memory (256) and consumed-request-outcome memory (1,024) persist across
+writer restart so delayed announces and forwards cannot resurrect
+reaped contexts or released registrations, `registrationId`s are
+never-reused with fresh-forward refusal, refusal granularity is
+message-level everywhere, a 64-live-context ceiling lands, and announced
+subscription demands must carry the envelope's own `contextId`; the
+transform's comparison families are bound explicitly (canonical-value
+equality for `eq`/`ne`/`in`; the step-4 total comparator for range
+filters and ordering; non-scalar values refuse execution; absent fields
+read as null) and S6's "mixed-type refuse" parenthetical is corrected to
+the type-rank rule; §D6 gains the pending-intent precondition —
+convergence step 1 begins only when no pending outbox intent depends on
+the predecessor (LLP 0053's retirement makes dependent queue custody
+discard-only, so convergence waits for settlement or explicit discard —
+with an S5 leg) and is initiated only under a connected attempt; the
+retaining-reason law is unified — §D5's closed `retainingReason` union
+(now including `safety-blocker` and the new `instance-bookkeeping` stub
+reason) is the single source of truth cited by §D2, §Vocabulary, and
+Guardrail 1, and S1's equality carves out blocker-held records;
+blocker-custody precedence is explicit (it resists discretionary
+compaction/GC only; LLP 0053 delete/retirement destroy regardless);
+discharge-time reclamation is pinned to the next maintenance pass in
+§D3/S3; the pressure order excludes `pinned`-graced records from step 1;
+the carried LLP 0157 amendment additionally registers the
+payload-compaction event in §D3's closed vocabulary (heldProofs/manifest
+clearing is now owner-authorized); the 16 KiB registration ceiling gets
+its JCS byte formula and the broker memories get ceilings surfaced in
+inspection; the policy record renames `materializationKey` to the
+family-neutral `addressKey` and adds `effectiveRetentionRequest`;
+`writerGeneration` is preserved at `wipe` with the other monotone
+counters.) 2026-08-03 (v0.4, round-3 fixes: Codex round 3 returned
 NOT READY (5 BLOCKING, 3 MATERIAL); Fable round 3 returned NOT READY
 (4 MATERIAL, 5 NIT) and independently audited every Codex round-2 finding
 as resolved. Applied all: the amendment set gains a **fourth carried
@@ -210,9 +333,11 @@ capability fact is promoted by this document's status.
   projects.
 - **Sync set.** The union of current registrations over the governed
   families. The store hydrates, syncs, and retains exactly this set — the
-  sync set *is* the replica definition; released records outlive it only
-  inside §D5's grace, and grandfathered legacy entries sit beside it under
-  LLP 0090's own lifecycle with their own nameable retaining reason (§D5).
+  sync set *is* the replica definition. Custody outside it exists only
+  under §D5's closed `retainingReason` union: released records inside
+  their grace, blocker-held payload (`safety-blocker`), compacted stubs
+  held for owner bookkeeping (`instance-bookkeeping`), and grandfathered
+  legacy entries under LLP 0090's own lifecycle.
 - **Governed families.** The address families this Spec's demand/grace/
   eviction model governs: `qmk1` materializations and — for demand and
   hydration only, never for retention lifecycle — legacy resume
@@ -355,8 +480,8 @@ it is not compaction and not a general cleanup:
   transaction, is what makes the identity transition safe.
 - **What survives:** the `query_instance_id` allocator high-water (LLP 0053
   requires never-reuse across recreation), the fence/tombstone/barrier
-  high-waters LLP 0053's delete rules preserve, and the store format
-  version.
+  high-waters LLP 0053's delete rules preserve, the monotone
+  `writerGeneration` counter, and the store format version.
 - **What rotates:** the LLP 0157 §D6 local-row-handle HMAC key is destroyed
   and re-minted — a predecessor identity's handles must not remain
   comparable across the barrier.
@@ -380,11 +505,13 @@ definition — no table list, no collection manifest, no sync schema. A
 governed-family materialization is hydrated, kept current, or retained
 because at least one registration names it (or because §D5's release grace
 has not yet elapsed since the last registration released it); the
-store-policy inspection names that reason for every retained byte —
-including the one non-registration reason, "grandfathered legacy entry
-under LLP 0090's lifecycle" (§D5). A query nothing registers is never
-hydrated; nothing unregistered in a governed family is retained beyond
-grace.
+store-policy inspection names the reason for every retained byte from
+§D5's closed `retainingReason` union — registrations, a running grace,
+blocker-held payload, stub bookkeeping, or the grandfathered-legacy
+reason. A query nothing registers is never hydrated; nothing unregistered
+in a governed family is retained beyond grace except blocker-held payload
+and stub bookkeeping, both named by inspection and both ending with their
+causes.
 
 This is LLP 0155 Move 2's copied-Zero outcome with Snapback's authority
 model kept: the *client* declares interest; the *server* still admits the
@@ -515,7 +642,8 @@ type DemandAnnounceV1 = Readonly<{
 type RegisterForwardV1 = Readonly<{
   format: "snapback.register-forward.v1"
   contextId: string
-  requestId: string
+  requestId: string              // unique per contextId; client-minted, never reused
+  writerGeneration: number       // must match the current writer's generation
   authorityPartitionDigest: `sha256:${string}`
   registration: QueryRegistrationV1          // source: "programmatic" only
 }>
@@ -523,10 +651,13 @@ type RegisterReleaseV1 = Readonly<{
   format: "snapback.register-release.v1"
   contextId: string
   requestId: string
+  writerGeneration: number
+  authorityPartitionDigest: `sha256:${string}`
   registrationId: string                     // a durable registration
 }>
 type RegisterOutcomeV1 = Readonly<{
   format: "snapback.register-outcome.v1"
+  contextId: string              // the requesting context
   requestId: string
   outcome: { kind: "committed" } | { kind: "released" } | { kind: "refused", code: string }
 }>
@@ -536,10 +667,13 @@ type WriterHelloV1 = Readonly<{
 }>
 ```
 
-Every message is a closed record: unknown fields, out-of-set values, or a
-`demands` entry whose `source` is not `"active"` refuse the message
-(`preload` derives at the writer's own boot; `programmatic` rides only the
-forward/release pair).
+Every message is a closed record, and **refusal granularity is
+message-level everywhere**: unknown fields, out-of-set values, a
+`demands` entry whose `source` is not `"active"`, a subscription
+`ownerContext.contextId` differing from the envelope's `contextId`, or a
+cross-partition demand each refuse the whole message — its revision is
+not consumed, and no partial set applies (`preload` derives at the
+writer's own boot; `programmatic` rides only the forward/release pair).
 
 Rules, normative:
 
@@ -548,8 +682,13 @@ Rules, normative:
   messages bearing it are ignored; a surviving context that was wrongly
   reaped (e.g. after a network partition of the channel) must mint a
   fresh id and re-announce its full sets. Revision counters therefore
-  never collide across lifetimes, and a delayed old announce can never
-  resurrect demand.
+  never collide across lifetimes. The writer persists a bounded
+  **reaped-context memory** (the last 256 reaped `contextId`s,
+  provisional under OQ4) beside the live roster, so the ignore rule
+  survives writer restart; an id outside both roster and memory is
+  treated as a new context (CSPRNG minting makes collision negligible,
+  and a stale announce that slips past an overflowed memory lapses at
+  its own heartbeat expiry — a bounded, self-healing window).
 - **Full-set announces, per partition.** Announces are scoped by the
   `(contextId, authorityPartitionDigest)` pair: a `DemandAnnounceV1`
   replaces that pair's entire volatile demand set at the writer. A
@@ -559,7 +698,8 @@ Rules, normative:
   order-tolerant). A context releases a partition's demands by announcing
   that pair's empty set, and releases everything by dying. Every demand
   in an announce must name an address inside the announced partition;
-  a cross-partition demand refuses the entry.
+  a cross-partition demand refuses the whole message (the
+  message-level rule above).
 - **Liveness.** A context is live while its heartbeat holds: it must send
   a well-formed message at intervals of at most 15 seconds — a keep-alive
   for a context with standing demands is a same-set re-announce (an empty
@@ -572,32 +712,99 @@ Rules, normative:
   treats an unreachable context as live until the liveness rule expires
   it — never silently live past expiry, never reaped early.
 - **Forwarding and release.** `programmatic` registration from a
-  non-writer context rides `RegisterForwardV1`, carrying its partition
-  digest; the writer validates that the registration's address belongs to
-  that partition and commits under that address's current fence
-  (LLP 0157 §D7 operation semantics) — partition or fence mismatch
-  refuses, and the context retries against fresh state. Durable
-  registrations are released by `RegisterReleaseV1` (or the writer-local
-  API when the caller is the writer). Both resolve only on
-  `RegisterOutcomeV1`; `requestId` makes retries idempotent, and
-  releasing an already-released or unknown `registrationId` returns
-  `released` (release is idempotent). A writer crash between commit and
-  outcome is safe: the retry re-forwards, and the writer answers from the
-  durable state.
+  non-writer context rides `RegisterForwardV1`, and release rides
+  `RegisterReleaseV1` (or the writer-local API when the caller is the
+  writer); both carry the caller's partition digest, and the writer
+  validates the same way for both — with one stated exception, a release
+  naming an unknown id, whose validation is necessarily partition-only
+  (detailed below): the named registration's address must
+  belong to that partition, and the partition's authority state must
+  admit the commit — a partition mismatch, or a partition with a pending
+  store-wide barrier or blocking disposition, refuses with a stable code
+  and the context retries against fresh state. (Registration commits
+  touch `storeMeta`, not materialization payload; no LLP 0157
+  materialization fence is implicated, and none is claimed.) Both carry
+  the current `writerGeneration`; a stale generation refuses, forcing the
+  context to re-sync with the current writer before durable mutations —
+  a delayed cross-handoff message can therefore never mutate durable
+  state. Both resolve only on the context-bound `RegisterOutcomeV1`.
+  Idempotency and replay safety are durable, from three rules:
+  the writer persists a bounded **consumed-request memory** (the last
+  1,024 `(contextId, requestId)` outcomes; `requestId` is unique per
+  context; provisional under OQ4), so a retry — including across a
+  writer crash between commit and outcome, and across writer restart —
+  answers from the recorded outcome; the writer persists a bounded
+  **released-registration memory** recording a tombstone keyed
+  `(authorityPartitionDigest, registrationId)`, created **only
+  atomically with a successful `released` outcome** — a refused release
+  leaves no tombstone — and covering release-of-unknown, whose
+  validation is necessarily partition-only (an unknown id has no stored
+  address; the caller's partition must merely be admitted). The memory
+  holds the last 1,024 tombstones (provisional under OQ4); a later
+  forward whose registration address falls in the tombstone's partition
+  and names its id refuses — the release-before-delayed-forward
+  reordering cannot resurrect a registration — while a forward in a
+  *different* partition is a different key and is unaffected, so no
+  partition can preempt another's ids. Releasing an already-released or
+  unknown id returns `released` (release is idempotent), and
+  `registrationId`s are client-minted and never reused, so a fresh
+  forward never legitimately names a released id. Overflow honesty,
+  exact: the release-before-first-forward residue depends **only on the
+  tombstone window** — once a tombstone evicts, a still-unseen delayed
+  forward can recreate the registration even while the release's
+  consumed outcome survives; replay of a *previously consumed* forward
+  additionally requires its consumed-request entry to have evicted. The
+  residue in either shape is a re-created durable registration that is
+  inspection-visible and recoverable by an ordinary release — bounded
+  and recoverable like the reaped-context window, though, unlike that
+  window, not self-healing. All broker identifiers (`contextId`, `requestId`,
+  `registrationId`) are at most 64 UTF-8 bytes, refusal codes are
+  registered stable codes, and any broker message over 256 KiB refuses —
+  broker state and traffic are byte-bounded, not only count-bounded.
 - **Reads protect renderable custody through demand, not through reads.**
   A non-writer tab rendering an adopted materialization keeps it
   `demanded-active` by announcing the demand — the store does not infer
   demand from reads it cannot observe.
 - **Writer handoff.** On acquiring the lock, the new writer emits
-  `WriterHelloV1`, loads durable registrations and the persisted context
-  roster (the writer keeps the set of live `contextId`s durably in
-  `storeMeta`, updated as contexts appear and reap), and rebuilds the
-  volatile ledger from re-announcements. Until reconciliation completes —
-  every roster context re-announces or is affirmatively reaped, or the
-  30-second window (provisional, OQ4) elapses — **every demand-derived
-  transition is suppressed**: no release-grace starts, no grace GC, no
-  budget-pressure compaction of any step; a commit that would exceed
-  budget during suppression refuses instead. A release whose grace would
+  `WriterHelloV1`, loads durable registrations, the persisted demand
+  roster — keyed by `(contextId, authorityPartitionDigest)` **pair**, so
+  a multi-partition context's separate partition sets are individually
+  accounted (the writer keeps the live pairs durably in `storeMeta`,
+  updated as pairs appear and reap, capped at 64 live contexts and 128
+  live pairs — a context or pair beyond its ceiling refuses with a
+  stable diagnostic and runs volatile-online;
+  provisional under OQ4) — plus the reaped-context memory, the
+  consumed-request memory, and the released-registration memory, and
+  rebuilds the volatile ledger from re-announcements. Until
+  reconciliation completes — **every roster pair** re-announces or is
+  **affirmatively reaped** — **every
+  demand-derived transition is suppressed**: no
+  release-grace starts, no grace GC, no budget-pressure compaction of
+  any step; a commit that would exceed budget during suppression refuses
+  instead. Reconciliation reaping is **pair-scoped**, deliberately
+  unlike ordinary liveness: each roster pair carries its own deadline —
+  the heartbeat expiry (45 seconds) from `WriterHelloV1` — and a pair
+  that has not re-announced by its deadline is reaped *as a pair*, its
+  volatile demands released, even while its context remains live through
+  another pair's traffic. This is sound because announces are full-set
+  per pair: a live context re-announces every pair it still demands, so
+  a pair left silent through the whole window is an affirmative absence
+  signal, not an unknown. That obligation is normative on the client
+  side too: **on observing `WriterHelloV1`, a context re-announces each
+  of its pairs' full sets within the heartbeat interval** — a multi-pair
+  context may not heartbeat through one pair alone across a handoff.
+  A reconciliation-reaped *pair* is not a reaped context: it simply
+  re-announces and re-appears under the same `contextId` (only reaped
+  `contextId`s enter the ignore memory), so a wrongful pair reap is
+  self-correcting custody, never authority. There is no independent
+  timeout exit and no
+  context-wide hostage state: suppression is bounded by the 45-second
+  expiry from `WriterHelloV1` and can never end while an unreconciled
+  pair's demands are absent from the rebuilt ledger. (Outside handoff,
+  liveness stays context-scoped as defined above — pair-scoped deadlines
+  exist only for reconciliation, where the new writer cannot otherwise
+  distinguish a still-demanded pair from a departed one.) A release
+  whose grace would
   begin during suppression anchors its grace clock at suppression end.
 - **Per-carrier qualification and honest degradation.** The browser
   carrier qualifies the protocol over its cross-tab channel plus Web
@@ -689,9 +896,14 @@ When the predicate fails but a §D5 compaction blocker holds (pending
 intent, an obligation needing the payload, a settlement dependency), the
 payload enters **blocker-held custody**: an explicit, inspectable safety
 state (`retainingReason: safety-blocker`, §D5's policy record) that is
-never discretionary retention — it ends the moment the blockers
-discharge, whereupon compaction runs. Rendering under blocker-held
-custody follows §D4's ordinary rules unchanged.
+never discretionary retention — it ends when the blockers discharge, and
+the payload is then reclaimed at the next writer maintenance pass.
+Rendering under blocker-held custody follows §D4's ordinary rules
+unchanged. Precedence is exact: blocker-held custody resists only
+**discretionary** compaction and grace GC; an LLP 0053 `delete` or
+terminal retirement executes its owner's destructive rules regardless
+(the owner's own queue-custody rules govern any dependent intent), and
+quarantine hides payload under the owner's custody as ever.
 
 **The legacy predicate is LLP 0090's, separately.** Legacy `entries`
 persist under that owner's own rules — a token-verified `rqsEligible`
@@ -767,10 +979,13 @@ changes:
   page-set manifests, and membership records. Excluded from the byte
   budget and bounded separately: record identity/product/authority/
   subscription metadata (bounded by the 256-record cap), durable
-  `programmatic` registrations (own caps: 512 per store and 16 KiB of
-  serialized record bytes each, refuse-at-cap with a stable diagnostic,
-  both provisional under OQ4), `storeMeta`
-  bookkeeping (bounded by the record and registration caps), and the
+  `programmatic` registrations (own caps: 512 per store and 16 KiB each —
+  the UTF-8 length of the registration record's RFC 8785 JCS bytes —
+  refuse-at-cap with a stable diagnostic, both provisional under OQ4),
+  `storeMeta` bookkeeping (bounded by the record and registration caps
+  plus the §D2 broker ceilings: 64 live contexts, 128 live roster pairs,
+  256 reaped-context memory entries, 1,024 consumed-request outcomes,
+  1,024 released-registration tombstones, 64-byte identifiers), and the
   outbox — which has its own owner-governed caps (the shipped
   implementation constants: 1,024 records, 256 KiB per record, 4,096
   pending acknowledgements, `packages/snapback-client/outbox-shared.mjs`,
@@ -939,10 +1154,11 @@ Under budget pressure, within the committing transaction, over the
 materialization envelope only (§D3 — the legacy envelope is separate and
 untouched):
 
-1. `undemanded` records, oldest release first;
+1. `undemanded` records whose pinned class is not `"pinned"`, oldest
+   release first;
 2. then `demanded-idle` records with `idleTtlClass` `"none"`/`"default"`,
    least-recently-established first;
-3. then `demanded-idle`/`undemanded` `"pinned"` records,
+3. then the `"pinned"` records — `demanded-idle` and `undemanded` alike —
    least-recently-established first;
 4. `demanded-active` records are never compacted; if steps 1–3 cannot fit
    the commit, the commit refuses with a stable over-budget diagnostic.
@@ -990,15 +1206,37 @@ type StorePolicyInspectionV1 = Readonly<{
     fragmentCount: number | null, fragmentCeiling: number | null
     compactionCount: number, lastCompactionAt: number | null
   }[]
-  registrations: { durableCount: number, durableCeiling: number }
+  registrations: {
+    durableCount: number, durableCeiling: number
+    perRecordByteCeiling: number
+  }
   broker: {
     writerGeneration: number
     liveContextCount: number
+    liveContextCeiling: number
+    livePairCount: number
+    livePairCeiling: number
+    reapedContextCount: number
+    reapedContextCeiling: number
+    consumedRequestCount: number
+    consumedRequestCeiling: number
+    releasedRegistrationCount: number
+    releasedRegistrationCeiling: number
     suppressionActive: boolean
   }
+  constants: {
+    graceDefaultMs: number
+    heartbeatIntervalMs: number
+    heartbeatExpiryMs: number     // also the handoff-suppression bound
+    establishmentConcurrency: number
+    identifierByteCeiling: number
+    messageByteCeiling: number
+  }
   addresses: readonly {
-    materializationKey: string
+    addressKey: string             // qmk1 materialization key, or the
+                                   // legacy family's alias key
     demandState: "demanded-active" | "demanded-idle" | "undemanded"
+    effectiveRetentionRequest: "durable" | "none" | null   // null = not governed
     retainingReason:
       | { kind: "registrations", entries: readonly {
             registrationId: string
@@ -1008,6 +1246,8 @@ type StorePolicyInspectionV1 = Readonly<{
       | { kind: "release-grace", graceDeadline: number | null }  // null = pinned
       | { kind: "safety-blocker", blockers: readonly
             ("pending-intent" | "obligation" | "settlement-dependency")[] }
+      | { kind: "instance-bookkeeping" }   // a compacted stub held only for
+                                           // fences/frontiers
       | { kind: "grandfathered-legacy-entry" }
     effectiveTtlClass: "none" | "default" | "pinned" | null
     lastEstablishmentAt: number | null
@@ -1015,6 +1255,16 @@ type StorePolicyInspectionV1 = Readonly<{
   }[]
 }>
 ```
+
+This `retainingReason` union is the **single source of truth** for the
+document's retaining-reason vocabulary: §Vocabulary, §D2's rule, and
+Guardrail 1 cite it rather than re-enumerating it. Exactly one reason
+reports per address, selected by fixed precedence:
+`registrations > release-grace > safety-blocker > instance-bookkeeping`
+(a compacted stub still named by a live registration therefore reports
+`registrations`; a `"none"`-pinned release awaiting its
+next-maintenance-pass reclamation reports `release-grace` with an
+already-elapsed deadline).
 
 Redaction rules: the record is bound to one authority partition exactly
 like LLP 0157's client projection; `canonicalArgs` and raw authority facts
@@ -1092,7 +1342,16 @@ staged and fail-closed:
   carriers, and no transaction spans them, so no cross-artifact atomic
   move exists and none is claimed. The v1 convergence protocol is
   monotone, uses **only existing owner transitions** (no new disposition
-  is invented), and has a defined state at every crash cut:
+  is invented), and has a defined state at every crash cut. It carries a
+  **pending-intent precondition**: LLP 0053's retirement makes dependent
+  queue custody discard-only, so step 1 may begin only when no pending
+  outbox intent depends on the predecessor instance — a convergence
+  attempt against a predecessor with dependent queued intent refuses and
+  waits for settlement or the user's explicit discard (the owner's strand
+  rules); pending intent is never silently dropped by convergence. The
+  protocol is also initiated only under a connected convergence attempt,
+  so the acknowledged data-gap window is a connected re-establishment
+  wait, not an arbitrary offline period. The steps:
   1. the lease owner durably **begins the predecessor instance's LLP 0053
      terminal retirement** (`active → retiring` — an existing transition
      that rejects render, write, and proof inputs and is committed in the
@@ -1196,15 +1455,27 @@ a negative or non-integer limit, an operator outside this record, or a
    redefines, layer application). **This step is client-only** — see the
    parity split below.
 3. **Filter** over the (possibly overlaid) rows: the conjunction of the
-   `basic-v1` comparisons, evaluated per row over projected fields.
+   `basic-v1` comparisons, evaluated per row over projected fields. The
+   comparison families are exactly three, shared with step 4: `eq`/`ne`
+   (and `in`, the disjunction of `eq` over its array) use canonical
+   client-value equality; `lt`/`lte`/`gt`/`gte` use step 4's total
+   scalar comparator (so a cross-type comparison is well-defined by type
+   rank, never a runtime error); and a **non-scalar** value — in a
+   filter field, an order field, or a filter operand — refuses the
+   transform's execution with the registered code, where the `in`
+   container is the **sole permitted array operand**: the array shape is
+   admitted by the record and the non-scalar rule applies to each of its
+   elements, which must individually be scalars. An absent projected
+   field reads as `null`.
 4. **Order** by the `order` entries, in sequence, each ascending or
    descending under one total scalar comparator: values order first by
    type rank `null < boolean < number < string` (booleans `false < true`;
    numbers by numeric order after LLP 0051's canonical numeric
-   normalization; strings by unsigned UTF-8 byte order), and a
-   non-scalar value in an order field refuses. Ties preserve base order
-   (stable sort). These v1 comparator rules are frozen by the conformance
-   corpus's golden vectors.
+   normalization; strings by unsigned UTF-8 byte order) — mixed scalar
+   types therefore *order*, they do not refuse — and a non-scalar value
+   in an order field refuses. Ties preserve base order (stable sort).
+   These v1 comparator rules are frozen by the conformance corpus's
+   golden vectors.
 5. **Limit** over the ordered sequence (`0` yields the empty result).
 
 Output rows use the same canonical client-value encoding as the
@@ -1320,10 +1591,15 @@ this Spec's acceptance.
 > golden and near-miss vectors gain the new value; §D4 continues to treat
 > classification as a restated owner fact; §D7's storage profiles treat
 > the class as `durable-fragments-v1`-eligible under
-> `opaque-authorized-snapshot-v1`'s custody rules; and §D7's "local plan
+> `opaque-authorized-snapshot-v1`'s custody rules; §D7's "local plan
 > evaluation over fragments" gate sentence reads on the revised Move-2
 > profile (LLP 0155's dated §Move 2 note, below) — the gate itself is
-> unchanged. No other §D1–D8 semantics change.
+> unchanged; and §D3's closed event vocabulary gains one store-policy
+> event, **payload compaction** (LLP 0166 §D5): discard the record's held
+> fragments, proofs, page-set manifests, and memberships without lowering
+> or releasing any LLP 0053 disposition; derived status `unknown`; the
+> instance identity, fences, and frontiers are preserved and a later
+> establishment loads the same instance. No other semantics change.
 
 **Proposed LLP 0155 amendment (dated note in §Move 2 — Query execution):**
 
@@ -1351,7 +1627,7 @@ this Spec's acceptance.
 | --- | --- | --- | --- |
 | DK-9 semantic contract | LLP 0008 | + materialization records; + `result-transform.v1` for admitted plans | none (semantic envelope) |
 | Retention classes | LLP 0080 | + `result-transform-snapshot-v1` | none until a plan opts in |
-| `NodeCapabilityBindingV1.retention` / `PlanCapabilityClassificationV1.retention` | LLP 0157 §D2 | + the same value; manifests emit it only for reclassified plans; §D7 gate reads on the revised profile | per opted-in plan: `NodePlanHashV1` → `PlanHashV1` → `QueryMaterializationKeyV1` rotate; fresh address; predecessor retires normally |
+| `NodeCapabilityBindingV1.retention` / `PlanCapabilityClassificationV1.retention` | LLP 0157 §D2 | + the same value; manifests emit it only for reclassified plans; §D7 gate reads on the revised profile; §D3 event vocabulary + the payload-compaction event | per opted-in plan: `NodePlanHashV1` → `PlanHashV1` → `QueryMaterializationKeyV1` rotate; fresh address; predecessor retires normally |
 | Move-2 local query execution outcome | LLP 0155 §Move 2 | commissioned same-plan-evaluation revised to the `result-transform.v1` profile; source-row evaluation deferred behind OQ2 | none (scope ruling) |
 
 ### Ship gate
@@ -1438,9 +1714,10 @@ never a narrowing of a published entry point).
 
 - The sync set is the registration set for the governed families: no
   unregistered query is hydrated; nothing unregistered in a governed
-  family is retained beyond its release grace; every retained byte in the
-  domain has a nameable retaining reason — a registration, a running
-  grace, or the grandfathered-legacy reason.
+  family is retained beyond its release grace except blocker-held payload
+  and stub bookkeeping, each ending with its cause; every retained byte
+  in the domain has a nameable retaining reason from §D5's closed
+  `retainingReason` union.
 - The store never widens an owner classification — not retention, not
   liveness, not authorization; a registration is interest, never authority.
 - No local answer claims authority without a valid witness for its exact
@@ -1481,7 +1758,8 @@ store-policy oracles:
 
 1. **S1 — sync-set fidelity.** Register/unregister across all three
    sources; for the `qmk1` family the hydrated-and-retained set equals
-   the registration set plus in-grace releases at every step; for the
+   the registration set plus in-grace releases plus blocker-held and
+   stub records named by inspection, at every step; for the
    legacy-resume family only hydration is governed — a released legacy
    registration's entry legitimately persists under LLP 0090's lifecycle
    as a grandfathered entry outside the equality; an unregistered query
@@ -1504,8 +1782,34 @@ store-policy oracles:
    demand-derived transition until roster reconciliation and rebuilds
    the ledger; a forwarded `programmatic` registration commits durably
    with `RegisterOutcomeV1` — including the writer-crash-before-outcome
-   case, where the retry answers from durable state — and
-   `RegisterReleaseV1` from a non-writer releases it idempotently;
+   case, where the retry answers from the durable consumed-request
+   memory across writer restart — and `RegisterReleaseV1` from a
+   non-writer releases it idempotently, with a cross-partition release
+   refused; a delayed duplicate forward after release replays its
+   recorded outcome and a fresh forward naming the released
+   `registrationId` refuses; a release naming a never-committed
+   `registrationId` returns `released` and tombstones it in the caller's
+   partition, so the later-arriving original forward refuses
+   (release-before-first-forward reordering) while a forward for the
+   same id in a *different* partition is unaffected; a refused release
+   leaves no tombstone; the two overflow schedules are exercised by
+   name at the exact 1,024/1,025 boundaries —
+   *release-before-first-forward* (the tombstone alone governs: with
+   the target plus 1,023 newer tombstones the delayed forward still
+   refuses; inserting the 1,024th newer tombstone — the 1,025th total —
+   evicts the target, and the corpus verifies the documented
+   recreate-and-recover residue) and *previously-consumed-forward
+   replay* (requires the consumed-outcome entry evicted too); a
+   stale-`writerGeneration` forward refuses; requestId
+   uniqueness is per-context (two contexts reusing the same requestId do
+   not collide); a partial multi-partition handoff — pair A re-announcing
+   and heartbeating while pair B stays silent — keeps suppression active
+   until pair B re-announces or its own pair deadline (the 45-second
+   expiry from `WriterHelloV1`) reaps it as a pair, with the context
+   remaining live and pair A's demands intact; the 129th live pair
+   refuses and runs volatile-online; a malformed announce (one bad entry)
+   applies nothing and consumes no revision; a delayed announce from a
+   reaped `contextId` in memory is ignored after writer restart;
    `retentionRequest` downgrade to effective `"none"` compacts the
    payload at the next maintenance pass while the demanded
    materialization continues volatile.
@@ -1532,11 +1836,13 @@ store-policy oracles:
    t1 → the grace class is `default` (the merge immediately before the
    final release is {B}); B releases at t0, A at t1 → `pinned`; grace GC
    fires only release-anchored and never under a rolled-back clock;
-   `pinned`-graced records are exempt from GC and fall only in pressure
-   step 3. Blocker-held trace: a record whose predicate fails while
-   pending intent holds it reports `safety-blocker` with the blocker
-   kinds, renders per §D4's ordinary rules, and compacts exactly at
-   blocker discharge.
+   `pinned`-graced records are exempt from GC, excluded from pressure
+   step 1, and fall only in pressure step 3. Blocker-held trace: a
+   record whose predicate fails while pending intent holds it reports
+   `safety-blocker` with the blocker kinds, renders per §D4's ordinary
+   rules, and compacts at the first maintenance pass after blocker
+   discharge; a compacted stub held only for fences reports
+   `instance-bookkeeping`.
 4. **S4 — successor-store parity and grandfathering.** The shipped
    store-parameterized resume suite (`rqs-resume-suite.mjs`) passes
    unmodified against the successor store format on every carrier; the D3
@@ -1555,7 +1861,10 @@ store-policy oracles:
    — non-renderable — and no successor exists (gap, not dual render);
    after (2) exactly the successor renders; at no point are both
    renderable; the retirement-begun state is durable in the lease
-   artifact before any successor publication. Corrupt-mid-migration leg:
+   artifact before any successor publication. Pending-intent leg: a
+   convergence attempt against a predecessor with dependent queued
+   intent refuses without touching the intent; after settlement (or
+   explicit discard) the protocol proceeds. Corrupt-mid-migration leg:
    a store found unparseable during a format migration takes §D1's
    identity-rotation reset, never a partial migrate.
 6. **S6 — evaluation gate.** Before the amendments/corpus: any
@@ -1564,9 +1873,13 @@ store-policy oracles:
    (`overlay: "none"`) dual-runtime corpus passes at pinned evaluator
    identities on every claiming carrier — output over frozen fragment
    fixtures byte-matches the reference on both runtimes, exercising the
-   type-rank comparator (null/boolean/number/string, mixed-type refuse),
-   `desc` direction, stable ties preserving base order, `in` filters,
-   `limit: 0`, and page-chain assembly; the composition leg verifies
+   type-rank comparator (null/boolean/number/string ordering across mixed
+   scalar types, non-scalar refusal), cross-type range filters, absent
+   fields reading as null,
+   `desc` direction, stable ties preserving base order, `in` filters
+   (including a non-scalar element refusing while the array container is
+   admitted), `limit: 0`, and page-chain assembly; the composition leg
+   verifies
    `overlay: "apply"` client-side (shipped layer machinery over the
    retained base, then the same pure transform) against the client-only
    oracles; an unprojected order or filter field, a duplicate order
@@ -1647,13 +1960,19 @@ Micro-profile packaging; no change to outbox/settlement custody semantics
 3. **A `warm` sync class for idle registrations** — standing subscriptions
    for preloaded-but-unmounted queries; needs fan-out cost evidence before
    any obligation is created.
-4. **Budget, TTL, window, cap, and cadence values** — the v1 provisional
+4. **Budget, TTL, cap, and cadence values** — the v1 provisional
    constants (32 MiB / 256 records / 1,024 fragments materialization
    envelope; 512 durable registrations at 16 KiB each; 14-day grace;
-   15/45-second heartbeat/expiry; 30-second handoff window; 4 concurrent
-   establishments) await LLP 0155 OQ9's frozen Triage/Fleet custody and
+   15/45-second heartbeat/expiry; 4 concurrent
+   establishments; 64 live contexts / 128 live pairs / 256
+   reaped-context memory / 1,024 consumed-request outcomes / 1,024
+   released-registration tombstones / 64-byte identifiers / 256 KiB
+   broker messages) await LLP 0155 OQ9's frozen Triage/Fleet custody and
    hydration budgets for their first measured revision; they surface in
-   the policy record so revision is observable.
+   the policy record so revision is observable. (The handoff-suppression
+   bound is deliberately not an independent constant: it is the
+   heartbeat expiry, applied per roster pair during reconciliation —
+   §D2.)
 5. **Contract-arm convergence** (LLP 0155 OQ16) — identical materialization
    contract or deliberately narrower profile; and the prerequisite
    question of whether/when the lease store moves into the shared
@@ -1688,15 +2007,26 @@ Micro-profile packaging; no change to outbox/settlement custody semantics
 
 ## Status
 
-Draft, v0.4 — authored 2026-08-03 by the wave-3 Track A session under the
-commission in `issues/20260803-0155-move2-spec-commission.md`; revised
-three times the same day after dual-family rounds 1–3 (all six reviews
-NOT READY; every finding applied — see the Revised header; artifacts in
-`llp/reviews/0166-local-persistent-store.{fable,codex}.md`, including the
-restored round-2 Fable body with its dated provenance-correction note).
-The dual-family super-refine loop continues; the document should not be
-consumed as a stable contract until the loop concludes and Charlie
-accepts. On acceptance: the §D7 amendments land dated in LLP 0008,
-LLP 0080, LLP 0157, and LLP 0155; boundary notes land in LLP 0043,
-LLP 0053, and LLP 0090; and the implementation program is commissioned
-separately (wave-3 Track A's exit rule).
+**Accepted, v1.0** — Charlie Cheever accepted the Spec on 2026-08-03
+("flip to accept") after the LLP 0005 dual-family super-refine loop
+converged **dual-READY at round 8** (Codex 0.97 with one editorial NIT;
+Fable 0.90, its second consecutive READY, with one editorial NIT; both
+applied in v0.9). The loop ran eight rounds the same day, fifteen
+reviews received; every earlier verdict was NOT READY and every finding
+was applied. All actual responses — including one interrupted Fable run
+recorded honestly as no-review and a restored round-2 body with its
+dated provenance-correction note — are preserved verbatim in
+`llp/reviews/0166-local-persistent-store.{fable,codex}.md`; no prior
+verdict is rewritten or counted as READY.
+
+The acceptance landing carries the §D7 amendment set, dated, in the
+owning documents — LLP 0008 DK-9, LLP 0080
+(`result-transform-snapshot-v1`), LLP 0157 (both retention unions plus
+the payload-compaction event), LLP 0155 §Move 2 — and the dated
+boundary notes in LLP 0043 (v1 convergence order and preconditions),
+LLP 0053 (store-policy composition, wipe/reset scoping), and LLP 0090
+(successor declaration; legacy grandfathering). Acceptance is semantic
+only: no implementation or capability fact is promoted, evaluation
+still gates on §D7's conformance corpus and oracles, and the
+implementation program is a separate wave-3 commissioning (Track A's
+exit rule).

@@ -380,6 +380,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         ref: entry.ref,
         args: entry.args,
         registeredSubscription: null,
+        readOnlySnapshot: entry.readOnlySnapshot ?? null,
+        ...(entry.bootDelivery === undefined ? {} : { bootDelivery: entry.bootDelivery }),
       }))),
     });
     return retirement;
@@ -541,6 +543,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       connection: normalizeConnection(store.handle?.current?.connection ?? 'connecting'),
       freshness: 'retained',
       retention: store.retention,
+      ...(store.bootDelivery === null ? {} : { bootDelivery: store.bootDelivery }),
     }), generation);
   };
 
@@ -581,6 +584,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       connection: normalizeConnection(store.handle?.current?.connection ?? 'live'),
       freshness: 'current',
       retention: store.retention,
+      ...(store.bootDelivery === null ? {} : { bootDelivery: store.bootDelivery }),
     }), generation);
   };
 
@@ -608,6 +612,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
 
   const startStore = (store, supersedes = null) => {
     if (terminal || custodyPaused || store.handle || (store.consumers === 0 && store.pins === 0)) return;
+    if (store.readOnlySnapshot !== null) return null;
     if (
       store.registeredSubscription !== null
       && !registeredConnectionAttached
@@ -748,13 +753,26 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     const preparedRegistration = preparedRegistrations.get(
       descriptor.preparedEntryName,
     ) ?? null;
+    const readOnlySnapshot = descriptor.readOnlySnapshot ?? null;
     const mustResubscribe = preparedRegistration !== null
       && dirtyPreparedSubscriptions.has(preparedRegistration.subscriptionId);
     const store = {
       key: descriptor.key,
       reference: descriptor.reference,
       args: descriptor.args,
-      snapshot: pending(),
+      snapshot: readOnlySnapshot === null
+        ? pending()
+        : Object.freeze({
+            status: 'ready',
+            data: readOnlySnapshot.rows,
+            error: null,
+            connection: 'idle',
+            freshness: 'snapshot',
+            retention: null,
+            ...(descriptor.bootDelivery === null
+              ? {}
+              : { bootDelivery: descriptor.bootDelivery }),
+          }),
       consumers: 0,
       listeners: new Map(),
       handle: null,
@@ -762,14 +780,16 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       idleEpoch: 0,
       handoffPending: 0,
       resultContract: descriptor.resultContract,
-      authoritativeData: Object.freeze([]),
-      authoritativeRevision: 0,
-      freshness: 'unknown',
+      authoritativeData: readOnlySnapshot?.rows ?? Object.freeze([]),
+      authoritativeRevision: readOnlySnapshot === null ? 0 : 1,
+      freshness: readOnlySnapshot === null ? 'unknown' : 'snapshot',
       retention: null,
       optimisticLayers: [],
       pendingMutations: new Map(),
       pins: 0,
       registeredSubscription: mustResubscribe ? null : preparedRegistration,
+      readOnlySnapshot,
+      bootDelivery: descriptor.bootDelivery,
       unadoptedSubscriptionId: preparedRegistration?.subscriptionId ?? null,
       blockedPreparedPublication: false,
       supersedesSubscriptionId: mustResubscribe
@@ -791,6 +811,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       connection: normalizeConnection(store.handle?.current?.connection ?? 'live'),
       freshness: store.freshness,
       retention: store.retention,
+      ...(store.bootDelivery === null ? {} : { bootDelivery: store.bootDelivery }),
     }));
   };
 
@@ -1011,7 +1032,10 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     const uniqueNew = new Map();
     for (const descriptor of admitted) uniqueNew.set(descriptor.key, descriptor);
     const active = activeStores();
-    const netNew = [...uniqueNew.keys()].filter((key) => !stores.get(key)?.handle);
+    const netNew = [...uniqueNew.entries()]
+      .filter(([, descriptor]) => descriptor.reference.kind === 'LiveQuery')
+      .map(([key]) => key)
+      .filter((key) => !stores.get(key)?.handle);
     const retiring = [...new Set(previousEdges.map((edge) => edge.key))]
       .filter((key) => !uniqueNew.has(key))
       .map((key) => stores.get(key))
@@ -1779,7 +1803,14 @@ function createRegistry(binding, providerInstanceId, options = {}) {
 
   const registry = Object.freeze({
     descriptor(reference, args, groupBoot = null, preparedEntryName = null) {
-      const admitted = admittedReactReference(binding, reference, 'LiveQuery');
+      const preparedEntry = preparedEntryName === null
+        ? null
+        : preparedGroup?.entries.find((entry) => entry.name === preparedEntryName) ?? null;
+      const admitted = admittedReactReference(
+        binding,
+        reference,
+        preparedEntry?.readOnlySnapshot == null ? 'LiveQuery' : ['Query', 'LiveQuery'],
+      );
       const resultContract = preparedReactResultContract(binding, admitted);
       if (args === skip) return Object.freeze({
         skipped: true,
@@ -1789,6 +1820,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         resultContract,
         groupBoot,
         preparedEntryName,
+        readOnlySnapshot: preparedEntry?.readOnlySnapshot ?? null,
+        bootDelivery: preparedEntry?.bootDelivery ?? null,
       });
       const key = canonicalReactStoreKeyV1(providerInstanceId, admitted, args);
       return Object.freeze({
@@ -1799,6 +1832,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         resultContract,
         groupBoot,
         preparedEntryName,
+        readOnlySnapshot: preparedEntry?.readOnlySnapshot ?? null,
+        bootDelivery: preparedEntry?.bootDelivery ?? null,
       });
     },
     subscribe(descriptor, listener, previousLease = null) {
@@ -2098,7 +2133,9 @@ function groupSnapshot(provider, descriptors) {
   return Object.freeze({
     queries,
     status,
-    connection: weakConnection(active.map((query) => query.connection)),
+    connection: descriptors.some((descriptor) => descriptor.readOnlySnapshot !== null)
+      ? 'idle'
+      : weakConnection(active.map((query) => query.connection)),
     error: firstError,
     boot,
   });

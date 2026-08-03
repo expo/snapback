@@ -265,6 +265,18 @@ fn validate_node(
             }
             Ok(())
         }
+        ResultValueContract::Tuple { elements } => {
+            let values = value.as_array().ok_or_else(mismatch)?;
+            if values.len() != elements.len() {
+                return Err(mismatch());
+            }
+            for (index, (value, element)) in values.iter().zip(elements).enumerate() {
+                let mut child = path.to_vec();
+                child.push(PointerSegment::Index(index));
+                validate_node(value, element, &child, depth + 1, budget)?;
+            }
+            Ok(())
+        }
         ResultValueContract::Vector { dimensions } => {
             let values = value.as_array().ok_or_else(mismatch)?;
             if values.len() != *dimensions as usize {
@@ -466,6 +478,7 @@ fn node_kind(contract: &ResultValueContract) -> &'static str {
         ResultValueContract::Literal { .. } => "literal",
         ResultValueContract::Json { .. } => "json",
         ResultValueContract::Array { .. } => "array",
+        ResultValueContract::Tuple { .. } => "tuple",
         ResultValueContract::Vector { .. } => "vector",
         ResultValueContract::Union { .. } => "union",
         ResultValueContract::Object { .. } => "object",

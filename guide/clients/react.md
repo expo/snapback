@@ -4,12 +4,12 @@ id: clients.react
 order: 2
 audience: agent-first
 capabilities: [clients.react]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0112-generated-query-group-bundle-adoption.spec.md, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-contract/result-contract-validator.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/exact-result-types.fixture.ts]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0112-generated-query-group-bundle-adoption.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-contract/result-contract-validator.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/exact-result-types.fixture.ts]
 examples: [packages/snapback-cli/templates/react, demos/signal-desk/src/backends/snapback.ts, demos/signal-desk/tests/react.mjs, demos/signal-desk/acceptance/results/react-presence.v1.json, packages/snapback-react/package.test.mjs, packages/snapback-react/optimistic.test.mjs, packages/snapback-react/presence.test.mjs, packages/snapback-react/offline.test.mjs, packages/snapback-react/exact-result-types.fixture.ts]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-01
+reviewed: 2026-08-03
 reviewed-commit: HEAD
 ---
 
@@ -130,6 +130,16 @@ positive server-confirmed socket attach. On a successful registered boot,
 child store adopts its registration without an ordinary prime/subscribe race.
 That field is initial provenance only; later child deltas are independently
 live.
+
+A generated format-2 `mixed-route.v2` group may include both `LiveQuery` and
+ordinary `Query` children. The hook shape stays the same, with two additional
+provenance facts: each result reports `bootDelivery` as `registered-live` or
+`read-only`, and `workspace.boot` reports `profile`, `weakest`,
+`liveChildren`, and `readOnlyChildren`. Live children adopt their bundle
+registrations normally. A read-only child is a static snapshot store with
+`freshness: "snapshot"` and `connection: "idle"`; it does not prime or start
+a live query later. The group's aggregate connection is the weakest honest
+state (`idle`) even while its live siblings individually report `live`.
 
 Fallback is intentionally narrow. Only a target whose served capability
 manifest lacks experimental `registered_bundle_boot_v1` can produce

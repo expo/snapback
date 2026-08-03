@@ -91,6 +91,7 @@ writer rejects oversized values with
   A6 fixture records its literal seed and reset/restore history through
   ordinary committed sequence allocations; there is no authored start-value
   escape hatch.
-- Snapshot-batch composition is a separate LLP 0135 Part 2 capability. LLP 0157
-  §D8 has unblocked that implementation lane by confirming LLP 0135 owns the
-  `sbsb1` cursor grammar; no snapshot-batch support is claimed here.
+- Snapshot-batch composition is a separate LLP 0135 Part 2 capability. The
+  experimental local target now supports it; see
+  [Snapshot batches](./snapshot-batches.md). That does not qualify or publish
+  `sequence_allocation_v1`.

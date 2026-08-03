@@ -1,0 +1,908 @@
+{
+  "schemaVersion": "snapback.agent-safe-step0-baseline.v1",
+  "artifactName": "agent-safe-step0-pre-profile-2026-08-03",
+  "date": "2026-08-03",
+  "source": {
+    "revision": "2ab36e28c74c450213b65f17ef81c0d6652ba33a",
+    "dirty": true,
+    "dirtyPaths": [
+      "src/bench.rs",
+      "src/bin/snapback-bench.rs",
+      "src/bin/snapback-agent-safe-step0.rs"
+    ],
+    "baselineSourcePosture": "pinned pre-profile source revision plus only the three listed step-0 instrumentation paths",
+    "profileChangesPresent": false,
+    "buildProfile": "release",
+    "rustcVersion": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+    "cargoVersion": "cargo 1.97.0 (c980f4866 2026-06-30)"
+  },
+  "hardwareClass": {
+    "os": "26.5.2",
+    "architecture": "aarch64",
+    "model": "Mac17,3",
+    "cpu": "Apple M5",
+    "logicalCpus": 10,
+    "memoryBytes": 34359738368
+  },
+  "fixture": {
+    "recordedRuns": 11,
+    "wholeRunWarmups": 1,
+    "perMetricWarmups": 4,
+    "iterationsPerComputeMetric": 60,
+    "subscriptions": 16,
+    "readSetSize": 32,
+    "conflictTrials": 32,
+    "ephemeralPublishes": 400,
+    "currentReadRows": 512,
+    "currentRangeLimit": 50,
+    "idleRecordedRuns": 11,
+    "idleSampleSeconds": 5,
+    "idleTotalSeconds": 55
+  },
+  "protocol": {
+    "estimator": "median of 11 fresh-fixture runs",
+    "spread": "median absolute deviation (MAD), with min/max retained",
+    "comparisonInterval": "paired candidate/baseline run ratios; deterministic bootstrap over the 11 paired ratios; 90% interval must lie wholly inside the registered bound",
+    "latencyRegressionFormula": "100 * (candidateMedian - baselineMedian) / baselineMedian",
+    "throughputRegressionFormula": "100 * (baselineMedian - candidateMedian) / baselineMedian",
+    "readEquivalenceBoundPercent": 5.0,
+    "mutationRegressionBoundPercent": 15.0,
+    "idleCpuResolutionUs": 5000,
+    "idleRssEquivalenceBoundPercent": 5.0,
+    "idleDiskWriteRule": "candidate outputBlockOperations must remain 0 and databaseFamilyBytesAfter must equal databaseFamilyBytesBefore",
+    "bytesMetricDefinition": "allocated = database + WAL + SHM file-family growth while one row/operation remains open; retained = database-family growth after close/checkpoint",
+    "novelOperationRule": "fork creation/diff/promotion/reap have no honest pre-profile product comparator; their first implementation records absolute latency and cannot advertise until a dated bound is ratified beside this artifact",
+    "crashReopenRule": "correctness-only cut matrices: no pre-profile envelope/publication/promotion/effect-settlement boundaries exist; each candidate component must pass its named crash/reopen corpus before advertisement",
+    "quiescenceRule": "the runner refuses while any other cargo or rustc process is present; recorded runs start only after this build-process preflight passes"
+  },
+  "rawRuns": [
+    {
+      "iterations": 60,
+      "vm_cost_us": 7450.233333333334,
+      "vm_create_us": 2067.95,
+      "warm_invoke_us": 7378.533333333334,
+      "single_writer_mutations_per_sec": 129.4677041722256,
+      "single_writer_mutation_p50_us": 7744.375,
+      "single_writer_mutation_p95_us": 7778.3330000000005,
+      "current_point_read_p50_us": 3.291,
+      "current_point_read_p95_us": 3.375,
+      "current_range_read_p50_us": 57.042,
+      "current_range_read_p95_us": 57.625,
+      "current_query_plan_read_p50_us": 25.375,
+      "current_query_plan_read_p95_us": 25.708,
+      "allocated_write_bytes_per_changed_row": 74000,
+      "allocated_write_bytes_per_operation": 74000,
+      "retained_bytes_per_changed_row": 0,
+      "retained_bytes_per_operation": 0,
+      "matcher_skip_us_per_sub": 5.551041666666663,
+      "fanout_us_per_affected_sub": 8037.458333333333,
+      "fanout_ceiling_subs_at_10ms": 1.2441744125163947,
+      "fanout_delta_us_per_affected_sub": 1.3489583333333333,
+      "fanout_delta_ceiling_subs_at_10ms": 7413.127413127413,
+      "read_set_validation_us_per_dep": 0.0,
+      "spurious_conflict_rate": 0.0,
+      "ephemeral_publishes_per_sec": 211193.24181626187,
+      "ephemeral_publish_us": 4.735,
+      "read_during_write_via_lock_us": 50170.0,
+      "read_during_write_via_read_lane_us": 8391.0,
+      "helper_splice": {
+        "helper_free": {
+          "module_bytes": 653,
+          "invoke_p50_us": 7230.0,
+          "invoke_p95_us": 7267.0,
+          "invoke_mean_us": 7230.466666666666,
+          "rss_delta_kb": 0.0
+        },
+        "one_helper": {
+          "module_bytes": 692,
+          "invoke_p50_us": 7185.0,
+          "invoke_p95_us": 7213.0,
+          "invoke_mean_us": 7182.1,
+          "rss_delta_kb": 0.0
+        },
+        "three_helpers": {
+          "module_bytes": 942,
+          "invoke_p50_us": 7329.0,
+          "invoke_p95_us": 7369.0,
+          "invoke_mean_us": 7324.516666666666,
+          "rss_delta_kb": 0.0
+        }
+      }
+    },
+    {
+      "iterations": 60,
+      "vm_cost_us": 7449.983333333334,
+      "vm_create_us": 2090.1666666666665,
+      "warm_invoke_us": 8156.183333333333,
+      "single_writer_mutations_per_sec": 129.4616972702108,
+      "single_writer_mutation_p50_us": 7709.416,
+      "single_writer_mutation_p95_us": 7811.958,
+      "current_point_read_p50_us": 3.292,
+      "current_point_read_p95_us": 3.625,
+      "current_range_read_p50_us": 56.375,
+      "current_range_read_p95_us": 57.708999999999996,
+      "current_query_plan_read_p50_us": 25.375,
+      "current_query_plan_read_p95_us": 26.041999999999998,
+      "allocated_write_bytes_per_changed_row": 74000,
+      "allocated_write_bytes_per_operation": 74000,
+      "retained_bytes_per_changed_row": 0,
+      "retained_bytes_per_operation": 0,
+      "matcher_skip_us_per_sub": 1.6447916666666629,
+      "fanout_us_per_affected_sub": 7967.538541666668,
+      "fanout_ceiling_subs_at_10ms": 1.2550927676978865,
+      "fanout_delta_us_per_affected_sub": 1.3427083333333334,
+      "fanout_delta_ceiling_subs_at_10ms": 7447.633824670287,
+      "read_set_validation_us_per_dep": 0.6010416666666742,
+      "spurious_conflict_rate": 0.0,
+      "ephemeral_publishes_per_sec": 240818.78386514148,
+      "ephemeral_publish_us": 4.1525,
+      "read_during_write_via_lock_us": 47641.0,
+      "read_during_write_via_read_lane_us": 7922.75,
+      "helper_splice": {
+        "helper_free": {
+          "module_bytes": 653,
+          "invoke_p50_us": 7225.0,
+          "invoke_p95_us": 7250.0,
+          "invoke_mean_us": 7223.416666666667,
+          "rss_delta_kb": 0.0
+        },
+        "one_helper": {
+          "module_bytes": 692,
+          "invoke_p50_us": 7229.0,
+          "invoke_p95_us": 7256.0,
+          "invoke_mean_us": 7229.616666666667,
+          "rss_delta_kb": 0.0
+        },
+        "three_helpers": {
+          "module_bytes": 942,
+          "invoke_p50_us": 7364.0,
+          "invoke_p95_us": 7398.0,
+          "invoke_mean_us": 7366.766666666666,
+          "rss_delta_kb": 0.0
+        }
+      }
+    },
+    {
+      "iterations": 60,
+      "vm_cost_us": 7445.55,
+      "vm_create_us": 2120.7,
+      "warm_invoke_us": 7438.816666666667,
+      "single_writer_mutations_per_sec": 129.4810195079104,
+      "single_writer_mutation_p50_us": 7729.209,
+      "single_writer_mutation_p95_us": 7767.167,
+      "current_point_read_p50_us": 3.333,
+      "current_point_read_p95_us": 3.5829999999999997,
+      "current_range_read_p50_us": 56.916000000000004,
+      "current_range_read_p95_us": 57.625,
+      "current_query_plan_read_p50_us": 25.458,
+      "current_query_plan_read_p95_us": 26.041,
+      "allocated_write_bytes_per_changed_row": 74000,
+      "allocated_write_bytes_per_operation": 74000,
+      "retained_bytes_per_changed_row": 0,
+      "retained_bytes_per_operation": 0,
+      "matcher_skip_us_per_sub": 0.0,
+      "fanout_us_per_affected_sub": 8075.712500000001,
+      "fanout_ceiling_subs_at_10ms": 1.238280832805774,
+      "fanout_delta_us_per_affected_sub": 1.3,
+      "fanout_delta_ceiling_subs_at_10ms": 7692.307692307692,
+      "read_set_validation_us_per_dep": 0.5187500000000114,
+      "spurious_conflict_rate": 0.0,
+      "ephemeral_publishes_per_sec": 240529.16416115456,
+      "ephemeral_publish_us": 4.1575,
+      "read_during_write_via_lock_us": 47777.0,
+      "read_during_write_via_read_lane_us": 7969.75,
+      "helper_splice": {
+        "helper_free": {
+          "module_bytes": 653,
+          "invoke_p50_us": 7184.0,
+          "invoke_p95_us": 7223.0,
+          "invoke_mean_us": 7183.783333333334,
+          "rss_delta_kb": 0.0
+        },
+        "one_helper": {
+          "module_bytes": 692,
+          "invoke_p50_us": 7171.0,
+          "invoke_p95_us": 7216.0,
+          "invoke_mean_us": 7172.866666666667,
+          "rss_delta_kb": 0.0
+        },
+        "three_helpers": {
+          "module_bytes": 942,
+          "invoke_p50_us": 7394.0,
+          "invoke_p95_us": 15305.0,
+          "invoke_mean_us": 8399.616666666667,
+          "rss_delta_kb": 16.0
+        }
+      }
+    },
+    {
+      "iterations": 60,
+      "vm_cost_us": 7447.083333333333,
+      "vm_create_us": 2119.5,
+      "warm_invoke_us": 7445.933333333333,
+      "single_writer_mutations_per_sec": 129.73593601639863,
+      "single_writer_mutation_p50_us": 7705.916,
+      "single_writer_mutation_p95_us": 7742.665999999999,
+      "current_point_read_p50_us": 3.292,
+      "current_point_read_p95_us": 3.5420000000000003,
+      "current_range_read_p50_us": 56.542,
+      "current_range_read_p95_us": 58.041000000000004,
+      "current_query_plan_read_p50_us": 25.25,
+      "current_query_plan_read_p95_us": 25.959,
+      "allocated_write_bytes_per_changed_row": 74000,
+      "allocated_write_bytes_per_operation": 74000,
+      "retained_bytes_per_changed_row": 0,
+      "retained_bytes_per_operation": 0,
+      "matcher_skip_us_per_sub": 0.0,
+      "fanout_us_per_affected_sub": 7989.6,
+      "fanout_ceiling_subs_at_10ms": 1.2516271152498246,
+      "fanout_delta_us_per_affected_sub": 1.3395833333333333,
+      "fanout_delta_ceiling_subs_at_10ms": 7465.007776049767,
+      "read_set_validation_us_per_dep": 0.0,
+      "spurious_conflict_rate": 0.0,
+      "ephemeral_publishes_per_sec": 237812.12841854934,
+      "ephemeral_publish_us": 4.205,
+      "read_during_write_via_lock_us": 48459.0,
+      "read_during_write_via_read_lane_us": 8066.5,
+      "helper_splice": {
+        "helper_free": {
+          "module_bytes": 653,
+          "invoke_p50_us": 7219.0,
+          "invoke_p95_us": 7286.0,
+          "invoke_mean_us": 7226.166666666667,
+          "rss_delta_kb": 0.0
+        },
+        "one_helper": {
+          "module_bytes": 692,
+          "invoke_p50_us": 7220.0,
+          "invoke_p95_us": 7254.0,
+          "invoke_mean_us": 7218.783333333334,
+          "rss_delta_kb": 0.0
+        },
+        "three_helpers": {
+          "module_bytes": 942,
+          "invoke_p50_us": 7367.0,
+          "invoke_p95_us": 7397.0,
+          "invoke_mean_us": 7367.533333333334,
+          "rss_delta_kb": 0.0
+        }
+      }
+    },
+    {
+      "iterations": 60,
+      "vm_cost_us": 7470.266666666666,
+      "vm_create_us": 2146.9,
+      "warm_invoke_us": 7442.866666666667,
+      "single_writer_mutations_per_sec": 129.15641543228188,
+      "single_writer_mutation_p50_us": 7739.3330000000005,
+      "single_writer_mutation_p95_us": 7772.666,
+      "current_point_read_p50_us": 3.333,
+      "current_point_read_p95_us": 3.625,
+      "current_range_read_p50_us": 56.542,
+      "current_range_read_p95_us": 58.291999999999994,
+      "current_query_plan_read_p50_us": 25.375,
+      "current_query_plan_read_p95_us": 26.041,
+      "allocated_write_bytes_per_changed_row": 74000,
+      "allocated_write_bytes_per_operation": 74000,
+      "retained_bytes_per_changed_row": 0,
+      "retained_bytes_per_operation": 0,
+      "matcher_skip_us_per_sub": 0.0,
+      "fanout_us_per_affected_sub": 8071.742708333333,
+      "fanout_ceiling_subs_at_10ms": 1.2388898359800193,
+      "fanout_delta_us_per_affected_sub": 1.3510416666666667,
+      "fanout_delta_ceiling_subs_at_10ms": 7401.696222050887,
+      "read_set_validation_us_per_dep": 0.8901041666666742,
+      "spurious_conflict_rate": 0.0,
+      "ephemeral_publishes_per_sec": 242571.25530624622,
+      "ephemeral_publish_us": 4.1225,
+      "read_during_write_via_lock_us": 47886.0,
+      "read_during_write_via_read_lane_us": 7966.75,
+      "helper_splice": {
+        "helper_free": {
+          "module_bytes": 653,
+          "invoke_p50_us": 7198.0,
+          "invoke_p95_us": 7222.0,
+          "invoke_mean_us": 7199.566666666667,
+          "rss_delta_kb": 0.0
+        },
+        "one_helper": {
+          "module_bytes": 692,
+          "invoke_p50_us": 7222.0,
+          "invoke_p95_us": 7256.0,
+          "invoke_mean_us": 7222.116666666667,
+          "rss_delta_kb": 0.0
+        },
+        "three_helpers": {
+          "module_bytes": 942,
+          "invoke_p50_us": 7325.0,
+          "invoke_p95_us": 7359.0,
+          "invoke_mean_us": 7324.833333333333,
+          "rss_delta_kb": 0.0
+        }
+      }
+    },
+    {
+      "iterations": 60,
+      "vm_cost_us": 7437.55,
+      "vm_create_us": 2119.2166666666667,
+      "warm_invoke_us": 7639.333333333333,
+      "single_writer_mutations_per_sec": 129.6968601987579,
+      "single_writer_mutation_p50_us": 7704.1669999999995,
+      "single_writer_mutation_p95_us": 7756.834,
+      "current_point_read_p50_us": 3.333,
+      "current_point_read_p95_us": 3.625,
+      "current_range_read_p50_us": 57.083999999999996,
+      "current_range_read_p95_us": 58.333,
+      "current_query_plan_read_p50_us": 25.292,
+      "current_query_plan_read_p95_us": 26.166999999999998,
+      "allocated_write_bytes_per_changed_row": 74000,
+      "allocated_write_bytes_per_operation": 74000,
+      "retained_bytes_per_changed_row": 0,
+      "retained_bytes_per_operation": 0,
+      "matcher_skip_us_per_sub": 0.0,
+      "fanout_us_per_affected_sub": 8045.619791666667,
+      "fanout_ceiling_subs_at_10ms": 1.2429123248351361,
+      "fanout_delta_us_per_affected_sub": 1.3395833333333333,
+      "fanout_delta_ceiling_subs_at_10ms": 7465.007776049767,
+      "read_set_validation_us_per_dep": 0.5822916666666629,
+      "spurious_conflict_rate": 0.0,
+      "ephemeral_publishes_per_sec": 235710.0766057749,
+      "ephemeral_publish_us": 4.2425,
+      "read_during_write_via_lock_us": 48165.0,
+      "read_during_write_via_read_lane_us": 8031.25,
+      "helper_splice": {
+        "helper_free": {
+          "module_bytes": 653,
+          "invoke_p50_us": 7236.0,
+          "invoke_p95_us": 7735.0,
+          "invoke_mean_us": 7284.35,
+          "rss_delta_kb": 0.0
+        },
+        "one_helper": {
+          "module_bytes": 692,
+          "invoke_p50_us": 7235.0,
+          "invoke_p95_us": 13413.0,
+          "invoke_mean_us": 7998.3,
+          "rss_delta_kb": 0.0
+        },
+        "three_helpers": {
+          "module_bytes": 942,
+          "invoke_p50_us": 7334.0,
+          "invoke_p95_us": 7372.0,
+          "invoke_mean_us": 7334.516666666666,
+          "rss_delta_kb": 16.0
+        }
+      }
+    },
+    {
+      "iterations": 60,
+      "vm_cost_us": 7437.7,
+      "vm_create_us": 2123.95,
+      "warm_invoke_us": 7455.583333333333,
+      "single_writer_mutations_per_sec": 129.44210042658787,
+      "single_writer_mutation_p50_us": 7721.167,
+      "single_writer_mutation_p95_us": 7778.541,
+      "current_point_read_p50_us": 3.333,
+      "current_point_read_p95_us": 3.5420000000000003,
+      "current_range_read_p50_us": 56.583,
+      "current_range_read_p95_us": 58.208000000000006,
+      "current_query_plan_read_p50_us": 25.417,
+      "current_query_plan_read_p95_us": 26.667,
+      "allocated_write_bytes_per_changed_row": 74000,
+      "allocated_write_bytes_per_operation": 74000,
+      "retained_bytes_per_changed_row": 0,
+      "retained_bytes_per_operation": 0,
+      "matcher_skip_us_per_sub": 1.4916666666666742,
+      "fanout_us_per_affected_sub": 8085.533333333334,
+      "fanout_ceiling_subs_at_10ms": 1.2367767947692585,
+      "fanout_delta_us_per_affected_sub": 1.3625,
+      "fanout_delta_ceiling_subs_at_10ms": 7339.4495412844035,
+      "read_set_validation_us_per_dep": 0.7385416666666629,
+      "spurious_conflict_rate": 0.0,
+      "ephemeral_publishes_per_sec": 236546.4222353637,
+      "ephemeral_publish_us": 4.2275,
+      "read_during_write_via_lock_us": 48132.0,
+      "read_during_write_via_read_lane_us": 8014.5,
+      "helper_splice": {
+        "helper_free": {
+          "module_bytes": 653,
+          "invoke_p50_us": 7205.0,
+          "invoke_p95_us": 7240.0,
+          "invoke_mean_us": 7205.5,
+          "rss_delta_kb": 0.0
+        },
+        "one_helper": {
+          "module_bytes": 692,
+          "invoke_p50_us": 7193.0,
+          "invoke_p95_us": 7224.0,
+          "invoke_mean_us": 7191.166666666667,
+          "rss_delta_kb": 0.0
+        },
+        "three_helpers": {
+          "module_bytes": 942,
+          "invoke_p50_us": 7354.0,
+          "invoke_p95_us": 7682.0,
+          "invoke_mean_us": 7403.35,
+          "rss_delta_kb": 0.0
+        }
+      }
+    },
+    {
+      "iterations": 60,
+      "vm_cost_us": 7555.8,
+      "vm_create_us": 2107.5666666666666,
+      "warm_invoke_us": 7440.533333333334,
+      "single_writer_mutations_per_sec": 129.0342002373494,
+      "single_writer_mutation_p50_us": 7753.0,
+      "single_writer_mutation_p95_us": 7774.8330000000005,
+      "current_point_read_p50_us": 3.292,
+      "current_point_read_p95_us": 3.375,
+      "current_range_read_p50_us": 56.583,
+      "current_range_read_p95_us": 57.292,
+      "current_query_plan_read_p50_us": 25.5,
+      "current_query_plan_read_p95_us": 26.125,
+      "allocated_write_bytes_per_changed_row": 74000,
+      "allocated_write_bytes_per_operation": 74000,
+      "retained_bytes_per_changed_row": 0,
+      "retained_bytes_per_operation": 0,
+      "matcher_skip_us_per_sub": 34.3770833333333,
+      "fanout_us_per_affected_sub": 8029.382291666667,
+      "fanout_ceiling_subs_at_10ms": 1.24542581692474,
+      "fanout_delta_us_per_affected_sub": 1.3520833333333333,
+      "fanout_delta_ceiling_subs_at_10ms": 7395.993836671803,
+      "read_set_validation_us_per_dep": 11.757291666666646,
+      "spurious_conflict_rate": 0.0,
+      "ephemeral_publishes_per_sec": 244798.04161566708,
+      "ephemeral_publish_us": 4.085,
+      "read_during_write_via_lock_us": 48313.0,
+      "read_during_write_via_read_lane_us": 8036.5,
+      "helper_splice": {
+        "helper_free": {
+          "module_bytes": 653,
+          "invoke_p50_us": 7196.0,
+          "invoke_p95_us": 7249.0,
+          "invoke_mean_us": 7197.033333333334,
+          "rss_delta_kb": 0.0
+        },
+        "one_helper": {
+          "module_bytes": 692,
+          "invoke_p50_us": 7209.0,
+          "invoke_p95_us": 7261.0,
+          "invoke_mean_us": 7212.3,
+          "rss_delta_kb": 0.0
+        },
+        "three_helpers": {
+          "module_bytes": 942,
+          "invoke_p50_us": 7314.0,
+          "invoke_p95_us": 7385.0,
+          "invoke_mean_us": 7319.883333333333,
+          "rss_delta_kb": 0.0
+        }
+      }
+    },
+    {
+      "iterations": 60,
+      "vm_cost_us": 7439.483333333334,
+      "vm_create_us": 2998.65,
+      "warm_invoke_us": 7450.733333333334,
+      "single_writer_mutations_per_sec": 129.68673486177335,
+      "single_writer_mutation_p50_us": 7707.7919999999995,
+      "single_writer_mutation_p95_us": 7750.291,
+      "current_point_read_p50_us": 3.333,
+      "current_point_read_p95_us": 3.667,
+      "current_range_read_p50_us": 56.542,
+      "current_range_read_p95_us": 58.041999999999994,
+      "current_query_plan_read_p50_us": 25.375,
+      "current_query_plan_read_p95_us": 26.375,
+      "allocated_write_bytes_per_changed_row": 74000,
+      "allocated_write_bytes_per_operation": 74000,
+      "retained_bytes_per_changed_row": 0,
+      "retained_bytes_per_operation": 0,
+      "matcher_skip_us_per_sub": 0.0,
+      "fanout_us_per_affected_sub": 8059.783333333334,
+      "fanout_ceiling_subs_at_10ms": 1.2407281419889284,
+      "fanout_delta_us_per_affected_sub": 1.3385416666666667,
+      "fanout_delta_ceiling_subs_at_10ms": 7470.817120622568,
+      "read_set_validation_us_per_dep": 1.1598958333333087,
+      "spurious_conflict_rate": 0.0,
+      "ephemeral_publishes_per_sec": 241254.52352231607,
+      "ephemeral_publish_us": 4.145,
+      "read_during_write_via_lock_us": 48192.0,
+      "read_during_write_via_read_lane_us": 8015.0,
+      "helper_splice": {
+        "helper_free": {
+          "module_bytes": 653,
+          "invoke_p50_us": 7227.0,
+          "invoke_p95_us": 7267.0,
+          "invoke_mean_us": 7229.116666666667,
+          "rss_delta_kb": 0.0
+        },
+        "one_helper": {
+          "module_bytes": 692,
+          "invoke_p50_us": 7217.0,
+          "invoke_p95_us": 7263.0,
+          "invoke_mean_us": 7216.9,
+          "rss_delta_kb": 0.0
+        },
+        "three_helpers": {
+          "module_bytes": 942,
+          "invoke_p50_us": 7331.0,
+          "invoke_p95_us": 7385.0,
+          "invoke_mean_us": 7336.4,
+          "rss_delta_kb": 16.0
+        }
+      }
+    },
+    {
+      "iterations": 60,
+      "vm_cost_us": 7420.25,
+      "vm_create_us": 2120.35,
+      "warm_invoke_us": 7467.483333333334,
+      "single_writer_mutations_per_sec": 129.86191821195095,
+      "single_writer_mutation_p50_us": 7702.291,
+      "single_writer_mutation_p95_us": 7727.708,
+      "current_point_read_p50_us": 3.292,
+      "current_point_read_p95_us": 3.416,
+      "current_range_read_p50_us": 57.375,
+      "current_range_read_p95_us": 58.167,
+      "current_query_plan_read_p50_us": 25.541,
+      "current_query_plan_read_p95_us": 25.875,
+      "allocated_write_bytes_per_changed_row": 74000,
+      "allocated_write_bytes_per_operation": 74000,
+      "retained_bytes_per_changed_row": 0,
+      "retained_bytes_per_operation": 0,
+      "matcher_skip_us_per_sub": 0.2666666666666515,
+      "fanout_us_per_affected_sub": 8060.353125000001,
+      "fanout_ceiling_subs_at_10ms": 1.2406404341000878,
+      "fanout_delta_us_per_affected_sub": 1.3489583333333333,
+      "fanout_delta_ceiling_subs_at_10ms": 7413.127413127413,
+      "read_set_validation_us_per_dep": 0.5640625000000057,
+      "spurious_conflict_rate": 0.0,
+      "ephemeral_publishes_per_sec": 239808.15347721823,
+      "ephemeral_publish_us": 4.17,
+      "read_during_write_via_lock_us": 48111.0,
+      "read_during_write_via_read_lane_us": 8020.0,
+      "helper_splice": {
+        "helper_free": {
+          "module_bytes": 653,
+          "invoke_p50_us": 7202.0,
+          "invoke_p95_us": 8079.0,
+          "invoke_mean_us": 7567.7,
+          "rss_delta_kb": 0.0
+        },
+        "one_helper": {
+          "module_bytes": 692,
+          "invoke_p50_us": 7207.0,
+          "invoke_p95_us": 7308.0,
+          "invoke_mean_us": 7221.266666666666,
+          "rss_delta_kb": 0.0
+        },
+        "three_helpers": {
+          "module_bytes": 942,
+          "invoke_p50_us": 7359.0,
+          "invoke_p95_us": 7575.0,
+          "invoke_mean_us": 7391.566666666667,
+          "rss_delta_kb": 0.0
+        }
+      }
+    },
+    {
+      "iterations": 60,
+      "vm_cost_us": 7463.95,
+      "vm_create_us": 2123.1,
+      "warm_invoke_us": 7437.95,
+      "single_writer_mutations_per_sec": 130.11731502903086,
+      "single_writer_mutation_p50_us": 7684.875,
+      "single_writer_mutation_p95_us": 7712.833,
+      "current_point_read_p50_us": 3.292,
+      "current_point_read_p95_us": 3.584,
+      "current_range_read_p50_us": 56.625,
+      "current_range_read_p95_us": 57.708,
+      "current_query_plan_read_p50_us": 25.417,
+      "current_query_plan_read_p95_us": 26.458,
+      "allocated_write_bytes_per_changed_row": 74000,
+      "allocated_write_bytes_per_operation": 74000,
+      "retained_bytes_per_changed_row": 0,
+      "retained_bytes_per_operation": 0,
+      "matcher_skip_us_per_sub": 81.70937499999997,
+      "fanout_us_per_affected_sub": 8023.273958333332,
+      "fanout_ceiling_subs_at_10ms": 1.2463739929525341,
+      "fanout_delta_us_per_affected_sub": 1.3791666666666667,
+      "fanout_delta_ceiling_subs_at_10ms": 7250.755287009063,
+      "read_set_validation_us_per_dep": 14.53229166666668,
+      "spurious_conflict_rate": 0.0,
+      "ephemeral_publishes_per_sec": 242277.40763173832,
+      "ephemeral_publish_us": 4.1275,
+      "read_during_write_via_lock_us": 48151.0,
+      "read_during_write_via_read_lane_us": 8020.5,
+      "helper_splice": {
+        "helper_free": {
+          "module_bytes": 653,
+          "invoke_p50_us": 7223.0,
+          "invoke_p95_us": 7276.0,
+          "invoke_mean_us": 7223.516666666666,
+          "rss_delta_kb": 0.0
+        },
+        "one_helper": {
+          "module_bytes": 692,
+          "invoke_p50_us": 7231.0,
+          "invoke_p95_us": 7265.0,
+          "invoke_mean_us": 7228.333333333333,
+          "rss_delta_kb": 0.0
+        },
+        "three_helpers": {
+          "module_bytes": 942,
+          "invoke_p50_us": 7365.0,
+          "invoke_p95_us": 7412.0,
+          "invoke_mean_us": 7365.983333333334,
+          "rss_delta_kb": 0.0
+        }
+      }
+    }
+  ],
+  "summary": {
+    "allocatedWriteBytesPerChangedRow": {
+      "median": 74000.0,
+      "mad": 0.0,
+      "min": 74000.0,
+      "max": 74000.0
+    },
+    "allocatedWriteBytesPerOperation": {
+      "median": 74000.0,
+      "mad": 0.0,
+      "min": 74000.0,
+      "max": 74000.0
+    },
+    "currentPointReadP50Us": {
+      "median": 3.292,
+      "mad": 0.0009999999999998899,
+      "min": 3.291,
+      "max": 3.333
+    },
+    "currentPointReadP95Us": {
+      "median": 3.5829999999999997,
+      "mad": 0.04200000000000026,
+      "min": 3.375,
+      "max": 3.667
+    },
+    "currentQueryPlanReadP50Us": {
+      "median": 25.375,
+      "mad": 0.04200000000000159,
+      "min": 25.25,
+      "max": 25.541
+    },
+    "currentQueryPlanReadP95Us": {
+      "median": 26.041999999999998,
+      "mad": 0.125,
+      "min": 25.708,
+      "max": 26.667
+    },
+    "currentRangeReadP50Us": {
+      "median": 56.583,
+      "mad": 0.04200000000000159,
+      "min": 56.375,
+      "max": 57.375
+    },
+    "currentRangeReadP95Us": {
+      "median": 58.041000000000004,
+      "mad": 0.2919999999999945,
+      "min": 57.292,
+      "max": 58.333
+    },
+    "fanoutCeilingSubsAt10ms": {
+      "median": 1.2429123248351361,
+      "mad": 0.003461668117398009,
+      "min": 1.2367767947692585,
+      "max": 1.2550927676978865
+    },
+    "fanoutUsPerAffectedSub": {
+      "median": 8045.619791666667,
+      "mad": 22.345833333334667,
+      "min": 7967.538541666668,
+      "max": 8085.533333333334
+    },
+    "idleCpuSystemUs": {
+      "median": 13.0,
+      "mad": 1.0,
+      "min": 10.0,
+      "max": 16.0
+    },
+    "idleCpuUserUs": {
+      "median": 7.0,
+      "mad": 1.0,
+      "min": 3.0,
+      "max": 8.0
+    },
+    "idleDatabaseFamilyDeltaBytes": {
+      "median": 0.0,
+      "mad": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "idleOutputBlockOperations": {
+      "median": 0.0,
+      "mad": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "idleResidentDeltaKb": {
+      "median": 0.0,
+      "mad": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "matcherSkipUsPerSub": {
+      "median": 0.2666666666666515,
+      "mad": 0.2666666666666515,
+      "min": 0.0,
+      "max": 81.70937499999997
+    },
+    "readDuringWriteViaLockUs": {
+      "median": 48151.0,
+      "mad": 162.0,
+      "min": 47641.0,
+      "max": 50170.0
+    },
+    "readDuringWriteViaReadLaneUs": {
+      "median": 8020.0,
+      "mad": 16.5,
+      "min": 7922.75,
+      "max": 8391.0
+    },
+    "readSetValidationUsPerDep": {
+      "median": 0.6010416666666742,
+      "mad": 0.2890625,
+      "min": 0.0,
+      "max": 14.53229166666668
+    },
+    "retainedBytesPerChangedRow": {
+      "median": 0.0,
+      "mad": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "retainedBytesPerOperation": {
+      "median": 0.0,
+      "mad": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "singleWriterMutationP50Us": {
+      "median": 7709.416,
+      "mad": 11.751000000000204,
+      "min": 7684.875,
+      "max": 7753.0
+    },
+    "singleWriterMutationP95Us": {
+      "median": 7767.167,
+      "mad": 11.373999999999796,
+      "min": 7712.833,
+      "max": 7811.958
+    },
+    "singleWriterMutationsPerSec": {
+      "median": 129.4810195079104,
+      "mad": 0.21584069084750013,
+      "min": 129.0342002373494,
+      "max": 130.11731502903086
+    },
+    "vmCostUs": {
+      "median": 7447.083333333333,
+      "mad": 9.383333333333212,
+      "min": 7420.25,
+      "max": 7555.8
+    }
+  },
+  "idleObservations": [
+    {
+      "durationMs": 5000,
+      "cpuUserUs": 6,
+      "cpuSystemUs": 10,
+      "outputBlockOperations": 0,
+      "residentKbBefore": 42416.0,
+      "residentKbAfter": 42416.0,
+      "databaseFamilyBytesBefore": 1145176,
+      "databaseFamilyBytesAfter": 1145176
+    },
+    {
+      "durationMs": 5000,
+      "cpuUserUs": 7,
+      "cpuSystemUs": 12,
+      "outputBlockOperations": 0,
+      "residentKbBefore": 42416.0,
+      "residentKbAfter": 42416.0,
+      "databaseFamilyBytesBefore": 1145176,
+      "databaseFamilyBytesAfter": 1145176
+    },
+    {
+      "durationMs": 5000,
+      "cpuUserUs": 8,
+      "cpuSystemUs": 15,
+      "outputBlockOperations": 0,
+      "residentKbBefore": 42416.0,
+      "residentKbAfter": 42416.0,
+      "databaseFamilyBytesBefore": 1145176,
+      "databaseFamilyBytesAfter": 1145176
+    },
+    {
+      "durationMs": 5000,
+      "cpuUserUs": 7,
+      "cpuSystemUs": 12,
+      "outputBlockOperations": 0,
+      "residentKbBefore": 42416.0,
+      "residentKbAfter": 42416.0,
+      "databaseFamilyBytesBefore": 1145176,
+      "databaseFamilyBytesAfter": 1145176
+    },
+    {
+      "durationMs": 5000,
+      "cpuUserUs": 7,
+      "cpuSystemUs": 13,
+      "outputBlockOperations": 0,
+      "residentKbBefore": 42416.0,
+      "residentKbAfter": 42416.0,
+      "databaseFamilyBytesBefore": 1145176,
+      "databaseFamilyBytesAfter": 1145176
+    },
+    {
+      "durationMs": 5000,
+      "cpuUserUs": 8,
+      "cpuSystemUs": 14,
+      "outputBlockOperations": 0,
+      "residentKbBefore": 42416.0,
+      "residentKbAfter": 42416.0,
+      "databaseFamilyBytesBefore": 1145176,
+      "databaseFamilyBytesAfter": 1145176
+    },
+    {
+      "durationMs": 5000,
+      "cpuUserUs": 7,
+      "cpuSystemUs": 14,
+      "outputBlockOperations": 0,
+      "residentKbBefore": 42416.0,
+      "residentKbAfter": 42416.0,
+      "databaseFamilyBytesBefore": 1145176,
+      "databaseFamilyBytesAfter": 1145176
+    },
+    {
+      "durationMs": 5000,
+      "cpuUserUs": 8,
+      "cpuSystemUs": 15,
+      "outputBlockOperations": 0,
+      "residentKbBefore": 42416.0,
+      "residentKbAfter": 42416.0,
+      "databaseFamilyBytesBefore": 1145176,
+      "databaseFamilyBytesAfter": 1145176
+    },
+    {
+      "durationMs": 5000,
+      "cpuUserUs": 4,
+      "cpuSystemUs": 10,
+      "outputBlockOperations": 0,
+      "residentKbBefore": 42416.0,
+      "residentKbAfter": 42416.0,
+      "databaseFamilyBytesBefore": 1145176,
+      "databaseFamilyBytesAfter": 1145176
+    },
+    {
+      "durationMs": 5000,
+      "cpuUserUs": 7,
+      "cpuSystemUs": 16,
+      "outputBlockOperations": 0,
+      "residentKbBefore": 42416.0,
+      "residentKbAfter": 42416.0,
+      "databaseFamilyBytesBefore": 1145176,
+      "databaseFamilyBytesAfter": 1145176
+    },
+    {
+      "durationMs": 5000,
+      "cpuUserUs": 3,
+      "cpuSystemUs": 12,
+      "outputBlockOperations": 0,
+      "residentKbBefore": 42416.0,
+      "residentKbAfter": 42416.0,
+      "databaseFamilyBytesBefore": 1145176,
+      "databaseFamilyBytesAfter": 1145176
+    }
+  ],
+  "claimBoundary": "baseline evidence only; every LLP 0162/0163 capability remains Missing"
+}
