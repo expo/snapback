@@ -558,8 +558,15 @@ lifecycle as follows; the core rules are affirmed, not weakened.
   passes the epoch, so a reclaimed identity can never re-execute as novel.
   A retry answered from a surviving compact envelope receives
   `result-expired` (outcome-known, payload gone) instead of the stored
-  result — a client-visible change owned here by dated revision. Offline
+  result — a client-visible change owned here by dated revision. The
+  per-audience epoch floor is a retention mechanism owned here: a retry
+  bearing an epoch below the floor refuses with `identity-horizon-passed`,
+  an explicit outcome-unknown disposition that clients must never record
+  as a terminal `failed` (LLP 0012/0095 carry the client obligation).
+  Offline
   minting draws on server-preallocated authenticated finite identity
   ranges; exhaustion while offline degrades to disclosed uncovered local
-  queueing with refresh at reconnect, and the range size/window parameters
-  are owned here.
+  queueing with refresh at reconnect. This RFC owns the ACK/retention and
+  range size/window parameter values (LLP 0133 owns collision/identity
+  semantics and LLP 0163 the schemas and disposition spellings; they
+  reference these parameters rather than fixing them).

@@ -154,11 +154,23 @@ contracts.
   narrower claim than this RFC's `Promotable` (its staged-settlement half is
   unexercised) — and projects to `Missing` for legacy three-value consumers
   (a deliberate under-claim; projecting to `CaptureOnly` would assert a
-  ledger that does not exist).
+  ledger that does not exist). The projection is total: any (egress,
+  promotion) pair maps to the greatest three-value claim it fully
+  satisfies, so (`DenyAll`, `NotPromotable`) also projects to `Missing`.
+- **Claim boundary.** Restated across all four axes: no capability manifest
+  may report any of the egress, promotion, base, or isolation axes above
+  its weakest value until this RFC's acceptance corpus (as amended above)
+  passes on that target; the original "(while Draft)" qualifier is
+  superseded — the boundary binds by corpus passage, not document status.
 - **§Acceptance.** A `Promotable(noEffects)` target passes this corpus with
   the effect-settlement fixtures replaced by negative fixtures proving its
   attempt markers are empty and that any egress attempt forecloses
-  promotion. All other rows stand.
+  promotion. Every capture-specific clause in the corpus
+  ("blocked-and-captured", "capture, not fire") is conditional on the
+  `CaptureOnly` egress class: under `DenyAll`, the corresponding fixture is
+  the marker/refusal/bypass form (denial is fail-loud, the payload-free
+  attempt marker is durable, and no bypass fires an effect). All other
+  rows stand.
 - **§5 (promotion protocol additions).** Promotion consumes a sealed
   `PromotionRequestV1` (reviewed child-stream head under branch-head CAS;
   log/diff/manifest digests; approver — a human or an agent principal

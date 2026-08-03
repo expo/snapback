@@ -38,15 +38,27 @@ diverge, this Spec is the defect until a dated revision reconciles them.
   issuance epoch bound to the authority-instance/session incarnation.
   Offline minting draws from server-preallocated authenticated finite
   identity ranges persisted atomically client-side; range exhaustion
-  degrades to disclosed uncovered queueing with refresh at reconnect. An
-  epoch closes only when its issuer is terminated and every ranged identity
-  is acknowledged, range-window-expired with outcome-unknown, or purged;
-  the per-audience floor advances past closed epochs only.
+  degrades to disclosed uncovered queueing with refresh at reconnect. A
+  client epoch closes only when both hold: its issuer is terminated **or
+  revoked**, and every ranged identity is **admitted-and-acknowledged**,
+  never-admitted and range-window-expired with an explicit outcome-unknown
+  classification, or operator-purged (LLP 0043's acknowledgement — an
+  admitted-but-unacknowledged identity holds its epoch open). The
+  per-audience floor advances past closed epochs only. Host-originated
+  identities carry their own predicate (they have no client
+  acknowledgement): a server-authenticated host identity reclaims after
+  its terminal receipt ages past a declared host window, and a range-less
+  host epoch — bound to the server incarnation, including the promotion
+  admission-ticket identities — closes when the incarnation has rotated
+  and every identity minted under it has a terminal receipt older than
+  that window or is purged.
 - **Suppression lifecycle.** Unacknowledged receipts are never evicted
   (LLP 0043's refuse-at-capacity rule). Reclamation is post-acknowledgement
-  or explicit operator purge; an identity whose last durable record would
+  (or past the host window, for host identities) or explicit operator
+  purge; an identity whose last durable record would
   be reclaimed inside an open epoch leaves a payload-free tombstone until
-  the floor passes. Lookup precedence: suppression record → compact
+  the floor passes (tombstone growth in an open client epoch is bounded by
+  the range size). Lookup precedence: suppression record → compact
   envelope or tombstone (`result-expired`, outcome-known/payload-gone) →
   epoch floor (`identity-horizon-passed`, outcome-unknown, never a terminal
   client `failed`).
@@ -69,8 +81,10 @@ diverge, this Spec is the defect until a dated revision reconciles them.
 ## Owned artifacts
 
 `CommitEnvelopeV1`, the suppression/tombstone records, the epoch/range
-issuance artifacts, the disposition vocabulary above, and their wire
-projections — all Rust-owned generated schemas per LLP 0037. Amendments to
+issuance artifacts, the disposition vocabulary above (spellings and
+schemas; semantics stay with LLP 0162/0133), the protected-lane custody
+schema for secret-bearing envelope facts (ctx answers, effect payloads),
+and their wire projections — all Rust-owned generated schemas per LLP 0037. Amendments to
 LLP 0133/0043 (identity semantics, retention parameters) and LLP 0012/0095
 (client conformance) are dated in those documents and reference this Spec.
 
@@ -85,7 +99,11 @@ schemas.
 ## Open items
 
 1. Exact generated-schema shapes and diagnostic code spellings.
-2. The dated LLP 0133/0043/0012/0095 amendment texts' final parameter values
-   (range size and window, retention windows — LLP 0162 OQ1).
-3. Whether `result-expired` survives review of the amendments or collapses
-   into `identity-horizon-passed` (raised by the round-7 Fable review).
+2. Final parameter values: range size/window and ACK/retention parameters
+   land by dated revision in LLP 0043; the detail/envelope/checkpoint
+   windows stay with LLP 0162 OQ1 until this Spec and LLP 0165 land them.
+3. `result-expired` is normative per the landed 2026-08-03 LLP
+   0043/0012/0095 amendments; a later dated reconciliation of 0162, this
+   Spec, and those amendments could still collapse it into
+   `identity-horizon-passed`, but that is a future decision, not an open
+   review question.

@@ -111,3 +111,26 @@ as the umbrella, which also settled OQ5's schema-ownership half via LLP
 0133, 0043, 0012, and 0095. The v0.8 repairs entered acceptance unreviewed,
 as the record above notes; the round-7 reviews' scoped re-read remains
 available to the author on the extracted Specs' own review loops.
+
+## Postscript 2 — post-acceptance combined light round (2026-08-03, same day)
+
+The scoped re-read the round-7 reviews prescribed ran as one combined light
+cross-family round over the v0.8 contracts, the extracted Specs 0163-0165,
+and the five dated amendments (artifacts:
+`llp/reviews/0163-0165-extraction.{fable,codex}.md`). Both families
+confirmed the corpus-rule checks clean (0043 never-evict, 0097 §5 meaning
+preservation, 0133 collision, 0158 publication, 0081 inventory) and found
+no architectural defect. Fable found one MAJOR — the epoch/reclamation
+protocol was acknowledgement-only while the core-tier promotion identity is
+host-originated — resolved by a dated v0.10 revision adding the
+host-originator predicate (terminal-receipt-plus-declared-window;
+range-less host epochs close on incarnation rotation), a coordinator-
+applied decision flagged for the author. The remaining 19 findings (13
+Fable, 6 Codex, overlapping) were seam/extraction repairs, all applied:
+§8 table rebuilt, parameter/disposition ownership split published (0043
+parameters, 0133 semantics, 0163 schemas/spellings, 0012/0095 client
+behavior), the 0097 amendment's capture-conditional fixtures, total legacy
+projection, and claim-boundary bullet, reservation-quota fairness term,
+§4 split with precedence between 0164/0165, and the reopened Open items
+closed. Both families ruled no further round warranted; the extracted
+Specs stay Draft pending their own loops when schemas/numerics land.

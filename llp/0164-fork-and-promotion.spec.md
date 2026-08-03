@@ -18,7 +18,12 @@ promotion half of the agent-safe storage profile. LLP 0162 (Accepted) is the
 umbrella and holds the acceptance corpus (rows 5-10 gate these components,
 with the derived-deployment legs of rows 5 and 7 gating the separate
 0158-gated additive capability). The dated LLP 0097 amendment this work
-rides on is recorded in LLP 0097 itself; this Spec implements it. Where this
+rides on is recorded in LLP 0097 itself; this Spec implements it. §4 is
+shared with LLP 0165 under an explicit split: this Spec owns the diff
+surfaces (attributed change sequence, net diff, folding rules, substrate
+naming); LLP 0165 owns journal completeness, digest domains, and
+checkpoints; on a §4 divergence the owning Spec per this split is the
+defect. Where this
 Spec and LLP 0162 §§3-5 diverge, this Spec is the defect until a dated
 revision reconciles them.
 
@@ -50,7 +55,9 @@ revision reconciles them.
   sealed `PromotionRequestV1` binding the reviewed child-stream head
   (branch-head CAS), the log/diff/manifest digests, the approver (a human
   or an agent principal holding an LLP 0055 scoped grant — decided at 0162's
-  acceptance), and the rebase-invariant admission-ticket identity, which is
+  acceptance), and the rebase-invariant admission-ticket identity —
+  server-minted at first admission, governed by LLP 0163's host-originator
+  epoch protocol — which is
   the sole admissible suppression/retry identity. The approval binds the
   full approved-facts digest (reads, ctx answers, decision/result facts,
   writes, effects, artifact, coverage); a rebase reproducing it re-seals as
@@ -70,21 +77,30 @@ revision reconciles them.
 
 ## Owned artifacts
 
-`PromotionRequestV1`, the replay-sufficient branch operation log schema, the
-attempt-marker record, the admission-ticket/reservation records, the diff
+`PromotionRequestV1`, the replay-sufficient branch operation log schema
+(per LLP 0097 §5's field list: function/artifact identity, canonical
+arguments, principal/grant, read baseline, idempotency identity, ctx
+answers, effect observations, causal ordering, custody classes), the
+attempt-marker record, the branch/fork receipt, the
+admission-ticket/reservation records, the diff
 receipts (substrate-naming, folding), and their wire projections — generated
 per LLP 0037.
 
 ## Acceptance
 
-LLP 0162 Acceptance rows 5-10 (core legs) gate these components; the
+LLP 0162 Acceptance rows 5-10 (core legs) gate these components, plus row
+13's applicable submetrics (fork creation, diff, promotion, reap latency,
+p99 under contention); the
 derived-deployment legs of rows 5 and 7 gate the 0158-gated additive
 capability. No parallel corpus here.
 
 ## Open items
 
 1. The declared numeric terms (R, reservation interval and quota, budget
-   formula, maximum promotion-commit duration).
+   formula, maximum promotion-commit duration). The reservation quota is
+   fairness-coupled: quota sufficiency is one of LLP 0162 §5's declared
+   conditional-fairness terms, so its value bounds the progress claim, not
+   just resource use.
 2. Divergence-surfacing receipt vocabulary (LLP 0162 OQ10 residue).
 3. Fork-receipt enumerability ("list my live forks", LLP 0162 OQ12).
 4. Wiring order with LLP 0097's mediation prerequisite and LLP 0158 F0a

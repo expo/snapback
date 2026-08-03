@@ -16,16 +16,20 @@ LLP 0162, LLP 0163, LLP 0164
 
 This Spec owns the digest domains, checkpoint substrate contracts, and
 publication/erasure machinery of the agent-safe storage profile. LLP 0162
-(Accepted) is the umbrella and holds the acceptance corpus (row 12 and row
-11's checkpoint half gate these components). Its acceptance is a named
-prerequisite for `AgentSafeV1-core`'s boundary-proof component. Where this
+(Accepted) is the umbrella and holds the acceptance corpus. Its acceptance
+is a named
+prerequisite for `AgentSafeV1-core`'s boundary-proof component. §4 is
+shared with LLP 0164 under an explicit split: this Spec owns journal
+completeness, digest domains, and checkpoints; LLP 0164 owns the diff
+surfaces; on a §4 divergence the owning Spec per this split is the defect.
+Where this
 Spec and LLP 0162 §§4/6 diverge, this Spec is the defect until a dated
 revision reconciles them.
 
 ## Contract summary (normative; details per LLP 0162 §§4, 6)
 
-- **Proof discipline.** LLP 0081's rule governs: a digest without an
-  independently derived expected value is inventory. Proof classes are
+- **Proof discipline.** LLP 0081's rule governs: a digest without a
+  predecessor-derived expected value is inventory. Proof classes are
   three-valued — inventory, `verifiedCopyFidelity`, independent boundary
   proof — so copy fidelity can never be projected upward.
 - **Promotion digest domain (to define here).** Canonical header,
@@ -68,14 +72,19 @@ generated per LLP 0037.
 
 ## Acceptance
 
-LLP 0162 Acceptance row 12 and row 11's checkpoint half gate these
-components; step 0's baseline artifact protocol (LLP 0035 lineage) is
-defined alongside this Spec's golden vectors. No parallel corpus here.
+LLP 0162 Acceptance row 12, row 11's checkpoint half, row 4's
+journal-completeness leg (the choke point this Spec owns), and row 13's
+applicable submetrics gate these components. This Spec's golden vectors
+are committed before any caller wires in, independently of sequencing
+step 0 (the performance baseline). No parallel corpus here.
 
 ## Open items
 
 1. The snapshot-pinning spike (LLP 0162 OQ13) — its outcome may narrow the
    dual-path contract to a refusal-first posture.
 2. Concrete per-domain preimage field lists and golden vectors.
-3. The choke-point mechanism decision (generated facade vs authorizer-only)
-   and its migration path for existing direct-SQL write sites.
+3. Implementation details of the write-authority choke point — both
+   controls (the generated transaction API with lane-writer token AND the
+   SQLite authorizer) are decided by LLP 0162 §4; open here are only the
+   generated-facade surface and the migration path for existing direct-SQL
+   write sites.

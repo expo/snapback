@@ -844,6 +844,9 @@ implementation-altitude contracts and schemas.
   republish-the-stored-result rule) and `identity-horizon-passed`
   (outcome-unknown, never a terminal client `failed`). Lookup precedence:
   suppression record → envelope/tombstone → epoch floor.
-- This Spec remains the duplicate-suppression authority; parameter values
-  (range size/window, retention windows) are fixed by dated revision here
-  as LLP 0163 lands.
+- This Spec remains the duplicate-suppression authority for
+  collision/identity semantics. Parameter values are owned elsewhere and
+  referenced here: range size/window and ACK/retention values by LLP
+  0043's same-dated amendment; disposition spellings and generated schemas
+  by LLP 0163; the detail/envelope/checkpoint retention windows by LLP
+  0162 OQ1 until LLP 0163/0165 land them.
