@@ -584,9 +584,9 @@ second.dispose();
   };
   const withheldInsertDescriptor = buildContractMutationDescriptor({
     name: 'createTodo',
-    args: jsManifest.mutations.createTodo.args,
-    argOrder: jsManifest.mutations.createTodo.argOrder,
-    writes: jsManifest.mutations.createTodo.writes,
+    args: manifest.mutations.createTodo.args,
+    argOrder: manifest.mutations.createTodo.argOrder,
+    writes: manifest.mutations.createTodo.writes,
     plan: insertSequenceWwaPlan,
     sequenceAllocationCount: 1,
   });
