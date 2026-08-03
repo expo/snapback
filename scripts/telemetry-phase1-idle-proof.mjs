@@ -35,11 +35,17 @@ const TERMINAL_QUIET_MS = smoke ? 1_000 : 6_000;
 const SETTLE_SAMPLE_MS = 250;
 const IDLE_WINDOW_MS = smoke ? 5_000 : 120_000;
 const IDLE_SAMPLE_MS = smoke ? 250 : 1_000;
-const MAX_SETTLE_EVENT_BATCHES = 2;
+const EXACT_SETTLE_EVENT_BATCHES = 1;
+const EXACT_SETTLE_FLUSH_COMMITS = 1;
 const MAX_SETTLE_EVENTS = 4;
 const RESOURCE_CEILINGS = smoke
-  ? { cpuTicksDelta: 25, rssGrowthPages: 2_048 }
-  : { cpuTicksDelta: 100, rssGrowthPages: 4_096 };
+  ? { cpuTicksDelta: 25, rssGrowthPages: 512 }
+  : { cpuTicksDelta: 1, rssGrowthPages: 8 };
+const RESOURCE_RESOLUTION = {
+  clockTicksPerSecond: numericGetconf('CLK_TCK'),
+  cpuTickMilliseconds: 1_000 / numericGetconf('CLK_TCK'),
+  pageSizeBytes: numericGetconf('PAGESIZE'),
+};
 
 if (!smoke && (!existsSync('/proc/self/io') || !existsSync('/proc/self/stat'))) {
   throw new Error(
@@ -215,7 +221,8 @@ try {
         policy: {
           exactProcessStartCount: 1,
           exactProcessReadyCount: 1,
-          maxPersistedEventBatches: MAX_SETTLE_EVENT_BATCHES,
+          exactPersistedEventBatches: EXACT_SETTLE_EVENT_BATCHES,
+          exactFlushCommitSequence: EXACT_SETTLE_FLUSH_COMMITS,
           maxPersistedEvents: MAX_SETTLE_EVENTS,
         },
         preSpawnSnapshot,
@@ -233,6 +240,7 @@ try {
         startLifecycle: idleStartLifecycle,
         endLifecycle: idleEndLifecycle,
         resources,
+        resourceResolution: RESOURCE_RESOLUTION,
         resourceCeilings: RESOURCE_CEILINGS,
       },
     }, null, 2)}\n`,
@@ -253,8 +261,10 @@ function lifecycleBounded(witness) {
   return lifecycleReady(witness)
     && witness.processStartCount === 1
     && witness.processReadyCount === 1
-    && witness.persistedEventBatches >= 1
-    && witness.persistedEventBatches <= MAX_SETTLE_EVENT_BATCHES
+    && witness.processStartFlushSequence === witness.processReadyFlushSequence
+    && witness.processStartFlushSequence === EXACT_SETTLE_FLUSH_COMMITS
+    && witness.persistedEventBatches === EXACT_SETTLE_EVENT_BATCHES
+    && witness.flushCommitSequence === EXACT_SETTLE_FLUSH_COMMITS
     && witness.eventCount >= 2
     && witness.eventCount <= MAX_SETTLE_EVENTS;
 }
@@ -264,7 +274,24 @@ function lifecycleWitness(path) {
   const output = execFileSync('sqlite3', [
     '-separator', '\t',
     path,
-    `SELECT coalesce(max(recorded_ts_ms),0), coalesce(sum(CASE WHEN name='process_start' THEN 1 ELSE 0 END),0), coalesce(sum(CASE WHEN name='process_ready' THEN 1 ELSE 0 END),0), count(*), count(DISTINCT recorded_ts_ms) FROM telemetry_events_visible WHERE phase IN ('point','joined','terminal');`,
+    `SELECT
+       coalesce(max(e.recorded_ts_ms),0),
+       coalesce(sum(CASE WHEN e.name='process_start' THEN 1 ELSE 0 END),0),
+       coalesce(sum(CASE WHEN e.name='process_ready' THEN 1 ELSE 0 END),0),
+       count(*),
+       count(DISTINCT e.flush_sequence),
+       coalesce(min(CASE WHEN e.name='process_start' THEN e.flush_sequence END),0),
+       coalesce(min(CASE WHEN e.name='process_ready' THEN e.flush_sequence END),0),
+       m.flush_commit_sequence
+     FROM telemetry_events e, telemetry_meta m
+     WHERE m.singleton=1
+       AND m.max_days_mirror > 0
+       AND e.generation=m.generation
+       AND e.recorded_ts_ms > max(
+         m.observation_clock_ms - m.max_days_mirror * 86400000,
+         m.retention_floor
+       )
+       AND e.phase IN ('point','joined','terminal');`,
   ], { encoding: 'utf8' }).trim();
   const [
     watermark = '0',
@@ -272,6 +299,9 @@ function lifecycleWitness(path) {
     processReadyCount = '0',
     eventCount = '0',
     persistedEventBatches = '0',
+    processStartFlushSequence = '0',
+    processReadyFlushSequence = '0',
+    flushCommitSequence = '0',
   ] = output.split('\t');
   return {
     watermark: Number(watermark),
@@ -279,6 +309,9 @@ function lifecycleWitness(path) {
     processReadyCount: Number(processReadyCount),
     eventCount: Number(eventCount),
     persistedEventBatches: Number(persistedEventBatches),
+    processStartFlushSequence: Number(processStartFlushSequence),
+    processReadyFlushSequence: Number(processReadyFlushSequence),
+    flushCommitSequence: Number(flushCommitSequence),
   };
 }
 
@@ -383,4 +416,12 @@ function resourceDelta(start, end) {
 
 function delay(milliseconds) {
   return new Promise((resolveDelay) => setTimeout(resolveDelay, milliseconds));
+}
+
+function numericGetconf(name) {
+  const value = Number(execFileSync('getconf', [name], { encoding: 'utf8' }).trim());
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new Error(`SNAPBACK_TELEMETRY_IDLE_RESOURCE_RESOLUTION_INVALID: ${name}=${value}`);
+  }
+  return value;
 }

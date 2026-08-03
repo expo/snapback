@@ -976,7 +976,7 @@ fn measure_queries(config: &Phase1BenchmarkConfig) -> SnapbackResult<QueryLatenc
                     )
                 })
                 .collect::<Vec<_>>();
-            insert_batch(&transaction, &events, stamp)?;
+            insert_batch(&transaction, &events, stamp, bucket as i64 + 1)?;
         }
         for bucket in 0..buckets_per_tier {
             let stamp = current_day.saturating_sub((100 + bucket as i64) * DAY_MS);
@@ -992,7 +992,12 @@ fn measure_queries(config: &Phase1BenchmarkConfig) -> SnapbackResult<QueryLatenc
                     )
                 })
                 .collect::<Vec<_>>();
-            insert_batch(&transaction, &events, stamp)?;
+            insert_batch(
+                &transaction,
+                &events,
+                stamp,
+                (buckets_per_tier + bucket) as i64 + 1,
+            )?;
         }
         maintain(&transaction, &fixture_config, now)?;
         transaction.commit()?;

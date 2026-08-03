@@ -44,7 +44,6 @@ case "$PROOF_MODE" in
             --benchmark "$PROOF_TMP/benchmark.json" \
             --idle "$PROOF_TMP/idle.json" \
             --output "$PROOF_RECEIPT"
-        node "$PROOF_ROOT/scripts/telemetry-phase1-evidence.mjs" validate "$PROOF_RECEIPT"
         ;;
     *)
         printf 'usage: scripts/verify-telemetry-phase1-proof [--check|--smoke|--full]\n' >&2

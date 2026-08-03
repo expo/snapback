@@ -1,64 +1,63 @@
 #!/usr/bin/env node
 
 // Compose and reopen the retained LLP 0154 Phase-1 evidence. The receipt is
-// bound to the exact proof-source bytes, so later benchmark/idle changes make
-// the ordinary `validate` mode fail until a full clean-release rerun replaces
-// the evidence.
+// bound to a clean measured source revision and the exact proof-source bytes.
+// The retained receipt lands in a later carrier commit to avoid a commit-hash
+// self-reference; validation requires the measured revision to be an ancestor,
+// every source-closure path to be unchanged since it, and the receipt bytes to
+// be tracked at current HEAD.
 
 import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const sourceFiles = [
-  'Cargo.toml',
-  'Cargo.lock',
-  'demos/_kit/server-process.mjs',
-  'scripts/telemetry-phase1-idle-proof.mjs',
-  'scripts/telemetry-phase1-evidence.mjs',
-  'scripts/verify-telemetry-phase1-proof',
-  'scripts/verify-local-proof',
-  'src/bench.rs',
-  'src/bin/snapback-telemetry-bench.rs',
-  'src/telemetry.rs',
-  'src/telemetry_bench.rs',
-  'tests/acceptance/telemetry-phase1-benchmark-baseline.v1.json',
-];
+const sourceFiles = trackedProofSourceFiles();
 
-const [command, ...args] = process.argv.slice(2);
-if (command === 'compose') {
-  const benchmarkPath = requiredArg(args, '--benchmark');
-  const idlePath = requiredArg(args, '--idle');
-  const outputPath = requiredArg(args, '--output');
-  const benchmark = readJson(benchmarkPath);
-  const idle = readJson(idlePath);
-  const receipt = {
-    schemaVersion: 'snapback.telemetry-phase1-evidence.v1',
-    createdAt: new Date().toISOString(),
-    sourceRevision: benchmark.environment?.buildCommit ?? null,
-    sourceInputs: digestSourceInputs(),
-    benchmark,
-    idle,
-  };
-  validateReceipt(receipt);
-  writeFileSync(outputPath, `${JSON.stringify(receipt, null, 2)}\n`);
-  process.stdout.write(`wrote ${outputPath}\n`);
-} else if (command === 'validate') {
-  const receiptPath = args[0];
-  if (!receiptPath || args.length !== 1) usage();
-  const receipt = readJson(receiptPath);
-  validateReceipt(receipt);
-  process.stdout.write(
-    `${JSON.stringify({
-      schemaVersion: 'snapback.telemetry-phase1-evidence-validation.v1',
-      valid: true,
-      sourceRevision: receipt.sourceRevision,
-      sourceDigest: receipt.sourceInputs.digest,
-    })}\n`,
-  );
-} else {
-  usage();
+if (resolve(process.argv[1] ?? '') === fileURLToPath(import.meta.url)) main();
+
+function main() {
+  const [command, ...args] = process.argv.slice(2);
+  if (command === 'compose') {
+    const benchmarkPath = requiredArg(args, '--benchmark');
+    const idlePath = requiredArg(args, '--idle');
+    const outputPath = requiredArg(args, '--output');
+    const benchmark = readJson(benchmarkPath);
+    const idle = readJson(idlePath);
+    const receipt = {
+      schemaVersion: 'snapback.telemetry-phase1-evidence.v1',
+      createdAt: new Date().toISOString(),
+      sourceRevision: benchmark.environment?.buildCommit ?? null,
+      sourceInputs: digestSourceInputs(),
+      benchmark,
+      idle,
+    };
+    validateReceipt(receipt);
+    writeFileSync(outputPath, `${JSON.stringify(receipt, null, 2)}\n`);
+    validateReceipt(readJson(outputPath));
+    process.stdout.write(`wrote ${outputPath}\n`);
+  } else if (command === 'validate') {
+    const receiptPath = args[0];
+    if (!receiptPath || args.length !== 1) usage();
+    const receipt = readJson(receiptPath);
+    validateReceipt(receipt);
+    validateRetainedCarrier(receiptPath);
+    process.stdout.write(
+      `${JSON.stringify({
+        schemaVersion: 'snapback.telemetry-phase1-evidence-validation.v1',
+        valid: true,
+        sourceRevision: receipt.sourceRevision,
+        sourceDigest: receipt.sourceInputs.digest,
+      })}\n`,
+    );
+  } else if (command === 'source-inputs') {
+    if (args.length !== 0) usage();
+    process.stdout.write(`${JSON.stringify(digestSourceInputs())}\n`);
+  } else {
+    usage();
+  }
 }
 
 function validateReceipt(receipt) {
@@ -71,13 +70,21 @@ function validateReceipt(receipt) {
   assert(benchmark.environment?.buildDirty === false, 'benchmark clean build');
   assertRevision(benchmark.environment?.buildCommit, 'benchmark revision');
   assert(receipt.sourceRevision === benchmark.environment.buildCommit, 'receipt/benchmark revision');
+  assert(isAncestor(receipt.sourceRevision, currentRevision()), 'source revision is current HEAD ancestor');
+  assert(sourceClosureUnchangedSince(receipt.sourceRevision), 'source closure unchanged since measured revision');
   const baseline = readJson(join(repoRoot, 'tests/acceptance/telemetry-phase1-benchmark-baseline.v1.json'));
-  assert(benchmark.ceilings?.revision === baseline.revision, 'ceiling revision');
   assert(benchmark.method === baseline.method, 'benchmark method');
-  assert(benchmark.ceilings?.methodDigest === baseline.methodDigest, 'benchmark method digest');
-  assert(benchmark.ceilings?.baselineFile === 'tests/acceptance/telemetry-phase1-benchmark-baseline.v1.json', 'benchmark baseline file');
-  assert(benchmark.ceilings?.proofProfile === 'full', 'full ceiling profile');
-  assert(benchmark.ceilings?.requiredBuildProfile === 'release', 'ceiling build profile');
+  const expectedCeilings = {
+    revision: baseline.revision,
+    methodDigest: baseline.methodDigest,
+    baselineFile: 'tests/acceptance/telemetry-phase1-benchmark-baseline.v1.json',
+    proofProfile: 'full',
+    ...baseline.profiles.full,
+  };
+  assert(
+    canonicalJson(benchmark.ceilings) === canonicalJson(expectedCeilings),
+    'entire benchmark ceiling profile equals committed baseline',
+  );
 
   const amplification = benchmark.amplification;
   assert(amplification.httpApplicationQueries >= 800, 'HTTP sample count');
@@ -116,14 +123,14 @@ function validateReceipt(receipt) {
   assert(app.workerFlushedRowsBeforeFinalDrain >= app.workerFlushedRowsAtSentinel, 'application worker monotonicity');
 
   for (const [name, observed, ceiling] of [
-    ['worker flush p95', worker.flushWait.p95Ms, benchmark.ceilings.workerFlushP95Ms],
-    ['direct flush p95', benchmark.flush.p95Ms, benchmark.ceilings.directFlushP95Ms],
-    ['checkpoint p95', benchmark.checkpoint.p95Ms, benchmark.ceilings.checkpointP95Ms],
-    ['sweep', benchmark.sweep.latencyMs, benchmark.ceilings.sweepMs],
-    ['event query p95', queries.eventPage.p95Ms, benchmark.ceilings.eventQueryP95Ms],
-    ['stats query p95', queries.stats.p95Ms, benchmark.ceilings.statsQueryP95Ms],
-    ['app query p95', app.telemetryOn.p95Ms, benchmark.ceilings.appQueryP95Ms],
-    ['app p95 overhead', app.p95OverheadPercent, benchmark.ceilings.appP95OverheadPercent],
+    ['worker flush p95', worker.flushWait.p95Ms, expectedCeilings.workerFlushP95Ms],
+    ['direct flush p95', benchmark.flush.p95Ms, expectedCeilings.directFlushP95Ms],
+    ['checkpoint p95', benchmark.checkpoint.p95Ms, expectedCeilings.checkpointP95Ms],
+    ['sweep', benchmark.sweep.latencyMs, expectedCeilings.sweepMs],
+    ['event query p95', queries.eventPage.p95Ms, expectedCeilings.eventQueryP95Ms],
+    ['stats query p95', queries.stats.p95Ms, expectedCeilings.statsQueryP95Ms],
+    ['app query p95', app.telemetryOn.p95Ms, expectedCeilings.appQueryP95Ms],
+    ['app p95 overhead', app.p95OverheadPercent, expectedCeilings.appP95OverheadPercent],
   ]) {
     assert(Number.isFinite(observed) && observed <= ceiling, `${name} ceiling`);
   }
@@ -142,7 +149,11 @@ function validateReceipt(receipt) {
   assert(idle.settle?.lifecycle?.processReadyCount >= 1, 'process_ready persisted');
   assert(idle.settle?.lifecycle?.processStartCount === idle.settle?.policy?.exactProcessStartCount, 'exact process_start settle');
   assert(idle.settle?.lifecycle?.processReadyCount === idle.settle?.policy?.exactProcessReadyCount, 'exact process_ready settle');
-  assert(idle.settle?.lifecycle?.persistedEventBatches <= idle.settle?.policy?.maxPersistedEventBatches, 'bounded settle batches');
+  assert(idle.settle?.lifecycle?.persistedEventBatches === 1, 'one event-bearing settle flush');
+  assert(idle.settle?.lifecycle?.persistedEventBatches === idle.settle?.policy?.exactPersistedEventBatches, 'exact settle flush policy');
+  assert(idle.settle?.lifecycle?.processStartFlushSequence === idle.settle?.lifecycle?.processReadyFlushSequence, 'lifecycle rows share settle transaction');
+  assert(idle.settle?.lifecycle?.flushCommitSequence === idle.settle?.policy?.exactFlushCommitSequence, 'exact boot flush commit sequence');
+  assert(idle.settle?.lifecycle?.processStartFlushSequence === idle.settle?.lifecycle?.flushCommitSequence, 'lifecycle rows belong to boot flush commit');
   assert(idle.settle?.lifecycle?.eventCount <= idle.settle?.policy?.maxPersistedEvents, 'bounded settle events');
   assert(idle.idle?.windowMs >= 120_000, 'idle window');
   assert(idle.idle?.storageMutationObservationCount === 0, 'idle storage mutations');
@@ -152,19 +163,103 @@ function validateReceipt(receipt) {
   assert(idle.idle?.resources?.writeBytesDelta === 0, 'idle process writes');
   assert(Number.isFinite(idle.idle?.resources?.userTicksDelta), 'idle CPU witness');
   assert(Number.isFinite(idle.idle?.resources?.rssPagesStart), 'idle RSS witness');
+  assert(Number.isFinite(idle.idle?.resourceResolution?.clockTicksPerSecond), 'idle CPU resolution');
+  assert(idle.idle?.resourceResolution?.cpuTickMilliseconds <= 10, 'idle CPU tick resolution');
+  assert(Number.isFinite(idle.idle?.resourceResolution?.pageSizeBytes), 'idle page resolution');
+  assert(idle.idle?.resourceCeilings?.cpuTicksDelta === 1, 'idle CPU ceiling baseline');
+  assert(idle.idle?.resourceCeilings?.rssGrowthPages === 8, 'idle RSS noise band');
   assert(idle.idle?.resources?.cpuTicksDelta <= idle.idle?.resourceCeilings?.cpuTicksDelta, 'idle CPU ceiling');
   assert(idle.idle?.resources?.rssGrowthPages <= idle.idle?.resourceCeilings?.rssGrowthPages, 'idle RSS ceiling');
 
-  const currentInputs = digestSourceInputs();
-  assert(receipt.sourceInputs?.algorithm === 'sha256-length-framed-v1', 'input digest algorithm');
-  assert(JSON.stringify(receipt.sourceInputs?.files) === JSON.stringify(sourceFiles), 'input file set');
-  assert(receipt.sourceInputs?.digest === currentInputs.digest, 'proof-source digest freshness');
+  validateSourceInputs(receipt.sourceInputs);
 }
 
-function digestSourceInputs() {
+function trackedProofSourceFiles() {
+  const output = execFileSync('git', [
+    'ls-files', '-z', '--',
+    'Cargo.toml',
+    'Cargo.lock',
+    'build.rs',
+    'src',
+    'demos/_kit',
+    'demos/todo/snapback',
+    'packages/snapback-codegen',
+    'packages/snapback-cli',
+    'scripts/bootstrap-ibex-runtime',
+    'scripts/ibex-runtime-common',
+    'scripts/lib',
+    'scripts/runtime-link-smoke.mjs',
+    'scripts/telemetry-phase1-idle-proof.mjs',
+    'scripts/telemetry-phase1-evidence.mjs',
+    'scripts/telemetry-phase1-evidence.test.mjs',
+    'scripts/verify-telemetry-phase1-proof',
+    'scripts/verify-local-proof',
+    'tests/acceptance/telemetry-phase1-benchmark-baseline.v1.json',
+  ], { cwd: repoRoot, encoding: 'utf8' });
+  return output.split('\0').filter(Boolean).sort();
+}
+
+function currentRevision() {
+  return execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repoRoot, encoding: 'utf8' }).trim();
+}
+
+function isAncestor(ancestor, descendant) {
+  try {
+    execFileSync('git', ['merge-base', '--is-ancestor', ancestor, descendant], {
+      cwd: repoRoot,
+      stdio: 'ignore',
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function sourceClosureUnchangedSince(revision) {
+  try {
+    execFileSync('git', ['diff', '--quiet', revision, 'HEAD', '--', ...sourceFiles], {
+      cwd: repoRoot,
+      stdio: 'ignore',
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function validateRetainedCarrier(path) {
+  const absolute = resolve(path);
+  const prefix = `${repoRoot}/`;
+  assert(absolute.startsWith(prefix), 'receipt carrier is inside repository');
+  const relativePath = absolute.slice(prefix.length);
+  let committedBytes;
+  try {
+    execFileSync('git', ['ls-files', '--error-unmatch', '--', relativePath], {
+      cwd: repoRoot,
+      stdio: 'ignore',
+    });
+    committedBytes = execFileSync('git', ['show', `HEAD:${relativePath}`], { cwd: repoRoot });
+  } catch {
+    assert(false, 'receipt carrier is tracked at current HEAD');
+  }
+  assert(
+    Buffer.compare(readFileSync(absolute), committedBytes) === 0,
+    'receipt carrier bytes equal current HEAD',
+  );
+}
+
+function canonicalJson(value) {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+export function digestSourceInputs(readSource = (file) => readFileSync(join(repoRoot, file))) {
   const hash = createHash('sha256');
   for (const file of sourceFiles) {
-    const bytes = readFileSync(join(repoRoot, file));
+    const bytes = readSource(file);
     hash.update(`${file.length}:`);
     hash.update(file);
     hash.update(`${bytes.length}:`);
@@ -175,6 +270,13 @@ function digestSourceInputs() {
     files: sourceFiles,
     digest: hash.digest('hex'),
   };
+}
+
+export function validateSourceInputs(sourceInputs, readSource = undefined) {
+  const currentInputs = digestSourceInputs(readSource);
+  assert(sourceInputs?.algorithm === 'sha256-length-framed-v1', 'input digest algorithm');
+  assert(JSON.stringify(sourceInputs?.files) === JSON.stringify(sourceFiles), 'input file set');
+  assert(sourceInputs?.digest === currentInputs.digest, 'proof-source digest freshness');
 }
 
 function readJson(path) {
@@ -198,6 +300,6 @@ function assert(condition, label) {
 
 function usage() {
   throw new Error(
-    'usage: telemetry-phase1-evidence.mjs compose --benchmark FILE --idle FILE --output FILE | validate RECEIPT',
+    'usage: telemetry-phase1-evidence.mjs compose --benchmark FILE --idle FILE --output FILE | validate RECEIPT | source-inputs',
   );
 }

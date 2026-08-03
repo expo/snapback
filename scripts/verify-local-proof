@@ -188,6 +188,7 @@ run node tests/ibex_bootstrap_v0.mjs
 # @ref LLP 0154#d7--aggregates-a-watermarked-state-machine-mergeable-by-construction —
 # reopen the retained clean-release receipt and exercise the nondefault proof
 # feature at smoke scale in every recurring local/CI proof.
+run node --test scripts/telemetry-phase1-evidence.test.mjs
 run scripts/verify-telemetry-phase1-proof --check
 run scripts/verify-telemetry-phase1-proof --smoke
 # Real-binary identity honesty: the freshly bootstrapped binary's build.rs

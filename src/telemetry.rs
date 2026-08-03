@@ -2268,6 +2268,16 @@ impl Store {
         };
         merge_counter_maps(&mut drops, &committed_cap_drops);
         let tx = conn.transaction()?;
+        // @ref LLP 0154#substrate-constraints-what-the-design-must-honor — C2's
+        //   one boot settle write needs a production-owned transaction witness.
+        // This sequence advances in the exact transaction that persists the
+        // batch; unlike recorded timestamps, it cannot collapse two commits or
+        // split one commit.
+        let flush_sequence: i64 = tx.query_row(
+            "UPDATE telemetry_meta SET flush_commit_sequence=flush_commit_sequence+1 WHERE singleton=1 RETURNING flush_commit_sequence",
+            [],
+            |row| row.get(0),
+        )?;
         let high_water: i64 = tx.query_row(
             "SELECT observation_clock_ms FROM telemetry_meta WHERE singleton=1",
             [],
@@ -2278,7 +2288,7 @@ impl Store {
 
         let mut inserted = false;
         if !events.is_empty() && config.max_days > 0 {
-            insert_batch(&tx, &events, stamp)?;
+            insert_batch(&tx, &events, stamp, flush_sequence)?;
             inserted = true;
         }
         merge_drop_counters(&tx, &drops)?;
@@ -2494,6 +2504,7 @@ fn create_schema(conn: &Connection) -> SnapbackResult<()> {
           aggregate_floor_hourly INTEGER NOT NULL,
           aggregate_floor_daily INTEGER NOT NULL,
           rollup_watermark_id INTEGER NOT NULL,
+          flush_commit_sequence INTEGER NOT NULL DEFAULT 0,
           last_sweep_ms INTEGER NOT NULL,
           drop_counters_lifetime TEXT NOT NULL,
           hourly_days INTEGER NOT NULL,
@@ -2508,6 +2519,7 @@ fn create_schema(conn: &Connection) -> SnapbackResult<()> {
           class_v INTEGER NOT NULL,
           ts_ms INTEGER NOT NULL,
           recorded_ts_ms INTEGER NOT NULL,
+          flush_sequence INTEGER NOT NULL DEFAULT 0,
           kind TEXT NOT NULL,
           name TEXT NOT NULL,
           status INTEGER,
@@ -2553,7 +2565,11 @@ fn create_schema(conn: &Connection) -> SnapbackResult<()> {
         );
         DROP VIEW IF EXISTS telemetry_events_visible;
         CREATE VIEW telemetry_events_visible AS
-          SELECT e.* FROM telemetry_events e, telemetry_meta m
+          SELECT e.id, e.observation, e.phase, e.generation, e.class_v,
+                 e.ts_ms, e.recorded_ts_ms, e.kind, e.name, e.status,
+                 e.duration_ms, e.subject, e.code, e.correlation, e.release,
+                 e.details
+          FROM telemetry_events e, telemetry_meta m
           WHERE m.singleton=1
             AND m.max_days_mirror > 0
             AND e.generation=m.generation
@@ -2611,12 +2627,24 @@ fn create_schema(conn: &Connection) -> SnapbackResult<()> {
     if !meta_columns.contains("environment") {
         conn.execute("ALTER TABLE telemetry_meta ADD COLUMN environment TEXT", [])?;
     }
+    if !meta_columns.contains("flush_commit_sequence") {
+        conn.execute(
+            "ALTER TABLE telemetry_meta ADD COLUMN flush_commit_sequence INTEGER NOT NULL DEFAULT 0",
+            [],
+        )?;
+    }
     let event_columns = conn
         .prepare("PRAGMA table_info(telemetry_events)")?
         .query_map([], |row| row.get::<_, String>(1))?
         .collect::<Result<BTreeSet<_>, _>>()?;
     if !event_columns.contains("release") {
         conn.execute("ALTER TABLE telemetry_events ADD COLUMN release TEXT", [])?;
+    }
+    if !event_columns.contains("flush_sequence") {
+        conn.execute(
+            "ALTER TABLE telemetry_events ADD COLUMN flush_sequence INTEGER NOT NULL DEFAULT 0",
+            [],
+        )?;
     }
     Ok(())
 }
@@ -2675,16 +2703,21 @@ fn boundary_for(config: &TelemetryConfig, clock: i64) -> i64 {
     clock.saturating_sub(i64::from(config.max_days).saturating_mul(DAY_MS))
 }
 
-fn insert_batch(tx: &Transaction<'_>, events: &[Event], stamp: i64) -> SnapbackResult<()> {
+fn insert_batch(
+    tx: &Transaction<'_>,
+    events: &[Event],
+    stamp: i64,
+    flush_sequence: i64,
+) -> SnapbackResult<()> {
     let mut sql = String::from(
-        "INSERT INTO telemetry_events(observation,phase,generation,class_v,ts_ms,recorded_ts_ms,kind,name,status,duration_ms,subject,code,correlation,release,details) VALUES ",
+        "INSERT INTO telemetry_events(observation,phase,generation,class_v,ts_ms,recorded_ts_ms,flush_sequence,kind,name,status,duration_ms,subject,code,correlation,release,details) VALUES ",
     );
-    let mut values = Vec::<rusqlite::types::Value>::with_capacity(events.len() * 14);
+    let mut values = Vec::<rusqlite::types::Value>::with_capacity(events.len() * 15);
     for (index, event) in events.iter().enumerate() {
         if index > 0 {
             sql.push(',');
         }
-        sql.push_str("(?,?,?,?,?,?,?,?,?,?,NULL,?,?,?,?)");
+        sql.push_str("(?,?,?,?,?,?,?,?,?,?,?,NULL,?,?,?,?)");
         values.extend([
             event.admission.observation_id.clone().into(),
             event.phase.as_str().to_owned().into(),
@@ -2692,6 +2725,7 @@ fn insert_batch(tx: &Transaction<'_>, events: &[Event], stamp: i64) -> SnapbackR
             i64::from(event.admission.registry_version).into(),
             event.ts_ms.into(),
             stamp.into(),
+            flush_sequence.into(),
             event.admission.telemetry_kind.clone().into(),
             event.name.clone().into(),
             event.status.into(),
@@ -4592,6 +4626,29 @@ mod tests {
             })
             .unwrap();
         assert_eq!(count, 5, "force_flush must drain every queued batch");
+        let (flush_commits, event_flushes): (i64, i64) = telemetry
+            .producer
+            .shared
+            .store
+            .lock()
+            .unwrap()
+            .conn
+            .as_ref()
+            .unwrap()
+            .query_row(
+                "SELECT
+                   (SELECT flush_commit_sequence FROM telemetry_meta WHERE singleton=1),
+                   count(DISTINCT flush_sequence)
+                 FROM telemetry_events",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(
+            flush_commits, 3,
+            "one durable sequence per flush transaction"
+        );
+        assert_eq!(event_flushes, 3, "events retain their transaction sequence");
 
         {
             let mut buffer = telemetry.producer.shared.buffer.lock().unwrap();
@@ -4918,6 +4975,7 @@ mod tests {
             .unwrap();
         assert!(meta_columns.contains("app_id"));
         assert!(meta_columns.contains("environment"));
+        assert!(meta_columns.contains("flush_commit_sequence"));
         let event_columns = conn
             .prepare("PRAGMA table_info(telemetry_events)")
             .unwrap()
@@ -4926,6 +4984,18 @@ mod tests {
             .collect::<Result<BTreeSet<_>, _>>()
             .unwrap();
         assert!(event_columns.contains("release"));
+        assert!(event_columns.contains("flush_sequence"));
+        let visible_columns = conn
+            .prepare("PRAGMA table_info(telemetry_events_visible)")
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(1))
+            .unwrap()
+            .collect::<Result<BTreeSet<_>, _>>()
+            .unwrap();
+        assert!(
+            !visible_columns.contains("flush_sequence"),
+            "the proof-only transaction witness is absent from the public view"
+        );
         let (generation, durable_app, durable_environment): (String, String, String) = conn
             .query_row(
                 "SELECT generation,app_id,environment FROM telemetry_meta WHERE singleton=1",
@@ -4945,6 +5015,24 @@ mod tests {
             )
             .unwrap();
         assert_eq!(release, None, "pre-column rows migrate as NULL release");
+        let (flush_commit_sequence, legacy_flush_sequence): (i64, i64) = conn
+            .query_row(
+                "SELECT
+                   flush_commit_sequence,
+                   (SELECT flush_sequence FROM telemetry_events WHERE name='legacy')
+                 FROM telemetry_meta WHERE singleton=1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(
+            flush_commit_sequence, 0,
+            "migration itself is not an event flush"
+        );
+        assert_eq!(
+            legacy_flush_sequence, 0,
+            "legacy rows have no fabricated flush witness"
+        );
         assert_eq!(
             visible, 0,
             "identity-less predecessor rows are hidden, never relabeled"
@@ -5497,15 +5585,24 @@ mod tests {
                 )
                 .is_err()
         );
-        let count: i64 = store
+        let (count, flush_commit_sequence): (i64, i64) = store
             .conn
             .as_ref()
             .unwrap()
-            .query_row("SELECT count(*) FROM telemetry_events", [], |row| {
-                row.get(0)
-            })
+            .query_row(
+                "SELECT
+                   (SELECT count(*) FROM telemetry_events),
+                   flush_commit_sequence
+                 FROM telemetry_meta WHERE singleton=1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
             .unwrap();
         assert_eq!(count, 0);
+        assert_eq!(
+            flush_commit_sequence, 0,
+            "a rolled-back transaction cannot fabricate a flush witness"
+        );
     }
 
     #[test]
