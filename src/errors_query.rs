@@ -276,26 +276,35 @@ pub struct ErrorsTransitionSelectorV1 {
 }
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
+#[serde(untagged)]
+pub enum ErrorsTransitionRequestV1 {
+    Single(ErrorsSingleTransitionRequestV1),
+    Bulk(ErrorsBulkTransitionRequestV1),
+}
+
+#[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct ErrorsTransitionRequestV1 {
-    #[serde(default)]
-    pub issue: Option<String>,
+pub struct ErrorsSingleTransitionRequestV1 {
+    pub issue: String,
     pub to: ErrorsIssueStateV1,
-    #[serde(default)]
     #[schemars(range(min = 0))]
-    pub expect_seq: Option<i64>,
-    #[serde(default)]
-    pub selector: Option<ErrorsTransitionSelectorV1>,
+    pub expect_seq: i64,
+}
+
+#[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ErrorsBulkTransitionRequestV1 {
+    pub selector: ErrorsTransitionSelectorV1,
+    pub to: ErrorsIssueStateV1,
 }
 
 impl Default for ErrorsTransitionRequestV1 {
     fn default() -> Self {
-        Self {
-            issue: None,
+        Self::Single(ErrorsSingleTransitionRequestV1 {
+            issue: String::new(),
             to: ErrorsIssueStateV1::Open,
-            expect_seq: None,
-            selector: None,
-        }
+            expect_seq: 0,
+        })
     }
 }
 
@@ -819,31 +828,106 @@ pub(crate) fn activation_floor(connection: &Connection) -> SnapbackResult<i64> {
     Ok(read_error_meta(connection)?.activation_floor_seq)
 }
 
-pub(crate) fn assert_release_visible(
-    connection: &Connection,
-    release: &str,
-) -> SnapbackResult<i64> {
-    activation_seq(connection, release)
-}
-
 fn errors_invalid(message: impl Into<String>) -> SnapbackError {
     SnapbackError::error("SNAPBACK_ERRORS_QUERY_INVALID", "telemetry", message)
 }
 
 /// Language-neutral examples pinned beside the generated operation schemas.
 pub fn errors_fixture_corpus() -> Value {
+    let issue = json!({
+        "issue": "issue_00000000000000000000000000",
+        "title": "SNAPBACK_HANDLER_FAILED in todos.create",
+        "state": "open",
+        "stateSeq": 0,
+        "kind": "function_run",
+        "name": "todos.create",
+        "code": "SNAPBACK_HANDLER_FAILED",
+        "errorClass": null,
+        "statusClass": null,
+        "subsystem": "runtime",
+        "failureDisposition": "fault",
+        "firstSeenMs": 1000,
+        "lastSeenMs": 2000,
+        "firstSeenSeq": 4,
+        "lastSeenSeq": 7,
+        "lastRegressedSeq": null,
+        "firstRelease": "release-fixture",
+        "lastRelease": "release-fixture",
+        "count": 2,
+        "suppressedCooldownCount": 0,
+        "suppressedRolloutCount": 0
+    });
+    let variance = json!({
+        "storeBackend": "local-sqlite-sibling",
+        "fieldExactness": {
+            "groups": "exactVisibleRows",
+            "titles": "structuralOnly"
+        },
+        "samplingFactor": 1.0,
+        "freshnessWatermark": 2000,
+        "retentionBoundaryMs": 0,
+        "dropsSinceBoot": {},
+        "dropsLifetime": {},
+        "truncation": {
+            "pageLimit": false,
+            "exemplars": false,
+            "transitionHistory": false
+        },
+        "capabilityOutcome": "exact",
+        "overflowFoldCount": 0,
+        "overflowFoldScope": "cumulativeSinceGenerationStart",
+        "groupHorizonStartMs": 0,
+        "exemplarStale": true,
+        "exemplarTruncated": false,
+        "exemplarDropCounters": { "depth": 0, "bytes": 0, "flush": 0 },
+        "suppressionCounters": { "cooldown": 0, "rollout": 0 },
+        "transitionHistoryFloorSeq": 0,
+        "transitionHistoryTruncated": false
+    });
     json!({
         "schemaVersion": "snapback.errors.query-fixtures.v1",
         "issues": {
             "request": { "since": "release-fixture", "order": "lastSeen", "limit": 100 },
-            "structuralTitle": "SNAPBACK_HANDLER_FAILED in todos.create",
+            "response": {
+                "schemaVersion": "snapback.errors.issues.v1",
+                "order": "lastSeen",
+                "issues": [issue.clone()],
+                "nextCursor": null,
+                "knownReleases": ["release-fixture"],
+                "variance": variance.clone()
+            },
             "forbiddenOperatorMetadataFields": ["titleTemplate", "stackHead", "message"]
         },
         "issue": {
             "request": { "issue": "issue_00000000000000000000000000" },
+            "response": {
+                "schemaVersion": "snapback.errors.issue.v1",
+                "issue": issue,
+                "exemplars": [{
+                    "observation": "obs_00000000000000000000000000",
+                    "recordedTsMs": 2000,
+                    "recordedSeq": 7,
+                    "release": "release-fixture",
+                    "titleTemplate": "database timeout after {number}ms",
+                    "templateTruncated": false,
+                    "stackHead": "at todos.create (todos.js:10)",
+                    "stackTruncated": false,
+                    "telemetryEventsQuery": {
+                        "operation": "telemetry.events",
+                        "input": {
+                            "correlation": "corr_fixture",
+                            "fromMs": 0,
+                            "toMs": 62000,
+                            "order": "asc",
+                            "limit": 100
+                        }
+                    }
+                }],
+                "transitions": [],
+                "variance": variance.clone()
+            },
             "authority": "adminSecretRead",
-            "cacheControl": "no-store",
-            "correlationOperation": "telemetry.events"
+            "cacheControl": "no-store"
         },
         "transition": {
             "singleRequest": {
@@ -854,6 +938,32 @@ pub fn errors_fixture_corpus() -> Value {
             "bulkRequest": {
                 "selector": { "openBefore": "release-fixture" },
                 "to": "resolved"
+            },
+            "singleResponse": {
+                "schemaVersion": "snapback.errors.transition.v1",
+                "release": null,
+                "activationSeq": null,
+                "activationFloorSeq": 0,
+                "rows": [{
+                    "issue": "issue_00000000000000000000000000",
+                    "outcome": "applied",
+                    "state": "resolved",
+                    "stateSeq": 1
+                }],
+                "variance": variance.clone()
+            },
+            "bulkResponse": {
+                "schemaVersion": "snapback.errors.transition.v1",
+                "release": "release-fixture",
+                "activationSeq": 10,
+                "activationFloorSeq": 0,
+                "rows": [{
+                    "issue": "issue_00000000000000000000000000",
+                    "outcome": "applied",
+                    "state": "resolved",
+                    "stateSeq": 1
+                }],
+                "variance": variance
             },
             "bulkSelection": "last_seen_seq < activated_seq",
             "sinceSelection": "first_seen_seq >= activated_seq OR last_regressed_seq > activated_seq"

@@ -3101,6 +3101,46 @@ mod tests {
         }
     }
 
+    #[test]
+    fn errors_routes_pin_structural_raw_and_transition_authority() {
+        let routes = crate::server::route_registry()
+            .into_iter()
+            .filter(|route| route.path.starts_with("/_snapback/api/errors/"))
+            .map(|route| (route.path, route))
+            .collect::<BTreeMap<_, _>>();
+        assert_eq!(
+            routes.keys().copied().collect::<BTreeSet<_>>(),
+            BTreeSet::from([
+                "/_snapback/api/errors/issue",
+                "/_snapback/api/errors/issues",
+                "/_snapback/api/errors/transition",
+            ])
+        );
+        let issues = routes["/_snapback/api/errors/issues"];
+        assert_eq!(issues.path_policy, RoutePolicy::AdminRead);
+        assert_eq!(
+            issues.response_sensitivity,
+            ResponseSensitivity::OperatorMetadata
+        );
+        let issue = routes["/_snapback/api/errors/issue"];
+        assert_eq!(issue.path_policy, RoutePolicy::AdminSecretRead);
+        assert_eq!(
+            issue.credential_resolution,
+            CredentialResolution::AdminSecretReadLease
+        );
+        assert_eq!(
+            issue.response_sensitivity,
+            ResponseSensitivity::SensitiveApplicationData
+        );
+        let transition = routes["/_snapback/api/errors/transition"];
+        assert_eq!(transition.method, "POST");
+        assert_eq!(transition.path_policy, RoutePolicy::AdminWrite);
+        assert_eq!(
+            transition.response_sensitivity,
+            ResponseSensitivity::OperatorMetadata
+        );
+    }
+
     #[tokio::test]
     async fn telemetry_routes_enforce_scopes_budgets_no_store_and_frozen_paged_export() {
         use crate::admin_secret_read::SecretReadLeaseRequest;

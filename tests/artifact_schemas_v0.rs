@@ -641,6 +641,42 @@ fn telemetry_agent_export_fixtures_match_the_pinned_carrier_schemas() {
 }
 
 #[test]
+fn errors_operation_fixtures_match_the_pinned_authority_split_schemas() {
+    let corpus = committed("errors.query-fixtures-v1.json");
+    assert_validates("errors.issues.request.schema.json", &corpus["issues"]["request"]);
+    assert_validates("errors.issues.response.schema.json", &corpus["issues"]["response"]);
+    assert_validates("errors.issue.request.schema.json", &corpus["issue"]["request"]);
+    assert_validates("errors.issue.response.schema.json", &corpus["issue"]["response"]);
+    assert_validates(
+        "errors.transition.request.schema.json",
+        &corpus["transition"]["singleRequest"],
+    );
+    assert_validates(
+        "errors.transition.request.schema.json",
+        &corpus["transition"]["bulkRequest"],
+    );
+    assert_validates(
+        "errors.transition.response.schema.json",
+        &corpus["transition"]["singleResponse"],
+    );
+    assert_validates(
+        "errors.transition.response.schema.json",
+        &corpus["transition"]["bulkResponse"],
+    );
+
+    let structural = serde_json::to_string(&corpus["issues"]["response"]).unwrap();
+    for forbidden in ["titleTemplate", "stackHead", "message"] {
+        assert!(
+            !structural.contains(forbidden),
+            "OperatorMetadata issues response leaked raw field {forbidden}"
+        );
+    }
+    let raw = serde_json::to_string(&corpus["issue"]["response"]).unwrap();
+    assert!(raw.contains("titleTemplate"));
+    assert!(raw.contains("stackHead"));
+}
+
+#[test]
 fn dry_run_read_versions_stay_in_the_portable_storage_domain() {
     let mut report = json!({
         "kind": "mutationDryRun",
