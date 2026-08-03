@@ -4,13 +4,13 @@
 // real native server on an ephemeral port with a temp database + ready file.
 
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
-import { existsSync, mkdtempSync, realpathSync, rmSync } from 'node:fs';
+import { spawn, spawnSync } from 'node:child_process';
+import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { generateApp, scaffoldApp } from './index.mjs';
+import { generateApp, managedAdminToken, scaffoldApp } from './index.mjs';
 import { buildAppDataCatalog, functionToolName } from './mcp-control.mjs';
 
 const packageDir = dirname(fileURLToPath(import.meta.url));
@@ -204,7 +204,32 @@ try {
   assert.equal(errorIssues.structuredContent.ok, true, JSON.stringify(errorIssues.structuredContent));
   assert.equal(errorIssues.structuredContent.data.schemaVersion, 'snapback.errors.issues.v1');
   assert.ok(Array.isArray(errorIssues.structuredContent.data.issues));
-  assert.equal(errorIssues.structuredContent.authority.mode, 'admin');
+  assert.equal(errorIssues.structuredContent.authority.mode, 'devAdminBypass');
+  assert.equal(
+    errorIssues.structuredContent.authority.reason,
+    'host-ops structural error metadata read gate',
+  );
+
+  // Drive the agent CLI itself against the same real server. The resolve
+  // command reaches the deploy-hook bulk route and fails only because this
+  // fresh process has no activation with the deliberately unknown name.
+  const cliAdminToken = managedAdminToken(
+    JSON.parse(readFileSync(readyFile, 'utf8')),
+    database,
+  );
+  assert.ok(cliAdminToken);
+  const cliEnv = { ...process.env, SNAPBACK_ADMIN_TOKEN: cliAdminToken };
+  const cliIssues = spawnSync(runtimeBinary, [
+    'errors', 'issues', '--ready-file', readyFile, '--limit', '5',
+  ], { cwd: project, encoding: 'utf8', env: cliEnv });
+  assert.equal(cliIssues.status, 0, cliIssues.stderr);
+  assert.equal(JSON.parse(cliIssues.stdout).schemaVersion, 'snapback.errors.issues.v1');
+  const cliResolve = spawnSync(runtimeBinary, [
+    'errors', 'resolve', '--ready-file', readyFile,
+    '--open-before', 'release-not-activated',
+  ], { cwd: project, encoding: 'utf8', env: cliEnv });
+  assert.notEqual(cliResolve.status, 0, cliResolve.stdout);
+  assert.match(cliResolve.stderr, /SNAPBACK_ERROR_RELEASE_UNKNOWN_OR_PRUNED/);
 
   const missingErrorIssue = await client.call('snapback_errors_issue', {
     issue: 'iss_00000000000000000000000000',
