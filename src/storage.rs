@@ -10911,14 +10911,14 @@ fn reject_field_retypes(current: &SchemaManifest, next: &SchemaManifest) -> Snap
                 return Err(SnapbackError::error(
                     "SNAPBACK_SCHEMA_FIELD_RETYPED",
                     "schema",
-                    format!(
+                    reviewed_migration_next_step(format!(
                         "field {}.{} cannot change type from {} to {}; \
                          retyping stored data is not supported — add a new field instead",
                         table.name,
                         field.name,
                         field_type_name(&current_field.field_type),
                         field_type_name(&field.field_type)
-                    ),
+                    )),
                 )
                 .with_detail("table", table.name.clone())
                 .with_detail("field", field.name.clone())
@@ -10928,6 +10928,17 @@ fn reject_field_retypes(current: &SchemaManifest, next: &SchemaManifest) -> Snap
         }
     }
     Ok(())
+}
+
+/// Attach the reviewed-workflow front door to every refusal that means the
+/// additive startup applier cannot safely perform the requested evolution.
+///
+/// @ref LLP 0160#2-the-ideal-experience-moment-by-moment — Moment 2 requires
+/// the applier's non-additive refusal family to name the exact next command.
+fn reviewed_migration_next_step(reason: String) -> String {
+    format!(
+        "{reason}. Run `snapback migrate preview --help` to start the reviewed migration workflow"
+    )
 }
 
 /// Required fields need a physical invariant, not only a generated type. A
@@ -10965,10 +10976,10 @@ fn reject_unsafe_required_field_changes(
                 return Err(SnapbackError::error(
                     "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED",
                     "schema",
-                    format!(
+                    reviewed_migration_next_step(format!(
                         "required field {}.{} cannot be removed or made optional while its preserved SQLite column is NOT NULL; explicit drop/backfill migrations are not supported",
                         current_table.name, previous.name
-                    ),
+                    )),
                 )
                 .with_detail("table", current_table.name.clone())
                 .with_detail("field", previous.name.clone())
@@ -10997,10 +11008,10 @@ fn reject_unsafe_required_field_changes(
                         return Err(SnapbackError::error(
                             "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED",
                             "schema",
-                            format!(
+                            reviewed_migration_next_step(format!(
                                 "field {}.{} cannot become physically required while {null_count} stored rows are null",
                                 table.name, field.name
-                            ),
+                            )),
                         )
                         .with_detail("table", table.name.clone())
                         .with_detail("field", field.name.clone())
@@ -11018,10 +11029,10 @@ fn reject_unsafe_required_field_changes(
                         return Err(SnapbackError::error(
                             "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED",
                             "schema",
-                            format!(
+                            reviewed_migration_next_step(format!(
                                 "required field {}.{} cannot be added to {row_count} existing rows without a default/backfill",
                                 table.name, field.name
-                            ),
+                            )),
                         )
                         .with_detail("table", table.name.clone())
                         .with_detail("field", field.name.clone())
@@ -11096,10 +11107,10 @@ fn create_or_update_table(tx: &Transaction<'_>, table: &TableManifest) -> Snapba
             return Err(SnapbackError::error(
                 "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED",
                 "schema",
-                format!(
+                reviewed_migration_next_step(format!(
                     "table {} cannot omit preserved required field {}; its SQLite column is still NOT NULL",
                     table.name, column.name
-                ),
+                )),
             )
             .with_detail("table", table.name.clone())
             .with_detail("field", column.name.clone())
@@ -11132,11 +11143,11 @@ fn create_or_update_table(tx: &Transaction<'_>, table: &TableManifest) -> Snapba
                     return Err(SnapbackError::error(
                         "SNAPBACK_SCHEMA_FIELD_RETYPED",
                         "schema",
-                        format!(
+                        reviewed_migration_next_step(format!(
                             "field {}.{} cannot change storage type from {} to {}; \
                              retyping stored data is not supported — add a new field instead",
                             table.name, field.name, column.declared_type, declared
-                        ),
+                        )),
                     )
                     .with_detail("table", table.name.clone())
                     .with_detail("field", field.name.clone())
@@ -11220,9 +11231,9 @@ fn rebuild_table_with_required_columns(
             return Err(SnapbackError::error(
                 "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED",
                 "schema",
-                format!(
+                reviewed_migration_next_step(format!(
                     "field {table}.{field} cannot become physically required while {null_count} stored rows are null"
-                ),
+                )),
             )
             .with_detail("table", table.to_owned())
             .with_detail("field", field.clone())
