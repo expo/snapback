@@ -195,6 +195,8 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("POST", "/auth/exchange"),
         ("POST", "/auth/refresh"),
         ("POST", "/auth/logout"),
+        ("POST", "/push/tokens/register"),
+        ("POST", "/push/tokens/unregister"),
         ("POST", "/auth/family-alarm"),
         ("POST", "/auth/step-up/request"),
         ("POST", "/auth/pairing-codes"),
@@ -268,6 +270,9 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("GET", "/_snapback/guide/flat.md"),
         ("GET", "/_snapback/guide/{*path}"),
         ("GET", "/_snapback/api/health"),
+        ("GET", "/_snapback/api/telemetry/stats"),
+        ("GET", "/_snapback/api/telemetry/events"),
+        ("GET", "/_snapback/api/telemetry/export"),
         ("POST", "/_snapback/api/console/credential"),
         ("POST", "/_snapback/api/admin-secret-read/mint"),
         ("GET", "/_snapback/api/inspect"),
@@ -1754,6 +1759,25 @@ fn session_http_body_probes() -> BTreeMap<(&'static str, &'static str), SessionB
                     "connection_id": "policy_probe"
                 }),
                 forbidden_fields: ephemeral_fields(),
+            },
+        ),
+        (
+            ("POST", "/push/tokens/register"),
+            SessionBodyProbe {
+                uri: "/push/tokens/register",
+                base: json!({
+                    "installationId": "installation_policy_probe",
+                    "token": "ExponentPushToken[policy-probe]"
+                }),
+                forbidden_fields: vec![vec!["auth"]],
+            },
+        ),
+        (
+            ("POST", "/push/tokens/unregister"),
+            SessionBodyProbe {
+                uri: "/push/tokens/unregister",
+                base: json!({ "installationId": "installation_policy_probe" }),
+                forbidden_fields: vec![vec!["auth"]],
             },
         ),
         (

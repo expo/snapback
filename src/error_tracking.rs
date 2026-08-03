@@ -757,10 +757,10 @@ pub fn allocate_failure_details(
         ("appCode", input.app_code.as_deref()),
         ("errorClass", input.error_class.as_deref()),
     ] {
-        if let Some(value) = value {
-            if !try_insert_whole(&mut details, key, Value::String(value.to_owned())) {
-                return Err(DetailsAllocationErrorV1::RequiredFieldsExceedBudget);
-            }
+        if let Some(value) = value
+            && !try_insert_whole(&mut details, key, Value::String(value.to_owned()))
+        {
+            return Err(DetailsAllocationErrorV1::RequiredFieldsExceedBudget);
         }
     }
 

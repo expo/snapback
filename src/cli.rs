@@ -5053,14 +5053,33 @@ mod tests {
             );
             tokio::time::sleep(Duration::from_millis(25)).await;
         }
-        let (app_id, environment): (String, String) = rusqlite::Connection::open(&telemetry)
-            .unwrap()
-            .query_row(
-                "SELECT app_id,environment FROM telemetry_meta WHERE singleton=1",
-                [],
-                |row| Ok((row.get(0)?, row.get(1)?)),
-            )
-            .unwrap();
+        // @ref LLP 0154#d1--telemetry-store-a-sibling-sqlite-database-generation-bound —
+        //   the sibling inode can precede the transaction that commits its
+        //   authoritative telemetry_meta identity, so observe the row rather
+        //   than treating file existence as store readiness.
+        let (app_id, environment): (String, String) = loop {
+            let identity = rusqlite::Connection::open(&telemetry)
+                .unwrap()
+                .query_row(
+                    "SELECT app_id,environment FROM telemetry_meta WHERE singleton=1",
+                    [],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                );
+            match identity {
+                Ok(identity) => break identity,
+                Err(rusqlite::Error::QueryReturnedNoRows) => {}
+                Err(error) => panic!("typed target telemetry identity query failed: {error}"),
+            }
+            if server.is_finished() {
+                let outcome = server.await;
+                panic!("typed target startup exited before telemetry identity: {outcome:?}");
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "typed target telemetry identity was never committed"
+            );
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        };
         assert_eq!(app_id, crate::manifest::SchemaManifest::default().app_id);
         assert_eq!(environment, environment_id);
         server.abort();

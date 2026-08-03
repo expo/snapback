@@ -322,3 +322,31 @@ ticket closes citing that run id.
   focused S5-D10 inventory/status tests pass locally (3 passed, 0 failed). The
   exact `ba1d54e2` proof was canceled by concurrent main landings before it
   could confirm the already-green Linux versioned-seed reproduction.
+
+- **2026-08-03 — concurrent observability Clippy repair.** Rebasing the PUSH
+  diagnostic fix over the current main exposed one `collapsible_if` warning in
+  the newly landed error-details allocator. Collapse only the nested guard;
+  LLP 0156 E0.2's whole-value insertion, total priority order, and required
+  field budget behavior are unchanged. The first complete Rust run then found
+  the same landing's four new observability codes missing from S5-D10's
+  reviewed HTTP inventory: invalid tracked-refusal authoring and the legacy
+  unhandled-rejection projection are 400, generic operation cancellation is
+  409, and telemetry flush failure remains fail-safe 500. All-target Clippy,
+  all eight focused error-tracking tests, and all three focused S5-D10 tests
+  pass locally. A subsequent full run exposed a separate timing race in the
+  typed target runner witness: the telemetry sibling inode can exist before
+  the transaction committing `telemetry_meta`'s authoritative identity row.
+  The test now waits for that row while still failing on every real SQLite
+  error, server exit, or deadline; the focused witness and ref-check pass. The
+  integration suite then caught two closed route inventories that predated the
+  same concurrent landings. Register the three telemetry GET projections and
+  two PUSH token POST routes in the exact router-parity set, and add both PUSH
+  routes to the sessions body-authority rejection probe matrix; LLP 0031's
+  normative route table now records those already-enforced policies. Finally,
+  the independent telemetry/metering fixture consumer still asserted registry
+  v1 after the observability landing deliberately advanced the shared corpus
+  and every projected row/event to v2; advance those three closed assertions.
+  The complete cached Rust proof now exits successfully: the library suite
+  passes with 1,779 passed, zero failed, and one intentional benchmark ignore;
+  every integration suite and the documentation test also passes, including
+  the repaired route-policy and telemetry-projection fixtures.
