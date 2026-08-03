@@ -6381,6 +6381,7 @@ impl LocalSnapback {
                 function_publication_generation: self.app_generation,
                 target_profile: self.db.schema().target_profile.as_deref(),
             }),
+            None,
         )
             });
         finish_function_observation(span, &mut result);
@@ -14574,6 +14575,7 @@ impl LocalSnapback {
                     function_publication_generation: self.app_generation,
                     target_profile: self.db.schema().target_profile.as_deref(),
                 }),
+                None,
                     )
                 },
             );
@@ -21827,6 +21829,7 @@ impl ReadLane {
                     correlation.as_deref(),
                     None,
                 );
+        let vector_quarantine = VectorQuarantineCapture::default();
         let mut result = (|| {
         let reader = pool.checkout()?;
         let tx = reader.conn().unchecked_transaction()?;
@@ -21857,11 +21860,17 @@ impl ReadLane {
                 function_publication_generation: manifests.app_generation,
                 target_profile: manifests.schema.target_profile.as_deref(),
             }),
+            Some(&vector_quarantine),
                     )
                 },
         )?;
         Ok(invocation.output)
         })();
+        if let Some(target) = vector_quarantine.take()
+            && pool.quarantine_vector_generation(&target).is_err()
+        {
+            result = Err(crate::vector::diagnostics::index_corrupt());
+        }
         finish_function_observation(span, &mut result);
         let output = result?;
         facts_authority.validate_admission("query generation facts")?;
@@ -24292,6 +24301,27 @@ fn relational_cursor_binding(
 /// passes the live connection and its own epoch map; the read lane passes a
 /// pinned reader and its snapshots. One implementation, so the two lanes
 /// cannot drift.
+#[derive(Default)]
+struct VectorQuarantineCapture {
+    target: StdMutex<Option<crate::vector::sqlite::VectorGenerationIdentity>>,
+}
+
+impl VectorQuarantineCapture {
+    fn record(&self, target: crate::vector::sqlite::VectorGenerationIdentity) {
+        *self
+            .target
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(target);
+    }
+
+    fn take(&self) -> Option<crate::vector::sqlite::VectorGenerationIdentity> {
+        self.target
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .take()
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 fn execute_query_invocation(
     function: &FunctionDefinition,
@@ -24302,9 +24332,12 @@ fn execute_query_invocation(
     prepared: &PreparedInvocation,
     warm_vms: Option<&crate::warm_vm::WarmVmPool>,
     cursor_authority: Option<RelationalCursorAuthority<'_>>,
+    vector_quarantine: Option<&VectorQuarantineCapture>,
 ) -> SnapbackResult<QueryInvocation> {
     if let DbRead::Live(live) = db {
-        return live.with_pinned_read_view(|db| {
+        let owned_capture = VectorQuarantineCapture::default();
+        let capture = vector_quarantine.unwrap_or(&owned_capture);
+        let result = live.with_pinned_read_view(|db| {
             execute_query_invocation(
                 function,
                 name,
@@ -24314,8 +24347,15 @@ fn execute_query_invocation(
                 prepared,
                 warm_vms,
                 cursor_authority,
+                Some(capture),
             )
         });
+        if let Some(target) = capture.take()
+            && live.quarantine_vector_generation(&target).is_err()
+        {
+            return Err(crate::vector::diagnostics::index_corrupt());
+        }
+        return result;
     }
     prepared.validate_admission("query execution")?;
     // @ref LLP 0131#runtime-ingress-validation — fresh query admission
@@ -24591,6 +24631,67 @@ fn execute_query_invocation(
                     .get("limit")
                     .and_then(Value::as_u64)
                     .map(|value| value as usize),
+                result_count: Some(output.rows.len()),
+                boundary: None,
+            }];
+            add_permission_dependencies_with(permission_epochs, &input, &mut read_dependencies);
+            Ok(QueryInvocation {
+                output,
+                read_dependencies,
+            })
+        }
+        (FunctionKind::Query, FunctionRuntime::HostPlan(HandlerPlan::VectorQuery(plan))) => {
+            // @ref LLP 0132#candidate-to-release-consistency — the SQLite
+            // adapter enumerates, scores, and release-rechecks against this
+            // one pinned snapshot. Only server-resolved effective authority
+            // selects an owner partition; authored args carry no authority.
+            let owner_subject = match prepared.authority().resolved() {
+                ResolvedAppAuthority::Session { user_id, .. }
+                | ResolvedAppAuthority::DevImpersonation { user_id, .. } => Some(user_id.as_str()),
+                ResolvedAppAuthority::ServicePrincipal {
+                    effective_user_id: Some(user_id),
+                    ..
+                } => Some(user_id.as_str()),
+                _ => None,
+            };
+            let result = match db.vector(plan, &input, owner_subject) {
+                Ok(result) => result,
+                Err(failure) => {
+                    if let (Some(capture), Some(target)) =
+                        (vector_quarantine, failure.quarantine_target)
+                    {
+                        capture.record(target);
+                    }
+                    return Err(failure.error);
+                }
+            };
+            let output = result.output;
+            let mut read_dependencies = vec![CapturedReadDependency {
+                kind: CapturedReadKind::Query,
+                table: Some(plan.table.clone()),
+                id: None,
+                version: Some(output.version),
+                predicate: None,
+                rows: output
+                    .rows
+                    .iter()
+                    .filter_map(|row| {
+                        row.get("rowId")
+                            .and_then(Value::as_str)
+                            .map(ToOwned::to_owned)
+                    })
+                    .collect(),
+                field: None,
+                value: None,
+                order: Some(json!(crate::vector::VECTOR_ORDERING_PROFILE_ID)),
+                limit: Some(
+                    input
+                        .args
+                        .get("k")
+                        .and_then(Value::as_u64)
+                        .unwrap_or(u64::from(crate::vector::VECTOR_DEFAULT_K))
+                        as usize,
+                ),
                 result_count: Some(output.rows.len()),
                 boundary: None,
             }];

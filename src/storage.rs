@@ -3760,6 +3760,20 @@ impl LocalDatabase {
         })
     }
 
+    /// Quarantine only the generation named by a failed pinned vector read.
+    /// Callers invoke this after `with_pinned_read_view` returns, never while
+    /// the read transaction that detected corruption is still open.
+    pub(crate) fn quarantine_vector_generation(
+        &self,
+        identity: &crate::vector::sqlite::VectorGenerationIdentity,
+    ) -> SnapbackResult<bool> {
+        crate::vector::sqlite::quarantine_generation_on(
+            &self.conn,
+            identity,
+            "same-snapshot vector release recheck failed",
+        )
+    }
+
     pub(crate) fn room_permission_projection_granted(
         &self,
         table_name: &str,
@@ -8698,6 +8712,32 @@ impl DbRead<'_> {
         }
     }
 
+    /// Run one exact-vector query inside this view's already-pinned snapshot.
+    /// The caller retains the private generation identity on corruption and
+    /// quarantines it only after the read transaction has ended.
+    pub(crate) fn vector(
+        &self,
+        plan: &crate::vector::VectorQueryPlanV1,
+        input: &HandlerInput,
+        owner_subject: Option<&str>,
+    ) -> Result<
+        crate::vector::sqlite::VectorSqliteQueryResultV1,
+        crate::vector::sqlite::VectorSqliteQueryFailure,
+    > {
+        match self {
+            DbRead::Pinned { conn, schema } => {
+                crate::vector::sqlite::query_vector_on(conn, schema, plan, input, owner_subject)
+            }
+            DbRead::Live(db) => crate::vector::sqlite::query_vector_on(
+                &db.conn,
+                &db.schema,
+                plan,
+                input,
+                owner_subject,
+            ),
+        }
+    }
+
     pub(crate) fn search_database_identity(&self) -> SnapbackResult<String> {
         let conn = match self {
             DbRead::Pinned { conn, .. } => *conn,
@@ -8937,6 +8977,27 @@ impl ReaderPool {
             ",
         )?;
         Ok(conn)
+    }
+
+    /// Quarantine one exact vector generation after its pooled read snapshot
+    /// has been released. This connection is intentionally write-capable but
+    /// exposes no application read or write surface.
+    pub(crate) fn quarantine_vector_generation(
+        &self,
+        identity: &crate::vector::sqlite::VectorGenerationIdentity,
+    ) -> SnapbackResult<bool> {
+        let conn = Connection::open_with_flags(
+            &self.path,
+            OpenFlags::SQLITE_OPEN_READ_WRITE
+                | OpenFlags::SQLITE_OPEN_URI
+                | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )?;
+        conn.busy_timeout(std::time::Duration::from_secs(5))?;
+        crate::vector::sqlite::quarantine_generation_on(
+            &conn,
+            identity,
+            "same-snapshot vector release recheck failed",
+        )
     }
 
     fn check_in(&self, conn: Connection) {
