@@ -1497,7 +1497,7 @@ impl IbexActionHost for DetachedActionHost {
                     None,
                 );
                 drop(snapback);
-                let output = (|| {
+                let mut output = (|| {
                 let module = match &binding.function.runtime {
                     FunctionRuntime::IbexModule(module) => module,
                     _ => unreachable!("detached nested mutation must be an Ibex module"),
@@ -1570,13 +1570,12 @@ impl IbexActionHost for DetachedActionHost {
                     Err(payload) => std::panic::resume_unwind(payload),
                     }
                 })();
-                match &output {
+                match &mut output {
                     Ok(_) => span.finish(Some(200), None, None),
-                    Err(error) => span.finish(
-                        Some(500),
-                        Some(&error.diagnostic.code),
-                        Some(json!({ "severity": error.diagnostic.severity.clone() })),
-                    ),
+                    Err(error) => {
+                        let severity = error.diagnostic.severity.clone();
+                        span.finish_error(Some(500), error, Some(json!({ "severity": severity })))
+                    }
                 }
                 if output.is_ok() {
                     // @ref LLP 0076#settlement-and-retry — a successful
@@ -2769,18 +2768,17 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                 crate::stream_attempt::global_stream_attempt_registry()
                     .terminalize_invocation(&stream_runner, terminal_cause);
                 host.flush_stream_attempts_trusted();
-                let result = fenced
+                let mut result = fenced
                     // This is the earliest common envelope boundary and
                     // carries the staging-time values, so rotation cannot
                     // make an old secret invisible to the scrubber.
                     .map_err(|error| redactor.redact_error(error));
-                match &result {
+                match &mut result {
                     Ok(_) => span.finish(Some(200), None, None),
-                    Err(error) => span.finish(
-                        Some(500),
-                        Some(&error.diagnostic.code),
-                        Some(json!({ "severity": error.diagnostic.severity.clone() })),
-                    ),
+                    Err(error) => {
+                        let severity = error.diagnostic.severity.clone();
+                        span.finish_error(Some(500), error, Some(json!({ "severity": severity })))
+                    }
                 }
                 result
             }
@@ -4196,10 +4194,11 @@ async fn join_retired_connection_cleanup_batch(
             eprintln!(
                 "SNAPBACK_CONNECTION_CLEANUP_FAILED: retired connection cleanup task {failure_kind}; fail-closed retry retained"
             );
-            telemetry.standalone_diagnostic(
+            telemetry.standalone_diagnostic(&crate::diagnostic::Diagnostic::warning(
                 "SNAPBACK_CONNECTION_CLEANUP_FAILED",
-                &crate::diagnostic::DiagnosticSeverity::Warning,
-            );
+                "runtime",
+                "retired connection cleanup task failed",
+            ));
             retry.push(retry_capture);
         }
     }
@@ -21740,10 +21739,11 @@ fn report_live_service_terminal_observation_failure(
         "SNAPBACK_LIVE_SERVICE_TERMINAL_OBSERVATION_FAILED: cause={} retrying={retrying}",
         error.diagnostic.code
     );
-    telemetry.standalone_diagnostic(
+    telemetry.standalone_diagnostic(&crate::diagnostic::Diagnostic::warning(
         "SNAPBACK_LIVE_SERVICE_TERMINAL_OBSERVATION_FAILED",
-        &crate::diagnostic::DiagnosticSeverity::Warning,
-    );
+        "realtime",
+        "live service terminal observation failed",
+    ));
 }
 
 /// Run one attempt in its own task so a panic in planning, Local execution, or
@@ -40391,6 +40391,15 @@ globalThis.__snapbackHandlers = {
                         export: "snapshotNestedCommitFailure".to_owned(),
                     }),
                 ),
+                FunctionDefinition::new(
+                    "snapshotNestedHandlerFailure",
+                    FunctionKind::Mutation,
+                    FunctionRuntime::IbexModule(IbexModule {
+                        source: "globalThis.__snapbackHandlers = { async snapshotNestedHandlerFailure() { throw new TypeError('nested value 42 failed'); } };"
+                            .to_owned(),
+                        export: "snapshotNestedHandlerFailure".to_owned(),
+                    }),
+                ),
             ],
             ..FunctionManifest::default()
         }
@@ -40470,14 +40479,26 @@ globalThis.__snapbackHandlers = {
             )
             .expect_err("post-handler preview rejects unknown table");
         assert_eq!(error.diagnostic.code, "SNAPBACK_UNKNOWN_TABLE");
+        let handler_error = host
+            .run_mutation(
+                "snapshotNestedHandlerFailure",
+                HandlerInput {
+                    correlation: Some(json!("snapshot-handler-failure")),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect_err("nested handler throw fails");
+        assert_eq!(handler_error.diagnostic.code, "SNAPBACK_HANDLER_FAILED");
+        assert!(
+            handler_error.private_failure_context().is_none(),
+            "the detached server observation consumes its private carrier"
+        );
 
-        telemetry.force_flush().expect("flush snapshot nested observations");
+        telemetry
+            .force_flush()
+            .expect("flush snapshot nested observations");
         assert_eq!(
-            telemetry.event_outcomes_for_test(
-                "function_run",
-                "snapshotNestedSuccess",
-                "joined"
-            ),
+            telemetry.event_outcomes_for_test("function_run", "snapshotNestedSuccess", "joined"),
             vec![(Some(200), None)],
         );
         assert_eq!(
@@ -40489,6 +40510,21 @@ globalThis.__snapbackHandlers = {
             vec![(Some(500), Some("SNAPBACK_UNKNOWN_TABLE".to_owned()))],
             "the post-handler refusal replaces, rather than follows, a false success"
         );
+        let handler_details = telemetry
+            .event_details_for_test("function_run", "snapshotNestedHandlerFailure")
+            .into_iter()
+            .flatten()
+            .next()
+            .expect("classified handler failure details");
+        assert_eq!(handler_details["failure_disposition"], "fault");
+        assert_eq!(handler_details["issue_eligible"], true);
+        assert_eq!(handler_details["fp_branch"], "exception");
+        assert_eq!(handler_details["errorClass"], "TypeError");
+        assert_eq!(
+            handler_details["messageTemplate"],
+            "nested value <digits> failed"
+        );
+        assert!(handler_details["fp_hash"].as_str().is_some());
         assert_eq!(telemetry.event_count_for_test("log", "log", "point"), 2);
     }
 
