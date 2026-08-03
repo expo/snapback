@@ -1216,6 +1216,12 @@ pub struct PreparedInvocation {
     ///
     /// @ref LLP 0108#declared-application-refusals
     declared_refusals: Vec<String>,
+    /// Declared refusal codes whose admitted occurrences opt into issue
+    /// tracking. Kept beside the full declaration set so later emission never
+    /// has to reopen or reinterpret a manifest.
+    ///
+    /// @ref LLP 0108#tracked-refusal-opt-in
+    tracked_refusals: Vec<String>,
 }
 
 impl PreparedInvocation {
@@ -1250,6 +1256,15 @@ impl PreparedInvocation {
     /// Declared application refusal codes for this function (LLP 0108).
     pub(crate) fn declared_refusals(&self) -> &[String] {
         &self.declared_refusals
+    }
+
+    /// Refusal codes whose admitted occurrences opt into issue tracking.
+    /// The runtime carrier consumes this accessor in the next D-05 tranche;
+    /// this authoring commit prepares the immutable authority without yet
+    /// changing emission behavior.
+    #[allow(dead_code)]
+    pub(crate) fn tracked_refusals(&self) -> &[String] {
+        &self.tracked_refusals
     }
 
     pub fn admission_lease(&self) -> &AdmissionLease {
@@ -1542,6 +1557,7 @@ impl InvocationGate {
             matched_grant_scope,
             invocation_id: crate::ids::mint_time_ordered(crate::ids::Kind::Invocation),
             declared_refusals: function.refusals.clone(),
+            tracked_refusals: function.tracked_refusals.clone(),
         })
     }
 }
@@ -2174,6 +2190,19 @@ mod tests {
             .inherit_authority_for(InvocationSource::NestedMutation)
             .unwrap();
         assert_eq!(nested_authority.resolved(), outer.authority().resolved());
+    }
+
+    #[test]
+    fn prepared_invocation_carries_refusal_tracking_authority() {
+        let mut declared = function(None);
+        declared.refusals = vec!["INVITE_CONSUMED".to_owned(), "STALE_MOVE".to_owned()];
+        declared.tracked_refusals = vec!["STALE_MOVE".to_owned()];
+
+        let prepared =
+            InvocationGate::prepare_function(prepared(ResolvedAppAuthority::Anonymous), &declared)
+                .expect("valid refusal tracking authority prepares");
+        assert_eq!(prepared.declared_refusals(), declared.refusals);
+        assert_eq!(prepared.tracked_refusals(), declared.tracked_refusals);
     }
 
     #[test]

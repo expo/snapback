@@ -189,6 +189,7 @@ const inventories = [
       'operation-schemas.test.mjs',
       'provider-introspection.test.mjs',
       'protected-query-profile.test.mjs',
+      'refusal-tracking-authoring.test.mjs',
       'rbac-authoring.test.mjs',
       'jobs-authoring.test.mjs',
       'receipt-capability.test.mjs',
@@ -442,7 +443,9 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // suite exercises a real capability pair through soak, promotion, and demotion.
 // 163 -> 164 (2026-08-02, LLP 0156 D-05): @expo/snapback-contract gains the
 // independent JavaScript replay of the Rust-generated fingerprint vectors.
-assert.equal(total, 164, 'reviewed package/admin test count changed');
+// 164 -> 165 (2026-08-02, LLP 0156 D-05): @expo/snapback-codegen gains the
+// tracked application-refusal authoring and manifest-subset suite.
+assert.equal(total, 165, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

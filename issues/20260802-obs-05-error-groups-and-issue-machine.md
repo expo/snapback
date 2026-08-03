@@ -75,3 +75,24 @@ must follow the 0134 landing/rebase and preserve both inventory additions.
 Also deferred as later D-05 tranches: settle/async handler carrier wiring,
 `telemetry.rs` storage/flusher/state-machine work, `runtime.rs`, `server.rs`,
 `local.rs`, guide/capability publication, and all D-06 surfaces.
+
+### 2026-08-02 — collision-safe tranche 2: refusal tracking authoring
+
+After tranche 1 landed as `2d05933d` and the 0134 maturity lane landed, this
+branch rebased to that integrated head and completed the deferred private
+authoring authority:
+
+- `trackedRefusals` is accepted by every function builder, declared in the
+  TypeScript authoring surface beside the previously missing `refusals`
+  property, and emitted only when non-empty;
+- builder validation, defensive codegen validation, and Rust manifest-load
+  validation enforce a unique subset of the function's declared `refusals`;
+- the immutable prepared invocation carries both sets for the later emission
+  tranche; and
+- schema artifacts plus independent authoring/type/Rust tests pin the field,
+  subset refusals, omission default, and absence from public/provider
+  projections.
+
+This tranche still does not change refusal admission or wire envelopes, emit
+telemetry, project the field publicly, or touch `runtime.rs`, `telemetry.rs`,
+`server.rs`, `local.rs`, guide/capability publication, or D-06.

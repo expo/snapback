@@ -325,6 +325,11 @@ export declare function definePushSeam<const Audiences extends Record<string, {
 export interface FunctionAuthOptions {
   /** Controls whether the resolved server authority must carry a user. */
   auth?: AuthRequirement;
+  /** Closed application refusal codes admitted for `ctx.refuse`. */
+  refusals?: readonly string[];
+  /** Declared refusal codes whose occurrences opt into issue tracking. Every
+   * entry must also appear in `refusals`; this never admits a code itself. */
+  trackedRefusals?: readonly string[];
 }
 
 export interface AuthorityCreatingAuthOptions extends FunctionAuthOptions {

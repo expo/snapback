@@ -10,6 +10,10 @@ clarification: result-side `v.doc(table)` is an app-authority reference that
 expands through the existing frozen structural document contract before
 hashing; generated handler/context types consume schema and effective-contract
 artifacts, and checker diagnostics never mint a contract from behavior).
+2026-08-02 (LLP 0156 D-05 refusal-tracking opt-in: additive
+`trackedRefusals` private manifest authority, constrained to a unique subset
+of declared `refusals`, prepared with each invocation, and omitted from the
+served/public function projection).
 2026-08-02 (Accepted LLP 0135 owner fold: JS-mutation sequence
 declarations, versioned implementation-identity extension, and
 `ctx.sequence.allocate` harness surface); 2026-08-01, later same day (declared application refusals: `ctx.refuse` plus a manifest-declared closed code set, admitted only when declared and folded to the generic failure otherwise, carried as `appCode`/`appDetails` beside the platform code on both envelope decoders); 2026-08-01 (0137 a4-f1: §Admission rules gains the dated egress
@@ -1066,3 +1070,29 @@ case specified above. The A2 improvement-sweep proof and
 `schema-reference-type-flow.test.mjs` pin this direction, including authority
 nullability and the query-write capability refusal. Implementation commit
 `d9ebc2b1` carries the codegen, A2, guide, and proof corpus for this amendment.
+
+## Tracked refusal opt-in
+
+*(2026-08-02, normative; LLP 0156 D-05.)* Declaring an application refusal
+continues to type its admission and nothing more. An author may separately opt
+an admitted code into error issue tracking with
+`trackedRefusals: ['STALE_MOVE']`. This opt-in has the following closed
+contract:
+
+- `trackedRefusals` is an additive per-function manifest field, omitted when
+  empty. It is a unique subset of that same function's `refusals`; it cannot
+  admit a code, widen the app namespace, or name a platform `SNAPBACK_*` code.
+- The JavaScript builder, defensive codegen pass, and Rust manifest loader all
+  enforce the subset. Codegen reports `FUNCTION_TRACKED_REFUSAL_INVALID`;
+  manifest load reports `SNAPBACK_FUNCTION_TRACKED_REFUSAL_INVALID`.
+- Preparation copies both the full declaration set and the tracked subset into
+  the immutable invocation authority. Later emission may therefore classify an
+  already admitted `appCode` without reopening mutable manifest state.
+- Neither `refusals` nor `trackedRefusals` is added to
+  `PublicFunctionDefinition` or provider introspection. They are authoring and
+  invocation authority, not a public application API projection.
+
+Omission means no application refusal is issue-eligible. This amendment does
+not change `ctx.refuse` admission, effect semantics, result-contract or
+implementation hashes, retries, quarantine, or the generic treatment of an
+undeclared or forged claim.

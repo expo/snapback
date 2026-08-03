@@ -1409,6 +1409,7 @@ export async function generateInProcess(backendDir, options = {}) {
       continue;
     }
     validateFunctionAuthDefinition(name, def, err);
+    validateFunctionRefusalTrackingDefinition(name, def, err);
     validateProtectedAndRetainabilityDefinition(name, def, err);
     const argNames = new Set(Object.keys(def.args));
 
@@ -4683,6 +4684,9 @@ function authoredFunctionManifestFields(def, declaredWrites = [], tables = {}) {
     ...(authorityCreating ? { authorityCreating: true } : {}),
     ...(def.retainable === true ? { retainable: true } : {}),
     ...(Array.isArray(def.refusals) && def.refusals.length > 0 ? { refusals: [...def.refusals] } : {}),
+    ...(Array.isArray(def.trackedRefusals) && def.trackedRefusals.length > 0
+      ? { trackedRefusals: [...def.trackedRefusals] }
+      : {}),
     ...(Array.isArray(def.authorizationDependence)
       ? { authorizationDependence: [...def.authorizationDependence] }
       : {}),
@@ -4856,6 +4860,57 @@ function validateFunctionAuthDefinition(name, def, err) {
       `${name}: authorityIndependent requires a public HostPlan query with no auth, membership, auth-scope, runtime-clock, or runtime-id dependency`,
       { function: name, kind: def.__kind, authRequirement: def.auth ?? 'optional-user' },
     );
+  }
+}
+
+// Builders reject ordinary mistakes, but authored definition objects remain
+// mutable JavaScript values. Re-establish both the refusal vocabulary and the
+// tracking-subset invariant before emitting a manifest.
+//
+// @ref LLP 0108#tracked-refusal-opt-in
+function validateFunctionRefusalTrackingDefinition(name, def, err) {
+  const validateSet = (field, value, diagnosticCode) => {
+    if (value === undefined) return null;
+    if (!Array.isArray(value) || value.length > 64) {
+      err(diagnosticCode, 'function', `${name}: ${field} must be an array of at most 64 codes`, { function: name, field });
+      return null;
+    }
+    const seen = new Set();
+    for (const code of value) {
+      if (typeof code !== 'string'
+          || code.length === 0
+          || code.length > 64
+          || code.startsWith('SNAPBACK_')
+          || !/^[A-Z0-9_]+$/.test(code)) {
+        err(diagnosticCode, 'function', `${name}: ${field} contains invalid app refusal code ${String(code)}`, { function: name, field, refusal: code });
+        continue;
+      }
+      if (seen.has(code)) {
+        err(diagnosticCode, 'function', `${name}: ${field} repeats ${code}`, { function: name, field, refusal: code });
+        continue;
+      }
+      seen.add(code);
+    }
+    return seen;
+  };
+
+  const declared = validateSet('refusals', def.refusals, 'FUNCTION_REFUSAL_DECLARATION_INVALID')
+    ?? new Set();
+  const tracked = validateSet(
+    'trackedRefusals',
+    def.trackedRefusals,
+    'FUNCTION_TRACKED_REFUSAL_INVALID',
+  );
+  if (tracked === null) return;
+  for (const code of tracked) {
+    if (!declared.has(code)) {
+      err(
+        'FUNCTION_TRACKED_REFUSAL_INVALID',
+        'function',
+        `${name}: tracked refusal ${code} must also appear in refusals`,
+        { function: name, field: 'trackedRefusals', refusal: code },
+      );
+    }
   }
 }
 
@@ -5121,6 +5176,9 @@ function decorateFunctions(appId, functions) {
       ...(fn.authorityCreating === true ? { authorityCreating: true } : {}),
       ...(fn.retainable === true ? { retainable: true } : {}),
       ...(Array.isArray(fn.refusals) && fn.refusals.length > 0 ? { refusals: [...fn.refusals] } : {}),
+      ...(Array.isArray(fn.trackedRefusals) && fn.trackedRefusals.length > 0
+        ? { trackedRefusals: [...fn.trackedRefusals] }
+        : {}),
       ...(Array.isArray(fn.authorizationDependence) && fn.authorizationDependence.length > 0
         ? { authorizationDependence: fn.authorizationDependence }
         : {}),

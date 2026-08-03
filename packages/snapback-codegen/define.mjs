@@ -43,7 +43,7 @@ const AUTHORIZATION_DIMENSIONS = new Set([
 ]);
 const QUERY_SPEC_FIELDS = new Set([
   'table', 'args', 'filter', 'order', 'limit', 'index', 'defaultLive',
-  'auth', 'authorityIndependent', 'publicInline', 'retainable', 'refusals',
+  'auth', 'authorityIndependent', 'publicInline', 'retainable', 'refusals', 'trackedRefusals',
   'authScopeField', 'membership', 'standardPattern',
 ]);
 
@@ -98,7 +98,7 @@ function normalizeStandardPattern(spec, kind) {
 }
 const JS_QUERY_SPEC_FIELDS = new Set([
   'args', 'source', 'exportName', 'handler', 'reads', 'result', 'authScopeField',
-  'defaultLive', 'auth', 'authorityIndependent', 'retainable', 'refusals',
+  'defaultLive', 'auth', 'authorityIndependent', 'retainable', 'refusals', 'trackedRefusals',
   'authorizationDependence',
 ]);
 const TARGET_CAPABILITIES = new Set([
@@ -209,10 +209,10 @@ function authoredFunctionAuth(spec, kind) {
   }
   // @ref LLP 0108#declared-application-refusals — the declaration is what
   //   makes an app-thrown code typed; an undeclared throw stays generic.
+  const declaredRefusals = new Set();
   if (spec.refusals !== undefined) {
     assert(Array.isArray(spec.refusals), `${kind} refusals must be an array`);
     assert(spec.refusals.length <= 64, `${kind} declares more than 64 refusals`);
-    const seenRefusals = new Set();
     for (const code of spec.refusals) {
       assert(
         typeof code === 'string' && code.length > 0 && code.length <= 64,
@@ -226,10 +226,33 @@ function authoredFunctionAuth(spec, kind) {
         /^[A-Z0-9_]+$/.test(code),
         `${kind} refusal ${code} must be A-Z, 0-9, and underscore`,
       );
-      assert(!seenRefusals.has(code), `${kind} declares duplicate refusal ${code}`);
-      seenRefusals.add(code);
+      assert(!declaredRefusals.has(code), `${kind} declares duplicate refusal ${code}`);
+      declaredRefusals.add(code);
     }
     fields.refusals = [...spec.refusals];
+  }
+  // @ref LLP 0108#tracked-refusal-opt-in — tracking can only narrow the
+  //   already typed refusal set; it never admits an app code by itself.
+  if (spec.trackedRefusals !== undefined) {
+    assert(Array.isArray(spec.trackedRefusals), `${kind} trackedRefusals must be an array`);
+    assert(spec.trackedRefusals.length <= 64, `${kind} tracks more than 64 refusals`);
+    const seenTrackedRefusals = new Set();
+    for (const code of spec.trackedRefusals) {
+      assert(
+        typeof code === 'string',
+        `${kind} trackedRefusals entries must be strings`,
+      );
+      assert(
+        declaredRefusals.has(code),
+        `${kind} tracked refusal ${code} must also appear in refusals`,
+      );
+      assert(
+        !seenTrackedRefusals.has(code),
+        `${kind} tracks duplicate refusal ${code}`,
+      );
+      seenTrackedRefusals.add(code);
+    }
+    fields.trackedRefusals = [...spec.trackedRefusals];
   }
   if (spec.authorizationDependence !== undefined) {
     assert(kind === 'Query' || kind === 'LiveQuery', `${kind} cannot declare authorizationDependence`);

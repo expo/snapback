@@ -3196,6 +3196,13 @@
             "null"
           ]
         },
+        "trackedRefusals": {
+          "description": "Subset of `refusals` whose admitted occurrences opt into issue\ntracking. This is private invocation authority, not a served/public\nfunction descriptor, and cannot admit a refusal code by itself.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
         "uses": {
           "default": [],
           "description": "@ref LLP 0036#declared-configuration-in-the-manifest — D8: the config\nentries this function may receive. Declaring an entry makes it exist;\nonly functions that name it here are granted it at runtime.",

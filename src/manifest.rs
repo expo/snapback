@@ -2266,7 +2266,7 @@ const MAX_DECLARED_REFUSALS: usize = 64;
 const MAX_REFUSAL_CODE_LEN: usize = 64;
 
 fn validate_declared_refusals(function: &FunctionDefinition) -> SnapbackResult<()> {
-    if function.refusals.is_empty() {
+    if function.refusals.is_empty() && function.tracked_refusals.is_empty() {
         return Ok(());
     }
     let invalid = |reason: &str, code: &str| {
@@ -2303,6 +2303,33 @@ fn validate_declared_refusals(function: &FunctionDefinition) -> SnapbackResult<(
         }
         if !seen.insert(code.as_str()) {
             return invalid("duplicate declared refusal", code);
+        }
+    }
+    let invalid_tracking = |reason: &str, code: &str| {
+        Err(SnapbackError::error(
+            "SNAPBACK_FUNCTION_TRACKED_REFUSAL_INVALID",
+            "runtime",
+            format!(
+                "function {} declares invalid refusal tracking: {reason}",
+                function.name
+            ),
+        )
+        .with_details(serde_json::json!({
+            "function": function.name,
+            "trackedRefusal": code,
+            "reason": reason,
+        })))
+    };
+    if function.tracked_refusals.len() > MAX_DECLARED_REFUSALS {
+        return invalid_tracking("more than 64 tracked refusals", "");
+    }
+    let mut seen_tracked = std::collections::BTreeSet::new();
+    for code in &function.tracked_refusals {
+        if !seen.contains(code.as_str()) {
+            return invalid_tracking("tracked refusal must also be declared", code);
+        }
+        if !seen_tracked.insert(code.as_str()) {
+            return invalid_tracking("duplicate tracked refusal", code);
         }
     }
     Ok(())
@@ -3904,6 +3931,18 @@ pub struct FunctionDefinition {
     //   this reference out of the generated JSON Schema description.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub refusals: Vec<String>,
+    /// Subset of `refusals` whose admitted occurrences opt into issue
+    /// tracking. This is private invocation authority, not a served/public
+    /// function descriptor, and cannot admit a refusal code by itself.
+    // @ref LLP 0108#tracked-refusal-opt-in — codegen and manifest load both
+    //   enforce the subset; omission is the empty opt-in.
+    #[serde(
+        default,
+        rename = "trackedRefusals",
+        alias = "tracked_refusals",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub tracked_refusals: Vec<String>,
     /// Closed authority dimensions used by this result. Codegen derives the
     /// HostPlan value from `AuthUserId`/`authScopeField`; opaque JavaScript is
     /// never upgraded merely because an author writes `userId` here.
@@ -3980,6 +4019,7 @@ impl FunctionDefinition {
             authority_creating: false,
             retainable: false,
             refusals: Vec::new(),
+            tracked_refusals: Vec::new(),
             authorization_dependence: Vec::new(),
             syncability_class: Some(syncability_class.to_owned()),
             read_set_summary: DependencySummary::default(),
@@ -4801,10 +4841,11 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             public_inline,
             authority_creating,
             retainable,
-            // Declared app-refusal vocabulary is an authoring contract the
-            // generated client already carries; the public identity
-            // descriptor does not restate it.
+            // Declared app-refusal vocabulary and its tracking subset are
+            // private authoring/invocation authority; the public identity
+            // descriptor restates neither.
             refusals: _,
+            tracked_refusals: _,
             authorization_dependence,
             syncability_class,
             read_set_summary,
@@ -8206,6 +8247,41 @@ mod membership_manifest_grammar_tests {
             .required_capabilities
             .push("result_contract_v1".to_owned());
         function
+    }
+
+    #[test]
+    fn tracked_refusals_are_a_private_unique_subset_of_declared_refusals() {
+        let mut function = result_contract_function(FunctionResultContract::Unknown);
+        function.refusals = vec!["INVITE_CONSUMED".to_owned(), "STALE_MOVE".to_owned()];
+        function.tracked_refusals = vec!["STALE_MOVE".to_owned()];
+        validate_declared_refusals(&function).expect("declared tracked subset validates");
+
+        let serialized = serde_json::to_value(&function).expect("serialize function authority");
+        assert_eq!(serialized["trackedRefusals"], json!(["STALE_MOVE"]));
+        let public = serde_json::to_value(PublicFunctionDefinition::from(function.clone()))
+            .expect("serialize public function projection");
+        assert!(public.get("refusals").is_none());
+        assert!(public.get("trackedRefusals").is_none());
+
+        function.tracked_refusals = vec!["NOT_DECLARED".to_owned()];
+        let undeclared = validate_declared_refusals(&function)
+            .expect_err("tracking cannot admit an undeclared app code");
+        assert_eq!(
+            undeclared.diagnostic.code,
+            "SNAPBACK_FUNCTION_TRACKED_REFUSAL_INVALID"
+        );
+        assert_eq!(
+            undeclared.diagnostic.details["reason"],
+            "tracked refusal must also be declared"
+        );
+
+        function.tracked_refusals = vec!["STALE_MOVE".to_owned(), "STALE_MOVE".to_owned()];
+        let duplicate = validate_declared_refusals(&function)
+            .expect_err("tracking opt-in is a set, not a multiset");
+        assert_eq!(
+            duplicate.diagnostic.details["reason"],
+            "duplicate tracked refusal"
+        );
     }
 
     #[test]
