@@ -5,7 +5,11 @@
 **Systems:** Competitive evaluation, Developer experience, Authoring, Application data API, Code generation, Runtime, Bootstrap, Packaging, Search, Relational queries, Scheduled work, Client integration, Documentation, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-08-02 (CV-8 move-6 publication reconciliation: the local
+**Revised:** 2026-08-03 (OQ7/product-breadth execution fact: LLP 0132 is
+Implemented for the experimental local SQLite target with retained macOS and
+independent Linux/Fly filled-partition qualification. Exact k-NN is the shipped
+base; hosted/Postgres/live and ANN remain closed, so this does not widen the
+Plan's fixed CV board or claim a hosted breadth tranche.) 2026-08-02 (CV-8 move-6 publication reconciliation: the local
 handler-tier `ctx.sequence.allocate` substrate, order bounds, and A6 evidence
 landed, and the combined checkpoint adds generated `AllocateSequence` plus
 mutation-atomic lane-Q withholding. `sequence_allocation_v1` remains
@@ -424,7 +428,11 @@ settlement Spec.
   owner, the vector Spec copies its staged-admission pattern, and
   exact k-NN is the base profile first, with ANN admitted later as a
   separate capability with proved-superset translation — see open
-  question 7.
+  question 7. **Executed 2026-08-03:** LLP 0132 is Implemented for the
+  experimental local SQLite target, with the A5 Guide row and macOS plus
+  independent Linux/Fly filled-partition receipts. Hosted/Postgres/live remain
+  support-false and the ANN doors remain unopened. This is an adjacent
+  execution fact, not a new CV board item; this Plan's scope stays fixed.
 
 ## Retired gaps — do not re-litigate
 
@@ -1480,6 +1488,11 @@ plan holds the cross-reference (§The move layer).
    is undecided and rides the vector Spec. Execution fact, recorded
    in the v0.7 board sweep: LLP 0044's revival revision landed
    2026-07-31 (`14bd5ddb`), executing this decision's revive call.
+   Second execution fact, 2026-08-03: LLP 0132 is Implemented for the
+   experimental local SQLite target. The exact D=1,536 × 43,690 corpus passes
+   both the local macOS carrier and an independent Linux/Fly carrier; the A5
+   Guide row is shipped locally. No hosted/Postgres/live capability or ANN
+   accelerator is claimed, so decision 8's successor door remains closed.
 8. **The ten 0127-routed author decisions (new in v0.5) — ALL TEN
    DECIDED (v0.6, 2026-07-30).** LLP 0127's acceptance accepted the
    synthesis direction; the author adjudicated the ten routed

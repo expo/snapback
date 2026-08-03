@@ -18,6 +18,11 @@ primary_region = "sjc"
   auto_start_machines = true
   min_machines_running = 0
 
+[[mounts]]
+  # @ref LLP 0098#84-d4-executed-the-volume-the-redeploy-from-fixed-main-and-the-plaintext-refusal-close-2026-07-25-later — preserve the recorded ACME custody across Machine updates.
+  source = "caddy_storage"
+  destination = "/data/caddy"
+
 [[vm]]
   size = "shared-cpu-1x"
   memory = "512mb"

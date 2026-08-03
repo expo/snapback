@@ -37,6 +37,15 @@ primary_region = "sjc"
   auto_start_machines = true
   min_machines_running = 0
 
+# Preserve the provisioned certificate-state volume across Machine updates.
+# The current plaintext Snapback process does not consume this directory, but
+# retaining the exact attachment avoids losing the independently governed
+# Caddy/ACME custody recorded by LLP 0075 and LLP 0098.
+[[mounts]]
+  # @ref LLP 0098#84-d4-executed-the-volume-the-redeploy-from-fixed-main-and-the-plaintext-refusal-close-2026-07-25-later — preserve the recorded ACME custody across Machine updates.
+  source = "caddy_storage"
+  destination = "/data/caddy"
+
 [[vm]]
   size = "shared-cpu-1x"
   memory = "512mb"

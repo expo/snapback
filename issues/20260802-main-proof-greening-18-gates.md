@@ -423,3 +423,11 @@ ticket closes citing that run id.
   row-query, server-exit, and deadline errors. The focused witness, strict
   all-target Clippy, and the 4,743-reference LLP audit pass locally. Hosted
   confirmation is pending.
+
+- **2026-08-03 — vector lane isolated-checkout residue.** The LLP 0132 lane's
+  full `artifact_schemas_v0` run passed 29 of 32 tests; the three failures were
+  missing generated demo publication files in the isolated checkout, not a
+  vector schema, capability, runtime, or receipt mismatch. The vector-specific
+  schema/capability suites and both filled-partition qualifications are green.
+  Per the wave policy, leave the absent generated publications for this single
+  closing regen pass and re-run the complete artifact-schema gate afterward.

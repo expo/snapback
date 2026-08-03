@@ -26,6 +26,17 @@ LLP 0074 gate 2, including the durable-row secret scans.
     --pattern 'hermes-linux-x64-*' --dir hermes/
   ```
 
+  The 2026-08-03 vector qualification could not use that download path: no
+  release asset matched vendored Ibex commit `2afa439b` and Hermes commit
+  `e639a7bad8bfca844d982afa54fac786c65a8856`. The retained fallback was built
+  from that exact vendored source on an independent x86_64 Linux host. Its
+  tarball SHA-256 is
+  `75d7202611cbe4d912f21f83f10384852331d9c043512c1076724cfab0b8751a`;
+  the embedded provenance pins patch-stack digest
+  `sha256-9a846368e13304659cb6e0d4be78853bad6415de01f68a4191f7cd9b3af2c7d7`.
+  `issues/20260803-linux-hermes-release-carrier-gap.md` tracks restoring the
+  ordinary published-artifact path.
+
 ## Honest posture (recorded in every receipt)
 
 - The machine bind is plaintext non-loopback behind the platform edge, so the
@@ -59,6 +70,33 @@ LLP 0074 gate 2, including the durable-row secret scans.
 
    Secrets on the app: `SNAPBACK_ADMIN_TOKEN` (operator-minted) plus the
    Tigris credentials staged by `fly storage create`.
+
+   If the ordinary Fly source builder cannot complete the release profile,
+   build the exact clean source on an independent Linux host, stage the
+   ignored release closure under `drill/prebuilt/`, and create
+   `prebuilt/SHA256SUMS` plus `prebuilt/source-revision`. The alternate carrier
+   verifies every staged byte and the clean revision before assembling the
+   runtime image:
+
+   ```sh
+   fly deploy . \
+     --config demos/competitive-checkpoint/acceptance/drill/fly.prebuilt.toml \
+     --build-arg SNAPBACK_BUILD_GIT_COMMIT="$(cat demos/competitive-checkpoint/acceptance/drill/prebuilt/source-revision)" \
+     --build-arg SNAPBACK_BUILD_GIT_DIRTY=0 \
+     --remote-only --ha=false --yes
+   ```
+
+   The 2026-08-03 qualification used product source
+   `8ce5f357a2282eee389e5b7b826d3a568776da0c`, deployed image manifest
+   `sha256:2bff764a3325bddddea8303104ccf31f3af5ef8adaa4a26ecb7558de5451c154`,
+   server SHA-256
+   `19725af21f4e517af0b8ffb69d7eae988a6551875d0cd7fbb5955b54900c1cfc`,
+   lib-test SHA-256
+   `e9001d523bf823ef799c2190f4438efb764dfdd017eb8b5628013d7ca042ae6b`,
+   and runtime `libhermesvm.so` SHA-256
+   `d1bde2b2912ff3b71a30328813b0b2477ef03c08657dc18fd309854615f35d5d`.
+   The carrier commits may be newer than the product revision; the source file,
+   image label, checksums, and qualification receipt bind the bytes that matter.
 
 2. Run the remote instrument (seven checks, twin of `local-streaming.mjs`):
 
@@ -119,8 +157,20 @@ LLP 0074 gate 2, including the durable-row secret scans.
    nonclaims. Size the one machine from the retained peak-RSS evidence and
    record any temporary resize; do not infer a memory claim from this runbook.
 
-All receipts were produced 2026-07-25; protocol amendment v0.7 pins the
-provisioned identities, tool versions, and instrument digests.
+   The retained 2026-08-03 receipt is
+   `tests/acceptance/vector-search-single-instance-container-vm-scale.v1.json`.
+   Machine `849764f2e7dd58` was temporarily resized from its normal
+   shared-cpu-1x / 512 MiB shape to two shared CPUs / 4,096 MiB, then restored
+   immediately after the run. The exact filled-partition test passed in
+   419.73 seconds: build 258,462 ms, update 5,156 ms, query 4,953 ms, peak RSS
+   1,931,902,976 bytes, and database 1,491,980,288 bytes. The receipt retains
+   the local-target profile, concrete remote carrier, and ANN/hosted/Postgres/
+   live-vector nonclaims separately.
+
+The checkpoint protocol receipts were produced 2026-07-25; protocol amendment
+v0.7 pins their provisioned identities, tool versions, and instrument digests.
+The LLP 0132 scale receipt is the separately dated 2026-08-03 qualification
+described above and does not amend or reopen the shelved timed comparison.
 
 ## Control-plane observation runbook (2026-07-26)
 

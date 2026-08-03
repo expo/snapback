@@ -629,3 +629,56 @@ derive the table; and `defineMutation` takes `plan:` (a single step or array),
 not `steps:`. The error surfaced as a sandbox strict-JSON refusal rather than a
 spec-shape message, which cost a bisection. Filed nothing: the ticket already
 tracks surface polish.
+
+## 2026-08-03 — Exact vector search on the independent Fly carrier
+
+### What felt good
+
+- The same ignored release-mode test executable that qualified the local
+  SQLite adapter traveled into the Linux image without repository files at
+  runtime. One exact invocation re-ran the four semantic acceptance checks,
+  filled the D=1,536 partition to 43,690 vectors, proved the next-insert bound,
+  and emitted a closed JSON receipt. That made the remote run a genuine adapter
+  qualification rather than a hand-timed query.
+- The product/source boundary stayed inspectable. The image label, staged
+  source revision, server/test/runtime checksums, Hermes provenance, concrete
+  Fly Machine identity, temporary VM shape, and semantic nonclaims are all
+  independent facts. The result could say “local SQLite exact scan inside a
+  Linux container/VM” without pretending Fly became a hosted vector target.
+- The 12 GiB acceptance ceiling left useful headroom while the observed Linux
+  peak was 1.93 GiB. The ordinary 512 MiB service shape could be restored as
+  soon as the qualification finished; no production sizing claim leaked from
+  the temporary test shape.
+
+### What felt bad or surprising
+
+- The runbook's paved Hermes-release download did not exist for the current
+  vendored identity. The old ignored artifact was stale enough to fail the
+  provenance check, which is the right failure, but rebuilding the exact patch
+  stack consumed most of the carrier work. The gap is now tracked in
+  `issues/20260803-linux-hermes-release-carrier-gap.md`.
+- Fly's default Depot builder was killed while optimizing the Snapback release
+  library. Building the exact release on a high-memory Linux host and letting a
+  tiny Dockerfile verify and assemble the closure worked, but it adds a second
+  carrier path that needs automation.
+- Fly preserved the existing encrypted volume on the Machine, but the app
+  config did not name its mount. The first deploy correctly refused to proceed
+  non-interactively. Adding the recorded `caddy_storage` → `/data/caddy` mount
+  made the replacement explicit and prevented a qualification-only deploy from
+  discarding certificate custody.
+- The receipt was printed before the Machine resize-back restarted the VM, but
+  its `/tmp` copy did not survive that restart. The attached test output was
+  complete and retained byte-for-byte; a future harness should copy receipts to
+  a durable path or retrieve them before any resize.
+
+### Snapback compared with Convex or Supabase vector search
+
+Supabase/pgvector and hosted vector products make provisioning and index
+acceleration easier, while this exact local profile pays visibly for a full
+scan: the filled shared-CPU query took 4.953 seconds. Snapback's advantage in
+this slice is contract precision rather than raw speed. Distance arithmetic,
+conversion witnesses, authorization partitions, mutation atomicity, work
+counters, corpus ceilings, and ANN/hosted nonclaims are all executable and
+portable. That is unusually strong evidence for local-first behavior, but it
+also makes the v1 boundary clear: an ANN successor or hosted target needs its
+own capability and qualification instead of quietly replacing this result.

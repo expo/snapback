@@ -1,9 +1,9 @@
 # Wave-1 remainder: implement LLP 0132 — portable vector search
 
-**Status:** Open
+**Status:** Closed — implemented 2026-08-03
 **Systems:** Search, Storage, Runtime, API
-**Related:** LLP 0132 (Accepted 2026-07-31, unimplemented — the A5 sweep arm
-records it as an honest GAP with an Accepted design)
+**Related:** LLP 0132 (Accepted 2026-07-31; Implemented for the experimental
+local target 2026-08-03)
 
 Implement `vector_search_v1` per the spec: exact k-NN over app-supplied
 embeddings — declared vector fields, pinned `dot`/`l2sq` distance profiles
@@ -21,6 +21,50 @@ dated implementation-record amendment on the LLP; LLP 0115 board row
 updated.
 
 ## Running log
+
+### 2026-08-03 — VEC-4 local exact profile shipped and independently qualified
+
+- Completed the runtime publication seam for exact `dot`/`l2sq` search over
+  the active SQLite generation, including public/owner release, equality
+  filters, stored fields, pinned ordering, logical-work counters, and the
+  items-only client page. The local manifest now publishes the closed
+  `VectorSearchFactsV1`; remote-service and Cloudflare projections remain
+  support-false with structured GAPs.
+- Closed the spec's validation obligations: Rust and independent JavaScript
+  arithmetic/conversion witnesses agree; dimension/component/k/product/
+  corpus/mutation/query ceilings refuse under stable codes; paired-owner,
+  commit-head, atomic-failure, corruption/quarantine, transfer, rebuild, and
+  generated-projection suites pass. The capability enum and local target facts
+  agree with the generated/client/provider surface.
+- Retained both required realistic-scale receipts at D=1,536 × 43,690:
+  `tests/acceptance/vector-search-sqlite-scale.v1.json` on macOS/aarch64 and
+  `tests/acceptance/vector-search-single-instance-container-vm-scale.v1.json`
+  on Linux/x86_64 inside Fly Machine `849764f2e7dd58`. The independent run
+  passed all four semantic checks and the exact filled/next-refused boundary
+  in 419.73 seconds, with 1,931,902,976-byte peak RSS and a 4,953 ms query.
+  The temporary two-shared-CPU / 4,096 MiB shape was restored immediately to
+  the normal shared-cpu-1x / 512 MiB service shape.
+- Flipped the A5 capability row to shipped for local only and added the
+  intent-indexed vector guide page. LLP 0132 is now Implemented with a dated
+  implementation record; LLP 0115's OQ7/product-breadth execution fact records
+  the exact-base landing without inventing a CV board item.
+- ANN remains deliberately closed: no accelerator or approximate capability is
+  registered, and hosted/Postgres/live/embedding-computation remain explicit
+  nonclaims. LLP 0136 remains held. LLP 0135's ticket already contains the
+  required held-half note and is otherwise untouched.
+- Qualification carrier friction is recorded in Diary 0018 and
+  `issues/20260803-linux-hermes-release-carrier-gap.md`. The exact current
+  Hermes bundle had to be rebuilt from vendored source, and Fly's source
+  builder could not complete the release optimization; the deployed fallback
+  verifies the clean product revision and every staged checksum.
+- Own correctness is green: 59 focused vector Rust tests pass with the one
+  scale test intentionally ignored in ordinary runs, all four capability
+  projection tests pass, the independent JavaScript distance reference passes,
+  strict all-target Clippy passes with only the separately owned named
+  sequence-lane allowance, and both scale receipts pass. The isolated
+  `artifact_schemas_v0` result was 29/32 solely because three generated demo
+  publications were absent; that end-wave regen residue is recorded in the
+  greening ticket under the shared relaxed-cadence policy.
 
 ### 2026-08-03 — VEC-3 SQLite maintenance and resumable rebuild checkpoint
 

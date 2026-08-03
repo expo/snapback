@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "qualification": "llp-0132-sqlite-exact-scale-v1",
+  "status": "pass",
+  "codeRevision": "8ce5f357a2282eee389e5b7b826d3a568776da0c",
+  "target": {
+    "adapter": "local SQLite exact scan",
+    "targetProfileId": "local-dev-sqlite-ibex.v1",
+    "machine": "single-instance-container-vm.v1:fly.io/sjc/849764f2e7dd58",
+    "os": "linux",
+    "arch": "x86_64",
+    "distanceProfile": "snapback-vector-distance-v1",
+    "accelerator": "none"
+  },
+  "harness": {
+    "testName": "vector::acceptance::realistic_scale_d1536_filled_partition_emits_budget_receipt",
+    "filterMode": "ignored exact",
+    "repositoryFilesRequiredAtRuntime": false,
+    "requiresWritableTemporaryDirectory": true
+  },
+  "acceptanceChecks": [
+    {
+      "testName": "vector::acceptance::research_room_oracle_matches_public_and_owner_adapters_bit_for_bit",
+      "pass": true
+    },
+    {
+      "testName": "vector::acceptance::another_owner_cannot_change_results_codes_counters_or_ordinary_inspection",
+      "pass": true
+    },
+    {
+      "testName": "vector::acceptance::commit_head_lifecycle_and_injected_failure_are_atomic",
+      "pass": true
+    },
+    {
+      "testName": "vector::acceptance::corpus_product_activation_transfer_and_classification_boundaries_are_closed",
+      "pass": true
+    }
+  ],
+  "corpus": {
+    "dimensions": 1536,
+    "buildVectorCount": 43690,
+    "finalVectorCount": 43690,
+    "vectorBytes": 536862720,
+    "scalarPairs": 67107840,
+    "generation": 1,
+    "rootDigest": "sha256-xor-v1:7e6db4e87c95a4e154bd34ffce581a288a0a20756d2e28a6e891ab6e84696b86"
+  },
+  "budgets": {
+    "buildMsMax": 1800000,
+    "updateMsMax": 900000,
+    "queryMsMax": 120000,
+    "peakRssBytesMax": 12884901888,
+    "databaseBytesMax": 4294967296
+  },
+  "observed": {
+    "buildMs": 258462,
+    "updateMs": 5156,
+    "boundFillInsertMs": 5143,
+    "queryMs": 4953,
+    "peakRssBytes": 1931902976,
+    "databaseBytes": 1491980288,
+    "workCounters": {
+      "postingsEnumerated": 43690,
+      "filterComparisons": 0,
+      "candidatesScored": 43690,
+      "scalarPairs": 67107840,
+      "releaseSourceReads": 3
+    }
+  },
+  "boundaries": {
+    "boundFillingInsertAdmitted": true,
+    "nextInsertRefused": "SNAPBACK_VECTOR_CORPUS_BOUND",
+    "sourceAndPostingCountsMatch": true
+  },
+  "nonclaims": [
+    "ann",
+    "hosted-targets",
+    "postgres",
+    "live-vector-search"
+  ]
+}

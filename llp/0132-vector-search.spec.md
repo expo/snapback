@@ -1,11 +1,17 @@
 # LLP 0132: Portable vector search
 
 **Type:** Spec
-**Status:** Accepted
+**Status:** Implemented
 **Systems:** Search, Storage, Schema, Code generation, Auth, Client integration, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-08-03 (VEC-3 SQLite maintenance/rebuild checkpoint:
+**Revised:** 2026-08-03 (IMPLEMENTED for the experimental local
+`local-dev-sqlite-ibex.v1` target: declared fields/indexes/queries, synchronous
+maintenance and resumable rebuild, exact `dot`/`l2sq` execution, public and
+owner release, closed bounds/diagnostics/facts, generated/client/provider
+projection, Guide publication, and both local macOS and independent Linux Fly
+filled-partition receipts. Hosted/Postgres/live/ANN remain explicit nonclaims.)
+2026-08-03 (VEC-3 SQLite maintenance/rebuild checkpoint:
 transactional shadow generations, mutation-global preflight, retained CAS
 frontiers/tombstones, exact-generation corruption quarantine handoff, and the
 approved resumable `derived-vector-catchup.v1` executor; still no target
@@ -785,6 +791,53 @@ This is storage/executor evidence, not target qualification. It does not flip
 any target predicate, publish `VectorSearchFactsV1`, change the capability
 index or Guide GAP, wire a public runtime/client route, or satisfy the
 realistic-scale and cross-target acceptance corpus.
+
+## Implementation record — 2026-08-03: local exact profile complete
+
+`vector_search_v1` is implemented and honestly published at experimental
+maturity for `local-dev-sqlite-ibex.v1`. The shipped surface includes declared
+fixed-width vector fields and exact indexes, `defineVectorQuery`, closed
+request/result pages, the public client adapter, Rust-owned generated schemas,
+Contract/provider projections, target facts, and the capability-manifest enum.
+The runtime executes the pinned `snapback-vector-distance-v1` `dot` and `l2sq`
+profiles over the active verified SQLite generation, applies equality filters
+before scoring, orders bit-equal distances by row id, and releases only through
+the declared `public-read` or `owner.v1` partition. Synchronous source
+maintenance and `derived-vector-catchup.v1` share the same canonical posting,
+root, frontier, quarantine, and mutation-global budget authorities.
+
+The complete validation corpus is executable. Rust and independent JavaScript
+distance authorities agree on all named float/conversion divergence witnesses;
+dimension, component, k, effect, byte, scalar-pair, corpus, ownership-transfer,
+activation, and query-work ceilings refuse under stable diagnostics; paired
+owner databases agree on items, distances, work counters, codes, and ordinary
+inspection; commit-head insert/update/delete/transfer and injected-failure
+atomicity pass; corruption and release drift quarantine the exact generation;
+and generated schemas, TypeScript pages, client/provider projections, target
+facts, manifests, and Guide agree on the closed profile.
+
+Two retained realistic-scale receipts fill the D=1,536 partition to the exact
+43,690-vector product bound and prove the bound-filling insert plus next-insert
+refusal:
+
+- `tests/acceptance/vector-search-sqlite-scale.v1.json` qualifies the local
+  macOS/aarch64 adapter (build 16,869 ms, update 1,833 ms, query 411 ms, peak
+  RSS 2,102,558,720 bytes, database 1,491,980,288 bytes).
+- `tests/acceptance/vector-search-single-instance-container-vm-scale.v1.json`
+  independently qualifies the same local adapter in a Linux/x86_64 Fly
+  container/VM at product revision
+  `8ce5f357a2282eee389e5b7b826d3a568776da0c` (build 258,462 ms, update
+  5,156 ms, query 4,953 ms, peak RSS 1,931,902,976 bytes, database
+  1,491,980,288 bytes). Machine `849764f2e7dd58` used a temporary two-shared-
+  CPU / 4,096 MiB qualification shape and was restored to shared-cpu-1x /
+  512 MiB immediately afterward.
+
+The Guide A5 row is shipped only for the local target. Remote-service,
+Cloudflare, hosted, and PostgreSQL projections remain support-false with
+structured GAPs. The exact executor has no accelerator (`accelerator: none`):
+ANN, approximate search, live vector queries, embedding computation, and every
+other §Non-goal remain unbuilt. The approximate door is still undecided and
+the proved-superset accelerator door has not been opened.
 
 ## Non-goals and claim boundary
 
