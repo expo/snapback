@@ -3,7 +3,7 @@
 **Status:** Closed
 **Systems:** JS client, Packaging, Bundle metrology
 **Related:** LLP 0143 D6, LLP 0145 Phase A,
-`issues/20260802-push-01-0143-implementation.md`
+`issues/closed/20260802-push-01-0143-implementation.md`
 
 ## Defect
 

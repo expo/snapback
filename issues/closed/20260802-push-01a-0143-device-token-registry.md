@@ -3,7 +3,7 @@
 **Status:** Closed
 **Systems:** Runtime, Storage, Auth, Wire Protocol, JS client, Codegen
 **Related:** LLP 0143 D1/D6,
-`issues/20260802-push-01-0143-implementation.md`
+`issues/closed/20260802-push-01-0143-implementation.md`
 
 ## Scope
 

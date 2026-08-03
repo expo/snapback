@@ -289,6 +289,7 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("POST", "/_snapback/api/jobs/drain"),
         ("GET", "/_snapback/api/jobs"),
         ("GET", "/_snapback/api/jobs/{id}"),
+        ("POST", "/_snapback/api/push/maintenance"),
         ("POST", "/_snapback/api/ephemeral/cleanup"),
     ]);
     assert_eq!(
