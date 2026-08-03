@@ -409,3 +409,17 @@ ticket closes citing that run id.
   Cloudflare suite (26/26), and versioned-seed conformance (20 passed, zero
   failed, one declared hosted GAP, matched revision). Hosted confirmation is
   pending.
+
+- **2026-08-03 — completed verdict `30783106025`, one-gate telemetry startup
+  race.** The exact `bcf408b2` keep-going proof completed with seventeen green
+  gates and one failed gate: `cargo test -- --test-threads 4`. Its sole failed
+  witness was
+  `typed_target_runner_threads_descriptor_environment_into_store_meta`. On the
+  hosted Linux runner, the telemetry sibling inode became visible before the
+  transaction creating the `telemetry_meta` table committed; the earlier
+  row-level retry therefore saw `no such table: telemetry_meta` and failed.
+  The witness now observes SQLite's schema catalog before querying the
+  authoritative identity row, while retaining immediate failure for catalog,
+  row-query, server-exit, and deadline errors. The focused witness, strict
+  all-target Clippy, and the 4,743-reference LLP audit pass locally. Hosted
+  confirmation is pending.

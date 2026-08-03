@@ -5058,17 +5058,28 @@ mod tests {
         //   authoritative telemetry_meta identity, so observe the row rather
         //   than treating file existence as store readiness.
         let (app_id, environment): (String, String) = loop {
-            let identity = rusqlite::Connection::open(&telemetry)
-                .unwrap()
+            let connection = rusqlite::Connection::open(&telemetry)
+                .expect("typed target telemetry store should open");
+            let telemetry_meta_exists: bool = connection
                 .query_row(
+                    "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='telemetry_meta')",
+                    [],
+                    |row| row.get(0),
+                )
+                .unwrap_or_else(|error| {
+                    panic!("typed target telemetry schema query failed: {error}")
+                });
+            if telemetry_meta_exists {
+                let identity = connection.query_row(
                     "SELECT app_id,environment FROM telemetry_meta WHERE singleton=1",
                     [],
                     |row| Ok((row.get(0)?, row.get(1)?)),
                 );
-            match identity {
-                Ok(identity) => break identity,
-                Err(rusqlite::Error::QueryReturnedNoRows) => {}
-                Err(error) => panic!("typed target telemetry identity query failed: {error}"),
+                match identity {
+                    Ok(identity) => break identity,
+                    Err(rusqlite::Error::QueryReturnedNoRows) => {}
+                    Err(error) => panic!("typed target telemetry identity query failed: {error}"),
+                }
             }
             if server.is_finished() {
                 let outcome = server.await;
