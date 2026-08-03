@@ -500,6 +500,13 @@ provider). The experience work is leverage on rigor already paid for.
 | G15 | D + R | Admin-inspection surface. **D:** 0081's acceptance already requires admin inspection to show the same plan/step/result identities and stable diagnostics as CLI/Agent surfaces — that floor is unmet/unverified. **R:** what a good inspection surface shows beyond the identity floor (states, receipts, fence status) is experience design | 6, 7, 9 | S–M |
 | G16 | R + D-audit | The rehearsal journey's missing first half and the backup-preflight seam: no command derives a sealed `MigrationRehearsalPlanV1` from a chosen backup + isolated restore (the CLI only consumes one), `SNAPBACK_MIGRATION_BACKUP_REQUIRED` is unimplemented anywhere in the tree, and preview hardcodes the backup requirement to `required: false` — the audit decides which parts are unbuilt §7 obligations (D) vs. deliberately deferred production-profile work | 5, 6 | M |
 
+### Implementation record
+
+- **2026-08-03 — tranche 1 complete.** G2 landed in `eff005a7`, G1 in
+  `e933babc`, and G11 in `120a2a7d`. The tranche changed refusal and human
+  presentation text plus the separately digested preview observation; it did
+  not change LLP 0081's plan, approval, execution, or receipt semantics.
+
 Resolved and removed from the ledger, kept as a lesson: v0.1's G3 (the
 `0137-a3-f5` live-subscriber wedge) was fixed with regression tests and
 an acceptance witness on 2026-08-01 — evidence that live-client schema
