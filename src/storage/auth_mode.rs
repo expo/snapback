@@ -1908,8 +1908,9 @@ fn valid_quarantine_code(value: &str) -> bool {
 mod tests {
     use super::*;
     use crate::manifest::{
-        AuthManifest, FieldManifest, FieldType, MembershipLastHolder, MembershipManifest,
-        MembershipScope, TableManifest,
+        AuthManifest, FieldManifest, FieldType, FunctionDefinition, FunctionKind, FunctionRuntime,
+        IbexModule, MembershipLastHolder, MembershipManifest, MembershipScope, SequenceDeclaration,
+        SequenceScopeAccess, TableManifest,
     };
     use serde_json::Map;
     use tempfile::tempdir;
@@ -2062,6 +2063,79 @@ mod tests {
             inputs_hash: Some(identity.inputs_hash.clone()),
             ..FunctionManifest::default()
         }
+    }
+
+    fn sequence_function_half(
+        identity: &DeploymentIdentity,
+        scope_table: &str,
+    ) -> FunctionManifest {
+        let mut manifest = function_half(identity);
+        let mut function = FunctionDefinition::new(
+            "allocatePosition",
+            FunctionKind::Mutation,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: "globalThis.__snapbackHandlers = {};".to_owned(),
+                export: "allocatePosition".to_owned(),
+            }),
+        );
+        function.required_capabilities = vec![
+            "ibex_ctx_db_host_bridge".to_owned(),
+            "sequence_allocation_v1".to_owned(),
+        ];
+        function.sequences = vec![SequenceDeclaration {
+            name: "positions".to_owned(),
+            scope_table: scope_table.to_owned(),
+            scope_access: SequenceScopeAccess::Public("public.v1".to_owned()),
+        }];
+        manifest.functions.push(function);
+        manifest
+    }
+
+    fn sequence_seed(table: &str) -> SeedData {
+        SeedData {
+            tables: BTreeMap::from([(
+                table.to_owned(),
+                vec![Map::from_iter([(
+                    "value".to_owned(),
+                    serde_json::Value::String("seeded".to_owned()),
+                )])],
+            )]),
+        }
+    }
+
+    fn assert_sequence_seed_activation(database: &LocalDatabase, table: &str) {
+        let marker: i64 = database
+            .conn
+            .query_row(
+                "SELECT count(*) FROM _snapback_sequence_scope_enrollments_v1
+                  WHERE table_name = ?1",
+                params![table],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(marker, 1, "sequence enrollment precedes same-cut seed");
+        let rows: i64 = database
+            .conn
+            .query_row(
+                &format!(
+                    "SELECT count(*) FROM {}",
+                    super::super::quote_ident(table).unwrap()
+                ),
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(rows, 1);
+        let active: i64 = database
+            .conn
+            .query_row(
+                "SELECT count(*) FROM _snapback_relation_incarnations_v1
+                  WHERE table_name = ?1 AND active = 1",
+                params![table],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(active, 1, "seeded scope receives its active incarnation");
     }
 
     fn ready() -> AuthProgramReadiness {
@@ -2316,6 +2390,53 @@ mod tests {
         assert_eq!(error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_EXHAUSTED");
         assert_eq!(network.auth_mode_snapshot().unwrap(), network_before);
         assert_physical_table_absent(&network, "network_items");
+    }
+
+    // Sequence activation belongs to the complete schema/function cut. Every
+    // deployment lane enrolls the empty scope after DDL, seeds it in the same
+    // transaction, and validates the resulting incarnation before publishing
+    // the successor pair.
+    #[test]
+    fn complete_pair_mode_lanes_enroll_sequence_before_same_cut_seed() {
+        let mut staged = LocalDatabase::memory().unwrap();
+        let (staged_identity, staged_schema) = sessions_pair(Some("staged_scopes"));
+        let staged_functions = sequence_function_half(&staged_identity, "staged_scopes");
+        staged
+            .stage_auth_mode_with_functions(
+                staged_identity,
+                staged_schema,
+                &staged_functions,
+                Some(sequence_seed("staged_scopes")),
+            )
+            .expect("staged complete pair activates sequence enrollment before seed");
+        assert_sequence_seed_activation(&staged, "staged_scopes");
+
+        let mut same_mode = LocalDatabase::memory().unwrap();
+        let (same_identity, same_schema) = dev_pair(Some("same_mode_scopes"));
+        let same_functions = sequence_function_half(&same_identity, "same_mode_scopes");
+        same_mode
+            .apply_same_mode_dev_deployment_with_functions(
+                same_identity,
+                same_schema,
+                &same_functions,
+                Some(sequence_seed("same_mode_scopes")),
+            )
+            .expect("same-mode complete pair activates sequence enrollment before seed");
+        assert_sequence_seed_activation(&same_mode, "same_mode_scopes");
+
+        let mut network = LocalDatabase::memory().unwrap();
+        let (network_identity, network_schema) = dev_pair(Some("network_scopes"));
+        let network_functions = sequence_function_half(&network_identity, "network_scopes");
+        match network.apply_same_mode_network_deployment_with_functions_classified(
+            network_identity,
+            network_schema,
+            network_functions,
+            Some(sequence_seed("network_scopes")),
+        ) {
+            DurableModeCommit::Committed(_) => {}
+            other => panic!("network complete-pair sequence activation failed: {other:?}"),
+        }
+        assert_sequence_seed_activation(&network, "network_scopes");
     }
 
     #[test]
