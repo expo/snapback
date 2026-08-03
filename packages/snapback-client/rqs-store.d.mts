@@ -139,6 +139,13 @@ export interface RqsStoreInspection {
   readonly corrupt?: boolean;
 }
 
+export interface RqsMaterializationTransactionView {
+  readonly materializations: Map<string, unknown>;
+  readonly pageSets: Map<string, unknown>;
+  readonly memberships: Map<string, unknown>;
+  storeMeta: RqsStoreMetaV3;
+}
+
 /** The store contract shared by the web/IndexedDB and native/file arms. */
 export interface RqsResumeStore {
   isWriter(): boolean;
@@ -153,6 +160,11 @@ export interface RqsResumeStore {
   readStoreMeta(): Promise<RqsStoreMetaV3>;
   writeStoreMeta(meta: RqsStoreMetaV3): Promise<boolean>;
   allocateQueryInstanceId(): Promise<number | null>;
+  /** Internal v3 section seam. The callback must be synchronous. */
+  materializationTransaction<T>(
+    mode: 'readonly' | 'readwrite',
+    operation: (view: RqsMaterializationTransactionView) => T,
+  ): Promise<T>;
   /** Raw persisted record — callers MUST verify with
    * `verifyPersistedResumeEntry` before trusting it. */
   load(key: string): Promise<RqsPersistedResumeRecord | null>;

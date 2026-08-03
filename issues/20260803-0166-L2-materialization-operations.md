@@ -32,3 +32,18 @@ atomicity, crash cuts), A7 (retained boot, full failure table), and A8
 (fence and lifecycle races) pass on the v3 store; S3's compaction-stub
 legs (fences/registrations survive, same-instance rehydration) pass;
 S4 stays green.
+
+---
+
+**Progress (2026-08-03):** implemented (Codex gpt-5.6-sol under the
+Track A session's supervision) and landed. All ten LLP 0157 §D7
+operations carrier-neutral over the v3 sections; Ed25519/JCS proof
+validation with in-test key fixtures; every A7 retained-boot failure
+table row asserted per carrier; A5/A8 legs; page-set chain validation;
+compactPayload per 0166 §D5 with same-instance rehydration; derived
+CompletenessStatusV1. LLP 0053 decisions are dependency-injected owner
+inputs (not reimplemented); barriers use one bounded transaction
+(justified by the 256-record cap). 188/188 client tests, S4 green on
+all carriers, ref-check clean. Verification: no-gap readRenderable and
+the signature-omitted proof preimage confirmed; carrier diffs purely
+additive. Ticket stays Open until the program umbrella closes it.

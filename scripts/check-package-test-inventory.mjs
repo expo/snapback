@@ -79,6 +79,7 @@ const inventories = [
       'hosted-browser.test.mjs',
       'hosted-ephemeral.test.mjs',
       'lifecycle-disposal.test.mjs',
+      'materialization-store.test.mjs',
       'micro-operational.test.mjs',
       'micro.test.mjs',
       'outbox-store.test.mjs',
@@ -465,7 +466,9 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // suite is registered with the push01 landing.
 // 170 -> 172 (2026-08-03, LLP 0166 L1): @expo/snapback-client gains the
 // memory-carrier S4 parity run and the format-v3 migration/wipe/reset suite.
-assert.equal(total, 172, 'reviewed package/admin test count changed');
+// 172 -> 173 (2026-08-03, LLP 0166 L2): @expo/snapback-client gains the
+// materialization operations, proof, retained-boot, fence, and compaction suite.
+assert.equal(total, 173, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

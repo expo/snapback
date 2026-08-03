@@ -467,6 +467,43 @@ export function createFileRqsResumeStore({
     if (closed) throw storeError('SNAPBACK_RQS_STORE_CLOSED', 'RQS resume store is closed');
   };
 
+  const materializationTransaction = async (mode, operation) => {
+    requireOpen();
+    if (mode !== 'readonly' && mode !== 'readwrite') {
+      throw new TypeError('materialization transaction mode must be readonly or readwrite');
+    }
+    if (typeof operation !== 'function') {
+      throw new TypeError('materialization transaction operation must be a function');
+    }
+    await acquireLock();
+    if (mode === 'readwrite' && !writer) {
+      throw storeError('SNAPBACK_RQS_STORE_NOT_WRITER', 'materialization writes require store ownership');
+    }
+    const state = await readState();
+    const view = {
+      materializations: new Map(Object.entries(structuredClone(state.materializations))),
+      pageSets: new Map(Object.entries(structuredClone(state.pageSets))),
+      memberships: new Map(Object.entries(structuredClone(state.memberships))),
+      storeMeta: structuredClone(state.storeMeta),
+    };
+    const result = operation(view);
+    if (result && typeof result.then === 'function') {
+      throw new TypeError('materialization transaction callbacks must be synchronous');
+    }
+    if (mode === 'readwrite') {
+      const preparedMeta = prepareStoreMeta(view.storeMeta);
+      if (preparedMeta === null) throw corruptError(blobPath);
+      await writeState({
+        ...state,
+        materializations: Object.fromEntries(view.materializations),
+        pageSets: Object.fromEntries(view.pageSets),
+        memberships: Object.fromEntries(view.memberships),
+        storeMeta: preparedMeta,
+      });
+    }
+    return result;
+  };
+
   return {
     isWriter() {
       return writer && !closed;
@@ -485,6 +522,10 @@ export function createFileRqsResumeStore({
     /// store implementation and degradation mode in force).
     durability() {
       return { implementation: 'file', durable: files.powerLossDurable === true };
+    },
+
+    materializationTransaction(mode, operation) {
+      return serialized(() => materializationTransaction(mode, operation));
     },
 
     /// LLP 0090 D3 outbox rule input: false whenever this arm's own durable
