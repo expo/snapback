@@ -49704,7 +49704,11 @@ globalThis.__snapbackHandlers = {
         function.authorization_dependence = vec![AuthorizationInputDimension::UserId];
 
         let diagnostics = snapback.load_functions(FunctionManifest {
-            acknowledged_experimental_capabilities: vec![VECTOR_CAPABILITY.to_owned()],
+            acknowledged_experimental_capabilities: vec![
+                VECTOR_CAPABILITY.to_owned(),
+                "args_contract_v1".to_owned(),
+                "result_contract_v1".to_owned(),
+            ],
             functions: vec![function],
             ..FunctionManifest::default()
         });
