@@ -895,6 +895,9 @@ impl BufferedWrite {
 pub struct LocalDatabase {
     conn: Connection,
     path: Option<PathBuf>,
+    /// LLP 0158's non-promotable derived-deployment carrier. LLP 0097 branch
+    /// state never sets or consults this field.
+    derived_fork: Option<crate::instance_fork::DerivedForkRuntime>,
     schema: SchemaManifest,
     // @ref LLP 0003#database-model — reads use a separate pool of WAL reader
     // connections so queries do not queue behind writes. `None` for in-memory
@@ -1714,6 +1717,7 @@ impl LocalDatabase {
         let mut db = Self {
             conn,
             path: None,
+            derived_fork: None,
             schema: SchemaManifest::default(),
             reader_pool: None,
             authorization_interlock: None,
@@ -1732,6 +1736,9 @@ impl LocalDatabase {
 
     pub fn open(path: impl AsRef<Path>) -> SnapbackResult<Self> {
         let path = path.as_ref().to_path_buf();
+        // @ref LLP 0158#design-sketch — local publication evidence gates boot
+        // before SQLite open can perform additive migration.
+        let derived_fork = crate::instance_fork::inspect_boot(&path)?;
         let conn = Connection::open(&path)?;
         // Distinguish a genuinely empty database from an existing database
         // before any additive DDL/default write. Recreating a missing head at
@@ -1752,6 +1759,7 @@ impl LocalDatabase {
         let mut db = Self {
             conn,
             path: Some(path.clone()),
+            derived_fork,
             schema: SchemaManifest::default(),
             reader_pool: None,
             authorization_interlock: None,
@@ -1806,6 +1814,10 @@ impl LocalDatabase {
         self.reader_pool.clone()
     }
 
+    pub(crate) fn derived_fork(&self) -> Option<&crate::instance_fork::DerivedForkRuntime> {
+        self.derived_fork.as_ref()
+    }
+
     /// Capture an owned, in-memory read snapshot for detached handler
     /// execution when the live database has no WAL reader pool (`:memory:`).
     /// The backup runs while the caller holds the short instance lock; handler
@@ -1822,6 +1834,7 @@ impl LocalDatabase {
         let restored = Self {
             conn,
             path: None,
+            derived_fork: self.derived_fork.clone(),
             schema: self.schema.clone(),
             reader_pool: None,
             authorization_interlock: None,
@@ -3481,6 +3494,65 @@ impl LocalDatabase {
             DbRead::Live(db) => {
                 migration_keyset_scan_batch_on(&db.conn, &db.schema, request, checkpoint)
             }
+        })
+    }
+
+    /// Snapshot-pinned preview facts for LLP 0081's separately digested
+    /// observation. Each current v1 plan step declares at most one read table;
+    /// its row summary inspects no more than `max_affected_rows + 1` rows. The
+    /// extra row is the bounded signal that the reviewed ceiling is already
+    /// exceeded, without turning preview into an unbounded application scan.
+    ///
+    /// @ref LLP 0081#2-canonical-plan-and-approval — preview observations
+    /// carry the target head and bounded aggregate preconditions from one
+    /// snapshot, but never add authority to the sealed plan.
+    pub(crate) fn migration_preview_observation_facts(
+        &self,
+        steps: &[crate::migration::MigrationStepRecord],
+        max_affected_rows: u64,
+    ) -> SnapbackResult<(u64, BTreeMap<String, u64>)> {
+        self.with_pinned_read_view(|view| {
+            let head = view.current_version()?;
+            let limit = max_affected_rows
+                .saturating_add(1)
+                .min(i64::MAX as u64) as i64;
+            let mut table_rows = BTreeMap::<String, u64>::new();
+            let mut precondition_rows = BTreeMap::new();
+            for record in steps {
+                let [table] = record.reads.as_slice() else {
+                    // The v1 planner currently emits zero or one read table.
+                    // A later multi-source step needs a versioned observation
+                    // shape instead of collapsing several counts into one.
+                    continue;
+                };
+                let rows = match table_rows.get(table) {
+                    Some(rows) => *rows,
+                    None => {
+                        let _ = schema_table(view.schema(), table)?;
+                        let quoted = quote_ident(table)?;
+                        let observed: i64 = view.conn().query_row(
+                            &format!(
+                                "SELECT COUNT(*) FROM (SELECT 1 FROM {quoted} LIMIT ?1)"
+                            ),
+                            params![limit],
+                            |row| row.get(0),
+                        )?;
+                        let rows = u64::try_from(observed).map_err(|_| {
+                            SnapbackError::error(
+                                "SNAPBACK_MIGRATION_PRECONDITION_FAILED",
+                                "storage",
+                                format!(
+                                    "preview row summary for {table} was outside the non-negative integer domain"
+                                ),
+                            )
+                        })?;
+                        table_rows.insert(table.clone(), rows);
+                        rows
+                    }
+                };
+                precondition_rows.insert(record.id.clone(), rows);
+            }
+            Ok((head, precondition_rows))
         })
     }
 
@@ -5380,6 +5452,14 @@ impl LocalDatabase {
             job_producer,
             asset_admissions,
         } = effects;
+        if !job_enqueues.is_empty()
+            && let Some(runtime) = self.derived_fork()
+        {
+            return Err(runtime.deny(
+                crate::instance_fork::EgressFamily::JobsEnqueue,
+                now_millis(),
+            ));
+        }
         if !job_enqueues.is_empty() && job_producer.is_none() {
             return Err(SnapbackError::error(
                 "SNAPBACK_JOB_PRODUCER_MISSING",
@@ -10918,14 +10998,14 @@ fn reject_field_retypes(current: &SchemaManifest, next: &SchemaManifest) -> Snap
                 return Err(SnapbackError::error(
                     "SNAPBACK_SCHEMA_FIELD_RETYPED",
                     "schema",
-                    format!(
+                    reviewed_migration_next_step(format!(
                         "field {}.{} cannot change type from {} to {}; \
                          retyping stored data is not supported — add a new field instead",
                         table.name,
                         field.name,
                         field_type_name(&current_field.field_type),
                         field_type_name(&field.field_type)
-                    ),
+                    )),
                 )
                 .with_detail("table", table.name.clone())
                 .with_detail("field", field.name.clone())
@@ -10935,6 +11015,17 @@ fn reject_field_retypes(current: &SchemaManifest, next: &SchemaManifest) -> Snap
         }
     }
     Ok(())
+}
+
+/// Attach the reviewed-workflow front door to every refusal that means the
+/// additive startup applier cannot safely perform the requested evolution.
+///
+/// @ref LLP 0160#2-the-ideal-experience-moment-by-moment — Moment 2 requires
+/// the applier's non-additive refusal family to name the exact next command.
+fn reviewed_migration_next_step(reason: String) -> String {
+    format!(
+        "{reason}. Run `snapback migrate preview --help` to start the reviewed migration workflow"
+    )
 }
 
 /// Required fields need a physical invariant, not only a generated type. A
@@ -10972,10 +11063,10 @@ fn reject_unsafe_required_field_changes(
                 return Err(SnapbackError::error(
                     "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED",
                     "schema",
-                    format!(
+                    reviewed_migration_next_step(format!(
                         "required field {}.{} cannot be removed or made optional while its preserved SQLite column is NOT NULL; explicit drop/backfill migrations are not supported",
                         current_table.name, previous.name
-                    ),
+                    )),
                 )
                 .with_detail("table", current_table.name.clone())
                 .with_detail("field", previous.name.clone())
@@ -11004,10 +11095,10 @@ fn reject_unsafe_required_field_changes(
                         return Err(SnapbackError::error(
                             "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED",
                             "schema",
-                            format!(
+                            reviewed_migration_next_step(format!(
                                 "field {}.{} cannot become physically required while {null_count} stored rows are null",
                                 table.name, field.name
-                            ),
+                            )),
                         )
                         .with_detail("table", table.name.clone())
                         .with_detail("field", field.name.clone())
@@ -11025,10 +11116,10 @@ fn reject_unsafe_required_field_changes(
                         return Err(SnapbackError::error(
                             "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED",
                             "schema",
-                            format!(
+                            reviewed_migration_next_step(format!(
                                 "required field {}.{} cannot be added to {row_count} existing rows without a default/backfill",
                                 table.name, field.name
-                            ),
+                            )),
                         )
                         .with_detail("table", table.name.clone())
                         .with_detail("field", field.name.clone())
@@ -11103,10 +11194,10 @@ fn create_or_update_table(tx: &Transaction<'_>, table: &TableManifest) -> Snapba
             return Err(SnapbackError::error(
                 "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED",
                 "schema",
-                format!(
+                reviewed_migration_next_step(format!(
                     "table {} cannot omit preserved required field {}; its SQLite column is still NOT NULL",
                     table.name, column.name
-                ),
+                )),
             )
             .with_detail("table", table.name.clone())
             .with_detail("field", column.name.clone())
@@ -11139,11 +11230,11 @@ fn create_or_update_table(tx: &Transaction<'_>, table: &TableManifest) -> Snapba
                     return Err(SnapbackError::error(
                         "SNAPBACK_SCHEMA_FIELD_RETYPED",
                         "schema",
-                        format!(
+                        reviewed_migration_next_step(format!(
                             "field {}.{} cannot change storage type from {} to {}; \
                              retyping stored data is not supported — add a new field instead",
                             table.name, field.name, column.declared_type, declared
-                        ),
+                        )),
                     )
                     .with_detail("table", table.name.clone())
                     .with_detail("field", field.name.clone())
@@ -11227,9 +11318,9 @@ fn rebuild_table_with_required_columns(
             return Err(SnapbackError::error(
                 "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED",
                 "schema",
-                format!(
+                reviewed_migration_next_step(format!(
                     "field {table}.{field} cannot become physically required while {null_count} stored rows are null"
-                ),
+                )),
             )
             .with_detail("table", table.to_owned())
             .with_detail("field", field.clone())
@@ -18609,6 +18700,54 @@ mod guarded_commit_tests {
             checkpoint = Some(serde_json::from_str(&serialized).expect("checkpoint parses"));
         }
         panic!("scan did not complete within 64 batches");
+    }
+
+    // @ref LLP 0160#2-the-ideal-experience-moment-by-moment — Moment 3's
+    // estimate comes from snapshot-pinned, bounded observation facts, not the
+    // sealed plan. A count stops one row beyond the approval ceiling so an
+    // already-oversized target is visible without an unbounded preview scan.
+    #[test]
+    fn migration_preview_populates_bounded_precondition_rows() {
+        let db = migration_scan_database();
+        let mut successor = db.schema().clone();
+        successor.tables[0].fields.push(FieldManifest {
+            name: "required_later".to_owned(),
+            field_type: FieldType::String,
+            optional: false,
+        });
+        let steps = crate::migration::derive_plan_steps(
+            &successor,
+            &[crate::migration::MigrationIntent::AddRequiredField {
+                table: "scanned".to_owned(),
+                field: "required_later".to_owned(),
+                field_type: FieldType::String,
+                backfill: ValueExpr::Literal(json!("default")),
+            }],
+        )
+        .expect("derive reviewed backfill steps");
+
+        let (head, bounded) = db
+            .migration_preview_observation_facts(&steps, 2)
+            .expect("bounded observation");
+        assert_eq!(head, db.current_version().unwrap());
+        assert_eq!(bounded.len(), 2, "backfill and validation read rows");
+        assert!(
+            bounded.values().all(|rows| *rows == 3),
+            "ceiling plus one is the bounded oversize signal"
+        );
+
+        let (_, complete) = db
+            .migration_preview_observation_facts(&steps, 10)
+            .expect("complete observation below its ceiling");
+        assert_eq!(complete.len(), 2);
+        assert!(complete.values().all(|rows| *rows == 7));
+        assert!(
+            steps
+                .iter()
+                .filter(|step| step.reads.is_empty())
+                .all(|step| !complete.contains_key(&step.id)),
+            "steps without a declared read table have no inferred estimate"
+        );
     }
 
     // @ref LLP 0081#3-typed-migration-steps — the privileged scan reads in

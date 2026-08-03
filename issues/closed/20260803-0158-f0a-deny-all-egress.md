@@ -22,3 +22,14 @@ into the 0097 wiring project.
 
 Acceptance: refusal test per family, including manual cron tick and
 forced-drain paths, run against a minted fork.
+
+## Resolution — 2026-08-03
+
+Landed fail-loud `SNAPBACK_FORK_EGRESS_DENIED` at action host dispatch,
+transactional job enqueue, manual/autonomous cron claims, forced job drain,
+push recovery/receipt polling, S3 provider construction before inherited
+credentials are read, and both direct HTTP and host-op telemetry export. Fork
+boot forces cron/jobs/asset workers disabled and ignores inherited admin-token
+authority. Each closed family records only family/count/timestamps in the
+bounded durable marker; unknown future action host operations refuse under an
+unclassified family. No LLP 0097 capture-ledger path was changed or integrated.

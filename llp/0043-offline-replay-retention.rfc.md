@@ -5,7 +5,10 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-08-03 (Accepted LLP 0157 boundary: composition
+**Revised:** 2026-08-03 (Accepted LLP 0166 boundary: v1 lease-family
+convergence is fresh-sync-only, close-predecessor-first via terminal
+retirement, with a pending-intent precondition; the atomic-move arm
+awaits the lease store joining the shared domain.) 2026-08-03 (Accepted LLP 0157 boundary: composition
 materializations use its `qmk1` semantic address and proof/witness model;
 legacy retained records migrate only under the exact atomic guard recorded in
 the dated section below); 2026-08-02 (Accepted LLP 0135 overlay fold: a changeset requiring
@@ -545,6 +548,22 @@ lease, fence high-waters, obligations, and pending-intent references move
 atomically. Otherwise it remains non-renderable under its old fence until a
 fresh sync creates the new address, then retires; it is never relabeled in
 place. This boundary changes no implementation or capability claim here.
+
+**Dated boundary note (2026-08-03, LLP 0166 acceptance):** Accepted
+LLP 0166 is the Move-2 owning Spec for the client local persistent
+store; this RFC's custody, lease, outbox, and settlement contracts are
+consumed by it unchanged. The adoption arms of the boundary note above
+are pinned for v1: the atomic-move arm is **not exercisable** while the
+lease store and LLP 0166's domain remain separate artifacts (no
+transaction spans them), so v1 convergence is the fresh-sync arm only,
+executed **close-predecessor-first** — the predecessor instance's
+LLP 0053 terminal retirement *begins* (durably non-renderable) before
+any successor establishment is published, and *finalizes* after — with a
+pending-intent precondition: a convergence attempt refuses while pending
+outbox intent depends on the predecessor, waiting for settlement or
+explicit discard. Direct atomic adoption awaits a future dated step
+moving the lease store into the shared transaction domain (LLP 0166
+OQ5). No custody semantics change here.
 
 ## Amendment (2026-08-03 — LLP 0162, effective with its acceptance)
 

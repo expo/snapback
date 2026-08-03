@@ -20,13 +20,23 @@ properties the client store needs natively).
 
 ## Track B — agent-safe storage
 
-1. **0158 F0a — prioritized, start now.** The five in-tree F0a tickets
-   plus the fleet-dogfood first consumer. This is the live lane; its
-   custody/fidelity proofs also unblock 0160's G7/G7′ and 0164's
-   derived-deployment legs.
-2. The two 0162 advertisement gates: the step-0 dated performance
-   baseline artifact and the OQ13 snapshot-pinning spike.
-3. **0163 → 0164 → 0165** implementation in 0162's dependency order,
+1. **0158 F0a — safety substrate landed 2026-08-03.** The four
+   implementation tickets are closed with the custody/fidelity,
+   scrub-and-mint, publication crash matrix, and deny-all corpus green.
+   This removes the F0a dependency for 0160's G7/G7′ and 0164's
+   derived-deployment legs. The fleet-dogfood first consumer stays open on
+   F0b's verb and remains the acceptance/graduation gate.
+2. **Gates recorded 2026-08-03.** The step-0 dated performance baseline is
+   `tests/acceptance/fixtures/agent-safe-storage/performance-baseline.2026-08-03.v1.json`;
+   the OQ13 spike and dated record are
+   `examples/snapshot_pinning_spike.rs` and
+   `tests/acceptance/fixtures/agent-safe-storage/oq13-snapshot-pinning.2026-08-03.v1.json`.
+   OQ13 narrows LLP 0165 to budgeted pin or stable refusal; neither artifact
+   by itself passes Acceptance 13 or advertises a capability.
+3. **0163 → 0164 → 0165** implementation in 0162's dependency order
+   (**0163 in progress:** initial Rust-owned operation-identity and
+   `CommitEnvelopeV1` generated-schema substrate landed; storage/corpus rows
+   remain unpassed),
    against 0162's single acceptance corpus (rows split per Spec).
    `issues/20260803-branches-promote-postimage-deviation.md` rides with
    0164. Capabilities stay `Missing` until corpus rows pass — no early

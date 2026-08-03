@@ -25,3 +25,13 @@ SHA-256 hash lookup against cloned rows (src/auth/crypto.rs
 invalidate them; resume tokens bind appId + manifest generation +
 data-stream identity + the directory-scoped resume keyring and never
 consult the auth incarnation (src/rqs.rs; src/local.rs).
+
+## Resolution — 2026-08-03
+
+Landed one clone-local transaction that scrubs copied session, agent,
+verification, push, retry, lease, and operational authority; rotates auth and
+data streams plus asset signing authority; writes an explicitly
+non-promotable lineage; and mints fresh admin, auth, and resume sidecars into
+an empty staging namespace. The negative corpus proves parent session/agent
+hashes absent and refuses the parent admin token, resume token, search cursor,
+and parent-signed asset URL. User and identity rows remain copy-class data.

@@ -21,3 +21,12 @@ Constraints from the review loop:
 Acceptance: sweep exists, runs in the local proof, initially classifies
 every existing table/sidecar, and a test demonstrates the failure mode
 (inject an unclassified table name → sweep fails).
+
+## Resolution — 2026-08-03
+
+Landed the closed `TABLE_CUSTODY`/`SIDECAR_CUSTODY` authority and
+schema-derived `sqlite_schema` audit in `src/instance_fork.rs`. Fork creation
+fails with `SNAPBACK_FORK_CUSTODY_UNCLASSIFIED` for an unknown owned table and
+with `SNAPBACK_FORK_CUSTODY_REFUSED` for occupied refuse-class state. The
+ordinary Rust corpus covers the fresh runtime schema, the injected-unknown
+negative, and the local-v1 asset-bearing refusal decision.

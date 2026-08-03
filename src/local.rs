@@ -3781,7 +3781,14 @@ struct LocalIbexActionHost<'a> {
 }
 
 impl IbexActionHost for LocalIbexActionHost<'_> {
-    fn validate_host_call(&mut self, _op: &str) -> SnapbackResult<()> {
+    fn validate_host_call(&mut self, op: &str) -> SnapbackResult<()> {
+        if let Some(family) = crate::instance_fork::EgressFamily::for_derived_host_op(op) {
+            // The pointer provenance is the same one used by every synchronous
+            // host callback below; no borrow escapes this call.
+            unsafe {
+                (&*self.snapback).deny_derived_fork_egress(family, now_millis())?;
+            }
+        }
         // In-process action invocation retains the instance borrow for the
         // whole run, so no schema/function/reset drift can interleave.
         self.authority
@@ -4010,6 +4017,21 @@ impl LocalSnapback {
     // @ref LLP 0057#concurrency-locks-and-linearization — provider coordination precedes the outer app/database lock.
     pub(crate) fn auth_database_mut(&mut self) -> &mut LocalDatabase {
         &mut self.db
+    }
+
+    pub(crate) fn is_derived_fork(&self) -> bool {
+        self.db.derived_fork().is_some()
+    }
+
+    pub(crate) fn deny_derived_fork_egress(
+        &self,
+        family: crate::instance_fork::EgressFamily,
+        now_ms: u64,
+    ) -> SnapbackResult<()> {
+        match self.db.derived_fork() {
+            Some(runtime) => Err(runtime.deny(family, now_ms)),
+            None => Ok(()),
+        }
     }
 
     pub(crate) fn push_maintenance_access_token(&self) -> Option<String> {
@@ -6506,6 +6528,13 @@ impl LocalSnapback {
     ) -> SnapbackResult<std::sync::Arc<dyn crate::assets_store::AssetStore>> {
         match std::env::var("SNAPBACK_ASSET_STORE").as_deref() {
             Ok("s3") => {
+                // @ref LLP 0158#the-runtime-plane--where-the-real-design-is —
+                // inherited provider credentials cannot turn a derived fork
+                // into an outbound asset client.
+                self.deny_derived_fork_egress(
+                    crate::instance_fork::EgressFamily::AssetProvider,
+                    now_millis(),
+                )?;
                 if std::env::var("SNAPBACK_ASSET_S3_EXPERIMENTAL").as_deref() != Ok("1") {
                     return Err(SnapbackError::error(
                         "SNAPBACK_ASSET_STORE_UNQUALIFIED",
@@ -18023,6 +18052,10 @@ impl LocalSnapback {
         &mut self,
         now_ms: u64,
     ) -> SnapbackResult<Vec<AdmittedCronClaim>> {
+        self.deny_derived_fork_egress(
+            crate::instance_fork::EgressFamily::CronTick,
+            now_ms,
+        )?;
         // The cron lane consults the persisted migration fence per claim
         // (LLP 0081 §4's lane registry).
         self.db.ensure_migration_lane_open()?;
@@ -18100,6 +18133,10 @@ impl LocalSnapback {
         name: &str,
         now_ms: u64,
     ) -> SnapbackResult<AdmittedCronClaim> {
+        self.deny_derived_fork_egress(
+            crate::instance_fork::EgressFamily::CronTick,
+            now_ms,
+        )?;
         self.db.ensure_migration_lane_open()?;
         let admission = self.admission.admit()?;
         let before_claim = self.cron.clone();
@@ -18154,6 +18191,10 @@ impl LocalSnapback {
         drive: &str,
         diagnostic_boundary: DiagnosticBoundary,
     ) -> SnapbackResult<Vec<AdmittedJobClaim>> {
+        self.deny_derived_fork_egress(
+            crate::instance_fork::EgressFamily::JobsDrain,
+            now_ms,
+        )?;
         self.db.ensure_migration_lane_open()?;
         // Admission precedes the durable claim write, mirroring cron: if the
         // process is closing, no new claims are taken.
@@ -19064,6 +19105,17 @@ impl LocalSnapback {
 
     pub fn migrate_app_id(&self) -> String {
         self.functions.app_id.clone()
+    }
+
+    /// Read the non-authoritative preview observation from one pinned target
+    /// snapshot. The sealed plan remains the sole execution authority.
+    pub(crate) fn migrate_preview_observation_facts(
+        &self,
+        steps: &[crate::migration::MigrationStepRecord],
+        max_affected_rows: u64,
+    ) -> SnapbackResult<(u64, BTreeMap<String, u64>)> {
+        self.db
+            .migration_preview_observation_facts(steps, max_affected_rows)
     }
 
     pub fn migrate_request_cancel(&mut self, operation_id: &str) -> SnapbackResult<()> {

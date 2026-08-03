@@ -306,7 +306,7 @@ pub(super) fn rotate_authorization_stream_incarnation_in(
     Ok(incarnation.clone())
 }
 
-pub(super) fn rotate_authorization_version_in(
+pub(crate) fn rotate_authorization_version_in(
     tx: &Transaction<'_>,
 ) -> SnapbackResult<AuthorizationVersion> {
     let incarnation = AuthorizationStreamIncarnation::fresh();

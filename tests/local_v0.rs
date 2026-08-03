@@ -5319,6 +5319,13 @@ fn apply_schema_rejects_field_type_change_on_existing_column() {
     assert_eq!(error.diagnostic.details["field"], "rank");
     assert_eq!(error.diagnostic.details["existingType"], "Integer");
     assert_eq!(error.diagnostic.details["requestedType"], "String");
+    assert!(
+        error
+            .diagnostic
+            .message
+            .contains("snapback migrate preview --help"),
+        "the refusal points to the reviewed migration workflow"
+    );
 
     // Affinity-preserving retypes still change how stored values decode
     // (string -> json would fail JSON parsing on old rows), so they are
@@ -5381,6 +5388,13 @@ fn apply_schema_rejects_affinity_mismatch_with_surviving_physical_column() {
     assert_eq!(error.diagnostic.code, "SNAPBACK_SCHEMA_FIELD_RETYPED");
     assert_eq!(error.diagnostic.details["existingType"], "INTEGER");
     assert_eq!(error.diagnostic.details["requestedType"], "TEXT");
+    assert!(
+        error
+            .diagnostic
+            .message
+            .contains("snapback migrate preview --help"),
+        "the physical backstop points to the reviewed migration workflow"
+    );
 }
 
 fn physical_column_not_null(path: &std::path::Path, table: &str, field: &str) -> bool {
@@ -5477,6 +5491,13 @@ fn required_field_tightening_with_nulls_rolls_back_manifest_and_rows() {
         "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED"
     );
     assert_eq!(error.diagnostic.details["existingNullRows"], json!(1));
+    assert!(
+        error
+            .diagnostic
+            .message
+            .contains("snapback migrate preview --help"),
+        "the tightening refusal points to the reviewed migration workflow"
+    );
     assert!(db.schema().tables[0].field("rank").expect("rank").optional);
     assert!(!physical_column_not_null(&path, "todos", "rank"));
     assert_eq!(
@@ -5518,6 +5539,13 @@ fn required_field_removal_or_optionalization_preserves_prior_schema_and_data() {
         "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED"
     );
     assert_eq!(removal.diagnostic.details["requestedChange"], "remove");
+    assert!(
+        removal
+            .diagnostic
+            .message
+            .contains("snapback migrate preview --help"),
+        "the removal refusal points to the reviewed migration workflow"
+    );
 
     let mut optional = required.clone();
     optional.tables[0]
@@ -5640,6 +5668,13 @@ fn new_required_field_is_allowed_only_on_an_empty_table() {
         "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED"
     );
     assert_eq!(error.diagnostic.details["existingRows"], json!(1));
+    assert!(
+        error
+            .diagnostic
+            .message
+            .contains("snapback migrate preview --help"),
+        "the required-field refusal points to the reviewed migration workflow"
+    );
     assert!(
         populated.schema().tables[0]
             .field("requiredLater")

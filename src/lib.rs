@@ -56,6 +56,8 @@ pub mod bundle;
 #[doc(hidden)]
 pub mod cli;
 #[doc(hidden)]
+pub mod commit_envelope;
+#[doc(hidden)]
 pub mod config;
 #[doc(hidden)]
 pub mod contract_exact;
@@ -88,6 +90,8 @@ pub mod identity;
 #[doc(hidden)]
 pub mod ids;
 #[doc(hidden)]
+pub mod instance_fork;
+#[doc(hidden)]
 pub mod instance_lock;
 #[doc(hidden)]
 pub mod jobs;
@@ -101,6 +105,8 @@ pub mod manifest;
 pub(crate) mod membership_rules;
 #[doc(hidden)]
 pub mod migration;
+#[doc(hidden)]
+pub mod migration_presentation;
 #[doc(hidden)]
 pub mod push;
 #[doc(hidden)]

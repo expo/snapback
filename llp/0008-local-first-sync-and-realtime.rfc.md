@@ -5,7 +5,12 @@
 **Systems:** Sync, Realtime, Storage, API, Auth, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-08-02 (Accepted LLP 0135 mutation-replay fold: changesets
+**Revised:** 2026-08-03 (DK-9 dated amendment landed with Accepted
+LLP 0166: the store may hold LLP 0157 materialization records, and
+`result-transform-snapshot-v1` plans admit LLP 0166 §D7's closed
+result-transform profile over a single address's fragments; the
+contract stays the observable-state list, not SQL; normalization stays
+unadmitted.) 2026-08-02 (Accepted LLP 0135 mutation-replay fold: changesets
 requiring sequence-projected placement are withheld atomically until
 settlement); 2026-08-02 (DK-9 dated note: Accepted LLP 0155 commissions a
 semantic amendment — local plan evaluation over retained query-result
@@ -519,6 +524,23 @@ SQL — reopen with that evidence rather than mandating SQLite pre-emptively.
 > is later admitted, cross-query canonical-row normalization). The
 > amendment lands here, dated, alongside the Move 1/2 owning Spec; until
 > it does, this decision's text governs unchanged.
+
+> **Dated amendment (2026-08-03, with LLP 0166's acceptance):** the
+> commissioned widening above lands. The client-store semantic contract
+> is widened by deliberate new author policy (LLP 0155's commission; not
+> the SQL revisit trigger, which LLP 0051 answered without SQL): in
+> addition to the document/result cache plus outbox, the store may hold
+> LLP 0157 materialization records — opaque authorized query-result
+> fragments with completeness proofs — and, for plans carrying the
+> LLP 0080 `result-transform-snapshot-v1` class, a conformance-proved
+> evaluator may apply LLP 0166 §D7's closed `result-transform.v1`
+> profile over a single materialization address's fragments. The
+> contract remains the observable-state list, not SQL; nothing in the
+> wire contract may require SQL semantics client-side; cross-query
+> canonical-row normalization remains unadmitted (LLP 0157 §D7's gate).
+> LLP 0166 owns the store-policy layer (registration, grace, budgets,
+> the demand broker) over this contract; evaluation additionally gates
+> on LLP 0166 §D7's conformance corpus and acceptance oracles.
 
 ## Authorization-Aware Sync
 
