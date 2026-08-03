@@ -26,7 +26,13 @@ const makeManifest = () => ({
   manifestVersion: 2,
   // Non-live descriptor: reconcile-on-mutate is the server-rows write path.
   queries: { listTodos: {} },
-  mutations: { createTodo: {}, setCompleted: {} },
+  // Generated JS-tier mutations carry optimistic:false even though app
+  // reducers remain first-class. This suite is the regression that the flag
+  // alone never suppresses those reducers.
+  mutations: {
+    createTodo: { optimistic: false },
+    setCompleted: { optimistic: false },
+  },
 });
 
 // Boundary mock that actually holds rows, so duplicates are observable.
@@ -86,6 +92,47 @@ const makeSurface = async (client) =>
 
 const milkRows = (surface) =>
   surface.boundary.current('todos').filter((row) => row.title === 'milk');
+
+// Sequence-bearing JS/IR descriptors use the distinct atomic fact. It
+// suppresses app reducers as well as derived plans for the whole mutation.
+{
+  const seed = [{ _id: 'todo_sequence_seed', title: 'existing', completed: false, _version: 1 }];
+  const client = makeClient(seed);
+  let reducerCalls = 0;
+  let mutateCalls = 0;
+  client.state.mutations.createTodo = () => {
+    mutateCalls += 1;
+    return Promise.resolve();
+  };
+  const surface = await createSnapbackContractSurface({
+    runtime: makeRuntime(),
+    client,
+    userId: 'u1',
+    manifest: {
+      ...makeManifest(),
+      mutations: {
+        createTodo: {
+          optimistic: false,
+          atomicOptimisticWithholding: true,
+        },
+      },
+    },
+    queryName: 'listTodos',
+    boundaryKey: 'todos',
+    optimisticReducers: {
+      createTodo(rows) {
+        reducerCalls += 1;
+        return [...rows, { _id: 'must_not_render', title: 'sequence prediction' }];
+      },
+    },
+  });
+  const task = surface.links.createTodo({ title: 'sequence prediction' });
+  assert.deepEqual(surface.boundary.current('todos'), seed);
+  await task;
+  assert.equal(reducerCalls, 0);
+  assert.equal(mutateCalls, 1, 'authoritative dispatch still runs');
+  surface.dispose();
+}
 
 // --- the issue's failure scenario: commit fans out before mutate() resolves ---
 {

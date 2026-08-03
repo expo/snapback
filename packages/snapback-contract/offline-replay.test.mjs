@@ -15,6 +15,7 @@ import {
   SNAPBACK_CLIENT_STORE_VERSION,
   legacySnapbackAuthFingerprint,
 } from './client-store.mjs';
+import { todoOptimisticReducers } from '../../demos/todo/surfaces/contract/optimistic.mjs';
 
 const USER = 'user_offline';
 const AUTH_STREAM = '018f0d90-7b21-7a22-8c33-445566778899';
@@ -425,6 +426,85 @@ assert.equal(client.state.deliveries.filter((entry) => entry.name === 'createTod
 assert.equal(client.state.settlements.size, 0, 'final results are ACKed without a later mutation');
 assert.equal(client.state.acknowledged.length, 3);
 second.dispose();
+
+// Generated ordinary JS mutations carry optimistic:false. That legacy fact
+// does not suppress their app reducer, including when durable pending work is
+// restored after an offline reload; only atomicOptimisticWithholding does.
+{
+  const jsClient = makeClient();
+  jsClient.state.rows = [{
+    _id: 'todo_js_restore',
+    _version: 1,
+    title: 'restore me',
+    completed: false,
+    userId: USER,
+  }];
+  jsClient.state.version = 1;
+  const jsState = {};
+  const jsManifest = {
+    ...manifest,
+    inputsHash: 'offline-js-inputs',
+    schemaHash: 'offline-js-schema',
+    bundleHash: 'offline-js-bundle',
+    mutations: {
+      setCompleted: {
+        ...manifest.mutations.setCompleted,
+        optimistic: false,
+      },
+    },
+  };
+  const jsIdentity = {
+    artifactIndex: { appId: 'offline-js-app' },
+    schemaManifest: { schemaHash: jsManifest.schemaHash, targetProfile: 'local-dev-sqlite-ibex' },
+    retainedIdentity: { databaseId: 'offline-js-db', versionStreamId: 'offline-js-stream-1' },
+  };
+  const jsSurface = (store, surfaceManifest = jsManifest) => createSnapbackContractSurface({
+    runtime,
+    client: jsClient,
+    clientStore: store,
+    userId: USER,
+    manifest: surfaceManifest,
+    queryName: 'listTodos',
+    boundaryKey: 'todos',
+    optimisticReducers: { setCompleted: todoOptimisticReducers.setCompleted },
+    ...jsIdentity,
+  });
+  const onlineStore = createMemorySnapbackClientStore({ state: jsState });
+  const online = await jsSurface(onlineStore);
+  jsClient.state.online = false;
+  await online.links.setCompleted({ id: 'todo_js_restore', completed: true });
+  assert.equal(online.boundary.current('todos')[0].completed, true);
+  online.dispose();
+
+  const restoredStore = createMemorySnapbackClientStore({ state: jsState });
+  const restored = await jsSurface(restoredStore);
+  assert.equal(restored.retained(), true);
+  assert.equal(
+    restored.boundary.current('todos')[0].completed,
+    true,
+    'ordinary JS app reducer re-applies to restored pending work',
+  );
+  restored.dispose();
+
+  const withheldManifest = {
+    ...jsManifest,
+    mutations: {
+      setCompleted: {
+        ...jsManifest.mutations.setCompleted,
+        atomicOptimisticWithholding: true,
+      },
+    },
+  };
+  const withheldStore = createMemorySnapbackClientStore({ state: jsState });
+  const withheld = await jsSurface(withheldStore, withheldManifest);
+  assert.equal(
+    withheld.boundary.current('todos')[0].completed,
+    false,
+    'atomic withholding suppresses app reducers on the restored-pending branch',
+  );
+  assert.equal(withheld.pendingCount(), 1, 'withheld work remains durably pending');
+  withheld.dispose();
+}
 
 // A foreground reconnect must not turn a failed durable custody read into a
 // best-effort hint. The mandatory synchronize gate blanks the surface, rejects

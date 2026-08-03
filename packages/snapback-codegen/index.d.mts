@@ -192,6 +192,7 @@ export type SerializedExpr =
 export function serializeExpr(expr: ValueExpr): SerializedExpr;
 
 export type SerializedMutationStep =
+  | Readonly<{ AllocateSequence: { counter: string; scope: SerializedExpr; into: string } }>
   | Readonly<{ Insert: { table: string; values: Readonly<Record<string, SerializedExpr>>; bind_id_as: string | null } }>
   | Readonly<{ Patch: { table: string; id: SerializedExpr; values: Readonly<Record<string, SerializedExpr>> } }>
   | Readonly<{ Get: { table: string; id: SerializedExpr; bind_as: string; else_error: string | null } }>

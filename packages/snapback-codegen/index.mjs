@@ -1973,17 +1973,16 @@ export async function generateInProcess(backendDir, options = {}) {
           details: { function: name, class: def.outgrewIr },
         });
       }
-      contractMutations[name] = {
+      contractMutations[name] = buildContractJsMutationDescriptor({
         name,
         args: argDescriptors(def.args),
         argOrder: Object.keys(def.args),
         writes,
-        invalidates: writes,
-        optimistic: false,
-        serverRunnable: true,
-      };
+        sequenceCount: (def.sequences ?? []).length,
+      });
     } else if (def.__kind === 'Mutation') {
       const writes = new Set();
+      let sequenceAllocationCount = 0;
       const checkValuesMap = (t, values, where) => {
         for (const [field, expr] of Object.entries(values)) {
           if (!fieldNames(t).has(field)) err('QUERY_UNKNOWN_FIELD', 'function', `${name}: ${where} sets unknown field ${t}.${field}`, { function: name, table: t, field });
@@ -2027,6 +2026,40 @@ export async function generateInProcess(backendDir, options = {}) {
           checkExpr(body.cond, 'guard condition');
         } else if (kind === 'Let') {
           checkExpr(body.expr, 'let expression');
+        } else if (kind === 'AllocateSequence') {
+          sequenceAllocationCount += 1;
+          checkExpr(body.scope, 'sequence scope');
+          const declaration = (def.sequences ?? []).find(
+            (candidate) => candidate.name === body.counter,
+          );
+          if (!def.writeWithActivityPlan) {
+            err(
+              'SNAPBACK_SEQUENCE_DECLARATION_INVALID',
+              'function',
+              `${name}: AllocateSequence is admitted only by write-with-activity.v1`,
+              { function: name, sequence: body.counter },
+            );
+          } else if (!declaration) {
+            err(
+              'SNAPBACK_SEQUENCE_UNDECLARED',
+              'function',
+              `${name}: AllocateSequence names an undeclared counter ${body.counter}`,
+              { function: name, sequence: body.counter },
+            );
+          } else if (
+            declaration.scopeTable !== def.writeWithActivityPlan.scopeTable
+            || declaration.scopeAccess?.kind !== 'existing-owner.v1'
+            || declaration.scopeAccess?.ownerField
+              !== def.writeWithActivityPlan.scopeOwnerField
+            || JSON.stringify(body.scope) !== JSON.stringify(def.writeWithActivityPlan.scopeId)
+          ) {
+            err(
+              'SNAPBACK_SEQUENCE_DECLARATION_INVALID',
+              'function',
+              `${name}: allocation declaration must match the exact write-with-activity owner scope`,
+              { function: name, sequence: body.counter },
+            );
+          }
         } else if (kind === 'AssertSourceChanged') {
           checkExpr(body.id, 'source id');
         } else if (kind === 'AssertCurrentRelation') {
@@ -2110,6 +2143,14 @@ export async function generateInProcess(backendDir, options = {}) {
           err('MUTATION_UNSUPPORTED_STEP', 'function', `${name}: unsupported mutation step ${kind}`, { function: name, step: kind });
         }
       }
+      if (sequenceAllocationCount > 1) {
+        err(
+          'SNAPBACK_SEQUENCE_DECLARATION_INVALID',
+          'function',
+          `${name}: sequence_allocation_v1 admits at most one allocation`,
+          { function: name, allocations: sequenceAllocationCount },
+        );
+      }
       if (def.plan.return_value && 'Expr' in def.plan.return_value) {
         checkExpr(def.plan.return_value.Expr, 'return expression');
       }
@@ -2133,25 +2174,18 @@ export async function generateInProcess(backendDir, options = {}) {
         },
         declaredReads: mutationReadTables(def.plan),
         declaredWrites: [...writes],
+        sequences: def.sequences ?? [],
         syncabilityClass: 'mutation',
         ...(def.standardPattern ? { standardPattern: def.standardPattern } : {}),
       });
-      contractMutations[name] = {
+      contractMutations[name] = buildContractMutationDescriptor({
         name,
         args: argDescriptors(def.args),
         argOrder: Object.keys(def.args),
         writes: [...writes],
-        invalidates: [...writes],
-        // IR-tier mutations embed their plan (Exact LLP 0329 E-B): the
-        // adapter derives the default optimistic overlay from it, so the
-        // descriptor honestly claims `optimistic` (additive manifest v2
-        // extension per Exact LLP 0284 §2.4). JS-tier mutations keep
-        // `optimistic: false` — their overlays are app reducers the
-        // manifest cannot see.
-        optimistic: true,
         plan: serializedPlan,
-        serverRunnable: true,
-      };
+        sequenceAllocationCount,
+      });
     } else if (def.__kind === 'Action' && def.js) {
       const writes = def.js.writes ?? [];
       for (const table of writes) {
@@ -2964,11 +2998,9 @@ export async function generateInProcess(backendDir, options = {}) {
   // Exact LLP 0329 E-B: IR-tier mutations embed their plan, so the adapter
   // can derive default optimistic overlays from the generated artifact alone
   // — the flags below claim exactly that and nothing more.
-  const hasDerivedOverlayMutations = Object.values(contractMutations).some(
-    (descriptor) => descriptor.plan !== undefined,
-  );
-  const allMutationsReplayable = Object.values(contractMutations).length > 0
-    && Object.values(contractMutations).every((descriptor) => descriptor.plan !== undefined);
+  const contractMutationCapabilities = contractCapabilitiesForMutations(contractMutations);
+  const hasDerivedOverlayMutations = contractMutationCapabilities.derivedOptimisticOverlays;
+  const allMutationsReplayable = contractMutationCapabilities.offlineReplay;
   // Keep the pre-introspection projection during the migration as an
   // independent emit-both witness. The neutral producer below must reproduce
   // this Exact-owned consumer document exactly or codegen fails before writing.
@@ -3759,6 +3791,7 @@ function planExprs(serialized) {
     if (kind === 'AssertCurrentRelation') exprs.push(body.id, body.scope_id);
     if (kind === 'Guard') exprs.push(body.cond);
     if (kind === 'Let') exprs.push(body.expr);
+    if (kind === 'AllocateSequence') exprs.push(body.scope);
     if (kind === 'DeleteWhere') exprs.push(...body.filter.map((f) => f.value));
   }
   const rv = serialized.return_value;
@@ -3773,6 +3806,15 @@ export function serializeMutationPlan(plan, functionName, err) {
   const steps = plan.steps.map((step) => {
     const kind = Object.keys(step)[0];
     const body = step[kind];
+    if (kind === 'AllocateSequence') {
+      return {
+        AllocateSequence: {
+          counter: body.counter,
+          scope: serializeExpr(body.scope),
+          into: body.into,
+        },
+      };
+    }
     if (kind === 'Insert') {
       const values = dict();
       for (const [k, e] of Object.entries(body.values)) values[k] = serializeExpr(e);
@@ -5272,6 +5314,72 @@ function writeSummary(fn) {
   return { mode: 'mutationPlan', primaryTable: [...tables][0] ?? null, tables: [...tables] };
 }
 
+export function buildContractMutationDescriptor({
+  name,
+  args,
+  argOrder,
+  writes,
+  plan,
+  sequenceAllocationCount = 0,
+}) {
+  const optimistic = sequenceAllocationCount === 0;
+  return {
+    name,
+    args,
+    argOrder,
+    writes,
+    invalidates: writes,
+    // IR-tier mutations normally embed their plan (Exact LLP 0329 E-B), so
+    // the adapter can derive the default optimistic overlay from it.
+    optimistic,
+    ...(sequenceAllocationCount > 0 ? { atomicOptimisticWithholding: true } : {}),
+    // Sequence allocation is authoritative-only. Until the client queue can
+    // ledger and replay the complete host-owned operation, withholding the
+    // plan also withholds both derived overlays and durable lane-Q replay.
+    ...(sequenceAllocationCount === 0 ? { plan } : {}),
+    serverRunnable: true,
+  };
+}
+
+export function buildContractJsMutationDescriptor({
+  name,
+  args,
+  argOrder,
+  writes,
+  sequenceCount = 0,
+}) {
+  return {
+    name,
+    args,
+    argOrder,
+    writes,
+    invalidates: writes,
+    // Ordinary JS mutations retain app-authored reducer eligibility. The
+    // distinct atomic marker is the authority to withhold a whole changeset.
+    optimistic: false,
+    ...(sequenceCount > 0 ? { atomicOptimisticWithholding: true } : {}),
+    serverRunnable: true,
+  };
+}
+
+export function contractCapabilitiesForMutations(contractMutations) {
+  const descriptors = Object.values(contractMutations);
+  const hasDerivedOverlayMutations = descriptors.some(
+    (descriptor) => descriptor.plan !== undefined
+      && descriptor.atomicOptimisticWithholding !== true,
+  );
+  const allMutationsReplayable = descriptors.length > 0
+    && descriptors.every(
+      (descriptor) => descriptor.plan !== undefined
+        && descriptor.atomicOptimisticWithholding !== true,
+    );
+  return {
+    optimisticMutations: hasDerivedOverlayMutations,
+    derivedOptimisticOverlays: hasDerivedOverlayMutations,
+    offlineReplay: allMutationsReplayable,
+  };
+}
+
 function requiredCapabilities(fn) {
   const runtimeCapability = fn.runtime?.IbexModule ? 'ibex_ctx_db_host_bridge' : 'host_plan_runtime';
   const contractCapabilities = [
@@ -5324,6 +5432,9 @@ function requiredCapabilities(fn) {
       runtimeCapability,
       'mutation_read_set_validation',
       'write_activity_v1',
+      ...(Array.isArray(fn.sequences) && fn.sequences.length > 0
+        ? ['sequence_allocation_v1']
+        : []),
       ...contractCapabilities,
     ];
   }

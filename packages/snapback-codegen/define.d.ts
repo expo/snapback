@@ -219,6 +219,8 @@ export declare function get(
 /** Truthiness guard; failure is the author-supplied typed error code. */
 export declare function guard(cond: ValueExpr, elseError: string): MutationStep;
 export declare function letBind(bindAs: string, expr: ValueExpr): MutationStep;
+/** One host-owned scoped allocation, admitted only by write-with-activity.v1. */
+export declare function allocateSequence(counter: string, scope: ValueExpr, into: string): MutationStep;
 /** Set-oriented delete; empty filter clears the table. */
 export declare function deleteWhere(table: string, filter?: FilterSpec[]): MutationStep;
 /** One insert per element of an argument-supplied array (bounded fan-out). */

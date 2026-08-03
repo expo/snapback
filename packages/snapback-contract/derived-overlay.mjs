@@ -714,6 +714,11 @@ export const deriveOptimisticReducers = ({ manifest, table, onError = null }) =>
   const derived = Object.create(null);
   if (typeof table !== 'string') return derived;
   for (const [name, descriptor] of Object.entries(manifest?.mutations ?? {})) {
+    // Sequence authority is mutation-atomic: neither one row nor one
+    // projection may derive a speculative changeset. `optimistic: false`
+    // alone is not this fact — ordinary JS-tier mutations use that legacy
+    // value while remaining eligible for app-authored reducers.
+    if (descriptor?.atomicOptimisticWithholding === true) continue;
     const plan = descriptor?.plan;
     if (!plan) continue;
     const reducer = deriveOptimisticReducer({ name, plan, table, onError });

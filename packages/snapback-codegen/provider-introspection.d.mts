@@ -81,7 +81,10 @@ export interface ProviderMutationOperation {
   }>;
   readonly contract?: ProviderContractWitness;
   readonly extensions?: Readonly<{
-    snapback?: Readonly<{ contractPlan: unknown }>;
+    snapback?: Readonly<{
+      contractPlan?: unknown;
+      atomicOptimisticWithholding?: true;
+    }>;
     [extension: string]: unknown;
   }>;
 }
@@ -164,6 +167,7 @@ export interface SnapbackOperationBinding {
   readonly localRunnable?: boolean;
   readonly retainable?: boolean;
   readonly optimistic?: boolean;
+  readonly atomicOptimisticWithholding?: true;
   readonly ephemeral?: boolean;
   readonly mode?: string;
   readonly livePush?: boolean;
