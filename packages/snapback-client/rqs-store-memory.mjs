@@ -67,6 +67,44 @@ export function createMemoryRqsResumeStore({
     return state.writer === instance;
   };
 
+  const materializationTransaction = async (mode, operation) => {
+    requireOpen();
+    if (mode !== 'readonly' && mode !== 'readwrite') {
+      throw new TypeError('materialization transaction mode must be readonly or readwrite');
+    }
+    if (typeof operation !== 'function') {
+      throw new TypeError('materialization transaction operation must be a function');
+    }
+    if (mode === 'readwrite' && state.writer !== instance) {
+      const error = new Error('SNAPBACK_RQS_STORE_NOT_WRITER: materialization writes require store ownership');
+      error.code = 'SNAPBACK_RQS_STORE_NOT_WRITER';
+      throw error;
+    }
+    const view = {
+      materializations: new Map(structuredClone([...state.materializations])),
+      pageSets: new Map(structuredClone([...state.pageSets])),
+      memberships: new Map(structuredClone([...state.memberships])),
+      storeMeta: structuredClone(state.storeMeta),
+    };
+    const result = operation(view);
+    if (result && typeof result.then === 'function') {
+      throw new TypeError('materialization transaction callbacks must be synchronous');
+    }
+    if (mode === 'readwrite') {
+      const preparedMeta = prepareStoreMeta(view.storeMeta);
+      if (preparedMeta === null) {
+        const error = new Error('SNAPBACK_RQS_STORE_CORRUPT: materialization transaction produced invalid metadata');
+        error.code = 'SNAPBACK_RQS_STORE_CORRUPT';
+        throw error;
+      }
+      state.materializations = view.materializations;
+      state.pageSets = view.pageSets;
+      state.memberships = view.memberships;
+      state.storeMeta = preparedMeta;
+    }
+    return result;
+  };
+
   return {
     /// One process-local backing mirrors the durable carriers' single-writer
     /// domain while remaining honestly volatile across process restart.
@@ -83,6 +121,8 @@ export function createMemoryRqsResumeStore({
     durability() {
       return { implementation: 'memory', durable: false };
     },
+
+    materializationTransaction,
 
     async outboxEmpty() {
       requireOpen();
