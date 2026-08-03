@@ -34,10 +34,19 @@
 
 ## Vector-lane addendum — 2026-08-03 (reconciliation landing)
 
-The vector program's own isolated `artifact_schemas_v0` run passed 29 of 32
-tests; the three failures were missing generated demo publication files in the
-isolated checkout, not a vector schema, capability, runtime, or receipt
-mismatch. The vector-specific schema/capability suites and both
-filled-partition qualifications were green. Recorded here because the open
-ticket carrying this note was closed by the greening pass while the vector
-lane was still off-branch.
+The vector program's first isolated `artifact_schemas_v0` run passed 29 of 32
+tests; the three failures were absent generated demo publication files.
+Repeating on the exact Linux verification worktree with the existing generated
+closure staged narrowed that to 31/32: the remaining failure was a stale
+remote-service publication digest for `schemas/error.response.schema.json`
+(committed
+`sha256:675a9e37dfe739843a2b73b04ba658e9d516f0687d32b724fc203b1449b48124`,
+current source
+`sha256:4b60c1418c8b9157e6a3936ffce5686a0378b0bde42e6cfccccb87e163158cb7`).
+Neither result was a vector schema, capability, runtime, or receipt mismatch;
+the vector-specific schema/capability suites and both filled-partition
+qualifications were green. These were pre-merge observations and do not reopen
+the closed greening ticket: current main's reconciliation and zero-failure
+proof supersede their generated-artifact state. Recorded here because the open
+ticket carrying the original note was closed while the vector lane was still
+off-branch.

@@ -235,6 +235,9 @@ fn target_capability_registry_is_exact_and_fail_closed() {
             "relational_query_v1",
             "migration_keyset_scan_v1",
             "full_text_search_v1",
+            // @ref LLP 0132#capabilities-targets-and-staging — the local
+            // target publishes exact vector search only behind experimental
+            // acknowledgement.
             "vector_search_v1",
             "result_contract_v1",
             "settlement.bounded_skew",
