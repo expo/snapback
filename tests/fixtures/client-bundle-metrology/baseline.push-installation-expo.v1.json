@@ -1,0 +1,115 @@
+{
+  "schemaVersion": "snapback.client-bundle-metrology-supplemental-baseline.v1",
+  "source": {
+    "revision": "553a9bc1317373d53c058b72f9e322194b056172",
+    "packageTrees": {
+      "packages/snapback-client": "4296081996e5414202beed1687836fc0943b0c25",
+      "packages/snapback-contract": "1bb17fcc9fe884325e11c15285d6d1022f6a2de8",
+      "packages/snapback-react": "3d38e2e9f6a96ef93fa3776edfbbcca2eb900913"
+    }
+  },
+  "authorities": [
+    "LLP 0145#phase-a--establish-a-size-ratchet",
+    "LLP 0063#workstream-8--performance-and-packaging-budgets",
+    "LLP 0143#d1-device-token-custody"
+  ],
+  "frozenRule": "prospective additive profile first run; valid ceilings never loosen",
+  "method": {
+    "runtime": {
+      "node": "v24.18.0",
+      "zlib": "1.3.1-e00f703",
+      "brotli": "1.2.0"
+    },
+    "bundler": "esbuild@0.28.1",
+    "bundle": true,
+    "platform": "browser",
+    "format": "esm",
+    "target": "es2022",
+    "minify": true,
+    "treeShaking": true,
+    "legalComments": "none",
+    "conditions": [
+      "browser",
+      "import",
+      "default"
+    ],
+    "gzipLevel": 9,
+    "brotliQuality": 11,
+    "reactExternal": true,
+    "attribution": "esbuild module-own bytesInOutput grouped by stable package boundary"
+  },
+  "inputs": {
+    "profilesSha256": "2d473301b61aeffd323e71c68fa9e1697b44e47118a97b8eb07a751fd678420b",
+    "lockfileSha256": "295900d1cc605a41af337ca27ddbc567120e6d432d4b9aa6c101274a4d881489"
+  },
+  "behaviorCommands": [
+    "node packages/snapback-client/push-registry.test.mjs"
+  ],
+  "profiles": [
+    {
+      "id": "public-subpath-push-installation-expo",
+      "package": "@expo/snapback-client/push-installation-expo",
+      "fixtureSha256": "50a530951442e83d13dbc5ea3e4ee2c0ca8c506dc979ce2ee90a4e446b93364b",
+      "externals": [],
+      "minifiedBytes": 2164,
+      "gzipBytes": 1053,
+      "brotliBytes": 926,
+      "outputSha256": "c89d2785b5b204b92f279d6a700d4743ec4e931bcf5eccffbec27d14478edcaf",
+      "attribution": {
+        "packages": [
+          {
+            "name": "@expo/snapback-client",
+            "bytes": 1887
+          },
+          {
+            "name": "<fixture>",
+            "bytes": 145
+          }
+        ],
+        "modules": [
+          {
+            "module": "packages/snapback-client/push-installation-expo.mjs",
+            "package": "@expo/snapback-client",
+            "bytes": 1887
+          },
+          {
+            "module": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-push-installation-expo.fixture.mjs",
+            "package": "<fixture>",
+            "bytes": 145
+          }
+        ]
+      },
+      "metafile": {
+        "inputs": {
+          "packages/snapback-client/push-installation-expo.mjs": {
+            "bytes": 4333,
+            "imports": []
+          },
+          "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-push-installation-expo.fixture.mjs": {
+            "bytes": 288,
+            "imports": [
+              {
+                "path": "packages/snapback-client/push-installation-expo.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          }
+        },
+        "output": {
+          "bytes": 2164,
+          "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-push-installation-expo.fixture.mjs",
+          "imports": [],
+          "inputs": {
+            "packages/snapback-client/push-installation-expo.mjs": {
+              "bytesInOutput": 1887
+            },
+            "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-push-installation-expo.fixture.mjs": {
+              "bytesInOutput": 145
+            }
+          }
+        }
+      }
+    }
+  ]
+}
