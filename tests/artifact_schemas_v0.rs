@@ -665,6 +665,11 @@ fn errors_operation_fixtures_match_the_pinned_authority_split_schemas() {
     );
 
     let structural = serde_json::to_string(&corpus["issues"]["response"]).unwrap();
+    assert_eq!(
+        corpus["issues"]["response"]["variance"]["transitionHistoryFloorSeq"],
+        Value::Null,
+        "transition sequences are issue-local, so the list has no global floor"
+    );
     for forbidden in ["titleTemplate", "stackHead", "message"] {
         assert!(
             !structural.contains(forbidden),

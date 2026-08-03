@@ -12,6 +12,7 @@ use rusqlite::{Connection, OptionalExtension, params, params_from_iter};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
+use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 
 pub const DEFAULT_ISSUE_LIMIT: usize = 100;
@@ -342,6 +343,7 @@ pub struct ErrorsTransitionResponseV1 {
 struct IssuesCursorV1 {
     version: String,
     order: ErrorsIssueOrderV1,
+    selector_sha256: String,
     value: i64,
     issue: String,
 }
@@ -451,21 +453,49 @@ fn issue_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ErrorIssueSummary
     })
 }
 
-fn decode_cursor(raw: &str, order: ErrorsIssueOrderV1) -> SnapbackResult<IssuesCursorV1> {
+fn issues_selector_sha256(request: &ErrorsIssuesRequestV1) -> String {
+    let canonical = serde_json::to_vec(&json!({
+        "state": request.state,
+        "kind": request.kind,
+        "name": request.name,
+        "subsystem": request.subsystem,
+        "failureDisposition": request.failure_disposition,
+        "release": request.release,
+        "since": request.since,
+        "fromMs": request.from_ms,
+        "toMs": request.to_ms,
+        "order": request.order,
+    }))
+    .expect("errors issue selector serializes");
+    format!("sha256:{:x}", Sha256::digest(canonical))
+}
+
+fn decode_cursor(
+    raw: &str,
+    order: ErrorsIssueOrderV1,
+    selector_sha256: &str,
+) -> SnapbackResult<IssuesCursorV1> {
     let bytes = URL_SAFE_NO_PAD
         .decode(raw)
         .map_err(|_| errors_invalid("errors cursor is invalid"))?;
     let cursor: IssuesCursorV1 =
         serde_json::from_slice(&bytes).map_err(|_| errors_invalid("errors cursor is invalid"))?;
-    if cursor.version != "snapback.errors.issues-cursor.v1" || cursor.order != order {
+    if cursor.version != "snapback.errors.issues-cursor.v1"
+        || cursor.order != order
+        || cursor.selector_sha256 != selector_sha256
+    {
         return Err(errors_invalid(
-            "errors cursor does not match the requested ordering",
+            "errors cursor does not match the requested selector",
         ));
     }
     Ok(cursor)
 }
 
-fn encode_cursor(order: ErrorsIssueOrderV1, issue: &ErrorIssueSummaryV1) -> String {
+fn encode_cursor(
+    order: ErrorsIssueOrderV1,
+    selector_sha256: &str,
+    issue: &ErrorIssueSummaryV1,
+) -> String {
     let value = match order {
         ErrorsIssueOrderV1::LastSeen => issue.last_seen_ms,
         ErrorsIssueOrderV1::Count => i64::try_from(issue.count).unwrap_or(i64::MAX),
@@ -474,6 +504,7 @@ fn encode_cursor(order: ErrorsIssueOrderV1, issue: &ErrorIssueSummaryV1) -> Stri
         serde_json::to_vec(&IssuesCursorV1 {
             version: "snapback.errors.issues-cursor.v1".to_owned(),
             order,
+            selector_sha256: selector_sha256.to_owned(),
             value,
             issue: issue.issue.clone(),
         })
@@ -489,15 +520,19 @@ pub(crate) fn query_issues(
     request.validate()?;
     let meta = read_error_meta(connection)?;
     let known = known_releases(connection)?;
+    if let Some(release) = request.release.as_deref() {
+        activation_seq(connection, release)?;
+    }
     let since_seq = request
         .since
         .as_deref()
         .map(|release| activation_seq(connection, release))
         .transpose()?;
+    let selector_sha256 = issues_selector_sha256(request);
     let cursor = request
         .cursor
         .as_deref()
-        .map(|cursor| decode_cursor(cursor, request.order))
+        .map(|cursor| decode_cursor(cursor, request.order, &selector_sha256))
         .transpose()?;
     let mut sql = String::from(
         "SELECT issue,state,state_seq,kind,name,code,error_class,status_class,subsystem,
@@ -571,8 +606,13 @@ pub(crate) fn query_issues(
     if truncated {
         issues.truncate(request.limit);
     }
-    let next_cursor = truncated
-        .then(|| encode_cursor(request.order, issues.last().expect("nonempty bounded page")));
+    let next_cursor = truncated.then(|| {
+        encode_cursor(
+            request.order,
+            &selector_sha256,
+            issues.last().expect("nonempty bounded page"),
+        )
+    });
     let variance = error_variance(connection, &meta, context, None, truncated)?;
     Ok(ErrorsIssuesResponseV1 {
         schema_version: "snapback.errors.issues.v1".to_owned(),
@@ -751,11 +791,6 @@ fn error_variance(
             row.0 > 0 && row.1.is_none_or(|floor| floor > 1),
         )
     } else {
-        let floor = connection.query_row(
-            "SELECT min(seq) FROM error_transitions_visible",
-            [],
-            |row| row.get(0),
-        )?;
         let truncated: bool = connection.query_row(
             "SELECT EXISTS(
                SELECT 1 FROM error_groups_visible g
@@ -767,7 +802,10 @@ fn error_variance(
             [],
             |row| row.get::<_, i64>(0).map(|value| value != 0),
         )?;
-        (floor, truncated)
+        // Transition sequence is issue-local, so there is no truthful global
+        // floor for a list response. Keep only the aggregate truncation bit;
+        // errors.issue carries the exact per-issue floor.
+        (None, truncated)
     };
     let exemplar_truncated = depth > 0 || bytes > 0 || flush > 0;
     Ok(ErrorsVarianceV1 {
@@ -881,9 +919,11 @@ pub fn errors_fixture_corpus() -> Value {
         "exemplarTruncated": false,
         "exemplarDropCounters": { "depth": 0, "bytes": 0, "flush": 0 },
         "suppressionCounters": { "cooldown": 0, "rollout": 0 },
-        "transitionHistoryFloorSeq": 0,
+        "transitionHistoryFloorSeq": null,
         "transitionHistoryTruncated": false
     });
+    let mut detail_variance = variance.clone();
+    detail_variance["transitionHistoryFloorSeq"] = json!(0);
     json!({
         "schemaVersion": "snapback.errors.query-fixtures.v1",
         "issues": {
@@ -924,7 +964,7 @@ pub fn errors_fixture_corpus() -> Value {
                     }
                 }],
                 "transitions": [],
-                "variance": variance.clone()
+                "variance": detail_variance
             },
             "authority": "adminSecretRead",
             "cacheControl": "no-store"
