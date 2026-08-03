@@ -335,6 +335,7 @@ pub(crate) struct ExecutedIbexMutation {
     pub membership_commands: Vec<BufferedMembershipCommand>,
     pub reads: Vec<CapturedReadDependency>,
     pub asset_admissions: Vec<crate::assets::AssetAttachmentAdmission>,
+    pub sequence_allocations: Vec<crate::storage::BufferedSequenceAllocation>,
     pub result: Value,
     pub ctx_ledger: CtxAnswerLedger,
 }
@@ -422,6 +423,7 @@ impl RuntimeManager {
             membership_commands,
             reads,
             asset_admissions,
+            sequence_allocations,
             ..
         } = invocation;
         let membership_plans = db.authorize_membership_commands(membership_commands)?;
@@ -439,6 +441,7 @@ impl RuntimeManager {
                 principal: input.auth.user_id.clone(),
             }),
             asset_admissions,
+            sequence_allocations,
         )
     }
 
@@ -507,6 +510,7 @@ pub(crate) fn execute_ibex_mutation_prepared(
         membership_commands,
         reads,
         asset_admissions,
+        sequence_allocations,
         ..
     } = invocation;
     prepared.validate_admission("ibex mutation completion")?;
@@ -516,6 +520,7 @@ pub(crate) fn execute_ibex_mutation_prepared(
         membership_commands,
         reads,
         asset_admissions,
+        sequence_allocations,
         result,
         ctx_ledger,
     })
@@ -1155,6 +1160,10 @@ pub(crate) struct IbexHostContext<'a> {
     /// references): recorded during handler execution, consumed by the
     /// commit hook, never serialized or persisted.
     asset_admissions: Vec<crate::assets::AssetAttachmentAdmission>,
+    /// Tentative sequence values returned during this mutation. The protected
+    /// counter state remains untouched until the central commit validates and
+    /// applies these witnesses.
+    sequence_allocations: Vec<crate::storage::BufferedSequenceAllocation>,
     /// Declaration-bound membership operations carry their host-derived writer
     /// separately from raw `ctx.db` writes all the way to the central commit seam.
     membership_commands: Vec<BufferedMembershipCommand>,
@@ -1258,6 +1267,7 @@ impl<'a> IbexHostContext<'a> {
             writes: Vec::new(),
             job_enqueues: Vec::new(),
             asset_admissions: Vec::new(),
+            sequence_allocations: Vec::new(),
             membership_commands: Vec::new(),
             membership_writer,
             reads,
@@ -1316,6 +1326,7 @@ impl<'a> IbexHostContext<'a> {
             writes: Vec::new(),
             job_enqueues: Vec::new(),
             asset_admissions: Vec::new(),
+            sequence_allocations: Vec::new(),
             membership_commands: Vec::new(),
             membership_writer: MembershipWriter::System,
             reads,
@@ -4710,7 +4721,8 @@ mod membership_bridge_tests {
                 job_enqueues: Vec::new(),
                 job_producer: None,
                 writes: Vec::new(),
-            asset_admissions: Vec::new(),
+                asset_admissions: Vec::new(),
+                sequence_allocations: Vec::new(),
                 membership_plans: plans,
                 read_dependencies: Vec::new(),
                 result: json!(null),
@@ -4970,7 +4982,8 @@ globalThis.__snapbackHandlers = {
                 job_enqueues: Vec::new(),
                 job_producer: None,
                 writes: Vec::new(),
-            asset_admissions: Vec::new(),
+                asset_admissions: Vec::new(),
+                sequence_allocations: Vec::new(),
                 membership_plans: plans,
                 read_dependencies: Vec::new(),
                 result: result.clone(),

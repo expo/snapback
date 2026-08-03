@@ -651,6 +651,14 @@ pub(crate) struct BufferedCommitPayload {
     /// Transaction-scoped `ctx.assets.attach` admissions (LLP 0044); never
     /// serialized, never persisted, consumed by the commit hook.
     pub asset_admissions: Vec<crate::assets::AssetAttachmentAdmission>,
+    /// Host-owned sequence allocations evaluated against the handler's
+    /// snapshot and advanced inside this commit. They are deliberately not
+    /// ordinary app writes and never join the `{ids, now}` ctx ledger.
+    ///
+    /// @ref LLP 0135#12-allocation-surfaces — allocation is a buffered
+    /// read-modify-write whose observed counter state is revalidated at the
+    /// brief authoritative commit.
+    pub sequence_allocations: Vec<BufferedSequenceAllocation>,
 }
 
 struct BufferedEffects {
@@ -661,7 +669,23 @@ struct BufferedEffects {
     job_enqueues: Vec<crate::jobs::BufferedJobEnqueue>,
     job_producer: Option<crate::jobs::JobProducer>,
     asset_admissions: Vec<crate::assets::AssetAttachmentAdmission>,
+    sequence_allocations: Vec<BufferedSequenceAllocation>,
 }
+
+/// One tentative sequence value returned to a handler. The protected counter
+/// is still untouched when this value is produced; commit must prove the same
+/// scope incarnation and `next_value` before advancing it.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct BufferedSequenceAllocation {
+    pub counter_name: String,
+    pub scope_table: String,
+    pub scope_id: String,
+    pub scope_incarnation: String,
+    pub expected_next: u64,
+    pub value: u64,
+}
+
+pub(crate) const SEQUENCE_MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
 
 #[derive(Clone, Copy)]
 struct MembershipCommitAuthority<'a> {
@@ -960,6 +984,7 @@ fn reset_and_seed_transaction(
     tx.execute("DELETE FROM _snapback_client_mutation_auth_retention", [])?;
     tx.execute("DELETE FROM _snapback_membership_transitions", [])?;
     tx.execute("DELETE FROM _snapback_relation_incarnations_v1", [])?;
+    tx.execute("DELETE FROM _snapback_sequence_counters_v1", [])?;
     // @ref LLP 0076#authority-and-lifecycle — application reload/reset is a
     // cursor-closing terminal event; retained attempt settlement evidence is
     // application state and resets with it.
@@ -1248,6 +1273,7 @@ fn simulate_versioned_seed_projection_rows(
         // protected state. The real reset clears them before seeding; the
         // disposable preview must model that same successor cut.
         tx.execute("DELETE FROM _snapback_relation_incarnations_v1", [])?;
+        tx.execute("DELETE FROM _snapback_sequence_counters_v1", [])?;
     }
     let current_version = current_version_on(&tx)?;
     let next_version = next_storage_version(current_version)?;
@@ -4690,6 +4716,7 @@ impl LocalDatabase {
             job_enqueues,
             job_producer,
             asset_admissions,
+            sequence_allocations,
         } = payload;
         self.apply_buffered_writes_with_lifecycle(
             input,
@@ -4701,6 +4728,7 @@ impl LocalDatabase {
                 job_enqueues,
                 job_producer,
                 asset_admissions,
+                sequence_allocations,
             },
             BufferedCommitOptions {
                 ctx_ledger: Some(ctx_ledger),
@@ -4738,6 +4766,7 @@ impl LocalDatabase {
             Vec::new(),
             None,
             asset_admissions,
+            Vec::new(),
         )
     }
 
@@ -4760,6 +4789,7 @@ impl LocalDatabase {
         // makes the staged preview refuse `SNAPBACK_ASSET_REF_UNVERIFIED`
         // even though the real commit would admit the write.
         asset_admissions: Vec<crate::assets::AssetAttachmentAdmission>,
+        sequence_allocations: Vec<BufferedSequenceAllocation>,
     ) -> SnapbackResult<MutationCommit> {
         self.apply_buffered_writes_with_lifecycle_gated(
             input,
@@ -4771,6 +4801,7 @@ impl LocalDatabase {
                 job_enqueues,
                 job_producer,
                 asset_admissions,
+                sequence_allocations,
             },
             BufferedCommitOptions {
                 ctx_ledger: Some(ctx_ledger),
@@ -4801,6 +4832,7 @@ impl LocalDatabase {
                 job_enqueues: Vec::new(),
                 job_producer: None,
                 asset_admissions: Vec::new(),
+                sequence_allocations: Vec::new(),
             },
             options,
             MembershipCommitAuthority::deny(),
@@ -4854,6 +4886,7 @@ impl LocalDatabase {
             job_enqueues,
             job_producer,
             asset_admissions,
+            sequence_allocations,
         } = effects;
         if !job_enqueues.is_empty() && job_producer.is_none() {
             return Err(SnapbackError::error(
@@ -4914,6 +4947,10 @@ impl LocalDatabase {
         validate_read_set(&tx, &schema, &input.read_set, current_version)?;
         // @ref LLP 0020#phase-3-capture-read-sets-during-handler-execution — handler-captured dependencies are validated at commit so callers no longer own the read-set.
         validate_captured_read_set(&tx, &schema, input, &read_dependencies, current_version)?;
+        // The protected counter advances only after every caller-owned read
+        // witness has validated, and before app writes are applied in the
+        // same transaction. Any later failure rolls the advance back.
+        apply_sequence_allocations(&tx, &schema, &sequence_allocations)?;
 
         let mut carried_writes: Vec<_> = writes
             .into_iter()
@@ -5140,11 +5177,11 @@ impl LocalDatabase {
             now_ms,
         )?;
 
-        if !changes.is_empty() {
+        if !changes.is_empty() || !sequence_allocations.is_empty() {
             set_version(&tx, next_version)?;
         }
 
-        let version = if changes.is_empty() {
+        let version = if changes.is_empty() && sequence_allocations.is_empty() {
             current_version
         } else {
             next_version
@@ -5430,6 +5467,17 @@ impl LocalDatabase {
               _snapback_relation_incarnations_v1_active
               ON _snapback_relation_incarnations_v1(table_name, row_id)
               WHERE active = 1;
+            -- @ref LLP 0135#11-counter-identity-and-scope — protected,
+            -- incarnation-scoped sequence state; application SQL never sees
+            -- this table through the schema/query surface.
+            CREATE TABLE IF NOT EXISTS _snapback_sequence_counters_v1 (
+              counter_name TEXT NOT NULL,
+              scope_table TEXT NOT NULL,
+              scope_row_id TEXT NOT NULL,
+              scope_incarnation TEXT NOT NULL,
+              next_value INTEGER NOT NULL CHECK(next_value >= 1),
+              PRIMARY KEY(counter_name, scope_table, scope_row_id, scope_incarnation)
+            );
             -- @ref LLP 0053#invalidation-is-an-obligation-not-a-message —
             -- retry episodes are durable auth-control state, never outbox
             -- messages or process-local timer records.
@@ -8297,6 +8345,74 @@ impl DbRead<'_> {
                 |row| row.get(0),
             )
             .optional()?)
+    }
+
+    /// Observe the value a sequence allocation would return without changing
+    /// durable state. The caller buffers this witness; the commit path below
+    /// exact-compares it under SQLite's `IMMEDIATE` writer transaction.
+    ///
+    /// Missing rows, inactive registry entries, and a physically absent scope
+    /// share one public outcome. Counter state is intentionally not exposed by
+    /// any ordinary read or inspection API.
+    ///
+    /// @ref LLP 0135#11-counter-identity-and-scope — counter identity includes
+    /// the active relation incarnation and the first value is one.
+    pub(crate) fn preview_sequence_allocation(
+        &self,
+        counter_name: &str,
+        scope_table: &str,
+        scope_id: &str,
+    ) -> SnapbackResult<BufferedSequenceAllocation> {
+        let conn = self.conn();
+        let scope = schema_table(match self {
+            DbRead::Pinned { schema, .. } => schema,
+            DbRead::Live(db) => &db.schema,
+        }, scope_table)?;
+        let scope_exists = conn
+            .query_row(
+                &format!("SELECT 1 FROM {} WHERE _id = ?1", quote_ident(&scope.name)?),
+                params![scope_id],
+                |_| Ok(()),
+            )
+            .optional()?
+            .is_some();
+        let incarnation = conn
+            .query_row(
+                "SELECT incarnation
+                   FROM _snapback_relation_incarnations_v1
+                  WHERE table_name = ?1 AND row_id = ?2 AND active = 1",
+                params![scope_table, scope_id],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?;
+        if !scope_exists || incarnation.is_none() {
+            return Err(sequence_parent_unavailable());
+        }
+        let scope_incarnation = incarnation.expect("checked above");
+        let next = conn
+            .query_row(
+                "SELECT next_value
+                   FROM _snapback_sequence_counters_v1
+                  WHERE counter_name = ?1 AND scope_table = ?2
+                    AND scope_row_id = ?3 AND scope_incarnation = ?4",
+                params![counter_name, scope_table, scope_id, scope_incarnation],
+                |row| row.get::<_, i64>(0),
+            )
+            .optional()?
+            .map(|value| u64::try_from(value).map_err(|_| sequence_counter_corrupt()))
+            .transpose()?
+            .unwrap_or(1);
+        if next > SEQUENCE_MAX_SAFE_INTEGER {
+            return Err(sequence_exhausted());
+        }
+        Ok(BufferedSequenceAllocation {
+            counter_name: counter_name.to_owned(),
+            scope_table: scope_table.to_owned(),
+            scope_id: scope_id.to_owned(),
+            scope_incarnation,
+            expected_next: next,
+            value: next,
+        })
     }
 
     pub fn table_change_version(&self, table: &str) -> SnapbackResult<u64> {
@@ -15480,6 +15596,118 @@ fn relation_incarnation_write_protected(table: &TableManifest, field: &str) -> S
     .with_detail("field", field.to_owned())
 }
 
+fn sequence_parent_unavailable() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_RELATION_PARENT_UNAVAILABLE",
+        "storage",
+        "relation parent is missing or inactive",
+    )
+}
+
+fn sequence_exhausted() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_SEQUENCE_EXHAUSTED",
+        "storage",
+        "the declared sequence has exhausted the JavaScript-safe integer range",
+    )
+}
+
+fn sequence_counter_corrupt() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_SEQUENCE_COUNTER_CORRUPT",
+        "storage",
+        "protected sequence counter state is invalid",
+    )
+}
+
+/// Validate and advance every tentative allocation under the authoritative
+/// writer transaction. The v1 runtime admits one allocation per invocation;
+/// accepting a slice here keeps this storage primitive exact for generated
+/// and handler callers while preserving declaration order.
+fn apply_sequence_allocations(
+    tx: &Transaction<'_>,
+    schema: &SchemaManifest,
+    allocations: &[BufferedSequenceAllocation],
+) -> SnapbackResult<()> {
+    for allocation in allocations {
+        let scope = schema_table(schema, &allocation.scope_table)?;
+        let scope_exists = tx
+            .query_row(
+                &format!("SELECT 1 FROM {} WHERE _id = ?1", quote_ident(&scope.name)?),
+                params![allocation.scope_id],
+                |_| Ok(()),
+            )
+            .optional()?
+            .is_some();
+        let active_incarnation = tx
+            .query_row(
+                "SELECT incarnation
+                   FROM _snapback_relation_incarnations_v1
+                  WHERE table_name = ?1 AND row_id = ?2 AND active = 1",
+                params![allocation.scope_table, allocation.scope_id],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?;
+        if !scope_exists || active_incarnation.as_deref() != Some(&allocation.scope_incarnation) {
+            return Err(sequence_parent_unavailable());
+        }
+        if allocation.value != allocation.expected_next
+            || allocation.expected_next > SEQUENCE_MAX_SAFE_INTEGER
+        {
+            return Err(if allocation.expected_next > SEQUENCE_MAX_SAFE_INTEGER {
+                sequence_exhausted()
+            } else {
+                sequence_counter_corrupt()
+            });
+        }
+        let stored_next = tx
+            .query_row(
+                "SELECT next_value
+                   FROM _snapback_sequence_counters_v1
+                  WHERE counter_name = ?1 AND scope_table = ?2
+                    AND scope_row_id = ?3 AND scope_incarnation = ?4",
+                params![
+                    allocation.counter_name,
+                    allocation.scope_table,
+                    allocation.scope_id,
+                    allocation.scope_incarnation,
+                ],
+                |row| row.get::<_, i64>(0),
+            )
+            .optional()?
+            .map(|value| u64::try_from(value).map_err(|_| sequence_counter_corrupt()))
+            .transpose()?
+            .unwrap_or(1);
+        if stored_next != allocation.expected_next {
+            return Err(SnapbackError::error(
+                "SNAPBACK_MUTATION_CONFLICT",
+                "storage",
+                "sequence counter changed after handler evaluation; retry the mutation",
+            ));
+        }
+        let successor = allocation
+            .value
+            .checked_add(1)
+            .ok_or_else(sequence_counter_corrupt)?;
+        let successor = i64::try_from(successor).map_err(|_| sequence_counter_corrupt())?;
+        tx.execute(
+            "INSERT INTO _snapback_sequence_counters_v1(
+               counter_name, scope_table, scope_row_id, scope_incarnation, next_value
+             ) VALUES (?1, ?2, ?3, ?4, ?5)
+             ON CONFLICT(counter_name, scope_table, scope_row_id, scope_incarnation)
+             DO UPDATE SET next_value = excluded.next_value",
+            params![
+                allocation.counter_name,
+                allocation.scope_table,
+                allocation.scope_id,
+                allocation.scope_incarnation,
+                successor,
+            ],
+        )?;
+    }
+    Ok(())
+}
+
 /// Resolve every protected child stamp from an actually-present parent and its
 /// one active registry incarnation. A registry row alone is insufficient:
 /// parent delete has no referential action, and a dangling/buffered-pending
@@ -17286,11 +17514,249 @@ mod guarded_commit_tests {
         db
     }
 
+    fn insert_sequence_scope(db: &mut LocalDatabase, id: &str, title: &str) {
+        db.commit_buffered_writes(
+            &HandlerInput::default(),
+            vec![BufferedWrite::Insert {
+                table: "parents".to_owned(),
+                id: id.to_owned(),
+                values: object(&[("owner", json!("user-1")), ("title", json!(title))]),
+            }],
+            Vec::new(),
+            Value::Null,
+        )
+        .expect("insert sequence scope");
+    }
+
+    fn commit_sequence_allocation(
+        db: &mut LocalDatabase,
+        allocation: BufferedSequenceAllocation,
+        writes: Vec<BufferedWrite>,
+    ) -> SnapbackResult<MutationCommit> {
+        let result = json!(allocation.value);
+        db.commit_buffered_writes_idempotent_guarded(
+            &HandlerInput::default(),
+            BufferedCommitPayload {
+                writes,
+                membership_plans: Vec::new(),
+                read_dependencies: Vec::new(),
+                result,
+                ctx_ledger: ledger(),
+                job_enqueues: Vec::new(),
+                job_producer: None,
+                asset_admissions: Vec::new(),
+                sequence_allocations: vec![allocation],
+            },
+            None,
+            || Ok(()),
+            || Ok(()),
+        )
+    }
+
+    fn preview_sequence(
+        db: &LocalDatabase,
+        counter: &str,
+        scope: &str,
+    ) -> SnapbackResult<BufferedSequenceAllocation> {
+        DbRead::Live(db).preview_sequence_allocation(counter, "parents", scope)
+    }
+
     fn object(entries: &[(&str, Value)]) -> Map<String, Value> {
         entries
             .iter()
             .map(|(key, value)| ((*key).to_owned(), value.clone()))
             .collect()
+    }
+
+    // @ref LLP 0135#13-allocation-versus-commit-ordering-and-gap-semantics —
+    // the protected point increment is dense, commit-ordered, and advances
+    // the application version even when it is the mutation's only effect.
+    #[test]
+    fn sequence_allocation_is_dense_commit_ordered_and_versioned() {
+        let mut db = relation_database();
+        insert_sequence_scope(&mut db, "parent-1", "scope");
+        assert_eq!(db.current_version().unwrap(), 1);
+
+        let first = preview_sequence(&db, "jobs", "parent-1").unwrap();
+        assert_eq!(first.value, 1);
+        let first_commit = commit_sequence_allocation(&mut db, first, Vec::new()).unwrap();
+        assert_eq!(first_commit.output.version, 2);
+        assert_eq!(first_commit.output.changed_count, 0);
+        assert_eq!(first_commit.output.result, json!(1));
+
+        let second = preview_sequence(&db, "jobs", "parent-1").unwrap();
+        assert_eq!(second.value, 2);
+        let second_commit = commit_sequence_allocation(&mut db, second, Vec::new()).unwrap();
+        assert_eq!(second_commit.output.version, 3);
+        assert_eq!(second_commit.output.result, json!(2));
+
+        let stored_next: i64 = db
+            .conn
+            .query_row(
+                "SELECT next_value FROM _snapback_sequence_counters_v1
+                  WHERE counter_name = 'jobs' AND scope_table = 'parents'
+                    AND scope_row_id = 'parent-1'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(stored_next, 3);
+    }
+
+    // @ref LLP 0135#12-allocation-surfaces — a stale buffered counter read
+    // loses at authoritative commit and its failed attempt creates no gap.
+    #[test]
+    fn concurrent_sequence_previews_exact_compare_without_gaps() {
+        let mut db = relation_database();
+        insert_sequence_scope(&mut db, "parent-1", "scope");
+
+        let winner = preview_sequence(&db, "jobs", "parent-1").unwrap();
+        let stale = preview_sequence(&db, "jobs", "parent-1").unwrap();
+        assert_eq!(winner.value, stale.value);
+        commit_sequence_allocation(&mut db, winner, Vec::new()).unwrap();
+        let error = commit_sequence_allocation(&mut db, stale, Vec::new())
+            .expect_err("stale counter witness must conflict");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
+        assert_eq!(db.current_version().unwrap(), 2);
+
+        let successor = preview_sequence(&db, "jobs", "parent-1").unwrap();
+        assert_eq!(successor.value, 2, "the failed attempt consumed no value");
+        commit_sequence_allocation(&mut db, successor, Vec::new()).unwrap();
+        assert_eq!(db.current_version().unwrap(), 3);
+    }
+
+    // @ref LLP 0135#13-allocation-versus-commit-ordering-and-gap-semantics —
+    // dry-run and later write failure both roll the protected advance back.
+    #[test]
+    fn sequence_advance_rolls_back_with_discarded_or_failed_mutation() {
+        let mut db = relation_database();
+        insert_sequence_scope(&mut db, "parent-1", "scope");
+        let tentative = preview_sequence(&db, "jobs", "parent-1").unwrap();
+
+        let preview = db
+            .dry_run_buffered_writes_with_jobs(
+                &HandlerInput::default(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                json!(tentative.value),
+                ledger(),
+                Vec::new(),
+                None,
+                Vec::new(),
+                vec![tentative],
+            )
+            .expect("discarded execution accepts the tentative allocation");
+        assert_eq!(preview.output.version, 2);
+        assert_eq!(db.current_version().unwrap(), 1);
+        assert_eq!(preview_sequence(&db, "jobs", "parent-1").unwrap().value, 1);
+
+        let tentative = preview_sequence(&db, "jobs", "parent-1").unwrap();
+        let error = commit_sequence_allocation(
+            &mut db,
+            tentative,
+            vec![BufferedWrite::Insert {
+                table: "children".to_owned(),
+                id: "bad-child".to_owned(),
+                values: object(&[
+                    ("parentId", json!("missing-parent")),
+                    ("position", json!(1)),
+                    ("body", json!("must roll back")),
+                ]),
+            }],
+        )
+        .expect_err("a later app-write refusal rolls back the counter");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_RELATION_PARENT_UNAVAILABLE");
+        assert_eq!(db.current_version().unwrap(), 1);
+        assert_eq!(preview_sequence(&db, "jobs", "parent-1").unwrap().value, 1);
+    }
+
+    // @ref LLP 0135#11-counter-identity-and-scope — the relation
+    // incarnation is part of counter identity, so id reuse starts at one
+    // without deleting the predecessor's protected audit state.
+    #[test]
+    fn sequence_scope_delete_recreate_starts_a_new_counter_identity() {
+        let mut db = relation_database();
+        insert_sequence_scope(&mut db, "parent-1", "first");
+        let predecessor = preview_sequence(&db, "jobs", "parent-1").unwrap();
+        let predecessor_incarnation = predecessor.scope_incarnation.clone();
+        commit_sequence_allocation(&mut db, predecessor, Vec::new()).unwrap();
+
+        db.commit_buffered_writes(
+            &HandlerInput::default(),
+            vec![BufferedWrite::Delete {
+                table: "parents".to_owned(),
+                id: "parent-1".to_owned(),
+            }],
+            Vec::new(),
+            Value::Null,
+        )
+        .unwrap();
+        let missing = preview_sequence(&db, "jobs", "parent-1")
+            .expect_err("deleted scope is unavailable");
+        assert_eq!(missing.diagnostic.code, "SNAPBACK_RELATION_PARENT_UNAVAILABLE");
+
+        insert_sequence_scope(&mut db, "parent-1", "second");
+        let successor = preview_sequence(&db, "jobs", "parent-1").unwrap();
+        assert_eq!(successor.value, 1);
+        assert_ne!(successor.scope_incarnation, predecessor_incarnation);
+        commit_sequence_allocation(&mut db, successor, Vec::new()).unwrap();
+
+        let rows: i64 = db
+            .conn
+            .query_row(
+                "SELECT count(*) FROM _snapback_sequence_counters_v1
+                  WHERE counter_name = 'jobs' AND scope_table = 'parents'
+                    AND scope_row_id = 'parent-1'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(rows, 2, "the predecessor counter remains orphaned");
+    }
+
+    // @ref LLP 0135#15-exhaustion — MAX itself is allocatable, then the
+    // durable 2^53 successor refuses every later attempt without wrapping.
+    #[test]
+    fn sequence_exhaustion_allocates_max_then_refuses_stably() {
+        let mut db = relation_database();
+        insert_sequence_scope(&mut db, "parent-1", "scope");
+        let incarnation = preview_sequence(&db, "jobs", "parent-1")
+            .unwrap()
+            .scope_incarnation;
+        db.conn
+            .execute(
+                "INSERT INTO _snapback_sequence_counters_v1(
+                   counter_name, scope_table, scope_row_id, scope_incarnation, next_value
+                 ) VALUES('jobs', 'parents', 'parent-1', ?1, ?2)",
+                params![incarnation, (SEQUENCE_MAX_SAFE_INTEGER - 1) as i64],
+            )
+            .unwrap();
+
+        for expected in [SEQUENCE_MAX_SAFE_INTEGER - 1, SEQUENCE_MAX_SAFE_INTEGER] {
+            let allocation = preview_sequence(&db, "jobs", "parent-1").unwrap();
+            assert_eq!(allocation.value, expected);
+            commit_sequence_allocation(&mut db, allocation, Vec::new()).unwrap();
+        }
+        assert_eq!(db.current_version().unwrap(), 3);
+
+        for _ in 0..2 {
+            let error = preview_sequence(&db, "jobs", "parent-1")
+                .expect_err("post-maximum allocation refuses");
+            assert_eq!(error.diagnostic.code, "SNAPBACK_SEQUENCE_EXHAUSTED");
+            assert_eq!(db.current_version().unwrap(), 3);
+        }
+        let stored_next: i64 = db
+            .conn
+            .query_row(
+                "SELECT next_value FROM _snapback_sequence_counters_v1
+                  WHERE counter_name = 'jobs' AND scope_table = 'parents'
+                    AND scope_row_id = 'parent-1'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(stored_next, (SEQUENCE_MAX_SAFE_INTEGER + 1) as i64);
     }
 
     // @ref LLP 0110#protected-relation-incarnation-and-stamping — the
@@ -19904,6 +20370,7 @@ mod guarded_commit_tests {
             job_enqueues: Vec::new(),
             job_producer: None,
             asset_admissions: Vec::new(),
+            sequence_allocations: Vec::new(),
         }
     }
 
@@ -22280,6 +22747,7 @@ mod guarded_commit_tests {
                     job_enqueues: Vec::new(),
                     job_producer: None,
                     asset_admissions: Vec::new(),
+                    sequence_allocations: Vec::new(),
                 },
                 None,
                 || Ok(()),
@@ -23100,6 +23568,7 @@ mod membership_write_tests {
                     },
                     job_enqueues: Vec::new(),
                     job_producer: None,
+                    sequence_allocations: Vec::new(),
                 },
                 None,
                 || Ok(()),

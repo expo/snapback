@@ -12065,6 +12065,7 @@ impl LocalSnapback {
                         job_enqueues,
                         job_producer,
                         asset_admissions: executed.asset_admissions,
+                        sequence_allocations: executed.sequence_allocations,
                     };
                                 crate::result_contract::validate_handler_result(
                                     &function,
@@ -12080,6 +12081,7 @@ impl LocalSnapback {
                         payload.job_enqueues.clone(),
                         payload.job_producer.clone(),
                         payload.asset_admissions.clone(),
+                        payload.sequence_allocations.clone(),
                     )?;
                     (
                                     self.authorization_commit_preflight_for_changes(
@@ -12609,6 +12611,7 @@ impl LocalSnapback {
                         job_enqueues,
                         job_producer,
                         asset_admissions: executed.asset_admissions,
+                        sequence_allocations: executed.sequence_allocations,
                     },
                     identity.as_ref(),
                     || Ok(()),
@@ -12856,6 +12859,7 @@ impl LocalSnapback {
                 job_enqueues,
                 job_producer,
                 asset_admissions: executed.asset_admissions,
+                sequence_allocations: executed.sequence_allocations,
             },
             None,
             check_live,
@@ -27050,6 +27054,7 @@ globalThis.__snapbackHandlers = {
                 job_enqueues: Vec::new(),
                 job_producer: None,
                 asset_admissions: admissions,
+                sequence_allocations: Vec::new(),
             },
             None,
             || Ok(()),
