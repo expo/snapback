@@ -1716,6 +1716,35 @@
       "oneOf": [
         {
           "additionalProperties": false,
+          "description": "One point-shaped host allocation. It is legal only inside a validated\n`write-with-activity.v1` plan, after the exact scope owner guard.\n@ref LLP 0135#12-allocation-surfaces",
+          "properties": {
+            "AllocateSequence": {
+              "properties": {
+                "counter": {
+                  "type": "string"
+                },
+                "into": {
+                  "type": "string"
+                },
+                "scope": {
+                  "$ref": "#/$defs/ValueExpr"
+                }
+              },
+              "required": [
+                "counter",
+                "scope",
+                "into"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "AllocateSequence"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "properties": {
             "Insert": {
               "properties": {
@@ -2795,6 +2824,23 @@
       ],
       "type": "object"
     },
+    "SequenceExistingOwnerAccess": {
+      "additionalProperties": false,
+      "description": "Generated-plan access proof. The function's normalized\n`write-with-activity.v1` plan must carry the same scope table, owner field,\nscope expression, and parent-unavailable refusal before this profile is\nadmitted; handlers cannot author this variant.",
+      "properties": {
+        "kind": {
+          "type": "string"
+        },
+        "ownerField": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "ownerField"
+      ],
+      "type": "object"
+    },
     "SequenceScopeAccess": {
       "anyOf": [
         {
@@ -2817,6 +2863,9 @@
             "roles"
           ],
           "type": "object"
+        },
+        {
+          "$ref": "#/$defs/SequenceExistingOwnerAccess"
         }
       ],
       "description": "One declared sequence counter and the structural proof that an invocation\nmay observe its allocation count. `public.v1` is deliberately a string on\nthe wire because it is the reviewed disclosure spelling pinned by LLP\n0135; non-public access names the membership declaration and exact roles\nthe host evaluates against the supplied scope row."
@@ -3280,6 +3329,14 @@
           "type": "integer"
         },
         "scopeReads": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "sequenceAllocations": {
+          "default": 0,
+          "description": "Fixed host bookkeeping; v1 admits zero or one allocation.",
           "format": "uint8",
           "maximum": 255,
           "minimum": 0,
