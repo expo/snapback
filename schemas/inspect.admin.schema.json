@@ -1454,6 +1454,17 @@
           },
           "description": "Target-authored deployment and browser-security facts. App artifacts\nand operator input may consume this descriptor but cannot assert it.\n\n@ref LLP 0060#d5-hosted-readiness-is-conjunctive — hosted auth is an\nexact conjunction; local loopback and production profile are not facts."
         },
+        "liveFullTextSearch": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LiveFullTextSearchFactsV1"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Closed target-owned facts for LLP 0136 live search. This block is\nabsent on every current target while `live_full_text_search_v1`\nremains unpublished; parent search/live facts are never substituted."
+        },
         "liveSubscriptions": {
           "type": "boolean"
         },
@@ -3921,6 +3932,61 @@
       ],
       "type": "object"
     },
+    "LiveFullTextSearchFactsV1": {
+      "additionalProperties": false,
+      "description": "The exact inspection fact block a future claiming target must publish.\nValues are target facts, not app-authored authority. The sibling stays\nabsent while support is false, but landing the closed shape now prevents\nthe runtime wave from inventing a looser or backend-specific projection.\n\n@ref LLP 0136#capability-id-and-claim-discipline-llp-0119-oq2-proposal",
+      "properties": {
+        "authScoped": {
+          "type": "boolean"
+        },
+        "capabilityId": {
+          "type": "string"
+        },
+        "deliveryLane": {
+          "type": "string"
+        },
+        "livenessScope": {
+          "type": "string"
+        },
+        "maxLiveSubscriptions": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxLiveSubscriptionsPerConnection": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxLiveSubscriptionsPerTable": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "resume": {
+          "type": "boolean"
+        },
+        "retention": {
+          "type": "boolean"
+        },
+        "wakeGranularity": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "capabilityId",
+        "livenessScope",
+        "wakeGranularity",
+        "deliveryLane",
+        "retention",
+        "resume",
+        "authScoped",
+        "maxLiveSubscriptions",
+        "maxLiveSubscriptionsPerConnection",
+        "maxLiveSubscriptionsPerTable"
+      ],
+      "type": "object"
+    },
     "LiveSubscriptionInfo": {
       "properties": {
         "connectionId": {
@@ -6197,6 +6263,17 @@
           },
           "type": "array"
         },
+        "liveLimits": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SearchLiveLimitsV1"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional lower ceilings for the separately capability-gated live\nsearch surface. Absence selects the target's admitted defaults.\n\n@ref LLP 0136#capability-id-and-claim-discipline-llp-0119-oq2-proposal"
+        },
         "maintenanceLimits": {
           "$ref": "#/$defs/SearchMaintenanceLimitsV1",
           "default": {
@@ -6258,6 +6335,26 @@
         "fieldClassifications",
         "visibility",
         "tieBreak"
+      ],
+      "type": "object"
+    },
+    "SearchLiveLimitsV1": {
+      "additionalProperties": false,
+      "properties": {
+        "maxLiveSubscriptions": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxLiveSubscriptionsPerConnection": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "maxLiveSubscriptions",
+        "maxLiveSubscriptionsPerConnection"
       ],
       "type": "object"
     },
@@ -6376,6 +6473,20 @@
         "maxIndexedBytes",
         "maxTokens",
         "maxPostingOperations"
+      ],
+      "type": "object"
+    },
+    "SearchTableLiveLimitsV1": {
+      "additionalProperties": false,
+      "properties": {
+        "maxLiveSubscriptionsPerTable": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "maxLiveSubscriptionsPerTable"
       ],
       "type": "object"
     },
@@ -6810,6 +6921,17 @@
           },
           "type": "array"
         },
+        "searchLiveLimits": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SearchTableLiveLimitsV1"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The one table-wide aggregate live-search subscription ceiling.\nOptional because absence selects the target's admitted default; it is\ntable-scoped so indexes cannot publish conflicting aggregate answers.\n\n@ref LLP 0136#capability-id-and-claim-discipline-llp-0119-oq2-proposal"
+        },
         "syncable": {
           "default": false,
           "type": "boolean"
@@ -6859,6 +6981,11 @@
         {
           "const": "jobs_one_off_v1",
           "description": "Transactional one-off durable work, first slice (LLP 0070, Draft):\n`ctx.jobs.enqueue` from JS mutations, the paved default queue,\njob/attempt receipts, the declared job-status query, and the\ninjected-clock forced drain. Experimental for as long as LLP 0070 is\nDraft — its claim boundary bars any durable-background-work\ncapability-class claim, and this id asserts current-contract\ncompatibility only.",
+          "type": "string"
+        },
+        {
+          "const": "live_full_text_search_v1",
+          "description": "First-page-only live search by bounded coarse re-execution. The id is\nregistered at experimental maturity but remains unsupported until the\ncomplete LLP 0136 evidence/publication train lands.",
           "type": "string"
         }
       ]

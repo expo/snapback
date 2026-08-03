@@ -1028,6 +1028,17 @@
           },
           "type": "array"
         },
+        "liveLimits": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SearchLiveLimitsV1"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional lower ceilings for the separately capability-gated live\nsearch surface. Absence selects the target's admitted defaults.\n\n@ref LLP 0136#capability-id-and-claim-discipline-llp-0119-oq2-proposal"
+        },
         "maintenanceLimits": {
           "$ref": "#/$defs/SearchMaintenanceLimitsV1",
           "default": {
@@ -1089,6 +1100,26 @@
         "fieldClassifications",
         "visibility",
         "tieBreak"
+      ],
+      "type": "object"
+    },
+    "SearchLiveLimitsV1": {
+      "additionalProperties": false,
+      "properties": {
+        "maxLiveSubscriptions": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxLiveSubscriptionsPerConnection": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "maxLiveSubscriptions",
+        "maxLiveSubscriptionsPerConnection"
       ],
       "type": "object"
     },
@@ -1173,6 +1204,20 @@
         "maxIndexedBytes",
         "maxTokens",
         "maxPostingOperations"
+      ],
+      "type": "object"
+    },
+    "SearchTableLiveLimitsV1": {
+      "additionalProperties": false,
+      "properties": {
+        "maxLiveSubscriptionsPerTable": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "maxLiveSubscriptionsPerTable"
       ],
       "type": "object"
     },
@@ -1321,6 +1366,17 @@
             "$ref": "#/$defs/SearchIndexManifestV1"
           },
           "type": "array"
+        },
+        "searchLiveLimits": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SearchTableLiveLimitsV1"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The one table-wide aggregate live-search subscription ceiling.\nOptional because absence selects the target's admitted default; it is\ntable-scoped so indexes cannot publish conflicting aggregate answers.\n\n@ref LLP 0136#capability-id-and-claim-discipline-llp-0119-oq2-proposal"
         },
         "syncable": {
           "default": false,

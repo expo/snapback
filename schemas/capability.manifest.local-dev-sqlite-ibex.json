@@ -138,7 +138,8 @@
     "notifications",
     "ephemeral_hosted_adapter",
     "ephemeral_multi_instance_sticky_routing",
-    "sequence_allocation_v1"
+    "sequence_allocation_v1",
+    "live_full_text_search_v1"
   ],
   "capabilityMaturity": {
     "args_contract_v1": "experimental",
