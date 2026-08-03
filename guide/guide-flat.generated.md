@@ -9454,8 +9454,8 @@ examples: [demos/todo/tests/acceptance/headless.mjs, demos/_kit/tests/live-delta
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-17
-reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
+reviewed: 2026-08-02
+reviewed-commit: e24d3df0cd10d668d2f04a2708afbf30ff7485bd
 ---
 
 # Live queries
@@ -9565,6 +9565,23 @@ a governed boundary, e.g. when the caller leaves the membership). A
 membership-gated feed never sees a bare `live_replace`; handle all
 four kinds. A subscription
 asserts on delta kinds like this:
+
+Incremental publication also requires the query's exact, schema-derived
+`Documents` result contract. A `live_delta` publishes committed storage rows
+without rerunning the complete query, so a `Documents` tag, table name, or
+hand-written narrower descriptor is not enough to prove that those rows match
+the operation's egress contract. Codegen supplies the exact contract and hash
+for an ordinary authored declarative query. Internal fixtures that construct a
+function manifest directly must derive the contract through the same codegen
+path, as the linked executable fixture does; do not invent a descriptor by
+hand. A missing or non-exact contract does not make the live query unloadable:
+the server honestly takes the full re-query plus `live_replace` path instead.
+
+When an apparently analyzable query receives replacements, check all of the
+conservative boundaries together: ordered or limited queries, membership-gated
+queries, generated standard patterns, opaque handlers, and manifests without
+the exact schema-derived document contract are replace-only. This fallback is
+intentional and correctness-preserving, not evidence that durable push failed.
 
 ```js source=demos/_kit/tests/live-delta-e2e.mjs
   const handle = await db.liveQuery('listMine', {

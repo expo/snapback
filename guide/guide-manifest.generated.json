@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "670b1d11106c69750bc592fc9022ea45e1fec580"
+    "commit": "e24d3df0cd10d668d2f04a2708afbf30ff7485bd"
   },
   "nav": {
     ".": [
@@ -2215,9 +2215,9 @@
         "demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs",
         "demos/party-wall"
       ],
-      "reviewed": "2026-07-17",
-      "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
-      "sha256": "d5c641bc33ba7fa42ce1587ed2c776a3c5b23389a9c45d300d21313cf182fb86",
+      "reviewed": "2026-08-02",
+      "reviewedCommit": "e24d3df0cd10d668d2f04a2708afbf30ff7485bd",
+      "sha256": "cd51f99362d4ce3e1d0e57ea6cbd7235d0abfe04db50eb542ede2eba0d70085b",
       "snippets": [
         {
           "lang": "js",
@@ -2624,5 +2624,5 @@
     "routes": 94,
     "hostOps": 32
   },
-  "contentHash": "eab77a72606b71c7e87f48cb109358109eef31091c4c82f158c0d2e2bbb13fd4"
+  "contentHash": "2b1f7c0efda4f9ea26ae9355e1205fdecc022caf39dfc62b4e4aef7134ab1506"
 }
