@@ -65,6 +65,17 @@ updated.
   `artifact_schemas_v0` result was 29/32 solely because three generated demo
   publications were absent; that end-wave regen residue is recorded in the
   greening ticket under the shared relaxed-cadence policy.
+- The exact current-head pre-push run found and closed two final vector-owned
+  inventory omissions: the S5-D10 AST inventory now classifies the three
+  `SNAPBACK_VECTOR_QUALIFICATION_*` harness inputs as receipt-binding
+  environment variables rather than HTTP diagnostics, and
+  `auth_artifacts_v1` includes `vector_search_v1` in its exact local capability
+  list. Focused inventory evidence reports only the four already-attributed
+  sequence/snapshot codes; `auth_artifacts_v1` is 6/6 and `capability_v0` is
+  4/4. With only that sequence inventory gate and the separately recorded
+  generated remote-service digest gate skipped, the complete Cargo suite is
+  green (1,875 runnable library tests plus every integration/doc test), and
+  all-target Clippy remains green under the named sequence-lane allowance.
 
 ### 2026-08-03 — VEC-3 SQLite maintenance and resumable rebuild checkpoint
 

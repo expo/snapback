@@ -38182,6 +38182,20 @@ globalThis.__snapbackHandlers = {
             "SNAPBACK_PROFILE",
             "environment variable selecting the server profile",
         ),
+        // @ref LLP 0132#acceptance — these test-only harness inputs bind the
+        // retained scale receipt; they are not runtime/API refusal codes.
+        (
+            "SNAPBACK_VECTOR_QUALIFICATION_MACHINE",
+            "test-only environment variable binding the LLP 0132 scale receipt to its machine identity",
+        ),
+        (
+            "SNAPBACK_VECTOR_QUALIFICATION_RECEIPT_OUT",
+            "test-only environment variable selecting the LLP 0132 scale receipt output path",
+        ),
+        (
+            "SNAPBACK_VECTOR_QUALIFICATION_REVISION",
+            "test-only environment variable binding the LLP 0132 scale receipt to its product revision",
+        ),
         (
             "SNAPBACK_RESUME_",
             "diagnostic-code family prefix appearing in RQS refusal-registry docs (LLP 0091 §0B.6)",
