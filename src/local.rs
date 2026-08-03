@@ -26236,6 +26236,7 @@ mod tests {
                 }),
                 asset_sharing: None,
             }],
+            required_capabilities: vec![VECTOR_CAPABILITY.to_owned()],
             ..SchemaManifest::default()
         };
         for (kind, retainable) in [
