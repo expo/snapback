@@ -6,14 +6,42 @@
 Live queries, Relational queries, Optimistic updates, Auth, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-03
-**Revised:** 2026-08-03 (v0.1, initial draft — the Move-2 owning Spec
-commissioned by Accepted LLP 0155 and the wave-3 Track A program
-(`issues/20260803-0155-move2-spec-commission.md`, ruled spec-first). Consumes
-Accepted LLP 0157's identity stack, completeness witness, and §D7 store
-interface; carries the LLP 0008 DK-9 and LLP 0080 retention-class amendment
-texts those owners' dated 2026-08-02 notes commission, landing at this Spec's
-acceptance; answers LLP 0155 OQ5 (the physical store) and LLP 0161 OQ5 (the
-agent-safe client seam).)
+**Revised:** 2026-08-03 (v0.2, round-1 fixes: the dual-family round 1
+returned NOT READY twice (Codex: 9 BLOCKING, 3 MATERIAL, 6 suggestions;
+Fable: 7 MATERIAL, 4 NIT — artifacts under `llp/reviews/`). Every finding
+applied: the carried amendment set gains the dated LLP 0157 classification
+amendment (both closed retention unions widened; per-plan opt-in with
+explicit identity rotation), and §D3's retention-authority list names the
+new class; §D7's evaluation model is now the closed `result-transform.v1`
+profile (post-projection semantics over the established result — never
+source-row or join re-execution); `QueryRegistrationV1` is closed
+(registration identity, owner context, per-source durability, derived
+priority, per-axis policy-merge lattice, scope serialization, LLP 0053
+custody); the multi-tab demand broker is specified (writer-held ledger,
+liveness-leased volatile demands, forwarding, handoff deferral, honest
+degradation); §D5 is restructured into orthogonal demand/owner axes with
+total precedence, release-anchored grace that protects against GC only,
+and a deterministic pressure order ending in address-byte tie-break;
+§D4 gains the per-family answer table and restores `refused` to the
+derivation; legacy resume entries are grandfathered under LLP 0090's exact
+lifecycle (shipped comparator, no TTL, shipped byte formula — no LLP 0090
+amendment is carried); browser lease-family convergence is pinned to
+fresh-sync-then-fenced-retirement (no cross-artifact atomic move is
+claimed); budget accounting gains canonical byte formulas and
+provisional-value marking; `wipe` is scoped (client-wide vs grant/query
+scope, allocator and tombstone survival, handle-key rotation); §D8 splits
+P8 into shipped-vs-LLP 0163-contract halves and reclassifies P9 as
+partial (per-principal quotas open); the outbox caps are re-cited as
+shipped constants under LLP 0043's posture; §D6 reconciles LLP 0157
+§Migration explicitly and adds OQ1's anonymous-retention precondition.)
+2026-08-03 (v0.1, initial draft — the Move-2 owning Spec commissioned by
+Accepted LLP 0155 and the wave-3 Track A program
+(`issues/20260803-0155-move2-spec-commission.md`, ruled spec-first).
+Consumes Accepted LLP 0157's identity stack, completeness witness, and §D7
+store interface; carries the LLP 0008 DK-9 and LLP 0080 retention-class
+amendment texts those owners' dated 2026-08-02 notes commission, landing
+at this Spec's acceptance; answers LLP 0155 OQ5 (the physical store) and
+LLP 0161 OQ5 (the agent-safe client seam).)
 **Related:** LLP 0000, LLP 0004, LLP 0007, LLP 0008, LLP 0012, LLP 0034,
 LLP 0039, LLP 0043, LLP 0048, LLP 0051, LLP 0053, LLP 0055, LLP 0059,
 LLP 0080, LLP 0081, LLP 0088, LLP 0090, LLP 0091, LLP 0093, LLP 0094,
@@ -46,18 +74,20 @@ the ordinary client read substrate:
    populations that predate LLP 0157.
 4. **Completeness-honest local answers** (§D4) — a query answers locally
    with authority only when its held witness and capability class prove it;
-   everything else is honestly `unknown`.
-5. **Query lifecycle, TTL, and eviction** (§D5) — registration states,
-   custody budgets, idle grace, and an eviction order that can never
-   override an authorization obligation or evict pending intent.
+   everything else is honestly `unknown` or `refused`, per family, per the
+   closed answer table.
+5. **Query lifecycle, TTL, and eviction** (§D5) — demand states orthogonal
+   to owner state, custody budgets, release grace, and an eviction order
+   that can never override an authorization obligation or evict pending
+   intent.
 6. **The resume/delta relationship to shipped RQS** (§D6) — the LLP 0090
    machinery is consumed unchanged as the sync engine; this store is the
    declared successor of its Channel-B persistence and the staged
    convergence path for the legacy address families.
-7. **The gated evaluation profile** (§D7) — the local-plan-evaluation
-   contract, plus the exact LLP 0008 DK-9 and LLP 0080 amendment texts this
-   Spec carries; evaluation stays refused until the amendments land and the
-   conformance corpus passes.
+7. **The gated evaluation profile** (§D7) — the closed `result-transform.v1`
+   local-evaluation contract, plus the exact LLP 0008 DK-9, LLP 0080, and
+   LLP 0157 amendment texts this Spec carries; evaluation stays refused
+   until the amendments land and the conformance corpus passes.
 8. **The agent-safe seam** (§D8) — the LLP 0161 OQ5 answer: which of the
    agent-ideal properties P1–P9 the client store needs natively, which it
    consumes as server-issued artifacts, and which it never takes; no
@@ -70,8 +100,10 @@ This Spec owns the eight items above. It does **not** own:
 - **Identity, witness, and interface semantics.** `NodePlanHashV1` →
   `PlanHashV1` → `QueryMaterializationKeyV1` → contextual addresses, the
   completeness status/proof, the §D3 product state, and the §D7 operation
-  contract are LLP 0157's. This Spec consumes them byte-for-byte and mints
-  no parallel identity or state.
+  contract are LLP 0157's. This Spec consumes them byte-for-byte — with
+  exactly one carried, dated widening of its two closed retention unions
+  (§D7), landing in LLP 0157 itself — and mints no parallel identity or
+  state.
 - **Carrier custody, leases, and the outbox.** LLP 0043 owns retained-entry
   custody rules, the `AuthorizedLease` machinery, the durable
   pending-mutation outbox, settlement publication, and acknowledgement GC.
@@ -83,7 +115,9 @@ This Spec owns the eight items above. It does **not** own:
   operation, never a parallel mechanism.
 - **Resume admission and token identity.** LLP 0090 owns the replay
   admission ladder, token/digest identity, arbitration, and the Channel
-  model. LLP 0091 owns the digest/token byte formats.
+  model — including the legacy population's exact lifecycle, which this
+  Spec grandfathers rather than amends (§D5). LLP 0091 owns the
+  digest/token byte formats.
 - **The client-store carrier decision.** LLP 0008 DK-9 owns the
   store-agnostic interface mandate and its durable-state rules. This Spec
   stays inside DK-9's envelope except where the carried amendment (§D7)
@@ -102,22 +136,29 @@ This Spec owns the eight items above. It does **not** own:
 Acceptance path: commissioned by an Accepted RFC; LLP 0130 SD-4's standing
 rule applies if the dual-family loop converges READY within this
 commission's scope; the author decides otherwise. Acceptance additionally
-lands the two dated amendments §D7 carries in their owning documents
-(LLP 0008 DK-9, LLP 0080) and dated boundary notes in LLP 0043, LLP 0053,
-and LLP 0090 for the successor-store and address-family seams. Acceptance is
-semantic only: no implementation or capability fact is promoted by this
-document's status.
+lands the three dated amendments §D7 carries in their owning documents
+(LLP 0008 DK-9, LLP 0080, LLP 0157) and dated boundary notes in LLP 0043,
+LLP 0053, and LLP 0090 for the successor-store and address-family seams.
+Acceptance is semantic only: no implementation or capability fact is
+promoted by this document's status.
 
 ## Vocabulary
 
 - **Materialization.** LLP 0157's unit: one `MaterializationRecordV1` at one
   `ClientMaterializationAddressV1` and current `query_instance_id`.
-- **Registration.** A durable client-side declaration that one generated
-  query reference plus canonical args belongs to the sync set (§D2). The
-  registration, not the row, is the unit of intent.
+- **Registration.** A client-side declaration, with its own identity and
+  owner context, that one generated query reference plus canonical args
+  belongs to the sync set (§D2). The registration, not the row, is the unit
+  of intent.
+- **Demand state.** The registration-derived axis of a materialization:
+  `demanded-active`, `demanded-idle`, or `undemanded` (§D5). Orthogonal to
+  — and always subordinate to — the owner state.
+- **Owner state.** LLP 0157 §D3's product state (lifecycle, disposition,
+  freshness, attempt, held proofs) plus the LLP 0053 authorization state it
+  projects.
 - **Sync set.** The union of current registrations. The store hydrates,
   syncs, and retains exactly this set — the sync set *is* the replica
-  definition.
+  definition; released records outlive it only inside §D5's grace.
 - **Hydration.** Establishing a registered materialization's requested scope
   from the server (LLP 0157 §D7 `beginEstablishment`/`commitPage`).
 - **Authoritative local answer.** A locally served result whose derived
@@ -128,8 +169,9 @@ document's status.
   retained client state (§D3): `qmk1` materializations (LLP 0157-admitted),
   legacy resume entries (`rqsEntryKey`), and legacy lease records
   (`retainedQueryKey`, the Contract arm's separate artifact).
-- **Idle grace.** The bounded custody window a released (no longer
-  registered) materialization survives before eviction (§D5).
+- **Release grace.** The bounded custody window an `undemanded`
+  materialization survives background GC (§D5). Grace never protects
+  against budget-pressure eviction and never extends authority.
 - **Channel B store.** The shipped RQS persisted resume store
   (`snapback-rqs-store.v1` and its file/memory/Expo carriers) this Spec
   succeeds (§D6).
@@ -183,14 +225,15 @@ axis). It contains:
 | `memberships` | row-occurrence membership records | LLP 0157 §D7 |
 | `entries` (legacy) | Channel B resume entries `{rows, meta, token, …}` | LLP 0090 |
 | `outbox` | durable pending-mutation queue, settlement + acknowledgement ledger, React binding receipt | LLP 0043 |
-| `storeMeta` | `query_instance_id` allocator high-water, generation counters, the LLP 0157 §D6 handle key, budget/eviction facts, store format version | this Spec / LLP 0053 (allocator) |
+| `storeMeta` | `query_instance_id` allocator high-water, generation counters, the LLP 0157 §D6 handle key, durable (`programmatic`) registrations, budget/eviction facts, store format version | this Spec / LLP 0053 (allocator) |
 
 The LLP 0043 Contract-arm lease store (`retainedQueryKey`-keyed retained
 records plus `AuthorizedLease` custody) is **deliberately not absorbed in
 v1**: LLP 0090's step-5 amendment requires it to remain a separate,
-untouched artifact, and its records adopt `qmk1` addresses only under the
-dated LLP 0043/0053 migration rules (§D6). This Spec declares the one-domain
-target and stages that merge behind those rules and LLP 0155 OQ16.
+untouched artifact, and its records converge on `qmk1` addresses only
+under §D6's fresh-sync-then-fenced-retirement rule. This Spec declares the
+one-domain target and stages that merge behind those rules and LLP 0155
+OQ16.
 
 ### Writer discipline and format versioning
 
@@ -198,18 +241,48 @@ target and stages that merge behind those rules and LLP 0155 OQ16.
   Locks exclusive lock (non-holders read and adopt, never write); the file
   carrier's exclusively created lock file with liveness-verdict staleness.
   Independently constructed same-origin clients serialize per LLP 0008
-  DK-9's rule, failing closed with the shipped lock-unavailable diagnostic.
+  DK-9's rule, failing closed with the lock-unavailable diagnostic (the
+  shipped spelling is `SNAPBACK_RQS_STORE_LOCK_UNAVAILABLE`; DK-9 names
+  `SNAPBACK_CLIENT_STORE_LOCK_UNAVAILABLE` — the successor store keeps the
+  shipped code and the reconciliation of the two spellings is a DK-9-owned
+  diagnostics note, not a new code minted here). Non-writer *demand* is
+  brokered through the writer (§D2); non-writer contexts never write store
+  bytes.
 - **Format versioning:** every store format change is a numbered, one-way,
-  crash-safe migration. A migration preserves pending intent and unresolved
-  acknowledgements or refuses to run (LLP 0155's migration guardrail;
-  LLP 0043's custody rules). Corrupt, future, or legacy bytes are typed
-  invalid-state diagnostics preserved in place — never an empty-success
-  parse fallback (DK-9), and only an explicit `wipe` — which clears retained
-  state *and* outbox atomically, because another identity must never replay
-  this one's queued mutations — resets them.
+  crash-safe migration. A migration preserves pending intent, unresolved
+  acknowledgements, durable registrations, and in-grace release clocks or
+  refuses to run (LLP 0155's migration guardrail; LLP 0043's custody
+  rules). Corrupt, future, or legacy bytes are typed invalid-state
+  diagnostics preserved in place — never an empty-success parse fallback
+  (DK-9); only an explicit `wipe` resets them.
 - **Version-skew fail-closed:** an older client opening a newer store fails
   closed (the shipped v1-code-on-v2-database VersionError posture),
   reporting a stable diagnostic rather than downgrading the store.
+
+### `wipe` — exact scope
+
+`wipe` is the identity barrier's tool and the caller-authorized reset tool;
+it is not eviction and not a general cleanup:
+
+- **When:** a full-store `wipe` runs only for (a) a caller-authorized
+  explicit reset, or (b) an owner-required **client-wide** transition —
+  LLP 0039 session transitions under LLP 0053's client-wide `delete`.
+  Grant-scoped transitions (LLP 0055 multi-grant agent clients) and
+  query-scoped dispositions never full-wipe: they run LLP 0053's scoped
+  quarantine/delete over exactly the affected authority-partition
+  addresses, registrations, and — per LLP 0053's suspension/strand rules —
+  the affected outbox scopes (stranded queued work stays visible,
+  explicitly discardable, never replayable; unrelated grants' custody and
+  acknowledgements are untouched).
+- **What it clears:** retained state (all three families' sections in this
+  domain) and the outbox, in one transaction — another identity must never
+  replay this one's queued mutations.
+- **What survives:** the `query_instance_id` allocator high-water (LLP 0053
+  requires never-reuse across recreation), and the fence/tombstone/barrier
+  high-waters LLP 0053's delete rules preserve.
+- **What rotates:** the LLP 0157 §D6 local-row-handle HMAC key is destroyed
+  and re-minted — a predecessor identity's handles must not remain
+  comparable across the barrier.
 
 ## D2 — The sync specification: registered queries
 
@@ -218,10 +291,10 @@ target and stages that merge behind those rules and LLP 0155 OQ16.
 **The sync set is the registration set.** There is no separate replica
 definition — no table list, no collection manifest, no sync schema. A
 materialization is hydrated, kept current, or retained because at least one
-registration names it (or because §D5's idle grace has not yet elapsed since
-the last registration released it); the inspector can name that reason for
-every retained byte (LLP 0157 §D6). A query nothing registers is never
-hydrated and never retained.
+registration names it (or because §D5's release grace has not yet elapsed
+since the last registration released it); the inspector can name that
+reason for every retained byte (LLP 0157 §D6). A query nothing registers is
+never hydrated; nothing unregistered is retained beyond grace.
 
 This is LLP 0155 Move 2's copied-Zero outcome with Snapback's authority
 model kept: the *client* declares interest; the *server* still admits the
@@ -229,18 +302,26 @@ plan, authorizes every result, and issues every witness. A registration
 never widens a server-approved query, never mints retention the owner's
 classification refuses, and never converts interest into authority.
 
+The v1 registration set covers the `qmk1` and legacy-resume address
+families only. The legacy lease family (the Contract arm's separate
+artifact) keeps LLP 0043's own demand model until it converges (§D6).
+
 ### The registration record
 
 ```ts
 type QueryRegistrationV1 = Readonly<{
   format: "snapback.query-registration.v1"
+  registrationId: string         // store-scoped, client-minted, unique, never reused
   source: "active" | "preload" | "programmatic"
+  ownerContext:
+    | { kind: "subscription", contextId: string }  // a live client context (tab/process)
+    | { kind: "route", routeId: string }           // a routes-manifest entry
+    | { kind: "api", label: string | null }        // explicit registration API
   functionReference: object      // the generated reference, byte-preserved
   canonicalArgs: unknown         // LLP 0114 CanonicalClientValueV1
-  requestedScope: RequestedCompletenessScopeV1   // LLP 0157 §D3
+  requestedScope: RequestedCompletenessScopeV1     // LLP 0157 §D3
   retentionRequest: "none" | "durable"
   idleTtlClass: "none" | "default" | "pinned"
-  priorityClass: "active" | "preload" | "background"
 }>
 ```
 
@@ -249,24 +330,91 @@ type QueryRegistrationV1 = Readonly<{
   LLP 0157-admitted plan, otherwise the legacy alias key its arm already
   uses (§D3's address families; a legacy-family registration's
   `requestedScope` is the whole-result semantics its arm already implies —
-  the field constrains only `qmk1` establishment). Registration is
-  idempotent at the address; the store keeps a registration count per
-  address, and `source` facts for inspection.
+  the field constrains only `qmk1` establishment). Unknown fields refuse;
+  values outside the closed sets refuse.
+- **Priority is derived, not declared:** hydration priority is
+  `active` > `preload` > `programmatic` by `source`. There is no separate
+  priority field to disagree with the lifecycle axis.
+- **Per-source durability is exact:**
+  - `active` registrations are **volatile**: they exist exactly while their
+    owning subscription lives in a live context, are never persisted, and
+    are reaped when the context provably dies (the broker's liveness rule
+    below). Restart reconstructs them from whatever subscriptions the
+    application re-creates.
+  - `preload` registrations are **manifest-derived**: re-derived at each
+    boot from the routes manifest in force; not persisted per-registration.
+    A route leaving the manifest releases its registrations at the next
+    boot.
+  - `programmatic` registrations are **durable**: persisted in `storeMeta`,
+    survive restart, and release only by explicit API call, by their
+    materialization's LLP 0053 destruction, or by store reset.
+- **Multi-registration merge is a closed per-axis lattice.** Registrations
+  at one address compose; the effective policy is the per-axis maximum
+  across live registrations: `retentionRequest` `durable > none`;
+  `idleTtlClass` `pinned > default > none`; demand state is
+  `demanded-active` iff any `active`-source registration is live. Releasing
+  one registration re-evaluates the merge over the remainder; the last
+  release starts grace (§D5).
+- **Scope serialization.** LLP 0157 §D3 gives one requested scope per
+  address at a time, and a changed-scope request makes predecessor proofs
+  historical. The effective scope at an address is therefore: the page-set
+  scope if any live registration demands it (a page-set subsumes single
+  pages); otherwise the most recently demanded page. A superseded page
+  demand answers `unknown` until it is re-demanded and re-established.
+  Richer concurrent-scope union semantics are deliberately out of v1
+  (OQ10).
+- **Registration custody.** A registration record carries the same
+  authority-partition custody as its address: `canonicalArgs` never appears
+  in ordinary inspection (LLP 0157 §D6's boundary — inspection shows
+  `argsDigest` and counts); LLP 0053 transitions apply to registrations
+  with their materialization — `delete` destroys them, quarantine hides
+  them, and a durable registration under a destroyed partition is
+  destroyed with it, never resurrected to re-hydrate revoked state.
 - `retentionRequest: "durable"` is a *request*: it is honored only when the
   owner-issued capability classification and retention authority admit it
   (§D3). The mismatch is reported honestly through the shipped
   retention-classification surface (retainable / not-retainable with a
   stable code), never silently dropped.
-- Unknown fields refuse; every `*Class` value outside the closed sets
-  refuses.
 
 ### Registration sources, mapped to shipped machinery
 
 | Source | v1 producer | Notes |
 | --- | --- | --- |
-| `active` | a live `liveQuery`/provider subscription (the mounted-UI path) | exists while the subscription does; its release begins §D5 lifecycle |
-| `preload` | the routes manifest (`defineRoutes` → `routes.manifest.json`) and its Channel A/C boot bundles and register groups | boot-scoped hydration; LLP 0090 owns bundle admission |
-| `programmatic` | an explicit client registration API (the successor of the per-call `persistResume` option and the routes-manifest `persist: false` opt-out) | the authoring shape is OQ8 |
+| `active` | a live `liveQuery`/provider subscription (the mounted-UI path) | the shipped `persistResume` option maps: `true` (default) → `retentionRequest: "durable"`, `false` → `"none"` |
+| `preload` | the routes manifest (`defineRoutes` → `routes.manifest.json`) and its Channel A/C boot bundles and register groups | boot-scoped hydration; LLP 0090 owns bundle admission; the designed per-manifest-entry `persist: false` opt-out (LLP 0090 D3) and its shipped `persistResume` client-option stand-in map to `retentionRequest: "none"` |
+| `programmatic` | an explicit client registration API (successor of the `persistResume` stand-in) | the authoring shape is OQ8 |
+
+### The multi-tab demand broker
+
+Registrations are store state, and the store has one writer. The two
+compose through a broker contract, which is part of carrier qualification
+(the two-contending-tabs carrier-exit leg):
+
+- **The writer holds the registration ledger.** Only the writer commits
+  registration state (durable rows in `storeMeta`; the volatile demand
+  ledger in writer memory).
+- **Non-writer contexts announce demands.** A non-writer context sends its
+  `active` demands (and forwards `programmatic` registration requests) to
+  the writer over the carrier's cross-context channel. Every announced
+  demand carries the context identity and a liveness signal; channel
+  disconnect or context death releases that context's volatile demands
+  (reaping). A forwarded `programmatic` registration resolves only when the
+  writer acknowledges the durable commit, or fails with the writer's
+  refusal.
+- **Reads protect renderable custody through demand, not through reads.**
+  A non-writer tab rendering an adopted materialization keeps it
+  `demanded-active` by announcing the demand — the store does not infer
+  demand from reads it cannot observe.
+- **Writer handoff:** on writer change, the new writer loads durable
+  registrations from the store and rebuilds the volatile ledger from live
+  contexts' re-announcements. For a bounded re-announcement window (v1
+  default: 30 seconds, dated-amendable), budget-pressure eviction of
+  `undemanded` records is deferred — a commit that would exceed budget
+  during the window refuses instead of evicting — so a handoff gap cannot
+  evict state a live tab is about to re-claim.
+- **Honest degradation:** a context that cannot reach a writer runs
+  volatile-online for its own demands — in-memory rows, no durable-custody
+  claims, no assumption that retained state is protected on its behalf.
 
 ### Sync obligations per capability class
 
@@ -282,10 +430,11 @@ store infers nothing from plan shape:
 - **Non-live plans** (`live.kind: "none"`, including `Query`-kind exports):
   establishment at registration and on explicit refresh; no subscription is
   invented for them.
-- **`idle` registrations** (`preload`/`programmatic` with no active use):
-  hydrated at registration and re-validated when they next become active or
-  at boot preload; v1 deliberately holds **no** standing live subscription
-  for idle registrations (the fan-out cost of a warm class is OQ3).
+- **`demanded-idle` registrations** (`preload`/`programmatic` with no
+  active use): hydrated at registration and re-validated when they next
+  become active or at boot preload; v1 deliberately holds **no** standing
+  live subscription for idle registrations (the fan-out cost of a warm
+  class is OQ3).
 - **Retention-ineligible plans** (owner retention `"none"`, e.g. v1
   `snapshot-batch.v1` composites): registration governs presence and
   priority only; their materializations live in the `volatile-online-v1`
@@ -295,11 +444,12 @@ store infers nothing from plan shape:
 
 Hydration is bounded and inspectable, never an unbounded fan-out:
 
-- priority order `active` > `preload` > `background`; within a class,
+- priority order `active` > `preload` > `programmatic`; within a class,
   least-recently-established first;
 - a per-store establishment concurrency bound (v1 default: 4 concurrent
-  establishment attempts), with remaining registrations queued and their
-  attempt state honestly `pending`/`idle` per LLP 0157 §D3;
+  establishment attempts; dated-amendable, superseded by OQ4's measured
+  freeze), with remaining registrations queued and their attempt state
+  honestly `pending`/`idle` per LLP 0157 §D3;
 - a registration that cannot hydrate (offline, refused, over budget)
   reports `unknown` plus its attempt/refusal state — registration never
   fabricates rows;
@@ -324,10 +474,15 @@ Persistence requires **all** of:
    widens a classification:
    - `opaque-authorized-snapshot-v1` (LLP 0080) with the complete LLP 0043
      lease/witness custody for auth-scoped plans;
+   - `fragment-evaluated-snapshot-v1` (LLP 0080 as amended at this Spec's
+     acceptance, §D7) with the identical lease/witness custody — this class
+     is **representable only after the carried LLP 0157 classification
+     amendment lands** and grants evaluation admission only through §D7's
+     full ship gate; until then no plan can carry it;
    - the LLP 0090 Channel-B rules for the legacy `rqsEligible` population
      (below);
    - `retention: "none"` never persists;
-3. a registration or unexpired idle grace (§D2/§D5); and
+3. a registration or unexpired release grace (§D2/§D5); and
 4. the LLP 0053 state admitting it (disposition `retain`, no blocking
    fence).
 
@@ -338,19 +493,25 @@ Three keying regimes coexist, deliberately and visibly:
 | Family | Key | Population | Witness | Status under this Spec |
 | --- | --- | --- | --- | --- |
 | `qmk1` materializations | `ClientMaterializationAddressV1` | LLP 0157-admitted plans (`relational_query_v1`, `bounded_children_v1` singles; composites volatile-only in v1) | `CompletenessProofV1` | the target family; new establishment lands here |
-| legacy resume | `rqsEntryKey(name, args)` | the shipped `rqsEligible` set — public, authority-independent, single-table, plan-based LiveQueries (LLP 0004/0007 plans; server-derived predicate, never authored) | server-MACed resume token + content digest (no completeness proof) | continues under LLP 0090's rules in the same store domain; converges only if a single-table node class registers (OQ1) |
-| legacy lease | `retainedQueryKey(name, args)` | auth-scoped retained records (Contract arm) | `CompositeWitness` + `AuthorizedLease` | separate LLP 0043 artifact, unchanged; adopts `qmk1` only under the dated prove-or-fresh-sync rules (§D6) |
+| legacy resume | `rqsEntryKey(name, args)` | the shipped `rqsEligible` set — public, authority-independent, single-table, plan-based LiveQueries (LLP 0004/0007 plans; server-derived predicate, never authored) | server-MACed resume token + content digest (corruption detection, not client-side authenticity — LLP 0090's threat model; no completeness proof) | continues under LLP 0090's exact rules in the same store domain (grandfathered, §D5); converges only if a single-table node class registers (OQ1) |
+| legacy lease | `retainedQueryKey(name, args)` | auth-scoped retained records (Contract arm) | `CompositeWitness` + `AuthorizedLease` | separate LLP 0043 artifact, unchanged; converges by fresh-sync-then-fenced-retirement only (§D6) |
 
 The middle row records a fact LLP 0157 makes explicit: ordinary LLP
 0004/0007 single-table plans are not silently reclassified as composition
 nodes, so the shipped retained population has no `PlanHashV1` and no
 completeness proof today. This Spec does not pretend otherwise: the legacy
 family keeps its shipped verification (digest + token identity,
-fail-closed) and its shipped rules, inside the same store domain, budget,
-and lifecycle. Registering a `single_table_v1` node class with the owners —
+fail-closed) and its shipped rules, inside the same store domain and byte
+budget. Registering a `single_table_v1` node class with the owners —
 which would give this population plan identity, proofs, and `qmk1`
 addresses — is OQ1, an owner proposal under LLP 0157 §D1's growth stop
-rule, not an inference this Spec may make.
+rule, not an inference this Spec may make. OQ1 adoption additionally
+carries an owner precondition this Spec names now: LLP 0080 admits no
+anonymous v1 retention (`opaque-authorized-snapshot-v1` requires an
+authenticated principal's lease), so the public `rqsEligible` population
+can adopt `qmk1` **without losing its shipped offline capability** only if
+the Channel-B retention authority travels with the family or an anonymous
+lease/retention class lands in LLP 0053/0080 first.
 
 ### Identity rotation and predecessors
 
@@ -367,25 +528,40 @@ of budget state.
 
 ### Custody budgets
 
-The store inherits the shipped budget discipline, applied across all
-sections of the domain:
+The store inherits the shipped budget discipline, applied across the
+retention sections of the domain with canonical, carrier-independent
+accounting:
 
-- v1 budget constants: 32 MiB total payload bytes and 256 retained records
-  per store (the shipped `RQS_STORE_MAX_BYTES`/`RQS_STORE_MAX_ENTRIES`
-  values, now covering materializations plus legacy entries), and at most
-  1,024 stored fragments across all materializations (matching the
-  substrate's summed-`take` ceiling class). Values are dated-amendable;
-  LLP 0155 OQ9's Triage/Fleet budget freeze supplies the first measured
-  revision (OQ4).
-- Budget enforcement runs inside the committing transaction (consumed
-  shipped rule): an over-budget commit evicts per §D5's order or refuses;
-  a single entry exceeding the budget refuses with its stale predecessor
-  deleted, never half-written.
-- The outbox and acknowledgement ledger have their own owner-set caps
-  (LLP 0043: 1,024 records / 4,096 pending acknowledgements) and **refuse
-  at capacity rather than evict** — pending intent and unacknowledged
-  settlement recovery state are never budget-evicted, and their caps are
-  not fungible with the retention budget.
+- **What counts.** The retention budget covers the `materializations`,
+  `pageSets`, `memberships`, and legacy `entries` sections. Registration
+  rows, `storeMeta` bookkeeping, and the outbox are outside it — the outbox
+  has its own owner-governed caps (the shipped implementation constants:
+  1,024 records, 4,096 pending acknowledgements,
+  `packages/snapback-client/outbox-shared.mjs`, under LLP 0043's
+  refuse-at-capacity posture; the values themselves are implementation
+  constants, not LLP 0043 text) and **refuses at capacity rather than
+  evicts** — pending intent and unacknowledged settlement recovery state
+  are never budget-evicted, and their caps are not fungible with the
+  retention budget.
+- **Canonical byte formulas.** A legacy entry's bytes are the shipped
+  formula, unchanged: UTF-8 length of the serialized `{rows, meta, token}`
+  (`rqsEntryRecordBytes`). A materialization record's bytes are the sum of
+  its stored fragment byte lengths plus the UTF-8 JCS lengths of its stored
+  proofs, page-set manifests, and membership records. Every carrier
+  computes the same logical bytes; physical overhead never enters
+  admission or eviction decisions.
+- **v1 provisional values** (dated-amendable; superseded by OQ4's measured
+  Triage/Fleet freeze): 32 MiB total logical bytes and 256 retained
+  records per store (the shipped `RQS_STORE_MAX_BYTES` /
+  `RQS_STORE_MAX_ENTRIES` values, now spanning materializations plus
+  legacy entries), and at most 1,024 stored fragments across all
+  materializations.
+- **Enforcement** runs inside the committing transaction (consumed shipped
+  rule): an over-budget commit evicts per §D5's order or refuses; a single
+  entry exceeding the budget refuses with its stale predecessor deleted,
+  never half-written. Every eviction comparator ends in a deterministic
+  final tie-break: ascending lexicographic comparison of the record's
+  address key as unsigned UTF-8 bytes.
 
 ## D4 — Completeness-honest local answers
 
@@ -402,9 +578,10 @@ state, and (auth-scoped) an unexpired lease. Freshness labels the answer
 `current` or `retained`; a retained answer is complete *as of* its proof
 version and is never presented as current.
 
-Everything else is `unknown` — honestly ignorant, locally derivable,
-requiring no round-trip (LLP 0157 §D3). The store adds no fifth state and
-no local upgrade path:
+Everything else derives `unknown` or — exactly where LLP 0157 §D3's
+transition table produces it (a current refused attempt with no valid
+matching proof) — `refused` with its closed reason and safe fallback. The
+store adds no fifth state and no local upgrade path:
 
 - no completeness from row counts, cap coincidence, or replayed deltas
   (consumed);
@@ -414,21 +591,30 @@ no local upgrade path:
 - a `refused` establishment surfaces its closed reason and safe fallback;
   it never silently degrades to stale rows presented as fresh.
 
-### Per-family answer regimes
+### The answer table
 
-- **`qmk1` materializations:** proof-or-nothing. Retained boot runs
-  LLP 0157 §D3's retained-boot validation table exactly; a fragment whose
-  proof fails any check renders nothing and takes the table's prescribed
-  store mutation. There is no digest-only render for this family.
-- **Legacy resume entries:** the shipped regime continues — digest-verified
-  rows render labeled `retained` with `pendingIntentsAtSeed` when the
-  outbox is non-empty, per LLP 0090; the first authoritative answer
-  restores `current`. This family's answers are *labeled retained data*,
-  not completeness-witnessed authority, and the React projection's
-  `'live'` status correctly excludes them.
-- **Legacy lease records:** LLP 0043 M1's conditions, unchanged (exact
-  composite-witness match, complete MACed lease custody, strictly before
-  deadline, delete-before-read on every defect).
+The per-family answer classes are closed. "Authoritative" rows are the
+§Vocabulary projection; "labeled-retained" is the legacy display class —
+verified retained *data*, honestly labeled, without a completeness
+witness. S2 executes this table.
+
+| # | Family | State | Answer / freshness | Store mutation / action |
+| --- | --- | --- | --- | --- |
+| 1 | `qmk1` | valid proof for requested scope+version; disposition `retain`; witness revalidates; lease valid (auth-scoped) | **authoritative** — `complete`, `current` if live-confirmed else `retained` | none |
+| 2 | `qmk1` | proof absent, signature/binding fails, or result bytes fail the contract | `unknown`; render nothing | discard the corrupt fragment/proof (LLP 0157 retained-boot row 1); fresh sync when connected |
+| 3 | `qmk1` | stored activation ≠ trusted current artifact | `unknown`; render nothing | LLP 0053 artifact-change `delete` before read |
+| 4 | `qmk1` | lease missing/malformed/expired/rollback-tainted (auth-scoped) | `unknown`; render nothing | LLP 0053 `delete` before read (equality is expiry) |
+| 5 | `qmk1` | witness same incarnation/stream, newer epoch expected | `unknown`; render nothing | LLP 0053 `quarantine` before read; satisfying resnapshot may release |
+| 6 | `qmk1` | witness missing / wrong incarnation/stream/instance | `unknown`; render nothing | LLP 0053 `delete` before read |
+| 7 | `qmk1` | current attempt refused; no valid matching proof | `refused` (closed reason + fallback) | store the refusal (LLP 0157 §D3) |
+| 8 | `qmk1` | requested scope/version changed at the address | `unknown` until re-established | predecessor proofs become historical (LLP 0157 §D3) |
+| 9 | legacy resume | entry verifies (shape, token, meta, rows, identity, digest); outbox empty | **labeled-retained** rows; token enters the §D6 ladder; first authoritative answer → `current` | none |
+| 10 | legacy resume | entry verifies; outbox pending | **labeled-retained** + `pendingIntentsAtSeed`; `resumeFromToken` withheld | LLP 0043 path (full resync, then replay) |
+| 11 | legacy resume | any verification failure (incl. `inProgress` marker) | no render; fresh subscribe | delete the entry |
+| 12 | legacy resume | token expired (server-admission staleness) | offline: **labeled-retained** display continues (indefinite, LLP 0090's rule); connected: resume falls to rung 3 fresh subscribe | token replaced on next authoritative answer |
+| 13 | legacy resume | `AuthorizationInvalidation` / `resync_required` with `clear_retained` | `unknown` | purge the persisted copy |
+| 14 | legacy lease | every LLP 0043 M1 condition holds (exact witness match, complete MACed lease custody, strictly before deadline, valid cursor/target facts, no blocking fence) | **authoritative** — `retained` (as-of the accepted snapshot), marked stale per LLP 0043 | none; reconnect requires full revalidation + fresh snapshot before stale clears |
+| 15 | legacy lease | expiry-equality, clock rollback, custody defect, identity/witness mismatch | no render | commit the instance's delete tombstone before read (LLP 0043/0053) |
 
 ### Offline posture
 
@@ -446,49 +632,85 @@ no local upgrade path:
 
 ## D5 — Query lifecycle, TTL, and eviction
 
-### Lifecycle states
+### Two axes, one precedence rule
 
-Per materialization (a projection over registration state plus LLP 0157's
-product state — not a new stored enum axis beyond the registration facts):
+A materialization's behavior is the product of two orthogonal axes:
 
-| State | Definition | Sync behavior | Eviction exposure |
-| --- | --- | --- | --- |
-| `active` | ≥ 1 `active`-source registration | live subscription per class; ingestion | never budget-evicted; over-budget establishment refuses commit |
-| `idle` | registered by `preload`/`programmatic` only | hydrated at registration/boot; no standing subscription (v1) | evictable after `released` records are exhausted |
-| `released` | zero registrations, idle grace running | none | first in eviction order |
-| `retired` | LLP 0053 terminal retirement | rejected inputs | owner-destroyed, not evicted |
+- **Demand** (this Spec's axis, derived from live registrations):
+  `demanded-active` (≥ 1 live `active`-source registration),
+  `demanded-idle` (registered by `preload`/`programmatic` only), or
+  `undemanded` (zero registrations; release grace running).
+- **Owner state** (LLP 0157 §D3's product: lifecycle `active`/`retiring`,
+  disposition, freshness, attempt, held proofs — projecting LLP 0053).
 
-### TTL
+**Owner state always wins.** Demand affects only hydration priority and
+eviction exposure of renderable custody. A demanded record under
+`quarantine`, `delete`, or `retiring` follows the owner transition exactly
+(hidden, destroyed, or rejected per LLP 0053); demand never resurrects,
+delays, or downgrades an owner transition, and a destroyed
+materialization's registrations are destroyed or released with it (§D2
+custody). `retiring`/retired are owner states, not demand states: a
+retired instance has no record and no status (LLP 0157), whatever demand
+exists; re-demand after retirement initializes a fresh instance.
 
-- **Idle grace (release TTL):** a released materialization survives
-  eviction eligibility for its registration's `idleTtlClass`:
-  - `"none"` — evictable immediately on release;
-  - `"default"` — 14 days from last authoritative establishment. The value
-    deliberately equals the coordinated cursor-credential expiry
-    (1,209,600,000 ms, LLP 0157 §D8), so released state never outlives the
-    credential family that could resume it;
-  - `"pinned"` — held until explicitly unregistered; still inside the
-    budget, still subordinate to every owner obligation.
-- **TTL is custody policy, never authority.** It only shortens custody. It
-  cannot extend a lease, a proof's validity, or a retained label's
-  authority; auth-scoped custody ends at lease expiry through LLP 0053's
-  `delete` regardless of any TTL class, and an owner disposition executes
-  on its own schedule regardless of grace.
+| Demand state | Sync behavior | Eviction exposure |
+| --- | --- | --- |
+| `demanded-active` | live subscription per class; ingestion | never budget-evicted; over-budget establishment refuses commit |
+| `demanded-idle` | hydrated at registration/boot; no standing subscription (v1) | evictable under pressure, after `undemanded` |
+| `undemanded` | none | first under pressure; GC'd at grace expiry |
+
+### Release grace (TTL)
+
+- Grace is **release-anchored**: the clock starts when the last
+  registration releases the address. Default duration 14 days
+  (1,209,600,000 ms; a provisional v1 value, dated-amendable under OQ4).
+  Per the merge lattice, the governing `idleTtlClass` is the maximum the
+  releasing registrations held: `"none"` — no grace, GC-eligible on
+  release; `"default"` — the 14-day window; `"pinned"` — exempt from grace
+  GC entirely (held until explicitly unregistered), still inside the
+  budget and still subordinate to every owner obligation.
+- **Grace protects against background GC only, never against
+  budget-pressure eviction** and never against an owner transition. It is
+  custody policy, not authority: it cannot extend a lease, a proof's
+  validity, or a retained label; auth-scoped custody ends at lease expiry
+  through LLP 0053's `delete` regardless of grace, and an owner
+  disposition executes on its own schedule.
+- Grace GC runs as a writer maintenance pass. Clock rollback delays GC and
+  never accelerates it (custody-only; no authority consequence). Grace
+  clocks are durable and survive format migration (§D1).
 - The legacy directory GC (30-day dead-origin blob sweep on the Node
   default path) is unchanged and out of scope: it reclaims abandoned
   *stores*, not entries within a live one.
 
 ### Eviction
 
-Under budget pressure, within the committing transaction:
+Under budget pressure, within the committing transaction, over
+materialization records (whole records only — fragments, page sets,
+memberships, and registration bookkeeping move atomically; a page-set
+manifest never outlives its fragments):
 
-1. `released` records, oldest last-authoritative-establishment first (the
-   successor of the shipped `resumedAt`-then-`savedAt` order, applied at
-   record granularity);
-2. then `idle` records, least-recently-established first;
-3. `active` records are never evicted; if evicting every `released` and
-   `idle` record cannot fit the commit, the commit refuses with a stable
-   over-budget diagnostic.
+1. `undemanded` records, oldest release first;
+2. then `demanded-idle` records with `idleTtlClass` `"none"`/`"default"`,
+   least-recently-established first;
+3. then `demanded-idle` `"pinned"` records, least-recently-established
+   first;
+4. `demanded-active` records are never evicted; if steps 1–3 cannot fit
+   the commit, the commit refuses with a stable over-budget diagnostic.
+
+Every comparator ends in the §D3 address-byte tie-break, so identical
+workloads evict identically on every carrier. During the writer-handoff
+re-announcement window (§D2), step 1 is deferred and over-budget commits
+refuse instead.
+
+**Legacy entries are grandfathered, not re-governed.** They have no demand
+model: a legacy commit evicts within the legacy section by the shipped
+comparator (ascending `resumedAt`, never-resumed first, then `savedAt`) —
+LLP 0090's least-recently-resumed rule, byte-unchanged. No release grace,
+no 14-day TTL, and no demand-state ordering applies to them: LLP 0090's
+indefinite retained-display rule stands, and this Spec carries **no**
+LLP 0090 amendment. Cross-section pressure from a materialization commit
+reclaims legacy entries only after steps 1–2 above are exhausted, ordered
+by the same shipped comparator, before step 3.
 
 Eviction blockers — a record is skipped (and the order proceeds past it)
 while any of these hold:
@@ -502,15 +724,12 @@ while any of these hold:
 - retained settlement or unconfirmed acknowledgement records depend on it
   (LLP 0043's refuse-at-capacity posture governs those, not this budget).
 
-Eviction is atomic per record (fragments, page sets, memberships, and
-registration bookkeeping in one transaction — a page-set manifest never
-outlives its fragments), and inspectable: the store keeps eviction
-counts/last-eviction facts in `storeMeta`, and every still-present record's
-retaining reason remains answerable (LLP 0157 §D6).
+Eviction is inspectable: the store keeps eviction counts and last-eviction
+facts in `storeMeta`, and every still-present record's retaining reason
+remains answerable (LLP 0157 §D6).
 
-`wipe` is not eviction: it is the identity barrier's tool, clearing
-retained state and outbox atomically (§D1), invoked through LLP 0053/0059
-transitions.
+`wipe` is not eviction: §D1 defines its exact scope, survivals, and
+rotations.
 
 ## D6 — Resume, delta, and the shipped RQS machinery
 
@@ -561,21 +780,31 @@ their *custody domain and lifecycle*, not their admission protocols:
 This store is the declared successor of the Channel B store. Convergence is
 staged and fail-closed:
 
-- **Legacy resume entries** stay in their section under their own rules.
-  They never adopt `qmk1` in v1 (their plans have no registered node
-  class); if OQ1 registers one, adoption follows the same
-  prove-or-fresh-sync discipline as the lease family.
-- **Legacy lease records** adopt `qmk1` only when the exact registered
-  plan, function reference, activation, canonical arguments, and authority
-  partition are recomputable and payload, lease, fence high-waters,
-  obligations, and pending-intent references move atomically; otherwise the
-  legacy record remains non-renderable under its old fence until fresh sync
-  creates the new address, then retires. It is never relabeled in place
-  (LLP 0043/0053's dated boundary notes, consumed verbatim).
+- **Reconciliation with LLP 0157 §Migration, explicit:** LLP 0157 says
+  existing RQS retained snapshots migrate to materialization-key identity
+  where their recorded facts prove it, or fall back to fresh sync, and a
+  migration that cannot prove identity discards retained state rather than
+  mislabeling it. The legacy resume population *provably has no plan
+  identity to migrate on* (no registered node class, §D3), so v1 performs
+  no adoption at all: continued coexistence under the family's own labels
+  and rules **is** the never-mislabel posture — nothing is relabeled, and
+  the migrate-or-discard rule governs any *attempted* adoption if OQ1
+  later creates provable identity. This sentence rides the dated LLP 0157
+  boundary note at acceptance.
+- **Legacy lease records: fresh-sync-then-fenced-retirement only in v1.**
+  The lease store and this domain are separate artifacts on the shipped
+  carriers, and no transaction spans them, so the atomic-move arm of
+  LLP 0043's boundary note is **not exercisable in v1** and this Spec
+  claims no cross-artifact atomic migration. The only v1 convergence path
+  is the note's other arm: the legacy record remains non-renderable under
+  its old fence once a fresh sync establishes the new `qmk1` address, then
+  retires under its own owner's rules. Direct adoption (atomically moving
+  payload, lease, fence high-waters, obligations, and pending-intent
+  references) becomes available only if the lease store first moves into
+  this shared transaction domain — a future dated LLP 0043 step (OQ5).
 - **No dual identity:** one logical retained result is never simultaneously
-  renderable under two families; migration either moves it atomically or
-  leaves exactly one renderable copy (the other non-renderable until
-  retirement).
+  renderable under two families; fresh-sync convergence leaves exactly one
+  renderable copy (the other non-renderable until retirement).
 - **Pending intent is sacred:** no migration, format change, or family
   convergence drops, reorders, or double-replays outbox records; a
   migration that cannot preserve them refuses (§D1).
@@ -595,6 +824,62 @@ closed reason (placeholder `SNAPBACK_LOCAL_EVALUATION_UNADMITTED` until
 registered in the LLP 0048 corpus with the implementing slice — every code
 this Spec names is a placeholder under the same rule).
 
+### The evaluation model: `result-transform.v1`
+
+The commissioned phrase "local plan evaluation over retained fragments"
+needs one exact model, and this Spec pins the narrow one. A fragment is an
+opaque, contract-validated whole-page **result** (LLP 0157 §Vocabulary) —
+the plan's post-projection output, not its source tables. Re-running a
+relational plan (index scans, joins, visibility) over its own output is
+incoherent, and holding source rows to make it coherent is exactly the
+custody LLP 0080 forbids. What local evaluation admissibly means, and all
+it means in this Spec, is:
+
+**`result-transform.v1` — evaluation of the plan's own post-projection
+semantics over its established result.** Closed operator set:
+
+- filter predicates over projected fields, with the plan family's own
+  predicate semantics;
+- ordering over projected fields, with the server's canonical comparison
+  and ordering rules;
+- limit/window over the transformed sequence; and
+- optimistic-overlay application (the adjacent layers, per their owners —
+  LLP 0107/0114/0133), recomputed over the retained base.
+
+Closed input model: the fragments of exactly one materialization address
+(whole pages; a multi-page input requires the address's valid page-set
+chain at one version), plus that address's adjacent optimistic layers.
+Nothing else — no cross-address reads, no membership/semi-join, no
+aggregates, no unprojected fields, no join re-execution, and no
+changed-canonical-args emulation: changed args derive a different
+`QueryMaterializationKeyV1`, and the transform never impersonates a
+different registered query's result.
+
+Contract:
+
+- **Admission is per-plan and owner-issued** — a plan participates only by
+  carrying the `fragment-evaluated-snapshot-v1` retention class (below);
+  the store never infers evaluability.
+- **Parity:** for the admitted operator set, transform output must equal
+  the server's own plan semantics applied to the same established result
+  at the same version — canonical ordering, comparison, and projection
+  byte-identical — proved by a cross-runtime conformance corpus at pinned
+  evaluator identities (proposed as an LLP 0051 D5 extension, LLP 0157
+  OQ9; that owner decides; if declined, a standalone corpus with the same
+  pinned-identity discipline).
+- **Honesty:** output is presentation over the base fragments'
+  completeness/freshness facts; it never upgrades `unknown`, never proves
+  absence from unhydrated rows, and never mints, extends, or re-scopes a
+  proof. Transform results carry no digest of their own into any witness.
+- **Refusals are closed:** an operator, field, or input outside the model
+  refuses with a stable reason (placeholder rule above).
+
+Full plan evaluation over authorized *source-row* fragments — the model
+that would answer arbitrary registered queries locally — is explicitly out
+of this Spec: it requires the cross-query normalization and
+projection-aware authority design LLP 0157 §D7 gates (LLP 0155 OQ2), and
+nothing here advances that gate.
+
 ### The carried amendments
 
 Per the owners' dated 2026-08-02 commissioning notes ("the amendment lands
@@ -608,51 +893,64 @@ texts; they land in the owning documents, dated, at this Spec's acceptance.
 > commission; not the SQL revisit trigger, which LLP 0051 answered without
 > SQL): in addition to the document/result cache plus outbox, the store may
 > hold LLP 0157 materialization records — opaque authorized query-result
-> fragments with completeness proofs — and an admitted plan evaluator may
-> evaluate that plan over the fragments of a single materialization address
-> under LLP 0166 §D7's evaluation contract. The contract remains the
-> observable-state list, not SQL; nothing in the wire contract may require
-> SQL semantics client-side; cross-query canonical-row normalization
-> remains unadmitted (LLP 0157 §D7's gate).
+> fragments with completeness proofs — and, for plans carrying the
+> LLP 0080 `fragment-evaluated-snapshot-v1` class, a conformance-proved
+> evaluator may apply LLP 0166 §D7's closed `result-transform.v1` profile
+> over a single materialization address's fragments. The contract remains
+> the observable-state list, not SQL; nothing in the wire contract may
+> require SQL semantics client-side; cross-query canonical-row
+> normalization remains unadmitted (LLP 0157 §D7's gate).
 
 **Proposed LLP 0080 retention-class amendment:**
 
 > **Dated amendment (with LLP 0166's acceptance):** the closed retention
 > set gains `fragment-evaluated-snapshot-v1`: an admitted plan whose result
 > is retained as opaque authorized fragments with completeness witnesses
-> under LLP 0157 may be locally re-evaluated **over its own retained
-> fragments only**, for the local materialization LLP 0155 Move 2
-> describes, under LLP 0166 §D7's evaluation contract and conformance
-> gate. The class inherits every `opaque-authorized-snapshot-v1` custody
-> rule (lease, principal, reconnect); it still never retains unprojected
-> joined rows, never re-authorizes a dependency closure locally, and never
-> permits cross-query evaluation. Plans without this class keep
-> opaque-snapshot-only semantics unchanged.
+> under LLP 0157 may additionally be served through LLP 0166 §D7's closed
+> `result-transform.v1` profile **over its own retained fragments only**,
+> for the local materialization LLP 0155 Move 2 describes, under that
+> Spec's conformance gate. Admission is per-plan and owner-issued. The
+> class inherits every `opaque-authorized-snapshot-v1` custody rule
+> (lease, authenticated principal, reconnect); it still never retains
+> unprojected joined rows, never re-authorizes a dependency closure
+> locally, never re-executes a join, and never permits cross-query
+> evaluation. Plans without this class keep opaque-snapshot-only semantics
+> unchanged.
 
-### The evaluation contract (post-amendment, evidence-gated)
+**Proposed LLP 0157 classification amendment:**
 
-When admitted, local plan evaluation is narrow by construction:
+> **Dated amendment (with LLP 0166's acceptance):** the closed retention
+> unions in §D2's `NodeCapabilityBindingV1` and
+> `PlanCapabilityClassificationV1` gain the value
+> `fragment-evaluated-snapshot-v1` (LLP 0080's amended class). The value
+> is owner-issued like its peers and enters the same hash preimages:
+> reclassifying a plan therefore rotates its `NodePlanHashV1`,
+> `PlanHashV1`, and `QueryMaterializationKeyV1`. Adoption is per-plan
+> opt-in — an unreclassified plan's identity, addresses, and retained
+> state are byte-unchanged — and a reclassified plan derives a fresh
+> materialization address whose predecessor retires through ordinary
+> lifecycle (fresh establishment at the new address; the predecessor is
+> never relabeled in place). §D2's golden and near-miss vectors gain the
+> new value; §D4 continues to treat classification as a restated owner
+> fact; §D7's storage profiles treat the class as
+> `durable-fragments-v1`-eligible under `opaque-authorized-snapshot-v1`'s
+> custody rules. No other §D1–D8 semantics change.
 
-- **Scope:** the evaluator reads only the fragments (and the adjacent
-  optimistic overlay, per its owners) of the single materialization address
-  being answered. Cross-address reads, cross-query row sharing, and any
-  join over rows the result is not authorized to expose are refused —
-  normalization stays behind LLP 0157 §D7's unamended gate.
-- **Parity:** the same plan evaluator as the server, or two evaluators
-  under a conformance corpus, must produce the server's canonical result
-  ordering and projection; the corpus is proposed as an LLP 0051 D5
-  extension (LLP 0157 OQ9 — that owner decides; if declined, a standalone
-  corpus with the same pinned-identity discipline).
-- **Honesty:** evaluation output is presentation over the base fragments'
-  completeness and freshness facts; it never upgrades `unknown`, never
-  proves absence from unhydrated rows, and never mints or extends a proof.
-- **Uses:** re-projection/filter/order refresh within a retained result
-  (LLP 0051's committed narrow site), optimistic-overlay recomputation over
-  the retained base, and — with Move 3's IR machinery, owned elsewhere —
-  boot-time replay reading this store.
-- **Ship gate:** amendments landed (at acceptance) **plus** the conformance
-  corpus passing on every claiming carrier **plus** the §Acceptance
-  evaluation oracles. Document acceptance alone ships nothing.
+**Amendment crosswalk** — what moves, and which identities rotate:
+
+| Closed set | Owner | Change | Identity consequence |
+| --- | --- | --- | --- |
+| DK-9 semantic contract | LLP 0008 | + materialization records; + `result-transform.v1` for admitted plans | none (semantic envelope) |
+| Retention classes | LLP 0080 | + `fragment-evaluated-snapshot-v1` | none until a plan opts in |
+| `NodeCapabilityBindingV1.retention` / `PlanCapabilityClassificationV1.retention` | LLP 0157 §D2 | + the same value | per opted-in plan: `NodePlanHashV1` → `PlanHashV1` → `QueryMaterializationKeyV1` rotate; fresh address; predecessor retires normally |
+
+### Ship gate
+
+Evaluation ships only when **all** hold: the three amendments landed (at
+acceptance); the conformance corpus passing at pinned evaluator identities
+on every claiming carrier; and the §Acceptance evaluation oracles (S6)
+green. Document acceptance alone ships nothing; a plan ships nothing until
+its owner reclassifies it.
 
 ## D8 — The agent-safe seam (LLP 0161 OQ5)
 
@@ -668,19 +966,20 @@ The answer, per property:
 | P2 | maintained digests | **consumed** | The store verifies server-issued digests and signatures (`ResultDigestV1`, proof signatures, `mset1`/`seq1` content digests) at commit, boot, and render; it maintains no Merkle structure and derives no digest authority. |
 | P3 | provenance | **consumed via identity binding** | Every record binds its authority partition, activation, and (outbox/layers) producing mutation identity — LLP 0157/0043/0053 obligations already. No per-commit principal journal exists client-side, and none is needed: the client is not an audit substrate. |
 | P4 | history | **never native** | The only temporal fact is `retained` freshness at a proof/version — as-of labeling, not as-of reads. Bounded record history is host-side (LLP 0088, LLP 0162 §6); the client never synthesizes historical states. |
-| P5 | read/write sets | **never in v1; narrow at the evaluation seam** | Local-read admission classes belong to Move 3's owners (LLP 0129/0051/0133). The store stores references; post-amendment, the evaluator's read scope is statically the single address (§D7) — a declaration, not captured-set machinery. |
+| P5 | read/write sets | **never in v1; narrow at the evaluation seam** | Local-read admission classes belong to Move 3's owners (LLP 0129/0051/0133). The store stores references; post-amendment, the evaluator's input is statically the single address (§D7) — a declaration, not captured-set machinery. |
 | P6 | replay | **split: ingestion consumed, intent replay native and shipped** | Journal-delta ingestion is the consumed LLP 0090/0034 lane (the sync engine already replays the server journal — the prior art OQ5 itself cites). Durable *intent* replay is the outbox: native, shipped, exactly-once (LLP 0043). Boot-time IR replay over this store arrives with Move 3, reading the store, not implemented by it. |
 | P7 | evolution | **native, narrow** | Versioned store formats with fail-closed compatibility refusal and pending-intent-preserving migration (§D1) — LLP 0126's Triplit-style compatibility-refusal prior art. Opaque fragments are the schemaless-view move from the same survey: application schema changes rotate identity (activation → new address → fresh sync) instead of migrating client rows; the store needs no client-side schema migrator for application data. |
-| P8 | settlement | **native and shipped — the strongest row** | The durable ordered outbox, exactly-once settlement, acknowledgement ledger, and refuse-at-capacity custody are this store's obligations (LLP 0043). The LLP 0163-family client contracts land here too: client-minted `operationId` reuse across retries, atomic persistence of server-preallocated identity ranges before use, uncovered-queueing on range exhaustion, and honest handling of `result-expired` / `identity-horizon-passed` (outcome-unknown, never recorded terminal `failed`) — all already landed as dated LLP 0043/0012/0095 amendments (2026-08-03). |
-| P9 | admission | **enforcement native, policy consumed** | Fenced compare-and-commit on every operation, the store-wide authority barrier, single-writer locks, and delete/quarantine-before-read enforce LLP 0053/0059 policy the store never sets. The §D3/§D5 custody budgets are the client-side resource-bound half of P9. |
+| P8 | settlement | **split: base native and shipped; LLP 0163-family contracts accepted but unimplemented** | *Shipped half:* the durable ordered outbox, exactly-once settlement, acknowledgement ledger, and refuse-at-capacity custody (LLP 0043) — this store's obligations today. *Contract half:* the identity-range/epoch client contracts — client-minted `operationId` reuse across retries, atomic persistence of server-preallocated identity ranges before use, uncovered-queueing on exhaustion, honest `result-expired` / `identity-horizon-passed` handling (outcome-unknown, never terminal `failed`) — are landed 2026-08-03 *semantic amendments* in LLP 0043/0012/0095 whose schemas belong to Draft LLP 0163 and which no shipped code implements. Move 2 does **not** depend on them; when implemented they extend the outbox section without changing this Spec's profile or claims. |
+| P9 | admission | **partial: enforcement native, policy consumed, per-principal quotas open** | Fenced compare-and-commit on every operation, the store-wide authority barrier, single-writer locks, and delete/quarantine-before-read enforce LLP 0053/0055/0059 policy the store never sets. The §D3/§D5 custody budgets are per-*store* resource bounds; **per-principal / per-authority-partition quotas do not exist** — in a multi-grant agent client one grant can monopolize the retention budget and establishment queue. That containment gap is real and recorded (OQ11), not claimed away. |
 
 **Sequencing answer:** nothing is pulled forward. The client store consumes
-only landed contracts (LLP 0157's records; the 2026-08-03 identity/retention
-amendments) and requires no LLP 0163/0164/0165 implementation, no commit
-envelope, no fork substrate, and no proof-domain machinery to ship. The
-Track B specs owe this store nothing new, and this store claims none of
-their surface — coordination is complete when both sides keep citing the
-same landed amendment set.
+only landed contracts (LLP 0157's records; the 2026-08-03 dated
+amendments in LLP 0043 §LLP 0162-amendment and LLP 0012/0095 — semantic
+contracts, per the P8 split) and requires no LLP 0163/0164/0165
+implementation, no commit envelope, no fork substrate, and no proof-domain
+machinery to ship. The Track B specs owe this store nothing new, and this
+store claims none of their surface — coordination is complete when both
+sides keep citing the same landed amendment set.
 
 ## D9 — Carriers, storage profiles, arms, and the bundle
 
@@ -688,7 +987,7 @@ same landed amendment set.
 
 | Carrier | Profile ceiling | Notes |
 | --- | --- | --- |
-| Browser IndexedDB + Web Locks | `durable-fragments-v1` | the §D1 successor schema; multi-tab per shipped lock discipline |
+| Browser IndexedDB + Web Locks | `durable-fragments-v1` | the §D1 successor schema; multi-tab per shipped lock discipline + §D2 broker |
 | File (Node) | `durable-fragments-v1` | v3 blob format; lock-file liveness discipline |
 | Expo/native registered files | `durable-fragments-v1` once LLP 0043's durability qualification holds (the shipped adapter is `durable: false` for settlement custody today) | rides the same file format |
 | Memory | `volatile-online-v1` | honest degradation; restart `unknown`; durable requests refuse with the structured GAP |
@@ -708,7 +1007,7 @@ degrades.
   separate LLP 0043 store in v1, honestly advertising its narrower profile
   (LLP 0157 §D7 permits exactly this); whether it converges on an identical
   materialization contract or a deliberately narrower one is LLP 0155
-  OQ16, staged behind §D6's migration rules (OQ5).
+  OQ16, staged behind §D6's convergence rules (OQ5).
 - **Micro (LLP 0147):** excluded — Micro v1 explicitly omits RQS, retained
   reads, the durable outbox, and local execution; this store is a
   Full-profile capability (LLP 0145's packaging classes), and any
@@ -727,24 +1026,32 @@ never a narrowing of a published entry point).
 ## Guardrails
 
 - The sync set is the registration set: no unregistered materialization is
-  hydrated or retained; every retained byte has a nameable reason.
+  hydrated; nothing unregistered is retained beyond its release grace;
+  every retained byte has a nameable reason.
 - The store never widens an owner classification — not retention, not
   liveness, not authorization; a registration is interest, never authority.
 - No local answer claims authority without a valid witness for its exact
   scope, version, and authority partition; `unknown` is the honest default;
   nothing local mints, extends, or upgrades a proof.
+- Owner state always wins: demand never resurrects, delays, or downgrades
+  an LLP 0053 transition.
 - Eviction never overrides an LLP 0053 disposition, obligation, lease
   deadline, or tombstone; never evicts pending intent, unacknowledged
-  settlement state, or an `active` registration; and is never a substitute
-  for an identity barrier.
-- Migrations preserve pending intent and acknowledgement custody or refuse;
-  corrupt/future bytes are typed diagnostics preserved in place; only
-  `wipe` (retained state + outbox, atomically) resets a store.
+  settlement state, or a `demanded-active` record; and is never a
+  substitute for an identity barrier.
+- Migrations preserve pending intent, acknowledgement custody, durable
+  registrations, and grace clocks or refuse; corrupt/future bytes are
+  typed diagnostics preserved in place; only `wipe` (per §D1's exact
+  scope) resets a store.
 - One logical result is never renderable under two address families;
-  legacy records are never relabeled in place.
+  legacy records are never relabeled in place; no cross-artifact atomic
+  migration is claimed while the artifacts do not share one transaction
+  domain.
 - No SQL semantics in the client contract; no cross-query normalization;
-  no cross-address evaluation; no client-side authority over completeness.
-- Single writer per store; non-writers adopt, never write.
+  no cross-address evaluation; no source-row re-execution; no client-side
+  authority over completeness.
+- Single writer per store; non-writers announce demand and adopt — they
+  never write.
 
 ## Executable acceptance
 
@@ -759,45 +1066,67 @@ store-policy oracles:
    sources; the hydrated and retained set equals the registration set plus
    in-grace releases at every step; an unregistered query never hydrates;
    inspection names each record's retaining registrations; release starts
-   grace; grace expiry evicts.
-2. **S2 — completeness-honest answer matrix.** For each address family ×
-   {proof/token/lease valid, absent, expired, wrong-scope} × {outbox empty,
-   pending} × {connected, offline}: the answer class (authoritative-current
-   / authoritative-retained / labeled-retained-legacy / `unknown` /
-   `refused`) matches this Spec's tables exactly; no cell fabricates
-   authority; auth-scoped expiry deletes before read; pending outbox
-   withholds `resumeFromToken` while rendering `retained` +
-   `pendingIntentsAtSeed`.
+   grace; grace expiry GCs. Restart legs: `programmatic` registrations
+   survive, `active` are reaped, `preload` re-derive from the manifest in
+   force. Two-tab legs: a non-writer tab's announced demand keeps its
+   record `demanded-active` (non-evictable); dead-tab reaping releases it;
+   writer handoff defers pressure eviction for the re-announcement window
+   and rebuilds the ledger; a forwarded `programmatic` registration
+   commits durably through the writer or fails visibly.
+2. **S2 — the answer table, executed.** For every row of §D4's answer
+   table (all three families, every listed state, × {connected, offline}):
+   the answer class, freshness label, store mutation, and resume action
+   match the table exactly; no cell fabricates authority; row 4/15 defects
+   delete before read; row 10 withholds `resumeFromToken` while rendering
+   `retained` + `pendingIntentsAtSeed`; row 12 verifies indefinite
+   labeled-retained offline display with rung-3 fallback when connected.
 3. **S3 — TTL and eviction under pressure.** Fill past budget with mixed
-   `active`/`idle`/`released` records, pending intent on some, unresolved
-   obligations on others: eviction follows §D5's order, skips every
-   blocker, refuses rather than evicting `active`, keeps page-set manifests
-   and fragments atomic, and leaves obligations/tombstones intact for their
-   barriers; over-budget single entries refuse.
-4. **S4 — successor-store parity.** The shipped store-parameterized resume
-   suite (`rqs-resume-suite.mjs`) passes unmodified against the successor
-   store format on every carrier; the D3 outbox rule, arbitration,
-   multi-tab adoption, `inProgress` refusal, and purge-on-invalidation
-   behaviors are byte-compatible for the legacy section.
+   demand states, `idleTtlClass` values, legacy entries, pending intent on
+   some records, unresolved obligations on others: eviction follows §D5's
+   order (including legacy interleaving by the shipped comparator and the
+   address-byte tie-break — identical on every carrier), skips every
+   blocker, refuses rather than evicting `demanded-active`, keeps records
+   atomic, and leaves obligations/tombstones intact for their barriers;
+   over-budget single entries refuse; grace GC fires only release-anchored
+   and never under a rolled-back clock; `pinned` records outlast pressure
+   on steps 1–2 and fall only in step 3.
+4. **S4 — successor-store parity and grandfathering.** The shipped
+   store-parameterized resume suite (`rqs-resume-suite.mjs`) passes
+   unmodified against the successor store format on every carrier; the D3
+   outbox rule, arbitration, multi-tab adoption, `inProgress` refusal, and
+   purge-on-invalidation behaviors are byte-compatible for the legacy
+   section; legacy eviction uses the shipped comparator and legacy entries
+   never acquire grace, TTL, or demand semantics.
 5. **S5 — migration and coexistence.** A store with legacy resume entries,
-   legacy lease records, and pending outbox intent migrates formats: intent
-   preserved exactly (order, identity, acknowledgements); lease records
-   adopt `qmk1` only when every identity fact recomputes, atomically, else
-   remain non-renderable under the old fence; no logical result renders
-   under two families; crash at every migration write boundary leaves the
-   prior or successor state, never a hybrid.
-6. **S6 — evaluation gate.** Before the amendments/corpus: any local
-   evaluation attempt refuses with the registered closed reason and serves
-   opaque-snapshot semantics only. After: the conformance corpus passes at
-   pinned identities on every claiming carrier; evaluation output over a
-   known fragment set byte-matches fresh server execution of the same plan
-   at the same version; cross-address evaluation refuses.
-7. **S7 — rotation versus eviction.** Rotate authority (user switch) and
-   activation (deploy) with the store at budget pressure: predecessors are
-   destroyed/quarantined via the barriers before any successor renders,
-   regardless of eviction state; eviction alone never stands in for a
-   barrier (probe: a barrier-pending record is not evictable-to-skip the
-   barrier).
+   durable registrations, in-grace releases, and pending outbox intent
+   migrates formats: intent preserved exactly (order, identity,
+   acknowledgements), registrations and grace clocks intact; crash at
+   every migration write boundary leaves the prior or successor state,
+   never a hybrid. Lease-family convergence: fresh sync establishes the
+   `qmk1` address, the legacy record becomes non-renderable under its old
+   fence and retires — at no point are both renderable, and no
+   cross-artifact atomic move is attempted.
+6. **S6 — evaluation gate.** Before the amendments/corpus: any
+   `result-transform.v1` attempt refuses with the registered closed reason
+   and opaque-snapshot semantics hold. After: the conformance corpus
+   passes at pinned evaluator identities on every claiming carrier;
+   transform output over a known fragment set byte-matches the server's
+   plan semantics applied to the same established result at the same
+   version; cross-address input, unprojected fields, and
+   changed-canonical-args emulation each refuse; an unreclassified plan
+   still refuses (per-plan admission); reclassification rotates the
+   plan's address per §D7's crosswalk and the predecessor retires
+   normally.
+7. **S7 — rotation versus eviction.** Rotate authority (user switch,
+   client-wide) and activation (deploy) with the store at budget pressure:
+   predecessors are destroyed/quarantined via the barriers before any
+   successor renders, regardless of eviction state; eviction alone never
+   stands in for a barrier (probe: a barrier-pending record is not
+   evictable-to-skip the barrier). Grant-scoped leg: a multi-grant client
+   revokes one grant — only that grant's addresses, registrations, and
+   outbox scopes are affected per §D1's `wipe` scoping; the surviving
+   grant's custody and acknowledgements are byte-untouched; the handle key
+   rotates only on the client-wide barrier.
 8. **S8 — capability honesty.** Each carrier reports implementation/
    durability/profile truthfully; a durable request on a volatile carrier
    refuses with the structured GAP; version-skewed store opening fails
@@ -807,11 +1136,13 @@ store-policy oracles:
 
 - Existing `liveQuery`, generated references, hooks, and the Contract arm
   are unchanged; registration is additive (active use already registers;
-  routes manifests already preload).
+  routes manifests already preload; `persistResume` maps per §D2).
 - The Channel B store's contents migrate by format version under §D1's
-  rules; its public behaviors (S4) are preserved for the legacy section.
-- The LLP 0043 lease store remains a separate artifact until its records
-  individually adopt `qmk1` under the dated rules; nothing here amends its
+  rules; its public behaviors (S4) are preserved for the legacy section,
+  grandfathered under LLP 0090's exact lifecycle.
+- The LLP 0043 lease store remains a separate artifact; convergence is
+  fresh-sync-then-fenced-retirement only (§D6) until a future dated
+  LLP 0043 step moves it into the shared domain; nothing here amends its
   custody semantics.
 - Wire compatibility: this Spec adds no frame; the proof-backed resume
   credential (OQ2) and any registration wire surface are dated
@@ -824,12 +1155,15 @@ store-policy oracles:
 
 No whole-table or whole-database replication; no client-owned
 authorization; no offline authority over shared data; no cross-query
-canonical-row normalization (LLP 0157 §D7's gate, untouched); no aggregate
-nodes (LLP 0130 SD-2); no second sync engine beside LLP 0090's; no client
-mutation execution semantics (Move 3, LLP 0129/0133); no host-side
-agent-safe primitives (LLP 0163/0164/0165); no encryption-at-rest claim
-(LLP 0090 Q4's baseline stands); no Micro-profile packaging; no change to
-outbox/settlement custody semantics (LLP 0043's, composed not amended).
+canonical-row normalization (LLP 0157 §D7's gate, untouched); no
+source-row local re-execution (§D7's model is post-projection transforms
+only); no aggregate nodes (LLP 0130 SD-2); no second sync engine beside
+LLP 0090's — and no LLP 0090 amendment (the legacy population is
+grandfathered, not re-governed); no client mutation execution semantics
+(Move 3, LLP 0129/0133); no host-side agent-safe primitives
+(LLP 0163/0164/0165); no encryption-at-rest claim (LLP 0090 Q4's baseline
+stands); no Micro-profile packaging; no change to outbox/settlement
+custody semantics (LLP 0043's, composed not amended).
 
 ## Open questions
 
@@ -838,7 +1172,9 @@ outbox/settlement custody semantics (LLP 0043's, composed not amended).
    (LLP 0004/0007 family proposing into LLP 0157 §D1's registry, inside its
    growth stop rule) would give the legacy resume family plan identity,
    proofs, and `qmk1` addresses. Owners' decision; this Spec only stages
-   the adoption path (§D6).
+   the adoption path (§D6) and names its retention precondition (§D3: the
+   Channel-B authority must travel, or an anonymous lease/retention class
+   must land in LLP 0053/0080 first).
 2. **A proof-backed resume credential** for `qmk1` materializations —
    binding resume-token identity to the materialization key and held proof
    so fresh establishment can use ladder rungs 1–2; dated
@@ -846,32 +1182,48 @@ outbox/settlement custody semantics (LLP 0043's, composed not amended).
 3. **A `warm` sync class for idle registrations** — standing subscriptions
    for preloaded-but-unmounted queries; needs fan-out cost evidence before
    any obligation is created.
-4. **Budget and TTL values** — §D3/§D5's v1 constants await LLP 0155 OQ9's
-   frozen Triage/Fleet custody and hydration budgets for their first
-   measured revision.
+4. **Budget, TTL, window, and concurrency values** — §D2/§D3/§D5's v1
+   constants (32 MiB, 256 records, 1,024 fragments, 14-day grace, 30-second
+   re-announcement window, 4 concurrent establishments) are provisional
+   defaults awaiting LLP 0155 OQ9's frozen Triage/Fleet custody and
+   hydration budgets for their first measured revision.
 5. **Contract-arm convergence** (LLP 0155 OQ16) — identical materialization
-   contract or deliberately narrower profile; staged behind §D6's
-   migration rules either way.
+   contract or deliberately narrower profile; and the prerequisite
+   question of whether/when the lease store moves into the shared
+   transaction domain (the dated LLP 0043 step §D6 names), which is what
+   would make direct adoption exercisable at all.
 6. **Encryption at rest** (LLP 0090 Q4) — unchanged baseline (OS-level
    protection); any change is that owner's.
 7. **Conformance-corpus ownership** (LLP 0157 OQ9) — proposed as an
    LLP 0051 D5 extension; that owner decides; §D7's gate binds to
    whichever home results.
 8. **The registration authoring surface** — the concrete generated API for
-   `programmatic` registration and per-registration TTL/priority (successor
+   `programmatic` registration and per-registration TTL classes (successor
    of `persistResume`/`persist: false`), landed with the codegen owners
    under LLP 0004/0131 conventions.
 9. **Mixed-route register groups** — the LLP 0090 mixed-route successor's
    versioned profile; when it lands, its per-child liveness facts flow into
    §D2's obligations without new inference here.
+10. **Concurrent-scope union semantics** — v1 serializes page demands and
+    lets page-set demands subsume (§D2); whether simultaneous distinct
+    page demands at one address deserve real union tracking is deferred
+    until an application demonstrates the need.
+11. **Per-principal / per-authority-partition custody quotas** (§D8 P9) —
+    the store's budgets are per-store; a multi-grant agent client can
+    monopolize them. Whether quotas partition by authority partition, and
+    who owns the refusal semantics (this Spec with LLP 0055/0146's
+    consumers), is open.
 
 ## Status
 
-Draft, v0.1 — authored 2026-08-03 by the wave-3 Track A session under the
-commission in `issues/20260803-0155-move2-spec-commission.md`. The
-dual-family super-refine loop (LLP 0005) has not yet run; the document
-should not be consumed as a stable contract until the loop concludes and
-Charlie accepts. On acceptance: the §D7 amendments land dated in LLP 0008
-and LLP 0080; boundary notes land in LLP 0043, LLP 0053, and LLP 0090; and
-the implementation program is commissioned separately (wave-3 Track A's
-exit rule).
+Draft, v0.2 — authored 2026-08-03 by the wave-3 Track A session under the
+commission in `issues/20260803-0155-move2-spec-commission.md`; revised the
+same day after dual-family round 1 (both families NOT READY; all findings
+applied — see Revised header; artifacts in
+`llp/reviews/0166-local-persistent-store.{fable,codex}.md`). The
+dual-family super-refine loop continues; the document should not be
+consumed as a stable contract until the loop concludes and Charlie
+accepts. On acceptance: the §D7 amendments land dated in LLP 0008,
+LLP 0080, and LLP 0157; boundary notes land in LLP 0043, LLP 0053, and
+LLP 0090; and the implementation program is commissioned separately
+(wave-3 Track A's exit rule).
