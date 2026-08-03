@@ -968,6 +968,7 @@ fn concurrency_schema() -> SchemaManifest {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            search_live_limits: None,
             membership: None,
             asset_sharing: None,
         }],

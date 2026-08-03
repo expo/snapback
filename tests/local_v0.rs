@@ -2798,6 +2798,7 @@ fn todo_schema() -> SchemaManifest {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            search_live_limits: None,
             membership: None,
             asset_sharing: None,
         }],
@@ -4974,6 +4975,7 @@ fn l3_prune_preserves_cold_table_validation_version() {
         permission_backing: false,
         permission_fields: None,
         search_indexes: Vec::new(),
+        search_live_limits: None,
         membership: None,
         asset_sharing: None,
     });
@@ -5056,6 +5058,7 @@ fn l3_retention_floor_boundary_still_allows_precise_query_validation() {
         permission_backing: false,
         permission_fields: None,
         search_indexes: Vec::new(),
+        search_live_limits: None,
         membership: None,
         asset_sharing: None,
     });
@@ -5690,6 +5693,7 @@ fn single_index_schema(hash: &str, table: &str, field: &str, index: &str) -> Sch
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            search_live_limits: None,
             membership: None,
             asset_sharing: None,
         }],

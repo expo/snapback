@@ -11,9 +11,9 @@ use std::str::FromStr;
 pub use crate::search::types::{
     FullTextSearchFactsV1, SearchClauseV1, SearchCursorLimitsV1, SearchCursorV1,
     SearchFieldClassV1, SearchFilterV1, SearchHighlightV1, SearchIndexManifestV1, SearchItemV1,
-    SearchMaintenanceLimitsV1, SearchMatchAtomV1, SearchMatchRangeV1, SearchPageV1, SearchPhraseV1,
-    SearchQueryAstV1, SearchQueryLimitsV1, SearchQueryPlanV1, SearchRequestV1,
-    SearchSourceLimitsV1, SearchTermV1, SearchTextFieldV1, SearchVisibilityV1,
+    SearchLiveLimitsV1, SearchMaintenanceLimitsV1, SearchMatchAtomV1, SearchMatchRangeV1,
+    SearchPageV1, SearchPhraseV1, SearchQueryAstV1, SearchQueryLimitsV1, SearchQueryPlanV1,
+    SearchRequestV1, SearchSourceLimitsV1, SearchTermV1, SearchTextFieldV1, SearchVisibilityV1,
 };
 
 pub const SNAPBACK_SCHEMA_VERSION: &str = "snapback.v0";
@@ -342,6 +342,28 @@ impl SchemaManifest {
             ));
         }
 
+        let declares_live_search_limits = self.tables.iter().any(|table| {
+            table.search_live_limits.is_some()
+                || table
+                    .search_indexes
+                    .iter()
+                    .any(|index| index.live_limits.is_some())
+        });
+        if declares_live_search_limits
+            && !self
+                .required_capabilities
+                .iter()
+                .any(|capability| capability == "live_full_text_search_v1")
+        {
+            // @ref LLP 0136#capability-id-and-claim-discipline-llp-0119-oq2-proposal
+            // — a decoder that knows the carrier but lacks target support
+            // must still refuse; limits can never be silently discarded.
+            return Err(unsupported_capability_error(
+                "live_full_text_search_v1",
+                "live-search limit carriers require live_full_text_search_v1",
+            ));
+        }
+
         if let Some(push_seam) = &self.push_seam {
             if mode != AuthMode::Sessions {
                 return Err(SnapbackError::error(
@@ -459,6 +481,18 @@ pub struct TableManifest {
         skip_serializing_if = "Vec::is_empty"
     )]
     pub search_indexes: Vec<SearchIndexManifestV1>,
+    /// The one table-wide aggregate live-search subscription ceiling.
+    /// Optional because absence selects the target's admitted default; it is
+    /// table-scoped so indexes cannot publish conflicting aggregate answers.
+    ///
+    /// @ref LLP 0136#capability-id-and-claim-discipline-llp-0119-oq2-proposal
+    #[serde(
+        default,
+        rename = "searchLiveLimits",
+        alias = "search_live_limits",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub search_live_limits: Option<SearchTableLiveLimitsV1>,
     #[serde(default)]
     pub syncable: bool,
     /// This table contains facts that grant or revoke authority. This axis is
@@ -511,6 +545,12 @@ pub struct TableManifest {
         skip_serializing_if = "Option::is_none"
     )]
     pub asset_sharing: Option<AssetSharingManifest>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SearchTableLiveLimitsV1 {
+    pub max_live_subscriptions_per_table: u32,
 }
 
 /// The closed asset-sharing declaration, reusing the shipped visibility
@@ -1190,7 +1230,7 @@ impl FunctionManifest {
                     FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)),
                 ) => validate_relational_query_plan_shape(plan)?,
                 (
-                    FunctionKind::Query,
+                    FunctionKind::Query | FunctionKind::LiveQuery,
                     FunctionRuntime::HostPlan(HandlerPlan::SearchQuery(plan)),
                 ) => validate_search_query_plan_shape(plan)?,
                 (
@@ -1243,7 +1283,15 @@ impl FunctionManifest {
                     }
                 }
                 FunctionRuntime::HostPlan(HandlerPlan::SearchQuery(_)) => {
-                    &[crate::search::types::SEARCH_CAPABILITY]
+                    if function.kind == FunctionKind::LiveQuery {
+                        &[
+                            crate::search::types::SEARCH_CAPABILITY,
+                            "live_subscriptions",
+                            "live_full_text_search_v1",
+                        ]
+                    } else {
+                        &[crate::search::types::SEARCH_CAPABILITY]
+                    }
                 }
                 // The declared job-status query requires the experimental
                 // jobs registry id (LLP 0070 is Draft, so the id can never be
@@ -2432,6 +2480,13 @@ fn validate_authority_independent(function: &FunctionDefinition) -> SnapbackResu
             .filters
             .iter()
             .any(|filter| value_expr_uses_authority_or_ambient_input(&filter.value)),
+        // @ref LLP 0136#admission-path-decision — structural admission is
+        // only half the proof. `validate_function_schema_references` binds
+        // this declaration to an exact public-read search index before the
+        // artifact pair can activate.
+        FunctionRuntime::HostPlan(HandlerPlan::SearchQuery(_)) => {
+            function.kind == FunctionKind::LiveQuery
+        }
         FunctionRuntime::HostPlan(_) | FunctionRuntime::IbexModule(_) => false,
     };
 
@@ -2574,9 +2629,7 @@ fn validate_bounded_skew_definition(function: &FunctionDefinition) -> SnapbackRe
         .iter()
         .any(|capability| capability == "settlement.bounded_skew")
     {
-        return Err(invalid(
-            "the declaration requires settlement.bounded_skew",
-        ));
+        return Err(invalid("the declaration requires settlement.bounded_skew"));
     }
     let plan = match &function.runtime {
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan))
@@ -2584,7 +2637,11 @@ fn validate_bounded_skew_definition(function: &FunctionDefinition) -> SnapbackRe
             mutation: plan,
             ..
         })) => plan,
-        _ => return Err(invalid("only HostPlan mutations can prove a direct time sink")),
+        _ => {
+            return Err(invalid(
+                "only HostPlan mutations can prove a direct time sink",
+            ));
+        }
     };
     let matching = plan.steps.iter().filter_map(|step| match step {
         MutationStep::Insert { values, .. }
@@ -2605,7 +2662,31 @@ fn validate_bounded_skew_definition(function: &FunctionDefinition) -> SnapbackRe
 }
 
 fn validate_public_inline(function: &FunctionDefinition) -> SnapbackResult<()> {
-    if !function.public_inline || function.authority_independent {
+    if !function.public_inline {
+        return Ok(());
+    }
+    // @ref LLP 0136#admission-path-decision — public-read live search is
+    // authority-independent, but it is not approved for Channel-A inline
+    // disclosure. Keep this refusal plan-shaped so direct manifests cannot
+    // bypass the authoring surface.
+    if matches!(
+        &function.runtime,
+        FunctionRuntime::HostPlan(HandlerPlan::SearchQuery(_))
+    ) {
+        return Err(SnapbackError::error(
+            "SNAPBACK_PUBLIC_INLINE_INVALID",
+            "auth",
+            format!(
+                "function {} declares publicInline on a search-plan function",
+                function.name
+            ),
+        )
+        .with_details(serde_json::json!({
+            "function": function.name,
+            "runtime": "search-query",
+        })));
+    }
+    if function.authority_independent {
         return Ok(());
     }
     Err(SnapbackError::error(
@@ -3859,9 +3940,7 @@ pub fn validate_write_with_activity_plan_shape(plan: &WriteWithActivityPlan) -> 
                     right,
                 },
             else_error,
-        } if else_error == scope_refusal
-            && matches!(right.as_ref(), ValueExpr::AuthUserId) =>
-        {
+        } if else_error == scope_refusal && matches!(right.as_ref(), ValueExpr::AuthUserId) => {
             matches!(
                 left.as_ref(),
                 ValueExpr::Field { base, key }
@@ -6432,15 +6511,7 @@ pub const AUTHORITY_DESCRIPTOR_MAX_SESSION_GENERATION: u64 = 9_007_199_254_740_9
 /// @ref LLP 0133#the-two-settlement-lanes — the label selects replay acceptance
 ///   or server re-derivation without granting authority.
 #[derive(
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    Deserialize,
-    Eq,
-    PartialEq,
-    Serialize,
-    schemars::JsonSchema,
+    Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum SettlementLane {
@@ -7042,6 +7113,11 @@ pub enum TargetCapabilityId {
     MigrationKeysetScanV1,
     #[serde(rename = "full_text_search_v1")]
     FullTextSearchV1,
+    /// First-page-only live search by bounded coarse re-execution. The id is
+    /// registered at experimental maturity but remains unsupported until the
+    /// complete LLP 0136 evidence/publication train lands.
+    #[serde(rename = "live_full_text_search_v1")]
+    LiveFullTextSearchV1,
     #[serde(rename = "result_contract_v1")]
     ResultContractV1,
     #[serde(rename = "settlement.bounded_skew")]
@@ -7067,7 +7143,7 @@ pub enum TargetCapabilityId {
 }
 
 impl TargetCapabilityId {
-    pub const ALL: [Self; 29] = [
+    pub const ALL: [Self; 30] = [
         Self::AuthSessionsV1,
         Self::BoundedResponseStreamV1,
         Self::BoundedChildrenV1,
@@ -7086,6 +7162,7 @@ impl TargetCapabilityId {
         Self::SnapshotBatchV1,
         Self::MigrationKeysetScanV1,
         Self::FullTextSearchV1,
+        Self::LiveFullTextSearchV1,
         Self::ResultContractV1,
         Self::SettlementBoundedSkew,
         Self::ArgsContractV1,
@@ -7119,6 +7196,7 @@ impl TargetCapabilityId {
             Self::SnapshotBatchV1 => "snapshot_batch_v1",
             Self::MigrationKeysetScanV1 => "migration_keyset_scan_v1",
             Self::FullTextSearchV1 => "full_text_search_v1",
+            Self::LiveFullTextSearchV1 => "live_full_text_search_v1",
             Self::ResultContractV1 => "result_contract_v1",
             Self::SettlementBoundedSkew => "settlement.bounded_skew",
             Self::ArgsContractV1 => "args_contract_v1",
@@ -7167,6 +7245,7 @@ impl TargetCapabilityId {
             | Self::RegisteredBundleBootV1
             | Self::SequenceAllocationV1
             | Self::SnapshotBatchV1
+            | Self::LiveFullTextSearchV1
             | Self::ResultContractV1
             | Self::ArgsContractV1
             | Self::VersionedSeedInstallV1
@@ -7322,6 +7401,31 @@ impl TargetCapabilityId {
                             && facts.maturity == "stable"
                             && facts.storage_engines == ["sqlite"]
                     })
+            }
+            // @ref LLP 0136#capability-id-and-claim-discipline-llp-0119-oq2-proposal
+            // — parent capabilities never imply the sibling claim. This exact
+            // target must also hold the dedicated implementation registration
+            // and closed live-search fact block; all constructors currently
+            // keep the registration false and publish the structured GAP.
+            Self::LiveFullTextSearchV1 => {
+                facts.live_full_text_search_v1_registered
+                    && Self::FullTextSearchV1.is_supported_by(manifest, facts)
+                    && Self::LiveSubscriptions.is_supported_by(manifest, facts)
+                    && manifest
+                        .live_full_text_search
+                        .as_ref()
+                        .is_some_and(|facts| {
+                            facts.capability_id == "live_full_text_search_v1"
+                                && facts.liveness_scope == "first-page-only"
+                                && facts.wake_granularity == "table-granular"
+                                && facts.delivery_lane == "replace-only"
+                                && !facts.retention
+                                && !facts.resume
+                                && !facts.auth_scoped
+                                && facts.max_live_subscriptions > 0
+                                && facts.max_live_subscriptions_per_connection > 0
+                                && facts.max_live_subscriptions_per_table > 0
+                        })
             }
             Self::ResultContractV1 => facts.result_contract_v1_registered,
             // @ref LLP 0133#the-bounded-skew-opt-in — this fact names only
@@ -7565,6 +7669,7 @@ pub struct TargetCapabilityFacts {
     sequence_allocation_v1_registered: bool,
     migration_keyset_scan_v1_registered: bool,
     full_text_search_v1_registered: bool,
+    live_full_text_search_v1_registered: bool,
     inline_handler_v1_registered: bool,
     jobs_one_off_v1_registered: bool,
     result_contract_v1_registered: bool,
@@ -7620,6 +7725,9 @@ impl TargetCapabilityFacts {
             sequence_allocation_v1_registered: false,
             migration_keyset_scan_v1_registered: true,
             full_text_search_v1_registered: true,
+            // Authoring and closed carriers exist, but no wire/runtime/live
+            // acceptance or publication receipt exists in this checkpoint.
+            live_full_text_search_v1_registered: false,
             inline_handler_v1_registered: true,
             // @ref LLP 0070#non-goals-and-claim-boundary — registered means
             // the local enqueue/drain implementation exists; the id's
@@ -7885,6 +7993,16 @@ pub struct CapabilityManifest {
         skip_serializing_if = "Option::is_none"
     )]
     pub full_text_search: Option<FullTextSearchFactsV1>,
+    /// Closed target-owned facts for LLP 0136 live search. This block is
+    /// absent on every current target while `live_full_text_search_v1`
+    /// remains unpublished; parent search/live facts are never substituted.
+    #[serde(
+        default,
+        rename = "liveFullTextSearch",
+        alias = "live_full_text_search",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub live_full_text_search: Option<LiveFullTextSearchFactsV1>,
     /// Declared asset facts (LLP 0044; LLP 0012 dated registration
     /// 2026-07-31). Presence with a qualified store list is half the
     /// `asset_lifecycle_v1` predicate; absence is the honest Missing report
@@ -7895,8 +8013,33 @@ pub struct CapabilityManifest {
     /// 0058 amendment 2026-08-01). Absence is capability-absent: the engine
     /// refuses credentialed lanes rather than inferring eligibility from a
     /// URL or a correlated capability.
-    #[serde(default, rename = "appCliTarget", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        rename = "appCliTarget",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub app_cli_target: Option<AppCliTargetFactsV1>,
+}
+
+/// The exact inspection fact block a future claiming target must publish.
+/// Values are target facts, not app-authored authority. The sibling stays
+/// absent while support is false, but landing the closed shape now prevents
+/// the runtime wave from inventing a looser or backend-specific projection.
+///
+/// @ref LLP 0136#capability-id-and-claim-discipline-llp-0119-oq2-proposal
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct LiveFullTextSearchFactsV1 {
+    pub capability_id: String,
+    pub liveness_scope: String,
+    pub wake_granularity: String,
+    pub delivery_lane: String,
+    pub retention: bool,
+    pub resume: bool,
+    pub auth_scoped: bool,
+    pub max_live_subscriptions: u32,
+    pub max_live_subscriptions_per_connection: u32,
+    pub max_live_subscriptions_per_table: u32,
 }
 
 /// Machine-readable honesty and operating bounds for LLP 0143's local Expo
@@ -7969,12 +8112,7 @@ impl ExpoPushSeamFactsV1 {
             send_batch_max: crate::push::PUSH_BATCH_MESSAGES_MAX as u32,
             receipt_batch_max: crate::push::PUSH_RECEIPT_BATCH_MAX as u32,
             receipt_first_poll_ms: crate::push::PUSH_RECEIPT_FIRST_POLL_MS,
-            receipt_poll_intervals_ms: vec![
-                1_800_000,
-                3_600_000,
-                7_200_000,
-                14_400_000,
-            ],
+            receipt_poll_intervals_ms: vec![1_800_000, 3_600_000, 7_200_000, 14_400_000],
             receipt_poll_max_attempts: 7,
             receipt_window_ms: crate::push::PUSH_RECEIPT_WINDOW_MS,
             registry_idle_retention_ms: CapabilityRangeV1 {
@@ -8311,6 +8449,7 @@ impl CapabilityManifest {
             relational_queries: Some(RelationalQueryFacts::local_v1()),
             standard_patterns: Some(StandardPatternFacts::local_v1()),
             full_text_search: Some(FullTextSearchFactsV1::local_v1()),
+            live_full_text_search: None,
             assets: Some(crate::assets::AssetTargetFactsV1::local_v1()),
             app_cli_target: Some(AppCliTargetFactsV1::local_v1()),
             supported_query_forms: vec![
@@ -8734,6 +8873,20 @@ impl CapabilityManifest {
                 .retain(|gap| gap != "snapshot_batch_v1");
         } else {
             ensure_snapshot_batch_capability_gap(&mut self.capability_gaps);
+        }
+        if self
+            .supported_capabilities
+            .contains(&TargetCapabilityId::LiveFullTextSearchV1)
+        {
+            self.capability_gaps
+                .retain(|gap| gap != "live_full_text_search_v1");
+        } else if !self
+            .capability_gaps
+            .iter()
+            .any(|gap| gap == "live_full_text_search_v1")
+        {
+            self.capability_gaps
+                .push("live_full_text_search_v1".to_owned());
         }
         // @ref LLP 0058#capability-maturity — the maturity map annotates
         // exactly the emitted support set; stable ids are omitted, so a
@@ -9604,6 +9757,62 @@ mod membership_manifest_grammar_tests {
                 manifest.target_profile_id,
             );
         }
+    }
+
+    #[test]
+    fn unpublished_live_search_capability_is_closed_and_always_gapped() {
+        assert_eq!(
+            TargetCapabilityId::LiveFullTextSearchV1.maturity(),
+            CapabilityMaturity::Experimental,
+        );
+        for manifest in [
+            CapabilityManifest::local_v0(Vec::new()),
+            CapabilityManifest::local_v0_instance(Vec::new(), true),
+            CapabilityManifest::remote_service_sqlite_ibex_declared(),
+            CapabilityManifest::conformance_workerd_v8(serde_json::json!({})),
+            CapabilityManifest::cloudflare_do_sqlite_v8(serde_json::json!({})),
+        ] {
+            assert!(
+                !manifest
+                    .supported_capabilities
+                    .contains(&TargetCapabilityId::LiveFullTextSearchV1),
+                "{} must not publish live search before complete evidence",
+                manifest.target_profile_id,
+            );
+            assert!(
+                manifest
+                    .capability_gaps
+                    .iter()
+                    .any(|gap| gap == "live_full_text_search_v1"),
+                "{} must carry the structured live-search GAP",
+                manifest.target_profile_id,
+            );
+            assert!(manifest.live_full_text_search.is_none());
+            assert!(
+                !manifest
+                    .capability_maturity
+                    .contains_key(&TargetCapabilityId::LiveFullTextSearchV1),
+                "unsupported ids do not receive maturity annotations",
+            );
+        }
+
+        let closed = serde_json::json!({
+            "capabilityId": "live_full_text_search_v1",
+            "livenessScope": "first-page-only",
+            "wakeGranularity": "table-granular",
+            "deliveryLane": "replace-only",
+            "retention": false,
+            "resume": false,
+            "authScoped": false,
+            "maxLiveSubscriptions": 64,
+            "maxLiveSubscriptionsPerConnection": 8,
+            "maxLiveSubscriptionsPerTable": 128,
+            "invented": true,
+        });
+        assert!(
+            serde_json::from_value::<LiveFullTextSearchFactsV1>(closed).is_err(),
+            "target facts must remain deny-unknown-fields closed",
+        );
     }
 
     #[test]

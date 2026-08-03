@@ -163,6 +163,7 @@ mod tests {
                 permission_fields: permission_fields
                     .map(|fields| fields.into_iter().map(str::to_owned).collect()),
                 search_indexes: Vec::new(),
+                search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
             }],
@@ -219,6 +220,7 @@ mod tests {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                search_live_limits: None,
                 membership: Some(MembershipManifest {
                     id: Some("event-members".to_owned()),
                     principal: "principalId".to_owned(),

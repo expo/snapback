@@ -270,6 +270,7 @@ mod tests {
             query_limits: Default::default(),
             cursor_limits: Default::default(),
             maintenance_limits: Default::default(),
+            live_limits: None,
         }
     }
 

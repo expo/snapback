@@ -40,7 +40,9 @@ pub enum SearchFieldClassV1 {
 #[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
 pub enum SearchVisibilityV1 {
     PublicRead,
-    Owner { field: String },
+    Owner {
+        field: String,
+    },
     Membership {
         #[serde(rename = "declaration")]
         declaration: String,
@@ -151,6 +153,19 @@ pub struct SearchIndexManifestV1 {
     pub cursor_limits: SearchCursorLimitsV1,
     #[serde(default)]
     pub maintenance_limits: SearchMaintenanceLimitsV1,
+    /// Optional lower ceilings for the separately capability-gated live
+    /// search surface. Absence selects the target's admitted defaults.
+    ///
+    /// @ref LLP 0136#capability-id-and-claim-discipline-llp-0119-oq2-proposal
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub live_limits: Option<SearchLiveLimitsV1>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SearchLiveLimitsV1 {
+    pub max_live_subscriptions: u32,
+    pub max_live_subscriptions_per_connection: u32,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
@@ -391,7 +406,9 @@ impl FullTextSearchFactsV1 {
             cursor_ttl_ms: SEARCH_CURSOR_TTL_MS,
             accelerator: "none".to_owned(),
             authorization_filters: vec![
-                "public-read".to_owned(), "owner.v1".to_owned(), "membership.v1".to_owned(),
+                "public-read".to_owned(),
+                "owner.v1".to_owned(),
+                "membership.v1".to_owned(),
             ],
             highlights: true,
             counts: false,

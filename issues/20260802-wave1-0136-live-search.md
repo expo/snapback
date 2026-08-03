@@ -37,3 +37,17 @@ registered; dated implementation-record amendment + 0115 CV-11 row updated.
   and marked the appendices folded. This ticket must not duplicate those doc
   amendments; it still owns every code/schema/fixture/capability and
   implementation-record obligation they name.
+
+- **2026-08-02 — closed authoring/manifest checkpoint in progress.** The
+  first implementation slice is intentionally limited to
+  `defineLiveSearchQuery`, its closed `LiveQuery` + `SearchQueryPlanV1`
+  artifact shape, schema-carried `liveLimits` / `searchLiveLimits`, exact
+  public-read authority validation, and the experimental
+  `live_full_text_search_v1` registry/facts/GAP vocabulary. Every target still
+  reports support false and carries the structured GAP; this checkpoint does
+  not claim that live search is implemented or publish target support. The
+  remaining program still owns wire offer/`LiveReplace` cursor carriage,
+  runtime admission and dispatch, per-index/connection/table ceilings and
+  table-scoped fan-out, client live-search state, acceptance/measurement
+  evidence, implementation-record updates, and final publication-carrier
+  refresh after integration.

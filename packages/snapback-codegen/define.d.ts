@@ -272,7 +272,8 @@ export type TargetCapabilityId =
   | 'snapshot_batch_v1'
   | 'settlement.bounded_skew'
   | 'permission_epoch_resync'
-  | 'full_text_search_v1';
+  | 'full_text_search_v1'
+  | 'live_full_text_search_v1';
 
 export interface PushAudienceReference<Name extends string = string> {
   readonly audience: Name;
@@ -492,6 +493,7 @@ export type AssetSharingSpec<Fields extends Record<string, Validator> = Record<s
 export interface TableBuilder<Fields extends Record<string, Validator> = Record<string, Validator>> {
   index(name: string, fields: Array<keyof Fields & string>, options?: { unique?: boolean }): TableBuilder<Fields>;
   searchIndex(name: string, spec: SearchIndexSpec<Fields>): TableBuilder<Fields>;
+  searchLiveLimits(spec?: { maxLiveSubscriptionsPerTable?: number }): TableBuilder<Fields>;
   sync(): TableBuilder<Fields>;
   permissionBacking(fields?: Array<keyof Fields & string>): TableBuilder<Fields>;
   membership<const Spec extends MembershipSpec>(spec: Spec): MembershipTableBuilder<Fields, RolesOf<Spec>, ScopeOf<Spec>>;
@@ -538,6 +540,10 @@ export interface SearchIndexSpec<Fields extends Record<string, Validator>> {
     searchPostingOps?: number;
     searchPositions?: number;
     searchBytes?: number;
+  };
+  liveLimits?: {
+    maxLiveSubscriptions?: number;
+    maxLiveSubscriptionsPerConnection?: number;
   };
 }
 
@@ -594,6 +600,13 @@ export declare function defineSearchQuery(spec: {
   index: string;
   auth?: AuthRequirement;
   resourceArg?: string;
+}): unknown;
+/** First-page-only live search; the authored argument contract deliberately
+ * omits the ordinary search request's `after` continuation member. */
+export declare function defineLiveSearchQuery(spec: {
+  table: TableBuilder;
+  index: string;
+  auth?: AuthRequirement;
 }): unknown;
 
 export interface RelationalVisibilitySpec {
