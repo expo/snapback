@@ -350,3 +350,22 @@ ticket closes citing that run id.
   passes with 1,779 passed, zero failed, and one intentional benchmark ignore;
   every integration suite and the documentation test also passes, including
   the repaired route-policy and telemetry-projection fixtures.
+
+- **2026-08-03 — rebased observability benchmark tail.** Ten concurrent
+  observability/maturity commits added the retained D7 telemetry benchmark and
+  one new library test. On the exact rebased head, the complete Rust suite
+  found its seventeen benchmark diagnostics absent from S5-D10's closed HTTP
+  inventory. LLP 0154 defines each as an internal evidence failure (harness,
+  build identity, baseline, measurement, ceiling, or storage/runtime), never
+  a request-shape class, so all retain the fail-safe 500 projection if they
+  ever cross `ApiError`; all three focused inventory/status witnesses pass.
+  The rerun also made an older timing-sensitive expiry-index witness publish
+  fresh rooms fast enough to exhaust the unrelated 4,096-room production cap,
+  both in-suite and alone. Its publisher now cycles through 256 routing keys:
+  resets still retire those incarnations and later publishes still create the
+  fresh rooms needed by the legacy snapshot/retire discriminator, while the
+  test can no longer fail on the independent capacity policy. The focused
+  expiry-index witness passes. The complete rebased Rust proof then passes:
+  1,779 library tests passed, zero failed, one intentional benchmark ignored,
+  with every integration suite and the documentation test green; all-target
+  Clippy and the 4,483-reference LLP audit are also clean.

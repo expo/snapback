@@ -13217,13 +13217,18 @@ mod tests {
             let backend = backend.clone();
             let stop = stop.clone();
             std::thread::spawn(move || {
+                const ROUTING_ROOMS: u64 = 256;
                 let mut n = 0u64;
                 while !stop.load(Ordering::Relaxed) {
-                    // A fresh room every publish: some are born inside a wipe's
-                    // snapshot→retire window and survive it.
+                    // Reuse a bounded routing-key set so the concurrency
+                    // witness cannot trip the independent 4,096-room
+                    // production cap on a fast host. Each wipe retires the
+                    // current incarnations, so later publishes still create
+                    // fresh rooms that can land inside the legacy
+                    // snapshot→retire window this test discriminates.
                     let request = PublishRequest {
                         collection: "cursors".to_owned(),
-                        scope: Scope::from_pairs([("roomId", format!("r-{n}"))]),
+                        scope: Scope::from_pairs([("roomId", format!("r-{}", n % ROUTING_ROOMS))]),
                         connection_id: "pub".to_owned(),
                         session_id: None,
                         user_id: None,
