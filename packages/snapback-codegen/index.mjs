@@ -226,6 +226,107 @@ function snapshotBatchIdentityV1(plan, argsContract) {
     planHash: compositionDomainHash('snapback:plan-hash:v1:', normalizedCompositePlan),
   };
 }
+
+// LLP 0090's mixed-route successor uses the LLP 0157 identity stack without
+// allowing the execution-plan shape to answer whether a child is live. The
+// normalized plan deliberately excludes `kind`; the capability binding is
+// the sole Query/LiveQuery discriminator. Thus two byte-identical storage
+// plans can have distinct NodePlanHashV1 values for the right reason.
+// @ref LLP 0157#d2--plan-identity — capability is part of NodePlanRecordV1.
+function mixedRouteNodeIdentityV2(fn) {
+  const argumentBindings = (fn.argsContract?.fields ?? []).map((field) => {
+    const contract = {
+      format: 'snapback.argument-binding-contract.v1',
+      required: field.required,
+      value: field.value,
+    };
+    return {
+      name: field.name,
+      contract,
+      contractHash: compositionDomainHash(
+        'snapback:argument-binding-contract:v1:',
+        contract,
+      ),
+    };
+  });
+  const requiredCapabilityIds = [...new Set(fn.requiredCapabilities ?? [])].sort();
+  const nodePlan = {
+    format: 'snapback.node-plan.v1',
+    classId: 'exported_query_v1',
+    classVersion: 1,
+    normalizedPlan: {
+      format: 'snapback.exported-query-plan.v1',
+      runtime: fn.runtime,
+      argsContractHash: fn.argsContractHash,
+      resultContractHash: fn.resultContractHash,
+      authRequirement: fn.authRequirement,
+      authorityIndependent: fn.authorityIndependent === true,
+      authorizationDependence: fn.authorizationDependence ?? [],
+      readSetSummary: fn.readSetSummary,
+      effectCeiling: fn.effectCeiling ?? null,
+    },
+    argumentBindings,
+    capability: {
+      exportKind: fn.kind,
+      live: fn.kind === 'LiveQuery'
+        ? {
+            kind: 'admitted',
+            delivery: 'live_replace',
+            pageDomain: 'whole-result',
+          }
+        : { kind: 'none' },
+      retention: fn.retainable === true
+        ? 'opaque-authorized-snapshot-v1'
+        : 'none',
+      requiredCapabilityIds,
+    },
+  };
+  return {
+    nodePlan,
+    nodePlanHash: compositionDomainHash('snapback:node-plan:v1:', nodePlan),
+  };
+}
+
+function mixedRouteIdentityV2(routeEntry, functions) {
+  const byName = new Map(functions.map((fn) => [fn.name, fn]));
+  const nodes = routeEntry.queries.map((query, position) => {
+    const fn = byName.get(query.function);
+    if (!fn) throw new TypeError(`mixed route names unknown function ${query.function}`);
+    return { position, ...mixedRouteNodeIdentityV2(fn) };
+  });
+  const mergedArgs = {
+    format: 'snapback.mixed-route-args.v2',
+    route: routeEntry.route,
+    queries: routeEntry.queries,
+  };
+  const normalizedCompositePlan = {
+    format: 'snapback.normalized-composite-plan.v1',
+    profileId: 'mixed-route.v2',
+    nodes,
+    mergedArgsContractHash: compositionDomainHash(
+      'snapback:mixed-route-args:v2:',
+      mergedArgs,
+    ),
+    classification: {
+      callable: true,
+      // The group's weakest aggregate is honestly non-live. Individual live
+      // children remain explicit in their capability bindings.
+      live: { kind: 'none' },
+      invalidation: 'none',
+      retention: 'none',
+    },
+    parentAuthorizationGroups: [],
+  };
+  return {
+    formatVersion: 2,
+    profile: 'mixed-route.v2',
+    normalizedCompositePlan,
+    planHash: compositionDomainHash(
+      'snapback:plan-hash:v1:',
+      normalizedCompositePlan,
+    ),
+  };
+}
 // @ref LLP 0057#reservation — SQLite folds ASCII identifier case, so every
 // spelling of the protected auth namespace is rejected at authoring time.
 const isAuthReservedIdentifier = (name) => {
@@ -295,6 +396,7 @@ const TARGET_CAPABILITY_IDS = new Set([
   'jobs_one_off_v1',
   'live_subscriptions',
   'mutation_read_set_validation',
+  'mixed_bundle_boot_v2',
   'notifications.expoPushSeam',
   'permission_epoch_resync',
   'registered_bundle_boot_v1',
@@ -332,6 +434,7 @@ const EXPERIMENTAL_TARGET_CAPABILITY_IDS = new Set([
   'inline_handler_v1',
   'jobs_one_off_v1',
   'live_full_text_search_v1',
+  'mixed_bundle_boot_v2',
   'sequence_allocation_v1',
   'snapshot_batch_v1',
   'registered_bundle_boot_v1',
@@ -3208,6 +3311,11 @@ export async function generateInProcess(backendDir, options = {}) {
   for (const job of cronJobs) {
     for (const capability of job.requiredCapabilities) requiredTargetCapabilities.add(capability);
   }
+  if ((routesModule?.routes ?? []).some((route) => (
+    routeMixedGroupEligible(route.queries ?? [], functionsModule)
+  ))) {
+    requiredTargetCapabilities.add('mixed_bundle_boot_v2');
+  }
   validateTargetArtifactAuthSupport(
     canonicalCapability.manifest,
     artifactVersion,
@@ -3224,6 +3332,16 @@ export async function generateInProcess(backendDir, options = {}) {
   const routesManifest = routesModule
     ? compileRoutesManifest(routesModule, functionsModule, appId, err)
     : null;
+  if (routesManifest !== null) {
+    for (const routeEntry of routesManifest.routes) {
+      if (routeEntry.mixedGroupEligible === true) {
+        routeEntry.mixedProfile = mixedRouteIdentityV2(
+          routeEntry,
+          decoratedFunctionDefinitions,
+        );
+      }
+    }
+  }
   if (diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
   }
@@ -5560,11 +5678,13 @@ function compileRoutesManifest(routesModule, functionsModule, appId, err) {
       }
     }
     const registerGroupEligible = routeRegisterGroupEligible(queries, functionsModule);
+    const mixedGroupEligible = routeMixedGroupEligible(queries, functionsModule);
     compiled.push({
       route,
       queries: queries.map((spec) => ({ function: spec.function, args: spec.args ?? {} })),
       ...(entry.persist === false ? { persist: false } : {}),
       ...(registerGroupEligible ? { registerGroupEligible: true } : {}),
+      ...(mixedGroupEligible ? { mixedGroupEligible: true } : {}),
     });
   }
   return { formatVersion: 1, app: appId, routes: compiled };
@@ -5589,6 +5709,30 @@ export function routeRegisterGroupEligible(queries, functionsModule) {
       || fn.args?.[key]?.primitive === 'string'
     ));
   });
+}
+
+/** @internal Closed v2 predicate: at least one child of each query export
+ * kind, and the same pre-I/O args materialization restrictions as format 1. */
+export function routeMixedGroupEligible(queries, functionsModule) {
+  let query = false;
+  let live = false;
+  for (const spec of queries) {
+    const fn = functionsModule[spec.function];
+    if (fn?.__kind === 'Query') query = true;
+    else if (fn?.__kind === 'LiveQuery') live = true;
+    else return false;
+    if (fn.searchPlan !== undefined) return false;
+    if (!Object.entries(spec.args ?? {}).every(([key, value]) => (
+      !(
+        value
+        && typeof value === 'object'
+        && !Array.isArray(value)
+        && Object.hasOwn(value, '$param')
+      )
+      || fn.args?.[key]?.primitive === 'string'
+    ))) return false;
+  }
+  return query && live;
 }
 
 // The stable function id: a pure function of (appId, exported name), so
@@ -7386,11 +7530,16 @@ function queryGroupEntryName(functionName, occurrences, usedNames) {
 function generatedQueryGroupRoutes(functions, routesManifest) {
   const byName = new Map(functions.map((fn) => [fn.name, fn]));
   return (routesManifest?.routes ?? []).filter((routeEntry) => (
-    routeEntry.registerGroupEligible === true
+    (routeEntry.registerGroupEligible === true || routeEntry.mixedGroupEligible === true)
     &&
     routeEntry.queries.length >= 1
     && routeEntry.queries.length <= 32
-    && routeEntry.queries.every((query) => byName.get(query.function)?.kind === 'LiveQuery')
+    && routeEntry.queries.every((query) => {
+      const kind = byName.get(query.function)?.kind;
+      return routeEntry.registerGroupEligible === true
+        ? kind === 'LiveQuery'
+        : kind === 'Query' || kind === 'LiveQuery';
+    })
   ));
 }
 
@@ -7407,13 +7556,22 @@ function queryGroupDefinitionHash(routeEntry) {
   return `sha256:${sha256(`snapback:query-group-reference:v1\n${canonicalDefinition}`)}`;
 }
 
+function mixedQueryGroupDefinitionHash(routeEntry) {
+  const canonicalDefinition = stableJson({
+    ...queryGroupDefinition(routeEntry),
+    planHash: routeEntry.mixedProfile.planHash,
+  }, 0);
+  return `sha256:${sha256(`snapback:query-group-reference:v2\n${canonicalDefinition}`)}`;
+}
+
 function renderQueryGroupReferences(appId, functions, routesManifest, expectedGeneration) {
   const byName = new Map(functions.map((fn) => [fn.name, fn]));
   const groups = dict();
   for (const routeEntry of generatedQueryGroupRoutes(functions, routesManifest)) {
     const occurrences = new Map();
     const usedNames = new Set();
-    const queries = routeEntry.queries.map((query) => {
+    const mixed = routeEntry.mixedGroupEligible === true;
+    const queries = routeEntry.queries.map((query, position) => {
       const fn = byName.get(query.function);
       if (!fn) {
         throw new Error(`codegen internal error: query group references unknown function ${query.function}`);
@@ -7433,17 +7591,29 @@ function renderQueryGroupReferences(appId, functions, routesManifest, expectedGe
           expectedGeneration,
         },
         args: query.args ?? {},
+        ...(mixed ? {
+          nodePlan: routeEntry.mixedProfile.normalizedCompositePlan.nodes[position].nodePlan,
+          nodePlanHash: routeEntry.mixedProfile.normalizedCompositePlan.nodes[position].nodePlanHash,
+        } : {}),
       };
     });
     groups[routeEntry.route] = {
       artifactKind: 'queryGroupReference',
-      formatVersion: 1,
+      formatVersion: mixed ? 2 : 1,
       schemaVersion: SCHEMA_VERSION,
       appId,
-      id: `${appId}:query-group:${routeEntry.route}`,
+      id: mixed
+        ? `${appId}:query-group-v2:${routeEntry.route}`
+        : `${appId}:query-group:${routeEntry.route}`,
       route: routeEntry.route,
-      definitionHash: queryGroupDefinitionHash(routeEntry),
+      definitionHash: mixed
+        ? mixedQueryGroupDefinitionHash(routeEntry)
+        : queryGroupDefinitionHash(routeEntry),
       queries,
+      ...(mixed ? {
+        profile: 'mixed-route.v2',
+        planHash: routeEntry.mixedProfile.planHash,
+      } : {}),
       ...(routeEntry.persist === false ? { persist: false } : {}),
     };
   }
@@ -8078,8 +8248,33 @@ function renderApiTypes(
     '  readonly __params?: Params;',
     '  readonly __entries?: QueryGroupEntryResults<Queries>;',
     '}',
-    'export type QueryGroupParams<Ref> = Ref extends QueryGroupReference<string, infer Params, readonly QueryGroupEntry[]> ? Params : never;',
-    'export type QueryGroupEntries<Ref> = Ref extends QueryGroupReference<string, unknown, infer Queries> ? QueryGroupEntryResults<Queries> : never;',
+    'export interface MixedQueryGroupEntry<Name extends string = string, Ref extends FunctionReference<string, "Query" | "LiveQuery", unknown, unknown> = FunctionReference<string, "Query" | "LiveQuery", unknown, unknown>, Args extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>> {',
+    '  readonly name: Name;',
+    '  readonly ref: Ref;',
+    '  readonly args: Args;',
+    '  readonly nodePlan: Readonly<Record<string, unknown>>;',
+    '  readonly nodePlanHash: `sha256:${string}`;',
+    '}',
+    'export type MixedQueryGroupEntryResults<Queries extends readonly MixedQueryGroupEntry[]> = {',
+    '  readonly [Entry in Queries[number] as Entry["name"]]: { readonly ref: Entry["ref"]; readonly args: FunctionArgs<Entry["ref"]> };',
+    '};',
+    'export interface MixedQueryGroupReference<Route extends string, Params, Queries extends readonly MixedQueryGroupEntry[]> {',
+    "  readonly artifactKind: 'queryGroupReference';",
+    '  readonly formatVersion: 2;',
+    "  readonly profile: 'mixed-route.v2';",
+    '  readonly schemaVersion: SchemaVersion;',
+    '  readonly appId: string;',
+    '  readonly id: `${string}:query-group-v2:${Route}`;',
+    '  readonly route: Route;',
+    '  readonly definitionHash: `sha256:${string}`;',
+    '  readonly planHash: `sha256:${string}`;',
+    '  readonly queries: Queries;',
+    '  readonly persist?: false;',
+    '  readonly __params?: Params;',
+    '  readonly __entries?: MixedQueryGroupEntryResults<Queries>;',
+    '}',
+    'export type QueryGroupParams<Ref> = Ref extends QueryGroupReference<string, infer Params, readonly QueryGroupEntry[]> ? Params : Ref extends MixedQueryGroupReference<string, infer Params, readonly MixedQueryGroupEntry[]> ? Params : never;',
+    'export type QueryGroupEntries<Ref> = Ref extends QueryGroupReference<string, unknown, infer Queries> ? QueryGroupEntryResults<Queries> : Ref extends MixedQueryGroupReference<string, unknown, infer Queries> ? MixedQueryGroupEntryResults<Queries> : never;',
     // @ref LLP 0044#generated-upload-intents — the declaration twin of the
     // Rust-owned assetUploadReference DTO renderAssetUploadReferences emits at
     // runtime, structurally accepted by useSnapbackAssetUpload and
@@ -8345,13 +8540,19 @@ function renderApiTypes(
       );
       const refType = `FunctionReference<'${query.function}', '${fn?.kind ?? 'Query'}', ${argsType}, ${resultType}>`;
       const entryName = queryGroupEntryName(query.function, occurrences, usedNames);
-      queryTypes.push(`Readonly<{ name: ${JSON.stringify(entryName)}; ref: ${refType}; args: ${typeForQueryGroupTemplate(query.args ?? {})} }>`);
+      const identityFields = routeEntry.mixedGroupEligible === true
+        ? '; nodePlan: Readonly<Record<string, unknown>>; nodePlanHash: `sha256:${string}`'
+        : '';
+      queryTypes.push(`Readonly<{ name: ${JSON.stringify(entryName)}; ref: ${refType}; args: ${typeForQueryGroupTemplate(query.args ?? {})}${identityFields} }>`);
     }
     const paramsType = routeParams.length === 0
       ? 'Record<string, never>'
       : `{ ${routeParams.map((name) => `${JSON.stringify(name)}: ${paramTypes.get(name) ?? 'string'}`).join('; ')} }`;
+    const referenceType = routeEntry.mixedGroupEligible === true
+      ? 'MixedQueryGroupReference'
+      : 'QueryGroupReference';
     lines.push(
-      `  ${JSON.stringify(routeEntry.route)}: QueryGroupReference<${JSON.stringify(routeEntry.route)}, ${paramsType}, readonly [${queryTypes.join(', ')}]>;`,
+      `  ${JSON.stringify(routeEntry.route)}: ${referenceType}<${JSON.stringify(routeEntry.route)}, ${paramsType}, readonly [${queryTypes.join(', ')}]>;`,
     );
   }
   lines.push(

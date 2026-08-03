@@ -12,6 +12,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use sha2::{Digest as _, Sha256};
 
 use crate::auth::invalidation::{AuthorizationInvalidationProjection, QueryNamespace, ScopeId};
 use crate::live_wire::ResumeWire;
@@ -56,6 +57,27 @@ pub const BUNDLE_MAX_PENDING_PER_AUTHORITY: usize = 8;
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct BundleRequest {
+    /// Absent for LLP 0112 format-1 requests; exactly `2` for the mixed-route
+    /// successor wire. This explicit discriminator prevents a v1 decoder from
+    /// reinterpreting a mixed registration.
+    #[serde(
+        default,
+        rename = "formatVersion",
+        alias = "format_version",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub format_version: Option<u32>,
+    /// Exactly `mixed-route.v2` when `formatVersion` is 2.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub profile: Option<String>,
+    /// LLP 0157 PlanHashV1 expected by the generated v2 reference.
+    #[serde(
+        default,
+        rename = "planHash",
+        alias = "plan_hash",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub plan_hash: Option<String>,
     /// Exact manifest route pattern (LLP 0092 §0C.1) — matched by string
     /// equality against the served route manifest; the endpoint never does
     /// URL matching.
@@ -139,6 +161,35 @@ pub struct BundleRouteEntry {
         skip_serializing_if = "std::ops::Not::not"
     )]
     pub register_group_eligible: bool,
+    /// Codegen-derived successor eligibility: the route contains at least one
+    /// Query and one LiveQuery and carries an exact LLP 0157 mixed plan.
+    #[serde(
+        default,
+        rename = "mixedGroupEligible",
+        alias = "mixed_group_eligible",
+        skip_serializing_if = "std::ops::Not::not"
+    )]
+    pub mixed_group_eligible: bool,
+    #[serde(
+        default,
+        rename = "mixedProfile",
+        alias = "mixed_profile",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub mixed_profile: Option<MixedRouteProfileV2>,
+}
+
+/// Codegen-owned LLP 0157 identity carrier for one mixed route. The complete
+/// normalized record stays JSON so it remains byte-for-byte the shared JCS
+/// grammar rather than a second Rust spelling; admission below validates its
+/// closed discriminators and every per-child capability binding.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct MixedRouteProfileV2 {
+    pub format_version: u32,
+    pub profile: String,
+    pub normalized_composite_plan: Value,
+    pub plan_hash: String,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -156,6 +207,18 @@ pub struct BundleQuerySpec {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct BundleResponse {
+    /// Present exactly on the mixed successor wire; absent keeps format 1
+    /// byte-compatible with LLP 0112.
+    #[serde(
+        default,
+        rename = "formatVersion",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub format_version: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub profile: Option<String>,
+    #[serde(default, rename = "planHash", skip_serializing_if = "Option::is_none")]
+    pub plan_hash: Option<String>,
     /// Single shared commit version — every entry was evaluated at this cut.
     #[serde(rename = "commitVersion")]
     #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
@@ -168,6 +231,30 @@ pub struct BundleResponse {
     /// Register mode only.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub connection: Option<BundleConnection>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub aggregate: Option<MixedBundleAggregateV2>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct MixedBundleAggregateV2 {
+    pub kind: String,
+    pub weakest: String,
+    pub live_children: usize,
+    pub read_only_children: usize,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
+pub enum MixedBundleDeliveryV2 {
+    RegisteredLive {
+        #[serde(rename = "nodePlanHash")]
+        node_plan_hash: String,
+    },
+    ReadOnly {
+        #[serde(rename = "nodePlanHash")]
+        node_plan_hash: String,
+    },
 }
 
 /// Per-entry closed union (LLP 0092 §0D.1): `resume` is present iff the
@@ -194,6 +281,10 @@ pub struct BundleEntry {
     /// entries.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub authorization: Option<BundleAuthorization>,
+    /// Present exactly on format 2. This is the per-child delivery claim;
+    /// rows alone never imply liveness.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub delivery: Option<MixedBundleDeliveryV2>,
 }
 
 /// The exact LLP 0053 authorization projection adopted with a registered
@@ -306,6 +397,18 @@ pub fn validate_routes_manifest_shape(manifest: &RoutesManifest) -> Result<(), S
                 entry.queries.len()
             ));
         }
+        if entry.register_group_eligible && entry.mixed_group_eligible {
+            return Err(format!(
+                "route {:?} cannot be both format-1 and mixed-group eligible",
+                entry.route
+            ));
+        }
+        if entry.mixed_group_eligible != entry.mixed_profile.is_some() {
+            return Err(format!(
+                "route {:?} must carry mixedProfile exactly when mixedGroupEligible is true",
+                entry.route
+            ));
+        }
         for spec in &entry.queries {
             validate_mapping_references(&spec.args, &pattern_params).map_err(|_| {
                 format!(
@@ -331,6 +434,245 @@ pub fn validate_routes_manifest_shape(manifest: &RoutesManifest) -> Result<(), S
 pub enum BundleMode {
     Read,
     Register,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MixedChildAdmissionV2 {
+    pub node_plan_hash: String,
+    pub live: bool,
+}
+
+fn composition_hash(domain: &str, value: &Value) -> Result<String, &'static str> {
+    let canonical = crate::rqs::jcs(value).map_err(|_| code::ENTRY_INVALID)?;
+    let mut digest = Sha256::new();
+    digest.update(domain.as_bytes());
+    digest.update(canonical.as_bytes());
+    Ok(format!("sha256:{:x}", digest.finalize()))
+}
+
+fn exact_keys(value: &serde_json::Map<String, Value>, expected: &[&str]) -> bool {
+    value.len() == expected.len() && expected.iter().all(|key| value.contains_key(*key))
+}
+
+/// Admit the v2 request against the codegen-carried LLP 0157 identity and
+/// served function facts. No function runtime/plan shape participates in the
+/// liveness decision: the exact capability binding says Query or LiveQuery,
+/// and admission merely cross-checks that fact against the served export.
+pub fn admit_mixed_profile_v2(
+    entry: &BundleRouteEntry,
+    request_format: Option<u32>,
+    request_profile: Option<&str>,
+    request_plan_hash: Option<&str>,
+    function: impl Fn(&str) -> Option<crate::manifest::FunctionDefinition>,
+) -> Result<Vec<MixedChildAdmissionV2>, &'static str> {
+    if request_format != Some(2) || request_profile != Some("mixed-route.v2") {
+        return Err(code::MODE_INVALID);
+    }
+    if !entry.mixed_group_eligible || entry.register_group_eligible {
+        return Err(code::ENTRY_INVALID);
+    }
+    let profile = entry.mixed_profile.as_ref().ok_or(code::ENTRY_INVALID)?;
+    if profile.format_version != 2
+        || profile.profile != "mixed-route.v2"
+        || request_plan_hash != Some(profile.plan_hash.as_str())
+    {
+        return Err(code::ENTRY_INVALID);
+    }
+    if composition_hash("snapback:plan-hash:v1:", &profile.normalized_composite_plan)?
+        != profile.plan_hash
+    {
+        return Err(code::ENTRY_INVALID);
+    }
+    let composite = profile
+        .normalized_composite_plan
+        .as_object()
+        .ok_or(code::ENTRY_INVALID)?;
+    if !exact_keys(
+        composite,
+        &[
+            "format",
+            "profileId",
+            "nodes",
+            "mergedArgsContractHash",
+            "classification",
+            "parentAuthorizationGroups",
+        ],
+    ) || composite.get("format").and_then(Value::as_str)
+        != Some("snapback.normalized-composite-plan.v1")
+        || composite.get("profileId").and_then(Value::as_str) != Some("mixed-route.v2")
+        || composite.get("classification")
+            != Some(&serde_json::json!({
+                "callable": true,
+                "live": { "kind": "none" },
+                "invalidation": "none",
+                "retention": "none",
+            }))
+        || composite.get("parentAuthorizationGroups") != Some(&Value::Array(Vec::new()))
+    {
+        return Err(code::ENTRY_INVALID);
+    }
+    let nodes = composite
+        .get("nodes")
+        .and_then(Value::as_array)
+        .ok_or(code::ENTRY_INVALID)?;
+    if nodes.len() != entry.queries.len() {
+        return Err(code::ENTRY_INVALID);
+    }
+    let merged_args = serde_json::json!({
+        "format": "snapback.mixed-route-args.v2",
+        "route": entry.route,
+        "queries": entry.queries,
+    });
+    let expected_merged_args_hash =
+        composition_hash("snapback:mixed-route-args:v2:", &merged_args)?;
+    if composite
+        .get("mergedArgsContractHash")
+        .and_then(Value::as_str)
+        != Some(expected_merged_args_hash.as_str())
+    {
+        return Err(code::ENTRY_INVALID);
+    }
+    let mut admitted = Vec::with_capacity(nodes.len());
+    let mut saw_live = false;
+    let mut saw_plain = false;
+    for (position, (node, query)) in nodes.iter().zip(&entry.queries).enumerate() {
+        let node = node.as_object().ok_or(code::ENTRY_INVALID)?;
+        if !exact_keys(node, &["position", "nodePlan", "nodePlanHash"])
+            || node.get("position").and_then(Value::as_u64) != Some(position as u64)
+        {
+            return Err(code::ENTRY_INVALID);
+        }
+        let node_plan = node.get("nodePlan").ok_or(code::ENTRY_INVALID)?;
+        let node_plan_hash = node
+            .get("nodePlanHash")
+            .and_then(Value::as_str)
+            .ok_or(code::ENTRY_INVALID)?;
+        if composition_hash("snapback:node-plan:v1:", node_plan)? != node_plan_hash {
+            return Err(code::ENTRY_INVALID);
+        }
+        let plan = node_plan.as_object().ok_or(code::ENTRY_INVALID)?;
+        if !exact_keys(
+            plan,
+            &[
+                "format",
+                "classId",
+                "classVersion",
+                "normalizedPlan",
+                "argumentBindings",
+                "capability",
+            ],
+        ) || plan.get("format").and_then(Value::as_str) != Some("snapback.node-plan.v1")
+            || plan.get("classId").and_then(Value::as_str) != Some("exported_query_v1")
+            || plan.get("classVersion").and_then(Value::as_u64) != Some(1)
+        {
+            return Err(code::ENTRY_INVALID);
+        }
+        let served = function(&query.function).ok_or(code::ENTRY_INVALID)?;
+        let served_json = serde_json::to_value(&served).map_err(|_| code::ENTRY_INVALID)?;
+        let served_object = served_json.as_object().ok_or(code::ENTRY_INVALID)?;
+        let expected_normalized = serde_json::json!({
+            "format": "snapback.exported-query-plan.v1",
+            "runtime": served_object.get("runtime").cloned().unwrap_or(Value::Null),
+            "argsContractHash": served_object.get("argsContractHash").cloned().unwrap_or(Value::Null),
+            "resultContractHash": served_object.get("resultContractHash").cloned().unwrap_or(Value::Null),
+            "authRequirement": served_object.get("authRequirement").cloned().unwrap_or(Value::Null),
+            "authorityIndependent": served.authority_independent,
+            "authorizationDependence": served_object
+                .get("authorizationDependence")
+                .filter(|value| !value.is_null())
+                .cloned()
+                .unwrap_or_else(|| Value::Array(Vec::new())),
+            "readSetSummary": served_object.get("readSetSummary").cloned().unwrap_or(Value::Null),
+            "effectCeiling": served_object.get("effectCeiling").cloned().unwrap_or(Value::Null),
+        });
+        if plan.get("normalizedPlan") != Some(&expected_normalized) {
+            return Err(code::ENTRY_INVALID);
+        }
+        let expected_bindings = served_object
+            .get("argsContract")
+            .and_then(|contract| contract.get("fields"))
+            .and_then(Value::as_array)
+            .ok_or(code::ENTRY_INVALID)?
+            .iter()
+            .map(|field| {
+                let field = field.as_object().ok_or(code::ENTRY_INVALID)?;
+                let name = field.get("name").cloned().ok_or(code::ENTRY_INVALID)?;
+                let contract = serde_json::json!({
+                    "format": "snapback.argument-binding-contract.v1",
+                    "required": field.get("required").cloned().ok_or(code::ENTRY_INVALID)?,
+                    "value": field.get("value").cloned().ok_or(code::ENTRY_INVALID)?,
+                });
+                Ok(serde_json::json!({
+                    "name": name,
+                    "contractHash": composition_hash(
+                        "snapback:argument-binding-contract:v1:",
+                        &contract,
+                    )?,
+                    "contract": contract,
+                }))
+            })
+            .collect::<Result<Vec<_>, &'static str>>()?;
+        if plan.get("argumentBindings") != Some(&Value::Array(expected_bindings)) {
+            return Err(code::ENTRY_INVALID);
+        }
+        let capability = plan
+            .get("capability")
+            .and_then(Value::as_object)
+            .ok_or(code::ENTRY_INVALID)?;
+        if !exact_keys(
+            capability,
+            &["exportKind", "live", "retention", "requiredCapabilityIds"],
+        ) {
+            return Err(code::ENTRY_INVALID);
+        }
+        let live = match capability.get("exportKind").and_then(Value::as_str) {
+            Some("Query") if served.kind == crate::manifest::FunctionKind::Query => {
+                if capability.get("live") != Some(&serde_json::json!({ "kind": "none" })) {
+                    return Err(code::ENTRY_INVALID);
+                }
+                saw_plain = true;
+                false
+            }
+            Some("LiveQuery") if served.kind == crate::manifest::FunctionKind::LiveQuery => {
+                if capability.get("live")
+                    != Some(&serde_json::json!({
+                        "kind": "admitted",
+                        "delivery": "live_replace",
+                        "pageDomain": "whole-result",
+                    }))
+                {
+                    return Err(code::ENTRY_INVALID);
+                }
+                saw_live = true;
+                true
+            }
+            _ => return Err(code::ENTRY_INVALID),
+        };
+        let mut capabilities = served.required_capabilities.clone();
+        capabilities.sort();
+        capabilities.dedup();
+        let expected_retention = if served.retainable {
+            "opaque-authorized-snapshot-v1"
+        } else {
+            "none"
+        };
+        if capability.get("retention").and_then(Value::as_str) != Some(expected_retention) {
+            return Err(code::ENTRY_INVALID);
+        }
+        if capability.get("requiredCapabilityIds")
+            != Some(&serde_json::to_value(capabilities).map_err(|_| code::ENTRY_INVALID)?)
+        {
+            return Err(code::ENTRY_INVALID);
+        }
+        admitted.push(MixedChildAdmissionV2 {
+            node_plan_hash: node_plan_hash.to_owned(),
+            live,
+        });
+    }
+    if !saw_live || !saw_plain {
+        return Err(code::ENTRY_INVALID);
+    }
+    Ok(admitted)
 }
 
 /// Validate `mode` × `idempotencyKey` per LLP 0092 §0D.1: mode must be
@@ -687,6 +1029,9 @@ pub struct BundleReplayScope {
     pub args_identity: String,
     pub auth_invalidation_protocol: Option<u32>,
     pub authorization_namespaces: Vec<Option<QueryNamespace>>,
+    pub wire_format_version: Option<u32>,
+    pub wire_profile: Option<String>,
+    pub plan_hash: Option<String>,
 }
 
 /// One pending-registration owner (LLP 0031 amendment): the bounded server
@@ -941,6 +1286,217 @@ mod tests {
     use super::*;
     use serde_json::json;
 
+    fn mixed_test_function(
+        name: &str,
+        kind: crate::manifest::FunctionKind,
+    ) -> crate::manifest::FunctionDefinition {
+        let mut function = crate::manifest::FunctionDefinition::new(
+            name,
+            kind,
+            crate::manifest::FunctionRuntime::HostPlan(crate::manifest::HandlerPlan::Query(
+                crate::manifest::QueryPlan {
+                    table: "items".to_owned(),
+                    filters: Vec::new(),
+                    order: Vec::new(),
+                    limit: None,
+                    membership_filters: Vec::new(),
+                    indexed_by: None,
+                },
+            )),
+        );
+        function.args_contract = Some(crate::manifest::FunctionArgsContract::default());
+        function
+    }
+
+    /// Reproduce the codegen side of LLP 0157 NodePlanRecordV1 in the host
+    /// acceptance. Keeping this producer independent from admission catches a
+    /// casing/default/domain mismatch before a real generated route is served.
+    fn generated_mixed_node(function: &crate::manifest::FunctionDefinition) -> Value {
+        let served = serde_json::to_value(function).expect("serialize served function");
+        let served = served.as_object().expect("served function object");
+        let argument_bindings = served["argsContract"]["fields"]
+            .as_array()
+            .expect("argument fields")
+            .iter()
+            .map(|field| {
+                let contract = json!({
+                    "format": "snapback.argument-binding-contract.v1",
+                    "required": field["required"],
+                    "value": field["value"],
+                });
+                json!({
+                    "name": field["name"],
+                    "contractHash": composition_hash(
+                        "snapback:argument-binding-contract:v1:",
+                        &contract,
+                    ).expect("argument contract hash"),
+                    "contract": contract,
+                })
+            })
+            .collect::<Vec<_>>();
+        let mut required_capabilities = function.required_capabilities.clone();
+        required_capabilities.sort();
+        required_capabilities.dedup();
+        let live = match function.kind {
+            crate::manifest::FunctionKind::LiveQuery => json!({
+                "kind": "admitted",
+                "delivery": "live_replace",
+                "pageDomain": "whole-result",
+            }),
+            crate::manifest::FunctionKind::Query => json!({ "kind": "none" }),
+            _ => panic!("mixed fixture must be a query"),
+        };
+        let export_kind = match function.kind {
+            crate::manifest::FunctionKind::LiveQuery => "LiveQuery",
+            crate::manifest::FunctionKind::Query => "Query",
+            _ => unreachable!(),
+        };
+        let node_plan = json!({
+            "format": "snapback.node-plan.v1",
+            "classId": "exported_query_v1",
+            "classVersion": 1,
+            "normalizedPlan": {
+                "format": "snapback.exported-query-plan.v1",
+                "runtime": served.get("runtime").cloned().unwrap_or(Value::Null),
+                "argsContractHash": served.get("argsContractHash").cloned().unwrap_or(Value::Null),
+                "resultContractHash": served.get("resultContractHash").cloned().unwrap_or(Value::Null),
+                "authRequirement": served.get("authRequirement").cloned().unwrap_or(Value::Null),
+                "authorityIndependent": function.authority_independent,
+                "authorizationDependence": served
+                    .get("authorizationDependence")
+                    .filter(|value| !value.is_null())
+                    .cloned()
+                    .unwrap_or_else(|| Value::Array(Vec::new())),
+                "readSetSummary": served.get("readSetSummary").cloned().unwrap_or(Value::Null),
+                "effectCeiling": served.get("effectCeiling").cloned().unwrap_or(Value::Null),
+            },
+            "argumentBindings": argument_bindings,
+            "capability": {
+                "exportKind": export_kind,
+                "live": live,
+                "retention": if function.retainable {
+                    "opaque-authorized-snapshot-v1"
+                } else {
+                    "none"
+                },
+                "requiredCapabilityIds": required_capabilities,
+            },
+        });
+        json!({
+            "nodePlanHash": composition_hash("snapback:node-plan:v1:", &node_plan)
+                .expect("node plan hash"),
+            "nodePlan": node_plan,
+        })
+    }
+
+    #[test]
+    fn mixed_profile_admission_rebuilds_codegen_identity_and_route_args_hash() {
+        let live = mixed_test_function("liveItems", crate::manifest::FunctionKind::LiveQuery);
+        let plain = mixed_test_function("plainItems", crate::manifest::FunctionKind::Query);
+        let queries = vec![
+            BundleQuerySpec {
+                function: live.name.clone(),
+                args: json!({}),
+            },
+            BundleQuerySpec {
+                function: plain.name.clone(),
+                args: json!({}),
+            },
+        ];
+        let nodes = [&live, &plain]
+            .into_iter()
+            .enumerate()
+            .map(|(position, function)| {
+                let identity = generated_mixed_node(function);
+                json!({
+                    "position": position,
+                    "nodePlan": identity["nodePlan"],
+                    "nodePlanHash": identity["nodePlanHash"],
+                })
+            })
+            .collect::<Vec<_>>();
+        let merged_args = json!({
+            "format": "snapback.mixed-route-args.v2",
+            "route": "/mixed",
+            "queries": queries,
+        });
+        let normalized_composite_plan = json!({
+            "format": "snapback.normalized-composite-plan.v1",
+            "profileId": "mixed-route.v2",
+            "nodes": nodes,
+            "mergedArgsContractHash": composition_hash(
+                "snapback:mixed-route-args:v2:",
+                &merged_args,
+            ).expect("merged route args hash"),
+            "classification": {
+                "callable": true,
+                "live": { "kind": "none" },
+                "invalidation": "none",
+                "retention": "none",
+            },
+            "parentAuthorizationGroups": [],
+        });
+        let plan_hash = composition_hash("snapback:plan-hash:v1:", &normalized_composite_plan)
+            .expect("plan hash");
+        let entry = BundleRouteEntry {
+            route: "/mixed".to_owned(),
+            queries,
+            persist: None,
+            register_group_eligible: false,
+            mixed_group_eligible: true,
+            mixed_profile: Some(MixedRouteProfileV2 {
+                format_version: 2,
+                profile: "mixed-route.v2".to_owned(),
+                normalized_composite_plan,
+                plan_hash: plan_hash.clone(),
+            }),
+        };
+        let functions = [live, plain];
+        let admitted = admit_mixed_profile_v2(
+            &entry,
+            Some(2),
+            Some("mixed-route.v2"),
+            Some(&plan_hash),
+            |name| {
+                functions
+                    .iter()
+                    .find(|function| function.name == name)
+                    .cloned()
+            },
+        )
+        .expect("codegen identity admits");
+        assert_eq!(
+            admitted.iter().map(|child| child.live).collect::<Vec<_>>(),
+            vec![true, false]
+        );
+
+        // A caller can recompute PlanHashV1 around a forged opaque merged hash;
+        // host reconstruction of the route mapping must still refuse it.
+        let mut forged = entry.clone();
+        let forged_profile = forged.mixed_profile.as_mut().expect("mixed profile");
+        forged_profile.normalized_composite_plan["mergedArgsContractHash"] =
+            json!(format!("sha256:{}", "0".repeat(64)));
+        forged_profile.plan_hash = composition_hash(
+            "snapback:plan-hash:v1:",
+            &forged_profile.normalized_composite_plan,
+        )
+        .expect("forged outer plan hash");
+        let forged_plan_hash = forged_profile.plan_hash.clone();
+        assert_eq!(
+            admit_mixed_profile_v2(
+                &forged,
+                Some(2),
+                Some("mixed-route.v2"),
+                Some(&forged_plan_hash),
+                |name| functions
+                    .iter()
+                    .find(|function| function.name == name)
+                    .cloned(),
+            ),
+            Err(code::ENTRY_INVALID)
+        );
+    }
+
     #[test]
     fn mode_validation_is_coded() {
         assert_eq!(validate_mode(None, None), Ok(BundleMode::Read));
@@ -1006,6 +1562,7 @@ mod tests {
                 },
                 invalidation: None,
             }),
+            delivery: None,
         };
         let mut encoded = serde_json::to_value(entry).expect("serialize typed authorization");
         serde_json::from_value::<BundleEntry>(encoded.clone())
@@ -1029,6 +1586,9 @@ mod tests {
             args_identity: "args-a".to_owned(),
             auth_invalidation_protocol: None,
             authorization_namespaces: Vec::new(),
+            wire_format_version: None,
+            wire_profile: None,
+            plan_hash: None,
         };
         assert!(matches!(
             registry.begin_register("AAAAAAAAAAAAAAAAAAAAAA", &base),
@@ -1172,6 +1732,8 @@ mod tests {
             }],
             persist: None,
             register_group_eligible: false,
+            mixed_group_eligible: false,
+            mixed_profile: None,
         };
         let manifest = RoutesManifest {
             format_version: 1,
@@ -1194,6 +1756,8 @@ mod tests {
             }],
             persist: None,
             register_group_eligible: false,
+            mixed_group_eligible: false,
+            mixed_profile: None,
         });
         assert!(validate_routes_manifest_shape(&overlapping).is_err());
         // Distinct static routes are fine.
@@ -1206,6 +1770,8 @@ mod tests {
             }],
             persist: None,
             register_group_eligible: false,
+            mixed_group_eligible: false,
+            mixed_profile: None,
         });
         assert!(validate_routes_manifest_shape(&disjoint).is_ok());
         // A dangling reference refuses at shape validation.
@@ -1228,6 +1794,8 @@ mod tests {
             }],
             persist: None,
             register_group_eligible: false,
+            mixed_group_eligible: false,
+            mixed_profile: None,
         };
         let exact: BTreeMap<String, String> = [("boardId".to_owned(), "b".to_owned())]
             .into_iter()
@@ -1263,6 +1831,8 @@ mod tests {
             }],
             persist: None,
             register_group_eligible: false,
+            mixed_group_eligible: false,
+            mixed_profile: None,
         };
         assert_eq!(
             validate_entry_against_params(&dangling, "/board", &BTreeMap::new()),
@@ -1280,6 +1850,8 @@ mod tests {
             ],
             persist: None,
             register_group_eligible: false,
+            mixed_group_eligible: false,
+            mixed_profile: None,
         };
         assert_eq!(
             validate_entry_against_params(&oversized, "/board", &BTreeMap::new()),

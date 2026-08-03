@@ -55,8 +55,33 @@ export interface QueryGroupReference<Route extends string, Params, Queries exten
   readonly __params?: Params;
   readonly __entries?: QueryGroupEntryResults<Queries>;
 }
-export type QueryGroupParams<Ref> = Ref extends QueryGroupReference<string, infer Params, readonly QueryGroupEntry[]> ? Params : never;
-export type QueryGroupEntries<Ref> = Ref extends QueryGroupReference<string, unknown, infer Queries> ? QueryGroupEntryResults<Queries> : never;
+export interface MixedQueryGroupEntry<Name extends string = string, Ref extends FunctionReference<string, "Query" | "LiveQuery", unknown, unknown> = FunctionReference<string, "Query" | "LiveQuery", unknown, unknown>, Args extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>> {
+  readonly name: Name;
+  readonly ref: Ref;
+  readonly args: Args;
+  readonly nodePlan: Readonly<Record<string, unknown>>;
+  readonly nodePlanHash: `sha256:${string}`;
+}
+export type MixedQueryGroupEntryResults<Queries extends readonly MixedQueryGroupEntry[]> = {
+  readonly [Entry in Queries[number] as Entry["name"]]: { readonly ref: Entry["ref"]; readonly args: FunctionArgs<Entry["ref"]> };
+};
+export interface MixedQueryGroupReference<Route extends string, Params, Queries extends readonly MixedQueryGroupEntry[]> {
+  readonly artifactKind: 'queryGroupReference';
+  readonly formatVersion: 2;
+  readonly profile: 'mixed-route.v2';
+  readonly schemaVersion: SchemaVersion;
+  readonly appId: string;
+  readonly id: `${string}:query-group-v2:${Route}`;
+  readonly route: Route;
+  readonly definitionHash: `sha256:${string}`;
+  readonly planHash: `sha256:${string}`;
+  readonly queries: Queries;
+  readonly persist?: false;
+  readonly __params?: Params;
+  readonly __entries?: MixedQueryGroupEntryResults<Queries>;
+}
+export type QueryGroupParams<Ref> = Ref extends QueryGroupReference<string, infer Params, readonly QueryGroupEntry[]> ? Params : Ref extends MixedQueryGroupReference<string, infer Params, readonly MixedQueryGroupEntry[]> ? Params : never;
+export type QueryGroupEntries<Ref> = Ref extends QueryGroupReference<string, unknown, infer Queries> ? QueryGroupEntryResults<Queries> : Ref extends MixedQueryGroupReference<string, unknown, infer Queries> ? MixedQueryGroupEntryResults<Queries> : never;
 export interface AssetUploadReference<Name extends string, Args = Record<string, never>> {
   artifactKind: 'assetUploadReference';
   schemaVersion: SchemaVersion;

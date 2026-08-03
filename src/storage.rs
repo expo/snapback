@@ -8729,6 +8729,13 @@ pub enum DbRead<'a> {
 }
 
 impl DbRead<'_> {
+    pub(crate) fn reborrow(&self) -> DbRead<'_> {
+        match self {
+            DbRead::Live(db) => DbRead::Live(db),
+            DbRead::Pinned { conn, schema } => DbRead::Pinned { conn, schema },
+        }
+    }
+
     fn live(&self) -> Option<&LocalDatabase> {
         match self {
             DbRead::Live(db) => Some(db),

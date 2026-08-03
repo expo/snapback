@@ -5,8 +5,11 @@
 **Systems:** Sync, Realtime, API, Client integration, Deployment, Auth
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-24
-**Revised:** 2026-08-02 (non-normative mixed-route register-gradient
-amendment proposal — see Revision history); 2026-08-01 (D3 default-store lifecycle and outbox rendering
+**Revised:** 2026-08-03 (mixed-route v2 implementation amendment: one pinned
+snapshot, identity-derived per-child registration, and an honestly read-only
+weakest aggregate — see Revision history and D1.2); 2026-08-02
+(non-normative mixed-route register-gradient amendment proposal — now resolved
+by the 2026-08-03 amendment); 2026-08-01 (D3 default-store lifecycle and outbox rendering
 notes — see Revision history);
 2026-07-31 (LLP 0129 Phase 0 amendment — see Revision
 history); 2026-07-25 (step-5 native implementation amendment — see
@@ -48,6 +51,16 @@ Revision history); 2026-07-24 (v0.6 — see Revision history)
   cross-check LLP 0157 plan/materialization identity without making plan
   shape imply liveness. Until author review accepts such a profile, D1.2 and
   LLP 0112's all-live contract remain unchanged.
+- **Implementation amendment (2026-08-03 — mixed-route v2).** The proposal's
+  successor is accepted and implemented on the contributor local target as
+  generated artifact/wire format 2 and LLP 0157 profile `mixed-route.v2`.
+  Every child is evaluated in one pinned read transaction; only children
+  whose admitted `NodeCapabilityBindingV1.live.kind` is `admitted` become
+  pending registrations, while `live.kind:"none"` children return explicit
+  read-only snapshots. The response carries per-child delivery provenance and
+  the group's weakest `read-only` aggregate. LLP 0112 format 1 is byte-
+  compatible and unchanged. The exact contract, failure/authority/cleanup
+  rules, bounds, capability, and executable evidence are recorded in D1.2.
 
 ## Summary
 
@@ -518,6 +531,74 @@ authenticated identity exactly like a subscription (LLP 0011). Modes:
   attach, client abandonment, and authority transition during evaluation are
   step-0 contract cases with step-2 acceptance fixtures. This is the mechanism that satisfies LLP
   0063's no-duplicate-subscription / no-stale-flash seam for data preload.
+
+##### Mixed-route v2 implementation amendment (2026-08-03)
+
+The accepted successor is a separate generated artifact and wire profile,
+never an alternate interpretation of the LLP 0112 format-1 all-live group.
+Codegen emits `queryGroupReference` format 2 with
+`profile:"mixed-route.v2"`, a distinct `query-group-v2` id and definition
+hash domain, the LLP 0157 `PlanHashV1`, and each ordered child's exact
+`NodePlanRecordV1`/`NodePlanHashV1`. The request repeats
+`formatVersion:2`, `profile`, and `planHash`; omission continues to select the
+existing format-1 request. The v2 response repeats those three facts and adds:
+
+```ts
+type MixedDeliveryV2 =
+  | { kind: "registered-live", nodePlanHash: string }
+  | { kind: "read-only", nodePlanHash: string }
+
+type MixedAggregateV2 = {
+  kind: "mixed",
+  weakest: "read-only",
+  liveChildren: number,
+  readOnlyChildren: number
+}
+```
+
+The route is eligible only when it contains at least one generated `Query`
+and one generated `LiveQuery`. It retains D1.2's 1–32 child, 5,000-row,
+4-MiB, two-second, rate, pending-owner, and attach-grace bounds. The host
+rebuilds the LLP 0157 `exported_query_v1` nodes and `mixed-route.v2`
+composite from the served function and route manifests and exact-compares
+every argument contract hash, node hash, merged route/argument hash, and plan
+hash before the pinned read begins. `NodeCapabilityBindingV1` is the sole
+liveness authority: an otherwise byte-identical plan declared `Query` remains
+read-only; a declared `LiveQuery` with the admitted whole-result
+`live_replace` binding registers. Runtime/plan shape, table set, cursor
+presence, and the generated reference's TypeScript kind are never liveness
+oracles.
+
+Execution is one all-or-nothing pinned read transaction. Every child invokes
+under the requester's current authority and observes the same
+`commitVersion`. The transaction first obtains every child result; only then
+does each admitted-live child install a subscription from that exact result
+and dependency capture. A plain child creates no subscription, namespace,
+authorization obligation, or attach cleanup work and returns
+`subscriptionId` absent with `delivery.kind:"read-only"`. An auth-scoped live
+child retains D1.2's namespace and complete LLP 0053 authorization projection;
+authority-independent live children retain the existing null-namespace rule.
+
+Any admission, argument, authority, query, result-contract, row/byte/time, or
+registration failure refuses the entire response and purges every freshly
+created connection/subscription/grant fact. Abandonment, attach expiry,
+authority replacement, malformed client installation, and retry cleanup act
+only on the actual live-child subscription ids; read-only children own
+nothing to reap. The idempotency replay tuple gains wire version, profile, and
+plan hash, so a format-1 attempt or changed plan cannot replay a v2 owner.
+Only explicit live children count against subscription capacity; every child
+continues to count against bundle width/rows/bytes/time.
+
+The prepared client exposes each child's `bootDelivery`; live children adopt
+their registered subscription, while read-only children install a static
+`freshness:"snapshot"` store and never start an ordinary subscription. The
+group reports the weakest honest state (`connection:"idle"`, aggregate
+`weakest:"read-only"`) while live siblings continue to report `live` and
+receive updates. Capability `mixed_bundle_boot_v2` is Experimental and
+support-true only on the contributor local target; hosted/public-package
+publication is not claimed. Executable witnesses are
+`mixed_bundle_v2_pins_rows_and_registers_only_identity_live_children`, the
+codegen mixed identity fixture, and the React package mixed-group acceptance.
 
 #### D1.3 Replay admission ladder
 

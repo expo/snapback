@@ -976,8 +976,8 @@ void wrongParams;
 }
 
 {
-  // Generated register-mode groups are the 1..32 all-LiveQuery projection of
-  // the broader preload route manifest. Child labels remain globally unique
+  // Format 1 stays the all-LiveQuery projection; a mixed route receives the
+  // distinct format-2 profile. Child labels remain globally unique
   // when a real function name resembles another function's occurrence suffix.
   const maxQueries = Array.from({ length: 32 }, () => "{ function: 'foo', args: {} }").join(',\n');
   const result = await validCase({
@@ -1009,13 +1009,29 @@ export default defineRoutes([
   const routes = JSON.parse(readFileSync(join(result.outDir, 'routes.manifest.json'), 'utf8'));
   assert.equal(routes.routes.length, 4, 'ordinary and mixed query routes remain valid preload entries');
   const apiModule = await import(`${pathToFileURL(join(result.outDir, 'api.mjs')).href}?group-admission`);
-  assert.deepEqual(Object.keys(apiModule.groups), ['/collision', '/max']);
+  assert.deepEqual(Object.keys(apiModule.groups), ['/collision', '/max', '/mixed']);
   assert.deepEqual(
     apiModule.groups['/collision'].queries.map(({ name }) => name),
     ['foo', 'foo2', 'foo3'],
   );
   assert.equal(apiModule.groups['/max'].queries.length, 32);
   assert.equal(apiModule.groups['/max'].queries.at(-1).name, 'foo32');
+  const mixed = apiModule.groups['/mixed'];
+  assert.equal(mixed.artifactKind, 'queryGroupReference');
+  assert.equal(mixed.formatVersion, 2);
+  assert.equal(mixed.profile, 'mixed-route.v2');
+  assert.match(mixed.planHash, /^sha256:[0-9a-f]{64}$/u);
+  assert.deepEqual(mixed.queries.map(({ ref }) => ref.kind), ['LiveQuery', 'Query']);
+  assert.deepEqual(
+    mixed.queries[0].nodePlan.normalizedPlan,
+    mixed.queries[1].nodePlan.normalizedPlan,
+    'byte-identical query plans remain identical before capability binding',
+  );
+  assert.notEqual(
+    mixed.queries[0].nodePlanHash,
+    mixed.queries[1].nodePlanHash,
+    'Query versus LiveQuery changes NodePlanHash through capability binding',
+  );
   assert(
     apiModule.groups['/collision'].queries.every(({ ref }) => ref.kind === 'LiveQuery'),
     'every generated group child is a LiveQuery',
@@ -1023,7 +1039,7 @@ export default defineRoutes([
   const apiTypes = readFileSync(join(result.outDir, 'api.d.ts'), 'utf8');
   assert(apiTypes.includes('"/collision": QueryGroupReference<'));
   assert(apiTypes.includes('"/max": QueryGroupReference<'));
-  assert.equal(apiTypes.includes('"/mixed": QueryGroupReference<'), false);
+  assert(apiTypes.includes('"/mixed": MixedQueryGroupReference<'));
   assert.equal(apiTypes.includes('"/query-only": QueryGroupReference<'), false);
   assert(
     apiTypes.includes('name: "foo3"; ref: FunctionReference<\'foo\', \'LiveQuery\''),

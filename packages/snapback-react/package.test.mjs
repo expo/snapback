@@ -58,6 +58,7 @@ const reference = (name, kind, suffix) => {
 };
 const feed = reference('feed', 'LiveQuery', 'feed');
 const details = reference('details', 'LiveQuery', 'details');
+const plainDetails = reference('plainDetails', 'Query', 'plain-details');
 const publish = reference('publish', 'Mutation', 'publish');
 const capacityFeeds = Object.freeze(
   Array.from({ length: 260 }, (_, index) => reference(
@@ -71,11 +72,12 @@ const generatedManifest = Object.freeze({
   schemaVersion: 'snapback.v0',
   appId: 'react-fixture',
   bundleHash: 'sha256:react-fixture-bundle',
-  functions: Object.freeze([feed, details, publish, ...capacityFeeds]),
+  functions: Object.freeze([feed, details, plainDetails, publish, ...capacityFeeds]),
 });
 
 function createFakeClient({
   registeredBundleAvailable = true,
+  mixedBundleAvailable = registeredBundleAvailable,
   attachDeadlineOffsetMs = 60_000,
   bundleError = null,
   authMode = 'dev',
@@ -121,6 +123,7 @@ function createFakeClient({
           supportedCapabilities: [
             'live_subscriptions',
             ...(registeredBundleAvailable ? ['registered_bundle_boot_v1'] : []),
+            ...(mixedBundleAvailable ? ['mixed_bundle_boot_v2'] : []),
           ],
         },
       };
@@ -219,14 +222,61 @@ function createFakeClient({
       mode,
       authorizationNamespaces,
       authInvalidationProtocol: requestedAuthInvalidationProtocol,
+      formatVersion,
+      profile,
+      planHash,
     }) {
       bundleFetches += 1;
-      assert.equal(route, '/workspace/:id');
+      const mixed = route === '/mixed/:id';
+      assert(['/workspace/:id', '/mixed/:id'].includes(route));
       assert.equal(mode, 'register');
       assert.equal(
         authorizationNamespaces.length,
         authMode === 'sessions' ? 2 : 0,
       );
+      if (mixed) {
+        assert.equal(formatVersion, 2);
+        assert.equal(profile, 'mixed-route.v2');
+        assert.equal(planHash, `sha256:${'a'.repeat(64)}`);
+        const entries = [
+          {
+            function: 'feed',
+            args: { id: params.id },
+            rows: [{ id: `feed:${params.id}`, revision: 51 }],
+            resume: null,
+            subscriptionId: 'registered-mixed-feed',
+            delivery: { kind: 'registered-live', nodePlanHash: `sha256:${'1'.repeat(64)}` },
+          },
+          {
+            function: 'plainDetails',
+            args: { id: params.id },
+            rows: [{ id: `plain:${params.id}`, revision: 51 }],
+            resume: null,
+            delivery: { kind: 'read-only', nodePlanHash: `sha256:${'2'.repeat(64)}` },
+          },
+        ];
+        serverRegistrations.add(entries[0].subscriptionId);
+        return {
+          formatVersion: 2,
+          profile: 'mixed-route.v2',
+          planHash,
+          aggregate: {
+            kind: 'mixed',
+            weakest: 'read-only',
+            liveChildren: 1,
+            readOnlyChildren: 1,
+          },
+          commitVersion: 51,
+          generation: 'generation-51',
+          versionStream: 'stream-51',
+          connection: {
+            connectionId: 'registered-mixed-group',
+            grant: '[adopted-mixed-owner]',
+            attachDeadline: Date.now() + attachDeadlineOffsetMs,
+          },
+          entries,
+        };
+      }
       assert.equal(
         requestedAuthInvalidationProtocol,
         authMode === 'sessions' ? 1 : null,
@@ -539,6 +589,117 @@ assert.equal(
   Object.hasOwn(ineligibleBinding.groups, '/rank/:rank'),
   false,
   'the binding mirrors codegen eligibility instead of materializing non-string route params',
+);
+const mixedRoutes = Object.freeze({
+  formatVersion: 1,
+  app: 'react-fixture',
+  routes: Object.freeze([
+    Object.freeze({
+      route: '/mixed/:id',
+      mixedGroupEligible: true,
+      mixedProfile: Object.freeze({
+        formatVersion: 2,
+        profile: 'mixed-route.v2',
+        planHash: `sha256:${'a'.repeat(64)}`,
+        normalizedCompositePlan: Object.freeze({
+          nodes: Object.freeze([
+            Object.freeze({
+              nodePlan: Object.freeze({ capability: Object.freeze({ exportKind: 'LiveQuery' }) }),
+              nodePlanHash: `sha256:${'1'.repeat(64)}`,
+            }),
+            Object.freeze({
+              nodePlan: Object.freeze({ capability: Object.freeze({ exportKind: 'Query' }) }),
+              nodePlanHash: `sha256:${'2'.repeat(64)}`,
+            }),
+          ]),
+        }),
+      }),
+      queries: Object.freeze([
+        Object.freeze({ function: 'feed', args: { id: { $param: 'id' } } }),
+        Object.freeze({ function: 'plainDetails', args: { id: { $param: 'id' } } }),
+      ]),
+    }),
+  ]),
+});
+const mixedRouteManifestHash = `sha256:${createHash('sha256')
+  .update(canonicalizeClientValueV1(mixedRoutes))
+  .digest('hex')}`;
+const mixedFake = createFakeClient({ routeManifestHash: mixedRouteManifestHash });
+const mixedBinding = await prepareReactBindingForClient(mixedFake, {
+  generatedManifest: { functions: generatedManifest, routes: mixedRoutes },
+});
+const mixedReference = mixedBinding.groups['/mixed/:id'];
+assert.equal(mixedReference.formatVersion, 2);
+assert.deepEqual(mixedReference.queries.map((entry) => entry.ref.kind), ['LiveQuery', 'Query']);
+assert.deepEqual(
+  mixedReference.queries.map((entry) => entry.nodePlanHash),
+  [`sha256:${'1'.repeat(64)}`, `sha256:${'2'.repeat(64)}`],
+);
+const mixedPrepared = await mixedBinding.prepareQueryGroup(
+  mixedReference,
+  { id: 'incident-51' },
+);
+const mixedProvider = createSnapbackReactProvider(mixedBinding, {
+  preparedGroup: mixedPrepared,
+});
+let mixedSnapshot = null;
+const mixedObserver = observeSnapbackQueries(
+  mixedProvider,
+  mixedPrepared,
+  (snapshot) => { mixedSnapshot = snapshot; },
+);
+await flush();
+assert.equal(mixedSnapshot.status, 'ready');
+assert.equal(mixedSnapshot.queries.feed.data[0].revision, 51);
+assert.equal(mixedSnapshot.queries.plainDetails.data[0].revision, 51);
+assert.equal(mixedSnapshot.queries.feed.connection, 'live');
+assert.equal(mixedSnapshot.queries.plainDetails.connection, 'idle');
+assert.equal(mixedSnapshot.queries.plainDetails.freshness, 'snapshot');
+assert.equal(mixedSnapshot.queries.feed.bootDelivery, 'registered-live');
+assert.equal(mixedSnapshot.queries.plainDetails.bootDelivery, 'read-only');
+assert.equal(mixedSnapshot.connection, 'idle', 'group reports its weakest child state');
+assert.deepEqual(
+  {
+    profile: mixedSnapshot.boot.profile,
+    weakest: mixedSnapshot.boot.weakest,
+    liveChildren: mixedSnapshot.boot.liveChildren,
+    readOnlyChildren: mixedSnapshot.boot.readOnlyChildren,
+  },
+  {
+    profile: 'mixed-route.v2',
+    weakest: 'read-only',
+    liveChildren: 1,
+    readOnlyChildren: 1,
+  },
+);
+assert.deepEqual(
+  {
+    registeredStarts: mixedFake.inspection().registeredStarts,
+    ordinaryStarts: mixedFake.inspection().ordinaryStarts,
+    remainingRegistrations: mixedProvider.inspection().preparedRegistrations,
+  },
+  { registeredStarts: 1, ordinaryStarts: 0, remainingRegistrations: 0 },
+  'only the identity-live child adopts a durable registration',
+);
+mixedObserver.dispose();
+await flush();
+await mixedProvider.dispose();
+
+const mixedUnavailableFake = createFakeClient({
+  mixedBundleAvailable: false,
+  routeManifestHash: mixedRouteManifestHash,
+});
+const mixedUnavailableBinding = await prepareReactBindingForClient(mixedUnavailableFake, {
+  generatedManifest: { functions: generatedManifest, routes: mixedRoutes },
+});
+await assert.rejects(
+  mixedUnavailableBinding.prepareQueryGroup(
+    mixedUnavailableBinding.groups['/mixed/:id'],
+    { id: 'incident-no-mixed-capability' },
+    { fallbackToLive: true },
+  ),
+  (error) => error?.code === 'SNAPBACK_REACT_GROUP_REGISTER_UNAVAILABLE',
+  'a mixed group cannot pretend its ordinary Query child has a live fallback',
 );
 const duplicateRoutes = Object.freeze({
   formatVersion: 1,

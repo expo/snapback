@@ -21,6 +21,20 @@
       "additionalProperties": false,
       "description": "One route entry: every query the route needs — the unit the bundle\nevaluates at one commit (LLP 0092 §0C.1).",
       "properties": {
+        "mixedGroupEligible": {
+          "description": "Codegen-derived successor eligibility: the route contains at least one\nQuery and one LiveQuery and carries an exact LLP 0157 mixed plan.",
+          "type": "boolean"
+        },
+        "mixedProfile": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MixedRouteProfileV2"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "persist": {
           "description": "LLP 0091 §0A.5 per-entry persist opt-out (default true); carried for\nschema completeness — the client store consumes it.",
           "type": [
@@ -47,6 +61,31 @@
       "required": [
         "route",
         "queries"
+      ],
+      "type": "object"
+    },
+    "MixedRouteProfileV2": {
+      "additionalProperties": false,
+      "description": "Codegen-owned LLP 0157 identity carrier for one mixed route. The complete\nnormalized record stays JSON so it remains byte-for-byte the shared JCS\ngrammar rather than a second Rust spelling; admission below validates its\nclosed discriminators and every per-child capability binding.",
+      "properties": {
+        "formatVersion": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "normalizedCompositePlan": true,
+        "planHash": {
+          "type": "string"
+        },
+        "profile": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "formatVersion",
+        "profile",
+        "normalizedCompositePlan",
+        "planHash"
       ],
       "type": "object"
     }

@@ -41,9 +41,10 @@ properties the client store needs natively).
   (`issues/20260803-first-npm-latest-promotion.md`) when wave-2's tail
   closes, then recurring promotions per Charlie's standing cadence
   guidance.
-- The 0090 mixed-route successor: opportunistic — assign to the first
-  freed session; design against Accepted 0157 per the 0090 amendment
-  proposal.
+- The 0090 mixed-route successor: **LANDED 2026-08-03** on the contributor
+  local target as Experimental `mixed_bundle_boot_v2`, using Accepted 0157's
+  `exported_query_v1` / `mixed-route.v2` identity and a disjoint format-2
+  artifact/wire; hosted publication remains a nonclaim.
 
 ## Deferred, with recorded sequencing judgment (Charlie delegated)
 

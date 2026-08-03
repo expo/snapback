@@ -5146,6 +5146,9 @@ export class SnapbackClient {
     authorityCapture = null,
     authorizationNamespaces = [],
     authInvalidationProtocol = this.authProtocols.authInvalidation ?? null,
+    formatVersion = null,
+    profile = null,
+    planHash = null,
   } = {}) {
     if (typeof route !== 'string' || route.length === 0) {
       throw new TypeError('Snapback fetchBundle requires a route pattern string');
@@ -5167,8 +5170,25 @@ export class SnapbackClient {
       if (authorizationNamespaces.length > 0) {
         body.authorizationNamespaces = authorizationNamespaces;
       }
+      if (formatVersion != null || profile != null || planHash != null) {
+        if (
+          formatVersion !== 2
+          || profile !== 'mixed-route.v2'
+          || typeof planHash !== 'string'
+          || !planHash.startsWith('sha256:')
+        ) {
+          throw new TypeError(
+            'Snapback mixed bundle requires formatVersion 2, profile mixed-route.v2, and planHash',
+          );
+        }
+        body.formatVersion = formatVersion;
+        body.profile = profile;
+        body.planHash = planHash;
+      }
     } else if (idempotencyKey != null) {
       body.idempotencyKey = idempotencyKey;
+    } else if (formatVersion != null || profile != null || planHash != null) {
+      throw new TypeError('Snapback mixed bundle profile is register-mode only');
     }
     if (devManifestEntry) body.devManifestEntry = devManifestEntry;
     const response = await this.#req(

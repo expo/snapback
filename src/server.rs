@@ -19240,6 +19240,48 @@ async fn app_bundle(
         .await
         .map_err(ApiError::from)?
     };
+    let mixed_children = if mode == BundleMode::Register
+        && (request.format_version.is_some()
+            || request.profile.is_some()
+            || request.plan_hash.is_some()
+            || entry.mixed_group_eligible)
+    {
+        let entry_for_admission = entry.clone();
+        let format_version = request.format_version;
+        let profile = request.profile.clone();
+        let plan_hash = request.plan_hash.clone();
+        Some(
+            with_snapback(&state, move |snapback| {
+                bundle::admit_mixed_profile_v2(
+                    &entry_for_admission,
+                    format_version,
+                    profile.as_deref(),
+                    plan_hash.as_deref(),
+                    |name| snapback.function(name).ok().cloned(),
+                )
+                .map_err(|code| {
+                    SnapbackError::error(
+                        code,
+                        "realtime",
+                        "mixed bundle plan identity refused".to_owned(),
+                    )
+                })
+            })
+            .await
+            .map_err(ApiError::from)?,
+        )
+    } else {
+        if request.format_version.is_some()
+            || request.profile.is_some()
+            || request.plan_hash.is_some()
+        {
+            return Err(bundle_refusal(
+                code::MODE_INVALID,
+                "formatVersion/profile/planHash are reserved for mixed register bundles",
+            ));
+        }
+        None
+    };
     if mode == BundleMode::Register
         && authority.active_mode() == AuthMode::Sessions
         && request.authorization_namespaces.len() != entry.queries.len()
@@ -19312,6 +19354,9 @@ async fn app_bundle(
                 args_identity,
                 auth_invalidation_protocol: request.auth_invalidation_protocol,
                 authorization_namespaces: request.authorization_namespaces.clone(),
+                wire_format_version: request.format_version,
+                wire_profile: request.profile.clone(),
+                plan_hash: request.plan_hash.clone(),
             };
             let admission_outcome = runtime
                 .bundle_pending
@@ -19369,6 +19414,7 @@ async fn app_bundle(
                         effect_fence: prepared_open.bound.effect_fence(&opened.grant_id),
                         invalidation_connection: opened.grant.authorization_invalidation.clone(),
                         authorization_namespaces: request.authorization_namespaces.clone(),
+                        mixed_children: mixed_children.clone(),
                     };
                     let evaluated = {
                         let entry = entry.clone();
@@ -19451,6 +19497,7 @@ async fn app_bundle(
                         effect_fence,
                         invalidation_connection: invalidation_connection.clone(),
                         authorization_namespaces: request.authorization_namespaces.clone(),
+                        mixed_children: mixed_children.clone(),
                     };
                     let evaluated = {
                         let entry = entry.clone();

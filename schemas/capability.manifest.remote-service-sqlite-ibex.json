@@ -25,6 +25,7 @@
     "notifications.expoPushSeam",
     "write_activity_v1",
     "snapshot_batch_v1",
+    "mixed_bundle_boot_v2",
     "vector_search_v1"
   ],
   "capabilityMaturity": {

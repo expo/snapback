@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "2ab36e28c74c450213b65f17ef81c0d6652ba33a"
+    "commit": "27773f6e52a2eb5f0d7bdcdc95bc70b2a860c9a4"
   },
   "nav": {
     ".": [
@@ -1395,7 +1395,7 @@
       "examples": [],
       "reviewed": "2026-08-03",
       "reviewedCommit": "HEAD",
-      "sha256": "7db1463f65a1cd924d171ff22771a85b6a7ec7a03884f35484596d5479487223",
+      "sha256": "52a858283cb9b573079742ffd8ab0373e2f87f95831b6ea60eafe5c4cae92093",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1662,10 +1662,12 @@
       "authorities": [
         "llp/0012-headless-integration-contract.spec.md",
         "llp/0064-native-client-surfaces.rfc.md",
+        "llp/0090-resumable-query-snapshots.rfc.md",
         "llp/0108-inline-handlers-and-result-contracts.spec.md",
         "llp/0114-first-class-react-and-query-groups.spec.md",
         "llp/0107-react-presence-and-optimistic-lifecycle.spec.md",
         "llp/0112-generated-query-group-bundle-adoption.spec.md",
+        "llp/0157-composition-algebra-and-completeness.spec.md",
         "packages/snapback-client/canonical-client-value.mjs",
         "packages/snapback-client/react-binding.mjs",
         "packages/snapback-contract/result-contract-validator.mjs",
@@ -1684,9 +1686,9 @@
         "packages/snapback-react/offline.test.mjs",
         "packages/snapback-react/exact-result-types.fixture.ts"
       ],
-      "reviewed": "2026-08-01",
+      "reviewed": "2026-08-03",
       "reviewedCommit": "HEAD",
-      "sha256": "a2c4d4a9cb5a9e5d0ba00c5a17ae3180e6328800074527fb50759ba0819e16eb",
+      "sha256": "eef3ead8bada95c49e2361a4d40d839fe3dcf016d23a41e96939b7fda06747ac",
       "snippets": [
         {
           "lang": "ts",
@@ -2394,15 +2396,19 @@
       "authorities": [
         "llp/0090-resumable-query-snapshots.rfc.md",
         "llp/0092-rqs-manifest-bundle-and-channel-a-contract.spec.md",
+        "llp/0157-composition-algebra-and-completeness.spec.md",
         "packages/snapback-client/index.mjs",
-        "packages/snapback-codegen/index.mjs"
+        "packages/snapback-client/react-binding.mjs",
+        "packages/snapback-codegen/index.mjs",
+        "src/bundle.rs",
+        "src/local.rs"
       ],
       "examples": [
         "demos/public-dashboard"
       ],
-      "reviewed": "2026-07-27",
+      "reviewed": "2026-08-03",
       "reviewedCommit": "HEAD",
-      "sha256": "e6095dbb252b3559fda8531d95e7780523be29c0771372c3d93247821dbecd48",
+      "sha256": "9761ad246d4bb518432b87d106cf188204016471d0fa3315106aec81e4de547d",
       "snippets": [
         {
           "lang": "js",
@@ -2757,5 +2763,5 @@
     "routes": 98,
     "hostOps": 35
   },
-  "contentHash": "f5ec28b7ae8b44c30be46d158f447d951ec3f46d84423c490e14c898e4f9b21f"
+  "contentHash": "283da2c483c570bf765ffdcd57ce5ab9a53b486702b3086f2a8381d7c02f35df"
 }

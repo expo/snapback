@@ -17,6 +17,7 @@ const PREPARED_REACT_BINDING = Symbol('snapback.prepared-react-binding.v1');
 const PREPARED_REACT_QUERY_GROUP = Symbol('snapback.prepared-react-query-group.v1');
 const preparedReactQueryGroupOwners = new WeakMap();
 const REGISTERED_BUNDLE_CAPABILITY = 'registered_bundle_boot_v1';
+const MIXED_BUNDLE_CAPABILITY = 'mixed_bundle_boot_v2';
 const utf8 = new TextEncoder();
 
 function diagnosticError(code, message, details = {}) {
@@ -550,16 +551,22 @@ export async function prepareReactBindingForClient(client, options = {}) {
           { route: routeEntry?.route ?? null },
         );
       }
-      if (routeEntry.registerGroupEligible !== true) continue;
+      const mixed = routeEntry.mixedGroupEligible === true;
+      if (routeEntry.registerGroupEligible !== true && !mixed) continue;
       const occurrences = new Map();
       const usedNames = new Set();
       const queries = [];
       for (const query of routeEntry.queries) {
         const reference = references[query?.function];
-        if (!reference || reference.kind !== 'LiveQuery') {
+        if (
+          !reference
+          || (mixed
+            ? reference.kind !== 'LiveQuery' && reference.kind !== 'Query'
+            : reference.kind !== 'LiveQuery')
+        ) {
           throw diagnosticError(
             'SNAPBACK_REACT_MANIFEST_INVALID',
-            'generated register-eligible query group names an unknown or non-live function',
+            'generated query group names a function outside its admitted export kinds',
             { route: routeEntry.route, function: query?.function ?? null },
           );
         }
@@ -567,6 +574,13 @@ export async function prepareReactBindingForClient(client, options = {}) {
           name: queryGroupEntryName(reference.name, occurrences, usedNames),
           ref: reference,
           args: deepFreeze(structuredClone(query.args ?? {})),
+          ...(mixed ? {
+            nodePlan: deepFreeze(structuredClone(
+              routeEntry.mixedProfile?.normalizedCompositePlan?.nodes?.[queries.length]?.nodePlan,
+            )),
+            nodePlanHash: routeEntry.mixedProfile
+              ?.normalizedCompositePlan?.nodes?.[queries.length]?.nodePlanHash,
+          } : {}),
         }));
       }
       const definition = {
@@ -574,17 +588,26 @@ export async function prepareReactBindingForClient(client, options = {}) {
         queries: routeEntry.queries,
         ...(routeEntry.persist === false ? { persist: false } : {}),
       };
+      const mixedDefinition = mixed
+        ? { ...definition, planHash: routeEntry.mixedProfile?.planHash }
+        : definition;
       const reference = Object.freeze({
         artifactKind: 'queryGroupReference',
-        formatVersion: 1,
+        formatVersion: mixed ? 2 : 1,
         schemaVersion: referenceSchemaVersion,
         appId: generated.functions.appId,
-        id: `${generated.functions.appId}:query-group:${routeEntry.route}`,
+        id: mixed
+          ? `${generated.functions.appId}:query-group-v2:${routeEntry.route}`
+          : `${generated.functions.appId}:query-group:${routeEntry.route}`,
         route: routeEntry.route,
         definitionHash: await sha256Text(
-          `snapback:query-group-reference:v1\n${canonicalizeClientValueV1(definition)}`,
+          `snapback:query-group-reference:v${mixed ? 2 : 1}\n${canonicalizeClientValueV1(mixedDefinition)}`,
         ),
         queries: Object.freeze(queries),
+        ...(mixed ? {
+          profile: 'mixed-route.v2',
+          planHash: routeEntry.mixedProfile?.planHash,
+        } : {}),
         ...(routeEntry.persist === false ? { persist: false } : {}),
       });
       queryGroups[routeEntry.route] = reference;
@@ -607,6 +630,13 @@ export async function prepareReactBindingForClient(client, options = {}) {
       inspection.capabilityManifest?.supportedCapabilities,
     ) && inspection.capabilityManifest.supportedCapabilities.includes(
       REGISTERED_BUNDLE_CAPABILITY,
+    );
+  const mixedBundleAvailable = receiptFacts
+    ? false
+    : Array.isArray(
+      inspection.capabilityManifest?.supportedCapabilities,
+    ) && inspection.capabilityManifest.supportedCapabilities.includes(
+      MIXED_BUNDLE_CAPABILITY,
     );
   if (generated.capabilityManifest) {
     const declaredProfile = generated.capabilityManifest.targetProfileId;
@@ -654,6 +684,7 @@ export async function prepareReactBindingForClient(client, options = {}) {
     authMode: session?.activeMode ?? null,
     routeManifestHash,
     registeredBundleAvailable,
+    mixedBundleAvailable,
     functionCatalogDigest,
     capabilityDigest,
     references,
@@ -829,8 +860,9 @@ export async function prepareReactQueryGroupForBinding(
 ) {
   const prepared = assertPreparedReactBinding(binding);
   const admitted = admittedReactQueryGroup(prepared, reference);
+  const mixed = admitted.formatVersion === 2 && admitted.profile === 'mixed-route.v2';
   const nonLive = admitted.queries.find((query) => query.ref.kind !== 'LiveQuery');
-  if (nonLive) {
+  if (nonLive && !mixed) {
     throw diagnosticError(
       'SNAPBACK_REACT_GROUP_REFERENCE_INVALID',
       'React query groups contain live-query references only',
@@ -866,7 +898,12 @@ export async function prepareReactQueryGroupForBinding(
     ref: query.ref,
     args: materializeGroupArgs(query.args, params),
     argsTemplate: query.args,
+    ...(mixed ? {
+      nodePlan: query.nodePlan,
+      nodePlanHash: query.nodePlanHash,
+    } : {}),
     registeredSubscription: null,
+    readOnlySnapshot: null,
   }));
   const canonicalChildren = new Set();
   for (const entry of entries) {
@@ -931,17 +968,23 @@ export async function prepareReactQueryGroupForBinding(
     });
     return Object.freeze(result);
   };
-  if (!prepared.registeredBundleAvailable) {
-    if (fallbackToLive) {
+  const requiredBundleCapability = mixed
+    ? MIXED_BUNDLE_CAPABILITY
+    : REGISTERED_BUNDLE_CAPABILITY;
+  const bundleAvailable = mixed
+    ? prepared.mixedBundleAvailable
+    : prepared.registeredBundleAvailable;
+  if (!bundleAvailable) {
+    if (fallbackToLive && !mixed) {
       return makePrepared({
         source: 'live-fallback',
-        reason: 'registered_bundle_boot_v1-unavailable',
+        reason: `${requiredBundleCapability}-unavailable`,
       });
     }
     throw diagnosticError(
       'SNAPBACK_REACT_GROUP_REGISTER_UNAVAILABLE',
-      'target does not advertise registered_bundle_boot_v1',
-      { capability: REGISTERED_BUNDLE_CAPABILITY },
+      `target does not advertise ${requiredBundleCapability}`,
+      { capability: requiredBundleCapability },
     );
   }
   if (
@@ -957,7 +1000,8 @@ export async function prepareReactQueryGroupForBinding(
   const authorizationNamespaces = prepared.authMode === 'sessions'
     && prepared.client.authProtocols?.authInvalidation === 1
     ? entries.map((entry) => (
-        prepared.authorityIndependentById.get(entry.ref.id) === true
+        entry.ref.kind === 'Query'
+          || prepared.authorityIndependentById.get(entry.ref.id) === true
           ? null
           : prepared.client.allocateLiveQueryNamespace(entry.ref, entry.args)
       ))
@@ -970,17 +1014,24 @@ export async function prepareReactQueryGroupForBinding(
     authorityCapture,
     authorizationNamespaces,
     authInvalidationProtocol: prepared.authMode === 'sessions' ? 1 : null,
+    ...(mixed ? {
+      formatVersion: 2,
+      profile: 'mixed-route.v2',
+      planHash: admitted.planHash,
+    } : {}),
     ...(userId === undefined ? {} : { userId }),
   });
   const bundleKeys = Object.keys(bundle ?? {}).sort();
   const connectionKeys = Object.keys(bundle?.connection ?? {}).sort();
   const allowedBundleKeys = [
+    ...(mixed ? ['aggregate', 'formatVersion'] : []),
     'commitVersion',
     'connection',
     'entries',
     'generation',
+    ...(mixed ? ['planHash', 'profile'] : []),
     'versionStream',
-  ];
+  ].sort();
   const allowedConnectionKeys = [
     'attachDeadline',
     'authorizationInvalidation',
@@ -990,6 +1041,19 @@ export async function prepareReactQueryGroupForBinding(
   if (
     bundleKeys.length !== allowedBundleKeys.length
     || bundleKeys.some((key, index) => key !== allowedBundleKeys[index])
+    || (mixed && (
+      bundle.formatVersion !== 2
+      || bundle.profile !== 'mixed-route.v2'
+      || bundle.planHash !== admitted.planHash
+      || bundle.aggregate?.kind !== 'mixed'
+      || bundle.aggregate?.weakest !== 'read-only'
+      || bundle.aggregate?.liveChildren
+        !== entries.filter((entry) => entry.ref.kind === 'LiveQuery').length
+      || bundle.aggregate?.readOnlyChildren
+        !== entries.filter((entry) => entry.ref.kind === 'Query').length
+      || Object.keys(bundle.aggregate ?? {}).sort().join(',')
+        !== 'kind,liveChildren,readOnlyChildren,weakest'
+    ))
     || !Number.isSafeInteger(bundle?.commitVersion)
     || bundle.commitVersion < 0
     || typeof bundle.generation !== 'string'
@@ -1026,10 +1090,12 @@ export async function prepareReactQueryGroupForBinding(
     let sawAuthorization = false;
     resolvedEntries = entries.map((entry, index) => {
       const response = bundle.entries[index];
+      const childLive = entry.ref.kind === 'LiveQuery';
       const responseKeys = Object.keys(response ?? {}).sort();
       const allowedKeys = [
         'args',
         'authorization',
+        ...(mixed ? ['delivery'] : []),
         'function',
         'resume',
         'rows',
@@ -1040,20 +1106,38 @@ export async function prepareReactQueryGroupForBinding(
         || response.function !== entry.ref.name
         || !Object.prototype.hasOwnProperty.call(response, 'args')
         || !groupResponseArgsMatch(entry.argsTemplate, params, response.args)
-        || typeof response.subscriptionId !== 'string'
-        || response.subscriptionId.length === 0
-        || subscriptionIds.has(response.subscriptionId)
         || !Array.isArray(response.rows)
         || !Object.prototype.hasOwnProperty.call(response, 'resume')
         || responseKeys.some((key) => !allowedKeys.includes(key))
+        || (childLive && (
+          typeof response.subscriptionId !== 'string'
+          || response.subscriptionId.length === 0
+          || subscriptionIds.has(response.subscriptionId)
+        ))
+        || (!childLive && Object.prototype.hasOwnProperty.call(response, 'subscriptionId'))
+        || (mixed && (
+          response.delivery?.kind !== (childLive ? 'registered-live' : 'read-only')
+          || response.delivery?.nodePlanHash !== entry.nodePlanHash
+          || Object.keys(response.delivery ?? {}).sort().join(',') !== 'kind,nodePlanHash'
+        ))
       ) {
         throw diagnosticError(
           'SNAPBACK_REACT_GROUP_BUNDLE_INVALID',
           'register-mode query-group bundle does not exactly match manifest order',
-          { groupId: admitted.id, child: entry.name, index },
+          {
+            groupId: admitted.id,
+            child: entry.name,
+            index,
+            expectedFunction: entry.ref.name,
+            actualFunction: response?.function ?? null,
+            argsMatch: groupResponseArgsMatch(entry.argsTemplate, params, response?.args),
+            responseKeys,
+            expectedNodePlanHash: mixed ? entry.nodePlanHash : null,
+            actualDelivery: response?.delivery ?? null,
+          },
         );
       }
-      subscriptionIds.add(response.subscriptionId);
+      if (childLive) subscriptionIds.add(response.subscriptionId);
       let resume = null;
       if (response.resume !== null) {
         const resumeKeys = Object.keys(response.resume ?? {}).sort();
@@ -1109,7 +1193,7 @@ export async function prepareReactQueryGroupForBinding(
         resume = deepFreeze(structuredClone(response.resume));
       }
       let authorization = null;
-      const expectsAuthorization = prepared.authMode === 'sessions'
+      const expectsAuthorization = childLive && prepared.authMode === 'sessions'
         && prepared.authorityIndependentById.get(entry.ref.id) !== true;
       const carriesAuthorization = Object.prototype.hasOwnProperty.call(
         response,
@@ -1184,19 +1268,33 @@ export async function prepareReactQueryGroupForBinding(
           },
         );
       }
+      const acceptedRows = deepFreeze(structuredClone(verdict.value));
       return Object.freeze({
         name: entry.name,
         ref: entry.ref,
         args: deepFreeze(structuredClone(response.args)),
-        registeredSubscription: Object.freeze({
-          subscriptionId: response.subscriptionId,
-          rows: deepFreeze(structuredClone(verdict.value)),
-          version: bundle.commitVersion,
-          resume,
-          authorization,
-          authorizationNamespace: authorizationNamespaces[index] ?? null,
-          attachDeadline: bundle.connection.attachDeadline,
-        }),
+        ...(mixed ? {
+          bootDelivery: childLive ? 'registered-live' : 'read-only',
+        } : {}),
+        registeredSubscription: childLive
+          ? Object.freeze({
+              subscriptionId: response.subscriptionId,
+              rows: acceptedRows,
+              version: bundle.commitVersion,
+              resume,
+              authorization,
+              authorizationNamespace: authorizationNamespaces[index] ?? null,
+              attachDeadline: bundle.connection.attachDeadline,
+            })
+          : null,
+        readOnlySnapshot: childLive
+          ? null
+          : Object.freeze({
+              rows: acceptedRows,
+              version: bundle.commitVersion,
+              resume,
+              delivery: 'read-only',
+            }),
       });
     });
     if (
@@ -1238,6 +1336,12 @@ export async function prepareReactQueryGroupForBinding(
       generation: bundle.generation,
       versionStream: bundle.versionStream,
       attachDeadline: bundle.connection.attachDeadline,
+      ...(mixed ? {
+        profile: 'mixed-route.v2',
+        weakest: 'read-only',
+        liveChildren: bundle.aggregate.liveChildren,
+        readOnlyChildren: bundle.aggregate.readOnlyChildren,
+      } : {}),
     }),
     resolvedEntries,
   });

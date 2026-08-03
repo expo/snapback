@@ -7982,6 +7982,8 @@ pub enum TargetCapabilityId {
     LiveSubscriptions,
     #[serde(rename = "mutation_read_set_validation")]
     MutationReadSetValidation,
+    #[serde(rename = "mixed_bundle_boot_v2")]
+    MixedBundleBootV2,
     #[serde(rename = "permission_epoch_resync")]
     PermissionEpochResync,
     #[serde(rename = "registered_bundle_boot_v1")]
@@ -8032,7 +8034,7 @@ pub enum TargetCapabilityId {
 }
 
 impl TargetCapabilityId {
-    pub const ALL: [Self; 32] = [
+    pub const ALL: [Self; 33] = [
         Self::AuthSessionsV1,
         Self::BoundedResponseStreamV1,
         Self::BoundedChildrenV1,
@@ -8045,6 +8047,7 @@ impl TargetCapabilityId {
         Self::ExpoPushSeamV1,
         Self::LiveSubscriptions,
         Self::MutationReadSetValidation,
+        Self::MixedBundleBootV2,
         Self::PermissionEpochResync,
         Self::RegisteredBundleBootV1,
         Self::RelationalQueryV1,
@@ -8081,6 +8084,7 @@ impl TargetCapabilityId {
             Self::ExpoPushSeamV1 => "notifications.expoPushSeam",
             Self::LiveSubscriptions => "live_subscriptions",
             Self::MutationReadSetValidation => "mutation_read_set_validation",
+            Self::MixedBundleBootV2 => "mixed_bundle_boot_v2",
             Self::PermissionEpochResync => "permission_epoch_resync",
             Self::RegisteredBundleBootV1 => "registered_bundle_boot_v1",
             Self::RelationalQueryV1 => "relational_query_v1",
@@ -8135,6 +8139,7 @@ impl TargetCapabilityId {
             // the RFC is accepted, and its presence never claims a
             // durable-work capability class or target tuple (claim boundary).
             | Self::JobsOneOffV1
+            | Self::MixedBundleBootV2
             | Self::RegisteredBundleBootV1
             | Self::SequenceAllocationV1
             | Self::SnapshotBatchV1
@@ -8278,6 +8283,12 @@ impl TargetCapabilityId {
             Self::MutationReadSetValidation => {
                 manifest.mutation_isolation_mode == "handler-captured-read-set-validation"
                     && facts.mutation_read_set_validator_registered
+            }
+            Self::MixedBundleBootV2 => {
+                facts.mixed_bundle_boot_v2_registered
+                    && facts.registered_bundle_boot_v1_registered
+                    && Self::LiveSubscriptions.is_supported_by(manifest, facts)
+                    && manifest.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
             }
             Self::Cron => manifest.cron,
             Self::CronActionRunMutation => {
@@ -8618,6 +8629,7 @@ pub struct TargetCapabilityFacts {
     mutation_read_set_validator_registered: bool,
     permission_epoch_resync_registered: bool,
     registered_bundle_boot_v1_registered: bool,
+    mixed_bundle_boot_v2_registered: bool,
     write_activity_v1_registered: bool,
     local_relation_activity_publication_v1_verified: bool,
     asset_lifecycle_local_fs_registered: bool,
@@ -8695,6 +8707,10 @@ impl TargetCapabilityFacts {
             // local/auth-aware target implementation behind this positive
             // experimental capability fact.
             registered_bundle_boot_v1_registered: true,
+            // @ref LLP 0090#mixed-route-v2-implementation-amendment-2026-08-03
+            // — one pinned multi-child snapshot, identity-derived liveness,
+            // and live-only pending ownership are registered together.
+            mixed_bundle_boot_v2_registered: true,
             write_activity_v1_registered: true,
             local_relation_activity_publication_v1_verified,
         }
@@ -8704,6 +8720,7 @@ impl TargetCapabilityFacts {
         Self {
             bounded_children_v1_registered: false,
             snapshot_batch_v1_registered: false,
+            mixed_bundle_boot_v2_registered: false,
             sequence_allocation_v1_registered: false,
             vector_search_v1_registered: false,
             ibex_ctx_db_host_bridge_available: false,
@@ -9315,6 +9332,7 @@ pub fn local_v0_default_capability_gaps() -> Vec<String> {
         "bounded_response_stream_v1".to_owned(),
         "bounded_children_v1".to_owned(),
         "snapshot_batch_v1".to_owned(),
+        "mixed_bundle_boot_v2".to_owned(),
         "notifications".to_owned(),
         "ephemeral_hosted_adapter".to_owned(),
         "ephemeral_multi_instance_sticky_routing".to_owned(),
@@ -9339,6 +9357,12 @@ fn ensure_relation_activity_capability_gaps(gaps: &mut Vec<String>) {
 fn ensure_snapshot_batch_capability_gap(gaps: &mut Vec<String>) {
     if !gaps.iter().any(|gap| gap == "snapshot_batch_v1") {
         gaps.push("snapshot_batch_v1".to_owned());
+    }
+}
+
+fn ensure_mixed_bundle_capability_gap(gaps: &mut Vec<String>) {
+    if !gaps.iter().any(|gap| gap == "mixed_bundle_boot_v2") {
+        gaps.push("mixed_bundle_boot_v2".to_owned());
     }
 }
 
@@ -9839,6 +9863,15 @@ impl CapabilityManifest {
                 .retain(|gap| gap != "snapshot_batch_v1");
         } else {
             ensure_snapshot_batch_capability_gap(&mut self.capability_gaps);
+        }
+        if self
+            .supported_capabilities
+            .contains(&TargetCapabilityId::MixedBundleBootV2)
+        {
+            self.capability_gaps
+                .retain(|gap| gap != "mixed_bundle_boot_v2");
+        } else {
+            ensure_mixed_bundle_capability_gap(&mut self.capability_gaps);
         }
         if self
             .supported_capabilities

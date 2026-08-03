@@ -3502,6 +3502,7 @@ pub(crate) struct BundleRegisterTarget {
     pub(crate) effect_fence: crate::ephemeral::ConnectionEffectFence,
     pub(crate) invalidation_connection: Option<AuthorizationInvalidationConnection>,
     pub(crate) authorization_namespaces: Vec<Option<crate::auth::invalidation::QueryNamespace>>,
+    pub(crate) mixed_children: Option<Vec<crate::bundle::MixedChildAdmissionV2>>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -13246,6 +13247,24 @@ impl LocalSnapback {
             )));
         }
         for entry in &manifest.routes {
+            if entry.mixed_group_eligible {
+                let profile = entry.mixed_profile.as_ref().ok_or_else(|| {
+                    routes_manifest_error("mixed route lacks mixedProfile".to_owned())
+                })?;
+                crate::bundle::admit_mixed_profile_v2(
+                    entry,
+                    Some(2),
+                    Some("mixed-route.v2"),
+                    Some(&profile.plan_hash),
+                    |name| functions.function(name).cloned(),
+                )
+                .map_err(|code| {
+                    routes_manifest_error(format!(
+                        "route {:?} carries an invalid mixed LLP 0157 identity ({code})",
+                        entry.route
+                    ))
+                })?;
+            }
             for spec in &entry.queries {
                 let Some(function) = functions.function(&spec.function) else {
                     return Err(routes_manifest_error(format!(
@@ -13298,7 +13317,7 @@ impl LocalSnapback {
                                 entry.route, spec.function, key
                             )));
                         }
-                        if entry.register_group_eligible
+                        if (entry.register_group_eligible || entry.mixed_group_eligible)
                             && inner.contains_key("$param")
                             && arg_types.get(key.as_str())
                                 != Some(&crate::bundle::RouteParamType::String)
@@ -13701,6 +13720,13 @@ impl LocalSnapback {
         let started = std::time::Instant::now();
         bundle::validate_entry_against_params(entry, request_route, params)
             .map_err(|code| refuse(code, "bundle route entry refused"))?;
+        if register
+            .as_ref()
+            .and_then(|target| target.mixed_children.as_ref())
+            .is_some()
+        {
+            return self.evaluate_mixed_bundle_v2(entry, params, auth, authority, register);
+        }
         let commit_version = self
             .db
             .current_version()
@@ -13923,6 +13949,7 @@ impl LocalSnapback {
                     resume,
                     subscription_id,
                     authorization,
+                    delivery: None,
                 });
             }
             Ok(entries)
@@ -13932,11 +13959,341 @@ impl LocalSnapback {
             Err(error) => return Err(unwind(self, error)),
         };
         Ok(crate::bundle::BundleResponse {
+            format_version: None,
+            profile: None,
+            plan_hash: None,
             commit_version,
             generation,
             version_stream,
             entries,
             connection: None,
+            aggregate: None,
+        })
+    }
+
+    /// LLP 0090 mixed-route successor. All children execute against one
+    /// pinned read transaction. Live registrations consume those exact
+    /// invocations; ordinary Query children retain no server owner and carry
+    /// an explicit read-only delivery fact.
+    ///
+    /// @ref LLP 0157#d4--composition-rules — child liveness comes only from
+    ///   the admitted NodePlanRecord capability binding supplied by the
+    ///   codegen/served-manifest cross-check.
+    fn evaluate_mixed_bundle_v2(
+        &mut self,
+        entry: &crate::bundle::BundleRouteEntry,
+        params: &std::collections::BTreeMap<String, String>,
+        auth: &AuthInput,
+        authority: &PreparedAuthority,
+        register: Option<crate::local::BundleRegisterTarget>,
+    ) -> SnapbackResult<crate::bundle::BundleResponse> {
+        use crate::bundle::{self, code};
+        let refuse = |code: &'static str, message: &str| {
+            SnapbackError::error(code, "realtime", message.to_owned())
+        };
+        let started = std::time::Instant::now();
+        let target = register.ok_or_else(|| {
+            refuse(code::MODE_INVALID, "mixed-route.v2 requires register mode")
+        })?;
+        let admitted = target.mixed_children.clone().ok_or_else(|| {
+            refuse(code::ENTRY_INVALID, "mixed-route.v2 lacks admitted child identities")
+        })?;
+        if admitted.len() != entry.queries.len() {
+            return Err(refuse(
+                code::ENTRY_INVALID,
+                "mixed-route.v2 child identity count does not match the route",
+            ));
+        }
+        let profile = entry.mixed_profile.as_ref().ok_or_else(|| {
+            refuse(code::ENTRY_INVALID, "mixed-route.v2 lacks its route plan")
+        })?;
+        let generation = self
+            .rqs_generation_digest()
+            .map_err(|_| refuse(code::QUERY_FAILED, "bundle generation unavailable"))?;
+        let version_stream = self
+            .db
+            .data_version_stream()
+            .map_err(|_| refuse(code::QUERY_FAILED, "bundle version stream unavailable"))?;
+
+        let mut prepared_children = Vec::with_capacity(entry.queries.len());
+        for (position, (spec, admission)) in entry.queries.iter().zip(&admitted).enumerate() {
+            let namespace = target
+                .authorization_namespaces
+                .get(position)
+                .and_then(Option::as_ref);
+            let function = self
+                .function(&spec.function)
+                .map_err(|_| refuse(code::ENTRY_INVALID, "mixed child is unknown"))?
+                .clone();
+            let kind_live = function.kind == FunctionKind::LiveQuery;
+            if kind_live != admission.live {
+                return Err(refuse(
+                    code::ENTRY_INVALID,
+                    "mixed child capability binding does not match its served export kind",
+                ));
+            }
+            if authority.active_mode() == AuthMode::Sessions {
+                if !admission.live && namespace.is_some() {
+                    return Err(refuse(
+                        code::ENTRY_INVALID,
+                        "read-only mixed children require a null authorization namespace",
+                    ));
+                }
+                if admission.live && function.authority_independent && namespace.is_some() {
+                    return Err(refuse(
+                        code::ENTRY_INVALID,
+                        "authority-independent live children require a null authorization namespace",
+                    ));
+                }
+                if admission.live && !function.authority_independent && namespace.is_none() {
+                    return Err(refuse(
+                        code::ENTRY_INVALID,
+                        "auth-scoped live children require an authorization namespace",
+                    ));
+                }
+            }
+            let arg_types = bundle::function_route_arg_types(&function, self.db.schema());
+            let args = bundle::substitute_params_v1(&spec.args, params, &arg_types)
+                .map_err(|code| refuse(code, "mixed bundle args mapping refused"))?;
+            let invocation_authority = if admission.live {
+                let lease = self
+                    .admission
+                    .admit_for_mode(authority.active_mode())
+                    .map_err(|error| {
+                        refuse(code::QUERY_FAILED, "mixed live admission unavailable")
+                            .with_details(json!({ "cause": error.diagnostic.code }))
+                    })?;
+                InvocationGate::prepare_admitted_authority(
+                    InvocationSource::LiveInitialQuery,
+                    authority.active_mode(),
+                    authority.profile(),
+                    lease,
+                    &WireAuthorityFields::default(),
+                    authority.resolved().clone(),
+                )
+                .map_err(|error| {
+                    refuse(code::QUERY_FAILED, "mixed live authority refused")
+                        .with_details(json!({ "cause": error.diagnostic.code }))
+                })?
+            } else {
+                authority.clone()
+            };
+            let prepared = InvocationGate::prepare_function(
+                invocation_authority.clone(),
+                &function,
+            )
+            .map_err(|error| {
+                refuse(code::QUERY_FAILED, "mixed child invocation refused").with_details(
+                    json!({ "function": spec.function, "cause": error.diagnostic.code }),
+                )
+            })?;
+            let input = prepared.canonicalize_input(HandlerInput {
+                args: args.clone(),
+                auth: auth.clone(),
+                read_set: Vec::new(),
+                correlation: None,
+                ctx_ledger: None,
+            });
+            prepared_children.push((
+                position,
+                spec.function.clone(),
+                function,
+                args,
+                invocation_authority,
+                prepared,
+                input,
+                admission.clone(),
+            ));
+        }
+
+        let permission_epochs = &self.permission_epochs;
+        let warm_vms = &self.warm_vms;
+        let app_id = self.functions.app_id.clone();
+        let keyring = &self.resume_keyring;
+        let schema_hash = self.db.schema().schema_hash.clone();
+        let bundle_hash = self.functions.bundle_hash.clone();
+        let app_generation = self.app_generation;
+        let target_profile = self.db.schema().target_profile.clone();
+        let mut invocations = self
+            .db
+            .with_pinned_read_view(|view| {
+                prepared_children
+                    .iter()
+                    .map(|(_, name, function, _, _, prepared, input, _)| {
+                        execute_query_invocation(
+                            function,
+                            name,
+                            view.reborrow(),
+                            permission_epochs,
+                            input.clone(),
+                            prepared,
+                            Some(warm_vms),
+                            Some(RelationalCursorAuthority {
+                                app_id: &app_id,
+                                keyring,
+                                schema_hash: schema_hash.as_deref(),
+                                function_bundle_hash: bundle_hash.as_deref(),
+                                function_publication_generation: app_generation,
+                                target_profile: target_profile.as_deref(),
+                            }),
+                            None,
+                        )
+                        .map_err(|error| {
+                            refuse(code::QUERY_FAILED, "mixed child evaluation failed")
+                                .with_details(json!({
+                                    "function": name,
+                                    "cause": error.diagnostic.code,
+                                }))
+                        })
+                    })
+                    .collect::<SnapbackResult<Vec<_>>>()
+            })
+            .map_err(|error| {
+                self.purge_connection_topology(&target.connection_id, &target.effect_fence);
+                error
+            })?;
+        let commit_version = invocations
+            .first()
+            .map(|invocation| invocation.output.version)
+            .ok_or_else(|| refuse(code::ENTRY_INVALID, "mixed route has no children"))?;
+        if invocations
+            .iter()
+            .any(|invocation| invocation.output.version != commit_version)
+        {
+            self.purge_connection_topology(&target.connection_id, &target.effect_fence);
+            return Err(refuse(
+                code::QUERY_FAILED,
+                "mixed children did not report one pinned snapshot version",
+            ));
+        }
+
+        let mut entries = Vec::with_capacity(prepared_children.len());
+        let mut total_rows = 0_usize;
+        let mut total_bytes = 0_usize;
+        let mut live_children = 0_usize;
+        let result = (|| -> SnapbackResult<()> {
+            for (child, invocation) in prepared_children.into_iter().zip(invocations.drain(..)) {
+                let (position, name, function, args, child_authority, _, input, admission) = child;
+                let (rows, resume, subscription_id, authorization, delivery) = if admission.live {
+                    live_children += 1;
+                    let output = self
+                        .subscribe_live_prepared_from_pinned_bundle(
+                            &name,
+                            LiveSubscribeInput {
+                                connection_id: target.connection_id.clone(),
+                                input,
+                                authorization_namespace: target
+                                    .authorization_namespaces
+                                    .get(position)
+                                    .cloned()
+                                    .flatten(),
+                                supersedes: None,
+                                resume_from_token: None,
+                            },
+                            child_authority,
+                            LiveInvalidationAdmission {
+                                connection: target.invalidation_connection.clone(),
+                                effect_fence: Some(target.effect_fence.clone()),
+                                #[cfg(test)]
+                                session_mode: false,
+                            },
+                            invocation,
+                        )
+                        .map_err(|error| {
+                            refuse(code::QUERY_FAILED, "mixed live registration failed")
+                                .with_details(json!({
+                                    "function": name,
+                                    "cause": error.diagnostic.code,
+                                }))
+                        })?;
+                    let rows = output
+                        .snapshot
+                        .map(|snapshot| snapshot.rows)
+                        .unwrap_or_default();
+                    let authorization = output.authorization_scope.map(|scope| {
+                        crate::bundle::BundleAuthorization {
+                            scope,
+                            invalidation: output.authorization_invalidation,
+                        }
+                    });
+                    (
+                        rows,
+                        output.resume,
+                        Some(output.subscription_id),
+                        authorization,
+                        crate::bundle::MixedBundleDeliveryV2::RegisteredLive {
+                            node_plan_hash: admission.node_plan_hash,
+                        },
+                    )
+                } else {
+                    let rows = invocation.output.rows;
+                    let resume = rqs_eligibility(&function).and_then(|kind| {
+                        let digest = crate::rqs::ResultDigest::from_rows(kind, &rows).ok()?;
+                        let query_artifact = serde_json::to_value(&function)
+                            .ok()
+                            .and_then(|value| crate::rqs::query_artifact_hash(&value).ok())?;
+                        let args_hash = crate::rqs::args_hash(&args).ok()?;
+                        self.mint_resume_wire(
+                            &query_artifact,
+                            &args_hash,
+                            commit_version,
+                            kind,
+                            digest.published(),
+                        )
+                    });
+                    (
+                        rows,
+                        resume,
+                        None,
+                        None,
+                        crate::bundle::MixedBundleDeliveryV2::ReadOnly {
+                            node_plan_hash: admission.node_plan_hash,
+                        },
+                    )
+                };
+                total_rows += rows.len();
+                total_bytes += serde_json::to_vec(&rows).map(|bytes| bytes.len()).unwrap_or(0);
+                if total_rows > bundle::BUNDLE_MAX_ROWS {
+                    return Err(refuse(code::LIMIT_ROWS, "mixed bundle row limit exceeded"));
+                }
+                if total_bytes > bundle::BUNDLE_MAX_BYTES {
+                    return Err(refuse(code::LIMIT_BYTES, "mixed bundle byte limit exceeded"));
+                }
+                if started.elapsed().as_millis() as u64 > bundle::BUNDLE_MAX_EVAL_MS {
+                    return Err(refuse(code::LIMIT_TIME, "mixed bundle time limit exceeded"));
+                }
+                entries.push(crate::bundle::BundleEntry {
+                    function: name,
+                    args,
+                    rows,
+                    resume,
+                    subscription_id,
+                    authorization,
+                    delivery: Some(delivery),
+                });
+            }
+            Ok(())
+        })();
+        if let Err(error) = result {
+            self.purge_connection_topology(&target.connection_id, &target.effect_fence);
+            return Err(error);
+        }
+        let read_only_children = entries.len().saturating_sub(live_children);
+        Ok(crate::bundle::BundleResponse {
+            format_version: Some(2),
+            profile: Some("mixed-route.v2".to_owned()),
+            plan_hash: Some(profile.plan_hash.clone()),
+            commit_version,
+            generation,
+            version_stream,
+            entries,
+            connection: None,
+            aggregate: Some(crate::bundle::MixedBundleAggregateV2 {
+                kind: "mixed".to_owned(),
+                weakest: "read-only".to_owned(),
+                live_children,
+                read_only_children,
+            }),
         })
     }
 
@@ -14027,6 +14384,7 @@ impl LocalSnapback {
             authority,
             invalidation,
             expected_generation,
+            None,
         )
     }
 
@@ -14313,6 +14671,28 @@ impl LocalSnapback {
             authority,
             invalidation,
             None,
+            None,
+        )
+    }
+
+    /// Install a live child from rows/dependencies already evaluated inside
+    /// the mixed bundle's shared pinned snapshot. Registration must consume
+    /// this invocation rather than silently execute a second snapshot.
+    fn subscribe_live_prepared_from_pinned_bundle(
+        &mut self,
+        name: &str,
+        input: LiveSubscribeInput,
+        authority: PreparedAuthority,
+        invalidation: LiveInvalidationAdmission,
+        invocation: QueryInvocation,
+    ) -> SnapbackResult<LiveSubscribeOutput> {
+        self.subscribe_live_prepared_with_invalidation_generation(
+            name,
+            input,
+            authority,
+            invalidation,
+            None,
+            Some(invocation),
         )
     }
 
@@ -14323,6 +14703,7 @@ impl LocalSnapback {
         authority: PreparedAuthority,
         invalidation: LiveInvalidationAdmission,
         expected_generation: Option<&ArtifactGeneration>,
+        pinned_bundle_invocation: Option<QueryInvocation>,
     ) -> SnapbackResult<LiveSubscribeOutput> {
         if authority.source() != InvocationSource::LiveInitialQuery {
             return Err(SnapbackError::error(
@@ -14541,7 +14922,9 @@ impl LocalSnapback {
             })));
         }
 
-        let query = if reserved_live {
+        let query = if let Some(query) = pinned_bundle_invocation {
+            query
+        } else if reserved_live {
             self.reserved_live_invocation(&authority, name, &subscription_input)?
         } else {
             let correlation = telemetry_correlation(&subscription_input.correlation);
@@ -15099,6 +15482,7 @@ impl LocalSnapback {
             authority,
             invalidation,
             expected_generation,
+            None,
         )?;
         let authorization = output.authorization_scope.as_ref().and_then(|_| {
             self.auth_invalidation
@@ -18621,7 +19005,10 @@ impl LocalSnapback {
         })
     }
 
-    fn function(&self, name: &str) -> SnapbackResult<&crate::manifest::FunctionDefinition> {
+    pub(crate) fn function(
+        &self,
+        name: &str,
+    ) -> SnapbackResult<&crate::manifest::FunctionDefinition> {
         self.functions.function(name).ok_or_else(|| {
             SnapbackError::error(
                 "SNAPBACK_UNKNOWN_FUNCTION",
@@ -26931,6 +27318,175 @@ mod tests {
     }
 
     #[test]
+    fn mixed_bundle_v2_pins_rows_and_registers_only_identity_live_children() {
+        let schema = SchemaManifest {
+            app_id: "mixed-acceptance".to_owned(),
+            schema_hash: Some("mixed-schema".to_owned()),
+            tables: vec![TableManifest {
+                name: "todos".to_owned(),
+                fields: vec![FieldManifest {
+                    name: "title".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                }],
+                indexes: Vec::new(),
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
+                search_live_limits: None,
+                membership: None,
+                asset_sharing: None,
+            }],
+            ..SchemaManifest::default()
+        };
+        let plan = QueryPlan {
+            table: "todos".to_owned(),
+            filters: Vec::new(),
+            order: Vec::new(),
+            limit: None,
+            membership_filters: Vec::new(),
+            indexed_by: None,
+        };
+        let mut live = FunctionDefinition::new(
+            "liveTodos",
+            FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(plan.clone())),
+        );
+        live.auth_requirement = Some(AuthRequirement::Public);
+        live.authority_independent = true;
+        let mut plain = FunctionDefinition::new(
+            "plainTodos",
+            FunctionKind::Query,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(plan)),
+        );
+        plain.auth_requirement = Some(AuthRequirement::Public);
+        plain.authority_independent = true;
+        let insert = FunctionDefinition::new(
+            "addTodo",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![MutationStep::Insert {
+                    table: "todos".to_owned(),
+                    values: BTreeMap::from([(
+                        "title".to_owned(),
+                        ValueExpr::Arg("title".to_owned()),
+                    )]),
+                    bind_id_as: None,
+                }],
+                return_value: None,
+            })),
+        );
+        let functions = FunctionManifest {
+            app_id: "mixed-acceptance".to_owned(),
+            bundle_hash: Some("mixed-functions".to_owned()),
+            functions: vec![live, plain, insert],
+            ..FunctionManifest::default()
+        };
+        let mut snapback = LocalSnapback::memory().expect("mixed memory fixture");
+        snapback.apply_schema(schema).expect("mixed schema");
+        assert!(
+            snapback
+                .load_functions(functions)
+                .iter()
+                .all(|diagnostic| diagnostic.severity
+                    != crate::diagnostic::DiagnosticSeverity::Error)
+        );
+        snapback
+            .invoke_mutation(
+                "addTodo",
+                HandlerInput {
+                    args: json!({ "title": "one" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("seed todo");
+        let entry = crate::bundle::BundleRouteEntry {
+            route: "/mixed".to_owned(),
+            queries: vec![
+                crate::bundle::BundleQuerySpec {
+                    function: "liveTodos".to_owned(),
+                    args: json!({}),
+                },
+                crate::bundle::BundleQuerySpec {
+                    function: "plainTodos".to_owned(),
+                    args: json!({}),
+                },
+            ],
+            persist: None,
+            register_group_eligible: false,
+            mixed_group_eligible: true,
+            mixed_profile: Some(crate::bundle::MixedRouteProfileV2 {
+                format_version: 2,
+                profile: "mixed-route.v2".to_owned(),
+                normalized_composite_plan: json!({}),
+                plan_hash: format!("sha256:{}", "a".repeat(64)),
+            }),
+        };
+        let admission = snapback.admission.admit_dev().expect("dev admission");
+        let authority = InvocationGate::prepare_admitted_authority(
+            InvocationSource::HttpQuery,
+            crate::manifest::AuthMode::Dev,
+            ServerProfile::Dev,
+            admission,
+            &WireAuthorityFields::default(),
+            ResolvedAppAuthority::Anonymous,
+        )
+        .expect("bundle authority");
+        let response = snapback
+            .evaluate_bundle(
+                &entry,
+                &BTreeMap::new(),
+                "/mixed",
+                &AuthInput::default(),
+                &authority,
+                Some(super::BundleRegisterTarget {
+                    connection_id: "mixed-connection".to_owned(),
+                    effect_fence: crate::ephemeral::ConnectionEffectFence::anonymous(
+                        "mixed-stream",
+                        "mixed-grant",
+                    ),
+                    invalidation_connection: None,
+                    authorization_namespaces: Vec::new(),
+                    mixed_children: Some(vec![
+                        crate::bundle::MixedChildAdmissionV2 {
+                            node_plan_hash: format!("sha256:{}", "1".repeat(64)),
+                            live: true,
+                        },
+                        crate::bundle::MixedChildAdmissionV2 {
+                            node_plan_hash: format!("sha256:{}", "2".repeat(64)),
+                            live: false,
+                        },
+                    ]),
+                }),
+            )
+            .expect("mixed bundle");
+        assert_eq!(response.format_version, Some(2));
+        assert_eq!(response.profile.as_deref(), Some("mixed-route.v2"));
+        assert_eq!(response.entries.len(), 2);
+        assert_eq!(response.entries[0].rows, response.entries[1].rows);
+        assert_eq!(response.entries[0].subscription_id.as_deref(), snapback.subscriptions.keys().next().map(String::as_str));
+        assert!(response.entries[1].subscription_id.is_none());
+        assert_eq!(snapback.subscriptions.len(), 1, "plain child owns no live state");
+        assert_eq!(
+            snapback.subscriptions.values().next().map(|subscription| subscription.function.as_str()),
+            Some("liveTodos"),
+        );
+        assert_eq!(
+            serde_json::to_value(&response.entries[0].delivery).expect("live delivery"),
+            json!({ "kind": "registered-live", "nodePlanHash": format!("sha256:{}", "1".repeat(64)) }),
+        );
+        assert_eq!(
+            serde_json::to_value(&response.entries[1].delivery).expect("plain delivery"),
+            json!({ "kind": "read-only", "nodePlanHash": format!("sha256:{}", "2".repeat(64)) }),
+        );
+        let aggregate = response.aggregate.expect("mixed aggregate");
+        assert_eq!((aggregate.live_children, aggregate.read_only_children), (1, 1));
+        assert_eq!(aggregate.weakest, "read-only");
+    }
+
+    #[test]
     fn direct_live_and_retainable_membership_readers_fail_closed_at_load() {
         let schema = SchemaManifest {
             tables: vec![TableManifest {
@@ -27409,6 +27965,8 @@ mod tests {
                 }],
                 persist: None,
                 register_group_eligible: true,
+                mixed_group_eligible: false,
+                mixed_profile: None,
             }],
         };
         let route_error = LocalSnapback::validate_routes_manifest_against(&routes, &valid, &schema)
