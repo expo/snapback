@@ -134,7 +134,7 @@ test('Expo store defaults under Paths.document, survives relaunch, and reclaims 
   await successor.close();
 });
 
-test('corrupt bytes fail closed in place until explicit wipe', async (t) => {
+test('corrupt bytes fail closed in place until identity-rotating reset', async (t) => {
   const { module: fileSystem } = await makeFake(t);
   const directory = new fileSystem.Directory(fileSystem.Paths.document, 'corrupt').uri;
   const key = rqsEntryKey('listCells', {});
@@ -155,7 +155,8 @@ test('corrupt bytes fail closed in place until explicit wipe', async (t) => {
     () => second.load(key),
     (error) => error?.code === 'SNAPBACK_RQS_STORE_CORRUPT',
   );
-  assert.equal(await second.wipe(), true);
+  assert.equal(await second.wipe(), false);
+  assert.equal((await second.resetCorruptStoreIdentity()).reset, true);
   assert.equal(await second.load(key), null);
   await second.close();
 });

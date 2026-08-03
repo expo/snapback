@@ -27,13 +27,13 @@
 //   marker, recency bookkeeping, and budget eviction land as one unit.
 // - Corruption fails closed and never becomes empty success: an unparseable
 //   or future-format blob is preserved byte-for-byte in place, reads raise
-//   `SNAPBACK_RQS_STORE_CORRUPT`, writes refuse, and only `wipe()` — the
-//   caller-authorized reset (user switch, app reset) — replaces the bytes.
+//   `SNAPBACK_RQS_STORE_CORRUPT` and writes refuse. The explicit
+//   `resetCorruptStoreIdentity()` barrier hook rotates the unreadable store's
+//   identity before replacing those bytes.
 //
-// Per-identity keying (LLP 0090 D3): each identity gets its own blob file so
-// the v2 auth-scoped door inherits a correct layout; v1 entries are all
-// authority-independent and `wipe()` clears EVERY identity's blob (LLP 0053
-// user-switch wipe semantics).
+// The injected identity keys independent store domains (the default resolver
+// uses server origin). Each v3 blob carries its exact clientStoreId in
+// storeMeta; wipe affects that one domain, while corrupt reset rotates it.
 //
 // At-rest posture (LLP 0090 Q4, open): the v1 baseline is OS-level
 // protection — the platform app container and platform disk encryption.
@@ -64,15 +64,20 @@ import {
   pendingOutboxRecords,
   validateOutboxState,
 } from './outbox-shared.mjs';
+import {
+  allocateQueryInstanceIdInMeta,
+  createInitialStoreMeta,
+  mintClientStoreId,
+  prepareStoreMeta,
+  wipeStoreMeta,
+} from './rqs-store-meta.mjs';
 
-// v1 held `{ format, entries }`. v2 adds the LLP 0043 M2 outbox section
-// (`{ format, entries, outbox }` — LLP 0129 Phase 0). A v1 blob migrates in
-// place (entries preserved, empty outbox: v1 had no queue by construction).
-// A v2 blob read by v1 code is a future format there and fails closed with
-// bytes preserved — a downgrade can never load the queue as empty and
-// overwrite the only copy (LLP 0008 DK-9).
+// v1 held `{ format, entries }`; v2 added outbox + the optional React binding
+// receipt. v3 adds LLP 0166's three resident sections and storeMeta. Each
+// migration is one-way and publishes through the existing temp+rename cut.
 export const RQS_FILE_STORE_FORMAT_V1 = 'snapback-rqs-store-file.v1';
-export const RQS_FILE_STORE_FORMAT = 'snapback-rqs-store-file.v2';
+export const RQS_FILE_STORE_FORMAT_V2 = 'snapback-rqs-store-file.v2';
+export const RQS_FILE_STORE_FORMAT = 'snapback-rqs-store-file.v3';
 const BLOB_PREFIX = 'rqs-';
 const BLOB_SUFFIX = '.v1.json';
 const LOCK_SUFFIX = '.v1.lock';
@@ -89,7 +94,7 @@ function storeError(code, message, details = {}) {
 const corruptError = (path) => storeError(
   'SNAPBACK_RQS_STORE_CORRUPT',
   'persisted RQS store bytes are unreadable or from an unknown format; '
-    + 'original bytes were left untouched (explicit wipe() is the only reset)',
+    + 'original bytes were left untouched (resetCorruptStoreIdentity() is the authorized reset)',
   { path },
 );
 
@@ -229,6 +234,10 @@ const identitySlug = (identity) => {
   return `id-${hex(sha256(new TextEncoder().encode(String(identity)))).slice(0, 32)}`;
 };
 
+const plainSweepRecord = (value) => (
+  value !== null && typeof value === 'object' && !Array.isArray(value)
+);
+
 /**
  * Durable file-backed persisted RQS resume store for native/Node hosts.
  * Same observable contract as `createIndexedDbRqsResumeStore`.
@@ -240,6 +249,9 @@ export function createFileRqsResumeStore({
   now = () => Date.now(),
   maxBytes = RQS_STORE_MAX_BYTES,
   maxEntries = RQS_STORE_MAX_ENTRIES,
+  clientStoreId = null,
+  randomBytes = undefined,
+  onBeforeStoreIdentityRotation = null,
   // LLP 0090 D3 outbox rule hook — identical to the web store: the raw
   // client has no relaunch mutation outbox, so the default is structurally
   // "empty"; a composing layer that HAS one injects its check here.
@@ -271,6 +283,24 @@ export function createFileRqsResumeStore({
   let closed = false;
   let writer = false;
   let corrupt = false;
+  let migrationMeta = null;
+
+  const plainRecord = (value) => (
+    value !== null && typeof value === 'object' && !Array.isArray(value)
+  );
+  const initialMeta = () => {
+    migrationMeta ??= createInitialStoreMeta({ clientStoreId, randomBytes });
+    return structuredClone(migrationMeta);
+  };
+  const emptyState = (storeMeta = initialMeta()) => ({
+    entries: {},
+    outbox: emptyOutboxState(),
+    reactBindingReceipt: null,
+    materializations: {},
+    pageSets: {},
+    memberships: {},
+    storeMeta,
+  });
 
   // DK-9 single-connection mutex analogue: one promise chain serializes every
   // operation, including lock acquisition.
@@ -319,15 +349,13 @@ export function createFileRqsResumeStore({
     if (await files.writeFileExclusive(lockPath, payload)) granted();
   };
 
-  // Eager first acquisition so `isWriter()` has settled by the time the
-  // client's first debounced persist checks it.
-  const initialAcquisition = serialized(acquireLock).catch(() => {});
-
   const readState = async () => {
     if (corrupt) throw corruptError(blobPath);
     const raw = await files.readFile(blobPath);
     if (raw === null) {
-      return { entries: {}, outbox: emptyOutboxState(), reactBindingReceipt: null };
+      const initialized = emptyState();
+      if (writer) await writeState(initialized);
+      return initialized;
     }
     let parsed = null;
     try {
@@ -341,12 +369,28 @@ export function createFileRqsResumeStore({
       && typeof parsed.entries === 'object'
       && !Array.isArray(parsed.entries);
     if (entriesValid && parsed.format === RQS_FILE_STORE_FORMAT_V1) {
-      // In-place v1 migration: entries preserved, empty outbox (v1 stores
-      // held no queue, so nothing can be silently dropped).
-      return { entries: parsed.entries, outbox: emptyOutboxState(), reactBindingReceipt: null };
+      const migrated = { ...emptyState(), entries: parsed.entries };
+      if (writer) await writeState(migrated);
+      return migrated;
     }
     const outboxValid = entriesValid && validateOutboxState(parsed.outbox) !== null;
-    if (!entriesValid || parsed.format !== RQS_FILE_STORE_FORMAT || !outboxValid) {
+    if (outboxValid && parsed.format === RQS_FILE_STORE_FORMAT_V2) {
+      const migrated = {
+        ...emptyState(),
+        entries: parsed.entries,
+        outbox: parsed.outbox,
+        reactBindingReceipt: prepareReactBindingReceipt(parsed.reactBindingReceipt),
+      };
+      if (writer) await writeState(migrated);
+      return migrated;
+    }
+    const v3Valid = outboxValid
+      && parsed.format === RQS_FILE_STORE_FORMAT
+      && plainRecord(parsed.materializations)
+      && plainRecord(parsed.pageSets)
+      && plainRecord(parsed.memberships)
+      && prepareStoreMeta(parsed.storeMeta) !== null;
+    if (!v3Valid) {
       // Unparseable bytes and future/unknown formats are the same verdict:
       // preserve in place, refuse reads and writes until an explicit wipe.
       corrupt = true;
@@ -355,6 +399,10 @@ export function createFileRqsResumeStore({
     return {
       entries: parsed.entries,
       outbox: parsed.outbox,
+      materializations: parsed.materializations,
+      pageSets: parsed.pageSets,
+      memberships: parsed.memberships,
+      storeMeta: prepareStoreMeta(parsed.storeMeta),
       // Optional metadata never weakens the fail-closed entry/outbox reader:
       // absent or independently invalid receipt bytes simply mean no receipt.
       reactBindingReceipt: prepareReactBindingReceipt(parsed.reactBindingReceipt),
@@ -364,18 +412,39 @@ export function createFileRqsResumeStore({
   // Atomic and power-loss durable replace: flush temp contents, rename, then
   // sync the parent directory before publication may proceed.
   const writeState = async (state) => {
+    const outbox = validateOutboxState(state.outbox);
+    const storeMeta = prepareStoreMeta(state.storeMeta);
+    if (
+      outbox === null
+      || storeMeta === null
+      || !plainRecord(state.entries)
+      || !plainRecord(state.materializations)
+      || !plainRecord(state.pageSets)
+      || !plainRecord(state.memberships)
+    ) {
+      throw corruptError(blobPath);
+    }
     await files.mkdir(directory);
     await files.writeFile(tmpPath, JSON.stringify({
       format: RQS_FILE_STORE_FORMAT,
       entries: state.entries,
-      outbox: validateOutboxState(state.outbox) ?? emptyOutboxState(),
+      outbox,
       ...(state.reactBindingReceipt === null
         ? {}
         : { reactBindingReceipt: state.reactBindingReceipt }),
+      materializations: state.materializations,
+      pageSets: state.pageSets,
+      memberships: state.memberships,
+      storeMeta,
     }));
     await files.rename(tmpPath, blobPath);
     await files.syncDirectory(directory);
   };
+
+  // Eager first acquisition so `isWriter()` has settled by the time the
+  // client's first debounced persist checks it. The public settling point
+  // below also forces a numbered migration while the writer lock is held.
+  const initialAcquisition = serialized(acquireLock).catch(() => {});
 
   // Writer-gated outbox transition committed atomically with the whole blob
   // (the DK-9 transaction analogue). Enqueue throws on a non-writer; the
@@ -406,7 +475,10 @@ export function createFileRqsResumeStore({
     /// Settles (and, unlike web's queued lock, re-attempts) ownership: a
     /// reader whose holder has since closed or died becomes the writer here.
     whenLockSettled() {
-      return serialized(acquireLock).catch(() => {});
+      return serialized(async () => {
+        await acquireLock();
+        if (writer) await readState();
+      }).catch(() => {});
     },
 
     /// Degradation-mode capability fact (DK-9: capability reports name the
@@ -558,6 +630,54 @@ export function createFileRqsResumeStore({
       });
     },
 
+    async readStoreMeta() {
+      requireOpen();
+      return serialized(async () => structuredClone((await readState()).storeMeta));
+    },
+
+    async writeStoreMeta(value) {
+      requireOpen();
+      return serialized(async () => {
+        await acquireLock();
+        if (!writer) return false;
+        const replacement = prepareStoreMeta(value);
+        if (replacement === null) throw corruptError(blobPath);
+        const state = await readState();
+        const current = state.storeMeta;
+        if (
+          replacement.clientStoreId !== current.clientStoreId
+          || replacement.queryInstanceIdHighWater < current.queryInstanceIdHighWater
+          || [
+            'writerGeneration',
+            'authorityGenerationHighWater',
+            'queryGenerationHighWater',
+          ].some((field) => (
+            replacement.generationCounters[field] < current.generationCounters[field]
+          ))
+        ) {
+          throw storeError(
+            'SNAPBACK_RQS_STORE_META_REGRESSION',
+            'store metadata cannot rotate identity or lower monotone high-waters',
+          );
+        }
+        await writeState({ ...state, storeMeta: replacement });
+        return true;
+      });
+    },
+
+    async allocateQueryInstanceId() {
+      requireOpen();
+      return serialized(async () => {
+        await acquireLock();
+        if (!writer) return null;
+        const state = await readState();
+        const allocated = allocateQueryInstanceIdInMeta(state.storeMeta);
+        if (allocated === null) throw corruptError(blobPath);
+        await writeState({ ...state, storeMeta: allocated.meta });
+        return allocated.queryInstanceId;
+      });
+    },
+
     /// Read one persisted entry (reader or writer — reading is how a second
     /// context adopts the store's token). Callers MUST verify with
     /// verifyPersistedResumeEntry before trusting the record.
@@ -697,27 +817,88 @@ export function createFileRqsResumeStore({
       });
     },
 
-    /// User-switch wipe (LLP 0053 wipe semantics): clears EVERY identity's
-    /// persisted blob, and doubles as the DK-9 caller-authorized reset that
-    /// replaces corrupt bytes.
+    /// User-switch / client-wide wipe (LLP 0053 client-wide delete; LLP 0166
+    /// §D1). Every sibling identity's blob is destroyed — shipped scope — and
+    /// a destroyed sibling's next open mints a fresh store identity, so
+    /// LLP 0053's never-reuse holds by namespace rotation (§D1's
+    /// unparseable-reset argument). This domain instead takes the §D1
+    /// projection in place: sections cleared, high-waters and
+    /// writerGeneration preserved, handle key rotated. Corrupt bytes in this
+    /// domain still require the identity-rotating reset below (their
+    /// high-waters are unreadable); siblings are swept regardless, so a
+    /// user switch never strands another identity's entries or outbox.
     async wipe() {
       requireOpen();
       return serialized(async () => {
         await acquireLock();
         if (!writer) return false;
+        const ownBlobName = blobPath.slice(blobPath.lastIndexOf(sep) + 1);
         const names = await files.readdir(directory);
         for (const name of names) {
-          if (BLOB_FILE_PATTERN.test(name) || name.includes(TMP_MARKER)) {
-            try {
-              await files.unlink(`${directory}${sep}${name}`);
-            } catch {
-              // Best-effort per file; the wipe itself must not throw for
-              // an already-gone sibling.
-            }
+          const sweep = name.includes(TMP_MARKER)
+            || (BLOB_FILE_PATTERN.test(name) && name !== ownBlobName);
+          if (!sweep) continue;
+          try {
+            await files.unlink(`${directory}${sep}${name}`);
+          } catch {
+            // Best-effort per sibling; the wipe itself must not throw for
+            // an already-gone file.
           }
         }
-        corrupt = false;
+        let state;
+        try {
+          state = await readState();
+        } catch {
+          return false;
+        }
+        const storeMeta = wipeStoreMeta(state.storeMeta, { randomBytes });
+        if (storeMeta === null) return false;
+        await writeState(emptyState(storeMeta));
         return true;
+      });
+    },
+
+    /// Destructive recovery for an unparseable blob. The callback is the
+    /// LLP 0059 barrier hook: it must authorize predecessor destruction before
+    /// this carrier removes bytes and publishes the fresh store identity.
+    async resetCorruptStoreIdentity() {
+      requireOpen();
+      return serialized(async () => {
+        await acquireLock();
+        if (!writer) return { reset: false, reason: 'not_writer' };
+        if (!corrupt) {
+          try {
+            await readState();
+            return { reset: false, reason: 'not_corrupt' };
+          } catch (error) {
+            if (!corrupt) throw error;
+          }
+        }
+        const nextClientStoreId = mintClientStoreId(randomBytes);
+        await onBeforeStoreIdentityRotation?.({
+          carrier: 'file',
+          path: blobPath,
+          previousClientStoreId: clientStoreId,
+          nextClientStoreId,
+        });
+        await files.unlink(blobPath);
+        const names = await files.readdir(directory);
+        for (const name of names) {
+          if (name.startsWith(`${blobPath.slice(blobPath.lastIndexOf('/') + 1)}${TMP_MARKER}`)) {
+            try { await files.unlink(`${directory}${sep}${name}`); } catch { /* best-effort */ }
+          }
+        }
+        migrationMeta = createInitialStoreMeta({
+          clientStoreId: nextClientStoreId,
+          randomBytes,
+        });
+        corrupt = false;
+        await writeState(emptyState(migrationMeta));
+        return {
+          reset: true,
+          previousClientStoreId: clientStoreId,
+          clientStoreId: nextClientStoreId,
+        };
       });
     },
 
@@ -787,7 +968,7 @@ export function createFileRqsResumeStore({
 //     queued mutations are dropped only by the explicit drop-and-mark-failed
 //     path, not a janitor);
 //   - never unreadable/corrupt bytes (the DK-9 corruption posture: original
-//     bytes are evidence, an explicit wipe() is the only reset);
+//     bytes are evidence, resetCorruptStoreIdentity() is the only reset);
 //   - only when the newest recorded activity (entry savedAt/resumedAt,
 //     outbox enqueuedAt, binding-receipt savedAt) is older than maxAgeMs.
 //
@@ -848,7 +1029,23 @@ export async function sweepStaleRqsBlobs({
         summary.kept += 1;
         continue; // corrupt bytes are evidence, never janitor droppings
       }
-      const outbox = validateOutboxState(parsed?.outbox);
+      const entriesValid = plainSweepRecord(parsed?.entries);
+      const recognizedV1 = parsed?.format === RQS_FILE_STORE_FORMAT_V1 && entriesValid;
+      const recognizedV2 = parsed?.format === RQS_FILE_STORE_FORMAT_V2
+        && entriesValid
+        && validateOutboxState(parsed?.outbox) !== null;
+      const recognizedV3 = parsed?.format === RQS_FILE_STORE_FORMAT
+        && entriesValid
+        && validateOutboxState(parsed?.outbox) !== null
+        && plainSweepRecord(parsed?.materializations)
+        && plainSweepRecord(parsed?.pageSets)
+        && plainSweepRecord(parsed?.memberships)
+        && prepareStoreMeta(parsed?.storeMeta) !== null;
+      if (!recognizedV1 && !recognizedV2 && !recognizedV3) {
+        summary.kept += 1;
+        continue; // unsupported/future bytes stay preserved exactly in place
+      }
+      const outbox = recognizedV1 ? emptyOutboxState() : validateOutboxState(parsed.outbox);
       if (outbox !== null && pendingOutboxRecords(outbox).length > 0) {
         summary.kept += 1;
         continue; // queued intent is never silently discarded

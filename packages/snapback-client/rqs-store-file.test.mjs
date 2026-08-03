@@ -287,7 +287,7 @@ test('a stale lock (dead pid, our own crashed pid, or unreadable) is taken over;
   await reader.close();
 });
 
-test('corrupt blob bytes are preserved in place: reads throw, writes refuse, wipe() is the authorized reset', async (t) => {
+test('corrupt blob bytes are preserved in place until identity-rotating reset', async (t) => {
   const directory = await makeDirectory(t);
   const { store: session1 } = await makeStore(t, { directory });
   const key = rqsEntryKey('listCells', {});
@@ -310,9 +310,9 @@ test('corrupt blob bytes are preserved in place: reads throw, writes refuse, wip
     'no parse fallback ever replaced the only copy (DK-9)',
   );
 
-  // wipe() is the caller-authorized reset (user switch / app reset): bytes
-  // go, and ordinary operation resumes.
-  assert.equal(await store.wipe(), true);
+  assert.equal(await store.wipe(), false, 'ordinary wipe cannot recover unreadable high-waters');
+  const reset = await store.resetCorruptStoreIdentity();
+  assert.equal(reset.reset, true);
   assert.equal(await store.load(key), null);
   const outcome = await store.commit(key, makeEntry());
   assert.equal(outcome.persisted, true);
@@ -331,23 +331,54 @@ test('a future/unknown blob format is the same corrupt verdict, never empty succ
   await store.close();
 });
 
-test('per-identity keying separates blobs; the user-switch wipe clears every identity (LLP 0053)', async (t) => {
+test('per-identity keying separates blobs; the user-switch wipe clears every identity (LLP 0053) with §D1 survivals for its own domain', async (t) => {
   const directory = await makeDirectory(t);
   const { store: anonStore } = await makeStore(t, { directory });
   await anonStore.commit(rqsEntryKey('q', {}), makeEntry());
+  const anonIdentityBefore = (await anonStore.readStoreMeta()).clientStoreId;
   await anonStore.close();
   const { store: userStore } = await makeStore(t, { directory, identity: 'user-42' });
   await userStore.commit(rqsEntryKey('q', {}), makeEntry({ version: 9 }));
+  const userMetaBefore = await userStore.readStoreMeta();
 
   const blobs = (await readdir(directory)).filter((name) => name.endsWith('.v1.json'));
   assert.equal(blobs.length, 2, 'one blob per identity');
   assert.equal(blobs.some((name) => name === 'rqs-anonymous.v1.json'), true);
+  const userBlobName = blobs.find((name) => name !== 'rqs-anonymous.v1.json');
 
   assert.equal(await userStore.wipe(), true);
   const afterWipe = (await readdir(directory)).filter((name) => name.endsWith('.v1.json'));
-  assert.deepEqual(afterWipe, [], 'user switch wipes every identity blob');
+  assert.deepEqual(
+    afterWipe,
+    [userBlobName],
+    'the user-switch wipe destroys every sibling identity blob (LLP 0053 client-wide delete)',
+  );
   assert.equal(await userStore.load(rqsEntryKey('q', {})), null);
+  const userMetaAfter = await userStore.readStoreMeta();
+  assert.equal(
+    userMetaAfter.clientStoreId,
+    userMetaBefore.clientStoreId,
+    'the wiping domain keeps its store identity (§D1 projection, not rotation)',
+  );
+  assert.notEqual(
+    userMetaAfter.handleKey,
+    userMetaBefore.handleKey,
+    'the wiping domain rotates its handle key',
+  );
   await userStore.close();
+
+  const { store: reopenedAnon } = await makeStore(t, { directory });
+  assert.equal(
+    await reopenedAnon.load(rqsEntryKey('q', {})),
+    null,
+    'a destroyed sibling has no predecessor entries after re-open',
+  );
+  assert.notEqual(
+    (await reopenedAnon.readStoreMeta()).clientStoreId,
+    anonIdentityBefore,
+    'a destroyed sibling re-opens under a fresh store identity (never-reuse by namespace rotation)',
+  );
+  await reopenedAnon.close();
 });
 
 test('a leftover temp file from a crashed write never shadows the blob and is cleared by wipe', async (t) => {
