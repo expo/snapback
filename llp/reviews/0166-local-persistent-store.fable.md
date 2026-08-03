@@ -613,3 +613,11 @@ does not count as a reviewer; recorded verbatim below.
 5. **Recommended next step**
 
 One more micro-delta spot-repair pass: concerns 1–3 are each sentence-scale with no architectural consequence, and NITs 4–5 are optional single clauses. Then a round-6 delta round confined to those edits should be able to return dual READY — the round-4 machinery is otherwise fully and faithfully landed, and I found no defect in the v0.5-changed text beyond the three residues above.
+
+---
+
+## Round 6 — 2026-08-03 (no review received)
+
+The round-6 Fable review run over ac606e5c (v0.6) was interrupted before
+producing any assessment; per LLP 0005, no review is recorded and none is
+counted. The Fable family's next actual review is Round 7.

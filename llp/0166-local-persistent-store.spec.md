@@ -6,7 +6,24 @@
 Live queries, Relational queries, Optimistic updates, Auth, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-03
-**Revised:** 2026-08-03 (v0.6, round-5 fixes: Codex round 5 returned
+**Revised:** 2026-08-03 (v0.7, round-6 fixes: Codex round 6 returned
+NOT READY (4 MATERIAL); the Fable round-6 run was interrupted before
+producing a review and none is recorded. Applied all four: the overflow
+analysis is corrected — the release-before-first-forward residue depends
+only on the released-registration tombstone window (the two-memory
+condition applies only to replay of a previously consumed forward), with
+S1's phrasing fixed and exact 1,024/1,025 boundary legs added;
+tombstones are keyed `(partition, registrationId)`, created only
+atomically with a successful `released` outcome (refused releases leave
+none), and release-of-unknown validates the caller's partition only —
+cross-partition forwards are unaffected, so no partition can preempt
+another's ids; the unsafe 30-second handoff exit is removed —
+suppression ends only when every roster pair re-announces or is
+affirmatively liveness-reaped, bounding suppression by the 45-second
+heartbeat expiry, with the S1 timeout branch added; and pair accounting
+closes (128 live-pair ceiling; `livePairCount`/`livePairCeiling`,
+`identifierByteCeiling`, and `messageByteCeiling` surface in
+inspection).) 2026-08-03 (v0.6, round-5 fixes: Codex round 5 returned
 NOT READY (1 BLOCKING, 3 MATERIAL, 1 NIT); Fable round 5 returned
 NOT READY (3 MATERIAL, 2 NIT); the findings converged almost exactly.
 Applied all: the durable forward/release ordering is closed — every
@@ -674,24 +691,33 @@ Rules, normative:
   context; provisional under OQ4), so a retry — including across a
   writer crash between commit and outcome, and across writer restart —
   answers from the recorded outcome; the writer persists a bounded
-  **released-registration memory** recording a tombstone for every
-  release outcome, *including a release naming an unknown
-  `registrationId`* (the last 1,024 released ids, provisional under
-  OQ4), so any later forward naming a tombstoned id refuses — the
-  release-before-delayed-forward reordering cannot resurrect a
-  registration — while releasing an already-released or unknown id
-  returns `released` (release is idempotent); and `registrationId`s are
-  client-minted and never reused, so a fresh forward never legitimately
-  names a released id. Overflow honesty, mirroring the reaped-context
-  window: resurrection requires **both** the consumed-request and
-  released-registration memories to have evicted the same ancient
-  exchange; the residue is a re-created durable registration that is
+  **released-registration memory** recording a tombstone keyed
+  `(authorityPartitionDigest, registrationId)`, created **only
+  atomically with a successful `released` outcome** — a refused release
+  leaves no tombstone — and covering release-of-unknown, whose
+  validation is necessarily partition-only (an unknown id has no stored
+  address; the caller's partition must merely be admitted). The memory
+  holds the last 1,024 tombstones (provisional under OQ4); a later
+  forward whose registration address falls in the tombstone's partition
+  and names its id refuses — the release-before-delayed-forward
+  reordering cannot resurrect a registration — while a forward in a
+  *different* partition is a different key and is unaffected, so no
+  partition can preempt another's ids. Releasing an already-released or
+  unknown id returns `released` (release is idempotent), and
+  `registrationId`s are client-minted and never reused, so a fresh
+  forward never legitimately names a released id. Overflow honesty,
+  exact: the release-before-first-forward residue depends **only on the
+  tombstone window** — once a tombstone evicts, a still-unseen delayed
+  forward can recreate the registration even while the release's
+  consumed outcome survives; replay of a *previously consumed* forward
+  additionally requires its consumed-request entry to have evicted. The
+  residue in either shape is a re-created durable registration that is
   inspection-visible and recoverable by an ordinary release — bounded
-  and recoverable, though not self-healing. All broker identifiers
-  (`contextId`, `requestId`, `registrationId`) are at most 64 UTF-8
-  bytes, refusal codes are registered stable codes, and any broker
-  message over 256 KiB refuses — broker state and traffic are
-  byte-bounded, not only count-bounded.
+  and recoverable, though not self-healing, like the reaped-context
+  window. All broker identifiers (`contextId`, `requestId`,
+  `registrationId`) are at most 64 UTF-8 bytes, refusal codes are
+  registered stable codes, and any broker message over 256 KiB refuses —
+  broker state and traffic are byte-bounded, not only count-bounded.
 - **Reads protect renderable custody through demand, not through reads.**
   A non-writer tab rendering an adopted materialization keeps it
   `demanded-active` by announcing the demand — the store does not infer
@@ -701,18 +727,22 @@ Rules, normative:
   roster — keyed by `(contextId, authorityPartitionDigest)` **pair**, so
   a multi-partition context's separate partition sets are individually
   accounted (the writer keeps the live pairs durably in `storeMeta`,
-  updated as pairs appear and reap, capped at 64 live contexts — a 65th
-  context refuses with a stable diagnostic and runs volatile-online;
+  updated as pairs appear and reap, capped at 64 live contexts and 128
+  live pairs — a context or pair beyond its ceiling refuses with a
+  stable diagnostic and runs volatile-online;
   provisional under OQ4) — plus the reaped-context memory, the
   consumed-request memory, and the released-registration memory, and
   rebuilds the volatile ledger from re-announcements. Until
   reconciliation completes — **every roster pair** re-announces or its
-  context is affirmatively reaped, or the 30-second window (provisional,
-  OQ4) elapses — **every demand-derived transition is suppressed**: no
+  context is **affirmatively reaped by the liveness rule** — **every
+  demand-derived transition is suppressed**: no
   release-grace starts, no grace GC, no budget-pressure compaction of
   any step; a commit that would exceed budget during suppression refuses
-  instead. Suppression can therefore never end with a live pair's
-  demands absent from the rebuilt ledger. A release whose grace would
+  instead. There is no independent timeout exit: a silent pair keeps
+  suppression until its heartbeat expiry reaps it, so suppression is
+  bounded by the 45-second expiry from `WriterHelloV1` and can never end
+  while a live pair's demands are absent from the rebuilt ledger. A
+  release whose grace would
   begin during suppression anchors its grace clock at suppression end.
 - **Per-carrier qualification and honest degradation.** The browser
   carrier qualifies the protocol over its cross-tab channel plus Web
@@ -891,9 +921,9 @@ changes:
   the UTF-8 length of the registration record's RFC 8785 JCS bytes —
   refuse-at-cap with a stable diagnostic, both provisional under OQ4),
   `storeMeta` bookkeeping (bounded by the record and registration caps
-  plus the §D2 broker ceilings: 64 live roster pairs' contexts, 256
-  reaped-context memory entries, 1,024 consumed-request outcomes, 1,024
-  released-registration tombstones, 64-byte identifiers), and the
+  plus the §D2 broker ceilings: 64 live contexts, 128 live roster pairs,
+  256 reaped-context memory entries, 1,024 consumed-request outcomes,
+  1,024 released-registration tombstones, 64-byte identifiers), and the
   outbox — which has its own owner-governed caps (the shipped
   implementation constants: 1,024 records, 256 KiB per record, 4,096
   pending acknowledgements, `packages/snapback-client/outbox-shared.mjs`,
@@ -1122,6 +1152,8 @@ type StorePolicyInspectionV1 = Readonly<{
     writerGeneration: number
     liveContextCount: number
     liveContextCeiling: number
+    livePairCount: number
+    livePairCeiling: number
     reapedContextCount: number
     reapedContextCeiling: number
     consumedRequestCount: number
@@ -1133,9 +1165,10 @@ type StorePolicyInspectionV1 = Readonly<{
   constants: {
     graceDefaultMs: number
     heartbeatIntervalMs: number
-    heartbeatExpiryMs: number
-    handoffWindowMs: number
+    heartbeatExpiryMs: number     // also the handoff-suppression bound
     establishmentConcurrency: number
+    identifierByteCeiling: number
+    messageByteCeiling: number
   }
   addresses: readonly {
     addressKey: string             // qmk1 materialization key, or the
@@ -1693,17 +1726,22 @@ store-policy oracles:
    refused; a delayed duplicate forward after release replays its
    recorded outcome and a fresh forward naming the released
    `registrationId` refuses; a release naming a never-committed
-   `registrationId` returns `released` and tombstones it, so the
-   later-arriving original forward refuses (release-before-first-forward
-   reordering); a stale-`writerGeneration` forward refuses; requestId
+   `registrationId` returns `released` and tombstones it in the caller's
+   partition, so the later-arriving original forward refuses
+   (release-before-first-forward reordering) while a forward for the
+   same id in a *different* partition is unaffected; a refused release
+   leaves no tombstone; the exact tombstone and consumed-outcome memory
+   boundaries are exercised (the 1,024th entry still refuses/replays,
+   the 1,025th-oldest has evicted and the corpus verifies the documented
+   residue behavior rather than assuming it); a
+   stale-`writerGeneration` forward refuses; requestId
    uniqueness is per-context (two contexts reusing the same requestId do
    not collide); a partial multi-partition handoff — one pair
    re-announced, the other not — keeps suppression active until the
-   roster pair reconciles; a malformed announce (one bad entry) applies
-   nothing and consumes no revision; a delayed announce from a reaped
-   `contextId` in memory is ignored after writer restart; the corpus
-   records the two-memory overflow residue as an analyzed bound, not an
-   exercised leg;
+   silent pair re-announces or its 45-second liveness reap fires (no
+   timeout ends suppression early); a malformed announce (one bad entry)
+   applies nothing and consumes no revision; a delayed announce from a
+   reaped `contextId` in memory is ignored after writer restart;
    `retentionRequest` downgrade to effective `"none"` compacts the
    payload at the next maintenance pass while the demanded
    materialization continues volatile.
@@ -1858,10 +1896,10 @@ Micro-profile packaging; no change to outbox/settlement custody semantics
    constants (32 MiB / 256 records / 1,024 fragments materialization
    envelope; 512 durable registrations at 16 KiB each; 14-day grace;
    15/45-second heartbeat/expiry; 30-second handoff window; 4 concurrent
-   establishments; 64 live contexts / 256 reaped-context memory / 1,024
-   consumed-request outcomes / 1,024 released-registration tombstones /
-   64-byte identifiers / 256 KiB broker messages) await LLP 0155 OQ9's
-   frozen Triage/Fleet custody and
+   establishments; 64 live contexts / 128 live pairs / 256
+   reaped-context memory / 1,024 consumed-request outcomes / 1,024
+   released-registration tombstones / 64-byte identifiers / 256 KiB
+   broker messages) await LLP 0155 OQ9's frozen Triage/Fleet custody and
    hydration budgets for their first measured revision; they surface in
    the policy record so revision is observable.
 5. **Contract-arm convergence** (LLP 0155 OQ16) — identical materialization
@@ -1898,9 +1936,9 @@ Micro-profile packaging; no change to outbox/settlement custody semantics
 
 ## Status
 
-Draft, v0.6 — authored 2026-08-03 by the wave-3 Track A session under the
+Draft, v0.7 — authored 2026-08-03 by the wave-3 Track A session under the
 commission in `issues/20260803-0155-move2-spec-commission.md`; revised
-five times the same day after dual-family rounds 1–5 (all ten reviews
+six times across 2026-08-03 after review rounds 1–6 (eleven reviews, all
 NOT READY; every finding applied — see the Revised header; artifacts in
 `llp/reviews/0166-local-persistent-store.{fable,codex}.md`, including the
 restored round-2 Fable body with its dated provenance-correction note).

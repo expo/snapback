@@ -442,3 +442,59 @@ below.
 5. **Recommended next step**.
 
 Prepare a narrowly scoped v0.6: close forward/release sequencing and bounded replay, make handoff reconciliation partition-complete, repair `in`, finish broker byte accounting/inspection, and fix the refusal wording. Then run another micro-delta review limited to those broker, D3/D5 inspection, D7 step-3, and S1/S6 changes.
+---
+
+## Round 6 — 2026-08-03
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** `codex-cli` 0.146.0, `codex exec`, model
+`gpt-5.6-sol`, `model_reasoning_effort=xhigh`, sandbox `read-only`
+**Date:** 2026-08-03
+**Redacted:** no
+**Method:** fresh non-author `codex exec` context over the working tree at
+ac606e5c (v0.6); micro-delta round confined to the round-5 repairs.
+Orchestrated by the authoring session, which does not count as a
+reviewer; recorded verbatim below.
+
+---
+
+1. **Overall assessment**: **NOT READY — confidence 0.98.** Most round-5 repairs landed correctly, including the `in` rule, refusal granularity, context-bound request identity, generation fencing, precedence, and expanded inspection record. However, the overflow analysis is incorrect, release-of-unknown cannot satisfy the stated partition validation, handoff may still finish with an unreconciled live pair, and broker accounting/inspection remains incomplete. These are MATERIAL protocol defects, not preferences.
+
+2. **Round-5 resolution audit**:
+
+| Finding id | Status | Explanation |
+| --- | --- | --- |
+| Codex B1 | partial | Tombstones, per-context request IDs, context-bound outcomes, and generation fencing landed. The overflow premise is false, and release-of-unknown lacks partition-verifiable identity. |
+| Codex M2 | partial | The roster is pair-keyed, but the 30-second timeout can end suppression without reconciliation or reap. |
+| Codex M3 | resolved | |
+| Codex M4 | partial | Identifier/message limits and memory inspection landed, but roster pairs remain unbounded and two new limits are absent from inspection. |
+| Codex N5 | resolved | |
+| Fable M1 | partial | The bounded-state residual is acknowledged but analyzed incorrectly: release-before-first-forward needs only tombstone eviction, not eviction from both memories. |
+| Fable M2 | resolved | |
+| Fable M3 | partial | The previously missing fields landed, but OQ4 now includes 64-byte identifiers and 256 KiB messages without corresponding inspection fields. |
+| Fable N4 | resolved | |
+| Fable N5 | resolved | |
+| Fable suggestion 1 | partial | The additive direction was followed, but the resulting constants surface is still incomplete. |
+| Fable suggestion 2 | partial | The overflow sentence and S1 note landed, but the analysis they record is wrong. |
+| Fable suggestion 3 | resolved | |
+| Fable suggestion 4 | resolved | |
+
+3. **New concerns** —
+
+1. **MATERIAL — The overflow analysis is false for the exact release-before-first-forward schedule.** If release request `l` is consumed while forward request `f` remains delayed, then after the released-registration tombstone evicts, `f` is still an unseen request. Its arrival can recreate the registration even if the consumed outcome for `l` remains present. Only tombstone eviction is required; both memories need eviction only for replay of a previously consumed forward. S1 repeats the incorrect “two-memory” bound.
+
+2. **MATERIAL — Release-of-unknown cannot satisfy the stated partition check.** Forward and release supposedly receive identical validation that the registration’s address belongs to the supplied partition, but an unknown `registrationId` has no stored address. A store-scoped tombstone keyed only by that ID either lets one partition preempt a later forward in another partition or makes release-before-first-forward impossible. Additionally, “tombstone for every release outcome” could include refused releases. Tombstones need an explicit partition binding and should be created only atomically with a successful `released` outcome.
+
+3. **MATERIAL — Handoff completion still permits missing live demand.** Reconciliation ends when every pair re-announces or is reaped, **or** when the 30-second window elapses. Heartbeat reap occurs at 45 seconds, so the timeout can end suppression while a roster pair remains live and absent. That directly contradicts the next sentence and S1’s claim that partial handoff keeps suppression active until the pair reconciles.
+
+4. **MATERIAL — Broker bounds and inspection are still not total.** The roster is capped at 64 contexts, but one context can accumulate multiple partition pairs without a stated pair ceiling; neither `liveContextCount` nor the message-size ceiling bounds that accumulated state. The inspection record also omits the enforced 64-byte identifier and 256 KiB broker-message ceilings while §D5 and OQ4 claim every provisional constant surfaces. The LLP 0055 spot-check found grant caps per actor/effective user, not a cited per-context or per-store roster-pair ceiling that closes this bound.
+
+4. **Suggestions** (non-blocking).
+
+- Exercise the exact 1,024/1,025 tombstone and consumed-outcome boundaries rather than recording overflow only as prose analysis.
+- Expose `livePairCount` and its ceiling separately from live-context metrics.
+- Add an S1 timeout branch showing the required fail-closed behavior for unreconciled pairs.
+
+5. **Recommended next step**.
+
+Keep LLP 0166 in Draft. Repair the overflow cases, partition-key successful-release tombstones, remove or fail-close the unsafe handoff timeout, and complete pair accounting plus inspection fields. Then run another micro-delta round confined to those sentences and S1.
