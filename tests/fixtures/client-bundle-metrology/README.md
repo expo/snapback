@@ -43,6 +43,12 @@ node scripts/client-bundle-metrology.mjs --write-supplemental-baseline
 The command refuses unless exactly one declared ledger is missing and every
 existing primary/supplemental ceiling is still valid.
 
+The OQ2 extension is `baseline.push-installation-expo.v1.json`, backed by
+`push-installation-expo-profiles.v1.json`. It freezes the optional Expo
+installation-storage subpath independently, including a closure assertion that
+the adapter does not pull the push-registry runtime or a native module into the
+bundle.
+
 The Phase-B Micro extension is `baseline.micro-phase-b.v1.json`, backed by
 `micro-phase-b-profiles.v1.json`. It freezes separate generated core and live
 closures, the three public experimental subpaths, and a root/`./online`

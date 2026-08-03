@@ -28,6 +28,8 @@
     "online.mjs",
     "outbox-shared.d.mts",
     "outbox-shared.mjs",
+    "push-installation-expo.d.mts",
+    "push-installation-expo.mjs",
     "push-registry.d.mts",
     "push-registry.mjs",
     "react-binding.mjs",
@@ -132,6 +134,10 @@
     "./push-registry": {
       "types": "./push-registry.d.mts",
       "import": "./push-registry.mjs"
+    },
+    "./push-installation-expo": {
+      "types": "./push-installation-expo.d.mts",
+      "import": "./push-installation-expo.mjs"
     }
   },
   "dependencies": {

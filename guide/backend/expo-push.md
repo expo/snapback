@@ -93,18 +93,20 @@ See [Secrets and deployment config](../operating/secrets-and-config.md).
 ## Register the current installation
 
 Importing the root client adds no push code or property. Attach the explicit
-subpath and supply durable installation custody:
+subpath and inject Expo's file-system module to select the conventional
+device-scoped default:
 
-```js fragment reason="Apps choose their native durable-storage adapter"
+```js fragment reason="Expo supplies the native module; Snapback owns the dedicated push file"
+import * as ExpoFileSystem from 'expo-file-system';
 import { SnapbackClient } from '@expo/snapback-client';
+import { createExpoPushInstallationStorage } from '@expo/snapback-client/push-installation-expo';
 import { attachPushRegistry } from '@expo/snapback-client/push-registry';
 
+const pushInstallationStorage = createExpoPushInstallationStorage({
+  fileSystem: ExpoFileSystem,
+});
 const client = attachPushRegistry(new SnapbackClient(origin, { bearerToken }), {
-  pushInstallationStorage: {
-    read: () => durableStore.get('snapback.push.installation.v1'),
-    write: (value) => durableStore.set('snapback.push.installation.v1', value),
-    clear: () => durableStore.delete('snapback.push.installation.v1'),
-  },
+  pushInstallationStorage,
 });
 
 await client.push.registerExpoToken({
@@ -113,11 +115,17 @@ await client.push.registerExpoToken({
 });
 ```
 
-The installation id lives in this injected native custody, not in the RQS
-cache. Ordinary logout does not need to erase it: the server retires the exact
-session generation's token row transactionally. A full client-custody wipe
-must call the storage adapter's `clear`; the next registration mints a new id.
-Web push registration is outside v1.
+The installation id lives in the dedicated
+`snapback-push/installation.v1.json` document-store member, not in the RQS
+cache. Ordinary logout preserves it while the server retires the exact session
+generation's token row transactionally. Account switching also preserves the
+id; registering under the successor session rebinds the device through the
+single-owner rule. A full app-data custody wipe must call
+`pushInstallationStorage.clear()`; the next registration mints a new id. An OS
+app-data reset or reinstall removes the app container and therefore also mints
+a fresh id. Apps with another native durable key/value store may still pass a
+custom `pushInstallationStorage`; missing custody continues to refuse rather
+than fall back to process memory. Web push registration is outside v1.
 
 The app still owns `expo-notifications` setup: OS permission prompts,
 `projectId`, foreground behavior, and `addPushTokenListener`. On a rotation
