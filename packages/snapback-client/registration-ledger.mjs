@@ -232,8 +232,10 @@ export async function createRegistrationLedger({
       return;
     }
     const sets = live.filter((entry) => entry.registration.requestedScope.kind === 'page-set');
-    const winner = (sets.length > 0 ? sets : live)
-      .toSorted((a, b) => b.sequence - a.sequence)[0];
+    // Hermes-safe non-mutating sort: Array.prototype.toSorted (ES2023) is
+    // absent on RN/Hermes carriers (issues/20260803-rn-carrier-bricked-...).
+    const winner = [...(sets.length > 0 ? sets : live)]
+      .sort((a, b) => b.sequence - a.sequence)[0];
     const supersededRegistrationIds = live
       .filter((entry) => entry.registration.requestedScope.kind === 'page' && entry !== winner)
       .map((entry) => entry.registration.registrationId)
@@ -255,7 +257,7 @@ export async function createRegistrationLedger({
     while (running < establishmentConcurrency) {
       const candidate = [...hydration.entries()]
         .filter(([, entry]) => entry.state === 'queued')
-        .toSorted(([, a], [, b]) => (
+        .sort(([, a], [, b]) => (
           priority(a.source) - priority(b.source)
           || a.lastEstablishedAt - b.lastEstablishedAt
           || a.queuedAt - b.queuedAt
@@ -312,14 +314,14 @@ export async function createRegistrationLedger({
     const previous = hydration.get(entry.resolution.addressKey);
     if (previous?.state === 'pending') {
       previous.source = rowsAt(entry.resolution.addressKey)
-        .toSorted((a, b) => priority(a.registration.source) - priority(b.registration.source))[0]
+        .sort((a, b) => priority(a.registration.source) - priority(b.registration.source))[0]
         ?.registration.source ?? entry.registration.source;
       previous.requestedScope = clone(scope);
       previous.rerun = true;
       return;
     }
     hydration.set(entry.resolution.addressKey, {
-      source: rowsAt(entry.resolution.addressKey).toSorted((a, b) => priority(a.registration.source) - priority(b.registration.source))[0]?.registration.source ?? entry.registration.source,
+      source: rowsAt(entry.resolution.addressKey).sort((a, b) => priority(a.registration.source) - priority(b.registration.source))[0]?.registration.source ?? entry.registration.source,
       resolution: clone(entry.resolution),
       requestedScope: clone(scope),
       state: 'queued',

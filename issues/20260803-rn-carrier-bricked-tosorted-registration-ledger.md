@@ -61,3 +61,49 @@ protected `listRecords`) reaches `live` on the iOS simulator against a
 same-sha dev server, with zero `SNAPBACK_REACT_QUERY_FAILED` events.
 Evidence: `demos/improvement-sweep/arms/a1-snapback-expo-ios/evidence/f7-rerun-20260803/`
 (run 1 provider-thrash timeline, run 3 headless stack capture).
+
+## 2026-08-03: brick trigger FIXED; backoff hardening remains OPEN
+
+**Fixed (this landing):** all four `toSorted` sites in
+`packages/snapback-client/registration-ledger.mjs` (`recomputeScope` winner
+selection, `schedule` candidate ordering, and both `queueHydration` source
+elections, previously ~lines 236/258/315/322) now use Hermes-safe
+non-mutating spread + `Array.prototype.sort` — receivers are fresh arrays
+(`rowsAt` spreads; the schedule candidate list is a fresh `.filter()`
+product), and `recomputeScope` copies before sorting so `live` keeps its
+insertion order for the superseded-id pass. A repo-wide grep confirms no
+other shipped-runtime file in `packages/` uses `toSorted` / `toReversed` /
+`toSpliced` / `findLast`-class ES2023+ members; the two non-shipped uses
+(`packages/snapback-codegen/index.mjs` `findLast` — node-only build tool —
+and `packages/snapback-app-cli/cli.test.mjs` — test-only) are deliberately
+left alone.
+
+**Regression guard:** `scripts/check-hermes-intrinsics.mjs` scans the
+package.json `files` closure (exactly the bytes `npm pack` ships) of
+`@expo/snapback-client` + `@expo/snapback-react` for the ES2023/ES2024
+members static Hermes lacks (`toSorted`, `toReversed`, `toSpliced`,
+`with`, `findLast`, `findLastIndex`, `Object.groupBy`, `Map.groupBy`,
+`Array.fromAsync`). Registered in `scripts/verify-local-proof` next to the
+other shipped-client gates (after `client-bundle-metrology`). Verified it
+catches the original: run against a scratch copy of the pre-fix
+`registration-ledger.mjs` it reports all four sites and exits 1; against
+the fixed tree it passes (37 shipped runtime files scanned).
+
+**Evidence:** `packages/snapback-client` suite exit 0 (all
+`registration-ledger.test.mjs` assertions included) and
+`packages/snapback-react` suite exit 0 on the fixed tree.
+
+**Still OPEN — the no-backoff retry storm (secondary defect):** the react
+provider has no retry/backoff seam on the registration-demand subscribe
+path. The storm is the render-loop resubscribe cycle
+(`useSnapbackQuery` → `useSyncExternalStore` subscribe → `startStore` →
+synchronous demand failure → error snapshot publish → re-render →
+resubscribe), and `startStore`'s rejection handler publishes the error
+without any failure-window gate; the only exponential backoff in the stack
+is `LiveStreamManager`'s socket reconnect (250ms base), a different layer
+that a synchronously-failing subscribe never reaches. Bounding this needs a
+deliberate design (per-store failure window in `startStore`, or a demand
+path failure latch), owned by the 0166 / snapback-react owners — not
+snuck into an unbrick fix. With the trigger fixed, the storm is no longer
+reachable via this defect, but any future synchronous subscribe failure
+would still thrash.

@@ -103,6 +103,11 @@ run node scripts/check-capability-maturity.mjs
 # @ref LLP 0145#phase-a--establish-a-size-ratchet — reproduce every shipped
 # client profile/subpath closure and fail on growth beyond the frozen first run.
 run node scripts/client-bundle-metrology.mjs --check
+# RN carrier conformance (issues/20260803-rn-carrier-bricked-tosorted-
+# registration-ledger.md): the shipped @expo/snapback-client and
+# @expo/snapback-react runtime graphs execute on static Hermes, which lacks
+# the ES2023+ array/grouping intrinsics node has; ban them statically.
+run node scripts/check-hermes-intrinsics.mjs
 # @ref LLP 0115#cv-1-prove-the-public-external-packagestarter-loop — CV-1 named
 # gap 4 (the `@expo/snapback-client/online` TS7016 class): every published subpath
 # must resolve declarations under the `types` condition, compile for an
