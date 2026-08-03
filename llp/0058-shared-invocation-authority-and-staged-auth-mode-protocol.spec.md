@@ -5,7 +5,10 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Security, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-08-01, later same day (LLP 0062 §4 companion: the
+**Revised:** 2026-08-03 (LLP 0109 acceptance: dated versioned-seed staging
+amendment — the specified `StartupArtifactsV2` stage/consume composition is
+recorded, and the accepted first landing defers the carrier, refusing
+cross-mode install before any stage). 2026-08-01, later same day (LLP 0062 §4 companion: the
 `app-cli.target` eligibility descriptor lands as a structured capability-manifest
 block — principal classes, envelope service, generation-assertion admission,
 per-grant token cap — echoed by sessions discovery, with absence as the honest
@@ -2064,6 +2067,36 @@ remote-service, workerd-conformance, and Cloudflare targets withhold it —
 §4's matrix admits remote service only "once it advertises `app-cli.target`"
 and puts hosted out of phase 1 — so each is honestly capability-absent rather
 than inheriting a claim from the local declaration.
+
+## Dated amendment: versioned seed staging (2026-08-03, LLP 0109 acceptance)
+
+Accepted LLP 0109 (author acceptance 2026-08-03, decision sitting #2
+extension, `issues/20260803-author-decision-sitting-2.md`) — its §3.1.1
+specifies the closed pre-bind `StartupArtifactsV2` carrier whose
+discriminated `seedInstall` branch composes this Spec's two transactions:
+the **stage** transaction validates the complete pair and seed artifact and
+atomically installs application rows, maintained projections, seed
+identity/receipt, and pending deployment metadata without activating the
+catalog binding; the **consume** transaction revalidates the staged
+digest/stream/receipt, activates the catalog/provider binding, and
+publishes the prepared function/routes generation. A crash after stage
+restarts from the durable staged receipt and never reseeds; a failed or
+quarantined consume leaves admission closed and the staged successor
+reconcilable. Identity and the establishing receipt written at stage imply
+no catalog admission until consume succeeds.
+
+The accepted first landing (LLP 0109 §15.2) **defers that carrier**: no
+`StartupArtifactsV2` ships, cross-mode versioned install refuses
+`SNAPBACK_SEED_CROSS_MODE_UNSUPPORTED` before any stage or write, and
+tooling supplies the existing `StartupArtifacts` carrier with its legacy
+`seed` member absent, invoking the named `app.seed.*` operations only after
+sessions activation has completed under this Spec's admission fence.
+Sessions membership seed follows LLP 0109 §8's ordering — a recoverable
+catalog-eligible principal precedes membership fixture validation, while
+catalog activation stays behind this Spec's stage/consume fence (the
+membership fixture lane landed 2026-08-01, LLP 0109 §18). This amendment
+records the specified composition and the deferral; it claims no
+`StartupArtifactsV2` implementation.
 
 ## Status
 

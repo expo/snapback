@@ -5,7 +5,10 @@
 **Systems:** Wire Protocol, Realtime, Live Queries, Client SDK, HTTP surface, Cloudflare arm, Schema governance
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-25
-**Revised:** 2026-08-03 (Accepted 2026-08-03 by the author — decision
+**Revised:** 2026-08-03, later (LLP 0109 acceptance reconciliation: the
+versioned-seed closed families land under the reserved admin namespace —
+`/app/ensure` unchanged on both arms; see the dated section).
+2026-08-03 (Accepted 2026-08-03 by the author — decision
 sitting #2, "accept all that verify",
 `issues/20260803-author-decision-sitting-2.md`; gate verified: no unresolved
 blocking review finding, the remaining §Open questions carry recorded
@@ -1333,3 +1336,35 @@ amendment requires the §0C.5 matrix row, connection-record subscribe check,
 regenerated closed input schema, hosted decoder, and LLP 0093 offered/legacy/
 unknown fixtures when implementation lands. None is claimed present by this
 docs-only fold.
+
+## LLP 0109 versioned-seed wire reconciliation — 2026-08-03
+
+Accepted LLP 0109 (author acceptance 2026-08-03, decision sitting #2
+extension, `issues/20260803-author-decision-sitting-2.md`) lands its closed
+request/response/reset families **outside** wire v1's client-visible
+matrix: the four carriers live under the reserved admin namespace
+(`/_snapback/api/app/seed/{ensure-v1,preview-v1,reset-install-v1,clear-v1}`
+— §0A.2's rule, LLP 0031's matrix owns them) with the
+`app.seed.{ensure,preview,reset-install,clear}.v1` host operations, whose
+closed Rust-owned bodies ride only under `HostOpsRequest.input`; wrapper
+fields never enter the seed request digests, and host failures use LLP
+0024's understood-failure HTTP-200 envelope. Consequences for this
+contract:
+
+- `/app/ensure` is unchanged in both directions: the §0C.1 closed intent
+  body row and the §0C.2 closed outcomes row gain no `install` member (LLP
+  0109 §15.3 supersedes its §3.1 sketch for the first landing), and the
+  hosted `kitEnsureApp` open-decode + seed-if-empty row stays as recorded.
+- No legacy fallback exists on the wire: a versioned client that cannot
+  preflight `versioned_seed_install_v1` / `versioned_seed_reset_v1`
+  (`supportedCapabilities` ids) refuses locally with
+  `SNAPBACK_CLIENT_SEED_PROTOCOL_UNSUPPORTED` and never retries through
+  legacy `provision`, untagged ensure, or the legacy reset carriers.
+- The hosted arm advertises neither capability id: hosted compiled-seed
+  custody is the conformance manifest's declared GAP row
+  (`tests/conformance/versioned-seed-v1.manifest.json`); LLP 0040's dated
+  amendment owns the compiled-identity invariant that arm must satisfy
+  first.
+
+This is a docs reconciliation of shipped, locally conformance-gated
+surface; it adds no new wire obligation to v1 clients.

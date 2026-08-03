@@ -5,7 +5,10 @@
 **Systems:** Contract/Exact, React/Expo, Client integration, Developer experience, API, Sync, Auth
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-08-01, latest (LLP 0062-02 registration: the closed
+**Revised:** 2026-08-03, latest (LLP 0109 acceptance reconciliation:
+registered versioned seed installation as a separate closed family — the
+`/app/ensure` intent union is unchanged — plus its status-mapper rows; see
+the dated amendment). 2026-08-01 (LLP 0062-02 registration: the closed
 `provision` DTO gains the optional `apiEnvelope` members carrier
 (`ApiEnvelopeMembersV1`) — member material the server composes and
 self-verifies at activation, never a received whole envelope; the
@@ -1268,3 +1271,45 @@ obligations for the operation-identity widening:
 - `identity-horizon-passed` is handled as outcome-unknown — never recorded
   as a terminal `failed` — and `result-expired` as outcome-known with the
   payload gone.
+
+## Amendment (2026-08-03 — LLP 0109 acceptance reconciliation)
+
+Accepted LLP 0109 (author acceptance 2026-08-03, decision sitting #2
+extension, `issues/20260803-author-decision-sitting-2.md`) adds versioned
+seed installation as a **separate closed family**, not new members of this
+Spec's `/app/ensure` intent union:
+
+- The closed `attest`/`provision`/legacy-untagged union above is
+  byte-unchanged. Legacy untagged ensure and explicit `provision` retain
+  their settled seed-if-empty behavior (LLP 0034) and never write versioned
+  seed identity. The first landing adds no `install` intent to `/app/ensure`
+  (LLP 0109 §15.3 supersedes its §3.1 sketch): the carriers are the
+  Rust-owned closed `InstallSeedRequestV1` / `SeedPreviewRequestV1` /
+  `ResetSeedRequestV1` bodies with closed receipt/observation results on the
+  reserved
+  `/_snapback/api/app/seed/{ensure-v1,preview-v1,reset-install-v1,clear-v1}`
+  routes and the `app.seed.{ensure,preview,reset-install,clear}.v1` host
+  operations (registered by LLP 0031's and LLP 0024's dated amendments; all
+  four require `AdminWrite + NonProd`, preview included).
+- Capability preflight uses the existing `supportedCapabilities` member with
+  the experimental ids `versioned_seed_install_v1` and
+  `versioned_seed_reset_v1`. A client holding a versioned artifact against a
+  target lacking the ids fails locally with
+  `SNAPBACK_CLIENT_SEED_PROTOCOL_UNSUPPORTED` (never an HTTP response) and
+  never downgrades to legacy seed, untagged ensure, or the legacy reset
+  carriers.
+- Status-mapper registration under the existing allow-list rule, as
+  implemented: the seed conflict family is HTTP 409 —
+  `SNAPBACK_SEED_VERSION_REUSED`, `SNAPBACK_SEED_NONEMPTY_UNTRACKED`,
+  `SNAPBACK_SEED_PARTIAL_UNTRACKED`, `SNAPBACK_SEED_MIGRATION_REQUIRED`,
+  `SNAPBACK_SEED_IDENTITY_CORRUPT`, `SNAPBACK_SEED_IDENTITY_CONFLICT`,
+  `SNAPBACK_SEED_CROSS_MODE_UNSUPPORTED`,
+  `SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED` (retired from the
+  sessions membership lane by LLP 0109 §18 but still allow-listed),
+  `SNAPBACK_SEED_OPERATION_ID_REUSED`, `SNAPBACK_SEED_OPERATION_HISTORICAL`,
+  `SNAPBACK_SEED_EFFECT_LIMIT_EXCEEDED`, and
+  `SNAPBACK_SEED_REPLAY_REQUIRES_PREFLIGHT`; authored/carrier declaration
+  failures are 400 (`SNAPBACK_SEED_DECLARATION_INVALID`, legacy
+  `SNAPBACK_SEED_INVALID`); the pre-existing `SNAPBACK_AUTH_MODE_PENDING`
+  503 wins before the seed routes; an unregistered seed code remains a
+  truthful 500.

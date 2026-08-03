@@ -5,7 +5,10 @@
 **Systems:** Application data API, Query planning, Storage portability, Live Queries, Authorization, Code generation, Maintained projections, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-08-03 (retention-class dated amendment landed with
+**Revised:** 2026-08-03, later (LLP 0109 acceptance reconciliation:
+versioned seed install/reset-install recorded as sanctioned bulk writers
+through the real maintenance path with the shared observable-effect
+accounting; no projection semantics change.) 2026-08-03 (retention-class dated amendment landed with
 Accepted LLP 0166: the closed set gains `result-transform-snapshot-v1`
 — per-plan, owner-issued, own-fragments-only result transforms under
 LLP 0166 §D7's conformance gate, inheriting opaque-snapshot custody; the
@@ -796,3 +799,24 @@ in LLP 0157. LLP 0157's fragment seam does not authorize local relational
 re-evaluation: this RFC's opaque-snapshot-only retention rule remains until a
 separately accepted amendment changes it. No implementation or capability
 fact follows from the boundary.
+
+## LLP 0109 acceptance reconciliation — 2026-08-03
+
+Accepted LLP 0109 (author acceptance 2026-08-03, decision sitting #2
+extension, `issues/20260803-author-decision-sitting-2.md`) records
+versioned seed installation and reset-install as sanctioned bulk writers
+through this RFC's maintenance path, changing no projection semantics:
+every active or candidate maintained projection sourced by seed rows is
+maintained in the same durability transaction as the inserts, through the
+real maintenance path (reverse-index reads and derived writes), under the
+same authorization commit hook. Projection output tables are never legal
+seed targets. The versioned-seed effect ceiling counts exactly this RFC's
+observable application effects —
+`directApplicationRows + distinctChangedProjectionOutputRows`, bounded by
+`VERSIONED_SEED_MAX_EFFECTS_V1` (1,024) — refusing
+`SNAPBACK_SEED_EFFECT_LIMIT_EXCEEDED` before commit with every application
+and protected byte unchanged. Framework bookkeeping (reset deletions,
+stream metadata, the installation and completed-operation rows) is reported
+separately and consumes no application-effect budget; seed preview executes
+the same DML against an owned disposable snapshot. No grammar, visibility,
+index, or maintenance rule changes.

@@ -5,7 +5,11 @@
 **Systems:** Local server lifecycle, HTTP surface, Security/authorization, Admin API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-01
-**Revised:** 2026-08-03 (added LLP 0156's error-triage routes and host
+**Revised:** 2026-08-03, latest (LLP 0109 acceptance: the versioned-seed
+route-family amendment gains its dated supplement — normative gate-before-
+decode order including preview, and the redaction-bounded response posture
+with `AdminSecretRead` as the sole gated-detail lane.) Earlier:
+2026-08-03 (added LLP 0156's error-triage routes and host
 operations with the structural `OperatorMetadata` / raw
 `AdminSecretRead` split and an `AdminWrite` transition; earlier the same day,
 reconciled the enforced route matrix with LLP 0143's session-only PUSH token
@@ -1216,6 +1220,23 @@ reserved administrative app-lifecycle routes. Each is centrally classified
 AdminWrite and NonProd before its closed Rust body is parsed or seed state is
 inspected. The four routes have one-to-one LLP 0024 host-operation names and
 no legacy or root alias.
+
+*Dated supplement (2026-08-03, LLP 0109 acceptance — decision sitting #2
+extension, `issues/20260803-author-decision-sitting-2.md`):* the family's
+gate order and response posture are normative. Authentication/profile
+refusal precedes seed-state inspection, operation replay, and
+request-specific diagnostics, and the closed body is decoded only behind
+the gate — including read-only `preview-v1`, which deliberately carries the
+same `AdminWrite + NonProd` requirement as the effectful routes (LLP 0109
+§16.3). Seed responses and diagnostics are redaction-bounded: underlying
+membership/schema/storage failures surface through a schema-owned public
+projection whose safe details are limited to format/protocol versions,
+`appId`, `seedVersion`, digests, target-table names and empty/nonempty
+counts, schema hash, profile, and the opaque stream identity — never row
+values, principals, credentials, filesystem paths, provider/credential
+facts, or secret-like argument bytes. The original bounded detail is
+reachable only through this Spec's separately gated sessions
+`AdminSecretRead`/developer twin where its own policy permits it.
 
 ## Dated amendment: app-CLI exact scoped-token release (2026-08-01)
 

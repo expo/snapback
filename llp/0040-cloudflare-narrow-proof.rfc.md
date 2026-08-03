@@ -5,7 +5,7 @@
 **Systems:** Deployment, Runtime, Storage, Sync, Realtime, Security, Developer experience, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-08-01 (live fan-out now conservatively considers every subscribed live-query function on every non-empty commit, closing the under-declared/unwitnessed-read false-negative while retaining indexed durable-registry selection and equal-shape query grouping; All Aboard pins the two-table regression). 2026-07-17 (the pinned Node 24.18.0 protocol-hardening proof now uses an `Expect: 100-continue` header-only exchange for oversized uploads, preserving the real-loopback Content-Length fast path without starting a reset-prone uploader or retrying); 2026-07-12 (ENG-24341–ENG-24369 / ENG-24387–ENG-24388 final review: subscription rows/args and both legacy/total sockets have enforced manifest-advertised ceilings; foundational schema drift remains diagnosable/resettable; deploy health is pinned to Cloudflare's exact Worker-version metadata after code deploy and a post-secret final deploy. Earlier:
+**Revised:** 2026-08-03 (LLP 0109 acceptance: dated amendment extending the compiled-seed invariant to versioned `SeedArtifactV1` identity — caller bytes attest, only exact-identity compiled bytes write, and the hosted arm stays a declared conformance GAP that advertises neither versioned-seed capability). 2026-08-01 (live fan-out now conservatively considers every subscribed live-query function on every non-empty commit, closing the under-declared/unwitnessed-read false-negative while retaining indexed durable-registry selection and equal-shape query grouping; All Aboard pins the two-table regression). 2026-07-17 (the pinned Node 24.18.0 protocol-hardening proof now uses an `Expect: 100-continue` header-only exchange for oversized uploads, preserving the real-loopback Content-Length fast path without starting a reset-prone uploader or retrying); 2026-07-12 (ENG-24341–ENG-24369 / ENG-24387–ENG-24388 final review: subscription rows/args and both legacy/total sockets have enforced manifest-advertised ceilings; foundational schema drift remains diagnosable/resettable; deploy health is pinned to Cloudflare's exact Worker-version metadata after code deploy and a post-secret final deploy. Earlier:
 whole-codebase review hardening closes hosted provisioning, schema/index,
 action/cron, secret, realtime-session, request-decoding, reset/migration,
 deployment-identity, config-operations, bootstrap, and cache-hygiene gaps; see
@@ -732,6 +732,28 @@ the real-loopback Content-Length fast path and is not a retry. Production keeps
 the bounded early rejection, the exact diagnostic and no-side-effect
 assertions are unchanged, and any first transport failure still fails the
 proof.
+
+## Dated amendment: compiled versioned-seed identity (2026-08-03, LLP 0109 acceptance)
+
+Accepted LLP 0109 (author acceptance 2026-08-03, decision sitting #2
+extension, `issues/20260803-author-decision-sitting-2.md`) extends this
+proof's compiled-seed invariant to versioned artifact identity. On hosted
+targets the rule above — `/app/ensure` never consumes caller seed bytes —
+remains authoritative for versioned installation: caller bytes may *attest*
+the requested `(appId, seedVersion, seedDigest)` identity but are never the
+production write source. The clean compiled release contains one
+`SeedArtifactV1`; the coordinator recomputes and requires exact
+app/version/digest/table identity, then applies only those compiled bytes.
+Malicious or mismatched caller content, release rollback, and a concurrent
+clean-object race refuse without falling back to caller or legacy seed.
+
+As of this amendment the hosted arm implements none of the versioned
+family: it is the conformance manifest's one declared machine-readable GAP
+row (`tests/conformance/versioned-seed-v1.manifest.json`) and must not
+advertise `versioned_seed_install_v1` or `versioned_seed_reset_v1` until
+every applicable matrix row passes (LLP 0109 §15.5/§16.6). The hosted
+`kitEnsureApp` deploy-identity-compare + seed-if-empty behavior recorded by
+LLP 0094 is unchanged.
 
 ## Status
 

@@ -1,11 +1,17 @@
 # LLP 0109: Versioned seed evolution
 
 **Type:** Spec
-**Status:** Review
+**Status:** Accepted
 **Systems:** Authoring, Code generation, App provisioning, Storage, Schema evolution, Auth, Inspection, Client integration, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-01 (§18 dated amendment: the §8 membership fixture
+**Revised:** 2026-08-03 (Accepted by the author — decision sitting #2
+extension, explicit commission 2026-08-03,
+`issues/20260803-author-decision-sitting-2.md` — with §14's required
+reconciliation set landed in the same change: dated amendments in LLP 0012,
+LLP 0094, LLP 0034, LLP 0031, LLP 0040, LLP 0058, LLP 0059, LLP 0080, and
+LLP 0081; status Review → Accepted.)
+2026-08-01 (§18 dated amendment: the §8 membership fixture
 lane lands, commissioned by LLP 0100 §8b — fixture seats through the
 `MembershipWriter::Seed` writer with per-row provenance, membership
 tables as legal seed/reset targets, the first-landing
@@ -1222,16 +1228,23 @@ skipping reset, inspection, compiled custody, or transaction rows.
 
 ## 14. Status
 
-Review. Acceptance requires reconciliation amendments in LLP 0012 and LLP 0094
-for the new closed request/response/reset families, LLP 0034 for the explicit
-exception to legacy seed-if-empty, LLP 0031 for gated decode/redaction, LLP
-0040 for compiled artifact identity, LLP 0058 for StartupArtifactsV2
-stage/consume, LLP 0059 for idempotent predecessor-bound reset, LLP 0080 for
-projection maintenance, and LLP 0081 for migration-plan-v2 seed transition/
-restore/rollback publication. Implementation may prototype behind an
-unadvertised capability, but no target may advertise
-`snapback.ensure.seed.v1` or `snapback.reset.seed.v1` until its complete §12
-matrix passes.
+Accepted (2026-08-03) by the author — decision sitting #2 extension,
+explicit commission 2026-08-03
+(`issues/20260803-author-decision-sitting-2.md`) — with the required
+reconciliation amendments landed in the same change: LLP 0012 and LLP 0094
+for the new closed request/response/reset families, LLP 0034 for the
+explicit exception to legacy seed-if-empty, LLP 0031 for gated
+decode/redaction, LLP 0040 for compiled artifact identity, LLP 0058 for
+StartupArtifactsV2 stage/consume, LLP 0059 for idempotent
+predecessor-bound reset, LLP 0080 for projection maintenance, and LLP 0081
+for migration-plan-v2 seed transition/restore/rollback publication.
+Implementation may prototype behind an unadvertised capability, but no
+target may advertise the versioned-seed capabilities (§15.3's
+`versioned_seed_install_v1` / `versioned_seed_reset_v1`, superseding the
+`snapback.ensure.seed.v1` / `snapback.reset.seed.v1` protocol-bit sketch)
+until its complete conformance matrix passes — §16.6's executable manifest
+is the sole advertisement gate, and §16.7 records the local target's landed
+evidence.
 
 ## 15. Round-2 author reconciliation for the first landing
 

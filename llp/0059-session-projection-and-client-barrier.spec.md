@@ -5,7 +5,11 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-26 (authorization-reservation contention is an explicit
+**Revised:** 2026-08-03 (LLP 0109 acceptance: dated amendment recording the
+versioned reset carriers' idempotency contract — operation-id/request-digest/
+expected-stream binding, same-transaction operation journal, replay that
+observes current state before historical completion, no separate seed
+journal or publication phase). 2026-07-26 (authorization-reservation contention is an explicit
 retryable 409 conflict before any durable effect, with a short-jitter retry
 strategy); 2026-07-23 (sender-bound amendment, per the LLP 0077 author
 decisions: `BoundGrantAuthorityV2` — the session arm gains the custody key's
@@ -3015,3 +3019,27 @@ data-stream rotation. They retain the stream ticket, blocked admission,
 successor projection/issuer publication, commit-uncertainty reconciliation,
 and release/response ordering defined here. A postcommit failure therefore
 reconciles the committed successor and never reruns seed row effects.
+
+## Dated amendment: versioned seed reset idempotency and predecessor binding (2026-08-03, LLP 0109 acceptance)
+
+Supplementing the 2026-07-27 amendment above with the accepted first
+landing's idempotency contract (LLP 0109 §15.4/§16; author acceptance
+2026-08-03, decision sitting #2 extension,
+`issues/20260803-author-decision-sitting-2.md`): every versioned reset
+carrier binds a caller-minted canonical UUIDv7 `operationId`, a
+domain-separated JCS request digest over the complete closed body, and the
+tagged `expectedDataVersionStream` (`absent`, or `present` with the exact
+predecessor stream), so a stale-predecessor request refuses before this
+Spec's coordinator closes any lane — and a deployed predecessor binary
+cannot execute the effect while discarding the versioned body, because it
+does not know the carrier names at all. Completed effectful operations are
+journaled in `_snapback_seed_operations_v1` inside the same single reset
+SQLite transaction this Spec owns; there is no separate seed journal or
+publication phase, and recovery has only `not committed` and `committed`.
+Replay observes current state before historical completion: an identical
+retry returns the stored receipt only after the stored successor stream
+matches the current stream and the active installation matches the stored
+receipt; a differing stream refuses `SNAPBACK_SEED_OPERATION_HISTORICAL`, a
+reused id with different bytes refuses
+`SNAPBACK_SEED_OPERATION_ID_REUSED`, and effects are never rerun. A
+`matched` ensure is a pure observation and journals nothing.

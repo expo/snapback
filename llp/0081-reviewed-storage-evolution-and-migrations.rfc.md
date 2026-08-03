@@ -5,7 +5,11 @@
 **Systems:** Schema evolution, Migrations, Storage portability, Deployment, Backup and restore, Code generation, CLI, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-08-03 (dated amendment — author ruling, Charlie Cheever,
+**Revised:** 2026-08-03, later (LLP 0109 acceptance: dated versioned-seed
+transitions amendment — `migration-plan-v1` unchanged, the specified
+`migration-plan-v2` `seedTransition` binding recorded, and the accepted
+first landing's removal of v2/restore-rebase/rollback-republish from v1
+recorded; no implementation claimed.) 2026-08-03 (dated amendment — author ruling, Charlie Cheever,
 via LLP 0160 OQ6: the settlement path for an incompatible client's
 quarantined offline mutations is **explicit tombstone-and-re-entry** — each
 quarantined mutation is recorded as a stable, redacted tombstone the client
@@ -844,3 +848,39 @@ control-plane or LLP 0063's Step 5/6 claims without their own receipts.
    unchanged: the profile is buildable as a spec now, but its conformance
    corpus can only be claimed after the container-VM adapter passes the
    LLP 0072 drill corpus with remote evidence.
+
+## Dated amendment: versioned seed transitions (2026-08-03, LLP 0109 acceptance)
+
+Accepted LLP 0109 (author acceptance 2026-08-03, decision sitting #2
+extension, `issues/20260803-author-decision-sitting-2.md`) fixes the
+seed/migration boundary against this RFC. Seed never substitutes for
+migration: a versioned `install` may accompany only a fresh or LLP
+0007-safe additive schema provision and refuses
+`SNAPBACK_SEED_MIGRATION_REQUIRED` before any schema, function, row, or
+identity effect when a reviewed migration is required.
+
+Seed-aware evolution is specified as `migration-plan-v2` — this RFC's
+`migration-plan-v1` stays closed and unchanged, and a v1 executor rejects a
+v2 plan before effects — whose only added canonical member is
+`seedTransition`: either `unchanged` (binding the exact current
+identity/absence on both sides) or `evolve` (binding one valid installed
+predecessor identity, one successor identity for the same app and data
+stream, and both artifact and tables digests, with typed migration steps —
+never the seed installer — expressing every intended data change). The
+transition participates in this RFC's length-framed `planDigest`, approval,
+preview, journal, checkpoint, publication, and rollback evidence; the
+successor seed identity is written only in the migration's atomic
+publication transaction; and generation republish, reverse migration, and
+restore each carry a truthful successor-identity receipt. There is no
+adopt/infer/force or metadata-only advance over untracked data.
+
+The accepted first landing (LLP 0109 §15.2) **removes migration-plan-v2,
+restore-rebase, and rollback-republish from v1**: no identity-advance step
+ships; an installed instance presented with another identity refuses, and
+the operator's remedy is an authorized whole-instance reset-install.
+Restore already rotates the data-version stream, so a restored target has
+absent active seed identity and requires an explicit reset-install before a
+versioned declaration becomes active again. A future migration/restore
+identity extension requires its own reviewed LLP. This amendment records
+the specified v2 binding and the v1 removal; it claims no
+`migration-plan-v2` implementation.
