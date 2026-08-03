@@ -6,7 +6,11 @@
 generation, Authorization, Live Queries, Diagnostics, Testing, Demo apps
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-08-02 (the commissioned handler-tier sequence slice landed:
+**Revised:** 2026-08-03 (Accepted LLP 0157 boundary: snapshot-batch execution
+semantics remain here; LLP 0157 now owns the composition identity,
+completeness model, shared cursor registry, and exact `sbsb1` grammar, so the
+held implementation may consume them without advertising capability early);
+2026-08-02 (the commissioned handler-tier sequence slice landed:
 declarations, `ctx.sequence.allocate`, authoritative commit/replay facts,
 order-field bounds, capability registration, and the A6 fixture; snapshot
 batch remains held pending LLP 0155 Move 1); 2026-08-02 (the §4 acceptance folds landed as dated owner
@@ -162,7 +166,7 @@ pre-decision, and the branch outcome stays SD-2's alone. The
 reasoning is now explicit in §5.2 and §Nonclaims.)
 **Related:** LLP 0003, LLP 0007, LLP 0008, LLP 0043, LLP 0051,
 LLP 0053, LLP 0065, LLP 0080, LLP 0108, LLP 0110, LLP 0113, LLP 0115,
-LLP 0120, LLP 0125, LLP 0127, LLP 0129, LLP 0130, LLP 0133, LLP 0134,
+LLP 0120, LLP 0125, LLP 0127, LLP 0129, LLP 0130, LLP 0133, LLP 0134, LLP 0157,
 Diary 0033, Diary 0034, Diary 0039, issue
 `20260730-move6-sequence-and-3a-design-passes`
 
@@ -1058,9 +1062,25 @@ This is deliberately not a whole-Spec `Implemented` claim. The generated
 `AllocateSequence` host-plan step, lane-Q mutation-atomic optimistic
 withholding, the two app-authored abort-disclosure vectors, and the complete
 multi-writer performance/commit-order corpus remain unbuilt. The entire
-snapshot-batch half (`snapshot_batch_v1`, `sbsb1`, and `sbbc1`) is held because
-LLP 0155 Move 1's composition-algebra Spec has not been commissioned to pin
-the shared cursor grammar. No snapshot capability is registered or advertised.
+snapshot-batch half (`snapshot_batch_v1`, `sbsb1`, and `sbbc1`) was held
+pending the composition-algebra owner. Accepted LLP 0157 now pins the shared
+cursor registry and exact `sbsb1` grammar, so implementation may proceed
+against it. No snapshot capability is registered or advertised until this
+Spec's executable and qualification gates pass.
+
+## LLP 0157 acceptance boundary — 2026-08-03
+
+This Spec continues to own `snapshot-batch.v1` static admission,
+one-snapshot execution, parent-authorization deduplication, seal-entirely
+results, coordinated resume semantics, work ceilings, live classification,
+experimental acknowledgment, and its executable capability gate. Accepted
+LLP 0157 owns the query-node algebra around that substrate,
+`NodePlanHashV1`/`PlanHashV1`/`QueryMaterializationKeyV1`, completeness
+proofs and page-set composition, the shared `sbbc1`/`sbsb1` cursor-family
+registry, and the exact `sbsb1` body/serializer/budget. The held implementation
+must consume those records and may not mint a parallel cursor, liveness, or
+identity shape. Acceptance unblocks implementation; it does not register or
+advertise `snapshot_batch_v1`.
 
 ## Nonclaims
 

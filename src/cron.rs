@@ -1823,14 +1823,21 @@ mod tests {
         let now = 1_753_000_000_123_u64;
         let slot = now / 60_000 * 60_000;
         let claims = runtime.claim_due_runs(&manifest, &BTreeSet::new(), now);
-        assert_eq!(claims.len(), 1, "the seeded catch-up run still claims immediately");
+        assert_eq!(
+            claims.len(),
+            1,
+            "the seeded catch-up run still claims immediately"
+        );
         let metadata = &claims[0].metadata;
         assert_eq!(
             metadata.scheduled_at_ms,
             Some(slot),
             "catch-up nominal must be the most recent epoch-aligned slot"
         );
-        assert_eq!(metadata.due_at_ms, slot, "jitter disabled: due is the seeded slot");
+        assert_eq!(
+            metadata.due_at_ms, slot,
+            "jitter disabled: due is the seeded slot"
+        );
         assert!(
             now - metadata.due_at_ms < 60_000,
             "the run's trusted clock stays within one interval of wall clock"

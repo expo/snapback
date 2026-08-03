@@ -263,6 +263,9 @@ mod tests {
             mutation: None,
             tagged_values: Some(Value::Null),
         };
-        assert!(tagged.validate().is_err(), "reserved member must refuse in v1");
+        assert!(
+            tagged.validate().is_err(),
+            "reserved member must refuse in v1"
+        );
     }
 }

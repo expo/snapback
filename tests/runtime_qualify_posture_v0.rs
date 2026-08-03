@@ -133,7 +133,10 @@ fn input() -> HandlerInput {
 }
 
 fn assert_fail_closed(probe: &Value, label: &str) {
-    let fetch_state = probe.get("fetchState").and_then(Value::as_str).unwrap_or("");
+    let fetch_state = probe
+        .get("fetchState")
+        .and_then(Value::as_str)
+        .unwrap_or("");
     assert!(
         fetch_state == "denied" || fetch_state == "unavailable",
         "{label}: the transactional path must never get network, got {probe}"
@@ -148,8 +151,16 @@ fn assert_fail_closed(probe: &Value, label: &str) {
         Some(&json!("blocked")),
         "{label}: dynamic evaluation must stay unavailable (no-eval VM): {probe}"
     );
-    assert_eq!(probe.get("processAbsent"), Some(&json!(true)), "{label}: {probe}");
-    assert_eq!(probe.get("requireAbsent"), Some(&json!(true)), "{label}: {probe}");
+    assert_eq!(
+        probe.get("processAbsent"),
+        Some(&json!(true)),
+        "{label}: {probe}"
+    );
+    assert_eq!(
+        probe.get("requireAbsent"),
+        Some(&json!(true)),
+        "{label}: {probe}"
+    );
 }
 
 #[test]

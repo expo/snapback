@@ -167,6 +167,7 @@ const inventories = [
     packageDir: 'packages/snapback-codegen',
     testDir: '.',
     suffix: '.test.mjs',
+    scriptNames: ['pretest', 'test'],
     expectedFiles: [
       'api-envelope-members.test.mjs',
       'args-contract-goldens.test.mjs',
@@ -206,6 +207,8 @@ const inventories = [
       'seed-asset-fixtures.test.mjs',
       'settlement-bounded-skew.test.mjs',
       'standard-patterns.test.mjs',
+      'vector-distance-fixtures.test.mjs',
+      'vector-result-contracts.test.mjs',
     ],
   },
   {
@@ -449,7 +452,9 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // 165 -> 166 (2026-08-02, LLP 0135 sequence half): @expo/snapback-codegen
 // gains declared sequence, order-field-bound, A6 replacement, and capability
 // emission acceptance.
-assert.equal(total, 166, 'reviewed package/admin test count changed');
+// 166 -> 168 (2026-08-03, LLP 0132): @expo/snapback-codegen gains the vector
+// distance-profile corpus and vector-result-contract suites.
+assert.equal(total, 168, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

@@ -5,7 +5,10 @@
 **Systems:** React, React/Expo, Client integration, Live Queries, Ephemeral state, Code generation, Sync, Auth, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-01 (offline binding receipt: online preparation persists
+**Revised:** 2026-08-03 (Accepted LLP 0157 boundary: the React key remains the
+provider-scoped UI index, while `qmk1` and the complete owner-issued authority
+partition supply the semantic materialization address beneath it);
+2026-08-01 (offline binding receipt: online preparation persists
 a digest-bound receipt of the admitted generated manifest + deployment
 identity into the persisted RQS store, and a transport-provenance
 connectivity failure at prepare time re-runs the complete admission against
@@ -34,7 +37,7 @@ initial-data path, group/store bounds and SSR snapshots are pinned, and
 authority replacement/disposal are explicit). 2026-07-27 (initial focused
 specification for the backend-bakeoff React, presence, and aggregate-query
 program)
-**Related:** LLP 0000, LLP 0012, LLP 0013, LLP 0034, LLP 0043, LLP 0053, LLP 0059, LLP 0064, LLP 0074, LLP 0090, LLP 0092, LLP 0108
+**Related:** LLP 0000, LLP 0012, LLP 0013, LLP 0034, LLP 0043, LLP 0053, LLP 0059, LLP 0064, LLP 0074, LLP 0090, LLP 0092, LLP 0108, LLP 0157
 
 ## Summary
 
@@ -1382,3 +1385,16 @@ user-switch custody wipe drops the receipt with the rest of the store.
 Regression witness: `packages/snapback-react/cold-boot-binding.test.mjs`
 (real client over a scripted wire; warmed store; cold offline process
 reaches a ready provider rendering `freshness: 'retained'` rows).
+
+## LLP 0157 acceptance boundary — 2026-08-03
+
+Accepted LLP 0157 places one semantic materialization address beneath this
+Spec's unchanged provider-scoped React key. The existing key remains the UI
+registry index; after composition admission it resolves through the exact
+`qmk1` subkey plus client-store/provider namespace and LLP 0053 query instance.
+The bound headless client is the sole producer of LLP 0157's complete
+`AuthorityPartitionV1`, including principal/data scope and the explicit
+tenant, provider, fingerprint, and delegation axes; callers still cannot
+author a partition. Prepared binding must exact-match the LLP 0157 activation
+and generated-reference facts before creating a materialization. This note
+does not accept this Review-status Spec or advertise a new capability.

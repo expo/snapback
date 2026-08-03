@@ -58,7 +58,10 @@ pub(crate) struct StepBudget {
 
 impl StepBudget {
     pub(crate) fn start(ceilings: &AssetImageCeilingsV1) -> Self {
-        Self { started: std::time::Instant::now(), budget_ms: ceilings.step_time_budget_ms }
+        Self {
+            started: std::time::Instant::now(),
+            budget_ms: ceilings.step_time_budget_ms,
+        }
     }
 
     fn check(&self, step: &str) -> SnapbackResult<()> {
@@ -67,7 +70,10 @@ impl StepBudget {
             return Err(SnapbackError::error(
                 "SNAPBACK_ASSET_IMAGE_TIME_BUDGET_EXCEEDED",
                 "assets",
-                format!("processing exceeded its {}ms budget after {step}", self.budget_ms),
+                format!(
+                    "processing exceeded its {}ms budget after {step}",
+                    self.budget_ms
+                ),
             ));
         }
         Ok(())
@@ -95,20 +101,15 @@ fn header_dimensions(bytes: &[u8], content_type: &str) -> SnapbackResult<(u32, u
                     break;
                 }
                 let marker = bytes[cursor + 1];
-                let length =
-                    u16::from_be_bytes([bytes[cursor + 2], bytes[cursor + 3]]) as usize;
+                let length = u16::from_be_bytes([bytes[cursor + 2], bytes[cursor + 3]]) as usize;
                 if matches!(marker, 0xC0..=0xCF)
                     && !matches!(marker, 0xC4 | 0xC8 | 0xCC)
                     && cursor + 9 <= bytes.len()
                 {
-                    let height = u32::from(u16::from_be_bytes([
-                        bytes[cursor + 5],
-                        bytes[cursor + 6],
-                    ]));
-                    let width = u32::from(u16::from_be_bytes([
-                        bytes[cursor + 7],
-                        bytes[cursor + 8],
-                    ]));
+                    let height =
+                        u32::from(u16::from_be_bytes([bytes[cursor + 5], bytes[cursor + 6]]));
+                    let width =
+                        u32::from(u16::from_be_bytes([bytes[cursor + 7], bytes[cursor + 8]]));
                     return Ok((width, height));
                 }
                 if marker == 0xDA {
@@ -194,7 +195,9 @@ pub struct AssetImageSafeExif {
 }
 
 fn exif_fields(bytes: &[u8]) -> Option<exif::Exif> {
-    exif::Reader::new().read_from_container(&mut std::io::Cursor::new(bytes)).ok()
+    exif::Reader::new()
+        .read_from_container(&mut std::io::Cursor::new(bytes))
+        .ok()
 }
 
 pub fn extract_safe_exif(bytes: &[u8]) -> AssetImageSafeExif {
@@ -209,7 +212,10 @@ pub fn extract_safe_exif(bytes: &[u8]) -> AssetImageSafeExif {
     let captured_at = exif
         .get_field(exif::Tag::DateTimeOriginal, exif::In::PRIMARY)
         .map(|field| field.display_value().to_string());
-    AssetImageSafeExif { orientation, captured_at }
+    AssetImageSafeExif {
+        orientation,
+        captured_at,
+    }
 }
 
 /// Total metadata-segment size (JPEG APPn segments / PNG ancillary chunks),
@@ -227,8 +233,7 @@ fn metadata_bytes(bytes: &[u8], content_type: &str) -> u64 {
                 if marker == 0xDA {
                     break;
                 }
-                let length =
-                    u64::from(u16::from_be_bytes([bytes[cursor + 2], bytes[cursor + 3]]));
+                let length = u64::from(u16::from_be_bytes([bytes[cursor + 2], bytes[cursor + 3]]));
                 if (0xE0..=0xEF).contains(&marker) || marker == 0xFE {
                     total = total.saturating_add(length);
                 }
@@ -337,16 +342,12 @@ mod thumbhash {
                 while cx * ny < nx * (ny - cy) {
                     let mut f = 0f64;
                     for (x, slot) in fx.iter_mut().enumerate() {
-                        *slot = (std::f64::consts::PI / w as f64
-                            * cx as f64
-                            * (x as f64 + 0.5))
-                            .cos();
+                        *slot =
+                            (std::f64::consts::PI / w as f64 * cx as f64 * (x as f64 + 0.5)).cos();
                     }
                     for y in 0..h {
-                        let fy = (std::f64::consts::PI / h as f64
-                            * cy as f64
-                            * (y as f64 + 0.5))
-                            .cos();
+                        let fy =
+                            (std::f64::consts::PI / h as f64 * cy as f64 * (y as f64 + 0.5)).cos();
                         for x in 0..w {
                             f += channel[x + y * w] * fx[x] * fy;
                         }
@@ -372,8 +373,11 @@ mod thumbhash {
         let (l_dc, l_ac, l_scale) = encode_channel(&l, lx.max(3), ly.max(3));
         let (p_dc, p_ac, p_scale) = encode_channel(&p, 3, 3);
         let (q_dc, q_ac, q_scale) = encode_channel(&q, 3, 3);
-        let (a_dc, a_ac, a_scale) =
-            if has_alpha { encode_channel(&a, 5, 5) } else { (1.0, Vec::new(), 1.0) };
+        let (a_dc, a_ac, a_scale) = if has_alpha {
+            encode_channel(&a, 5, 5)
+        } else {
+            (1.0, Vec::new(), 1.0)
+        };
 
         let is_landscape = w > h;
         let header24: u32 = ((63.0 * l_dc).round() as u32)
@@ -394,9 +398,7 @@ mod thumbhash {
         ];
         let ac_start = if has_alpha { 6 } else { 5 };
         if has_alpha {
-            hash.push(
-                ((15.0 * a_dc).round() as u8) | (((15.0 * a_scale).round() as u8) << 4),
-            );
+            hash.push(((15.0 * a_dc).round() as u8) | (((15.0 * a_scale).round() as u8) << 4));
         }
         let mut ac_index = 0usize;
         let channels: &[&[f64]] = if has_alpha {
@@ -453,7 +455,10 @@ fn derive_image_facts(oriented: &DynamicImage) -> AssetImageDerivedFacts {
     } else {
         "#000000".to_owned()
     };
-    AssetImageDerivedFacts { placeholder, dominant_color }
+    AssetImageDerivedFacts {
+        placeholder,
+        dominant_color,
+    }
 }
 
 /// Facts-only inspection for images published without rewriting (retain
@@ -516,8 +521,7 @@ pub fn render_variant(
     match content_type {
         "image/jpeg" => {
             let mut cursor = std::io::Cursor::new(&mut out);
-            let mut encoder =
-                image::codecs::jpeg::JpegEncoder::new_with_quality(&mut cursor, 90);
+            let mut encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut cursor, 90);
             encoder
                 .encode_image(&resized.to_rgb8())
                 .map_err(|error| decode_error(format!("variant jpeg encode failed: {error}")))?;
@@ -586,8 +590,7 @@ pub fn canonicalize_strip(
     match content_type {
         "image/jpeg" => {
             let mut cursor = std::io::Cursor::new(&mut canonical);
-            let mut encoder =
-                image::codecs::jpeg::JpegEncoder::new_with_quality(&mut cursor, 90);
+            let mut encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut cursor, 90);
             encoder
                 .encode_image(&oriented.to_rgb8())
                 .map_err(|error| decode_error(format!("jpeg re-encode failed: {error}")))?;
@@ -616,7 +619,13 @@ pub fn canonicalize_strip(
             ceilings.max_output_bytes
         )));
     }
-    Ok(AssetImageStripOutcome { canonical, safe_exif, width, height, derived })
+    Ok(AssetImageStripOutcome {
+        canonical,
+        safe_exif,
+        width,
+        height,
+        derived,
+    })
 }
 
 #[cfg(test)]
@@ -647,8 +656,7 @@ pub(crate) mod fixtures {
         let image = deterministic_rgb(width, height);
         let mut encoded = Vec::new();
         let mut cursor = std::io::Cursor::new(&mut encoded);
-        let mut encoder =
-            image::codecs::jpeg::JpegEncoder::new_with_quality(&mut cursor, quality);
+        let mut encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut cursor, quality);
         encoder.encode_image(&image).expect("fixture jpeg encodes");
         drop(encoder);
         encoded
@@ -683,17 +691,9 @@ pub(crate) mod fixtures {
         let orientation_value = exif::Value::Short(vec![orientation]);
         let captured = exif::Value::Ascii(vec![b"2026:07:30 12:00:00".to_vec()]);
         let lat_ref = exif::Value::Ascii(vec![b"N".to_vec()]);
-        let lat = exif::Value::Rational(vec![
-            (37, 1).into(),
-            (46, 1).into(),
-            (30, 1).into(),
-        ]);
+        let lat = exif::Value::Rational(vec![(37, 1).into(), (46, 1).into(), (30, 1).into()]);
         let lon_ref = exif::Value::Ascii(vec![b"W".to_vec()]);
-        let lon = exif::Value::Rational(vec![
-            (122, 1).into(),
-            (25, 1).into(),
-            (10, 1).into(),
-        ]);
+        let lon = exif::Value::Rational(vec![(122, 1).into(), (25, 1).into(), (10, 1).into()]);
         let orientation_field = exif::Field {
             tag: exif::Tag::Orientation,
             ifd_num: exif::In::PRIMARY,
@@ -732,7 +732,9 @@ pub(crate) mod fixtures {
         writer.push_field(&lon_ref_field);
         writer.push_field(&lon_field);
         let mut payload = std::io::Cursor::new(Vec::new());
-        writer.write(&mut payload, false).expect("exif payload writes");
+        writer
+            .write(&mut payload, false)
+            .expect("exif payload writes");
         let mut out = b"Exif\0\0".to_vec();
         out.extend_from_slice(payload.get_ref());
         out
@@ -760,16 +762,25 @@ mod tests {
         let bomb = fixtures::dimension_lying_png(100_000, 100_000);
         let error = canonicalize_strip(&bomb, "image/png", &small_ceilings())
             .expect_err("dimension lie refuses");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_IMAGE_BOUNDS_EXCEEDED");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_ASSET_IMAGE_BOUNDS_EXCEEDED"
+        );
     }
 
     #[test]
     fn asset_image_pixel_ceiling_refuses_within_dimension_bound() {
-        let ceilings = AssetImageCeilingsV1 { max_pixels: 100, ..small_ceilings() };
+        let ceilings = AssetImageCeilingsV1 {
+            max_pixels: 100,
+            ..small_ceilings()
+        };
         let fixture = fixtures::plain_jpeg(64, 64);
         let error = canonicalize_strip(&fixture, "image/jpeg", &ceilings)
             .expect_err("pixel ceiling refuses");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_IMAGE_BOUNDS_EXCEEDED");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_ASSET_IMAGE_BOUNDS_EXCEEDED"
+        );
     }
 
     #[test]
@@ -782,9 +793,11 @@ mod tests {
             ..small_ceilings()
         };
         let bomb = fixtures::dimension_lying_png(4_000, 4_000);
-        let error = canonicalize_strip(&bomb, "image/png", &ceilings)
-            .expect_err("ratio refuses");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_IMAGE_BOUNDS_EXCEEDED");
+        let error = canonicalize_strip(&bomb, "image/png", &ceilings).expect_err("ratio refuses");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_ASSET_IMAGE_BOUNDS_EXCEEDED"
+        );
     }
 
     #[test]
@@ -798,19 +811,28 @@ mod tests {
 
     #[test]
     fn asset_image_metadata_bomb_refuses() {
-        let ceilings = AssetImageCeilingsV1 { max_metadata_bytes: 16, ..small_ceilings() };
+        let ceilings = AssetImageCeilingsV1 {
+            max_metadata_bytes: 16,
+            ..small_ceilings()
+        };
         let fixture = fixtures::jpeg_with_gps_exif(16, 16, 1);
         let error = canonicalize_strip(&fixture, "image/jpeg", &ceilings)
             .expect_err("metadata ceiling refuses");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_IMAGE_BOUNDS_EXCEEDED");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_ASSET_IMAGE_BOUNDS_EXCEEDED"
+        );
     }
 
     #[test]
     fn asset_image_zero_time_budget_refuses() {
-        let ceilings = AssetImageCeilingsV1 { step_time_budget_ms: 0, ..small_ceilings() };
+        let ceilings = AssetImageCeilingsV1 {
+            step_time_budget_ms: 0,
+            ..small_ceilings()
+        };
         let fixture = fixtures::plain_jpeg(32, 32);
-        let error = canonicalize_strip(&fixture, "image/jpeg", &ceilings)
-            .expect_err("zero budget refuses");
+        let error =
+            canonicalize_strip(&fixture, "image/jpeg", &ceilings).expect_err("zero budget refuses");
         assert_eq!(
             error.diagnostic.code,
             "SNAPBACK_ASSET_IMAGE_TIME_BUDGET_EXCEEDED"
@@ -819,11 +841,17 @@ mod tests {
 
     #[test]
     fn asset_image_output_ceiling_refuses() {
-        let ceilings = AssetImageCeilingsV1 { max_output_bytes: 64, ..small_ceilings() };
+        let ceilings = AssetImageCeilingsV1 {
+            max_output_bytes: 64,
+            ..small_ceilings()
+        };
         let fixture = fixtures::plain_jpeg(64, 64);
         let error = canonicalize_strip(&fixture, "image/jpeg", &ceilings)
             .expect_err("output ceiling refuses");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_IMAGE_BOUNDS_EXCEEDED");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_ASSET_IMAGE_BOUNDS_EXCEEDED"
+        );
     }
 
     #[test]
@@ -847,16 +875,18 @@ mod tests {
         // dropped every metadata container, GPS with it.
         let mut cursor = 2usize;
         while cursor + 4 <= outcome.canonical.len() {
-            assert_eq!(outcome.canonical[cursor], 0xFF, "well-formed segment stream");
+            assert_eq!(
+                outcome.canonical[cursor], 0xFF,
+                "well-formed segment stream"
+            );
             let marker = outcome.canonical[cursor + 1];
             assert_ne!(marker, 0xE1, "no APP1/EXIF segment survives the strip");
             if marker == 0xDA {
                 break;
             }
-            let length = u16::from_be_bytes([
-                outcome.canonical[cursor + 2],
-                outcome.canonical[cursor + 3],
-            ]) as usize;
+            let length =
+                u16::from_be_bytes([outcome.canonical[cursor + 2], outcome.canonical[cursor + 3]])
+                    as usize;
             cursor += 2 + length;
         }
         // And the extraction on the canonical bytes finds nothing.
@@ -868,10 +898,10 @@ mod tests {
     #[test]
     fn asset_image_strip_is_deterministic_for_dedup() {
         let fixture = fixtures::jpeg_with_gps_exif(24, 24, 1);
-        let first = canonicalize_strip(&fixture, "image/jpeg", &small_ceilings())
-            .expect("first strip");
-        let second = canonicalize_strip(&fixture, "image/jpeg", &small_ceilings())
-            .expect("second strip");
+        let first =
+            canonicalize_strip(&fixture, "image/jpeg", &small_ceilings()).expect("first strip");
+        let second =
+            canonicalize_strip(&fixture, "image/jpeg", &small_ceilings()).expect("second strip");
         assert_eq!(first.canonical, second.canonical);
     }
 
@@ -879,10 +909,8 @@ mod tests {
     fn asset_image_thumbhash_is_deterministic_and_reference_shaped() {
         let image = fixtures::deterministic_rgb(64, 32);
         let rgba = image::DynamicImage::ImageRgb8(image).to_rgba8();
-        let first =
-            thumbhash::rgba_to_thumb_hash(64, 32, rgba.as_raw());
-        let second =
-            thumbhash::rgba_to_thumb_hash(64, 32, rgba.as_raw());
+        let first = thumbhash::rgba_to_thumb_hash(64, 32, rgba.as_raw());
+        let second = thumbhash::rgba_to_thumb_hash(64, 32, rgba.as_raw());
         assert_eq!(first, second, "same pixels must hash identically");
         // Reference layout facts for an opaque landscape input: no alpha bit
         // in header24, the landscape bit set in header16, and 5 header bytes
@@ -922,8 +950,7 @@ mod tests {
     fn asset_image_inspect_applies_orientation_and_derives_facts() {
         // Orientation 6 (rotate 90°): a 48x32 stored frame displays 32x48.
         let bytes = fixtures::jpeg_with_gps_exif(48, 32, 6);
-        let inspection =
-            inspect_image(&bytes, "image/jpeg", &small_ceilings()).expect("inspects");
+        let inspection = inspect_image(&bytes, "image/jpeg", &small_ceilings()).expect("inspects");
         assert_eq!((inspection.width, inspection.height), (32, 48));
         assert_eq!(inspection.safe_exif.orientation, Some(6));
         assert!(inspection.safe_exif.captured_at.is_some());
@@ -933,15 +960,19 @@ mod tests {
     #[test]
     fn asset_image_render_variant_downscales_never_upscales() {
         let canonical = fixtures::plain_jpeg(64, 48);
-        let small = render_variant(&canonical, "image/jpeg", 32, &small_ceilings())
-            .expect("renders");
+        let small =
+            render_variant(&canonical, "image/jpeg", 32, &small_ceilings()).expect("renders");
         let decoded = image::load_from_memory(&small).expect("variant decodes");
         assert_eq!(decoded.width(), 32);
         assert_eq!(decoded.height(), 24, "aspect ratio preserved");
-        let same = render_variant(&canonical, "image/jpeg", 500, &small_ceilings())
-            .expect("renders");
+        let same =
+            render_variant(&canonical, "image/jpeg", 500, &small_ceilings()).expect("renders");
         let full = image::load_from_memory(&same).expect("variant decodes");
-        assert_eq!(full.width(), 64, "a variant never upscales past the canonical width");
+        assert_eq!(
+            full.width(),
+            64,
+            "a variant never upscales past the canonical width"
+        );
     }
 
     #[test]

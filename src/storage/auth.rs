@@ -2717,8 +2717,7 @@ mod tests {
         // next export gets no table-shaped second chance to scrub old pages.
         db.with_auth_transaction(|tx| crate::push::activate_manifest_in(tx, None))
             .expect("remove push declaration storage");
-        let post_removal_image =
-            tempfile::NamedTempFile::new().expect("post-removal backup image");
+        let post_removal_image = tempfile::NamedTempFile::new().expect("post-removal backup image");
         db.backup_auth_catalog_into(post_removal_image.as_file())
             .expect("post-removal auth backup");
         let mut raw_post_removal = vec![
@@ -3045,7 +3044,10 @@ mod tests {
             let predecessor_version = db.authorization_version().unwrap();
             let predecessor_floor = db.auth_session_clock_floor().unwrap();
             let error = db
-                .apply_auth_restore_declaration(&crate::ids::mint_time_ordered(crate::ids::Kind::Declaration), 50)
+                .apply_auth_restore_declaration(
+                    &crate::ids::mint_time_ordered(crate::ids::Kind::Declaration),
+                    50,
+                )
                 .expect_err("every malformed restored timestamp must fail closed");
             assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_CATALOG_CORRUPT");
             assert_eq!(
@@ -3106,8 +3108,11 @@ mod tests {
             )
             .unwrap();
 
-        db.apply_auth_restore_declaration(&crate::ids::mint_time_ordered(crate::ids::Kind::Declaration), 50)
-            .unwrap();
+        db.apply_auth_restore_declaration(
+            &crate::ids::mint_time_ordered(crate::ids::Kind::Declaration),
+            50,
+        )
+        .unwrap();
 
         assert_eq!(
             db.inspect_auth_catalog().unwrap(),

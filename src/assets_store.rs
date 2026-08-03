@@ -143,7 +143,11 @@ pub(crate) fn hash_path(path: &std::path::Path) -> SnapbackResult<AssetObjectDig
         .iter()
         .map(|byte| format!("{byte:02x}"))
         .collect::<String>();
-    Ok(AssetObjectDigest { byte_length, digest, head })
+    Ok(AssetObjectDigest {
+        byte_length,
+        digest,
+        head,
+    })
 }
 
 impl AssetStore for AssetFsStore {

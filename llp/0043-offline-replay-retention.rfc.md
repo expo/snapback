@@ -5,7 +5,10 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-08-02 (Accepted LLP 0135 overlay fold: a changeset requiring
+**Revised:** 2026-08-03 (Accepted LLP 0157 boundary: composition
+materializations use its `qmk1` semantic address and proof/witness model;
+legacy retained records migrate only under the exact atomic guard recorded in
+the dated section below); 2026-08-02 (Accepted LLP 0135 overlay fold: a changeset requiring
 sequence-projected placement is withheld whole until settlement);
 2026-08-01 (settlement lifecycle amendment: the client crosses one
 atomic durable-consumption boundary before publishing a result, retaining the
@@ -46,7 +49,7 @@ revisions, ratified by Charlie — see
 LLP 0012's parity rule, client-side replay restored per 0008, DK-9 cited
 instead of re-enumerated, suppression/conflict machinery restated; initial
 same day)
-**Related:** LLP 0000, LLP 0004, LLP 0007, LLP 0008, LLP 0010, LLP 0011, LLP 0012, LLP 0034, LLP 0038, LLP 0039, LLP 0053, LLP 0059
+**Related:** LLP 0000, LLP 0004, LLP 0007, LLP 0008, LLP 0010, LLP 0011, LLP 0012, LLP 0034, LLP 0038, LLP 0039, LLP 0053, LLP 0059, LLP 0157
 
 ## Summary
 
@@ -529,3 +532,16 @@ returns the authoritative allocation. It may not guess, locally allocate, or
 show the unaffected subset. This extends the existing changeset-atomicity
 rule and does not claim the sequence surface or its client projection is
 implemented.
+
+## LLP 0157 acceptance boundary — 2026-08-03
+
+Accepted LLP 0157 owns `QueryMaterializationKeyV1` (`qmk1`), completeness
+proofs, and the retained-fragment seam for composed reads. This RFC continues
+to own carrier custody, leases, fences, pending-intent preservation, and
+crash-safe migration. A legacy `retainedQueryKey(name,args)` record adopts
+`qmk1` only when the exact registered plan, function reference, activation,
+canonical arguments, and authority partition are recomputable and payload,
+lease, fence high-waters, obligations, and pending-intent references move
+atomically. Otherwise it remains non-renderable under its old fence until a
+fresh sync creates the new address, then retires; it is never relabeled in
+place. This boundary changes no implementation or capability claim here.

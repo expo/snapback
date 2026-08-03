@@ -877,14 +877,12 @@ pub fn artifact_instances() -> Vec<SchemaArtifact> {
     // committed pure-contract fixtures let Rust and package consumers prove
     // classification, carrier allocation, and fingerprint bytes before any
     // storage or runtime wiring lands.
-    artifacts.extend(
-        crate::error_tracking::artifact_instances()
-            .into_iter()
-            .map(|(file, schema)| SchemaArtifact {
-                file,
-                schema: sorted_keys(schema),
-            }),
-    );
+    artifacts.extend(crate::error_tracking::artifact_instances().into_iter().map(
+        |(file, schema)| SchemaArtifact {
+            file,
+            schema: sorted_keys(schema),
+        },
+    ));
     artifacts
 }
 

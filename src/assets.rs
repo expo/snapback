@@ -1042,10 +1042,16 @@ pub fn ensure_intent_generation(
                  ) VALUES (?1, ?2, 1, 0, ?3)",
                 rusqlite::params![intent_id, intent_policy_hash, now_ms],
             )?;
-            IntentGeneration { generation: 1, revoked: false }
+            IntentGeneration {
+                generation: 1,
+                revoked: false,
+            }
         }
         Some((stored_hash, generation, revoked)) if stored_hash == intent_policy_hash => {
-            IntentGeneration { generation, revoked }
+            IntentGeneration {
+                generation,
+                revoked,
+            }
         }
         Some((_, generation, _)) => {
             // A changed intent activated: bump, and clear any revocation —
@@ -1057,7 +1063,10 @@ pub fn ensure_intent_generation(
                  WHERE intent_id = ?1",
                 rusqlite::params![intent_id, intent_policy_hash, generation + 1, now_ms],
             )?;
-            IntentGeneration { generation: generation + 1, revoked: false }
+            IntentGeneration {
+                generation: generation + 1,
+                revoked: false,
+            }
         }
     };
     // Retention (LLP 0044 v6.1 reading (a)): the artifact that can re-run
@@ -1094,9 +1103,7 @@ pub fn load_intent_artifact(
 /// attempt was admitted under them. The current generation's artifact is
 /// always kept. Returns the reclaimed (intent, generation) pairs so the
 /// sweep can receipt each one.
-pub fn reclaim_intent_artifacts(
-    tx: &Transaction<'_>,
-) -> SnapbackResult<Vec<(String, u64)>> {
+pub fn reclaim_intent_artifacts(tx: &Transaction<'_>) -> SnapbackResult<Vec<(String, u64)>> {
     let mut statement = tx.prepare(
         "DELETE FROM _snapback_asset_intent_artifacts_v1 AS a
          WHERE NOT EXISTS (
@@ -1163,10 +1170,9 @@ pub fn receipts_for_asset(
         "SELECT record_json FROM _snapback_asset_receipts_v1
          WHERE asset_id = ?1 ORDER BY at_ms ASC, receipt_id ASC LIMIT ?2",
     )?;
-    let rows = statement
-        .query_map(rusqlite::params![asset_id, limit as i64], |row| {
-            row.get::<_, String>(0)
-        })?;
+    let rows = statement.query_map(rusqlite::params![asset_id, limit as i64], |row| {
+        row.get::<_, String>(0)
+    })?;
     let mut parsed = Vec::new();
     for json in rows {
         parsed.push(decode_record(&json?)?);
@@ -1207,10 +1213,10 @@ pub fn assets_in_state(
                  WHERE availability = ?1
                  ORDER BY updated_at_ms DESC, asset_id ASC LIMIT ?2",
             )?;
-            let rows = statement.query_map(
-                rusqlite::params![state_str(state)?, limit as i64],
-                |row| row.get::<_, String>(0),
-            )?;
+            let rows = statement
+                .query_map(rusqlite::params![state_str(state)?, limit as i64], |row| {
+                    row.get::<_, String>(0)
+                })?;
             for json in rows {
                 parsed.push(decode_record(&json?)?);
             }
@@ -1220,10 +1226,9 @@ pub fn assets_in_state(
                 "SELECT record_json FROM _snapback_asset_records_v1
                  ORDER BY updated_at_ms DESC, asset_id ASC LIMIT ?1",
             )?;
-            let rows = statement
-                .query_map(rusqlite::params![limit as i64], |row| {
-                    row.get::<_, String>(0)
-                })?;
+            let rows = statement.query_map(rusqlite::params![limit as i64], |row| {
+                row.get::<_, String>(0)
+            })?;
             for json in rows {
                 parsed.push(decode_record(&json?)?);
             }
@@ -1566,15 +1571,14 @@ pub fn verify_attachment(
     authority: &AssetCommitAuthority<'_>,
 ) -> SnapbackResult<AssetRecordV1> {
     if let (Some(field), Some(named)) = (field_restriction, admission_upload)
-        && field != named {
-            return Err(attach_refusal(
-                "SNAPBACK_ASSET_ATTACH_INTENT_MISMATCH",
-                format!(
-                    "attach named upload intent {named:?} but the field restricts to {field:?}"
-                ),
-                asset_id,
-            ));
-        }
+        && field != named
+    {
+        return Err(attach_refusal(
+            "SNAPBACK_ASSET_ATTACH_INTENT_MISMATCH",
+            format!("attach named upload intent {named:?} but the field restricts to {field:?}"),
+            asset_id,
+        ));
+    }
     let asset = load_asset(tx, asset_id)?.ok_or_else(|| {
         attach_refusal(
             "SNAPBACK_ASSET_ATTACH_DENIED",
@@ -1590,16 +1594,18 @@ pub fn verify_attachment(
         ));
     }
     if let Some(restriction) = field_restriction.or(admission_upload)
-        && asset.intent_name != restriction && asset.intent_id != restriction {
-            return Err(attach_refusal(
-                "SNAPBACK_ASSET_ATTACH_INTENT_MISMATCH",
-                format!(
-                    "asset was admitted by intent {:?}, not {restriction:?}",
-                    asset.intent_name
-                ),
-                asset_id,
-            ));
-        }
+        && asset.intent_name != restriction
+        && asset.intent_id != restriction
+    {
+        return Err(attach_refusal(
+            "SNAPBACK_ASSET_ATTACH_INTENT_MISMATCH",
+            format!(
+                "asset was admitted by intent {:?}, not {restriction:?}",
+                asset.intent_name
+            ),
+            asset_id,
+        ));
+    }
     match asset.availability {
         AssetAvailability::Pending | AssetAvailability::Ready => {}
         other => {
@@ -1829,7 +1835,11 @@ pub fn asset_accounting(tx: &Transaction<'_>, app_id: &str) -> SnapbackResult<As
         rusqlite::params![app_id, ASSET_MIN_ACCOUNTING_UNIT_BYTES],
         |row| row.get(0),
     )?;
-    Ok(AssetAccounting { reserved_bytes, settled_bytes, open_attempts_app })
+    Ok(AssetAccounting {
+        reserved_bytes,
+        settled_bytes,
+        open_attempts_app,
+    })
 }
 
 pub fn open_attempts_for_principal(
@@ -1874,11 +1884,17 @@ impl AssetFsStore {
                 SnapbackError::error(
                     "SNAPBACK_ASSET_STORE_UNAVAILABLE",
                     "assets",
-                    format!("cannot create asset store directory {}: {error}", dir.display()),
+                    format!(
+                        "cannot create asset store directory {}: {error}",
+                        dir.display()
+                    ),
                 )
             })?;
         }
-        Ok(Self { staging_dir, blobs_dir })
+        Ok(Self {
+            staging_dir,
+            blobs_dir,
+        })
     }
 
     /// Opaque keys are UUIDv7 (LLP 0004's ratified id algorithm) — never
@@ -1917,7 +1933,10 @@ impl AssetFsStore {
                 SnapbackError::error(
                     "SNAPBACK_ASSET_STORE_UNAVAILABLE",
                     "assets",
-                    format!("cannot list asset store directory {}: {error}", dir.display()),
+                    format!(
+                        "cannot list asset store directory {}: {error}",
+                        dir.display()
+                    ),
                 )
             })?;
             for entry in entries.flatten() {
@@ -1988,10 +2007,7 @@ impl AssetFsStore {
 }
 
 fn validated_key(key: &str) -> SnapbackResult<&str> {
-    let valid = !key.is_empty()
-        && key
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '-');
+    let valid = !key.is_empty() && key.chars().all(|c| c.is_ascii_alphanumeric() || c == '-');
     if !valid {
         return Err(SnapbackError::error(
             "SNAPBACK_ASSET_STORE_KEY_INVALID",
@@ -2033,7 +2049,13 @@ pub fn acquire_blob_reference(
              WHERE app_id = ?1 AND digest_algorithm = ?2 AND digest = ?3
                AND canonicalization_policy = ?4 AND condemned = 0
              RETURNING blob_id",
-            rusqlite::params![app_id, digest_algorithm, digest, canonicalization_policy, now_ms],
+            rusqlite::params![
+                app_id,
+                digest_algorithm,
+                digest,
+                canonicalization_policy,
+                now_ms
+            ],
             |row| row.get(0),
         )
         .optional()?;
@@ -2094,7 +2116,9 @@ pub fn insert_blob(
         &record.canonicalization_policy,
         now_ms,
     )? {
-        BlobAcquisition::Adopted { blob_id } => Ok(BlobInsertOutcome::ConvergedOnWinner { blob_id }),
+        BlobAcquisition::Adopted { blob_id } => {
+            Ok(BlobInsertOutcome::ConvergedOnWinner { blob_id })
+        }
         // The identity row exists but is condemned: the caller keeps its own
         // publication as a fresh blob under a new physical key. Surfaced as a
         // structured refusal for now; the finalizer ticket owns the retry.
@@ -2216,7 +2240,10 @@ pub fn load_blob_live(
 
 pub const ASSET_RENDITION_PRIMARY: &str = "primary";
 
-pub fn insert_rendition(tx: &Transaction<'_>, record: &AssetRenditionRecordV1) -> SnapbackResult<()> {
+pub fn insert_rendition(
+    tx: &Transaction<'_>,
+    record: &AssetRenditionRecordV1,
+) -> SnapbackResult<()> {
     tx.execute(
         "INSERT INTO _snapback_asset_renditions_v1 (
              rendition_id, asset_id, variant_key, blob_id, state, record_json,
@@ -2251,10 +2278,7 @@ pub fn load_rendition(
 
 /// The closed rendition transition table. `retired` is the deletion
 /// cascade's terminal state; every live state reaches it.
-pub fn rendition_transition_allowed(
-    from: AssetRenditionState,
-    to: AssetRenditionState,
-) -> bool {
+pub fn rendition_transition_allowed(from: AssetRenditionState, to: AssetRenditionState) -> bool {
     use AssetRenditionState as R;
     matches!(
         (from, to),
@@ -2268,7 +2292,10 @@ pub fn rendition_transition_allowed(
     )
 }
 
-pub fn store_rendition(tx: &Transaction<'_>, record: &AssetRenditionRecordV1) -> SnapbackResult<()> {
+pub fn store_rendition(
+    tx: &Transaction<'_>,
+    record: &AssetRenditionRecordV1,
+) -> SnapbackResult<()> {
     let changed = tx.execute(
         "UPDATE _snapback_asset_renditions_v1
          SET state = ?2, record_json = ?3, updated_at_ms = ?4
@@ -2551,8 +2578,8 @@ fn signed_url_input(
 fn signed_url_hmac(material: &[u8], input: &str) -> String {
     use base64::Engine as _;
     use hmac::Mac as _;
-    let mut mac = hmac::Hmac::<sha2::Sha256>::new_from_slice(material)
-        .expect("hmac accepts any key length");
+    let mut mac =
+        hmac::Hmac::<sha2::Sha256>::new_from_slice(material).expect("hmac accepts any key length");
     mac.update(input.as_bytes());
     base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(mac.finalize().into_bytes())
 }
@@ -2575,7 +2602,13 @@ pub fn mint_signed_url_token(
     use base64::Engine as _;
     let sig = signed_url_hmac(
         &key.material,
-        &signed_url_input(asset_id, variant, grantee, lifecycle_generation, expires_at_ms),
+        &signed_url_input(
+            asset_id,
+            variant,
+            grantee,
+            lifecycle_generation,
+            expires_at_ms,
+        ),
     );
     let grantee_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(grantee.as_bytes());
     format!("v1.{}.{expires_at_ms}.{grantee_b64}.{sig}", key.key_id)
@@ -2612,8 +2645,7 @@ pub fn validate_signed_url_token(
     let Ok(expires_at_ms) = expires.parse::<u64>() else {
         return Ok(SignedTokenOutcome::Invalid);
     };
-    let Ok(grantee_bytes) =
-        base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(grantee_b64)
+    let Ok(grantee_bytes) = base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(grantee_b64)
     else {
         return Ok(SignedTokenOutcome::Invalid);
     };
@@ -2625,7 +2657,13 @@ pub fn validate_signed_url_token(
     };
     let expected = signed_url_hmac(
         &material,
-        &signed_url_input(asset_id, variant, &grantee, lifecycle_generation, expires_at_ms),
+        &signed_url_input(
+            asset_id,
+            variant,
+            &grantee,
+            lifecycle_generation,
+            expires_at_ms,
+        ),
     );
     // Constant-time comparison of equal-length base64 strings.
     let matches = expected.len() == sig.len()
@@ -2672,7 +2710,10 @@ pub fn sanitize_filename(declared: Option<&str>) -> String {
 pub enum ByteRangeOutcome {
     Full,
     /// Inclusive byte window.
-    Partial { start: u64, end: u64 },
+    Partial {
+        start: u64,
+        end: u64,
+    },
     Unsatisfiable,
 }
 
@@ -2699,7 +2740,10 @@ pub fn parse_byte_range(header: Option<&str>, total_length: u64) -> ByteRangeOut
             return ByteRangeOutcome::Unsatisfiable;
         }
         let start = total_length.saturating_sub(suffix);
-        return ByteRangeOutcome::Partial { start, end: total_length - 1 };
+        return ByteRangeOutcome::Partial {
+            start,
+            end: total_length - 1,
+        };
     }
     let Ok(start) = raw_start.parse::<u64>() else {
         return ByteRangeOutcome::Full;
@@ -2708,7 +2752,10 @@ pub fn parse_byte_range(header: Option<&str>, total_length: u64) -> ByteRangeOut
         return ByteRangeOutcome::Unsatisfiable;
     }
     if raw_end.is_empty() {
-        return ByteRangeOutcome::Partial { start, end: total_length - 1 };
+        return ByteRangeOutcome::Partial {
+            start,
+            end: total_length - 1,
+        };
     }
     let Ok(end) = raw_end.parse::<u64>() else {
         return ByteRangeOutcome::Full;
@@ -2716,7 +2763,10 @@ pub fn parse_byte_range(header: Option<&str>, total_length: u64) -> ByteRangeOut
     if end < start {
         return ByteRangeOutcome::Unsatisfiable;
     }
-    ByteRangeOutcome::Partial { start, end: end.min(total_length - 1) }
+    ByteRangeOutcome::Partial {
+        start,
+        end: end.min(total_length - 1),
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -2775,10 +2825,7 @@ pub fn reclaimable_pending_assets(
 
 /// Deleted-asset tombstones past retention with no remaining edges; the
 /// sweep purges these rows (and their retired renditions) outright.
-pub fn purgeable_tombstones(
-    tx: &Transaction<'_>,
-    cutoff_ms: u64,
-) -> SnapbackResult<Vec<String>> {
+pub fn purgeable_tombstones(tx: &Transaction<'_>, cutoff_ms: u64) -> SnapbackResult<Vec<String>> {
     let mut stmt = tx.prepare(
         "SELECT a.asset_id FROM _snapback_asset_records_v1 a
          WHERE a.availability = 'deleted'
@@ -2805,9 +2852,8 @@ pub fn condemnable_blobs(
 }
 
 pub fn condemned_blobs(tx: &Transaction<'_>) -> SnapbackResult<Vec<AssetBlobRecordV1>> {
-    let mut stmt = tx.prepare(
-        "SELECT record_json FROM _snapback_asset_blobs_v1 WHERE condemned = 1",
-    )?;
+    let mut stmt =
+        tx.prepare("SELECT record_json FROM _snapback_asset_blobs_v1 WHERE condemned = 1")?;
     let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
     rows.map(|json| decode_record(&json?))
         .collect::<SnapbackResult<Vec<_>>>()
@@ -2925,7 +2971,10 @@ pub fn transition_publication(
         return Err(SnapbackError::error(
             "SNAPBACK_ASSET_RECORD_INVALID",
             "assets",
-            format!("publication {} does not exist to update", record.publication_id),
+            format!(
+                "publication {} does not exist to update",
+                record.publication_id
+            ),
         ));
     }
     Ok(())
@@ -2960,7 +3009,15 @@ pub fn enqueue_work(
     lifecycle_generation: u64,
     now_ms: u64,
 ) -> SnapbackResult<String> {
-    enqueue_work_with_params(tx, kind, asset_id, attempt_id, lifecycle_generation, now_ms, None)
+    enqueue_work_with_params(
+        tx,
+        kind,
+        asset_id,
+        attempt_id,
+        lifecycle_generation,
+        now_ms,
+        None,
+    )
 }
 
 pub fn enqueue_work_with_params(
@@ -3394,10 +3451,7 @@ pub fn resolve_seed_fixture_placeholders(
                         ),
                     ));
                 }
-                resolved_row.insert(
-                    field_name.clone(),
-                    Value::String(mapping.asset_id.clone()),
-                );
+                resolved_row.insert(field_name.clone(), Value::String(mapping.asset_id.clone()));
             }
             resolved_rows.push(resolved_row);
         }
@@ -3494,9 +3548,8 @@ pub fn load_work_row(
     tx: &Transaction<'_>,
     work_id: &str,
 ) -> SnapbackResult<Option<AssetWorkRowV1>> {
-    let mut statement = tx.prepare(
-        "SELECT record_json FROM _snapback_asset_work_ledger_v1 WHERE work_id = ?1",
-    )?;
+    let mut statement =
+        tx.prepare("SELECT record_json FROM _snapback_asset_work_ledger_v1 WHERE work_id = ?1")?;
     let mut rows = statement.query([work_id])?;
     match rows.next()? {
         Some(row) => {
@@ -3607,26 +3660,80 @@ pub fn schema_registrations() -> Vec<(&'static str, Value)> {
         serde_json::to_value(schemars::schema_for!(T)).expect("schema serializes")
     }
     vec![
-        ("asset.upload-reference.schema.json", schema_of::<AssetUploadReference>()),
-        ("asset.task-state.schema.json", schema_of::<AssetTaskStateV1>()),
-        ("asset.attempt-create-request.schema.json", schema_of::<AssetAttemptCreateRequestV1>()),
-        ("asset.attempt-create-response.schema.json", schema_of::<AssetAttemptCreateResponseV1>()),
-        ("asset.attempt-cancel-request.schema.json", schema_of::<AssetAttemptCancelRequestV1>()),
-        ("asset.tus-instruction.schema.json", schema_of::<AssetTusInstructionV1>()),
-        ("asset.s3-instruction.schema.json", schema_of::<AssetS3TransferInstructionV1>()),
-        ("asset.finalize-request.schema.json", schema_of::<AssetFinalizeRequestV1>()),
-        ("asset.finalize-response.schema.json", schema_of::<AssetFinalizeResponseV1>()),
-        ("asset.signed-url-request.schema.json", schema_of::<AssetSignedUrlIssueRequestV1>()),
-        ("asset.signed-url-response.schema.json", schema_of::<AssetSignedUrlIssueResponseV1>()),
-        ("asset.lifecycle-message.schema.json", schema_of::<AssetLifecycleMessageV1>()),
+        (
+            "asset.upload-reference.schema.json",
+            schema_of::<AssetUploadReference>(),
+        ),
+        (
+            "asset.task-state.schema.json",
+            schema_of::<AssetTaskStateV1>(),
+        ),
+        (
+            "asset.attempt-create-request.schema.json",
+            schema_of::<AssetAttemptCreateRequestV1>(),
+        ),
+        (
+            "asset.attempt-create-response.schema.json",
+            schema_of::<AssetAttemptCreateResponseV1>(),
+        ),
+        (
+            "asset.attempt-cancel-request.schema.json",
+            schema_of::<AssetAttemptCancelRequestV1>(),
+        ),
+        (
+            "asset.tus-instruction.schema.json",
+            schema_of::<AssetTusInstructionV1>(),
+        ),
+        (
+            "asset.s3-instruction.schema.json",
+            schema_of::<AssetS3TransferInstructionV1>(),
+        ),
+        (
+            "asset.finalize-request.schema.json",
+            schema_of::<AssetFinalizeRequestV1>(),
+        ),
+        (
+            "asset.finalize-response.schema.json",
+            schema_of::<AssetFinalizeResponseV1>(),
+        ),
+        (
+            "asset.signed-url-request.schema.json",
+            schema_of::<AssetSignedUrlIssueRequestV1>(),
+        ),
+        (
+            "asset.signed-url-response.schema.json",
+            schema_of::<AssetSignedUrlIssueResponseV1>(),
+        ),
+        (
+            "asset.lifecycle-message.schema.json",
+            schema_of::<AssetLifecycleMessageV1>(),
+        ),
         ("asset.receipt.schema.json", schema_of::<AssetReceiptV1>()),
-        ("asset.refusal-detail.schema.json", schema_of::<AssetRefusalDetailV1>()),
+        (
+            "asset.refusal-detail.schema.json",
+            schema_of::<AssetRefusalDetailV1>(),
+        ),
         ("asset.record.schema.json", schema_of::<AssetRecordV1>()),
-        ("asset.record-view.schema.json", schema_of::<AssetRecordClientViewV1>()),
-        ("asset.attempt-record.schema.json", schema_of::<AssetAttemptRecordV1>()),
-        ("asset.blob-record.schema.json", schema_of::<AssetBlobRecordV1>()),
-        ("asset.rendition-record.schema.json", schema_of::<AssetRenditionRecordV1>()),
-        ("asset.publication-record.schema.json", schema_of::<AssetPublicationRecordV1>()),
+        (
+            "asset.record-view.schema.json",
+            schema_of::<AssetRecordClientViewV1>(),
+        ),
+        (
+            "asset.attempt-record.schema.json",
+            schema_of::<AssetAttemptRecordV1>(),
+        ),
+        (
+            "asset.blob-record.schema.json",
+            schema_of::<AssetBlobRecordV1>(),
+        ),
+        (
+            "asset.rendition-record.schema.json",
+            schema_of::<AssetRenditionRecordV1>(),
+        ),
+        (
+            "asset.publication-record.schema.json",
+            schema_of::<AssetPublicationRecordV1>(),
+        ),
         ("asset.work-row.schema.json", schema_of::<AssetWorkRowV1>()),
         (
             "asset.cut-manifest.schema.json",
@@ -3725,7 +3832,9 @@ mod tests {
         );
         release_blob_reference(&tx, &record.blob_id, 2).expect("release");
         assert!(condemn_blob_if_unreferenced(&tx, &record.blob_id, 3).expect("condemn"));
-        let live = load_blob_live(&tx, &record.blob_id).expect("load").expect("row");
+        let live = load_blob_live(&tx, &record.blob_id)
+            .expect("load")
+            .expect("row");
         assert_eq!(live.reference_count, 0);
         assert!(live.condemned);
         assert_eq!(live.record.digest, record.digest);
@@ -3739,15 +3848,21 @@ mod tests {
                  record_json, updated_at_ms
              ) VALUES ('legacy', 'app_1', 'local-fs', 'klegacy', 'sha256',
                        'dlegacy', 'none', 42, 3, 0, ?1, 4)",
-            ["{\"blobId\":\"legacy\",\"appId\":\"app_1\",\"store\":\"local-fs\",\
+            [
+                "{\"blobId\":\"legacy\",\"appId\":\"app_1\",\"store\":\"local-fs\",\
                  \"physicalKey\":\"klegacy\",\"byteLength\":42,\
                  \"detectedContentType\":\"application/octet-stream\",\
                  \"digestAlgorithm\":\"sha256\",\"digest\":\"dlegacy\",\
                  \"canonicalizationPolicy\":\"none\",\"referenceCount\":1,\
-                 \"condemned\":false,\"createdAtMs\":1}".to_owned()],
+                 \"condemned\":false,\"createdAtMs\":1}"
+                    .to_owned(),
+            ],
         )
         .expect("legacy row");
-        assert!(load_blob(&tx, "legacy").is_err(), "legacy json refuses pre-migration");
+        assert!(
+            load_blob(&tx, "legacy").is_err(),
+            "legacy json refuses pre-migration"
+        );
         create_infra(&tx).expect("re-open migration");
         let migrated = load_blob_live(&tx, "legacy").expect("load").expect("row");
         assert_eq!(migrated.reference_count, 3, "columns are the authority");
@@ -3767,7 +3882,10 @@ mod tests {
             !condemn_blob_if_unreferenced(&tx, &record.blob_id, 2).expect("fence"),
             "a referenced blob must not be condemnable",
         );
-        assert_eq!(release_blob_reference(&tx, &record.blob_id, 3).expect("release"), 0);
+        assert_eq!(
+            release_blob_reference(&tx, &record.blob_id, 3).expect("release"),
+            0
+        );
         assert!(condemn_blob_if_unreferenced(&tx, &record.blob_id, 4).expect("condemn"));
 
         assert!(matches!(
@@ -3873,8 +3991,14 @@ mod tests {
     fn byte_ranges_parse_per_rfc_9110_single_range_semantics() {
         use ByteRangeOutcome as O;
         assert_eq!(parse_byte_range(None, 100), O::Full);
-        assert_eq!(parse_byte_range(Some("bytes=0-99"), 100), O::Partial { start: 0, end: 99 });
-        assert_eq!(parse_byte_range(Some("bytes=2-5"), 100), O::Partial { start: 2, end: 5 });
+        assert_eq!(
+            parse_byte_range(Some("bytes=0-99"), 100),
+            O::Partial { start: 0, end: 99 }
+        );
+        assert_eq!(
+            parse_byte_range(Some("bytes=2-5"), 100),
+            O::Partial { start: 2, end: 5 }
+        );
         // An end past the representation clamps (RFC 9110 §14.1.2).
         assert_eq!(
             parse_byte_range(Some("bytes=90-150"), 100),
@@ -3917,7 +4041,10 @@ mod tests {
     fn filenames_sanitize_to_safe_metadata() {
         assert_eq!(sanitize_filename(Some("photo.bin")), "photo.bin");
         // Path separators are gone; residual dots/underscores are inert.
-        assert_eq!(sanitize_filename(Some("../../etc/passwd")), "_.._etc_passwd");
+        assert_eq!(
+            sanitize_filename(Some("../../etc/passwd")),
+            "_.._etc_passwd"
+        );
         assert_eq!(sanitize_filename(Some("a\"b\r\nc.png")), "a_b__c.png");
         assert_eq!(sanitize_filename(Some("  ..  ")), "download");
         assert_eq!(sanitize_filename(None), "download");

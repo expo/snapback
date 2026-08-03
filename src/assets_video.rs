@@ -42,16 +42,14 @@ pub const ASSET_VIDEO_CEILINGS_LOCAL_V1: AssetVideoCeilingsV1 = AssetVideoCeilin
 /// Container brands the strip rewrite understands. A file whose `ftyp`
 /// names none of these (major or compatible) refuses under strip: an
 /// unknown brand may lay out metadata this walker cannot classify.
-const SUPPORTED_BRANDS: [&[u8; 4]; 6] =
-    [b"isom", b"iso2", b"mp41", b"mp42", b"avc1", b"qt  "];
+const SUPPORTED_BRANDS: [&[u8; 4]; 6] = [b"isom", b"iso2", b"mp41", b"mp42", b"avc1", b"qt  "];
 
 /// The XMP `uuid` extended type (ISO 14496-12 Annex; Adobe XMP part 3).
 /// XMP is the one `uuid` payload this walker classifies: it may carry GPS,
 /// so it is blanked wholesale. Any other `uuid` box refuses — unknown
 /// vendor metadata cannot be proven location-free.
 const XMP_UUID: [u8; 16] = [
-    0xBE, 0x7A, 0xCF, 0xCB, 0x97, 0xA9, 0x42, 0xE8, 0x9C, 0x71, 0x99, 0x94, 0x91,
-    0xE3, 0xAF, 0xAC,
+    0xBE, 0x7A, 0xCF, 0xCB, 0x97, 0xA9, 0x42, 0xE8, 0x9C, 0x71, 0x99, 0x94, 0x91, 0xE3, 0xAF, 0xAC,
 ];
 
 fn bounds_error(message: impl Into<String>) -> SnapbackError {
@@ -159,8 +157,7 @@ impl<'a> Walk<'a> {
                 if at + 16 > end {
                     return Err(parse_error("truncated largesize header"));
                 }
-                let large =
-                    u64::from_be_bytes(self.bytes[at + 8..at + 16].try_into().unwrap());
+                let large = u64::from_be_bytes(self.bytes[at + 8..at + 16].try_into().unwrap());
                 if large < 16 {
                     return Err(parse_error("largesize smaller than its header"));
                 }
@@ -178,7 +175,11 @@ impl<'a> Walk<'a> {
                 String::from_utf8_lossy(&kind)
             )));
         }
-        Ok(BoxHeader { kind, payload_start, end: box_end })
+        Ok(BoxHeader {
+            kind,
+            payload_start,
+            end: box_end,
+        })
     }
 
     fn walk_children(
@@ -203,12 +204,7 @@ impl<'a> Walk<'a> {
         Ok(())
     }
 
-    fn visit(
-        &mut self,
-        header: &BoxHeader,
-        depth: u32,
-        parent: &[u8; 4],
-    ) -> SnapbackResult<()> {
+    fn visit(&mut self, header: &BoxHeader, depth: u32, parent: &[u8; 4]) -> SnapbackResult<()> {
         let payload_len = (header.end - header.payload_start) as u64;
         match &header.kind {
             b"moov" | b"trak" => {
@@ -304,8 +300,7 @@ impl<'a> Walk<'a> {
                 // type directly.
                 let index = u32::from_be_bytes(header.kind);
                 let named_location = location_key_indices.contains(&index);
-                let direct_location =
-                    matches!(&header.kind, [0xA9, b'x', b'y', b'z'] | b"loci");
+                let direct_location = matches!(&header.kind, [0xA9, b'x', b'y', b'z'] | b"loci");
                 if named_location || direct_location {
                     self.blanks.push(BlankAction {
                         type_at: header.payload_start - 8 + 4,
@@ -328,8 +323,7 @@ impl<'a> Walk<'a> {
         if start + 8 > end {
             return Err(parse_error("keys box smaller than its header"));
         }
-        let count =
-            u32::from_be_bytes(self.bytes[start + 4..start + 8].try_into().unwrap());
+        let count = u32::from_be_bytes(self.bytes[start + 4..start + 8].try_into().unwrap());
         let mut indices = Vec::new();
         let mut at = start + 8;
         for index in 1..=count {
@@ -337,8 +331,7 @@ impl<'a> Walk<'a> {
             if at + 8 > end {
                 return Err(parse_error("keys entry truncated"));
             }
-            let size =
-                u32::from_be_bytes(self.bytes[at..at + 4].try_into().unwrap()) as usize;
+            let size = u32::from_be_bytes(self.bytes[at..at + 4].try_into().unwrap()) as usize;
             if size < 8 || at + size > end {
                 return Err(parse_error("keys entry declares a lying size"));
             }
@@ -374,11 +367,17 @@ impl<'a> Walk<'a> {
         let version = self.bytes[p];
         let (timescale, duration) = match version {
             0 if p + 24 <= header.end => (
-                u64::from(u32::from_be_bytes(self.bytes[p + 12..p + 16].try_into().unwrap())),
-                u64::from(u32::from_be_bytes(self.bytes[p + 16..p + 20].try_into().unwrap())),
+                u64::from(u32::from_be_bytes(
+                    self.bytes[p + 12..p + 16].try_into().unwrap(),
+                )),
+                u64::from(u32::from_be_bytes(
+                    self.bytes[p + 16..p + 20].try_into().unwrap(),
+                )),
             ),
             1 if p + 32 <= header.end => (
-                u64::from(u32::from_be_bytes(self.bytes[p + 20..p + 24].try_into().unwrap())),
+                u64::from(u32::from_be_bytes(
+                    self.bytes[p + 20..p + 24].try_into().unwrap(),
+                )),
                 u64::from_be_bytes(self.bytes[p + 24..p + 32].try_into().unwrap()),
             ),
             _ => return Err(parse_error("mvhd truncated for its declared version")),
@@ -402,10 +401,8 @@ impl<'a> Walk<'a> {
         if h_at + 4 > header.end {
             return Err(parse_error("tkhd truncated for its declared version"));
         }
-        let width =
-            u32::from_be_bytes(self.bytes[w_at..w_at + 4].try_into().unwrap()) >> 16;
-        let height =
-            u32::from_be_bytes(self.bytes[h_at..h_at + 4].try_into().unwrap()) >> 16;
+        let width = u32::from_be_bytes(self.bytes[w_at..w_at + 4].try_into().unwrap()) >> 16;
+        let height = u32::from_be_bytes(self.bytes[h_at..h_at + 4].try_into().unwrap()) >> 16;
         // The first visually sized track wins; audio tracks carry zeros.
         if width > 0 && height > 0 && self.facts.width.is_none() {
             self.facts.width = Some(width);
@@ -538,7 +535,7 @@ pub(crate) mod fixtures {
 
 #[cfg(test)]
 mod tests {
-    use super::fixtures::{boxed, ftyp, mvhd, GPS};
+    use super::fixtures::{GPS, boxed, ftyp, mvhd};
     use super::*;
 
     fn gps_fixture() -> Vec<u8> {
@@ -546,15 +543,16 @@ mod tests {
     }
 
     fn contains(haystack: &[u8], needle: &[u8]) -> bool {
-        haystack.windows(needle.len()).any(|window| window == needle)
+        haystack
+            .windows(needle.len())
+            .any(|window| window == needle)
     }
 
     #[test]
     fn strips_udta_gps_and_extracts_safe_facts() {
         let source = gps_fixture();
         assert!(contains(&source, GPS.as_bytes()));
-        let outcome =
-            canonicalize_strip_video(&source, &ASSET_VIDEO_CEILINGS_LOCAL_V1).unwrap();
+        let outcome = canonicalize_strip_video(&source, &ASSET_VIDEO_CEILINGS_LOCAL_V1).unwrap();
         assert_eq!(outcome.canonical.len(), source.len(), "in-place blanking");
         assert!(!contains(&outcome.canonical, GPS.as_bytes()));
         assert!(!contains(&outcome.canonical, &[0xA9, b'x', b'y', b'z']));
@@ -565,8 +563,7 @@ mod tests {
         let mdat_at = source.len() - 40;
         assert_eq!(&outcome.canonical[mdat_at..], &source[mdat_at..]);
         // Deterministic: identical input, identical canonical bytes.
-        let again =
-            canonicalize_strip_video(&source, &ASSET_VIDEO_CEILINGS_LOCAL_V1).unwrap();
+        let again = canonicalize_strip_video(&source, &ASSET_VIDEO_CEILINGS_LOCAL_V1).unwrap();
         assert_eq!(again.canonical, outcome.canonical);
     }
 
@@ -575,9 +572,11 @@ mod tests {
         let loci = boxed(b"loci", b"\x00\x00\x15\xC7somewhere");
         let mut keys_payload = 0u32.to_be_bytes().to_vec();
         keys_payload.extend_from_slice(&2u32.to_be_bytes());
-        for name in ["com.apple.quicktime.location.ISO6709", "com.apple.quicktime.model"] {
-            keys_payload
-                .extend_from_slice(&((name.len() + 8) as u32).to_be_bytes());
+        for name in [
+            "com.apple.quicktime.location.ISO6709",
+            "com.apple.quicktime.model",
+        ] {
+            keys_payload.extend_from_slice(&((name.len() + 8) as u32).to_be_bytes());
             keys_payload.extend_from_slice(b"mdta");
             keys_payload.extend_from_slice(name.as_bytes());
         }
@@ -589,14 +588,15 @@ mod tests {
         meta_payload.extend_from_slice(&[keys, ilst].concat());
         let meta = boxed(b"meta", &meta_payload);
         let udta = boxed(b"udta", &loci);
-        let moov =
-            boxed(b"moov", &[mvhd(600, 1200), udta, meta].concat());
+        let moov = boxed(b"moov", &[mvhd(600, 1200), udta, meta].concat());
         let source = [ftyp(), moov].concat();
-        let outcome =
-            canonicalize_strip_video(&source, &ASSET_VIDEO_CEILINGS_LOCAL_V1).unwrap();
+        let outcome = canonicalize_strip_video(&source, &ASSET_VIDEO_CEILINGS_LOCAL_V1).unwrap();
         assert!(!contains(&outcome.canonical, b"somewhere"));
         assert!(!contains(&outcome.canonical, GPS.as_bytes()));
-        assert!(contains(&outcome.canonical, b"Snapback Cam"), "non-location keys stay");
+        assert!(
+            contains(&outcome.canonical, b"Snapback Cam"),
+            "non-location keys stay"
+        );
         assert_eq!(outcome.facts.duration_ms, Some(2000));
     }
 
@@ -606,17 +606,18 @@ mod tests {
         xmp_payload.extend_from_slice(b"<x:xmpmeta>gps here</x:xmpmeta>");
         let xmp = boxed(b"uuid", &xmp_payload);
         let source = [ftyp(), boxed(b"moov", &mvhd(1000, 1000)), xmp].concat();
-        let outcome =
-            canonicalize_strip_video(&source, &ASSET_VIDEO_CEILINGS_LOCAL_V1).unwrap();
+        let outcome = canonicalize_strip_video(&source, &ASSET_VIDEO_CEILINGS_LOCAL_V1).unwrap();
         assert!(!contains(&outcome.canonical, b"xmpmeta"));
 
         let mut unknown_payload = [0x11u8; 16].to_vec();
         unknown_payload.extend_from_slice(b"vendor mystery");
         let unknown = boxed(b"uuid", &unknown_payload);
         let source = [ftyp(), unknown].concat();
-        let error =
-            canonicalize_strip_video(&source, &ASSET_VIDEO_CEILINGS_LOCAL_V1).unwrap_err();
-        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_VIDEO_STRIP_UNSUPPORTED");
+        let error = canonicalize_strip_video(&source, &ASSET_VIDEO_CEILINGS_LOCAL_V1).unwrap_err();
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_ASSET_VIDEO_STRIP_UNSUPPORTED"
+        );
     }
 
     #[test]
@@ -625,15 +626,14 @@ mod tests {
         let mut lying = ftyp();
         lying.extend_from_slice(&64u32.to_be_bytes());
         lying.extend_from_slice(b"moov");
-        let error =
-            canonicalize_strip_video(&lying, &ASSET_VIDEO_CEILINGS_LOCAL_V1).unwrap_err();
+        let error = canonicalize_strip_video(&lying, &ASSET_VIDEO_CEILINGS_LOCAL_V1).unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_VIDEO_PARSE_FAILED");
 
         // Truncated header.
         let mut truncated = ftyp();
         truncated.extend_from_slice(&[0, 0]);
-        let error = canonicalize_strip_video(&truncated, &ASSET_VIDEO_CEILINGS_LOCAL_V1)
-            .unwrap_err();
+        let error =
+            canonicalize_strip_video(&truncated, &ASSET_VIDEO_CEILINGS_LOCAL_V1).unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_VIDEO_PARSE_FAILED");
 
         // Nested size-0 box.
@@ -643,8 +643,7 @@ mod tests {
             [ftyp(), boxed(b"moov", &inner)].concat()
         };
         let error =
-            canonicalize_strip_video(&nested_zero, &ASSET_VIDEO_CEILINGS_LOCAL_V1)
-                .unwrap_err();
+            canonicalize_strip_video(&nested_zero, &ASSET_VIDEO_CEILINGS_LOCAL_V1).unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_VIDEO_PARSE_FAILED");
 
         // Unsupported brand.
@@ -652,9 +651,11 @@ mod tests {
         heic_payload.extend_from_slice(&0u32.to_be_bytes());
         heic_payload.extend_from_slice(b"heic");
         let heic = boxed(b"ftyp", &heic_payload);
-        let error =
-            canonicalize_strip_video(&heic, &ASSET_VIDEO_CEILINGS_LOCAL_V1).unwrap_err();
-        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_VIDEO_STRIP_UNSUPPORTED");
+        let error = canonicalize_strip_video(&heic, &ASSET_VIDEO_CEILINGS_LOCAL_V1).unwrap_err();
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_ASSET_VIDEO_STRIP_UNSUPPORTED"
+        );
     }
 
     #[test]
@@ -675,7 +676,10 @@ mod tests {
         );
         let source = [ftyp(), deep].concat();
         let error = canonicalize_strip_video(&source, &tiny).unwrap_err();
-        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_VIDEO_BOUNDS_EXCEEDED");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_ASSET_VIDEO_BOUNDS_EXCEEDED"
+        );
 
         // Count bomb.
         let mut many = ftyp();
@@ -683,24 +687,35 @@ mod tests {
             many.extend_from_slice(&boxed(b"free", &[]));
         }
         let error = canonicalize_strip_video(&many, &tiny).unwrap_err();
-        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_VIDEO_BOUNDS_EXCEEDED");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_ASSET_VIDEO_BOUNDS_EXCEEDED"
+        );
 
         // Metadata bomb.
         let fat_udta = boxed(b"udta", &[0u8; 128]);
         let source = [ftyp(), boxed(b"moov", &fat_udta)].concat();
         let error = canonicalize_strip_video(&source, &tiny).unwrap_err();
-        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_VIDEO_BOUNDS_EXCEEDED");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_ASSET_VIDEO_BOUNDS_EXCEEDED"
+        );
 
         // Whole-file ceiling.
-        let capped = AssetVideoCeilingsV1 { max_parse_bytes: 16, ..tiny };
+        let capped = AssetVideoCeilingsV1 {
+            max_parse_bytes: 16,
+            ..tiny
+        };
         let error = canonicalize_strip_video(&gps_fixture(), &capped).unwrap_err();
-        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_VIDEO_BOUNDS_EXCEEDED");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_ASSET_VIDEO_BOUNDS_EXCEEDED"
+        );
     }
 
     #[test]
     fn inspect_matches_strip_facts_and_largesize_parses() {
-        let facts =
-            inspect_video(&gps_fixture(), &ASSET_VIDEO_CEILINGS_LOCAL_V1).unwrap();
+        let facts = inspect_video(&gps_fixture(), &ASSET_VIDEO_CEILINGS_LOCAL_V1).unwrap();
         assert_eq!(facts.duration_ms, Some(2000));
         assert_eq!(facts.width, Some(640));
 

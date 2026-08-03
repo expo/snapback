@@ -2473,9 +2473,7 @@ fn validate_bounded_skew_definition(function: &FunctionDefinition) -> SnapbackRe
         .iter()
         .any(|capability| capability == "settlement.bounded_skew")
     {
-        return Err(invalid(
-            "the declaration requires settlement.bounded_skew",
-        ));
+        return Err(invalid("the declaration requires settlement.bounded_skew"));
     }
     let plan = match &function.runtime {
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan))
@@ -2483,7 +2481,11 @@ fn validate_bounded_skew_definition(function: &FunctionDefinition) -> SnapbackRe
             mutation: plan,
             ..
         })) => plan,
-        _ => return Err(invalid("only HostPlan mutations can prove a direct time sink")),
+        _ => {
+            return Err(invalid(
+                "only HostPlan mutations can prove a direct time sink",
+            ));
+        }
     };
     let matching = plan.steps.iter().filter_map(|step| match step {
         MutationStep::Insert { values, .. }
@@ -6015,15 +6017,7 @@ pub const AUTHORITY_DESCRIPTOR_MAX_SESSION_GENERATION: u64 = 9_007_199_254_740_9
 /// @ref LLP 0133#the-two-settlement-lanes — the label selects replay acceptance
 ///   or server re-derivation without granting authority.
 #[derive(
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    Deserialize,
-    Eq,
-    PartialEq,
-    Serialize,
-    schemars::JsonSchema,
+    Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum SettlementLane {
@@ -7497,7 +7491,11 @@ pub struct CapabilityManifest {
     /// 0058 amendment 2026-08-01). Absence is capability-absent: the engine
     /// refuses credentialed lanes rather than inferring eligibility from a
     /// URL or a correlated capability.
-    #[serde(default, rename = "appCliTarget", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        rename = "appCliTarget",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub app_cli_target: Option<AppCliTargetFactsV1>,
 }
 
@@ -7571,12 +7569,7 @@ impl ExpoPushSeamFactsV1 {
             send_batch_max: crate::push::PUSH_BATCH_MESSAGES_MAX as u32,
             receipt_batch_max: crate::push::PUSH_RECEIPT_BATCH_MAX as u32,
             receipt_first_poll_ms: crate::push::PUSH_RECEIPT_FIRST_POLL_MS,
-            receipt_poll_intervals_ms: vec![
-                1_800_000,
-                3_600_000,
-                7_200_000,
-                14_400_000,
-            ],
+            receipt_poll_intervals_ms: vec![1_800_000, 3_600_000, 7_200_000, 14_400_000],
             receipt_poll_max_attempts: 7,
             receipt_window_ms: crate::push::PUSH_RECEIPT_WINDOW_MS,
             registry_idle_retention_ms: CapabilityRangeV1 {

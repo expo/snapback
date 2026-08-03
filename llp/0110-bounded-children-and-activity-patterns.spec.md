@@ -5,7 +5,10 @@
 **Systems:** Application data API, Relational queries, Mutations, Code generation, Authorization, Live Queries, Storage portability, Contract/Exact, Diagnostics, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-02 (Accepted LLP 0135 owner fold: sequence-allocation
+**Revised:** 2026-08-03 (Accepted LLP 0157 boundary: this Spec keeps
+`BoundedChildrenQueryPlanV1`, bounded-child body semantics, and frozen `sbbc1`
+bytes; LLP 0157 owns the shared cursor-family registry and composition
+identity); 2026-08-02 (Accepted LLP 0135 owner fold: sequence-allocation
 plan vocabulary, scope registration/incarnation stamping, bounded string
 order fields, and snapshot-batch OQ dispositions); 2026-08-01 (ACCEPTED by author direction — the 2026-08-01
 ballot, verbatim item 4: "accept 0110+0113". Loop state verified before the
@@ -65,7 +68,7 @@ point-operation ceilings, settlement lifecycle, delegated provenance, result
 dependency, client/capability claims, and clean Signal Desk prerequisites).
 2026-07-27 (entered the author-invoked super-refine loop; initial focused
 specification)
-**Related:** LLP 0004, LLP 0007, LLP 0010, LLP 0012, LLP 0037, LLP 0043, LLP 0051, LLP 0053, LLP 0055, LLP 0058, LLP 0061, LLP 0065, LLP 0080, LLP 0094, LLP 0100, LLP 0108, issue `20260727-relation-and-activity-patterns`
+**Related:** LLP 0004, LLP 0007, LLP 0010, LLP 0012, LLP 0037, LLP 0043, LLP 0051, LLP 0053, LLP 0055, LLP 0058, LLP 0061, LLP 0065, LLP 0080, LLP 0094, LLP 0100, LLP 0108, LLP 0157, issue `20260727-relation-and-activity-patterns`
 
 ## Summary
 
@@ -1762,3 +1765,15 @@ answered for sequence allocation, and `snapshot-batch.v1` is the admitted
 static multi-parent answer to open question 2. These are accepted design
 contracts; implementation and capability publication remain gated by LLP
 0135's executable acceptance and the qualification machinery here.
+
+## LLP 0157 acceptance boundary — 2026-08-03
+
+Accepted LLP 0157 registers this Spec's `bounded_children_v1` class with
+`BoundedChildrenQueryPlanV1`, the `bounded-children.v1` cursor profile, and
+the exact ordered boundary/`_id` variant used in node and page identity. This
+Spec continues to own bounded-child execution, restart semantics, body fields,
+and the committed `sbbc1` vector. LLP 0157 now owns the common
+`sbbc1`/`sbsb1` envelope registry and the rule that `snapshot-batch.v1`
+positions carry bounded-child boundary state without embedding an `sbbc1`
+credential. Existing `sbbc1` bytes do not migrate. No support fact changes
+until the owning executable gates pass.

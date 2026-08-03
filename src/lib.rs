@@ -31,6 +31,8 @@ pub mod api_envelope;
 #[doc(hidden)]
 pub mod app_data_result;
 #[doc(hidden)]
+pub mod args_contract;
+#[doc(hidden)]
 pub mod assets;
 #[doc(hidden)]
 pub mod assets_cut;
@@ -94,13 +96,11 @@ pub mod live_wire;
 pub mod local;
 #[doc(hidden)]
 pub mod manifest;
-#[doc(hidden)]
-pub mod push;
 pub(crate) mod membership_rules;
 #[doc(hidden)]
 pub mod migration;
 #[doc(hidden)]
-pub mod args_contract;
+pub mod push;
 #[doc(hidden)]
 pub mod result_contract;
 #[doc(hidden)]

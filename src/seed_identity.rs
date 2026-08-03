@@ -1098,8 +1098,7 @@ mod tests {
             seed_digest: String::new(),
             tables: std::collections::BTreeMap::from([("nope".to_owned(), Vec::new())]),
         };
-        unknown_artifact.seed_digest =
-            artifact_digest(&unknown_artifact).expect("unknown digest");
+        unknown_artifact.seed_digest = artifact_digest(&unknown_artifact).expect("unknown digest");
         crate::storage::validate_versioned_seed_request(
             &sessions,
             crate::manifest::AuthMode::Sessions,

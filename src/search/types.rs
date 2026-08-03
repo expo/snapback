@@ -40,7 +40,9 @@ pub enum SearchFieldClassV1 {
 #[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
 pub enum SearchVisibilityV1 {
     PublicRead,
-    Owner { field: String },
+    Owner {
+        field: String,
+    },
     Membership {
         #[serde(rename = "declaration")]
         declaration: String,
@@ -391,7 +393,9 @@ impl FullTextSearchFactsV1 {
             cursor_ttl_ms: SEARCH_CURSOR_TTL_MS,
             accelerator: "none".to_owned(),
             authorization_filters: vec![
-                "public-read".to_owned(), "owner.v1".to_owned(), "membership.v1".to_owned(),
+                "public-read".to_owned(),
+                "owner.v1".to_owned(),
+                "membership.v1".to_owned(),
             ],
             highlights: true,
             counts: false,

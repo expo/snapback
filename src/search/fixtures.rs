@@ -77,7 +77,10 @@ fn corpus() -> Vec<Fixture> {
                 ] },
             }),
         ),
-        accept("empty-all-is-grammar-valid", json!({ "query": { "all": [] } })),
+        accept(
+            "empty-all-is-grammar-valid",
+            json!({ "query": { "all": [] } }),
+        ),
         reject("missing-query", json!({})),
         reject("query-wrong-kind", json!({ "query": 42 })),
         reject(
@@ -114,7 +117,10 @@ fn corpus() -> Vec<Fixture> {
             "undeclared-request-member",
             json!({ "query": { "all": [] }, "extra": true }),
         ),
-        reject("after-wrong-kind", json!({ "query": { "all": [] }, "after": 7 })),
+        reject(
+            "after-wrong-kind",
+            json!({ "query": { "all": [] }, "after": 7 }),
+        ),
         reject(
             "limit-wrong-kind",
             json!({ "query": { "all": [] }, "limit": "ten" }),
