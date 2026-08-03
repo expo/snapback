@@ -41,9 +41,9 @@ export const api = Object.freeze({
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "app",
-      "bundleHash": "sha256:0a991a920a0d1298",
-      "inputsHash": "bccf9917349bb0507b5a1fa2895f86dda9bca66edd63eb32548e01c5b54caf4b",
-      "schemaHash": "sha256:e5cd6721fdd87695",
+      "bundleHash": "sha256:606e1e7acf7402e1",
+      "inputsHash": "af498f5bdaf36d228501a9e0f20ee62abfd904bfb0baec42d0ab40ac143b3a9c",
+      "schemaHash": "sha256:0ac56e6945ec8a6e",
       "schemaVersion": "snapback.v0"
     },
     "id": "app:activityRows",
@@ -89,9 +89,9 @@ export const api = Object.freeze({
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "app",
-      "bundleHash": "sha256:0a991a920a0d1298",
-      "inputsHash": "bccf9917349bb0507b5a1fa2895f86dda9bca66edd63eb32548e01c5b54caf4b",
-      "schemaHash": "sha256:e5cd6721fdd87695",
+      "bundleHash": "sha256:606e1e7acf7402e1",
+      "inputsHash": "af498f5bdaf36d228501a9e0f20ee62abfd904bfb0baec42d0ab40ac143b3a9c",
+      "schemaHash": "sha256:0ac56e6945ec8a6e",
       "schemaVersion": "snapback.v0"
     },
     "id": "app:liveRows",
@@ -112,9 +112,9 @@ export const api = Object.freeze({
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "app",
-      "bundleHash": "sha256:0a991a920a0d1298",
-      "inputsHash": "bccf9917349bb0507b5a1fa2895f86dda9bca66edd63eb32548e01c5b54caf4b",
-      "schemaHash": "sha256:e5cd6721fdd87695",
+      "bundleHash": "sha256:606e1e7acf7402e1",
+      "inputsHash": "af498f5bdaf36d228501a9e0f20ee62abfd904bfb0baec42d0ab40ac143b3a9c",
+      "schemaHash": "sha256:0ac56e6945ec8a6e",
       "schemaVersion": "snapback.v0"
     },
     "id": "app:primaryRows",
@@ -142,9 +142,9 @@ export const api = Object.freeze({
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "app",
-      "bundleHash": "sha256:0a991a920a0d1298",
-      "inputsHash": "bccf9917349bb0507b5a1fa2895f86dda9bca66edd63eb32548e01c5b54caf4b",
-      "schemaHash": "sha256:e5cd6721fdd87695",
+      "bundleHash": "sha256:606e1e7acf7402e1",
+      "inputsHash": "af498f5bdaf36d228501a9e0f20ee62abfd904bfb0baec42d0ab40ac143b3a9c",
+      "schemaHash": "sha256:0ac56e6945ec8a6e",
       "schemaVersion": "snapback.v0"
     },
     "id": "app:publishLiveRow",
@@ -172,9 +172,9 @@ export const api = Object.freeze({
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "app",
-      "bundleHash": "sha256:0a991a920a0d1298",
-      "inputsHash": "bccf9917349bb0507b5a1fa2895f86dda9bca66edd63eb32548e01c5b54caf4b",
-      "schemaHash": "sha256:e5cd6721fdd87695",
+      "bundleHash": "sha256:606e1e7acf7402e1",
+      "inputsHash": "af498f5bdaf36d228501a9e0f20ee62abfd904bfb0baec42d0ab40ac143b3a9c",
+      "schemaHash": "sha256:0ac56e6945ec8a6e",
       "schemaVersion": "snapback.v0"
     },
     "id": "app:rejectInvalidWrite",
@@ -195,9 +195,9 @@ export const api = Object.freeze({
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "app",
-      "bundleHash": "sha256:0a991a920a0d1298",
-      "inputsHash": "bccf9917349bb0507b5a1fa2895f86dda9bca66edd63eb32548e01c5b54caf4b",
-      "schemaHash": "sha256:e5cd6721fdd87695",
+      "bundleHash": "sha256:606e1e7acf7402e1",
+      "inputsHash": "af498f5bdaf36d228501a9e0f20ee62abfd904bfb0baec42d0ab40ac143b3a9c",
+      "schemaHash": "sha256:0ac56e6945ec8a6e",
       "schemaVersion": "snapback.v0"
     },
     "id": "app:rejectionRows",
@@ -229,9 +229,9 @@ export const api = Object.freeze({
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "app",
-      "bundleHash": "sha256:0a991a920a0d1298",
-      "inputsHash": "bccf9917349bb0507b5a1fa2895f86dda9bca66edd63eb32548e01c5b54caf4b",
-      "schemaHash": "sha256:e5cd6721fdd87695",
+      "bundleHash": "sha256:606e1e7acf7402e1",
+      "inputsHash": "af498f5bdaf36d228501a9e0f20ee62abfd904bfb0baec42d0ab40ac143b3a9c",
+      "schemaHash": "sha256:0ac56e6945ec8a6e",
       "schemaVersion": "snapback.v0"
     },
     "id": "app:writePrimaryAndActivity",

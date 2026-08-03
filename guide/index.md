@@ -72,6 +72,9 @@ you never build around a feature because you didn't know it existed.
   unique lookup, keyset pages, and declarative trusted defaults.
 - [Relational queries](./backend/relational-queries.md) — bounded two-source
   equi-joins with explicit visibility and closed projections (experimental).
+- [Snapshot batches](./backend/snapshot-batches.md) — 2–8 bounded child
+  pages evaluated at one snapshot with one coordinated `sbsb1` cursor
+  (experimental local target).
 - [Portable indexed text search](./backend/text-search.md) — weighted
   term/phrase/prefix search with structured ASTs, deterministic ranking,
   authorization partitions, highlights, and current-keyset cursors

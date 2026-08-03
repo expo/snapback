@@ -20,9 +20,9 @@ export const api = Object.freeze({
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "app",
-      "bundleHash": "snapback.v1:sessions:function:sha256:2ddc52785820c1c3f1c8b382e552458d6e78a3cece0740c668a8c0f99c2e93d2",
-      "inputsHash": "snapback.v1:sessions:inputs:sha256:e8a82553093cfce59c7708adf6ec796131a290d8182949197d07bee8ff9cd391",
-      "schemaHash": "snapback.v1:sessions:schema:sha256:66090541f9d8b36ed7a8555e30313171fb633b896c02a81a377c9796d16e92cf",
+      "bundleHash": "snapback.v1:sessions:function:sha256:b36496c9df0484bb129d6a1aebe35b51cda6f4d6f4acae2cc818a30fb66a02a5",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:f099f59879ebcf3396e13cede60077ee4d6de6da9560dcb12935c06a67b7ffd6",
+      "schemaHash": "snapback.v1:sessions:schema:sha256:1f5f51d0475b71a9141b0c5842dc624db01a885cd1bec9c62c403b8a6975dd72",
       "schemaVersion": "snapback.v1"
     },
     "id": "app:joinAsHost",
@@ -43,9 +43,9 @@ export const api = Object.freeze({
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "app",
-      "bundleHash": "snapback.v1:sessions:function:sha256:2ddc52785820c1c3f1c8b382e552458d6e78a3cece0740c668a8c0f99c2e93d2",
-      "inputsHash": "snapback.v1:sessions:inputs:sha256:e8a82553093cfce59c7708adf6ec796131a290d8182949197d07bee8ff9cd391",
-      "schemaHash": "snapback.v1:sessions:schema:sha256:66090541f9d8b36ed7a8555e30313171fb633b896c02a81a377c9796d16e92cf",
+      "bundleHash": "snapback.v1:sessions:function:sha256:b36496c9df0484bb129d6a1aebe35b51cda6f4d6f4acae2cc818a30fb66a02a5",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:f099f59879ebcf3396e13cede60077ee4d6de6da9560dcb12935c06a67b7ffd6",
+      "schemaHash": "snapback.v1:sessions:schema:sha256:1f5f51d0475b71a9141b0c5842dc624db01a885cd1bec9c62c403b8a6975dd72",
       "schemaVersion": "snapback.v1"
     },
     "id": "app:leaveHost",
@@ -73,9 +73,9 @@ export const api = Object.freeze({
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "app",
-      "bundleHash": "snapback.v1:sessions:function:sha256:2ddc52785820c1c3f1c8b382e552458d6e78a3cece0740c668a8c0f99c2e93d2",
-      "inputsHash": "snapback.v1:sessions:inputs:sha256:e8a82553093cfce59c7708adf6ec796131a290d8182949197d07bee8ff9cd391",
-      "schemaHash": "snapback.v1:sessions:schema:sha256:66090541f9d8b36ed7a8555e30313171fb633b896c02a81a377c9796d16e92cf",
+      "bundleHash": "snapback.v1:sessions:function:sha256:b36496c9df0484bb129d6a1aebe35b51cda6f4d6f4acae2cc818a30fb66a02a5",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:f099f59879ebcf3396e13cede60077ee4d6de6da9560dcb12935c06a67b7ffd6",
+      "schemaHash": "snapback.v1:sessions:schema:sha256:1f5f51d0475b71a9141b0c5842dc624db01a885cd1bec9c62c403b8a6975dd72",
       "schemaVersion": "snapback.v1"
     },
     "id": "app:pushLedger",
@@ -121,9 +121,9 @@ export const api = Object.freeze({
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "app",
-      "bundleHash": "snapback.v1:sessions:function:sha256:2ddc52785820c1c3f1c8b382e552458d6e78a3cece0740c668a8c0f99c2e93d2",
-      "inputsHash": "snapback.v1:sessions:inputs:sha256:e8a82553093cfce59c7708adf6ec796131a290d8182949197d07bee8ff9cd391",
-      "schemaHash": "snapback.v1:sessions:schema:sha256:66090541f9d8b36ed7a8555e30313171fb633b896c02a81a377c9796d16e92cf",
+      "bundleHash": "snapback.v1:sessions:function:sha256:b36496c9df0484bb129d6a1aebe35b51cda6f4d6f4acae2cc818a30fb66a02a5",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:f099f59879ebcf3396e13cede60077ee4d6de6da9560dcb12935c06a67b7ffd6",
+      "schemaHash": "snapback.v1:sessions:schema:sha256:1f5f51d0475b71a9141b0c5842dc624db01a885cd1bec9c62c403b8a6975dd72",
       "schemaVersion": "snapback.v1"
     },
     "id": "app:sendSelected",

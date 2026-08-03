@@ -115,6 +115,117 @@ const HEADER = generatedByHeader();
 
 const SYSTEM_FIELDS = ['_id', '_version', '_createdAt', '_updatedAt'];
 const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+const compositionDomainHash = (domain, value) => `sha256:${createHash('sha256')
+  .update(domain)
+  .update(canonicalResultJson(value))
+  .digest('hex')}`;
+
+// Rebuild the complete LLP 0157 identity stack from the schema-expanded
+// argument contract. The emitted record is evidence for the host to compare,
+// never author-controlled authority.
+// @ref LLP 0157#d2--plan-identity
+function snapshotBatchIdentityV1(plan, argsContract) {
+  const nodes = [];
+  const merged = [];
+  const mergedByName = new Map();
+  for (const [position, node] of plan.nodes.entries()) {
+    const field = argsContract.fields.find((candidate) => candidate.name === node.parentIdArg);
+    if (!field) throw new TypeError(`snapshot batch node ${position} has no merged parent binding`);
+    const contract = {
+      format: 'snapback.argument-binding-contract.v1',
+      required: field.required,
+      value: field.value,
+    };
+    const contractHash = compositionDomainHash(
+      'snapback:argument-binding-contract:v1:',
+      contract,
+    );
+    const binding = { name: field.name, contract, contractHash };
+    const prior = mergedByName.get(field.name);
+    if (prior) {
+      if (canonicalResultJson(prior.contract) !== canonicalResultJson(contract)
+        || prior.contractHash !== contractHash) {
+        throw new TypeError(`snapshot batch argument ${field.name} has incompatible node contracts`);
+      }
+      prior.sourcePositions.push(position);
+    } else {
+      const entry = { name: field.name, contract, contractHash, sourcePositions: [position] };
+      mergedByName.set(field.name, entry);
+      merged.push(entry);
+    }
+    const nodePlan = {
+      format: 'snapback.node-plan.v1',
+      classId: 'bounded_children_v1',
+      classVersion: 1,
+      normalizedPlan: node,
+      argumentBindings: [binding],
+      capability: {
+        exportKind: 'internal',
+        live: { kind: 'none' },
+        retention: 'none',
+        requiredCapabilityIds: ['bounded_children_v1'],
+      },
+    };
+    nodes.push({
+      position,
+      nodePlan,
+      nodePlanHash: compositionDomainHash('snapback:node-plan:v1:', nodePlan),
+    });
+  }
+  const mergedArgs = {
+    format: 'snapback.merged-args-contract.v1',
+    bindings: merged,
+  };
+  const groups = [];
+  const groupsByKey = new Map();
+  for (const [position, node] of plan.nodes.entries()) {
+    const key = {
+      format: 'snapback.parent-authorization-key.v1',
+      parentTable: node.parentTable,
+      parentIdArgument: node.parentIdArg,
+      parentIdType: { kind: 'id', table: node.parentTable },
+      visibility: node.parentVisibility === 'publicRead'
+        ? { kind: 'public-read' }
+        : { kind: 'owner.v1', field: node.parentVisibility.owner.field },
+    };
+    const keyJcs = canonicalResultJson(key);
+    let group = groupsByKey.get(keyJcs);
+    if (!group) {
+      group = {
+        members: [],
+        keyJcsBase64url: Buffer.from(keyJcs, 'utf8').toString('base64url'),
+      };
+      groupsByKey.set(keyJcs, group);
+      groups.push(group);
+    }
+    group.members.push(position);
+  }
+  const normalizedCompositePlan = {
+    format: 'snapback.normalized-composite-plan.v1',
+    profileId: 'snapshot-batch.v1',
+    nodes,
+    mergedArgsContractHash: compositionDomainHash(
+      'snapback:merged-args-contract:v1:',
+      mergedArgs,
+    ),
+    classification: {
+      callable: true,
+      live: {
+        kind: 'admitted',
+        delivery: 'live_replace',
+        pageDomain: 'cursor-free-first-page',
+      },
+      invalidation: 'table-granular-resnapshot',
+      retention: 'none',
+    },
+    parentAuthorizationGroups: groups,
+  };
+  return {
+    normalizedCompositePlan,
+    planHash: compositionDomainHash('snapback:plan-hash:v1:', normalizedCompositePlan),
+  };
+}
 // @ref LLP 0057#reservation — SQLite folds ASCII identifier case, so every
 // spelling of the protected auth namespace is rejected at authoring time.
 const isAuthReservedIdentifier = (name) => {
@@ -1773,6 +1884,36 @@ export async function generateInProcess(backendDir, options = {}) {
       
         ...contractQueryLivenessFields(def),
       };
+    } else if ((def.__kind === 'Query' || def.__kind === 'LiveQuery') && def.snapshotBatchPlan) {
+      const plan = def.snapshotBatchPlan;
+      const reads = [...new Set(plan.nodes.flatMap((node) => [node.parentTable, node.childTable]))].sort();
+      functions.push({
+        name,
+        kind: def.__kind,
+        ...authoredFunctionManifestFields(def),
+        runtime: { HostPlan: { SnapshotBatch: plan } },
+        declaredReads: reads,
+        declaredWrites: [],
+        authScopeField: null,
+        authorizationDependence: plan.nodes.some((node) => node.parentVisibility !== 'publicRead')
+          ? ['userId'] : [],
+        syncabilityClass: 'syncable-live',
+      });
+      contractQueries[name] = {
+        name,
+        args: argDescriptors(def.args),
+        argOrder: Object.keys(def.args),
+        reads,
+        result: providerResultDescriptor(effectiveResultContract({
+          def,
+          functionKind: def.__kind,
+          runtime: { HostPlan: { SnapshotBatch: plan } },
+          tables,
+        })),
+        serverRunnable: true,
+        localRunnable: false,
+        ...contractQueryLivenessFields(def),
+      };
     } else if ((def.__kind === 'Query' || def.__kind === 'LiveQuery') && def.boundedChildrenPlan) {
       const plan = def.boundedChildrenPlan;
       functions.push({
@@ -2484,6 +2625,12 @@ export async function generateInProcess(backendDir, options = {}) {
       // degraded warning.
       fn.argsContract = effectiveArgsContract(def?.args ?? {});
       fn.argsContractHash = argsContractHash(fn.argsContract);
+      if (fn.runtime?.HostPlan?.SnapshotBatch) {
+        Object.assign(
+          fn.runtime.HostPlan.SnapshotBatch,
+          snapshotBatchIdentityV1(fn.runtime.HostPlan.SnapshotBatch, fn.argsContract),
+        );
+      }
       fn.resultContract = effectiveResultContract({
         def,
         functionKind: fn.kind,
@@ -4851,6 +4998,14 @@ function providerResultDescriptor(contract) {
     if (entry.kind === 'array') {
       return { shape: 'array', items: value(entry.element) };
     }
+    if (entry.kind === 'tuple') {
+      return {
+        shape: 'array',
+        items: { shape: 'union', variants: entry.elements.map(value) },
+        minItems: entry.elements.length,
+        maxItems: entry.elements.length,
+      };
+    }
     if (entry.kind === 'vector') {
       return {
         shape: 'array',
@@ -5738,6 +5893,15 @@ function requiredCapabilities(fn) {
     return [
       'live_subscriptions',
       runtimeCapability,
+      'bounded_children_v1',
+      ...contractCapabilities,
+    ];
+  }
+  if (fn.runtime?.HostPlan?.SnapshotBatch) {
+    return [
+      'live_subscriptions',
+      runtimeCapability,
+      'snapshot_batch_v1',
       'bounded_children_v1',
       ...contractCapabilities,
     ];
@@ -7325,6 +7489,11 @@ function microContractIsConcrete(value) {
   if (value.kind === 'unknown') return false;
   if (value.kind === 'schemaRef') return false;
   if (value.kind === 'array') return microContractIsConcrete(value.element);
+  if (value.kind === 'tuple') {
+    return Array.isArray(value.elements)
+      && value.elements.length > 0
+      && value.elements.every(microContractIsConcrete);
+  }
   if (value.kind === 'union') {
     return Array.isArray(value.variants)
       && value.variants.length > 0

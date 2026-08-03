@@ -4007,6 +4007,27 @@
         },
         {
           "additionalProperties": false,
+          "description": "A declaration-ordered heterogeneous fixed tuple. Snapshot-batch uses\nthis closed node so each visible child page keeps its own projection\ncontract instead of being widened to a homogeneous array.\n\n@ref LLP 0135#23-seal-entirely-partial-refusal — visible composite\n  nodes are an exact static tuple, not a bag of widened values.",
+          "properties": {
+            "elements": {
+              "items": {
+                "$ref": "#/$defs/ResultValueContract"
+              },
+              "type": "array"
+            },
+            "kind": {
+              "const": "tuple",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "elements"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "description": "One exact fixed-dimension binary64 vector. This is intentionally not\nencoded as an ordinary array: dimensions may reach 4,096 while the\ngeneral collection node remains capped at 1,024.\n\n@ref LLP 0132#the-vvectordimensions-value",
           "properties": {
             "dimensions": {
@@ -4835,7 +4856,7 @@
     },
     "SnapshotBatchPlanV1": {
       "additionalProperties": false,
-      "description": "The unpublished normalized carrier for LLP 0135 Part 2. The only authored\nmembers are the profile discriminator and declaration-ordered complete\nbounded-child nodes. Merged argument identities and parent-authorization\nequivalence classes are host-derived; they are never trusted from an\nartifact.\n\n@ref LLP 0135#21-composite-plan-shape — v1 composes a static tuple of\n  complete bounded-children plans and no other node kind.",
+      "description": "The released LLP 0157 normalized carrier for LLP 0135 Part 2. Codegen emits\nthe complete normalized record and its domain-separated hash; the host\nreconstructs and compares both before treating either as identity.\n\n@ref LLP 0135#21-composite-plan-shape — v1 composes a static tuple of\n  complete bounded-children plans and no other node kind.",
       "properties": {
         "nodes": {
           "items": {
@@ -4843,13 +4864,19 @@
           },
           "type": "array"
         },
+        "normalizedCompositePlan": true,
+        "planHash": {
+          "type": "string"
+        },
         "profile": {
           "type": "string"
         }
       },
       "required": [
         "profile",
-        "nodes"
+        "nodes",
+        "normalizedCompositePlan",
+        "planHash"
       ],
       "type": "object"
     },

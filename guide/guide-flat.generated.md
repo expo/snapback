@@ -43,6 +43,7 @@ with the Snapback label and `guide-gap` in the title.
 | backend.standard-patterns | Generate owner CRUD, unique lookup, owner/membership keyset pages | CRUD generator, pagination, membership pages, trusted defaults | local | partial | `defineOwnedCrud` in packages/snapback-codegen/standard-patterns.mjs | llp/0051, llp/0065, llp/0100 | backend/standard-patterns.md |
 | backend.relational-queries | Bounded two-source equi-joins with explicit visibility, closed projections, and transactionally maintained projection tables (`defineRelationalQuery`, `defineMaintainedProjection`, stable capability since 2026-07-26) | joins, relational queries, denormalized reads, materialized views | local | partial | `defineRelationalQuery` in packages/snapback-codegen/define.mjs | llp/0080, llp/0065 | backend/relational-queries.md |
 | backend.bounded-children-v1 | Experimental one-visible-parent/one-index-bounded-child-page profile with protected relation incarnations and `sbbc1` AEAD keysets; only contributor source builds with the exact embedded atomic carrier advertise it, while public runtime packages and hosted targets retain a structured GAP | one-to-many, parent children, relation incarnation, bounded child page | local | partial | src/local-relation-activity-publication.v1.json | llp/0104, llp/0108, llp/0101 | GAP (public-package attestation and hosted publication; owner: Charlie, review: 2026-08-31) |
+| backend.snapshot-batch-v1 | Experimental local composition of 2–8 complete `bounded-children.v1` nodes: one pinned authoritative snapshot per invocation, structural parent-authorization dedup, a sealed all-or-nothing tuple, one LLP 0157 `sbsb1` continuation, and cursor-free-first-page `live_replace`; hosted and public-package publication remain nonclaims | snapshot batch, board view, multiple child lists, one snapshot, sbsb1, composite query | local | shipped | `snapshot_batch_three_node_cursor_sealing_and_live_acceptance` in src/local.rs + schemas/capability.manifest.local-dev-sqlite-ibex.json (`snapshot_batch_v1`) | llp/0135, llp/0157, llp/0113 | backend/snapshot-batches.md |
 | backend.write-activity-v1 | Experimental closed source-write plus one provenance-bearing activity insert with exact source-effect assertion and LLP 0043/0101 settlement; only contributor source builds with the exact embedded atomic carrier advertise it, while public runtime packages and hosted targets retain a structured GAP | audit log, activity feed, transactional activity, write receipt | local | partial | tests/conformance/relation-activity-publication-v1.receipt.json | llp/0104, llp/0108, llp/0043, llp/0101 | GAP (public-package attestation and hosted publication; owner: Charlie, review: 2026-08-31) |
 | backend.text-search | Portable term, phrase, prefix, exclusion, and equality-filter search with deterministic ranking, bounded highlights, public/owner/membership (seat-per-resource) visibility, and AEAD keyset cursors | search, full text, text index, phrase, prefix, highlights | local | shipped | `defineSearchQuery` in packages/snapback-codegen/define.mjs | llp/0073, llp/0065, llp/0100 | backend/text-search.md |
 | backend.streamed-actions | Bounded pull-driven response streaming in actions: `ctx.fetchStream`, `ctx.streamAttempt` lease/settlement, durable progress via mutations | streaming, fetchStream, ReadableStream, AI tokens, SSE bytes | local | partial | `open_response_stream` in src/server.rs | llp/0076, llp/0075 | backend/streamed-actions.md |
@@ -51,7 +52,7 @@ with the Snapback label and `guide-gap` in the title.
 | backend.provisioning | Idempotent app provisioning (ensureApp) | ensure, deploy app, load app | local | shipped | route /app/ensure | llp/0034 | getting-started/your-first-backend.md |
 | backend.codegen | Generate a digest-verified review manifest, input-hash cache, client API, and Contract bindings with deterministic human/JSON summaries | codegen, generate, artifacts, cache, custody, review manifest | all | shipped | `createReviewManifest` in packages/snapback-codegen/review-surface.mjs | llp/0010, llp/0012, llp/0037, llp/0041 | getting-started/generated-artifacts.md |
 | backend.query-semantics | Read sets, snapshots, commit versions, conflict validation | consistency, transactions, conflicts | local | shipped | route /query/{name} | llp/0003, llp/0004, llp/0007 | backend/queries.md |
-| backend.sequences | Experimental declared, incarnation-scoped sequences have an in-tree local substrate spanning `ctx.sequence.allocate(counterName, scopeId)`, generated `AllocateSequence`, mutation-atomic lane-Q withholding, membership/public scope reach, exact settlement replay, safe-integer exhaustion, storage-enforced string order-field bounds, and A6 evidence. The capability remains unpublished and support-false until the complete LLP 0135 §5.1 qualification and LLP 0113 publication train | sequence, counter, ticket number, invoice number, monotonic allocation, maxEncodedBytes | none | partial | `sequence.allocate` in packages/snapback-harness/ctx-bootstrap.js + demos/improvement-sweep/arms/a6-snapback-web/evidence/app/acceptance.a6.mjs + focused generated-plan/lane-Q proof (substrate evidence only; no capability publication witness) | llp/0135, llp/0128, llp/0113, llp/0157 | GAP (qualified `sequence_allocation_v1` publication; owner: Charlie, review: 2026-08-31; issue: issues/20260802-wave1-0135-sequences-snapshot-batch.md); backend/sequences.md |
+| backend.sequences | Experimental declared, incarnation-scoped sequences have an in-tree local substrate spanning `ctx.sequence.allocate(counterName, scopeId)`, generated `AllocateSequence`, mutation-atomic lane-Q withholding, membership/public scope reach, exact settlement replay, safe-integer exhaustion, storage-enforced string order-field bounds, and A6 evidence. The capability remains unpublished and support-false until the complete LLP 0135 §5.1 qualification and LLP 0113 publication train | sequence, counter, ticket number, invoice number, monotonic allocation, maxEncodedBytes | none | partial | `sequence.allocate` in packages/snapback-harness/ctx-bootstrap.js + demos/improvement-sweep/arms/a6-snapback-web/evidence/app/acceptance.a6.mjs + focused generated-plan/lane-Q proof (substrate evidence only; no capability publication witness) | llp/0135, llp/0128, llp/0113, llp/0157 | GAP (qualified `sequence_allocation_v1` publication; owner: Charlie, review: 2026-08-31; issue: issues/20260803-sequence-allocation-qualification.md); backend/sequences.md |
 | backend.actions | Actions with gated outbound fetch: global `fetch` and target-portable host-mediated `ctx.fetch`, in closed-script module handlers or the inline form | action, fetch, ctx.fetch, side effects, notification, webhook | local | shipped | route /action/{name} | llp/0004, llp/0009, llp/0049 | backend/actions-and-fetch.md |
 | backend.assets | Authenticated asset lifecycle plus the media pipeline on the local target — generated upload intents, TUS 1.0.0 resumable transfer, trusted SHA-256 finalization with GPS-strip canonicalization for images (decode/rewrite) and MP4/QuickTime video (in-place location-atom blanking, no transcoding), declared renditions with ThumbHash placeholders, typed `v.assetRef` attachment, private-strict/private-signed/public-immutable delivery with ranges and best-variant selection, opt-in reference GC, lifecycle callbacks, deletion/GC, receipts (`asset_lifecycle_v1`, `asset_image_finalization_v1`, `asset_image_pipeline_v1`, `asset_reference_gc_v1`, `asset_video_finalization_v1`); the paved browser path (stock `@expo/snapback-vite` relay over the `/assets/*` family, sessions custody, typed generated upload references) is CI-verified; transcoding and hosted targets remain design-only | files, images, video, upload, object storage, media, browser upload, vite relay | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json (all five asset ids in supportedCapabilities; `assets` facts block with Enforced image and video ceilings) + src/assets.rs + src/assets_image.rs + src/assets_video.rs suites + demos/file-drop/tests/acceptance/browser-relay.mjs (relay + sessions + typed upload reference browser path) | llp/0044 | backend/assets.md |
 | backend.expo-push-seam | Local Expo integration seam: session-bound token custody, atomic rotation and retirement, declaration-checked/host-authorized and paced `ctx.push.send`, crash-safe intent/batch/message ledger, safe pre-transmit recovery, bounded ticket/receipt maintenance, a privacy-bounded generated ledger query, explicit ambiguous redrive risk, and structured `notifications.expoPushSeam` facts. A real-device receipt and the complete hosted conjunction remain GAPs; this is not first-class notification delivery. | device token, expo push token, installation, ctx.push.send, handoff receipt, DeviceNotRegistered | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.outbound-actions.json (`expoPushSeam`) + packages/snapback-cli/fake-expo-push.test.mjs + `fake_expo_acceptance_covers_tickets_receipts_dedupe_ambiguity_and_authorization` in src/push.rs | llp/0143, llp/0057, llp/0059, llp/0070 | backend/expo-push.md |
@@ -341,6 +342,9 @@ you never build around a feature because you didn't know it existed.
   unique lookup, keyset pages, and declarative trusted defaults.
 - [Relational queries](./backend/relational-queries.md) — bounded two-source
   equi-joins with explicit visibility and closed projections (experimental).
+- [Snapshot batches](./backend/snapshot-batches.md) — 2–8 bounded child
+  pages evaluated at one snapshot with one coordinated `sbsb1` cursor
+  (experimental local target).
 - [Portable indexed text search](./backend/text-search.md) — weighted
   term/phrase/prefix search with structured ASTs, deterministic ranking,
   authorization partitions, highlights, and current-keyset cursors
@@ -4461,6 +4465,97 @@ whose parent or authorization stream changed requires a first-page restart.
 
 ---
 
+<!-- snapback-guide-source: guide/backend/snapshot-batches.md -->
+---
+title: Snapshot batches
+id: backend.snapshot-batches
+order: 27
+audience: agent-first
+capabilities: [backend.snapshot-batch-v1]
+authorities: [llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0110-bounded-children-and-activity-patterns.spec.md, src/manifest.rs, src/local.rs, src/snapshot_batch_cursor.rs, packages/snapback-codegen/define.mjs]
+examples: [packages/snapback-codegen/relation-activity-authoring.test.mjs]
+status: current
+targets: [local]
+maturity: shipped
+reviewed: 2026-08-03
+reviewed-commit: HEAD
+---
+
+# Snapshot batches
+
+> **Experimental local target.** `snapshot_batch_v1` is supported by the
+> contributor local SQLite/Ibex target. Hosted targets and public runtime
+> packages do not claim it. An artifact must acknowledge both
+> `snapshot_batch_v1` and its `bounded_children_v1` dependency.
+
+Use `defineSnapshotBatchQuery` when one screen needs several independently
+bounded child lists from one authoritative snapshot. Build each node with
+`defineBoundedChildrenQuery`, then pass a static tuple of 2–8 nodes:
+
+```js source=packages/snapback-codegen/relation-activity-authoring.test.mjs
+export const boardView = defineSnapshotBatchQuery({
+  nodes: [incidentTasks, incidentTasks, incidentTasks],
+});
+```
+
+The host executes every node against one pinned snapshot in declaration order.
+That order cannot affect the result. Nodes that have the same parent table,
+typed parent argument, and complete visibility declaration share one parent
+point read and visibility evaluation; equal runtime IDs under different
+bindings do not deduplicate.
+
+## Result and continuation
+
+The result is always one row. It is either a sealed absence or the exact
+declaration-ordered tuple of cursor-free node pages:
+
+```ts fragment reason="closed result shape from LLP 0135; illustrative generic aliases"
+type SnapshotBatchRow<Nodes extends readonly unknown[]> =
+  | { kind: "absent"; nodes: null; continuation: null }
+  | { kind: "visible"; nodes: Nodes; continuation: string | null };
+```
+
+If any parent is missing or invisible, the whole result is the same `absent`
+row. No partial tuple or sealing node index is disclosed. Parent visibility is
+checked before the cursor, so a hidden parent with malformed cursor bytes still
+returns the sealed absence.
+
+The visible row has no inner node continuations. Its one opaque continuation
+starts with `sbsb1.` and carries every node's terminal or boundary state under
+LLP 0157's exact shared cursor grammar. Pass it back as the `cursor` argument.
+A continuation page is a new invocation and therefore a new pinned snapshot;
+the cursor detects parent incarnation/version or stream changes and asks the
+caller to restart rather than pretending the prior snapshot still exists.
+
+## Live behavior
+
+Only the cursor-free first page is live. Subscribe normally to receive
+whole-batch `live_replace` frames when any node table changes. A subscribe
+request carrying a cursor refuses before storage access with
+`SNAPBACK_SNAPSHOT_BATCH_LIVE_CURSOR_UNSUPPORTED`.
+
+## Closed limits
+
+- Every node is a complete admitted `bounded-children.v1` plan; relational,
+  search, aggregate, imperative, and data-dependent nodes are not v1 nodes.
+- The tuple has 2–8 nodes and the sum of `take` values is at most 1,024.
+- One node still performs at most its bounded parent read and `take + 1` child
+  range. Terminal nodes re-read the parent but do not scan a child range.
+- The `sbsb1` wire cap is 8,192 bytes and its plaintext cap is 6,099 bytes.
+  Establishment computes the declared worst case before parent storage reads;
+  an over-budget plan refuses instead of risking an unmintable page.
+- String order fields need storage-enforced `maxEncodedBytes` declarations so
+  the cursor budget is a proof over stored values, not a hopeful estimate.
+- Cross-page snapshot consistency is not claimed. Each invocation has exactly
+  one snapshot; the coordinated cursor binds plan, arguments, authority,
+  parent versions, and all node boundaries for honest resume behavior.
+
+Codegen emits LLP 0157's normalized node/composite record and `PlanHashV1`.
+The host reconstructs and exact-compares both before execution. Liveness is a
+fact inside that identity record, never inferred from the plan's shape.
+
+---
+
 <!-- snapback-guide-source: guide/backend/text-search.md -->
 ---
 title: Portable indexed text search
@@ -4720,9 +4815,10 @@ writer rejects oversized values with
   A6 fixture records its literal seed and reset/restore history through
   ordinary committed sequence allocations; there is no authored start-value
   escape hatch.
-- Snapshot-batch composition is a separate LLP 0135 Part 2 capability. LLP 0157
-  §D8 has unblocked that implementation lane by confirming LLP 0135 owns the
-  `sbsb1` cursor grammar; no snapshot-batch support is claimed here.
+- Snapshot-batch composition is a separate LLP 0135 Part 2 capability. The
+  experimental local target now supports it; see
+  [Snapshot batches](./snapshot-batches.md). That does not qualify or publish
+  `sequence_allocation_v1`.
 
 ---
 

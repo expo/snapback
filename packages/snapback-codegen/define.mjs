@@ -459,6 +459,14 @@ export const v = {
       resultOptions: { ...options },
     });
   },
+  tuple: (elements) => {
+    assert(Array.isArray(elements) && elements.length >= 1 && elements.length <= 8, 'v.tuple() expects 1–8 validators');
+    for (const element of elements) assert(element && element.__validator, 'v.tuple() entries must be validators');
+    return validator('Json', 'array', {
+      resultKind: 'tuple',
+      elements: REFLECT_APPLY(ARRAY_SLICE, elements, []),
+    });
+  },
   union: (variants) => {
     assert(Array.isArray(variants) && variants.length >= 2 && variants.length <= 8, 'v.union() expects 2–8 validators');
     for (const variant of variants) assert(variant && variant.__validator, 'v.union() entries must be validators');
@@ -2008,6 +2016,61 @@ export function defineBoundedChildrenQuery(spec) {
       childProjection,
       parentDeletion: spec.parentDeletion,
     },
+  };
+}
+
+/** One declaration-ordered tuple of bounded child pages under a single
+ * authoritative snapshot and one LLP 0157 `sbsb1` continuation.
+ * @ref LLP 0135#21-composite-plan-shape */
+export function defineSnapshotBatchQuery(spec) {
+  assertKnownSpecFields(spec, 'SnapshotBatchQuery', new Set(['nodes']));
+  assert(
+    Array.isArray(spec.nodes) && spec.nodes.length >= 2 && spec.nodes.length <= 8,
+    'defineSnapshotBatchQuery nodes must contain 2–8 bounded children definitions',
+  );
+  let totalTake = 0;
+  const args = {};
+  const pages = [];
+  const plans = [];
+  let authenticated = false;
+  for (const [position, node] of spec.nodes.entries()) {
+    assert(
+      node?.[FN] === true && node.boundedChildrenPlan && node.__kind === 'LiveQuery',
+      `snapshot batch node ${position} must be a defineBoundedChildrenQuery(...) result`,
+    );
+    totalTake += node.boundedChildrenPlan.take;
+    assert(totalTake <= 1_024, 'snapshot batch summed take must not exceed 1024');
+    const parentArg = node.boundedChildrenPlan.parentIdArg;
+    const parentValidator = node.args[parentArg];
+    if (args[parentArg] !== undefined) {
+      assert(
+        JSON.stringify(args[parentArg].fieldType) === JSON.stringify(parentValidator.fieldType),
+        `snapshot batch argument ${parentArg} has incompatible node types`,
+      );
+    } else {
+      args[parentArg] = parentValidator;
+    }
+    const visible = node.resultContract?.validator?.variants?.[1];
+    assert(visible?.primitive === 'object', `snapshot batch node ${position} lacks the bounded visible contract`);
+    pages.push(v.object({ parent: visible.fields.parent, children: visible.fields.children }));
+    plans.push(node.boundedChildrenPlan);
+    authenticated ||= node.auth === 'authenticated';
+  }
+  args.cursor = v.optional(v.string({ maxBytes: 8_192 }));
+  return {
+    [FN]: true,
+    __kind: 'LiveQuery',
+    auth: authenticated ? 'authenticated' : 'public',
+    args,
+    resultContract: results.records(v.union([
+      v.object({ kind: v.literal('absent'), nodes: v.null(), continuation: v.null() }),
+      v.object({
+        kind: v.literal('visible'),
+        nodes: v.tuple(pages),
+        continuation: v.union([v.null(), v.string({ maxBytes: 8_192 })]),
+      }),
+    ]), { minItems: 1, maxItems: 1 }),
+    snapshotBatchPlan: { profile: 'snapshot-batch.v1', nodes: plans },
   };
 }
 

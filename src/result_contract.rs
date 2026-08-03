@@ -135,6 +135,23 @@ fn validate_value(
             }
             Ok(())
         }
+        ResultValueContract::Tuple { elements } => {
+            let values = value.as_array().ok_or_else(|| path.to_owned())?;
+            if values.len() != elements.len() {
+                return Err(path.to_owned());
+            }
+            for (index, (value, element)) in values.iter().zip(elements).enumerate() {
+                validate_value(
+                    function,
+                    value,
+                    element,
+                    &format!("{path}[{index}]"),
+                    depth + 1,
+                    budget,
+                )?;
+            }
+            Ok(())
+        }
         ResultValueContract::Vector { dimensions } => {
             let values = value.as_array().ok_or_else(|| path.to_owned())?;
             if values.len() != *dimensions as usize {
@@ -415,8 +432,7 @@ mod tests {
         let function = function(FunctionResultContract::Value {
             value: ResultValueContract::Vector { dimensions: 3 },
         });
-        validate_handler_result(&function, &json!([0.0, -0.0, 3.5]))
-            .expect("exact D passes");
+        validate_handler_result(&function, &json!([0.0, -0.0, 3.5])).expect("exact D passes");
         for rejected in [
             json!([0.0, 1.0]),
             json!([0.0, 1.0, 2.0, 3.0]),

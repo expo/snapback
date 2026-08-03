@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "2dacce69a7aa33ab5c4528791e51589164605470"
+    "commit": "2ab36e28c74c450213b65f17ef81c0d6652ba33a"
   },
   "nav": {
     ".": [
@@ -109,6 +109,11 @@
         "id": "backend.relational-queries",
         "order": 26,
         "title": "Relational queries (bounded joins)"
+      },
+      {
+        "id": "backend.snapshot-batches",
+        "order": 27,
+        "title": "Snapshot batches"
       },
       {
         "id": "backend.text-search",
@@ -1060,12 +1065,51 @@
       ],
       "reviewed": "2026-08-02",
       "reviewedCommit": "HEAD",
-      "sha256": "0113921e1034b7c9f2c898513198d05abe676ff8752017bc1c1f717eb0e0cc2f",
+      "sha256": "c741624e6fcb53c12fbd39b93a3e24f64434f5d6451030057f34e6438b3b9ff7",
       "snippets": [
         {
           "lang": "js",
           "class": "transcluded",
           "source": "packages/snapback-codegen/sequence-authoring.test.mjs"
+        }
+      ]
+    },
+    "backend.snapshot-batches": {
+      "path": "guide/backend/snapshot-batches.md",
+      "title": "Snapshot batches",
+      "order": 27,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "shipped",
+      "capabilities": [
+        "backend.snapshot-batch-v1"
+      ],
+      "authorities": [
+        "llp/0135-sequence-allocation-and-snapshot-batch.spec.md",
+        "llp/0157-composition-algebra-and-completeness.spec.md",
+        "llp/0110-bounded-children-and-activity-patterns.spec.md",
+        "src/manifest.rs",
+        "src/local.rs",
+        "src/snapshot_batch_cursor.rs",
+        "packages/snapback-codegen/define.mjs"
+      ],
+      "examples": [
+        "packages/snapback-codegen/relation-activity-authoring.test.mjs"
+      ],
+      "reviewed": "2026-08-03",
+      "reviewedCommit": "HEAD",
+      "sha256": "14fa16fbc99fdcf697531ae333b1912ad67ef8545348dcdd145dee6b4630756d",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-codegen/relation-activity-authoring.test.mjs"
+        },
+        {
+          "lang": "ts",
+          "class": "fragment"
         }
       ]
     },
@@ -1351,7 +1395,7 @@
       "examples": [],
       "reviewed": "2026-08-03",
       "reviewedCommit": "HEAD",
-      "sha256": "3afbf104b156f994c9ac920de09b12b99deceb73d227fcdfd8c1cd1bc8a6039e",
+      "sha256": "7db1463f65a1cd924d171ff22771a85b6a7ec7a03884f35484596d5479487223",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1992,7 +2036,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "HEAD",
-      "sha256": "b01f4aae6ded1ea946c166df50b0f20eb4667d3468374ebcf553081028910a07",
+      "sha256": "eca8e707c8a3a6167f5a5d159aa8dd0a733fd2cbd239ef530e36dc6a7eef66d7",
       "snippets": []
     },
     "operating.admin-console": {
@@ -2659,6 +2703,7 @@
       "backend.runtime-values",
       "backend.schema",
       "backend.seed",
+      "backend.snapshot-batch-v1",
       "backend.standard-patterns",
       "backend.streamed-actions",
       "backend.text-search",
@@ -2712,5 +2757,5 @@
     "routes": 98,
     "hostOps": 35
   },
-  "contentHash": "d1a8e96ea0fdb2a7e639017664e0ac0708c7f0164809872df98273c89bbb8855"
+  "contentHash": "f5ec28b7ae8b44c30be46d158f447d951ec3f46d84423c490e14c898e4f9b21f"
 }

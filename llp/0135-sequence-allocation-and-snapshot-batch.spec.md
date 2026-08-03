@@ -6,7 +6,11 @@
 generation, Authorization, Live Queries, Diagnostics, Testing, Demo apps
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-08-03 (Accepted LLP 0157 boundary: snapshot-batch execution
+**Revised:** 2026-08-03 (snapshot-batch implementation: the experimental
+local SQLite/Ibex target now emits and host-verifies LLP 0157 identity,
+executes 2–8 bounded-child nodes at one snapshot, and resumes them with the
+exact `sbsb1` grammar; the dated implementation record pins the previously
+semantic-only `ParentAuthorizationKeyV1` carrier); 2026-08-03 (Accepted LLP 0157 boundary: snapshot-batch execution
 semantics remain here; LLP 0157 now owns the composition identity,
 completeness model, shared cursor registry, and exact `sbsb1` grammar, so the
 held implementation may consume them without advertising capability early);
@@ -1090,6 +1094,56 @@ must consume those records and may not mint a parallel cursor, liveness, or
 identity shape. Acceptance unblocks implementation; it does not register or
 advertise `snapshot_batch_v1`.
 
+## Implementation record — 2026-08-03 (snapshot-batch v1)
+
+The contributor local SQLite/Ibex target now supports the Experimental
+`snapshot_batch_v1` capability. Codegen accepts a declaration-ordered tuple of
+2–8 complete `bounded-children.v1` definitions with summed `take <= 1024`,
+emits the exact heterogeneous result tuple, records the capability requirement
+and acknowledgment, and emits LLP 0157's
+`snapback.normalized-composite-plan.v1` record plus `PlanHashV1`. Artifact
+admission reconstructs and exact-compares that identity before execution.
+
+The earlier semantic definition of `ParentAuthorizationKeyV1` is frozen by
+this implementation as the following closed record before RFC 8785 JCS. This
+is the only v1 spelling consumed by LLP 0157's `keyJcsBase64url` and
+`snapback:parent-authorization-key:v1:` digest; changing any member or value
+requires a successor version, never tolerant reinterpretation:
+
+```ts
+type ParentAuthorizationKeyV1 = {
+  format: "snapback.parent-authorization-key.v1";
+  parentTable: string;
+  parentIdArgument: string;
+  parentIdType: { kind: "id"; table: string };
+  visibility:
+    | { kind: "public-read" }
+    | { kind: "owner.v1"; field: string };
+};
+```
+
+The executor pins one authoritative `DbRead` snapshot, evaluates every
+structural parent group before cursor validation, seals the entire batch on
+any unavailable parent, then evaluates nodes in declaration order. One outer
+`sbsb1` credential carries the exact LLP 0157 §D8 body and compact serializer;
+no `sbbc1` token or inner continuation survives composition. Static
+worst-case plaintext sizing precedes parent storage reads, parent
+incarnation/version and stream changes return restart-required, and all other
+context or cryptographic mismatches return the uniform invalid-cursor class.
+Cursor-free first pages admit whole-result `live_replace`; cursor-bearing
+subscribe refuses before storage.
+
+Executable evidence includes the fixed-nonce exact-order `sbsb1` golden and
+cross-family refusal tests in `src/snapshot_batch_cursor.rs`, codegen/host
+`ParentAuthorizationKeyV1` vectors, artifact identity exact-compare tests, and
+`snapshot_batch_three_node_cursor_sealing_and_live_acceptance` in
+`src/local.rs`. That acceptance executes three nodes over one deduplicated
+parent group, crosses one coordinated continuation, proves sealed absence
+before malformed-cursor validation, and observes whole-batch live replacement
+plus cursor-bearing subscribe refusal. The local capability manifest now
+publishes support; remote/hosted targets remain support-false. This claim does
+not change the separate support-false sequence-allocation posture.
+
 ## Nonclaims
 
 - **No aggregates, in either part.** No readable counter value, no counts,
@@ -1106,15 +1160,15 @@ advertise `snapshot_batch_v1`.
   surface presents one (§1.4). Admission of allocating operations to
   local execution is out of scope pending LLP 0129 row 2's admission
   vocabulary (open question 6).
-- **Unpublished substrate; experimental terminus.** The dated record above
-  claims only the observed local handler-tier substrate, not target support for
+- **Sequence substrate remains unpublished.** The 2026-08-02 record above
+  claims only the observed local handler-tier sequence substrate, not target support for
   `sequence_allocation_v1`. The capability remains Experimental,
   support-false, and represented as a structured GAP until the complete §5.1
   qualification and LLP 0113 publication requirements land. Generated
   allocation and lane-Q withholding are substrate evidence only; they do not
-  imply the remaining unexercised vectors. `snapshot_batch_v1` remains
-  reserved, unsupported, and wholly unwitnessed, but its implementation lane
-  is unblocked by LLP 0157 §D8. Any
+  imply the remaining unexercised vectors. `snapshot_batch_v1` is separately
+  implemented and supported only on the experimental contributor local target
+  under the dated record above. Any
   future promotion still follows LLP 0134; this Spec cannot and does not
   shorten that path.
 - **No performance results.** §1.6's statements are named empirical

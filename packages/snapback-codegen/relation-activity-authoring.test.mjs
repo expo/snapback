@@ -52,7 +52,7 @@ export default defineSchema({ incidents, tasks, activity });
   const profileSource = `
 import {
   arg, asc, binding, clientMutation, defineBoundedChildrenQuery,
-  defineWriteWithActivity, existingOwner, insert, literal, mutationPlan, patch,
+  defineSnapshotBatchQuery, defineWriteWithActivity, existingOwner, insert, literal, mutationPlan, patch,
   owner, record, results, runtimeNow, throughParent, throughScope, v,
 } from '${defineUrl}';
 import { activity, incidents, tasks } from './schema.mjs';
@@ -75,6 +75,10 @@ export const incidentTasks = defineBoundedChildrenQuery({
   },
   take: 25,
   parentDeletion: 'hide-orphans.v1',
+});
+
+export const boardView = defineSnapshotBatchQuery({
+  nodes: [incidentTasks, incidentTasks, incidentTasks],
 });
 
 export const addTask = defineWriteWithActivity({
@@ -167,6 +171,38 @@ export const baseline = defineLiveQuery({
   assert.equal(optionalStored.optional, false);
   assert.equal(optionalStored.resultKind, 'union');
   assert(optionalStored.variants.some((variant) => variant.resultKind === 'null'));
+
+  const snapshot = authored.boardView;
+  assert.equal(snapshot.snapshotBatchPlan.profile, 'snapshot-batch.v1');
+  assert.equal(snapshot.snapshotBatchPlan.nodes.length, 3);
+  assert.equal(snapshot.args.cursor.resultOptions.maxBytes, 8_192);
+  const snapshotVisible = snapshot.resultContract.validator.variants[1];
+  assert.equal(snapshotVisible.fields.nodes.resultKind, 'tuple');
+  assert.equal(snapshotVisible.fields.nodes.elements.length, 3);
+  result = await generate(dir);
+  assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+  const generatedFunctions = JSON.parse(
+    readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8'),
+  );
+  const generatedSnapshot = generatedFunctions.functions.find((fn) => fn.name === 'boardView');
+  assert.equal(generatedSnapshot.runtime.HostPlan.SnapshotBatch.profile, 'snapshot-batch.v1');
+  assert.equal(generatedSnapshot.runtime.HostPlan.SnapshotBatch.normalizedCompositePlan.format,
+    'snapback.normalized-composite-plan.v1');
+  assert.match(generatedSnapshot.runtime.HostPlan.SnapshotBatch.planHash, /^sha256:[0-9a-f]{64}$/);
+  assert.equal(
+    generatedSnapshot.runtime.HostPlan.SnapshotBatch.planHash,
+    'sha256:46f823237e192428ce488c6f7a993c4569097a3f036bfd8f7325437e38ed2c0e',
+    'PlanHashV1 stays byte-identical to the Rust reconstruction vector',
+  );
+  assert.equal(
+    generatedSnapshot.runtime.HostPlan.SnapshotBatch.normalizedCompositePlan
+      .parentAuthorizationGroups[0].keyJcsBase64url,
+    'eyJmb3JtYXQiOiJzbmFwYmFjay5wYXJlbnQtYXV0aG9yaXphdGlvbi1rZXkudjEiLCJwYXJlbnRJZEFyZ3VtZW50IjoiaW5jaWRlbnRJZCIsInBhcmVudElkVHlwZSI6eyJraW5kIjoiaWQiLCJ0YWJsZSI6ImluY2lkZW50cyJ9LCJwYXJlbnRUYWJsZSI6ImluY2lkZW50cyIsInZpc2liaWxpdHkiOnsiZmllbGQiOiJvd25lcklkIiwia2luZCI6Im93bmVyLnYxIn19',
+    'ParentAuthorizationKeyV1 JCS bytes are pinned cross-language',
+  );
+  assert.equal(generatedSnapshot.resultContract.record.variants[1].fields[1].value.kind, 'tuple');
+  assert(generatedSnapshot.requiredCapabilities.includes('snapshot_batch_v1'));
+  assert(generatedFunctions.acknowledgedExperimentalCapabilities.includes('snapshot_batch_v1'));
 
   const activityPlan = authored.addTask.writeWithActivityPlan;
   assert.equal(activityPlan.requiredCapability, 'write_activity_v1');
@@ -410,8 +446,19 @@ export const baseline = defineLiveQuery({
     ],
   );
   assert.deepEqual(
+    byName.get('boardView').requiredCapabilities,
+    [
+      'live_subscriptions',
+      'host_plan_runtime',
+      'snapshot_batch_v1',
+      'bounded_children_v1',
+      'result_contract_v1',
+      'args_contract_v1',
+    ],
+  );
+  assert.deepEqual(
     publishedFunctions.acknowledgedExperimentalCapabilities,
-    ['args_contract_v1', 'bounded_children_v1', 'result_contract_v1', 'write_activity_v1'],
+    ['args_contract_v1', 'bounded_children_v1', 'result_contract_v1', 'snapshot_batch_v1', 'write_activity_v1'],
   );
   const guardedManifest = byName.get('addTask').runtime.HostPlan.WriteWithActivity.mutation;
   assert(
