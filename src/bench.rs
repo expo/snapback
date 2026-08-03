@@ -401,7 +401,7 @@ fn functions() -> FunctionManifest {
     }
 }
 
-fn configured() -> crate::diagnostic::SnapbackResult<LocalSnapback> {
+pub(crate) fn configured() -> crate::diagnostic::SnapbackResult<LocalSnapback> {
     let mut snapback = LocalSnapback::memory()?;
     snapback.apply_schema(schema())?;
     snapback.load_functions(functions());
@@ -417,7 +417,7 @@ fn auth() -> AuthInput {
     }
 }
 
-fn args(value: Value) -> HandlerInput {
+pub(crate) fn args(value: Value) -> HandlerInput {
     HandlerInput {
         args: value,
         auth: auth(),

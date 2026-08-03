@@ -30,6 +30,10 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex, RwLock};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+#[path = "telemetry_bench.rs"]
+mod phase1_bench;
+pub use phase1_bench::{Phase1BenchmarkConfig, Phase1BenchmarkReport, run_phase1_benchmark};
+
 const DAY_MS: i64 = 86_400_000;
 const HOUR_MS: i64 = 3_600_000;
 const DETAILS_MAX_BYTES: usize = 8 * 1024;
