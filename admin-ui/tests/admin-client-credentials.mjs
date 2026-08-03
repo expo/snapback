@@ -524,6 +524,9 @@ const telemetryClient = new AdminClient('http://snapback.test/_snapback/api', { 
 telemetryClient.setSecretReadLease(SECRET_READ);
 await telemetryClient.telemetryStats({ kind: 'http_request', fromMs: 10, ignored: MASTER });
 await telemetryClient.telemetryEvents({ kind: 'log', text: 'needle / value', order: 'desc', limit: 25 });
+await telemetryClient.errorsIssues({ state: 'regressed', failureDisposition: 'fault', order: 'lastSeen', limit: 500, ignored: MASTER });
+await telemetryClient.errorsIssue('iss_test');
+await telemetryClient.errorsTransition({ issue: 'iss_test', to: 'resolved', expectSeq: 7 });
 assert.equal(
   telemetryRequests[0].url,
   'http://snapback.test/_snapback/api/telemetry/stats?kind=http_request&fromMs=10',
@@ -543,6 +546,32 @@ assert.equal(
   telemetryRequests[1].options.headers['x-snapback-secret-read-lease'],
   SECRET_READ,
   'Logs attaches the memory-only raw-read lease',
+);
+assert.equal(
+  telemetryRequests[2].url,
+  'http://snapback.test/_snapback/api/errors/issues?state=regressed&failureDisposition=fault&order=lastSeen&limit=500',
+  'Errors list encodes only the closed structural selector vocabulary',
+);
+assert.equal(
+  telemetryRequests[2].options.headers['x-snapback-secret-read-lease'],
+  undefined,
+  'structural Errors reads do not attach raw-read authority',
+);
+assert.equal(
+  telemetryRequests[3].url,
+  'http://snapback.test/_snapback/api/errors/issue?issue=iss_test',
+  'raw issue detail uses the dedicated typed operation',
+);
+assert.equal(
+  telemetryRequests[3].options.headers['x-snapback-secret-read-lease'],
+  SECRET_READ,
+  'raw issue detail attaches the memory-only errors.issue lease',
+);
+assert.equal(telemetryRequests[4].options.method, 'POST', 'error state controls use the typed transition write');
+assert.deepEqual(
+  JSON.parse(telemetryRequests[4].options.body),
+  { issue: 'iss_test', to: 'resolved', expectSeq: 7 },
+  'error transition preserves the state-sequence CAS body',
 );
 
 delete globalThis.fetch;

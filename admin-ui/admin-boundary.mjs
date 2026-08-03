@@ -25,8 +25,26 @@ export async function createAdminSurface({ runtime, client }) {
   let lastLogFilter = {};
   let lastLogCursor = null;
   let currentLogs = emptyTelemetryLogs();
+  let errorNotice = '';
+  let currentErrors = emptyErrorIssues();
+  let currentErrorDetail = emptyErrorDetail();
   let guideCatalog = null;
   const loadView = async () => buildView(...(await loadFacts(client)), lastVerify);
+  // @ref LLP 0156#e14--surface-typed-operations-projected-everywhere-d5-discipline — the
+  //   fixed console reuses the structural list and keeps raw detail explicit.
+  const loadErrors = async () => {
+    try {
+      const [open, regressed] = await Promise.all([
+        client.errorsIssues({ state: 'open', order: 'lastSeen', limit: 500 }),
+        client.errorsIssues({ state: 'regressed', order: 'lastSeen', limit: 500 }),
+      ]);
+      currentErrors = shapeErrorIssues(open, regressed, errorNotice);
+      return currentErrors;
+    } catch (error) {
+      currentErrors = failedErrorIssues(error);
+      return currentErrors;
+    }
+  };
   const loadLogs = async (filter = lastLogFilter, append = false) => {
     if (!append) {
       lastLogFilter = normalizeLogFilter(filter);
@@ -73,6 +91,10 @@ export async function createAdminSurface({ runtime, client }) {
       // Raw telemetry is never fetched during console bootstrap. The Logs page
       // spends its scoped secret-read lease only on an explicit Apply/refresh.
       telemetryLogs: async () => currentLogs,
+      // Structural issue metadata is an ordinary AdminRead and powers both the
+      // fixed Errors page and Health link tile. Raw exemplars remain unloaded.
+      errorIssues: async () => loadErrors(),
+      errorDetail: async () => currentErrorDetail,
       tableScan: emptyScan,
       runResult: emptyRun,
       guidePage: async () => loadGuideHome(),
@@ -83,9 +105,11 @@ export async function createAdminSurface({ runtime, client }) {
         // durable verified state on each entry is what remains authoritative.
         lastVerify = null;
         publishOne('inspect', await loadCommandView());
+        publishOne('errorIssues', await loadErrors());
       },
       refreshTelemetry: async (_args, { publishOne }) => {
         publishOne('inspect', await loadCommandView());
+        publishOne('errorIssues', await loadErrors());
       },
       loadTelemetryLogs: async (filter, { publishOne }) => {
         publishOne('telemetryLogs', await loadLogs(filter));
@@ -94,6 +118,28 @@ export async function createAdminSurface({ runtime, client }) {
         if (lastLogCursor) {
           publishOne('telemetryLogs', await loadLogs(lastLogFilter, true));
         }
+      },
+      loadErrorDetail: async ({ issue }, { publishOne }) => {
+        if (!issue) return;
+        try {
+          currentErrorDetail = shapeErrorDetail(await client.errorsIssue(issue));
+        } catch (error) {
+          currentErrorDetail = failedErrorDetail(issue, error);
+        }
+        publishOne('errorDetail', currentErrorDetail);
+      },
+      transitionError: async ({ issue, stateSeq, to }, { publishOne }) => {
+        if (!issue || !['resolved', 'ignored'].includes(to)) return;
+        try {
+          const response = await client.errorsTransition({ issue, to, expectSeq: stateSeq });
+          const row = response?.rows?.[0];
+          errorNotice = row?.outcome === 'applied'
+            ? `${issue} is now ${row.state}.`
+            : `${issue} was not changed (${row?.outcome || 'unknown outcome'}). Refresh and retry.`;
+        } catch (error) {
+          errorNotice = errorMessage(error);
+        }
+        publishOne('errorIssues', await loadErrors());
       },
       // The data explorer's parameterized read: fetch a page, pre-shape rows into
       // {key,text,sys} cells so the .contract uses static access, then republish.
@@ -677,6 +723,122 @@ function normalizeLogFilter(filter) {
   return Object.fromEntries(['kind', 'name', 'code', 'text']
     .map((key) => [key, String(filter?.[key] || '').trim()])
     .filter(([, value]) => value));
+}
+
+/* ---------------- error tracking ---------------- */
+
+function shapeErrorIssues(openResponse, regressedResponse, notice = '') {
+  const open = Array.isArray(openResponse?.issues) ? openResponse.issues : [];
+  const regressed = Array.isArray(regressedResponse?.issues) ? regressedResponse.issues : [];
+  const rows = [...open, ...regressed]
+    .filter((issue, index, all) => all.findIndex((candidate) => candidate.issue === issue.issue) === index)
+    .sort((left, right) => (
+      Number(right.lastSeenMs || 0) - Number(left.lastSeenMs || 0)
+      || String(left.issue).localeCompare(String(right.issue))
+    ))
+    .map((issue) => ({
+      key: String(issue.issue),
+      issue: String(issue.issue),
+      title: issue.title || 'Unclassified failure',
+      state: issue.state || 'open',
+      stateSeq: Number(issue.stateSeq || 0),
+      stateTone: issue.state === 'regressed' ? 'warn' : 'accent',
+      lastSeen: fmtTime(issue.lastSeenMs),
+      firstSeen: fmtTime(issue.firstSeenMs),
+      countLabel: `${Number(issue.count || 0)} ${Number(issue.count || 0) === 1 ? 'occurrence' : 'occurrences'}`,
+      releaseLabel: issue.lastRelease || 'no release',
+      fingerprintFacts: [issue.kind, issue.name, issue.failureDisposition]
+        .filter(Boolean)
+        .join(' · '),
+      suppressionLabel: `${Number(issue.suppressedCooldownCount || 0) + Number(issue.suppressedRolloutCount || 0)} suppressed`,
+    }));
+  const hasMore = openResponse?.nextCursor != null || regressedResponse?.nextCursor != null;
+  const knownReleases = [...new Set([
+    ...(openResponse?.knownReleases || []),
+    ...(regressedResponse?.knownReleases || []),
+  ])];
+  return {
+    id: 'errorIssues',
+    available: true,
+    error: '',
+    notice,
+    hasNotice: notice !== '',
+    hasIssues: rows.length > 0,
+    hasMore,
+    rows,
+    openCount: open.length,
+    regressedCount: regressed.length,
+    attentionCount: rows.length,
+    attentionLabel: `${rows.length}${hasMore ? '+' : ''}`,
+    countLabel: `${rows.length}${hasMore ? '+' : ''} open or regressed`,
+    horizon: fmtTime(Math.max(
+      Number(openResponse?.variance?.groupHorizonStartMs || 0),
+      Number(regressedResponse?.variance?.groupHorizonStartMs || 0),
+    )),
+    releaseLabel: knownReleases.length > 0 ? knownReleases.at(-1) : 'no retained releases',
+  };
+}
+
+function emptyErrorIssues() {
+  return {
+    id: 'errorIssues',
+    available: true,
+    error: '',
+    notice: '',
+    hasNotice: false,
+    hasIssues: false,
+    hasMore: false,
+    rows: [],
+    openCount: 0,
+    regressedCount: 0,
+    attentionCount: 0,
+    attentionLabel: '0',
+    countLabel: '0 open or regressed',
+    horizon: '—',
+    releaseLabel: 'no retained releases',
+  };
+}
+
+function failedErrorIssues(error) {
+  return {
+    ...emptyErrorIssues(),
+    available: false,
+    error: errorMessage(error),
+  };
+}
+
+function shapeErrorDetail(response) {
+  return {
+    id: 'errorDetail',
+    loaded: true,
+    available: true,
+    error: '',
+    issue: response?.issue?.issue || '',
+    title: response?.issue?.title || 'Error issue',
+    detail: JSON.stringify(response, null, 2),
+  };
+}
+
+function emptyErrorDetail() {
+  return {
+    id: 'errorDetail',
+    loaded: false,
+    available: true,
+    error: '',
+    issue: '',
+    title: 'Error issue',
+    detail: '',
+  };
+}
+
+function failedErrorDetail(issue, error) {
+  return {
+    ...emptyErrorDetail(),
+    loaded: true,
+    available: false,
+    issue,
+    error: errorMessage(error),
+  };
 }
 
 function shapeTelemetryLogs(response, previousRows = []) {

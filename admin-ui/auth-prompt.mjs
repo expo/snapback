@@ -68,7 +68,7 @@ export function renderSessionCredentialsPrompt(document, { message = '', onSubmi
   title.textContent = 'Session admin credentials required';
   const help = document.createElement('p');
   help.textContent =
-    'Paste the local admin token and a scoped secret-read lease minted by the trusted Snapback CLI with admin-inspect and telemetry-events scopes. The lease stays in this page memory only.';
+    'Paste the local admin token and a scoped secret-read lease minted by the trusted Snapback CLI with admin-inspect, telemetry-events, and errors-issue scopes. The lease stays in this page memory only.';
   const admin = credentialInput(document, 'admin-token', 'Local admin token');
   const lease = credentialInput(document, 'secret-read-lease', 'sbrl_ secret-read lease');
   const submit = document.createElement('button');

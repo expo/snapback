@@ -9104,10 +9104,16 @@ mod tests {
             None,
             Some("failure <digits>".to_owned()),
         );
+        let activation = release_activation_event(&generation, 2, "release-atomic");
         store.fail_before_commit = true;
         assert!(
             store
-                .flush(vec![first.clone()], BTreeMap::new(), 10_000, false)
+                .flush(
+                    vec![first.clone(), activation.clone()],
+                    BTreeMap::new(),
+                    10_000,
+                    false,
+                )
                 .is_err()
         );
         {
@@ -9124,6 +9130,13 @@ mod tests {
                     .unwrap(),
                 0
             );
+            assert_eq!(
+                conn.query_row("SELECT count(*) FROM release_activations", [], |row| row
+                    .get::<_, i64>(0))
+                    .unwrap(),
+                0,
+                "activation rows vanish with their raw row and group fold"
+            );
             let witness: (i64, i64) = conn
                 .query_row(
                     "SELECT flush_commit_sequence,enqueue_high_water FROM telemetry_meta WHERE singleton=1",
@@ -9136,13 +9149,24 @@ mod tests {
 
         store.fail_before_commit = false;
         store
-            .flush(vec![first], BTreeMap::new(), 10_001, false)
+            .flush(vec![first, activation], BTreeMap::new(), 10_001, false)
             .unwrap();
+        assert_eq!(
+            store
+                .conn
+                .as_ref()
+                .unwrap()
+                .query_row("SELECT count(*) FROM release_activations", [], |row| row
+                    .get::<_, i64>(0))
+                .unwrap(),
+            1,
+            "activation commits with its raw row and group fold"
+        );
         store
             .flush(
                 vec![eligible_failure_event(
                     &generation,
-                    2,
+                    3,
                     FINGERPRINT_VERSION,
                     hash,
                     FailureDispositionV1::Fault,
@@ -9158,7 +9182,7 @@ mod tests {
             .flush(
                 vec![eligible_failure_event(
                     &generation,
-                    3,
+                    4,
                     FINGERPRINT_VERSION,
                     hash,
                     FailureDispositionV1::Timeout,
@@ -9172,7 +9196,7 @@ mod tests {
             .unwrap();
         let mut malformed = eligible_failure_event(
             &generation,
-            4,
+            5,
             FINGERPRINT_VERSION,
             &"1".repeat(32),
             FailureDispositionV1::Fault,
@@ -9201,7 +9225,7 @@ mod tests {
                 },
             )
             .unwrap();
-        assert_eq!(group, (2, 1, 2, "fault".to_owned(), "functions".to_owned()));
+        assert_eq!(group, (2, 1, 3, "fault".to_owned(), "functions".to_owned()));
         let counters: (i64, i64, i64) = conn
             .query_row(
                 "SELECT classifier_disposition_mismatch_count,malformed_error_stamp_count,enqueue_high_water
@@ -9210,12 +9234,12 @@ mod tests {
                 |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
             )
             .unwrap();
-        assert_eq!(counters, (1, 1, 4));
+        assert_eq!(counters, (1, 1, 5));
         assert_eq!(
             conn.query_row("SELECT count(*) FROM telemetry_events", [], |row| row
                 .get::<_, i64>(0))
                 .unwrap(),
-            4,
+            5,
             "malformed and mismatched carriers remain available as raw telemetry"
         );
         assert_eq!(
@@ -9396,6 +9420,26 @@ mod tests {
             None,
         );
         at_end.ts_ms = 200;
+        store.fail_before_commit = true;
+        assert!(
+            store
+                .flush(vec![at_start.clone()], BTreeMap::new(), 30_001, false)
+                .is_err()
+        );
+        {
+            let conn = store.conn.as_ref().unwrap();
+            assert_eq!(
+                conn.query_row(
+                    "SELECT count(*) FROM error_groups WHERE fp_version=2",
+                    [],
+                    |row| row.get::<_, i64>(0),
+                )
+                .unwrap(),
+                0,
+                "a suppressed successor group and its counter vanish together"
+            );
+        }
+        store.fail_before_commit = false;
         store
             .flush(vec![at_start, at_end], BTreeMap::new(), 30_001, false)
             .unwrap();
@@ -9433,6 +9477,16 @@ mod tests {
             vec![(1, 1), (2, 2)],
             "fingerprint-version rollout creates successor groups without relabeling the predecessor"
         );
+        let visible = crate::errors_query::query_issues(
+            conn,
+            &crate::errors_query::ErrorsIssuesRequestV1::default(),
+            &crate::telemetry_query::QueryContext {
+                drops_since_boot: BTreeMap::new(),
+                last_flush_watermark: None,
+            },
+        )
+        .unwrap();
+        assert_eq!(visible.variance.suppression_counters["rollout"], 1);
     }
 
     #[test]
@@ -9694,6 +9748,37 @@ mod tests {
                 .unwrap(),
             ErrorTransitionResult::Applied { state_seq: 1, .. }
         ));
+        assert!(matches!(
+            telemetry
+                .transition_error_issue(&issue, ErrorIssueState::Ignored, 0)
+                .unwrap(),
+            ErrorTransitionResult::Conflict {
+                state: ErrorIssueState::Resolved,
+                state_seq: 1,
+                ..
+            }
+        ));
+        telemetry.force_flush().unwrap();
+        let overtaken: (String, i64, Option<i64>, i64) = telemetry
+            .producer
+            .shared
+            .store
+            .lock()
+            .unwrap()
+            .conn
+            .as_ref()
+            .unwrap()
+            .query_row(
+                "SELECT state,resolved_seq,last_regressed_seq,count FROM error_groups",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .unwrap();
+        assert_eq!(
+            overtaken,
+            ("resolved".to_owned(), 2, None, 2),
+            "an occurrence admitted before the resolve barrier cannot regress when it flushes afterward"
+        );
         telemetry.enqueue(
             eligible_failure_event(
                 &generation,
@@ -9874,6 +9959,7 @@ mod tests {
             Store::memory_unbound("01900000-0000-7000-8000-000000000001", config()).unwrap();
         let generation = store.generation.clone();
         let before_hash = "0123456789abcdef0123456789abcdef";
+        let skipped_hash = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
         let after_hash = "fedcba9876543210fedcba9876543210";
         store
             .flush(
@@ -9887,10 +9973,19 @@ mod tests {
                         None,
                         None,
                     ),
-                    release_activation_event(&generation, 2, "release-bulk"),
                     eligible_failure_event(
                         &generation,
-                        3,
+                        2,
+                        1,
+                        skipped_hash,
+                        FailureDispositionV1::Fault,
+                        None,
+                        None,
+                    ),
+                    release_activation_event(&generation, 3, "release-bulk"),
+                    eligible_failure_event(
+                        &generation,
+                        4,
                         1,
                         after_hash,
                         FailureDispositionV1::Fault,
@@ -9903,19 +9998,55 @@ mod tests {
                 false,
             )
             .unwrap();
+        let skipped_issue: String = store
+            .conn
+            .as_ref()
+            .unwrap()
+            .query_row(
+                "SELECT issue FROM error_groups WHERE last_seen_seq=2",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(matches!(
+            store
+                .transition_error_issue(
+                    ErrorIssueTransition {
+                        issue: &skipped_issue,
+                        to: ErrorIssueState::Ignored,
+                        expect_seq: 0,
+                        barrier: None,
+                        release: None,
+                        actor: "admin",
+                    },
+                    50_001,
+                )
+                .unwrap(),
+            ErrorTransitionResult::Applied {
+                state: ErrorIssueState::Ignored,
+                ..
+            }
+        ));
         let result = store
-            .resolve_errors_open_before("release-bulk", 3, 50_001)
+            .resolve_errors_open_before("release-bulk", 4, 50_002)
             .unwrap();
         assert!(result.known_release);
-        assert_eq!(result.activation_seq, Some(2));
-        assert_eq!(result.rows.len(), 1);
-        assert!(matches!(
-            result.rows[0],
+        assert_eq!(result.activation_seq, Some(3));
+        assert_eq!(result.rows.len(), 2);
+        assert!(result.rows.iter().any(|row| matches!(
+            row,
             ErrorTransitionResult::Applied {
                 state: ErrorIssueState::Resolved,
                 ..
             }
-        ));
+        )));
+        assert!(result.rows.iter().any(|row| matches!(
+            row,
+            ErrorTransitionResult::Invalid {
+                state: ErrorIssueState::Ignored,
+                ..
+            }
+        )));
         let states = store
             .conn
             .as_ref()
@@ -9936,11 +10067,12 @@ mod tests {
             states,
             vec![
                 (1, "resolved".to_owned(), Some("release-bulk".to_owned())),
-                (3, "open".to_owned(), None),
+                (2, "ignored".to_owned(), None),
+                (4, "open".to_owned(), None),
             ]
         );
         let unknown = store
-            .resolve_errors_open_before("unknown-release", 3, 50_002)
+            .resolve_errors_open_before("unknown-release", 4, 50_003)
             .unwrap();
         assert!(!unknown.known_release);
         assert!(unknown.rows.is_empty());
@@ -10026,6 +10158,13 @@ mod tests {
             vec!["release-before", "release-errors-api"]
         );
         assert_eq!(all.variance.transition_history_floor_seq, None);
+        let bridge_issue = all
+            .issues
+            .iter()
+            .find(|issue| issue.first_seen_seq == 3)
+            .unwrap()
+            .issue
+            .clone();
         let structural = serde_json::to_string(&all).unwrap();
         assert!(!structural.contains("titleTemplate"));
         assert!(!structural.contains("stackHead"));
@@ -10107,6 +10246,11 @@ mod tests {
             "raw detail must return the pinned ready-to-run correlation query"
         );
         assert!(!detail.variance.exemplar_stale);
+        assert_eq!(detail.variance.transition_history_floor_seq, Some(0));
+        assert!(
+            !detail.variance.transition_history_truncated,
+            "a fresh state_seq=0 group reports an exact, untruncated transition floor"
+        );
         {
             let mut store = telemetry
                 .producer
@@ -10131,6 +10275,67 @@ mod tests {
         assert!(
             aged_out.variance.exemplar_stale,
             "stale means the group survives after every raw exemplar aged out"
+        );
+        telemetry.set_release(Some("release-errors-api"));
+        assert!(matches!(
+            telemetry
+                .transition_error_issue(&bridge_issue, ErrorIssueState::Resolved, 0)
+                .unwrap(),
+            ErrorTransitionResult::Applied { state_seq: 1, .. }
+        ));
+        let mut bridge_recurrence = eligible_failure_event(
+            &generation,
+            0,
+            1,
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            FailureDispositionV1::Fault,
+            None,
+            Some("bridge after deploy {number}".to_owned()),
+        );
+        bridge_recurrence.release = Some("release-errors-api".to_owned());
+        telemetry.enqueue(bridge_recurrence, true);
+        telemetry.force_flush().unwrap();
+        let mut state = ErrorIssueState::Regressed;
+        for expect_seq in 2..=102 {
+            let to = if state == ErrorIssueState::Resolved {
+                ErrorIssueState::Open
+            } else {
+                ErrorIssueState::Resolved
+            };
+            assert!(matches!(
+                telemetry
+                    .transition_error_issue(&bridge_issue, to, expect_seq)
+                    .unwrap(),
+                ErrorTransitionResult::Applied { .. }
+            ));
+            state = to;
+        }
+        let pruned_detail = telemetry
+            .query_error_issue(&crate::errors_query::ErrorsIssueRequestV1 {
+                issue: bridge_issue.clone(),
+            })
+            .unwrap();
+        assert!(pruned_detail.variance.transition_history_truncated);
+        assert!(
+            pruned_detail
+                .variance
+                .transition_history_floor_seq
+                .is_some_and(|floor| floor > 1)
+        );
+        let since_after_pruning = telemetry
+            .query_error_issues(&crate::errors_query::ErrorsIssuesRequestV1 {
+                since: Some("release-errors-api".to_owned()),
+                ..Default::default()
+            })
+            .unwrap();
+        assert_eq!(since_after_pruning.issues.len(), 2);
+        assert!(
+            since_after_pruning
+                .issues
+                .iter()
+                .any(|issue| issue.issue == bridge_issue
+                    && issue.last_regressed_seq.is_some_and(|seq| seq > 4)),
+            "since remains a group-sequence predicate after transition history pruning"
         );
         let wrong_kind = telemetry
             .query_error_issue(&crate::errors_query::ErrorsIssueRequestV1 {
@@ -10296,6 +10501,30 @@ mod tests {
             params![config().max_days, raw_boundary],
         )
         .unwrap();
+        let expired_issue: String = conn
+            .query_row("SELECT issue FROM error_groups", [], |row| row.get(0))
+            .unwrap();
+        conn.execute(
+            "UPDATE error_exemplars SET recorded_ts_ms=?1",
+            params![raw_boundary],
+        )
+        .unwrap();
+        let raw_aged = crate::errors_query::query_issue(
+            conn,
+            &crate::errors_query::ErrorsIssueRequestV1 {
+                issue: expired_issue.clone(),
+            },
+            &crate::telemetry_query::QueryContext {
+                drops_since_boot: BTreeMap::new(),
+                last_flush_watermark: None,
+            },
+        )
+        .unwrap();
+        assert!(raw_aged.exemplars.is_empty());
+        assert!(
+            raw_aged.variance.exemplar_stale,
+            "the detail response labels a surviving group after its exemplar crosses the strict raw floor"
+        );
         conn.execute(
             "UPDATE error_groups SET last_seen_ms=?1",
             params![group_boundary],
@@ -10304,11 +10533,6 @@ mod tests {
         conn.execute(
             "UPDATE release_activations SET last_activated_ms=?1",
             params![group_boundary],
-        )
-        .unwrap();
-        conn.execute(
-            "UPDATE error_exemplars SET recorded_ts_ms=?1",
-            params![raw_boundary],
         )
         .unwrap();
         assert_eq!(
@@ -10342,9 +10566,6 @@ mod tests {
             1,
             "strict read boundaries hide stale keys before the maintenance sweep"
         );
-        let expired_issue: String = conn
-            .query_row("SELECT issue FROM error_groups", [], |row| row.get(0))
-            .unwrap();
         store
             .flush(
                 vec![eligible_failure_event(
@@ -10370,6 +10591,21 @@ mod tests {
         assert_ne!(
             recurrent_issue, expired_issue,
             "a recurrence after the group horizon mints a fresh issue identity"
+        );
+        let response = crate::errors_query::query_issues(
+            store.conn.as_ref().unwrap(),
+            &crate::errors_query::ErrorsIssuesRequestV1::default(),
+            &crate::telemetry_query::QueryContext {
+                drops_since_boot: BTreeMap::new(),
+                last_flush_watermark: None,
+            },
+        )
+        .unwrap();
+        assert_eq!(response.issues.len(), 1);
+        assert_eq!(
+            response.variance.group_horizon_start_ms,
+            clock + 1 - i64::from(config().daily_days) * DAY_MS,
+            "the issue response exposes the exact horizon used to forget the old group"
         );
     }
 
@@ -10406,20 +10642,57 @@ mod tests {
                 .unwrap()
                 .query_row("SELECT issue FROM error_groups", [], |row| row.get(0))
                 .unwrap();
-            store
-                .transition_error_issue(
-                    ErrorIssueTransition {
-                        issue: &issue,
-                        to: ErrorIssueState::Resolved,
-                        expect_seq: 0,
-                        barrier: Some(2),
-                        release: Some("release-before-crash"),
-                        actor: "admin",
-                    },
-                    base + 1,
-                )
-                .unwrap();
-            assert_eq!(store.enqueue_sequence_seed().unwrap(), 2);
+            let telemetry = Telemetry::from_store(store, policy.clone()).unwrap();
+            {
+                let active_policy = telemetry.producer.shared.config.read().unwrap().clone();
+                let mut buffer = telemetry.producer.shared.buffer.lock().unwrap();
+                enqueue_locked(
+                    &mut buffer,
+                    &active_policy,
+                    eligible_failure_event(
+                        &generation,
+                        0,
+                        1,
+                        hash,
+                        FailureDispositionV1::Fault,
+                        None,
+                        None,
+                    ),
+                );
+                assert_eq!(
+                    buffer.len(),
+                    1,
+                    "one admitted occurrence is still unflushed"
+                );
+                assert_eq!(buffer.next_sequence, 2);
+            }
+            telemetry.set_release(Some("release-before-crash"));
+            assert!(matches!(
+                telemetry
+                    .transition_error_issue(&issue, ErrorIssueState::Resolved, 0)
+                    .unwrap(),
+                ErrorTransitionResult::Applied { state_seq: 1, .. }
+            ));
+            assert_eq!(
+                telemetry.producer.shared.buffer.lock().unwrap().len(),
+                1,
+                "resolve commits without flushing the earlier admission"
+            );
+            assert_eq!(
+                telemetry
+                    .producer
+                    .shared
+                    .store
+                    .lock()
+                    .unwrap()
+                    .enqueue_sequence_seed()
+                    .unwrap(),
+                2,
+                "the resolve transaction durably advances the admission high-water"
+            );
+            // Model process loss exactly: do not run Producer::drop, whose
+            // graceful-shutdown contract would flush this admission.
+            std::mem::forget(telemetry);
             issue
         };
 
@@ -10535,6 +10808,27 @@ mod tests {
             0,
             "the over-cap fingerprint has no group row"
         );
+        let visible = crate::errors_query::query_issues(
+            conn,
+            &crate::errors_query::ErrorsIssuesRequestV1 {
+                limit: crate::errors_query::MAX_ISSUE_LIMIT,
+                ..Default::default()
+            },
+            &crate::telemetry_query::QueryContext {
+                drops_since_boot: BTreeMap::new(),
+                last_flush_watermark: None,
+            },
+        )
+        .unwrap();
+        assert_eq!(visible.variance.overflow_fold_count, 1);
+        assert_eq!(
+            visible.variance.overflow_fold_scope,
+            "cumulativeSinceGenerationStart"
+        );
+        assert!(
+            visible.next_cursor.is_some(),
+            "the visible groups remain honestly paginated"
+        );
         let _ = conn;
         let below_floor = store
             .resolve_errors_open_before("release-0000", activation_start as i64, 80_002)
@@ -10637,6 +10931,17 @@ mod tests {
                 .unwrap(),
             0
         );
+        let response = crate::errors_query::query_issues(
+            conn,
+            &crate::errors_query::ErrorsIssuesRequestV1::default(),
+            &crate::telemetry_query::QueryContext {
+                drops_since_boot: BTreeMap::new(),
+                last_flush_watermark: None,
+            },
+        )
+        .unwrap();
+        assert_eq!(response.variance.overflow_fold_count, 0);
+        assert_eq!(response.issues.len(), 1);
     }
 
     #[test]
@@ -10666,6 +10971,17 @@ mod tests {
             .unwrap()
             .query_row("SELECT issue FROM error_groups", [], |row| row.get(0))
             .unwrap();
+        assert_eq!(
+            store
+                .error_transition_history_floor(&issue, 100_000)
+                .unwrap()
+                .unwrap(),
+            ErrorTransitionHistoryFloor {
+                floor_seq: 0,
+                history_truncated: false,
+            },
+            "a fresh group exposes floor zero without a truncation claim"
+        );
         let mut state = ErrorIssueState::Open;
         for state_seq in 0..102 {
             let to = if state == ErrorIssueState::Open {
@@ -10688,8 +11004,10 @@ mod tests {
                 .unwrap();
             state = to;
         }
-        let conn = store.conn.as_ref().unwrap();
-        let history: (i64, i64, i64) = conn
+        let history: (i64, i64, i64) = store
+            .conn
+            .as_ref()
+            .unwrap()
             .query_row(
                 "SELECT count(*),min(seq),max(seq) FROM error_transitions WHERE issue=?1",
                 params![issue],
@@ -10708,6 +11026,19 @@ mod tests {
                 history_truncated: true,
             }
         );
+        let detail = crate::errors_query::query_issue(
+            store.conn.as_ref().unwrap(),
+            &crate::errors_query::ErrorsIssueRequestV1 {
+                issue: issue.clone(),
+            },
+            &crate::telemetry_query::QueryContext {
+                drops_since_boot: BTreeMap::new(),
+                last_flush_watermark: None,
+            },
+        )
+        .unwrap();
+        assert_eq!(detail.variance.transition_history_floor_seq, Some(3));
+        assert!(detail.variance.transition_history_truncated);
         store
             .conn
             .as_ref()

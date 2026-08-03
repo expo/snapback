@@ -96,3 +96,41 @@ Wave policy keeps the mechanically required route/host-op classifications in
 to the end-wave guide landing. Until then the guide generator reports that
 expected carrier drift; checklist 7 remains the owner of the capability flip,
 guide page, and final generated projections.
+
+### 2026-08-03 — checklist 5 console + checklist 6 fixture checkpoint
+
+The fixed admin console now projects the same three typed operations instead
+of creating a console-private query path. Its Errors page merges open and
+regressed structural rows in persisted-recency order, shows occurrence and
+suppression counts, applies Resolve/Ignore through the exact `state_seq` CAS,
+and loads templates/stacks only after an explicit raw-detail action under the
+memory-only `errors.issue` lease. Health derives one link-out count from those
+same `errors.issues` reads. Console bootstrap and polling never call the raw
+detail operation.
+
+The checklist-6 corpus now spells out the previously implicit transaction and
+ordering witnesses. The injected mid-flush failure includes raw rows, a group
+fold, and a release activation in the same commit/vanish assertion. The
+overtaking case observes the pre-resolve admission flushed afterward while the
+issue remains resolved, then separately observes the post-resolve admission
+regress it. The crash schedule holds a real admission unflushed, commits the
+resolve/high-water transaction, bypasses graceful producer drop to model
+process loss, and proves the first post-restart occurrence regresses. Separate
+gates retain the concurrent capture/enqueue ordering, state-cycle CAS conflict,
+bulk applied/skipped rows, same-batch activation sequences, and idempotent
+same-row activation replay.
+
+The surface fixtures also re-run `since` after the real per-group history cap
+has pruned early transitions; expose fresh and truncated transition floors;
+show overflow, suppression, activation-floor, group-horizon, and exemplar-stale
+facts through typed variance responses; prove suppression rollback and
+generation-rebind counter reset; and retain the aged-predecessor fingerprint
+rollout and coupling-violation cases. Rust and JavaScript both replay the
+fingerprint bytes, while JavaScript independently checks the carrier fixture's
+canonical UTF-8 byte count and priority cut (required stamps/allowlist,
+whole-dropped `appDetails`, template/message, then truncated stack).
+
+Checklist 7 remains deliberately open for the guide page, capability-row flip,
+coordinated cross-references, generated guide projections, and final LLP 0156
+implementation record. This checkpoint does not claim E1 complete and does not
+enter E2 alerting/outbox scope.

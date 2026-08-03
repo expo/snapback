@@ -52,6 +52,13 @@ assert.equal(view.ui.health.tiles.find((tile) => tile.key === 'errors').value, '
 assert.equal(view.ui.health.topVolume[0].name, '/todos', 'Health ranks route volume from the typed named-count projection');
 assert.equal(view.ui.health.requestsOverTime[0].value, '4', 'Health series includes Rust-composed rollup and raw-tail counts');
 assert.equal(view.ui.health.drops.length, 2, 'since-boot and lifetime drops remain distinct');
+const initialErrors = surface.queryRows('errorIssues')[0];
+assert.equal(initialErrors.available, true, 'Errors hydrates structural issue metadata');
+assert.equal(initialErrors.attentionLabel, '2', 'Health link tile receives the open plus regressed count');
+assert.deepEqual(initialErrors.rows.map((row) => row.state), ['regressed', 'open'], 'Errors merges states in descending persisted recency');
+assert.equal(initialErrors.rows[0].countLabel, '3 occurrences', 'Errors exposes occurrence counts');
+assert.equal(client.errorIssueCalls, 0, 'console bootstrap never spends errors.issue raw-read authority');
+assert.equal(surface.queryRows('errorDetail')[0].loaded, false, 'raw issue detail starts unloaded');
 const initialLogs = surface.queryRows('telemetryLogs')[0];
 assert.equal(initialLogs.loaded, false, 'inactive Logs does not spend a raw-read lease during bootstrap');
 assert.equal(client.telemetryEventCalls, 0, 'inactive console tabs issue no telemetry.events call');
@@ -145,6 +152,12 @@ assert.deepEqual(
   'Logs continues toward older rows with the server-issued descending cursor',
 );
 assert.deepEqual(surface.queryRows('telemetryLogs')[0].rows.map((row) => row.id), ['7', '6'], 'older pages append in newest-first order');
+await surface.links.loadErrorDetail({ issue: 'iss_regressed' });
+assert.equal(client.errorIssueCalls, 1, 'raw issue detail loads only after an explicit operator action');
+assert.match(surface.queryRows('errorDetail')[0].detail, /raw stack sentinel/, 'detail modal receives raw exemplar fields');
+await surface.links.transitionError({ issue: 'iss_regressed', stateSeq: 4, to: 'resolved' });
+assert.deepEqual(client.lastErrorTransition, { issue: 'iss_regressed', to: 'resolved', expectSeq: 4 }, 'Errors state controls send the exact state-sequence CAS');
+assert.match(surface.queryRows('errorIssues')[0].notice, /now resolved/, 'applied transitions publish an operator result');
 const rawCallsBeforePoll = client.telemetryEventCalls;
 await surface.links.refreshTelemetry({});
 assert.equal(surface.queryRows('inspect')[0].ui.health.available, true, 'poll refreshes Health');
@@ -224,6 +237,8 @@ function createFakeAdminClient() {
     configMissing: null,
     lastTelemetryFilter: null,
     telemetryEventCalls: 0,
+    errorIssueCalls: 0,
+    lastErrorTransition: null,
     async inspect() {
       if (client.failInspect) {
         throw new Error('inspect transport failed');
@@ -394,6 +409,42 @@ function createFakeAdminClient() {
         nextCursor: older ? null : { recordedTsMs: 1_700_000_000_100, id: 7 },
         variance: { freshnessWatermark: 1_700_000_000_100 },
       };
+    },
+    async errorsIssues(filter) {
+      const issue = {
+        issue: filter.state === 'regressed' ? 'iss_regressed' : 'iss_open',
+        title: filter.state === 'regressed' ? 'TypeError in createTodo' : 'SNAPBACK_TEST_FAILURE in listTodos',
+        state: filter.state,
+        stateSeq: filter.state === 'regressed' ? 4 : 0,
+        kind: 'function_run',
+        name: filter.state === 'regressed' ? 'createTodo' : 'listTodos',
+        failureDisposition: 'fault',
+        firstSeenMs: 1_700_000_000_000,
+        lastSeenMs: filter.state === 'regressed' ? 1_700_000_000_300 : 1_700_000_000_200,
+        count: filter.state === 'regressed' ? 3 : 1,
+        lastRelease: 'release-test',
+        suppressedCooldownCount: 0,
+        suppressedRolloutCount: 1,
+      };
+      return {
+        issues: [issue],
+        nextCursor: null,
+        knownReleases: ['release-test'],
+        variance: { groupHorizonStartMs: 1_699_000_000_000 },
+      };
+    },
+    async errorsIssue(issue) {
+      client.errorIssueCalls += 1;
+      return {
+        issue: { issue, title: 'TypeError in createTodo' },
+        exemplars: [{ titleTemplate: 'raw template sentinel', stackHead: 'raw stack sentinel' }],
+        transitions: [],
+        variance: { exemplarStale: false },
+      };
+    },
+    async errorsTransition(input) {
+      client.lastErrorTransition = input;
+      return { rows: [{ issue: input.issue, outcome: 'applied', state: input.to, stateSeq: input.expectSeq + 1 }] };
     },
     async cleanupEphemeral() {
       return null;

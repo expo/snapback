@@ -1731,6 +1731,15 @@ mod tests {
         assert_eq!(first, second);
         assert!(first.serialized_bytes <= FAILURE_DETAILS_MAX_BYTES);
         assert_eq!(first.details["detailFlags"]["appDetailsDropped"], true);
+        assert_eq!(first.details["detailFlags"]["functionTruncated"], true);
+        assert_eq!(
+            first.details["detailFlags"]["messageTemplateTruncated"],
+            true
+        );
+        assert_eq!(first.details["detailFlags"]["messageTruncated"], true);
+        assert_eq!(first.details["detailFlags"]["stackTruncated"], true);
+        assert!(first.details.get("platformCode").is_some());
+        assert!(first.details.get("fp_hash").is_some());
         assert!(first.details.get("notAllowed").is_none());
         for value in first.details.as_object().unwrap().values() {
             if let Some(text) = value.as_str() {

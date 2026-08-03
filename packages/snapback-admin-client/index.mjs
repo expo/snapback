@@ -262,6 +262,33 @@ export class AdminClient {
     );
   }
 
+  // @ref LLP 0156#e14--surface-typed-operations-projected-everywhere-d5-discipline — structural
+  //   lists, raw issue detail, and authored transitions retain distinct gates.
+  errorsIssues(filter = {}) {
+    return this.#req(
+      'GET',
+      `/errors/issues${telemetryQuery(filter, [
+        'state', 'kind', 'name', 'subsystem', 'failureDisposition', 'release',
+        'since', 'fromMs', 'toMs', 'order', 'cursor', 'limit',
+      ])}`,
+    );
+  }
+
+  errorsIssue(issue) {
+    return this.#req(
+      'GET',
+      `/errors/issue${telemetryQuery({ issue }, ['issue'])}`,
+      undefined,
+      {},
+      true,
+      true,
+    );
+  }
+
+  errorsTransition(input) {
+    return this.#req('POST', '/errors/transition', input);
+  }
+
   scanTable(table, limit = 50, offset = 0) {
     return this.#req(
       'GET',

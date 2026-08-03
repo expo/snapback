@@ -225,6 +225,7 @@ export function navSections(): NavSection[] {
   return [
     { key: 'Overview', label: 'Overview' },
     { key: 'Health', label: 'Health' },
+    { key: 'Errors', label: 'Errors' },
     { key: 'Logs', label: 'Logs' },
     { key: 'Schema', label: 'Schema' },
     { key: 'Data', label: 'Data' },

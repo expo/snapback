@@ -9,10 +9,16 @@
 //
 // @ref LLP 0017#console-surfaces — the console composes the headless admin
 //   contract into views; the contract, not this file, is the source of truth.
+// @ref LLP 0156#e14--surface-typed-operations-projected-everywhere-d5-discipline — Errors
+//   is a fixed triage page, and Health only links into the same operation data.
 
 use inspect from "./generated/contract/inspect.query.ts"
 use refresh from "./generated/contract/refresh.mutation.ts"
 use telemetryLogs from "./generated/contract/telemetryLogs.query.ts"
+use errorIssues from "./generated/contract/errorIssues.query.ts"
+use errorDetail from "./generated/contract/errorDetail.query.ts"
+use loadErrorDetail from "./generated/contract/loadErrorDetail.mutation.ts"
+use transitionError from "./generated/contract/transitionError.mutation.ts"
 use refreshTelemetry from "./generated/contract/refreshTelemetry.mutation.ts"
 use loadTelemetryLogs from "./generated/contract/loadTelemetryLogs.mutation.ts"
 use loadOlderTelemetryLogs from "./generated/contract/loadOlderTelemetryLogs.mutation.ts"
@@ -44,16 +50,21 @@ component AdminConsole
   state logCode = ""
   state logText = ""
   state logDetail = ""
+  state errorDetailIssue = ""
 
   query state = inspect({})
   query scan = tableScan({})
   query logs = telemetryLogs({})
+  query errorsQ = errorIssues({})
+  query errorDetailQ = errorDetail({})
   query runResultQ = runResult({})
   query guide = guidePage({})
   mutation reloadInspect = refresh
   mutation pollTelemetry = refreshTelemetry
   mutation loadLogs = loadTelemetryLogs
   mutation loadOlderLogs = loadOlderTelemetryLogs
+  mutation loadError = loadErrorDetail
+  mutation transitionErrorMut = transitionError
   mutation loadScan = loadTable
   mutation runMut = runFunction
   mutation cleanupMut = cleanup
@@ -66,6 +77,7 @@ component AdminConsole
   derive isOverview = activeTab == "Overview"
   derive isHealth = activeTab == "Health"
   derive isLogs = activeTab == "Logs"
+  derive isErrors = activeTab == "Errors"
   derive isSchema = activeTab == "Schema"
   derive isData = activeTab == "Data"
   derive isFunctions = activeTab == "Functions"
@@ -110,6 +122,15 @@ component AdminConsole
     logDetail = detail
   action closeLog writes logDetail
     logDetail = ""
+  action openError(issue) writes errorDetailIssue mutates loadError
+    errorDetailIssue = issue
+    loadError({ issue: issue })
+  action closeError writes errorDetailIssue
+    errorDetailIssue = ""
+  action resolveError(issue, stateSeq) mutates transitionErrorMut
+    transitionErrorMut({ issue: issue, stateSeq: stateSeq, to: "resolved" })
+  action ignoreError(issue, stateSeq) mutates transitionErrorMut
+    transitionErrorMut({ issue: issue, stateSeq: stateSeq, to: "ignored" })
   action runFn mutates runMut
     runMut({ name: runName, argsText: runArgs })
   action cleanupNow mutates cleanupMut
@@ -210,6 +231,15 @@ component AdminConsole
                   column gap=16 width="100%"
                     when s.ui.health.available
                       row gap=12 wrap="wrap" width="100%"
+                        async errorsQ
+                          ready errorRows
+                            each ev in errorRows key=ev.id
+                              when ev.available
+                                button press=setTab("Errors") testId="health-errors-link" minWidth=190 flex=1 radius=12 borderWidth=1 borderColor=ev.attentionCount > 0 ? c.warn : c.border background=ev.attentionCount > 0 ? c.warnSoft : c.surface paddingTop=14 paddingBottom=14 paddingLeft=16 paddingRight=16
+                                  column gap=4 width="100%" align="start"
+                                    text "New / regressed issues" size=11 weight=700 color=c.textMuted family=f.sans letterSpacing=0.3
+                                    text ev.attentionLabel size=24 weight=700 color=ev.attentionCount > 0 ? c.warn : c.text family=f.mono
+                                    text "Open Errors →" size=11 weight=600 color=c.accentText family=f.sans
                         each t in s.ui.health.tiles key=t.key
                           StatTile(c=c, label=t.label, value=t.value, alert=t.alert)
                       row gap=14 wrap="wrap" width="100%" align="stretch"
@@ -240,6 +270,84 @@ component AdminConsole
                       column gap=7 padding=16 radius=12 background=c.errSoft width="100%"
                         text "Health telemetry unavailable" size=13 weight=700 color=c.err family=f.sans
                         text s.ui.health.error size=12 color=c.err family=f.mono
+
+                when isErrors
+                  column gap=14 width="100%"
+                    text "Open issues ordered by their latest persisted occurrence. Structural metadata is available under ordinary admin authority; opening detail spends the scoped errors.issue raw-read lease." size=13 color=c.textMuted family=f.sans
+                    async errorsQ
+                      loading
+                        text "Loading error issues…" size=13 color=c.textMuted family=f.sans
+                      error issueErr
+                        text issueErr.message size=12 color=c.err family=f.mono
+                      ready errorRows
+                        each ev in errorRows key=ev.id
+                          when ev.available
+                            row gap=12 wrap="wrap" width="100%"
+                              StatTile(c=c, label="Open", value=ev.openCount, alert=ev.openCount > 0)
+                              StatTile(c=c, label="Regressed", value=ev.regressedCount, alert=ev.regressedCount > 0)
+                              StatTile(c=c, label="Visible horizon", value=ev.horizon, alert=false)
+                            when ev.hasNotice
+                              column gap=4 padding=12 radius=10 background=c.infoSoft width="100%"
+                                text ev.notice size=12 color=c.info family=f.mono testId="errors-notice"
+                            column gap=0 radius=12 background=c.surface borderWidth=1 borderColor=c.border width="100%" boxShadow=c.shadowCard
+                              row gap=10 align="center" width="100%" paddingTop=11 paddingBottom=11 paddingLeft=14 paddingRight=14 background=c.surfaceRaised borderColor=c.border borderBottomWidth=1
+                                text ev.countLabel size=12 weight=700 color=c.text family=f.sans flex=1
+                                text `latest release · ${ev.releaseLabel}` size=11 color=c.textFaint family=f.mono
+                              when ev.hasIssues
+                                each issue in ev.rows key=issue.key
+                                  column gap=8 width="100%" paddingTop=12 paddingBottom=12 paddingLeft=14 paddingRight=14 borderColor=c.border borderBottomWidth=1
+                                    row gap=10 align="center" width="100%" wrap="wrap"
+                                      Badge(c=c, label=issue.state, tone=issue.stateTone, mono=true)
+                                      text issue.title size=14 weight=700 color=c.text family=f.sans flex=1 minWidth=220 numberOfLines=1
+                                      text issue.countLabel size=12 color=c.textMuted family=f.mono
+                                    row gap=10 align="center" width="100%" wrap="wrap"
+                                      text issue.lastSeen size=11 color=c.textFaint family=f.mono width=180
+                                      text issue.fingerprintFacts size=12 color=c.textMuted family=f.mono flex=1 minWidth=180 numberOfLines=1
+                                      text issue.releaseLabel size=11 color=c.textFaint family=f.mono
+                                      text issue.suppressionLabel size=11 color=c.textFaint family=f.mono
+                                    row gap=8 justify="end" width="100%" wrap="wrap"
+                                      button press=openError(issue.issue) testId=`error-detail-${issue.key}` paddingTop=6 paddingBottom=6 paddingLeft=12 paddingRight=12 radius=8 borderWidth=1 borderColor=c.border background=c.surfaceRaised
+                                        text "View raw detail" size=12 weight=600 color=c.accentText family=f.sans
+                                      button press=ignoreError(issue.issue, issue.stateSeq) testId=`error-ignore-${issue.key}` paddingTop=6 paddingBottom=6 paddingLeft=12 paddingRight=12 radius=8 borderWidth=1 borderColor=c.border background=c.surface
+                                        text "Ignore" size=12 weight=600 color=c.textMuted family=f.sans
+                                      button press=resolveError(issue.issue, issue.stateSeq) testId=`error-resolve-${issue.key}` paddingTop=6 paddingBottom=6 paddingLeft=12 paddingRight=12 radius=8 borderWidth=0 background=c.accent
+                                        text "Resolve" size=12 weight=600 color=c.onAccent family=f.sans
+                              else
+                                column padding=28 align="center" width="100%" gap=5
+                                  text "No open or regressed issues." size=13 weight=600 color=c.text family=f.sans
+                                  text "Resolved and ignored issues remain available through the typed operations." size=12 color=c.textMuted family=f.sans
+                              when ev.hasMore
+                                column padding=10 background=c.warnSoft width="100%"
+                                  text "More than 500 issues are visible in at least one state; use errors.issues for bounded pagination." size=11 color=c.warn family=f.sans
+                          else
+                            column gap=7 padding=16 radius=12 background=c.errSoft width="100%"
+                              text "Error tracking unavailable" size=13 weight=700 color=c.err family=f.sans
+                              text ev.error size=12 color=c.err family=f.mono
+                    when errorDetailIssue != ""
+                      stack portalTarget="root" portalLevel=120 portalPresentation="modal" presence="entered" position="fixed" left=0 top=0 width="100%" height="100%" zIndex=120 align="center" justify="center" padding=24 testId="error-detail-modal"
+                        button press=closeError label="Close error detail" position="absolute" left=0 top=0 width="100%" height="100%" zIndex=0 background="rgba(0,0,0,0.62)" borderWidth=0 testId="error-detail-backdrop"
+                        column gap=12 width="100%" maxWidth=820 maxHeight="85%" padding=18 radius=12 background=c.surface borderWidth=1 borderColor=c.border zIndex=1
+                          async errorDetailQ
+                            loading
+                              text "Loading raw error detail…" size=13 color=c.textMuted family=f.sans
+                            error detailErr
+                              text detailErr.message size=12 color=c.err family=f.mono
+                            ready detailRows
+                              each detail in detailRows key=detail.id
+                                row align="center" width="100%" gap=10
+                                  column gap=2 flex=1 minWidth=0
+                                    text detail.title size=15 weight=700 color=c.text family=f.sans numberOfLines=1
+                                    text detail.issue size=11 color=c.textFaint family=f.mono
+                                  button press=closeError testId="error-detail-close" paddingTop=6 paddingBottom=6 paddingLeft=12 paddingRight=12 radius=8 borderWidth=1 borderColor=c.border background=c.surfaceRaised
+                                    text "Close" size=12 weight=600 color=c.textMuted family=f.sans
+                                when detail.available
+                                  when detail.loaded
+                                    scroll height=540 padding=12 radius=8 background=c.surfaceRaised borderWidth=1 borderColor=c.border width="100%"
+                                      text detail.detail size=12 color=c.text family=f.mono lineHeight=18
+                                else
+                                  column gap=6 padding=14 radius=10 background=c.errSoft width="100%"
+                                    text "Raw detail unavailable" size=13 weight=700 color=c.err family=f.sans
+                                    text detail.error size=12 color=c.err family=f.mono
 
                 when isLogs
                   column gap=14 width="100%"

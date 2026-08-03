@@ -5,6 +5,10 @@ export interface AdminContractLinks {
   inspect(args: Record<string, never>): unknown;
   refresh(args: Record<string, never>): unknown;
   telemetryLogs(args: Record<string, never>): unknown;
+  errorIssues(args: Record<string, never>): unknown;
+  errorDetail(args: Record<string, never>): unknown;
+  loadErrorDetail(args: { issue: string }): unknown;
+  transitionError(args: { issue: string; stateSeq: number; to: string }): unknown;
   refreshTelemetry(args: Record<string, never>): unknown;
   loadOlderTelemetryLogs(args: Record<string, never>): unknown;
   loadTelemetryLogs(args: { kind: string; name: string; code: string; text: string }): unknown;
