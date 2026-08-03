@@ -1522,11 +1522,42 @@ impl FunctionManifest {
 }
 
 fn validate_sequence_declarations(function: &FunctionDefinition) -> SnapbackResult<()> {
+    let host_allocations = match &function.runtime {
+        FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)) => plan
+            .steps
+            .iter()
+            .filter(|step| matches!(step, MutationStep::AllocateSequence { .. }))
+            .count(),
+        FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(plan)) => plan
+            .mutation
+            .steps
+            .iter()
+            .filter(|step| matches!(step, MutationStep::AllocateSequence { .. }))
+            .count(),
+        _ => 0,
+    };
     if function.sequences.is_empty() {
-        return Ok(());
+        return if host_allocations == 0 {
+            Ok(())
+        } else {
+            Err(SnapbackError::error(
+                "SNAPBACK_SEQUENCE_UNDECLARED",
+                "runtime",
+                format!(
+                    "function {} contains AllocateSequence without a declaration",
+                    function.name
+                ),
+            ))
+        };
     }
+    let handler = matches!(function.runtime, FunctionRuntime::IbexModule(_));
+    let write_with_activity = match &function.runtime {
+        FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(plan)) => Some(plan),
+        _ => None,
+    };
     if function.kind != FunctionKind::Mutation
-        || !matches!(function.runtime, FunctionRuntime::IbexModule(_))
+        || (!handler && write_with_activity.is_none())
+        || (write_with_activity.is_none() && host_allocations > 0)
         || !function
             .required_capabilities
             .iter()
@@ -1536,7 +1567,7 @@ fn validate_sequence_declarations(function: &FunctionDefinition) -> SnapbackResu
             "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
             "runtime",
             format!(
-                "function {} declares sequences without the handler mutation profile and capability",
+                "function {} declares sequences without an admitted mutation profile and capability",
                 function.name
             ),
         ));
@@ -1557,12 +1588,20 @@ fn validate_sequence_declarations(function: &FunctionDefinition) -> SnapbackResu
             ));
         }
         match &declaration.scope_access {
-            SequenceScopeAccess::Public(profile) if profile == "public.v1" => {}
+            SequenceScopeAccess::Public(profile) if handler && profile == "public.v1" => {}
             SequenceScopeAccess::Membership { declaration, roles }
-                if !declaration.trim().is_empty()
+                if handler
+                    && !declaration.trim().is_empty()
                     && !roles.is_empty()
                     && roles.iter().all(|role| !role.trim().is_empty())
                     && roles.iter().collect::<BTreeSet<_>>().len() == roles.len() => {}
+            SequenceScopeAccess::ExistingOwner(access)
+                if write_with_activity.is_some_and(|plan| {
+                    access.kind == "existing-owner.v1"
+                        && !access.owner_field.trim().is_empty()
+                        && access.owner_field == plan.scope_owner_field
+                        && declaration.scope_table == plan.scope_table
+                }) => {}
             _ => {
                 return Err(SnapbackError::error(
                     "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
@@ -1573,6 +1612,45 @@ fn validate_sequence_declarations(function: &FunctionDefinition) -> SnapbackResu
                     ),
                 ));
             }
+        }
+    }
+    if let Some(plan) = write_with_activity {
+        let allocations = plan
+            .mutation
+            .steps
+            .iter()
+            .filter_map(|step| match step {
+                MutationStep::AllocateSequence {
+                    counter,
+                    scope,
+                    into: _,
+                } => Some((counter, scope)),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        if allocations.len() != function.sequences.len()
+            || allocations.into_iter().any(|(counter, scope)| {
+                scope != &plan.scope_id
+                    || !function.sequences.iter().any(|declaration| {
+                        declaration.name.as_str() == counter.as_str()
+                            && declaration.scope_table == plan.scope_table
+                            && matches!(
+                                &declaration.scope_access,
+                                SequenceScopeAccess::ExistingOwner(access)
+                                    if access.kind == "existing-owner.v1"
+                                        && access.owner_field == plan.scope_owner_field
+                            )
+                    })
+            })
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
+                "runtime",
+                format!(
+                    "function {} sequence declarations do not match its AllocateSequence steps",
+                    function.name
+                ),
+            ));
         }
     }
     Ok(())
@@ -2829,6 +2907,10 @@ impl ObservedEffects {
             HandlerPlan::Mutation(plan) => {
                 for step in &plan.steps {
                     match step {
+                        MutationStep::AllocateSequence { scope, .. } => {
+                            self.expr(scope);
+                            self.host_operations.insert("sequenceAllocate");
+                        }
                         MutationStep::Insert { table, values, .. } => {
                             self.write(table, "insert");
                             values.values().for_each(|value| self.expr(value));
@@ -3408,6 +3490,7 @@ pub fn validate_write_with_activity_plan_shape(plan: &WriteWithActivityPlan) -> 
         || plan.effect_formula.runtime_now != 1
         || plan.effect_formula.settlement_lookups != 1
         || plan.effect_formula.settlement_writes != 1
+        || plan.effect_formula.sequence_allocations > 1
         || plan.effect_formula.auxiliary_point_reads > 8
         || plan.effect_formula.maximum_application_writes > 3
     {
@@ -3420,6 +3503,23 @@ pub fn validate_write_with_activity_plan_shape(plan: &WriteWithActivityPlan) -> 
     }
     let scope_binding = "__activityScope";
     let activity_binding = "__activityId";
+    let allocation_positions = steps
+        .iter()
+        .enumerate()
+        .filter_map(|(index, step)| {
+            matches!(step, MutationStep::AllocateSequence { .. }).then_some(index)
+        })
+        .collect::<Vec<_>>();
+    let scope_refusal = if plan.effect_formula.sequence_allocations == 0 {
+        "SNAPBACK_ROW_NOT_FOUND"
+    } else {
+        "SNAPBACK_RELATION_PARENT_UNAVAILABLE"
+    };
+    if allocation_positions.len() != usize::from(plan.effect_formula.sequence_allocations)
+        || (plan.effect_formula.sequence_allocations == 1 && allocation_positions != [2])
+    {
+        return Err(invalid());
+    }
     if !matches!(
         &steps[0],
         MutationStep::Get {
@@ -3430,7 +3530,7 @@ pub fn validate_write_with_activity_plan_shape(plan: &WriteWithActivityPlan) -> 
         } if table == &plan.scope_table
             && id == &plan.scope_id
             && bind_as == scope_binding
-            && else_error.as_deref() == Some("SNAPBACK_ROW_NOT_FOUND")
+            && else_error.as_deref() == Some(scope_refusal)
     ) {
         return Err(invalid());
     }
@@ -3443,7 +3543,7 @@ pub fn validate_write_with_activity_plan_shape(plan: &WriteWithActivityPlan) -> 
                     right,
                 },
             else_error,
-        } if else_error == "SNAPBACK_ROW_NOT_FOUND"
+        } if else_error == scope_refusal
             && matches!(right.as_ref(), ValueExpr::AuthUserId) =>
         {
             matches!(
@@ -3469,6 +3569,7 @@ pub fn validate_write_with_activity_plan_shape(plan: &WriteWithActivityPlan) -> 
     let forbidden_expr =
         |expr: &ValueExpr| expr.uses_runtime_id() || expr.uses_authoritative_only();
     let step_uses_forbidden_expr = |step: &MutationStep| match step {
+        MutationStep::AllocateSequence { scope, .. } => forbidden_expr(scope),
         MutationStep::Insert { values, .. } => values.values().any(forbidden_expr),
         MutationStep::Patch { id, values, .. } => {
             forbidden_expr(id) || values.values().any(forbidden_expr)
@@ -3565,9 +3666,16 @@ pub fn validate_write_with_activity_plan_shape(plan: &WriteWithActivityPlan) -> 
     let mut source_writes = 0_u8;
     let mut scope_patches = 0_u8;
     let mut auxiliary_point_reads = 0_u8;
+    let mut sequence_allocations = 0_u8;
     for index in 2..source_assertion_index {
         let step = &steps[index];
         match step {
+            MutationStep::AllocateSequence { scope, .. } => {
+                if index != 2 || scope != &plan.scope_id {
+                    return Err(invalid());
+                }
+                sequence_allocations += 1;
+            }
             MutationStep::Get { table, id, .. } => {
                 if table == &plan.scope_table
                     || !matches!(
@@ -3677,6 +3785,7 @@ pub fn validate_write_with_activity_plan_shape(plan: &WriteWithActivityPlan) -> 
         || scope_patches > 1
         || plan.effect_formula.scope_patches != scope_patches
         || plan.effect_formula.auxiliary_point_reads != auxiliary_point_reads
+        || plan.effect_formula.sequence_allocations != sequence_allocations
         || plan.effect_formula.runtime_ids != expected_runtime_ids
         || plan.effect_formula.maximum_application_writes != 2 + scope_patches
     {
@@ -3911,6 +4020,18 @@ pub enum SequenceScopeAccess {
         declaration: String,
         roles: Vec<String>,
     },
+    ExistingOwner(SequenceExistingOwnerAccess),
+}
+
+/// Generated-plan access proof. The function's normalized
+/// `write-with-activity.v1` plan must carry the same scope table, owner field,
+/// scope expression, and parent-unavailable refusal before this profile is
+/// admitted; handlers cannot author this variant.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SequenceExistingOwnerAccess {
+    pub kind: String,
+    pub owner_field: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
@@ -4569,6 +4690,9 @@ pub struct WriteWithActivityEffectFormula {
     pub runtime_now: u8,
     pub settlement_lookups: u8,
     pub settlement_writes: u8,
+    /// Fixed host bookkeeping; v1 admits zero or one allocation.
+    #[serde(default)]
+    pub sequence_allocations: u8,
     pub maximum_application_writes: u8,
 }
 
@@ -5411,6 +5535,14 @@ pub struct MutationPlan {
 //   the v1 step set. (Plain comment: doc text flows into generated schemas.)
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum MutationStep {
+    /// One point-shaped host allocation. It is legal only inside a validated
+    /// `write-with-activity.v1` plan, after the exact scope owner guard.
+    /// @ref LLP 0135#12-allocation-surfaces
+    AllocateSequence {
+        counter: String,
+        scope: ValueExpr,
+        into: String,
+    },
     Insert {
         table: String,
         values: BTreeMap<String, ValueExpr>,
@@ -7123,7 +7255,11 @@ impl TargetCapabilityFacts {
             bounded_children_v1_registered: true,
             bounded_response_stream_v1_registered: true,
             relational_query_v1_registered: true,
-            sequence_allocation_v1_registered: true,
+            // @ref LLP 0135#18-ceilings-receipts-and-capability — handler and
+            // generated execution substrate exists, but the complete §5.1
+            // qualification/publication receipt has not landed. Keep the
+            // served capability GAP until that evidence is reviewed.
+            sequence_allocation_v1_registered: false,
             migration_keyset_scan_v1_registered: true,
             full_text_search_v1_registered: true,
             inline_handler_v1_registered: true,
@@ -7726,6 +7862,7 @@ pub fn local_v0_default_capability_gaps() -> Vec<String> {
         "ephemeral_hosted_adapter".to_owned(),
         "ephemeral_multi_instance_sticky_routing".to_owned(),
         "write_activity_v1".to_owned(),
+        "sequence_allocation_v1".to_owned(),
     ]
 }
 
@@ -8166,6 +8303,7 @@ impl CapabilityManifest {
             "hosted_marketplace".to_owned(),
             "retained_version_resume".to_owned(),
             "write_activity_v1".to_owned(),
+            "sequence_allocation_v1".to_owned(),
         ];
         manifest.resource_limits = vec![
             // V8 wall-clock is enforced by the platform (the object/request is
@@ -8960,6 +9098,7 @@ mod membership_manifest_grammar_tests {
                 runtime_now: 1,
                 settlement_lookups: 1,
                 settlement_writes: 1,
+                sequence_allocations: 0,
                 maximum_application_writes: 2,
             },
             mutation: MutationPlan {
@@ -9125,6 +9264,161 @@ mod membership_manifest_grammar_tests {
         assert!(
             validate_write_with_activity_plan_shape(&future_mode).is_err(),
             "the reserved create-owner mode stays unavailable until it has an implementation corpus",
+        );
+    }
+
+    fn sequence_wwa_function_fixture() -> FunctionDefinition {
+        let mut plan = write_activity_plan_fixture();
+        let MutationStep::Get { else_error, .. } = &mut plan.mutation.steps[0] else {
+            panic!("scope get fixture");
+        };
+        *else_error = Some("SNAPBACK_RELATION_PARENT_UNAVAILABLE".to_owned());
+        let MutationStep::Guard { else_error, .. } = &mut plan.mutation.steps[1] else {
+            panic!("scope guard fixture");
+        };
+        *else_error = "SNAPBACK_RELATION_PARENT_UNAVAILABLE".to_owned();
+        plan.mutation.steps.insert(
+            2,
+            MutationStep::AllocateSequence {
+                counter: "taskPositions".to_owned(),
+                scope: plan.scope_id.clone(),
+                into: "position".to_owned(),
+            },
+        );
+        plan.effect_formula.sequence_allocations = 1;
+        let mut function = FunctionDefinition::new(
+            "allocateTaskPosition",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(plan)),
+        );
+        function.required_capabilities = vec![
+            "host_plan_runtime".to_owned(),
+            "mutation_read_set_validation".to_owned(),
+            "write_activity_v1".to_owned(),
+            "sequence_allocation_v1".to_owned(),
+        ];
+        function.sequences = vec![SequenceDeclaration {
+            name: "taskPositions".to_owned(),
+            scope_table: "incidents".to_owned(),
+            scope_access: SequenceScopeAccess::ExistingOwner(SequenceExistingOwnerAccess {
+                kind: "existing-owner.v1".to_owned(),
+                owner_field: "ownerId".to_owned(),
+            }),
+        }];
+        function
+    }
+
+    #[test]
+    fn sequence_direct_artifacts_cannot_bypass_generated_wwa_authority() {
+        let valid = sequence_wwa_function_fixture();
+        validate_sequence_declarations(&valid).expect("valid generated sequence declaration");
+        let FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(plan)) = &valid.runtime else {
+            panic!("WWA fixture");
+        };
+        validate_write_with_activity_plan_shape(plan).expect("valid generated allocation shape");
+
+        let mut missing_declaration = valid.clone();
+        missing_declaration.sequences.clear();
+        assert_eq!(
+            validate_sequence_declarations(&missing_declaration)
+                .expect_err("allocation without declaration refuses")
+                .diagnostic
+                .code,
+            "SNAPBACK_SEQUENCE_UNDECLARED",
+        );
+
+        let mut missing_step = valid.clone();
+        let FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(plan)) =
+            &mut missing_step.runtime
+        else {
+            unreachable!();
+        };
+        plan.mutation
+            .steps
+            .retain(|step| !matches!(step, MutationStep::AllocateSequence { .. }));
+        plan.effect_formula.sequence_allocations = 0;
+        assert_eq!(
+            validate_sequence_declarations(&missing_step)
+                .expect_err("declaration without allocation refuses")
+                .diagnostic
+                .code,
+            "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
+        );
+
+        let declaration_forgeries: [fn(&mut FunctionDefinition); 3] = [
+            |function: &mut FunctionDefinition| function.sequences[0].name = "other".to_owned(),
+            |function: &mut FunctionDefinition| {
+                function.sequences[0].scope_table = "otherScopes".to_owned()
+            },
+            |function: &mut FunctionDefinition| {
+                let SequenceScopeAccess::ExistingOwner(access) =
+                    &mut function.sequences[0].scope_access
+                else {
+                    unreachable!();
+                };
+                access.owner_field = "otherOwner".to_owned();
+            },
+        ];
+        for mutate in declaration_forgeries {
+            let mut forged = valid.clone();
+            mutate(&mut forged);
+            assert_eq!(
+                validate_sequence_declarations(&forged)
+                    .expect_err("mismatched generated declaration refuses")
+                    .diagnostic
+                    .code,
+                "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
+            );
+        }
+
+        let mut missing_capability = valid.clone();
+        missing_capability
+            .required_capabilities
+            .retain(|capability| capability != "sequence_allocation_v1");
+        assert_eq!(
+            validate_sequence_declarations(&missing_capability)
+                .expect_err("missing sequence capability refuses")
+                .diagnostic
+                .code,
+            "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
+        );
+
+        let mut handler = FunctionDefinition::new(
+            "forgedHandler",
+            FunctionKind::Mutation,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: "globalThis.__snapbackHandlers = {};".to_owned(),
+                export: "forgedHandler".to_owned(),
+            }),
+        );
+        handler.required_capabilities = vec!["sequence_allocation_v1".to_owned()];
+        handler.sequences = valid.sequences.clone();
+        assert_eq!(
+            validate_sequence_declarations(&handler)
+                .expect_err("generated existing-owner proof is not handler authority")
+                .diagnostic
+                .code,
+            "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
+        );
+
+        let generic = FunctionDefinition::new(
+            "genericAllocation",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![MutationStep::AllocateSequence {
+                    counter: "taskPositions".to_owned(),
+                    scope: ValueExpr::Arg("incidentId".to_owned()),
+                    into: "position".to_owned(),
+                }],
+                return_value: None,
+            })),
+        );
+        assert_eq!(
+            validate_sequence_declarations(&generic)
+                .expect_err("generic HostPlan allocation refuses")
+                .diagnostic
+                .code,
+            "SNAPBACK_SEQUENCE_UNDECLARED",
         );
     }
 

@@ -628,9 +628,20 @@ pub fn validate_mutation_plan(plan: &crate::manifest::MutationPlan) -> Result<()
         )));
     }
 
-    let mut exprs: Vec<&ValueExpr> = Vec::new();
+    let allocation_bindings = plan
+        .steps
+        .iter()
+        .filter_map(|step| match step {
+            MutationStep::AllocateSequence { into, .. } => Some(into.clone()),
+            _ => None,
+        })
+        .collect::<std::collections::BTreeSet<_>>();
+    let mut declared_bindings = std::collections::BTreeSet::new();
+    let mut allocated_bindings = std::collections::BTreeSet::new();
     for step in &plan.steps {
+        let mut exprs: Vec<&ValueExpr> = Vec::new();
         match step {
+            MutationStep::AllocateSequence { scope, .. } => exprs.push(scope),
             MutationStep::Insert { values, .. } => exprs.extend(values.values()),
             MutationStep::Patch { id, values, .. } => {
                 exprs.push(id);
@@ -653,14 +664,100 @@ pub fn validate_mutation_plan(plan: &crate::manifest::MutationPlan) -> Result<()
                 exprs.extend(values.values());
             }
         }
+        for expr in exprs {
+            validate_allocation_binding_order(
+                expr,
+                &allocation_bindings,
+                &allocated_bindings,
+            )?;
+            validate_expr(expr, 0)?;
+        }
+        let introduced = match step {
+            MutationStep::AllocateSequence { into, .. } => Some(into),
+            MutationStep::Insert {
+                bind_id_as: Some(binding),
+                ..
+            }
+            | MutationStep::Get {
+                bind_as: binding, ..
+            }
+            | MutationStep::Let {
+                bind_as: binding, ..
+            } => Some(binding),
+            _ => None,
+        };
+        if let Some(binding) = introduced {
+            let allocation_binding = matches!(step, MutationStep::AllocateSequence { .. });
+            // Preserve the legacy IR's shadowing and permissive spelling.
+            // AllocateSequence is the only newly authority-bearing binding,
+            // so only it must be an identifier and collision-free.
+            if allocation_binding && !valid_binding_identifier(binding) {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_PLAN_INVALID",
+                    "runtime",
+                    format!("invalid sequence allocation binding {binding:?}"),
+                )
+                .with_details(json!({ "binding": binding, "reason": "invalidIdentifier" })));
+            }
+            if (allocation_binding && declared_bindings.contains(binding))
+                || (!allocation_binding && allocation_bindings.contains(binding))
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_PLAN_INVALID",
+                    "runtime",
+                    format!("sequence allocation binding {binding:?} collides with another binding"),
+                )
+                .with_details(json!({ "binding": binding, "reason": "duplicate" })));
+            }
+            declared_bindings.insert(binding.clone());
+            if allocation_binding {
+                allocated_bindings.insert(binding.clone());
+            }
+        }
     }
     match &plan.return_value {
-        Some(ReturnValue::Document { id, .. }) => exprs.push(id),
-        Some(ReturnValue::Expr(expr)) => exprs.push(expr),
+        Some(ReturnValue::Document { id, .. }) => {
+            validate_allocation_binding_order(id, &allocation_bindings, &allocated_bindings)?;
+            validate_expr(id, 0)?;
+        }
+        Some(ReturnValue::Expr(expr)) => {
+            validate_allocation_binding_order(expr, &allocation_bindings, &allocated_bindings)?;
+            validate_expr(expr, 0)?;
+        }
         _ => {}
     }
-    for expr in exprs {
-        validate_expr(expr, 0)?;
+    Ok(())
+}
+
+fn validate_allocation_binding_order(
+    expr: &ValueExpr,
+    allocation_bindings: &std::collections::BTreeSet<String>,
+    declared_bindings: &std::collections::BTreeSet<String>,
+) -> Result<(), SnapbackError> {
+    if let ValueExpr::Binding(binding) = expr {
+        if allocation_bindings.contains(binding.as_str())
+            && !declared_bindings.contains(binding.as_str())
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_BINDING_MISSING",
+                "runtime",
+                format!("sequence allocation binding {binding:?} is used before allocation"),
+            )
+            .with_details(json!({ "binding": binding, "reason": "usedBeforeAllocation" })));
+        }
+    }
+    let children: Vec<&ValueExpr> = match expr {
+        ValueExpr::Field { base, .. } => vec![base],
+        ValueExpr::Binary { left, right, .. } => vec![left, right],
+        ValueExpr::Unary { expr, .. } => vec![expr],
+        ValueExpr::If { cond, then, r#else } => vec![cond, then, r#else],
+        ValueExpr::Concat(parts) => parts.iter().collect(),
+        ValueExpr::Call { args, .. } => args.iter().collect(),
+        ValueExpr::Record { fields } => fields.values().collect(),
+        _ => Vec::new(),
+    };
+    for child in children {
+        validate_allocation_binding_order(child, allocation_bindings, declared_bindings)?;
     }
     Ok(())
 }
@@ -829,6 +926,7 @@ pub(crate) fn validate_value_expr(expr: &ValueExpr) -> Result<(), SnapbackError>
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::manifest::{MutationPlan, MutationStep};
 
     fn test_id(_site: &str) -> SnapbackResult<String> {
         Ok("id-test".to_owned())
@@ -856,6 +954,67 @@ mod tests {
         eval_value_expr(expr, &env(args, &bindings))
             .map_err(|e| e.into_snapback())
             .expect("expression evaluates")
+    }
+
+    #[test]
+    fn legacy_mutation_bindings_keep_shadowing_and_spelling_compatibility() {
+        let plan = MutationPlan {
+            steps: vec![
+                MutationStep::Let {
+                    bind_as: "legacy-shadow-with-dashes".to_owned(),
+                    expr: ValueExpr::Literal(json!(1)),
+                },
+                MutationStep::Let {
+                    bind_as: "legacy-shadow-with-dashes".to_owned(),
+                    expr: ValueExpr::Literal(json!(2)),
+                },
+            ],
+            return_value: Some(crate::manifest::ReturnValue::Binding(
+                "legacy-shadow-with-dashes".to_owned(),
+            )),
+        };
+        validate_mutation_plan(&plan)
+            .expect("pre-sequence HostPlan shadowing and identifiers remain compatible");
+    }
+
+    #[test]
+    fn allocation_bindings_reject_collision_and_use_before_allocation() {
+        let collision = MutationPlan {
+            steps: vec![
+                MutationStep::Let {
+                    bind_as: "position".to_owned(),
+                    expr: ValueExpr::Literal(json!(1)),
+                },
+                MutationStep::AllocateSequence {
+                    counter: "jobs".to_owned(),
+                    scope: ValueExpr::Literal(json!("parent-1")),
+                    into: "position".to_owned(),
+                },
+            ],
+            return_value: None,
+        };
+        let error = validate_mutation_plan(&collision)
+            .expect_err("a legacy binding cannot collide with sequence authority");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_PLAN_INVALID");
+        assert_eq!(error.diagnostic.details["reason"], "duplicate");
+
+        let use_before = MutationPlan {
+            steps: vec![
+                MutationStep::Guard {
+                    cond: ValueExpr::Binding("position".to_owned()),
+                    else_error: "SNAPBACK_TEST".to_owned(),
+                },
+                MutationStep::AllocateSequence {
+                    counter: "jobs".to_owned(),
+                    scope: ValueExpr::Literal(json!("parent-1")),
+                    into: "position".to_owned(),
+                },
+            ],
+            return_value: None,
+        };
+        let error = validate_mutation_plan(&use_before)
+            .expect_err("sequence binding use before allocation must refuse");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_BINDING_MISSING");
     }
 
     #[test]
