@@ -100,3 +100,42 @@ artifacts, guide checks, publication conformance, both deployment identities,
 capability-maturity audit, and the LLP ref audit are also green. The GitHub run
 that supplies the final zero-failure exit receipt is recorded after the
 digest-bound Linux evidence lands on main.
+
+### Later completed-run reconciliation
+
+While the closing pass was in flight, the next completed non-cancelled main
+proof became run `30847985368` at `c442237d`. Its KEEP-GOING summary
+reported nine failures: client bundle metrology, package export declarations,
+relation-activity publication, deployment identity, telemetry evidence,
+strict Clippy, the Rust suite, the Cloudflare local suite, and the admin
+build/test/browser/audit chain.
+
+The export, publication, deployment, telemetry, Clippy, and Rust entries were
+the same accumulated carrier/inventory debt described above. The exact Linux
+receipt was subsequently minted at `24857293` on the EPYC host through the
+coded bootstrap, with no admin access or host mutation, and remains valid
+after the client-only LLP 0166 landings because its source-input digest is
+unchanged. The full Rust result is still `1908` passed and `2` ignored,
+with every integration target and doctest green.
+
+The two newly exposed batch-owned failures were fixed forward:
+
+- Cloudflare's 53-check acceptance core was green on the pinned Node 24.18.0,
+  but the local-suite completion fixture still required 52. The extra check
+  was introduced by `c72f8362`; the fixture now requires 53 and all 26
+  explicit Cloudflare suites pass.
+- The admin build, unit tests, and real-Chrome CSP/security proof were green.
+  Its production audit found newly recognized moderate advisories in
+  `hono` and `undici` through the Exact devtools dependency path introduced
+  by `721d2e4c`. Narrow overrides to `hono@4.12.34` and
+  `undici@6.28.0` make the frozen production audit report zero
+  vulnerabilities; the complete admin chain passes.
+
+The client bundle gate is a correctness failure in actively-owned F0a code,
+not a drift carrier: L2's public browser closure reaches a static
+`node:crypto` import in `materialization-store.mjs`. A dated handoff is
+recorded in `issues/20260803-0166-L2-materialization-operations.md`; this
+lane did not edit the fork code. After all eight LLP 0166 lanes landed, their
+complete client package suite is green, as are all 77 declaration surfaces
+and the expanded 179-file test inventory. The L2 owner fix and a subsequent
+zero-failure GitHub run remain the closing prerequisites.
