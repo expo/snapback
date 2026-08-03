@@ -128,3 +128,85 @@ lines were checked against the tree and are accurate.
 6. **Recommended next step**
 
 Keep LLP 0166 in Draft and revise before round 2. First reconcile the amendment set with LLP 0157 and LLP 0090; then replace the registration, lifecycle, answer, and eviction prose with closed schemas and total tables; choose a coherent evaluator input model; and make browser lease migration fresh-sync-only unless an explicit cross-artifact crash protocol is designed. After those repairs, run a focused owner-consistency re-review before continuing the dual-family loop.
+---
+
+## Round 2 — 2026-08-03
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** `codex-cli` 0.146.0, `codex exec`, model
+`gpt-5.6-sol`, `model_reasoning_effort=xhigh`, sandbox `read-only`
+**Date:** 2026-08-03
+**Redacted:** no
+**Method:** fresh non-author `codex exec` context over the working tree at
+34bddf62 (v0.2); instructed to read the revised document in full, audit
+both round-1 artifacts for actual resolution in the current text, hunt
+fix-introduced defects in the new machinery, and spot-check every repo/
+owner fact relied on. Orchestrated by the authoring session, which does
+not count as a reviewer; recorded verbatim below. Author verification
+before application: the LLP 0080 server pipeline claim (filter → cursor →
+order → take → join → projection over source rows), the LLP 0053
+payload-compaction fence-survival rule, the 0043 boundary-note
+non-renderability order, and the file-carrier corrupt-blob and
+no-cross-process-channel facts were checked against the tree and are
+accurate.
+
+---
+
+1. **Overall assessment**: **NOT READY — 0.99 confidence.** V0.2 resolves several round-one findings cleanly, especially the LLP 0157 classification amendment, anonymous-retention precondition, P8/P9 maturity split, and cited outbox constants. However, multiple round-one BLOCKING findings remain only partially resolved. The result-transform still lacks executable semantics; registration opt-outs do not affect the persistence predicate; the demand broker lacks a closed liveness/authority protocol; eviction contradicts LLP 0053’s mandatory fence survival; fresh-sync lease convergence publishes in the wrong order; and `wipe` claims atomic coverage that the stated store topology cannot provide. These are implementation- and security-significant contract defects, not author-choice details.
+
+2. **Round-1 resolution audit**:
+
+| Finding | Status | Explanation |
+| --- | --- | --- |
+| Codex-1 | resolved | |
+| Codex-2 | partial | The input is narrowed to post-projection results, but the transform has no normative pipeline, overlay ordering, or owner-defined parity target. |
+| Codex-3 | partial | Identity, durability, and merge fields exist, but `retentionRequest` is absent from the persistence rule and scope/address authority remains underdefined. |
+| Codex-4 | partial | A broker is named, but liveness, release, acknowledgement, authority binding, and carrier-channel semantics remain open. |
+| Codex-5 | partial | The two axes and precedence are clearer, but whole-record eviction conflicts with mandatory LLP 0053 bookkeeping survival. |
+| Codex-6 | partial | The answer table and `refused` state exist, but the legacy-lease classification contradicts the document’s definition of authoritative answers. |
+| Codex-7 | partial | Legacy TTL and relative recency are grandfathered, but shared-budget competition and the new final tie-break still change legacy behavior while claiming it is unchanged. |
+| Codex-8 | partial | Direct cross-artifact adoption is forbidden, but the fresh-sync path does not fence the predecessor before publishing the successor. |
+| Codex-9 | partial | Logical formulas and a tie-break were added, but metadata coverage, proof deduplication, and out-of-budget durable-registration bounds remain unspecified. |
+| Codex-10 | partial | Client/grant/query scoping is stated, but the full-wipe contract contradicts the separate lease artifact and corrupt-store reset path. |
+| Codex-11 | resolved | |
+| Codex-12 | resolved | |
+| Fable-1 | resolved | |
+| Fable-2 | partial | The record and lattice are substantially improved, but effective retention and scope serialization are not total. |
+| Fable-3 | partial | Writer mediation exists only as prose; the liveness and handoff protocol is not closed. |
+| Fable-4 | resolved | |
+| Fable-5 | resolved | |
+| Fable-6 | resolved | |
+| Fable-7 | partial | Survival and key-rotation intent are stated, but they cannot be honored for an unparseable whole-blob store without another mechanism. |
+
+3. **New concerns**
+
+1. **BLOCKING — `result-transform.v1` is still not an executable algebra.** The operator list does not define an execution order, especially whether optimistic overlays apply before or after filtering, ordering, and limiting. Its parity oracle requires “the server’s plan semantics applied to the same established result,” but LLP 0080’s server semantics consume source rows and run `filter → cursor → order → take → join → projection`; ordering fields need not even appear in the projected result ([0166 §D7](/Users/ccheever/projects/snapback-0166/llp/0166-local-persistent-store.spec.md:827), [0080 §2](/Users/ccheever/projects/snapback-0166/llp/0080-portable-relational-queries-and-projections.rfc.md:209)). Consequently S6 has no defined reference computation. Resolve this with a closed, versioned transform-plan record: exact pipeline, overlay position, eligible projected fields, output encoding, identity/hash binding, and refusals, plus a server implementation of that same transform. An overlay-only profile would also be coherent if that is the intended product.
+
+2. **BLOCKING — `retentionRequest: "none"` does not actually opt out of persistence.** D2 defines and merges the field, and maps `persistResume: false`/manifest `persist: false` to it, but D3’s exhaustive persistence conditions require only an eligible profile, owner authority, a registration or grace, and LLP 0053 admission—never an effective `"durable"` request ([0166 §D2](/Users/ccheever/projects/snapback-0166/llp/0166-local-persistent-store.spec.md:323), [0166 §D3](/Users/ccheever/projects/snapback-0166/llp/0166-local-persistent-store.spec.md:469)). Thus an eligible plan registered with `"none"` still satisfies the normative persistence rule. Add effective `retentionRequest === "durable"` as a necessary condition and define the fenced transition when the last durable requester releases while `"none"` registrations remain.
+
+3. **BLOCKING — The multi-tab demand broker lacks the protocol needed to make its guarantees true.** The text names a “liveness signal,” context death, acknowledgement, and re-announcement window, but defines no message records, monotonic revision/idempotency rules, heartbeat or lease expiry, programmatic release acknowledgement, or binding to the registration’s authority partition and expected fence ([0166 §D2 broker](/Users/ccheever/projects/snapback-0166/llp/0166-local-persistent-store.spec.md:387)). It also defers only pressure eviction during handoff, not every demand-derived release/GC transition. The shipped file carrier currently provides only lock-file writer ownership plus reader adoption, with no cross-process demand channel ([rqs-store-file.mjs](/Users/ccheever/projects/snapback-0166/packages/snapback-client/rqs-store-file.mjs:17)). Define a closed broker protocol and a qualified transport or explicit degradation for each carrier; suppress all demand-derived GC/eviction until handoff reconciliation completes.
+
+4. **BLOCKING — Eviction simultaneously removes and preserves the same owner state.** D3 says the whole materialization—including product and authority state—is atomically present or absent; D5 likewise evicts whole records and says registration bookkeeping moves atomically. Yet D5 later says eviction never deletes owner bookkeeping ([0166 §D3](/Users/ccheever/projects/snapback-0166/llp/0166-local-persistent-store.spec.md:461), [0166 §D5](/Users/ccheever/projects/snapback-0166/llp/0166-local-persistent-store.spec.md:685)). LLP 0053 requires the exact current-instance fence and allocator/frontier high-water to survive payload compaction until terminal retirement ([0053 §Client fences](/Users/ccheever/projects/snapback-0166/llp/0053-authorization-invalidation.rfc.md:1583)). Evicting durable programmatic registration bookkeeping would also violate the sync-set contract. Split evictable payload custody from non-evictable `QueryAuthorizationState` and registration state, then define the post-eviction status and re-establishment transition.
+
+5. **BLOCKING — Fresh-sync lease convergence publishes in the unsafe order.** V0.2 says fresh sync establishes the new `qmk1` address and then the legacy record becomes non-renderable; S5 nevertheless requires that both are never renderable ([0166 §D6](/Users/ccheever/projects/snapback-0166/llp/0166-local-persistent-store.spec.md:794), [0166 S5](/Users/ccheever/projects/snapback-0166/llp/0166-local-persistent-store.spec.md:1100)). With separate artifacts and no cross-artifact transaction, that ordering admits a dual-render window. LLP 0043 already gives the safe order: the old record remains non-renderable under its fence until fresh sync creates the successor ([0043 boundary](/Users/ccheever/projects/snapback-0166/llp/0043-offline-replay-retention.rfc.md:536)). Specify a monotonic protocol: durably close the predecessor fence, then establish/publish `qmk1`, then retire the predecessor, with crash cuts for every boundary.
+
+6. **BLOCKING — The `wipe` contract cannot be implemented over the stated topology.** The legacy lease store is explicitly outside the shared transaction domain, but `wipe` later claims to clear “all three families” plus the outbox in one transaction ([0166 §D1 composition](/Users/ccheever/projects/snapback-0166/llp/0166-local-persistent-store.spec.md:230), [0166 §D1 wipe](/Users/ccheever/projects/snapback-0166/llp/0166-local-persistent-store.spec.md:262)). Separately, corrupt/future bytes may only be reset by `wipe`, while allocator and fence high-waters must survive; an unparseable whole-blob file cannot supply those values. The current file carrier explicitly treats the entire corrupt blob as opaque until wipe ([rqs-store-file.mjs](/Users/ccheever/projects/snapback-0166/packages/snapback-client/rqs-store-file.mjs:25)). Limit the atomic transaction claim to `qmk1`/legacy-resume/outbox state and make the lease store a separate LLP 0059 barrier participant. Put monotone high-waters in an independently verifiable envelope, or define an owner-approved store-identity rotation protocol for destructive corrupt reset.
+
+7. **MATERIAL — Legacy RQS is still normatively changed while described as byte-unchanged.** A materialization commit may evict legacy entries under the newly shared budget, even when the legacy section alone is below its former budget; this changes Channel-B retention exposure without an LLP 0090 amendment ([0166 §D5](/Users/ccheever/projects/snapback-0166/llp/0166-local-persistent-store.spec.md:705), [0090 D3](/Users/ccheever/projects/snapback-0166/llp/0090-resumable-query-snapshots.rfc.md:772)). In addition, the mandated address-byte final tie-break is not the shipped comparator: code compares only `resumedAt`, then `savedAt` ([rqs-store.mjs](/Users/ccheever/projects/snapback-0166/packages/snapback-client/rqs-store.mjs:210)). Either reserve the legacy budget and retain its exact comparator, or carry a dated LLP 0090 successor-store amendment and test the changed competition/tie behavior explicitly.
+
+8. **MATERIAL — The legacy-lease answer row contradicts the authoritative-answer definition.** Vocabulary defines an authoritative local answer as a successful LLP 0157 `readRenderable` with derived `CompletenessStatusV1 === complete`; row 14 labels a separate legacy lease record authoritative even though it has no `CompletenessProofV1` and does not use that interface ([0166 Vocabulary](/Users/ccheever/projects/snapback-0166/llp/0166-local-persistent-store.spec.md:164), [0166 answer table](/Users/ccheever/projects/snapback-0166/llp/0166-local-persistent-store.spec.md:594)). Use a distinct `lease-authorized-retained` answer class, or widen the definition with an exact owner-backed alternative basis without claiming LLP 0157 completeness.
+
+9. **MATERIAL — Canonical budget accounting is not total and leaves durable registration growth unbounded.** The formula counts fragment bytes and selected proof/manifest/membership JCS, but omits materialization identities, product/authority/subscription state, references, and any rule for proofs duplicated between `productState.heldProofs` and fragment records. Durable programmatic registrations are outside the budget and have no independent count/byte cap ([0166 §D3 budgets](/Users/ccheever/projects/snapback-0166/llp/0166-local-persistent-store.spec.md:529), [0157 materialization record](/Users/ccheever/projects/snapback-0166/llp/0157-composition-algebra-and-completeness.spec.md:1311)). Define one canonical logical serialization or an explicit payload-only projection with deduplication rules, then bound all excluded durable metadata separately.
+
+10. **MATERIAL — Acceptance requires an inspection surface that the Spec never defines.** D2 and S1 require inspection to name retaining registrations and hydration reasons, while D3/D5 require store-wide budget and eviction facts. LLP 0157’s closed client inspection schema contains none of the new registration/broker/policy fields and deliberately restricts retaining-identity exposure ([0166 S1](/Users/ccheever/projects/snapback-0166/llp/0166-local-persistent-store.spec.md:1065), [0157 §D6](/Users/ccheever/projects/snapback-0166/llp/0157-composition-algebra-and-completeness.spec.md:1250)). Add a versioned, authority-scoped store-policy inspection record or carry a dated LLP 0157 §D6 amendment with exact redaction rules.
+
+4. **Suggestions**
+
+- Use distinct terms for payload eviction, registration release, authorization deletion, terminal retirement, and full-store reset.
+- Add one worked trace covering two tabs, mixed registration policies, writer death, late re-announcement, policy downgrade, eviction, and re-demand.
+- Record the shipped 256-KiB per-outbox-record cap alongside the two cited count caps.
+- Keep the provisional constants in a versioned capability/inspection record so their measured revision does not depend on prose interpretation.
+
+5. **Recommended next step**
+
+Keep LLP 0166 in Draft. First close concerns 1–6 with owner-aligned normative records and crash-order protocols; then repair the legacy budget/comparator, answer taxonomy, accounting, and inspection schema. After those revisions, run a focused round 3 against LLP 0157, LLP 0043/0053, and LLP 0090 before seeking READY.
