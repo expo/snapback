@@ -10938,7 +10938,15 @@ mod membership_manifest_grammar_tests {
                 CapabilityMaturity::Experimental,
             ),
             (
+                TargetCapabilityId::MixedBundleBootV2,
+                CapabilityMaturity::Experimental,
+            ),
+            (
                 TargetCapabilityId::RegisteredBundleBootV1,
+                CapabilityMaturity::Experimental,
+            ),
+            (
+                TargetCapabilityId::SnapshotBatchV1,
                 CapabilityMaturity::Experimental,
             ),
             (

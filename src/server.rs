@@ -39278,6 +39278,11 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_AUTH_INVALIDATION_ISSUER_INVALID",
         "SNAPBACK_AUTH_INVALIDATION_RETIREMENT_INVALID",
         "SNAPBACK_AUTH_INVALIDATION_SERIALIZE_FAILED",
+        // @ref LLP 0162#measurement-gate — step-0 benchmark host-I/O and
+        // process-counter failures are proof-environment faults, never caller
+        // request classes; preserve the fail-safe 500 projection.
+        "SNAPBACK_BENCH_IO_FAILED",
+        "SNAPBACK_BENCH_PROCESS_USAGE_UNAVAILABLE",
         "SNAPBACK_BENCH_EPHEMERAL",
         "SNAPBACK_BENCH_READ_LANE_STALLED",
         "SNAPBACK_BENCH_TEMPDIR",
