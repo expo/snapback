@@ -203,6 +203,62 @@ pub struct VectorSearchFactsV1 {
     pub nonclaims: Vec<String>,
 }
 
+impl VectorSearchFactsV1 {
+    /// The complete static fact block for the qualified local SQLite exact
+    /// scan. Publishing these bytes does not itself advertise support: the
+    /// target registry also requires its private implementation-registration
+    /// fact, so non-local constructors cannot inherit the claim accidentally.
+    ///
+    /// @ref LLP 0132#capabilities-targets-and-staging — target facts name the
+    ///   exact arithmetic, bounds, freshness, custody, and nonclaims proved by
+    ///   the local adapter; ANN and hosted targets remain separate doors.
+    pub fn local_v1() -> Self {
+        Self {
+            capability_id: VECTOR_CAPABILITY.to_owned(),
+            maturity: "experimental".to_owned(),
+            distance_profile: super::profile::VECTOR_DISTANCE_PROFILE_ID.to_owned(),
+            distance_profile_digest: super::profile::VECTOR_DISTANCE_PROFILE_DIGEST.to_owned(),
+            ordering_profile: super::profile::VECTOR_ORDERING_PROFILE_ID.to_owned(),
+            metrics: vec!["l2sq".to_owned(), "dot".to_owned()],
+            dimension_min: super::profile::VECTOR_PROFILE_DIMENSIONS_MIN,
+            dimension_max: super::profile::VECTOR_PROFILE_DIMENSIONS_MAX,
+            k_default: VECTOR_DEFAULT_K,
+            k_max: VECTOR_MAX_K,
+            corpus_max: VECTOR_MAX_CORPUS,
+            scalar_pairs_max: VECTOR_MAX_SCALAR_PAIRS,
+            equality_filters_max: VECTOR_MAX_FILTERS as u32,
+            equality_filters: true,
+            stored_fields: true,
+            visibility_profiles: vec!["public-read".to_owned(), "owner.v1".to_owned()],
+            maintenance: "synchronous".to_owned(),
+            pagination: "single-page".to_owned(),
+            tie_breaks: vec!["id-asc".to_owned(), "id-desc".to_owned()],
+            storage_class: "ordinary-transactional-shadow".to_owned(),
+            corruption_posture: "digest-recheck-quarantine".to_owned(),
+            accelerator: "none".to_owned(),
+            storage_engines: vec!["sqlite".to_owned()],
+            nonclaims: [
+                "ann",
+                "embedding-computation",
+                "hybrid-ranking",
+                "external-vector-store",
+                "live-vector-search",
+                "pagination",
+                "cosine",
+                "range-filters",
+                "membership-visibility",
+                "sensitive-fields",
+                "offline-vector-search",
+                "hosted-targets",
+                "postgres",
+            ]
+            .into_iter()
+            .map(str::to_owned)
+            .collect(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -237,5 +293,43 @@ mod tests {
             }))
             .is_err()
         );
+    }
+
+    #[test]
+    fn local_target_facts_pin_the_complete_exact_profile_and_nonclaims() {
+        let facts = VectorSearchFactsV1::local_v1();
+        assert_eq!(facts.capability_id, "vector_search_v1");
+        assert_eq!(facts.maturity, "experimental");
+        assert_eq!(facts.distance_profile, "snapback-vector-distance-v1");
+        assert_eq!(
+            facts.distance_profile_digest,
+            "sha256:9ce9feab0c6dcb2d009e212d34484051c8594b8ef0e9066d392c0449a8001e1b"
+        );
+        assert_eq!(facts.ordering_profile, "nearest-first-row-id.v1");
+        assert_eq!(facts.metrics, ["l2sq", "dot"]);
+        assert_eq!((facts.dimension_min, facts.dimension_max), (1, 4_096));
+        assert_eq!((facts.k_default, facts.k_max), (10, 64));
+        assert_eq!(
+            (facts.corpus_max, facts.scalar_pairs_max),
+            (65_536, 1 << 26)
+        );
+        assert_eq!(facts.equality_filters_max, 8);
+        assert!(facts.equality_filters && facts.stored_fields);
+        assert_eq!(facts.visibility_profiles, ["public-read", "owner.v1"]);
+        assert_eq!(facts.maintenance, "synchronous");
+        assert_eq!(facts.pagination, "single-page");
+        assert_eq!(facts.tie_breaks, ["id-asc", "id-desc"]);
+        assert_eq!(facts.storage_class, "ordinary-transactional-shadow");
+        assert_eq!(facts.corruption_posture, "digest-recheck-quarantine");
+        assert_eq!(facts.accelerator, "none");
+        assert_eq!(facts.storage_engines, ["sqlite"]);
+        assert!(facts.nonclaims.iter().any(|claim| claim == "ann"));
+        assert!(
+            facts
+                .nonclaims
+                .iter()
+                .any(|claim| claim == "hosted-targets")
+        );
+        assert!(facts.nonclaims.iter().any(|claim| claim == "pagination"));
     }
 }
