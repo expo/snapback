@@ -1,11 +1,16 @@
 # LLP 0159: Universal-table storage layout — Convex's engine-owned tables vs Snapback's per-table mapping
 
 **Type:** Research
-**Status:** Draft
+**Status:** Active
 **Systems:** Storage, Query, Migrations, Portability, Authorization, Competitive analysis
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-03
-**Revised:** 2026-08-03 (v0.3, super-refine round 2 close-out under the
+**Revised:** 2026-08-03 (promoted Draft → Active by the author after
+the two-round dual-family super-refine loop — round-2 Fable READY
+recommended Active as this document's terminal research status, with
+graduation to a Decision explicitly deferred to the recorded reopen
+triggers; v0.3 content otherwise unchanged; the OQ4 pinning task and
+OQ5 identity-requirement question remain open); 2026-08-03 (v0.3, super-refine round 2 close-out under the
 author's two-round cap — these repairs are themselves unreviewed: the
 axis decomposition added (§Axes) so layout is no longer conflated with
 planner ownership, version retention, or migration protocol, with the

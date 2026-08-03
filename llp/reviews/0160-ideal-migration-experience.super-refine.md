@@ -82,3 +82,7 @@ narrowing, new-surface findings (round 5 found no defect in rounds
 the v0.6 repairs are themselves unreviewed. **The author decides the
 status transition.** The ledger now holds 19 rows (G1–G16 with splits)
 across three governance lanes plus two author rulings (OQ6, OQ7).
+
+## Author decision — 2026-08-03
+
+The author accepted this RFC ("promote all three as suggested"), adopting the accept-track recommendation from rounds 4–5. Acceptance adopts the G-ledger as the experience program; OQ6 and OQ7 remain open author rulings gating G4′b and G9b.

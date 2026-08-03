@@ -6,7 +6,7 @@
 **Role:** Root
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-08-03 (Program D closeout: the local Phase-1 observability
+**Revised:** 2026-08-03 (author promotion after the dual-family super-refine loops: LLP 0159 and LLP 0161 move Draft → Active, LLP 0160 is Accepted — its gap ledger becomes the migration-experience program, with its OQ6/OQ7 conform-or-amend rulings still open); 2026-08-03 (Program D closeout: the local Phase-1 observability
 kernel and local Phase E0/E1 backend error grouping/triage surface now point
 to their shipped guide pages and retained evidence. Hosted observability,
 declared product analytics, LLP 0156 E2 alert delivery, and E3 client crash

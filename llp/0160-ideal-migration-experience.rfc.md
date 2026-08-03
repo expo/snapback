@@ -1,11 +1,21 @@
 # LLP 0160: The ideal migration experience
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Accepted
 **Systems:** Migrations, Developer experience, Agent experience, CLI, Diagnostics, Client integration, Documentation
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-03
-**Revised:** 2026-08-03 (v0.6, super-refine round 5 close-out — Fable
+**Revised:** 2026-08-03 (Accepted by the author after the five-round
+dual-family super-refine loop closed on the asymmetric stopping rule —
+Fable READY rounds 3–5 recommending accept-track, Codex NOT READY×5
+with monotonically narrowing new-surface findings, all absorbed
+through v0.6. Acceptance adopts §5's gap ledger as the experience
+program's actionable output and changes no LLP 0081 semantics; the two
+conform-or-amend rulings stay open and gating — OQ6 (cross-artifact
+settlement: G4′b blocked) and OQ7 (rollback input: G9b blocked) — and
+per §Related governance, D-class rows conform code to LLP 0081 while
+A-class rows require their own dated amendments to the owning
+documents before any semantics move); 2026-08-03 (v0.6, super-refine round 5 close-out — Fable
 READY for the third consecutive round; Codex NOT READY with further
 narrowing; both families converged on the redaction/approval tension,
 now ruled in the document: the **secure review faces (preview/approve)

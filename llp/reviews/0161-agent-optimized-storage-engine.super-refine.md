@@ -58,3 +58,7 @@ diff-only spot re-review sufficient before promoting to Active.
    matrix behind the (now survey-scoped) cross-vendor claims.
 4. Sequencing remains dependency-leverage only; LLP 0155/0130 own
    commissioning, and 0158's F0a program is the live adjacent lane.
+
+## Author decision — 2026-08-03
+
+The author promoted this document Draft → Active ("promote all three as suggested"), adopting round-2 Fable's recommendation. The target-by-target today-column re-audit remains the named path back to Medium-high confidence.

@@ -61,3 +61,7 @@ triggers.
    decision matrix and per-finding confidence lines (recorded here as
    declined-for-now under the two-round cap; revisit if the document is
    ever promoted beyond research posture).
+
+## Author decision — 2026-08-03
+
+The author promoted this document Draft → Active ("promote all three as suggested"), adopting round-2 Fable's recommendation. Graduation to a Decision stays deferred to the recorded reopen triggers.

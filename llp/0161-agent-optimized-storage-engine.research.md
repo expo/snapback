@@ -1,11 +1,16 @@
 # LLP 0161: The agent-optimized storage engine — ideal properties and Snapback's gap
 
 **Type:** Research
-**Status:** Draft
+**Status:** Active
 **Systems:** Storage, Sync, Migrations, Agent experience, Diagnostics, Competitive analysis
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-03
-**Revised:** 2026-08-03 (v0.3, super-refine round 2 close-out under the
+**Revised:** 2026-08-03 (promoted Draft → Active by the author after
+the two-round dual-family super-refine loop — round-2 Fable READY
+judged a diff spot-review sufficient and Active defensible at the
+author's call; v0.3 content otherwise unchanged; the today-column
+carries Medium confidence pending the target-by-target re-audit its
+Confidence section names); 2026-08-03 (v0.3, super-refine round 2 close-out under the
 author's two-round cap — these repairs are themselves unreviewed: P9
 (authority-scoped admission and bounded speculation) added after both
 families independently derived it from the concurrency pressure;
