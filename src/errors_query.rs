@@ -214,18 +214,10 @@ pub struct ErrorsIssuesResponseV1 {
     pub variance: ErrorsVarianceV1,
 }
 
-#[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ErrorsIssueRequestV1 {
     pub issue: String,
-}
-
-impl Default for ErrorsIssueRequestV1 {
-    fn default() -> Self {
-        Self {
-            issue: String::new(),
-        }
-    }
 }
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
