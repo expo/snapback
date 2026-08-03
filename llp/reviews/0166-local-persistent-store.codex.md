@@ -210,3 +210,95 @@ accurate.
 5. **Recommended next step**
 
 Keep LLP 0166 in Draft. First close concerns 1–6 with owner-aligned normative records and crash-order protocols; then repair the legacy budget/comparator, answer taxonomy, accounting, and inspection schema. After those revisions, run a focused round 3 against LLP 0157, LLP 0043/0053, and LLP 0090 before seeking READY.
+---
+
+## Round 3 — 2026-08-03
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** `codex-cli` 0.146.0, `codex exec`, model
+`gpt-5.6-sol`, `model_reasoning_effort=xhigh`, sandbox `read-only`
+**Date:** 2026-08-03
+**Redacted:** no
+**Method:** fresh non-author `codex exec` context over the working tree at
+5bfcf869 (v0.3); focused round auditing round-2 resolution and probing the
+round-2 repairs, with owner/repo spot-checks. Orchestrated by the
+authoring session, which does not count as a reviewer; recorded verbatim
+below. Author verification before application: the LLP 0155 §Query
+execution commissioned text, the LLP 0051 scalar-ordering scope, the
+external-store arbitrary-callback overlay facts, and the LLP 0053 closed
+disposition set were checked against the tree and are accurate. Its
+finding 8 (the truncated Fable round-2 artifact) was repaired immediately
+at 46127881, before this fix pass.
+
+---
+
+1. **Overall assessment**: **NOT READY — 0.99 confidence.** V0.3 genuinely resolves payload-compaction survival, partitioned budgets, answer taxonomy, accounting, and inspection. However, five blocking defects remain: D7 silently narrows Accepted LLP 0155’s commissioned query execution, `TransformPlanV1` is not total or dual-runtime implementable, the broker cannot safely release or authority-bind durable registrations, retention and grace contradict each other, and `migration-closed` has no owner-defined state. The missing Fable round-2 body also prevents an honest audit of its three MATERIAL findings.
+
+2. **Round-2 resolution audit**
+
+| Finding id | Status | Explanation |
+| --- | --- | --- |
+| Codex-R2-B1 — transform algebra | partial | A record and pipeline now exist, but the grammar, ordering, overlay parity, and parent-RFC authority remain defective; see concerns 1–2. |
+| Codex-R2-B2 — `retentionRequest` | partial | `"durable"` was added as necessary, but final release makes grace unsatisfiable and blockers allow effective-none payload to persist without a modeled reason; see concern 4. |
+| Codex-R2-B3 — demand broker | partial | Full-set revisions, heartbeat, handoff suppression, and carrier degradation landed, but durable unregister, context-incarnation, and forwarded authority binding remain absent; see concern 3. |
+| Codex-R2-B4 — compaction survival | resolved | |
+| Codex-R2-B5 — lease convergence order | partial | Publication order and crash cuts are corrected, but step 1 depends on an undefined owner disposition; see concern 5. |
+| Codex-R2-B6 — `wipe` topology/reset | partial | Lease participation and corrupt-store identity rotation are sound; parseable `wipe` still omits durable registrations from its exact clear set; see concern 6. |
+| Codex-R2-M1 — legacy budget/comparator | resolved | |
+| Codex-R2-M2 — legacy-lease answer class | resolved | |
+| Codex-R2-M3 — total accounting | resolved | |
+| Codex-R2-M4 — inspection surface | resolved | |
+| Fable-R2-M1–M3 / N1–N6 | unresolved | The artifact ends after the Round-2 provenance header and contains none of the claimed nine findings, so their identities and resolution criteria cannot be audited. |
+
+3. **New concerns**
+
+1. **BLOCKING — D7 does not implement the Accepted Move-2 query-execution commission.**  
+   **Exact defect:** Accepted LLP 0155 says generated query plans run over the local store and match the server’s ordering and projection. D7 instead defines a separate presentation transform and explicitly forbids invoking the plan’s source-row pipeline. The carried amendments do not amend LLP 0155 or LLP 0157’s corresponding “local plan evaluation” gate. [LLP 0155 §Query execution](/Users/ccheever/projects/snapback-0166/llp/0155-local-sync-product-direction.rfc.md:693), [LLP 0157 §D7](/Users/ccheever/projects/snapback-0166/llp/0157-composition-algebra-and-completeness.spec.md:1463), [LLP 0166 §D7](/Users/ccheever/projects/snapback-0166/llp/0166-local-persistent-store.spec.md:1013).  
+   **Why it matters:** An owning Spec cannot silently substitute a narrower capability for its Accepted commission.  
+   **What resolves it:** Either specify real owner-authorized plan evaluation over sufficient inputs, or carry an explicit LLP 0155/0157 amendment making the result-transform profile the revised Move-2 outcome.
+
+2. **BLOCKING — `TransformPlanV1` remains non-total and its parity target is impossible for overlays.**  
+   **Exact defect:** `filter: object` names no exact grammar/version; `orderFields` has no direction, missing/null/mixed-type comparison, or duplicate rule; `limit` has no integer/range contract; page-chain flattening and non-row result shapes are undefined. The cited LLP 0051 “canonical scalar ordering” supplies only string scalar ordering, not a total row comparator. More decisively, shipped optimistic layers are arbitrary client callbacks, while D7 requires a server implementation of the same overlay-applying transform over only the same established result bytes. [LLP 0051 value model](/Users/ccheever/projects/snapback-0166/llp/0051-language-neutral-data-tier.rfc.md:517), [external-store overlay execution](/Users/ccheever/projects/snapback-0166/packages/snapback-client/external-store.mjs:133), [overlay construction](/Users/ccheever/projects/snapback-0166/packages/snapback-client/external-store.mjs:356).  
+   **Why it matters:** Neither evaluator nor S6’s reference output can be implemented deterministically.  
+   **What resolves it:** Freeze a bounded transform grammar, directions and total comparator, result-shape/page assembly, and limit semantics. Either encode overlays in a portable IR consumed by both runtimes or exclude overlay application from the dual-runtime transform oracle and test client-only composition separately.
+
+3. **BLOCKING — The broker still cannot safely own the full registration lifecycle.**  
+   **Exact defect:** `RegisterForwardV1` can create a durable registration but no message can explicitly release it, despite D2 requiring release by API. `contextId` is merely lifetime-stable, not never-reused or incarnation-bound, so revision reset can cause a new live context’s announces to be ignored or delayed old announces to resurrect demand. Forwarded registration carries neither `authorityPartitionDigest` nor an expected fence; “store’s current fence” is insufficient for multi-partition clients. [Broker protocol](/Users/ccheever/projects/snapback-0166/llp/0166-local-persistent-store.spec.md:449).  
+   **Why it matters:** Durable registrations can be stranded, and live-tab demand can be wrongly ignored or scoped to another authority partition.  
+   **What resolves it:** Add never-reused context-session identity, authority/fence-bound register and unregister requests with outcomes, idempotent crash recovery, and validation of which sources may appear in volatile announces.
+
+4. **BLOCKING — `retentionRequest`, release grace, and compaction blockers do not form a total persistence rule.**  
+   **Exact defect:** D3 requires both effective `"durable"` and a registration or grace. After the final registration releases, no effective merged retention request remains, so even `"default"` or `"pinned"` grace cannot satisfy the rule. Conversely, a downgrade to `"none"` may remain durably stored while a compaction blocker holds, contradicting the claimed necessary condition; inspection has no blocker-based retaining reason. [Merge/downgrade](/Users/ccheever/projects/snapback-0166/llp/0166-local-persistent-store.spec.md:401), [persistence conditions](/Users/ccheever/projects/snapback-0166/llp/0166-local-persistent-store.spec.md:581), [compaction blockers](/Users/ccheever/projects/snapback-0166/llp/0166-local-persistent-store.spec.md:851).  
+   **Why it matters:** The normal release path contradicts S1/S3, while safety-held effective-none bytes violate the inspection invariant.  
+   **What resolves it:** Pin the last effective durable-retention decision into grace or make grace an explicit alternative condition. Model blocker-forced custody separately from discretionary retention, including its inspection reason and release transition.
+
+5. **BLOCKING — `migration-closed` is not a state LLP 0043/0053 can currently persist.**  
+   **Exact defect:** D6 calls it an LLP 0043-owned disposition, but LLP 0053’s closed dispositions remain `retain | quarantine | delete`, LLP 0043 defines no `migration-closed` state, and the existing boundary note only requires predecessor non-renderability. [LLP 0043 boundary](/Users/ccheever/projects/snapback-0166/llp/0043-offline-replay-retention.rfc.md:536), [LLP 0166 convergence acceptance](/Users/ccheever/projects/snapback-0166/llp/0166-local-persistent-store.spec.md:1367).  
+   **Why it matters:** The protocol’s first durable step—and therefore every crash-cut guarantee—has no record shape or legal transition.  
+   **What resolves it:** Express step 1 through an existing owner transition such as terminal retirement, or carry a real LLP 0043/0053 schema and state-machine amendment defining the durable, non-releasable close state.
+
+6. **MATERIAL — Parseable `wipe` does not clear everything D2 says store reset releases.**  
+   **Exact defect:** Durable programmatic registrations live in `storeMeta` and release on store reset, but D1’s atomic clear list omits `storeMeta` and never specifies field-level clearing within it.  
+   **Why it matters:** A reset may preserve registrations that rehydrate data the caller intended to discard.  
+   **What resolves it:** Define the exact `storeMeta` projection cleared versus preserved: destroy registrations and policy facts while retaining allocator, fence/barrier high-waters, and other named survivals.
+
+7. **MATERIAL — Governed-family scoping remains contradictory in D3.**  
+   **Exact defect:** D3’s universal “Persistence requires all” list includes legacy Channel-B authority but also requires `retentionRequest` plus registration/grace. Grandfathered legacy entries have neither and are supposed to persist indefinitely under LLP 0090, as D5/S4 state.  
+   **Why it matters:** One reading deletes legacy entries; the other makes D3’s exhaustive conditions false.  
+   **What resolves it:** Scope conditions 1–5 explicitly to `qmk1` materialization payload and state the legacy envelope’s independent LLP 0090 persistence predicate separately.
+
+8. **MATERIAL — The claimed verbatim Fable round-2 artifact is incomplete.**  
+   **Exact defect:** [The artifact](/Users/ccheever/projects/snapback-0166/llp/reviews/0166-local-persistent-store.fable.md:323) ends immediately after its provenance separator; it contains no assessment, audit, or findings.  
+   **Why it matters:** The three prior MATERIAL findings cannot be identified or honestly declared resolved under LLP 0005.  
+   **What resolves it:** Recover and append the actual review with provenance, or correct the claims and rerun an independent Fable-family round.
+
+4. **Suggestions**
+
+- If the narrower result-transform direction is retained, rename its retention class so it does not imply source-plan evaluation.
+- Add one broker fixture covering commit → writer crash before outcome → retry → non-writer unregister → context-ID collision.
+- Add one retention trace covering final durable release, grace, a blocker, blocker discharge, and exact inspection reasons.
+- Keep the compaction, answer-table, and partitioned-budget repairs unchanged; those converged cleanly.
+
+5. **Recommended next step**
+
+Keep LLP 0166 in Draft. Resolve concerns 1–5 first, repair D1/D3 scoping, and recover or rerun the missing Fable review. Then run another focused dual-family review of D2, D3/D5, D6, and D7 before considering acceptance.
