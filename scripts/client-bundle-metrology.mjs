@@ -112,6 +112,103 @@ const SUPPLEMENTAL_LEDGER_SPECS = Object.freeze([
   }),
 ]);
 
+// @ref LLP 0063#workstream-8--performance-and-packaging-budgets — a real
+// workload-version change gets a declared prospective rollover; its historical
+// receipt stays immutable and unaffected profiles keep their prior ceilings.
+// @ref LLP 0166#d1--one-store-domain — store format v3 and registration-backed
+// reads intentionally evolve the existing Full/RQS workload in place.
+const LOCAL_STORE_ROLLOVER_PROFILE_IDS = Object.freeze([
+  'app-data-operation-live',
+  'external-react-application',
+  'full-operation-call',
+  'full-operation-live',
+  'full-public-surface',
+  'full-sessions',
+  'micro-root-negative',
+  'online-operation-live',
+  'public-subpath-app-data',
+  'public-subpath-evaluation-floor',
+  'public-subpath-hosted-browser',
+  'public-subpath-lease-convergence',
+  'public-subpath-materialization-store',
+  'public-subpath-online',
+  'public-subpath-push-registry',
+  'public-subpath-root',
+  'public-subpath-rqs-preload',
+  'public-subpath-rqs-store',
+  'public-subpath-rqs-store-default',
+  'public-subpath-rqs-store-expo',
+  'public-subpath-rqs-store-file',
+  'public-subpath-vector-search',
+  'push-registry-attach',
+  'push-registry-root-negative',
+  'react-external',
+]);
+const LOCAL_STORE_NEW_PROFILE_IDS = Object.freeze([
+  'public-subpath-evaluation-floor',
+  'public-subpath-lease-convergence',
+  'public-subpath-materialization-store',
+]);
+const LOCAL_STORE_SUPPLEMENTAL_PREDECESSOR_PROFILE_IDS = Object.freeze([
+  'micro-root-negative',
+  'public-subpath-push-registry',
+  'public-subpath-vector-search',
+  'push-registry-attach',
+  'push-registry-root-negative',
+]);
+const LOCAL_STORE_PRIMARY_PREDECESSOR_PROFILE_IDS = Object.freeze(
+  LOCAL_STORE_ROLLOVER_PROFILE_IDS.filter((id) => ![
+    ...LOCAL_STORE_NEW_PROFILE_IDS,
+    ...LOCAL_STORE_SUPPLEMENTAL_PREDECESSOR_PROFILE_IDS,
+  ].includes(id)),
+);
+const ROLLOVER_LEDGER_SPECS = Object.freeze([
+  Object.freeze({
+    filename: 'baseline.local-persistent-store.v1.json',
+    profileFilename: 'local-persistent-store-profiles.v1.json',
+    workloadVersion: 'llp-0166-local-persistent-store.v1',
+    profileIds: LOCAL_STORE_ROLLOVER_PROFILE_IDS,
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.v1.json',
+        profileIds: LOCAL_STORE_PRIMARY_PREDECESSOR_PROFILE_IDS,
+      }),
+      Object.freeze({
+        filename: 'baseline.micro-phase-b.v1.json',
+        profileIds: Object.freeze(['micro-root-negative']),
+      }),
+      Object.freeze({
+        filename: 'baseline.push-registry.v1.json',
+        profileIds: Object.freeze([
+          'public-subpath-push-registry',
+          'push-registry-attach',
+          'push-registry-root-negative',
+        ]),
+      }),
+      Object.freeze({
+        filename: 'baseline.vector-search.v1.json',
+        profileIds: Object.freeze(['public-subpath-vector-search']),
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0166#d9--carriers-storage-profiles-arms-and-the-bundle',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/package.test.mjs']],
+      ['node', ['packages/snapback-client/browser-closure.test.mjs']],
+      ['node', ['packages/snapback-react/package.test.mjs']],
+      ['node', ['packages/snapback-client/rqs-store-v3.test.mjs']],
+      ['node', ['packages/snapback-client/materialization-store.test.mjs']],
+      ['node', ['packages/snapback-client/registration-ledger.test.mjs']],
+      ['node', ['packages/snapback-client/answer-classes.test.mjs']],
+      ['node', ['packages/snapback-client/evaluation-floor.test.mjs']],
+      ['node', ['packages/snapback-client/lease-convergence.test.mjs']],
+    ]),
+  }),
+]);
+
 function fail(message) {
   throw new Error(`SNAPBACK_CLIENT_BUNDLE_RATCHET_FAILED: ${message}`);
 }
@@ -461,6 +558,18 @@ function additiveProfileIds() {
   return SUPPLEMENTAL_LEDGER_SPECS.flatMap((spec) => spec.profileIds);
 }
 
+function rolloverProfileIds() {
+  return ROLLOVER_LEDGER_SPECS.flatMap((spec) => spec.profileIds);
+}
+
+function prospectiveProfileIds(baseline) {
+  const historical = new Set(baseline.profiles.map((profile) => profile.id));
+  return [
+    ...additiveProfileIds(),
+    ...rolloverProfileIds().filter((id) => !historical.has(id)),
+  ];
+}
+
 function assertDeclaredAdditiveProfiles(additiveConfigs, profiles) {
   const measured = new Set(profiles.map((profile) => profile.id));
   for (const { spec, config } of additiveConfigs) {
@@ -470,6 +579,24 @@ function assertDeclaredAdditiveProfiles(additiveConfigs, profiles) {
     ].sort();
     assert.deepEqual(declared, spec.profileIds.toSorted(), `${spec.filename}: declared ids`);
     for (const id of declared) assert.ok(measured.has(id), `${id}: additive profile exists`);
+  }
+}
+
+function assertDeclaredRolloverProfiles(rolloverConfigs, profiles) {
+  const measured = new Set(profiles.map((profile) => profile.id));
+  for (const { spec, config } of rolloverConfigs) {
+    assert.equal(
+      config.schemaVersion,
+      'snapback.client-bundle-metrology-rollover-profiles.v1',
+    );
+    assert.deepEqual(config.profiles, [], `${spec.filename}: rollover profile config is declarative only`);
+    for (const id of spec.profileIds) assert.ok(measured.has(id), `${id}: rollover profile exists`);
+    const predecessorIds = spec.predecessors.flatMap((entry) => entry.profileIds);
+    assert.equal(
+      new Set(predecessorIds).size,
+      predecessorIds.length,
+      `${spec.filename}: predecessor ids are unique`,
+    );
   }
 }
 
@@ -550,14 +677,21 @@ async function measure() {
     );
     return { spec, bytes, config };
   });
+  const rolloverConfigs = ROLLOVER_LEDGER_SPECS.map((spec) => {
+    const bytes = readFileSync(join(FIXTURE_DIR, spec.profileFilename));
+    const config = JSON.parse(bytes);
+    return { spec, bytes, config };
+  });
   const profiles = [
     ...config.profiles,
     ...additiveConfigs.flatMap((entry) => entry.config.profiles),
+    ...rolloverConfigs.flatMap((entry) => entry.config.profiles),
     ...publicSubpathProfiles(config),
   ];
   const ids = profiles.map((profile) => profile.id);
   assert.equal(new Set(ids).size, ids.length, 'profile ids must be unique');
   assertDeclaredAdditiveProfiles(additiveConfigs, profiles);
+  assertDeclaredRolloverProfiles(rolloverConfigs, profiles);
   const measured = [];
   for (const profile of profiles) measured.push(await measureProfile(profile));
   measured.sort((left, right) => left.id.localeCompare(right.id));
@@ -566,6 +700,7 @@ async function measure() {
   assertMicroClosure(measured);
   runBehaviorCommands(BEHAVIOR_COMMANDS);
   for (const { spec } of additiveConfigs) runBehaviorCommands(spec.behaviorCommands);
+  for (const { spec } of rolloverConfigs) runBehaviorCommands(spec.behaviorCommands);
   return {
     schemaVersion: 'snapback.client-bundle-metrology.v1',
     authorities: [
@@ -605,6 +740,15 @@ async function measure() {
       },
       behaviorCommands: commandStrings(spec.behaviorCommands),
     })),
+    rolloverLedgers: rolloverConfigs.map(({ spec, bytes }) => ({
+      filename: spec.filename,
+      workloadVersion: spec.workloadVersion,
+      inputs: {
+        profilesSha256: sha256(bytes),
+        lockfileSha256: sha256(readFileSync(join(ROOT, 'bun.lock'))),
+      },
+      behaviorCommands: commandStrings(spec.behaviorCommands),
+    })),
     profiles: measured,
   };
 }
@@ -620,18 +764,57 @@ function compactSupplementalBaseline(report, spec, profiles) {
     method: report.method,
     inputs: evidence.inputs,
     behaviorCommands: evidence.behaviorCommands,
-    profiles: profiles.map((profile) => ({
-      id: profile.id,
-      package: profile.package,
-      fixtureSha256: profile.fixtureSha256,
-      externals: profile.externals,
-      minifiedBytes: profile.minifiedBytes,
-      gzipBytes: profile.gzipBytes,
-      brotliBytes: profile.brotliBytes,
-      outputSha256: profile.outputSha256,
-      attribution: profile.attribution,
-      metafile: profile.metafile,
-    })),
+    profiles: profiles.map(compactProfile),
+  };
+}
+
+function compactProfile(profile) {
+  return {
+    id: profile.id,
+    package: profile.package,
+    fixtureSha256: profile.fixtureSha256,
+    externals: profile.externals,
+    minifiedBytes: profile.minifiedBytes,
+    gzipBytes: profile.gzipBytes,
+    brotliBytes: profile.brotliBytes,
+    outputSha256: profile.outputSha256,
+    attribution: profile.attribution,
+    metafile: profile.metafile,
+  };
+}
+
+function rolloverPredecessorReceipts(spec) {
+  return spec.predecessors.map((predecessor) => {
+    const path = join(FIXTURE_DIR, predecessor.filename);
+    if (!existsSync(path)) fail(`${spec.filename}: predecessor ${predecessor.filename} is missing`);
+    const bytes = readFileSync(path);
+    const baseline = JSON.parse(bytes);
+    const baselineIds = new Set(baseline.profiles.map((profile) => profile.id));
+    for (const id of predecessor.profileIds) {
+      assert.ok(baselineIds.has(id), `${spec.filename}: predecessor ${predecessor.filename} owns ${id}`);
+    }
+    return {
+      filename: predecessor.filename,
+      sha256: sha256(bytes),
+      profileIds: predecessor.profileIds,
+    };
+  });
+}
+
+function compactRolloverBaseline(report, spec, profiles) {
+  const evidence = report.rolloverLedgers.find((entry) => entry.filename === spec.filename);
+  assert.ok(evidence, `${spec.filename}: rollover evidence`);
+  return {
+    schemaVersion: 'snapback.client-bundle-metrology-rollover-baseline.v1',
+    source: baselineSourceProvenance(),
+    authorities: spec.authorities,
+    frozenRule: 'declared prospective workload-version rollover; predecessor receipts remain immutable; valid ceilings never loosen',
+    workloadVersion: spec.workloadVersion,
+    predecessors: rolloverPredecessorReceipts(spec),
+    method: report.method,
+    inputs: evidence.inputs,
+    behaviorCommands: evidence.behaviorCommands,
+    profiles: profiles.map(compactProfile),
   };
 }
 
@@ -644,18 +827,7 @@ function compactBaseline(report, profiles) {
     method: report.method,
     inputs: report.inputs,
     behaviorCommands: report.behaviorCommands,
-    profiles: profiles.map((profile) => ({
-      id: profile.id,
-      package: profile.package,
-      fixtureSha256: profile.fixtureSha256,
-      externals: profile.externals,
-      minifiedBytes: profile.minifiedBytes,
-      gzipBytes: profile.gzipBytes,
-      brotliBytes: profile.brotliBytes,
-      outputSha256: profile.outputSha256,
-      attribution: profile.attribution,
-      metafile: profile.metafile,
-    })),
+    profiles: profiles.map(compactProfile),
   };
 }
 
@@ -691,6 +863,40 @@ function validateSupplementalBaseline(report, spec, supplemental) {
   );
 }
 
+function validateRolloverBaseline(report, spec, rollover) {
+  assert.equal(
+    rollover.schemaVersion,
+    'snapback.client-bundle-metrology-rollover-baseline.v1',
+  );
+  validateBaselineSource(rollover.source);
+  const evidence = report.rolloverLedgers.find((entry) => entry.filename === spec.filename);
+  assert.ok(evidence, `${spec.filename}: rollover evidence`);
+  assert.deepEqual(spec.authorities, rollover.authorities, `${spec.filename}: authorities`);
+  assert.equal(
+    rollover.frozenRule,
+    'declared prospective workload-version rollover; predecessor receipts remain immutable; valid ceilings never loosen',
+    `${spec.filename}: frozen rule`,
+  );
+  assert.equal(spec.workloadVersion, rollover.workloadVersion, `${spec.filename}: workload version`);
+  assert.deepEqual(
+    rolloverPredecessorReceipts(spec),
+    rollover.predecessors,
+    `${spec.filename}: immutable predecessor receipts`,
+  );
+  assert.deepEqual(report.method, rollover.method, `${spec.filename}: measurement method`);
+  assert.deepEqual(evidence.inputs, rollover.inputs, `${spec.filename}: inputs`);
+  assert.deepEqual(
+    evidence.behaviorCommands,
+    rollover.behaviorCommands,
+    `${spec.filename}: behavior commands`,
+  );
+  assert.deepEqual(
+    rollover.profiles.map((profile) => profile.id).toSorted(),
+    spec.profileIds.toSorted(),
+    `${spec.filename}: exact rollover profile ids`,
+  );
+}
+
 function compareProfiles(report, baselines, { requireComplete = true } = {}) {
   const currentById = new Map(report.profiles.map((profile) => [profile.id, profile]));
   const baselineById = new Map();
@@ -721,24 +927,86 @@ function compareProfiles(report, baselines, { requireComplete = true } = {}) {
   if (regressions.length > 0) fail(regressions.join('; '));
 }
 
-function compareToBaselines(report, baseline, supplementals) {
+function historicalBaselineEntries(baseline, supplementals) {
+  return [
+    { filename: 'baseline.v1.json', baseline },
+    ...supplementals.map(({ spec, baseline: supplemental }) => ({
+      filename: spec.filename,
+      baseline: supplemental,
+    })),
+  ];
+}
+
+function activeBaselineEntries(
+  baseline,
+  supplementals,
+  rollovers,
+  { retireSpecs = rollovers.map(({ spec }) => spec) } = {},
+) {
+  const historical = historicalBaselineEntries(baseline, supplementals);
+  const historicalByFilename = new Map(historical.map((entry) => [entry.filename, entry]));
+  const supersededByFilename = new Map();
+  for (const spec of retireSpecs) {
+    for (const predecessor of spec.predecessors) {
+      const entry = historicalByFilename.get(predecessor.filename);
+      assert.ok(entry, `${spec.filename}: declared predecessor ${predecessor.filename} exists`);
+      const owned = new Set(entry.baseline.profiles.map((profile) => profile.id));
+      let superseded = supersededByFilename.get(predecessor.filename);
+      if (!superseded) {
+        superseded = new Set();
+        supersededByFilename.set(predecessor.filename, superseded);
+      }
+      for (const id of predecessor.profileIds) {
+        assert.ok(owned.has(id), `${spec.filename}: ${predecessor.filename} owns ${id}`);
+        assert.equal(superseded.has(id), false, `${id}: superseded by only one rollover`);
+        superseded.add(id);
+      }
+    }
+  }
+  return [
+    ...historical.map((entry) => ({
+      filename: entry.filename,
+      baseline: {
+        ...entry.baseline,
+        profiles: entry.baseline.profiles.filter(
+          (profile) => !supersededByFilename.get(entry.filename)?.has(profile.id),
+        ),
+      },
+    })),
+    ...rollovers.map(({ spec, baseline: rollover }) => ({
+      filename: spec.filename,
+      baseline: rollover,
+    })),
+  ];
+}
+
+function compareToBaselines(report, baseline, supplementals, rollovers) {
   for (const { spec, baseline: supplemental } of supplementals) {
     validateSupplementalBaseline(report, spec, supplemental);
   }
-  compareProfiles(report, [baseline, ...supplementals.map((entry) => entry.baseline)]);
+  for (const { spec, baseline: rollover } of rollovers) {
+    validateRolloverBaseline(report, spec, rollover);
+  }
+  compareProfiles(
+    report,
+    activeBaselineEntries(baseline, supplementals, rollovers).map((entry) => entry.baseline),
+  );
 }
 
-function withSavings(report, baseline, supplementals) {
+function withSavings(report, baseline, supplementals, rollovers) {
+  const active = activeBaselineEntries(baseline, supplementals, rollovers);
   const baselineById = new Map(
-    [baseline, ...supplementals.map((entry) => entry.baseline)]
+    active
+      .map((entry) => entry.baseline)
       .flatMap((entry) => entry.profiles)
       .map((profile) => [profile.id, profile]),
   );
   return {
     ...report,
-    comparedTo: ['baseline.v1.json', ...supplementals.map(({ spec }) => spec.filename)],
+    comparedTo: active.map((entry) => entry.filename),
     profiles: report.profiles.map((profile) => {
       const frozen = baselineById.get(profile.id);
+      assert.ok(frozen, `${profile.id}: active frozen baseline`);
       return {
         ...profile,
         savings: Object.fromEntries(METRICS.map((metric) => [metric, frozen[metric] - profile[metric]])),
@@ -755,15 +1023,35 @@ function readSupplementalBaselines() {
   });
 }
 
+function readRolloverBaselines({ allowMissing = false } = {}) {
+  const entries = [];
+  for (const spec of ROLLOVER_LEDGER_SPECS) {
+    const path = join(FIXTURE_DIR, spec.filename);
+    if (!existsSync(path)) {
+      if (allowMissing) continue;
+      fail(`${spec.filename} is missing`);
+    }
+    entries.push({ spec, baseline: readJson(path) });
+  }
+  return entries;
+}
+
 function assertExactProspectiveAdditions(report, baseline) {
   const covered = new Set(baseline.profiles.map((profile) => profile.id));
   const additions = report.profiles.filter((profile) => !covered.has(profile.id));
   assert.deepEqual(
     additions.map((profile) => profile.id).toSorted(),
-    additiveProfileIds().toSorted(),
-    'prospective additions exactly match the declared additive ledgers',
+    prospectiveProfileIds(baseline).toSorted(),
+    'profiles outside the historical primary receipt exactly match declared prospective ledgers',
   );
   return additions;
+}
+
+function uncoveredProfiles(report, activeEntries) {
+  const covered = new Set(
+    activeEntries.flatMap((entry) => entry.baseline.profiles.map((profile) => profile.id)),
+  );
+  return report.profiles.filter((profile) => !covered.has(profile.id));
 }
 
 function stableJson(value) {
@@ -777,8 +1065,9 @@ if (![
   '--write-baseline',
   '--write-current',
   '--write-supplemental-baseline',
+  '--write-rollover-baseline',
 ].includes(mode)) {
-  console.error('usage: node scripts/client-bundle-metrology.mjs [--check|--check-primary|--write-baseline|--write-current|--write-supplemental-baseline]');
+  console.error('usage: node scripts/client-bundle-metrology.mjs [--check|--check-primary|--write-baseline|--write-current|--write-supplemental-baseline|--write-rollover-baseline]');
   process.exit(2);
 }
 
@@ -790,7 +1079,7 @@ if (mode === '--write-baseline') {
   const baseline = compactBaseline(report, primaryProfiles);
   writeFileSync(BASELINE_PATH, stableJson(baseline));
   const primaryReport = { ...report, profiles: primaryProfiles };
-  writeFileSync(CURRENT_PATH, stableJson(withSavings(primaryReport, baseline, [])));
+  writeFileSync(CURRENT_PATH, stableJson(withSavings(primaryReport, baseline, [], [])));
   console.log(`client bundle baseline frozen: ${primaryProfiles.length} primary profiles`);
   process.exit(0);
 }
@@ -799,13 +1088,29 @@ if (!existsSync(BASELINE_PATH)) fail('baseline.v1.json is missing');
 const baseline = readJson(BASELINE_PATH);
 validateMainBaseline(report, baseline);
 if (mode === '--check-primary') {
-  compareProfiles(report, [baseline], { requireComplete: false });
+  const rollovers = readRolloverBaselines({ allowMissing: true });
+  for (const { spec, baseline: rollover } of rollovers) {
+    validateRolloverBaseline(report, spec, rollover);
+  }
+  compareProfiles(
+    report,
+    activeBaselineEntries(baseline, [], rollovers).map((entry) => entry.baseline),
+    { requireComplete: false },
+  );
   const additions = assertExactProspectiveAdditions(report, baseline);
-  console.log(`client bundle primary baseline passed; ${additions.length} additive profiles await a prospective baseline`);
+  console.log(`client bundle primary baseline passed; ${additions.length} profiles live outside the historical primary receipt`);
   process.exit(0);
 }
 if (mode === '--write-supplemental-baseline') {
-  compareProfiles(report, [baseline], { requireComplete: false });
+  const rollovers = readRolloverBaselines({ allowMissing: true });
+  for (const { spec, baseline: rollover } of rollovers) {
+    validateRolloverBaseline(report, spec, rollover);
+  }
+  compareProfiles(
+    report,
+    activeBaselineEntries(baseline, [], rollovers).map((entry) => entry.baseline),
+    { requireComplete: false },
+  );
   const additions = assertExactProspectiveAdditions(report, baseline);
   const missing = SUPPLEMENTAL_LEDGER_SPECS.filter(
     (spec) => !existsSync(join(FIXTURE_DIR, spec.filename)),
@@ -818,13 +1123,55 @@ if (mode === '--write-supplemental-baseline') {
   const supplemental = compactSupplementalBaseline(report, spec, selected);
   writeFileSync(join(FIXTURE_DIR, spec.filename), stableJson(supplemental));
   const supplementals = readSupplementalBaselines();
-  writeFileSync(CURRENT_PATH, stableJson(withSavings(report, baseline, supplementals)));
+  writeFileSync(CURRENT_PATH, stableJson(withSavings(report, baseline, supplementals, rollovers)));
   console.log(`client bundle additive baseline frozen in ${spec.filename}: ${selected.length} profiles`);
   process.exit(0);
 }
+if (mode === '--write-rollover-baseline') {
+  const supplementals = readSupplementalBaselines();
+  for (const { spec, baseline: supplemental } of supplementals) {
+    validateSupplementalBaseline(report, spec, supplemental);
+  }
+  const rollovers = readRolloverBaselines({ allowMissing: true });
+  for (const { spec, baseline: rollover } of rollovers) {
+    validateRolloverBaseline(report, spec, rollover);
+  }
+  const missing = ROLLOVER_LEDGER_SPECS.filter(
+    (spec) => !existsSync(join(FIXTURE_DIR, spec.filename)),
+  );
+  if (missing.length !== 1) {
+    fail(`expected exactly one unfrozen rollover ledger, found ${missing.length}`);
+  }
+  const activeBeforeFreeze = activeBaselineEntries(baseline, supplementals, rollovers, {
+    retireSpecs: ROLLOVER_LEDGER_SPECS,
+  });
+  compareProfiles(
+    report,
+    activeBeforeFreeze.map((entry) => entry.baseline),
+    { requireComplete: false },
+  );
+  const spec = missing[0];
+  const uncovered = uncoveredProfiles(report, activeBeforeFreeze);
+  assert.deepEqual(
+    uncovered.map((profile) => profile.id).toSorted(),
+    spec.profileIds.toSorted(),
+    `${spec.filename}: exact uncovered rollover profile ids`,
+  );
+  const rollover = compactRolloverBaseline(report, spec, uncovered);
+  writeFileSync(join(FIXTURE_DIR, spec.filename), stableJson(rollover));
+  const frozenRollovers = readRolloverBaselines();
+  compareToBaselines(report, baseline, supplementals, frozenRollovers);
+  writeFileSync(
+    CURRENT_PATH,
+    stableJson(withSavings(report, baseline, supplementals, frozenRollovers)),
+  );
+  console.log(`client bundle workload rollover frozen in ${spec.filename}: ${uncovered.length} profiles`);
+  process.exit(0);
+}
 const supplementals = readSupplementalBaselines();
-compareToBaselines(report, baseline, supplementals);
-const current = withSavings(report, baseline, supplementals);
+const rollovers = readRolloverBaselines();
+compareToBaselines(report, baseline, supplementals, rollovers);
+const current = withSavings(report, baseline, supplementals, rollovers);
 if (mode === '--write-current') {
   writeFileSync(CURRENT_PATH, stableJson(current));
   console.log(`client bundle current report updated: ${report.profiles.length} profiles`);

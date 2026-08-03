@@ -43,6 +43,25 @@ node scripts/client-bundle-metrology.mjs --write-supplemental-baseline
 The command refuses unless exactly one declared ledger is missing and every
 existing primary/supplemental ceiling is still valid.
 
+When a landed specification deliberately evolves an existing measured
+workload, use a declared workload-version rollover instead. A rollover names
+the exact predecessor profile ids it supersedes and binds the complete,
+unchanged predecessor receipt by SHA-256. Profiles outside that declaration
+continue to compare against their historical ceilings; the predecessor file is
+never rewritten. Commit the implementation, instrument declaration, profile
+inventory, and governing LLP amendment first, then run:
+
+```sh
+node scripts/client-bundle-metrology.mjs --write-rollover-baseline
+```
+
+The command refuses unless exactly one rollover is missing, every unaffected
+historical ceiling is still valid, and the profiles left without active
+ceilings are exactly the rollover's declared set. The LLP 0166 local persistent
+store is the first such workload version; its declarative inventory lives in
+`local-persistent-store-profiles.v1.json` and its frozen receipt lives in
+`baseline.local-persistent-store.v1.json`.
+
 The OQ2 extension is `baseline.push-installation-expo.v1.json`, backed by
 `push-installation-expo-profiles.v1.json`. It freezes the optional Expo
 installation-storage subpath independently, including a closure assertion that

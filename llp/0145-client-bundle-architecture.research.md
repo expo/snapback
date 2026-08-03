@@ -122,6 +122,12 @@ D-D; this Research remains the evidence and option-analysis base.)
 prospective supplemental ledgers when LLP 0143's optional push registry became
 the first post-baseline public capability. The original 24-profile baseline
 remains immutable; the push ledger freezes against its implementation commit.)
+**Revised:** 2026-08-03 (Phase A's instrument gained declared
+workload-version rollover ledgers for LLP 0166's intentional evolution of the
+existing Full/RQS workload and closures that consume its root surface. Each
+rollover SHA-binds and leaves every predecessor receipt byte-identical,
+supersedes only an exact profile-id set, and keeps every unaffected historical
+ceiling active.)
 **Related:** LLP 0000, LLP 0005, LLP 0008, LLP 0012, LLP 0041, LLP 0043, LLP 0053,
 LLP 0059, LLP 0060, LLP 0063, LLP 0064, LLP 0077, LLP 0090, LLP 0091,
 LLP 0092, LLP 0093, LLP 0094, LLP 0095, LLP 0096, LLP 0098, LLP 0107, LLP 0108,
@@ -1475,6 +1481,35 @@ and the root-negative fixture must exclude it. The ledger also executes the
 registry custody/security suite, including successor-bearer fencing. This is a
 Phase A instrument extension and a low-risk D6 boundary repair, not evidence
 for Micro, Phase C, a new carrier, or a notification-delivery capability.
+
+#### 2026-08-03 implementation amendment — workload-version rollover ledgers
+
+An additive ledger is insufficient when a ratified specification deliberately
+changes a workload that the primary receipt already measures. LLP 0063 permits
+a declared prospective rollover per workload version, but its valid-baseline
+rule still forbids editing or increasing the historical ceiling. The Phase A
+runner therefore admits a separate rollover receipt only when all of these
+conditions hold:
+
+- the declaration names the new workload version, governing LLP anchors, and
+  the exact current profile-id set;
+- every superseded profile names its predecessor ledger, and the new receipt
+  SHA-256-binds that complete predecessor file;
+- the predecessor remains byte-identical and independently provenance-valid;
+  profiles outside the exact supersession set continue to use it;
+- before first-run freezing, all unaffected historical ceilings pass and the
+  profiles without active ceilings exactly equal the declared rollover set;
+  and
+- the new receipt freezes the first run against an already-committed source
+  revision and retains behavior commands for the evolved semantics.
+
+This is prospective workload versioning, not retroactive baseline loosening:
+historical numbers remain inspectable facts, and a profile can have only one
+active ceiling. LLP 0166's local persistent store is the first use because its
+accepted one-store-domain design intentionally evolves the shipped Full/RQS
+closure and root-consuming supplemental fixtures while adding three public
+store subpaths. Its measured receipt and attribution are recorded under LLP
+0166 D9 after the implementation and this instrument amendment are committed.
 
 ### Phase B — take the low-risk savings
 
