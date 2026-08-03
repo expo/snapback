@@ -79,3 +79,81 @@ C8. **MATERIAL — The performance gate is not executable and conflates document
 ## 7. Recommended next step
 
 Revise LLP 0162 to v0.2 by resolving C1–C3 first, then add normative provenance, digest-boundary, history, ownership, and benchmark contracts for C4–C8. Keep the status Draft and the capability `Missing`, explicitly preserve LLP 0158 F0a as the only commissioned adjacent work, and request a fresh mutually blind LLP 0005 review after the revision.
+
+---
+
+## Round 2 — 2026-08-03 (target v0.2, SHA-256 2bee843df7bd4de89776f83170df558abc4d275fcef9e8e51d0398a0483ad18e)
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** codex-cli 0.146.0, codex exec, model gpt-5.6-sol, model_reasoning_effort=xhigh, sandbox read-only
+**Date:** 2026-08-03
+**Redacted:** no
+**Method:** fresh non-author codex exec context over the working tree at 50ff432a (target uncommitted, SHA-pinned); same capsule discipline as round 1 with the v0.2 SHA; barred from llp/reviews/ and from knowledge of prior rounds; recorded verbatim below.
+
+---
+
+## 1. Overall assessment
+
+I verified SHA-256 `2bee843df7bd4de89776f83170df558abc4d275fcef9e8e51d0398a0483ad18e` at commit `50ff432a`. LLP 0162 is a disciplined and mostly corpus-consistent reduction of LLP 0161: it preserves strict re-execution instead of merge, distinguishes promotable branches from derived deployments, limits history and proof claims, and accurately characterizes the existing implementation substrate. However, two load-bearing contracts remain underdefined: the current writable-copy/post-image journal cannot necessarily produce the promised exact base-to-head logical diff, and universal duplicate suppression has no finite retention/acknowledgement horizon. Several associated capability, identity, custody, and performance questions also remain too open for the acceptance corpus to determine conformance unambiguously.
+
+## 2. Verdict — NOT READY
+
+The RFC is ready for another revision, but not for review convergence or advancement. C1 and C2 are major correctness gaps in two of the profile’s three central primitives: exact fork inspection and retry-safe universal envelopes. They cannot be deferred solely to schema follow-on work because the missing choices determine required storage, retention cost, observable semantics, and acceptance fixtures. The remaining material findings should be settled in the same revision so `AgentSafeV1` becomes a bounded, testable capability rather than a collection of individually sound but incompletely composed components.
+
+## 3. Strengths
+
+- The P1–P9 mapping is candid about strong, partial, and substitute coverage, and the non-claims avoid presenting journals as maintained Merkle state, checkpoints as database-wide `AS OF`, or migration proofs as general lenses (`llp/0162-agent-safe-storage-profile.rfc.md:35-43`, `llp/0162-agent-safe-storage-profile.rfc.md:110-148`; compare `llp/0161-agent-optimized-storage-engine.research.md:104-180`).
+
+- The “existing foundations” inventory is materially accurate. Commit versions, row post-image journals, and optional settlement records exist (`src/storage.rs:5593-5647`, `src/storage.rs:16587-16612`); Ibex execution captures writes, reads, and deterministic answers (`src/runtime.rs:389-448`, `src/runtime.rs:478-529`); dry-run exposes read/write sets and deterministic inputs (`src/host_ops.rs:1610-1667`); and `ContentDigestV1` is a domain-separated resumable stream with the migration-shaped header the RFC identifies (`src/rqs.rs:1070-1149`).
+
+- The branch taxonomy cleanly prevents LLP 0158’s schema-divergent derived deployment from acquiring an accidental promotion path (`llp/0162-agent-safe-storage-profile.rfc.md:244-266`). Promotion is explicitly re-execution into staging, never sync-core merge or post-image application, matching LLP 0097 and LLP 0088 (`llp/0162-agent-safe-storage-profile.rfc.md:324-353`, `llp/0097-ephemeral-data-branches-and-effect-isolation.rfc.md:80-87`, `llp/0088-record-history-and-branching.rfc.md:173-188`).
+
+- The RFC honestly identifies the landed `branches::promote` implementation as superseded. The source currently enumerates `OverlayWrite` post-images and applies them through `apply_write` (`src/branches.rs:778-803`, `src/branches.rs:897-1017`), exactly the unsafe shortcut the RFC prohibits (`llp/0162-agent-safe-storage-profile.rfc.md:339-342`).
+
+- The proof language preserves LLP 0081’s critical distinction between inventory and independently derived evidence (`llp/0162-agent-safe-storage-profile.rfc.md:309-322`, `llp/0081-reviewed-storage-evolution-and-migrations.rfc.md:485-535`).
+
+- Sequencing respects program ownership and LLP 0158’s live scope cut: F0a remains deny-all-egress and does not silently become capture or promotion work (`llp/0162-agent-safe-storage-profile.rfc.md:586-616`, `llp/0158-instance-forking.rfc.md:858-897`).
+
+## 4. Concerns
+
+1. **C1 — MAJOR. Claim at issue:** The profile promises an exact logical base-to-head fork diff derived primarily from the journal. **Evidence:** The RFC requires added, updated, and deleted logical rows and acceptance equality with an independent base/head comparison (`llp/0162-agent-safe-storage-profile.rfc.md:290-307`, `llp/0162-agent-safe-storage-profile.rfc.md:564-566`). The landed substrate has one materialized database that becomes the writable fork (`src/branches.rs:355-377`, `src/branches.rs:400-408`), while both overlay and ordinary journals retain post-images, not first-write preimages (`src/branches.rs:439-471`, `src/storage.rs:5600-5607`). Consequently, update-then-revert or delete-then-reinsert can be indistinguishable from a net change without an immutable base or retained preimage. LLP 0158 already records that whole-state comparison requires a separately retained immutable base because the backup destination itself becomes writable (`llp/0158-instance-forking.rfc.md:699-707`). **Resolution:** Define whether the API returns an ordered change history or a net base-to-head state diff. For a net diff, require an immutable base, first-write preimages, or an equivalent independently sufficient base identity; define canonical folding for reversions, insert/delete cancellation, delete/reinsert, system fields, and retention expiry; then make those cases explicit acceptance fixtures.
+
+2. **C2 — MAJOR. Claim at issue:** Universal envelopes provide duplicate-safe retries while remaining bounded. **Evidence:** Every covered transition creates an atomic envelope and suppression record (`llp/0162-agent-safe-storage-profile.rfc.md:154-205`), and compact explanation identity survives detail expiry (`llp/0162-agent-safe-storage-profile.rfc.md:231-242`), but no rule says when that identity may be reclaimed or what a retry observes afterward. Generic resource limits and preservation of “open” receipts do not define the lifecycle (`llp/0162-agent-safe-storage-profile.rfc.md:397-403`, `llp/0162-agent-safe-storage-profile.rfc.md:560-563`). The existing settlement authority solves precisely this tension with consumption acknowledgements, refusal at capacity, and an explicit operator purge that admits loss of exactly-once semantics (`llp/0043-offline-replay-retention.rfc.md:204-259`, `llp/0043-offline-replay-retention.rfc.md:332-352`). Without such a boundary, compact envelopes either grow forever or eventually disappear while P8 still appears guaranteed. **Resolution:** Specify the envelope state machine, acknowledgement or expiry authority, per-audience quotas, operation-ID reuse horizon, late-retry response after reclamation, and semantics of administrative purge. Add crash, cap-exhaustion, delayed-ACK, and retry-after-GC fixtures.
+
+3. **C3 — MATERIAL. Claim at issue:** Every ordinary paved mutation can satisfy the stable operation-identity contract. **Evidence:** The RFC says first-party clients mint IDs and initial coverage includes all ordinary Ibex and host-plan mutations (`llp/0162-agent-safe-storage-profile.rfc.md:200-220`), but it does not define admission for clients that omit an ID or the rollout boundary at which omission refuses. Today `clientMutationId` defaults to `null` and is sent only when supplied (`packages/snapback-client/index.mjs:5728-5770`); the wire schema remains optional (`src/manifest.rs:6164-6176`); and the server-minted response ID is not installed as a durable replay identity when the request omitted one (`src/local.rs:11965-11984`). A server-generated ID returned after execution cannot repair an ambiguous first response. The physical key is also ambiguous between “audience-scoped operationId” and a globally unique operation identity, whereas migration precedent keys recovery by operation ID plus audience (`llp/0162-agent-safe-storage-profile.rfc.md:154-165`, `llp/0081-reviewed-storage-evolution-and-migrations.rfc.md:229-233`). **Resolution:** Define a versioned client capability transition, require or stably refuse missing IDs once envelope coverage is advertised, specify legacy-client behavior, and normatively define the composite operation key and canonical audience bytes. Test every paved transport, omitted IDs, same ID across audiences, and ambiguous delivery.
+
+4. **C4 — MATERIAL. Claim at issue:** `AgentSafeV1` is an actionable aggregate capability. **Evidence:** The aggregate may be claimed only when every “required component” passes (`llp/0162-agent-safe-storage-profile.rfc.md:425-448`), yet Open Question 2 leaves the required ordinary and specialized lanes undecided, Open Question 5 leaves schema/capability ownership open, and Open Question 7 leaves specialized receipt compatibility unresolved (`llp/0162-agent-safe-storage-profile.rfc.md:662-677`). Therefore an implementation cannot determine whether the aggregate passes even if every enumerated acceptance test succeeds. **Resolution:** Add a normative v1 capability matrix naming mandatory lanes, optional separately advertised lanes, required retention/proof classes, and the exact schema/version owner. Specialized lanes not required for v1 should remain individually advertised rather than blocking or silently joining the aggregate.
+
+5. **C5 — MATERIAL. Claim at issue:** A fork can remain promotable while replay inputs are retained under the stated privacy and derived-deployment rules. **Evidence:** Promotion requires full canonical argument values, ctx answers, and effect outcomes, not merely digests (`llp/0162-agent-safe-storage-profile.rfc.md:330-337`), while security permits those values to be redacted, encrypted, or refused (`llp/0162-agent-safe-storage-profile.rfc.md:514-520`). LLP 0146 permits full argument retention only through explicit opt-in (`llp/0146-agentic-authoring-affordances.rfc.md:951-960`). The RFC does not say when an unretainable operation makes a nominally `Promotable` fork non-promotable, nor how copied envelope, suppression, history, and checkpoint stores are treated by LLP 0158’s mechanical custody sweep (`llp/0158-instance-forking.rfc.md:824-829`, `llp/0158-instance-forking.rfc.md:861-875`). **Resolution:** Define admission-time replay eligibility and consent, protected storage and key lifecycle, erasure consequences, and an immediate capability transition to capture-only/non-promotable when inputs cannot be retained. Add explicit copy/scrub/rotate/refuse classifications for every new `_snapback_*` store in derived deployments.
+
+6. **C6 — MATERIAL. Claim at issue:** The 80/20 performance gate is objectively pass/fail. **Evidence:** The RFC uses “no statistically meaningful read-path regression” and a proposed 15% mutation threshold (`llp/0162-agent-safe-storage-profile.rfc.md:486-512`), while leaving the threshold itself open (`llp/0162-agent-safe-storage-profile.rfc.md:666-668`). The cited LLP 0035 baseline explicitly describes its measurements as a single developer-machine run, order-of-magnitude evidence rather than a statistically controlled benchmark (`llp/0035-local-target-benchmarks.research.md:33-52`). Neither document defines equivalence bounds, sample count, confidence rule, noise rejection, or the directional calculation for throughput versus latency. **Resolution:** Commit a reproducible statistical protocol and named baseline artifact: warm-up, run count, estimator/spread, equivalence or confidence criterion, hardware class, fixture sizes, and explicit formulas for throughput and latency regression. Ratification should occur before capability promotion, not after an ambiguous result.
+
+7. **C7 — MINOR. Claim at issue:** The history authorization acceptance test fully exercises the imported LLP 0088 rule. **Evidence:** LLP 0162 imports LLP 0088 §6 and says history authorizes fail-closed, but its acceptance criterion only repeats that general phrase (`llp/0162-agent-safe-storage-profile.rfc.md:364-371`, `llp/0162-agent-safe-storage-profile.rfc.md:392-395`, `llp/0162-agent-safe-storage-profile.rfc.md:573-575`). LLP 0088’s actual rule is more specific: authorize the record now, evaluate every historical post-image, and silently elide failing versions (`llp/0088-record-history-and-branching.rfc.md:218-234`). **Resolution:** Add fixtures for visibility changing between versions, currently unauthorized/deleted records, per-version elision, pagination across elisions, and horizon markers that disclose no hidden-version metadata.
+
+## 5. Suggestions (non-blocking)
+
+- Include one canonical `CommitEnvelopeV1` example and one receipt-only example to expose keying and optional-field mistakes early.
+
+- Give acceptance requirements stable IDs and pair each refusal path with its diagnostic code.
+
+- Use LLP 0037’s generated-schema pattern for envelope, diff, checkpoint, and capability artifacts rather than allowing independently handwritten wire shapes.
+
+- Name ordered journal history and net state diff as separate surfaces even if they share implementation machinery.
+
+- Add a compact implementation-status table distinguishing shipped substrate, required modification, and net-new components.
+
+## 6. Open questions
+
+- Is “exact fork diff” fundamentally a net state comparison or an attributed sequence of committed changes?
+
+- What event ends the universal retry guarantee and authorizes envelope/suppression reclamation?
+
+- Can a fork advertise `Promotable` before every admitted operation has passed replay-input retention classification?
+
+- Which precise local lanes constitute the first `AgentSafeV1` aggregate, and is host-plan coverage mandatory while LLP 0007 Option A remains unratified?
+
+- Do derived deployments inherit historical envelopes and explanations, or only application state plus newly minted fork-local provenance?
+
+## 7. Recommended next step
+
+Revise LLP 0162 to v0.3 by resolving C1–C6 normatively and adding C7’s authorization fixtures. The minimum convergence package is: a realizable net-diff substrate or narrower diff claim, a finite envelope/identity lifecycle, mandatory operation-ID negotiation and composite-key semantics, a closed `AgentSafeV1` capability matrix, replay-input and derived-deployment custody rules, and an executable performance protocol. Then run the LLP 0005 review loop again on the revised bytes.
