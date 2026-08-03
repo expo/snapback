@@ -66,6 +66,19 @@ impl BenchConfig {
             ephemeral_publishes: 40,
         }
     }
+
+    /// Statistically repeated step-0 fixture for LLP 0162. Each invocation
+    /// builds fresh databases and runtime fixtures; the artifact runner does
+    /// one unrecorded whole-run warm-up followed by eleven recorded runs.
+    pub fn agent_safe_step0() -> Self {
+        Self {
+            iterations: 60,
+            subscriptions: 16,
+            read_set_size: 32,
+            conflict_trials: 32,
+            ephemeral_publishes: 400,
+        }
+    }
 }
 
 /// Every named metric, each a number with its unit in the field name.
@@ -92,6 +105,25 @@ pub struct BenchReport {
     /// Because every mutation serializes on the global instance mutex, this is
     /// the single-writer breaking point.
     pub single_writer_mutations_per_sec: f64,
+    /// Individually timed samples of the same warm single-writer fixture.
+    pub single_writer_mutation_p50_us: f64,
+    pub single_writer_mutation_p95_us: f64,
+    /// Current-state storage reads over a fixed 512-row fixture. The point
+    /// path is `LocalDatabase::get`, the range path is `scan_table(limit=50)`,
+    /// and the query-plan path is `LocalDatabase::query(limit=50)`.
+    pub current_point_read_p50_us: f64,
+    pub current_point_read_p95_us: f64,
+    pub current_range_read_p50_us: f64,
+    pub current_range_read_p95_us: f64,
+    pub current_query_plan_read_p50_us: f64,
+    pub current_query_plan_read_p95_us: f64,
+    /// Allocated database plus WAL growth for one fresh logical row/operation,
+    /// and retained database growth after close/checkpoint. The dated artifact
+    /// records this exact physical-size definition; it is not an OS I/O claim.
+    pub allocated_write_bytes_per_changed_row: u64,
+    pub allocated_write_bytes_per_operation: u64,
+    pub retained_bytes_per_changed_row: u64,
+    pub retained_bytes_per_operation: u64,
     /// Matcher cost per commit per subscription on the *skip* path: subscriptions
     /// watch a table the commit does not touch, so the matcher evaluates each and
     /// skips it (no re-query).
@@ -135,6 +167,29 @@ pub struct BenchReport {
     /// the fresh-per-invocation lifecycle, as a function of helper count and
     /// module size.
     pub helper_splice: HelperSpliceBench,
+}
+
+/// One fixed no-request observation for the step-0 idle guard. The dated
+/// baseline runner records eleven independent five-second observations after
+/// all active measurements finish.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IdleObservation {
+    pub duration_ms: u64,
+    pub cpu_user_us: u64,
+    pub cpu_system_us: u64,
+    pub output_block_operations: u64,
+    pub resident_kb_before: f64,
+    pub resident_kb_after: f64,
+    pub database_family_bytes_before: u64,
+    pub database_family_bytes_after: u64,
+}
+
+#[derive(Clone, Copy)]
+struct ProcessUsage {
+    user_us: u64,
+    system_us: u64,
+    output_blocks: u64,
 }
 
 /// The three helper-splice module shapes the OQ1 measurement compares. Each
@@ -257,7 +312,9 @@ pub fn run(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<BenchRepor
     let vm_cost_us = measure_vm_cost(config)?;
     let vm_create_us = crate::runtime::bench_runtime_create_us(config.iterations);
     let warm_invoke_us = measure_warm_invoke(config)?;
-    let single_writer_mutations_per_sec = measure_single_writer(config)?;
+    let single_writer = measure_single_writer(config)?;
+    let current_reads = measure_current_reads(config)?;
+    let write_bytes = measure_write_bytes()?;
     let (matcher_skip_us_per_sub, fanout_us_per_affected_sub) = measure_fanout(config)?;
     let fanout_delta_us_per_affected_sub = measure_fanout_delta_projection(config);
     let read_set_validation_us_per_dep = measure_read_set_validation(config)?;
@@ -272,7 +329,19 @@ pub fn run(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<BenchRepor
         vm_cost_us,
         vm_create_us,
         warm_invoke_us,
-        single_writer_mutations_per_sec,
+        single_writer_mutations_per_sec: single_writer.mutations_per_sec,
+        single_writer_mutation_p50_us: single_writer.p50_us,
+        single_writer_mutation_p95_us: single_writer.p95_us,
+        current_point_read_p50_us: current_reads.point_p50_us,
+        current_point_read_p95_us: current_reads.point_p95_us,
+        current_range_read_p50_us: current_reads.range_p50_us,
+        current_range_read_p95_us: current_reads.range_p95_us,
+        current_query_plan_read_p50_us: current_reads.query_plan_p50_us,
+        current_query_plan_read_p95_us: current_reads.query_plan_p95_us,
+        allocated_write_bytes_per_changed_row: write_bytes.allocated,
+        allocated_write_bytes_per_operation: write_bytes.allocated,
+        retained_bytes_per_changed_row: write_bytes.retained,
+        retained_bytes_per_operation: write_bytes.retained,
         matcher_skip_us_per_sub,
         fanout_us_per_affected_sub,
         fanout_ceiling_subs_at_10ms: if fanout_us_per_affected_sub > 0.0 {
@@ -474,21 +543,227 @@ fn measure_warm_invoke(config: &BenchConfig) -> crate::diagnostic::SnapbackResul
     Ok(micros_per(start, config.iterations))
 }
 
-fn measure_single_writer(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<f64> {
+struct SingleWriterBench {
+    mutations_per_sec: f64,
+    p50_us: f64,
+    p95_us: f64,
+}
+
+struct CurrentReadBench {
+    point_p50_us: f64,
+    point_p95_us: f64,
+    range_p50_us: f64,
+    range_p95_us: f64,
+    query_plan_p50_us: f64,
+    query_plan_p95_us: f64,
+}
+
+struct WriteBytesBench {
+    allocated: u64,
+    retained: u64,
+}
+
+fn measure_single_writer(
+    config: &BenchConfig,
+) -> crate::diagnostic::SnapbackResult<SingleWriterBench> {
     let mut snapback = configured()?;
     for _ in 0..4 {
         snapback.invoke_mutation("createTodo", args(json!({ "title": "warm" })))?;
     }
-    let start = Instant::now();
+    let mut samples = Vec::with_capacity(config.iterations);
     for n in 0..config.iterations {
+        let start = Instant::now();
         snapback.invoke_mutation("createTodo", args(json!({ "title": n.to_string() })))?;
+        samples.push(start.elapsed().as_secs_f64() * 1_000_000.0);
     }
-    let elapsed = start.elapsed().as_secs_f64();
-    Ok(if elapsed > 0.0 {
-        config.iterations as f64 / elapsed
-    } else {
-        f64::INFINITY
+    let elapsed_us = samples.iter().sum::<f64>();
+    samples.sort_by(|left, right| left.total_cmp(right));
+    Ok(SingleWriterBench {
+        mutations_per_sec: if elapsed_us > 0.0 {
+            config.iterations as f64 * 1_000_000.0 / elapsed_us
+        } else {
+            f64::INFINITY
+        },
+        p50_us: percentile_sorted(&samples, 0.50),
+        p95_us: percentile_sorted(&samples, 0.95),
     })
+}
+
+fn measure_current_reads(
+    config: &BenchConfig,
+) -> crate::diagnostic::SnapbackResult<CurrentReadBench> {
+    let mut database = LocalDatabase::memory()?;
+    database.apply_schema(schema())?;
+    let writes = (0..512)
+        .map(|index| BufferedWrite::Insert {
+            table: "todos".to_owned(),
+            id: format!("bench-read-{index:04}"),
+            values: serde_json::Map::from_iter([
+                ("title".to_owned(), json!(format!("todo-{index:04}"))),
+                ("done".to_owned(), json!(false)),
+            ]),
+        })
+        .collect();
+    database.commit_buffered_writes(&HandlerInput::default(), writes, Vec::new(), Value::Null)?;
+
+    let plan = QueryPlan {
+        table: "todos".to_owned(),
+        filters: Vec::new(),
+        membership_filters: Vec::new(),
+        order: Vec::new(),
+        limit: Some(50),
+        indexed_by: None,
+    };
+    for _ in 0..4 {
+        database.get("todos", "bench-read-0256")?;
+        database.scan_table("todos", 50, 200)?;
+        database.query(&plan, &HandlerInput::default())?;
+    }
+
+    let mut point = Vec::with_capacity(config.iterations);
+    let mut range = Vec::with_capacity(config.iterations);
+    let mut query_plan = Vec::with_capacity(config.iterations);
+    for _ in 0..config.iterations {
+        let started = Instant::now();
+        database.get("todos", "bench-read-0256")?;
+        point.push(started.elapsed().as_secs_f64() * 1_000_000.0);
+
+        let started = Instant::now();
+        database.scan_table("todos", 50, 200)?;
+        range.push(started.elapsed().as_secs_f64() * 1_000_000.0);
+
+        let started = Instant::now();
+        database.query(&plan, &HandlerInput::default())?;
+        query_plan.push(started.elapsed().as_secs_f64() * 1_000_000.0);
+    }
+    point.sort_by(|left, right| left.total_cmp(right));
+    range.sort_by(|left, right| left.total_cmp(right));
+    query_plan.sort_by(|left, right| left.total_cmp(right));
+    Ok(CurrentReadBench {
+        point_p50_us: percentile_sorted(&point, 0.50),
+        point_p95_us: percentile_sorted(&point, 0.95),
+        range_p50_us: percentile_sorted(&range, 0.50),
+        range_p95_us: percentile_sorted(&range, 0.95),
+        query_plan_p50_us: percentile_sorted(&query_plan, 0.50),
+        query_plan_p95_us: percentile_sorted(&query_plan, 0.95),
+    })
+}
+
+fn measure_write_bytes() -> crate::diagnostic::SnapbackResult<WriteBytesBench> {
+    let directory = std::env::temp_dir().join(format!(
+        "snapback-agent-safe-step0-write-{}",
+        uuid::Uuid::now_v7()
+    ));
+    std::fs::create_dir(&directory).map_err(bench_io_error)?;
+    let path = directory.join("fixture.sqlite3");
+    let result = (|| {
+        let mut database = LocalDatabase::open(&path)?;
+        database.apply_schema(schema())?;
+        drop(database);
+        let before = file_family_bytes(&path)?;
+
+        let mut database = LocalDatabase::open(&path)?;
+        database.commit_buffered_writes(
+            &HandlerInput::default(),
+            vec![BufferedWrite::Insert {
+                table: "todos".to_owned(),
+                id: "bench-write-0001".to_owned(),
+                values: serde_json::Map::from_iter([
+                    ("title".to_owned(), json!("step-0 write amplification")),
+                    ("done".to_owned(), json!(false)),
+                ]),
+            }],
+            Vec::new(),
+            Value::Null,
+        )?;
+        let during = file_family_bytes(&path)?;
+        drop(database);
+        let after = file_family_bytes(&path)?;
+        Ok(WriteBytesBench {
+            allocated: during.saturating_sub(before),
+            retained: after.saturating_sub(before),
+        })
+    })();
+    let _ = std::fs::remove_dir_all(&directory);
+    result
+}
+
+fn file_family_bytes(path: &std::path::Path) -> crate::diagnostic::SnapbackResult<u64> {
+    let mut total = std::fs::metadata(path)
+        .map(|metadata| metadata.len())
+        .map_err(bench_io_error)?;
+    for suffix in ["-wal", "-shm"] {
+        let mut sidecar = path.as_os_str().to_owned();
+        sidecar.push(suffix);
+        if let Ok(metadata) = std::fs::metadata(std::path::PathBuf::from(sidecar)) {
+            total = total.saturating_add(metadata.len());
+        }
+    }
+    Ok(total)
+}
+
+pub fn measure_idle(duration: Duration) -> crate::diagnostic::SnapbackResult<IdleObservation> {
+    let directory = std::env::temp_dir().join(format!(
+        "snapback-agent-safe-step0-idle-{}",
+        uuid::Uuid::now_v7()
+    ));
+    std::fs::create_dir(&directory).map_err(bench_io_error)?;
+    let path = directory.join("fixture.sqlite3");
+    let result = (|| {
+        let mut database = LocalDatabase::open(&path)?;
+        database.apply_schema(schema())?;
+        let database_family_bytes_before = file_family_bytes(&path)?;
+        let resident_kb_before = resident_kb();
+        let usage_before = process_usage()?;
+        std::thread::sleep(duration);
+        let usage_after = process_usage()?;
+        let resident_kb_after = resident_kb();
+        let database_family_bytes_after = file_family_bytes(&path)?;
+        drop(database);
+        Ok(IdleObservation {
+            duration_ms: duration.as_millis().try_into().unwrap_or(u64::MAX),
+            cpu_user_us: usage_after.user_us.saturating_sub(usage_before.user_us),
+            cpu_system_us: usage_after.system_us.saturating_sub(usage_before.system_us),
+            output_block_operations: usage_after
+                .output_blocks
+                .saturating_sub(usage_before.output_blocks),
+            resident_kb_before,
+            resident_kb_after,
+            database_family_bytes_before,
+            database_family_bytes_after,
+        })
+    })();
+    let _ = std::fs::remove_dir_all(&directory);
+    result
+}
+
+fn process_usage() -> crate::diagnostic::SnapbackResult<ProcessUsage> {
+    let mut usage = std::mem::MaybeUninit::<libc::rusage>::uninit();
+    // SAFETY: `getrusage` initializes the caller-owned structure on success.
+    let status = unsafe { libc::getrusage(libc::RUSAGE_SELF, usage.as_mut_ptr()) };
+    if status != 0 {
+        return Err(crate::diagnostic::SnapbackError::error(
+            "SNAPBACK_BENCH_PROCESS_USAGE_UNAVAILABLE",
+            "bench",
+            std::io::Error::last_os_error().to_string(),
+        ));
+    }
+    // SAFETY: the successful call above initialized every field.
+    let usage = unsafe { usage.assume_init() };
+    let micros = |value: libc::timeval| {
+        (value.tv_sec.max(0) as u64)
+            .saturating_mul(1_000_000)
+            .saturating_add(value.tv_usec.max(0) as u64)
+    };
+    Ok(ProcessUsage {
+        user_us: micros(usage.ru_utime),
+        system_us: micros(usage.ru_stime),
+        output_blocks: usage.ru_oublock.max(0) as u64,
+    })
+}
+
+fn bench_io_error(error: std::io::Error) -> crate::diagnostic::SnapbackError {
+    crate::diagnostic::SnapbackError::error("SNAPBACK_BENCH_IO_FAILED", "bench", error.to_string())
 }
 
 fn measure_fanout(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<(f64, f64)> {
@@ -1260,6 +1535,32 @@ mod tests {
             "{report:?}"
         );
         ensure!(report.single_writer_mutations_per_sec > 1.0, "{report:?}");
+        ensure!(
+            report.single_writer_mutation_p50_us > 0.0
+                && report.single_writer_mutation_p95_us >= report.single_writer_mutation_p50_us,
+            "{report:?}"
+        );
+        for (p50, p95) in [
+            (
+                report.current_point_read_p50_us,
+                report.current_point_read_p95_us,
+            ),
+            (
+                report.current_range_read_p50_us,
+                report.current_range_read_p95_us,
+            ),
+            (
+                report.current_query_plan_read_p50_us,
+                report.current_query_plan_read_p95_us,
+            ),
+        ] {
+            ensure!(p50 > 0.0 && p95 >= p50, "{report:?}");
+        }
+        ensure!(
+            report.allocated_write_bytes_per_changed_row > 0
+                && report.allocated_write_bytes_per_operation > 0,
+            "{report:?}"
+        );
         ensure!(report.matcher_skip_us_per_sub >= 0.0, "{report:?}");
         ensure!(report.fanout_us_per_affected_sub >= 0.0, "{report:?}");
         // DK-3: the op-log-delta projection must be positive and decisively
