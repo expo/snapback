@@ -160,6 +160,11 @@
     },
     {
       "body": "timeOrdered",
+      "kind": "Issue",
+      "prefix": "iss"
+    },
+    {
+      "body": "timeOrdered",
       "kind": "PushToken",
       "prefix": "ptok"
     },

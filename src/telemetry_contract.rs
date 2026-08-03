@@ -19,13 +19,16 @@ use serde_json::Value;
 use sha2::{Digest as _, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 
-pub const OPERATION_CLASS_REGISTRY_VERSION: u32 = 1;
+pub const OPERATION_CLASS_REGISTRY_VERSION: u32 = 2;
+/// The artifact-format family remains v1; registryVersion carries compatible
+/// additive vocabulary revisions within that family.
 pub const OPERATION_CLASS_REGISTRY_FILE: &str = "operation-class.v1.json";
 pub const PROJECTION_FIXTURE_CORPUS_FILE: &str = "telemetry.projection-fixtures-v1.json";
 pub const USAGE_EVENT_SCHEMA_VERSION: &str = "snapback.usage-event.v1";
 
 /// Closed, typed admission key. Its inner spelling is private so production
-/// seams cannot stamp registry v1 onto an unregistered or misspelled class.
+/// seams cannot stamp the current registry version onto an unregistered or
+/// misspelled class.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct OperationClassIdV1(&'static str);
 
@@ -149,6 +152,9 @@ pub struct OperationClassRegistryV1 {
     pub artifact_version: u32,
     pub registry_version: u32,
     pub usage_event_schema_version: String,
+    /// Per-failure classifier vocabulary added by registry v2. Classification
+    /// remains an emission-time operation, not a static class-table column.
+    pub failure_classifier: crate::error_tracking::FailureClassifierRegistryV1,
     pub classes: Vec<OperationClassRuleV1>,
 }
 
@@ -184,10 +190,11 @@ fn class(
     }
 }
 
-/// The full v1 classification table ratified against LLP 0104. Fine-grained
+/// The full classification table ratified against LLP 0104. Fine-grained
 /// class ids preserve the accepted-operation distinction while the
 /// `telemetry_kind` column maps them onto LLP 0154's intentionally small raw
-/// vocabulary.
+/// vocabulary. Registry v2 adds the LLP 0156 failure-classifier vocabulary
+/// without changing these operation-class rows.
 pub fn operation_class_registry() -> OperationClassRegistryV1 {
     use MeterDerivationV1::{AcceptedOperation, Measured};
     use ObservationStageV1::{Admission, Counter, Terminal};
@@ -217,6 +224,7 @@ pub fn operation_class_registry() -> OperationClassRegistryV1 {
         artifact_version: 1,
         registry_version: OPERATION_CLASS_REGISTRY_VERSION,
         usage_event_schema_version: USAGE_EVENT_SCHEMA_VERSION.to_owned(),
+        failure_classifier: crate::error_tracking::failure_classifier_registry(),
         classes: vec![
             class(
                 "function.query",
@@ -1035,7 +1043,7 @@ pub fn projection_fixture_corpus() -> Value {
             .into_iter()
             .enumerate()
             .map(|(index, class)| {
-                let projection = lookup_class(1, class)
+                let projection = lookup_class(OPERATION_CLASS_REGISTRY_VERSION, class)
                     .expect("fixture class")
                     .telemetry_projection;
                 let stages = match projection {
@@ -1218,6 +1226,11 @@ mod tests {
     fn registry_ids_and_rules_are_unique_and_closed() {
         let registry = operation_class_registry();
         assert_eq!(registry.registry_version, OPERATION_CLASS_REGISTRY_VERSION);
+        assert_eq!(OPERATION_CLASS_REGISTRY_FILE, "operation-class.v1.json");
+        assert_eq!(
+            registry.failure_classifier,
+            crate::error_tracking::failure_classifier_registry()
+        );
         let ids = registry
             .classes
             .iter()

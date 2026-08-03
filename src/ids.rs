@@ -93,6 +93,9 @@ pub enum Kind {
     AgentToken,
     Observation,
     Generation,
+    /// One durable error-tracking issue group. Issue creation order is useful
+    /// in operator surfaces and reveals no app-user creation fact.
+    Issue,
     /// One platform-custodied Expo push-token registry row.
     PushToken,
     /// One app installation, persisted by the client independently of a user
@@ -170,6 +173,9 @@ impl Kind {
             // unconditional LLP 0148 registry members.
             Kind::Observation => ("obs", Random),
             Kind::Generation => ("gen", Random),
+            // @ref LLP 0156#e11--fingerprint-at-the-seam-group-in-the-flush-transaction —
+            // durable issue groups have a dedicated, time-ordered registry id.
+            Kind::Issue => ("iss", TimeOrdered),
             Kind::PushToken => ("ptok", TimeOrdered),
             Kind::Installation => ("inst", Random),
             Kind::PushIntent => ("pint", TimeOrdered),
@@ -219,6 +225,7 @@ pub const ALL: &[Kind] = &[
     Kind::AgentToken,
     Kind::Observation,
     Kind::Generation,
+    Kind::Issue,
     Kind::PushToken,
     Kind::Installation,
     Kind::PushIntent,
@@ -565,6 +572,8 @@ mod tests {
 
     #[test]
     fn privacy_and_telemetry_ids_are_random_and_everything_else_is_time_ordered() {
+        assert_eq!(Kind::Issue.prefix(), "iss");
+        assert_eq!(Kind::Issue.spec().body, Body::TimeOrdered);
         for kind in [
             Kind::User,
             Kind::Observation,

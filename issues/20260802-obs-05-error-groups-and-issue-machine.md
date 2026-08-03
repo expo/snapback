@@ -45,3 +45,33 @@ amendments in the same commit as the code.
 **Exit:** checklist 1–3 fixture gates pass (the full list lives in
 checklist 6 and is proven in obs-06); registry rows landed; ref-check
 green.
+
+## Running log
+
+### 2026-08-02 — collision-safe tranche 1: pure contracts
+
+Branch `codex/d05-contract-20260802` began from `origin/main` at
+`8fdcd41eef93cd28d4deb76991e93ae06a2c0a55`. This checkpoint lands only
+the collision-free authoring-independent slice:
+
+- the pure typed classifier/carrier/fingerprint/details-allocator module and
+  generated Rust/JavaScript vectors;
+- operation registry `registryVersion: 2`'s additive classifier vocabulary,
+  retaining the `operation-class.v1.json` artifact family;
+- the `iss_` `Issue` registry row with a `TimeOrdered` body; and
+- this LLP 0154 registry/D2 amendment.
+
+The full classifier corpus uses an independent expected-value oracle and
+covers every frozen cancellation, timeout, overload, and caller membership,
+plus admitted app refusal, transport 4xx/5xx, projected-400 logical faults,
+and `_unmatched`, across all eight Phase-1 kinds, all four carrier categories,
+and both opt-in states.
+
+Deliberately deferred from this checkpoint: `trackedRefusals` authoring,
+manifest validation, and the corresponding dated LLP 0108 amendment, because
+the concurrent 0134 maturity lane owns `src/manifest.rs`, codegen emission,
+and the shared package-test inventory on the same base. That additive commit
+must follow the 0134 landing/rebase and preserve both inventory additions.
+Also deferred as later D-05 tranches: settle/async handler carrier wiring,
+`telemetry.rs` storage/flusher/state-machine work, `runtime.rs`, `server.rs`,
+`local.rs`, guide/capability publication, and all D-06 surfaces.

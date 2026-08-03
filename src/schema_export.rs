@@ -782,7 +782,7 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
 /// committed beside the schemas so a pinned git checkout is sufficient for a
 /// non-Rust consumer.
 pub fn artifact_instances() -> Vec<SchemaArtifact> {
-    vec![
+    let mut artifacts = vec![
         // The LLP 0148 id-prefix registry. Codegen reads this to refuse an app
         // table whose derived prefix would shadow a system one, and the client
         // packages read it to mint client-side ids with the same spellings the
@@ -860,7 +860,20 @@ pub fn artifact_instances() -> Vec<SchemaArtifact> {
             file: crate::search::fixtures::SEARCH_AST_FIXTURES_FILE,
             schema: sorted_keys(crate::search::fixtures::search_ast_fixture_corpus()),
         },
-    ]
+    ];
+    // @ref LLP 0156#e01--the-failure-classifier-and-issue-eligibility —
+    // committed pure-contract fixtures let Rust and package consumers prove
+    // classification, carrier allocation, and fingerprint bytes before any
+    // storage or runtime wiring lands.
+    artifacts.extend(
+        crate::error_tracking::artifact_instances()
+            .into_iter()
+            .map(|(file, schema)| SchemaArtifact {
+                file,
+                schema: sorted_keys(schema),
+            }),
+    );
+    artifacts
 }
 
 /// Convert a derived schema to a stable committed value: serialize it, stamp the

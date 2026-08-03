@@ -424,6 +424,132 @@
       "usageDisposition": "system"
     }
   ],
-  "registryVersion": 1,
+  "failureClassifier": {
+    "carrierCategories": [
+      "diagnostic",
+      "app_refusal",
+      "exception",
+      "transport"
+    ],
+    "classifierVersion": 1,
+    "closedCodeMemberships": {
+      "caller_error": [
+        "SNAPBACK_ACTION_STREAM_INVALID",
+        "SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED",
+        "SNAPBACK_ARG_MISSING",
+        "SNAPBACK_AUTH_AUTHORITY_CREATING_UNCONSENTED",
+        "SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY",
+        "SNAPBACK_AUTH_GRANT_SCOPE_DENIED",
+        "SNAPBACK_AUTH_MUTABLE_INPUT_DENIED",
+        "SNAPBACK_AUTH_PERMISSION_DENIED",
+        "SNAPBACK_AUTH_REQUIRED",
+        "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
+        "SNAPBACK_BUFFERED_WRITE_LIMIT_EXCEEDED",
+        "SNAPBACK_CTX_LEDGER_EXHAUSTED",
+        "SNAPBACK_CTX_LEDGER_LIMIT_EXCEEDED",
+        "SNAPBACK_EXPECTED_STRING",
+        "SNAPBACK_FIELD_MISSING",
+        "SNAPBACK_FIELD_TYPE_MISMATCH",
+        "SNAPBACK_FUNCTION_ARGS_CONTRACT_VIOLATION",
+        "SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED",
+        "SNAPBACK_HANDLER_CAPABILITY_DENIED",
+        "SNAPBACK_HANDLER_WRITE_IN_QUERY",
+        "SNAPBACK_INVALID_FLOAT",
+        "SNAPBACK_INVALID_IDENTIFIER",
+        "SNAPBACK_QUERY_FILTER_BINDINGS_EXCEEDED",
+        "SNAPBACK_QUERY_FILTER_VALUE_INVALID",
+        "SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED",
+        "SNAPBACK_QUERY_IN_ITEMS_EXCEEDED",
+        "SNAPBACK_QUERY_LIMIT_INVALID",
+        "SNAPBACK_REQUEST_BODY_TIMEOUT",
+        "SNAPBACK_REQUEST_JSON_INVALID",
+        "SNAPBACK_UNKNOWN_FIELD",
+        "SNAPBACK_UNKNOWN_FUNCTION",
+        "SNAPBACK_UNKNOWN_TABLE",
+        "SNAPBACK_VALUE_TOO_LARGE"
+      ],
+      "cancellation": [
+        "SNAPBACK_ACTION_STREAM_CANCELLED",
+        "SNAPBACK_AUTH_RESERVATION_CANCELLED",
+        "SNAPBACK_MIGRATION_CANCELLED",
+        "SNAPBACK_OPERATION_CANCELLED"
+      ],
+      "overload": [
+        "SNAPBACK_ACTION_CAPACITY_EXCEEDED",
+        "SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED",
+        "SNAPBACK_AUTH_THROTTLED",
+        "SNAPBACK_BUNDLE_PENDING_CAPACITY",
+        "SNAPBACK_BUNDLE_RATE_LIMITED",
+        "SNAPBACK_CLIENT_MUTATION_RETENTION_FULL",
+        "SNAPBACK_CRON_DISPATCH_CAPACITY_EXCEEDED",
+        "SNAPBACK_CRON_RUN_CAPACITY_EXCEEDED",
+        "SNAPBACK_EPHEMERAL_RATE_LIMITED",
+        "SNAPBACK_LIVE_STAGE_CAPACITY",
+        "SNAPBACK_OVERLOADED",
+        "SNAPBACK_SUBSCRIPTION_CONNECTION_LIMIT",
+        "SNAPBACK_SUBSCRIPTION_GLOBAL_LIMIT"
+      ],
+      "timeout": [
+        "SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT",
+        "SNAPBACK_ACTION_STREAM_TIMEOUT",
+        "SNAPBACK_ACTION_TIMEOUT",
+        "SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT",
+        "SNAPBACK_HANDLER_DID_NOT_SETTLE",
+        "SNAPBACK_HANDLER_WALL_CLOCK_EXCEEDED"
+      ]
+    },
+    "failureDispositions": [
+      "fault",
+      "app_refusal",
+      "caller_error",
+      "cancellation",
+      "timeout",
+      "overload"
+    ],
+    "outputFields": [
+      "failure_disposition",
+      "issue_eligible",
+      "classifier_version"
+    ],
+    "precedence": [
+      {
+        "arm": "declared_refusal",
+        "failureDisposition": "app_refusal",
+        "issueEligibleByDefault": false,
+        "order": 1
+      },
+      {
+        "arm": "cancellation",
+        "failureDisposition": "cancellation",
+        "issueEligibleByDefault": false,
+        "order": 2
+      },
+      {
+        "arm": "timeout",
+        "failureDisposition": "timeout",
+        "issueEligibleByDefault": true,
+        "order": 3
+      },
+      {
+        "arm": "overload",
+        "failureDisposition": "overload",
+        "issueEligibleByDefault": true,
+        "order": 4
+      },
+      {
+        "arm": "caller_error",
+        "failureDisposition": "caller_error",
+        "issueEligibleByDefault": false,
+        "order": 5
+      },
+      {
+        "arm": "fault_residual",
+        "failureDisposition": "fault",
+        "issueEligibleByDefault": true,
+        "order": 6
+      }
+    ]
+  },
+  "registryVersion": 2,
   "usageEventSchemaVersion": "snapback.usage-event.v1"
 }

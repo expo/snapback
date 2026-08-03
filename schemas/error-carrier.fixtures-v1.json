@@ -1,0 +1,74 @@
+{
+  "allocation": {
+    "details": {
+      "attempt": 3,
+      "classifier_version": 1,
+      "detailFlags": {
+        "appDetailsDropped": true,
+        "attemptDropped": false,
+        "causeDropped": false,
+        "functionTruncated": false,
+        "levelDropped": false,
+        "messageTemplateTruncated": false,
+        "messageTruncated": false,
+        "methodDropped": false,
+        "nameTruncated": false,
+        "rawPathDropped": false,
+        "refererDropped": false,
+        "severityDropped": false,
+        "stackTruncated": true,
+        "triggerDropped": false,
+        "userAgentDropped": false
+      },
+      "errorClass": "TypeError",
+      "failure_disposition": "fault",
+      "fp_hash": "0123456789abcdef0123456789abcdef",
+      "fp_version": 1,
+      "function": "messages.send",
+      "issue_eligible": true,
+      "message": "failed for alice@example.com",
+      "messageTemplate": "failed for <email>",
+      "name": "messages.send",
+      "platformCode": "SNAPBACK_HANDLER_FAILED",
+      "stack": "frame\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nframe\nf"
+    },
+    "serializedBytes": 8192
+  },
+  "artifactVersion": 1,
+  "errorClassCases": [
+    {
+      "expected": "TypeError",
+      "input": "TypeError"
+    },
+    {
+      "expected": "$Domain_Error2",
+      "input": "$Domain_Error2"
+    },
+    {
+      "expected": "unclassified",
+      "input": "unclassified"
+    },
+    {
+      "expected": "unclassified",
+      "input": "bad-name"
+    },
+    {
+      "expected": "unclassified",
+      "input": null
+    }
+  ],
+  "limits": {
+    "detailsBytes": 8192,
+    "extractionBytes": 16384
+  },
+  "normalizerCases": [
+    {
+      "expected": "user <email> id <digits> and <hex> said <quoted> token <base32>",
+      "input": "user alice@example.com id 123 and 0xdeadbeef said \"hello\" token 01ARZ3NDEKTSV4RRFFQ69G5FAV"
+    },
+    {
+      "expected": "é <digits>",
+      "input": "é 42"
+    }
+  ]
+}

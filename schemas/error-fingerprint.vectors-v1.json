@@ -1,0 +1,99 @@
+{
+  "artifactVersion": 1,
+  "encoding": "branch-tag + repeated presence-byte/(u32be-length + exact UTF-8)",
+  "fingerprintVersion": 1,
+  "vectors": [
+    {
+      "encodedHex": "01010000000131010000000c66756e6374696f6e5f72756e010000000d6d657373616765732e73656e640100000017534e41504241434b5f48414e444c45525f4641494c4544",
+      "fingerprintHash": "4d86c50f7d51d6f6057101bc0544f73b",
+      "input": {
+        "branch": "typed_refusal",
+        "code": "SNAPBACK_HANDLER_FAILED",
+        "kind": "function_run",
+        "name": "messages.send",
+        "schemeVersion": 1
+      },
+      "name": "typed-refusal",
+      "sha256": "4d86c50f7d51d6f6057101bc0544f73b7e9ba14c1cf1fbb9bad221228eface10"
+    },
+    {
+      "encodedHex": "02010000000131010000000c66756e6374696f6e5f72756e010000000b6d6f7665732e6170706c79010000000a5354414c455f4d4f5645",
+      "fingerprintHash": "1f0d4fe4b41cfce46c95f633641773b7",
+      "input": {
+        "appCode": "STALE_MOVE",
+        "branch": "app_refusal",
+        "kind": "function_run",
+        "name": "moves.apply",
+        "schemeVersion": 1
+      },
+      "name": "app-refusal",
+      "sha256": "1f0d4fe4b41cfce46c95f633641773b707b3f5da8e640a0843c1614bbc33ce3a"
+    },
+    {
+      "encodedHex": "03010000000131010000000c66756e6374696f6e5f72756e010000000d6d657373616765732e73656e640100000009547970654572726f720100000013c3a963686563203c6469676974733e20e29883",
+      "fingerprintHash": "62f968fbfeb8b9f5d080ccf993fb86cb",
+      "input": {
+        "branch": "exception",
+        "errorClass": "TypeError",
+        "kind": "function_run",
+        "messageTemplate": "échec <digits> ☃",
+        "name": "messages.send",
+        "schemeVersion": 1
+      },
+      "name": "exception-unicode",
+      "sha256": "62f968fbfeb8b9f5d080ccf993fb86cbefb527ea66401346407f2fdab6d3d604"
+    },
+    {
+      "encodedHex": "04010000000131010000000c687474705f7265717565737401000000102f686f6f6b732f3a70726f7669646572010000000135",
+      "fingerprintHash": "85551700fcd7020fcfca948155585d69",
+      "input": {
+        "branch": "transport",
+        "kind": "http_request",
+        "name": "/hooks/:provider",
+        "schemeVersion": 1,
+        "statusClass": 5
+      },
+      "name": "transport",
+      "sha256": "85551700fcd7020fcfca948155585d69f9c59a796df1f621a60de10d9143e6f1"
+    },
+    {
+      "encodedHex": "05010000000131010000000a646961676e6f7374696301000000106261636b67726f756e642e666c757368010000000974656c656d65747279010000001f534e41504241434b5f54454c454d455452595f464c5553485f4641494c4544",
+      "fingerprintHash": "84aa3b2712c86cfe47c11c59693f327f",
+      "input": {
+        "branch": "diagnostic",
+        "code": "SNAPBACK_TELEMETRY_FLUSH_FAILED",
+        "name": "background.flush",
+        "schemeVersion": 1,
+        "subsystem": "telemetry"
+      },
+      "name": "diagnostic",
+      "sha256": "84aa3b2712c86cfe47c11c59693f327faa42e89839e01b500e2030ee2b7e1f51"
+    },
+    {
+      "encodedHex": "01010000000131010000000c66756e6374696f6e5f72756e000100000017534e41504241434b5f48414e444c45525f4641494c4544",
+      "fingerprintHash": "4ee1bf3709f5a6bcbb244b0e451be084",
+      "input": {
+        "branch": "typed_refusal",
+        "code": "SNAPBACK_HANDLER_FAILED",
+        "kind": "function_run",
+        "name": null,
+        "schemeVersion": 1
+      },
+      "name": "absent-name",
+      "sha256": "4ee1bf3709f5a6bcbb244b0e451be08435de1e7f56415f3d3e3b9bf11089a290"
+    },
+    {
+      "encodedHex": "01010000000131010000000c66756e6374696f6e5f72756e01000000000100000017534e41504241434b5f48414e444c45525f4641494c4544",
+      "fingerprintHash": "4d2ee8bd147da91c61df7e238989ba49",
+      "input": {
+        "branch": "typed_refusal",
+        "code": "SNAPBACK_HANDLER_FAILED",
+        "kind": "function_run",
+        "name": "",
+        "schemeVersion": 1
+      },
+      "name": "empty-name",
+      "sha256": "4d2ee8bd147da91c61df7e238989ba4979b6b0f7141906cc31e6630d1d937143"
+    }
+  ]
+}

@@ -201,7 +201,11 @@ declares hard row and byte ceilings; each response reports the applied bounds,
 exact page rows/bytes, and explicit truncation state, and carries an opaque
 authenticated continuation token bound to the original filter, store
 generation, app-DB incarnation, and frozen export header. Reset/rebind or
-server restart refuses continuation instead of weakening the snapshot.)
+server restart refuses continuation instead of weakening the snapshot. The
+D-05 error-contract amendment advances the internal operation registry to
+`registryVersion: 2`, adds the LLP 0156 classifier vocabulary and D2's closed
+failure-detail allocator, and pins classifier/carrier/fingerprint artifacts
+before runtime or storage wiring.)
 **Related:** LLP 0000 (explainer; reserves Observability as an undrafted
 subsystem), LLP 0003 (storage core; app write lane), LLP 0010 (inspect
 loop; explicitly defers production observability), LLP 0012 (headless
@@ -696,6 +700,106 @@ which is C5-sensitive content served only under the D5 raw-read
 authority. No IP persistence in Phase 1, and no knob for it — if IP
 capture ever arrives it is a Phase-3 decision made with the identity
 policy (C5).
+
+### Amendment 2026-08-02: error-classifier vocabulary and failure-details allocation
+
+LLP 0156 E0/E1 advances the operation-class registry's internal
+`registryVersion` from 1 to 2 while retaining the compatible artifact-family
+filename and format, `schemas/operation-class.v1.json` with
+`artifactVersion: 1`. The class rows and usage-event schema do not change.
+Registry v2 additively publishes one `failureClassifier` vocabulary containing
+`classifierVersion: 1`, carrier categories `diagnostic`, `app_refusal`,
+`exception`, and `transport`, dispositions `fault`, `app_refusal`,
+`caller_error`, `cancellation`, `timeout`, and `overload`, the ordered
+first-match arms from LLP 0156 E0.1, and the following closed platform-code
+memberships:
+
+- cancellation: `SNAPBACK_ACTION_STREAM_CANCELLED`,
+  `SNAPBACK_AUTH_RESERVATION_CANCELLED`, `SNAPBACK_MIGRATION_CANCELLED`,
+  `SNAPBACK_OPERATION_CANCELLED`;
+- timeout: `SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT`,
+  `SNAPBACK_ACTION_STREAM_TIMEOUT`, `SNAPBACK_ACTION_TIMEOUT`,
+  `SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT`,
+  `SNAPBACK_HANDLER_DID_NOT_SETTLE`,
+  `SNAPBACK_HANDLER_WALL_CLOCK_EXCEEDED`;
+- overload: `SNAPBACK_ACTION_CAPACITY_EXCEEDED`,
+  `SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED`, `SNAPBACK_AUTH_THROTTLED`,
+  `SNAPBACK_BUNDLE_PENDING_CAPACITY`, `SNAPBACK_BUNDLE_RATE_LIMITED`,
+  `SNAPBACK_CLIENT_MUTATION_RETENTION_FULL`,
+  `SNAPBACK_CRON_DISPATCH_CAPACITY_EXCEEDED`,
+  `SNAPBACK_CRON_RUN_CAPACITY_EXCEEDED`, `SNAPBACK_EPHEMERAL_RATE_LIMITED`,
+  `SNAPBACK_LIVE_STAGE_CAPACITY`, `SNAPBACK_OVERLOADED`,
+  `SNAPBACK_SUBSCRIPTION_CONNECTION_LIMIT`, and
+  `SNAPBACK_SUBSCRIPTION_GLOBAL_LIMIT`;
+- caller error: `SNAPBACK_ACTION_STREAM_INVALID`,
+  `SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED`, `SNAPBACK_ARG_MISSING`,
+  `SNAPBACK_AUTH_AUTHORITY_CREATING_UNCONSENTED`,
+  `SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY`,
+  `SNAPBACK_AUTH_GRANT_SCOPE_DENIED`, `SNAPBACK_AUTH_MUTABLE_INPUT_DENIED`,
+  `SNAPBACK_AUTH_PERMISSION_DENIED`, `SNAPBACK_AUTH_REQUIRED`,
+  `SNAPBACK_AUTH_SCOPED_TOKEN_INVALID`,
+  `SNAPBACK_BUFFERED_WRITE_LIMIT_EXCEEDED`, `SNAPBACK_CTX_LEDGER_EXHAUSTED`,
+  `SNAPBACK_CTX_LEDGER_LIMIT_EXCEEDED`, `SNAPBACK_EXPECTED_STRING`,
+  `SNAPBACK_FIELD_MISSING`, `SNAPBACK_FIELD_TYPE_MISMATCH`,
+  `SNAPBACK_FUNCTION_ARGS_CONTRACT_VIOLATION`,
+  `SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED`,
+  `SNAPBACK_HANDLER_CAPABILITY_DENIED`, `SNAPBACK_HANDLER_WRITE_IN_QUERY`,
+  `SNAPBACK_INVALID_FLOAT`, `SNAPBACK_INVALID_IDENTIFIER`,
+  `SNAPBACK_QUERY_FILTER_BINDINGS_EXCEEDED`,
+  `SNAPBACK_QUERY_FILTER_VALUE_INVALID`,
+  `SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED`,
+  `SNAPBACK_QUERY_IN_ITEMS_EXCEEDED`, `SNAPBACK_QUERY_LIMIT_INVALID`,
+  `SNAPBACK_REQUEST_BODY_TIMEOUT`, `SNAPBACK_REQUEST_JSON_INVALID`,
+  `SNAPBACK_UNKNOWN_FIELD`, `SNAPBACK_UNKNOWN_FUNCTION`,
+  `SNAPBACK_UNKNOWN_TABLE`, and `SNAPBACK_VALUE_TOO_LARGE`.
+
+The 4xx rule applies only to a transport carrier with no admitted logical
+platform code; an exception such as `SNAPBACK_HANDLER_FAILED` or
+`SNAPBACK_UNHANDLED_REJECTION` remains residual `fault` even if a legacy
+surface projects it as HTTP 400. The unmatched-route rule reads the admitted
+name sentinel `_unmatched`, not the operation-class axis. An admitted
+`SNAPBACK_APP_REFUSAL` is `app_refusal` only with a grammar-valid, declared
+`appCode` and the app-refusal carrier; its per-code manifest opt-in controls
+issue eligibility. That opt-in is the separate LLP 0108 authoring amendment
+and does not follow merely from declaring a refusal.
+
+Failure records allocate D2 `details` under one 8 KiB canonical-JSON budget.
+The closed new keys are `platformCode`, `failure_disposition`,
+`issue_eligible`, `classifier_version`, `fp_version`, `fp_hash`,
+`predecessor_fp_version`, `predecessor_fp_hash`, `appCode`, `errorClass`,
+`function`, `name`, `appDetails`, `messageTemplate`, `message`, `stack`, and
+`detailFlags`. Priority is total: (1) platform/classifier/fingerprint stamps;
+(2) `appCode`; (3) `errorClass`; (4) decoder `function` then `name`; (5) the
+pre-existing keys, individually, in `attempt`, `cause`, `level`, `method`,
+`rawPath`, `referer`, `severity`, `trigger`, `userAgent` order; (6)
+`appDetails`, kept or dropped whole; (7) `messageTemplate`; (8) `message`; (9)
+the stack head. Strings truncate only at UTF-8 character boundaries. The
+allocator reserves `detailFlags` before optional occupants and always carries
+`functionTruncated`, `nameTruncated`, `messageTemplateTruncated`,
+`messageTruncated`, `stackTruncated`, `appDetailsDropped`, and one
+`<existingKey>Dropped` boolean for each slot-5 key. The carrier's separate
+pre-allocation extraction limit remains 16 KiB per captured string.
+
+Fingerprint scheme v1 normalizes exactly four token classes and no others:
+quoted spans (single or double quoted, backslash escapes admitted) to
+`<quoted>`; email-shaped tokens to `<email>`; hexadecimal runs of at least
+eight ASCII hex characters with an A–F digit, or at least eight hex digits
+following a `0x` prefix, to `<hex>`; Crockford base32-shaped runs of at least
+twelve characters with at least one letter to `<base32>`; and digit runs to
+`<digits>`. This list says four semantic classes because hex/base32
+are the single identifier-run class named by LLP 0156; their two concrete
+recognizers are pinned separately. Matching precedence is quoted, email,
+hex, base32, digits. No Unicode normalization occurs. Any new recognizer or
+threshold change bumps `fp_version`.
+
+The generated, drift-gated proof artifacts are
+`error-classification.fixtures-v1.json` (the complete Phase-1 kind × frozen
+signal × carrier × opt-in matrix), `error-carrier.fixtures-v1.json` (class,
+normalizer, extraction/allocation bounds), and
+`error-fingerprint.vectors-v1.json` (branch tags, absent-versus-empty,
+Unicode, canonical bytes, full SHA-256, and 16-byte hash). These contracts are
+pure in this tranche: storage, flusher recomputation prohibitions, and runtime
+carrier wiring land separately under D-05.
 
 ### D3 — Write path: buffered, batched, priority-aware, event-driven
 

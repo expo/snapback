@@ -68,6 +68,8 @@ pub mod diagnostic;
 #[doc(hidden)]
 pub mod ephemeral;
 #[doc(hidden)]
+pub mod error_tracking;
+#[doc(hidden)]
 pub mod exec_guard;
 #[doc(hidden)]
 pub mod guide;

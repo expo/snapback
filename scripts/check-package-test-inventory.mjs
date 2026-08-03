@@ -232,6 +232,7 @@ const inventories = [
       'derived-overlay-reconcile-failure.test.mjs',
       'derived-overlay.test.mjs',
       'ephemeral-resubscribe-race.test.mjs',
+      'error-tracking-vectors.test.mjs',
       'exact-conformance.test.mjs',
       'exact-package.test.mjs',
       'ids.test.mjs',
@@ -439,7 +440,9 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // @expo/snapback-codegen gains the compiled-profile generation suite.
 // 162 -> 163 (2026-08-02, LLP 0134): the repository-level maturity-record
 // suite exercises a real capability pair through soak, promotion, and demotion.
-assert.equal(total, 163, 'reviewed package/admin test count changed');
+// 163 -> 164 (2026-08-02, LLP 0156 D-05): @expo/snapback-contract gains the
+// independent JavaScript replay of the Rust-generated fingerprint vectors.
+assert.equal(total, 164, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }
