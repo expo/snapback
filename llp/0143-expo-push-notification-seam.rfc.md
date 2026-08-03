@@ -111,6 +111,12 @@ grants, crash-safe ledger, bounded ticket/receipt carrier and maintenance,
 explicit ambiguity redrive, shared fake-Expo acceptance, structured local
 capability facts, and guide page recorded. First-class `notifications` stays
 false and hosted stays Missing.)
+**Revised:** 2026-08-03 (the author-ratified OQ2 installation-identity
+default is now recorded precisely: dedicated device-scoped custody outside
+RQS; logout and account switch retain the identity; app-data reset and
+reinstall mint a fresh identity. Stale open-question wording is reconciled.
+This records the lifecycle decision; it does not change the capability claim
+or satisfy PUSH-01's real-device receipt gate.)
 **Related:** LLP 0000, LLP 0027, LLP 0028, LLP 0036, LLP 0039, LLP 0045,
 LLP 0049, LLP 0053, LLP 0055, LLP 0064, LLP 0070, LLP 0100, LLP 0102,
 LLP 0137,
@@ -286,19 +292,15 @@ setting). They therefore never enter ordinary app tables.
   deployment environment profile. Two Expo projects (or incompatible
   token domains) never share rows, and the tuple is declared once in
   `definePushSeam` (D6), not inferred per registration.
-- `installation` is a **named dependency, not a naming choice** (this
-  supersedes v1's OQ2 framing): no suitable identity exists today. On
-  the Expo carrier there was no durable client store at all until the
-  B1 RN durable-RQS-store arm landed on main (expo-file-system files
-  adapter), and the packaged client's `clientStoreId` is
-  caller-supplied while web defaults are origin-keyed — none of these
-  is installation-shaped custody. Default proposal: the seam mints an
-  opaque installation id at first registration and persists it beside
-  the client's auth custody (not in the RQS cache, whose reset
-  semantics are data-shaped, though the B1 files adapter is the
-  plausible on-device carrier for the same persistence). A store reset
-  or reinstall that loses the id yields a fresh installation. The
-  stale predecessor row is often retired promptly — by the
+- `installation` is a **named dependency, not a naming choice**. The
+  author-ratified v1 default is a device-scoped installation identity in a
+  dedicated small store, injected as `pushInstallationStorage` and kept
+  outside the RQS cache. The seam mints the opaque id at first registration.
+  Logout keeps the id and unbinds the principal, so deliveries stop until
+  someone signs in; account switch keeps the id and rebinds it; app-data reset
+  and reinstall mint a fresh id. The user-visible contract is that push works
+  across logins on the same phone, while a wiped or reinstalled app is a new
+  device. A stale predecessor row is often retired promptly — by the
   single-owner rule below when the reinstall re-mints the *same* token
   bytes, by session end, or by `DeviceNotRegistered` on the next send
   — but a reinstall that mints a *different* token under a lingering
@@ -307,8 +309,7 @@ setting). They therefore never enter ordinary app tables.
   **idle-retention window** (a `definePushSeam` fact, D6), and rows
   with no successful handoff and no re-registration inside the window
   are retired by the seam's maintenance lane with the retirement
-  reason recorded. Open question 2 now asks only for the identity's
-  final home and reset semantics, not whether it exists.
+  reason recorded.
 - Registration is idempotent per key with last-write-wins on token
   bytes, and each registration records the session/authority
   generation that performed it (D1c).
@@ -423,12 +424,13 @@ at send time in every mode.
    *re-resolved* at send time (D2c). No captured grant, no deferred
    send; arbitrary principal-id lists are not a deferred-send
    audience. (The declarable vocabulary of resolver `authorize`
-   clauses beyond membership-addressed shapes is open question 8.)
+   clauses beyond membership-addressed shapes was resolved by implementation
+   question 8 below.)
 
 **D2c. Audiences (normative).** `to` is a **declared audience
 resolver** — a generated, declaration-checked reference (e.g. "the
-registered installations of these explicit principals" or, per open
-question 8, "members of membership resource R with roles …") — not an
+registered installations of these explicit principals" or, per resolved
+implementation question 8, "members of membership resource R with roles …") — not an
 arbitrary id list at execution time. Every resolver declaration
 carries the `authorize` clause D2b enforces. Resolution always happens
 host-side **at execution time**, never at enqueue time: this is the
@@ -661,7 +663,8 @@ gate of this witness, not a footnote.
   tokens) remains *possible* on current main. The guide should
   document it only as an explicitly-warned interim recipe (token
   custody, retirement, and endpoint hazards named) or not at all —
-  open question 5; this RFC's position is that the seam, not the
+  resolved implementation question 5 chooses the latter; this RFC's position
+  is that the seam, not the
   recipe, is the documented path.
 - **Absorption into LLP 0045:** the outbox's durable intent lifecycle
   (enqueue, authorize, dedupe, retry, deliver) maps onto this seam's
@@ -703,14 +706,14 @@ gate of this witness, not a footnote.
    `notifications` boolean. Future absorption may alias these names but does
    not rename v1 artifacts silently.
 2. **Installation identity home and reset.** The final v1 boundary is the
-   additive registry module's explicitly injected
+   additive registry module's explicitly injected dedicated device-scoped
    `pushInstallationStorage`, beside but not inside the RQS cache. It mints
-   once and persists through ordinary logout; session termination retires the
-   server binding. A full custody wipe calls the adapter's `clear`, after
-   which the next registration mints a new id. Web registration is out of v1.
-   Apps may implement the storage on Expo's durable files carrier or another
-   native durable key/value store; Snapback refuses missing custody instead of
-   choosing process memory.
+   once. Logout keeps the identity and unbinds the principal; account switch
+   keeps it and rebinds; app-data reset clears it and reinstall loses it, so
+   the next registration mints a fresh identity. Web registration is out of
+   v1. Apps may implement the dedicated small store on Expo's durable files
+   carrier or another native durable key/value store; Snapback refuses missing
+   custody instead of choosing process memory.
 3. **Receipt ownership and manifest facts.** Local receipt polling belongs to
    the existing host maintenance worker, off the app lock during provider I/O.
    Its batch, first-poll, interval, attempt, and window bounds are published in
@@ -747,6 +750,20 @@ gate of this witness, not a footnote.
    not adapt global pacing. Adaptive feedback requires a later design and its
    own convergence evidence.
 
+### 2026-08-03 — OQ2 author-ratified installation identity lifecycle
+
+The veto window recorded in
+`issues/20260802-author-decision-packet.md` is closed: Charlie states no
+opinion, so the delegated device-scoped-store default stands as ruled. The
+production carrier is a dedicated small store exposed through the explicit
+`pushInstallationStorage` injection, not auth custody and not the RQS cache.
+Logout keeps the installation identity and unbinds the principal (deliveries
+stop until someone signs in); account switch keeps it and rebinds; app-data
+reset and reinstall mint a fresh identity. User-visible: push works across
+logins on the same phone, while a wiped or reinstalled app is a new device.
+This dated note resolves OQ2 without weakening the existing refusal to use
+process-memory custody.
+
 ## Implementation record
 
 ### 2026-08-02 — D1/D6 registry slice
@@ -782,9 +799,10 @@ claiming provider handoff:
 - The JS spelling for this slice is `client.push.registerToken`,
   `client.push.registerExpoToken`, and `client.push.unregisterToken`.
   Installation identity storage is explicitly injected. The client refuses
-  with `SNAPBACK_PUSH_INSTALLATION_CUSTODY_REQUIRED` when it is absent because
-  OQ2's production carrier and reset semantics remain an author question in
-  the decision packet. Unregister reads existing custody only: when no
+  with `SNAPBACK_PUSH_INSTALLATION_CUSTODY_REQUIRED` when it is absent. OQ2's
+  production lifecycle was still an author question when this slice landed;
+  the 2026-08-03 ratification note above resolves it without changing this
+  explicit-injection boundary. Unregister reads existing custody only: when no
   installation id exists it returns `{ tokenId: null, retired: false }`
   locally, without minting, writing storage, or making a network request.
 
@@ -793,8 +811,10 @@ registry spellings (`definePushSeam`, `client.push`); the complete seam's
 manifest capability id waits for the send/ledger shape. OQ6's independent
 sequencing assumption is confirmed. OQ7 begins with deterministic in-process
 registry fixtures, but the shared fake-Expo tickets/receipts/socket-drop kit
-and real dev-build receipt remain completion gates. OQ2 remains explicitly
-unresolved; OQ3–OQ5 and OQ8–OQ9 belong to later slices.
+and real dev-build receipt remain completion gates. At this historical slice
+boundary OQ2 was explicitly unresolved; the 2026-08-03 note above resolves it.
+OQ3–OQ5 and OQ8–OQ9 were deferred to later slices and are resolved by the
+D2/D3 amendment below.
 
 Honesty posture: the capability index advertises a local, partial
 `backend.push-token-registry-v1` GAP with the HTTP route as witness.

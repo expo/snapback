@@ -29,6 +29,22 @@ updated honestly; dated implementation-record amendment on the LLP.
 
 ## Running log
 
+- **2026-08-03 — OQ2 ratified; real-receipt block narrowed but not cleared.**
+  LLP 0143 now records the author-ratified device-scoped installation store
+  exactly: logout keeps the identity and unbinds the principal, account switch
+  keeps it and rebinds, and app-data reset or reinstall mints a fresh identity.
+  A read-only environment recheck now finds Charlie's paired, unlocked iPhone
+  and an installed `dev.allaboard.sbexpo` developer app whose local source is
+  linked to an EAS project. That EAS project has no recorded iOS development
+  build, and the app has neither `expo-notifications` nor notification native
+  configuration or a Snapback PUSH-01 receipt harness. Repository demos remain
+  unlinked and unconfigured for notifications. No external project was
+  changed, no build was started, and no push was sent. The minimum remaining
+  human action is approval to use and modify the existing All Aboard SB-EXPO
+  project for this witness (then keep the iPhone available during the
+  build/run/send). Until a real Expo receipt is captured, this ticket stays
+  Open and `notifications: false` remains the honest manifest claim.
+
 - **2026-08-02 — real-device Exit witness is externally blocked.** The local
   machine is authenticated to EAS, but neither repository Expo demo is linked
   to an EAS project or configured with `expo-notifications`; the only attached
