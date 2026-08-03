@@ -5,10 +5,13 @@
 //! adding an author-facing telemetry mutation API.
 
 use super::*;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use sha2::{Digest as _, Sha256};
 use std::hint::black_box;
 
-const BENCHMARK_CEILING_REVISION: &str = "obs04-2026-08-02.v2";
+const BENCHMARK_BASELINE_FILE: &str =
+    "tests/acceptance/telemetry-phase1-benchmark-baseline.v1.json";
+const BENCHMARK_METHOD: &str = "snapback.telemetry-phase1.method.v2:http-alternation+default-event-worker+buffer-burst+c8-file-cap+direct-flush+wal-checkpoint+retention-sweep+hourly-daily-rollup-scan+file-backed-ibex-on-off-midpoint-worker";
 const QUERY_NAMES_PER_BUCKET: usize = 200;
 
 #[derive(Clone, Copy, Debug)]
@@ -49,7 +52,7 @@ impl Phase1BenchmarkConfig {
             sweep_rows: 256,
             query_rows: 800,
             query_samples: 5,
-            app_samples: 320,
+            app_samples: 512,
         }
     }
 }
@@ -93,6 +96,8 @@ pub struct BenchmarkEnvironment {
 #[serde(rename_all = "camelCase")]
 pub struct BenchmarkCeilings {
     pub revision: String,
+    pub method_digest: String,
+    pub baseline_file: String,
     pub proof_profile: BenchmarkProofProfile,
     pub required_build_profile: String,
     pub worker_flush_p95_ms: f64,
@@ -103,6 +108,37 @@ pub struct BenchmarkCeilings {
     pub stats_query_p95_ms: f64,
     pub app_query_p95_ms: f64,
     pub app_p95_overhead_percent: f64,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct CommittedBenchmarkBaseline {
+    schema_version: String,
+    revision: String,
+    method: String,
+    method_digest: String,
+    profiles: CommittedBenchmarkProfiles,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct CommittedBenchmarkProfiles {
+    smoke: CommittedBenchmarkProfile,
+    full: CommittedBenchmarkProfile,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct CommittedBenchmarkProfile {
+    required_build_profile: String,
+    worker_flush_p95_ms: f64,
+    direct_flush_p95_ms: f64,
+    checkpoint_p95_ms: f64,
+    sweep_ms: f64,
+    event_query_p95_ms: f64,
+    stats_query_p95_ms: f64,
+    app_query_p95_ms: f64,
+    app_p95_overhead_percent: f64,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -185,6 +221,8 @@ pub struct QueryLatencyReport {
 #[serde(rename_all = "camelCase")]
 pub struct AppLatencyReport {
     pub samples_each: usize,
+    pub worker_flush_sentinel_sample: usize,
+    pub worker_flushed_rows_at_sentinel: u64,
     pub worker_flushed_rows_before_final_drain: u64,
     pub telemetry_on: LatencyReport,
     pub telemetry_off: LatencyReport,
@@ -213,7 +251,7 @@ pub fn run_phase1_benchmark(
     }
 
     let environment = benchmark_environment();
-    let ceilings = ceilings_for(config.profile);
+    let ceilings = ceilings_for(config.profile)?;
     assert_build_profile(config.profile, &environment)?;
     let amplification = measure_http_amplification(config)?;
     let burst_and_shed = measure_buffer_burst(config)?;
@@ -277,10 +315,10 @@ pub fn run_phase1_benchmark(
             "the stats workload did not retain and scan the requested high-cardinality hourly/daily rollup rows",
         ));
     }
-    if app_latency.worker_flushed_rows_before_final_drain < DEFAULT_BATCH_SIZE as u64 {
+    if app_latency.worker_flushed_rows_at_sentinel < DEFAULT_BATCH_SIZE as u64 {
         return Err(bench_error(
             "SNAPBACK_TELEMETRY_BENCH_APP_WORKER_BYPASSED",
-            "the telemetry-on application workload did not arm the default background flusher before the final drain",
+            "the telemetry-on application workload did not persist one default batch before its inside-window sentinel",
         ));
     }
     assert_latency_ceilings(
@@ -295,7 +333,7 @@ pub fn run_phase1_benchmark(
 
     Ok(Phase1BenchmarkReport {
         schema_version: "snapback.telemetry-phase1-benchmark.v2".to_owned(),
-        method: "profile-bound benchmark over real HTTP application requests, the default event-armed file worker, shipped storage/query paths, and alternated file-backed finite Ibex queries".to_owned(),
+        method: BENCHMARK_METHOD.to_owned(),
         environment,
         ceilings,
         amplification,
@@ -328,28 +366,47 @@ fn benchmark_environment() -> BenchmarkEnvironment {
     }
 }
 
-fn ceilings_for(profile: BenchmarkProofProfile) -> BenchmarkCeilings {
-    let (required, worker, direct, checkpoint, sweep, event, stats, app, overhead) = match profile {
-        BenchmarkProofProfile::Smoke => (
-            "debug", 1_000.0, 1_000.0, 1_000.0, 5_000.0, 1_000.0, 5_000.0, 1_000.0, 1_000.0,
-        ),
-        BenchmarkProofProfile::Full => (
-            "release", 100.0, 100.0, 250.0, 2_000.0, 100.0, 1_000.0, 100.0, 500.0,
-        ),
-    };
-    BenchmarkCeilings {
-        revision: BENCHMARK_CEILING_REVISION.to_owned(),
-        proof_profile: profile,
-        required_build_profile: required.to_owned(),
-        worker_flush_p95_ms: worker,
-        direct_flush_p95_ms: direct,
-        checkpoint_p95_ms: checkpoint,
-        sweep_ms: sweep,
-        event_query_p95_ms: event,
-        stats_query_p95_ms: stats,
-        app_query_p95_ms: app,
-        app_p95_overhead_percent: overhead,
+fn ceilings_for(profile: BenchmarkProofProfile) -> SnapbackResult<BenchmarkCeilings> {
+    let baseline: CommittedBenchmarkBaseline = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/acceptance/telemetry-phase1-benchmark-baseline.v1.json"
+    )))
+    .map_err(|error| {
+        bench_error(
+            "SNAPBACK_TELEMETRY_BENCH_BASELINE_INVALID",
+            error.to_string(),
+        )
+    })?;
+    let computed_method_digest =
+        format!("sha256:{:x}", Sha256::digest(BENCHMARK_METHOD.as_bytes()));
+    if baseline.schema_version != "snapback.telemetry-phase1-benchmark-baseline.v1"
+        || baseline.method != BENCHMARK_METHOD
+        || baseline.method_digest != computed_method_digest
+    {
+        return Err(bench_error(
+            "SNAPBACK_TELEMETRY_BENCH_BASELINE_INVALID",
+            "the committed baseline schema, method, and method digest must agree with the benchmark implementation",
+        ));
     }
+    let configured = match profile {
+        BenchmarkProofProfile::Smoke => baseline.profiles.smoke,
+        BenchmarkProofProfile::Full => baseline.profiles.full,
+    };
+    Ok(BenchmarkCeilings {
+        revision: baseline.revision,
+        method_digest: baseline.method_digest,
+        baseline_file: BENCHMARK_BASELINE_FILE.to_owned(),
+        proof_profile: profile,
+        required_build_profile: configured.required_build_profile,
+        worker_flush_p95_ms: configured.worker_flush_p95_ms,
+        direct_flush_p95_ms: configured.direct_flush_p95_ms,
+        checkpoint_p95_ms: configured.checkpoint_p95_ms,
+        sweep_ms: configured.sweep_ms,
+        event_query_p95_ms: configured.event_query_p95_ms,
+        stats_query_p95_ms: configured.stats_query_p95_ms,
+        app_query_p95_ms: configured.app_query_p95_ms,
+        app_p95_overhead_percent: configured.app_p95_overhead_percent,
+    })
 }
 
 fn assert_build_profile(
@@ -494,6 +551,8 @@ fn measure_app_latency(config: &Phase1BenchmarkConfig) -> SnapbackResult<AppLate
     let disabled_before = counted_kind_rows(&disabled_telemetry, "function_run")?;
     let mut on_samples = Vec::with_capacity(config.app_samples);
     let mut off_samples = Vec::with_capacity(config.app_samples);
+    let worker_flush_sentinel_sample = config.app_samples * 3 / 4;
+    let mut worker_flushed_rows_at_sentinel = 0;
     for index in 0..config.app_samples {
         if index % 2 == 0 {
             time_query(&enabled, &mut on_samples)?;
@@ -501,6 +560,11 @@ fn measure_app_latency(config: &Phase1BenchmarkConfig) -> SnapbackResult<AppLate
         } else {
             time_query(&disabled, &mut off_samples)?;
             time_query(&enabled, &mut on_samples)?;
+        }
+        if index + 1 == worker_flush_sentinel_sample {
+            worker_flushed_rows_at_sentinel =
+                counted_kind_rows(&enabled_telemetry, "function_run")?
+                    .saturating_sub(enabled_before);
         }
     }
     let worker_flushed_rows_before_final_drain = wait_for_persisted_delta(
@@ -529,6 +593,8 @@ fn measure_app_latency(config: &Phase1BenchmarkConfig) -> SnapbackResult<AppLate
     let off = latency_report(off_samples, 1);
     Ok(AppLatencyReport {
         samples_each: config.app_samples,
+        worker_flush_sentinel_sample,
+        worker_flushed_rows_at_sentinel,
         worker_flushed_rows_before_final_drain,
         p50_overhead_percent: relative_percent(on.p50_ms, off.p50_ms),
         p95_overhead_percent: relative_percent(on.p95_ms, off.p95_ms),
@@ -1183,6 +1249,7 @@ mod tests {
         assert_eq!(report.sweep.rows_after, 0);
         assert_eq!(report.queries.rollup_rows_scanned, 800);
         assert_eq!(report.queries.event_page.samples, 5);
-        assert_eq!(report.app_latency.samples_each, 320);
+        assert_eq!(report.app_latency.samples_each, 512);
+        assert!(report.app_latency.worker_flushed_rows_at_sentinel >= DEFAULT_BATCH_SIZE as u64);
     }
 }

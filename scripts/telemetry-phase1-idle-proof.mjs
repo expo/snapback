@@ -35,11 +35,28 @@ const TERMINAL_QUIET_MS = smoke ? 1_000 : 6_000;
 const SETTLE_SAMPLE_MS = 250;
 const IDLE_WINDOW_MS = smoke ? 5_000 : 120_000;
 const IDLE_SAMPLE_MS = smoke ? 250 : 1_000;
+const MAX_SETTLE_EVENT_BATCHES = 2;
+const MAX_SETTLE_EVENTS = 4;
+const RESOURCE_CEILINGS = smoke
+  ? { cpuTicksDelta: 25, rssGrowthPages: 2_048 }
+  : { cpuTicksDelta: 100, rssGrowthPages: 4_096 };
+
+if (!smoke && (!existsSync('/proc/self/io') || !existsSync('/proc/self/stat'))) {
+  throw new Error(
+    'SNAPBACK_TELEMETRY_IDLE_FULL_LINUX_REQUIRED: full evidence requires procfs write-I/O, CPU, and RSS counters',
+  );
+}
 
 const releaseBinary = resolve(process.env.SNAPBACK_SERVER_BINARY ?? '');
+const expectedCommit = process.env.SNAPBACK_TELEMETRY_EXPECTED_COMMIT ?? '';
 if (!process.env.SNAPBACK_SERVER_BINARY || !existsSync(releaseBinary)) {
   throw new Error(
     'SNAPBACK_TELEMETRY_IDLE_RELEASE_BINARY_REQUIRED: set SNAPBACK_SERVER_BINARY to a qualified release snapback binary',
+  );
+}
+if (!/^[0-9a-f]{40}$/.test(expectedCommit)) {
+  throw new Error(
+    'SNAPBACK_TELEMETRY_IDLE_EXPECTED_COMMIT_REQUIRED: set SNAPBACK_TELEMETRY_EXPECTED_COMMIT to the evidence-harness revision',
   );
 }
 
@@ -88,10 +105,11 @@ try {
   }
   const binaryIdentity = server.identity?.binary;
   if (
-    binaryIdentity?.buildProfile !== 'release'
+    server.identity?.verdict !== 'verified'
+    || binaryIdentity?.buildProfile !== 'release'
     || binaryIdentity?.gitDirty !== false
     || !binaryIdentity?.gitCommit
-    || binaryIdentity.gitCommit === 'unknown'
+    || binaryIdentity.gitCommit !== expectedCommit
   ) {
     throw new Error(
       `SNAPBACK_TELEMETRY_IDLE_RELEASE_IDENTITY_INVALID: ${JSON.stringify(binaryIdentity)}`,
@@ -127,7 +145,7 @@ try {
     }
     lifecycle = lifecycleWitness(telemetry);
   }
-  if (settleChanges.length === 0 || !lifecycleReady(lifecycle)) {
+  if (settleChanges.length === 0 || !lifecycleBounded(lifecycle)) {
     throw new Error('SNAPBACK_TELEMETRY_IDLE_SETTLE_VACUOUS');
   }
 
@@ -165,6 +183,16 @@ try {
       `SNAPBACK_TELEMETRY_IDLE_PROCESS_WRITE_DETECTED: ${JSON.stringify(resources)}`,
     );
   }
+  if (
+    resources.cpuTicksDelta === null
+    || resources.cpuTicksDelta > RESOURCE_CEILINGS.cpuTicksDelta
+    || resources.rssGrowthPages === null
+    || resources.rssGrowthPages > RESOURCE_CEILINGS.rssGrowthPages
+  ) {
+    throw new Error(
+      `SNAPBACK_TELEMETRY_IDLE_RESOURCE_CEILING_EXCEEDED: ${JSON.stringify({ resources, ceilings: RESOURCE_CEILINGS })}`,
+    );
+  }
 
   process.stdout.write(
     `${JSON.stringify({
@@ -184,6 +212,12 @@ try {
         observedMutationCount: settleChanges.length,
         lastMutationAfterReadyMs: settleChanges.at(-1).afterReadyMs,
         terminalWithinBound: true,
+        policy: {
+          exactProcessStartCount: 1,
+          exactProcessReadyCount: 1,
+          maxPersistedEventBatches: MAX_SETTLE_EVENT_BATCHES,
+          maxPersistedEvents: MAX_SETTLE_EVENTS,
+        },
         preSpawnSnapshot,
         changes: settleChanges,
         lifecycle,
@@ -199,6 +233,7 @@ try {
         startLifecycle: idleStartLifecycle,
         endLifecycle: idleEndLifecycle,
         resources,
+        resourceCeilings: RESOURCE_CEILINGS,
       },
     }, null, 2)}\n`,
   );
@@ -214,18 +249,36 @@ function lifecycleReady(witness) {
     && witness.processReadyCount >= 1;
 }
 
+function lifecycleBounded(witness) {
+  return lifecycleReady(witness)
+    && witness.processStartCount === 1
+    && witness.processReadyCount === 1
+    && witness.persistedEventBatches >= 1
+    && witness.persistedEventBatches <= MAX_SETTLE_EVENT_BATCHES
+    && witness.eventCount >= 2
+    && witness.eventCount <= MAX_SETTLE_EVENTS;
+}
+
 function lifecycleWitness(path) {
   if (!existsSync(path)) return null;
   const output = execFileSync('sqlite3', [
     '-separator', '\t',
     path,
-    `SELECT coalesce(max(recorded_ts_ms),0), sum(CASE WHEN name='process_start' THEN 1 ELSE 0 END), sum(CASE WHEN name='process_ready' THEN 1 ELSE 0 END) FROM telemetry_events_visible WHERE kind='lifecycle' AND phase IN ('point','joined','terminal');`,
+    `SELECT coalesce(max(recorded_ts_ms),0), coalesce(sum(CASE WHEN name='process_start' THEN 1 ELSE 0 END),0), coalesce(sum(CASE WHEN name='process_ready' THEN 1 ELSE 0 END),0), count(*), count(DISTINCT recorded_ts_ms) FROM telemetry_events_visible WHERE phase IN ('point','joined','terminal');`,
   ], { encoding: 'utf8' }).trim();
-  const [watermark = '0', processStartCount = '0', processReadyCount = '0'] = output.split('\t');
+  const [
+    watermark = '0',
+    processStartCount = '0',
+    processReadyCount = '0',
+    eventCount = '0',
+    persistedEventBatches = '0',
+  ] = output.split('\t');
   return {
     watermark: Number(watermark),
     processStartCount: Number(processStartCount),
     processReadyCount: Number(processReadyCount),
+    eventCount: Number(eventCount),
+    persistedEventBatches: Number(persistedEventBatches),
   };
 }
 
@@ -307,15 +360,22 @@ function resourceDelta(start, end) {
   const subtract = (field) => start[field] === null || end[field] === null
     ? null
     : end[field] - start[field];
+  const userTicksDelta = subtract('userTicks');
+  const systemTicksDelta = subtract('systemTicks');
+  const rssPagesDelta = subtract('rssPages');
   return {
     source: start.source,
     readBytesDelta: subtract('readBytes'),
     writeBytesDelta: subtract('writeBytes'),
-    userTicksDelta: subtract('userTicks'),
-    systemTicksDelta: subtract('systemTicks'),
+    userTicksDelta,
+    systemTicksDelta,
+    cpuTicksDelta: userTicksDelta === null || systemTicksDelta === null
+      ? null
+      : userTicksDelta + systemTicksDelta,
     rssPagesStart: start.rssPages,
     rssPagesEnd: end.rssPages,
-    rssPagesDelta: subtract('rssPages'),
+    rssPagesDelta,
+    rssGrowthPages: rssPagesDelta === null ? null : Math.max(0, rssPagesDelta),
     rssKbStart: start.rssKb ?? null,
     rssKbEnd: end.rssKb ?? null,
   };

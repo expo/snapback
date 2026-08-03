@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+PROOF_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PROOF_MODE="${1:---check}"
+PROOF_RECEIPT="${SNAPBACK_TELEMETRY_PHASE1_RECEIPT:-$PROOF_ROOT/tests/acceptance/telemetry-phase1-evidence.v1.json}"
+
+case "$PROOF_MODE" in
+    --check)
+        exec node "$PROOF_ROOT/scripts/telemetry-phase1-evidence.mjs" validate "$PROOF_RECEIPT"
+        ;;
+    --smoke)
+        cd "$PROOF_ROOT"
+        scripts/bootstrap-ibex-runtime
+        node --check scripts/telemetry-phase1-idle-proof.mjs
+        cargo test --locked --features telemetry-phase1-proof --lib \
+            telemetry::phase1_bench::tests::phase1_benchmark_smoke_exercises_every_gate \
+            -- --exact
+        ;;
+    --full)
+        cd "$PROOF_ROOT"
+        if ! git diff --quiet || ! git diff --cached --quiet || [ -n "$(git ls-files --others --exclude-standard)" ]; then
+            printf 'SNAPBACK_TELEMETRY_PHASE1_CLEAN_CHECKOUT_REQUIRED\n' >&2
+            exit 1
+        fi
+        PROOF_REVISION="$(git rev-parse HEAD)"
+        scripts/bootstrap-ibex-runtime
+        cargo test --locked --features telemetry-phase1-proof --lib \
+            telemetry::phase1_bench::tests::phase1_benchmark_smoke_exercises_every_gate \
+            -- --exact
+        cargo build --locked --release --features telemetry-phase1-proof \
+            --bin snapback --bin snapback-telemetry-bench
+        node packages/snapback-cli/runtime-readiness.mjs issue \
+            --binary "$PROOF_ROOT/target/release/snapback" \
+            --root "$PROOF_ROOT" --issuer telemetry-phase1-proof
+        PROOF_TMP="$(mktemp -d "${TMPDIR:-/tmp}/snapback-telemetry-phase1.XXXXXX")"
+        trap 'rm -rf "$PROOF_TMP"' EXIT
+        "$PROOF_ROOT/target/release/snapback-telemetry-bench" > "$PROOF_TMP/benchmark.json"
+        SNAPBACK_SERVER_BINARY="$PROOF_ROOT/target/release/snapback" \
+            SNAPBACK_TELEMETRY_EXPECTED_COMMIT="$PROOF_REVISION" \
+            node "$PROOF_ROOT/scripts/telemetry-phase1-idle-proof.mjs" > "$PROOF_TMP/idle.json"
+        node "$PROOF_ROOT/scripts/telemetry-phase1-evidence.mjs" compose \
+            --benchmark "$PROOF_TMP/benchmark.json" \
+            --idle "$PROOF_TMP/idle.json" \
+            --output "$PROOF_RECEIPT"
+        node "$PROOF_ROOT/scripts/telemetry-phase1-evidence.mjs" validate "$PROOF_RECEIPT"
+        ;;
+    *)
+        printf 'usage: scripts/verify-telemetry-phase1-proof [--check|--smoke|--full]\n' >&2
+        exit 2
+        ;;
+esac
