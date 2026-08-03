@@ -1116,6 +1116,8 @@ export function classifyBinaryIdentity(binary, expectedIdentity, { envStamp = fa
       gitCommit: binary.gitCommit ?? null,
       gitDirty: typeof binary.gitDirty === 'boolean' ? binary.gitDirty : null,
       crateVersion: binary.crateVersion ?? null,
+      buildProfile: binary.buildProfile ?? null,
+      startupNonce: binary.startupNonce ?? null,
     },
     expected: {
       gitCommit: expectedIdentity.gitCommit ?? null,

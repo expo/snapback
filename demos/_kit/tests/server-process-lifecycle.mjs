@@ -379,6 +379,8 @@ try {
   assert.match(first.startupNonce, /^[0-9a-f-]+$/i);
   assert.equal(first.launch.rung, 'cargo', 'no prebuilt binary means the ladder lands on the cargo rung');
   assert.equal(first.identity.verdict, 'verified');
+  assert.equal(first.identity.binary.buildProfile, 'debug');
+  assert.equal(first.identity.binary.startupNonce, first.startupNonce);
   assert.equal(first.credentials.adminToken, first.adminToken);
   assert.equal(first.clientOptions.adminToken, first.adminToken);
   assert.equal(process.env.SNAPBACK_ADMIN_TOKEN, undefined, 'startup does not contaminate global credentials');
