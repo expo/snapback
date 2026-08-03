@@ -23,3 +23,11 @@
   recorded above now applies to any NEW drift accumulated after
   `c8c89e4f`, not to this worklist. Exit met; closing per the ticket's own
   criterion citing run 30786381634.
+
+- **2026-08-03 — PUSH-01 ownership handoff remained clear.** The test-only
+  `src/push.rs` registration helper no longer trips
+  `clippy::too_many_arguments`; the push module and packaged fake-Expo
+  acceptance are owned and green in the PUSH lane. OQ2's ratified client-store
+  addition is likewise covered by the client package test. Its feature-owned
+  prospective bundle ledger landed with the seam; unrelated drift was left to
+  the next batch pass.

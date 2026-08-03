@@ -78,7 +78,6 @@ export function attachPushRegistry(client, { pushInstallationStorage = null } = 
   const storage = pushInstallationStorage === null
     ? null
     : validateStorage(pushInstallationStorage);
-  let installationPromise = null;
 
   const readInstallationId = async () => {
     if (storage === null) return null;
@@ -102,19 +101,18 @@ export function attachPushRegistry(client, { pushInstallationStorage = null } = 
       error.code = 'SNAPBACK_PUSH_INSTALLATION_CUSTODY_REQUIRED';
       throw error;
     }
-    installationPromise ??= (async () => {
-      const stored = await readInstallationId();
-      if (stored !== null) return stored;
-      const minted = newPushInstallationId();
-      await storage.write(minted);
-      return minted;
-    })();
-    try {
-      return await installationPromise;
-    } catch (error) {
-      installationPromise = null;
+    const stored = await readInstallationId();
+    if (stored !== null) return stored;
+    await storage.write(newPushInstallationId());
+    const committed = await readInstallationId();
+    if (committed === null) {
+      const error = new Error(
+        'SNAPBACK_PUSH_INSTALLATION_CUSTODY_CORRUPT: installation identity write did not persist',
+      );
+      error.code = 'SNAPBACK_PUSH_INSTALLATION_CUSTODY_CORRUPT';
       throw error;
     }
+    return committed;
   };
 
   const registerToken = async ({ token } = {}) => {

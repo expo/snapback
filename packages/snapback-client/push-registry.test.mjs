@@ -1,10 +1,15 @@
 import assert from 'node:assert/strict';
+import { mkdtemp, rm } from 'node:fs/promises';
 import { createServer } from 'node:http';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
+import { createFakeExpoFileSystem } from './fake-expo-file-system.mjs';
 import {
   createExternalSessionClient,
   SnapbackClient,
 } from './index.mjs';
+import { createExpoPushInstallationStorage } from './push-installation-expo.mjs';
 import {
   attachPushRegistry,
   newPushInstallationId,
@@ -39,8 +44,77 @@ await assert.rejects(
   (error) => error?.code === 'SNAPBACK_PUSH_INSTALLATION_CUSTODY_REQUIRED',
   'registration custody refuses rather than silently using process memory',
 );
-
 assert.match(newPushInstallationId(), /^inst_[0-7][0-9a-hjkmnp-tv-z]{25}$/u);
+assert.throws(
+  () => createExpoPushInstallationStorage({ fileSystem: {} }),
+  /fileSystem must provide File, Directory, and Paths\.document/u,
+);
+
+const expoRoot = await mkdtemp(join(tmpdir(), 'snapback-push-installation-'));
+try {
+  const fake = createFakeExpoFileSystem(expoRoot);
+  const defaultStorage = createExpoPushInstallationStorage({
+    fileSystem: fake.module,
+  });
+  assert.equal(
+    createExpoPushInstallationStorage({ fileSystem: fake.module }),
+    defaultStorage,
+    'the conventional default is one process-wide writer per device store',
+  );
+  const beforeLogout = attachPushRegistry(new SnapbackClient('http://127.0.0.1:9', {
+    bearerToken: 'sbs_push_expo_before_logout',
+  }), { pushInstallationStorage: defaultStorage });
+  const afterAccountSwitch = attachPushRegistry(new SnapbackClient('http://127.0.0.1:9', {
+    bearerToken: 'sbs_push_expo_after_switch',
+  }), { pushInstallationStorage: defaultStorage });
+  const [beforeId, switchedId] = await Promise.all([
+    beforeLogout.push.installationId(),
+    afterAccountSwitch.push.installationId(),
+  ]);
+  assert.equal(
+    switchedId,
+    beforeId,
+    'logout/account switch preserves the device-scoped installation identity',
+  );
+  const pushDirectory = new fake.module.Directory(
+    fake.module.Paths.document,
+    'snapback-push',
+  );
+  assert.equal(pushDirectory.exists, true);
+  assert.deepEqual(
+    pushDirectory.list().map((entry) => entry.name),
+    ['installation.v1.json'],
+  );
+  assert.equal(
+    new fake.module.Directory(fake.module.Paths.document, 'snapback-rqs').exists,
+    false,
+    'the installation identity has dedicated custody outside the RQS cache',
+  );
+
+  await defaultStorage.clear();
+  const resetId = await beforeLogout.push.installationId();
+  assert.notEqual(
+    resetId,
+    beforeId,
+    'a full app-data custody reset mints a fresh installation identity',
+  );
+  assert.equal(
+    await afterAccountSwitch.push.installationId(),
+    resetId,
+    'attached clients re-read custody rather than retaining a cleared identity',
+  );
+
+  new fake.module.File(pushDirectory, 'installation.v1.json').write('{corrupt');
+  await assert.rejects(
+    () => beforeLogout.push.installationId(),
+    (error) => error?.code === 'SNAPBACK_PUSH_INSTALLATION_CUSTODY_CORRUPT',
+    'corrupt default custody fails closed without exposing its bytes',
+  );
+  await defaultStorage.clear();
+} finally {
+  await rm(expoRoot, { recursive: true, force: true });
+}
+
 const storage = createTestInstallationStorage();
 const requests = [];
 let registrationCount = 0;

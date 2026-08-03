@@ -29,6 +29,7 @@ const CURRENT_PATH = join(FIXTURE_DIR, 'current.v1.json');
 const PACKAGE_DIR = join(ROOT, 'packages');
 const METRICS = ['minifiedBytes', 'gzipBytes', 'brotliBytes'];
 const PUSH_REGISTRY_MODULE = 'packages/snapback-client/push-registry.mjs';
+const PUSH_INSTALLATION_EXPO_MODULE = 'packages/snapback-client/push-installation-expo.mjs';
 const MICRO_CORE_MODULE = 'packages/snapback-client/micro-core.mjs';
 const MICRO_LIVE_MODULE = 'packages/snapback-client/micro-live.mjs';
 const BEHAVIOR_COMMANDS = Object.freeze([
@@ -51,6 +52,21 @@ const SUPPLEMENTAL_LEDGER_SPECS = Object.freeze([
       'LLP 0145#phase-a--establish-a-size-ratchet',
       'LLP 0063#workstream-8--performance-and-packaging-budgets',
       'LLP 0143#d6-activation-migration-and-the-no-op-posture',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/push-registry.test.mjs']],
+    ]),
+  }),
+  Object.freeze({
+    filename: 'baseline.push-installation-expo.v1.json',
+    profileFilename: 'push-installation-expo-profiles.v1.json',
+    profileIds: Object.freeze([
+      'public-subpath-push-installation-expo',
+    ]),
+    authorities: Object.freeze([
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0143#d1-device-token-custody',
     ]),
     behaviorCommands: Object.freeze([
       ['node', ['packages/snapback-client/push-registry.test.mjs']],
@@ -459,6 +475,23 @@ function assertPushRegistryClosure(profiles) {
   }
 }
 
+function assertExpoPushInstallationClosure(profiles) {
+  const profile = profiles.find(
+    (candidate) => candidate.id === 'public-subpath-push-installation-expo',
+  );
+  assert.ok(profile, 'Expo push installation storage profile is present');
+  assert.equal(
+    Object.hasOwn(profile.metafile.inputs, PUSH_INSTALLATION_EXPO_MODULE),
+    true,
+    'Expo push installation subpath includes its storage adapter',
+  );
+  assert.equal(
+    Object.hasOwn(profile.metafile.inputs, PUSH_REGISTRY_MODULE),
+    false,
+    'Expo push installation subpath keeps the push registry runtime type-only',
+  );
+}
+
 function assertMicroClosure(profiles) {
   const byId = new Map(profiles.map((profile) => [profile.id, profile]));
   const core = byId.get('micro-core-generated-entry');
@@ -514,6 +547,7 @@ async function measure() {
   for (const profile of profiles) measured.push(await measureProfile(profile));
   measured.sort((left, right) => left.id.localeCompare(right.id));
   assertPushRegistryClosure(measured);
+  assertExpoPushInstallationClosure(measured);
   assertMicroClosure(measured);
   runBehaviorCommands(BEHAVIOR_COMMANDS);
   for (const { spec } of additiveConfigs) runBehaviorCommands(spec.behaviorCommands);

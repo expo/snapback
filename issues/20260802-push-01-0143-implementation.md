@@ -29,6 +29,25 @@ updated honestly; dated implementation-record amendment on the LLP.
 
 ## Running log
 
+- **2026-08-02 — OQ2 ratification implemented; physical receipt remains.**
+  Charlie closed the author-decision veto window, so the delegated
+  device-scoped default now ships in the additive client module. Apps inject
+  `expo-file-system`; Snapback owns the dedicated
+  `snapback-push/installation.v1.json` member through the separate
+  `push-installation-expo` subpath; the retained storage adapter's `clear()` is
+  the full app-data custody wipe. Ordinary
+  logout and account switch preserve the id, successor registration rebinds
+  it, and reset/reinstall mint a fresh id. Concurrent first use converges by a
+  first-writer-wins file plus committed-value re-read; every operation re-reads
+  custody after reset, RQS remains separate, missing
+  custody refuses, and custom native storage still works. The dated LLP 0143
+  amendment records the ratified reset matrix. Per the wave policy this
+  landing deliberately does not regenerate global drift artifacts. The
+  structured `notifications.expoPushSeam` target fact remains the honest seam
+  claim; LLP 0143 D4 and Draft LLP 0045 still keep the broader
+  `notifications` outbox boolean false. PUSH-01 stays Open for the real
+  dev-build Expo receipt.
+
 - **2026-08-02 — canonical local proof isolates the external receipt
   blocker.** Under the repository-pinned Node 24.18.0 toolchain, the push
   package fixture, all 26 push-module tests, capability-maturity check,
