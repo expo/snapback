@@ -35,3 +35,14 @@ blockers, grace-pin cases, blocker-held trace, stub reasons) and S8's
 policy-record legs pass (ceilings match enforced constants, exactly one
 reason per address, no args/labels/foreign-partition leakage); S4 stays
 green.
+
+---
+
+**Progress (2026-08-03):** implemented (Codex, session-supervised) and
+landed: two-axis precedence, durable release grace (both axes pinned
+last-snapshot, suppression-end anchoring, rollback-safe GC), exact
+pressure order + tie-break with carrier parity, all blocker classes with
+next-pass reclamation, canonical payload projection with legacy-envelope
+isolation, partition-bound StorePolicyInspectionV1 with fixed reason
+precedence and redactions. 9/9 policy + 14/14 materialization tests.
+Open until the umbrella closes.

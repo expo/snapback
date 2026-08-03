@@ -68,12 +68,14 @@ const inventories = [
     expectedFiles: [
       'app-data.test.mjs',
       'argument-validation.test.mjs',
+      'answer-classes.test.mjs',
       'assets-watch-authorization.test.mjs',
       'assets.test.mjs',
       'attribution.test.mjs',
       'bearer-rotation.test.mjs',
       'browser-closure.test.mjs',
       'bundle.test.mjs',
+      'demand-broker.test.mjs',
       'ephemeral-room.test.mjs',
       'evaluation-floor.test.mjs',
       'external-store.test.mjs',
@@ -87,6 +89,7 @@ const inventories = [
       'outbox-store.test.mjs',
       'package.test.mjs',
       'push-registry.test.mjs',
+      'registration-ledger.test.mjs',
       'reservation-retry.test.mjs',
       'rqs-digest-parity.test.mjs',
       'rqs-resume-expo.test.mjs',
@@ -100,6 +103,7 @@ const inventories = [
       'sender-proof.test.mjs',
       'sender-transport.test.mjs',
       'search.test.mjs',
+      'store-policy.test.mjs',
       'webcrypto-fallback.test.mjs',
       'wire-version.test.mjs',
     ],
@@ -472,7 +476,11 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // materialization operations, proof, retained-boot, fence, and compaction suite.
 // 173 -> 175 (2026-08-03, LLP 0166 L8 + L7 convergence): the client gains
 // the pre-admission evaluation floor and close-predecessor-first crash corpus.
-assert.equal(total, 175, 'reviewed package/admin test count changed');
+// 175 -> 177 (2026-08-03, LLP 0166 L4/L5): @expo/snapback-client gains the
+// multi-context demand broker and lifecycle/budget/policy-inspection suites.
+// 177 -> 179 (2026-08-03, LLP 0166 L3/L6): @expo/snapback-client gains the
+// registration/sync-set and completeness-honest 15-row answer-table suites.
+assert.equal(total, 179, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }
