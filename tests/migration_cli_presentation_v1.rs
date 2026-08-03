@@ -1,3 +1,7 @@
+//! @ref LLP 0160#2-the-ideal-experience-moment-by-moment — real CLI witnesses
+//! for Moment 3's observation-labeled estimates and Moment 4's render-first
+//! approval, face redaction, and structured/human stream split.
+
 use std::collections::BTreeMap;
 use std::process::Command;
 
