@@ -51,3 +51,12 @@ registered; dated implementation-record amendment + 0115 CV-11 row updated.
   table-scoped fan-out, client live-search state, acceptance/measurement
   evidence, implementation-record updates, and final publication-carrier
   refresh after integration.
+
+- **2026-08-02 — held after the static authoring/carrier checkpoint.** Charlie
+  explicitly held LLP 0136 after the already-landed static authoring and
+  carrier checkpoint. Wire negotiation and cursor carriage, runtime admission
+  and execution, client live-search state, acceptance/measurement evidence,
+  and capability-claim work are not proceeding in this wave. Every target
+  continues to report `live_full_text_search_v1` support false with its
+  structured GAP. Resume this ticket only after a later explicit release from
+  Charlie.
