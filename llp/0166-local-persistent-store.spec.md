@@ -1,12 +1,27 @@
 # LLP 0166: The local persistent store
 
 **Type:** Spec
-**Status:** Draft
+**Status:** Review
 **Systems:** Client SDK, Client integration, Local sync, Offline sync, Storage,
 Live queries, Relational queries, Optimistic updates, Auth, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-03
-**Revised:** 2026-08-03 (v0.8, round-7 fixes: Fable round 7 returned
+**Revised:** 2026-08-03 (v0.9, loop conclusion: the dual-family
+super-refine loop converged **dual-READY at round 8** — Codex READY at
+0.97 confidence with one editorial NIT; Fable READY at 0.90, its second
+consecutive READY, with one editorial NIT — over the unchanged v0.8
+tree. Both NITs and both reviewers' editorial suggestions are applied:
+the client's re-announce-on-hello obligation is now a normative rule (on
+observing `WriterHelloV1`, a context re-announces each of its pairs'
+full sets within the heartbeat interval), with the clause that a
+reconciliation-reaped *pair* — unlike a reaped context — simply
+re-announces and re-appears under the same `contextId`; "live pair" is
+respelled "unreconciled pair" at the drift-prone sentence; and S1's
+tombstone boundary is re-worded ordinally (the target plus 1,023 newer
+tombstones still refuses; the 1,024th newer — 1,025th total — evicts
+the target and exposes the documented residue). The document enters
+**Review**; acceptance remains Charlie's under LLP 0130 SD-4's standing
+rule and the commission's explicit reservation.) 2026-08-03 (v0.8, round-7 fixes: Fable round 7 returned
 **READY** (0.87, two editorial NITs); Codex round 7 returned NOT READY
 (2 MATERIAL, 1 NIT), catching a real pair-liveness hole the READY missed.
 Applied all: handoff reconciliation gains **pair-level deadlines** — each
@@ -767,10 +782,18 @@ Rules, normative:
   another pair's traffic. This is sound because announces are full-set
   per pair: a live context re-announces every pair it still demands, so
   a pair left silent through the whole window is an affirmative absence
-  signal, not an unknown. There is no independent timeout exit and no
+  signal, not an unknown. That obligation is normative on the client
+  side too: **on observing `WriterHelloV1`, a context re-announces each
+  of its pairs' full sets within the heartbeat interval** — a multi-pair
+  context may not heartbeat through one pair alone across a handoff.
+  A reconciliation-reaped *pair* is not a reaped context: it simply
+  re-announces and re-appears under the same `contextId` (only reaped
+  `contextId`s enter the ignore memory), so a wrongful pair reap is
+  self-correcting custody, never authority. There is no independent
+  timeout exit and no
   context-wide hostage state: suppression is bounded by the 45-second
-  expiry from `WriterHelloV1` and can never end while a live pair's
-  demands are absent from the rebuilt ledger. (Outside handoff,
+  expiry from `WriterHelloV1` and can never end while an unreconciled
+  pair's demands are absent from the rebuilt ledger. (Outside handoff,
   liveness stays context-scoped as defined above — pair-scoped deadlines
   exist only for reconciliation, where the new writer cannot otherwise
   distinguish a still-demanded pair from a departed one.) A release
@@ -1764,9 +1787,10 @@ store-policy oracles:
    same id in a *different* partition is unaffected; a refused release
    leaves no tombstone; the two overflow schedules are exercised by
    name at the exact 1,024/1,025 boundaries —
-   *release-before-first-forward* (the tombstone alone governs: at the
-   1,024th tombstone the delayed forward still refuses; once the
-   1,025th-oldest tombstone evicts, the corpus verifies the documented
+   *release-before-first-forward* (the tombstone alone governs: with
+   the target plus 1,023 newer tombstones the delayed forward still
+   refuses; inserting the 1,024th newer tombstone — the 1,025th total —
+   evicts the target, and the corpus verifies the documented
    recreate-and-recover residue) and *previously-consumed-forward
    replay* (requires the consumed-outcome entry evicted too); a
    stale-`writerGeneration` forward refuses; requestId
@@ -1976,16 +2000,24 @@ Micro-profile packaging; no change to outbox/settlement custody semantics
 
 ## Status
 
-Draft, v0.8 — authored 2026-08-03 by the wave-3 Track A session under the
-commission in `issues/20260803-0155-move2-spec-commission.md`; revised
-seven times across 2026-08-03 after review rounds 1–7 (thirteen reviews:
-Fable round 7 READY, all others
-NOT READY; every finding applied — see the Revised header; artifacts in
-`llp/reviews/0166-local-persistent-store.{fable,codex}.md`, including the
-restored round-2 Fable body with its dated provenance-correction note).
-The dual-family super-refine loop continues; the document should not be
-consumed as a stable contract until the loop concludes and Charlie
-accepts. On acceptance: the §D7 amendments land dated in LLP 0008,
-LLP 0080, LLP 0157, and LLP 0155; boundary notes land in LLP 0043,
-LLP 0053, and LLP 0090; and the implementation program is commissioned
-separately (wave-3 Track A's exit rule).
+**Review, v0.9** — authored 2026-08-03 by the wave-3 Track A session
+under the commission in `issues/20260803-0155-move2-spec-commission.md`.
+The LLP 0005 dual-family super-refine loop ran eight rounds the same day
+(fifteen reviews received) and **converged dual-READY at round 8**:
+Codex READY at 0.97 confidence with one editorial NIT; Fable READY at
+0.90 — its second consecutive READY — with one editorial NIT; both NITs
+applied in v0.9. Every earlier verdict was NOT READY and every finding
+was applied; all actual responses, including one interrupted Fable run
+recorded honestly as no-review and a restored round-2 body with its
+dated provenance-correction note, are preserved verbatim in the two
+provenance-tracked artifacts under
+`llp/reviews/0166-local-persistent-store.{fable,codex}.md`. No prior
+verdict is rewritten or counted as READY.
+
+Acceptance is Charlie's, per the commission's explicit reservation;
+LLP 0130 SD-4's standing rule applies to the converged loop within this
+commission's scope. On acceptance: the four §D7 amendments land dated in
+LLP 0008, LLP 0080, LLP 0157, and LLP 0155; boundary notes land in
+LLP 0043, LLP 0053, and LLP 0090; and the implementation program is
+commissioned separately (wave-3 Track A's exit rule). No implementation
+or capability fact is promoted by this document's status.

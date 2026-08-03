@@ -687,3 +687,58 @@ All verification is complete. Here is my round-7 review.
 5. **Recommended next step**
 
 Land the two one-phrase NIT repairs (OQ4 phrase deletion; the "unlike" restructure) as editorial fixes — no re-review round is warranted for them. This is the Fable family's READY; per the loop's convergence rule, pair it with the Codex family's round-7 verdict: if Codex also returns READY on this micro-delta, the loop has converged and LLP 0130 SD-4's standing rule (or Charlie's decision) governs acceptance, which then lands the four §D7 carried amendments and the three boundary notes in their owning documents.
+
+---
+
+## Round 8 — 2026-08-03
+
+**Reviewer family:** Anthropic Claude (Fable 5)
+**Provider / runtime:** Claude Code `general-purpose` subagent, model
+`claude-fable-5`
+**Date:** 2026-08-03
+**Redacted:** no
+**Method:** fresh non-author Fable session (subagent with no authoring
+context) over the working tree at 32428d31 (v0.8); micro-delta round
+confined to the round-7 repairs, additionally verifying that the
+pair-liveness repair adopted from Codex round 7 does not change the
+family's round-7 READY. The run was interrupted once by a session
+restart and resumed from its own transcript over the unchanged tree.
+Orchestrated by the authoring session, which does not count as a
+reviewer; recorded verbatim below.
+
+---
+
+All verification is complete. Here is my round-8 review.
+
+---
+
+# LLP 0166 v0.8 — Round 8 review (Fable family)
+
+**Reviewer:** fresh non-author Fable session over the worktree at `/Users/ccheever/projects/snapback-0166` (commit 32428d31, v0.8, working tree clean); micro-delta round confined to the round-7 repairs, per the loop's stopping rule. Owner facts: the v0.8-changed text (pair-level reconciliation deadlines, the validation-sentence exception, the overflow simile, the S1 legs, OQ4) is entirely document-internal broker machinery; the multi-grant multi-partition premise (LLP 0055) and every owner boundary it touches are unchanged from the v0.6/v0.7 verifications, so no new owner spot-checks were required and none were performed on trust — the two facts newly *restated* in v0.8 (the 45-second heartbeat expiry as the sole suppression bound; full-set-per-pair announce semantics) were re-verified against §D2's own liveness and announce bullets (`llp/0166-local-persistent-store.spec.md:670-691`, `:684-691`).
+
+1. **Overall assessment**: **READY — confidence 0.90.** V0.8 is a complete and correct application of round 7, and the pair-liveness repair adopted from the Codex MATERIAL findings is sound — it strengthens, not weakens, the basis for my family's round-7 READY. The repair does exactly what the defect demanded: reconciliation reaping is now **pair-scoped** with each roster pair carrying its own deadline (the 45-second heartbeat expiry anchored at `WriterHelloV1`, `:762-766`), so pair A's heartbeat traffic can no longer hold suppression open indefinitely while pair B stays silent — the previously false "bounded by 45 seconds" claim is now actually true, since every roster pair has either re-announced or been affirmatively reaped by t+45s. The soundness rationale is stated and valid: announces are full-set per `(contextId, partition)` pair, so a pair left silent through the entire window is an affirmative absence signal rather than an unknown (`:766-770`), and the handoff/ordinary split is explicit — pair-scoped deadlines exist only for reconciliation, ordinary liveness stays context-scoped (`:773-776`). Critically, the repair introduces no new hole I could find: a wrongly pair-reaped demand has only custody consequences (volatile demands released, grace anchored at suppression end), never authority consequences; nothing bars a reaped *pair* from re-appearing on a later announce (only reaped `contextId`s enter the ignore memory), so the failure mode is self-correcting; and all pair deadlines share one anchor, so reconciliation completes at a single bounded instant. Both of my family's round-7 NITs are applied exactly as specified, both Codex suggestions and both Fable suggestions landed, and S1 now exercises the precise scenario that falsified v0.7 (pair A heartbeating, pair B silent, `:1774-1778`). The one residue I found is a genuine NIT — the client-side re-announce-on-hello obligation is asserted inside the soundness rationale rather than stated as a normative client rule — with no implementable divergence and a benign, self-correcting worst case. Under the stated bar, this document remains READY, now on a sounder protocol than the one I judged READY at round 7.
+
+2. **Round-7 resolution audit**:
+
+| Finding id | Status | Explanation |
+| --- | --- | --- |
+| Codex R7 M1 (45-second handoff bound false for multi-partition contexts) | resolved | Reconciliation reaping is pair-scoped with a per-pair deadline — the 45-second expiry from `WriterHelloV1` — reaping a silent pair *as a pair* even while its context stays live via another pair's traffic (`:762-768`); "no independent timeout exit and no context-wide hostage state" (`:770-771`); the ordinary-liveness/handoff split is explicit (`:773-776`); S1's partial-handoff leg now pins exactly the falsifying scenario: pair A re-announcing and heartbeating, pair B silent until its own pair deadline reaps it, context still live, pair A's demands intact (`:1773-1778`). |
+| Codex R7 M2 / Fable R7 NIT 1 (phantom "30-second handoff window" in OQ4) | resolved | OQ4's constants list carries only the real values (15/45-second heartbeat/expiry, `:1935`); grep confirms "30-second" survives nowhere outside the Revised header's historical changelog (`:19`, `:39`); the closing parenthetical states the suppression bound is the heartbeat expiry applied per roster pair, not an independent constant (`:1941-1944`), so the every-listed-constant-surfaces claim is now true. |
+| Codex R7 N3 / Fable R7 NIT 2 (misattachable overflow simile) | resolved | Restructured to "bounded and recoverable like the reaped-context window, though, unlike that window, not self-healing" (`:736-738`) — the exact repair both families specified; no longer contradicts the reaped-context bullet's "bounded, self-healing window" (`:669`). |
+| Codex R7 suggestion 1 (named overflow schedules in S1) | applied | S1 names and exercises both schedules at the exact 1,024/1,025 boundaries: *release-before-first-forward* (tombstone alone governs, with the documented recreate-and-recover residue verified) and *previously-consumed-forward replay* (consumed-outcome eviction additionally required) (`:1765-1771`). |
+| Codex R7 suggestion 2 (name the release-of-unknown exception in the validation sentence) | applied | "the writer validates the same way for both — with one stated exception, a release naming an unknown id, whose validation is necessarily partition-only (detailed below)" (`:696-699`); consistent with the detailed tombstone rule it forward-references. |
+| Fable R7 suggestion 1 (OQ4 parenthetical preempting a restored constant) | applied | `:1941-1944`. |
+| Fable R7 suggestion 2 (129th-live-pair oracle leg) | applied | S1: "the 129th live pair refuses and runs volatile-online" (`:1778-1779`). |
+
+3. **New concerns**
+
+1. **NIT — the client's re-announce-on-hello obligation is asserted only inside the soundness rationale, never stated as a normative client rule.** The pair-reap soundness argument rests on "a live context re-announces every pair it still demands" (`:767-768`), but §D2's client obligations as written require only *some* well-formed message every 15 seconds (context-scoped keep-alive, `:682-687`) and a full-set re-announce after a wrongful *context* reap (`:663-666`). A conforming-but-literal multi-pair client that heartbeats via pair A alone would have pair B wrongly reaped at every writer handoff. The consequence is strictly custody-scoped and self-correcting — demands released, grace anchored at suppression end, and nothing bars the reaped pair from re-appearing on its next announce (only reaped `contextId`s enter the ignore memory) — so no authority, boundedness, or hostage consequence exists, and no implementable divergence in the *writer* follows. One sentence closes it: on observing `WriterHelloV1`, a context must re-announce each of its pairs' full sets within the heartbeat interval. This does not change the verdict.
+
+4. **Suggestions** (non-blocking)
+
+- When adding the re-announce-on-hello sentence, a clause noting that a reconciliation-reaped *pair* (unlike a reaped context) may simply re-announce and re-appear — no fresh `contextId` needed — would preempt an implementer conflating the pair reap with the context-reap ignore rule; the text currently implies this ("updated as pairs appear and reap," `:750-751`) without saying it.
+- The phrase "can never end while a live pair's demands are absent from the rebuilt ledger" (`:772-773`) uses "live pair" in the full-set-announce sense the preceding sentence defines (a pair that has demonstrated liveness by re-announcing). It is anchored by its context, but if the paragraph is ever edited, "unreconciled pair" would be the drift-proof spelling.
+
+5. **Recommended next step**
+
+This is the Fable family's READY, re-affirmed over the v0.8 pair-liveness repair — the two round-7 NITs are applied and the repair adopted from Codex's round-7 MATERIALs introduces no defect that would change the verdict. Per the loop's convergence rule, pair this with the Codex family's round-8 verdict on its own MATERIAL repairs: if Codex also returns READY, the loop has converged dual-READY and LLP 0130 SD-4's standing rule (or Charlie's decision) governs acceptance, which then lands the four §D7 carried amendments and the three boundary notes in their owning documents. The single NIT above is a one-sentence editorial tightening an author may land without a further review round.

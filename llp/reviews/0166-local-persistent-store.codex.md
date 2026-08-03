@@ -549,3 +549,46 @@ reviewer; recorded verbatim below.
 5. **Recommended next step**.
 
 Keep LLP 0166 in Draft. Define pair-level reconciliation expiry and exercise the case where pair A continues heartbeating while pair B remains silent; remove the stale OQ4 handoff constant; then run one final micro-delta round over §D2 liveness/handoff, S1, and OQ4.
+---
+
+## Round 8 — 2026-08-03
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** `codex-cli` 0.146.0, `codex exec`, model
+`gpt-5.6-sol`, `model_reasoning_effort=xhigh`, sandbox `read-only`
+**Date:** 2026-08-03
+**Redacted:** no
+**Method:** fresh non-author `codex exec` context over the working tree at
+32428d31 (v0.8); micro-delta round confined to the round-7 repairs. An
+earlier round-8 launch was killed by a session restart before producing
+output; this is the completed relaunch over the unchanged tree.
+Orchestrated by the authoring session, which does not count as a
+reviewer; recorded verbatim below.
+
+---
+
+1. **Overall assessment**: **READY — confidence 0.97.** V0.8 resolves every round-7 MATERIAL and NIT finding. Reconciliation now gives each roster pair an independent 45-second deadline, so pair A’s traffic cannot prevent silent pair B from being reaped; the text cleanly preserves context-scoped ordinary liveness and justifies the handoff-only split through mandatory full-set re-announcement. S1 exercises that exact schedule and the 129th-pair ceiling. The validation exception, overflow simile, named overflow schedules, and OQ4 cleanup also landed correctly. The retained LLP 0155 OQ9 budget attribution spot-checks accurately. I found only one editorial boundary-description NIT.
+
+2. **Round-7 resolution audit**:
+
+| Finding id | Status | Explanation |
+| --- | --- | --- |
+| Codex R7 M1 — pair-level reconciliation deadlines | resolved | |
+| Codex R7 M2 — phantom handoff window | resolved | |
+| Codex R7 N3 — overflow simile | resolved | |
+| Codex R7 suggestion 1 — named overflow schedules | resolved | |
+| Codex R7 suggestion 2 — validation exception | resolved | |
+| Fable R7 N1 — OQ4 deletion | resolved | |
+| Fable R7 N2 — overflow simile | resolved | |
+
+3. **New concerns**
+
+1. **NIT** — S1’s phrase “once the 1,025th-oldest tombstone evicts” is ordinally malformed. For a last-1,024 memory, insertion of the 1,025th total tombstone evicts the oldest target tombstone. The normative memory definition remains unambiguous, so this does not prevent READY.
+
+4. **Suggestions** (non-blocking).
+
+- Rewrite the boundary as: “with the target plus 1,023 newer tombstones it still refuses; inserting the 1,024th newer tombstone—the 1,025th total—evicts the target and exposes the documented residue.”
+
+5. **Recommended next step**.
+
+Record this READY review as round 8, optionally apply the S1 wording NIT editorially, then let the author conclude the super-refine loop and decide acceptance under LLP 0005.
