@@ -9,6 +9,34 @@ export const RQS_STORE_MAX_BYTES: number;
 export const RQS_STORE_MAX_ENTRIES: number;
 export const RQS_TOKEN_MAX_BYTES: number;
 export const RQS_REACT_BINDING_RECEIPT_MAX_BYTES: number;
+export const DATABASE_VERSION: 3;
+
+export interface RqsStoreMetaV3 {
+  readonly formatVersion: 3;
+  readonly clientStoreId: string;
+  readonly queryInstanceIdHighWater: number;
+  readonly generationCounters: Readonly<{
+    writerGeneration: number;
+    authorityGenerationHighWater: number;
+    queryGenerationHighWater: number;
+  }>;
+  /** Hex encoding of the 32-byte store-local LLP 0157 handle key. */
+  readonly handleKey: string;
+  readonly durableRegistrations: Readonly<Record<string, unknown>>;
+  readonly policyBudgetFacts: Readonly<Record<string, unknown>>;
+  readonly brokerRoster: Readonly<Record<string, unknown>>;
+  readonly fenceHighWaters: Readonly<Record<string, unknown>>;
+  readonly tombstoneHighWaters: Readonly<Record<string, unknown>>;
+  readonly barrierHighWaters: Readonly<Record<string, unknown>>;
+}
+
+export type RqsStoreIdentityResetResult =
+  | Readonly<{
+    reset: true;
+    previousClientStoreId: string | null;
+    clientStoreId: string;
+  }>
+  | Readonly<{ reset: false; reason: 'not_writer' | 'not_corrupt' }>;
 
 /** Returns a detached, JSON-serializable receipt within the store limit, or
  * null when the input is not an acceptable receipt record. */
@@ -122,6 +150,9 @@ export interface RqsResumeStore {
   commitReactBindingReceipt?(
     receipt: Readonly<Record<string, unknown>>,
   ): Promise<boolean>;
+  readStoreMeta(): Promise<RqsStoreMetaV3>;
+  writeStoreMeta(meta: RqsStoreMetaV3): Promise<boolean>;
+  allocateQueryInstanceId(): Promise<number | null>;
   /** Raw persisted record — callers MUST verify with
    * `verifyPersistedResumeEntry` before trusting it. */
   load(key: string): Promise<RqsPersistedResumeRecord | null>;
@@ -133,6 +164,7 @@ export interface RqsResumeStore {
   markResumed(key: string, at?: number): Promise<boolean>;
   remove(key: string): Promise<boolean>;
   wipe(): Promise<boolean>;
+  resetCorruptStoreIdentity(): Promise<RqsStoreIdentityResetResult>;
   inspection(): Promise<RqsStoreInspection>;
   close(): Promise<void>;
 }
@@ -148,5 +180,13 @@ export function createIndexedDbRqsResumeStore(options?: {
   readonly now?: () => number;
   readonly maxBytes?: number;
   readonly maxEntries?: number;
+  readonly clientStoreId?: string | null;
+  readonly randomBytes?: (length: number) => Uint8Array;
+  readonly onBeforeStoreIdentityRotation?: ((transition: Readonly<{
+    carrier: 'indexeddb';
+    databaseName: string;
+    previousClientStoreId: string | null;
+    nextClientStoreId: string;
+  }>) => void | Promise<void>) | null;
   readonly relaunchOutboxEmpty?: (() => boolean | Promise<boolean>) | null;
 }): RqsResumeStore;

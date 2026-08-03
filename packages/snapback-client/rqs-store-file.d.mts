@@ -5,6 +5,7 @@
 import type { RqsResumeStore } from './rqs-store.mjs';
 
 export const RQS_FILE_STORE_FORMAT: string;
+export declare const RQS_FILE_STORE_FORMAT_V2: 'snapback-rqs-store-file.v2';
 
 /** Injectable filesystem adapter (the Node default lazily loads `node:fs`;
  * Hermes/React Native hosts inject their own over the platform FS). */
@@ -36,6 +37,14 @@ export function createFileRqsResumeStore(options: {
   readonly now?: () => number;
   readonly maxBytes?: number;
   readonly maxEntries?: number;
+  readonly clientStoreId?: string | null;
+  readonly randomBytes?: (length: number) => Uint8Array;
+  readonly onBeforeStoreIdentityRotation?: ((transition: Readonly<{
+    carrier: 'file';
+    path: string;
+    previousClientStoreId: string | null;
+    nextClientStoreId: string;
+  }>) => void | Promise<void>) | null;
   readonly relaunchOutboxEmpty?: (() => boolean | Promise<boolean>) | null;
 }): RqsResumeStore;
 

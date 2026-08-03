@@ -1132,7 +1132,9 @@ export type {
   RqsResumeEntryRefusalReason,
   RqsResumeStore,
   RqsStoreCommitResult,
+  RqsStoreIdentityResetResult,
   RqsStoreInspection,
+  RqsStoreMetaV3,
 } from './rqs-store.mjs';
 
 export {

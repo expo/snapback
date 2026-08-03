@@ -23,17 +23,36 @@ import {
   RQS_STORE_MAX_BYTES,
   RQS_STORE_MAX_ENTRIES,
 } from './rqs-store.mjs';
+import {
+  allocateQueryInstanceIdInMeta,
+  createInitialStoreMeta,
+  mintClientStoreId,
+  prepareStoreMeta,
+  wipeStoreMeta,
+} from './rqs-store-meta.mjs';
 
 export function createMemoryRqsResumeStore({
   now = () => Date.now(),
   maxBytes = RQS_STORE_MAX_BYTES,
   maxEntries = RQS_STORE_MAX_ENTRIES,
   relaunchOutboxEmpty = null,
+  backing = null,
+  clientStoreId = null,
+  randomBytes = undefined,
+  onBeforeStoreIdentityRotation = null,
 } = {}) {
-  const entries = new Map();
-  let outbox = emptyOutboxState();
-  let reactBindingReceipt = null;
+  const state = backing ?? createMemoryRqsStoreBacking({ clientStoreId, randomBytes });
+  const instance = {};
+  let resolveOwnership;
+  const ownership = new Promise((resolve) => { resolveOwnership = resolve; });
   let closed = false;
+
+  if (state.writer === null) {
+    state.writer = instance;
+    resolveOwnership();
+  } else {
+    state.waiters.push({ instance, resolve: resolveOwnership, closed: () => closed });
+  }
 
   const requireOpen = () => {
     if (closed) {
@@ -45,16 +64,18 @@ export function createMemoryRqsResumeStore({
 
   const requireWriter = () => {
     requireOpen();
+    return state.writer === instance;
   };
 
   return {
-    /// The memory arm is always its own (sole) writer while open.
+    /// One process-local backing mirrors the durable carriers' single-writer
+    /// domain while remaining honestly volatile across process restart.
     isWriter() {
-      return !closed;
+      return !closed && state.writer === instance;
     },
 
     whenLockSettled() {
-      return Promise.resolve();
+      return ownership;
     },
 
     /// Degradation-mode capability fact (DK-9: capability reports name the
@@ -66,39 +87,93 @@ export function createMemoryRqsResumeStore({
     async outboxEmpty() {
       requireOpen();
       if (relaunchOutboxEmpty !== null && (await relaunchOutboxEmpty()) !== true) return false;
-      return pendingOutboxRecords(outbox).length === 0;
+      return pendingOutboxRecords(state.outbox).length === 0;
     },
 
     async loadReactBindingReceipt() {
       requireOpen();
-      return reactBindingReceipt === null ? null : structuredClone(reactBindingReceipt);
+      return state.reactBindingReceipt === null
+        ? null
+        : structuredClone(state.reactBindingReceipt);
     },
 
     async commitReactBindingReceipt(receipt) {
-      requireWriter();
+      if (!requireWriter()) return false;
       const stored = prepareReactBindingReceipt(receipt);
       if (stored === null) return false;
-      reactBindingReceipt = stored;
+      state.reactBindingReceipt = stored;
       return true;
+    },
+
+    async readStoreMeta() {
+      requireOpen();
+      const meta = prepareStoreMeta(state.storeMeta);
+      if (meta === null) {
+        const error = new Error('SNAPBACK_RQS_STORE_CORRUPT: RQS store metadata is invalid');
+        error.code = 'SNAPBACK_RQS_STORE_CORRUPT';
+        throw error;
+      }
+      return meta;
+    },
+
+    async writeStoreMeta(value) {
+      if (!requireWriter()) return false;
+      const replacement = prepareStoreMeta(value);
+      if (replacement === null) {
+        const error = new Error('SNAPBACK_RQS_STORE_CORRUPT: refusing invalid RQS store metadata');
+        error.code = 'SNAPBACK_RQS_STORE_CORRUPT';
+        throw error;
+      }
+      if (
+        replacement.clientStoreId !== state.storeMeta.clientStoreId
+        || replacement.queryInstanceIdHighWater < state.storeMeta.queryInstanceIdHighWater
+        || [
+          'writerGeneration',
+          'authorityGenerationHighWater',
+          'queryGenerationHighWater',
+        ].some((field) => (
+          replacement.generationCounters[field] < state.storeMeta.generationCounters[field]
+        ))
+      ) {
+        const error = new Error(
+          'SNAPBACK_RQS_STORE_META_REGRESSION: store metadata cannot rotate identity or lower monotone high-waters',
+        );
+        error.code = 'SNAPBACK_RQS_STORE_META_REGRESSION';
+        throw error;
+      }
+      state.storeMeta = replacement;
+      return true;
+    },
+
+    async allocateQueryInstanceId() {
+      if (!requireWriter()) return null;
+      const allocated = allocateQueryInstanceIdInMeta(state.storeMeta);
+      if (allocated === null) {
+        const error = new Error('SNAPBACK_RQS_STORE_CORRUPT: RQS store metadata is invalid');
+        error.code = 'SNAPBACK_RQS_STORE_CORRUPT';
+        throw error;
+      }
+      state.storeMeta = allocated.meta;
+      return allocated.queryInstanceId;
     },
 
     async load(key) {
       requireOpen();
       if (typeof key !== 'string' || key.length === 0) return null;
-      const record = entries.get(key);
+      const record = state.entries.get(key);
       return record === undefined ? null : structuredClone(record);
     },
 
     async commit(key, { rows, meta, token }) {
-      requireOpen();
+      if (!requireWriter()) return { persisted: false, reason: 'not_writer' };
       if (typeof key !== 'string' || key.length === 0) return { persisted: false, reason: 'key' };
       const bytes = rqsEntryRecordBytes({ rows, meta, token });
       if (bytes > maxBytes) {
-        entries.delete(key);
+        state.entries.delete(key);
         return { persisted: false, reason: 'oversize' };
       }
-      const existing = entries.get(key);
-      entries.set(key, structuredClone({
+      const existing = state.entries.get(key);
+      state.entries.set(key, structuredClone({
         rows,
         meta,
         token,
@@ -108,14 +183,14 @@ export function createMemoryRqsResumeStore({
         inProgress: false,
       }));
       const evicted = [];
-      let totalBytes = [...entries.values()].reduce((sum, entry) => sum + entry.bytes, 0);
-      const evictable = [...entries.entries()]
+      let totalBytes = [...state.entries.values()].reduce((sum, entry) => sum + entry.bytes, 0);
+      const evictable = [...state.entries.entries()]
         .filter(([candidateKey]) => candidateKey !== key)
         .map(([candidateKey, entry]) => ({ key: candidateKey, ...entry }))
         .sort(rqsEvictionOrder);
-      while ((totalBytes > maxBytes || entries.size > maxEntries) && evictable.length > 0) {
+      while ((totalBytes > maxBytes || state.entries.size > maxEntries) && evictable.length > 0) {
         const victim = evictable.shift();
-        entries.delete(victim.key);
+        state.entries.delete(victim.key);
         totalBytes -= victim.bytes;
         evicted.push(victim.key);
       }
@@ -123,24 +198,24 @@ export function createMemoryRqsResumeStore({
     },
 
     async markInProgress(key) {
-      requireOpen();
-      const existing = entries.get(key);
+      if (!requireWriter()) return false;
+      const existing = state.entries.get(key);
       if (existing === undefined) return false;
-      entries.set(key, { ...existing, inProgress: true });
+      state.entries.set(key, { ...existing, inProgress: true });
       return true;
     },
 
     async markResumed(key, at = now()) {
-      requireOpen();
-      const existing = entries.get(key);
+      if (!requireWriter()) return false;
+      const existing = state.entries.get(key);
       if (existing === undefined) return false;
-      entries.set(key, { ...existing, resumedAt: at });
+      state.entries.set(key, { ...existing, resumedAt: at });
       return true;
     },
 
     async remove(key) {
-      requireOpen();
-      entries.delete(key);
+      if (!requireWriter()) return false;
+      state.entries.delete(key);
       return true;
     },
 
@@ -148,123 +223,185 @@ export function createMemoryRqsResumeStore({
     /// queued-intent outbox — another identity must never replay this one's
     /// queued mutations.
     async wipe() {
-      requireOpen();
-      entries.clear();
-      outbox = emptyOutboxState();
-      reactBindingReceipt = null;
+      if (!requireWriter()) return false;
+      const storeMeta = wipeStoreMeta(state.storeMeta, { randomBytes });
+      if (storeMeta === null) return false;
+      state.entries.clear();
+      state.outbox = emptyOutboxState();
+      state.reactBindingReceipt = null;
+      state.materializations.clear();
+      state.pageSets.clear();
+      state.memberships.clear();
+      state.storeMeta = storeMeta;
       return true;
+    },
+
+    async resetCorruptStoreIdentity() {
+      if (!requireWriter()) return { reset: false, reason: 'not_writer' };
+      if (prepareStoreMeta(state.storeMeta) !== null) {
+        return { reset: false, reason: 'not_corrupt' };
+      }
+      const previousClientStoreId = state.storeMeta?.clientStoreId ?? clientStoreId;
+      const nextClientStoreId = mintClientStoreId(randomBytes);
+      await onBeforeStoreIdentityRotation?.({
+        carrier: 'memory',
+        previousClientStoreId,
+        nextClientStoreId,
+      });
+      state.entries.clear();
+      state.outbox = emptyOutboxState();
+      state.reactBindingReceipt = null;
+      state.materializations.clear();
+      state.pageSets.clear();
+      state.memberships.clear();
+      state.storeMeta = createInitialStoreMeta({
+        clientStoreId: nextClientStoreId,
+        randomBytes,
+      });
+      return { reset: true, previousClientStoreId, clientStoreId: nextClientStoreId };
     },
 
     // ---- LLP 0043 M2 outbox ----
 
     async outboxEnqueue(record) {
-      requireWriter();
-      const applied = outboxOps.enqueue(outbox, record, now());
-      outbox = applied.state;
+      if (!requireWriter()) throw outboxNotWriterError();
+      const applied = outboxOps.enqueue(state.outbox, record, now());
+      state.outbox = applied.state;
       return structuredClone(applied.result);
     },
 
     async outboxPending() {
       requireOpen();
-      return structuredClone(pendingOutboxRecords(outbox));
+      return structuredClone(pendingOutboxRecords(state.outbox));
     },
 
     async outboxPrepareSubmission(id) {
-      requireWriter();
-      const applied = outboxOps.prepareSubmission(outbox, id);
-      outbox = applied.state;
+      if (!requireWriter()) return false;
+      const applied = outboxOps.prepareSubmission(state.outbox, id);
+      state.outbox = applied.state;
       return structuredClone(applied.result);
     },
 
     async outboxRecords() {
       requireOpen();
-      return structuredClone(allOutboxRecords(outbox));
+      return structuredClone(allOutboxRecords(state.outbox));
     },
 
     async outboxSettle(id) {
-      requireWriter();
-      const applied = outboxOps.settle(outbox, id);
-      outbox = applied.state;
+      if (!requireWriter()) return false;
+      const applied = outboxOps.settle(state.outbox, id);
+      state.outbox = applied.state;
       return applied.result;
     },
 
     async outboxDurablyConsume(id, settlement, userId = null, confirmedAcknowledgements = []) {
-      requireWriter();
+      if (!requireWriter()) return false;
       const applied = outboxOps.durablyConsume(
-        outbox,
+        state.outbox,
         id,
         settlement,
         userId,
         now(),
         confirmedAcknowledgements,
       );
-      outbox = applied.state;
+      state.outbox = applied.state;
       return structuredClone(applied.result);
     },
 
     async outboxMarkFailed(id, failure) {
-      requireWriter();
-      const applied = outboxOps.markFailed(outbox, id, failure);
-      outbox = applied.state;
+      if (!requireWriter()) return false;
+      const applied = outboxOps.markFailed(state.outbox, id, failure);
+      state.outbox = applied.state;
       return applied.result;
     },
 
     async outboxDiscard(id) {
-      requireWriter();
-      const applied = outboxOps.discard(outbox, id);
-      outbox = applied.state;
+      if (!requireWriter()) return false;
+      const applied = outboxOps.discard(state.outbox, id);
+      state.outbox = applied.state;
       return applied.result;
     },
 
     async outboxRecordAcknowledgement(id, userId = null, authorityDescriptor = null) {
-      requireWriter();
-      const applied = outboxOps.recordAck(outbox, id, userId, authorityDescriptor);
-      outbox = applied.state;
+      if (!requireWriter()) return false;
+      const applied = outboxOps.recordAck(state.outbox, id, userId, authorityDescriptor);
+      state.outbox = applied.state;
       return applied.result;
     },
 
     async outboxPendingAcknowledgements(userId = null, limit = 64, authorityDescriptor = null) {
       requireOpen();
-      return pendingAcknowledgementsFor(outbox, userId, limit, authorityDescriptor);
+      return pendingAcknowledgementsFor(state.outbox, userId, limit, authorityDescriptor);
     },
 
     async outboxMarkAcknowledgementsReady(ids, userId = undefined, authorityDescriptor = undefined) {
-      requireWriter();
-      const applied = outboxOps.markAcksReady(outbox, ids, userId, authorityDescriptor);
-      outbox = applied.state;
+      if (!requireWriter()) return false;
+      const applied = outboxOps.markAcksReady(state.outbox, ids, userId, authorityDescriptor);
+      state.outbox = applied.state;
       return applied.result;
     },
 
     async outboxConfirmAcknowledgements(ids, userId = undefined, authorityDescriptor = undefined) {
-      requireWriter();
-      const applied = outboxOps.confirmAcks(outbox, ids, userId, authorityDescriptor);
-      outbox = applied.state;
+      if (!requireWriter()) return false;
+      const applied = outboxOps.confirmAcks(state.outbox, ids, userId, authorityDescriptor);
+      state.outbox = applied.state;
       return applied.result;
     },
 
     async inspection() {
       requireOpen();
-      const all = [...entries.values()];
+      const all = [...state.entries.values()];
       return Object.freeze({
         writer: this.isWriter(),
-        entries: entries.size,
+        entries: state.entries.size,
         bytes: all.reduce((sum, entry) => sum + entry.bytes, 0),
         maxBytes,
         maxEntries,
         outbox: Object.freeze({
-          pending: pendingOutboxRecords(outbox).length,
-          failed: allOutboxRecords(outbox).filter((r) => r.status === 'failed').length,
-          pendingAcknowledgements: outbox.acks.length,
+          pending: pendingOutboxRecords(state.outbox).length,
+          failed: allOutboxRecords(state.outbox).filter((r) => r.status === 'failed').length,
+          pendingAcknowledgements: state.outbox.acks.length,
         }),
       });
     },
 
     async close() {
+      if (closed) return;
       closed = true;
+      if (state.writer !== instance) return;
+      // Match the asynchronous handoff cut of Web Locks/file locks so work
+      // already queued by the closing owner settles before a successor can
+      // publish through the shared volatile domain.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      state.writer = null;
+      while (state.waiters.length > 0) {
+        const next = state.waiters.shift();
+        if (next.closed()) continue;
+        state.writer = next.instance;
+        next.resolve();
+        break;
+      }
     },
   };
 }
 
+/// Process-local domain used when callers need independently constructed
+/// memory contexts to share one volatile store (for example, the S4 carrier
+/// parity suite). The object is deliberately opaque outside this module.
+export function createMemoryRqsStoreBacking({ clientStoreId = null, randomBytes = undefined } = {}) {
+  return {
+    entries: new Map(),
+    outbox: emptyOutboxState(),
+    reactBindingReceipt: null,
+    materializations: new Map(),
+    pageSets: new Map(),
+    memberships: new Map(),
+    storeMeta: createInitialStoreMeta({ clientStoreId, randomBytes }),
+    writer: null,
+    waiters: [],
+  };
+}
+
 // The not-writer error is constructed here so arm-specific stores share one
-// exact refusal shape; the memory arm itself is always the writer.
+// exact refusal shape; a shared memory domain elects one process-local writer.
 export { outboxNotWriterError };

@@ -57,6 +57,14 @@ export function createExpoRqsResumeStore(options: {
   readonly now?: () => number;
   readonly maxBytes?: number;
   readonly maxEntries?: number;
+  readonly clientStoreId?: string | null;
+  readonly randomBytes?: (length: number) => Uint8Array;
+  readonly onBeforeStoreIdentityRotation?: ((transition: Readonly<{
+    carrier: 'file';
+    path: string;
+    previousClientStoreId: string | null;
+    nextClientStoreId: string;
+  }>) => void | Promise<void>) | null;
   readonly relaunchOutboxEmpty?: (() => boolean | Promise<boolean>) | null;
 }): RqsResumeStore;
 

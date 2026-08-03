@@ -87,10 +87,12 @@ const inventories = [
       'reservation-retry.test.mjs',
       'rqs-digest-parity.test.mjs',
       'rqs-resume-expo.test.mjs',
+      'rqs-resume-memory.test.mjs',
       'rqs-resume-native.test.mjs',
       'rqs-resume.test.mjs',
       'rqs-store-expo.test.mjs',
       'rqs-store-file.test.mjs',
+      'rqs-store-v3.test.mjs',
       'rqs-store.test.mjs',
       'sender-proof.test.mjs',
       'sender-transport.test.mjs',
@@ -461,7 +463,9 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // registered; the superseded parallel-landing fixture suites are removed.
 // 169 -> 170 (2026-08-03, LLP 0143): the packaged fake-Expo push acceptance
 // suite is registered with the push01 landing.
-assert.equal(total, 170, 'reviewed package/admin test count changed');
+// 170 -> 172 (2026-08-03, LLP 0166 L1): @expo/snapback-client gains the
+// memory-carrier S4 parity run and the format-v3 migration/wipe/reset suite.
+assert.equal(total, 172, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }
