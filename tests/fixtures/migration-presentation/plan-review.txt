@@ -1,0 +1,56 @@
+Migration plan migration-v1:aaaaaaa… (4 steps, exclusive single-writer)
+Review face — constants revealed
+
+Identity
+  plan id (/planId):
+  migration-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  plan digest (/planDigest):
+  aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  observation digest (separate review context):
+  36fa32feabe7b9ef198f587500d5cf0482768062abc0b5c954d785480bd60914
+  target profile (/body/targetProfileId): local-dev-sqlite-ibex
+
+Steps (/body/steps, canonical order)
+  1. AddField models.provider
+     type String; nullable install
+  2. BackfillField models.provider
+     value constant "providerDefault" = "openai"
+     preflight: ~1204 rows
+     estimate — review context, not plan authority
+  3. ValidateRequired models.provider
+  4. MakeRequired models.provider
+
+Ceilings (/body/ceilings; approved facts)
+  affected rows: ≤10000
+  writes: ≤10000
+  bytes: ≤67108864
+  barrier downtime: ≤30000 ms
+
+Barrier (LLP 0081 §4 fixed rule)
+  The target capability registry must close every admitted query, mutation,
+  subscription, job, worker, action, cron, and external-effect egress lane. Plan-bound
+  capability validation is unavailable in the current artifact.
+
+Clients and retained work
+  compatibility (/body/compatibilityPosture): successor-only
+  retained work (/body/retainedWorkPosture): empty
+  Old artifacts receive upgrade-required; incompatible offline mutations remain
+  quarantined as redacted tombstones for re-entry.
+
+Rollback (LLP 0081 §6 fixed rule)
+  Fast predecessor republish is available only while journal state is published-held and
+  every traffic, worker, and egress lane remains fenced.
+  After release: separately approved reverse plan or exact pre-migration restore;
+  availability is not declared by this artifact.
+
+Proof (/body/proof)
+  method: full ContentDigestV1
+
+Plan constants (/body/constants)
+  publicationTimestampMs: 2000000000000
+  rollbackTimestampMs: 2000000000100
+  providerDefault: "openai"
+
+Observation (review context; no plan authority)
+  target head (/targetHeadVersion): 42
+  observed at (/observedAtMs): 2000000000010

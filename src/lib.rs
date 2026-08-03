@@ -102,6 +102,8 @@ pub(crate) mod membership_rules;
 #[doc(hidden)]
 pub mod migration;
 #[doc(hidden)]
+pub mod migration_presentation;
+#[doc(hidden)]
 pub mod push;
 #[doc(hidden)]
 pub mod result_contract;
