@@ -1,7 +1,7 @@
 # D-04: Guide page, capability row, idle + benchmark evidence gates, cross-references (LLP 0154 checklist 4–6)
 
-**Status:** Open — GAP row landable NOW; the rest gated on LLP 0154
-Status: Accepted
+**Status:** Open — pre-evidence implementation staged; retained full evidence
+waits for the Program D source freeze
 **Program:** 20260802-obs-00-program.md
 **Depends on:** 20260802-obs-03
 **Systems:** Observability, Docs, Testing
@@ -30,3 +30,15 @@ gates recorded with numbers, cross-references landed as dated notes.
   its Phase-1 implementation, guide page, idle/benchmark evidence, and
   owning-document cross-references; the error-tracking row remains gated on
   LLP 0156 becoming Accepted and its own D-05/D-06 implementation.
+- **2026-08-02 — pre-evidence D-04 surface staged.** Added the local guide,
+  cross-references, adversarial D7 benchmark/smoke gate, and the C2 idle
+  harness. The idle witness uses a production-owned transaction sequence and
+  requires one boot flush containing both lifecycle markers; the retained
+  evidence carrier uses the non-self-referential source-commit → tracked-
+  carrier protocol recorded in LLP 0154. The capability remains `partial`
+  with an explicit GAP: active D-05/0135/0136/0132 source work is inside the
+  strict evidence closure and would immediately stale a retained receipt.
+  The remaining tail is: freeze those source tranches, rebase on their final
+  main, run the full clean Linux release proof, commit the generated receipt
+  in a source-free carrier commit, enable recurring `--check`, record only
+  the genuinely observed numbers, and then close D-04.

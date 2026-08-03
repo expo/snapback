@@ -11,7 +11,7 @@ use std::hint::black_box;
 
 const BENCHMARK_BASELINE_FILE: &str =
     "tests/acceptance/telemetry-phase1-benchmark-baseline.v1.json";
-const BENCHMARK_METHOD: &str = "snapback.telemetry-phase1.method.v2:http-alternation+default-event-worker+buffer-burst+c8-file-cap+direct-flush+wal-checkpoint+retention-sweep+hourly-daily-rollup-scan+file-backed-ibex-on-off-midpoint-worker";
+const BENCHMARK_METHOD: &str = "snapback.telemetry-phase1.method.v3:http-alternation+default-event-worker+buffer-burst+c8-file-cap+direct-transaction-sequenced-flush+wal-checkpoint+retention-sweep+hourly-daily-rollup-scan+file-backed-ibex-on-off-midpoint-worker";
 const QUERY_NAMES_PER_BUCKET: usize = 200;
 
 #[derive(Clone, Copy, Debug)]

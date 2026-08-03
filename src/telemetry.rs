@@ -2268,8 +2268,8 @@ impl Store {
         };
         merge_counter_maps(&mut drops, &committed_cap_drops);
         let tx = conn.transaction()?;
-        // @ref LLP 0154#substrate-constraints-what-the-design-must-honor — C2's
-        //   one boot settle write needs a production-owned transaction witness.
+        // @ref LLP 0154#amendment-2026-08-02-internal-flush-witness-and-retained-evidence-carrier —
+        //   C2's one boot settle write needs a production-owned transaction witness.
         // This sequence advances in the exact transaction that persists the
         // batch; unlike recorded timestamps, it cannot collapse two commits or
         // split one commit.

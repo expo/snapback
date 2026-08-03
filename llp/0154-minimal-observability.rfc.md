@@ -206,6 +206,14 @@ D-05 error-contract amendment advances the internal operation registry to
 `registryVersion: 2`, adds the LLP 0156 classifier vocabulary and D2's closed
 failure-detail allocator, and pins classifier/carrier/fingerprint artifacts
 before runtime or storage wiring.)
+**Revised:** 2026-08-02 (dated implementation/evidence amendment,
+post-acceptance — C2's bounded boot settle is witnessed by an internal
+transaction sequence rather than a timestamp proxy, and deliverable 5's
+retained receipt uses a non-self-referential source-commit/carrier-commit
+protocol. The witness is excluded from every public typed projection and
+visibility view; the carrier validator binds the measured clean ancestor,
+the complete proof-source byte closure, and the exact receipt bytes tracked
+at current HEAD.)
 **Related:** LLP 0000 (explainer; reserves Observability as an undrafted
 subsystem), LLP 0003 (storage core; app write lane), LLP 0010 (inspect
 loop; explicitly defers production observability), LLP 0012 (headless
@@ -579,6 +587,8 @@ CREATE TABLE telemetry_events (
   class_v        INTEGER NOT NULL,        -- registry version
   ts_ms          INTEGER NOT NULL,        -- admission time (attribution, LLP 0104)
   recorded_ts_ms INTEGER NOT NULL,        -- persistence time (observation)
+  flush_sequence INTEGER NOT NULL DEFAULT 0, -- internal transaction witness;
+                                             -- never a public projection field
   kind           TEXT NOT NULL,
   name           TEXT NOT NULL,
   status         INTEGER,
@@ -596,7 +606,10 @@ CREATE TABLE telemetry_events (
 -- telemetry_rollup_visible with the same generation scoping but its
 -- own tier-horizon/aggregate-floor boundary (see trailing note):
 CREATE VIEW telemetry_events_visible AS
-  SELECT * FROM telemetry_events
+  SELECT id, observation, phase, generation, class_v, ts_ms,
+         recorded_ts_ms, kind, name, status, duration_ms, subject,
+         code, correlation, release, details
+  FROM telemetry_events
   WHERE generation = (SELECT generation FROM telemetry_meta)
     AND (SELECT max_days_mirror FROM telemetry_meta) > 0  -- disabled ⇒ empty
     AND recorded_ts_ms > /* strict: the read-time boundary from
@@ -607,6 +620,49 @@ CREATE VIEW telemetry_events_visible AS
 -- and the same disabled-guard, but bounded by the D7 tier horizons and
 -- aggregate floors, NOT by max_days (D1, D7).
 ```
+
+### Amendment 2026-08-02: internal flush witness and retained evidence carrier
+
+C2's settle gate must prove a storage transaction, not infer one from
+`recorded_ts_ms`: equal timestamps can cover different commits, and one
+commit must not be inferred as several merely because a surrogate timestamp
+changed. `telemetry_meta` therefore has an internal
+`flush_commit_sequence INTEGER NOT NULL DEFAULT 0`; every committed telemetry
+flush increments it inside that flush's SQLite transaction, and every event
+inserted by the transaction receives the resulting value in the internal
+`telemetry_events.flush_sequence` column shown above. A rollback advances
+neither authority. Additive migration deliberately leaves historical rows at
+zero, meaning “no transaction witness”; it does not fabricate provenance for
+pre-amendment rows.
+
+These two columns are implementation/evidence authority only. They are absent
+from `telemetry_events_visible`, the bounded SQL hatch, all D5 typed operation
+schemas, export records, host-op/control-MCP projections, and console models.
+The C2 acceptance starts from a fresh sibling store and requires exactly one
+event-bearing sequence, `flush_commit_sequence = 1`, and both
+`process_start` and `process_ready` stamped with `flush_sequence = 1`, with
+the already-bounded startup row count. Any second committed flush before the
+idle window is an implementation failure, not accepted measurement noise.
+
+Deliverable 5 retains its measured JSON receipt without asking a Git commit
+to contain its own hash. The protocol has two stages:
+
+1. At a clean source commit **S**, the full gate builds the release binary,
+   verifies its embedded identity is S, executes the benchmark and idle
+   witnesses, and emits a candidate receipt carrying `sourceRevision = S`
+   plus a length-framed SHA-256 over the enumerated proof-source closure.
+2. A later carrier commit **P** adds that receipt and may record completion in
+   non-proof-source documentation. Reopening the retained receipt requires S
+   to be an ancestor of current HEAD, no enumerated proof-source path to have
+   changed between S and current HEAD, the current source files to reproduce
+   the receipt's exact file list and digest, and the receipt's working-tree
+   bytes to equal the tracked bytes at current HEAD.
+
+Thus P does not pretend its unexecuted hash was measured, while any production,
+benchmark, baseline, launch/identity harness, todo/codegen input, or validator
+change makes the receipt stale and requires a new clean full run. The retained
+carrier itself is checked as committed evidence, not trusted merely because a
+JSON file exists in a working tree.
 
 **Two timestamps, two jobs (normative).** `ts_ms` is the admission-bound
 attribution timestamp — the span's LLP 0104-aligned identity, shared by

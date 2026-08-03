@@ -186,10 +186,11 @@ run node demos/_kit/tests/harness-cleanup-failures.mjs
 run env SNAPBACK_BOOTSTRAP_CHECK="${SNAPBACK_BOOTSTRAP_CHECK:-0}" scripts/bootstrap-ibex-runtime
 run node tests/ibex_bootstrap_v0.mjs
 # @ref LLP 0154#d7--aggregates-a-watermarked-state-machine-mergeable-by-construction —
-# reopen the retained clean-release receipt and exercise the nondefault proof
-# feature at smoke scale in every recurring local/CI proof.
+# keep the validator's transitive-closure regression and exercise the
+# nondefault proof feature at smoke scale in every recurring local/CI proof.
+# The retained-receipt --check joins this lane only after the source-freeze
+# full run lands its tracked carrier; until then there is no receipt to reopen.
 run node --test scripts/telemetry-phase1-evidence.test.mjs
-run scripts/verify-telemetry-phase1-proof --check
 run scripts/verify-telemetry-phase1-proof --smoke
 # Real-binary identity honesty: the freshly bootstrapped binary's build.rs
 # stamp must refuse (or honestly report unverifiable) a drifted checkout

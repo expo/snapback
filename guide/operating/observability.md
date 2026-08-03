@@ -8,7 +8,7 @@ authorities: [llp/0154-minimal-observability.rfc.md, src/telemetry.rs, src/telem
 examples: []
 status: current
 targets: [local]
-maturity: shipped
+maturity: partial
 reviewed: 2026-08-02
 reviewed-commit: HEAD
 ---
@@ -23,6 +23,11 @@ Snapback records a bounded, loss-tolerant recent history of backend work with
 no application setup. Use the fixed Health and Logs console pages for a quick
 view; use the typed operations below when an agent needs exact filters,
 coverage facts, or an export.
+
+The local implementation and smoke gate are available, but the capability
+index remains an explicit GAP until Program D retains the clean-release
+120-second idle and full benchmark receipt after the active observability
+source tranches freeze.
 
 This is the Phase-1 surface from
 [LLP 0154](repo:llp/0154-minimal-observability.rfc.md): backend requests,

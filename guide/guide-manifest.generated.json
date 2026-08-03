@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "594642ca5a486b86a2d1ec00b1b1652b3749c582"
+    "commit": "a3f9320e426ef6ceee137fc6e292c6d0e6034d89"
   },
   "nav": {
     ".": [
@@ -1250,7 +1250,7 @@
       "examples": [],
       "reviewed": "2026-08-02",
       "reviewedCommit": "HEAD",
-      "sha256": "503d90b60a7eb22d670190acccb14aa0330ae81ef2ae41fc869e91f34538bf6c",
+      "sha256": "1881d1ff0a7bad00681be5dbdfdcc993d1e88d303807e42d00c9f90118a3e3ca",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2006,7 +2006,7 @@
       "targets": [
         "local"
       ],
-      "maturity": "shipped",
+      "maturity": "partial",
       "capabilities": [
         "backend.observability-v1"
       ],
@@ -2024,7 +2024,7 @@
       "examples": [],
       "reviewed": "2026-08-02",
       "reviewedCommit": "HEAD",
-      "sha256": "f5760ceae61f566217a0f6e78b83789c2052c58ac099d519ab872f8e78bfa9c2",
+      "sha256": "e7ebbac7362bd5143c225c45f496198a56347ba9c34b58e8494afe76b3b94fe9",
       "snippets": []
     },
     "operating.secrets-and-config": {
@@ -2519,7 +2519,6 @@
       "backend.expo-push-seam",
       "backend.functions",
       "backend.jobs-one-off",
-      "backend.observability-v1",
       "backend.provisioning",
       "backend.query-semantics",
       "backend.relational-queries",
@@ -2566,6 +2565,7 @@
       "backend.bounded-children-v1",
       "backend.error-tracking-v1",
       "backend.notifications",
+      "backend.observability-v1",
       "backend.vector-search",
       "backend.write-activity-v1",
       "clients.non-js",
@@ -2579,5 +2579,5 @@
     "routes": 94,
     "hostOps": 32
   },
-  "contentHash": "3169d256542bcb3e05c4426f81cf56bf1537a969d19e1af8ce13d2143f21cb39"
+  "contentHash": "7e772b058ac0d183da211a91f56d2eadaeb4b87ae8f37a2b208d884f3a4bdedf"
 }

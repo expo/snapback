@@ -1,8 +1,8 @@
 {
   "schemaVersion": "snapback.telemetry-phase1-benchmark-baseline.v1",
-  "revision": "obs04-2026-08-02.v3",
-  "method": "snapback.telemetry-phase1.method.v2:http-alternation+default-event-worker+buffer-burst+c8-file-cap+direct-flush+wal-checkpoint+retention-sweep+hourly-daily-rollup-scan+file-backed-ibex-on-off-midpoint-worker",
-  "methodDigest": "sha256:7a826ee118f24e99d2310669b660b8fca6e43e1cbe5ea8459ff3d4dcc3d3e43c",
+  "revision": "obs04-2026-08-02.v4",
+  "method": "snapback.telemetry-phase1.method.v3:http-alternation+default-event-worker+buffer-burst+c8-file-cap+direct-transaction-sequenced-flush+wal-checkpoint+retention-sweep+hourly-daily-rollup-scan+file-backed-ibex-on-off-midpoint-worker",
+  "methodDigest": "sha256:6867dc1690ad1e4b51116ae081ce0446d98da18a38d41d596ad8624403255962",
   "profiles": {
     "smoke": {
       "requiredBuildProfile": "debug",
