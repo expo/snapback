@@ -726,10 +726,13 @@ pub(crate) fn telemetry_query_result(
         operation.as_str(),
         "telemetry.events" | "telemetry.export" | "errors.issue"
     );
-    let authority = if secret_data {
-        authority_secret_read(&operation)
-    } else {
-        authority_admin("host-ops telemetry aggregate read gate")
+    let authority = match operation.as_str() {
+        "telemetry.events" | "telemetry.export" | "errors.issue" => {
+            authority_secret_read(&operation)
+        }
+        "errors.issues" => authority_admin("host-ops structural error metadata read gate"),
+        "errors.transition" => authority_admin("host-ops error transition admin-write gate"),
+        _ => authority_admin("host-ops telemetry aggregate read gate"),
     };
     let mut result = match outcome {
         Ok(data) => host_ops_result(

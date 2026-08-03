@@ -1945,9 +1945,13 @@ impl Telemetry {
     ) -> SnapbackResult<crate::errors_query::ErrorsTransitionResponseV1> {
         use crate::errors_query::ErrorsIssueStateV1;
 
+        if let crate::errors_query::ErrorsTransitionRequestV1::Single(single) = request {
+            crate::errors_query::validate_issue_id(&single.issue)?;
+        }
+
         let (release, activation_seq, rows) = match request {
             crate::errors_query::ErrorsTransitionRequestV1::Single(single)
-                if !single.issue.is_empty() && single.expect_seq >= 0 =>
+                if single.expect_seq >= 0 =>
             {
                 let to = authored_error_target(single.to)?;
                 let row = self.transition_error_issue(&single.issue, to, single.expect_seq)?;
@@ -10036,6 +10040,38 @@ mod tests {
             detail.exemplars[0].telemetry_events_query.operation,
             "telemetry.events"
         );
+        let recorded_ts_ms = detail.exemplars[0].recorded_ts_ms;
+        assert_eq!(
+            detail.exemplars[0].telemetry_events_query.input,
+            json!({
+                "correlation": "fedcba9876543210fedcba9876543210",
+                "fromMs": recorded_ts_ms.saturating_sub(60_000).max(0),
+                "toMs": recorded_ts_ms.saturating_add(60_000),
+                "order": "asc",
+                "limit": 100,
+            }),
+            "raw detail must return the pinned ready-to-run correlation query"
+        );
+
+        let wrong_kind = telemetry
+            .query_error_issue(&crate::errors_query::ErrorsIssueRequestV1 {
+                issue: "obs_00000000000000000000000000".to_owned(),
+            })
+            .unwrap_err();
+        assert_eq!(
+            wrong_kind.diagnostic.code,
+            "SNAPBACK_ERROR_ISSUE_ID_INVALID"
+        );
+        let malformed = telemetry
+            .transition_errors(&crate::errors_query::ErrorsTransitionRequestV1::Single(
+                crate::errors_query::ErrorsSingleTransitionRequestV1 {
+                    issue: "iss_not-crockford".to_owned(),
+                    to: crate::errors_query::ErrorsIssueStateV1::Resolved,
+                    expect_seq: 0,
+                },
+            ))
+            .unwrap_err();
+        assert_eq!(malformed.diagnostic.code, "SNAPBACK_ERROR_ISSUE_ID_INVALID");
 
         let bulk = telemetry
             .transition_errors(&crate::errors_query::ErrorsTransitionRequestV1::Bulk(

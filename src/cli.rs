@@ -5163,7 +5163,7 @@ fn describe_ports(ports: &[u16]) -> String {
 mod tests {
     use super::{
         Args, AssetsCommand, AuthCommand, AuthConstructionFailure, AuthCoordinatorReadinessReceipt,
-        AuthProgramConstructionReceipts, BEFORE_STARTUP_TARGET_RESERVATION, Cli, HostCommand,
+        AuthProgramConstructionReceipts, BEFORE_STARTUP_TARGET_RESERVATION, Cli, ErrorsCommand, HostCommand,
         ManagedPath, ReadyFileTarget, ResolvedHttpTarget, TargetArgs, TelemetryCommand, bind_first_available,
         bind_listener, managed_startup_paths, mint_secret_read_via_http, parse_run_args,
         path_with_filename_suffix, prepare_database_path, prepare_database_path_for_startup,
@@ -6783,7 +6783,7 @@ mod tests {
             "snapback",
             "errors",
             "issue",
-            "issue_fixture",
+            "iss_00000000000000000000000000",
             "--url",
             "http://127.0.0.1:4287",
             "--secret-read-lease",
@@ -6800,7 +6800,7 @@ mod tests {
             "snapback",
             "errors",
             "transition",
-            "issue_fixture",
+            "iss_00000000000000000000000000",
             "--to",
             "ignored",
             "--expect-seq",

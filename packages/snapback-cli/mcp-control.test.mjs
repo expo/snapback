@@ -207,7 +207,7 @@ try {
   assert.equal(errorIssues.structuredContent.authority.mode, 'admin');
 
   const missingErrorIssue = await client.call('snapback_errors_issue', {
-    issue: 'issue_00000000000000000000000000',
+    issue: 'iss_00000000000000000000000000',
   });
   assert.equal(missingErrorIssue.structuredContent.operation, 'errors.issue');
   assert.equal(missingErrorIssue.structuredContent.ok, false);
@@ -219,10 +219,15 @@ try {
   );
 
   const missingTransition = await client.call('snapback_errors_transition', {
-    issue: 'issue_00000000000000000000000000', to: 'resolved', expectSeq: 0,
+    issue: 'iss_00000000000000000000000000', to: 'resolved', expectSeq: 0,
   });
   assert.equal(missingTransition.structuredContent.operation, 'errors.transition');
   assert.equal(missingTransition.structuredContent.ok, true, JSON.stringify(missingTransition.structuredContent));
+  assert.equal(missingTransition.structuredContent.authority.mode, 'devAdminBypass');
+  assert.equal(
+    missingTransition.structuredContent.authority.reason,
+    'host-ops error transition admin-write gate',
+  );
   assert.equal(missingTransition.structuredContent.data.rows[0].outcome, 'missing');
 
   // Mutation without an authority tuple: structured refusal with a

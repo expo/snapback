@@ -629,9 +629,7 @@ pub(crate) fn query_issue(
     request: &ErrorsIssueRequestV1,
     context: &QueryContext,
 ) -> SnapbackResult<ErrorsIssueResponseV1> {
-    if request.issue.is_empty() || request.issue.len() > 3_000 {
-        return Err(errors_invalid("errors issue id is invalid"));
-    }
+    validate_issue_id(&request.issue)?;
     let meta = read_error_meta(connection)?;
     let issue = connection
         .query_row(
@@ -665,7 +663,7 @@ pub(crate) fn query_issue(
             let recorded_ts_ms = row.get::<_, i64>(1)?;
             let correlation = row.get::<_, Option<String>>(8)?;
             let mut input = json!({
-                "fromMs": recorded_ts_ms.saturating_sub(60_000),
+                "fromMs": recorded_ts_ms.saturating_sub(60_000).max(0),
                 "toMs": recorded_ts_ms.saturating_add(60_000),
                 "order": "asc",
                 "limit": 100,
@@ -870,10 +868,25 @@ fn errors_invalid(message: impl Into<String>) -> SnapbackError {
     SnapbackError::error("SNAPBACK_ERRORS_QUERY_INVALID", "telemetry", message)
 }
 
+/// Refuse malformed or adjacent-kind ids at the operation boundary. Error
+/// issue groups were introduced after LLP 0148, so unlike older persisted id
+/// kinds there is no legacy UUIDv7 spelling to preserve here.
+pub(crate) fn validate_issue_id(issue: &str) -> SnapbackResult<()> {
+    if crate::ids::looks_like(crate::ids::Kind::Issue, issue) {
+        Ok(())
+    } else {
+        Err(SnapbackError::error(
+            "SNAPBACK_ERROR_ISSUE_ID_INVALID",
+            "telemetry",
+            "error issue id must be a canonical iss_ identifier",
+        ))
+    }
+}
+
 /// Language-neutral examples pinned beside the generated operation schemas.
 pub fn errors_fixture_corpus() -> Value {
     let issue = json!({
-        "issue": "issue_00000000000000000000000000",
+        "issue": "iss_00000000000000000000000000",
         "title": "SNAPBACK_HANDLER_FAILED in todos.create",
         "state": "open",
         "stateSeq": 0,
@@ -939,7 +952,7 @@ pub fn errors_fixture_corpus() -> Value {
             "forbiddenOperatorMetadataFields": ["titleTemplate", "stackHead", "message"]
         },
         "issue": {
-            "request": { "issue": "issue_00000000000000000000000000" },
+            "request": { "issue": "iss_00000000000000000000000000" },
             "response": {
                 "schemaVersion": "snapback.errors.issue.v1",
                 "issue": issue,
@@ -971,7 +984,7 @@ pub fn errors_fixture_corpus() -> Value {
         },
         "transition": {
             "singleRequest": {
-                "issue": "issue_00000000000000000000000000",
+                "issue": "iss_00000000000000000000000000",
                 "to": "resolved",
                 "expectSeq": 0
             },
@@ -985,7 +998,7 @@ pub fn errors_fixture_corpus() -> Value {
                 "activationSeq": null,
                 "activationFloorSeq": 0,
                 "rows": [{
-                    "issue": "issue_00000000000000000000000000",
+                    "issue": "iss_00000000000000000000000000",
                     "outcome": "applied",
                     "state": "resolved",
                     "stateSeq": 1
@@ -998,7 +1011,7 @@ pub fn errors_fixture_corpus() -> Value {
                 "activationSeq": 10,
                 "activationFloorSeq": 0,
                 "rows": [{
-                    "issue": "issue_00000000000000000000000000",
+                    "issue": "iss_00000000000000000000000000",
                     "outcome": "applied",
                     "state": "resolved",
                     "stateSeq": 1
