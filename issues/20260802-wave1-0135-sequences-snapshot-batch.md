@@ -93,3 +93,13 @@ LLP; LLP 0115 board row updated.
   correctness tests remain green; unrelated feature lanes may allow only this
   named lint while retaining `-D warnings` for their own code. The single
   end-of-wave greening pass owns the mechanical cleanup.
+- **2026-08-02 — diagnostic-inventory residue found by obs-05.** The full Rust
+  suite on the obs-05 emission landing found the existing HTTP diagnostic
+  inventory gate missing four sequence/snapshot codes:
+  `SEQUENCE_ACTIVATION_STATE_INVALID`,
+  `SNAPSHOT_BATCH_CEILING_EXCEEDED`,
+  `SNAPSHOT_BATCH_NODE_INELIGIBLE`, and
+  `SNAPSHOT_BATCH_PLAN_INVALID`. The observability lane does not own those
+  classifications and did not guess them. Per Charlie's relaxed landing
+  cadence, the end-of-wave greening pass owns their batch registration; the
+  feature's focused correctness suites remain green.
