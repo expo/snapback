@@ -151,6 +151,7 @@
     "jobs_one_off_v1": "experimental",
     "registered_bundle_boot_v1": "experimental",
     "result_contract_v1": "experimental",
+    "vector_search_v1": "experimental",
     "versioned_seed_install_v1": "experimental",
     "versioned_seed_reset_v1": "experimental",
     "write_activity_v1": "experimental"
@@ -383,6 +384,7 @@
     "relational_query_v1",
     "migration_keyset_scan_v1",
     "full_text_search_v1",
+    "vector_search_v1",
     "result_contract_v1",
     "settlement.bounded_skew",
     "args_contract_v1",
@@ -416,5 +418,56 @@
   ],
   "syncableLiveQueries": true,
   "targetProfileId": "local-dev-sqlite-ibex",
+  "vectorSearch": {
+    "accelerator": "none",
+    "capabilityId": "vector_search_v1",
+    "corpusMax": 65536,
+    "corruptionPosture": "digest-recheck-quarantine",
+    "dimensionMax": 4096,
+    "dimensionMin": 1,
+    "distanceProfile": "snapback-vector-distance-v1",
+    "distanceProfileDigest": "sha256:9ce9feab0c6dcb2d009e212d34484051c8594b8ef0e9066d392c0449a8001e1b",
+    "equalityFilters": true,
+    "equalityFiltersMax": 8,
+    "kDefault": 10,
+    "kMax": 64,
+    "maintenance": "synchronous",
+    "maturity": "experimental",
+    "metrics": [
+      "l2sq",
+      "dot"
+    ],
+    "nonclaims": [
+      "ann",
+      "embedding-computation",
+      "hybrid-ranking",
+      "external-vector-store",
+      "live-vector-search",
+      "pagination",
+      "cosine",
+      "range-filters",
+      "membership-visibility",
+      "sensitive-fields",
+      "offline-vector-search",
+      "hosted-targets",
+      "postgres"
+    ],
+    "orderingProfile": "nearest-first-row-id.v1",
+    "pagination": "single-page",
+    "scalarPairsMax": 67108864,
+    "storageClass": "ordinary-transactional-shadow",
+    "storageEngines": [
+      "sqlite"
+    ],
+    "storedFields": true,
+    "tieBreaks": [
+      "id-asc",
+      "id-desc"
+    ],
+    "visibilityProfiles": [
+      "public-read",
+      "owner.v1"
+    ]
+  },
   "vmLifecycle": "fresh-per-invocation"
 }

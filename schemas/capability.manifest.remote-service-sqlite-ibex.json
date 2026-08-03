@@ -24,7 +24,8 @@
     "live_full_text_search_v1",
     "assets",
     "notifications.expoPushSeam",
-    "write_activity_v1"
+    "write_activity_v1",
+    "vector_search_v1"
   ],
   "capabilityMaturity": {
     "args_contract_v1": "experimental",

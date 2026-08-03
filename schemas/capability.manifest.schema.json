@@ -982,14 +982,14 @@
         },
         {
           "const": "vector_search_v1",
-          "description": "Static LLP 0132 vocabulary only; every target reports a GAP until an\nindependent executor/storage/evidence publication lands.",
+          "description": "Exact portable vector search. The local target publishes this at\nexperimental maturity only when its dedicated implementation fact and\ncomplete closed profile are both present; every other target remains\na structured GAP.",
           "type": "string"
         }
       ]
     },
     "VectorSearchFactsV1": {
       "additionalProperties": false,
-      "description": "Closed facts vocabulary for a future qualified target. Every current\ntarget leaves this block absent and reports the `vector_search_v1` GAP.",
+      "description": "Closed facts vocabulary for exact target qualification. The qualified\nlocal target publishes this block; other targets leave it absent and\nreport the `vector_search_v1` GAP.",
       "properties": {
         "accelerator": {
           "type": "string"
@@ -1380,7 +1380,7 @@
           "type": "null"
         }
       ],
-      "description": "Closed future-target facts. Absent on every current target while the\nstructured `vector_search_v1` GAP is present."
+      "description": "Closed exact-vector facts. Present on the qualified local target and\nabsent everywhere that reports the structured `vector_search_v1` GAP."
     },
     "vmLifecycle": {
       "default": "fresh-per-invocation",

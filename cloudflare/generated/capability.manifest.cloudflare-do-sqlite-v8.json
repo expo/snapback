@@ -96,7 +96,8 @@
     "retained_version_resume",
     "write_activity_v1",
     "sequence_allocation_v1",
-    "live_full_text_search_v1"
+    "live_full_text_search_v1",
+    "vector_search_v1"
   ],
   "vmLifecycle": "fresh-isolate-per-deploy",
   "runtimeFacts": {

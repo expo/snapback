@@ -1573,7 +1573,7 @@
           "type": "boolean"
         },
         "vectorIndexes": {
-          "description": "Portable exact-vector index declarations. This is static carrier\nvocabulary only until a target reports qualified `vector_search_v1`.\n\n@ref LLP 0132#index-declarations",
+          "description": "Portable exact-vector index declarations. A declaration is authoring\nvocabulary, not support by itself: execution additionally requires a\ntarget that reports qualified `vector_search_v1`.\n\n@ref LLP 0132#index-declarations",
           "items": {
             "$ref": "#/$defs/VectorIndexManifestV1"
           },
