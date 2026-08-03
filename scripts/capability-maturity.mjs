@@ -707,6 +707,17 @@ export function validateTransitionRange({ repoRoot, range, validation = null }) 
       fail('MATURITY_TRANSITION_BOARD_MISSING', `${commit} did not update guide and program-board rows`);
     }
     if (direction === 'promotion') {
+      // @ref LLP 0134#4-the-promotion-act — the source-owned registry citation
+      // names the exact receipt path without duplicating its digest; A2/A5 bind
+      // the receipt bytes, parent, and complete self-excluding landed tree.
+      const registryCitation = `@ref LLP 0134#4-the-promotion-act — promoted ${record.promotionDate.slice(0, 10)} via ${recordEntry.repoPath}`;
+      const manifestSource = bytesAt(repoRoot, commit, 'src/manifest.rs').toString('utf8');
+      if (!manifestSource.includes(registryCitation)) {
+        fail(
+          'MATURITY_PROMOTION_COMMENT_MISSING',
+          `${commit} registry must cite ${recordEntry.repoPath} and LLP 0134 §4`,
+        );
+      }
       const observed = stagedTreeManifestSha256({
         repoRoot,
         commit,

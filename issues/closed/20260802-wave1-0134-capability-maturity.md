@@ -33,10 +33,10 @@ capability:
   another main landing); this change preserves that correction and adds the
   dated implementation record. LLP 0115's CV-8 board row is updated in lockstep.
 
-One item remains explicitly design-blocked rather than stubbed as green: LLP
-0134 §4 asks a registry comment to cite the receipt digest while the receipt
-binds a tree containing that comment. The implementation record explains the
-cryptographic self-reference. A1/A2/A5 still validate registry parity, the
-same-commit record, sole parent, changed ids, and the complete landed tree, but
-the redundant comment-digest comparison awaits a dated digest-domain
-correction before the first real promotion.
+The one design blocker recorded at landing was closed on 2026-08-02 in
+`issues/closed/20260802-llp0134-receipt-comment-digest-cycle.md`: the registry
+comment now cites the exact promotion-record path and §4 marker instead of
+duplicating the receipt digest. A1/A2/A5 continue to validate registry parity,
+the same-commit record, sole parent, changed ids, exact citation, and the
+complete self-excluding landed tree, so the first real promotion is
+constructible without weakening those checks.

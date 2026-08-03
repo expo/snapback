@@ -5,7 +5,13 @@
 **Systems:** Capability publication, Application data API, Relational queries, Code generation, Packaging, Documentation, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-08-02 (implementation record: the first process machinery
+**Revised:** 2026-08-02 (dated correction after the first implementation:
+the promotion registry comment cites the exact promotion-record path plus
+this Spec's §4 marker, not the receipt digest. A2/A5 already bind that
+record's exact bytes, sole parent, changed ids, and complete self-excluding
+landed tree; A5 now mechanically requires the closed path citation. This
+removes the recorded receipt/comment digest cycle without weakening any
+same-commit, parent, or tree check). 2026-08-02 (implementation record: the first process machinery
 lands — exhaustive fail-closed Rust maturity assignment, canonical Rust/codegen
 parity projection, the exact §7 reservation, closed record validation for all
 six suffixes, digest replay, daily soak coverage, candidate-parent and
@@ -429,9 +435,9 @@ A promotion is one dated commit that carries the promotion and nothing else
 migration). The commit:
 
 1. moves the id from the `Experimental` arm of `TargetCapabilityId::maturity`
-   to the stable default in `src/manifest.rs`, with a dated comment citing
-   this Spec and the receipt digest, and carrying an `@ref LLP 0134`
-   annotation;
+   to the stable arm in `src/manifest.rs`, with a dated comment citing this
+   Spec and the exact repo-relative promotion-record path, and carrying the
+   closed `@ref LLP 0134#4-the-promotion-act` annotation defined below;
 2. removes the id from `EXPERIMENTAL_TARGET_CAPABILITY_IDS` in
    `packages/snapback-codegen/index.mjs` — both registries change as the
    same act, the mechanical shape the LLP 0080 precedent set;
@@ -442,11 +448,27 @@ migration). The commit:
    root (`tests/acceptance/`, the `auth-mode-predecessor-v1.receipt.json`
    convention; conformance receipts live in `tests/conformance/`),
    deliberately not a new top-level directory — with its SHA-256 cited by
-   the commit message and the registry comment;
+   the commit message; the registry comment locates the same record by its
+   exact path while A2/A5 bind its bytes and transition commit;
 5. adds a dated promotion addendum to the id's governing LLP recording the
    act, the receipt digest, and the adjudication; and
 6. updates the guide capability index row and any program board row in the
    same commit (LLP 0130's board-lockstep lesson).
+
+The registry citation has one closed, mechanically validated spelling, where
+`YYYY-MM-DD` is `promotionDate`'s UTC date and `<path>` is the receipt's exact
+repo-relative path:
+
+```text
+@ref LLP 0134#4-the-promotion-act — promoted YYYY-MM-DD via <path>
+```
+
+It deliberately carries no receipt digest. A2 resolves and digest-checks the
+receipt's locators; A5 identifies the receipt introduced by the transition,
+binds it to the exact changed ids and sole parent, and recomputes the complete
+self-excluding landed-tree digest. Duplicating the receipt digest in a file
+inside that digest domain added a cycle, not evidence. A5 refuses a promotion
+whose `src/manifest.rs` lacks the exact citation marker.
 
 The promotion commit's sole parent must equal `candidateSourceSha`: no
 merge commit, no stacked promotions, exactly one maturity transition per
@@ -526,8 +548,9 @@ array of `[path, sha256]` pairs, sorted bytewise by repo-relative
 path, one pair per file in the staged promotion tree, each `sha256`
 over that file's exact bytes, with exactly one path excluded: the
 receipt file's own. The self-exclusion breaks the circularity — the
-manifest is computed over the finished staged tree minus the receipt,
-its digest is written into the receipt, and the receipt then joins
+manifest is computed over the finished staged tree minus the receipt
+(including the already-final path-based registry citation), its digest is
+written into the receipt, and the receipt then joins
 the tree — and A5's transition-commit run recomputes the landed
 tree's manifest by the same rule (same exclusion, same ordering, same
 serialization) and exact-compares the digest, so the audited staged
@@ -804,7 +827,7 @@ Spec. Per the executing ticket, this document promotes nothing itself.
   `*.soak-extract.json`, and `*.defect-search.json` (E6) — and refuses
   a file matching no suffix, unknown members, missing bar items for the
   declared route, an evidence locator that fails to resolve to its
-  recorded bytes, a digest mismatch with the registry comments, a soak
+  recorded bytes, a soak
   observation whose introducing commit's committer UTC date differs
   from its `dateUtc`, an E6 record violating its closed enums, element
   schemas, count constraints, success predicates, or cross-record
@@ -834,7 +857,9 @@ Spec. Per the executing ticket, this document promotes nothing itself.
   registry changes, the test updates, the governing-LLP addendum, and the
   guide/board rows. Final-tree tests, including the post-flip admission
   behavior, run on the transition commit itself, not only on its parent.
-  For promotions, the same transition-commit run recomputes the landed
+  For promotions, that run also requires `src/manifest.rs` to contain the
+  exact dated §4 promotion-record citation defined above, then recomputes the
+  landed
   tree's canonical self-excluding staged-tree manifest (§4's
   staged-tree rule) and exact-compares its digest against the
   receipt's `stagedTreeManifestSha256`; a mismatch refuses the range —
@@ -888,18 +913,15 @@ independent producers do not choose incompatible shapes:
   `voidedReceiptRef`, because `MaturityDemotionRecordV1` has no duplicate
   `governingLlp` member.
 
-One accepted sentence is not implementable as written and is not silently
-claimed: §4 requires the registry comment to contain the promotion receipt's
-SHA-256, while the receipt contains `stagedTreeManifestSha256` over a tree that
-excludes only the receipt and therefore includes that registry comment. The
-comment changes the tree digest, which changes the receipt, which changes the
-comment—a cryptographic self-reference with no constructible ordering. A1,
-A2, and A5 still bind the same-commit record, changed id set, sole parent, and
-entire landed tree; the validator deliberately does not claim the additional
-comment-digest comparison. A dated design correction must choose a
-self-excluding digest domain (or remove that redundant comment digest) before
-the first real promotion. This keeps the implementation honest without
-weakening any check it claims to perform.
+The 2026-08-02 dated correction above closes the implementation record's one
+known construction blocker. The registry comment now cites the exact promotion
+record path and §4 marker, never the receipt digest. The staged-tree manifest is
+therefore constructible in one pass over the finished tree excluding only the
+receipt; then the receipt receives that digest and joins the commit. A5
+mechanically validates the exact dated path citation as well as the existing
+same-commit record, changed id set, sole parent, and complete landed-tree
+binding. `tests/capability-maturity.test.mjs` exercises that construction and
+refuses a transition whose registry citation is absent.
 
 The first retained production-tree observation is
 `tests/acceptance/maturity/inline-handler-local-dev-2026-08-03.soak-observation.json`,

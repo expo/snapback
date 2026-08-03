@@ -86,7 +86,7 @@ function scaffoldRepository() {
   return { root, initial };
 }
 
-function buildPromotionAndDemotionFixture(root, initial) {
+function buildPromotionAndDemotionFixture(root, initial, { registryCitation = true } = {}) {
   const observationRefs = [];
   for (let offset = 0; offset < 14; offset += 1) {
     const date = new Date(Date.UTC(2026, 0, 1 + offset)).toISOString().slice(0, 10);
@@ -143,7 +143,11 @@ function buildPromotionAndDemotionFixture(root, initial) {
   const evidence = Object.fromEntries(evidencePaths.map((path) => [path, locator(root, path, candidate)]));
   const defectRef = locator(root, defectPath, candidate, 'defect-search.v1');
 
-  write(root, 'src/manifest.rs', 'stable bounded_children_v1 write_activity_v1\n');
+  const promotionPath = `${RECORD_ROOT}/pair.promotion.json`;
+  const citation = registryCitation
+    ? `// @ref LLP 0134#4-the-promotion-act — promoted 2026-01-15 via ${promotionPath}\n`
+    : '';
+  write(root, 'src/manifest.rs', `stable bounded_children_v1 write_activity_v1\n${citation}`);
   write(root, 'packages/snapback-codegen/index.mjs', 'stable bounded_children_v1 write_activity_v1\n');
   writeCanonical(root, 'tests/acceptance/capability-maturity.experimental.json', []);
   write(root, 'tests/maturity-admission.txt', 'stable acknowledgment no-op\n');
@@ -153,7 +157,6 @@ function buildPromotionAndDemotionFixture(root, initial) {
   const stagedAuditPath = 'evidence/promotion-tree-audit.json';
   writeCanonical(root, stagedAuditPath, { schemaVersion: 1, status: 'green' });
   runGit(root, ['add', '-A']);
-  const promotionPath = `${RECORD_ROOT}/pair.promotion.json`;
   const stagedAuditRef = {
     path: stagedAuditPath,
     producer: 'maturity-test',
@@ -283,6 +286,27 @@ test('candidate and staged-tree pins fail closed', () => {
         validation: validateMaturityRecordTree({ repoRoot: root, recordRoot: join(root, RECORD_ROOT) }),
       }),
       /MATURITY_STAGED_TREE_MISMATCH/,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('promotion registry citation binds the record path without a receipt digest cycle', () => {
+  const { root, initial } = scaffoldRepository();
+  try {
+    const fixture = buildPromotionAndDemotionFixture(root, initial, { registryCitation: false });
+    const validation = validateMaturityRecordTree({
+      repoRoot: root,
+      recordRoot: join(root, RECORD_ROOT),
+    });
+    assert.throws(
+      () => validateTransitionRange({
+        repoRoot: root,
+        range: `${fixture.candidate}..${fixture.promotionCommit}`,
+        validation,
+      }),
+      /MATURITY_PROMOTION_COMMENT_MISSING/,
     );
   } finally {
     rmSync(root, { recursive: true, force: true });
