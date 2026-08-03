@@ -183,6 +183,7 @@ const inventories = [
       'identifier-validation.test.mjs',
       'inline-helper-sharing.test.mjs',
       'inline-result-contracts.test.mjs',
+      'live-search-authoring.test.mjs',
       'maintained-projections.test.mjs',
       'membership-search-authoring.test.mjs',
       'micro-profile.test.mjs',
@@ -449,7 +450,10 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // 165 -> 166 (2026-08-02, LLP 0135 sequence half): @expo/snapback-codegen
 // gains declared sequence, order-field-bound, A6 replacement, and capability
 // emission acceptance.
-assert.equal(total, 166, 'reviewed package/admin test count changed');
+// 166 -> 167 (2026-08-02, LLP 0136 live-search authoring):
+// @expo/snapback-codegen gains the maintained live-search declaration,
+// validation, manifest, and type-flow suite.
+assert.equal(total, 167, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }
