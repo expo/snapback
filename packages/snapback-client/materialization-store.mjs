@@ -20,6 +20,12 @@ const ED25519_SPKI_PREFIX = Uint8Array.from([
   0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00,
 ]);
 
+const DEFAULT_MATERIALIZATION_LIMITS = Object.freeze({
+  byteCeiling: 32 * 1024 * 1024,
+  recordCeiling: 256,
+  fragmentCeiling: 1_024,
+});
+
 const own = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
 const plain = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 const clone = (value) => structuredClone(value);
@@ -730,6 +736,102 @@ function removePayload(view, addressKey, record) {
   view.materializations.set(addressKey, encodeRecord(record));
 }
 
+function addressByteCompare(left, right) {
+  const a = utf8.encode(left);
+  const b = utf8.encode(right);
+  for (let index = 0; index < Math.min(a.length, b.length); index += 1) {
+    if (a[index] !== b[index]) return a[index] - b[index];
+  }
+  return a.length - b.length;
+}
+
+function payloadProjection(record) {
+  return {
+    bytes: record.fragments.reduce((sum, fragment) => (
+      sum + fragment.bytes.length + jcsBytes(fragment.proof).length
+    ), 0)
+      + record.pageSets.reduce((sum, manifest) => sum + jcsBytes(manifest).length, 0)
+      + record.memberships.reduce((sum, membership) => sum + jcsBytes(membership).length, 0),
+    fragments: record.fragments.length,
+  };
+}
+
+function enforceMaterializationEnvelope(view, committingKey, limits, at) {
+  const records = [...view.materializations.entries()].map(([key, stored]) => {
+    const record = decodeRecord(stored);
+    if (record === null) refuse('SNAPBACK_MATERIALIZATION_RECORD_INVALID', 'budget scan found an invalid record');
+    return { key, record, projection: payloadProjection(record) };
+  });
+  let bytes = records.reduce((sum, entry) => sum + entry.projection.bytes, 0);
+  let fragments = records.reduce((sum, entry) => sum + entry.projection.fragments, 0);
+  const over = () => bytes > limits.byteCeiling
+    || records.length > limits.recordCeiling
+    || fragments > limits.fragmentCeiling;
+  if (!over()) return null;
+  const committingRecord = records.find((entry) => entry.key === committingKey);
+  if (
+    committingRecord
+    && (committingRecord.projection.bytes > limits.byteCeiling
+      || committingRecord.projection.fragments > limits.fragmentCeiling)
+  ) {
+    removePayload(view, committingRecord.key, committingRecord.record);
+    return materializationError(
+      'SNAPBACK_MATERIALIZATION_BUDGET_EXCEEDED',
+      'single materialization payload exceeds its envelope',
+      { byteCeiling: limits.byteCeiling, fragmentCeiling: limits.fragmentCeiling },
+    );
+  }
+  const policyRoot = plain(view.storeMeta.policyBudgetFacts?.addresses)
+    ? view.storeMeta.policyBudgetFacts.addresses : {};
+  const candidates = [];
+  for (const entry of records) {
+    const fact = policyRoot[entry.record.address[2]] ?? {};
+    const current = fact.currentPolicy ?? {
+      demandState: 'undemanded', idleTtlClass: 'none', retentionRequest: 'none',
+    };
+    if (
+      current.demandState === 'demanded-active'
+      || entry.record.productState.lifecycle !== 'active'
+      || entry.record.productState.effectiveDisposition !== 'retain'
+      || entry.projection.bytes === 0
+      || entry.record.outboxEntryIds.length > 0
+      || entry.record.settlementIds.length > 0
+      || (fact.blockers?.length ?? 0) > 0
+    ) continue;
+    let step;
+    let primary;
+    if (current.demandState === 'undemanded' && fact.pinnedIdleTtlClass !== 'pinned') {
+      step = 1; primary = fact.releaseAt ?? Number.MAX_SAFE_INTEGER;
+    } else if (current.demandState === 'demanded-idle' && current.idleTtlClass !== 'pinned') {
+      step = 2; primary = fact.lastEstablishmentAt ?? 0;
+    } else if (fact.pinnedIdleTtlClass === 'pinned' || current.idleTtlClass === 'pinned') {
+      step = 3; primary = fact.lastEstablishmentAt ?? 0;
+    } else continue;
+    candidates.push({ ...entry, step, primary });
+  }
+  candidates.sort((a, b) => a.step - b.step
+    || a.primary - b.primary
+    || addressByteCompare(a.record.address[2], b.record.address[2]));
+  for (const candidate of candidates) {
+    if (!over()) break;
+    removePayload(view, candidate.key, candidate.record);
+    bytes -= candidate.projection.bytes;
+    fragments -= candidate.projection.fragments;
+    if (!plain(view.storeMeta.policyBudgetFacts)) view.storeMeta.policyBudgetFacts = {};
+    const root = view.storeMeta.policyBudgetFacts;
+    root.compactionCount = (Number.isSafeInteger(root.compactionCount) ? root.compactionCount : 0) + 1;
+    root.lastCompactionAt = at;
+  }
+  if (!over()) return null;
+  const committing = records.find((entry) => entry.key === committingKey);
+  if (committing?.projection.bytes > 0) removePayload(view, committing.key, committing.record);
+  return materializationError(
+    'SNAPBACK_MATERIALIZATION_BUDGET_EXCEEDED',
+    'materialization commit cannot fit without compacting demanded-active or blocker-held custody',
+    { byteCeiling: limits.byteCeiling, recordCeiling: limits.recordCeiling, fragmentCeiling: limits.fragmentCeiling },
+  );
+}
+
 function applyOwnerInput(view, addressKey, record, input) {
   if (!plain(input) || !plain(input.authorityState)) {
     refuse('SNAPBACK_AUTHORIZATION_OWNER_INPUT_INVALID', 'authorization transition must carry owner state');
@@ -935,12 +1037,18 @@ function revalidateRetainedRecord(view, key, record, resolveValidationContext, p
 export async function createMaterializationStore(storeHandle, {
   resolveValidationContext = null,
   resolveRetirementTransition = null,
+  policyLimits = null,
+  now = () => Date.now(),
 } = {}) {
   if (typeof storeHandle?.materializationTransaction !== 'function') {
     throw new TypeError('materialization store requires a v3 RQS store handle');
   }
   const listeners = new Map();
   const cache = new Map();
+  const materializationLimits = Object.freeze({
+    ...DEFAULT_MATERIALIZATION_LIMITS,
+    ...(policyLimits ?? {}),
+  });
   await storeHandle.materializationTransaction('readwrite', (view) => {
     for (const [key, stored] of view.materializations) {
       const record = decodeRecord(stored);
@@ -974,6 +1082,7 @@ export async function createMaterializationStore(storeHandle, {
       operation(view, key, admittedAddress)
     ));
     if (result?.snapshot) publish(key, result.snapshot);
+    if (result?.error) throw result.error;
     return result?.value;
   };
 
@@ -988,6 +1097,13 @@ export async function createMaterializationStore(storeHandle, {
           }
         }
         return { value: clone(existing) };
+      }
+      if (view.materializations.size >= materializationLimits.recordCeiling) {
+        return { error: materializationError(
+          'SNAPBACK_MATERIALIZATION_BUDGET_EXCEEDED',
+          'materialization record ceiling is full',
+          { recordCeiling: materializationLimits.recordCeiling },
+        ) };
       }
       exact(identities, [
         'planHash', 'activationHash', 'argsDigest', 'authorityPartitionDigest',
@@ -1157,7 +1273,11 @@ export async function createMaterializationStore(storeHandle, {
       record.productState.attempt = 'idle';
       projectAuthority(record, record.authorityState);
       view.materializations.set(key, encodeRecord(record));
-      return { value: clone(record), snapshot: snapshotFor(record) };
+      const budgetError = enforceMaterializationEnvelope(view, key, materializationLimits, now());
+      const storedAfterBudget = loadFrom(view, key);
+      return budgetError
+        ? { error: budgetError, snapshot: snapshotFor(storedAfterBudget) }
+        : { value: clone(storedAfterBudget), snapshot: snapshotFor(storedAfterBudget) };
     },
   );
 
@@ -1177,7 +1297,11 @@ export async function createMaterializationStore(storeHandle, {
       record.productState.attempt = 'idle';
       view.pageSets.set(manifest.identity, clone(manifest));
       view.materializations.set(key, encodeRecord(record));
-      return { value: clone(record), snapshot: snapshotFor(record) };
+      const budgetError = enforceMaterializationEnvelope(view, key, materializationLimits, now());
+      const storedAfterBudget = loadFrom(view, key);
+      return budgetError
+        ? { error: budgetError, snapshot: snapshotFor(storedAfterBudget) }
+        : { value: clone(storedAfterBudget), snapshot: snapshotFor(storedAfterBudget) };
     },
   );
 

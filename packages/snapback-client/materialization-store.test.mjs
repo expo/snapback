@@ -708,3 +708,35 @@ test('store authority barrier covers every predecessor before its receipt initia
   const successorRecord = await store.initialize(successor.address, successor.identities, receipt);
   assert.equal(successorRecord.productState.effectiveDisposition, 'retain');
 });
+
+test('single-record materialization budget refusal atomically leaves a compacted same-instance stub', async (t) => {
+  const handle = await setupCarrier(t, 'memory', 'single-budget');
+  const fixture = makeFixture('single-budget');
+  fixture.identities.storageProfile = 'volatile-online-v1';
+  const store = await createMaterializationStore(handle, {
+    resolveValidationContext: () => fixture.context,
+    policyLimits: { byteCeiling: 1, recordCeiling: 256, fragmentCeiling: 1_024 },
+  });
+  let record = await store.initialize(fixture.address, fixture.identities, null);
+  const queryInstanceId = record.queryInstanceId;
+  const valid = fixture.makeProof(record);
+  fixture.context.authorizationWitness = valid.witness;
+  await assert.rejects(
+    store.commitPage(
+      fixture.address,
+      fixture.fragmentFor(valid),
+      valid.proof,
+      null,
+      fence(record),
+    ),
+    (error) => error.code === 'SNAPBACK_MATERIALIZATION_BUDGET_EXCEEDED',
+  );
+  record = decodeMaterializationRecordV1(await handle.materializationTransaction(
+    'readonly',
+    (view) => view.materializations.get(materializationAddressKey(fixture.address)),
+  ));
+  assert.equal(record.queryInstanceId, queryInstanceId);
+  assert.equal(record.fragments.length, 0);
+  assert.equal(record.memberships.length, 0);
+  assert.equal(deriveCompletenessStatusV1(record), 'unknown');
+});
