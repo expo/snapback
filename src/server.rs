@@ -24079,6 +24079,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_BOUNDED_CHILDREN_PARENT_RESTART_REQUIRED"
         | "SNAPBACK_RELATION_PARENT_UNAVAILABLE"
         | "SNAPBACK_RELATION_ACTIVATION_BACKFILL_REQUIRED"
+        | "SNAPBACK_SEQUENCE_ACTIVATION_STATE_INVALID"
         | "SNAPBACK_ACTIVITY_SOURCE_EFFECT_REQUIRED"
         // @ref LLP 0055#principal-kinds — deactivation is refused when it would
         //   leave a protected LLP 0056 resource with no eligible holder; the
@@ -24577,6 +24578,9 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_HANDLER_WRITE_IN_QUERY"
         | "SNAPBACK_SEQUENCE_DECLARATION_INVALID"
         | "SNAPBACK_SEQUENCE_UNDECLARED"
+        | "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID"
+        | "SNAPBACK_SNAPSHOT_BATCH_NODE_INELIGIBLE"
+        | "SNAPBACK_SNAPSHOT_BATCH_CEILING_EXCEEDED"
         | "SNAPBACK_HOST_OP_CLI_ONLY"
         | "SNAPBACK_HOST_OP_FUNCTION_KIND_UNSUPPORTED"
         | "SNAPBACK_HOST_OP_FUNCTION_UNKNOWN"
@@ -24720,13 +24724,6 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_SEARCH_QUERY_PLAN_INVALID"
         | "SNAPBACK_SEARCH_SOURCE_LIMIT"
         | "SNAPBACK_SEARCH_WORK_LIMIT"
-        // @ref LLP 0132#query-surface — malformed/query/value/bound work is a
-        // closed caller/declaration refusal; unavailable and corrupt retain
-        // serving-failure classes below.
-        | "SNAPBACK_VECTOR_CORPUS_BOUND"
-        | "SNAPBACK_VECTOR_QUERY_INVALID"
-        | "SNAPBACK_VECTOR_VALUE_INVALID"
-        | "SNAPBACK_VECTOR_WORK_LIMIT"
         | "SNAPBACK_WRITE_WITH_ACTIVITY_PLAN_INVALID"
         // LLP 0081 §2/§3: malformed/tampered plan artifacts and the
         // deferred retained-work posture are author input.
@@ -38260,6 +38257,20 @@ globalThis.__snapbackHandlers = {
             "SNAPBACK_PROFILE",
             "environment variable selecting the server profile",
         ),
+        // @ref LLP 0132#acceptance — these test-only harness inputs bind the
+        // retained scale receipt; they are not runtime/API refusal codes.
+        (
+            "SNAPBACK_VECTOR_QUALIFICATION_MACHINE",
+            "test-only environment variable binding the LLP 0132 scale receipt to its machine identity",
+        ),
+        (
+            "SNAPBACK_VECTOR_QUALIFICATION_RECEIPT_OUT",
+            "test-only environment variable selecting the LLP 0132 scale receipt output path",
+        ),
+        (
+            "SNAPBACK_VECTOR_QUALIFICATION_REVISION",
+            "test-only environment variable binding the LLP 0132 scale receipt to its product revision",
+        ),
         (
             "SNAPBACK_RESUME_",
             "diagnostic-code family prefix appearing in RQS refusal-registry docs (LLP 0091 §0B.6)",
@@ -38389,29 +38400,22 @@ globalThis.__snapbackHandlers = {
     const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_MUTATION_REFERENCE_INVALID",
         "SNAPBACK_ACTION_STREAM_INVALID",
-        // LLP 0132: request/value shape and pre-write maintenance admission
-        // are terminal for the unchanged request.
         "SNAPBACK_VECTOR_INDEX_INVALID",
         "SNAPBACK_VECTOR_QUERY_INVALID",
         "SNAPBACK_VECTOR_QUERY_PLAN_INVALID",
         "SNAPBACK_VECTOR_VALUE_INVALID",
         "SNAPBACK_VECTOR_MAINTENANCE_LIMIT",
-        // Buffered ctx.fetch request-shape refusals (0137 a4-f1/a5-f1).
         "SNAPBACK_HOST_FETCH_INVALID",
         "SNAPBACK_HOST_FETCH_SLOT_INVALID",
-        // LLP 0092 §0D.1 bundle request-shape refusals.
         "SNAPBACK_BUNDLE_ENTRY_INVALID",
         "SNAPBACK_BUNDLE_MODE_INVALID",
         "SNAPBACK_BUNDLE_PARAMS_INVALID",
         "SNAPBACK_ADMIN_SECRET_READ_LEASE_INVALID",
-        // LLP 0154 D5 typed-query/SQL request-shape refusals.
         "SNAPBACK_TELEMETRY_EXPORT_CONTINUATION_INVALID",
         "SNAPBACK_TELEMETRY_EXPORT_PAGE_TOO_SMALL",
         "SNAPBACK_TELEMETRY_QUERY_INVALID",
         "SNAPBACK_TELEMETRY_SQL_DENIED",
         "SNAPBACK_TELEMETRY_SQL_FAILED",
-        // LLP 0156 E1 request-shape/selectors. Retrying the same input cannot
-        // succeed; the caller must correct it or select a retained release.
         "SNAPBACK_ERRORS_QUERY_INVALID",
         "SNAPBACK_ERROR_ISSUE_ID_INVALID",
         "SNAPBACK_ERROR_RELEASE_UNKNOWN_OR_PRUNED",
@@ -38430,13 +38434,9 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_AUTH_MUTABLE_INPUT_DENIED",
         "SNAPBACK_AUTH_INVALIDATION_ACK_BEFORE_COMMIT",
         "SNAPBACK_AUTH_INVALIDATION_NAMESPACE_REQUIRED",
-        // LLP 0094 §0E wire-version negotiation refusals (B1/B3) plus the
-        // §0C.5 open-time offer alignment.
         "SNAPBACK_WIRE_VERSION_UNSUPPORTED",
         "SNAPBACK_WIRE_VERSION_MISMATCH",
         "SNAPBACK_WIRE_VERSION_REQUIRED",
-        // LLP 0111/0107 additive ephemeral open-time offers follow the same
-        // request-classed unsupported/mismatched lineage policy.
         "SNAPBACK_EPHEMERAL_AUTHORITY_PROTOCOL_MISMATCH",
         "SNAPBACK_EPHEMERAL_AUTHORITY_UNSUPPORTED",
         "SNAPBACK_EPHEMERAL_AUTHORITY_INSTANCE_REQUIRED",
@@ -38545,6 +38545,9 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_HANDLER_WRITE_IN_QUERY",
         "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
         "SNAPBACK_SEQUENCE_UNDECLARED",
+        "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+        "SNAPBACK_SNAPSHOT_BATCH_NODE_INELIGIBLE",
+        "SNAPBACK_SNAPSHOT_BATCH_CEILING_EXCEEDED",
         "SNAPBACK_SEARCH_CURSOR_RESTART",
         "SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID",
         "SNAPBACK_SEARCH_MAINTENANCE_LIMIT",
@@ -38552,10 +38555,6 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_SEARCH_QUERY_PLAN_INVALID",
         "SNAPBACK_SEARCH_SOURCE_LIMIT",
         "SNAPBACK_SEARCH_WORK_LIMIT",
-        "SNAPBACK_VECTOR_CORPUS_BOUND",
-        "SNAPBACK_VECTOR_QUERY_INVALID",
-        "SNAPBACK_VECTOR_VALUE_INVALID",
-        "SNAPBACK_VECTOR_WORK_LIMIT",
         "SNAPBACK_WRITE_WITH_ACTIVITY_PLAN_INVALID",
         "SNAPBACK_HOST_OP_CLI_ONLY",
         "SNAPBACK_HOST_OP_FUNCTION_KIND_UNSUPPORTED",
@@ -38632,15 +38631,12 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_MEMBERSHIP_UNKNOWN_DECLARATION",
         "SNAPBACK_MEMBERSHIP_UNKNOWN_ROLE",
         "SNAPBACK_PERMISSIONS_UNAVAILABLE_IN_ACTION",
-        // LLP 0056 M2 write-path malformed/structural refusals.
         "SNAPBACK_MEMBERSHIP_NULL_AXIS",
         "SNAPBACK_MEMBERSHIP_RESOURCE_MISSING",
         "SNAPBACK_MEMBERSHIP_RESOURCE_UNEXPECTED",
         "SNAPBACK_MEMBERSHIP_TARGET_MISSING",
         "SNAPBACK_MEMBERSHIP_PATCH_AXIS",
         "SNAPBACK_MEMBERSHIP_NOT_DECLARED",
-        // LLP 0100 principal-addressed removal typed misuses (author input;
-        // the authorization refusal stays TRANSITION_DENIED above).
         "SNAPBACK_MEMBERSHIP_PRINCIPAL_ADDRESSED_UNDECLARED",
         "SNAPBACK_MEMBERSHIP_PRINCIPAL_ADDRESSED_INVALID",
         "SNAPBACK_MEMBERSHIP_PRINCIPAL_INVALID",
@@ -38730,17 +38726,16 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_ASSET_ATTACH_UNAVAILABLE",
         "SNAPBACK_ASSET_ATTACH_DENIED",
         "SNAPBACK_ASSET_TTL_INVALID",
-        // LLP 0143 app-authoring and test-only maintenance request refusals.
+        "SNAPBACK_PUSH_SEAM_AUTH_REQUIRED",
+        "SNAPBACK_PUSH_SEAM_NOT_DECLARED",
         "SNAPBACK_JOB_PUSH_GRANT_INVALID",
         "SNAPBACK_PUSH_CONFIG_GRANT_MISSING",
+        "SNAPBACK_PUSH_SEND_INVALID",
+        "SNAPBACK_PUSH_TOKEN_INVALID",
         "SNAPBACK_PUSH_FIXTURE_CLOCK_REFUSED",
         "SNAPBACK_PUSH_LEDGER_ARGS_INVALID",
         "SNAPBACK_PUSH_LEDGER_NOT_DECLARED",
         "SNAPBACK_PUSH_REDRIVE_REFUSED",
-        "SNAPBACK_PUSH_SEND_INVALID",
-        "SNAPBACK_PUSH_SEAM_AUTH_REQUIRED",
-        "SNAPBACK_PUSH_SEAM_NOT_DECLARED",
-        "SNAPBACK_PUSH_TOKEN_INVALID",
     ];
 
     const APP_API_BAD_REQUEST_DIAGNOSTICS: &[&str] = &["SNAPBACK_APP_API_ENVELOPE_HASH_INVALID"];
@@ -38831,8 +38826,6 @@ globalThis.__snapbackHandlers = {
     ];
 
     const CONFLICT_DIAGNOSTICS: &[&str] = &[
-        // LLP 0132: the partition is full in current durable state; a retry
-        // needs a state change rather than an automatic unchanged replay.
         "SNAPBACK_VECTOR_CORPUS_BOUND",
         "SNAPBACK_TELEMETRY_EXPORT_CONTINUATION_STALE",
         "SNAPBACK_TELEMETRY_EXPORT_SNAPSHOT_STALE",
@@ -38852,14 +38845,12 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_MIGRATION_PRECONDITION_FAILED",
         "SNAPBACK_MIGRATION_REHEARSAL_REQUIRED",
         "SNAPBACK_ACTION_GENERATION_CONFLICT",
-        // LLP 0092 §0D.3 idempotency replay-validity conflicts.
         "SNAPBACK_BUNDLE_IDEMPOTENCY_EXPIRED",
         "SNAPBACK_BUNDLE_IDEMPOTENCY_SCOPE_MISMATCH",
         "SNAPBACK_ACTION_STREAM_CANCELLED",
         "SNAPBACK_OPERATION_CANCELLED",
         "SNAPBACK_AUTH_AGENT_DEACTIVATION_WOULD_STRAND",
         "SNAPBACK_AUTH_AGENT_CREDENTIAL_EXISTS",
-        // LLP 0056 M2 write invariants that conflict with durable state.
         "SNAPBACK_MEMBERSHIP_LAST_HOLDER_STRAND",
         "SNAPBACK_MEMBERSHIP_RESOURCE_DELETE_BLOCKED",
         "SNAPBACK_MEMBERSHIP_BOOTSTRAP_REQUIRED",
@@ -38895,6 +38886,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_BOUNDED_CHILDREN_PARENT_RESTART_REQUIRED",
         "SNAPBACK_RELATION_PARENT_UNAVAILABLE",
         "SNAPBACK_RELATION_ACTIVATION_BACKFILL_REQUIRED",
+        "SNAPBACK_SEQUENCE_ACTIVATION_STATE_INVALID",
         "SNAPBACK_ACTIVITY_SOURCE_EFFECT_REQUIRED",
         "SNAPBACK_SEED_CROSS_MODE_UNSUPPORTED",
         "SNAPBACK_SEED_EFFECT_LIMIT_EXCEEDED",
@@ -38920,12 +38912,11 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_ASSET_NOT_READY",
         "SNAPBACK_ASSET_REFERENCED",
         "SNAPBACK_SEED_ASSET_FIXTURE_NOT_INGESTED",
-        // LLP 0143 dedupe/redrive attempts conflict with durable intent state.
+        "SNAPBACK_PUSH_TOKEN_SCOPE_COLLISION",
+        "SNAPBACK_PUSH_APP_SCOPE_CHANGE_BLOCKED",
         "SNAPBACK_PUSH_DEDUPE_CONFLICT",
         "SNAPBACK_PUSH_REDRIVE_NOT_AMBIGUOUS",
         "SNAPBACK_PUSH_REDRIVE_RACED",
-        "SNAPBACK_PUSH_TOKEN_SCOPE_COLLISION",
-        "SNAPBACK_PUSH_APP_SCOPE_CHANGE_BLOCKED",
     ];
 
     const PAYLOAD_TOO_LARGE_DIAGNOSTICS: &[&str] = &[
@@ -39077,7 +39068,6 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_PUSH_SEND_UNSUPPORTED",
         "SNAPBACK_READ_LANE_UNAVAILABLE",
         "SNAPBACK_SEARCH_INDEX_UNAVAILABLE",
-        "SNAPBACK_VECTOR_INDEX_UNAVAILABLE",
         "SNAPBACK_V8_RUNNER_HOST_UNSUPPORTED",
     ];
 
@@ -39291,7 +39281,6 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_SCHEMA_PHYSICAL_COLUMN_INVALID",
         "SNAPBACK_SEARCH_INDEX_CORRUPT",
         "SNAPBACK_SEARCH_MAINTENANCE_FAILED",
-        "SNAPBACK_VECTOR_INDEX_CORRUPT",
         "SNAPBACK_SQLITE_ERROR",
         "SNAPBACK_TEST_LIVE_SCOPE_REGISTRATION_FAILED",
         "SNAPBACK_TEST_SCOPE_RETIREMENT_AUTH_FAILED",

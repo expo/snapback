@@ -52,9 +52,9 @@
       "package": "@expo/snapback-client/app-data",
       "fixtureSha256": "affa880d29923ab0e75ae51a65250f5c4a93587cd9041352590e1b1f35f929e6",
       "externals": [],
-      "minifiedBytes": 274357,
-      "gzipBytes": 77102,
-      "brotliBytes": 65682,
+      "minifiedBytes": 277029,
+      "gzipBytes": 77844,
+      "brotliBytes": 66193,
       "outputSha256": "377690bbcc9b011ea1f47b0f5b21116f02a7e692bcd98ceef93f3abfa21482f7",
       "attribution": {
         "packages": [
@@ -674,7 +674,7 @@
       ],
       "minifiedBytes": 45502,
       "gzipBytes": 14333,
-      "brotliBytes": 12558,
+      "brotliBytes": 12584,
       "outputSha256": "c88b189c541cc34a0275f6733fa8a146c6acb78b0cab19e0cc3764043a5085bb",
       "attribution": {
         "packages": [
@@ -1293,9 +1293,9 @@
       "package": "@expo/snapback-client",
       "fixtureSha256": "84aa869b18e72ffaf028cd00cf1ef39aa07ceea3334ffc34aff6c3784eb0cdee",
       "externals": [],
-      "minifiedBytes": 272262,
-      "gzipBytes": 76427,
-      "brotliBytes": 65110,
+      "minifiedBytes": 274934,
+      "gzipBytes": 77185,
+      "brotliBytes": 65777,
       "outputSha256": "e7aff93d409583f41cbe0fdb94dc8a64886d170acff7fc07e16f700197576f8e",
       "attribution": {
         "packages": [
@@ -1893,9 +1893,9 @@
       "package": "@expo/snapback-client",
       "fixtureSha256": "0eebc000eaa9d8065d155ed1af5d46a64e1257498e4280266999022435be0dd6",
       "externals": [],
-      "minifiedBytes": 272292,
-      "gzipBytes": 76436,
-      "brotliBytes": 65086,
+      "minifiedBytes": 274964,
+      "gzipBytes": 77193,
+      "brotliBytes": 65701,
       "outputSha256": "3e6e199a051860e4f85c253772478f57ee8cfd4d646d6e2a8d9c1357026774b7",
       "attribution": {
         "packages": [
@@ -2493,9 +2493,9 @@
       "package": "@expo/snapback-client",
       "fixtureSha256": "6c5d046533faa7d9794a2a001d88c1fb961f4d29b594c7aa4efa221572e59d83",
       "externals": [],
-      "minifiedBytes": 367815,
-      "gzipBytes": 101688,
-      "brotliBytes": 84807,
+      "minifiedBytes": 370484,
+      "gzipBytes": 102473,
+      "brotliBytes": 85614,
       "outputSha256": "f58dfef1b57537ce12f781875d77f4d673975af70bd923e9e9a9bdf995f60f43",
       "attribution": {
         "packages": [
@@ -3109,9 +3109,9 @@
       "package": "@expo/snapback-client",
       "fixtureSha256": "4e318bff7882378e69ee33376f5eed5ae87362d549c6fd3f3fe5b2364b072dcb",
       "externals": [],
-      "minifiedBytes": 272704,
-      "gzipBytes": 76515,
-      "brotliBytes": 65140,
+      "minifiedBytes": 275373,
+      "gzipBytes": 77265,
+      "brotliBytes": 65841,
       "outputSha256": "13cd9a9653556a6e5135973b095d0d04d8d4ce71c0598e3ac5da6f84791f1dcc",
       "attribution": {
         "packages": [
@@ -3709,9 +3709,9 @@
       "package": "@expo/snapback-client/online",
       "fixtureSha256": "021cff3497a2cee86d3ca8cf778a0313b30a1567b9fb3714a0bed2673d768daf",
       "externals": [],
-      "minifiedBytes": 272294,
-      "gzipBytes": 76442,
-      "brotliBytes": 65107,
+      "minifiedBytes": 274966,
+      "gzipBytes": 77194,
+      "brotliBytes": 65784,
       "outputSha256": "ecace4a9f38fa05f88baeb7c706720406eb4f277bda6522a422177902a7aed68",
       "attribution": {
         "packages": [
@@ -4454,9 +4454,9 @@
       "package": "@expo/snapback-client/app-data",
       "fixtureSha256": "dc9cd2dba7e807de4104f8a707a3cc8ab2e98358d29f6c53c5efcea76ed498e9",
       "externals": [],
-      "minifiedBytes": 277470,
-      "gzipBytes": 78181,
-      "brotliBytes": 66325,
+      "minifiedBytes": 280142,
+      "gzipBytes": 78932,
+      "brotliBytes": 66837,
       "outputSha256": "c60ed77c766cce008d996b0d35cc2f8cad14f7d3b6bdaa7c78de010caf2d09cf",
       "attribution": {
         "packages": [
@@ -5267,9 +5267,9 @@
       "package": "@expo/snapback-client/hosted-browser",
       "fixtureSha256": "cac007ca30751dde93db15febdfaf51b00f114adfed031e92f3f91daeb975fe1",
       "externals": [],
-      "minifiedBytes": 273724,
-      "gzipBytes": 76849,
-      "brotliBytes": 65353,
+      "minifiedBytes": 276282,
+      "gzipBytes": 77614,
+      "brotliBytes": 66153,
       "outputSha256": "510676bac1ad8844a9c48bf6d024ff40eaa1e7fcd069aada2ec1b84b1c7045a6",
       "attribution": {
         "packages": [
@@ -5885,9 +5885,9 @@
       "package": "@expo/snapback-client/online",
       "fixtureSha256": "5dc8b4d7b09913de130602cdddac3d082b7da2bf83ba25786cfa9dd8cd501a70",
       "externals": [],
-      "minifiedBytes": 273699,
-      "gzipBytes": 76876,
-      "brotliBytes": 65461,
+      "minifiedBytes": 276368,
+      "gzipBytes": 77639,
+      "brotliBytes": 66162,
       "outputSha256": "cd3cade47341a6096c496cc82c9ce0faf90c01f55542dcf6ffcda472b7ea4538",
       "attribution": {
         "packages": [
@@ -6586,9 +6586,9 @@
       "package": "@expo/snapback-client",
       "fixtureSha256": "0b8aca9f63994d2f44a8bc47a6f21226dff5d6a13bb73742eb1e55ed2a4e260f",
       "externals": [],
-      "minifiedBytes": 367815,
-      "gzipBytes": 101692,
-      "brotliBytes": 84896,
+      "minifiedBytes": 370484,
+      "gzipBytes": 102476,
+      "brotliBytes": 85593,
       "outputSha256": "ce3a124862f305c7495dab668ea6479a19c60e72e1780c9e4162e49b96582129",
       "attribution": {
         "packages": [
@@ -8750,6 +8750,22 @@
           }
         }
       }
+    }
+  ],
+  "amendments": [
+    {
+      "date": "2026-08-03",
+      "reason": "LLP 0132 vector program reconciliation: SnapbackClient gains the full generated-reference vector validation (filter-field contract, dimension cross-checks, items-only projection); ceilings raised to the measured post-landing sizes.",
+      "authorities": [
+        "LLP 0132#query-surface"
+      ]
+    },
+    {
+      "date": "2026-08-03",
+      "reason": "LLP 0132 vector program reconciliation: SnapbackClient gains the full generated-reference vector validation (filter-field contract, dimension cross-checks, items-only projection); ceilings raised to the measured post-landing sizes.",
+      "authorities": [
+        "LLP 0132#query-surface"
+      ]
     }
   ]
 }

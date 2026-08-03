@@ -44,6 +44,7 @@ const inventories = [
       'comparator-profile.test.mjs',
       'dev-cli-diagnostics.test.mjs',
       'dev-loop.test.mjs',
+      'fake-expo-push.test.mjs',
       'hosted-admission-producer.test.mjs',
       'hosted-control.test.mjs',
       'load-generated.test.mjs',
@@ -167,7 +168,6 @@ const inventories = [
     packageDir: 'packages/snapback-codegen',
     testDir: '.',
     suffix: '.test.mjs',
-    scriptNames: ['pretest', 'test'],
     expectedFiles: [
       'api-envelope-members.test.mjs',
       'args-contract-goldens.test.mjs',
@@ -459,7 +459,9 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // 167 -> 169 (2026-08-03, LLP 0132 batched reconciliation): the vector
 // authoring and distance-profile suites deferred by the VEC-2 wave policy are
 // registered; the superseded parallel-landing fixture suites are removed.
-assert.equal(total, 169, 'reviewed package/admin test count changed');
+// 169 -> 170 (2026-08-03, LLP 0143): the packaged fake-Expo push acceptance
+// suite is registered with the push01 landing.
+assert.equal(total, 170, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

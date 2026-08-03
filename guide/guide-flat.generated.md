@@ -54,17 +54,11 @@ with the Snapback label and `guide-gap` in the title.
 | backend.sequences | Experimental declared, incarnation-scoped sequences have an in-tree local substrate spanning `ctx.sequence.allocate(counterName, scopeId)`, generated `AllocateSequence`, mutation-atomic lane-Q withholding, membership/public scope reach, exact settlement replay, safe-integer exhaustion, storage-enforced string order-field bounds, and A6 evidence. The capability remains unpublished and support-false until the complete LLP 0135 §5.1 qualification and LLP 0113 publication train | sequence, counter, ticket number, invoice number, monotonic allocation, maxEncodedBytes | none | partial | `sequence.allocate` in packages/snapback-harness/ctx-bootstrap.js + demos/improvement-sweep/arms/a6-snapback-web/evidence/app/acceptance.a6.mjs + focused generated-plan/lane-Q proof (substrate evidence only; no capability publication witness) | llp/0135, llp/0128, llp/0113, llp/0157 | GAP (qualified `sequence_allocation_v1` publication; owner: Charlie, review: 2026-08-31; issue: issues/20260802-wave1-0135-sequences-snapshot-batch.md); backend/sequences.md |
 | backend.actions | Actions with gated outbound fetch: global `fetch` and target-portable host-mediated `ctx.fetch`, in closed-script module handlers or the inline form | action, fetch, ctx.fetch, side effects, notification, webhook | local | shipped | route /action/{name} | llp/0004, llp/0009, llp/0049 | backend/actions-and-fetch.md |
 | backend.assets | Authenticated asset lifecycle plus the media pipeline on the local target — generated upload intents, TUS 1.0.0 resumable transfer, trusted SHA-256 finalization with GPS-strip canonicalization for images (decode/rewrite) and MP4/QuickTime video (in-place location-atom blanking, no transcoding), declared renditions with ThumbHash placeholders, typed `v.assetRef` attachment, private-strict/private-signed/public-immutable delivery with ranges and best-variant selection, opt-in reference GC, lifecycle callbacks, deletion/GC, receipts (`asset_lifecycle_v1`, `asset_image_finalization_v1`, `asset_image_pipeline_v1`, `asset_reference_gc_v1`, `asset_video_finalization_v1`); the paved browser path (stock `@expo/snapback-vite` relay over the `/assets/*` family, sessions custody, typed generated upload references) is CI-verified; transcoding and hosted targets remain design-only | files, images, video, upload, object storage, media, browser upload, vite relay | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json (all five asset ids in supportedCapabilities; `assets` facts block with Enforced image and video ceilings) + src/assets.rs + src/assets_image.rs + src/assets_video.rs suites + demos/file-drop/tests/acceptance/browser-relay.mjs (relay + sessions + typed upload reference browser path) | llp/0044 | backend/assets.md |
-| backend.expo-push-seam | Local Expo integration seam: session-bound token custody, atomic rotation and retirement, declaration-checked/host-authorized `ctx.push.send`, crash-safe intent/batch/message ledger, bounded ticket/receipt maintenance, explicit ambiguous redrive risk, and structured `notifications.expoPushSeam` facts. The app-readable ledger projection, a real-device receipt, and the complete hosted conjunction remain GAPs; this is not first-class notification delivery. | device token, expo push token, installation, ctx.push.send, handoff receipt, DeviceNotRegistered | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json (`expoPushSeam`) + `fake_expo_acceptance_covers_tickets_receipts_dedupe_ambiguity_and_authorization` in src/push.rs | llp/0143, llp/0057, llp/0059, llp/0070 | backend/expo-push.md |
+| backend.expo-push-seam | Local Expo integration seam: session-bound token custody, atomic rotation and retirement, declaration-checked/host-authorized and paced `ctx.push.send`, crash-safe intent/batch/message ledger, safe pre-transmit recovery, bounded ticket/receipt maintenance, a privacy-bounded generated ledger query, explicit ambiguous redrive risk, and structured `notifications.expoPushSeam` facts. A real-device receipt and the complete hosted conjunction remain GAPs; this is not first-class notification delivery. | device token, expo push token, installation, ctx.push.send, handoff receipt, DeviceNotRegistered | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.outbound-actions.json (`expoPushSeam`) + packages/snapback-cli/fake-expo-push.test.mjs + `fake_expo_acceptance_covers_tickets_receipts_dedupe_ambiguity_and_authorization` in src/push.rs | llp/0143, llp/0057, llp/0059, llp/0070 | backend/expo-push.md |
 | backend.notifications | First-class notification and effect delivery; application-authored table ledgers are not this product capability | notifications, push, email, delivery, effects | none | design-only | schemas/capability.manifest.local-dev-sqlite-ibex.json (`notifications: false`; explicit `notifications` gap) | llp/0045 | GAP (owner: Charlie, review: 2026-08-31; issue: issues/20260728-guide-gap-assets-and-notifications-capability-rows.md) |
-<<<<<<< HEAD
 | backend.observability-v1 | Shipped local Phase-1 backend telemetry with a generation-bound sibling store, operation-class spans, bounded retention and rollups, typed agent-facing queries, Health/Logs projections, and retained clean-release idle/benchmark evidence; hosted arms and declared product analytics remain later capabilities | telemetry, observability, health, logs, metrics, traces | local | shipped | tests/acceptance/telemetry-phase1-evidence.v1.json | llp/0154 | operating/observability.md |
 | backend.error-tracking-v1 | Local Phase E0/E1 backend failure classification, deterministic grouping, retained raw exemplars, release-aware issue lifecycle, typed CLI/MCP operations, and Errors/Health console projections; multiple-unhandled grouping, hosted grouping, E2 alerts, and E3 client ingest remain unbuilt | error tracking, issues, fingerprints, exceptions, failures | local | partial | route /_snapback/api/errors/issues | llp/0156, llp/0154, llp/0108 | operating/error-tracking.md |
 | backend.vector-search | Experimental bounded exact k-NN over declared fixed-width binary64 vector fields, with pinned `dot`/`l2sq` arithmetic, public/owner visibility partitions, exact equality filters, stored fields, synchronous SQLite maintenance, and digest-recheck quarantine; ANN, embedding computation, live/paginated/offline search, hosted targets, PostgreSQL, and sensitive fields remain nonclaims | vector, embeddings, similarity, semantic search, RAG, exact k-NN | local | shipped | schemas/capability.manifest.local-dev-sqlite-ibex.json (`vector_search_v1` + `vectorSearch`) + `defineVectorQuery` in packages/snapback-codegen/define.mjs | llp/0132, llp/0073 | backend/vector-search.md |
-=======
-| backend.observability-v1 | Local built-in backend telemetry with a generation-bound sibling store, operation-class spans, bounded retention and rollups, typed agent-facing queries, and Health/Logs projections; hosted arms and declared product analytics remain deferred | telemetry, observability, health, logs, metrics, traces | local | partial | route /_snapback/api/telemetry/stats | llp/0154 | GAP (retained full clean-release idle and benchmark evidence pending; owner: Program D, review: 2026-08-31; issue: issues/20260802-obs-04-guide-gates-crossrefs.md); operating/observability.md |
-| backend.error-tracking-v1 | Minimal built-in backend error grouping and issue lifecycle layered on the observability substrate; LLP 0156 is Accepted but its Phase E0/E1 capability has no implementation witness yet | error tracking, issues, fingerprints, exceptions, failures | none | design-only | issues/20260802-obs-06-errors-surface-and-fixture-gates.md | llp/0156, llp/0154 | GAP (implementation and guide page; owner: Charlie, review: 2026-08-31; issue: issues/20260802-obs-06-errors-surface-and-fixture-gates.md) |
-| backend.vector-search | Experimental bounded exact k-NN over declared fixed-dimension vectors, with pinned `l2sq`/`dot` arithmetic, synchronous transactional maintenance, and public/owner visibility; ANN, hosted, live, offline, cosine, and embedding computation remain nonclaims | vector, embeddings, similarity, semantic search, RAG, exact k-NN, ANN | local | partial | `vector_search_v1` in schemas/capability.manifest.local-dev-sqlite-ibex.json | llp/0132, llp/0134, llp/0058 | backend/vector-search.md |
->>>>>>> origin/main
 | backend.cron | Scheduled execution | cron, schedule, background jobs | local | shipped | route /_snapback/api/cron/tick | llp/0028 | backend/cron.md |
 | backend.jobs-one-off | Experimental transactional one-off durable work (LLP 0070 first slice): `ctx.jobs.enqueue` inside the mutation transaction, a paved default queue, `availableAt = now + delay`, fenced claims with append-only attempt receipts, producer association on job rows plus bounded `enqueues` facts on confirmed mutation receipts, the generated declared job-status live query (codegen emits the capability requirement and acknowledgment), the injected-clock forced drain (`POST /_snapback/api/jobs/drain`), and the secret-read-leased admin inspection lane (`GET /_snapback/api/jobs`, `/jobs/{id}`). `jobs_one_off_v1` stays experimental and no durable-background-work capability class is claimed while LLP 0070 is Draft | one-off jobs, runAfter, scheduler, durable work, enqueue, background jobs, drain, job status, secret-read lease | local | partial | route /_snapback/api/jobs/drain | llp/0070, llp/0121, llp/0115 | backend/jobs.md |
 | realtime.live-queries | Subscribe to a query; snapshot + replace/delta updates | live, subscription, realtime | local | shipped | route /live/{name}/subscribe | llp/0008 | realtime/live-queries.md |
@@ -167,6 +161,7 @@ here (or listed here but gone from the code).
 | /_snapback/api/jobs | backend.jobs-one-off |
 | /_snapback/api/jobs/drain | backend.jobs-one-off |
 | /_snapback/api/jobs/{id} | backend.jobs-one-off |
+| /_snapback/api/push/maintenance | backend.expo-push-seam |
 | /_snapback/api/receipts | notAuthorFacing (operator projection) |
 | /_snapback/api/schema/load | backend.schema |
 | /_snapback/api/telemetry/events | backend.observability-v1 |
@@ -351,14 +346,9 @@ you never build around a feature because you didn't know it existed.
   authorization partitions, highlights, and current-keyset cursors
   (experimental).
 - [Portable exact vector search](./backend/vector-search.md) — declared
-<<<<<<< HEAD
   fixed-width embeddings, pinned `dot`/`l2sq` arithmetic, bounded exact k-NN,
   authorization partitions, and explicit ANN/live/hosted nonclaims
   (experimental).
-=======
-  fixed-dimension embeddings, bounded exact `l2sq`/`dot` ranking, owner or
-  public visibility, and a deliberately closed ANN door (experimental).
->>>>>>> origin/main
 - [Assets](./backend/assets.md) — generated upload intents, TUS resumable
   transfer, trusted SHA-256 finalization, typed `v.assetRef` attachment,
   private-strict delivery (local target; image pipeline still a GAP).
@@ -4874,146 +4864,6 @@ maintenance failure rolls back the source mutation too.
 
 ---
 
-<!-- snapback-guide-source: guide/backend/vector-search.md -->
----
-title: Portable exact vector search
-id: backend.vector-search
-order: 28
-audience: agent-first
-capabilities: [backend.vector-search]
-authorities: [llp/0132-vector-search.spec.md, src/vector/types.rs, src/vector/sqlite.rs, packages/snapback-codegen/define.mjs, packages/snapback-client/vector-search.mjs]
-examples: [packages/snapback-codegen/vector-result-contracts.test.mjs]
-status: current
-targets: [local]
-maturity: partial
-reviewed: 2026-08-02
-reviewed-commit: HEAD
----
-
-# Portable exact vector search
-
-<!-- @ref LLP 0132#capabilities-targets-and-staging — local-only experimental
-publication and the exact-only nonclaim boundary are part of the contract. -->
-
-> **Local target only.** This page describes the experimental
-> `vector_search_v1` capability on `local-dev-sqlite-ibex`. Hosted targets do
-> not advertise it. The profile is exhaustive exact k-NN; no ANN or
-> approximate accelerator is hidden behind this API.
-
-Use a vector index for server-side similarity ranking over embeddings your
-application already supplies. Snapback fixes the binary64 conversion,
-arithmetic order, visibility partition, work ceilings, and tie-break so the
-same admitted rows produce the same ordered result on every claimed target.
-It does not create embeddings.
-
-## Declare the vector and index
-
-Declare a fixed-size `v.vector(dimensions)` field, then name one vector index.
-Every vector, equality-filter, stored, and owner field participating in the
-index must appear exactly once in `fieldClassifications`. Public indexes admit
-only `public` fields. Owner indexes may use `private` fields and always resolve
-the effective principal on the server.
-
-```js source=packages/snapback-codegen/vector-result-contracts.test.mjs
-export const papers = defineTable({
-  ownerId: v.principal(),
-  category: v.string(),
-  title: v.string(),
-  embedding: v.vector(3),
-}).vectorIndex('by_embedding', {
-  semanticVersion: 'research-room.embedding.v1',
-  vectorField: 'embedding',
-  metric: 'l2sq',
-  fieldClassifications: {
-    embedding: 'private',
-    category: 'private',
-    title: 'private',
-  },
-  equalityFilters: ['category'],
-  storedFields: ['title'],
-  visibility: { kind: 'owner', field: 'ownerId' },
-  tieBreak: 'id-asc',
-  maxIndexedVectorsPerPartition: 64,
-});
-
-export default defineSchema({ papers });
-```
-
-The required semantic version changes whenever index meaning changes.
-`maxIndexedVectorsPerPartition` must be at most 65,536 and must also satisfy
-`dimensions × maxIndexedVectorsPerPartition ≤ 2^26`. Dimensions are in
-1..4,096. Components must be finite, normalize negative zero to positive
-zero, and have absolute value at most `2^100`.
-
-Choose `l2sq` for squared Euclidean distance or `dot` for dot-product ranking.
-For cosine-like ranking, normalize stored and query vectors consistently in
-the application and use `dot`; the profile does not claim a `cosine` metric.
-
-## Export and call the exact query
-
-Export one ordinary query for the declared index. Vector queries are
-one-shot snapshot reads, never live queries.
-
-```js source=packages/snapback-codegen/vector-result-contracts.test.mjs
-export const nearestPapers = defineVectorQuery({
-  table: papers,
-  index: 'by_embedding',
-});
-```
-
-Call the generated reference with exactly the declared number of components,
-optional `k` in 1..64, and at most eight distinct declared equality filters.
-The client returns one cursor-free page ordered nearest first and then by the
-declared row-id direction. `fields` contains exactly the declared stored
-fields.
-
-```js source=packages/snapback-client/package.test.mjs
-    const page = await vectorClient.vectorSearch(vectorRef, {
-      vector: [-0, 0.5],
-      filters: [{ field: 'category', op: 'eq', value: 'systems' }],
-    });
-    assert.deepEqual(page, {
-      items: [{ rowId: 'paper-a', distance: 0.5, fields: { title: 'Portable indexes' } }],
-    });
-```
-
-## Stay within the closed bounds
-
-The public diagnostic set is intentionally small:
-
-- `SNAPBACK_VECTOR_QUERY_INVALID` rejects malformed vectors, dimensions, k,
-  filters, or values before storage work.
-- `SNAPBACK_VECTOR_VALUE_INVALID` rejects an invalid stored vector.
-- `SNAPBACK_VECTOR_CORPUS_BOUND` atomically rejects an insert or partition
-  transfer beyond the declared corpus ceiling.
-- `SNAPBACK_VECTOR_WORK_LIMIT` refuses when the fixed exact-query or
-  synchronous-maintenance budget would be exceeded; no partial page or source
-  write is released.
-- `SNAPBACK_VECTOR_INDEX_UNAVAILABLE` means the target, profile, declaration,
-  or active generation is unavailable.
-- `SNAPBACK_VECTOR_INDEX_CORRUPT` means manifest, generation, posting, or
-  source recheck evidence disagreed. The index is quarantined and source rows
-  remain authoritative.
-
-Index maintenance is synchronous with source writes. The default per-mutation
-ceilings are 1,024 posting effects and 4 MiB of vector bytes. Do not retry a
-bounded refusal as though it were transient; change the declaration or data
-shape deliberately.
-
-## Anti-patterns
-
-- Do not scan ordinary rows in a JavaScript handler and call that
-  `vector_search_v1`; it bypasses the profile, work, custody, and corruption
-  evidence.
-- Do not advertise ANN, approximate recall, hosted support, pagination,
-  subscription, offline search, membership visibility, or embedding
-  generation through this capability.
-- Do not store unnormalized vectors and describe `dot` as cosine similarity.
-- Do not use distance as an authorization or policy decision. Authorization
-  selects the candidate partition before ranking.
-
----
-
 <!-- snapback-guide-source: guide/backend/streamed-actions.md -->
 ---
 title: Streamed actions
@@ -5296,8 +5146,8 @@ id: backend.expo-push-seam
 order: 46
 audience: agent-first
 capabilities: [backend.expo-push-seam]
-authorities: [llp/0143-expo-push-notification-seam.rfc.md, src/push.rs, src/server.rs, packages/snapback-codegen/define.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-client/push-registry.mjs]
-examples: []
+authorities: [llp/0143-expo-push-notification-seam.rfc.md, src/push.rs, src/server.rs, src/admin.rs, packages/snapback-codegen/define.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-client/push-registry.mjs, packages/snapback-cli/fake-expo-push.mjs]
+examples: [packages/snapback-cli/fixtures/push-seam]
 status: current
 targets: [local]
 maturity: partial
@@ -5385,18 +5235,20 @@ See [Secrets and deployment config](../operating/secrets-and-config.md).
 ## Register the current installation
 
 Importing the root client adds no push code or property. Attach the explicit
-subpath and supply durable installation custody:
+subpath and inject Expo's file-system module to select the conventional
+device-scoped default:
 
-```js fragment reason="Apps choose their native durable-storage adapter"
+```js fragment reason="Expo supplies the native module; Snapback owns the dedicated push file"
+import * as ExpoFileSystem from 'expo-file-system';
 import { SnapbackClient } from '@expo/snapback-client';
+import { createExpoPushInstallationStorage } from '@expo/snapback-client/push-installation-expo';
 import { attachPushRegistry } from '@expo/snapback-client/push-registry';
 
+const pushInstallationStorage = createExpoPushInstallationStorage({
+  fileSystem: ExpoFileSystem,
+});
 const client = attachPushRegistry(new SnapbackClient(origin, { bearerToken }), {
-  pushInstallationStorage: {
-    read: () => durableStore.get('snapback.push.installation.v1'),
-    write: (value) => durableStore.set('snapback.push.installation.v1', value),
-    clear: () => durableStore.delete('snapback.push.installation.v1'),
-  },
+  pushInstallationStorage,
 });
 
 await client.push.registerExpoToken({
@@ -5405,11 +5257,17 @@ await client.push.registerExpoToken({
 });
 ```
 
-The installation id lives in this injected native custody, not in the RQS
-cache. Ordinary logout does not need to erase it: the server retires the exact
-session generation's token row transactionally. A full client-custody wipe
-must call the storage adapter's `clear`; the next registration mints a new id.
-Web push registration is outside v1.
+The installation id lives in the dedicated
+`snapback-push/installation.v1.json` document-store member, not in the RQS
+cache. Ordinary logout preserves it while the server retires the exact session
+generation's token row transactionally. Account switching also preserves the
+id; registering under the successor session rebinds the device through the
+single-owner rule. A full app-data custody wipe must call
+`pushInstallationStorage.clear()`; the next registration mints a new id. An OS
+app-data reset or reinstall removes the app container and therefore also mints
+a fresh id. Apps with another native durable key/value store may still pass a
+custom `pushInstallationStorage`; missing custody continues to refuse rather
+than fall back to process memory. Web push registration is outside v1.
 
 The app still owns `expo-notifications` setup: OS permission prompts,
 `projectId`, foreground behavior, and `addPushTokenListener`. On a rotation
@@ -5461,9 +5319,23 @@ Authority depends on the trigger:
   re-resolves recipients. Explicit-principal audiences are refused here.
 
 The return value contains `intentId`, `attempt`, `targetCount`, `batchCount`,
-the current aggregate `state`, and `deduplicated`. The per-message ledger is
-host-owned; an app-readable generated ledger projection has not shipped, so
-do not build product UI by querying protected tables.
+the current aggregate `state`, and `deduplicated`.
+
+If the process dies after claiming a batch but before its durable transmit
+marker, maintenance safely sends the exact protected binding after the claim
+lease expires. Once the marker exists, recovery settles an unanswered attempt
+as `ambiguous` instead. Fresh action reservations are not maintenance work, so
+the worker cannot race the action that created them.
+
+## Read handoff facts without reading secrets
+
+Export one `definePushLedgerQuery({ auth: 'authenticated' })`. It accepts only
+`intentId`; the host loads the stored audience reference and rechecks its
+current authorization before returning flat lifecycle rows. The projection
+contains opaque intent, batch, message, and token-row ids plus timing, state,
+ticket id, allowlisted error code, and retirement effect. It never contains
+token bytes, title/body/data, dedupe key, audience arguments, config, or Expo
+prose. Do not query the protected ledger tables directly.
 
 ## Treat ambiguity as possible duplicate display
 
@@ -5487,6 +5359,9 @@ closed error vocabulary crosses into settlement.
 The local maintenance worker polls at 15 minutes after handoff, then 30
 minutes, 1 hour, 2 hours, and 4-hour-capped intervals, for at most seven polls
 inside a roughly 24-hour window. It requests at most 1,000 ticket ids at once.
+Tests may call `POST /_snapback/api/push/maintenance` with an injected clock
+only when a Dev/Test profile uses a loopback provider override; injected time
+is refused against the real Expo endpoint.
 
 - `handed-to-expo` means the send endpoint returned a successful ticket.
 - `expo-accepted` means Expo's receipt says it handed the message to APNs/FCM.
@@ -5514,7 +5389,10 @@ Production sends are pinned to `https://exp.host`. Only a dev/test-profile
 server accepts `SNAPBACK_EXPO_PUSH_BASE_URL`, and the value must be a loopback
 HTTP(S) origin. The shared conformance fixture scripts ticket responses,
 receipt responses, both `DeviceNotRegistered` stages, and a socket close after
-request bytes; it uses the same bounded HTTP carrier as production.
+request bytes; it uses the same bounded HTTP carrier as production. Import
+`startFakeExpoPushService` from
+`@expo/snapback-cli/testing/fake-expo-push` for that reusable carrier; the
+committed `push-seam` fixture exercises it through the generated app surface.
 
 iOS simulators cannot mint Expo push tokens. Android emulators with Play
 services generally can, but deterministic acceptance should still use fixture

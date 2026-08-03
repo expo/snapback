@@ -10837,22 +10837,6 @@ fn validate_schema(manifest: &SchemaManifest) -> SnapbackResult<()> {
             ));
         }
 
-        let mut vector_names = BTreeSet::new();
-        for vector in &table.vector_indexes {
-            validate_user_identifier("vector index", &vector.name)?;
-            if !vector_names.insert(vector.name.clone())
-                || indexes.contains(&vector.name)
-                || search_names.contains(&vector.name)
-            {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_VECTOR_INDEX_UNAVAILABLE",
-                    "vector",
-                    format!("duplicate vector/index name {}.{}", table.name, vector.name),
-                ));
-            }
-            crate::vector::sqlite::validate_index_declaration(table, vector)?;
-        }
-
         validate_membership_declaration(
             table,
             &fields,
@@ -11061,7 +11045,6 @@ fn field_type_name(field_type: &FieldType) -> &'static str {
         FieldType::Real => "Real",
         FieldType::Vector { .. } => "Vector",
         FieldType::Json => "Json",
-        FieldType::Vector { .. } => "Vector",
         FieldType::Principal => "Principal",
         FieldType::Id { .. } => "Id",
         FieldType::RelationIncarnation { .. } => "RelationIncarnation",
@@ -11955,7 +11938,7 @@ fn validate_query_filter_value(
     value: &Value,
 ) -> SnapbackResult<()> {
     if let Some(field) = table.field(field_name) {
-        if matches!(field.field_type, FieldType::Json | FieldType::Vector { .. }) {
+        if field.field_type == FieldType::Json {
             return Err(SnapbackError::error(
                 "SNAPBACK_QUERY_FILTER_UNSUPPORTED_FIELD_TYPE",
                 "query",
@@ -11979,7 +11962,6 @@ fn validate_query_filter_value(
                 FieldType::Real => value.as_f64().is_some(),
                 FieldType::Vector { .. } => false,
                 FieldType::Json => unreachable!("Json filters returned above"),
-                FieldType::Vector { .. } => unreachable!("Vector filters returned above"),
             }
         };
         if compatible {
@@ -17742,52 +17724,12 @@ fn json_to_sql_value(value: &Value, field_type: Option<&FieldType>) -> SnapbackR
                     .with_detail("error", error.to_string())
                 })
         }
-        Some(FieldType::Vector { dimensions }) => {
-            let values = value
-                .as_array()
-                .ok_or_else(|| type_error("vector", value))?;
-            let values = values
-                .iter()
-                .map(|component| {
-                    component
-                        .as_f64()
-                        .ok_or_else(|| type_error("vector", value))
-                })
-                .collect::<SnapbackResult<Vec<_>>>()?;
-            let values = crate::vector::admit_stored_vector(&values, *dimensions)?;
-            let mut bytes = Vec::with_capacity(values.len() * 8);
-            for component in values {
-                bytes.extend_from_slice(&component.to_le_bytes());
-            }
-            Ok(SqlValue::Blob(bytes))
-        }
     }
 }
 
 fn normalize_json_value(value: Value, field_type: &FieldType) -> SnapbackResult<Value> {
     match field_type {
         FieldType::Json => Ok(value),
-        FieldType::Vector { dimensions } if !value.is_null() => {
-            let values = value
-                .as_array()
-                .ok_or_else(|| type_error("vector", &value))?
-                .iter()
-                .map(|component| {
-                    component
-                        .as_f64()
-                        .ok_or_else(|| type_error("vector", &value))
-                })
-                .collect::<SnapbackResult<Vec<_>>>()?;
-            crate::vector::admit_stored_vector(&values, *dimensions)?
-                .into_iter()
-                .map(|component| {
-                    Number::from_f64(component)
-                        .map(Value::Number)
-                        .ok_or_else(|| type_error("vector", &value))
-                })
-                .collect::<SnapbackResult<Vec<_>>>()
-                .map(Value::Array)
-        }
         // @ref LLP 0073#authorization-and-result-release — a validator-accepted
         // integral Real (JSON `5`) would otherwise stay an integer in the
         // in-memory document while the same row reloads from a SQLite REAL
@@ -17878,21 +17820,18 @@ fn ensure_field_or_system(table: &TableManifest, field: &str) -> SnapbackResult<
 
 fn ensure_orderable_field(table: &TableManifest, field: &str) -> SnapbackResult<()> {
     ensure_field_or_system(table, field)?;
-    if matches!(
-        field_type(table, field),
-        Some(FieldType::Json | FieldType::Vector { .. })
-    ) {
+    if matches!(field_type(table, field), Some(FieldType::Json)) {
         return Err(SnapbackError::error(
             "SNAPBACK_QUERY_ORDER_UNSUPPORTED_FIELD_TYPE",
             "query",
             format!(
-                "query order field {}.{field} has a non-orderable type",
+                "query order field {}.{field} has non-portable Json type",
                 table.name
             ),
         )
         .with_detail("table", table.name.clone())
         .with_detail("field", field.to_owned())
-        .with_detail("fieldType", "JsonOrVector"));
+        .with_detail("fieldType", "Json"));
     }
     Ok(())
 }
@@ -25293,7 +25232,7 @@ mod guarded_commit_tests {
             "SNAPBACK_QUERY_ORDER_UNSUPPORTED_FIELD_TYPE"
         );
         assert_eq!(error.diagnostic.details["field"], "metadata");
-        assert_eq!(error.diagnostic.details["fieldType"], "JsonOrVector");
+        assert_eq!(error.diagnostic.details["fieldType"], "Json");
     }
 }
 

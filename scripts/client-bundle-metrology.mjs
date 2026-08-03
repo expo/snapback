@@ -73,6 +73,21 @@ const SUPPLEMENTAL_LEDGER_SPECS = Object.freeze([
     ]),
   }),
   Object.freeze({
+    filename: 'baseline.vector-search.v1.json',
+    profileFilename: 'vector-search-profiles.v1.json',
+    profileIds: Object.freeze([
+      'public-subpath-vector-search',
+    ]),
+    authorities: Object.freeze([
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0132#query-surface',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/package.test.mjs']],
+    ]),
+  }),
+  Object.freeze({
     filename: 'baseline.micro-phase-b.v1.json',
     profileFilename: 'micro-phase-b-profiles.v1.json',
     profileIds: Object.freeze([

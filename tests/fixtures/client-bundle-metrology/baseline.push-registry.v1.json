@@ -51,9 +51,9 @@
       "package": "@expo/snapback-client/push-registry",
       "fixtureSha256": "5dad135cbf5fc5bc6be7012b2b5ee40e9149eca502854b3e3c1be2374a0d3735",
       "externals": [],
-      "minifiedBytes": 275768,
-      "gzipBytes": 77720,
-      "brotliBytes": 65918,
+      "minifiedBytes": 278921,
+      "gzipBytes": 78548,
+      "brotliBytes": 66548,
       "outputSha256": "a5e00fa294916da2c3e23858810f86e28a8f4828552f727bdea41a90f4cc34f4",
       "attribution": {
         "packages": [
@@ -674,9 +674,9 @@
       "package": "@expo/snapback-client/push-registry",
       "fixtureSha256": "82c87d382e3a6cc932897930fe351ca82915e6842c124163364f7252ab0ddabe",
       "externals": [],
-      "minifiedBytes": 275789,
-      "gzipBytes": 77643,
-      "brotliBytes": 65868,
+      "minifiedBytes": 278942,
+      "gzipBytes": 78488,
+      "brotliBytes": 66522,
       "outputSha256": "383d238ec8b562658b165ef99c681ee8b99fba0dca54aa864f8328bb7551d813",
       "attribution": {
         "packages": [
@@ -1302,9 +1302,9 @@
       "package": "@expo/snapback-client",
       "fixtureSha256": "42aa5b177ef3541023072161237d1e35f59324d92e546915faf74601cc4b72f1",
       "externals": [],
-      "minifiedBytes": 368067,
-      "gzipBytes": 101807,
-      "brotliBytes": 85025,
+      "minifiedBytes": 371102,
+      "gzipBytes": 102679,
+      "brotliBytes": 85739,
       "outputSha256": "941694b0a5d6f2b40fa2859cddb005c4ff4bdfa62324a855b539e5c873ed6d09",
       "attribution": {
         "packages": [
@@ -1912,6 +1912,15 @@
           }
         }
       }
+    }
+  ],
+  "amendments": [
+    {
+      "date": "2026-08-03",
+      "reason": "LLP 0132 vector reconciliation client growth; ceilings raised to measured post-landing sizes.",
+      "authorities": [
+        "LLP 0132#query-surface"
+      ]
     }
   ]
 }

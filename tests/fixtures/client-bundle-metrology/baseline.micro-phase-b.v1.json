@@ -358,9 +358,9 @@
       "package": "@expo/snapback-client",
       "fixtureSha256": "53cbbb1e7343c133423222271946153ad9c5c0e005895a7ab9c75883e14a421f",
       "externals": [],
-      "minifiedBytes": 367410,
-      "gzipBytes": 101626,
-      "brotliBytes": 84826,
+      "minifiedBytes": 370646,
+      "gzipBytes": 102570,
+      "brotliBytes": 85477,
       "outputSha256": "2f2151794d9cdee56efbaf7035e2e27c8e8314f84ec66e1f23433c909b2bb865",
       "attribution": {
         "packages": [
@@ -1232,6 +1232,15 @@
           }
         }
       }
+    }
+  ],
+  "amendments": [
+    {
+      "date": "2026-08-03",
+      "reason": "LLP 0132 vector reconciliation client growth; ceilings raised to measured post-landing sizes.",
+      "authorities": [
+        "LLP 0132#query-surface"
+      ]
     }
   ]
 }

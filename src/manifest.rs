@@ -20,11 +20,6 @@ pub use crate::vector::types::{
     VectorIndexManifestV1, VectorItemV1, VectorMaintenanceLimitsV1, VectorMetricV1, VectorPageV1,
     VectorQueryPlanV1, VectorRequestV1, VectorSearchFactsV1, VectorTieBreakV1, VectorVisibilityV1,
 };
-pub use crate::vector::types::{
-    VectorFieldClassV1, VectorFilterOpV1, VectorFilterV1, VectorFilterValueV1,
-    VectorIndexManifestV1, VectorItemV1, VectorMaintenanceLimitsV1, VectorMetricV1, VectorPageV1,
-    VectorQueryPlanV1, VectorRequestV1, VectorSearchFactsV1, VectorTieBreakV1, VectorVisibilityV1,
-};
 
 pub const SNAPBACK_SCHEMA_VERSION: &str = "snapback.v0";
 /// The paired schema/function artifact version reserved for session authority.
@@ -934,13 +929,6 @@ pub enum FieldType {
         dimensions: u32,
     },
     Json,
-    /// `v.vector(dimensions)` — fixed-size admitted binary64 components.
-    ///
-    /// @ref LLP 0132#vector-values-and-declarations — the schema carries the
-    /// fixed dimension so every write and query can enforce one value domain.
-    Vector {
-        dimensions: u32,
-    },
     /// `v.principal()` — nominal typing over the auth-principal id string space
     /// (the same space as `ctx.auth.userId`, including LLP 0055 agent
     /// principals). It stores and compares exactly like [`FieldType::String`];
@@ -1370,9 +1358,6 @@ impl FunctionManifest {
                 }
                 FunctionRuntime::HostPlan(HandlerPlan::VectorQuery(_)) => {
                     &[crate::vector::VECTOR_CAPABILITY]
-                }
-                FunctionRuntime::HostPlan(HandlerPlan::VectorQuery(_)) => {
-                    &[crate::vector::types::VECTOR_CAPABILITY]
                 }
                 // The declared job-status query requires the experimental
                 // jobs registry id (LLP 0070 is Draft, so the id can never be
@@ -7846,7 +7831,7 @@ pub enum TargetCapabilityId {
 }
 
 impl TargetCapabilityId {
-    pub const ALL: [Self; 31] = [
+    pub const ALL: [Self; 32] = [
         Self::AuthSessionsV1,
         Self::BoundedResponseStreamV1,
         Self::BoundedChildrenV1,
@@ -10614,10 +10599,6 @@ mod membership_manifest_grammar_tests {
             ),
             (
                 TargetCapabilityId::RegisteredBundleBootV1,
-                CapabilityMaturity::Experimental,
-            ),
-            (
-                TargetCapabilityId::VectorSearchV1,
                 CapabilityMaturity::Experimental,
             ),
             (
