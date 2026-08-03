@@ -6644,6 +6644,7 @@ mod tests {
             explain_function: Vec::new(),
             telemetry_events: false,
             telemetry_export: false,
+            errors_issue: false,
             ttl_seconds: 60,
             row_budget: 10,
             byte_budget: 1_000,
@@ -6749,6 +6750,85 @@ mod tests {
             Some(HostCommand::Telemetry {
                 command: TelemetryCommand::Query { .. }
             })
+        ));
+    }
+
+    #[test]
+    fn errors_cli_pins_agent_views_raw_detail_cas_and_deploy_resolve() {
+        let issues = Cli::parse_from([
+            "snapback",
+            "errors",
+            "issues",
+            "--url",
+            "http://127.0.0.1:4287",
+            "--since",
+            "release-a",
+            "--order",
+            "count",
+            "--limit",
+            "7",
+        ]);
+        assert!(matches!(
+            issues.command,
+            Some(HostCommand::Errors {
+                command: ErrorsCommand::Issues {
+                    since: Some(ref release),
+                    limit: 7,
+                    ..
+                }
+            }) if release == "release-a"
+        ));
+
+        let issue = Cli::parse_from([
+            "snapback",
+            "errors",
+            "issue",
+            "issue_fixture",
+            "--url",
+            "http://127.0.0.1:4287",
+            "--secret-read-lease",
+            "sbrl_test",
+        ]);
+        assert!(matches!(
+            issue.command,
+            Some(HostCommand::Errors {
+                command: ErrorsCommand::Issue { .. }
+            })
+        ));
+
+        let transition = Cli::parse_from([
+            "snapback",
+            "errors",
+            "transition",
+            "issue_fixture",
+            "--to",
+            "ignored",
+            "--expect-seq",
+            "3",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            transition.command,
+            Some(HostCommand::Errors {
+                command: ErrorsCommand::Transition { expect_seq: 3, .. }
+            })
+        ));
+
+        let resolve = Cli::parse_from([
+            "snapback",
+            "errors",
+            "resolve",
+            "--open-before",
+            "release-a",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            resolve.command,
+            Some(HostCommand::Errors {
+                command: ErrorsCommand::Resolve { ref open_before, .. }
+            }) if open_before == "release-a"
         ));
     }
 

@@ -389,6 +389,21 @@ fn project_error_issue_state(
     }
 }
 
+fn authored_error_target(
+    state: crate::errors_query::ErrorsIssueStateV1,
+) -> SnapbackResult<ErrorIssueState> {
+    match state {
+        crate::errors_query::ErrorsIssueStateV1::Open => Ok(ErrorIssueState::Open),
+        crate::errors_query::ErrorsIssueStateV1::Resolved => Ok(ErrorIssueState::Resolved),
+        crate::errors_query::ErrorsIssueStateV1::Ignored => Ok(ErrorIssueState::Ignored),
+        crate::errors_query::ErrorsIssueStateV1::Regressed => Err(SnapbackError::error(
+            "SNAPBACK_ERROR_TRANSITION_INVALID",
+            "telemetry",
+            "regressed is a flusher-owned transition target",
+        )),
+    }
+}
+
 fn project_transition_result(
     result: ErrorTransitionResult,
 ) -> crate::errors_query::ErrorTransitionResultV1 {
@@ -1930,36 +1945,25 @@ impl Telemetry {
     ) -> SnapbackResult<crate::errors_query::ErrorsTransitionResponseV1> {
         use crate::errors_query::ErrorsIssueStateV1;
 
-        let to = match request.to {
-            ErrorsIssueStateV1::Open => ErrorIssueState::Open,
-            ErrorsIssueStateV1::Resolved => ErrorIssueState::Resolved,
-            ErrorsIssueStateV1::Ignored => ErrorIssueState::Ignored,
-            ErrorsIssueStateV1::Regressed => {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_ERROR_TRANSITION_INVALID",
-                    "telemetry",
-                    "regressed is a flusher-owned transition target",
-                ));
-            }
-        };
-        let (release, activation_seq, rows) = match (
-            request.issue.as_deref(),
-            request.expect_seq,
-            request.selector.as_ref(),
-        ) {
-            (Some(issue), Some(expect_seq), None) if !issue.is_empty() && expect_seq >= 0 => {
-                let row = self.transition_error_issue(issue, to, expect_seq)?;
+        let (release, activation_seq, rows) = match request {
+            crate::errors_query::ErrorsTransitionRequestV1::Single(single)
+                if !single.issue.is_empty() && single.expect_seq >= 0 =>
+            {
+                let to = authored_error_target(single.to)?;
+                let row = self.transition_error_issue(&single.issue, to, single.expect_seq)?;
                 (None, None, vec![project_transition_result(row)])
             }
-            (None, None, Some(selector)) if request.to == ErrorsIssueStateV1::Resolved => {
-                if selector.open_before.is_empty() {
+            crate::errors_query::ErrorsTransitionRequestV1::Bulk(bulk)
+                if bulk.to == ErrorsIssueStateV1::Resolved =>
+            {
+                if bulk.selector.open_before.is_empty() {
                     return Err(SnapbackError::error(
                         "SNAPBACK_ERROR_TRANSITION_INVALID",
                         "telemetry",
                         "bulk errors transition requires a nonempty openBefore release",
                     ));
                 }
-                let result = self.resolve_errors_open_before(&selector.open_before)?;
+                let result = self.resolve_errors_open_before(&bulk.selector.open_before)?;
                 if !result.known_release {
                     let known_releases = self.error_known_releases()?;
                     return Err(SnapbackError::error(
@@ -1968,7 +1972,7 @@ impl Telemetry {
                         "bulk error transition release is unknown or below the retained activation floor",
                     )
                     .with_details(json!({
-                        "release": selector.open_before,
+                        "release": bulk.selector.open_before,
                         "knownReleases": known_releases,
                         "activationFloorSeq": result.activation_floor_seq,
                     })));
@@ -9936,6 +9940,115 @@ mod tests {
             .unwrap();
         assert!(!unknown.known_release);
         assert!(unknown.rows.is_empty());
+    }
+
+    #[test]
+    fn typed_errors_operations_preserve_since_raw_tier_and_bulk_selector_semantics() {
+        let telemetry = Telemetry::in_memory_with_identity(
+            "01900000-0000-7000-8000-000000000001",
+            identity("app-errors-api", "preview-errors-api"),
+            config(),
+        )
+        .unwrap();
+        let generation = telemetry
+            .producer
+            .shared
+            .buffer
+            .lock()
+            .unwrap()
+            .current_generation
+            .clone();
+        telemetry.enqueue(
+            eligible_failure_event(
+                &generation,
+                0,
+                1,
+                "0123456789abcdef0123456789abcdef",
+                FailureDispositionV1::Fault,
+                None,
+                Some("database timeout {number}".to_owned()),
+            ),
+            true,
+        );
+        telemetry.enqueue(
+            release_activation_event(&generation, 0, "release-errors-api"),
+            true,
+        );
+        telemetry.enqueue(
+            eligible_failure_event(
+                &generation,
+                0,
+                1,
+                "fedcba9876543210fedcba9876543210",
+                FailureDispositionV1::Fault,
+                None,
+                Some("successor timeout {number}".to_owned()),
+            ),
+            true,
+        );
+        telemetry.force_flush().unwrap();
+
+        let all = telemetry
+            .query_error_issues(&crate::errors_query::ErrorsIssuesRequestV1::default())
+            .unwrap();
+        assert_eq!(all.issues.len(), 2);
+        assert_eq!(all.known_releases, vec!["release-errors-api"]);
+        let structural = serde_json::to_string(&all).unwrap();
+        assert!(!structural.contains("titleTemplate"));
+        assert!(!structural.contains("stackHead"));
+
+        let since = telemetry
+            .query_error_issues(&crate::errors_query::ErrorsIssuesRequestV1 {
+                since: Some("release-errors-api".to_owned()),
+                ..Default::default()
+            })
+            .unwrap();
+        assert_eq!(since.issues.len(), 1);
+        assert!(since.issues[0].first_seen_seq >= 2);
+        let detail = telemetry
+            .query_error_issue(&crate::errors_query::ErrorsIssueRequestV1 {
+                issue: since.issues[0].issue.clone(),
+            })
+            .unwrap();
+        assert_eq!(detail.exemplars.len(), 1);
+        assert_eq!(
+            detail.exemplars[0].title_template.as_deref(),
+            Some("successor timeout {number}")
+        );
+        assert_eq!(
+            detail.exemplars[0].telemetry_events_query.operation,
+            "telemetry.events"
+        );
+
+        let bulk = telemetry
+            .transition_errors(&crate::errors_query::ErrorsTransitionRequestV1::Bulk(
+                crate::errors_query::ErrorsBulkTransitionRequestV1 {
+                selector: crate::errors_query::ErrorsTransitionSelectorV1 {
+                    open_before: "release-errors-api".to_owned(),
+                },
+                to: crate::errors_query::ErrorsIssueStateV1::Resolved,
+            }))
+            .unwrap();
+        assert_eq!(bulk.activation_seq, Some(2));
+        assert_eq!(bulk.rows.len(), 1);
+        assert_eq!(
+            bulk.rows[0].outcome,
+            crate::errors_query::ErrorTransitionOutcomeV1::Applied
+        );
+        let unknown = telemetry
+            .query_error_issues(&crate::errors_query::ErrorsIssuesRequestV1 {
+                since: Some("release-unknown".to_owned()),
+                ..Default::default()
+            })
+            .unwrap_err();
+        assert_eq!(
+            unknown.diagnostic.code,
+            "SNAPBACK_ERROR_RELEASE_UNKNOWN_OR_PRUNED"
+        );
+        assert_eq!(
+            unknown.diagnostic.details["knownReleases"],
+            json!(["release-errors-api"])
+        );
     }
 
     #[test]
