@@ -454,6 +454,33 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
             "telemetry.sql-result.schema.json",
             schemars::schema_for!(crate::telemetry_query::TelemetrySqlResultV1),
         ),
+        // @ref LLP 0156#e14--surface-typed-operations-projected-everywhere —
+        //   the issue-triage operations and their two authority-tier response
+        //   shapes are Rust-owned, committed, and drift-gated.
+        finish(
+            "errors.issues.request.schema.json",
+            schemars::schema_for!(crate::errors_query::ErrorsIssuesRequestV1),
+        ),
+        finish(
+            "errors.issues.response.schema.json",
+            schemars::schema_for!(crate::errors_query::ErrorsIssuesResponseV1),
+        ),
+        finish(
+            "errors.issue.request.schema.json",
+            schemars::schema_for!(crate::errors_query::ErrorsIssueRequestV1),
+        ),
+        finish(
+            "errors.issue.response.schema.json",
+            schemars::schema_for!(crate::errors_query::ErrorsIssueResponseV1),
+        ),
+        finish(
+            "errors.transition.request.schema.json",
+            schemars::schema_for!(crate::errors_query::ErrorsTransitionRequestV1),
+        ),
+        finish(
+            "errors.transition.response.schema.json",
+            schemars::schema_for!(crate::errors_query::ErrorsTransitionResponseV1),
+        ),
         finish(
             "inspect.public.schema.json",
             schemars::schema_for!(PublicInspect),
@@ -812,6 +839,10 @@ pub fn artifact_instances() -> Vec<SchemaArtifact> {
         SchemaArtifact {
             file: crate::telemetry_query::QUERY_FIXTURE_CORPUS_FILE,
             schema: sorted_keys(crate::telemetry_query::query_fixture_corpus()),
+        },
+        SchemaArtifact {
+            file: crate::errors_query::ERRORS_FIXTURE_CORPUS_FILE,
+            schema: sorted_keys(crate::errors_query::errors_fixture_corpus()),
         },
         SchemaArtifact {
             file: "data-tier.profile.json",

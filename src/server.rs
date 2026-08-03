@@ -15036,6 +15036,48 @@ pub fn operation_registry() -> Vec<OperationSpec> {
             ResponseSensitivity::SensitiveApplicationData,
             SessionModeOverlay::NONE,
         ),
+        // @ref LLP 0156#e14--surface-typed-operations-projected-everywhere —
+        //   control carriers preserve the structural/raw/write split of the
+        //   operation itself; the shared host-ops route cannot weaken it.
+        operation(
+            "host_ops.errors.issues",
+            "/_snapback/api/host-ops",
+            HostOps,
+            RouteClass::SystemApi,
+            RoutePolicy::AdminRead,
+            CredentialResolution::AdminCredential,
+            InvocationAuthority::Operator,
+            LegacyBodyPolicy::NotApplicable,
+            EffectPolicy::None,
+            ResponseSensitivity::OperatorMetadata,
+            SessionModeOverlay::NONE,
+        ),
+        operation(
+            "host_ops.errors.issue",
+            "/_snapback/api/host-ops",
+            HostOps,
+            RouteClass::SystemApi,
+            RoutePolicy::AdminSecretRead,
+            CredentialResolution::AdminSecretReadLease,
+            InvocationAuthority::Operator,
+            LegacyBodyPolicy::NotApplicable,
+            EffectPolicy::None,
+            ResponseSensitivity::SensitiveApplicationData,
+            SessionModeOverlay::NONE,
+        ),
+        operation(
+            "host_ops.errors.transition",
+            "/_snapback/api/host-ops",
+            HostOps,
+            RouteClass::SystemApi,
+            RoutePolicy::AdminWrite,
+            CredentialResolution::AdminCredential,
+            InvocationAuthority::Operator,
+            LegacyBodyPolicy::NotApplicable,
+            EffectPolicy::None,
+            ResponseSensitivity::OperatorMetadata,
+            SessionModeOverlay::NONE,
+        ),
         // The asset operator surface (LLP 0044 §Seeds and agent DX): the
         // function.run posture — admin-write everywhere, dev-admitted
         // authority inside the executor, legacy body userId rejected under
@@ -15593,6 +15635,9 @@ pub(crate) fn host_ops_operation_spec(
         "telemetry.stats" => "host_ops.telemetry.stats",
         "telemetry.events" => "host_ops.telemetry.events",
         "telemetry.export" => "host_ops.telemetry.export",
+        "errors.issues" => "host_ops.errors.issues",
+        "errors.issue" => "host_ops.errors.issue",
+        "errors.transition" => "host_ops.errors.transition",
         // @ref LLP 0024#http-projection — pinned-unbuilt and CLI-only
         // operations resolve to registered AdminWrite policies so an
         // authenticated request reaches the structured UNIMPLEMENTED /
@@ -17677,7 +17722,12 @@ async fn host_ops_handler_inner(
 
     if matches!(
         request.operation.as_str(),
-        "telemetry.stats" | "telemetry.events" | "telemetry.export"
+        "telemetry.stats"
+            | "telemetry.events"
+            | "telemetry.export"
+            | "errors.issues"
+            | "errors.issue"
+            | "errors.transition"
     ) {
         crate::admin::authorize_host_operation(
             &ctx,
@@ -17695,6 +17745,9 @@ async fn host_ops_handler_inner(
             ),
             "telemetry.export" => Some(
                 crate::admin_secret_read::SecretReadScope::TelemetryExport,
+            ),
+            "errors.issue" => Some(
+                crate::admin_secret_read::SecretReadScope::ErrorsIssue,
             ),
             _ => None,
         };
@@ -17753,6 +17806,56 @@ async fn host_ops_handler_inner(
                 }
                 Err(error) => (Err(error), 0),
             },
+            "errors.issues" => match telemetry_host_operation_input::<
+                crate::errors_query::ErrorsIssuesRequestV1,
+            >(&request)
+            .and_then(|input| runtime.telemetry.query_error_issues(&input))
+            {
+                Ok(response) => {
+                    let rows = response.issues.len();
+                    (serde_json::to_value(response).map_err(|_| {
+                        SnapbackError::error(
+                            "SNAPBACK_ERRORS_QUERY_SERIALIZATION_FAILED",
+                            "telemetry",
+                            "failed to serialize the errors issues response",
+                        )
+                    }), rows)
+                }
+                Err(error) => (Err(error), 0),
+            },
+            "errors.issue" => match telemetry_host_operation_input::<
+                crate::errors_query::ErrorsIssueRequestV1,
+            >(&request)
+            .and_then(|input| runtime.telemetry.query_error_issue(&input))
+            {
+                Ok(response) => {
+                    let rows = 1usize
+                        .saturating_add(response.exemplars.len())
+                        .saturating_add(response.transitions.len());
+                    (serde_json::to_value(response).map_err(|_| {
+                        SnapbackError::error(
+                            "SNAPBACK_ERRORS_QUERY_SERIALIZATION_FAILED",
+                            "telemetry",
+                            "failed to serialize the errors issue response",
+                        )
+                    }), rows)
+                }
+                Err(error) => (Err(error), 0),
+            },
+            "errors.transition" => {
+                let outcome = telemetry_host_operation_input::<
+                    crate::errors_query::ErrorsTransitionRequestV1,
+                >(&request)
+                .and_then(|input| runtime.telemetry.transition_errors(&input))
+                .and_then(|response| serde_json::to_value(response).map_err(|_| {
+                    SnapbackError::error(
+                        "SNAPBACK_ERRORS_QUERY_SERIALIZATION_FAILED",
+                        "telemetry",
+                        "failed to serialize the errors transition response",
+                    )
+                }));
+                (outcome, 0)
+            }
             _ => {
                 let outcome = telemetry_host_operation_input::<
                 crate::telemetry_query::TelemetryStatsRequestV1,

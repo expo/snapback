@@ -5,10 +5,13 @@
 **Systems:** Local server lifecycle, HTTP surface, Security/authorization, Admin API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-01
-**Revised:** 2026-08-03 (reconciled the enforced route matrix with LLP 0143's
-session-only PUSH token register/unregister routes and LLP 0154's three
-telemetry query projections; the route-parity and body-authority acceptance
-inventories advance with the same change.)
+**Revised:** 2026-08-03 (added LLP 0156's error-triage routes and host
+operations with the structural `OperatorMetadata` / raw
+`AdminSecretRead` split and an `AdminWrite` transition; earlier the same day,
+reconciled the enforced route matrix with LLP 0143's session-only PUSH token
+register/unregister routes and LLP 0154's three telemetry query projections;
+the route-parity and body-authority acceptance inventories advance with the
+same changes.)
 **Revised:** 2026-08-01 (LLP 0062 exact scoped-token release: registered the
 closed destroy-only `POST /auth/agents/token/release` app-data route; see the
 dated amendment). 2026-07-31, W2b (LLP 0044 completion program: the asset family
@@ -342,6 +345,9 @@ resolved session or bound connection grant.
 | `GET /_snapback/api/health` | `AdminRead` (tokenless loopback remains the LLP 0017 compatibility posture) | unchanged | serve | typed admin metadata only |
 | `GET /_snapback/api/telemetry/stats` | `AdminRead` | unchanged; closed aggregates require no raw-data lease | serve | closed `OperatorMetadata` aggregates; no-store |
 | `GET /_snapback/api/telemetry/events`, `/telemetry/export` | `AdminSecretRead`; fixed finite scope and row/byte budgets | unchanged; ordinary admin/session credentials cannot substitute | serve only with the scoped lease | sensitive raw/snapshot application data; no-store |
+| `GET /_snapback/api/errors/issues` and host-op `errors.issues` | `AdminRead` | unchanged; the closed DTO contains structural titles/counters only | serve | `OperatorMetadata`; no templates, messages, or stacks; no-store |
+| `GET /_snapback/api/errors/issue` and host-op `errors.issue` | `AdminSecretRead`; fixed `errorsIssue` scope and row/byte budgets | unchanged; ordinary admin/session credentials cannot substitute | serve only with the scoped lease | retained exemplar templates/stacks and correlation queries; `SensitiveApplicationData`, no-store |
+| `POST /_snapback/api/errors/transition` and host-op `errors.transition` | `AdminWrite`; single issue CAS or one atomic release selector | unchanged; no session or secret-read credential substitution | serve if the admin gate succeeds | structural transition outcome/variance only; no-store |
 | `POST /_snapback/api/console/credential` | `AdminWrite`; the configured/master credential is presented once | unchanged; neither a session nor a secret-read lease substitutes | serve if the admin gate succeeds | short-lived process-bound ordinary console credential; `CredentialSecret`, no-store |
 | `POST /_snapback/api/admin-secret-read/mint` | `AdminWrite` **plus `SecretReadMintProof`** bound to the exact finite scopes, TTL, and row/byte budgets | unchanged; a URL, console credential, session, or unbound proof cannot select/mint | serve only if both independent gates succeed | short-lived scoped `sbrl_` lease; `CredentialSecret`, no-store |
 | `GET /_snapback/api/auth/mailbox` | `AdminWrite` **plus `ImpersonationCapability`**; capture-provider profiles only | unchanged; a session, ordinary console credential, or secret-read lease cannot substitute for either axis | serve only if both independent gates and the provider-profile gate succeed | exact captured code projection; `CredentialSecret`, no-store |

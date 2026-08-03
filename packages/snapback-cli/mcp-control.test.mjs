@@ -115,6 +115,7 @@ try {
     'snapback_reset', 'snapback_load_schema', 'snapback_load_functions',
     'snapback_run_function', 'snapback_acceptance_run',
     'snapback_telemetry_stats', 'snapback_telemetry_events', 'snapback_telemetry_export',
+    'snapback_errors_issues', 'snapback_errors_issue', 'snapback_errors_transition',
   ]) {
     assert.ok(names.includes(pinned), `missing pinned control tool ${pinned}`);
   }
@@ -197,6 +198,32 @@ try {
     telemetryExport.structuredContent.diagnostics[0].code,
     'SNAPBACK_TELEMETRY_IDENTITY_UNBOUND',
   );
+
+  const errorIssues = await client.call('snapback_errors_issues', { limit: 5 });
+  assert.equal(errorIssues.structuredContent.operation, 'errors.issues');
+  assert.equal(errorIssues.structuredContent.ok, true, JSON.stringify(errorIssues.structuredContent));
+  assert.equal(errorIssues.structuredContent.data.schemaVersion, 'snapback.errors.issues.v1');
+  assert.ok(Array.isArray(errorIssues.structuredContent.data.issues));
+  assert.equal(errorIssues.structuredContent.authority.mode, 'admin');
+
+  const missingErrorIssue = await client.call('snapback_errors_issue', {
+    issue: 'issue_00000000000000000000000000',
+  });
+  assert.equal(missingErrorIssue.structuredContent.operation, 'errors.issue');
+  assert.equal(missingErrorIssue.structuredContent.ok, false);
+  assert.equal(missingErrorIssue.structuredContent.authority.mode, 'adminSecretRead');
+  assert.equal(missingErrorIssue.structuredContent.authority.scope, 'errors.issue');
+  assert.equal(
+    missingErrorIssue.structuredContent.diagnostics[0].code,
+    'SNAPBACK_ERROR_ISSUE_NOT_FOUND',
+  );
+
+  const missingTransition = await client.call('snapback_errors_transition', {
+    issue: 'issue_00000000000000000000000000', to: 'resolved', expectSeq: 0,
+  });
+  assert.equal(missingTransition.structuredContent.operation, 'errors.transition');
+  assert.equal(missingTransition.structuredContent.ok, true, JSON.stringify(missingTransition.structuredContent));
+  assert.equal(missingTransition.structuredContent.data.rows[0].outcome, 'missing');
 
   // Mutation without an authority tuple: structured refusal with a
   // machine-readable next hint — and a successful tool result, not an error.

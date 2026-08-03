@@ -32,7 +32,7 @@ pub const HOST_READY_DESCRIPTOR_KIND: &str = "snapbackHostReady";
 pub const TELEMETRY_EXPORT_HOST_ENVELOPE_ALLOWANCE: usize = 64 * 1024;
 
 /// Operations this endpoint serves in the first slice.
-pub const SERVED_HOST_OPS: [&str; 15] = [
+pub const SERVED_HOST_OPS: [&str; 18] = [
     "app.inspect",
     "app.reset",
     "app.seed.ensure.v1",
@@ -48,6 +48,9 @@ pub const SERVED_HOST_OPS: [&str; 15] = [
     "telemetry.stats",
     "telemetry.events",
     "telemetry.export",
+    "errors.issues",
+    "errors.issue",
+    "errors.transition",
 ];
 
 /// Pinned by LLP 0024 but process-lifecycle verbs: the CLI owns them (a
@@ -719,7 +722,10 @@ pub(crate) fn telemetry_query_result(
 ) -> HostOpsResult {
     let request_id = request.request_id.clone().unwrap_or_else(new_request_id);
     let operation = request.operation.clone();
-    let secret_data = matches!(operation.as_str(), "telemetry.events" | "telemetry.export");
+    let secret_data = matches!(
+        operation.as_str(),
+        "telemetry.events" | "telemetry.export" | "errors.issue"
+    );
     let authority = if secret_data {
         authority_secret_read(&operation)
     } else {
