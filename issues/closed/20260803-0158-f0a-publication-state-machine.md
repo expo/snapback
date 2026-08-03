@@ -21,3 +21,14 @@ write, each DB/WAL flush, rename vs each directory fsync, registry
 finalization, sentinel unlink — with the boot assertion after every cut,
 plus recovery proven with the registry absent/stale/unavailable (Codex
 round-6 delegated list).
+
+## Resolution — 2026-08-03
+
+Landed same-parent staging with a pre-clone fsynced sentinel, SQLite backup,
+transactional quarantine→lineage conversion, complete SQLite/sidecar/directory
+durability, advisory registry intent/finalization, rename commit, and
+post-reconciliation sentinel removal. Boot validates local lineage+receipt and
+all minted sidecars, and refuses staging or incomplete evidence before additive
+SQLite open. The 20-point intra-state matrix covers each SQLite durability-set
+member and recovers every cut to absent or bootable with the registry absent,
+stale, or unavailable.

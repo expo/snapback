@@ -4269,6 +4269,10 @@ fn handler_envelope_code(code: &str) -> &str {
         // decoders (0137 a4-f1/a5-f1 — ctx.fetch is now target-portable).
         | "SNAPBACK_HOST_FETCH_RESPONSE_TOO_LARGE"
         | "SNAPBACK_HOST_FETCH_RESPONSE_INVALID_UTF8"
+        // @ref LLP 0158#the-runtime-plane--where-the-real-design-is — the
+        // derived-deployment quarantine is a host-owned typed refusal, not an
+        // application-claimable diagnostic.
+        | "SNAPBACK_FORK_EGRESS_DENIED"
         | "SNAPBACK_BUFFERED_WRITE_LIMIT_EXCEEDED"
         | "SNAPBACK_OVERLOADED"
         | "SNAPBACK_VALUE_TOO_LARGE"

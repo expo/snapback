@@ -895,6 +895,9 @@ impl BufferedWrite {
 pub struct LocalDatabase {
     conn: Connection,
     path: Option<PathBuf>,
+    /// LLP 0158's non-promotable derived-deployment carrier. LLP 0097 branch
+    /// state never sets or consults this field.
+    derived_fork: Option<crate::instance_fork::DerivedForkRuntime>,
     schema: SchemaManifest,
     // @ref LLP 0003#database-model — reads use a separate pool of WAL reader
     // connections so queries do not queue behind writes. `None` for in-memory
@@ -1714,6 +1717,7 @@ impl LocalDatabase {
         let mut db = Self {
             conn,
             path: None,
+            derived_fork: None,
             schema: SchemaManifest::default(),
             reader_pool: None,
             authorization_interlock: None,
@@ -1732,6 +1736,9 @@ impl LocalDatabase {
 
     pub fn open(path: impl AsRef<Path>) -> SnapbackResult<Self> {
         let path = path.as_ref().to_path_buf();
+        // @ref LLP 0158#design-sketch — local publication evidence gates boot
+        // before SQLite open can perform additive migration.
+        let derived_fork = crate::instance_fork::inspect_boot(&path)?;
         let conn = Connection::open(&path)?;
         // Distinguish a genuinely empty database from an existing database
         // before any additive DDL/default write. Recreating a missing head at
@@ -1752,6 +1759,7 @@ impl LocalDatabase {
         let mut db = Self {
             conn,
             path: Some(path.clone()),
+            derived_fork,
             schema: SchemaManifest::default(),
             reader_pool: None,
             authorization_interlock: None,
@@ -1806,6 +1814,10 @@ impl LocalDatabase {
         self.reader_pool.clone()
     }
 
+    pub(crate) fn derived_fork(&self) -> Option<&crate::instance_fork::DerivedForkRuntime> {
+        self.derived_fork.as_ref()
+    }
+
     /// Capture an owned, in-memory read snapshot for detached handler
     /// execution when the live database has no WAL reader pool (`:memory:`).
     /// The backup runs while the caller holds the short instance lock; handler
@@ -1822,6 +1834,7 @@ impl LocalDatabase {
         let restored = Self {
             conn,
             path: None,
+            derived_fork: self.derived_fork.clone(),
             schema: self.schema.clone(),
             reader_pool: None,
             authorization_interlock: None,
@@ -5380,6 +5393,14 @@ impl LocalDatabase {
             job_producer,
             asset_admissions,
         } = effects;
+        if !job_enqueues.is_empty()
+            && let Some(runtime) = self.derived_fork()
+        {
+            return Err(runtime.deny(
+                crate::instance_fork::EgressFamily::JobsEnqueue,
+                now_millis(),
+            ));
+        }
         if !job_enqueues.is_empty() && job_producer.is_none() {
             return Err(SnapbackError::error(
                 "SNAPBACK_JOB_PRODUCER_MISSING",

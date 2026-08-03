@@ -88,6 +88,8 @@ pub mod identity;
 #[doc(hidden)]
 pub mod ids;
 #[doc(hidden)]
+pub mod instance_fork;
+#[doc(hidden)]
 pub mod instance_lock;
 #[doc(hidden)]
 pub mod jobs;

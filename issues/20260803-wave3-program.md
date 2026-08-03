@@ -20,10 +20,12 @@ properties the client store needs natively).
 
 ## Track B — agent-safe storage
 
-1. **0158 F0a — prioritized, start now.** The five in-tree F0a tickets
-   plus the fleet-dogfood first consumer. This is the live lane; its
-   custody/fidelity proofs also unblock 0160's G7/G7′ and 0164's
-   derived-deployment legs.
+1. **0158 F0a — safety substrate landed 2026-08-03.** The four
+   implementation tickets are closed with the custody/fidelity,
+   scrub-and-mint, publication crash matrix, and deny-all corpus green.
+   This removes the F0a dependency for 0160's G7/G7′ and 0164's
+   derived-deployment legs. The fleet-dogfood first consumer stays open on
+   F0b's verb and remains the acceptance/graduation gate.
 2. The two 0162 advertisement gates: the step-0 dated performance
    baseline artifact and the OQ13 snapshot-pinning spike.
 3. **0163 → 0164 → 0165** implementation in 0162's dependency order,

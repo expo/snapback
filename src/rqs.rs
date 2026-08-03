@@ -14,7 +14,7 @@
 
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use base64::Engine as _;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
@@ -1538,6 +1538,40 @@ impl ResumeKeyring {
             ring.mint_active(now_ms);
         }
         ring
+    }
+
+    /// Strict, non-creating parse check used by derived-deployment boot evidence.
+    /// Ordinary resume-key loss is availability-only and may self-heal, but a
+    /// fork's mint receipt must never outlive a missing or truncated keyring.
+    pub(crate) fn persisted_file_has_active_key(path: &Path) -> bool {
+        let Ok(bytes) = crate::secure_file::read_owner_only(path) else {
+            return false;
+        };
+        if bytes.len() > RESUME_KEYRING_MAX_BYTES {
+            return false;
+        }
+        let Ok(persisted) = serde_json::from_slice::<PersistedResumeKeyring>(&bytes) else {
+            return false;
+        };
+        if persisted.format_version != RESUME_KEYRING_FORMAT_VERSION {
+            return false;
+        }
+        let mut active = 0_usize;
+        for key in persisted.keys {
+            if ResumeKeyId::parse(&key.key_id).is_err() {
+                return false;
+            }
+            let Ok(bytes) = URL_SAFE_NO_PAD.decode(&key.secret) else {
+                return false;
+            };
+            if <[u8; 32]>::try_from(bytes).is_err() {
+                return false;
+            }
+            if key.retired_at_ms.is_none() {
+                active += 1;
+            }
+        }
+        active == 1
     }
 
     fn active_index(&self) -> Option<usize> {
