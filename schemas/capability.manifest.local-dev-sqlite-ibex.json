@@ -151,6 +151,7 @@
     "registered_bundle_boot_v1": "experimental",
     "result_contract_v1": "experimental",
     "sequence_allocation_v1": "experimental",
+    "vector_search_v1": "experimental",
     "versioned_seed_install_v1": "experimental",
     "versioned_seed_reset_v1": "experimental",
     "write_activity_v1": "experimental"
@@ -383,6 +384,7 @@
     "sequence_allocation_v1",
     "migration_keyset_scan_v1",
     "full_text_search_v1",
+    "vector_search_v1",
     "result_contract_v1",
     "settlement.bounded_skew",
     "args_contract_v1",
@@ -416,5 +418,66 @@
   ],
   "syncableLiveQueries": true,
   "targetProfileId": "local-dev-sqlite-ibex",
+  "vectorSearch": {
+    "accelerator": "none",
+    "authorizationFilters": [
+      "public-read",
+      "owner.v1"
+    ],
+    "capabilityId": "vector_search_v1",
+    "componentAbsMax": "2^100",
+    "conversionWitnesses": [
+      "rust",
+      "javascript"
+    ],
+    "corpusMax": 65536,
+    "corruptionPosture": "digest-recheck-quarantine",
+    "dimensionMax": 4096,
+    "distanceProfile": "snapback-vector-distance-v1",
+    "distanceProfileDigest": "sha256:a7e6f5327b8c711f7d92448de5bccc4c858c9619053e12ef90080255436d0542",
+    "equalityFiltersMax": 8,
+    "exact": true,
+    "kMax": 64,
+    "maintenance": "synchronous",
+    "maintenanceBytesMax": 4194304,
+    "maintenanceEffectsMax": 1024,
+    "maturity": "experimental",
+    "metrics": [
+      "l2sq",
+      "dot"
+    ],
+    "nonclaims": [
+      "ann",
+      "embedding-computation",
+      "hybrid-ranking",
+      "external-vector-store",
+      "live-vector-search",
+      "pagination",
+      "cosine",
+      "range-filters",
+      "membership-visibility",
+      "sensitive-fields",
+      "offline-vector-search",
+      "hosted-targets",
+      "postgres"
+    ],
+    "orderingProfile": "nearest-first-row-id.v1",
+    "pagination": "single-page",
+    "queryVectorTelemetry": "shape-and-digest-only",
+    "scalarPairsMax": 67108864,
+    "storageClass": "ordinary-transactional-shadow",
+    "storageEngines": [
+      "sqlite"
+    ],
+    "storedFields": true,
+    "tieBreaks": [
+      "id-asc",
+      "id-desc"
+    ],
+    "visibility": [
+      "public-read",
+      "owner.v1"
+    ]
+  },
   "vmLifecycle": "fresh-per-invocation"
 }

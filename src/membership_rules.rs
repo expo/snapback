@@ -918,6 +918,7 @@ mod tests {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
             membership: Some(event_members()),
             asset_sharing: None,
         };
@@ -934,6 +935,7 @@ mod tests {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
             membership: None,
             asset_sharing: None,
         };
@@ -1044,6 +1046,7 @@ mod tests {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
             membership: Some(MembershipManifest {
                 id: Some(declaration.to_owned()),
                 principal: "userId".to_owned(),

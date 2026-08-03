@@ -134,6 +134,12 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
             "search.request.schema.json",
             schemars::schema_for!(crate::search::types::SearchRequestV1),
         ),
+        // @ref LLP 0132#vector-values-and-declarations — the
+        // request carrier is Rust-owned and rejects unknown fields.
+        finish(
+            "vector.request.schema.json",
+            schemars::schema_for!(crate::vector::types::VectorRequestV1),
+        ),
         finish(
             "seed.artifact.schema.json",
             schemars::schema_for!(SeedArtifactV1),
@@ -859,6 +865,12 @@ pub fn artifact_instances() -> Vec<SchemaArtifact> {
         SchemaArtifact {
             file: crate::search::fixtures::SEARCH_AST_FIXTURES_FILE,
             schema: sorted_keys(crate::search::fixtures::search_ast_fixture_corpus()),
+        },
+        // @ref LLP 0132#distance-profile--the-portable-exactness-answer —
+        // Rust and JavaScript consume the same arithmetic/conversion corpus.
+        SchemaArtifact {
+            file: crate::vector::fixtures::VECTOR_DISTANCE_FIXTURES_FILE,
+            schema: sorted_keys(crate::vector::fixtures::vector_distance_fixture_corpus()),
         },
     ];
     // @ref LLP 0156#e01--the-failure-classifier-and-issue-eligibility —

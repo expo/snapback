@@ -48,6 +48,7 @@ fn configured() -> LocalSnapback {
                 }],
                 indexes: Vec::new(),
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 syncable: true,
                 permission_backing: false,
                 permission_fields: None,

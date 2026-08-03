@@ -3309,6 +3309,10 @@ fn delta_documents_contract_matches_schema(
                 max_depth: 16,
                 max_bytes: 1024 * 1024,
             },
+            FieldType::Vector { .. } => ResultValueContract::Json {
+                max_depth: 1,
+                max_bytes: 32 * 1024,
+            },
             FieldType::Principal => ResultValueContract::Principal,
             FieldType::Id { table } => ResultValueContract::Id {
                 table: table.clone(),
@@ -22796,6 +22800,24 @@ fn validate_function_schema_references(
                     }
                 }
             }
+            FunctionRuntime::HostPlan(HandlerPlan::VectorQuery(plan)) => {
+                crate::manifest::validate_vector_query_plan_shape(plan)?;
+                let declared = table(&plan.table)?;
+                if !declared
+                    .vector_indexes
+                    .iter()
+                    .any(|candidate| candidate.name == plan.index)
+                {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_VECTOR_INDEX_UNAVAILABLE",
+                        "vector",
+                        format!(
+                            "vector query {} references unknown vector index {}.{}",
+                            function.name, plan.table, plan.index
+                        ),
+                    ));
+                }
+            }
             // @ref LLP 0080#1-closed-relational-plan — activation validates
             //   the root window exactly like a single-table plan (fields,
             //   membership privacy, Json-order refusal, named root index)
@@ -23090,7 +23112,9 @@ fn validate_function_schema_references(
                                         // admission, not shape, is what
                                         // protects the field (LLP 0044).
                                         FieldType::AssetRef { .. } => ResultValueContract::AssetRef,
-                                        FieldType::Json | FieldType::RelationIncarnation { .. } => {
+                                        FieldType::Json
+                                        | FieldType::Vector { .. }
+                                        | FieldType::RelationIncarnation { .. } => {
                                             unreachable!("non-portable projections refused above")
                                         }
                                     };
@@ -24352,6 +24376,43 @@ fn execute_query_invocation(
                 read_dependencies,
             })
         }
+        (FunctionKind::Query, FunctionRuntime::HostPlan(HandlerPlan::VectorQuery(plan))) => {
+            // @ref LLP 0132#candidate-to-release-consistency — the resolved
+            // authority on HandlerInput chooses the owner partition; authored
+            // arguments can never provide a partition identity.
+            let output = db.vector_search(plan, &input)?;
+            let mut read_dependencies = vec![CapturedReadDependency {
+                kind: CapturedReadKind::Query,
+                table: Some(plan.table.clone()),
+                id: None,
+                version: Some(output.version),
+                predicate: None,
+                rows: output
+                    .rows
+                    .iter()
+                    .filter_map(|row| {
+                        row.get("rowId")
+                            .and_then(Value::as_str)
+                            .map(ToOwned::to_owned)
+                    })
+                    .collect(),
+                field: None,
+                value: None,
+                order: Some(json!(crate::vector::types::VECTOR_ORDERING_PROFILE)),
+                limit: input
+                    .args
+                    .get("k")
+                    .and_then(Value::as_u64)
+                    .map(|value| value as usize),
+                result_count: Some(output.rows.len()),
+                boundary: None,
+            }];
+            add_permission_dependencies_with(permission_epochs, &input, &mut read_dependencies);
+            Ok(QueryInvocation {
+                output,
+                read_dependencies,
+            })
+        }
         (
             FunctionKind::Query | FunctionKind::LiveQuery,
             FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)),
@@ -24936,6 +24997,9 @@ fn plan_io(definition: &FunctionDefinition) -> (Vec<String>, Vec<String>) {
             (vec![plan.table.clone()], Vec::new())
         }
         FunctionRuntime::HostPlan(HandlerPlan::SearchQuery(plan)) => {
+            (vec![plan.table.clone()], Vec::new())
+        }
+        FunctionRuntime::HostPlan(HandlerPlan::VectorQuery(plan)) => {
             (vec![plan.table.clone()], Vec::new())
         }
         FunctionRuntime::HostPlan(HandlerPlan::JobStatusQuery(_)) => {
@@ -25844,6 +25908,7 @@ mod tests {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: Some(MembershipManifest {
                     id: None,
                     principal: "userId".to_owned(),
@@ -25903,6 +25968,7 @@ mod tests {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
             membership: None,
             asset_sharing: None,
         };
@@ -25932,6 +25998,7 @@ mod tests {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
             membership: Some(MembershipManifest {
                 id: Some("event_members".to_owned()),
                 principal: "userId".to_owned(),
@@ -26038,6 +26105,7 @@ mod tests {
                 ],
                 indexes: Vec::new(),
                 search_indexes: vec![search],
+                vector_indexes: Vec::new(),
                 syncable: false,
                 permission_backing: false,
                 permission_fields: None,
@@ -27186,6 +27254,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: None,
                 asset_sharing: sharing,
             }
@@ -27730,6 +27799,7 @@ globalThis.__snapbackHandlers = {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
             membership: None,
             asset_sharing: None,
         };
@@ -28550,6 +28620,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 },
@@ -28565,6 +28636,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 },
@@ -28594,6 +28666,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: Some(crate::manifest::MembershipManifest {
                         id: Some("channelSeats".to_owned()),
                         principal: "userId".to_owned(),
@@ -30071,6 +30144,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: None,
                 asset_sharing: None,
             }],
@@ -32227,6 +32301,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: true,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 }],
@@ -32298,6 +32373,7 @@ globalThis.__snapbackHandlers = {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
             membership: None,
             asset_sharing: None,
         }];
@@ -32756,6 +32832,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: None,
                 asset_sharing: None,
             }],
@@ -33021,6 +33098,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: None,
                 asset_sharing: None,
             }],
@@ -33241,6 +33319,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: None,
                 asset_sharing: None,
             }],
@@ -34734,6 +34813,7 @@ globalThis.__snapbackHandlers = {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
             membership: None,
             asset_sharing: None,
         });
@@ -35214,6 +35294,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 },
@@ -35233,6 +35314,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 },
@@ -35362,6 +35444,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: None,
                 asset_sharing: None,
             },
@@ -35381,6 +35464,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: None,
                 asset_sharing: None,
             },
@@ -35440,6 +35524,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 },
@@ -35459,6 +35544,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 },
@@ -35726,6 +35812,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 },
@@ -35745,6 +35832,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 },
@@ -35892,6 +35980,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 },
@@ -35911,6 +36000,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 },
@@ -36124,6 +36214,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: None,
                 asset_sharing: None,
             };
@@ -37185,6 +37276,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: None,
                 asset_sharing: None,
             };
@@ -37970,6 +38062,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: None,
                 asset_sharing: None,
             };
@@ -38042,6 +38135,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: Some(MembershipManifest {
                         id: Some("roomSeats".to_owned()),
                         principal: "userId".to_owned(),
@@ -38966,6 +39060,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: None,
                 asset_sharing: None,
             }],
@@ -39343,6 +39438,7 @@ globalThis.__snapbackHandlers = {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
             membership: None,
             asset_sharing: None,
         };
@@ -39768,6 +39864,7 @@ globalThis.__snapbackHandlers = {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
             membership: None,
             asset_sharing: None,
         }];
@@ -39784,6 +39881,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: None,
                 asset_sharing: None,
             });
@@ -40598,6 +40696,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 },
@@ -40620,6 +40719,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: true,
                     permission_fields: Some(vec!["ownerId".to_owned()]),
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 },
@@ -41585,6 +41685,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: None,
                 asset_sharing: None,
             }],
@@ -41889,6 +41990,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: true,
                     permission_fields: Some(vec!["gameId".to_owned()]),
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 }],
@@ -42211,6 +42313,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 }],
@@ -43298,6 +43401,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: true,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 }],
@@ -43404,6 +43508,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: true,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 }],
@@ -43632,6 +43737,7 @@ globalThis.__snapbackHandlers = {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
             membership: None,
             asset_sharing: None,
         };
@@ -43664,6 +43770,7 @@ globalThis.__snapbackHandlers = {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
             membership: None,
             asset_sharing: None,
         };
@@ -43695,6 +43802,7 @@ globalThis.__snapbackHandlers = {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
             membership: None,
             asset_sharing: None,
         };
@@ -44669,6 +44777,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: true,
                 permission_fields: Some(vec!["ownerId".to_owned()]),
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: None,
                 asset_sharing: None,
             }],
@@ -46491,6 +46600,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: None,
                 asset_sharing: None,
             }],
@@ -46548,6 +46658,10 @@ globalThis.__snapbackHandlers = {
                 FieldType::Real => ResultValueContract::FiniteReal {
                     min: -f64::MAX,
                     max: f64::MAX,
+                },
+                FieldType::Vector { .. } => ResultValueContract::Json {
+                    max_depth: 1,
+                    max_bytes: 32 * 1024,
                 },
                 FieldType::Json => ResultValueContract::Json {
                     max_depth: 16,

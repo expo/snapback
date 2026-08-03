@@ -1641,7 +1641,10 @@ fn validate_filter_values(table: &TableManifest, query: &SearchQueryAstV1) -> Sn
             | FieldType::AssetRef { .. } => filter.value.is_string(),
             FieldType::Boolean => filter.value.is_boolean(),
             FieldType::Integer => filter.value.as_i64().is_some(),
-            FieldType::Real | FieldType::Json | FieldType::RelationIncarnation { .. } => false,
+            FieldType::Real
+            | FieldType::Json
+            | FieldType::Vector { .. }
+            | FieldType::RelationIncarnation { .. } => false,
         };
         if !valid {
             return Err(diagnostic(
@@ -2184,6 +2187,7 @@ mod tests {
                         cursor_limits: Default::default(),
                         maintenance_limits: Default::default(),
                     }],
+                    vector_indexes: Vec::new(),
                     syncable: false,
                     permission_backing: false,
                     permission_fields: None,
@@ -2199,6 +2203,7 @@ mod tests {
                     }],
                     indexes: Vec::new(),
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     syncable: false,
                     permission_backing: false,
                     permission_fields: None,
@@ -2228,6 +2233,7 @@ mod tests {
                     ],
                     indexes: Vec::new(),
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     syncable: false,
                     permission_backing: false,
                     permission_fields: None,
@@ -3335,6 +3341,7 @@ mod tests {
                     cursor_limits: Default::default(),
                     maintenance_limits: Default::default(),
                 }],
+                vector_indexes: Vec::new(),
                 syncable: false,
                 permission_backing: false,
                 permission_fields: None,

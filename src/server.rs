@@ -24138,6 +24138,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_SCOPE_BASIS_CORRUPT"
         | "SNAPBACK_EPHEMERAL_AUTHORITY_PENDING"
         | "SNAPBACK_SEARCH_INDEX_UNAVAILABLE"
+        | "SNAPBACK_VECTOR_INDEX_UNAVAILABLE"
         | "SNAPBACK_EPHEMERAL_GENERATION_EXHAUSTED"
         | "SNAPBACK_AUTH_REVOCATION_UNCERTAIN"
         | "SNAPBACK_AUTH_RETRY_EXHAUSTED"
@@ -24506,6 +24507,13 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_SEARCH_QUERY_PLAN_INVALID"
         | "SNAPBACK_SEARCH_SOURCE_LIMIT"
         | "SNAPBACK_SEARCH_WORK_LIMIT"
+        // @ref LLP 0132#query-surface — malformed/query/value/bound work is a
+        // closed caller/declaration refusal; unavailable and corrupt retain
+        // serving-failure classes below.
+        | "SNAPBACK_VECTOR_CORPUS_BOUND"
+        | "SNAPBACK_VECTOR_QUERY_INVALID"
+        | "SNAPBACK_VECTOR_VALUE_INVALID"
+        | "SNAPBACK_VECTOR_WORK_LIMIT"
         | "SNAPBACK_WRITE_WITH_ACTIVITY_PLAN_INVALID"
         // LLP 0081 §2/§3: malformed/tampered plan artifacts and the
         // deferred retained-work posture are author input.
@@ -25464,6 +25472,7 @@ mod tests {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 }],
@@ -25677,6 +25686,7 @@ mod tests {
                 permission_backing: true,
                 permission_fields: Some(vec!["roomId".to_owned(), "userId".to_owned()]),
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: None,
                 asset_sharing: None,
             }],
@@ -26577,6 +26587,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: None,
                 asset_sharing: None,
             }],
@@ -28918,6 +28929,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: None,
                 asset_sharing: None,
             }],
@@ -29844,6 +29856,7 @@ globalThis.__snapbackHandlers = {
                         permission_backing: false,
                         permission_fields: None,
                         search_indexes: Vec::new(),
+                        vector_indexes: Vec::new(),
                         membership: None,
                         asset_sharing: None,
                     }],
@@ -31119,6 +31132,7 @@ globalThis.__snapbackHandlers = {
                         permission_backing: false,
                         permission_fields: None,
                         search_indexes: Vec::new(),
+                        vector_indexes: Vec::new(),
                         membership: None,
                         asset_sharing: None,
                     }],
@@ -38301,6 +38315,10 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_SEARCH_QUERY_PLAN_INVALID",
         "SNAPBACK_SEARCH_SOURCE_LIMIT",
         "SNAPBACK_SEARCH_WORK_LIMIT",
+        "SNAPBACK_VECTOR_CORPUS_BOUND",
+        "SNAPBACK_VECTOR_QUERY_INVALID",
+        "SNAPBACK_VECTOR_VALUE_INVALID",
+        "SNAPBACK_VECTOR_WORK_LIMIT",
         "SNAPBACK_WRITE_WITH_ACTIVITY_PLAN_INVALID",
         "SNAPBACK_HOST_OP_CLI_ONLY",
         "SNAPBACK_HOST_OP_FUNCTION_KIND_UNSUPPORTED",
@@ -38809,6 +38827,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_PUSH_SEND_UNSUPPORTED",
         "SNAPBACK_READ_LANE_UNAVAILABLE",
         "SNAPBACK_SEARCH_INDEX_UNAVAILABLE",
+        "SNAPBACK_VECTOR_INDEX_UNAVAILABLE",
         "SNAPBACK_V8_RUNNER_HOST_UNSUPPORTED",
     ];
 
@@ -39015,6 +39034,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_SCHEMA_PHYSICAL_COLUMN_INVALID",
         "SNAPBACK_SEARCH_INDEX_CORRUPT",
         "SNAPBACK_SEARCH_MAINTENANCE_FAILED",
+        "SNAPBACK_VECTOR_INDEX_CORRUPT",
         "SNAPBACK_SQLITE_ERROR",
         "SNAPBACK_TEST_LIVE_SCOPE_REGISTRATION_FAILED",
         "SNAPBACK_TEST_SCOPE_RETIREMENT_AUTH_FAILED",
@@ -39911,6 +39931,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 }],
@@ -40194,6 +40215,7 @@ globalThis.__snapbackHandlers = {
                         permission_backing: false,
                         permission_fields: None,
                         search_indexes: Vec::new(),
+                        vector_indexes: Vec::new(),
                         membership: None,
                         asset_sharing: None,
                     }],

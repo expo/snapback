@@ -5,7 +5,12 @@
 **Systems:** Competitive evaluation, Developer experience, Authoring, Application data API, Code generation, Runtime, Bootstrap, Packaging, Search, Relational queries, Scheduled work, Client integration, Documentation, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-08-02 (CV-8 move-6 sequence half: experimental handler-tier
+**Revised:** 2026-08-02 (decision-8 product-breadth implementation: LLP 0132's
+local exact `vector_search_v1` landed at experimental maturity with declared
+vectors/indexes, bounded synchronous SQLite maintenance, pinned Rust/JavaScript
+floating-point witnesses, generated client/provider carriers, and the filled
+1,536 × 43,690 scale receipt; hosted targets and ANN remain explicit
+nonclaims); 2026-08-02 (CV-8 move-6 sequence half: experimental handler-tier
 `ctx.sequence.allocate`, order bounds, and the A6 replacement landed; 3a
 snapshot batch held for LLP 0155 Move 1); 2026-08-02 (CV-8 piece-2 implementation: LLP 0134's maturity
 process machinery is now executable — exhaustive Rust authority, canonical
@@ -461,6 +466,7 @@ relational query exist — and the remainder is CV-8, not a rediscovery.
 | CV-15 | Resolve `unpinned` harness wording for exact binaries | E (P2) | 5 | 0010 harness | 0123 | S | Landed 2026-07-31 (`5ac77b8d`; split: `pinned-binary-dirty-checkout` for exact clean-built binaries compared against a dirty checkout, `unpinned-binary` for binaries whose own stamp is dirty/unknown; kit README updated) |
 | CV-16 | Declaration-closed rejection unions as result-contract variants | B (P1) | 1 | 0108 family (0125 option 2) | 0125 | M | Confirmed (0127 decision 7, 2026-07-30) |
 | CV-17 | Typed-interior pilot (0117 option F) | B (P1) | 1 | 0108 clarification + codegen | 0117 | S | LANDED 2026-08-02 (`d9ebc2b1`, G-02): generated `GeneratedHandler` and manifest-derived `ctx.db`/helper-boundary types preserve query-read versus mutation-write capability; A2 checkJs is green and a seeded handler/result mismatch fails at typecheck; checker consumes the declared effective contract and never mints one. Result-side `v.doc(table)` expands through the existing document witness/hash; args and stored fields still refuse. Composition/query-graph result types remain deferred to Draft LLP 0157 |
+| PB-8 | Portable exact vector search (decision 8; administratively tracked outside the parity tranches) | Outside | product breadth | 0132, 0073 | 0124 | L | LANDED 2026-08-02: experimental local `vector_search_v1` with `v.vector`, declared exact indexes and query/client carriers, synchronous SQLite maintenance, public/owner partitions, pinned `l2sq`/`dot` arithmetic and per-target conversion witnesses, stable bounded refusals, corruption quarantine, and the filled 1,536 × 43,690 scale receipt. Hosted targets, ANN/approximate search, embedding computation, live/offline search, pagination, cosine, and membership visibility remain nonclaims |
 
 ## Work items
 
@@ -1283,9 +1289,9 @@ the prebuilt rung's `verified`-only admission is unchanged.
    (decision 8: revive, not supersede) and minting the vector-search
    Spec beside LLP 0073 — proceed under LLP 0074's umbrella in
    parallel with Tranche A, because the blocked app classes do not
-   wait on the parity tranches; they sit outside this plan's board and
-   exit either way, so "alone" continues to bind the parity work
-   itself.
+   wait on the parity tranches; they sit outside the parity tranches and
+   exit either way. The `PB-8` board row is an administrative completion
+   record only, so "alone" continues to bind the parity work itself.
 2. **Tranches B and C in parallel after A.** They touch different owners.
    CV-4a ships before CV-4b. Within C, CV-8's piece 1 continues immediately —
    LLP 0110 is already in Review — while piece 2 (the stable-promotion

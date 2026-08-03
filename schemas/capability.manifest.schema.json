@@ -900,6 +900,7 @@
             "sequence_allocation_v1",
             "migration_keyset_scan_v1",
             "full_text_search_v1",
+            "vector_search_v1",
             "result_contract_v1",
             "settlement.bounded_skew",
             "args_contract_v1",
@@ -920,6 +921,161 @@
           "type": "string"
         }
       ]
+    },
+    "VectorSearchFactsV1": {
+      "additionalProperties": false,
+      "properties": {
+        "accelerator": {
+          "type": "string"
+        },
+        "authorizationFilters": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "capabilityId": {
+          "type": "string"
+        },
+        "componentAbsMax": {
+          "type": "string"
+        },
+        "conversionWitnesses": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "corpusMax": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "corruptionPosture": {
+          "type": "string"
+        },
+        "dimensionMax": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "distanceProfile": {
+          "type": "string"
+        },
+        "distanceProfileDigest": {
+          "type": "string"
+        },
+        "equalityFiltersMax": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "exact": {
+          "type": "boolean"
+        },
+        "kMax": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maintenance": {
+          "type": "string"
+        },
+        "maintenanceBytesMax": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maintenanceEffectsMax": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maturity": {
+          "type": "string"
+        },
+        "metrics": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "nonclaims": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "orderingProfile": {
+          "type": "string"
+        },
+        "pagination": {
+          "type": "string"
+        },
+        "queryVectorTelemetry": {
+          "type": "string"
+        },
+        "scalarPairsMax": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "storageClass": {
+          "type": "string"
+        },
+        "storageEngines": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "storedFields": {
+          "type": "boolean"
+        },
+        "tieBreaks": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "visibility": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "capabilityId",
+        "maturity",
+        "exact",
+        "distanceProfile",
+        "distanceProfileDigest",
+        "orderingProfile",
+        "metrics",
+        "tieBreaks",
+        "dimensionMax",
+        "kMax",
+        "corpusMax",
+        "scalarPairsMax",
+        "componentAbsMax",
+        "equalityFiltersMax",
+        "storedFields",
+        "visibility",
+        "maintenance",
+        "maintenanceEffectsMax",
+        "maintenanceBytesMax",
+        "pagination",
+        "accelerator",
+        "storageClass",
+        "corruptionPosture",
+        "queryVectorTelemetry",
+        "conversionWitnesses",
+        "authorizationFilters",
+        "storageEngines",
+        "nonclaims"
+      ],
+      "type": "object"
     }
   },
   "$id": "https://schemas.snapback.dev/snapback.v0/capability.manifest.schema.json",
@@ -1159,6 +1315,17 @@
     },
     "targetProfileId": {
       "type": "string"
+    },
+    "vectorSearch": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/VectorSearchFactsV1"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Exact local vector-search posture. Its explicit `accelerator: none`\nkeeps the ANN successor door closed for v1."
     },
     "vmLifecycle": {
       "default": "fresh-per-invocation",

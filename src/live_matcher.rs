@@ -180,6 +180,11 @@ pub(crate) fn live_subscription_may_be_affected(
         FunctionRuntime::HostPlan(HandlerPlan::SearchQuery(plan)) => {
             changes.iter().any(|change| change.table == plan.table)
         }
+        // Vector queries are non-live by contract; keep the matcher exhaustive
+        // and conservative if a malformed definition ever reaches it.
+        FunctionRuntime::HostPlan(HandlerPlan::VectorQuery(plan)) => {
+            changes.iter().any(|change| change.table == plan.table)
+        }
         // Table-granular fallback for the declared job-status query: any job
         // lifecycle transition resnapshots it. The captured Row/MissingRow
         // dependency above already gives the per-job precise wake/skip.

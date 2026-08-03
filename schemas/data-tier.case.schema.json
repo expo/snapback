@@ -213,6 +213,29 @@
           "type": "string"
         },
         {
+          "additionalProperties": false,
+          "description": "`v.vector(dimensions)` — fixed-size admitted binary64 components.\n\n@ref LLP 0132#vector-values-and-declarations — the schema carries the\nfixed dimension so every write and query can enforce one value domain.",
+          "properties": {
+            "Vector": {
+              "properties": {
+                "dimensions": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "dimensions"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Vector"
+          ],
+          "type": "object"
+        },
+        {
           "const": "Principal",
           "description": "`v.principal()` — nominal typing over the auth-principal id string space\n(the same space as `ctx.auth.userId`, including LLP 0055 agent\nprincipals). It stores and compares exactly like [`FieldType::String`];\nthe distinct variant lets the schema surface *name* an axis as a\nprincipal reference. It is validated by **shape**, never by a\nforeign-key existence check, because memberships may outlive a\nprincipal's deactivation and LLP 0055 recovery preserves the id.\n\n@ref LLP 0056#declaring-a-membership-table — `v.principal()` is nominal\n  typing over the principal-id string space, not an existence check.",
           "type": "string"
@@ -1463,6 +1486,13 @@
         "syncable": {
           "default": false,
           "type": "boolean"
+        },
+        "vectorIndexes": {
+          "description": "Portable exact vector indexes. The declaration owns the arithmetic,\nvisibility, work, and maintenance bounds as one versioned contract.\n\n@ref LLP 0132#vector-values-and-declarations — vector behavior is\ndeclared table-locally and cannot be widened by a handler.",
+          "items": {
+            "$ref": "#/$defs/VectorIndexManifestV1"
+          },
+          "type": "array"
         }
       },
       "required": [
@@ -1738,6 +1768,170 @@
           },
           "required": [
             "MembershipExists"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "VectorFieldClassV1": {
+      "enum": [
+        "public",
+        "private",
+        "sensitive",
+        "forbidden"
+      ],
+      "type": "string"
+    },
+    "VectorIndexManifestV1": {
+      "additionalProperties": false,
+      "properties": {
+        "dimensions": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "distanceProfile": {
+          "type": "string"
+        },
+        "equalityFilters": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "fieldClassifications": {
+          "additionalProperties": {
+            "$ref": "#/$defs/VectorFieldClassV1"
+          },
+          "description": "Closed classification carrier for every participating source field.",
+          "type": "object"
+        },
+        "formatVersion": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maintenanceLimits": {
+          "$ref": "#/$defs/VectorMaintenanceLimitsV1",
+          "default": {
+            "vectorBytes": 4194304,
+            "vectorMaintenanceEffects": 1024
+          }
+        },
+        "maxIndexedVectorsPerPartition": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "metric": {
+          "$ref": "#/$defs/VectorMetricV1"
+        },
+        "name": {
+          "type": "string"
+        },
+        "orderingProfile": {
+          "type": "string"
+        },
+        "semanticVersion": {
+          "type": "string"
+        },
+        "storedFields": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "tieBreak": {
+          "$ref": "#/$defs/VectorTieBreakV1"
+        },
+        "vectorField": {
+          "type": "string"
+        },
+        "visibility": {
+          "$ref": "#/$defs/VectorVisibilityV1"
+        }
+      },
+      "required": [
+        "formatVersion",
+        "name",
+        "semanticVersion",
+        "vectorField",
+        "dimensions",
+        "metric",
+        "distanceProfile",
+        "orderingProfile",
+        "fieldClassifications",
+        "visibility",
+        "tieBreak",
+        "maxIndexedVectorsPerPartition"
+      ],
+      "type": "object"
+    },
+    "VectorMaintenanceLimitsV1": {
+      "additionalProperties": false,
+      "properties": {
+        "vectorBytes": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "vectorMaintenanceEffects": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "vectorMaintenanceEffects",
+        "vectorBytes"
+      ],
+      "type": "object"
+    },
+    "VectorMetricV1": {
+      "enum": [
+        "l2sq",
+        "dot"
+      ],
+      "type": "string"
+    },
+    "VectorTieBreakV1": {
+      "enum": [
+        "id-asc",
+        "id-desc"
+      ],
+      "type": "string"
+    },
+    "VectorVisibilityV1": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "public-read",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "field": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "owner",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "field"
           ],
           "type": "object"
         }

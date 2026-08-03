@@ -1023,10 +1023,13 @@ fn reset_and_seed_transaction(
         "_snapback_search_builds",
         "_snapback_search_journal_leases",
         "_snapback_search_generations",
+        "_snapback_vector_sources",
+        "_snapback_vector_generations",
     ] {
         tx.execute(&format!("DELETE FROM {table}"), [])?;
     }
     crate::search::sqlite::activate_manifest_in_tx(tx, schema, 0)?;
+    crate::vector::sqlite::activate_manifest_in_tx(tx, schema, 0)?;
 
     let seeded = match seed {
         None => None,
@@ -1063,6 +1066,7 @@ fn reset_and_seed_transaction(
                 )?;
             }
             crate::search::maintain_search_indexes_in_tx(tx, schema, &changes, 1)?;
+            crate::vector::maintain_vector_indexes_in_tx(tx, schema, &changes, 1)?;
             // Reset seed is another declaration-privileged writer. Judge its
             // complete same-transaction resource/roster state before the reset
             // cut can publish, including closed roles, referential integrity,
@@ -3114,6 +3118,7 @@ impl LocalDatabase {
             derived_projection_rows,
         )?;
         crate::search::maintain_search_indexes_in_tx(&tx, &schema, &changes, next_version)?;
+        crate::vector::maintain_vector_indexes_in_tx(&tx, &schema, &changes, next_version)?;
         validate_membership_activation(&tx, &schema, next_version)?;
         if !changes.is_empty() {
             set_version(&tx, next_version)?;
@@ -3335,6 +3340,7 @@ impl LocalDatabase {
             &self.order_field_bounds,
         )?;
         crate::search::maintain_search_indexes_in_tx(&tx, &schema, &changes, next_version)?;
+        crate::vector::maintain_vector_indexes_in_tx(&tx, &schema, &changes, next_version)?;
         validate_membership_activation(&tx, &schema, next_version)?;
         tx.rollback()?;
         Ok(changes)
@@ -3368,6 +3374,7 @@ impl LocalDatabase {
 
         if changed_count > 0 {
             crate::search::maintain_search_indexes_in_tx(&tx, &schema, &changes, next_version)?;
+            crate::vector::maintain_vector_indexes_in_tx(&tx, &schema, &changes, next_version)?;
             set_version(&tx, next_version)?;
         }
         let authorization_predecessor = auth_stream::read_authorization_version_on(&tx)?;
@@ -4711,6 +4718,7 @@ impl LocalDatabase {
         // after projection convergence and before the source head publishes;
         // any bound/storage failure aborts the complete mutation.
         crate::search::maintain_search_indexes_in_tx(&tx, &schema, &changes, next_version)?;
+        crate::vector::maintain_vector_indexes_in_tx(&tx, &schema, &changes, next_version)?;
         // @ref LLP 0044#typed-references-and-atomic-attachment — host plans
         //   have no handler execution to call attach in, so the commit
         //   boundary derives the admission from the field's schema-declared
@@ -5371,6 +5379,7 @@ impl LocalDatabase {
             )?;
         }
         crate::search::maintain_search_indexes_in_tx(&tx, &schema, &changes, next_version)?;
+        crate::vector::maintain_vector_indexes_in_tx(&tx, &schema, &changes, next_version)?;
 
         // @ref LLP 0044#typed-references-and-atomic-attachment — the commit
         //   hook is the authority: every asset-field write in this changeset
@@ -5733,6 +5742,7 @@ impl LocalDatabase {
             ",
         )?;
         crate::search::sqlite::create_infra(&self.conn)?;
+        crate::vector::sqlite::create_infra(&self.conn)?;
         // @ref LLP 0070#job-identity-and-enqueue — the durable one-off job and
         // append-only attempt tables live in the same SQLite database as
         // application data so `ctx.jobs.enqueue` inserts inside the mutation's
@@ -8488,6 +8498,36 @@ impl DbRead<'_> {
         }
     }
 
+    pub(crate) fn vector_search(
+        &self,
+        plan: &crate::vector::types::VectorQueryPlanV1,
+        input: &HandlerInput,
+    ) -> SnapbackResult<QueryOutput> {
+        self.vector_search_with_facts(plan, input)
+            .map(|(output, _)| output)
+    }
+
+    /// Internal inspection form used by the LLP 0132 noninterference corpus.
+    /// Public callers receive only the page; the four counters remain
+    /// conformance evidence and are never a query-vector side channel.
+    ///
+    /// @ref LLP 0132#candidate-to-release-consistency — the closed logical
+    /// work object is executable evidence, not part of `VectorPageV1`.
+    pub(crate) fn vector_search_with_facts(
+        &self,
+        plan: &crate::vector::types::VectorQueryPlanV1,
+        input: &HandlerInput,
+    ) -> SnapbackResult<(QueryOutput, crate::vector::sqlite::VectorWorkCountersV1)> {
+        match self {
+            DbRead::Pinned { conn, schema } => {
+                crate::vector::sqlite::query_vector_with_facts(conn, schema, plan, input)
+            }
+            DbRead::Live(db) => with_pinned_read_snapshot(&db.conn, |conn| {
+                crate::vector::sqlite::query_vector_with_facts(conn, &db.schema, plan, input)
+            }),
+        }
+    }
+
     pub(crate) fn search_database_identity(&self) -> SnapbackResult<String> {
         let conn = match self {
             DbRead::Pinned { conn, .. } => *conn,
@@ -10468,6 +10508,22 @@ fn validate_schema(manifest: &SchemaManifest) -> SnapbackResult<()> {
             }
         }
 
+        let mut vector_names = BTreeSet::new();
+        for vector in &table.vector_indexes {
+            validate_user_identifier("vector index", &vector.name)?;
+            if !vector_names.insert(vector.name.clone())
+                || indexes.contains(&vector.name)
+                || search_names.contains(&vector.name)
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_VECTOR_INDEX_UNAVAILABLE",
+                    "vector",
+                    format!("duplicate vector/index name {}.{}", table.name, vector.name),
+                ));
+            }
+            crate::vector::sqlite::validate_index_declaration(table, vector)?;
+        }
+
         validate_membership_declaration(
             table,
             &fields,
@@ -10675,6 +10731,7 @@ fn field_type_name(field_type: &FieldType) -> &'static str {
         FieldType::Integer => "Integer",
         FieldType::Real => "Real",
         FieldType::Json => "Json",
+        FieldType::Vector { .. } => "Vector",
         FieldType::Principal => "Principal",
         FieldType::Id { .. } => "Id",
         FieldType::RelationIncarnation { .. } => "RelationIncarnation",
@@ -11568,7 +11625,7 @@ fn validate_query_filter_value(
     value: &Value,
 ) -> SnapbackResult<()> {
     if let Some(field) = table.field(field_name) {
-        if field.field_type == FieldType::Json {
+        if matches!(field.field_type, FieldType::Json | FieldType::Vector { .. }) {
             return Err(SnapbackError::error(
                 "SNAPBACK_QUERY_FILTER_UNSUPPORTED_FIELD_TYPE",
                 "query",
@@ -11591,6 +11648,7 @@ fn validate_query_filter_value(
                 FieldType::Integer => portable_integer_value(value).is_some(),
                 FieldType::Real => value.as_f64().is_some(),
                 FieldType::Json => unreachable!("Json filters returned above"),
+                FieldType::Vector { .. } => unreachable!("Vector filters returned above"),
             }
         };
         if compatible {
@@ -16667,11 +16725,36 @@ fn sqlite_to_json(value: ValueRef<'_>, field_type: Option<&FieldType>) -> Snapba
                 Ok(Value::String(text))
             }
         }
-        ValueRef::Blob(_) => Err(SnapbackError::error(
-            "SNAPBACK_UNSUPPORTED_BLOB",
-            "storage",
-            "blob values are not supported in the v0 local store",
-        )),
+        ValueRef::Blob(bytes) => match field_type {
+            Some(FieldType::Vector { dimensions }) => {
+                if bytes.len() != *dimensions as usize * 8 {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_VECTOR_VALUE_INVALID",
+                        "storage",
+                        "stored vector blob has the wrong dimension",
+                    ));
+                }
+                bytes
+                    .chunks_exact(8)
+                    .map(|chunk| {
+                        let value = f64::from_le_bytes(chunk.try_into().expect("eight bytes"));
+                        Number::from_f64(value).map(Value::Number).ok_or_else(|| {
+                            SnapbackError::error(
+                                "SNAPBACK_VECTOR_VALUE_INVALID",
+                                "storage",
+                                "stored vector blob contains a non-finite component",
+                            )
+                        })
+                    })
+                    .collect::<SnapbackResult<Vec<_>>>()
+                    .map(Value::Array)
+            }
+            _ => Err(SnapbackError::error(
+                "SNAPBACK_UNSUPPORTED_BLOB",
+                "storage",
+                "undeclared blob value is not supported",
+            )),
+        },
     }
 }
 
@@ -16775,12 +16858,52 @@ fn json_to_sql_value(value: &Value, field_type: Option<&FieldType>) -> SnapbackR
                     .with_detail("error", error.to_string())
                 })
         }
+        Some(FieldType::Vector { dimensions }) => {
+            let values = value
+                .as_array()
+                .ok_or_else(|| type_error("vector", value))?;
+            let values = values
+                .iter()
+                .map(|component| {
+                    component
+                        .as_f64()
+                        .ok_or_else(|| type_error("vector", value))
+                })
+                .collect::<SnapbackResult<Vec<_>>>()?;
+            let values = crate::vector::admit_stored_vector(&values, *dimensions)?;
+            let mut bytes = Vec::with_capacity(values.len() * 8);
+            for component in values {
+                bytes.extend_from_slice(&component.to_le_bytes());
+            }
+            Ok(SqlValue::Blob(bytes))
+        }
     }
 }
 
 fn normalize_json_value(value: Value, field_type: &FieldType) -> SnapbackResult<Value> {
     match field_type {
         FieldType::Json => Ok(value),
+        FieldType::Vector { dimensions } if !value.is_null() => {
+            let values = value
+                .as_array()
+                .ok_or_else(|| type_error("vector", &value))?
+                .iter()
+                .map(|component| {
+                    component
+                        .as_f64()
+                        .ok_or_else(|| type_error("vector", &value))
+                })
+                .collect::<SnapbackResult<Vec<_>>>()?;
+            crate::vector::admit_stored_vector(&values, *dimensions)?
+                .into_iter()
+                .map(|component| {
+                    Number::from_f64(component)
+                        .map(Value::Number)
+                        .ok_or_else(|| type_error("vector", &value))
+                })
+                .collect::<SnapbackResult<Vec<_>>>()
+                .map(Value::Array)
+        }
         // @ref LLP 0073#authorization-and-result-release — a validator-accepted
         // integral Real (JSON `5`) would otherwise stay an integer in the
         // in-memory document while the same row reloads from a SQLite REAL
@@ -16845,18 +16968,21 @@ fn ensure_field_or_system(table: &TableManifest, field: &str) -> SnapbackResult<
 
 fn ensure_orderable_field(table: &TableManifest, field: &str) -> SnapbackResult<()> {
     ensure_field_or_system(table, field)?;
-    if matches!(field_type(table, field), Some(FieldType::Json)) {
+    if matches!(
+        field_type(table, field),
+        Some(FieldType::Json | FieldType::Vector { .. })
+    ) {
         return Err(SnapbackError::error(
             "SNAPBACK_QUERY_ORDER_UNSUPPORTED_FIELD_TYPE",
             "query",
             format!(
-                "query order field {}.{field} has non-portable Json type",
+                "query order field {}.{field} has a non-orderable type",
                 table.name
             ),
         )
         .with_detail("table", table.name.clone())
         .with_detail("field", field.to_owned())
-        .with_detail("fieldType", "Json"));
+        .with_detail("fieldType", "JsonOrVector"));
     }
     Ok(())
 }
@@ -16879,6 +17005,7 @@ fn sqlite_type(field_type: &FieldType) -> &'static str {
         | FieldType::AssetRef { .. } => "TEXT",
         FieldType::Boolean | FieldType::Integer => "INTEGER",
         FieldType::Real => "REAL",
+        FieldType::Vector { .. } => "BLOB",
     }
 }
 
@@ -17426,6 +17553,7 @@ mod guarded_commit_tests {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: None,
                 asset_sharing: None,
             }],
@@ -17648,6 +17776,7 @@ mod guarded_commit_tests {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: None,
                 asset_sharing: None,
             }],
@@ -17963,6 +18092,7 @@ mod guarded_commit_tests {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 },
@@ -18008,6 +18138,7 @@ mod guarded_commit_tests {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 },
@@ -18062,6 +18193,7 @@ mod guarded_commit_tests {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 },
@@ -19237,6 +19369,7 @@ mod guarded_commit_tests {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 },
@@ -19259,6 +19392,7 @@ mod guarded_commit_tests {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 },
@@ -21719,6 +21853,7 @@ mod guarded_commit_tests {
             permission_backing: true,
             permission_fields: Some(vec!["userId".to_owned(), "boardId".to_owned()]),
             search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
             membership: None,
             asset_sharing: None,
         };
@@ -21792,6 +21927,7 @@ mod guarded_commit_tests {
                     permission_backing: true,
                     permission_fields: Some(vec!["userId".to_owned(), "boardId".to_owned()]),
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 }],
@@ -23189,7 +23325,7 @@ mod guarded_commit_tests {
             "SNAPBACK_QUERY_ORDER_UNSUPPORTED_FIELD_TYPE"
         );
         assert_eq!(error.diagnostic.details["field"], "metadata");
-        assert_eq!(error.diagnostic.details["fieldType"], "Json");
+        assert_eq!(error.diagnostic.details["fieldType"], "JsonOrVector");
     }
 }
 
@@ -23235,6 +23371,7 @@ mod membership_write_tests {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 },
@@ -23266,6 +23403,7 @@ mod membership_write_tests {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: Some(MembershipManifest {
                         id: None,
                         principal: "userId".to_owned(),
@@ -23418,6 +23556,7 @@ mod membership_write_tests {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: None,
                 asset_sharing: None,
             });
@@ -25104,6 +25243,7 @@ mod membership_write_tests {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: Some(MembershipManifest {
                     id: Some("appRoles".to_owned()),
                     principal: "userId".to_owned(),

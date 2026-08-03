@@ -75,6 +75,9 @@ you never build around a feature because you didn't know it existed.
   term/phrase/prefix search with structured ASTs, deterministic ranking,
   authorization partitions, highlights, and current-keyset cursors
   (experimental).
+- [Portable exact vector search](./backend/vector-search.md) — declared
+  fixed-dimension embeddings, bounded exact `l2sq`/`dot` ranking, owner or
+  public visibility, and a deliberately closed ANN door (experimental).
 - [Assets](./backend/assets.md) — generated upload intents, TUS resumable
   transfer, trusted SHA-256 finalization, typed `v.assetRef` attachment,
   private-strict delivery (local target; image pipeline still a GAP).

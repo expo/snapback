@@ -70,6 +70,7 @@ fn schema() -> SchemaManifest {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: None,
                 asset_sharing: None,
             },
@@ -92,6 +93,7 @@ fn schema() -> SchemaManifest {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: None,
                 asset_sharing: None,
             },
@@ -121,6 +123,7 @@ fn schema() -> SchemaManifest {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: Some(MembershipManifest {
                     id: Some("roomMembers".to_owned()),
                     principal: "userId".to_owned(),

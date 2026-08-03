@@ -89,6 +89,7 @@ import {
   resultContractHash,
   resultContractType,
   searchPageResultType,
+  vectorPageResultType,
   validatorResultValue,
 } from './result-contracts.mjs';
 import {
@@ -175,6 +176,7 @@ const TARGET_CAPABILITY_IDS = new Set([
   'cron',
   'cron_action_run_mutation',
   'full_text_search_v1',
+  'vector_search_v1',
   'host_plan_runtime',
   'ibex_ctx_db_host_bridge',
   'inline_handler_v1',
@@ -219,6 +221,7 @@ const EXPERIMENTAL_TARGET_CAPABILITY_IDS = new Set([
   'result_contract_v1',
   'versioned_seed_install_v1',
   'versioned_seed_reset_v1',
+  'vector_search_v1',
   'write_activity_v1',
 ]);
 
@@ -772,7 +775,7 @@ export async function generateInProcess(backendDir, options = {}) {
       seenFields.add(fieldName);
       validateAuthoringValidator(val, `${name}.${fieldName}`, (message) => {
         err('SCHEMA_INVALID_VALIDATOR', 'schema', message, { table: name, field: fieldName });
-      });
+      }, new Set(), 'schema');
       const idTable = idFieldTypeTable(val.fieldType);
       if (idTable !== null && !Object.hasOwn(schemaDef.tables, idTable)) {
         err('SCHEMA_ID_TARGET_UNKNOWN', 'schema', `${name}.${fieldName} references unknown id table ${idTable}`, {
@@ -930,6 +933,63 @@ export async function generateInProcess(backendDir, options = {}) {
         }
       }
       searchIndexes.push(search);
+    }
+
+    const vectorIndexes = [];
+    for (const vector of table.vectorIndexes ?? []) {
+      if (!IDENT.test(vector.name) || vector.name.startsWith('_snapback') || isAuthReservedIdentifier(vector.name)) {
+        err('SNAPBACK_VECTOR_INDEX_UNAVAILABLE', 'vector', `invalid vector index identifier ${name}.${vector.name}`, { table: name, index: vector.name });
+      }
+      if (seenIndexes.has(vector.name)) {
+        err('SNAPBACK_VECTOR_INDEX_UNAVAILABLE', 'vector', `duplicate index/vector index name ${name}.${vector.name}`, { table: name, index: vector.name });
+      }
+      seenIndexes.add(vector.name);
+      const vectorField = table.fields[vector.vectorField];
+      if (!vectorField || vectorField.optional || vectorField.fieldType?.Vector?.dimensions !== vector.dimensions) {
+        err('SNAPBACK_VECTOR_INDEX_UNAVAILABLE', 'vector', `vector index ${name}.${vector.name} must name one required v.vector() field`, { table: name, index: vector.name, field: vector.vectorField });
+      }
+      const participating = new Set([
+        vector.vectorField,
+        ...(vector.equalityFilters ?? []),
+        ...(vector.storedFields ?? []),
+      ]);
+      const requiredClassifications = [...participating].sort();
+      const declaredClassifications = Object.keys(vector.fieldClassifications ?? {}).sort();
+      if (JSON.stringify(requiredClassifications) !== JSON.stringify(declaredClassifications)) {
+        err('SNAPBACK_VECTOR_INDEX_UNAVAILABLE', 'vector', `vector index ${name}.${vector.name} must classify exactly every participating field`, { table: name, index: vector.name, requiredFields: requiredClassifications, declaredFields: declaredClassifications });
+      }
+      for (const [field, classification] of Object.entries(vector.fieldClassifications ?? {})) {
+        if (!table.fields[field]) {
+          err('SNAPBACK_VECTOR_INDEX_UNAVAILABLE', 'vector', `vector index ${name}.${vector.name} references unknown field ${field}`, { table: name, index: vector.name, field });
+        } else if (classification === 'sensitive' || classification === 'forbidden') {
+          err('SNAPBACK_VECTOR_INDEX_UNAVAILABLE', 'vector', `vector index ${name}.${vector.name} cannot participate with ${classification} field ${field}`, { table: name, index: vector.name, field });
+        } else if (vector.visibility.kind === 'public-read' && classification !== 'public') {
+          err('SNAPBACK_VECTOR_INDEX_UNAVAILABLE', 'vector', `public vector index ${name}.${vector.name} admits only public participating fields`, { table: name, index: vector.name, field });
+        }
+      }
+      for (const field of vector.equalityFilters ?? []) {
+        const source = table.fields[field];
+        const type = source?.fieldType;
+        const portable = ['String', 'Principal', 'Integer', 'Boolean'].includes(type) || idFieldTypeTable(type) !== null;
+        if (!portable || source?.optional) {
+          err('SNAPBACK_VECTOR_INDEX_UNAVAILABLE', 'vector', `vector equality field ${name}.${vector.name}.${field} must be a required exact scalar`, { table: name, index: vector.name, field });
+        }
+      }
+      for (const field of vector.storedFields ?? []) {
+        if (!table.fields[field]) {
+          err('SNAPBACK_VECTOR_INDEX_UNAVAILABLE', 'vector', `vector stored field ${name}.${vector.name}.${field} is unknown`, { table: name, index: vector.name, field });
+        }
+      }
+      if (vector.visibility.kind === 'owner') {
+        const owner = table.fields[vector.visibility.field];
+        if (!owner || owner.optional || !['String', 'Principal'].includes(owner.fieldType)) {
+          err('SNAPBACK_VECTOR_INDEX_UNAVAILABLE', 'vector', `owner vector index ${name}.${vector.name} requires a required string/principal owner field`, { table: name, index: vector.name, field: vector.visibility.field });
+        }
+      }
+      if (vector.dimensions * vector.maxIndexedVectorsPerPartition > 2 ** 26) {
+        err('SNAPBACK_VECTOR_INDEX_UNAVAILABLE', 'vector', `vector index ${name}.${vector.name} dimensions × corpus exceeds 2^26`, { table: name, index: vector.name });
+      }
+      vectorIndexes.push(vector);
     }
 
     if (table.permissionFields !== undefined && !table.permissionBackingDeclared) {
@@ -1165,6 +1225,7 @@ export async function generateInProcess(backendDir, options = {}) {
       fields,
       indexes,
       ...(searchIndexes.length > 0 ? { searchIndexes } : {}),
+      ...(vectorIndexes.length > 0 ? { vectorIndexes } : {}),
       syncable: table.syncable,
       ...(table.permissionBackingDeclared ? { permissionBacking: true } : {}),
       ...(Array.isArray(table.permissionFields) ? { permissionFields: table.permissionFields } : {}),
@@ -1178,6 +1239,12 @@ export async function generateInProcess(backendDir, options = {}) {
     && !schemaRequiredCapabilities.includes('full_text_search_v1')
   ) {
     schemaRequiredCapabilities.push('full_text_search_v1');
+  }
+  if (
+    Object.values(tables).some((table) => (table.vectorIndexes?.length ?? 0) > 0)
+    && !schemaRequiredCapabilities.includes('vector_search_v1')
+  ) {
+    schemaRequiredCapabilities.push('vector_search_v1');
   }
 
   // SQLite index names are database-global and the physical spelling joins
@@ -1593,6 +1660,36 @@ export async function generateInProcess(backendDir, options = {}) {
           kind: 'list',
           row: validatorRowDescriptor(def.resultContract?.validator) ?? { shape: 'unknown' },
         },
+        serverRunnable: true,
+        localRunnable: false,
+        ...contractQueryLivenessFields(def),
+      };
+    } else if (def.__kind === 'Query' && def.vectorPlan) {
+      const plan = def.vectorPlan;
+      const table = tables[plan.table];
+      const vectorIndex = table?.vectorIndexes?.find((candidate) => candidate.name === plan.index);
+      if (!table) {
+        err('FUNCTION_UNKNOWN_TABLE', 'function', `${name}: vector query references unknown table ${plan.table}`, { function: name, table: plan.table });
+      } else if (!vectorIndex) {
+        err('SNAPBACK_VECTOR_INDEX_UNAVAILABLE', 'vector', `${name}: vector query references unknown vector index ${plan.table}.${plan.index}`, { function: name, table: plan.table, index: plan.index });
+      }
+      functions.push({
+        name,
+        kind: 'Query',
+        ...authoredFunctionManifestFields(def),
+        runtime: { HostPlan: { VectorQuery: plan } },
+        declaredReads: [plan.table],
+        declaredWrites: [],
+        authScopeField: null,
+        authorizationDependence: def.auth === 'authenticated' ? ['userId'] : [],
+        syncabilityClass: 'online-only',
+      });
+      contractQueries[name] = {
+        name,
+        args: argDescriptors(def.args),
+        argOrder: Object.keys(def.args),
+        reads: [plan.table],
+        result: { kind: 'list', row: { shape: 'unknown' } },
         serverRunnable: true,
         localRunnable: false,
         ...contractQueryLivenessFields(def),
@@ -4140,6 +4237,24 @@ function validateAuthoringValidator(val, where, report, seen = new Set(), positi
     return false;
   }
   const argument = position === 'argument';
+  const vector = val.fieldType?.Vector;
+  if (argument && vector) {
+    report(`${where} cannot use v.vector() as an argument; use the closed array validator vocabulary`);
+    return false;
+  }
+  if (position === 'schema' && val.primitive === 'vector') {
+    if (
+      Object.keys(val.fieldType ?? {}).length !== 1
+      || !Number.isSafeInteger(vector?.dimensions)
+      || vector.dimensions < 1
+      || vector.dimensions > 4_096
+      || val.optional !== false
+    ) {
+      report(`${where} has an invalid v.vector() declaration`);
+      return false;
+    }
+    return true;
+  }
   if (argument) {
     const recurse = (children) => {
       seen.add(val);
@@ -5239,6 +5354,15 @@ function readSummary(fn) {
       authScopeField: null,
     };
   }
+  const vectorPlan = fn.runtime?.HostPlan?.VectorQuery;
+  if (vectorPlan) {
+    return {
+      mode: 'singleTable',
+      primaryTable: vectorPlan.table,
+      tables: [vectorPlan.table],
+      authScopeField: null,
+    };
+  }
   if (fn.declaredReads) {
     return { mode: fn.runtime?.IbexModule ? 'handlerDeclared' : (fn.declaredReads.length ? 'singleTable' : 'none'), primaryTable: fn.declaredReads[0] ?? null, tables: fn.declaredReads, authScopeField: fn.authScopeField ?? null };
   }
@@ -5285,6 +5409,9 @@ function requiredCapabilities(fn) {
   ];
   if (fn.runtime?.HostPlan?.SearchQuery) {
     return [runtimeCapability, 'full_text_search_v1', ...contractCapabilities];
+  }
+  if (fn.runtime?.HostPlan?.VectorQuery) {
+    return [runtimeCapability, 'vector_search_v1', ...contractCapabilities];
   }
   // @ref LLP 0070#non-goals-and-claim-boundary — the jobs surface is an
   // experimental registry id while LLP 0070 is Draft; requiring it forces the
@@ -7373,6 +7500,9 @@ function renderApiTypes(
   const hasSearchFunction = functions.some(
     (fn) => fn.runtime?.HostPlan?.SearchQuery !== undefined,
   );
+  const hasVectorFunction = functions.some(
+    (fn) => fn.runtime?.HostPlan?.VectorQuery !== undefined,
+  );
   const schemaTables = Object.entries(schemaDef.tables ?? {});
   const membershipTableNames = new Set(
     schemaTables
@@ -7412,6 +7542,9 @@ function renderApiTypes(
     ...(hasSearchFunction
       ? ["import type { SearchPageV1 as ClientSearchPageV1 } from '@expo/snapback-client';"]
       : []),
+    ...(hasVectorFunction
+      ? ["import type { VectorPageV1 as ClientVectorPageV1 } from '@expo/snapback-client';"]
+      : []),
     "export type SchemaVersion = 'snapback.v0';",
     "export type Principal = string & { readonly __snapbackPrincipal: unique symbol };",
     "export type Id<Table extends string> = string & { readonly __snapbackIdTable: Table };",
@@ -7430,6 +7563,12 @@ function renderApiTypes(
     hasSearchFunction
       ? 'export type SearchPageV1<Fields extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>, RowId extends string = string> = ClientSearchPageV1<Fields, RowId>;'
       : 'export interface SearchPageV1<Fields extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>, RowId extends string = string> { items: readonly SearchItemV1<Fields, RowId>[]; cursor: string | null; hasMore: boolean }',
+    "export interface VectorFilterV1 { field: string; op: 'eq'; value: string | number | boolean }",
+    'export interface VectorRequestV1 { vector: readonly number[]; k?: number; filters?: readonly VectorFilterV1[] }',
+    'export interface VectorItemV1<Fields extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>, RowId extends string = string> { rowId: RowId; distance: number; fields: Fields }',
+    hasVectorFunction
+      ? 'export type VectorPageV1<Fields extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>, RowId extends string = string> = ClientVectorPageV1<Fields, RowId>;'
+      : 'export interface VectorPageV1<Fields extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>, RowId extends string = string> { items: readonly VectorItemV1<Fields, RowId>[] }',
     "export type EphemeralKeyMode = 'Connection' | 'Session' | 'User' | 'Custom';",
     'export interface FunctionReference<Name extends string, Kind extends FunctionKind, Args, Result = unknown> {',
     "  artifactKind: 'functionReference';",
@@ -7742,8 +7881,11 @@ function renderApiTypes(
   for (const fn of functions) {
     const def = functionsModule[fn.name];
     const search = fn.runtime?.HostPlan?.SearchQuery;
+    const vector = fn.runtime?.HostPlan?.VectorQuery;
     const result = search
       ? searchPageResultType(fn.resultContract)
+      : vector
+        ? vectorPageResultType(fn.resultContract)
       : resultContractType(
         fn.resultContract ?? { kind: 'unknown' },
         (table) => `GeneratedDataModel[${JSON.stringify(table)}]`,
@@ -7754,7 +7896,9 @@ function renderApiTypes(
         : `SearchRequestV1 & ${typeForGeneratedArgs({
           [search.resourceArg]: def?.args?.[search.resourceArg],
         })}`
-      : typeForGeneratedArgs(def?.args ?? {});
+      : vector
+        ? 'VectorRequestV1'
+        : typeForGeneratedArgs(def?.args ?? {});
     lines.push(`  ${fn.name}: FunctionReference<'${fn.name}', '${fn.kind}', ${args}, ${result}>;`);
   }
   // Explicit and derived upload intents are api members like functions —

@@ -259,6 +259,55 @@ function assertSearchQueryOutputV1(output) {
   }
 }
 
+function assertVectorFunctionReferenceV1(ref) {
+  const requiredStrings = [
+    'schemaVersion', 'appId', 'id', 'name', 'implementationHash',
+    'argsContractHash', 'resultContractHash',
+  ];
+  const vectorSchema = ref?.argumentSchema?.properties?.vector;
+  if (
+    ref === null
+    || typeof ref !== 'object'
+    || Array.isArray(ref)
+    || ref.artifactKind !== 'functionReference'
+    || ref.kind !== 'Query'
+    || requiredStrings.some((key) => typeof ref[key] !== 'string' || ref[key].length === 0)
+    || vectorSchema?.type !== 'array'
+  ) {
+    const error = new TypeError('SNAPBACK_VECTOR_QUERY_INVALID: vectorSearch requires a generated vector Query reference');
+    error.code = 'SNAPBACK_VECTOR_QUERY_INVALID';
+    throw error;
+  }
+}
+
+function assertVectorQueryOutputV1(output) {
+  if (
+    output === null
+    || typeof output !== 'object'
+    || Array.isArray(output)
+    || !Array.isArray(output.rows)
+    || (output.cursor !== undefined && output.cursor !== null)
+  ) {
+    throw new TypeError('Snapback vector query returned an invalid single-page QueryOutput');
+  }
+  for (const item of output.rows) {
+    if (
+      item === null
+      || typeof item !== 'object'
+      || Array.isArray(item)
+      || typeof item.rowId !== 'string'
+      || typeof item.distance !== 'number'
+      || !Number.isFinite(item.distance)
+      || Object.is(item.distance, -0)
+      || item.fields === null
+      || typeof item.fields !== 'object'
+      || Array.isArray(item.fields)
+    ) {
+      throw new TypeError('Snapback vector query returned an invalid VectorItemV1');
+    }
+  }
+}
+
 function assertExpectedDataVersionStreamV1(value, label) {
   const valid = value !== null
     && typeof value === 'object'
@@ -4955,6 +5004,59 @@ export class SnapbackClient {
       cursor,
       hasMore: cursor !== null,
     };
+  }
+
+  async vectorSearch(ref, {
+    vector,
+    k,
+    filters,
+    userId,
+    readSet = [],
+    authorityCapture = null,
+  } = {}) {
+    assertVectorFunctionReferenceV1(ref);
+    if (!Array.isArray(vector) || vector.some((value) => (
+      typeof value !== 'number' || !Number.isFinite(value) || Math.abs(value) > 2 ** 100
+    ))) {
+      throw new TypeError('SNAPBACK_VECTOR_QUERY_INVALID: vector must contain portable finite binary64 numbers');
+    }
+    const dimensions = ref.argumentSchema.properties.vector.maxItems;
+    if (!Number.isSafeInteger(dimensions) || dimensions < 1 || vector.length !== dimensions) {
+      throw new TypeError(`SNAPBACK_VECTOR_QUERY_INVALID: vector must contain exactly ${dimensions} components`);
+    }
+    if (k !== undefined && (!Number.isSafeInteger(k) || k < 1 || k > 64)) {
+      throw new TypeError('SNAPBACK_VECTOR_QUERY_INVALID: k must be an integer in 1..64');
+    }
+    if (filters !== undefined && (
+      !Array.isArray(filters)
+      || filters.length > 8
+      || new Set(filters.map((filter) => filter?.field)).size !== filters.length
+      || filters.some((filter) => (
+        filter === null
+        || typeof filter !== 'object'
+        || Array.isArray(filter)
+        || Object.keys(filter).sort().join(',') !== 'field,op,value'
+        || typeof filter.field !== 'string'
+        || filter.field.length === 0
+        || filter.op !== 'eq'
+        || !['string', 'number', 'boolean'].includes(typeof filter.value)
+        || (typeof filter.value === 'number' && !Number.isSafeInteger(filter.value))
+      ))
+    )) {
+      throw new TypeError('SNAPBACK_VECTOR_QUERY_INVALID: filters must be at most eight eq filters');
+    }
+    const output = await this.query(ref, {
+      args: {
+        vector: vector.map((value) => (Object.is(value, -0) ? 0 : value)),
+        ...(k !== undefined ? { k } : {}),
+        ...(filters !== undefined ? { filters } : {}),
+      },
+      userId,
+      readSet,
+      authorityCapture,
+    });
+    assertVectorQueryOutputV1(output);
+    return { items: output.rows };
   }
 
   /// Mint a bundle boot idempotency key (LLP 0092 §0D.3): 22-char base64url

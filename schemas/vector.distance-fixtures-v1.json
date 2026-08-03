@@ -1,0 +1,233 @@
+{
+  "artifactKind": "vectorDistanceFixturesV1",
+  "conversion": [
+    {
+      "decimal": "1.00000000000000011102230246251565404236316680908203125",
+      "expectedBits": "3ff0000000000000",
+      "name": "arbitrary-length-halfway-ties-to-even"
+    },
+    {
+      "decimal": "1.00000000000000011102230246251565404236316680908203126",
+      "expectedBits": "3ff0000000000001",
+      "name": "arbitrary-length-above-halfway-rounds-up"
+    },
+    {
+      "admittedBits": "0000000000000000",
+      "decimal": "-0.000000000000000000000000000000000000000000000000000000000000",
+      "expectedBits": "8000000000000000",
+      "name": "negative-zero-input"
+    }
+  ],
+  "conversionEvidence": [
+    {
+      "correctlyRoundedAtAnyInputLength": true,
+      "target": "rust"
+    },
+    {
+      "correctlyRoundedAtAnyInputLength": true,
+      "target": "javascript"
+    }
+  ],
+  "distanceProfile": "snapback-vector-distance-v1",
+  "distances": [
+    {
+      "candidate": [
+        4.0,
+        -2.0,
+        -3.0
+      ],
+      "divergenceClass": "baseline",
+      "expectedBits": "4039000000000000",
+      "metric": "l2sq",
+      "name": "l2sq-basic",
+      "query": [
+        1.0,
+        2.0,
+        -3.0
+      ]
+    },
+    {
+      "candidate": [
+        4.0,
+        -2.0,
+        -3.0
+      ],
+      "divergenceClass": "baseline",
+      "expectedBits": "4022000000000000",
+      "metric": "dot",
+      "name": "dot-basic",
+      "query": [
+        1.0,
+        2.0,
+        -3.0
+      ]
+    },
+    {
+      "candidate": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "divergenceClass": "reassociation-reduction-order",
+      "expectedBits": "3ff0000000000000",
+      "metric": "dot",
+      "name": "dot-reassociation",
+      "query": [
+        1e+16,
+        -1e+16,
+        1.0
+      ]
+    },
+    {
+      "candidate": [
+        1.0,
+        0.9999999999999999
+      ],
+      "divergenceClass": "fma-contraction",
+      "expectedBits": "0000000000000000",
+      "metric": "dot",
+      "name": "dot-no-fma",
+      "query": [
+        -1.0,
+        1.0000000000000002
+      ]
+    },
+    {
+      "candidate": [
+        0.0,
+        0.0
+      ],
+      "divergenceClass": "fma-contraction",
+      "expectedBits": "4014000000000000",
+      "metric": "l2sq",
+      "name": "l2sq-no-fma",
+      "query": [
+        2.0,
+        1.0000000000000002
+      ]
+    },
+    {
+      "candidate": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "divergenceClass": "reassociation-reduction-order",
+      "expectedBits": "4350000000000000",
+      "metric": "l2sq",
+      "name": "l2sq-reassociation",
+      "query": [
+        134217728.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "candidate": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "divergenceClass": "extended-precision-x87",
+      "expectedBits": "0000000000000000",
+      "metric": "dot",
+      "name": "dot-binary64-intermediates",
+      "query": [
+        9007199254740992.0,
+        1.0,
+        -9007199254740992.0
+      ]
+    },
+    {
+      "candidate": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "divergenceClass": "extended-precision-x87",
+      "expectedBits": "4350000000000000",
+      "metric": "l2sq",
+      "name": "l2sq-binary64-intermediates",
+      "query": [
+        134217728.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "candidate": [
+        2.2227587494850775e-162
+      ],
+      "divergenceClass": "ftz-daz-subnormal",
+      "expectedBits": "0000000000000001",
+      "metric": "dot",
+      "name": "dot-gradual-underflow",
+      "query": [
+        2.2227587494850775e-162
+      ]
+    },
+    {
+      "candidate": [
+        0.0
+      ],
+      "divergenceClass": "ftz-daz-subnormal",
+      "expectedBits": "0000000000000001",
+      "metric": "l2sq",
+      "name": "l2sq-gradual-underflow",
+      "query": [
+        2.2227587494850775e-162
+      ]
+    },
+    {
+      "candidate": [
+        1.2676506002282294e+30
+      ],
+      "divergenceClass": "component-bound",
+      "expectedBits": "4c70000000000000",
+      "metric": "dot",
+      "name": "dot-component-ceiling",
+      "query": [
+        1.2676506002282294e+30
+      ]
+    },
+    {
+      "candidate": [
+        -1.2676506002282294e+30
+      ],
+      "divergenceClass": "component-bound",
+      "expectedBits": "4c90000000000000",
+      "metric": "l2sq",
+      "name": "l2sq-component-ceiling",
+      "query": [
+        1.2676506002282294e+30
+      ]
+    }
+  ],
+  "formatVersion": 1,
+  "kernelEvidence": [
+    {
+      "extendedPrecisionIntermediates": false,
+      "fastMath": false,
+      "fmaContraction": false,
+      "kernel": "scalar-sequential-binary64",
+      "strictFp": true,
+      "target": "rust"
+    },
+    {
+      "extendedPrecisionIntermediates": false,
+      "fastMath": false,
+      "fmaContraction": false,
+      "kernel": "ecmascript-number-sequential",
+      "strictFp": true,
+      "target": "javascript"
+    }
+  ],
+  "targets": [
+    "rust",
+    "javascript"
+  ]
+}

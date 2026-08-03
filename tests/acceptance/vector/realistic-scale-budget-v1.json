@@ -1,0 +1,38 @@
+{
+  "artifactKind": "vectorRealisticScaleBudgetReceiptV1",
+  "schemaVersion": "snapback.vector-realistic-scale-budget.v1",
+  "observedAt": "2026-08-02",
+  "sourceCommit": "3284037dd298ffa4b8267f823c485125d917d292",
+  "sourceTreeClean": true,
+  "target": {
+    "hostAlias": "expo-build-1000",
+    "platform": "linux-x64",
+    "hostTarget": "x86_64-unknown-linux-gnu",
+    "cargoVersion": "cargo 1.97.0 (c980f4866 2026-06-30)",
+    "rustcVersion": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+    "runtimeQualification": "restricted-no-eval-handler-vm"
+  },
+  "command": "LD_LIBRARY_PATH=vendor/ibex/linux/lib cargo test --locked --lib vector::sqlite::tests::realistic_scale_1536_by_43690_meets_preregistered_budgets -- --ignored --exact --nocapture",
+  "profile": "snapback-vector-distance-v1",
+  "dimensions": 1536,
+  "vectorCount": 43690,
+  "vectorBytes": 536862720,
+  "scalarPairs": 67107840,
+  "databaseBytes": 1131188224,
+  "buildMs": 163311,
+  "updateMs": 2319,
+  "queryMs": 11126,
+  "residentKiB": 5240276,
+  "budgets": {
+    "buildMs": 900000,
+    "updateMs": 60000,
+    "queryMs": 120000,
+    "residentKiB": 16777216
+  },
+  "boundary": {
+    "filledAdmitted": true,
+    "nextRefusal": "SNAPBACK_VECTOR_CORPUS_BOUND",
+    "sourceRolledBack": true
+  },
+  "result": "pass"
+}

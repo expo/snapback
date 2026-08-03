@@ -130,6 +130,7 @@ pub mod telemetry_contract;
 pub mod telemetry_query;
 #[doc(hidden)]
 pub mod value_expr;
+pub mod vector;
 pub(crate) mod warm_vm;
 #[doc(hidden)]
 pub mod wire_fixtures;

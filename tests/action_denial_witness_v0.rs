@@ -77,6 +77,7 @@ fn schema() -> SchemaManifest {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
             membership: Some(MembershipManifest {
                 id: None,
                 principal: "userId".to_owned(),

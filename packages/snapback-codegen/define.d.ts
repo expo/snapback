@@ -16,6 +16,7 @@ export type FieldType =
   | 'Integer'
   | 'Real'
   | 'Json'
+  | { readonly Vector: { readonly dimensions: number } }
   | 'Principal'
   | { readonly Id: { readonly table: string } }
   | { readonly AppSchemaRef: { readonly authority: 'app'; readonly table: string } }
@@ -66,6 +67,7 @@ export declare const v: {
   real(options?: { min?: number; max?: number }): Validator<number, 'Real', false>;
   number(options?: { min?: number; max?: number }): Validator<number, 'Real', false>;
   finiteReal(options?: { min?: number; max?: number }): Validator<number, 'Real', false>;
+  vector<const Dimensions extends number>(dimensions: Dimensions): Validator<ReadonlyArray<number>, { readonly Vector: { readonly dimensions: Dimensions } }, false>;
   json(options?: { maxDepth?: number; maxBytes?: number }): Validator<unknown, 'Json', false>;
   null(): Validator<null, 'Json', false>;
   literal<const Value extends string | number | boolean | null>(value: Value): Validator<Value, 'Json', false>;
@@ -269,7 +271,8 @@ export type TargetCapabilityId =
   | 'sequence_allocation_v1'
   | 'settlement.bounded_skew'
   | 'permission_epoch_resync'
-  | 'full_text_search_v1';
+  | 'full_text_search_v1'
+  | 'vector_search_v1';
 
 export interface PushAudienceReference<Name extends string = string> {
   readonly audience: Name;
@@ -489,6 +492,7 @@ export type AssetSharingSpec<Fields extends Record<string, Validator> = Record<s
 export interface TableBuilder<Fields extends Record<string, Validator> = Record<string, Validator>> {
   index(name: string, fields: Array<keyof Fields & string>, options?: { unique?: boolean }): TableBuilder<Fields>;
   searchIndex(name: string, spec: SearchIndexSpec<Fields>): TableBuilder<Fields>;
+  vectorIndex(name: string, spec: VectorIndexSpec<Fields>): TableBuilder<Fields>;
   sync(): TableBuilder<Fields>;
   permissionBacking(fields?: Array<keyof Fields & string>): TableBuilder<Fields>;
   membership<const Spec extends MembershipSpec>(spec: Spec): MembershipTableBuilder<Fields, RolesOf<Spec>, ScopeOf<Spec>>;
@@ -536,6 +540,19 @@ export interface SearchIndexSpec<Fields extends Record<string, Validator>> {
     searchPositions?: number;
     searchBytes?: number;
   };
+}
+
+export interface VectorIndexSpec<Fields extends Record<string, Validator>> {
+  semanticVersion: string;
+  vectorField: keyof Fields & string;
+  metric: 'l2sq' | 'dot';
+  fieldClassifications: Partial<Record<keyof Fields & string, SearchFieldClassification>>;
+  equalityFilters?: Array<keyof Fields & string>;
+  storedFields?: Array<keyof Fields & string>;
+  visibility?: { kind: 'public-read' } | { kind: 'owner'; field: keyof Fields & string };
+  tieBreak?: 'id-asc' | 'id-desc';
+  maxIndexedVectorsPerPartition: number;
+  maintenanceLimits?: { vectorMaintenanceEffects?: number; vectorBytes?: number };
 }
 
 export interface MembershipTableBuilder<
@@ -591,6 +608,11 @@ export declare function defineSearchQuery(spec: {
   index: string;
   auth?: AuthRequirement;
   resourceArg?: string;
+}): unknown;
+export declare function defineVectorQuery(spec: {
+  table: TableBuilder;
+  index: string;
+  auth?: AuthRequirement;
 }): unknown;
 
 export interface RelationalVisibilitySpec {
