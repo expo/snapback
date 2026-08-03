@@ -18,6 +18,7 @@ const sourceFiles = [
   'scripts/telemetry-phase1-idle-proof.mjs',
   'scripts/telemetry-phase1-evidence.mjs',
   'scripts/verify-telemetry-phase1-proof',
+  'scripts/verify-local-proof',
   'src/bench.rs',
   'src/bin/snapback-telemetry-bench.rs',
   'src/telemetry.rs',
