@@ -154,6 +154,9 @@ you never build around a feature because you didn't know it existed.
   and bootstrap failure vocabulary.
 - [Admin console](./operating/admin-console.md) — build, launch, develop, and
   debug through the privileged Contract system app.
+- [Backend observability](./operating/observability.md) — inspect Health and
+  Logs, query typed telemetry from CLI/MCP, and interpret coverage, freshness,
+  retention, and shedding honestly.
 
 ### Deploying
 - [Immutable releases and deploy plans](./deploying/releases.md) — build the

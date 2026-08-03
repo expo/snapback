@@ -9,13 +9,13 @@ id: meta.capabilities
 order: 2
 audience: agent-first
 capabilities: []
-authorities: [llp/0041-packaged-dev-loop.rfc.md, llp/0061-agent-first-snapback-guide.rfc.md, llp/0064-native-client-surfaces.rfc.md, src/server.rs, src/admin.rs, packages/snapback-cli/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-react/index.mjs]
+authorities: [llp/0041-packaged-dev-loop.rfc.md, llp/0061-agent-first-snapback-guide.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0154-minimal-observability.rfc.md, src/server.rs, src/admin.rs, src/telemetry_query.rs, packages/snapback-cli/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-react/index.mjs]
 examples: []
 status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-02
-reviewed-commit: 63d980b654664d2c990f454cbcb78958d87d27b8
+reviewed-commit: HEAD
 ---
 
 # Capability index
@@ -55,8 +55,8 @@ with the Snapback label and `guide-gap` in the title.
 | backend.assets | Authenticated asset lifecycle plus the media pipeline on the local target — generated upload intents, TUS 1.0.0 resumable transfer, trusted SHA-256 finalization with GPS-strip canonicalization for images (decode/rewrite) and MP4/QuickTime video (in-place location-atom blanking, no transcoding), declared renditions with ThumbHash placeholders, typed `v.assetRef` attachment, private-strict/private-signed/public-immutable delivery with ranges and best-variant selection, opt-in reference GC, lifecycle callbacks, deletion/GC, receipts (`asset_lifecycle_v1`, `asset_image_finalization_v1`, `asset_image_pipeline_v1`, `asset_reference_gc_v1`, `asset_video_finalization_v1`); the paved browser path (stock `@expo/snapback-vite` relay over the `/assets/*` family, sessions custody, typed generated upload references) is CI-verified; transcoding and hosted targets remain design-only | files, images, video, upload, object storage, media, browser upload, vite relay | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json (all five asset ids in supportedCapabilities; `assets` facts block with Enforced image and video ceilings) + src/assets.rs + src/assets_image.rs + src/assets_video.rs suites + demos/file-drop/tests/acceptance/browser-relay.mjs (relay + sessions + typed upload reference browser path) | llp/0044 | backend/assets.md |
 | backend.expo-push-seam | Local Expo integration seam: session-bound token custody, atomic rotation and retirement, declaration-checked/host-authorized `ctx.push.send`, crash-safe intent/batch/message ledger, bounded ticket/receipt maintenance, explicit ambiguous redrive risk, and structured `notifications.expoPushSeam` facts. The app-readable ledger projection, a real-device receipt, and the complete hosted conjunction remain GAPs; this is not first-class notification delivery. | device token, expo push token, installation, ctx.push.send, handoff receipt, DeviceNotRegistered | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json (`expoPushSeam`) + `fake_expo_acceptance_covers_tickets_receipts_dedupe_ambiguity_and_authorization` in src/push.rs | llp/0143, llp/0057, llp/0059, llp/0070 | backend/expo-push.md |
 | backend.notifications | First-class notification and effect delivery; application-authored table ledgers are not this product capability | notifications, push, email, delivery, effects | none | design-only | schemas/capability.manifest.local-dev-sqlite-ibex.json (`notifications: false`; explicit `notifications` gap) | llp/0045 | GAP (owner: Charlie, review: 2026-08-31; issue: issues/20260728-guide-gap-assets-and-notifications-capability-rows.md) |
-| backend.observability-v1 | Built-in backend telemetry with a generation-bound sibling store, operation-class spans, bounded retention and rollups, typed agent-facing queries, and Health/Logs projections; LLP 0154 is Accepted but no implementation witness ships yet | telemetry, observability, health, logs, metrics, traces | none | design-only | llp/0154-minimal-observability.rfc.md | llp/0154 | GAP (implementation and guide page; owner: Charlie, review: 2026-08-31; issue: issues/20260802-obs-04-guide-gates-crossrefs.md) |
-| backend.error-tracking-v1 | Minimal built-in backend error grouping and issue lifecycle layered on the observability substrate; LLP 0156 remains in its live refinement loop outside current main and no implementation witness ships yet | error tracking, issues, fingerprints, exceptions, failures | none | design-only | issues/20260802-obs-06-errors-surface-and-fixture-gates.md | llp/0156, llp/0154 | GAP (acceptance, implementation, and guide page; owner: Charlie, review: 2026-08-31; issue: issues/20260802-obs-06-errors-surface-and-fixture-gates.md) |
+| backend.observability-v1 | Local built-in backend telemetry with a generation-bound sibling store, operation-class spans, bounded retention and rollups, typed agent-facing queries, and Health/Logs projections; hosted arms and declared product analytics remain deferred | telemetry, observability, health, logs, metrics, traces | local | shipped | route /_snapback/api/telemetry/stats | llp/0154 | operating/observability.md |
+| backend.error-tracking-v1 | Minimal built-in backend error grouping and issue lifecycle layered on the observability substrate; LLP 0156 is Accepted but its Phase E0/E1 capability has no implementation witness yet | error tracking, issues, fingerprints, exceptions, failures | none | design-only | issues/20260802-obs-06-errors-surface-and-fixture-gates.md | llp/0156, llp/0154 | GAP (implementation and guide page; owner: Charlie, review: 2026-08-31; issue: issues/20260802-obs-06-errors-surface-and-fixture-gates.md) |
 | backend.vector-search | Portable vector storage, ANN indexing, and semantic retrieval; no ordinary vector path ships today | vector, embeddings, similarity, semantic search, RAG, ANN | none | design-only | llp/0019-agentic-readiness.research.md (unmade product decision; no shipped witness) | llp/0019, llp/0007 | GAP (owner: Charlie, review: 2026-08-31; issue: issues/20260729-guide-gap-vector-semantic-search-capability-row.md) |
 | backend.cron | Scheduled execution | cron, schedule, background jobs | local | shipped | route /_snapback/api/cron/tick | llp/0028 | backend/cron.md |
 | backend.jobs-one-off | Experimental transactional one-off durable work (LLP 0070 first slice): `ctx.jobs.enqueue` inside the mutation transaction, a paved default queue, `availableAt = now + delay`, fenced claims with append-only attempt receipts, producer association on job rows plus bounded `enqueues` facts on confirmed mutation receipts, the generated declared job-status live query (codegen emits the capability requirement and acknowledgment), the injected-clock forced drain (`POST /_snapback/api/jobs/drain`), and the secret-read-leased admin inspection lane (`GET /_snapback/api/jobs`, `/jobs/{id}`). `jobs_one_off_v1` stays experimental and no durable-background-work capability class is claimed while LLP 0070 is Draft | one-off jobs, runAfter, scheduler, durable work, enqueue, background jobs, drain, job status, secret-read lease | local | partial | route /_snapback/api/jobs/drain | llp/0070, llp/0121, llp/0115 | backend/jobs.md |
@@ -415,6 +415,9 @@ you never build around a feature because you didn't know it existed.
   and bootstrap failure vocabulary.
 - [Admin console](./operating/admin-console.md) — build, launch, develop, and
   debug through the privileged Contract system app.
+- [Backend observability](./operating/observability.md) — inspect Health and
+  Logs, query typed telemetry from CLI/MCP, and interpret coverage, freshness,
+  retention, and shedding honestly.
 
 ### Deploying
 - [Immutable releases and deploy plans](./deploying/releases.md) — build the
@@ -9026,6 +9029,154 @@ admin binding layer.
   Snapback-served admin URL.
 - **Do not persist admin or secret-read credentials in UI state/storage.**
 - **Do not bypass generated Contract bindings with a second admin UI.**
+
+---
+
+<!-- snapback-guide-source: guide/operating/observability.md -->
+---
+title: Backend observability
+id: operating.observability
+order: 5
+audience: agent-first
+capabilities: [backend.observability-v1]
+authorities: [llp/0154-minimal-observability.rfc.md, src/telemetry.rs, src/telemetry_query.rs, src/cli.rs, src/host_ops.rs, packages/snapback-cli/mcp-control.mjs, admin-ui/admin-boundary.mjs, scripts/telemetry-phase1-idle-proof.mjs, src/telemetry_bench.rs]
+examples: []
+status: current
+targets: [local]
+maturity: shipped
+reviewed: 2026-08-02
+reviewed-commit: HEAD
+---
+
+# Backend observability
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
+Snapback records a bounded, loss-tolerant recent history of backend work with
+no application setup. Use the fixed Health and Logs console pages for a quick
+view; use the typed operations below when an agent needs exact filters,
+coverage facts, or an export.
+
+This is the Phase-1 surface from
+[LLP 0154](repo:llp/0154-minimal-observability.rfc.md): backend requests,
+function and job runs, live/WebSocket lifecycle, process and release markers,
+runtime logs, and standalone diagnostics. It does not include hosted telemetry,
+declared product-analytics events, distinct-user metrics, funnels, client crash
+ingest, or error-group issue management.
+
+## Check health and recent logs in the console
+
+Open the admin console and select **Health** for request volume, request error
+rate, p50/p95 latency, live connections, top routes/functions, lifecycle
+markers, and drop counters. Select **Logs** to filter raw events by kind, name,
+diagnostic code, or text and inspect one record.
+
+Health reads the closed aggregate `telemetry.stats` projection. Logs reads
+`telemetry.events`, whose records can contain authored log text or diagnostic
+context and therefore require the separate scoped secret-read authority. The
+console acquires that authority through its existing operator boundary; an app
+session never grants it.
+
+## Query the typed operations from the CLI
+
+Address the server by its readiness descriptor so the CLI can resolve its URL,
+admin credential, and—only for raw reads—a short-lived scoped lease:
+
+```sh
+snapback telemetry stats --ready-file .snapback/server-ready.json --kind function_run
+snapback telemetry events --ready-file .snapback/server-ready.json --kind log --limit 50 --order desc
+snapback telemetry export --ready-file .snapback/server-ready.json --since 1760000000000 --until 1760086400000 > telemetry.ndjson
+```
+
+`stats` admits `--kind`, `--name`, `--from-ms`/`--since`, and
+`--to-ms`/`--until`. `events` and `export` additionally admit `--status`,
+`--code`, `--correlation`, and `--text`; `events` has the deterministic
+`recorded_ts_ms` + `id` cursor and a page limit of 1–500. Export freezes one
+snapshot and emits a self-describing NDJSON header followed by the visible
+records.
+
+When addressing `--url` instead, supply the admin token and a separately
+minted `--secret-read-lease` for `events` or `export`. An admin token alone is
+deliberately insufficient for raw records. Responses from raw HTTP carriers
+are `no-store`.
+
+## Query from an agent tool
+
+The control MCP exposes the same Rust-owned operations as:
+
+- `snapback_telemetry_stats` — aggregate counts, error rates, latency,
+  coverage, and variance;
+- `snapback_telemetry_events` — one bounded raw-event page with an
+  automatically minted scoped lease;
+- `snapback_telemetry_export` — one immutable-snapshot page bounded by
+  `maxRows` and `maxBytes`, plus an opaque continuation token when truncated.
+
+The host-operation identities are `telemetry.stats`, `telemetry.events`, and
+`telemetry.export`. The agent export is intentionally finite; follow its
+continuation token rather than treating one page as the whole snapshot.
+
+## Read the variance envelope before drawing conclusions
+
+Every typed response reports its store backend, capability outcome, sampling,
+freshness watermark, retention boundary, truncation, and drop counters.
+Window totals are exact only when the reported coverage spans the requested
+window. Per-name results become approximate when heavy-hitter folding occurred;
+latency percentiles are histogram approximations with stated bounds.
+
+Telemetry may shed under pressure. Since-boot and lifetime counters say what
+was lost and why. A missing event after a nonzero drop count is not evidence
+that the operation never happened, and an old freshness watermark is not a
+current health reading. Telemetry is never billing authority.
+
+## Use the local SQL hatch for bounded investigations
+
+When the typed operations cannot express a local investigation, query the app
+database's telemetry sibling through the CLI:
+
+```sh
+snapback telemetry query \
+  "SELECT kind, name, count(*) AS n FROM telemetry_events_visible GROUP BY kind, name" \
+  --db .snapback/dev.sqlite3 --max-rows 100 --max-time-ms 2000
+```
+
+The command opens `.snapback/dev.sqlite3.telemetry` read-only and permits one
+statement over `telemetry_events_visible` or `telemetry_rollup_visible`.
+Base-table reads, writes, pragmas, attach/detach, extension loading, and SQL
+tails are refused. Row, SQLite-step, elapsed-time, and serialized-byte budgets
+remain enforced even though the command is local. There is no network SQL
+endpoint.
+
+## Understand storage and retention
+
+Telemetry uses its own generation-bound SQLite sibling and write connection;
+it is not attached to the app database, does not enter application tables or
+live-query changes, and rotates visibility with reset/restore incarnation.
+Producers enqueue without waiting for SQLite. A record arrival arms a flush at
+256 records or when the oldest record reaches 3 seconds; retention, rollups,
+checkpointing, and generation cleanup ride that flush path rather than a
+periodic timer.
+
+The local defaults retain 7 days of raw events, reserve 512 of 4,096 buffer
+slots for failure/terminal records, and cap the physical telemetry main + WAL
++ SHM footprint at 256 MiB. These are deployment-owned resource-safety
+settings, not plan entitlements. `maxDays: 0` is a true persistence off switch.
+Automation should inspect the returned retention/variance facts instead of
+assuming defaults; the current author-facing CLI does not mutate this policy.
+
+## Anti-patterns
+
+- **Do not use telemetry to compute bills, audit ledgers, or durable app
+  state.** It is explicitly loss-tolerant and priority-shedding.
+- **Do not treat the admin token as raw-data authority.** Events and exports
+  require their own short-lived, budgeted secret-read scope.
+- **Do not open telemetry base tables or hand-edit the config sibling.** Use
+  typed operations, or the bounded local visibility-view hatch.
+- **Do not infer zero activity from an empty page without checking freshness,
+  coverage, retention, truncation, and drops.**
+- **Do not build product analytics or error-group lifecycle on raw Phase-1
+  rows.** Those are separate unshipped capability areas.
 
 ---
 

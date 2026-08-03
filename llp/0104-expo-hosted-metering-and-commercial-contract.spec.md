@@ -197,6 +197,19 @@ prose. At launch:
 The table is versioned with the pricing version; changing it requires a new
 version so historical invoices remain reproducible.
 
+### 2026-08-02 implementation cross-reference: one class seam, separate sinks
+
+LLP 0154's accepted OQ1 ratification implements the local
+`operation-class.v1` registry as a shared classification seam. One admitted
+observation class may project into telemetry, metering, and hosted structured
+logs, but those projections keep separate reliability and identity contracts.
+The telemetry projection is bounded and may shed; the metering projection is
+non-shedding, idempotent, and independently deduplicated under this spec's
+admission-bound account/environment attribution. Neither a telemetry event nor
+its absence can add, remove, or prove billable usage. The committed shared
+projection fixtures are the executable cross-document witness; no telemetry
+transport is a billing source.
+
 ## Internal shadow meters
 
 Record, per stable identity:

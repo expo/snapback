@@ -952,9 +952,13 @@ written) for at least:
   [`0036-app-secrets-and-config.rfc.md`](./0036-app-secrets-and-config.rfc.md).
 - **Schema migrations and evolution**, and how they interact with the
   SQLite↔Postgres portability contract.
-- **Observability** — logs, errors, and metrics for *running* apps: the runtime
+- **Observability** — logs and health metrics for *running* apps: the runtime
   feedback loop that agent-first DX implies, distinct from `ref-check`, which
-  serves the design corpus.
+  serves the design corpus. The local Phase-1 kernel is specified by
+  [`0154-minimal-observability.rfc.md`](./0154-minimal-observability.rfc.md)
+  and taught in the
+  [Backend observability guide](../guide/operating/observability.md); hosted
+  arms, product analytics, and grouped error lifecycle remain later phases.
 - A **reference-apps acceptance suite** — what "works well" means for each app in
   [Reference apps](#reference-apps), expressed as agent-checkable validation.
   Drafted as

@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "26fc05b063394c0d3d7667a819f552ba12c3afca"
+    "commit": "2d9cd3f4e5f97e0b395220e57459c134a4ae78cb"
   },
   "nav": {
     ".": [
@@ -212,6 +212,11 @@
         "id": "operating.admin-console",
         "order": 4,
         "title": "Admin console"
+      },
+      {
+        "id": "operating.observability",
+        "order": 5,
+        "title": "Backend observability"
       }
     ],
     "protocol": [
@@ -1234,16 +1239,18 @@
         "llp/0041-packaged-dev-loop.rfc.md",
         "llp/0061-agent-first-snapback-guide.rfc.md",
         "llp/0064-native-client-surfaces.rfc.md",
+        "llp/0154-minimal-observability.rfc.md",
         "src/server.rs",
         "src/admin.rs",
+        "src/telemetry_query.rs",
         "packages/snapback-cli/index.mjs",
         "packages/snapback-client/external-store.mjs",
         "packages/snapback-react/index.mjs"
       ],
       "examples": [],
       "reviewed": "2026-08-02",
-      "reviewedCommit": "63d980b654664d2c990f454cbcb78958d87d27b8",
-      "sha256": "1826ea724f34be5851b2c946281ff3f74243c87cfd2c0d6d2af387c685921d94",
+      "reviewedCommit": "HEAD",
+      "sha256": "503d90b60a7eb22d670190acccb14aa0330ae81ef2ae41fc869e91f34538bf6c",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1884,7 +1891,7 @@
       ],
       "reviewed": "2026-08-01",
       "reviewedCommit": "f245965ccfdc3addd44554d709c1074adec0834f",
-      "sha256": "b091e83402c512c7c283abea7a684d506c33a06b6f75f63978ac1d9d21b935e0",
+      "sha256": "79f954d9e67d20188b5b9f4597f1727c381fb277e010c0560d956082442da6d8",
       "snippets": []
     },
     "operating.admin-console": {
@@ -1990,6 +1997,35 @@
           "source": "tests/host_ops_v0.rs"
         }
       ]
+    },
+    "operating.observability": {
+      "path": "guide/operating/observability.md",
+      "title": "Backend observability",
+      "order": 5,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "shipped",
+      "capabilities": [
+        "backend.observability-v1"
+      ],
+      "authorities": [
+        "llp/0154-minimal-observability.rfc.md",
+        "src/telemetry.rs",
+        "src/telemetry_query.rs",
+        "src/cli.rs",
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs",
+        "admin-ui/admin-boundary.mjs",
+        "scripts/telemetry-phase1-idle-proof.mjs",
+        "src/telemetry_bench.rs"
+      ],
+      "examples": [],
+      "reviewed": "2026-08-02",
+      "reviewedCommit": "HEAD",
+      "sha256": "f5760ceae61f566217a0f6e78b83789c2052c58ac099d519ab872f8e78bfa9c2",
+      "snippets": []
     },
     "operating.secrets-and-config": {
       "path": "guide/operating/secrets-and-config.md",
@@ -2483,6 +2519,7 @@
       "backend.expo-push-seam",
       "backend.functions",
       "backend.jobs-one-off",
+      "backend.observability-v1",
       "backend.provisioning",
       "backend.query-semantics",
       "backend.relational-queries",
@@ -2529,7 +2566,6 @@
       "backend.bounded-children-v1",
       "backend.error-tracking-v1",
       "backend.notifications",
-      "backend.observability-v1",
       "backend.vector-search",
       "backend.write-activity-v1",
       "clients.non-js",
@@ -2543,5 +2579,5 @@
     "routes": 94,
     "hostOps": 32
   },
-  "contentHash": "930444836ed596ade7b64a9aa159c7cd47029924d10f8bfa5ca306109ce6b553"
+  "contentHash": "3169d256542bcb3e05c4426f81cf56bf1537a969d19e1af8ce13d2143f21cb39"
 }
