@@ -28,7 +28,7 @@ import { SUBSCRIPTION_LIMITS } from '../src/limits.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '../..');
-const EXPECTED_CHECKS = 52;
+const EXPECTED_CHECKS = 53;
 
 const results = [];
 function check(name, condition, detail) {
@@ -195,8 +195,16 @@ async function main() {
     // -- error-code taxonomy matches the Rust hosts (ENG-23586) --------------
     const invented = await client.mutation('addNote', { boardId: 'b1' });
     check('a handler-invented failure folds to SNAPBACK_HANDLER_FAILED',
-      invented.ok === false && invented.code === 'SNAPBACK_HANDLER_FAILED',
+      invented.ok === false && invented.code === 'SNAPBACK_HANDLER_FAILED' &&
+        !Object.hasOwn(invented, 'failureCarrier'),
       JSON.stringify(invented));
+    const inventedKit = await client.kitMutation('addNote', { boardId: 'b1' });
+    check('ordinary kit handler failures do not expose the private failure carrier',
+      inventedKit.status === 500 &&
+        inventedKit.body.diagnostic?.code === 'SNAPBACK_HANDLER_FAILED' &&
+        !Object.hasOwn(inventedKit.body, 'failureCarrier') &&
+        !Object.hasOwn(inventedKit.body.diagnostic, 'failureCarrier'),
+      JSON.stringify(inventedKit));
 
     // -- detached rejection after a host call fails closed (ENG-23584) -------
     const preDetached = await client.query('listNotes', { boardId: 'b1' });
@@ -275,10 +283,13 @@ async function main() {
       afterOversize.ok === true && afterOversize.version === versionBeforeOversize + 1,
       JSON.stringify(afterOversize));
 
+    const depthCarrier = { errorClass: 'DepthSentinel' };
+    const valueLimitCarrier = { errorClass: 'ValueLimitSentinel' };
     const classifiedDepth = classifyHandlerPlatformFailure({
       ok: false,
       code: 'SNAPBACK_HANDLER_FAILED',
       message: 'Subrequest depth limit exceeded. This request recursed through Workers too many times.',
+      failureCarrier: depthCarrier,
     });
     const unrelatedHandlerFailure = classifyHandlerPlatformFailure({
       ok: false,
@@ -289,15 +300,22 @@ async function main() {
       new Error('Subrequest depth limit exceeded. This request recursed through Workers too many times.')
     );
     const handlerValueLimit = classifyHandlerPlatformFailure(
-      { ok: false, code: 'SNAPBACK_VALUE_TOO_LARGE', message: 'host call exceeded the row limit' },
+      {
+        ok: false,
+        code: 'SNAPBACK_VALUE_TOO_LARGE',
+        message: 'host call exceeded the row limit',
+        failureCarrier: valueLimitCarrier,
+      },
       { maxRowBytes: manifest.runtimeFacts.maxRowBytes }
     );
     check('service-binding depth failures classify as retryable overload without folding unrelated handler failures',
       classifiedDepth.code === 'SNAPBACK_OVERLOADED' && classifiedDepth.details?.retryable === true &&
         classifiedDepth.details?.backoff === true && directDepth.code === 'SNAPBACK_OVERLOADED' &&
         directDepth.details?.reason === 'service_binding_subrequest_depth' &&
+        classifiedDepth.failureCarrier === depthCarrier &&
         handlerValueLimit.code === 'SNAPBACK_VALUE_TOO_LARGE' &&
         handlerValueLimit.details?.limitBytes === manifest.runtimeFacts.maxRowBytes &&
+        handlerValueLimit.failureCarrier === valueLimitCarrier &&
         unrelatedHandlerFailure.code === 'SNAPBACK_HANDLER_FAILED',
       JSON.stringify({ classifiedDepth, directDepth, handlerValueLimit, unrelatedHandlerFailure }));
 

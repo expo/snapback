@@ -585,6 +585,9 @@ fn settlement_diagnostic_getters_cannot_escape_the_failure_envelope() {
         for (getter, expected_message) in [
             ("code", "safe settlement failure"),
             ("message", "handler failure could not be safely inspected"),
+            ("name", "safe settlement failure"),
+            ("constructor", "safe settlement failure"),
+            ("stack", "safe settlement failure"),
         ] {
             let mut snapback = configured();
             let error = with_forced_backend(backend, || {

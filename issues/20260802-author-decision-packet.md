@@ -239,3 +239,17 @@ and ratified all of them. Deltas and additions from the review:
   record encoding. The checkpoint derives the specified equivalence classes
   internally from typed Rust values, but exposes no canonical bytes and makes
   no `PlanHashV1` or cross-language identity claim.
+
+## Questions appended after ratification
+
+- **2026-08-02 — LLP 0156 multiple-unhandled-rejection fingerprint
+  authority.** One invocation terminal can carry several unhandled promise
+  rejections in the Ibex queue's stable drain order, but LLP 0156 E1.1 defines
+  one fingerprint branch per eligible failure record and does not say whether
+  that terminal represents one issue or several. Author ruling requested:
+  should emission (a) fingerprint only the first ordered rejection, (b) emit
+  one eligible failure record per ordered rejection, or (c) fingerprint one
+  aggregate using a newly pinned ordered-carrier grammar? E0 preserves every
+  bounded carrier in queue order and deliberately chooses no fingerprint
+  winner until this is resolved; the public diagnostic remains the existing
+  single terminal with its ordered `rejections` summary.

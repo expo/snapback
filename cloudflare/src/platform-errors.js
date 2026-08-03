@@ -81,15 +81,30 @@ export function classifyHandlerPlatformFailure(result, { maxRowBytes } = {}) {
   if (!result || result.ok !== false) return result;
   const message = String(result.message || '');
   if (SUBREQUEST_DEPTH_MESSAGE.test(message)) {
-    return overloadedFailure({ reason: 'service_binding_subrequest_depth' });
+    return preservePrivateFailureCarrier(
+      result,
+      overloadedFailure({ reason: 'service_binding_subrequest_depth' }),
+    );
   }
   if (result.code === 'SNAPBACK_OVERLOADED') {
-    return overloadedFailure({ reason: 'handler_transport_overload' });
+    return preservePrivateFailureCarrier(
+      result,
+      overloadedFailure({ reason: 'handler_transport_overload' }),
+    );
   }
   if (result.code === 'SNAPBACK_VALUE_TOO_LARGE') {
-    return valueTooLargeFailure({ limitBytes: maxRowBytes });
+    return preservePrivateFailureCarrier(
+      result,
+      valueTooLargeFailure({ limitBytes: maxRowBytes }),
+    );
   }
   return result;
+}
+
+function preservePrivateFailureCarrier(source, replacement) {
+  return source.failureCarrier
+    ? { ...replacement, failureCarrier: source.failureCarrier }
+    : replacement;
 }
 
 export function platformFailureResponse(path, failure) {

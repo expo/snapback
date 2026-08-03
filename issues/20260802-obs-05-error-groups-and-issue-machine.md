@@ -149,3 +149,45 @@ emitted observability diagnostics unclassified:
 semantics for another subsystem; the D-05/observability owner should classify
 them in the reviewed `src/server.rs` table and rerun
 `server::tests::s5_d10_production_diagnostic_inventory_cannot_drift`.
+
+### 2026-08-02 — tranche 4: E0 runtime carrier checkpoint
+
+This collision-minimized checkpoint completes the runtime capture and private
+carriage half of checklist 2 without wiring an observation emitter:
+
+- the shared settle harness extracts `name`/`constructor.name`, message, and
+  stack independently under hostile getters, validates the closed
+  `errorClass` grammar, and bounds message/stack at 16 KiB with explicit
+  truncation witnesses; the shared JS envelope decoder revalidates and
+  preserves that private carrier through refusal admission and Cloudflare
+  platform-failure classification while proof and kit responses remain
+  carrier-free;
+- Rust handler-output decoding re-bounds and revalidates the carrier into a
+  serde-skipped `SnapbackError` context. Clone and witness-replacement paths
+  preserve it, while action secret redaction scrubs its raw message and stack;
+- every Ibex prepared-invocation path now carries immutable
+  `trackedRefusals`, and admitted application refusals are privately marked as
+  tracked or admitted-untracked without changing admission or public
+  diagnostics; and
+- the existing Hermes asynchronous-failure ABI is decoded before either
+  owned string or the value handle is released, preserving its closed class,
+  message, stack, and truncation flags. Multiple unhandled rejections remain
+  an ordered carrier vector and deliberately select no fingerprint winner.
+
+Focused Air evidence: exact-link bootstrap and restricted no-eval VM
+qualification; `cargo check --locked --lib`; the three actual-Ibex private
+carrier tests; all eight handler-output/admission tests; private diagnostic
+serialization and action-secret redaction; the existing deterministic
+whole-record allocator test (including oversized `appDetails` whole-drop);
+and the Ibex/workerd hostile-getter parity test. The local-proof harness test
+adds poisoned getters, an all-getter-trapping Proxy, thrown primitive
+families, invalid/reserved classes, and Cloudflare carrier-preservation
+folds.
+
+Explicitly deferred: consuming the private context at the existing
+observation seam and all telemetry/local/server emission; carrying
+`trackedRefusals` into the hosted-JS refusal-disposition path; and choosing
+how one terminal with multiple ordered unhandled rejections maps to eligible
+fingerprints. The last question is recorded in the author decision packet.
+This ticket remains **Open**: this checkpoint is neither whole E0 emission nor
+E1/D-06 completion.

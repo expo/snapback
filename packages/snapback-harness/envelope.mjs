@@ -71,6 +71,14 @@ export function handlerEnvelopeCode(code) {
   return 'SNAPBACK_HANDLER_FAILED';
 }
 
+function validatedErrorClass(value) {
+  return typeof value === 'string'
+    && value !== 'unclassified'
+    && /^[A-Za-z_$][A-Za-z0-9_$]{0,63}$/u.test(value)
+    ? value
+    : 'unclassified';
+}
+
 // Decode the settle wrapper's tagged completion envelope. Returns
 // { ok:true, value } or { ok:false, code, message }.
 export function parseHandlerEnvelope(envelope) {
@@ -92,6 +100,13 @@ export function parseHandlerEnvelope(envelope) {
           ok: false,
           code,
           message: typeof r.message === 'string' ? r.message : 'JavaScript handler failed',
+          failureCarrier: {
+            errorClass: validatedErrorClass(r.errorClass),
+            message: typeof r.message === 'string' ? r.message : null,
+            stack: typeof r.stack === 'string' ? r.stack : null,
+            messageExtractionTruncated: r.messageExtractionTruncated === true,
+            stackExtractionTruncated: r.stackExtractionTruncated === true,
+          },
         };
         // Claims, not facts: the host admits these only against the declared
         // refusal set (LLP 0108).
@@ -130,6 +145,7 @@ export function admitDeclaredRefusal(declared, result, { functionName = null } =
         ...(typeof functionName === 'string' ? { function: functionName } : {}),
         message: 'handler raised an undeclared application refusal',
       },
+      ...(result.failureCarrier ? { failureCarrier: result.failureCarrier } : {}),
     };
   }
   const admitted = {
@@ -142,6 +158,7 @@ export function admitDeclaredRefusal(declared, result, { functionName = null } =
       appCode: result.appCode,
       appDetails: result.appDetails === undefined ? null : result.appDetails,
     },
+    ...(result.failureCarrier ? { failureCarrier: result.failureCarrier } : {}),
   };
   return admitted;
 }

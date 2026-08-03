@@ -128,6 +128,13 @@ pub struct SnapbackError {
     /// string/object with the same diagnostic code cannot forge proof.
     #[serde(default, skip)]
     trusted_permission_denial: bool,
+    /// Runtime-only E0 carrier. Message/stack text is raw-tier data and must
+    /// not leak merely because the public Diagnostic is serialized.
+    ///
+    /// @ref LLP 0156#e02--the-failure-carrier — capture survives to the
+    ///   existing observation seam without widening public diagnostics.
+    #[serde(default, skip)]
+    private_failure: Option<crate::error_tracking::PrivateFailureContextV1>,
 }
 
 impl SnapbackError {
@@ -135,6 +142,7 @@ impl SnapbackError {
         Self {
             diagnostic,
             trusted_permission_denial: false,
+            private_failure: None,
         }
     }
 
@@ -158,6 +166,7 @@ impl SnapbackError {
         Self {
             diagnostic: Diagnostic::error("SNAPBACK_AUTH_PERMISSION_DENIED", "auth", message),
             trusted_permission_denial: true,
+            private_failure: None,
         }
     }
 
@@ -172,6 +181,33 @@ impl SnapbackError {
 
     pub(crate) fn is_trusted_permission_denial(&self) -> bool {
         self.trusted_permission_denial
+    }
+
+    pub(crate) fn with_private_failure_context(
+        mut self,
+        context: crate::error_tracking::PrivateFailureContextV1,
+    ) -> Self {
+        self.private_failure = Some(context);
+        self
+    }
+
+    #[cfg(test)]
+    pub(crate) fn private_failure_context(
+        &self,
+    ) -> Option<&crate::error_tracking::PrivateFailureContextV1> {
+        self.private_failure.as_ref()
+    }
+
+    pub(crate) fn private_failure_context_mut(
+        &mut self,
+    ) -> Option<&mut crate::error_tracking::PrivateFailureContextV1> {
+        self.private_failure.as_mut()
+    }
+
+    pub(crate) fn take_private_failure_context(
+        &mut self,
+    ) -> Option<crate::error_tracking::PrivateFailureContextV1> {
+        self.private_failure.take()
     }
 
     pub fn sqlite(error: rusqlite::Error) -> Self {
@@ -209,6 +245,7 @@ pub type SnapbackResult<T> = Result<T, SnapbackError>;
 #[cfg(test)]
 mod tests {
     use super::SnapbackError;
+    use crate::error_tracking::{FailureCarrierV1, PrivateFailureContextV1};
 
     #[test]
     fn terminal_permission_denial_brand_cannot_cross_or_be_forged_by_json() {
@@ -245,5 +282,39 @@ mod tests {
         )
         .expect("deserialize classified denial");
         assert!(!decoded.is_trusted_permission_denial());
+    }
+
+    #[test]
+    fn private_failure_carrier_clones_but_never_changes_public_diagnostic_bytes() {
+        let public = SnapbackError::error(
+            "SNAPBACK_HANDLER_FAILED",
+            "runtime",
+            "JavaScript handler failed",
+        );
+        let carried = public.clone().with_private_failure_context(PrivateFailureContextV1 {
+            carriers: vec![FailureCarrierV1 {
+                error_class: "TypeError".to_owned(),
+                message: Some("raw private message".to_owned()),
+                stack: Some("raw private stack".to_owned()),
+                message_extraction_truncated: false,
+                stack_extraction_truncated: true,
+            }],
+            app_refusal_tracking: None,
+        });
+
+        assert_eq!(carried.diagnostic, public.diagnostic);
+        assert_eq!(carried.clone().private_failure_context(), carried.private_failure_context());
+        let public_json = serde_json::to_value(&public).expect("serialize public error");
+        let carried_json = serde_json::to_value(&carried).expect("serialize carried error");
+        assert_eq!(carried_json, public_json);
+        let encoded = serde_json::to_string(&carried).expect("serialize carried error bytes");
+        assert!(!encoded.contains("raw private message"));
+        assert!(!encoded.contains("raw private stack"));
+        assert!(!encoded.contains("TypeError"));
+
+        let decoded: SnapbackError =
+            serde_json::from_str(&encoded).expect("deserialize public error bytes");
+        assert!(decoded.private_failure_context().is_none());
+        assert_eq!(decoded.diagnostic, public.diagnostic);
     }
 }
