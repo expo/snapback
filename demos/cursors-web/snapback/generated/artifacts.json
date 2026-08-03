@@ -19,10 +19,10 @@
     "contract/webCursors.publish.ts",
     "contract/webCursors.publish.contract-meta.ts"
   ],
-  "bundleHash": "sha256:e50c85df904140ff",
+  "bundleHash": "sha256:a1bab458596c7491",
   "cache": {
-    "graphPath": "../../.snapback/codegen-cache/a6b4652721aef25de60fdfaa343b47a829826107c41681da1ebcc200d471ac30",
-    "key": "a6b4652721aef25de60fdfaa343b47a829826107c41681da1ebcc200d471ac30",
+    "graphPath": "../../.snapback/codegen-cache/5332461ad8b00682db06ae17c4cc24d8e3969c3f12fb085dae2995376af2e570",
+    "key": "5332461ad8b00682db06ae17c4cc24d8e3969c3f12fb085dae2995376af2e570",
     "regenerationRule": "regenerate-or-fail-closed"
   },
   "config": [],
@@ -73,7 +73,7 @@
       "sha256": "sha256:85aa98c62c6ca6b6f7feedb52551fbecfcf84efb42bf97237874f11e101d8008"
     },
     {
-      "bytes": 10663,
+      "bytes": 10617,
       "consumer": "snapback-runtime",
       "custody": "regenerable-cache",
       "logicalKind": "capability-manifest",
@@ -82,7 +82,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:b9e2bc77686c40695760fb8d7a665d4a42857402a71c1889b537b7f7c365ac76"
+      "sha256": "sha256:8b29ca521806fc1faf622fb08f74db6555ce1273e92ddc4c2d02db6eb4af376b"
     },
     {
       "bytes": 3300,
@@ -94,7 +94,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:bfa1a2d3ca9097590461fd6b97feaee3e7ef4a4ef8cae9232fb53475093661d2"
+      "sha256": "sha256:946edbe8e492a180615ee11968a8fefe1ed90a0e8eef7627af5d0c489b456d98"
     },
     {
       "bytes": 867,
@@ -166,7 +166,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:17d6d7ac4f5d364d9c4c9e7df00b0c47d3e1ffbe96508af9eadcda8f46176d42"
+      "sha256": "sha256:44e4ab225ce1d9a576e14ac895bd119a468d07308f00f1ce78f6b00a3fea0c5d"
     },
     {
       "bytes": 523,
@@ -202,7 +202,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:1c5f34f2641ebb5f7e60e52abf1abf60e1bdcea8280d6d751794e44c657dc69b"
+      "sha256": "sha256:c8b4585cb2ccbc4758734f1f8e5ad2f2af1efad8d3cc75db183d3470dda9b22c"
     },
     {
       "bytes": 3619,
@@ -214,7 +214,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:e356aa2b6a73648fb8da958ca61b6e46048bb3a710acb173e541780301ecff4f"
+      "sha256": "sha256:ddbada253a2f6af7e51f822005313bf66f0aacf249c655aadc393a9d7aa33398"
     },
     {
       "bytes": 2859,
@@ -226,19 +226,19 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:e139945e14bc01e1b2ee5ad4bbb4e512df37fa1da453f2e78714684c186a592b"
+      "sha256": "sha256:2b86a879dd8ae76a561e9b1eaca9ad72280b4eb4c5114ce911b687045ee923ce"
     }
   ],
   "functions": [],
   "generatedAt": 0,
-  "inputsHash": "a6b4652721aef25de60fdfaa343b47a829826107c41681da1ebcc200d471ac30",
+  "inputsHash": "5332461ad8b00682db06ae17c4cc24d8e3969c3f12fb085dae2995376af2e570",
   "manifestVersion": 2,
   "reviewManifest": {
     "authority": "@expo/snapback-codegen/review-manifest.schema.json",
     "custody": "review-manifest",
     "path": "artifacts.json"
   },
-  "schemaHash": "sha256:38b335b4fa0952d6",
+  "schemaHash": "sha256:be2240fde902fcca",
   "schemaVersion": "snapback.v0",
   "summary": {
     "appId": "cursors-web",
@@ -263,7 +263,7 @@
       "warnings": 0
     },
     "degradedResults": [],
-    "inputsHash": "a6b4652721aef25de60fdfaa343b47a829826107c41681da1ebcc200d471ac30",
+    "inputsHash": "5332461ad8b00682db06ae17c4cc24d8e3969c3f12fb085dae2995376af2e570",
     "schemaVersion": "snapback.codegen-summary.v1"
   },
   "tables": []
