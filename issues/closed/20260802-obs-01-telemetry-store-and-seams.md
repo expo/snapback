@@ -1,7 +1,7 @@
 # D-01: Telemetry store, span seams, config, reset fence, id prefixes (LLP 0154 checklist 1)
 
 **Status:** Closed
-**Program:** 20260802-obs-00-program.md
+**Program:** `issues/closed/20260802-obs-00-program.md`
 **Systems:** Observability, Server, Runtime, Storage
 
 Implement LLP 0154 §Deliverables checklist item 1 exactly: `telemetry.rs`

@@ -1,7 +1,7 @@
 # D-03: Typed operations, routes, CLI, MCP projection, SQL hatch, Health/Logs pages (LLP 0154 checklist 3)
 
 **Status:** Closed — implemented 2026-08-02
-**Program:** 20260802-obs-00-program.md
+**Program:** `issues/closed/20260802-obs-00-program.md`
 **Depends on:** 20260802-obs-01 (store), 20260802-obs-02 (registry)
 **Systems:** Observability, API, CLI, Admin console
 

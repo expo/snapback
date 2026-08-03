@@ -1,8 +1,7 @@
 # D-06: Errors surface, console, and the full fixture-gate corpus (LLP 0156 checklist 4–7)
 
-**Status:** Open — released 2026-08-02 (LLP 0156 Accepted at v0.7);
-depends on obs-05
-**Program:** 20260802-obs-00-program.md
+**Status:** Resolved 2026-08-03 for local E0/E1
+**Program:** `issues/closed/20260802-obs-00-program.md`
 **Systems:** Error tracking, Admin console, CLI, Testing
 
 Realigned 2026-08-02 to the v0.7 checklist. Implement LLP 0156
@@ -134,3 +133,16 @@ Checklist 7 remains deliberately open for the guide page, capability-row flip,
 coordinated cross-references, generated guide projections, and final LLP 0156
 implementation record. This checkpoint does not claim E1 complete and does not
 enter E2 alerting/outbox scope.
+
+### 2026-08-03 — checklist 7 and local E0/E1 closure
+
+The backend error-tracking operating guide, partial local capability row,
+generated guide projections, and LLP 0000/0108/0154/0156 cross-references now
+land with the dated LLP 0156 implementation record. Checklist items 4–7 are
+complete for the local target; guide and ref acceptance are green.
+
+The capability remains honestly partial: multiple-unhandled observations stay
+raw-only under their separate authority follow-up, and hosted JavaScript
+grouping is outside local E1. E2 alerting/outbox/webhook/Sentry delivery and E3
+client crash ingest are not checklist residue; they are later phases, deferred
+by phasing and entirely unbuilt.

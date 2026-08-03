@@ -61,7 +61,8 @@ the author-invoked super-refine loop; initial focused specification for the
 backend-bakeoff authoring and result-contract program)
 **Related:** LLP 0004, LLP 0009, LLP 0010, LLP 0012, LLP 0031, LLP 0035,
 LLP 0037, LLP 0043, LLP 0051, LLP 0055, LLP 0064, LLP 0065, LLP 0074,
-LLP 0093, LLP 0094, LLP 0095, LLP 0115, LLP 0118, LLP 0127, LLP 0131
+LLP 0093, LLP 0094, LLP 0095, LLP 0115, LLP 0118, LLP 0127, LLP 0131,
+LLP 0156
 
 ## Summary
 

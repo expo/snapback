@@ -1,8 +1,8 @@
 # D-04: Guide page, capability row, idle + benchmark evidence gates, cross-references (LLP 0154 checklist 4–6)
 
-**Status:** Open — pre-evidence implementation staged; retained full evidence
-waits for the Program D source freeze
-**Program:** 20260802-obs-00-program.md
+**Status:** Resolved 2026-08-03 — local guide/capability/cross-references and
+retained Linux evidence carrier landed
+**Program:** `issues/closed/20260802-obs-00-program.md`
 **Depends on:** 20260802-obs-03
 **Systems:** Observability, Docs, Testing
 
@@ -42,3 +42,31 @@ gates recorded with numbers, cross-references landed as dated notes.
   main, run the full clean Linux release proof, commit the generated receipt
   in a source-free carrier commit, enable recurring `--check`, record only
   the genuinely observed numbers, and then close D-04.
+- **2026-08-03 — D-04 closed.** The final source freeze is
+  `176689c0d96f473c8d3c371f7c7fe793972ec62c`. A clean Linux release proof
+  measured it and produced the tracked
+  `tests/acceptance/telemetry-phase1-evidence.v1.json` carrier; the recurring
+  local proof now runs `scripts/verify-telemetry-phase1-proof --check` and
+  reopens any source or receipt drift. Exact idle and benchmark numbers remain
+  in that machine-readable authority. The proof deliberately keeps the
+  ordinary non-telemetry schedulers armed and bounds their aggregate process
+  CPU to 100 ms over 120 s using the machine clock-tick resolution; this is a
+  scheduler-overhead guard, not a relaxation of C2's exact zero post-settle
+  writes. The operating guide, shipped local
+  capability row, generated guide projections, LLP 0000/0104/0154
+  cross-references, guide check, and ref-check complete checklist items 4–6.
+- **2026-08-03 — exact retained measurements.** The release benchmark admitted
+  800 application requests and persisted exactly 800 `function_run` plus 800
+  `http_request` rows (2 counted rows/request). Worker/direct-flush p95 was
+  5.016/1.078 ms; checkpoint p95 was 0.558 ms; the 10,000-row retention sweep
+  took 20.025 ms; event/stats-query p95 was 9.551/25.969 ms. File-backed Ibex
+  application p95 was 13.840 ms with telemetry and 13.842 ms without it
+  (-0.017% measured overhead). The 17,408-event pressure run retained 8,192,
+  shed 9,216, and preserved all 1,024 reserved-capacity events. The 1 MiB cap
+  run held main + WAL + SHM to 315,392 bytes, preserved all 20 reserved events,
+  and shed 278 normal events. Startup settled in one four-event transaction
+  sequence after three observed filesystem mutation samples, the last at
+  3,314 ms. The following 120,000 ms window had zero storage mutations, zero
+  lifecycle mutations, zero read/write bytes, 7 of 10 admitted CPU ticks
+  (70/100 ms at 100 Hz), and zero RSS-page growth. The retained JSON remains
+  the exact machine-readable authority for these rounded ticket figures.

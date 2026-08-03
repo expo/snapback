@@ -150,7 +150,7 @@ asymmetric stop is recorded honestly: Fable READY in rounds 5–6, Codex
 NOT READY through round 7 with monotonically shrinking fix-of-the-fix
 findings, v0.9 repairs applied per Codex's own resolutions but themselves
 unreviewed; the author accepts on that record. Acceptance releases the
-Phase-1 deliverables program (`issues/20260802-obs-00-program.md`,
+Phase-1 deliverables program (`issues/closed/20260802-obs-00-program.md`,
 tickets obs-01..04); Phases 2–3 and the OQ2/OQ3 retention and identity
 decisions remain gated as the document states.)
 **Revised:** 2026-08-02 (dated amendment, post-acceptance — admission
@@ -221,8 +221,14 @@ for LLP 0156 E1. The amendment also records branch-specific code/status
 optionality, `subsystem`, malformed-stamp accounting, and the rule that the
 ordinary telemetry redactor preserves allocator-owned failure fields without
 reclassification.)
-**Related:** LLP 0000 (explainer; reserves Observability as an undrafted
-subsystem), LLP 0003 (storage core; app write lane), LLP 0010 (inspect
+**Revised:** 2026-08-03 (Phase-1 implementation record — the local telemetry
+kernel, agent-first query surfaces, console pages, guide, and retained evidence
+carrier have landed. LLP 0156 E0/E1 local error tracking has also landed on
+this substrate. Phases 2–3 remain deferred by phasing and unbuilt; LLP 0156 E2
+alerting and E3 client crash ingest likewise remain deferred by phasing and
+unbuilt.)
+**Related:** LLP 0000 (root explainer; points the shipped local Phase-1
+surface here), LLP 0003 (storage core; app write lane), LLP 0010 (inspect
 loop; explicitly defers production observability), LLP 0012 (headless
 integration contract; registers the diagnostics dialect), LLP 0013
 (ephemeral realtime state; bounded-loss-must-be-observable precedent),
@@ -235,7 +241,9 @@ LLP 0071 (abuse/moderation audit), LLP 0072 (control-plane structured
 logs and credential custody), LLP 0104 (hosted metering; shared
 observation span, separate sinks), LLP 0110 (bounded children and
 activity patterns; the durable activity-row contrast), LLP 0148
-(prefixed identifier grammar)
+(prefixed identifier grammar), LLP 0156 (local E0/E1 error tracking layered on
+the telemetry substrate; later alerting and client-ingest phases remain
+separate)
 
 ## Summary
 
@@ -1357,6 +1365,47 @@ pattern: BigQuery export, log drains, log streams):
 6. LLP 0000 explainer updated to point its reserved Observability slot at
    this LLP; LLP 0104 cross-reference for the shared span/registry
    (C4/C7).
+
+## Amendment (2026-08-03): Phase-1 implementation record
+
+Phase 1 is implemented for the local target. The shipped boundary comprises
+the sibling telemetry store, generation/config/reset protocol, two-stage
+observation spans, operation-class registry and LLP 0104 projection fixtures,
+typed operations with route/CLI/control-MCP projections, the local read-only
+SQL hatch, and the Health and Logs console pages. The guide now documents the
+operator and agent surfaces, the capability index labels the local contract,
+and the retained-evidence protocol recurs through the local proof.
+
+The retained receipt is a carrier over measured source commit
+`176689c0d96f473c8d3c371f7c7fe793972ec62c`. Its exact benchmark and idle
+measurements are recorded in
+`tests/acceptance/telemetry-phase1-evidence.v1.json`; the carrier validator
+binds that clean source closure rather than measuring its own receipt bytes.
+This implementation record intentionally leaves the numerical results to that
+machine-readable authority so later evidence refreshes cannot leave duplicate
+prose figures stale.
+
+The idle witness deliberately leaves the ordinary server's non-telemetry
+cron, jobs, maintenance, and asset schedulers armed. Its process-wide CPU
+noise band is therefore a clock-resolution-derived 100 ms over the 120 s
+window, bounding aggregate scheduler overhead to less than 0.1% of one core;
+it is not a relaxation of C2. The post-settle directory, lifecycle, and
+process-write witnesses still require exactly zero mutations and zero written
+bytes, while RSS growth remains separately bounded.
+
+LLP 0156 E0/E1 is also implemented locally on this substrate: the classifier
+and failure-detail vocabulary, durable issue-group state machine, read and
+mutation operations, CLI/control-MCP projections, and Errors console page are
+present. That capability is documented separately as partial because its
+declared local residue remains visible there.
+
+This amendment does not collapse later phases into the completed kernel.
+LLP 0154 Phases 2–3 are deferred by phasing and unbuilt. LLP 0156 E2 alerting
+(outbox, delivery worker, webhook transport, and Sentry bridge) is deferred by
+phasing and unbuilt. LLP 0156 E3 client crash ingest is sketch-only, requires
+its own later authority, and is deferred by phasing and unbuilt. The RFC
+therefore remains **Accepted**; this dated record reports implementation scope
+without changing the proposal status.
 
 ## Alternatives considered
 

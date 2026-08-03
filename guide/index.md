@@ -164,6 +164,9 @@ you never build around a feature because you didn't know it existed.
 - [Backend observability](./operating/observability.md) — inspect Health and
   Logs, query typed telemetry from CLI/MCP, and interpret coverage, freshness,
   retention, and shedding honestly.
+- [Backend error tracking](./operating/error-tracking.md) — group eligible
+  backend failures, inspect raw exemplars under scoped authority, and triage
+  release-aware issue state from the console, CLI, or MCP.
 
 ### Deploying
 - [Immutable releases and deploy plans](./deploying/releases.md) — build the

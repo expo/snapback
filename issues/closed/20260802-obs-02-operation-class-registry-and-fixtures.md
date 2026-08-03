@@ -2,7 +2,7 @@
 
 **Status:** Closed — implemented 2026-08-02 in
 `52b50e384a7ead4698bc257de6738781cbf2ecc4`
-**Program:** 20260802-obs-00-program.md
+**Program:** `issues/closed/20260802-obs-00-program.md`
 **Depends on:** 20260802-obs-01
 **Systems:** Observability, Testing
 

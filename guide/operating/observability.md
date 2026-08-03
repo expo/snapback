@@ -8,8 +8,8 @@ authorities: [llp/0154-minimal-observability.rfc.md, src/telemetry.rs, src/telem
 examples: []
 status: current
 targets: [local]
-maturity: partial
-reviewed: 2026-08-02
+maturity: shipped
+reviewed: 2026-08-03
 reviewed-commit: HEAD
 ---
 
@@ -24,17 +24,20 @@ no application setup. Use the fixed Health and Logs console pages for a quick
 view; use the typed operations below when an agent needs exact filters,
 coverage facts, or an export.
 
-The local implementation and smoke gate are available, but the capability
-index remains an explicit GAP until Program D retains the clean-release
-120-second idle and full benchmark receipt after the active observability
-source tranches freeze.
+The local implementation, recurring smoke gate, and retained clean-release
+idle/benchmark receipt are shipped together. The
+[retained carrier](repo:tests/acceptance/telemetry-phase1-evidence.v1.json)
+binds its measured clean source revision, the complete proof-source byte
+closure, and the exact receipt bytes; the recurring local proof reopens it
+before running the smoke profile.
 
 This is the Phase-1 surface from
 [LLP 0154](repo:llp/0154-minimal-observability.rfc.md): backend requests,
 function and job runs, live/WebSocket lifecycle, process and release markers,
 runtime logs, and standalone diagnostics. It does not include hosted telemetry,
-declared product-analytics events, distinct-user metrics, funnels, client crash
-ingest, or error-group issue management.
+declared product-analytics events, distinct-user metrics, funnels, or client
+crash ingest. Grouped backend issue lifecycle is the separate
+[error-tracking capability](./error-tracking.md) built on these rows.
 
 ## Check health and recent logs in the console
 
@@ -145,5 +148,6 @@ assuming defaults; the current author-facing CLI does not mutate this policy.
   typed operations, or the bounded local visibility-view hatch.
 - **Do not infer zero activity from an empty page without checking freshness,
   coverage, retention, truncation, and drops.**
-- **Do not build product analytics or error-group lifecycle on raw Phase-1
-  rows.** Those are separate unshipped capability areas.
+- **Do not build product analytics or a second error-group lifecycle on raw
+  Phase-1 rows.** Product analytics remains unbuilt; use the typed
+  [error-tracking capability](./error-tracking.md) for backend issue triage.

@@ -229,6 +229,10 @@ branch stamps cover code-less 5xx transport faults without synthesis;
 release-activation floor, rollout, retention, direct-transition
 linearization, checked sequence exhaustion, and historical resolve-field
 rules are pinned to the store behavior and acceptance corpus.)
+**Revised:** 2026-08-03 (Phase E0/E1 implementation record — local classifier,
+group state, read/mutation projections, Errors UI, fixtures, and guide have
+landed. E2 alerting and E3 client crash ingest remain deferred by phasing and
+entirely unbuilt.)
 **Related:** LLP 0154 (minimal observability; the substrate this layers
 on — spans, the telemetry sibling store, flush-path maintenance, typed
 operations, the variance envelope; this RFC amends its registry, D2
@@ -244,7 +248,8 @@ identifiers; the `iss_` prefix, TimeOrdered body)
 
 ## Summary
 
-LLP 0154 (Draft, v0.9) gives Snapback an observability kernel: spans at
+LLP 0154 (Accepted, with local Phase 1 implemented) gives Snapback an
+observability kernel: spans at
 the server seams, error rates and latency on a Health page, a filterable
 Logs page, typed query operations. What it deliberately does not give is
 what makes Sentry Sentry: the words "alert", "issue", "fingerprint", and
@@ -1384,6 +1389,36 @@ Sentry DSN each prove hostname-preserving TLS validation,
 resolve-validate-pin, private/link-local rejection, and redirect
 refusal; HMAC fixtures webhook-only; `allow_private_webhook` relaxes
 the webhook only, never the DSN.
+
+## Amendment (2026-08-03): Phase E0/E1 implementation record
+
+The accepted E0 and E1 scope is implemented for the local target. The shipped
+partial capability includes the versioned classifier and failure-detail
+allocator; durable fingerprint groups, exemplars, release activations, state
+history and generation fences; list/detail/facet reads; compare-and-swap
+resolve/reopen mutations including bulk per-row results; exact route, CLI, and
+control-MCP projections; and the Errors console page plus Health linkage. The
+E0/E1 fixture corpus exercises the classifier, carrier, fingerprint vectors,
+flush/store invariants, retention and rollout boundaries, state-machine races,
+sequence exhaustion, caps, suppression, and cross-language fingerprint
+parity. The guide page, capability row, LLP 0154 implementation record, LLP
+0000 index, and LLP 0108 cross-reference complete checklist item 7.
+
+The capability is deliberately labeled **partial**. A single observation with
+multiple unhandled failures remains raw-only rather than guessing one group
+fingerprint; the malformed-carrier counter preserves that fail-safe while a
+separate authority follow-up resolves the grouping rule. Hosted JavaScript
+grouping is outside local E1 and remains unsupported until the LLP 0154 Phase-2
+Cloudflare projection has an approved implementation contract. Neither residue
+is silently counted as an E2 or E3 deliverable.
+
+Phase E2 alerting is deferred by phasing and entirely unbuilt: there is no
+alert outbox, delivery/retry worker, webhook transport, or Sentry bridge. Phase
+E3 client crash ingest remains a sketch subject to its own RFC and the open
+questions named above; there is no client-ingest protocol or implementation.
+It is deferred by phasing and entirely unbuilt. The RFC remains **Accepted**;
+this implementation record closes the local E0/E1 tranche without asserting
+completion of either later phase.
 
 ## Alternatives considered
 

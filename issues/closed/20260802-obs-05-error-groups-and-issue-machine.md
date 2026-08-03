@@ -1,8 +1,9 @@
 # D-05: E0 classifier/carrier + fingerprint seams, error_groups, issue state machine (LLP 0156 checklist 1–3)
 
-**Status:** Open — released 2026-08-02 (LLP 0156 Accepted at v0.7);
-depends on obs-01 (closed on the amended schema) and obs-02
-**Program:** 20260802-obs-00-program.md
+**Status:** Resolved 2026-08-03 for local E0/E1; multiple-unhandled grouping
+authority continues in a separate filesystem ticket and hosted grouping is
+outside this local phase
+**Program:** `issues/closed/20260802-obs-00-program.md`
 **Systems:** Error tracking, Observability, Runtime
 
 Realigned 2026-08-02 to the v0.7 checklist — the super-refine loop
@@ -246,3 +247,20 @@ This classification does not close obs-05 itself. The multiple-unhandled
 fingerprint-winner question remains author-blocked in the decision packet, and
 hosted-JS tracked-refusal disposition still lacks the immutable tracking
 authority and hosted observation owner described above.
+
+### 2026-08-03 — local E0/E1 tranche closed with residue made explicit
+
+Checklist items 1–3 are implemented and covered: the versioned classifier,
+private carrier and deterministic allocator, local producer stamps, durable
+group/state-machine store, rollout and retention boundaries, and `iss_`
+registry all land on LLP 0154's one ingestion path. The relevant focused and
+cross-language fixture gates pass.
+
+The multiple-unhandled fingerprint-winner question is no longer used to hold
+the otherwise complete local tranche open. It has been graduated to
+`issues/20260803-multiple-unhandled-error-grouping-authority.md`; until that
+authority lands, the existing raw-only, malformed-counted, no-guessed-group
+behavior remains the required fail-safe. Hosted-JS tracked-refusal grouping is
+not claimed: it depends on LLP 0154 Phase 2's hosted observation authority and
+remains unsupported. Neither residue implies E2 alerting or E3 client ingest,
+both of which are deferred and unbuilt.
