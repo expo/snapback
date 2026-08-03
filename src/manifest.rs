@@ -15,6 +15,11 @@ pub use crate::search::types::{
     SearchPageV1, SearchPhraseV1, SearchQueryAstV1, SearchQueryLimitsV1, SearchQueryPlanV1,
     SearchRequestV1, SearchSourceLimitsV1, SearchTermV1, SearchTextFieldV1, SearchVisibilityV1,
 };
+pub use crate::vector::types::{
+    VectorFieldClassV1, VectorFilterOpV1, VectorFilterV1, VectorFilterValueV1,
+    VectorIndexManifestV1, VectorItemV1, VectorMaintenanceLimitsV1, VectorMetricV1, VectorPageV1,
+    VectorQueryPlanV1, VectorRequestV1, VectorSearchFactsV1, VectorTieBreakV1, VectorVisibilityV1,
+};
 
 pub const SNAPBACK_SCHEMA_VERSION: &str = "snapback.v0";
 /// The paired schema/function artifact version reserved for session authority.
@@ -364,6 +369,37 @@ impl SchemaManifest {
             ));
         }
 
+        let declares_vector = self.tables.iter().any(|table| {
+            !table.vector_indexes.is_empty()
+                || table
+                    .fields
+                    .iter()
+                    .any(|field| matches!(field.field_type, FieldType::Vector { .. }))
+        });
+        if declares_vector
+            && !self
+                .required_capabilities
+                .iter()
+                .any(|capability| capability == crate::vector::VECTOR_CAPABILITY)
+        {
+            return Err(unsupported_capability_error(
+                crate::vector::VECTOR_CAPABILITY,
+                "vector fields and indexes require vector_search_v1",
+            ));
+        }
+        for table in &self.tables {
+            let mut names = BTreeSet::new();
+            for index in &table.vector_indexes {
+                if !names.insert(index.name.as_str()) {
+                    return Err(vector_manifest_invalid(format!(
+                        "table {} repeats vector index {}",
+                        table.name, index.name
+                    )));
+                }
+                validate_vector_index_manifest(table, index)?;
+            }
+        }
+
         if let Some(push_seam) = &self.push_seam {
             if mode != AuthMode::Sessions {
                 return Err(SnapbackError::error(
@@ -481,6 +517,17 @@ pub struct TableManifest {
         skip_serializing_if = "Vec::is_empty"
     )]
     pub search_indexes: Vec<SearchIndexManifestV1>,
+    /// Portable exact-vector index declarations. This is static carrier
+    /// vocabulary only until a target reports qualified `vector_search_v1`.
+    ///
+    /// @ref LLP 0132#index-declarations
+    #[serde(
+        default,
+        rename = "vectorIndexes",
+        alias = "vector_indexes",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub vector_indexes: Vec<VectorIndexManifestV1>,
     /// The one table-wide aggregate live-search subscription ceiling.
     /// Optional because absence selects the target's admitted default; it is
     /// table-scoped so indexes cannot publish conflicting aggregate answers.
@@ -873,6 +920,13 @@ pub enum FieldType {
     Boolean,
     Integer,
     Real,
+    /// `v.vector(dimensions)` — an exact fixed-dimension binary64 vector.
+    /// Ordinary arrays keep their separate 1,024-item contract ceiling.
+    ///
+    /// @ref LLP 0132#the-vvectordimensions-value
+    Vector {
+        dimensions: u32,
+    },
     Json,
     /// `v.principal()` — nominal typing over the auth-principal id string space
     /// (the same space as `ctx.auth.userId`, including LLP 0055 agent
@@ -1234,6 +1288,10 @@ impl FunctionManifest {
                     FunctionRuntime::HostPlan(HandlerPlan::SearchQuery(plan)),
                 ) => validate_search_query_plan_shape(plan)?,
                 (
+                    FunctionKind::Query,
+                    FunctionRuntime::HostPlan(HandlerPlan::VectorQuery(plan)),
+                ) => validate_vector_query_plan_shape(plan)?,
+                (
                     FunctionKind::Query | FunctionKind::LiveQuery,
                     FunctionRuntime::HostPlan(HandlerPlan::JobStatusQuery(_)),
                 ) => {}
@@ -1292,6 +1350,9 @@ impl FunctionManifest {
                     } else {
                         &[crate::search::types::SEARCH_CAPABILITY]
                     }
+                }
+                FunctionRuntime::HostPlan(HandlerPlan::VectorQuery(_)) => {
+                    &[crate::vector::VECTOR_CAPABILITY]
                 }
                 // The declared job-status query requires the experimental
                 // jobs registry id (LLP 0070 is Draft, so the id can never be
@@ -1916,7 +1977,9 @@ fn result_primitive_kind(contract: &ResultValueContract) -> ResultPrimitiveKind 
         ResultValueContract::Json { .. }
         | ResultValueContract::Union { .. }
         | ResultValueContract::PlatformSchemaRef { .. } => ResultPrimitiveKind::AnyJson,
-        ResultValueContract::Array { .. } => ResultPrimitiveKind::Array,
+        ResultValueContract::Array { .. } | ResultValueContract::Vector { .. } => {
+            ResultPrimitiveKind::Array
+        }
         ResultValueContract::Object { .. } => ResultPrimitiveKind::Object,
     }
 }
@@ -2102,6 +2165,24 @@ fn validate_value_contract_node(
                 ));
             }
             validate_value_contract_node(function, element, depth + 1, object_fields, lane)?;
+        }
+        // @ref LLP 0132#the-vvectordimensions-value — vectors are a dedicated
+        // closed node in both lanes. They do not widen the ordinary array
+        // profile's 1,024-item ceiling.
+        ResultValueContract::Vector { dimensions } => {
+            if !(crate::vector::VECTOR_PROFILE_DIMENSIONS_MIN
+                ..=crate::vector::VECTOR_PROFILE_DIMENSIONS_MAX)
+                .contains(dimensions)
+            {
+                return Err(match lane {
+                    ContractLane::Result => {
+                        invalid_result_contract(function, "vector dimensions must be in 1..=4,096")
+                    }
+                    ContractLane::Args => {
+                        invalid_args_contract(function, "vector dimensions must be in 1..=4,096")
+                    }
+                });
+            }
         }
         ResultValueContract::Union { variants } => {
             if !(2..=RESULT_CONTRACT_MAX_UNION_VARIANTS).contains(&variants.len()) {
@@ -3072,6 +3153,9 @@ impl ObservedEffects {
             HandlerPlan::SearchQuery(plan) => {
                 self.read(&plan.table, "search", Some(&plan.index));
             }
+            HandlerPlan::VectorQuery(plan) => {
+                self.read(&plan.table, "vector-search", Some(&plan.index));
+            }
             HandlerPlan::JobStatusQuery(_) => {
                 // A point read of the reserved job-status projection — not an
                 // application schema table.
@@ -3584,6 +3668,192 @@ pub fn validate_search_query_plan_shape(plan: &SearchQueryPlanV1) -> SnapbackRes
     Ok(())
 }
 
+fn vector_manifest_invalid(message: impl Into<String>) -> SnapbackError {
+    SnapbackError::error("SNAPBACK_VECTOR_INDEX_INVALID", "vector", message)
+}
+
+/// Closed load-time admission for a direct vector-index artifact. Authoring
+/// derives scalar-pair and maintenance limits, but Rust re-proves them so a
+/// forged manifest cannot lower or widen the fixed v1 profile.
+///
+/// @ref LLP 0132#index-declarations
+pub fn validate_vector_index_manifest(
+    table: &TableManifest,
+    index: &VectorIndexManifestV1,
+) -> SnapbackResult<()> {
+    if index.format_version != 1
+        || index.name.trim().is_empty()
+        || index.semantic_version.trim().is_empty()
+        || index.vector_field.trim().is_empty()
+        || index.distance_profile != crate::vector::VECTOR_DISTANCE_PROFILE_ID
+        || index.ordering_profile != crate::vector::VECTOR_ORDERING_PROFILE_ID
+        || !(crate::vector::VECTOR_PROFILE_DIMENSIONS_MIN
+            ..=crate::vector::VECTOR_PROFILE_DIMENSIONS_MAX)
+            .contains(&index.dimensions)
+        || !(1..=crate::vector::VECTOR_MAX_CORPUS)
+            .contains(&index.max_indexed_vectors_per_partition)
+    {
+        return Err(vector_manifest_invalid(format!(
+            "vector index {} has an invalid identity, profile, or bound",
+            index.name
+        )));
+    }
+
+    let Some(vector_field) = table
+        .fields
+        .iter()
+        .find(|field| field.name == index.vector_field)
+    else {
+        return Err(vector_manifest_invalid(format!(
+            "vector index {} names missing vector field {}",
+            index.name, index.vector_field
+        )));
+    };
+    if vector_field.optional
+        || vector_field.field_type
+            != (FieldType::Vector {
+                dimensions: index.dimensions,
+            })
+    {
+        return Err(vector_manifest_invalid(format!(
+            "vector index {} must name a required v.vector({}) field",
+            index.name, index.dimensions
+        )));
+    }
+
+    let product = u64::from(index.dimensions)
+        .checked_mul(u64::from(index.max_indexed_vectors_per_partition))
+        .ok_or_else(|| vector_manifest_invalid("vector scalar-pair product overflow"))?;
+    if product > crate::vector::VECTOR_MAX_SCALAR_PAIRS || index.max_scalar_pairs != product {
+        return Err(vector_manifest_invalid(format!(
+            "vector index {} maxScalarPairs must equal dimensions × maxIndexedVectorsPerPartition and remain <= 2^26",
+            index.name
+        )));
+    }
+    if index.maintenance_limits != VectorMaintenanceLimitsV1::default() {
+        return Err(vector_manifest_invalid(format!(
+            "vector index {} maintenanceLimits must equal the fixed mutation-global v1 ceiling",
+            index.name
+        )));
+    }
+
+    let unique_nonempty = |fields: &[String]| {
+        fields.iter().all(|field| !field.trim().is_empty())
+            && fields.iter().collect::<BTreeSet<_>>().len() == fields.len()
+    };
+    if index.equality_filters.len() > crate::vector::VECTOR_MAX_FILTERS
+        || !unique_nonempty(&index.equality_filters)
+        || !unique_nonempty(&index.stored_fields)
+    {
+        return Err(vector_manifest_invalid(format!(
+            "vector index {} has invalid or duplicate filter/stored fields",
+            index.name
+        )));
+    }
+
+    let field = |name: &str| table.fields.iter().find(|field| field.name == name);
+    for name in &index.equality_filters {
+        let Some(filter) = field(name) else {
+            return Err(vector_manifest_invalid(format!(
+                "vector index {} names missing equality-filter field {name}",
+                index.name
+            )));
+        };
+        if !matches!(
+            filter.field_type,
+            FieldType::String | FieldType::Boolean | FieldType::Integer | FieldType::Real
+        ) {
+            return Err(vector_manifest_invalid(format!(
+                "vector index {} equality-filter field {name} must use the closed scalar vocabulary",
+                index.name
+            )));
+        }
+    }
+    for name in &index.stored_fields {
+        let Some(stored) = field(name) else {
+            return Err(vector_manifest_invalid(format!(
+                "vector index {} names missing stored field {name}",
+                index.name
+            )));
+        };
+        if matches!(stored.field_type, FieldType::Vector { .. }) {
+            return Err(vector_manifest_invalid(format!(
+                "vector index {} storedFields must not expose vector field {name}",
+                index.name
+            )));
+        }
+    }
+
+    let mut participating = BTreeSet::from([index.vector_field.as_str()]);
+    participating.extend(index.equality_filters.iter().map(String::as_str));
+    participating.extend(index.stored_fields.iter().map(String::as_str));
+    if let VectorVisibilityV1::Owner { field: owner } = &index.visibility {
+        let Some(owner_field) = field(owner) else {
+            return Err(vector_manifest_invalid(format!(
+                "vector index {} names missing owner field {owner}",
+                index.name
+            )));
+        };
+        if owner_field.optional
+            || !matches!(
+                owner_field.field_type,
+                FieldType::String | FieldType::Principal
+            )
+        {
+            return Err(vector_manifest_invalid(format!(
+                "vector index {} owner field {owner} must be a required string/principal",
+                index.name
+            )));
+        }
+        participating.insert(owner);
+    }
+    let classified = index
+        .field_classifications
+        .keys()
+        .map(String::as_str)
+        .collect::<BTreeSet<_>>();
+    if classified != participating {
+        return Err(vector_manifest_invalid(format!(
+            "vector index {} classifications must name exactly every participating field",
+            index.name
+        )));
+    }
+    for classification in index.field_classifications.values() {
+        let admitted = match &index.visibility {
+            VectorVisibilityV1::PublicRead => *classification == VectorFieldClassV1::Public,
+            VectorVisibilityV1::Owner { .. } => matches!(
+                classification,
+                VectorFieldClassV1::Public | VectorFieldClassV1::Private
+            ),
+        };
+        if !admitted {
+            return Err(vector_manifest_invalid(format!(
+                "vector index {} field classification violates its visibility profile",
+                index.name
+            )));
+        }
+    }
+    Ok(())
+}
+
+/// Structural admission for the exact vector carrier. No executor is
+/// registered by this checkpoint; target capability admission remains false.
+pub fn validate_vector_query_plan_shape(plan: &VectorQueryPlanV1) -> SnapbackResult<()> {
+    if plan.table.trim().is_empty()
+        || plan.index.trim().is_empty()
+        || plan.distance_profile != crate::vector::VECTOR_DISTANCE_PROFILE_ID
+        || plan.result_projection != crate::vector::VECTOR_RESULT_PROJECTION
+        || plan.required_capability != crate::vector::VECTOR_CAPABILITY
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_VECTOR_QUERY_PLAN_INVALID",
+            "vector",
+            "vector plan must name one table/index and the exact v1 distance, result, and capability profiles",
+        ));
+    }
+    Ok(())
+}
+
 /// Rust projection of codegen's schema-derived `SearchItemV1` records
 /// contract. Pair activation compares this exact value, so a direct artifact
 /// cannot retain the right plan while weakening or reshaping its rows.
@@ -3610,6 +3880,9 @@ pub(crate) fn expected_search_result_contract(
                 min: -f64::MAX,
                 max: f64::MAX,
             },
+            FieldType::Vector { dimensions } => ResultValueContract::Vector {
+                dimensions: *dimensions,
+            },
             FieldType::Json => ResultValueContract::Json {
                 max_depth: RESULT_CONTRACT_MAX_DEPTH,
                 max_bytes: RESULT_CONTRACT_MAX_VALUE_BYTES,
@@ -3618,9 +3891,7 @@ pub(crate) fn expected_search_result_contract(
             FieldType::Id { table } => ResultValueContract::Id {
                 table: table.clone(),
             },
-            FieldType::RelationIncarnation { .. } => {
-                ResultValueContract::String { max_bytes: 64 }
-            }
+            FieldType::RelationIncarnation { .. } => ResultValueContract::String { max_bytes: 64 },
             FieldType::AssetRef { .. } => ResultValueContract::AssetRef,
         };
         if field.optional && !matches!(&field.field_type, FieldType::Json) {
@@ -3673,10 +3944,7 @@ pub(crate) fn expected_search_result_contract(
                     max_bytes: RESULT_CONTRACT_MAX_VALUE_BYTES,
                 },
             ),
-            object_field(
-                "text",
-                ResultValueContract::String { max_bytes: 256 },
-            ),
+            object_field("text", ResultValueContract::String { max_bytes: 256 }),
             object_field(
                 "matches",
                 ResultValueContract::Array {
@@ -3721,6 +3989,192 @@ pub(crate) fn expected_search_result_contract(
             ],
         },
     })
+}
+
+/// Rust projection of the exact row contract carried inside the ordinary
+/// QueryOutput envelope. The public adapter projects these rows to
+/// `VectorPageV1 { items }`; vector source values are never stored fields.
+///
+/// @ref LLP 0132#query-surface
+pub(crate) fn expected_vector_result_contract(
+    table: &TableManifest,
+    index: &VectorIndexManifestV1,
+) -> SnapbackResult<FunctionResultContract> {
+    validate_vector_index_manifest(table, index)?;
+    let object_field = |name: &str, value: ResultValueContract| ResultObjectFieldContract {
+        name: name.to_owned(),
+        required: true,
+        value,
+    };
+    let stored_value = |field: &FieldManifest| -> SnapbackResult<ResultValueContract> {
+        let value = match &field.field_type {
+            FieldType::String => ResultValueContract::String {
+                max_bytes: RESULT_CONTRACT_MAX_VALUE_BYTES,
+            },
+            FieldType::Boolean => ResultValueContract::Boolean,
+            FieldType::Integer => ResultValueContract::Integer {
+                min: -RESULT_CONTRACT_JS_SAFE_INTEGER,
+                max: RESULT_CONTRACT_JS_SAFE_INTEGER,
+            },
+            FieldType::Real => ResultValueContract::FiniteReal {
+                min: -f64::MAX,
+                max: f64::MAX,
+            },
+            FieldType::Json => ResultValueContract::Json {
+                max_depth: RESULT_CONTRACT_MAX_DEPTH,
+                max_bytes: RESULT_CONTRACT_MAX_VALUE_BYTES,
+            },
+            FieldType::Principal => ResultValueContract::Principal,
+            FieldType::Id { table } => ResultValueContract::Id {
+                table: table.clone(),
+            },
+            FieldType::RelationIncarnation { .. } => ResultValueContract::String { max_bytes: 64 },
+            FieldType::AssetRef { .. } => ResultValueContract::AssetRef,
+            FieldType::Vector { .. } => {
+                return Err(vector_manifest_invalid(format!(
+                    "vector index {} storedFields must not expose source vectors",
+                    index.name
+                )));
+            }
+        };
+        Ok(
+            if field.optional && !matches!(&field.field_type, FieldType::Json) {
+                ResultValueContract::Union {
+                    variants: vec![ResultValueContract::Null, value],
+                }
+            } else {
+                value
+            },
+        )
+    };
+
+    let mut stored = Vec::with_capacity(index.stored_fields.len());
+    for name in &index.stored_fields {
+        let field = table
+            .fields
+            .iter()
+            .find(|field| field.name == *name)
+            .ok_or_else(|| {
+                vector_manifest_invalid(format!(
+                    "vector index {} names missing stored field {name}",
+                    index.name
+                ))
+            })?;
+        stored.push(object_field(name, stored_value(field)?));
+    }
+    Ok(FunctionResultContract::Records {
+        record: ResultValueContract::Object {
+            allow_extra: false,
+            fields: vec![
+                object_field(
+                    "rowId",
+                    ResultValueContract::Id {
+                        table: table.name.clone(),
+                    },
+                ),
+                object_field(
+                    "distance",
+                    ResultValueContract::FiniteReal {
+                        min: -f64::MAX,
+                        max: f64::MAX,
+                    },
+                ),
+                object_field(
+                    "fields",
+                    ResultValueContract::Object {
+                        fields: stored,
+                        allow_extra: false,
+                    },
+                ),
+            ],
+        },
+        rows: Some(ResultRowsBound {
+            min_items: 0,
+            max_items: crate::vector::VECTOR_MAX_K as usize,
+        }),
+    })
+}
+
+/// Exact operation-specific arguments derived from the selected index.
+/// `vector` uses the dedicated closed node so D may reach 4,096 without
+/// widening general arrays.
+pub(crate) fn expected_vector_args_contract(index: &VectorIndexManifestV1) -> FunctionArgsContract {
+    let field =
+        |name: &str, required: bool, value: ResultValueContract| ResultObjectFieldContract {
+            name: name.to_owned(),
+            required,
+            value,
+        };
+    let mut fields = vec![
+        field(
+            "vector",
+            true,
+            ResultValueContract::Vector {
+                dimensions: index.dimensions,
+            },
+        ),
+        field(
+            "k",
+            false,
+            ResultValueContract::Integer {
+                min: 1,
+                max: crate::vector::VECTOR_MAX_K.into(),
+            },
+        ),
+    ];
+    if !index.equality_filters.is_empty() {
+        let mut filter_names = index
+            .equality_filters
+            .iter()
+            .map(|name| ResultValueContract::Literal {
+                value: Value::String(name.clone()),
+            })
+            .collect::<Vec<_>>();
+        let filter_name = if filter_names.len() == 1 {
+            filter_names.remove(0)
+        } else {
+            ResultValueContract::Union {
+                variants: filter_names,
+            }
+        };
+        fields.push(field(
+            "filters",
+            false,
+            ResultValueContract::Array {
+                max_items: crate::vector::VECTOR_MAX_FILTERS,
+                element: Box::new(ResultValueContract::Object {
+                    allow_extra: false,
+                    fields: vec![
+                        field("field", true, filter_name),
+                        field(
+                            "op",
+                            true,
+                            ResultValueContract::Literal {
+                                value: Value::String("eq".to_owned()),
+                            },
+                        ),
+                        field(
+                            "value",
+                            true,
+                            ResultValueContract::Union {
+                                variants: vec![
+                                    ResultValueContract::String {
+                                        max_bytes: RESULT_CONTRACT_MAX_VALUE_BYTES,
+                                    },
+                                    ResultValueContract::FiniteReal {
+                                        min: -f64::MAX,
+                                        max: f64::MAX,
+                                    },
+                                    ResultValueContract::Boolean,
+                                ],
+                            },
+                        ),
+                    ],
+                }),
+            },
+        ));
+    }
+    FunctionArgsContract { fields }
 }
 
 pub fn validate_bounded_children_plan_shape(plan: &BoundedChildrenQueryPlan) -> SnapbackResult<()> {
@@ -3850,8 +4304,7 @@ pub fn snapshot_batch_parent_authorization_groups(
             "snapshot batch requires a closed typed argument contract",
         )
     })?;
-    let mut group_positions =
-        BTreeMap::<SnapshotBatchParentAuthorizationIdentityV1, usize>::new();
+    let mut group_positions = BTreeMap::<SnapshotBatchParentAuthorizationIdentityV1, usize>::new();
     let mut groups: Vec<SnapshotBatchParentAuthorizationGroupV1> = Vec::new();
     for (node_index, node) in plan.nodes.iter().enumerate() {
         let argument = contract
@@ -3967,9 +4420,7 @@ fn validate_snapshot_batch_outer_result_contract(
     if variants.len() != 2 {
         return Err(invalid());
     }
-    fn object_fields(
-        variant: &ResultValueContract,
-    ) -> Option<&Vec<ResultObjectFieldContract>> {
+    fn object_fields(variant: &ResultValueContract) -> Option<&Vec<ResultObjectFieldContract>> {
         let ResultValueContract::Object {
             fields,
             allow_extra: false,
@@ -4485,6 +4936,14 @@ pub enum ResultValueContract {
         element: Box<ResultValueContract>,
         #[serde(rename = "maxItems", alias = "max_items")]
         max_items: usize,
+    },
+    /// One exact fixed-dimension binary64 vector. This is intentionally not
+    /// encoded as an ordinary array: dimensions may reach 4,096 while the
+    /// general collection node remains capped at 1,024.
+    ///
+    /// @ref LLP 0132#the-vvectordimensions-value
+    Vector {
+        dimensions: u32,
     },
     Union {
         variants: Vec<ResultValueContract>,
@@ -5169,15 +5628,7 @@ pub struct SnapshotBatchPlanV1 {
 }
 
 #[derive(
-    Clone,
-    Debug,
-    Deserialize,
-    Eq,
-    Ord,
-    PartialEq,
-    PartialOrd,
-    Serialize,
-    schemars::JsonSchema,
+    Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, schemars::JsonSchema,
 )]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub enum BoundedParentVisibility {
@@ -5542,6 +5993,7 @@ pub enum PublicFunctionRuntime {
 pub enum PublicHostPlanKind {
     Query,
     SearchQuery,
+    VectorQuery,
     JobStatusQuery,
     Mutation,
     Action,
@@ -5743,6 +6195,7 @@ impl From<FunctionRuntime> for PublicFunctionRuntime {
             FunctionRuntime::HostPlan(plan) => PublicFunctionRuntime::HostPlan(match plan {
                 HandlerPlan::Query(_) => PublicHostPlanKind::Query,
                 HandlerPlan::SearchQuery(_) => PublicHostPlanKind::SearchQuery,
+                HandlerPlan::VectorQuery(_) => PublicHostPlanKind::VectorQuery,
                 HandlerPlan::JobStatusQuery(_) => PublicHostPlanKind::JobStatusQuery,
                 HandlerPlan::Mutation(_) => PublicHostPlanKind::Mutation,
                 HandlerPlan::Action(_) => PublicHostPlanKind::Action,
@@ -5774,6 +6227,11 @@ pub enum HandlerPlan {
     /// @ref LLP 0073#rust-owned-artifacts-and-operation-carrier — search is a
     /// Query-kind HostPlan and never gains live semantics by implication.
     SearchQuery(SearchQueryPlanV1),
+    /// Non-live exact vector retrieval. This static carrier has no registered
+    /// executor while every target reports `vector_search_v1` as a GAP.
+    ///
+    /// @ref LLP 0132#query-surface
+    VectorQuery(VectorQueryPlanV1),
     /// The generated declared job-status query (LLP 0121 option 3, decided in
     /// LLP 0070's first slice): a Rust-owned plan serving the privacy-bounded
     /// job lifecycle projection for one job id, live-capable through the
@@ -7307,6 +7765,10 @@ pub enum TargetCapabilityId {
     /// complete LLP 0136 evidence/publication train lands.
     #[serde(rename = "live_full_text_search_v1")]
     LiveFullTextSearchV1,
+    /// Static LLP 0132 vocabulary only; every target reports a GAP until an
+    /// independent executor/storage/evidence publication lands.
+    #[serde(rename = "vector_search_v1")]
+    VectorSearchV1,
     #[serde(rename = "result_contract_v1")]
     ResultContractV1,
     #[serde(rename = "settlement.bounded_skew")]
@@ -7332,7 +7794,7 @@ pub enum TargetCapabilityId {
 }
 
 impl TargetCapabilityId {
-    pub const ALL: [Self; 30] = [
+    pub const ALL: [Self; 31] = [
         Self::AuthSessionsV1,
         Self::BoundedResponseStreamV1,
         Self::BoundedChildrenV1,
@@ -7352,6 +7814,7 @@ impl TargetCapabilityId {
         Self::MigrationKeysetScanV1,
         Self::FullTextSearchV1,
         Self::LiveFullTextSearchV1,
+        Self::VectorSearchV1,
         Self::ResultContractV1,
         Self::SettlementBoundedSkew,
         Self::ArgsContractV1,
@@ -7386,6 +7849,7 @@ impl TargetCapabilityId {
             Self::MigrationKeysetScanV1 => "migration_keyset_scan_v1",
             Self::FullTextSearchV1 => "full_text_search_v1",
             Self::LiveFullTextSearchV1 => "live_full_text_search_v1",
+            Self::VectorSearchV1 => "vector_search_v1",
             Self::ResultContractV1 => "result_contract_v1",
             Self::SettlementBoundedSkew => "settlement.bounded_skew",
             Self::ArgsContractV1 => "args_contract_v1",
@@ -7435,6 +7899,7 @@ impl TargetCapabilityId {
             | Self::SequenceAllocationV1
             | Self::SnapshotBatchV1
             | Self::LiveFullTextSearchV1
+            | Self::VectorSearchV1
             | Self::ResultContractV1
             | Self::ArgsContractV1
             | Self::VersionedSeedInstallV1
@@ -7616,6 +8081,10 @@ impl TargetCapabilityId {
                                 && facts.max_live_subscriptions_per_table > 0
                         })
             }
+            // @ref LLP 0132#capabilities-targets-and-staging — carrier/authoring
+            // vocabulary is not target support. No current target has the
+            // storage, executor, corpus, or publication evidence.
+            Self::VectorSearchV1 => false,
             Self::ResultContractV1 => facts.result_contract_v1_registered,
             // @ref LLP 0133#the-bounded-skew-opt-in — this fact names only
             //   the lane-L declaration/admission/check/receipt policy. Lane Q
@@ -8192,6 +8661,15 @@ pub struct CapabilityManifest {
         skip_serializing_if = "Option::is_none"
     )]
     pub live_full_text_search: Option<LiveFullTextSearchFactsV1>,
+    /// Closed future-target facts. Absent on every current target while the
+    /// structured `vector_search_v1` GAP is present.
+    #[serde(
+        default,
+        rename = "vectorSearch",
+        alias = "vector_search",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub vector_search: Option<VectorSearchFactsV1>,
     /// Declared asset facts (LLP 0044; LLP 0012 dated registration
     /// 2026-07-31). Presence with a qualified store list is half the
     /// `asset_lifecycle_v1` predicate; absence is the honest Missing report
@@ -8639,6 +9117,7 @@ impl CapabilityManifest {
             standard_patterns: Some(StandardPatternFacts::local_v1()),
             full_text_search: Some(FullTextSearchFactsV1::local_v1()),
             live_full_text_search: None,
+            vector_search: None,
             assets: Some(crate::assets::AssetTargetFactsV1::local_v1()),
             app_cli_target: Some(AppCliTargetFactsV1::local_v1()),
             supported_query_forms: vec![
@@ -9077,6 +9556,20 @@ impl CapabilityManifest {
             self.capability_gaps
                 .push("live_full_text_search_v1".to_owned());
         }
+        if self
+            .supported_capabilities
+            .contains(&TargetCapabilityId::VectorSearchV1)
+        {
+            self.capability_gaps
+                .retain(|gap| gap != crate::vector::VECTOR_CAPABILITY);
+        } else if !self
+            .capability_gaps
+            .iter()
+            .any(|gap| gap == crate::vector::VECTOR_CAPABILITY)
+        {
+            self.capability_gaps
+                .push(crate::vector::VECTOR_CAPABILITY.to_owned());
+        }
         // @ref LLP 0058#capability-maturity — the maturity map annotates
         // exactly the emitted support set; stable ids are omitted, so a
         // manifest with only stable support serializes without the field.
@@ -9369,6 +9862,237 @@ mod membership_manifest_grammar_tests {
         );
     }
 
+    #[test]
+    fn vector_contract_node_keeps_ordinary_array_ceiling_closed_in_both_lanes() {
+        let vector = ResultValueContract::Vector { dimensions: 4_096 };
+        let function = result_contract_function(FunctionResultContract::Value {
+            value: vector.clone(),
+        });
+        validate_result_contract_definition(&function)
+            .expect("the dedicated result vector node admits D=4096");
+
+        let oversized_array = result_contract_function(FunctionResultContract::Value {
+            value: ResultValueContract::Array {
+                element: Box::new(ResultValueContract::FiniteReal {
+                    min: -crate::vector::VECTOR_COMPONENT_ABS_MAX,
+                    max: crate::vector::VECTOR_COMPONENT_ABS_MAX,
+                }),
+                max_items: RESULT_CONTRACT_MAX_ARRAY_ITEMS + 1,
+            },
+        });
+        assert_eq!(
+            validate_result_contract_definition(&oversized_array)
+                .expect_err("ordinary result arrays remain capped at 1024")
+                .diagnostic
+                .code,
+            "SNAPBACK_HANDLER_RESULT_CONTRACT_INVALID"
+        );
+
+        let mut args_function = result_contract_function(FunctionResultContract::Unknown);
+        let args = FunctionArgsContract {
+            fields: vec![ResultObjectFieldContract {
+                name: "vector".to_owned(),
+                required: true,
+                value: vector,
+            }],
+        };
+        args_function.args_contract_hash = Some(args_contract_hash(&args).expect("args hash"));
+        args_function.args_contract = Some(args);
+        args_function
+            .required_capabilities
+            .push("args_contract_v1".to_owned());
+        validate_args_contract_definition(&args_function)
+            .expect("the dedicated args vector node admits D=4096");
+
+        let oversized_args = FunctionArgsContract {
+            fields: vec![ResultObjectFieldContract {
+                name: "values".to_owned(),
+                required: true,
+                value: ResultValueContract::Array {
+                    element: Box::new(ResultValueContract::Boolean),
+                    max_items: RESULT_CONTRACT_MAX_ARRAY_ITEMS + 1,
+                },
+            }],
+        };
+        args_function.args_contract_hash =
+            Some(args_contract_hash(&oversized_args).expect("oversized args hash"));
+        args_function.args_contract = Some(oversized_args);
+        assert_eq!(
+            validate_args_contract_definition(&args_function)
+                .expect_err("ordinary argument arrays remain capped at 1024")
+                .diagnostic
+                .code,
+            "SNAPBACK_HANDLER_RESULT_CONTRACT_INVALID"
+        );
+    }
+
+    fn vector_index_fixture() -> (TableManifest, VectorIndexManifestV1) {
+        let table = TableManifest {
+            name: "documents".to_owned(),
+            fields: vec![
+                FieldManifest {
+                    name: "embedding".to_owned(),
+                    field_type: FieldType::Vector { dimensions: 3 },
+                    optional: false,
+                },
+                FieldManifest {
+                    name: "category".to_owned(),
+                    field_type: FieldType::String,
+                    optional: true,
+                },
+                FieldManifest {
+                    name: "title".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                },
+            ],
+            indexes: Vec::new(),
+            syncable: false,
+            permission_backing: false,
+            permission_fields: None,
+            search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
+            search_live_limits: None,
+            membership: None,
+            asset_sharing: None,
+        };
+        let index = VectorIndexManifestV1 {
+            format_version: 1,
+            name: "by_embedding".to_owned(),
+            semantic_version: "documents.embedding.v1".to_owned(),
+            vector_field: "embedding".to_owned(),
+            dimensions: 3,
+            metric: VectorMetricV1::L2sq,
+            distance_profile: crate::vector::VECTOR_DISTANCE_PROFILE_ID.to_owned(),
+            ordering_profile: crate::vector::VECTOR_ORDERING_PROFILE_ID.to_owned(),
+            field_classifications: BTreeMap::from([
+                ("category".to_owned(), VectorFieldClassV1::Public),
+                ("embedding".to_owned(), VectorFieldClassV1::Public),
+                ("title".to_owned(), VectorFieldClassV1::Public),
+            ]),
+            equality_filters: vec!["category".to_owned()],
+            stored_fields: vec!["title".to_owned()],
+            visibility: VectorVisibilityV1::PublicRead,
+            tie_break: crate::vector::VectorTieBreakV1::IdAsc,
+            max_indexed_vectors_per_partition: 128,
+            max_scalar_pairs: 384,
+            maintenance_limits: VectorMaintenanceLimitsV1::default(),
+        };
+        (table, index)
+    }
+
+    #[test]
+    fn vector_index_load_reproves_derived_fixed_and_projection_fields() {
+        let (table, index) = vector_index_fixture();
+        validate_vector_index_manifest(&table, &index)
+            .expect("optional equality source fields are admitted");
+
+        let args = expected_vector_args_contract(&index);
+        let filters = args
+            .fields
+            .iter()
+            .find(|field| field.name == "filters")
+            .expect("declared equality filters produce an argument field");
+        let ResultValueContract::Array { element, .. } = &filters.value else {
+            panic!("filters must be a bounded array");
+        };
+        let ResultValueContract::Object { fields, .. } = element.as_ref() else {
+            panic!("filters must contain closed records");
+        };
+        assert_eq!(
+            &fields
+                .iter()
+                .find(|field| field.name == "field")
+                .unwrap()
+                .value,
+            &ResultValueContract::Literal {
+                value: json!("category")
+            }
+        );
+        let mut no_filters = index.clone();
+        no_filters.equality_filters.clear();
+        assert!(
+            expected_vector_args_contract(&no_filters)
+                .fields
+                .iter()
+                .all(|field| field.name != "filters"),
+            "an index with no equality filters must expose no filter argument"
+        );
+
+        let mut omitted_maintenance = serde_json::to_value(&index).unwrap();
+        omitted_maintenance
+            .as_object_mut()
+            .unwrap()
+            .remove("maintenanceLimits");
+        assert!(
+            serde_json::from_value::<VectorIndexManifestV1>(omitted_maintenance).is_err(),
+            "the fixed v1 maintenance identity is required at manifest load"
+        );
+
+        let mut forged_pairs = index.clone();
+        forged_pairs.max_scalar_pairs += 1;
+        assert_eq!(
+            validate_vector_index_manifest(&table, &forged_pairs)
+                .expect_err("maxScalarPairs is derived, never authored authority")
+                .diagnostic
+                .code,
+            "SNAPBACK_VECTOR_INDEX_INVALID"
+        );
+
+        let mut forged_maintenance = index.clone();
+        forged_maintenance.maintenance_limits.vector_bytes -= 1;
+        assert_eq!(
+            validate_vector_index_manifest(&table, &forged_maintenance)
+                .expect_err("maintenance ceilings are fixed")
+                .diagnostic
+                .code,
+            "SNAPBACK_VECTOR_INDEX_INVALID"
+        );
+
+        let mut leaked_vector = index;
+        leaked_vector.stored_fields = vec!["embedding".to_owned()];
+        leaked_vector.field_classifications.remove("title");
+        assert_eq!(
+            validate_vector_index_manifest(&table, &leaked_vector)
+                .expect_err("storedFields categorically refuse vectors")
+                .diagnostic
+                .code,
+            "SNAPBACK_VECTOR_INDEX_INVALID"
+        );
+    }
+
+    #[test]
+    fn vector_capability_is_exact_experimental_gap_only_on_every_target() {
+        let id = TargetCapabilityId::VectorSearchV1;
+        assert_eq!(serde_json::to_value(id).unwrap(), json!("vector_search_v1"));
+        assert_eq!(
+            serde_json::from_value::<TargetCapabilityId>(json!("vector_search_v1")).unwrap(),
+            id
+        );
+        assert_eq!(id.maturity(), CapabilityMaturity::Experimental);
+
+        for manifest in [
+            CapabilityManifest::local_v0_declared(),
+            CapabilityManifest::local_v0_instance(Vec::new(), true),
+            CapabilityManifest::remote_service_sqlite_ibex_declared(),
+            CapabilityManifest::conformance_workerd_v8(json!({})),
+            CapabilityManifest::cloudflare_do_sqlite_v8(json!({})),
+        ] {
+            assert!(!id.is_supported_by(&manifest, TargetCapabilityFacts::default()));
+            assert!(!manifest.supported_capabilities.contains(&id));
+            assert!(!manifest.capability_maturity.contains_key(&id));
+            assert!(manifest.vector_search.is_none());
+            assert!(
+                manifest
+                    .capability_gaps
+                    .iter()
+                    .any(|gap| gap == "vector_search_v1"),
+                "{} must publish the exact structured vector GAP",
+                manifest.target_profile_id
+            );
+        }
+    }
+
     fn snapshot_node_fixture(
         parent_id_arg: &str,
         visibility: BoundedParentVisibility,
@@ -9429,9 +10153,7 @@ mod membership_manifest_grammar_tests {
         let args_contract = FunctionArgsContract {
             fields: parent_arguments,
         };
-        let outer = |kind: &str,
-                     nodes: ResultValueContract,
-                     continuation: ResultValueContract| {
+        let outer = |kind: &str, nodes: ResultValueContract, continuation: ResultValueContract| {
             ResultValueContract::Object {
                 fields: vec![
                     ResultObjectFieldContract {
@@ -9520,8 +10242,7 @@ mod membership_manifest_grammar_tests {
         };
         validate_snapshot_batch_plan_shape(&plan).expect("closed 2-node plan");
         let function = snapshot_function_fixture(plan.clone());
-        validate_snapshot_batch_argument_bindings(&function, &plan)
-            .expect("exact merged args");
+        validate_snapshot_batch_argument_bindings(&function, &plan).expect("exact merged args");
         let groups = snapshot_batch_parent_authorization_groups(&function, &plan)
             .expect("derive parent groups");
         assert_eq!(groups.len(), 1);

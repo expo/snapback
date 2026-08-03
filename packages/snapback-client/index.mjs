@@ -259,6 +259,90 @@ function assertSearchQueryOutputV1(output) {
   }
 }
 
+function vectorQueryInvalid(message) {
+  const error = new TypeError(`SNAPBACK_VECTOR_QUERY_INVALID: ${message}`);
+  error.code = 'SNAPBACK_VECTOR_QUERY_INVALID';
+  return error;
+}
+
+function assertVectorFunctionReferenceV1(ref) {
+  const requiredStrings = [
+    'schemaVersion', 'appId', 'id', 'name', 'implementationHash',
+    'argsContractHash', 'resultContractHash',
+  ];
+  const root = ref?.argumentSchema;
+  const vectorSchema = root?.properties?.vector;
+  const dimensions = vectorSchema?.minItems;
+  if (
+    ref === null
+    || typeof ref !== 'object'
+    || Array.isArray(ref)
+    || ref.artifactKind !== 'functionReference'
+    || ref.kind !== 'Query'
+    || requiredStrings.some((key) => typeof ref[key] !== 'string' || ref[key].length === 0)
+    || root?.type !== 'object'
+    || root.additionalProperties !== false
+    || vectorSchema?.type !== 'array'
+    || !Number.isSafeInteger(dimensions)
+    || dimensions < 1
+    || dimensions > 4_096
+    || vectorSchema.maxItems !== dimensions
+    || vectorSchema.items?.type !== 'number'
+    || vectorSchema.items.minimum !== -(2 ** 100)
+    || vectorSchema.items.maximum !== 2 ** 100
+  ) {
+    throw vectorQueryInvalid('vectorSearch requires a generated exact-vector Query reference');
+  }
+  const filterSchema = root.properties.filters;
+  if (filterSchema === undefined) return { dimensions, filterFields: null };
+  const fieldSchema = filterSchema?.items?.properties?.field;
+  const filterNames = typeof fieldSchema?.const === 'string'
+    ? [fieldSchema.const]
+    : fieldSchema?.anyOf?.map((variant) => variant?.const);
+  if (
+    filterSchema.type !== 'array'
+    || filterSchema.maxItems !== 8
+    || filterSchema.items?.type !== 'object'
+    || filterSchema.items.additionalProperties !== false
+    || !Array.isArray(filterNames)
+    || filterNames.length === 0
+    || filterNames.some((name) => typeof name !== 'string' || name.length === 0)
+    || new Set(filterNames).size !== filterNames.length
+  ) {
+    throw vectorQueryInvalid('vectorSearch requires an exact generated filter-field contract');
+  }
+  return { dimensions, filterFields: new Set(filterNames) };
+}
+
+function assertVectorQueryOutputV1(output) {
+  if (
+    output === null
+    || typeof output !== 'object'
+    || Array.isArray(output)
+    || !Array.isArray(output.rows)
+    || (output.cursor !== undefined && output.cursor !== null)
+  ) {
+    throw vectorQueryInvalid('vector query returned an invalid single-page QueryOutput');
+  }
+  for (const item of output.rows) {
+    if (
+      item === null
+      || typeof item !== 'object'
+      || Array.isArray(item)
+      || typeof item.rowId !== 'string'
+      || item.rowId.length === 0
+      || typeof item.distance !== 'number'
+      || !Number.isFinite(item.distance)
+      || Object.is(item.distance, -0)
+      || item.fields === null
+      || typeof item.fields !== 'object'
+      || Array.isArray(item.fields)
+    ) {
+      throw vectorQueryInvalid('vector query returned an invalid VectorItemV1');
+    }
+  }
+}
+
 function assertExpectedDataVersionStreamV1(value, label) {
   const valid = value !== null
     && typeof value === 'object'
@@ -4955,6 +5039,75 @@ export class SnapbackClient {
       cursor,
       hasMore: cursor !== null,
     };
+  }
+
+  /** Project the ordinary QueryOutput carrier of one generated vector query
+   * to the public items-only VectorPageV1. Target capability admission still
+   * refuses every current target before this method can reach an executor.
+   * @ref LLP 0132#query-surface */
+  async vectorSearch(ref, {
+    vector,
+    k,
+    filters,
+    userId,
+    readSet = [],
+    authorityCapture = null,
+  } = {}) {
+    const { dimensions, filterFields } = assertVectorFunctionReferenceV1(ref);
+    if (
+      !Array.isArray(vector)
+      || vector.length !== dimensions
+      || vector.some((value) => (
+        typeof value !== 'number'
+        || !Number.isFinite(value)
+        || Math.abs(value) > 2 ** 100
+      ))
+    ) {
+      throw vectorQueryInvalid(`vector must contain exactly ${dimensions} portable components`);
+    }
+    if (k !== undefined && (!Number.isSafeInteger(k) || k < 1 || k > 64)) {
+      throw vectorQueryInvalid('k must be an integer in 1..64');
+    }
+    const seenFilterFields = new Set();
+    if (filters !== undefined && (
+      filterFields === null
+      || !Array.isArray(filters)
+      || filters.length > 8
+      || filters.some((filter) => {
+        if (
+          filter === null
+          || typeof filter !== 'object'
+          || Array.isArray(filter)
+          || Object.keys(filter).sort().join(',') !== 'field,op,value'
+          || typeof filter.field !== 'string'
+          || filter.field.length === 0
+          || filter.op !== 'eq'
+        ) return true;
+        if (seenFilterFields.has(filter.field) || !filterFields.has(filter.field)) return true;
+        seenFilterFields.add(filter.field);
+        return !(
+          typeof filter.value === 'string'
+          || typeof filter.value === 'boolean'
+          || (typeof filter.value === 'number' && Number.isFinite(filter.value))
+        );
+      })
+    )) {
+      throw vectorQueryInvalid(
+        'filters must use each declared equality field at most once with a closed scalar eq value',
+      );
+    }
+    const output = await this.query(ref, {
+      args: {
+        vector: vector.map((value) => (Object.is(value, -0) ? 0 : value)),
+        ...(k !== undefined ? { k } : {}),
+        ...(filters !== undefined ? { filters } : {}),
+      },
+      userId,
+      readSet,
+      authorityCapture,
+    });
+    assertVectorQueryOutputV1(output);
+    return { items: output.rows };
   }
 
   /// Mint a bundle boot idempotency key (LLP 0092 §0D.3): 22-char base64url

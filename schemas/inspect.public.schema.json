@@ -981,6 +981,17 @@
         "targetProfileId": {
           "type": "string"
         },
+        "vectorSearch": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/VectorSearchFactsV1"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Closed future-target facts. Absent on every current target while the\nstructured `vector_search_v1` GAP is present."
+        },
         "vmLifecycle": {
           "default": "fresh-per-invocation",
           "description": "VM lifecycle for handler execution. Current targets report\n`\"fresh-per-invocation\"`; `\"warm-pooled-reset\"` remains a recognized\nhistorical value for compatibility with older artifacts. Surfaced so\nLLP 0012's honesty rule holds.\n\n@ref LLP 0009#dk-4-retired--upstream-ibex-owner-thread-contract-2026-07-27 — lifecycle truthfulness.",
@@ -1451,6 +1462,29 @@
             "Json"
           ],
           "type": "string"
+        },
+        {
+          "additionalProperties": false,
+          "description": "`v.vector(dimensions)` — an exact fixed-dimension binary64 vector.\nOrdinary arrays keep their separate 1,024-item contract ceiling.\n\n@ref LLP 0132#the-vvectordimensions-value",
+          "properties": {
+            "Vector": {
+              "properties": {
+                "dimensions": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "dimensions"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Vector"
+          ],
+          "type": "object"
         },
         {
           "const": "Principal",
@@ -2908,6 +2942,7 @@
       "enum": [
         "Query",
         "SearchQuery",
+        "VectorQuery",
         "JobStatusQuery",
         "Mutation",
         "Action",
@@ -3655,6 +3690,26 @@
             "kind",
             "element",
             "maxItems"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "One exact fixed-dimension binary64 vector. This is intentionally not\nencoded as an ordinary array: dimensions may reach 4,096 while the\ngeneral collection node remains capped at 1,024.\n\n@ref LLP 0132#the-vvectordimensions-value",
+          "properties": {
+            "dimensions": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "kind": {
+              "const": "vector",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "dimensions"
           ],
           "type": "object"
         },
@@ -4410,6 +4465,13 @@
         "syncable": {
           "default": false,
           "type": "boolean"
+        },
+        "vectorIndexes": {
+          "description": "Portable exact-vector index declarations. This is static carrier\nvocabulary only until a target reports qualified `vector_search_v1`.\n\n@ref LLP 0132#index-declarations",
+          "items": {
+            "$ref": "#/$defs/VectorIndexManifestV1"
+          },
+          "type": "array"
         }
       },
       "required": [
@@ -4462,6 +4524,318 @@
           "const": "live_full_text_search_v1",
           "description": "First-page-only live search by bounded coarse re-execution. The id is\nregistered at experimental maturity but remains unsupported until the\ncomplete LLP 0136 evidence/publication train lands.",
           "type": "string"
+        },
+        {
+          "const": "vector_search_v1",
+          "description": "Static LLP 0132 vocabulary only; every target reports a GAP until an\nindependent executor/storage/evidence publication lands.",
+          "type": "string"
+        }
+      ]
+    },
+    "VectorFieldClassV1": {
+      "enum": [
+        "public",
+        "private",
+        "sensitive",
+        "forbidden"
+      ],
+      "type": "string"
+    },
+    "VectorIndexManifestV1": {
+      "additionalProperties": false,
+      "description": "The complete table-local identity of one exact vector index.\n\n@ref LLP 0132#vector-values-and-declarations — one version binds the vector\n  field, dimensions, metric, release policy, ordering, and every work bound.",
+      "properties": {
+        "dimensions": {
+          "format": "uint32",
+          "maximum": 4096,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "distanceProfile": {
+          "type": "string"
+        },
+        "equalityFilters": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "fieldClassifications": {
+          "additionalProperties": {
+            "$ref": "#/$defs/VectorFieldClassV1"
+          },
+          "description": "Closed classification carrier for every participating source field.",
+          "type": "object"
+        },
+        "formatVersion": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maintenanceLimits": {
+          "$ref": "#/$defs/VectorMaintenanceLimitsV1"
+        },
+        "maxIndexedVectorsPerPartition": {
+          "format": "uint32",
+          "maximum": 65536,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "maxScalarPairs": {
+          "format": "uint64",
+          "maximum": 67108864,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "metric": {
+          "$ref": "#/$defs/VectorMetricV1"
+        },
+        "name": {
+          "type": "string"
+        },
+        "orderingProfile": {
+          "type": "string"
+        },
+        "semanticVersion": {
+          "type": "string"
+        },
+        "storedFields": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "tieBreak": {
+          "$ref": "#/$defs/VectorTieBreakV1"
+        },
+        "vectorField": {
+          "type": "string"
+        },
+        "visibility": {
+          "$ref": "#/$defs/VectorVisibilityV1"
+        }
+      },
+      "required": [
+        "formatVersion",
+        "name",
+        "semanticVersion",
+        "vectorField",
+        "dimensions",
+        "metric",
+        "distanceProfile",
+        "orderingProfile",
+        "fieldClassifications",
+        "visibility",
+        "tieBreak",
+        "maxIndexedVectorsPerPartition",
+        "maxScalarPairs",
+        "maintenanceLimits"
+      ],
+      "type": "object"
+    },
+    "VectorMaintenanceLimitsV1": {
+      "additionalProperties": false,
+      "properties": {
+        "vectorBytes": {
+          "format": "uint64",
+          "maximum": 4194304,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "vectorMaintenanceEffects": {
+          "format": "uint64",
+          "maximum": 1024,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "vectorMaintenanceEffects",
+        "vectorBytes"
+      ],
+      "type": "object"
+    },
+    "VectorMetricV1": {
+      "enum": [
+        "l2sq",
+        "dot"
+      ],
+      "type": "string"
+    },
+    "VectorSearchFactsV1": {
+      "additionalProperties": false,
+      "description": "Closed facts vocabulary for a future qualified target. Every current\ntarget leaves this block absent and reports the `vector_search_v1` GAP.",
+      "properties": {
+        "accelerator": {
+          "type": "string"
+        },
+        "capabilityId": {
+          "type": "string"
+        },
+        "corpusMax": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "corruptionPosture": {
+          "type": "string"
+        },
+        "dimensionMax": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "dimensionMin": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "distanceProfile": {
+          "type": "string"
+        },
+        "distanceProfileDigest": {
+          "type": "string"
+        },
+        "equalityFilters": {
+          "type": "boolean"
+        },
+        "equalityFiltersMax": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "kDefault": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "kMax": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maintenance": {
+          "type": "string"
+        },
+        "maturity": {
+          "type": "string"
+        },
+        "metrics": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "nonclaims": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "orderingProfile": {
+          "type": "string"
+        },
+        "pagination": {
+          "type": "string"
+        },
+        "scalarPairsMax": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "storageClass": {
+          "type": "string"
+        },
+        "storageEngines": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "storedFields": {
+          "type": "boolean"
+        },
+        "tieBreaks": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "visibilityProfiles": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "capabilityId",
+        "maturity",
+        "distanceProfile",
+        "distanceProfileDigest",
+        "orderingProfile",
+        "metrics",
+        "dimensionMin",
+        "dimensionMax",
+        "kDefault",
+        "kMax",
+        "corpusMax",
+        "scalarPairsMax",
+        "equalityFiltersMax",
+        "equalityFilters",
+        "storedFields",
+        "visibilityProfiles",
+        "maintenance",
+        "pagination",
+        "tieBreaks",
+        "storageClass",
+        "corruptionPosture",
+        "accelerator",
+        "storageEngines",
+        "nonclaims"
+      ],
+      "type": "object"
+    },
+    "VectorTieBreakV1": {
+      "enum": [
+        "id-asc",
+        "id-desc"
+      ],
+      "type": "string"
+    },
+    "VectorVisibilityV1": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "public-read",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "field": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "owner",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "field"
+          ],
+          "type": "object"
         }
       ]
     }

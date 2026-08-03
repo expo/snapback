@@ -1,0 +1,85 @@
+{
+  "$defs": {
+    "VectorFilterOpV1": {
+      "enum": [
+        "eq"
+      ],
+      "type": "string"
+    },
+    "VectorFilterV1": {
+      "additionalProperties": false,
+      "properties": {
+        "field": {
+          "type": "string"
+        },
+        "op": {
+          "$ref": "#/$defs/VectorFilterOpV1"
+        },
+        "value": {
+          "$ref": "#/$defs/VectorFilterValueV1"
+        }
+      },
+      "required": [
+        "field",
+        "op",
+        "value"
+      ],
+      "type": "object"
+    },
+    "VectorFilterValueV1": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        }
+      ],
+      "description": "The same closed exact-scalar vocabulary used by portable text-search\nequality filters. Null and composite JSON values are not representable."
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/vector.request.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Public invocation carrier. The operation-specific argument contract fixes\n`vector` to the declared index dimension.",
+  "properties": {
+    "filters": {
+      "items": {
+        "$ref": "#/$defs/VectorFilterV1"
+      },
+      "maxItems": 8,
+      "type": [
+        "array",
+        "null"
+      ]
+    },
+    "k": {
+      "format": "uint32",
+      "maximum": 64,
+      "minimum": 1,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "vector": {
+      "items": {
+        "format": "double",
+        "maximum": 1.2676506002282294e+30,
+        "minimum": -1.2676506002282294e+30,
+        "type": "number"
+      },
+      "maxItems": 4096,
+      "minItems": 1,
+      "type": "array"
+    }
+  },
+  "required": [
+    "vector"
+  ],
+  "title": "VectorRequestV1",
+  "type": "object"
+}

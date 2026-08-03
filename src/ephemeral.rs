@@ -9061,6 +9061,7 @@ mod tests {
                 permission_backing: true,
                 permission_fields: Some(vec!["boardId".to_owned(), "userId".to_owned()]),
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
@@ -9141,6 +9142,7 @@ mod tests {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
             search_live_limits: None,
             membership: Some(MembershipManifest {
                 id: Some("board-members".to_owned()),

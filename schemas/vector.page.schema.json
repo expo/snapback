@@ -1,0 +1,45 @@
+{
+  "$defs": {
+    "VectorItemV1": {
+      "additionalProperties": false,
+      "properties": {
+        "distance": {
+          "format": "double",
+          "type": "number"
+        },
+        "fields": {
+          "additionalProperties": true,
+          "description": "Operation-specific result contracts close this map over exactly the\nindex's stored fields. The shared carrier cannot name app fields.",
+          "type": "object"
+        },
+        "rowId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "rowId",
+        "distance",
+        "fields"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/vector.page.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The complete public v1 result. Pagination members are intentionally absent.",
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/$defs/VectorItemV1"
+      },
+      "maxItems": 64,
+      "type": "array"
+    }
+  },
+  "required": [
+    "items"
+  ],
+  "title": "VectorPageV1",
+  "type": "object"
+}

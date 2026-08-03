@@ -141,6 +141,22 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
             "vector.distance-profile.schema.json",
             schemars::schema_for!(crate::vector::profile::VectorDistanceProfileArtifactV1),
         ),
+        // LLP 0132's public static carrier is independently consumable by
+        // client/codegen adapters even while every current target reports a
+        // capability GAP. Operation-specific argument/result contracts add
+        // the index's exact dimension and stored-field projection.
+        finish(
+            "vector.request.schema.json",
+            schemars::schema_for!(crate::vector::VectorRequestV1),
+        ),
+        finish(
+            "vector.item.schema.json",
+            schemars::schema_for!(crate::vector::VectorItemV1),
+        ),
+        finish(
+            "vector.page.schema.json",
+            schemars::schema_for!(crate::vector::VectorPageV1),
+        ),
         finish(
             "seed.artifact.schema.json",
             schemars::schema_for!(SeedArtifactV1),
@@ -879,14 +895,12 @@ pub fn artifact_instances() -> Vec<SchemaArtifact> {
     // committed pure-contract fixtures let Rust and package consumers prove
     // classification, carrier allocation, and fingerprint bytes before any
     // storage or runtime wiring lands.
-    artifacts.extend(
-        crate::error_tracking::artifact_instances()
-            .into_iter()
-            .map(|(file, schema)| SchemaArtifact {
-                file,
-                schema: sorted_keys(schema),
-            }),
-    );
+    artifacts.extend(crate::error_tracking::artifact_instances().into_iter().map(
+        |(file, schema)| SchemaArtifact {
+            file,
+            schema: sorted_keys(schema),
+        },
+    ));
     artifacts
 }
 

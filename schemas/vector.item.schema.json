@@ -1,0 +1,26 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/vector.item.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "distance": {
+      "format": "double",
+      "type": "number"
+    },
+    "fields": {
+      "additionalProperties": true,
+      "description": "Operation-specific result contracts close this map over exactly the\nindex's stored fields. The shared carrier cannot name app fields.",
+      "type": "object"
+    },
+    "rowId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "rowId",
+    "distance",
+    "fields"
+  ],
+  "title": "VectorItemV1",
+  "type": "object"
+}

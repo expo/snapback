@@ -47,6 +47,8 @@
     "search-contract.generated.mjs",
     "search.d.mts",
     "search.mjs",
+    "vector-search.d.mts",
+    "vector-search.mjs",
     "sender-proof.mjs",
     "assets.mjs",
     "assets.d.mts"
@@ -123,6 +125,10 @@
     "./search": {
       "types": "./search.d.mts",
       "import": "./search.mjs"
+    },
+    "./vector-search": {
+      "types": "./vector-search.d.mts",
+      "import": "./vector-search.mjs"
     },
     "./package.json": "./package.json",
     "./assets": {

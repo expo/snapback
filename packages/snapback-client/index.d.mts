@@ -250,6 +250,34 @@ export interface SearchPageV1<
   readonly hasMore: boolean;
 }
 
+export interface VectorFilterV1 {
+  readonly field: string;
+  readonly op: 'eq';
+  readonly value: string | number | boolean;
+}
+export interface VectorRequestV1 {
+  readonly vector: readonly number[];
+  readonly k?: number;
+  readonly filters?: readonly VectorFilterV1[];
+}
+export interface VectorItemV1<
+  Fields extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>,
+  RowId extends string = string,
+> {
+  readonly rowId: RowId;
+  readonly distance: number;
+  readonly fields: Fields;
+}
+declare const vectorPageV1Brand: unique symbol;
+export interface VectorPageV1<
+  Fields extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>,
+  RowId extends string = string,
+> {
+  /** Generated operation phantom; no runtime response is expected to carry it. */
+  readonly [vectorPageV1Brand]: true;
+  readonly items: readonly VectorItemV1<Fields, RowId>[];
+}
+
 /**
  * Search operations deliberately carry an operation-level SearchPageV1
  * phantom while the ordinary query wire carries only that page's items in
@@ -258,7 +286,9 @@ export interface SearchPageV1<
 export type QueryWireResult<Result> =
   Result extends SearchPageV1<infer Fields, infer RowId>
     ? readonly SearchItemV1<Fields, RowId>[]
-    : Result;
+    : Result extends VectorPageV1<infer Fields, infer RowId>
+      ? readonly VectorItemV1<Fields, RowId>[]
+      : Result;
 
 export function parseSearchQueryV1(
   source: string,
@@ -821,6 +851,15 @@ export class SnapbackClient {
       readonly after?: string;
       readonly userId?: string;
     },
+  ): Promise<FunctionResult<Ref>>;
+  vectorSearch<Ref extends SnapbackFunctionReference<
+    string,
+    'Query',
+    VectorRequestV1,
+    VectorPageV1
+  >> (
+    ref: Ref,
+    options: FunctionArgs<Ref> & { readonly userId?: string },
   ): Promise<FunctionResult<Ref>>;
   mutate<Ref extends FunctionRef<'Mutation'>>(
     ref: Ref,

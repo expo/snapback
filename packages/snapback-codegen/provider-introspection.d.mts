@@ -12,10 +12,22 @@ export const CONTRACT_DATA_MANIFEST_VERSION: 2;
 /** The closed v1 data-type descriptor vocabulary. */
 export type ProviderDataType =
   | Readonly<{ shape: 'unknown'; optional?: boolean }>
-  | Readonly<{ shape: 'primitive'; name: 'string' | 'number' | 'boolean' | 'unknown'; optional?: boolean }>
+  | Readonly<{
+      shape: 'primitive';
+      name: 'string' | 'number' | 'boolean' | 'unknown';
+      minimum?: number;
+      maximum?: number;
+      optional?: boolean;
+    }>
   | Readonly<{ shape: 'object'; fields: Readonly<Record<string, ProviderDataType>>; optional?: boolean }>
   | Readonly<{ shape: 'literal'; value: string | number | boolean | null; optional?: boolean }>
-  | Readonly<{ shape: 'array'; items: ProviderDataType; optional?: boolean }>
+  | Readonly<{
+      shape: 'array';
+      items: ProviderDataType;
+      minItems?: number;
+      maxItems?: number;
+      optional?: boolean;
+    }>
   | Readonly<{ shape: 'union'; variants: readonly ProviderDataType[]; optional?: boolean }>;
 
 export type ProviderResultDescriptor =

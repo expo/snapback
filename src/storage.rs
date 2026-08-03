@@ -10858,6 +10858,7 @@ fn field_type_name(field_type: &FieldType) -> &'static str {
         FieldType::Boolean => "Boolean",
         FieldType::Integer => "Integer",
         FieldType::Real => "Real",
+        FieldType::Vector { .. } => "Vector",
         FieldType::Json => "Json",
         FieldType::Principal => "Principal",
         FieldType::Id { .. } => "Id",
@@ -11774,6 +11775,7 @@ fn validate_query_filter_value(
                 FieldType::Boolean => value.is_boolean(),
                 FieldType::Integer => portable_integer_value(value).is_some(),
                 FieldType::Real => value.as_f64().is_some(),
+                FieldType::Vector { .. } => false,
                 FieldType::Json => unreachable!("Json filters returned above"),
             }
         };
@@ -17359,6 +17361,12 @@ fn json_to_sql_value(value: &Value, field_type: Option<&FieldType>) -> SnapbackR
             .as_f64()
             .map(SqlValue::Real)
             .ok_or_else(|| type_error("real", value)),
+        Some(FieldType::Vector { .. }) => Err(SnapbackError::error(
+            "SNAPBACK_CAPABILITY_UNSUPPORTED",
+            "capability",
+            "vector storage is unavailable without vector_search_v1 target support",
+        )
+        .with_detail("capability", crate::vector::VECTOR_CAPABILITY)),
         Some(FieldType::Json) => {
             serde_json::to_string(value)
                 .map(SqlValue::Text)
@@ -17475,6 +17483,12 @@ fn sqlite_type(field_type: &FieldType) -> &'static str {
         | FieldType::AssetRef { .. } => "TEXT",
         FieldType::Boolean | FieldType::Integer => "INTEGER",
         FieldType::Real => "REAL",
+        // The portable v1 storage profile pins vectors to canonical binary64
+        // bytes in a BLOB. Current targets still advertise support=false and
+        // `json_to_sql_value` refuses every write, but a forged/direct schema
+        // must never turn pre-admission SQLite lowering into a process panic.
+        // @ref LLP 0132#index-maintenance-and-storage
+        FieldType::Vector { .. } => "BLOB",
     }
 }
 
@@ -18033,6 +18047,65 @@ mod asset_infra_tests {
 }
 
 #[cfg(test)]
+mod vector_storage_refusal_tests {
+    use super::*;
+
+    #[test]
+    fn direct_vector_schema_lowers_without_panic_and_writes_refuse() {
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.apply_schema(SchemaManifest {
+            required_capabilities: vec![crate::vector::VECTOR_CAPABILITY.to_owned()],
+            tables: vec![TableManifest {
+                name: "embeddings".to_owned(),
+                fields: vec![FieldManifest {
+                    name: "embedding".to_owned(),
+                    field_type: FieldType::Vector { dimensions: 3 },
+                    optional: false,
+                }],
+                indexes: Vec::new(),
+                syncable: false,
+                permission_backing: false,
+                permission_fields: None,
+                search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
+                search_live_limits: None,
+                membership: None,
+                asset_sharing: None,
+            }],
+            ..SchemaManifest::default()
+        })
+        .expect("direct manifest lowering must not panic");
+
+        let declared: String = db
+            .conn
+            .query_row(
+                "SELECT type FROM pragma_table_info('embeddings') WHERE name = 'embedding'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("vector column declaration");
+        assert_eq!(declared, "BLOB");
+
+        let error = db
+            .seed(SeedData {
+                tables: BTreeMap::from([(
+                    "embeddings".to_owned(),
+                    vec![Map::from_iter([
+                        ("_id".to_owned(), json!("embedding_1")),
+                        ("embedding".to_owned(), json!([1.0, 2.0, 3.0])),
+                    ])],
+                )]),
+            })
+            .expect_err("unsupported vector storage must refuse before SQL binding");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_CAPABILITY_UNSUPPORTED");
+        assert_eq!(
+            error.diagnostic.details["capability"],
+            crate::vector::VECTOR_CAPABILITY
+        );
+    }
+}
+
+#[cfg(test)]
 mod guarded_commit_tests {
     use super::*;
     use std::cell::Cell;
@@ -18065,6 +18138,7 @@ mod guarded_commit_tests {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
@@ -18288,6 +18362,7 @@ mod guarded_commit_tests {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
@@ -18756,6 +18831,7 @@ mod guarded_commit_tests {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
@@ -18802,6 +18878,7 @@ mod guarded_commit_tests {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
@@ -18857,6 +18934,7 @@ mod guarded_commit_tests {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
@@ -19299,6 +19377,7 @@ mod guarded_commit_tests {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
@@ -20813,6 +20892,7 @@ mod guarded_commit_tests {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
@@ -20836,6 +20916,7 @@ mod guarded_commit_tests {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
@@ -23297,6 +23378,7 @@ mod guarded_commit_tests {
             permission_backing: true,
             permission_fields: Some(vec!["userId".to_owned(), "boardId".to_owned()]),
             search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
@@ -23371,6 +23453,7 @@ mod guarded_commit_tests {
                     permission_backing: true,
                     permission_fields: Some(vec!["userId".to_owned(), "boardId".to_owned()]),
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
@@ -24815,6 +24898,7 @@ mod membership_write_tests {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
@@ -24847,6 +24931,7 @@ mod membership_write_tests {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     search_live_limits: None,
                     membership: Some(MembershipManifest {
                         id: None,
@@ -25000,6 +25085,7 @@ mod membership_write_tests {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
@@ -26687,6 +26773,7 @@ mod membership_write_tests {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 search_live_limits: None,
                 membership: Some(MembershipManifest {
                     id: Some("appRoles".to_owned()),

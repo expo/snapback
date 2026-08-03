@@ -8,6 +8,8 @@ export const RESULT_CONTRACT_VERSION: 1;
 export const RESULT_MAX_BYTES: number;
 export const RESULT_MAX_STRING_BYTES: number;
 export const RESULT_MAX_ARRAY_ITEMS: number;
+export const VECTOR_MAX_DIMENSIONS: number;
+export const VECTOR_COMPONENT_ABS_MAX: number;
 export const RESULT_MAX_DEPTH: number;
 export const RESULT_MAX_NODES: number;
 
@@ -50,6 +52,7 @@ export type ResultValueContract =
   | Readonly<{ kind: 'literal'; value: string | number | boolean | null }>
   | Readonly<{ kind: 'json'; maxDepth: number; maxBytes: number }>
   | Readonly<{ kind: 'array'; element: ResultValueContract; maxItems: number }>
+  | Readonly<{ kind: 'vector'; dimensions: number }>
   | Readonly<{ kind: 'union'; variants: readonly ResultValueContract[] }>
   | Readonly<{ kind: 'object'; fields: readonly ResultObjectFieldContract[]; allowExtra: boolean }>
   | Readonly<{ kind: 'platformSchemaRef'; authority: 'platform'; schema: string }>;
@@ -145,6 +148,11 @@ export interface ResultContractTable {
     storedFields?: readonly string[];
     [fact: string]: unknown;
   }>>;
+  readonly vectorIndexes?: ReadonlyArray<Readonly<{
+    name: string;
+    storedFields?: readonly string[];
+    [fact: string]: unknown;
+  }>>;
   readonly [fact: string]: unknown;
 }
 
@@ -169,6 +177,7 @@ export function effectiveResultContract(options: Readonly<{
     HostPlan?: Readonly<{
       Query?: Readonly<{ table?: string; [fact: string]: unknown }>;
       SearchQuery?: Readonly<{ table: string; index: string; [fact: string]: unknown }>;
+      VectorQuery?: Readonly<{ table: string; index: string; [fact: string]: unknown }>;
       Mutation?: Readonly<{
         return_value?: Readonly<{
           Document?: Readonly<{ table?: string; [fact: string]: unknown }>;
@@ -191,5 +200,10 @@ export function resultContractType(
 
 /** Renders the `SearchPageV1<...>` type for a search records contract. */
 export function searchPageResultType(
+  contract: ResultContractDescriptor | null | undefined,
+): string;
+
+/** Renders the items-only `VectorPageV1<...>` type. */
+export function vectorPageResultType(
   contract: ResultContractDescriptor | null | undefined,
 ): string;

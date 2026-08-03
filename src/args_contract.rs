@@ -268,6 +268,26 @@ fn validate_node(
             }
             Ok(())
         }
+        ResultValueContract::Vector { dimensions } => {
+            let values = value.as_array().ok_or_else(mismatch)?;
+            if values.len() != *dimensions as usize {
+                return Err(mismatch());
+            }
+            for (index, value) in values.iter().enumerate() {
+                let mut child = path.to_vec();
+                child.push(PointerSegment::Index(index));
+                consume(budget, depth + 1, &child)?;
+                let Some(component) = value.as_f64() else {
+                    return Err(mismatch());
+                };
+                if !component.is_finite()
+                    || component.abs() > crate::vector::VECTOR_COMPONENT_ABS_MAX
+                {
+                    return Err(mismatch());
+                }
+            }
+            Ok(())
+        }
         // LLP 0108's union diagnostic rule: declaration order, first
         // deterministic failure wins — the refusal reports the first
         // variant's first failure plus the bounded count of failed variants.
@@ -450,6 +470,7 @@ fn node_kind(contract: &ResultValueContract) -> &'static str {
         ResultValueContract::Literal { .. } => "literal",
         ResultValueContract::Json { .. } => "json",
         ResultValueContract::Array { .. } => "array",
+        ResultValueContract::Vector { .. } => "vector",
         ResultValueContract::Union { .. } => "union",
         ResultValueContract::Object { .. } => "object",
         ResultValueContract::PlatformSchemaRef { .. } => "platformSchemaRef",
@@ -556,6 +577,55 @@ mod tests {
             }),
         )
         .expect("valid nested vector");
+    }
+
+    #[test]
+    fn exact_vector_argument_admits_only_d_finite_bounded_components() {
+        let function = function(FunctionArgsContract {
+            fields: vec![field(
+                "vector",
+                true,
+                ResultValueContract::Vector { dimensions: 3 },
+            )],
+        });
+        validate_function_args(&function, &json!({ "vector": [0.0, -0.0, 3.5] }))
+            .expect("exact D passes");
+        for rejected in [
+            json!({ "vector": [0.0, 1.0] }),
+            json!({ "vector": [0.0, 1.0, 2.0, 3.0] }),
+            json!({ "vector": [0.0, 1.0, crate::vector::VECTOR_COMPONENT_ABS_MAX * 2.0] }),
+        ] {
+            let error = validate_function_args(&function, &rejected)
+                .expect_err("D-1, D+1, and out-of-domain components refuse");
+            assert_eq!(
+                error.diagnostic.code,
+                "SNAPBACK_FUNCTION_ARGS_CONTRACT_VIOLATION"
+            );
+            assert_eq!(error.diagnostic.details["path"], "/vector");
+            assert_eq!(error.diagnostic.details["expected"], "vector");
+        }
+    }
+
+    #[test]
+    fn nested_vectors_debit_every_component_from_argument_node_budget() {
+        let function = function(FunctionArgsContract {
+            fields: vec![field(
+                "vectors",
+                true,
+                ResultValueContract::Array {
+                    element: Box::new(ResultValueContract::Vector { dimensions: 64 }),
+                    max_items: 1_024,
+                },
+            )],
+        });
+        let vectors = vec![Value::Array(vec![json!(0.0); 64]); 1_024];
+        let error = validate_function_args(&function, &json!({ "vectors": vectors }))
+            .expect_err("vector components must not bypass the global node budget");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_FUNCTION_ARGS_CONTRACT_VIOLATION"
+        );
+        assert_eq!(error.diagnostic.details["actual"], "over-budget");
     }
 
     #[test]

@@ -3305,6 +3305,9 @@ fn delta_documents_contract_matches_schema(
                 min: -f64::MAX,
                 max: f64::MAX,
             },
+            FieldType::Vector { dimensions } => ResultValueContract::Vector {
+                dimensions: *dimensions,
+            },
             FieldType::Json => ResultValueContract::Json {
                 max_depth: 16,
                 max_bytes: 1024 * 1024,
@@ -22965,6 +22968,48 @@ fn validate_function_schema_references(
                     }
                 }
             }
+            FunctionRuntime::HostPlan(HandlerPlan::VectorQuery(plan)) => {
+                crate::manifest::validate_vector_query_plan_shape(plan)?;
+                let declared = table(&plan.table)?;
+                let Some(index) = declared
+                    .vector_indexes
+                    .iter()
+                    .find(|candidate| candidate.name == plan.index)
+                else {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_VECTOR_INDEX_UNAVAILABLE",
+                        "vector",
+                        format!(
+                            "vector query {} references unknown vector index {}.{}",
+                            function.name, plan.table, plan.index
+                        ),
+                    ));
+                };
+                crate::manifest::validate_vector_index_manifest(declared, index)?;
+                let expected_args = crate::manifest::expected_vector_args_contract(index);
+                if function.args_contract.as_ref() != Some(&expected_args) {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_FUNCTION_ARGS_CONTRACT_INVALID",
+                        "vector",
+                        format!(
+                            "vector query {} argument contract must exactly match its declared index",
+                            function.name
+                        ),
+                    ));
+                }
+                let expected_result =
+                    crate::manifest::expected_vector_result_contract(declared, index)?;
+                if function.result_contract != expected_result {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_HANDLER_RESULT_CONTRACT_INVALID",
+                        "vector",
+                        format!(
+                            "vector query {} result contract must exactly match its declared stored fields",
+                            function.name
+                        ),
+                    ));
+                }
+            }
             // @ref LLP 0080#1-closed-relational-plan — activation validates
             //   the root window exactly like a single-table plan (fields,
             //   membership privacy, Json-order refusal, named root index)
@@ -23257,6 +23302,11 @@ fn validate_function_schema_references(
                                             min: -f64::MAX,
                                             max: f64::MAX,
                                         },
+                                        FieldType::Vector { dimensions } => {
+                                            ResultValueContract::Vector {
+                                                dimensions: *dimensions,
+                                            }
+                                        }
                                         FieldType::Principal => ResultValueContract::Principal,
                                         FieldType::Id { table } => ResultValueContract::Id {
                                             table: table.clone(),
@@ -25144,6 +25194,9 @@ fn plan_io(definition: &FunctionDefinition) -> (Vec<String>, Vec<String>) {
         FunctionRuntime::HostPlan(HandlerPlan::SearchQuery(plan)) => {
             (vec![plan.table.clone()], Vec::new())
         }
+        FunctionRuntime::HostPlan(HandlerPlan::VectorQuery(plan)) => {
+            (vec![plan.table.clone()], Vec::new())
+        }
         FunctionRuntime::HostPlan(HandlerPlan::JobStatusQuery(_)) => {
             (vec![crate::jobs::JOBS_STATUS_TABLE.to_owned()], Vec::new())
         }
@@ -26061,6 +26114,7 @@ mod tests {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 search_live_limits: None,
                 membership: Some(MembershipManifest {
                     id: None,
@@ -26121,6 +26175,7 @@ mod tests {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
@@ -26151,6 +26206,7 @@ mod tests {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
             search_live_limits: None,
             membership: Some(MembershipManifest {
                 id: Some("event_members".to_owned()),
@@ -26259,6 +26315,7 @@ mod tests {
                 ],
                 indexes: Vec::new(),
                 search_indexes: vec![search],
+                vector_indexes: Vec::new(),
                 search_live_limits: None,
                 syncable: false,
                 permission_backing: false,
@@ -26328,6 +26385,7 @@ mod tests {
                 }],
                 indexes: Vec::new(),
                 search_indexes: vec![search],
+                vector_indexes: Vec::new(),
                 search_live_limits: None,
                 syncable: false,
                 permission_backing: false,
@@ -27658,6 +27716,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: sharing,
@@ -28270,6 +28329,7 @@ globalThis.__snapbackHandlers = {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
@@ -29091,6 +29151,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
@@ -29107,6 +29168,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
@@ -29137,6 +29199,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     search_live_limits: None,
                     membership: Some(crate::manifest::MembershipManifest {
                         id: Some("channelSeats".to_owned()),
@@ -30615,6 +30678,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
@@ -32772,6 +32836,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: true,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
@@ -32844,6 +32909,7 @@ globalThis.__snapbackHandlers = {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
@@ -33303,6 +33369,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
@@ -33569,6 +33636,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
@@ -33790,6 +33858,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
@@ -35284,6 +35353,7 @@ globalThis.__snapbackHandlers = {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
@@ -35765,6 +35835,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
@@ -35785,6 +35856,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
@@ -35915,6 +35987,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
@@ -35935,6 +36008,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
@@ -35995,6 +36069,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
@@ -36015,6 +36090,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
@@ -36283,6 +36359,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
@@ -36303,6 +36380,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
@@ -36451,6 +36529,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
@@ -36471,6 +36550,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
@@ -36685,6 +36765,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
@@ -37843,6 +37924,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
@@ -38629,6 +38711,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
@@ -38702,6 +38785,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     search_live_limits: None,
                     membership: Some(MembershipManifest {
                         id: Some("roomSeats".to_owned()),
@@ -39627,6 +39711,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
@@ -40005,6 +40090,7 @@ globalThis.__snapbackHandlers = {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
@@ -40431,6 +40517,7 @@ globalThis.__snapbackHandlers = {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
@@ -40448,6 +40535,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
@@ -41263,6 +41351,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
@@ -41286,6 +41375,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: true,
                     permission_fields: Some(vec!["ownerId".to_owned()]),
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
@@ -42252,6 +42342,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
@@ -42557,6 +42648,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: true,
                     permission_fields: Some(vec!["gameId".to_owned()]),
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
@@ -42880,6 +42972,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
@@ -43968,6 +44061,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: true,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
@@ -44075,6 +44169,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: true,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
@@ -44304,6 +44399,7 @@ globalThis.__snapbackHandlers = {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
@@ -44337,6 +44433,7 @@ globalThis.__snapbackHandlers = {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
@@ -44369,6 +44466,7 @@ globalThis.__snapbackHandlers = {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
@@ -45344,6 +45442,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: true,
                 permission_fields: Some(vec!["ownerId".to_owned()]),
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
@@ -47167,6 +47266,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
@@ -47225,6 +47325,9 @@ globalThis.__snapbackHandlers = {
                 FieldType::Real => ResultValueContract::FiniteReal {
                     min: -f64::MAX,
                     max: f64::MAX,
+                },
+                FieldType::Vector { dimensions } => ResultValueContract::Vector {
+                    dimensions: *dimensions,
                 },
                 FieldType::Json => ResultValueContract::Json {
                     max_depth: 16,

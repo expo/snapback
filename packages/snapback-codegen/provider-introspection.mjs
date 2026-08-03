@@ -14,6 +14,14 @@ export const PROVIDER_INTROSPECTION_SCHEMA_VERSION = 'provider-introspection.v1'
 export const PROVIDER_ADAPTER_HANDSHAKE_VERSION = 'provider-adapter-handshake.v1';
 export const PROVIDER_BINDING_METADATA_SCHEMA_VERSION = 'provider-binding-metadata.v1';
 export const CONTRACT_DATA_MANIFEST_VERSION = 2;
+const VECTOR_COMPONENT_ABS_MAX = 2 ** 100;
+
+function hasExactVectorComponentBounds(descriptor) {
+  return descriptor?.shape === 'primitive'
+    && descriptor.name === 'number'
+    && descriptor.minimum === -VECTOR_COMPONENT_ABS_MAX
+    && descriptor.maximum === VECTOR_COMPONENT_ABS_MAX;
+}
 
 const QUERY_KEYS = new Set([
   'name', 'args', 'argOrder', 'reads', 'result', 'serverRunnable',
@@ -513,6 +521,12 @@ export function validateProviderResultShapeVocabulary(introspection) {
       if (!['string', 'number', 'boolean', 'unknown'].includes(descriptor.name)) {
         problems.push(`${path}.name: unmapped ${describe(descriptor.name)}`);
       }
+      if (
+        (descriptor.minimum !== undefined || descriptor.maximum !== undefined)
+        && !hasExactVectorComponentBounds(descriptor)
+      ) {
+        problems.push(`${path}: numeric bounds must equal the closed vector component domain`);
+      }
       return;
     }
     if (descriptor?.shape === 'object' && isObject(descriptor.fields)) {
@@ -531,6 +545,18 @@ export function validateProviderResultShapeVocabulary(introspection) {
       return;
     }
     if (descriptor?.shape === 'array') {
+      if (descriptor.minItems !== undefined || descriptor.maxItems !== undefined) {
+        const min = descriptor.minItems ?? 0;
+        const max = descriptor.maxItems;
+        if (!Number.isSafeInteger(min) || min < 0
+          || !Number.isSafeInteger(max) || max < min || max > 4_096
+          || (max > 1_024 && !(
+            min === max
+            && hasExactVectorComponentBounds(descriptor.items)
+          ))) {
+          problems.push(`${path}: invalid bounded array descriptor`);
+        }
+      }
       inspectType(descriptor.items, `${path}.items`);
       return;
     }
@@ -664,7 +690,10 @@ function renderDataType(descriptor, path, diagnostics) {
     return 'never';
   }
   if (descriptor?.shape === 'array') {
-    return `ReadonlyArray<${renderDataType(descriptor.items, `${path}.items`, diagnostics)}>`;
+    const array = `ReadonlyArray<${renderDataType(descriptor.items, `${path}.items`, diagnostics)}>`;
+    return descriptor.minItems !== undefined && descriptor.minItems === descriptor.maxItems
+      ? `${array} & { readonly length: ${descriptor.maxItems} }`
+      : array;
   }
   if (
     descriptor?.shape === 'union'
@@ -1164,9 +1193,21 @@ function validateDataType(descriptor, path, add) {
   if (descriptor.shape === 'unknown') {
     closedObject(descriptor, path, ['shape', 'optional'], ['shape'], add);
   } else if (descriptor.shape === 'primitive') {
-    closedObject(descriptor, path, ['shape', 'name', 'optional'], ['shape', 'name'], add);
+    closedObject(
+      descriptor,
+      path,
+      ['shape', 'name', 'minimum', 'maximum', 'optional'],
+      ['shape', 'name'],
+      add,
+    );
     if (!['string', 'number', 'boolean', 'unknown'].includes(descriptor.name)) {
       add(`${path}.name`, 'must be string, number, boolean, or unknown');
+    }
+    if (
+      (descriptor.minimum !== undefined || descriptor.maximum !== undefined)
+      && !hasExactVectorComponentBounds(descriptor)
+    ) {
+      add(path, 'numeric bounds must equal the closed vector component domain');
     }
   } else if (descriptor.shape === 'object') {
     closedObject(descriptor, path, ['shape', 'fields', 'optional'], ['shape', 'fields'], add);
@@ -1187,7 +1228,25 @@ function validateDataType(descriptor, path, add) {
       add(`${path}.value`, 'must be finite');
     }
   } else if (descriptor.shape === 'array') {
-    closedObject(descriptor, path, ['shape', 'items', 'optional'], ['shape', 'items'], add);
+    closedObject(
+      descriptor,
+      path,
+      ['shape', 'items', 'minItems', 'maxItems', 'optional'],
+      ['shape', 'items'],
+      add,
+    );
+    if (descriptor.minItems !== undefined || descriptor.maxItems !== undefined) {
+      const min = descriptor.minItems ?? 0;
+      const max = descriptor.maxItems;
+      if (!Number.isSafeInteger(min) || min < 0
+        || !Number.isSafeInteger(max) || max < min || max > 4_096
+        || (max > 1_024 && !(
+          min === max
+          && hasExactVectorComponentBounds(descriptor.items)
+        ))) {
+        add(path, 'has invalid array bounds');
+      }
+    }
     validateDataType(descriptor.items, `${path}.items`, add);
   } else if (descriptor.shape === 'union') {
     closedObject(

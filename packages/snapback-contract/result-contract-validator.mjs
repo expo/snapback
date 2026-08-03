@@ -16,6 +16,8 @@ export const RESULT_CONTRACT_LIMITS_V1 = Object.freeze({
   maxResultNodes: 65_536,
   maxSafeInteger: Number.MAX_SAFE_INTEGER,
 });
+const VECTOR_MAX_DIMENSIONS = 4_096;
+const VECTOR_COMPONENT_ABS_MAX = 2 ** 100;
 
 const utf8 = new TextEncoder();
 const own = (value, name) => Object.prototype.hasOwnProperty.call(value, name);
@@ -57,7 +59,7 @@ function primitiveKind(contract) {
   if (contract.kind === 'boolean') return 'boolean';
   if (['string', 'principal', 'assetRef', 'id'].includes(contract.kind)) return 'string';
   if (['integer', 'finiteReal'].includes(contract.kind)) return 'number';
-  if (contract.kind === 'array') return 'array';
+  if (contract.kind === 'array' || contract.kind === 'vector') return 'array';
   if (contract.kind === 'object') return 'object';
   if (contract.kind === 'literal') {
     if (contract.value === null) return 'null';
@@ -121,6 +123,7 @@ function admitValueContract(contract, depth, budget, where) {
       case 'literal': return ['kind', 'value'];
       case 'json': return ['kind', 'maxDepth', 'maxBytes'];
       case 'array': return ['kind', 'element', 'maxItems'];
+      case 'vector': return ['kind', 'dimensions'];
       case 'union': return ['kind', 'variants'];
       case 'object': return ['kind', 'fields', 'allowExtra'];
       default: throw invalid(`${where} has unsupported kind ${JSON.stringify(contract?.kind)}`);
@@ -183,6 +186,12 @@ function admitValueContract(contract, depth, budget, where) {
         max: RESULT_CONTRACT_LIMITS_V1.maxArrayItems,
       });
       admitValueContract(contract.element, depth + 1, budget, `${where}.element`);
+      break;
+    case 'vector':
+      integer(contract.dimensions, `${where}.dimensions`, {
+        min: 1,
+        max: VECTOR_MAX_DIMENSIONS,
+      });
       break;
     case 'union': {
       if (
@@ -328,6 +337,20 @@ function valuePath(contract, value, path, depth, budget) {
           budget,
         );
         if (child) return child;
+      }
+      return null;
+    case 'vector':
+      if (!Array.isArray(value) || value.length !== contract.dimensions) return path;
+      for (let index = 0; index < value.length; index += 1) {
+        const componentPath = `${path}[${index}]`;
+        const componentBudget = consume(budget, depth + 1, componentPath);
+        if (componentBudget) return componentBudget;
+        const component = value[index];
+        if (
+          typeof component !== 'number'
+          || !Number.isFinite(component)
+          || Math.abs(component) > VECTOR_COMPONENT_ABS_MAX
+        ) return path;
       }
       return null;
     case 'union':

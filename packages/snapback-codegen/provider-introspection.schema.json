@@ -125,6 +125,8 @@
           "properties": {
             "shape": { "const": "primitive" },
             "name": { "enum": ["string", "number", "boolean", "unknown"] },
+            "minimum": { "type": "number" },
+            "maximum": { "type": "number" },
             "optional": { "type": "boolean" }
           }
         },
@@ -160,6 +162,8 @@
           "properties": {
             "shape": { "const": "array" },
             "items": { "$ref": "#/$defs/dataType" },
+            "minItems": { "type": "integer", "minimum": 0, "maximum": 4096 },
+            "maxItems": { "type": "integer", "minimum": 0, "maximum": 4096 },
             "optional": { "type": "boolean" }
           }
         },

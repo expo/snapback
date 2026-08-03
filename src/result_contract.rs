@@ -135,6 +135,24 @@ fn validate_value(
             }
             Ok(())
         }
+        ResultValueContract::Vector { dimensions } => {
+            let values = value.as_array().ok_or_else(|| path.to_owned())?;
+            if values.len() != *dimensions as usize {
+                return Err(path.to_owned());
+            }
+            for (index, value) in values.iter().enumerate() {
+                consume(budget, depth + 1, &format!("{path}[{index}]"))?;
+                let Some(component) = value.as_f64() else {
+                    return Err(path.to_owned());
+                };
+                if !component.is_finite()
+                    || component.abs() > crate::vector::VECTOR_COMPONENT_ABS_MAX
+                {
+                    return Err(path.to_owned());
+                }
+            }
+            Ok(())
+        }
         ResultValueContract::Union { variants } => {
             for variant in variants {
                 let mut trial = ValidationBudget {
@@ -389,6 +407,52 @@ mod tests {
         assert!(
             validate_handler_result(&function, &json!([{"title": "one"}, {"title": "two"}]))
                 .is_err()
+        );
+    }
+
+    #[test]
+    fn exact_vector_result_admits_only_d_finite_bounded_components() {
+        let function = function(FunctionResultContract::Value {
+            value: ResultValueContract::Vector { dimensions: 3 },
+        });
+        validate_handler_result(&function, &json!([0.0, -0.0, 3.5]))
+            .expect("exact D passes");
+        for rejected in [
+            json!([0.0, 1.0]),
+            json!([0.0, 1.0, 2.0, 3.0]),
+            json!([0.0, 1.0, crate::vector::VECTOR_COMPONENT_ABS_MAX * 2.0]),
+        ] {
+            let error = validate_handler_result(&function, &rejected)
+                .expect_err("D-1, D+1, and out-of-domain components refuse");
+            assert_eq!(
+                error.diagnostic.code,
+                "SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION"
+            );
+        }
+    }
+
+    #[test]
+    fn nested_vectors_debit_every_component_from_result_node_budget() {
+        let function = function(FunctionResultContract::Records {
+            record: ResultValueContract::Object {
+                fields: vec![ResultObjectFieldContract {
+                    name: "vector".to_owned(),
+                    required: true,
+                    value: ResultValueContract::Vector { dimensions: 64 },
+                }],
+                allow_extra: false,
+            },
+            rows: Some(crate::manifest::ResultRowsBound {
+                min_items: 0,
+                max_items: 1_024,
+            }),
+        });
+        let rows = vec![json!({ "vector": vec![0.0; 64] }); 1_024];
+        let error = validate_handler_result(&function, &Value::Array(rows))
+            .expect_err("vector components must not bypass the global node budget");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION"
         );
     }
 

@@ -96,6 +96,37 @@ assert.equal(
   'the JSON root consumes the common node budget exactly once',
 );
 
+const exactVector = compileResultContractValidator({
+  kind: 'value',
+  value: { kind: 'vector', dimensions: 3 },
+});
+assert.equal(exactVector.validate([0, -0, 3.5]).ok, true);
+assert.equal(exactVector.validate([0, 1]).ok, false);
+assert.equal(exactVector.validate([0, 1, 2, 3]).ok, false);
+assert.equal(exactVector.validate([0, 1, 2 ** 101]).ok, false);
+
+const nestedVectors = compileResultContractValidator({
+  kind: 'records',
+  rows: { minItems: 0, maxItems: 1_024 },
+  record: {
+    kind: 'object',
+    allowExtra: false,
+    fields: [{
+      name: 'vector',
+      required: true,
+      value: { kind: 'vector', dimensions: 64 },
+    }],
+  },
+});
+assert.equal(
+  nestedVectors.validate(Array.from(
+    { length: 1_024 },
+    () => ({ vector: Array.from({ length: 64 }, () => 0) }),
+  )).ok,
+  false,
+  'vector components debit the shared result-node budget',
+);
+
 for (const malformed of [
   {
     kind: 'value',
@@ -119,6 +150,14 @@ for (const malformed of [
   {
     kind: 'value',
     value: { kind: 'array', items: { kind: 'boolean' }, maxItems: 1 },
+  },
+  {
+    kind: 'value',
+    value: { kind: 'vector', dimensions: 0 },
+  },
+  {
+    kind: 'value',
+    value: { kind: 'vector', dimensions: 4_097 },
   },
   {
     kind: 'value',

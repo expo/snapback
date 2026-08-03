@@ -66,6 +66,32 @@ import { computeEffectCeiling } from './effect-ceiling.mjs';
   assert.deepEqual(ceiling.authorizationInputs, ['authUserId']);
 }
 
+// Vector search is a distinct read class over one exact index; the static
+// carrier does not imply an executor or storage implementation.
+{
+  const plan = {
+    table: 'documents',
+    index: 'by_embedding',
+    distanceProfile: 'snapback-vector-distance-v1',
+    resultProjection: 'vector-page-v1',
+    requiredCapability: 'vector_search_v1',
+  };
+  const ceiling = computeEffectCeiling({
+    name: 'nearest',
+    runtime: { HostPlan: { VectorQuery: plan } },
+  });
+  assert.deepEqual(ceiling.reads, [{
+    table: 'documents', access: 'vector', index: 'by_embedding',
+  }]);
+  assert.throws(
+    () => computeEffectCeiling({
+      name: 'forged',
+      runtime: { HostPlan: { VectorQuery: { ...plan, cursor: 'forbidden' } } },
+    }),
+    /unknown vector-query plan shape/u,
+  );
+}
+
 // Default-deny: an unknown step, expression, or plan field aborts rather
 // than being skipped — a vocabulary extension cannot escape the ceiling.
 {

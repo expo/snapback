@@ -77,7 +77,7 @@ import { arg, defineLiveQuery, defineMutation, defineQuery, patch, returnChanged
 export const zSnapshot = defineQuery({ table: 'todos', args: {} });
 export const aLive = defineLiveQuery({ table: 'todos', args: {} });
 export const editTodo = defineMutation({
-  args: { id: v.string(), title: v.string() },
+  args: { id: v.string(), title: v.string(), tags: v.array(v.string(), { maxItems: 3 }) },
   plan: patch('todos', arg('id'), { title: arg('title') }),
   returns: returnChangedCount(),
 });
@@ -214,6 +214,89 @@ entry.value.z;
         && path?.startsWith('ephemeral.cursors.'),
     ),
     'a schema-known ephemeral result must not emit a degraded-type warning',
+  );
+  const editOperation = generated.providerIntrospection.operations.mutations
+    .find(({ name }) => name === 'editTodo');
+  assert.deepEqual(
+    editOperation.arguments.fields.tags,
+    {
+      shape: 'array',
+      items: { shape: 'primitive', name: 'string' },
+    },
+    'ordinary arrays retain their pre-vector provider bytes (no item bounds)',
+  );
+
+  const vectorNumber = {
+    shape: 'primitive',
+    name: 'number',
+    minimum: -(2 ** 100),
+    maximum: 2 ** 100,
+  };
+  const vectorDescriptor = {
+    shape: 'array',
+    items: vectorNumber,
+    minItems: 4_096,
+    maxItems: 4_096,
+  };
+  const vectorIntrospection = createSnapbackProviderIntrospection({
+    artifactVersion: generated.contractManifest.schemaVersion,
+    inputsHash: generated.contractManifest.inputsHash,
+    schemaHash: generated.contractManifest.schemaHash,
+    bundleHash: generated.contractManifest.bundleHash,
+    capabilities: generated.contractManifest.capabilities,
+    receipts: generated.contractManifest.receipts,
+    queries: {
+      nearest: {
+        name: 'nearest',
+        args: { vector: vectorDescriptor },
+        argOrder: ['vector'],
+        reads: ['documents'],
+        result: {
+          kind: 'list',
+          minItems: 0,
+          maxItems: 64,
+          row: {
+            shape: 'object',
+            fields: {
+              rowId: { shape: 'primitive', name: 'string' },
+              distance: { shape: 'primitive', name: 'number' },
+              fields: {
+                shape: 'object',
+                fields: { title: { shape: 'primitive', name: 'string' } },
+              },
+            },
+          },
+        },
+        serverRunnable: true,
+        localRunnable: false,
+        mode: 'snapshot',
+      },
+    },
+    mutations: {},
+    ephemeral: {},
+  });
+  assert.deepEqual(validateProviderIntrospection(vectorIntrospection), []);
+  assert.deepEqual(
+    clone(vectorIntrospection.operations.queries[0].arguments.fields.vector),
+    vectorDescriptor,
+    'provider arguments carry exact D and the closed component domain',
+  );
+  const vectorBytes = serializeProviderIntrospection(vectorIntrospection);
+  assert.equal(
+    serializeProviderIntrospection(JSON.parse(vectorBytes)),
+    vectorBytes,
+    'the exact vector descriptor has canonical byte-stable serialization',
+  );
+  const missingDomain = clone(vectorIntrospection);
+  delete missingDomain.operations.queries[0].arguments.fields.vector.items.minimum;
+  delete missingDomain.operations.queries[0].arguments.fields.vector.items.maximum;
+  const missingDomainProblems = validateProviderIntrospection(missingDomain);
+  assert(
+    missingDomainProblems.some(
+      ({ code, problems }) => code === 'PROVIDER_INTROSPECTION_SCHEMA_INVALID'
+        && problems?.some((problem) => /invalid array bounds/u.test(problem)),
+    ),
+    `D > 1024 is reserved for the exact bounded vector descriptor: ${JSON.stringify(missingDomainProblems)}`,
   );
   const live = generated.providerIntrospection.operations.queries[0];
   assert.deepEqual(live.delivery.transports, [

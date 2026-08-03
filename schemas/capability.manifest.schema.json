@@ -979,8 +979,147 @@
           "const": "live_full_text_search_v1",
           "description": "First-page-only live search by bounded coarse re-execution. The id is\nregistered at experimental maturity but remains unsupported until the\ncomplete LLP 0136 evidence/publication train lands.",
           "type": "string"
+        },
+        {
+          "const": "vector_search_v1",
+          "description": "Static LLP 0132 vocabulary only; every target reports a GAP until an\nindependent executor/storage/evidence publication lands.",
+          "type": "string"
         }
       ]
+    },
+    "VectorSearchFactsV1": {
+      "additionalProperties": false,
+      "description": "Closed facts vocabulary for a future qualified target. Every current\ntarget leaves this block absent and reports the `vector_search_v1` GAP.",
+      "properties": {
+        "accelerator": {
+          "type": "string"
+        },
+        "capabilityId": {
+          "type": "string"
+        },
+        "corpusMax": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "corruptionPosture": {
+          "type": "string"
+        },
+        "dimensionMax": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "dimensionMin": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "distanceProfile": {
+          "type": "string"
+        },
+        "distanceProfileDigest": {
+          "type": "string"
+        },
+        "equalityFilters": {
+          "type": "boolean"
+        },
+        "equalityFiltersMax": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "kDefault": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "kMax": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maintenance": {
+          "type": "string"
+        },
+        "maturity": {
+          "type": "string"
+        },
+        "metrics": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "nonclaims": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "orderingProfile": {
+          "type": "string"
+        },
+        "pagination": {
+          "type": "string"
+        },
+        "scalarPairsMax": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "storageClass": {
+          "type": "string"
+        },
+        "storageEngines": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "storedFields": {
+          "type": "boolean"
+        },
+        "tieBreaks": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "visibilityProfiles": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "capabilityId",
+        "maturity",
+        "distanceProfile",
+        "distanceProfileDigest",
+        "orderingProfile",
+        "metrics",
+        "dimensionMin",
+        "dimensionMax",
+        "kDefault",
+        "kMax",
+        "corpusMax",
+        "scalarPairsMax",
+        "equalityFiltersMax",
+        "equalityFilters",
+        "storedFields",
+        "visibilityProfiles",
+        "maintenance",
+        "pagination",
+        "tieBreaks",
+        "storageClass",
+        "corruptionPosture",
+        "accelerator",
+        "storageEngines",
+        "nonclaims"
+      ],
+      "type": "object"
     }
   },
   "$id": "https://schemas.snapback.dev/snapback.v0/capability.manifest.schema.json",
@@ -1231,6 +1370,17 @@
     },
     "targetProfileId": {
       "type": "string"
+    },
+    "vectorSearch": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/VectorSearchFactsV1"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Closed future-target facts. Absent on every current target while the\nstructured `vector_search_v1` GAP is present."
     },
     "vmLifecycle": {
       "default": "fresh-per-invocation",

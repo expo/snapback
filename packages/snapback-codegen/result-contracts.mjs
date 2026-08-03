@@ -12,6 +12,8 @@ export const RESULT_CONTRACT_VERSION = 1;
 export const RESULT_MAX_BYTES = 4 * 1024 * 1024;
 export const RESULT_MAX_STRING_BYTES = 1024 * 1024;
 export const RESULT_MAX_ARRAY_ITEMS = 1024;
+export const VECTOR_MAX_DIMENSIONS = 4096;
+export const VECTOR_COMPONENT_ABS_MAX = 2 ** 100;
 export const RESULT_MAX_DEPTH = 16;
 export const RESULT_MAX_NODES = 65_536;
 const JS_SAFE_INTEGER = 9_007_199_254_740_991;
@@ -82,7 +84,7 @@ function primitiveKind(contract) {
   if (contract.kind === 'boolean') return 'boolean';
   if (['string', 'principal', 'assetRef', 'id'].includes(contract.kind)) return 'string';
   if (['integer', 'finiteReal'].includes(contract.kind)) return 'number';
-  if (contract.kind === 'array') return 'array';
+  if (contract.kind === 'array' || contract.kind === 'vector') return 'array';
   if (contract.kind === 'object') return 'object';
   if (contract.kind === 'literal') {
     if (contract.value === null) return 'null';
@@ -170,6 +172,12 @@ function validateEffectiveResultContract(contract) {
         invalidResultContract('array maxItems exceeds 1,024');
       }
       visit(value.element, depth + 1);
+    } else if (value.kind === 'vector') {
+      if (!Number.isSafeInteger(value.dimensions)
+        || value.dimensions < 1
+        || value.dimensions > VECTOR_MAX_DIMENSIONS) {
+        invalidResultContract('vector dimensions must be in 1..=4,096');
+      }
     } else if (value.kind === 'union') {
       if (value.variants.length < 2 || value.variants.length > 8) {
         invalidResultContract('union must contain 2–8 variants');
@@ -265,6 +273,8 @@ export function validatorResultValue(validator, {
       throw new TypeError(`unsupported app schema reference ${JSON.stringify(reference?.table)}`);
     }
     value = tableDocumentValue(reference.table, tables);
+  } else if (validator.resultKind === 'vector') {
+    value = scalar('vector', { dimensions: validator.dimensions });
   } else if (validator.resultKind === 'null') value = scalar('null');
   else if (validator.resultKind === 'literal') {
     value = scalar('literal', { value: validator.literal });
@@ -304,6 +314,9 @@ export function validatorResultValue(validator, {
         max: options.max ?? Number.MAX_VALUE,
       });
     } else if (fieldType === 'Principal') value = scalar('principal');
+    else if (fieldType && typeof fieldType === 'object' && fieldType.Vector) {
+      value = scalar('vector', { dimensions: fieldType.Vector.dimensions });
+    }
     else if (fieldType && typeof fieldType === 'object' && fieldType.AssetRef) {
       if (args) {
         throw new TypeError('v.assetRef() is a stored/result validator, not an argument validator');
@@ -494,6 +507,44 @@ function searchRowsValue(runtime, tables) {
   };
 }
 
+// @ref LLP 0132#query-surface — rows inside QueryOutput are exactly the
+// item carrier. The source vector is categorically excluded from storedFields.
+function vectorRowsValue(runtime, tables) {
+  const plan = runtime?.HostPlan?.VectorQuery;
+  if (!plan) return null;
+  const table = tables[plan.table];
+  if (!table) throw new TypeError(`vector result contract references unknown table ${plan.table}`);
+  const index = (table.vectorIndexes ?? []).find(({ name }) => name === plan.index);
+  if (!index) throw new TypeError(`vector result contract references unknown index ${plan.table}.${plan.index}`);
+  const sourceFields = new Map((table.fields ?? []).map((field) => [field.name, field]));
+  const storedFields = (index.storedFields ?? []).map((name) => {
+    const field = sourceFields.get(name);
+    if (!field) throw new TypeError(`vector result contract references unknown stored field ${plan.table}.${name}`);
+    if (field.field_type?.Vector) throw new TypeError('vector storedFields must not expose source vectors');
+    return { name, required: true, value: tableFieldValue(field) };
+  });
+  return {
+    kind: 'records',
+    rows: { minItems: 0, maxItems: 64 },
+    record: scalar('object', {
+      allowExtra: false,
+      fields: [
+        { name: 'rowId', required: true, value: scalar('id', { table: plan.table }) },
+        {
+          name: 'distance',
+          required: true,
+          value: scalar('finiteReal', { min: -Number.MAX_VALUE, max: Number.MAX_VALUE }),
+        },
+        {
+          name: 'fields',
+          required: true,
+          value: scalar('object', { fields: storedFields, allowExtra: false }),
+        },
+      ],
+    }),
+  };
+}
+
 function authoredContract(spec, tables) {
   if (!spec) return null;
   if (spec.kind === 'documents') {
@@ -646,6 +697,9 @@ export function effectiveResultContract({
   ) {
     return validateEffectiveResultContract(searchRowsValue(runtime, tables));
   }
+  if (functionKind === 'Query' && runtime?.HostPlan?.VectorQuery) {
+    return validateEffectiveResultContract(vectorRowsValue(runtime, tables));
+  }
   if (
     (functionKind === 'Query' || functionKind === 'LiveQuery')
     && runtime?.HostPlan?.JobStatusQuery
@@ -689,6 +743,16 @@ export function searchPageResultType(contract) {
   return `SearchPageV1<${resultValueType(fields)}, ${resultValueType(rowId)}>`;
 }
 
+export function vectorPageResultType(contract) {
+  if (contract?.kind !== 'records' || contract.record?.kind !== 'object') {
+    return 'VectorPageV1';
+  }
+  const fields = contract.record.fields.find(({ name }) => name === 'fields')?.value;
+  const rowId = contract.record.fields.find(({ name }) => name === 'rowId')?.value;
+  if (fields?.kind !== 'object' || rowId === undefined) return 'VectorPageV1';
+  return `VectorPageV1<${resultValueType(fields)}, ${resultValueType(rowId)}>`;
+}
+
 function resultValueType(value) {
   if (value.kind === 'null') return 'null';
   if (value.kind === 'boolean') return 'boolean';
@@ -698,6 +762,9 @@ function resultValueType(value) {
   if (value.kind === 'literal') return JSON.stringify(value.value);
   if (value.kind === 'json') return 'unknown';
   if (value.kind === 'array') return `ReadonlyArray<${resultValueType(value.element)}>`;
+  if (value.kind === 'vector') {
+    return `ReadonlyArray<number> & { readonly length: ${value.dimensions} }`;
+  }
   if (value.kind === 'union') return value.variants.map(resultValueType).join(' | ');
   if (value.kind === 'object') {
     return `{ ${value.fields.map((field) => (

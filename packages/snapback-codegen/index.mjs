@@ -89,6 +89,8 @@ import {
   resultContractHash,
   resultContractType,
   searchPageResultType,
+  VECTOR_COMPONENT_ABS_MAX,
+  vectorPageResultType,
   validatorResultValue,
 } from './result-contracts.mjs';
 import {
@@ -194,6 +196,7 @@ const TARGET_CAPABILITY_IDS = new Set([
   'versioned_seed_install_v1',
   'versioned_seed_reset_v1',
   'write_activity_v1',
+  'vector_search_v1',
 ]);
 // @ref LLP 0058#capability-maturity — mirror of the Rust registry's
 // non-stable maturity table (src/manifest.rs TargetCapabilityId::maturity).
@@ -224,6 +227,7 @@ const EXPERIMENTAL_TARGET_CAPABILITY_IDS = new Set([
   'versioned_seed_install_v1',
   'versioned_seed_reset_v1',
   'write_activity_v1',
+  'vector_search_v1',
 ]);
 
 export function experimentalTargetCapabilityIdsCanonicalJson() {
@@ -935,6 +939,54 @@ export async function generateInProcess(backendDir, options = {}) {
       }
       searchIndexes.push(search);
     }
+    const vectorIndexes = [];
+    for (const vector of table.vectorIndexes ?? []) {
+      const fail = (message, details = {}) => err(
+        'SNAPBACK_VECTOR_INDEX_INVALID',
+        'vector',
+        `vector index ${name}.${vector.name}: ${message}`,
+        { table: name, index: vector.name, ...details },
+      );
+      if (!IDENT.test(vector.name) || vector.name.startsWith('_snapback') || isAuthReservedIdentifier(vector.name)) fail('has an invalid identifier');
+      if (seenIndexes.has(vector.name)) fail('duplicates an index name');
+      seenIndexes.add(vector.name);
+      const source = table.fields[vector.vectorField];
+      const dimensions = source?.fieldType?.Vector?.dimensions;
+      if (!source || source.optional || dimensions !== vector.dimensions) fail('vectorField must name a required matching v.vector(D)', { field: vector.vectorField });
+      if (!['l2sq', 'dot'].includes(vector.metric)) fail('metric must be l2sq or dot');
+      if (vector.distanceProfile !== 'snapback-vector-distance-v1' || vector.orderingProfile !== 'nearest-first-row-id.v1') fail('profile ids do not match vector-search-v1');
+      if (!Number.isSafeInteger(vector.maxIndexedVectorsPerPartition) || vector.maxIndexedVectorsPerPartition < 1 || vector.maxIndexedVectorsPerPartition > 65_536) fail('corpus bound must be 1..65536');
+      const product = vector.dimensions * vector.maxIndexedVectorsPerPartition;
+      if (!Number.isSafeInteger(product) || product > 2 ** 26 || vector.maxScalarPairs !== product) fail('maxScalarPairs must equal dimensions × corpus and remain <= 2^26');
+      if (vector.maintenanceLimits?.vectorMaintenanceEffects !== 1_024 || vector.maintenanceLimits?.vectorBytes !== 4 * 1024 * 1024 || Object.keys(vector.maintenanceLimits ?? {}).length !== 2) fail('maintenanceLimits must equal the fixed mutation-global v1 ceiling');
+      if ((vector.equalityFilters ?? []).length > 8) fail('admits at most eight equality filters');
+      for (const field of [...(vector.equalityFilters ?? []), ...(vector.storedFields ?? [])]) {
+        if (!table.fields[field]) fail(`references unknown field ${field}`, { field });
+      }
+      for (const field of vector.equalityFilters ?? []) {
+        if (!['String', 'Boolean', 'Integer', 'Real'].includes(table.fields[field]?.fieldType)) fail(`equality filter ${field} has a non-portable scalar type`, { field });
+      }
+      for (const field of vector.storedFields ?? []) {
+        if (table.fields[field]?.fieldType?.Vector) fail(`storedFields must not expose vector field ${field}`, { field });
+      }
+      if (vector.visibility?.kind === 'owner') {
+        const owner = table.fields[vector.visibility.field];
+        if (!owner || owner.optional || !['String', 'Principal'].includes(owner.fieldType)) fail('owner visibility requires a required string/principal field', { field: vector.visibility.field });
+      } else if (vector.visibility?.kind !== 'public-read') fail('visibility must be public-read or owner');
+      const participating = new Set([
+        vector.vectorField,
+        ...(vector.equalityFilters ?? []),
+        ...(vector.storedFields ?? []),
+        ...(vector.visibility?.kind === 'owner' ? [vector.visibility.field] : []),
+      ]);
+      const classifications = vector.fieldClassifications ?? {};
+      if (JSON.stringify([...participating].sort()) !== JSON.stringify(Object.keys(classifications).sort())) fail('classifications must name exactly every participating field');
+      for (const [field, classification] of Object.entries(classifications)) {
+        if (!SEARCH_FIELD_CLASSIFICATIONS.has(classification) || classification === 'sensitive' || classification === 'forbidden') fail(`field ${field} has refused classification ${classification}`, { field });
+        if (vector.visibility?.kind === 'public-read' && classification !== 'public') fail(`public-read field ${field} must be public`, { field });
+      }
+      vectorIndexes.push(vector);
+    }
     if (table.searchLiveLimitsDeclaration !== undefined && searchIndexes.length === 0) {
       err(
         'SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID',
@@ -1177,6 +1229,7 @@ export async function generateInProcess(backendDir, options = {}) {
       fields,
       indexes,
       ...(searchIndexes.length > 0 ? { searchIndexes } : {}),
+      ...(vectorIndexes.length > 0 ? { vectorIndexes } : {}),
       ...(table.searchLiveLimitsDeclaration !== undefined
         ? { searchLiveLimits: { ...table.searchLiveLimitsDeclaration } }
         : {}),
@@ -1202,6 +1255,15 @@ export async function generateInProcess(backendDir, options = {}) {
     && !schemaRequiredCapabilities.includes('live_full_text_search_v1')
   ) {
     schemaRequiredCapabilities.push('live_full_text_search_v1');
+  }
+  if (
+    Object.values(tables).some((table) => (
+      (table.vectorIndexes?.length ?? 0) > 0
+      || table.fields.some((field) => field.field_type?.Vector)
+    ))
+    && !schemaRequiredCapabilities.includes('vector_search_v1')
+  ) {
+    schemaRequiredCapabilities.push('vector_search_v1');
   }
   // SQLite index names are database-global and the physical spelling joins
   // table/index with `_`. Reserve the two declaration-derived membership
@@ -1646,6 +1708,54 @@ export async function generateInProcess(backendDir, options = {}) {
         serverRunnable: true,
         localRunnable: false,
         ...contractQueryLivenessFields(def),
+      };
+    } else if (def.__kind === 'Query' && def.vectorPlan) {
+      const plan = def.vectorPlan;
+      const runtime = { HostPlan: { VectorQuery: plan } };
+      const table = tables[plan.table];
+      const vectorIndex = (table?.vectorIndexes ?? []).find((candidate) => candidate.name === plan.index);
+      if (!table) {
+        err('FUNCTION_UNKNOWN_TABLE', 'function', `${name}: vector query references unknown table ${plan.table}`, { function: name, table: plan.table });
+      } else if (!vectorIndex) {
+        err('SNAPBACK_VECTOR_INDEX_UNAVAILABLE', 'vector', `${name}: vector query references unknown index ${plan.table}.${plan.index}`, { function: name, table: plan.table, index: plan.index });
+      }
+      if (
+        Object.keys(plan).sort().join(',') !== 'distanceProfile,index,requiredCapability,resultProjection,table'
+        || plan.distanceProfile !== 'snapback-vector-distance-v1'
+        || plan.resultProjection !== 'vector-page-v1'
+        || plan.requiredCapability !== 'vector_search_v1'
+      ) {
+        err('SNAPBACK_VECTOR_QUERY_PLAN_INVALID', 'vector', `${name}: vector plan must carry the exact v1 profile ids`, { function: name });
+      }
+      functions.push({
+        name,
+        kind: 'Query',
+        ...authoredFunctionManifestFields(def),
+        runtime,
+        declaredReads: [plan.table],
+        declaredWrites: [],
+        authScopeField: null,
+        authorizationDependence: vectorIndex?.visibility?.kind === 'owner' ? ['userId'] : [],
+        syncabilityClass: 'online-only',
+      });
+      contractQueries[name] = {
+        name,
+        args: argDescriptors(def.args),
+        argOrder: Object.keys(def.args),
+        reads: [plan.table],
+        // Keep the Contract binding exact even before the common result-
+        // contract pass below reassigns this field. In particular, stored
+        // fields retain their schema-derived scalar/null shapes and the
+        // source vector never degrades to `unknown` or leaks into the row.
+        // @ref LLP 0132#query-surface
+        result: providerResultDescriptor(effectiveResultContract({
+          def,
+          functionKind: 'Query',
+          runtime,
+          tables,
+        })),
+        serverRunnable: true,
+        localRunnable: false,
       };
     } else if ((def.__kind === 'Query' || def.__kind === 'LiveQuery') && def.boundedChildrenPlan) {
       const plan = def.boundedChildrenPlan;
@@ -4231,6 +4341,22 @@ function validateAuthoringValidator(val, where, report, seen = new Set(), positi
     report(`${where} contains a cyclic validator shape`);
     return false;
   }
+  if (val.resultKind === 'vector') {
+    const dimensions = val.fieldType?.Vector?.dimensions;
+    if (
+      val.primitive !== 'vector'
+      || dimensions !== val.dimensions
+      || !Number.isSafeInteger(dimensions)
+      || dimensions < 1
+      || dimensions > 4_096
+      || Object.keys(val.fieldType ?? {}).length !== 1
+      || Object.keys(val.fieldType?.Vector ?? {}).length !== 1
+    ) {
+      report(`${where} vector validator must carry one exact dimension in 1..4096`);
+      return false;
+    }
+    return typeof val.optional === 'boolean';
+  }
   const argument = position === 'argument';
   if (argument) {
     const recurse = (children) => {
@@ -4342,8 +4468,23 @@ function validatorDescriptor(val) {
     descriptor = { shape: 'literal', value: null };
   } else if (val.resultKind === 'literal') {
     descriptor = { shape: 'literal', value: val.literal };
+  } else if (val.resultKind === 'vector') {
+    descriptor = {
+      shape: 'array',
+      items: {
+        shape: 'primitive',
+        name: 'number',
+        minimum: -VECTOR_COMPONENT_ABS_MAX,
+        maximum: VECTOR_COMPONENT_ABS_MAX,
+      },
+      minItems: val.dimensions,
+      maxItems: val.dimensions,
+    };
   } else if (val.resultKind === 'array') {
-    descriptor = { shape: 'array', items: validatorDescriptor(val.element) };
+    descriptor = {
+      shape: 'array',
+      items: validatorDescriptor(val.element),
+    };
   } else if (val.resultKind === 'union') {
     descriptor = { shape: 'union', variants: (val.variants ?? []).map(validatorDescriptor) };
   } else if (val.primitive === 'object') {
@@ -4359,7 +4500,7 @@ function validatorDescriptor(val) {
 // function definition. They are projected from the exact validator objects
 // that also feed generated API types, so consumers never have to re-author an
 // app function's request shape (ENG-24556).
-function renderOperationSchemas(appId, functions, functionsModule) {
+export function renderOperationSchemas(appId, functions, functionsModule) {
   return functions.map((fn) => ({
     file: `${fn.name}.args.schema.json`,
     value: {
@@ -4395,6 +4536,14 @@ function jsonSchemaForValidator(validator) {
   }
   if (validator.resultKind === 'null') return { type: 'null' };
   if (validator.resultKind === 'literal') return { const: validator.literal };
+  if (validator.resultKind === 'vector') {
+    return {
+      type: 'array',
+      items: { type: 'number', minimum: -(2 ** 100), maximum: 2 ** 100 },
+      minItems: validator.dimensions,
+      maxItems: validator.dimensions,
+    };
+  }
   if (validator.resultKind === 'array') {
     const maxItems = validator.resultOptions?.maxItems;
     return {
@@ -4653,6 +4802,19 @@ function providerResultDescriptor(contract) {
     if (entry.kind === 'array') {
       return { shape: 'array', items: value(entry.element) };
     }
+    if (entry.kind === 'vector') {
+      return {
+        shape: 'array',
+        items: {
+          shape: 'primitive',
+          name: 'number',
+          minimum: -VECTOR_COMPONENT_ABS_MAX,
+          maximum: VECTOR_COMPONENT_ABS_MAX,
+        },
+        minItems: entry.dimensions,
+        maxItems: entry.dimensions,
+      };
+    }
     if (entry.kind === 'union') {
       return { shape: 'union', variants: entry.variants.map(value) };
     }
@@ -4688,6 +4850,22 @@ function rowDescriptor(table) {
     _updatedAt: { shape: 'primitive', name: 'number' },
   });
   for (const f of table.fields) {
+    if (f.field_type?.Vector) {
+      const descriptor = {
+        shape: 'array',
+        items: {
+          shape: 'primitive',
+          name: 'number',
+          minimum: -VECTOR_COMPONENT_ABS_MAX,
+          maximum: VECTOR_COMPONENT_ABS_MAX,
+        },
+        minItems: f.field_type.Vector.dimensions,
+        maxItems: f.field_type.Vector.dimensions,
+      };
+      if (f.optional) descriptor.optional = true;
+      fields[f.name] = descriptor;
+      continue;
+    }
     const prim = f.field_type === 'Principal'
       || idFieldTypeTable(f.field_type) !== null
       || (f.field_type && typeof f.field_type === 'object' && f.field_type.RelationIncarnation)
@@ -4708,6 +4886,20 @@ function relationalRowDescriptor(plan, tables) {
   const primOf = (tableName, fieldName) => {
     const field = (tables[tableName]?.fields ?? []).find((f) => f.name === fieldName);
     if (!field) return { shape: 'unknown' };
+    if (field.field_type?.Vector) {
+      return {
+        shape: 'array',
+        items: {
+          shape: 'primitive',
+          name: 'number',
+          minimum: -VECTOR_COMPONENT_ABS_MAX,
+          maximum: VECTOR_COMPONENT_ABS_MAX,
+        },
+        minItems: field.field_type.Vector.dimensions,
+        maxItems: field.field_type.Vector.dimensions,
+        ...(field.optional ? { optional: true } : {}),
+      };
+    }
     const prim = field.field_type === 'Principal' || idFieldTypeTable(field.field_type) !== null
       ? 'string'
       : { String: 'string', Boolean: 'boolean', Integer: 'number', Real: 'number' }[field.field_type];
@@ -5461,6 +5653,9 @@ function requiredCapabilities(fn) {
           ...contractCapabilities,
         ]
       : [runtimeCapability, 'full_text_search_v1', ...contractCapabilities];
+  }
+  if (fn.runtime?.HostPlan?.VectorQuery) {
+    return [runtimeCapability, 'vector_search_v1', ...contractCapabilities];
   }
   // @ref LLP 0070#non-goals-and-claim-boundary — the jobs surface is an
   // experimental registry id while LLP 0070 is Draft; requiring it forces the
@@ -7552,6 +7747,9 @@ function renderApiTypes(
   const hasSearchFunction = functions.some(
     (fn) => fn.runtime?.HostPlan?.SearchQuery !== undefined,
   );
+  const hasVectorFunction = functions.some(
+    (fn) => fn.runtime?.HostPlan?.VectorQuery !== undefined,
+  );
   const schemaTables = Object.entries(schemaDef.tables ?? {});
   const membershipTableNames = new Set(
     schemaTables
@@ -7591,6 +7789,9 @@ function renderApiTypes(
     ...(hasSearchFunction
       ? ["import type { SearchPageV1 as ClientSearchPageV1 } from '@expo/snapback-client';"]
       : []),
+    ...(hasVectorFunction
+      ? ["import type { VectorPageV1 as ClientVectorPageV1 } from '@expo/snapback-client';"]
+      : []),
     "export type SchemaVersion = 'snapback.v0';",
     "export type Principal = string & { readonly __snapbackPrincipal: unique symbol };",
     "export type Id<Table extends string> = string & { readonly __snapbackIdTable: Table };",
@@ -7609,6 +7810,10 @@ function renderApiTypes(
     hasSearchFunction
       ? 'export type SearchPageV1<Fields extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>, RowId extends string = string> = ClientSearchPageV1<Fields, RowId>;'
       : 'export interface SearchPageV1<Fields extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>, RowId extends string = string> { items: readonly SearchItemV1<Fields, RowId>[]; cursor: string | null; hasMore: boolean }',
+    'export interface VectorItemV1<Fields extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>, RowId extends string = string> { rowId: RowId; distance: number; fields: Fields }',
+    hasVectorFunction
+      ? 'export type VectorPageV1<Fields extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>, RowId extends string = string> = ClientVectorPageV1<Fields, RowId>;'
+      : 'export interface VectorPageV1<Fields extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>, RowId extends string = string> { items: readonly VectorItemV1<Fields, RowId>[] }',
     "export type EphemeralKeyMode = 'Connection' | 'Session' | 'User' | 'Custom';",
     'export interface FunctionReference<Name extends string, Kind extends FunctionKind, Args, Result = unknown> {',
     "  artifactKind: 'functionReference';",
@@ -7921,12 +8126,15 @@ function renderApiTypes(
   for (const fn of functions) {
     const def = functionsModule[fn.name];
     const search = fn.runtime?.HostPlan?.SearchQuery;
+    const vector = fn.runtime?.HostPlan?.VectorQuery;
     const result = search
       ? searchPageResultType(fn.resultContract)
-      : resultContractType(
-        fn.resultContract ?? { kind: 'unknown' },
-        (table) => `GeneratedDataModel[${JSON.stringify(table)}]`,
-      );
+      : vector
+        ? vectorPageResultType(fn.resultContract)
+        : resultContractType(
+          fn.resultContract ?? { kind: 'unknown' },
+          (table) => `GeneratedDataModel[${JSON.stringify(table)}]`,
+        );
     const args = search
       ? search.resourceArg === undefined
         ? fn.kind === 'LiveQuery'
@@ -8302,7 +8510,10 @@ function contractShapeType(descriptor) {
   if (descriptor.shape === 'literal') return JSON.stringify(descriptor.value);
   if (descriptor.shape === 'array') {
     const item = contractShapeType(descriptor.items);
-    return descriptor.items?.shape === 'union' ? `(${item})[]` : `${item}[]`;
+    const array = descriptor.items?.shape === 'union' ? `(${item})[]` : `${item}[]`;
+    return descriptor.minItems !== undefined && descriptor.minItems === descriptor.maxItems
+      ? `${array} & { readonly length: ${descriptor.maxItems} }`
+      : array;
   }
   if (descriptor.shape === 'union') {
     return descriptor.variants.map(contractShapeType).join(' | ');
@@ -8354,6 +8565,9 @@ function typeForGeneratedValidator(val) {
     type = 'SearchQueryAstV1';
   } else if (val.resultKind === 'null') type = 'null';
   else if (val.resultKind === 'literal') type = JSON.stringify(val.literal);
+  else if (val.resultKind === 'vector') {
+    type = `ReadonlyArray<number> & { readonly length: ${val.dimensions} }`;
+  }
   else if (val.resultKind === 'array') {
     const element = typeForGeneratedValidator(val.element).replace(/ \| undefined$/, '');
     type = `ReadonlyArray<${element}>`;
@@ -8390,6 +8604,9 @@ function typeForValidator(val) {
     type = searchAstEmission().queryTypeInline;
   } else if (val.resultKind === 'null') type = 'null';
   else if (val.resultKind === 'literal') type = JSON.stringify(val.literal);
+  else if (val.resultKind === 'vector') {
+    type = `ReadonlyArray<number> & { readonly length: ${val.dimensions} }`;
+  }
   else if (val.resultKind === 'array') {
     type = `ReadonlyArray<${typeForValidator(val.element).replace(/ \| undefined$/, '')}>`;
   } else if (val.resultKind === 'union') {

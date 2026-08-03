@@ -182,6 +182,7 @@ fn table(
         permission_fields: permission_fields
             .map(|fields| fields.into_iter().map(str::to_owned).collect()),
         search_indexes: Vec::new(),
+        vector_indexes: Vec::new(),
         search_live_limits: None,
         membership: None,
         asset_sharing: None,

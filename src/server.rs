@@ -23822,6 +23822,29 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_PUSH_SEND_UNAVAILABLE"
         | "SNAPBACK_PUSH_SEND_UNSUPPORTED" => StatusCode::SERVICE_UNAVAILABLE,
         "SNAPBACK_PUSH_REGISTRY_CORRUPT" => StatusCode::INTERNAL_SERVER_ERROR,
+        // @ref LLP 0132#query-surface — malformed query/value carriers and a
+        // mutation that exceeds the fixed maintenance admission ceiling are
+        // caller-fixable. Retrying the unchanged request cannot succeed.
+        "SNAPBACK_VECTOR_INDEX_INVALID"
+        | "SNAPBACK_VECTOR_QUERY_INVALID"
+        | "SNAPBACK_VECTOR_QUERY_PLAN_INVALID"
+        | "SNAPBACK_VECTOR_VALUE_INVALID"
+        | "SNAPBACK_VECTOR_MAINTENANCE_LIMIT" => StatusCode::BAD_REQUEST,
+        // @ref LLP 0132#index-maintenance-and-storage — a full visibility
+        // partition conflicts with current durable state. Retry only after
+        // that state changes, never as an automatic unchanged-request retry.
+        "SNAPBACK_VECTOR_CORPUS_BOUND" => StatusCode::CONFLICT,
+        // @ref LLP 0132#query-surface — index readiness is the one transient
+        // vector serving class; retry is appropriate only after readiness
+        // changes, not as an immediate blind loop.
+        "SNAPBACK_VECTOR_INDEX_UNAVAILABLE" => StatusCode::SERVICE_UNAVAILABLE,
+        // @ref LLP 0132#index-maintenance-and-storage — corruption, failed
+        // synchronous maintenance, and a query-time work-bound breach (which
+        // the declared corpus proof should prevent) are server invariants.
+        // They remain fail-safe 500s and are not blind-client-retry classes.
+        "SNAPBACK_VECTOR_INDEX_CORRUPT"
+        | "SNAPBACK_VECTOR_MAINTENANCE_FAILED"
+        | "SNAPBACK_VECTOR_WORK_LIMIT" => StatusCode::INTERNAL_SERVER_ERROR,
         "SNAPBACK_UNKNOWN_FUNCTION" | "SNAPBACK_UNKNOWN_TABLE" | "SNAPBACK_UNKNOWN_FIELD" => {
             StatusCode::NOT_FOUND
         }
@@ -25464,6 +25487,7 @@ mod tests {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
@@ -25678,6 +25702,7 @@ mod tests {
                 permission_backing: true,
                 permission_fields: Some(vec!["roomId".to_owned(), "userId".to_owned()]),
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
@@ -26579,6 +26604,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
@@ -28921,6 +28947,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
@@ -29848,6 +29875,7 @@ globalThis.__snapbackHandlers = {
                         permission_backing: false,
                         permission_fields: None,
                         search_indexes: Vec::new(),
+                        vector_indexes: Vec::new(),
                         search_live_limits: None,
                         membership: None,
                         asset_sharing: None,
@@ -31124,6 +31152,7 @@ globalThis.__snapbackHandlers = {
                         permission_backing: false,
                         permission_fields: None,
                         search_indexes: Vec::new(),
+                        vector_indexes: Vec::new(),
                         search_live_limits: None,
                         membership: None,
                         asset_sharing: None,
@@ -38157,6 +38186,13 @@ globalThis.__snapbackHandlers = {
     const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_MUTATION_REFERENCE_INVALID",
         "SNAPBACK_ACTION_STREAM_INVALID",
+        // LLP 0132: request/value shape and pre-write maintenance admission
+        // are terminal for the unchanged request.
+        "SNAPBACK_VECTOR_INDEX_INVALID",
+        "SNAPBACK_VECTOR_QUERY_INVALID",
+        "SNAPBACK_VECTOR_QUERY_PLAN_INVALID",
+        "SNAPBACK_VECTOR_VALUE_INVALID",
+        "SNAPBACK_VECTOR_MAINTENANCE_LIMIT",
         // Buffered ctx.fetch request-shape refusals (0137 a4-f1/a5-f1).
         "SNAPBACK_HOST_FETCH_INVALID",
         "SNAPBACK_HOST_FETCH_SLOT_INVALID",
@@ -38576,6 +38612,9 @@ globalThis.__snapbackHandlers = {
     ];
 
     const CONFLICT_DIAGNOSTICS: &[&str] = &[
+        // LLP 0132: the partition is full in current durable state; a retry
+        // needs a state change rather than an automatic unchanged replay.
+        "SNAPBACK_VECTOR_CORPUS_BOUND",
         "SNAPBACK_TELEMETRY_EXPORT_CONTINUATION_STALE",
         "SNAPBACK_TELEMETRY_EXPORT_SNAPSHOT_STALE",
         "SNAPBACK_JOB_IDEMPOTENCY_KEY_RACED",
@@ -38736,6 +38775,9 @@ globalThis.__snapbackHandlers = {
     ];
 
     const SERVICE_UNAVAILABLE_DIAGNOSTICS: &[&str] = &[
+        // LLP 0132: index readiness is transient, but retry waits for the
+        // target's readiness state to change.
+        "SNAPBACK_VECTOR_INDEX_UNAVAILABLE",
         "SNAPBACK_ACTION_CAPACITY_EXCEEDED",
         "SNAPBACK_HOST_FETCH_UNSUPPORTED",
         "SNAPBACK_RELATIONAL_CURSOR_MINT_UNAVAILABLE",
@@ -38822,6 +38864,12 @@ globalThis.__snapbackHandlers = {
     // diagnostics that never normally become an `ApiError`. If one does reach
     // that boundary, the fail-safe class is still 500 rather than a false 4xx.
     const INTERNAL_SERVER_ERROR_DIAGNOSTICS: &[&str] = &[
+        // LLP 0132: these are derived-state/server invariants, including the
+        // query-time work limit that the declaration-time corpus proof should
+        // make unreachable; none is a blind-client-retry class.
+        "SNAPBACK_VECTOR_INDEX_CORRUPT",
+        "SNAPBACK_VECTOR_MAINTENANCE_FAILED",
+        "SNAPBACK_VECTOR_WORK_LIMIT",
         "SNAPBACK_BENCH_HELPER_SPLICE_MISMATCH",
         "SNAPBACK_ACTION_CONTEXT_UNAVAILABLE",
         // LLP 0062 §5 API-envelope admission refusals. These are admission-time
@@ -39256,6 +39304,51 @@ globalThis.__snapbackHandlers = {
             assert_eq!(
                 status_for_diagnostic_code(unknown),
                 StatusCode::INTERNAL_SERVER_ERROR
+            );
+        }
+    }
+
+    /// LLP 0132 vector errors distinguish unchanged-request terminal classes,
+    /// durable-state conflicts, readiness recovery, and server invariants.
+    /// The status is the public retry posture: 400/500 are not blindly
+    /// retryable, 409 waits for a corpus-state change, and 503 waits for index
+    /// readiness to change.
+    #[test]
+    fn s5_d10_vector_diagnostics_pin_http_and_retry_posture() {
+        for (code, expected_status) in [
+            ("SNAPBACK_VECTOR_INDEX_INVALID", StatusCode::BAD_REQUEST),
+            ("SNAPBACK_VECTOR_QUERY_INVALID", StatusCode::BAD_REQUEST),
+            (
+                "SNAPBACK_VECTOR_QUERY_PLAN_INVALID",
+                StatusCode::BAD_REQUEST,
+            ),
+            ("SNAPBACK_VECTOR_VALUE_INVALID", StatusCode::BAD_REQUEST),
+            (
+                "SNAPBACK_VECTOR_MAINTENANCE_LIMIT",
+                StatusCode::BAD_REQUEST,
+            ),
+            ("SNAPBACK_VECTOR_CORPUS_BOUND", StatusCode::CONFLICT),
+            (
+                "SNAPBACK_VECTOR_INDEX_UNAVAILABLE",
+                StatusCode::SERVICE_UNAVAILABLE,
+            ),
+            (
+                "SNAPBACK_VECTOR_INDEX_CORRUPT",
+                StatusCode::INTERNAL_SERVER_ERROR,
+            ),
+            (
+                "SNAPBACK_VECTOR_MAINTENANCE_FAILED",
+                StatusCode::INTERNAL_SERVER_ERROR,
+            ),
+            (
+                "SNAPBACK_VECTOR_WORK_LIMIT",
+                StatusCode::INTERNAL_SERVER_ERROR,
+            ),
+        ] {
+            assert_eq!(
+                status_for_diagnostic_code(code),
+                expected_status,
+                "{code} drifted out of its LLP 0132 HTTP/retry class"
             );
         }
     }
@@ -39917,6 +40010,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
@@ -40201,6 +40295,7 @@ globalThis.__snapbackHandlers = {
                         permission_backing: false,
                         permission_fields: None,
                         search_indexes: Vec::new(),
+                        vector_indexes: Vec::new(),
                         search_live_limits: None,
                         membership: None,
                         asset_sharing: None,

@@ -24,6 +24,7 @@ export type ResultValueContractV1 =
   | { readonly kind: 'literal'; readonly value: string | number | boolean | null }
   | { readonly kind: 'json'; readonly maxDepth: number; readonly maxBytes: number }
   | { readonly kind: 'array'; readonly element: ResultValueContractV1; readonly maxItems: number }
+  | { readonly kind: 'vector'; readonly dimensions: number }
   | { readonly kind: 'union'; readonly variants: readonly ResultValueContractV1[] }
   | {
       readonly kind: 'object';

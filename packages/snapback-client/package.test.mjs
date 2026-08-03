@@ -616,6 +616,106 @@ assert.equal(appStateListeners.size, 0);
   globalThis.fetch = async (url, init) => {
     requests.push({ url, init });
     return new Response(JSON.stringify({
+      version: 8,
+      rows: [{ rowId: 'document_1', distance: 0.25, fields: { title: 'Nearest' } }],
+      cursor: null,
+    }), { status: 200, headers: { 'content-type': 'application/json' } });
+  };
+  const vectorClient = new SnapbackClient('http://snapback.test');
+  const vectorRef = {
+    artifactKind: 'functionReference',
+    schemaVersion: 'snapback.v0',
+    appId: 'demo',
+    id: 'demo:nearestDocuments',
+    name: 'nearestDocuments',
+    kind: 'Query',
+    implementationHash: `sha256:${'4'.repeat(64)}`,
+    argsContractHash: `sha256:${'5'.repeat(64)}`,
+    resultContractHash: `sha256:${'6'.repeat(64)}`,
+    argumentSchema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        vector: {
+          type: 'array',
+          items: { type: 'number', minimum: -(2 ** 100), maximum: 2 ** 100 },
+          minItems: 3,
+          maxItems: 3,
+        },
+        filters: {
+          type: 'array',
+          maxItems: 8,
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              field: { const: 'category' },
+              op: { const: 'eq' },
+              value: {
+                anyOf: [{ type: 'string' }, { type: 'number' }, { type: 'boolean' }],
+              },
+            },
+            required: ['field', 'op', 'value'],
+          },
+        },
+      },
+      required: ['vector'],
+    },
+  };
+  try {
+    await assert.rejects(
+      vectorClient.vectorSearch(vectorRef, { vector: [1, 2] }),
+      (error) => error.code === 'SNAPBACK_VECTOR_QUERY_INVALID' && /exactly 3/u.test(error.message),
+    );
+    await assert.rejects(
+      vectorClient.vectorSearch(vectorRef, {
+        vector: [1, 2, 3],
+        filters: [{ field: 'category', op: 'eq', value: null }],
+      }),
+      (error) => error.code === 'SNAPBACK_VECTOR_QUERY_INVALID' && /closed scalar/u.test(error.message),
+    );
+    await assert.rejects(
+      vectorClient.vectorSearch(vectorRef, {
+        vector: [1, 2, 3],
+        filters: [{ field: 'undeclared', op: 'eq', value: true }],
+      }),
+      (error) => error.code === 'SNAPBACK_VECTOR_QUERY_INVALID' && /declared equality field/u.test(error.message),
+    );
+    await assert.rejects(
+      vectorClient.vectorSearch(vectorRef, {
+        vector: [1, 2, 3],
+        filters: [
+          { field: 'category', op: 'eq', value: true },
+          { field: 'category', op: 'eq', value: false },
+        ],
+      }),
+      (error) => error.code === 'SNAPBACK_VECTOR_QUERY_INVALID' && /at most once/u.test(error.message),
+    );
+    assert.equal(requests.length, 0, 'invalid vector requests refuse before I/O');
+    const page = await vectorClient.vectorSearch(vectorRef, {
+      vector: [1, -0, 3],
+      filters: [{ field: 'category', op: 'eq', value: true }],
+    });
+    assert.deepEqual(page, {
+      items: [{ rowId: 'document_1', distance: 0.25, fields: { title: 'Nearest' } }],
+    });
+    assert.equal(Object.hasOwn(page, 'cursor'), false);
+    assert.equal(Object.hasOwn(page, 'hasMore'), false);
+    assert.deepEqual(JSON.parse(requests[0].init.body).args, {
+      vector: [1, 0, 3],
+      filters: [{ field: 'category', op: 'eq', value: true }],
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
+{
+  const originalFetch = globalThis.fetch;
+  const requests = [];
+  globalThis.fetch = async (url, init) => {
+    requests.push({ url, init });
+    return new Response(JSON.stringify({
       intent: 'provision',
       schema: 'provisioned',
       functions: 'provisioned',

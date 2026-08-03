@@ -124,6 +124,7 @@ const TARGET_CAPABILITIES = new Set([
   'bounded_children_v1',
   'snapshot_batch_v1',
   'write_activity_v1',
+  'vector_search_v1',
 ]);
 const SEARCH_INDEX_SPEC_FIELDS = new Set([
   'semanticVersion', 'textFields', 'fieldClassifications', 'equalityFilters', 'storedFields',
@@ -132,6 +133,11 @@ const SEARCH_INDEX_SPEC_FIELDS = new Set([
 ]);
 const SEARCH_TEXT_FIELD_SPEC_FIELDS = new Set(['weight', 'classification']);
 const SEARCH_FIELD_CLASSIFICATIONS = new Set(['public', 'private', 'sensitive', 'forbidden']);
+const VECTOR_INDEX_SPEC_FIELDS = new Set([
+  'semanticVersion', 'vectorField', 'metric', 'fieldClassifications',
+  'equalityFilters', 'storedFields', 'visibility', 'tieBreak',
+  'maxIndexedVectorsPerPartition',
+]);
 const SEARCH_SOURCE_LIMIT_FIELDS = new Set(['maxIndexedBytes', 'maxTokens', 'maxPostingOperations']);
 const SEARCH_QUERY_LIMIT_FIELDS = new Set(['maxCandidateWork', 'maxPrefixTerms', 'minPrefixScalars']);
 const SEARCH_CURSOR_LIMIT_FIELDS = new Set(['ttlMs', 'maxBytes']);
@@ -394,6 +400,19 @@ export const v = {
     assertKnownSpecFields(options, 'v.finiteReal() options', new Set(['min', 'max']));
     return validator('Real', 'number', {
       resultOptions: { ...options },
+    });
+  },
+  /** One fixed-dimension portable binary64 vector. The dedicated contract
+   * node keeps ordinary arrays capped at 1,024 while D reaches 4,096.
+   * @ref LLP 0132#the-vvectordimensions-value */
+  vector: (dimensions) => {
+    assert(
+      Number.isSafeInteger(dimensions) && dimensions >= 1 && dimensions <= 4_096,
+      'v.vector() dimensions must be an integer in 1..4096',
+    );
+    return validator({ Vector: { dimensions } }, 'vector', {
+      resultKind: 'vector',
+      dimensions,
     });
   },
   json: (options = {}) => {
@@ -685,6 +704,7 @@ class TableBuilder {
     this.fields = fields;
     this.indexes = [];
     this.searchIndexes = [];
+    this.vectorIndexes = [];
     this.syncable = false;
   }
 
@@ -888,6 +908,92 @@ class TableBuilder {
       cursorLimits,
       maintenanceLimits,
       ...(liveLimits ? { liveLimits } : {}),
+    });
+    return this;
+  }
+
+  /** Declare one exact, synchronous vector-search-v1 index. Work and
+   * maintenance ceilings are derived/fixed facts, never author knobs.
+   * @ref LLP 0132#index-declarations */
+  vectorIndex(name, spec) {
+    assert(typeof name === 'string' && name.length > 0, 'vectorIndex() requires a name');
+    assertKnownSpecFields(spec, `vector index ${name}`, VECTOR_INDEX_SPEC_FIELDS);
+    assert(typeof spec.semanticVersion === 'string' && spec.semanticVersion.length > 0, `vector index ${name} semanticVersion is required`);
+    assert(typeof spec.vectorField === 'string' && spec.vectorField.length > 0, `vector index ${name} vectorField is required`);
+    const vector = this.fields[spec.vectorField];
+    const dimensions = vector?.fieldType?.Vector?.dimensions;
+    assert(Number.isSafeInteger(dimensions) && !vector.optional, `vector index ${name} vectorField must name a required v.vector() field`);
+    assert(spec.metric === 'l2sq' || spec.metric === 'dot', `vector index ${name} metric must be l2sq or dot`);
+    const stringSet = (value, label) => {
+      const fields = value ?? [];
+      assert(Array.isArray(fields), `vector index ${name} ${label} must be an array`);
+      assert(fields.every((field) => typeof field === 'string' && field.length > 0), `vector index ${name} ${label} must contain field names`);
+      assert(new Set(fields).size === fields.length, `vector index ${name} ${label} must not contain duplicates`);
+      return [...fields].sort();
+    };
+    const equalityFilters = stringSet(spec.equalityFilters, 'equalityFilters');
+    const storedFields = stringSet(spec.storedFields, 'storedFields');
+    assert(equalityFilters.length <= 8, `vector index ${name} admits at most eight equality filters`);
+    for (const field of storedFields) {
+      assert(!this.fields[field]?.fieldType?.Vector, `vector index ${name} storedFields must not expose vector field ${field}`);
+    }
+    const classifications = spec.fieldClassifications;
+    assert(classifications && typeof classifications === 'object' && !Array.isArray(classifications), `vector index ${name} fieldClassifications is required`);
+    for (const [field, classification] of Object.entries(classifications)) {
+      assert(typeof field === 'string' && field.length > 0 && SEARCH_FIELD_CLASSIFICATIONS.has(classification), `vector index ${name} field ${field} has unknown classification`);
+    }
+    const authoredVisibility = spec.visibility ?? { kind: 'public-read' };
+    let visibility;
+    if (authoredVisibility.kind === 'public-read') {
+      exactObject(authoredVisibility, `vector index ${name} public-read visibility`, new Set(['kind']));
+      visibility = { kind: 'public-read' };
+    } else if (authoredVisibility.kind === 'owner') {
+      exactObject(authoredVisibility, `vector index ${name} owner visibility`, new Set(['kind', 'field']));
+      assert(typeof authoredVisibility.field === 'string' && authoredVisibility.field.length > 0, `vector index ${name} owner visibility requires field`);
+      visibility = { kind: 'owner', field: authoredVisibility.field };
+    } else {
+      assert(false, `vector index ${name} visibility must be public-read or owner`);
+    }
+    const participating = new Set([
+      spec.vectorField,
+      ...equalityFilters,
+      ...storedFields,
+      ...(visibility.kind === 'owner' ? [visibility.field] : []),
+    ]);
+    assert(
+      JSON.stringify([...participating].sort()) === JSON.stringify(Object.keys(classifications).sort()),
+      `vector index ${name} fieldClassifications must name exactly every participating field`,
+    );
+    for (const [field, classification] of Object.entries(classifications)) {
+      assert(classification !== 'sensitive' && classification !== 'forbidden', `vector index ${name} cannot participate with ${classification} field ${field}`);
+      assert(visibility.kind !== 'public-read' || classification === 'public', `public vector index ${name} admits only public fields`);
+    }
+    const tieBreak = spec.tieBreak ?? 'id-asc';
+    assert(tieBreak === 'id-asc' || tieBreak === 'id-desc', `vector index ${name} tieBreak must be id-asc or id-desc`);
+    const corpus = spec.maxIndexedVectorsPerPartition;
+    assert(Number.isSafeInteger(corpus) && corpus >= 1 && corpus <= 65_536, `vector index ${name} maxIndexedVectorsPerPartition must be 1..65536`);
+    const maxScalarPairs = dimensions * corpus;
+    assert(maxScalarPairs <= 2 ** 26, `vector index ${name} dimensions × corpus exceeds 2^26 scalar pairs`);
+    this.vectorIndexes.push({
+      formatVersion: 1,
+      name,
+      semanticVersion: spec.semanticVersion,
+      vectorField: spec.vectorField,
+      dimensions,
+      metric: spec.metric,
+      distanceProfile: 'snapback-vector-distance-v1',
+      orderingProfile: 'nearest-first-row-id.v1',
+      fieldClassifications: Object.fromEntries(Object.entries(classifications).sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))),
+      equalityFilters,
+      storedFields,
+      visibility,
+      tieBreak,
+      maxIndexedVectorsPerPartition: corpus,
+      maxScalarPairs,
+      maintenanceLimits: {
+        vectorMaintenanceEffects: 1_024,
+        vectorBytes: 4 * 1024 * 1024,
+      },
     });
     return this;
   }
@@ -1271,6 +1377,7 @@ export function defineSchema(tables, options = {}) {
 
 const SEARCH_QUERY_SPEC_FIELDS = new Set(['table', 'index', 'auth', 'resourceArg']);
 const LIVE_SEARCH_QUERY_SPEC_FIELDS = new Set(['table', 'index', 'auth']);
+const VECTOR_QUERY_SPEC_FIELDS = new Set(['table', 'index', 'auth']);
 
 // @ref LLP 0131#the-argument-contract-descriptor — PlatformSchemaRef is
 // deliberately not an app-authorable spelling in v1: no `v.*` builder emits
@@ -1363,6 +1470,49 @@ export function defineSearchQuery(spec) {
       resultProjection: 'search-page-v1',
       requiredCapability: 'full_text_search_v1',
       ...(membershipVisibility ? { resourceArg: spec.resourceArg } : {}),
+    },
+  };
+}
+
+/** Define one non-live exact vector query. The transport remains the ordinary
+ * QueryOutput envelope; generated clients project its rows to `{ items }`.
+ * @ref LLP 0132#query-surface */
+export function defineVectorQuery(spec) {
+  assertKnownSpecFields(spec, 'VectorQuery', VECTOR_QUERY_SPEC_FIELDS);
+  const table = spec.table?.__table === true ? spec.table : null;
+  assert(table && typeof table.__tableName === 'string', 'defineVectorQuery table must be installed in defineSchema()');
+  assert(typeof spec.index === 'string' && spec.index.length > 0, 'defineVectorQuery index is required');
+  const index = table.vectorIndexes.find((candidate) => candidate.name === spec.index);
+  assert(index, `defineVectorQuery names unknown vector index ${table.__tableName}.${spec.index}`);
+  const auth = spec.auth ?? (index.visibility.kind === 'owner' ? 'authenticated' : 'public');
+  assert(AUTH_REQUIREMENTS.has(auth), 'VectorQuery auth must be public, optional-user, or authenticated');
+  if (index.visibility.kind === 'owner') assert(auth === 'authenticated', 'owner vector search requires authenticated auth');
+  const filterField = index.equalityFilters.length === 0
+    ? null
+    : index.equalityFilters.length === 1
+      ? v.literal(index.equalityFilters[0])
+      : v.union(index.equalityFilters.map((name) => v.literal(name)));
+  return {
+    [FN]: true,
+    __kind: 'Query',
+    auth,
+    args: {
+      vector: v.vector(index.dimensions),
+      k: v.optional(v.integer({ min: 1, max: 64 })),
+      ...(index.equalityFilters.length === 0 ? {} : {
+        filters: v.optional(v.array(v.object({
+          field: filterField,
+          op: v.literal('eq'),
+          value: v.union([v.string(), v.finiteReal(), v.boolean()]),
+        }), { maxItems: 8 })),
+      }),
+    },
+    vectorPlan: {
+      table: table.__tableName,
+      index: spec.index,
+      distanceProfile: 'snapback-vector-distance-v1',
+      resultProjection: 'vector-page-v1',
+      requiredCapability: 'vector_search_v1',
     },
   };
 }

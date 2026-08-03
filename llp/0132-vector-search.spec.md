@@ -5,7 +5,10 @@
 **Systems:** Search, Storage, Schema, Code generation, Auth, Client integration, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-08-02 (VEC-1 storage-primitives checkpoint: pinned canonical
+**Revised:** 2026-08-02 (VEC-2 static-carrier/authoring checkpoint: closed
+field, index, query, contract/provider, client, and target-facts carriers;
+registered the experimental capability vocabulary while every target remains
+support=false/GAP) 2026-08-02 (VEC-1 storage-primitives checkpoint: pinned canonical
 little-endian binary64 bytes, the admitted-vector JCS digest, mutation-global
 vector maintenance accounting, source-frontier CAS/tombstone classification,
 and the write-side maintenance diagnostic split; no storage adapter or support
@@ -559,6 +562,40 @@ Implementation sequence, copying 0073's:
    the same corpus (pgvector, if used physically, must reproduce
    `snapback-vector-distance-v1` bitwise or stay a nonclaim); and
 5. ANN and accelerators only as separate capabilities (below).
+
+### Implementation record — 2026-08-02 VEC-2 static carrier checkpoint
+
+Building on VEC-0's numeric authority and VEC-1's transaction-neutral storage
+primitives, this checkpoint lands the closed, non-claiming authoring surface:
+the dedicated `v.vector(D)` / `ResultValueContract::Vector { dimensions }`
+node on argument and result lanes; schema, index, query-plan, request, item,
+page, and future target-facts carriers; generated authoring and declarations;
+exact provider/Contract projection; and the items-only client adapter. The
+ordinary array ceiling remains 1,024 while the vector node admits exact
+dimensions 1–4,096 and finite components with absolute value at most 2^100.
+`maxScalarPairs` is derived exactly from dimension × declared corpus, and the
+mutation-global maintenance limits reuse VEC-1's fixed authority rather than
+becoming authoring knobs. Equality-filter fields are exact per operation;
+unknown, duplicate, and null-bearing filters refuse. Stored-field projection
+categorically excludes vector fields.
+
+The public diagnostic inventory is classified deliberately at the HTTP seam:
+authored index/query-plan artifacts, query/value shape, and pre-write
+maintenance admission are terminal 400s for an unchanged request; a full
+corpus partition is a state-dependent 409; index readiness is a 503 whose retry
+waits for readiness to change; and index corruption, failed synchronous
+maintenance, or a query-time work-bound breach are fail-safe 500 server
+invariants, not blind-client-retry classes.
+
+This is deliberately a staged checkpoint, not target support. The capability
+id is registered as experimental, but every target predicate remains false,
+every target publishes the structured `vector_search_v1` GAP, and the closed
+`VectorSearchFactsV1` block remains absent. SQLite can lower a direct manifest
+to the specified `BLOB` affinity without panicking, while every vector write
+still refuses with `SNAPBACK_CAPABILITY_UNSUPPORTED`. No distance executor,
+database-adapter integration, derived-index maintenance, corpus qualification,
+runtime route, local or hosted claim, guide-row flip, or LLP status change
+lands here. Those remain behind the acceptance sequence above.
 
 ## ANN successor admission
 
