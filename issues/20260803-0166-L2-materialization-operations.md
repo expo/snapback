@@ -72,5 +72,19 @@ then exposed separate pre-existing program-exit debt: the three newly public
 LLP 0166 subpaths lack the prospective additive ledger required by LLP 0145,
 and the L1/L3/L6 closure growth exceeds several immutable primary-profile
 ceilings. This repair does not weaken or rewrite those frozen baselines; the
-0166 bundle-attribution/closure reconciliation remains a distinct program
-blocker.
+0166 bundle-attribution/closure reconciliation remained a distinct program
+blocker until the measured rollover below.
+
+**Bundle-attribution resolution (2026-08-03):** LLP 0145's Phase A instrument
+now implements LLP 0063's declared prospective per-workload-version rollover.
+`baseline.local-persistent-store.v1.json` freezes the first
+`llp-0166-local-persistent-store.v1` run against committed source `dec93422c`:
+25 affected profiles, including the three new public subpaths and every
+existing primary or supplemental closure changed by the accepted one-store
+domain. The receipt SHA-binds its four complete predecessor ledgers; those
+files remain byte-identical, and every unaffected profile retains its prior
+ceiling. Node 24 metrology, browser closure, the complete client behavior suite,
+and the L1/L2/L3/L6/L7/L8 commands carried by the receipt are green. LLP 0166
+D9 records selected closure deltas and module-own attribution. The L2-owned
+browser and bundle correctness blocker is resolved; this ticket remains Open
+only under the program's existing close-with-umbrella convention.

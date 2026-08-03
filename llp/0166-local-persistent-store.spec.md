@@ -1710,6 +1710,37 @@ stores 16.5 kB, RQS file store 7.8 kB, shared canonical-value/outbox code
 rollout stays additive under LLP 0145's rule (new capability surface,
 never a narrowing of a published entry point).
 
+### 2026-08-03 measured implementation receipt
+
+`tests/fixtures/client-bundle-metrology/baseline.local-persistent-store.v1.json`
+is the first-run `llp-0166-local-persistent-store.v1` workload receipt. It
+binds committed source `dec93422c`, all three package-tree objects, the Node
+24.18.0/esbuild 0.28.1 method, profile and lock digests, and the L1/L2/L3/L6/L7/L8
+behavior commands. The receipt freezes 25 affected profiles: 17 profiles from
+the primary receipt, five root-consuming supplemental profiles, and the three
+new public subpaths. It SHA-256-binds all four predecessor ledgers and leaves
+them byte-identical; every profile outside the exact supersession lists keeps
+its historical ceiling.
+
+Selected total closures (minified / gzip / Brotli bytes) are:
+
+| Profile | Prior receipt | LLP 0166 v1 receipt | Delta |
+| --- | ---: | ---: | ---: |
+| Full public surface | 370,484 / 102,473 / 85,614 | 406,220 / 112,707 / 93,368 | +35,736 / +10,234 / +7,754 |
+| public root subpath | 370,484 / 102,476 / 85,593 | 406,220 / 112,711 / 93,420 | +35,736 / +10,235 / +7,827 |
+| public RQS-store subpath | 25,468 / 9,567 / 8,406 | 31,897 / 11,327 / 9,997 | +6,429 / +1,760 / +1,591 |
+| public default-store subpath | 36,888 / 12,270 / 10,787 | 51,213 / 15,466 / 13,614 | +14,325 / +3,196 / +2,827 |
+| React, React external | 45,331 / 14,282 / 12,508 | 46,692 / 14,688 / 12,889 | +1,361 / +406 / +381 |
+
+The three newly frozen subpaths are materialization store 65,581 / 18,798 /
+16,611, evaluation floor 918 / 538 / 459, and lease convergence 1,660 / 838 /
+701. In the public-root metafile, the named RQS-store, preload, registration,
+and answer-class modules contribute 56,729 module-own minified bytes. In the
+materialization subpath, client modules contribute 55,927 module-own bytes
+(46,554 from `materialization-store.mjs`) and the Contract result validator
+contributes 9,372. These are measured closure facts, not a new Micro claim or
+a permission to loosen the new ceilings.
+
 ## Guardrails
 
 - The sync set is the registration set for the governed families: no
