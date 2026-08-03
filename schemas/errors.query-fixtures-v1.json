@@ -3,7 +3,7 @@
     "authority": "adminSecretRead",
     "cacheControl": "no-store",
     "request": {
-      "issue": "issue_00000000000000000000000000"
+      "issue": "iss_00000000000000000000000000"
     },
     "response": {
       "exemplars": [
@@ -36,7 +36,7 @@
         "firstRelease": "release-fixture",
         "firstSeenMs": 1000,
         "firstSeenSeq": 4,
-        "issue": "issue_00000000000000000000000000",
+        "issue": "iss_00000000000000000000000000",
         "kind": "function_run",
         "lastRegressedSeq": null,
         "lastRelease": "release-fixture",
@@ -62,7 +62,7 @@
           "depth": 0,
           "flush": 0
         },
-        "exemplarStale": true,
+        "exemplarStale": false,
         "exemplarTruncated": false,
         "fieldExactness": {
           "groups": "exactVisibleRows",
@@ -110,7 +110,7 @@
           "firstRelease": "release-fixture",
           "firstSeenMs": 1000,
           "firstSeenSeq": 4,
-          "issue": "issue_00000000000000000000000000",
+          "issue": "iss_00000000000000000000000000",
           "kind": "function_run",
           "lastRegressedSeq": null,
           "lastRelease": "release-fixture",
@@ -141,7 +141,7 @@
           "depth": 0,
           "flush": 0
         },
-        "exemplarStale": true,
+        "exemplarStale": false,
         "exemplarTruncated": false,
         "fieldExactness": {
           "groups": "exactVisibleRows",
@@ -182,7 +182,7 @@
       "release": "release-fixture",
       "rows": [
         {
-          "issue": "issue_00000000000000000000000000",
+          "issue": "iss_00000000000000000000000000",
           "outcome": "applied",
           "state": "resolved",
           "stateSeq": 1
@@ -198,7 +198,7 @@
           "depth": 0,
           "flush": 0
         },
-        "exemplarStale": true,
+        "exemplarStale": false,
         "exemplarTruncated": false,
         "fieldExactness": {
           "groups": "exactVisibleRows",
@@ -228,7 +228,7 @@
     "sinceSelection": "first_seen_seq >= activated_seq OR last_regressed_seq > activated_seq",
     "singleRequest": {
       "expectSeq": 0,
-      "issue": "issue_00000000000000000000000000",
+      "issue": "iss_00000000000000000000000000",
       "to": "resolved"
     },
     "singleResponse": {
@@ -237,7 +237,7 @@
       "release": null,
       "rows": [
         {
-          "issue": "issue_00000000000000000000000000",
+          "issue": "iss_00000000000000000000000000",
           "outcome": "applied",
           "state": "resolved",
           "stateSeq": 1
@@ -253,7 +253,7 @@
           "depth": 0,
           "flush": 0
         },
-        "exemplarStale": true,
+        "exemplarStale": false,
         "exemplarTruncated": false,
         "fieldExactness": {
           "groups": "exactVisibleRows",

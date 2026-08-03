@@ -230,3 +230,19 @@ result carries no trusted `trackedRefusals` membership. Extending that hosted
 path would require a reviewed immutable tracking-authority carrier and a
 hosted observation owner; the Rust `PreparedInvocation` authority cannot be
 inferred from handler bytes.
+
+### 2026-08-03 — reviewed HTTP diagnostic classification
+
+The D-06 surface tranche closes the diagnostic-inventory blocker recorded by
+the LLP 0135 sequence lane. The eight D-05 state, rollout, barrier, and
+sequence diagnostics are reviewed as HTTP 500 server/store invariants: a
+caller cannot repair them by changing an errors request, and a retry is useful
+only after the underlying server or store fault is repaired. The same reviewed
+table classifies D-06's authored request, not-found, and serialization
+families separately, and the production diagnostic inventory gate pins exact
+coverage.
+
+This classification does not close obs-05 itself. The multiple-unhandled
+fingerprint-winner question remains author-blocked in the decision packet, and
+hosted-JS tracked-refusal disposition still lacks the immutable tracking
+authority and hosted observation owner described above.

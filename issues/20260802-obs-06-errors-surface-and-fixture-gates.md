@@ -40,3 +40,52 @@ its own deliverable block; E3 graduates to its own RFC.
 **Exit:** every checklist-6 fixture exists and passes; guide checks
 green; ref-check green; dated implementation-record amendment on LLP
 0156 when E1 completes.
+
+## Running log
+
+### 2026-08-03 — checklist 4 typed-surface checkpoint
+
+Checklist 4 now has one Rust-owned contract projected through every local
+operator carrier:
+
+- `errors.issues` is a bounded, cursor-bound structural projection with the
+  exact `first_seen_seq >= activated_seq OR last_regressed_seq > activated_seq`
+  preset, first/last-release equality filtering, and fail-closed unknown or
+  below-floor release selectors;
+- `errors.issue` is the scoped `AdminSecretRead` + `no-store` raw projection,
+  with canonical `iss_` input validation and a ready-to-run bounded
+  `telemetry.events` correlation query per retained exemplar;
+- `errors.transition` carries the single-row state-sequence CAS and the
+  one-transaction `last_seen_seq < activated_seq` bulk selector with per-row
+  results; and
+- the three operations have pinned generated schemas and a language-neutral
+  fixture corpus, LLP 0031 routes, `snapback errors` CLI verbs, and control-MCP
+  tools. Host-operation envelopes report the distinct structural-read,
+  secret-read, and admin-write authority facts instead of one generic
+  observability reason.
+
+The variance contract labels the cap fold as cumulative for the current
+generation, keeps list transition floors null because transition sequences are
+issue-local, reports exact per-issue transition floors/truncation, and
+separates exemplar ring truncation from retention staleness. `exemplarStale`
+means a visible durable group has occurrences but no visible raw exemplar; the
+depth/byte/flush counters carry ordinary ring loss.
+
+`snapback errors resolve --open-before <release>` is the executable
+deploy-hook option named in LLP 0156 E1.3 and is acceptance-tested directly.
+This checkpoint does not claim an automatic hosted deployment invocation:
+this repository exposes no authoritative hosted lifecycle seam for one, and
+the RFC does not require inventing such a seam to make the command hookable.
+
+The reviewed HTTP table classifies malformed selectors/ids/transitions and
+unknown/pruned releases as non-retryable-as-written HTTP 400, missing issue
+detail as HTTP 404, and server serialization plus the inherited D-05 durable
+state/sequence invariants as HTTP 500. The production diagnostic inventory
+gate covers every family.
+
+D-06 remains open for checklist 5 (console), checklist 6 (the complete fixture
+gate corpus), and checklist 7 (guide/cross-references and the final dated LLP
+0156 implementation record). Its obs-05 dependency also remains explicitly
+open for the author-blocked multiple-unhandled fingerprint choice and the
+hosted-JS tracking-authority/observation-owner boundary recorded there; this
+surface checkpoint does not infer either authority.

@@ -23954,6 +23954,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         "SNAPBACK_UNKNOWN_CRON_JOB"
         | "SNAPBACK_JOB_UNKNOWN"
         | "SNAPBACK_UNKNOWN_SUBSCRIPTION"
+        | "SNAPBACK_ERROR_ISSUE_NOT_FOUND"
         | "SNAPBACK_AUTH_MODE_DEV"
         // @ref LLP 0055#principal-kinds — an operation naming a principal that is
         //   not a known agent.
@@ -24150,6 +24151,14 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_TELEMETRY_QUERY_INVALID"
         | "SNAPBACK_TELEMETRY_SQL_DENIED"
         | "SNAPBACK_TELEMETRY_SQL_FAILED"
+        // @ref LLP 0156#e14--surface-typed-operations-projected-everywhere —
+        //   malformed selectors/ids/transitions and unknown or pruned release
+        //   names are non-retryable as written; clients must correct the
+        //   request, using the returned known-release list where applicable.
+        | "SNAPBACK_ERRORS_QUERY_INVALID"
+        | "SNAPBACK_ERROR_ISSUE_ID_INVALID"
+        | "SNAPBACK_ERROR_RELEASE_UNKNOWN_OR_PRUNED"
+        | "SNAPBACK_ERROR_TRANSITION_INVALID"
         | "SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED"
         | "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED"
         | "SNAPBACK_AUTH_INVALIDATION_NAMESPACE_REQUIRED"
@@ -24208,6 +24217,19 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_TELEMETRY_EXPORT_ENVELOPE_BOUND_EXCEEDED"
         | "SNAPBACK_TELEMETRY_EXPORT_RESPONSE_FAILED"
         | "SNAPBACK_TELEMETRY_EXPORT_SERIALIZATION_FAILED"
+        // @ref LLP 0156#e13--the-issue-state-machine — these are durable
+        // telemetry-state or server-serialization failures, never authored
+        // request classes. A retry is meaningful only after the server/store
+        // fault is repaired; preserve the fail-safe 500 projection.
+        | "SNAPBACK_ERROR_GROUP_STATE_INVALID"
+        | "SNAPBACK_ERROR_RESOLVE_BARRIER_MISSING"
+        | "SNAPBACK_ERROR_ROLLOUT_INVALID"
+        | "SNAPBACK_ERROR_STATE_SEQUENCE_EXHAUSTED"
+        | "SNAPBACK_ERROR_STATE_SEQUENCE_INVALID"
+        | "SNAPBACK_ERROR_TRANSITION_SERIALIZATION_FAILED"
+        | "SNAPBACK_ERRORS_QUERY_SERIALIZATION_FAILED"
+        | "SNAPBACK_TELEMETRY_SEQUENCE_EXHAUSTED"
+        | "SNAPBACK_TELEMETRY_SEQUENCE_INVALID"
         | "SNAPBACK_TELEMETRY_FLUSH_FAILED"
         | "SNAPBACK_TELEMETRY_QUERY_SERIALIZATION_FAILED"
         | "SNAPBACK_TELEMETRY_SQL_OPEN_FAILED" => StatusCode::INTERNAL_SERVER_ERROR,
@@ -38310,6 +38332,12 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_TELEMETRY_QUERY_INVALID",
         "SNAPBACK_TELEMETRY_SQL_DENIED",
         "SNAPBACK_TELEMETRY_SQL_FAILED",
+        // LLP 0156 E1 request-shape/selectors. Retrying the same input cannot
+        // succeed; the caller must correct it or select a retained release.
+        "SNAPBACK_ERRORS_QUERY_INVALID",
+        "SNAPBACK_ERROR_ISSUE_ID_INVALID",
+        "SNAPBACK_ERROR_RELEASE_UNKNOWN_OR_PRUNED",
+        "SNAPBACK_ERROR_TRANSITION_INVALID",
         "SNAPBACK_ARG_MISSING",
         "SNAPBACK_AUTHORITY_INDEPENDENT_INVALID",
         "SNAPBACK_PUBLIC_INLINE_INVALID",
@@ -38706,6 +38734,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_UNKNOWN_FUNCTION",
         "SNAPBACK_UNKNOWN_SUBSCRIPTION",
         "SNAPBACK_UNKNOWN_TABLE",
+        "SNAPBACK_ERROR_ISSUE_NOT_FOUND",
         "SNAPBACK_ASSET_INTENT_UNKNOWN",
         "SNAPBACK_ASSET_ATTEMPT_UNKNOWN",
         "SNAPBACK_ASSET_UNKNOWN",
@@ -39079,6 +39108,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_ERROR_STATE_SEQUENCE_EXHAUSTED",
         "SNAPBACK_ERROR_STATE_SEQUENCE_INVALID",
         "SNAPBACK_ERROR_TRANSITION_SERIALIZATION_FAILED",
+        "SNAPBACK_ERRORS_QUERY_SERIALIZATION_FAILED",
         "SNAPBACK_TELEMETRY_SEQUENCE_EXHAUSTED",
         "SNAPBACK_TELEMETRY_SEQUENCE_INVALID",
         // @ref LLP 0154#d7--aggregates-a-watermarked-state-machine-mergeable-by-construction — these are
