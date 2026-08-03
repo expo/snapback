@@ -1,0 +1,154 @@
+{
+  "schemaVersion": "snapback.local-persistent-store.bundle-attribution.v1",
+  "date": "2026-08-03",
+  "source": {
+    "revision": "b3c2f19cf1890d6b38696c3702ec2c1b66b3fe82",
+    "dirty": false,
+    "dirtyPaths": [],
+    "files": [
+      {
+        "path": "tests/acceptance/local-store-carrier-exit-v1.mjs",
+        "sha256": "2b7e3f728bcf225a948d1f46a90031f332fa38a65fa77c98285645d75e3cc65b"
+      },
+      {
+        "path": "packages/snapback-client/materialization-store.mjs",
+        "sha256": "fe2282ebed6da945409db09bc22a5a20a00a1c2f6c994d0e435395db8188230f"
+      },
+      {
+        "path": "packages/snapback-client/registration-ledger.mjs",
+        "sha256": "5f5e66d1d8a8eb36323cd5bdedb8c536487bb92343da5312107023a411c6481c"
+      },
+      {
+        "path": "packages/snapback-client/demand-broker.mjs",
+        "sha256": "cdfb914e2c03ea6ea50b00ea63b48ec3105bdb08dcb757007c9af5dd121e483c"
+      },
+      {
+        "path": "packages/snapback-client/store-policy.mjs",
+        "sha256": "03345c9e942c6247eb95ec58f657fec360d7baa7d77233ee96e6c4529ff23a4f"
+      },
+      {
+        "path": "packages/snapback-client/answer-classes.mjs",
+        "sha256": "e994d0287c66b5319a7c62a10e7a66ccc4157b081ea0a61dff2d8c2b92fd214c"
+      },
+      {
+        "path": "packages/snapback-client/evaluation-floor.mjs",
+        "sha256": "3c03c3be6f2e58e8cc6c54dcad8a636e7f5a153ba127e3d6e0ad8dc95df3c016"
+      },
+      {
+        "path": "packages/snapback-client/lease-convergence.mjs",
+        "sha256": "38125180a494fa272051002cdf62a839840212a4c9b3a4a5c8d705047dfde9d1"
+      },
+      {
+        "path": "packages/snapback-client/rqs-store-meta.mjs",
+        "sha256": "65ac9258773dcffae88031ee4d3a428c22dbbfbf18615ae29befa15dc202c63d"
+      },
+      {
+        "path": "packages/snapback-client/rqs-store.mjs",
+        "sha256": "2d083c54d4d03b1b577960ce48ea71db784df55bede9c9235e0757f4825c3782"
+      },
+      {
+        "path": "packages/snapback-client/rqs-store-file.mjs",
+        "sha256": "6e51df397c62310d449bc2b96bce25a6b85919bed441755458dfba8496d38291"
+      },
+      {
+        "path": "packages/snapback-contract/client-store.mjs",
+        "sha256": "f8324a2039e35d92a0d6bdadf48faeed056c62e3c86226ea894752ad03f75585"
+      },
+      {
+        "path": "demos/_kit/chrome-process.mjs",
+        "sha256": "88b945747108253fb3c3020560bce59e540aeac0ffb3b945dc7a26e23f9dbb64"
+      }
+    ]
+  },
+  "authority": "LLP 0166#d9--carriers-storage-profiles-arms-and-the-bundle",
+  "method": {
+    "bundler": "esbuild@0.28.1",
+    "bundle": true,
+    "platform": "browser",
+    "format": "esm",
+    "target": "es2022",
+    "minify": true,
+    "treeShaking": true,
+    "legalComments": "none",
+    "conditions": [
+      "browser",
+      "import",
+      "default"
+    ],
+    "attribution": "esbuild metafile output.inputs bytesInOutput (module-own minified bytes)",
+    "closure": "full @expo/snapback-client root plus all eight LLP 0166 store modules retained by namespace observation",
+    "external": []
+  },
+  "output": {
+    "minifiedBytes": 485260,
+    "gzipBytes": 133085,
+    "brotliBytes": 110144,
+    "sha256": "545d67b442f7f9384f5d506ec1abf15056d30c4e8baa3affc4f82f1bf1a0ac1f"
+  },
+  "modules": [
+    {
+      "module": "materialization-store",
+      "path": "packages/snapback-client/materialization-store.mjs",
+      "sourceBytes": 80489,
+      "minifiedModuleOwnBytes": 46840,
+      "sourceSha256": "fe2282ebed6da945409db09bc22a5a20a00a1c2f6c994d0e435395db8188230f"
+    },
+    {
+      "module": "registration-ledger",
+      "path": "packages/snapback-client/registration-ledger.mjs",
+      "sourceBytes": 25450,
+      "minifiedModuleOwnBytes": 13799,
+      "sourceSha256": "5f5e66d1d8a8eb36323cd5bdedb8c536487bb92343da5312107023a411c6481c"
+    },
+    {
+      "module": "demand-broker",
+      "path": "packages/snapback-client/demand-broker.mjs",
+      "sourceBytes": 28871,
+      "minifiedModuleOwnBytes": 15139,
+      "sourceSha256": "cdfb914e2c03ea6ea50b00ea63b48ec3105bdb08dcb757007c9af5dd121e483c"
+    },
+    {
+      "module": "store-policy",
+      "path": "packages/snapback-client/store-policy.mjs",
+      "sourceBytes": 22688,
+      "minifiedModuleOwnBytes": 12920,
+      "sourceSha256": "03345c9e942c6247eb95ec58f657fec360d7baa7d77233ee96e6c4529ff23a4f"
+    },
+    {
+      "module": "answer-classes",
+      "path": "packages/snapback-client/answer-classes.mjs",
+      "sourceBytes": 4849,
+      "minifiedModuleOwnBytes": 2503,
+      "sourceSha256": "e994d0287c66b5319a7c62a10e7a66ccc4157b081ea0a61dff2d8c2b92fd214c"
+    },
+    {
+      "module": "evaluation-floor",
+      "path": "packages/snapback-client/evaluation-floor.mjs",
+      "sourceBytes": 1710,
+      "minifiedModuleOwnBytes": 663,
+      "sourceSha256": "3c03c3be6f2e58e8cc6c54dcad8a636e7f5a153ba127e3d6e0ad8dc95df3c016"
+    },
+    {
+      "module": "lease-convergence",
+      "path": "packages/snapback-client/lease-convergence.mjs",
+      "sourceBytes": 3346,
+      "minifiedModuleOwnBytes": 1407,
+      "sourceSha256": "38125180a494fa272051002cdf62a839840212a4c9b3a4a5c8d705047dfde9d1"
+    },
+    {
+      "module": "rqs-store-meta",
+      "path": "packages/snapback-client/rqs-store-meta.mjs",
+      "sourceBytes": 4964,
+      "minifiedModuleOwnBytes": 2959,
+      "sourceSha256": "65ac9258773dcffae88031ee4d3a428c22dbbfbf18615ae29befa15dc202c63d"
+    }
+  ],
+  "totalMeasuredModuleOwnBytes": 96230,
+  "browserClosureQualification": {
+    "status": "PASS",
+    "materializationStoreResolved": true,
+    "resolved": true,
+    "outputBytes": 65278,
+    "externalImports": []
+  }
+}

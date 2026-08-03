@@ -221,6 +221,11 @@ run cargo test -- --test-threads "${SNAPBACK_RUST_TEST_THREADS:-4}"
 # cleanup so the targeted machine-readable Rust receipts reuse cargo-test
 # artifacts rather than forcing another native link.
 run node tests/acceptance/auth-invalidation-v1-report.mjs
+# @ref LLP 0166#executable-acceptance — retain the dated standards-real
+# carrier-exit matrix, including every declared GAP and D9 attribution row.
+# The destructive Chrome/process run is explicit; recurring proof validates
+# the retained artifacts without rewriting machine-dependent timings.
+run node tests/acceptance/local-store-carrier-exit-v1.mjs --check
 # ENG-24378 clean-runner follow-up: clippy/test and the normal executable use
 # distinct large vendored-Ibex native archives. Reclaim completed workspace test
 # artifacts before constructing the acceptance binary instead of risking an

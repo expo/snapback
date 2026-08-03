@@ -339,7 +339,17 @@ export async function createDemandBroker({
       }
       const prior = state.pairs[key];
       state.heartbeats[message.contextId] = now();
-      if (prior && message.revision <= prior.revision) return { ignored: true, heartbeatRefreshed: true };
+      const confirming = state.suppression.active
+        && state.suppression.unreconciledPairs.includes(key);
+      if (prior && message.revision <= prior.revision && !confirming) {
+        return { ignored: true, heartbeatRefreshed: true };
+      }
+      // LLP 0166 §D2 handoff reconciliation: a same-revision re-announce for
+      // an unreconciled pair is the pair's confirmation — it takes the full
+      // apply path so the rebuilt ledger regains the confirmed demand set
+      // (the ledger's own release cleared its revision bookkeeping).
+      const wasUnreconciled = state.suppression.active
+        && state.suppression.unreconciledPairs.includes(key);
       state.pairs[key] = {
         contextId: message.contextId,
         authorityPartitionDigest: message.authorityPartitionDigest,
@@ -351,17 +361,38 @@ export async function createDemandBroker({
         state.suppression.unreconciledPairs = state.suppression.unreconciledPairs
           .filter((entry) => entry !== key);
       }
-      return { applied: true };
+      return { applied: true, prior: prior ?? null, wasUnreconciled };
     });
     if (decision.applied) {
-      await ledger.applyContextDemands({
-        contextId: message.contextId,
-        authorityPartitionDigest: message.authorityPartitionDigest,
-        revision: message.revision,
-        demands: clone(message.demands),
-      });
+      try {
+        await ledger.applyContextDemands({
+          contextId: message.contextId,
+          authorityPartitionDigest: message.authorityPartitionDigest,
+          revision: message.revision,
+          demands: clone(message.demands),
+        });
+      } catch (error) {
+        // LLP 0166 §D2: refusal is message-level everywhere. A registration
+        // the seam refuses poisons the WHOLE announce — nothing applies and
+        // the revision is not consumed — and must never escape the channel
+        // handler as an exception.
+        if (typeof error?.code === 'string' && error.code.startsWith('SNAPBACK_')) {
+          await transaction('readwrite', (state) => {
+            if (decision.prior) state.pairs[key] = decision.prior;
+            else delete state.pairs[key];
+            if (decision.wasUnreconciled && state.suppression.active
+              && !state.suppression.unreconciledPairs.includes(key)) {
+              state.suppression.unreconciledPairs.push(key);
+            }
+            return null;
+          });
+          return { applied: false, refused: error.code };
+        }
+        throw error;
+      }
       await finishSuppressionIfComplete();
     }
+    if (decision.applied) return { applied: true };
     return decision;
   };
 
@@ -454,7 +485,12 @@ export async function createDemandBroker({
   };
 
   const receive = async (eventOrMessage) => {
-    const message = own(eventOrMessage ?? {}, 'data') ? eventOrMessage.data : eventOrMessage;
+    // Real MessageEvent#data is a prototype getter, not an own property —
+    // unwrap by presence-in-chain, never by hasOwn (the carrier-exit browser
+    // legs caught the fake-vs-real gap here).
+    const message = (eventOrMessage !== null && typeof eventOrMessage === 'object'
+      && typeof eventOrMessage.format !== 'string'
+      && 'data' in eventOrMessage) ? eventOrMessage.data : eventOrMessage;
     const validation = validateBrokerMessage(message, { resolveRegistration });
     if (validation.refused) return validation;
     const admitted = validation.admitted;
@@ -582,6 +618,10 @@ export async function createDemandBroker({
       await ledger.releaseContextDemands({ contextId: priorContextId });
     }
     post({ format: 'snapback.writer-hello.v1', writerGeneration });
+    // A channel never delivers to self: the new writer's own live pairs
+    // re-announce locally, applying (or same-revision reconciling) through
+    // the identical path a peer's re-announcement takes.
+    for (const pair of localPairs.values()) await receive(clone(pair));
     return true;
   };
 

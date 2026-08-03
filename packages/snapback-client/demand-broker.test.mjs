@@ -424,3 +424,87 @@ test('BroadcastChannel-shaped browser carrier protects a non-writer tab demand',
   assert.equal(writer.qualification().qualified, true);
   assert.equal(reader.qualification().qualified, true);
 });
+
+test('a seam-refused registration refuses the whole announce without consuming the revision (LLP 0166 §D2)', async (t) => {
+  const backing = createMemoryRqsStoreBacking({ clientStoreId: 'refusal-rollback' });
+  const writerHandle = createMemoryRqsResumeStore({ backing });
+  await writerHandle.whenLockSettled();
+  const hub = fakeChannelHub();
+  const ledger = fakeLedger();
+  const refusalCode = 'SNAPBACK_QUERY_REGISTRATION_ADDRESS_INVALID';
+  let refuseNext = true;
+  const refusingLedger = {
+    ...ledger,
+    async applyContextDemands(input) {
+      if (refuseNext) {
+        refuseNext = false;
+        const error = new Error(`${refusalCode}: fixture refusal`);
+        error.code = refusalCode;
+        throw error;
+      }
+      return ledger.applyContextDemands(input);
+    },
+  };
+  const writer = await createDemandBroker({
+    storeHandle: writerHandle, registrationLedger: refusingLedger, resolveRegistration,
+    channel: hub.open(), lockManager: locks, contextId: 'writer-tab',
+  });
+  const reader = await createDemandBroker({
+    storeHandle: createMemoryRqsResumeStore({ backing }), registrationLedger: fakeLedger(), resolveRegistration,
+    channel: hub.open(), lockManager: locks, contextId: 'reader-tab',
+  });
+  t.after(async () => {
+    await reader.close();
+    await writer.close();
+    await writerHandle.close();
+  });
+  const part = partition('a');
+  const demands = [registration({ id: 'reader-demand', contextId: 'reader-tab', part })];
+  // First announce: the seam refuses -> whole message refused, writer alive,
+  // revision NOT consumed, nothing applied.
+  await reader.announce({ authorityPartitionDigest: part, revision: 1, demands });
+  await tick();
+  assert.equal(ledger.active.has(`reader-tab:${part}`), false, 'refused announce applies nothing');
+  // Same revision retries after the refusal cause clears: it must apply,
+  // proving the refused announce consumed no revision.
+  await reader.announce({ authorityPartitionDigest: part, revision: 1, demands });
+  await tick();
+  assert.equal(ledger.active.has(`reader-tab:${part}`), true, 'same-revision retry applies after refusal');
+  assert.equal(writer.qualification().qualified, true, 'writer survives the refusal');
+});
+
+test('a REAL BroadcastChannel delivers announces and handoff confirmations (fake-vs-real regression)', async (t) => {
+  // Locks the three carrier-exit catches: MessageEvent#data is a prototype
+  // getter (never an own property); a released context re-announces its last
+  // revision legitimately after handoff; the new writer self-reconciles.
+  const backing = createMemoryRqsStoreBacking({ clientStoreId: 'real-channel' });
+  const writerHandle = createMemoryRqsResumeStore({ backing });
+  await writerHandle.whenLockSettled();
+  const ledger = fakeLedger();
+  const name = `real-broker-${Math.random().toString(36).slice(2)}`;
+  const chanWriter = new BroadcastChannel(name);
+  const chanReader = new BroadcastChannel(name);
+  const writer = await createDemandBroker({
+    storeHandle: writerHandle, registrationLedger: ledger, resolveRegistration,
+    channel: chanWriter, lockManager: locks, contextId: 'writer-tab',
+  });
+  const reader = await createDemandBroker({
+    storeHandle: createMemoryRqsResumeStore({ backing }), registrationLedger: fakeLedger(), resolveRegistration,
+    channel: chanReader, lockManager: locks, contextId: 'reader-tab',
+  });
+  t.after(async () => {
+    await reader.close();
+    await writer.close();
+    await writerHandle.close();
+  });
+  const part = partition('a');
+  await reader.announce({
+    authorityPartitionDigest: part, revision: 1,
+    demands: [registration({ id: 'reader-demand', contextId: 'reader-tab', part })],
+  });
+  const deadline = Date.now() + 5000;
+  while (!ledger.active.has(`reader-tab:${part}`) && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  assert.equal(ledger.active.has(`reader-tab:${part}`), true, 'real-channel announce applies at the writer');
+});

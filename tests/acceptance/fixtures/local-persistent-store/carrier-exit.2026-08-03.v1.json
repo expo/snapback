@@ -1,0 +1,646 @@
+{
+  "schemaVersion": "snapback.local-persistent-store.carrier-exit.v1",
+  "date": "2026-08-03",
+  "authority": [
+    "LLP 0157#move-2-carrier-exit-llp-0155-normative-transcription",
+    "LLP 0166#executable-acceptance",
+    "LLP 0166#d9--carriers-storage-profiles-arms-and-the-bundle"
+  ],
+  "startedAt": "2026-08-03T23:40:32.188Z",
+  "completedAt": "2026-08-03T23:41:45.428Z",
+  "runtime": {
+    "node": "v25.9.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "hostnameClass": "local-evidence-machine"
+  },
+  "source": {
+    "revision": "b3c2f19cf1890d6b38696c3702ec2c1b66b3fe82",
+    "dirty": false,
+    "dirtyPaths": [],
+    "files": [
+      {
+        "path": "tests/acceptance/local-store-carrier-exit-v1.mjs",
+        "sha256": "2b7e3f728bcf225a948d1f46a90031f332fa38a65fa77c98285645d75e3cc65b"
+      },
+      {
+        "path": "packages/snapback-client/materialization-store.mjs",
+        "sha256": "fe2282ebed6da945409db09bc22a5a20a00a1c2f6c994d0e435395db8188230f"
+      },
+      {
+        "path": "packages/snapback-client/registration-ledger.mjs",
+        "sha256": "5f5e66d1d8a8eb36323cd5bdedb8c536487bb92343da5312107023a411c6481c"
+      },
+      {
+        "path": "packages/snapback-client/demand-broker.mjs",
+        "sha256": "cdfb914e2c03ea6ea50b00ea63b48ec3105bdb08dcb757007c9af5dd121e483c"
+      },
+      {
+        "path": "packages/snapback-client/store-policy.mjs",
+        "sha256": "03345c9e942c6247eb95ec58f657fec360d7baa7d77233ee96e6c4529ff23a4f"
+      },
+      {
+        "path": "packages/snapback-client/answer-classes.mjs",
+        "sha256": "e994d0287c66b5319a7c62a10e7a66ccc4157b081ea0a61dff2d8c2b92fd214c"
+      },
+      {
+        "path": "packages/snapback-client/evaluation-floor.mjs",
+        "sha256": "3c03c3be6f2e58e8cc6c54dcad8a636e7f5a153ba127e3d6e0ad8dc95df3c016"
+      },
+      {
+        "path": "packages/snapback-client/lease-convergence.mjs",
+        "sha256": "38125180a494fa272051002cdf62a839840212a4c9b3a4a5c8d705047dfde9d1"
+      },
+      {
+        "path": "packages/snapback-client/rqs-store-meta.mjs",
+        "sha256": "65ac9258773dcffae88031ee4d3a428c22dbbfbf18615ae29befa15dc202c63d"
+      },
+      {
+        "path": "packages/snapback-client/rqs-store.mjs",
+        "sha256": "2d083c54d4d03b1b577960ce48ea71db784df55bede9c9235e0757f4825c3782"
+      },
+      {
+        "path": "packages/snapback-client/rqs-store-file.mjs",
+        "sha256": "6e51df397c62310d449bc2b96bce25a6b85919bed441755458dfba8496d38291"
+      },
+      {
+        "path": "packages/snapback-contract/client-store.mjs",
+        "sha256": "f8324a2039e35d92a0d6bdadf48faeed056c62e3c86226ea894752ad03f75585"
+      },
+      {
+        "path": "demos/_kit/chrome-process.mjs",
+        "sha256": "88b945747108253fb3c3020560bce59e540aeac0ffb3b945dc7a26e23f9dbb64"
+      }
+    ]
+  },
+  "partial": false,
+  "summary": {
+    "pass": 13,
+    "gap": 4,
+    "skipped": 0,
+    "capabilityClaimsChanged": false
+  },
+  "legs": [
+    {
+      "leg": "browser-terminate-relaunch",
+      "carrier": "browser-indexeddb-v3",
+      "status": "PASS",
+      "evidence": {
+        "resumeEntryVerifiedBeforeKill": true,
+        "resumeEntryVerifiedAfterRelaunch": true,
+        "materializationProofVerifiedInBrowser": true,
+        "retainedBootProofRevalidated": true,
+        "committedBytes": [
+          91,
+          123,
+          34,
+          95,
+          105,
+          100,
+          34,
+          58,
+          34,
+          98,
+          114,
+          111,
+          119,
+          115,
+          101,
+          114,
+          45,
+          114,
+          101,
+          115,
+          116,
+          97,
+          114,
+          116,
+          34,
+          44,
+          34,
+          118,
+          97,
+          108,
+          117,
+          101,
+          34,
+          58,
+          34,
+          114,
+          101,
+          116,
+          97,
+          105,
+          110,
+          101,
+          100,
+          45,
+          98,
+          114,
+          111,
+          119,
+          115,
+          101,
+          114,
+          45,
+          98,
+          121,
+          116,
+          101,
+          115,
+          34,
+          125,
+          93
+        ],
+        "retainedBytes": [
+          91,
+          123,
+          34,
+          95,
+          105,
+          100,
+          34,
+          58,
+          34,
+          98,
+          114,
+          111,
+          119,
+          115,
+          101,
+          114,
+          45,
+          114,
+          101,
+          115,
+          116,
+          97,
+          114,
+          116,
+          34,
+          44,
+          34,
+          118,
+          97,
+          108,
+          117,
+          101,
+          34,
+          58,
+          34,
+          114,
+          101,
+          116,
+          97,
+          105,
+          110,
+          101,
+          100,
+          45,
+          98,
+          114,
+          111,
+          119,
+          115,
+          101,
+          114,
+          45,
+          98,
+          121,
+          116,
+          101,
+          115,
+          34,
+          125,
+          93
+        ],
+        "durableRegistrationRetained": true,
+        "allocator": [
+          2,
+          3
+        ],
+        "relaunchToReadableMs": 1627.644,
+        "browser": {
+          "executable": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+          "version": "Google Chrome 150.0.7871.187",
+          "executableSha256": "a1d93d90e7ebb90245d225d70334ca6b37b1cbf65ba2f37dd01d3eba0fdd8331"
+        },
+        "profile": {
+          "callerRetained": true,
+          "reused": true,
+          "removedAfterAttestedExits": true
+        },
+        "cleanup": {
+          "firstBrowser": {
+            "pid": 94175,
+            "requestedSignal": "SIGKILL",
+            "processTreeExitAttested": true
+          },
+          "finalBrowser": {
+            "pid": 94234,
+            "requestedSignal": "SIGTERM",
+            "processTreeExitAttested": true
+          },
+          "harnessServerClosed": true
+        }
+      }
+    },
+    {
+      "leg": "two-tabs-one-profile",
+      "carrier": "browser-indexeddb-web-locks-broadcastchannel",
+      "status": "PASS",
+      "evidence": {
+        "suppressionBeforeHello": true,
+        "suppressionAfter": false,
+        "legacyDemandState": "demanded-active",
+        "materializationDemandState": "demanded-active",
+        "retainedMaterializationBytes": [
+          91,
+          123,
+          34,
+          95,
+          105,
+          100,
+          34,
+          58,
+          34,
+          98,
+          114,
+          111,
+          119,
+          115,
+          101,
+          114,
+          45,
+          114,
+          101,
+          115,
+          116,
+          97,
+          114,
+          116,
+          34,
+          44,
+          34,
+          118,
+          97,
+          108,
+          117,
+          101,
+          34,
+          58,
+          34,
+          114,
+          101,
+          116,
+          97,
+          105,
+          110,
+          101,
+          100,
+          45,
+          98,
+          114,
+          111,
+          119,
+          115,
+          101,
+          114,
+          45,
+          98,
+          121,
+          116,
+          101,
+          115,
+          34,
+          125,
+          93
+        ],
+        "retainedFragmentsUnderPressure": 1,
+        "pressure": {
+          "compacted": [],
+          "refused": true,
+          "suppressionActive": false
+        },
+        "writerGeneration": 2
+      }
+    },
+    {
+      "leg": "file-process-terminate-relaunch",
+      "carrier": "node-file-v3-outbox",
+      "status": "PASS",
+      "evidence": {
+        "directoryCarrier": "file-v3-atomic-replace",
+        "boundaries": [
+          {
+            "type": "boundary",
+            "boundary": "before-rename",
+            "pid": 91630,
+            "exit": {
+              "code": null,
+              "signal": "SIGKILL"
+            },
+            "leaderExitObserved": true,
+            "detachedChildHadNoDescendants": true
+          },
+          {
+            "type": "boundary",
+            "boundary": "after-rename-before-directory-sync",
+            "pid": 91693,
+            "exit": {
+              "code": null,
+              "signal": "SIGKILL"
+            },
+            "leaderExitObserved": true,
+            "detachedChildHadNoDescendants": true
+          }
+        ],
+        "priorCut": {
+          "observedVersion": 1,
+          "pendingIntentIds": [
+            "intent-prior"
+          ],
+          "nextAllocatedQueryInstanceId": 2
+        },
+        "successorCut": {
+          "observedVersion": 1,
+          "pendingIntentIds": [
+            "intent-prior",
+            "intent-successor"
+          ],
+          "nextAllocatedQueryInstanceId": 3
+        },
+        "physicalBlobBytes": 1902
+      }
+    },
+    {
+      "leg": "retained-render-server-unreachable",
+      "carrier": "live-backend-plus-browser-contract-store",
+      "status": "GAP",
+      "evidence": {
+        "backend": {
+          "started": true,
+          "baseUrlClass": "loopback-ephemeral-port",
+          "healthStatus": 200,
+          "healthOk": true,
+          "launchRung": "configured"
+        },
+        "storeLevelRetainedRead": {
+          "rows": 1,
+          "answer": {
+            "answerClass": "lease-authorized-retained",
+            "freshness": "retained",
+            "storeMutation": "none",
+            "resumeAction": "full-revalidate-and-fresh-snapshot-on-reconnect"
+          }
+        },
+        "endToEndRenderedByPublicClient": false
+      },
+      "reason": "SNAPBACK_CARRIER_EXIT_RETAINED_RENDER_BRIDGE_MISSING: no shipped public client path seeds an LLP 0166 v3 materialization from a live backend and renders the answer-class projection after backend loss; the receipt separately records the backend and browser probe outcomes from this run"
+    },
+    {
+      "leg": "authority-logout",
+      "carrier": "public-client-to-v3-store",
+      "status": "GAP",
+      "evidence": {
+        "publicBridgeFound": false
+      },
+      "reason": "SNAPBACK_CARRIER_EXIT_LOGOUT_V3_BRIDGE_MISSING: authLogout parks live handles and clears auth custody, but no shipped public bridge invokes the LLP 0166 v3 store-wide logout transition"
+    },
+    {
+      "leg": "authority-user-switch",
+      "carrier": "node-file-v3-multi-identity",
+      "status": "PASS",
+      "evidence": {
+        "blobsBefore": 2,
+        "blobsAfter": 1,
+        "wipingIdentityPreserved": true,
+        "handleKeyRotated": true,
+        "destroyedSiblingReopenedWithFreshIdentity": true
+      }
+    },
+    {
+      "leg": "authority-revocation",
+      "carrier": "node-file-v3-materialization",
+      "status": "PASS",
+      "evidence": {
+        "effectiveDisposition": "quarantine",
+        "queryGeneration": 2
+      }
+    },
+    {
+      "leg": "authority-lease-expiry",
+      "carrier": "browser-indexeddb-v3-materialization",
+      "status": "PASS",
+      "evidence": {
+        "suppliedLeaseStatus": "expired",
+        "deleteAppliedAtRetainedBoot": true,
+        "fragments": 0,
+        "renderedBytes": 0
+      }
+    },
+    {
+      "leg": "authority-artifact-change",
+      "carrier": "browser-indexeddb-v3-materialization",
+      "status": "PASS",
+      "evidence": {
+        "mismatchedTrustedActivation": true,
+        "deleteAppliedAtRetainedBoot": true,
+        "fragments": 0,
+        "renderedBytes": 0
+      }
+    },
+    {
+      "leg": "authority-corrupt-store-recovery",
+      "carrier": "node-file-v3",
+      "status": "PASS",
+      "evidence": {
+        "refusal": "SNAPBACK_RQS_STORE_CORRUPT",
+        "ordinaryWipeRefused": true,
+        "originalBytesSeenByBarrierHook": true,
+        "storeIdentityRotated": true,
+        "replacementFormat": "snapback-rqs-store-file.v3"
+      }
+    },
+    {
+      "leg": "authority-corrupt-store-recovery",
+      "carrier": "browser-indexeddb-v3",
+      "status": "PASS",
+      "evidence": {
+        "refusal": "SNAPBACK_RQS_STORE_CORRUPT",
+        "hookSawMalformed": true,
+        "reset": {
+          "reset": true,
+          "previousClientStoreId": "browser-corrupt-predecessor",
+          "clientStoreId": "cs1_02020202020202020202020202020202"
+        },
+        "formatVersion": 3
+      }
+    },
+    {
+      "leg": "authority-revocation",
+      "carrier": "browser-indexeddb-v3-materialization",
+      "status": "PASS",
+      "evidence": {
+        "disposition": "delete",
+        "fragments": 0,
+        "renderedBytes": 0
+      }
+    },
+    {
+      "leg": "bounded-custody-query-churn",
+      "carrier": "node-file-v3",
+      "status": "PASS",
+      "evidence": {
+        "limits": {
+          "materializationByteCeiling": 33554432,
+          "materializationRecordCeiling": 256,
+          "materializationFragmentCeiling": 1024,
+          "durableRegistrationCeiling": 512,
+          "registrationByteCeiling": 16384,
+          "graceDefaultMs": 1209600000,
+          "establishmentConcurrency": 4,
+          "heartbeatIntervalMs": 15000,
+          "heartbeatExpiryMs": 45000,
+          "liveContextCeiling": 64,
+          "livePairCeiling": 128,
+          "reapedContextCeiling": 256,
+          "consumedRequestCeiling": 1024,
+          "releasedRegistrationCeiling": 1024,
+          "identifierByteCeiling": 64,
+          "messageByteCeiling": 262144
+        },
+        "attemptedMaterializations": 257,
+        "retainedMaterializationRecords": 256,
+        "recordCapRefusal": "SNAPBACK_MATERIALIZATION_BUDGET_EXCEEDED",
+        "logicalBytesBefore": 38804851,
+        "logicalBytesAfter": 32506933,
+        "physicalBytesBefore": 52174459,
+        "physicalBytesAfter": 43897200,
+        "compactedAddressKeys": [
+          "qmk1.CysAIfWyF3jTx0wqKc4pYMwIlIjX44GpNadmi3iUe3A",
+          "qmk1.Jk32Yja9SmdgljkWdOmeZfMA5vz5sbyHRurF7ezyeNs",
+          "qmk1.ZMVmFhS3mUdzLuNBhEzlVz__MYx0tZKhNTz96L8LyXI",
+          "qmk1.veJXKVBkpggsacdvjJnYnX00hT3zerRRib41vtYDyKY",
+          "qmk1.T7YjSIWML2-9bbJ_pMEe3YVZEZhp0QNOK9M5D9krGgQ",
+          "qmk1.P6tcGBvSigm2Q5ffdq4r-vHqwYKXm1_bejQoWABPNq8"
+        ],
+        "compactionOrder": {
+          "undemandedAddressByteOrder": [
+            "qmk1.CysAIfWyF3jTx0wqKc4pYMwIlIjX44GpNadmi3iUe3A",
+            "qmk1.Jk32Yja9SmdgljkWdOmeZfMA5vz5sbyHRurF7ezyeNs",
+            "qmk1.ZMVmFhS3mUdzLuNBhEzlVz__MYx0tZKhNTz96L8LyXI",
+            "qmk1.veJXKVBkpggsacdvjJnYnX00hT3zerRRib41vtYDyKY"
+          ],
+          "thenIdle": "qmk1.T7YjSIWML2-9bbJ_pMEe3YVZEZhp0QNOK9M5D9krGgQ",
+          "thenPinned": "qmk1.P6tcGBvSigm2Q5ffdq4r-vHqwYKXm1_bejQoWABPNq8",
+          "activePreserved": "qmk1.loeWEWUPgKgTkqUuDbmwI3ZpCHxFGOHBMOVBpQXg7u8"
+        },
+        "activePayloadBytes": 32506933,
+        "membershipRecordsAfter": 0,
+        "legacyEnvelope": {
+          "verified": true,
+          "version": 7,
+          "token": "sbrt1.carrier-exit.7"
+        },
+        "maintenanceMs": 51097.785
+      }
+    },
+    {
+      "leg": "bounded-custody-query-churn",
+      "carrier": "browser-indexeddb-v3",
+      "status": "PASS",
+      "evidence": {
+        "injectedLimits": {
+          "byteCeiling": 1048576,
+          "recordCeiling": 32,
+          "fragmentCeiling": 2
+        },
+        "committedRecords": 6,
+        "retainedPayloadRecords": 2,
+        "retainedFragments": 2,
+        "compactedStubs": 4,
+        "durableRegistrations": 6,
+        "compactionCount": 4,
+        "allocatorHighWater": 6,
+        "commits": [
+          {
+            "queryInstanceId": 1,
+            "registration": {
+              "committed": true
+            }
+          },
+          {
+            "queryInstanceId": 2,
+            "registration": {
+              "committed": true
+            }
+          },
+          {
+            "queryInstanceId": 3,
+            "registration": {
+              "committed": true
+            }
+          },
+          {
+            "queryInstanceId": 4,
+            "registration": {
+              "committed": true
+            }
+          },
+          {
+            "queryInstanceId": 5,
+            "registration": {
+              "committed": true
+            }
+          },
+          {
+            "queryInstanceId": 6,
+            "registration": {
+              "committed": true
+            }
+          }
+        ]
+      }
+    },
+    {
+      "leg": "footprint-hydration-triage",
+      "carrier": "move-1-successor-app",
+      "status": "GAP",
+      "evidence": {
+        "applicationExists": false,
+        "measurements": null
+      },
+      "reason": "SNAPBACK_CARRIER_EXIT_TRIAGE_SUCCESSOR_MISSING: the fresh Move-1 successor Triage application does not exist, so byte/row footprint and hydration cannot be measured end to end"
+    },
+    {
+      "leg": "footprint-hydration-fleet",
+      "carrier": "move-1-successor-app",
+      "status": "GAP",
+      "evidence": {
+        "applicationExists": false,
+        "measurements": null,
+        "blocker": "LLP 0135 OQ5 relational-node successor"
+      },
+      "reason": "SNAPBACK_CARRIER_EXIT_FLEET_SUCCESSOR_BLOCKED: the Move-1 Fleet application does not exist and remains blocked on LLP 0135 OQ5 relational-node admission"
+    },
+    {
+      "leg": "bundle-attribution",
+      "carrier": "full-client-store-closure",
+      "status": "PASS",
+      "evidence": {
+        "artifact": "tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-03.v1.json",
+        "minifiedBytes": 485260,
+        "measuredModuleOwnBytes": 96230,
+        "modules": 8,
+        "browserClosureQualification": {
+          "status": "PASS",
+          "materializationStoreResolved": true,
+          "resolved": true,
+          "outputBytes": 65278,
+          "externalImports": []
+        }
+      }
+    }
+  ]
+}

@@ -451,6 +451,11 @@ export async function createRegistrationLedger({
         if (!pair.startsWith(`${contextId}\u0000`)) continue;
         for (const id of ids) remove(id);
         contexts.delete(pair);
+        // A released pair's revision bookkeeping goes with it: the handoff
+        // flow releases every roster context and rebuilds from
+        // re-announcements, which legitimately re-carry their last revision
+        // (LLP 0166 §D2 — never-reused contextIds protect across lifetimes).
+        revisions.delete(pair);
       }
     },
 
