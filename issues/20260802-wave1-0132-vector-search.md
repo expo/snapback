@@ -41,8 +41,9 @@ updated.
   vector-node-budget, forged-manifest, provider-byte, client-page, and
   no-panic storage refusal evidence.
 - Classified every public vector diagnostic in the production HTTP inventory:
-  authored index/query-plan artifacts plus request/value/maintenance admission
-  are 400, corpus-state conflict is 409, index readiness is 503, and
+  authored `SNAPBACK_VECTOR_INDEX_INVALID` /
+  `SNAPBACK_VECTOR_QUERY_PLAN_INVALID` artifacts plus request/value/maintenance
+  admission are 400, corpus-state conflict is 409, index readiness is 503, and
   corruption/maintenance/work-drift invariants are 500. Retry waits for the
   named state/readiness change; no unchanged 400 or blind 500 retry is implied.
 

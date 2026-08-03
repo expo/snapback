@@ -391,12 +391,15 @@ pages, client carrier, capability facts, **and the provider/contract
 projection** — named explicitly so 0073 open question 12's
 `unknown`-argument drift cannot recur here.
 
-Stable diagnostics: `SNAPBACK_VECTOR_QUERY_INVALID`,
+Stable diagnostics: `SNAPBACK_VECTOR_INDEX_INVALID`,
+`SNAPBACK_VECTOR_QUERY_PLAN_INVALID`, `SNAPBACK_VECTOR_QUERY_INVALID`,
 `SNAPBACK_VECTOR_WORK_LIMIT`, `SNAPBACK_VECTOR_INDEX_UNAVAILABLE`,
 `SNAPBACK_VECTOR_INDEX_CORRUPT`, `SNAPBACK_VECTOR_VALUE_INVALID`,
 `SNAPBACK_VECTOR_CORPUS_BOUND`, `SNAPBACK_VECTOR_MAINTENANCE_LIMIT`, and
 `SNAPBACK_VECTOR_MAINTENANCE_FAILED` — all on the existing structured
-`Diagnostic` envelope. The last two transfer LLP 0073's write-side split:
+`Diagnostic` envelope. The first two distinguish invalid authored index and
+query-plan artifacts before any target execution. The last two transfer LLP
+0073's write-side split:
 `MAINTENANCE_LIMIT` is the planned aggregate-effects/bytes refusal before any
 write, while `MAINTENANCE_FAILED` is inability to produce or commit the required
 derived state. Neither is query `WORK_LIMIT` or authored `VALUE_INVALID`.
