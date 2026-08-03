@@ -1,0 +1,42 @@
+# Low-memory image assembler for a release server and qualification instrument
+# built on an independent high-memory x86_64 Linux host. This path preserves
+# the ordinary release profile while avoiding the remote image builder's RAM
+# ceiling; all staged bytes remain ignored and checksum-bound.
+
+FROM ubuntu:24.04
+
+ARG SNAPBACK_BUILD_GIT_COMMIT
+ARG SNAPBACK_BUILD_GIT_DIRTY=0
+RUN printf '%s' "$SNAPBACK_BUILD_GIT_COMMIT" | grep -Eq '^[0-9a-f]{40}$' \
+    && [ "$SNAPBACK_BUILD_GIT_DIRTY" = 0 ]
+LABEL org.opencontainers.image.revision=$SNAPBACK_BUILD_GIT_COMMIT
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libcurl4t64 libssl3t64 libicu74 ca-certificates sqlite3 bash curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY demos/competitive-checkpoint/acceptance/drill/prebuilt/ /tmp/prebuilt/
+RUN test "$(tr -d '\n' < /tmp/prebuilt/source-revision)" = "$SNAPBACK_BUILD_GIT_COMMIT" \
+    && cd /tmp/prebuilt \
+    && sha256sum -c SHA256SUMS
+
+COPY demos/competitive-checkpoint/acceptance/drill/prebuilt/snapback /app/bin/snapback
+COPY demos/competitive-checkpoint/acceptance/drill/prebuilt/snapback-lib-tests /app/bin/snapback-lib-tests
+COPY demos/competitive-checkpoint/acceptance/drill/prebuilt/drill-stream-source /app/bin/drill-stream-source
+COPY demos/competitive-checkpoint/acceptance/drill/prebuilt/lib/ /app/lib/
+COPY demos/competitive-checkpoint/acceptance/drill/entrypoint.sh /app/bin/entrypoint.sh
+COPY demos/competitive-checkpoint/acceptance/drill/backup-to-tigris.sh /app/bin/backup-to-tigris.sh
+COPY demos/competitive-checkpoint/snapback/generated/ /app/checkpoint-generated/
+COPY demos/competitive-checkpoint/snapback/seed.json /app/checkpoint-generated/seed.json
+
+ENV LD_LIBRARY_PATH=/app/lib
+ENV SNAPBACK_PROFILE=test
+ENV SNAPBACK_OUTBOUND_ACTIONS=1
+
+RUN chmod +x /app/bin/snapback /app/bin/snapback-lib-tests \
+        /app/bin/drill-stream-source /app/bin/entrypoint.sh \
+        /app/bin/backup-to-tigris.sh
+
+EXPOSE 8080
+CMD ["/app/bin/entrypoint.sh"]
