@@ -1574,8 +1574,8 @@ fn validate_sequence_declarations(function: &FunctionDefinition) -> SnapbackResu
     }
     let mut names = BTreeSet::new();
     for declaration in &function.sequences {
-        if declaration.name.trim().is_empty()
-            || declaration.scope_table.trim().is_empty()
+        if !is_user_identifier(&declaration.name)
+            || !is_user_identifier(&declaration.scope_table)
             || !names.insert(declaration.name.as_str())
         {
             return Err(SnapbackError::error(
@@ -1654,6 +1654,26 @@ fn validate_sequence_declarations(function: &FunctionDefinition) -> SnapbackResu
         }
     }
     Ok(())
+}
+
+/// User-authored identifier grammar shared by manifest admission and durable
+/// sequence-fact validation. SQL's raw identifier grammar is intentionally
+/// broader because framework-owned `_snapback*` tables must remain quotable.
+///
+/// @ref LLP 0057#reservation — the auth namespace is ASCII-case-insensitive.
+pub(crate) fn is_user_identifier(value: &str) -> bool {
+    let mut chars = value.chars();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+    if !(first == '_' || first.is_ascii_alphabetic())
+        || !chars.all(|char| char == '_' || char.is_ascii_alphanumeric())
+        || value.starts_with("_snapback")
+    {
+        return false;
+    }
+    let folded = value.to_ascii_lowercase();
+    folded != "_auth" && !folded.starts_with("_auth_")
 }
 
 /// Fail-closed shape validation for standard-pattern metadata whose deeper
@@ -9418,6 +9438,28 @@ mod membership_manifest_grammar_tests {
             assert_eq!(
                 validate_sequence_declarations(&forged)
                     .expect_err("mismatched generated declaration refuses")
+                    .diagnostic
+                    .code,
+                "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
+            );
+        }
+
+        for invalid_name in ["bad/name", "9tasks", "_snapbackTasks", "_auth", "_AUTH_tasks"] {
+            let mut forged = valid.clone();
+            forged.sequences[0].name = invalid_name.to_owned();
+            let FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(plan)) =
+                &mut forged.runtime
+            else {
+                unreachable!();
+            };
+            let MutationStep::AllocateSequence { counter, .. } = &mut plan.mutation.steps[2]
+            else {
+                unreachable!();
+            };
+            *counter = invalid_name.to_owned();
+            assert_eq!(
+                validate_sequence_declarations(&forged)
+                    .expect_err("malformed or reserved direct-manifest counter refuses")
                     .diagnostic
                     .code,
                 "SNAPBACK_SEQUENCE_DECLARATION_INVALID",

@@ -8,7 +8,7 @@ use crate::manifest::{
     PORTABLE_STORAGE_VERSION_MAX, QUERY_INTERNAL_OVERFETCH_MAX, QUERY_MAX_FILTER_BINDINGS,
     QUERY_MAX_IN_ITEMS, QueryOutput, QueryPlan, ReadDependency, ReturnValue, SchemaManifest,
     SeedData, SettlementMintObservation, SettlementTimeObservation, TableManifest, ValueExpr, auth_fingerprint,
-    effective_query_limit, replay_opaque_id_is_valid, validate_ctx_answer_ledger,
+    effective_query_limit, is_user_identifier, replay_opaque_id_is_valid, validate_ctx_answer_ledger,
     validate_portable_timestamp_millis, validate_query_plan_shape,
 };
 use rusqlite::types::{Value as SqlValue, ValueRef};
@@ -3578,6 +3578,7 @@ impl LocalDatabase {
                     "direction": "registry-to-scope",
                 })));
             }
+            validate_active_sequence_scope_fact_grammar(&self.conn, table)?;
         }
         Ok(())
     }
@@ -16224,13 +16225,15 @@ fn preview_sequence_allocation_on(
             "sequence counter has exhausted the JavaScript-safe integer domain",
         ));
     }
-    Ok(SequenceAllocationFact {
+    let allocation = SequenceAllocationFact {
         counter: counter.to_owned(),
         scope_table: scope_table.to_owned(),
         scope_row_id: scope_row_id.to_owned(),
         scope_incarnation,
         value,
-    })
+    };
+    validate_sequence_allocation_fact(&allocation)?;
+    Ok(allocation)
 }
 
 fn sequence_scope_tables_from_declarations(
@@ -16335,6 +16338,43 @@ pub(super) fn preflight_sequence_enrollments(
 /// protected counter row against the exact active function declaration set.
 /// This runs at activation and detached restore; removed or retargeted
 /// counters require an explicit reviewed migration and cannot be re-adopted.
+fn validate_active_sequence_scope_fact_grammar(
+    conn: &Connection,
+    table: &str,
+) -> SnapbackResult<()> {
+    let table_sql = quote_ident(table)?;
+    let mut statement = conn.prepare(&format!(
+        "SELECT s._id, r.incarnation
+           FROM {table_sql} s
+           JOIN _snapback_relation_incarnations_v1 r
+             ON r.table_name = ?1
+            AND r.row_id = s._id
+            AND r.active = 1"
+    ))?;
+    let rows = statement.query_map(params![table], |row| {
+        Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+    })?;
+    for row in rows {
+        let (row_id, incarnation) = row?;
+        if !replay_opaque_id_is_valid(&row_id)
+            || !crate::ids::is_canonical_uuid_v7(&incarnation)
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_RELATION_ACTIVATION_BACKFILL_REQUIRED",
+                "schema",
+                "sequence scope identity is outside the durable replay grammar",
+            )
+            .with_details(json!({
+                "scopeTable": table,
+                "rowId": row_id,
+                "scopeReplayable": replay_opaque_id_is_valid(&row_id),
+                "incarnationCanonical": crate::ids::is_canonical_uuid_v7(&incarnation),
+            })));
+        }
+    }
+    Ok(())
+}
+
 pub(super) fn validate_sequence_activation(
     conn: &Connection,
     schema: &SchemaManifest,
@@ -16415,6 +16455,7 @@ pub(super) fn validate_sequence_activation(
                 "direction": "registry-to-scope",
             })));
         }
+        validate_active_sequence_scope_fact_grammar(conn, table)?;
     }
 
     validate_sequence_counter_rows(conn, declarations)
@@ -16459,7 +16500,14 @@ fn validate_sequence_counter_rows(
         let declared = declared.contains(&(counter.as_str(), scope_table.as_str()));
         let successor_in_domain = u64::try_from(next_value)
             .is_ok_and(|value| (1..=SEQUENCE_MAX_SAFE_INTEGER + 1).contains(&value));
-        if !declared || !successor_in_domain || !registry_backed {
+        let scope_replayable = replay_opaque_id_is_valid(&scope_row_id);
+        let incarnation_canonical = crate::ids::is_canonical_uuid_v7(&scope_incarnation);
+        if !declared
+            || !successor_in_domain
+            || !registry_backed
+            || !scope_replayable
+            || !incarnation_canonical
+        {
             return Err(SnapbackError::error(
                 "SNAPBACK_SEQUENCE_ACTIVATION_STATE_INVALID",
                 "schema",
@@ -16473,6 +16521,8 @@ fn validate_sequence_counter_rows(
                 "nextValue": next_value,
                 "declared": declared,
                 "registryBacked": registry_backed,
+                "scopeReplayable": scope_replayable,
+                "incarnationCanonical": incarnation_canonical,
             })));
         }
     }
@@ -16506,6 +16556,7 @@ fn apply_sequence_allocations_in_tx(
     allocations: &[SequenceAllocationFact],
 ) -> SnapbackResult<()> {
     for allocation in allocations {
+        validate_sequence_allocation_fact(allocation)?;
         let scope = schema_table(schema, &allocation.scope_table)?;
         let scope_exists = tx
             .query_row(
@@ -17391,8 +17442,7 @@ fn sqlite_type(field_type: &FieldType) -> &'static str {
 }
 
 fn validate_user_identifier(kind: &str, value: &str) -> SnapbackResult<()> {
-    if !is_identifier(value) || value.starts_with("_snapback") || is_auth_reserved_identifier(value)
-    {
+    if !is_user_identifier(value) {
         return Err(SnapbackError::error(
             "SNAPBACK_INVALID_IDENTIFIER",
             "schema",
@@ -17416,20 +17466,32 @@ fn validate_retained_sequence_allocations(
         return Err(invalid());
     }
     for fact in facts {
-        if !is_identifier(&fact.counter)
-            || fact.counter.starts_with("_snapback")
-            || is_auth_reserved_identifier(&fact.counter)
-            || !is_identifier(&fact.scope_table)
-            || fact.scope_table.starts_with("_snapback")
-            || is_auth_reserved_identifier(&fact.scope_table)
-            || !replay_opaque_id_is_valid(&fact.scope_row_id)
-            || !crate::ids::is_canonical_uuid_v7(&fact.scope_incarnation)
-            || !(1..=SEQUENCE_MAX_SAFE_INTEGER).contains(&fact.value)
-        {
+        if !sequence_allocation_fact_is_valid(fact) {
             return Err(invalid());
         }
     }
     Ok(())
+}
+
+fn sequence_allocation_fact_is_valid(fact: &SequenceAllocationFact) -> bool {
+    is_user_identifier(&fact.counter)
+        && is_user_identifier(&fact.scope_table)
+        && replay_opaque_id_is_valid(&fact.scope_row_id)
+        && crate::ids::is_canonical_uuid_v7(&fact.scope_incarnation)
+        && (1..=SEQUENCE_MAX_SAFE_INTEGER).contains(&fact.value)
+}
+
+pub(crate) fn validate_sequence_allocation_fact(
+    fact: &SequenceAllocationFact,
+) -> SnapbackResult<()> {
+    if sequence_allocation_fact_is_valid(fact) {
+        return Ok(());
+    }
+    Err(SnapbackError::error(
+        "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
+        "storage",
+        "sequence allocation fact is outside the durable replay grammar",
+    ))
 }
 
 /// `_auth` is a complete namespace root, and SQLite folds ASCII identifier
@@ -17763,6 +17825,10 @@ fn record_client_mutation_result(
     output: &MutationOutput,
 ) -> SnapbackResult<()> {
     validate_client_mutation_identity(identity)?;
+    // The retained row and its first caller-visible result must obey the same
+    // replay grammar. Refuse inside the surrounding transaction before an
+    // invalid private sequence fact can commit application writes or a counter.
+    validate_retained_sequence_allocations(&output.settlement_sequence_allocations)?;
     let output_json = serde_json::to_string(output).map_err(|error| {
         SnapbackError::error(
             "SNAPBACK_CLIENT_MUTATION_RESULT_INVALID",
@@ -18392,6 +18458,125 @@ mod guarded_commit_tests {
         assert_ne!(restarted.scope_incarnation, predecessor_incarnation);
         commit_sequence(&mut db, restarted, None, Vec::new())
             .expect("successor incarnation restarts at one");
+    }
+
+    #[test]
+    fn malformed_sequence_fact_cannot_commit_before_durable_replay_validation() {
+        let mut db = database();
+        db.seed(SeedData {
+            tables: BTreeMap::from([(
+                "items".to_owned(),
+                vec![Map::from_iter([
+                    ("_id".to_owned(), json!("scope")),
+                    ("title".to_owned(), json!("original")),
+                ])],
+            )]),
+        })
+        .expect("seed scope");
+
+        let identity = ClientMutationIdentity::new(
+            "cm-malformed-sequence",
+            "allocate",
+            &HandlerInput::default(),
+        );
+        let malformed = SequenceAllocationFact {
+            counter: "bad/name".to_owned(),
+            ..sequence_fact(&db, 1)
+        };
+        let failure = commit_sequence(
+            &mut db,
+            malformed,
+            Some(&identity),
+            vec![BufferedWrite::Patch {
+                table: "items".to_owned(),
+                id: "scope".to_owned(),
+                values: Map::from_iter([("title".to_owned(), json!("must-roll-back"))]),
+            }],
+        )
+        .expect_err("malformed retained sequence fact refuses the whole transaction");
+        assert_eq!(
+            failure.diagnostic.code,
+            "SNAPBACK_SEQUENCE_DECLARATION_INVALID"
+        );
+        assert_eq!(
+            db.get("items", "scope").unwrap().unwrap()["title"],
+            json!("original"),
+            "application writes roll back with the invalid replay fact"
+        );
+        assert_eq!(
+            db.conn
+                .query_row(
+                    "SELECT COUNT(*) FROM _snapback_sequence_counters_v1",
+                    [],
+                    |row| row.get::<_, i64>(0),
+                )
+                .expect("counter count"),
+            0,
+            "the rejected first invocation burns no sequence value"
+        );
+        assert!(
+            db.client_mutation_result(&identity)
+                .expect("replay lookup after refusal")
+                .is_none(),
+            "the refused invocation leaves no poisoned replay row"
+        );
+    }
+
+    #[test]
+    fn noncanonical_sequence_scope_id_cannot_commit_or_burn() {
+        let mut db = database();
+        db.seed(SeedData {
+            tables: BTreeMap::from([(
+                "items".to_owned(),
+                vec![Map::from_iter([
+                    ("_id".to_owned(), json!("bad/id")),
+                    ("title".to_owned(), json!("original")),
+                ])],
+            )]),
+        })
+        .expect("seed accepts the legacy scope id");
+
+        let incarnation = DbRead::Live(&db)
+            .active_relation_incarnation("items", "bad/id")
+            .expect("incarnation lookup")
+            .expect("seeded scope incarnation");
+        let fact = SequenceAllocationFact {
+            counter: "ticketNumber".to_owned(),
+            scope_table: "items".to_owned(),
+            scope_row_id: "bad/id".to_owned(),
+            scope_incarnation: incarnation,
+            value: 1,
+        };
+        let failure = commit_sequence(
+            &mut db,
+            fact,
+            None,
+            vec![BufferedWrite::Patch {
+                table: "items".to_owned(),
+                id: "bad/id".to_owned(),
+                values: Map::from_iter([("title".to_owned(), json!("must-roll-back"))]),
+            }],
+        )
+        .expect_err("a sequence fact that cannot be retained must never commit");
+        assert_eq!(
+            failure.diagnostic.code,
+            "SNAPBACK_SEQUENCE_DECLARATION_INVALID"
+        );
+        assert_eq!(
+            db.get("items", "bad/id").unwrap().unwrap()["title"],
+            json!("original")
+        );
+        assert_eq!(
+            db.conn
+                .query_row(
+                    "SELECT COUNT(*) FROM _snapback_sequence_counters_v1",
+                    [],
+                    |row| row.get::<_, i64>(0),
+                )
+                .expect("counter count"),
+            0,
+            "the refusal leaves no protected counter state"
+        );
     }
 
     #[test]
@@ -19242,6 +19427,39 @@ mod guarded_commit_tests {
             )]),
         })
         .unwrap();
+        let legitimate_active = DbRead::Live(&db)
+            .active_relation_incarnation("items", "scope")
+            .unwrap()
+            .unwrap();
+        db.conn
+            .execute(
+                "UPDATE _snapback_relation_incarnations_v1
+                    SET incarnation = 'not-a-canonical-v7'
+                  WHERE table_name = 'items' AND row_id = 'scope' AND active = 1",
+                [],
+            )
+            .unwrap();
+        let malformed_registry = match db.detached_read_snapshot() {
+            Ok(_) => panic!("a malformed registered active incarnation must fail closed"),
+            Err(error) => error,
+        };
+        assert_eq!(
+            malformed_registry.diagnostic.code,
+            "SNAPBACK_RELATION_ACTIVATION_BACKFILL_REQUIRED"
+        );
+        assert_eq!(
+            malformed_registry.diagnostic.details["incarnationCanonical"],
+            json!(false)
+        );
+        db.conn
+            .execute(
+                "UPDATE _snapback_relation_incarnations_v1
+                    SET incarnation = ?1
+                  WHERE table_name = 'items' AND row_id = 'scope' AND active = 1",
+                params![legitimate_active],
+            )
+            .unwrap();
+
         let fabricated = Uuid::now_v7().to_string();
         db.conn
             .execute(
@@ -19264,6 +19482,53 @@ mod guarded_commit_tests {
             .execute(
                 "DELETE FROM _snapback_sequence_counters_v1 WHERE scope_incarnation = ?1",
                 params![fabricated],
+            )
+            .unwrap();
+
+        db.conn
+            .execute(
+                "INSERT INTO _snapback_relation_incarnations_v1(
+                   table_name, row_id, incarnation, active
+                 ) VALUES('items', 'scope', 'historical-not-a-v7', 0)",
+                [],
+            )
+            .unwrap();
+        db.conn
+            .execute(
+                "INSERT INTO _snapback_sequence_counters_v1(
+                   counter_name, scope_table, scope_row_id, scope_incarnation, next_value
+                 ) VALUES('positions', 'items', 'scope', 'historical-not-a-v7', 1)",
+                [],
+            )
+            .unwrap();
+        let malformed_counter = match db.detached_read_snapshot() {
+            Ok(_) => panic!("a registry-backed counter with malformed incarnation must refuse"),
+            Err(error) => error,
+        };
+        assert_eq!(
+            malformed_counter.diagnostic.code,
+            "SNAPBACK_SEQUENCE_ACTIVATION_STATE_INVALID"
+        );
+        assert_eq!(
+            malformed_counter.diagnostic.details["registryBacked"],
+            json!(true)
+        );
+        assert_eq!(
+            malformed_counter.diagnostic.details["incarnationCanonical"],
+            json!(false)
+        );
+        db.conn
+            .execute(
+                "DELETE FROM _snapback_sequence_counters_v1
+                  WHERE scope_incarnation = 'historical-not-a-v7'",
+                [],
+            )
+            .unwrap();
+        db.conn
+            .execute(
+                "DELETE FROM _snapback_relation_incarnations_v1
+                  WHERE incarnation = 'historical-not-a-v7'",
+                [],
             )
             .unwrap();
 
