@@ -44534,6 +44534,7 @@ globalThis.__snapbackHandlers = {
             membership_commands: Vec::new(),
             reads: Vec::new(),
             asset_admissions: Vec::new(),
+            sequence_allocations: Vec::new(),
             result: json!("guarded_item"),
             ctx_ledger: CtxAnswerLedger {
                 version: ctx_ledger_version(),

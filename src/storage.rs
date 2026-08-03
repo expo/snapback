@@ -13496,6 +13496,7 @@ impl LocalDatabase {
                 job_enqueues: Vec::new(),
                 job_producer: None,
                 asset_admissions: Vec::new(),
+                sequence_allocations: Vec::new(),
             },
             BufferedCommitOptions {
                 ctx_ledger: None,
