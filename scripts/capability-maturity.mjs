@@ -15,6 +15,7 @@ import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 // make the audited tree, not elapsed time or branch intent, the promotion fact.
 
 export const MATURITY_RECORD_SUFFIXES = Object.freeze([
+  '.introduction.json',
   '.promotion.json',
   '.demotion.json',
   '.grandfather.json',
@@ -22,6 +23,31 @@ export const MATURITY_RECORD_SUFFIXES = Object.freeze([
   '.soak-extract.json',
   '.defect-search.json',
 ]);
+
+// @ref LLP 0134#1-maturity-semantics-and-the-two-routes — these are the
+// closed, pre-introduction-schema transitions admitted by the 2026-08-03
+// repair. New ids use a same-commit introduction record; this table cannot
+// grow without a dated LLP amendment.
+const HISTORICAL_INTRODUCTION_BACKFILLS = Object.freeze({
+  eaecfb3a8e8a04cd7c74c528f5a54b3b08ceacba: Object.freeze({
+    capabilityIds: Object.freeze(['sequence_allocation_v1']),
+    governingLlp: 'llp/0135-sequence-allocation-and-snapshot-batch.spec.md',
+  }),
+  '353fd7467a906ea8f2ae3b598598b41c4a658525': Object.freeze({
+    capabilityIds: Object.freeze(['snapshot_batch_v1']),
+    governingLlp: 'llp/0135-sequence-allocation-and-snapshot-batch.spec.md',
+  }),
+  '3bea0bbb5da78e7ee0f59087a911272dae821fd4': Object.freeze({
+    capabilityIds: Object.freeze(['live_full_text_search_v1']),
+    governingLlp: 'llp/0136-live-search.spec.md',
+  }),
+  '79b7f6189e5cd635e0167bc2adf52c51a5c2226e': Object.freeze({
+    capabilityIds: Object.freeze(['vector_search_v1']),
+    governingLlp: 'llp/0132-vector-search.spec.md',
+  }),
+});
+const INTRODUCTION_BACKFILL_ISSUE =
+  'issues/closed/20260803-maturity-transition-records-missing.md';
 
 export const GRANDFATHERED_DIRECT_IDS = Object.freeze([
   'inline_handler_v1',
@@ -188,6 +214,11 @@ function commitIntroducing(repoRoot, repoPath) {
 function commitUtcDate(repoRoot, commit) {
   const committerTimestamp = git(repoRoot, ['show', '-s', '--format=%cI', commit]).trim();
   return new Date(committerTimestamp).toISOString().slice(0, 10);
+}
+
+function commitUtcTimestamp(repoRoot, commit) {
+  const committerTimestamp = git(repoRoot, ['show', '-s', '--format=%cI', commit]).trim();
+  return new Date(committerTimestamp).toISOString();
 }
 
 function bytesAt(repoRoot, sourceSha, repoPath) {
@@ -551,6 +582,111 @@ function validateDemotion(record, context) {
   return record;
 }
 
+function introductionTransitionCommit(entry) {
+  return entry.value.recordingMode === 'historical-backfill.v1'
+    ? entry.value.historicalTransitionCommit
+    : entry.recordCommit;
+}
+
+function validateIntroductionTransition(record, context, transitionCommit) {
+  let parents;
+  try {
+    parents = git(context.repoRoot, ['show', '-s', '--format=%P', transitionCommit])
+      .trim().split(/\s+/).filter(Boolean);
+  } catch {
+    fail('MATURITY_INTRODUCTION_COMMIT_INVALID', `${transitionCommit} does not resolve`);
+  }
+  if (parents.length !== 1 || parents[0] !== record.candidateParentSha) {
+    fail(
+      'MATURITY_TRANSITION_PARENT_MISMATCH',
+      `${transitionCommit} introduction does not bind its sole parent`,
+    );
+  }
+  const before = projectionAt(context.repoRoot, parents[0]);
+  const after = projectionAt(context.repoRoot, transitionCommit);
+  if (before === null || after === null) {
+    fail('MATURITY_INTRODUCTION_PROJECTION_MISSING', `${transitionCommit} lacks a maturity projection`);
+  }
+  const removed = before.filter((id) => !after.includes(id));
+  const added = after.filter((id) => !before.includes(id));
+  if (removed.length !== 0 || canonicalJson(added) !== canonicalJson(record.capabilityIds)) {
+    fail(
+      'MATURITY_INTRODUCTION_IDS_MISMATCH',
+      `${transitionCommit} does not introduce exactly ${record.capabilityIds.join(', ')}`,
+    );
+  }
+  if (record.introductionDate !== commitUtcTimestamp(context.repoRoot, transitionCommit)) {
+    fail(
+      'MATURITY_INTRODUCTION_DATE_MISMATCH',
+      `${transitionCommit} was not committed at ${record.introductionDate}`,
+    );
+  }
+  bytesAt(context.repoRoot, transitionCommit, record.governingLlp);
+}
+
+function validateIntroduction(record, context) {
+  exactKeys(record, [
+    'schemaVersion', 'route', 'recordingMode', 'capabilityIds', 'fromMaturity',
+    'toMaturity', 'governingLlp', 'candidateSourceSha', 'candidateParentSha',
+    'introductionDate',
+  ], ['historicalTransitionCommit', 'backfillIssue'], 'MaturityIntroductionRecordV1');
+  if (record.schemaVersion !== 1) fail('MATURITY_SCHEMA_INVALID', 'introduction schemaVersion must be 1');
+  if (record.route !== 'default.v1') fail('MATURITY_SCHEMA_INVALID', 'introduction route must be default.v1');
+  closedEnum(record.recordingMode, ['same-commit.v1', 'historical-backfill.v1'], 'recordingMode');
+  capabilityIds(record.capabilityIds);
+  if (record.fromMaturity !== 'unregistered' || record.toMaturity !== 'experimental') {
+    fail('MATURITY_SCHEMA_INVALID', 'introduction direction must be unregistered -> experimental');
+  }
+  safeRepoPath(record.governingLlp, 'governingLlp');
+  nonEmptyString(record.candidateSourceSha, 'candidateSourceSha', GIT_SHA);
+  nonEmptyString(record.candidateParentSha, 'candidateParentSha', GIT_SHA);
+  if (record.candidateSourceSha !== record.candidateParentSha) {
+    fail('MATURITY_CANDIDATE_PIN_MISMATCH', 'candidateSourceSha must equal candidateParentSha');
+  }
+  parseUtcTimestamp(record.introductionDate, 'introductionDate');
+
+  if (record.recordingMode === 'same-commit.v1') {
+    if (record.historicalTransitionCommit !== undefined || record.backfillIssue !== undefined) {
+      fail('MATURITY_SCHEMA_INVALID', 'same-commit introduction must omit historical backfill members');
+    }
+    if (context.recordCommit) {
+      validateIntroductionTransition(record, context, context.recordCommit);
+    }
+    return record;
+  }
+
+  nonEmptyString(record.historicalTransitionCommit, 'historicalTransitionCommit', GIT_SHA);
+  safeRepoPath(record.backfillIssue, 'backfillIssue');
+  const expected = HISTORICAL_INTRODUCTION_BACKFILLS[record.historicalTransitionCommit];
+  if (!expected
+    || record.backfillIssue !== INTRODUCTION_BACKFILL_ISSUE
+    || expected.governingLlp !== record.governingLlp
+    || canonicalJson(expected.capabilityIds) !== canonicalJson(record.capabilityIds)) {
+    fail(
+      'MATURITY_INTRODUCTION_BACKFILL_REFUSED',
+      `${record.historicalTransitionCommit} is outside the closed introduction backfill`,
+    );
+  }
+  const issuePath = join(context.repoRoot, record.backfillIssue);
+  if (!existsSync(issuePath) || !lstatSync(issuePath).isFile()) {
+    fail('MATURITY_INTRODUCTION_BACKFILL_ISSUE_MISSING', `${record.backfillIssue} must exist`);
+  }
+  validateIntroductionTransition(record, context, record.historicalTransitionCommit);
+  if (context.recordCommit) {
+    try {
+      git(context.repoRoot, [
+        'merge-base', '--is-ancestor', record.historicalTransitionCommit, context.recordCommit,
+      ], { quiet: true });
+    } catch {
+      fail(
+        'MATURITY_INTRODUCTION_BACKFILL_ORDER_INVALID',
+        `${context.repoPath} predates or does not descend from its historical transition`,
+      );
+    }
+  }
+  return record;
+}
+
 function validateGrandfather(record, context) {
   exactKeys(record, [
     'schemaVersion', 'capabilityIds', 'cutoffDate', 'preCutoffCommitRefs',
@@ -605,6 +741,7 @@ export function validateMaturityRecordTree({
   for (const entry of records) {
     const context = { repoRoot, repoPath: entry.repoPath, recordCommit: entry.recordCommit };
     switch (entry.suffix) {
+      case '.introduction.json': validateIntroduction(entry.value, context); break;
       case '.promotion.json': validatePromotion(entry.value, context, recordsByPath); break;
       case '.demotion.json': validateDemotion(entry.value, context); break;
       case '.grandfather.json': validateGrandfather(entry.value, context); break;
@@ -616,7 +753,9 @@ export function validateMaturityRecordTree({
   }
   const transitionKeys = new Set();
   for (const entry of records.filter((candidate) =>
-    candidate.suffix === '.promotion.json' || candidate.suffix === '.demotion.json')) {
+    candidate.suffix === '.introduction.json'
+      || candidate.suffix === '.promotion.json'
+      || candidate.suffix === '.demotion.json')) {
     const key = `${entry.value.candidateSourceSha}\0${canonicalJson(entry.value.capabilityIds)}`;
     if (transitionKeys.has(key)) fail('MATURITY_TRANSITION_CONFLICT', `duplicate transition for ${entry.value.capabilityIds.join(', ')}`);
     transitionKeys.add(key);
@@ -652,6 +791,79 @@ function projectionAt(repoRoot, commit) {
   }
 }
 
+function registryProjectionAt(repoRoot, commit) {
+  const path = 'tests/acceptance/capability-registry.ids.json';
+  try {
+    const value = JSON.parse(bytesAt(repoRoot, commit, path));
+    return sortedUniqueStrings(value, `${commit}:${path}`, { allowEmpty: true });
+  } catch (error) {
+    if (error instanceof MaturityValidationError && error.code === 'MATURITY_LOCATOR_UNRESOLVED') return null;
+    throw error;
+  }
+}
+
+function classifyTransition(repoRoot, parent, commit) {
+  const before = projectionAt(repoRoot, parent);
+  const after = projectionAt(repoRoot, commit);
+  if (before === null || after === null) return null;
+  const removed = before.filter((id) => !after.includes(id));
+  const added = after.filter((id) => !before.includes(id));
+
+  const registeredBefore = registryProjectionAt(repoRoot, parent);
+  const registeredAfter = registryProjectionAt(repoRoot, commit);
+  if (registeredBefore === null && registeredAfter !== null) {
+    if (removed.length === 0 && added.length === 0
+      && after.every((id) => registeredAfter.includes(id))) {
+      return null;
+    }
+    fail(
+      'MATURITY_REGISTRY_BASELINE_INVALID',
+      `${commit} must establish the full registry projection without a transition`,
+    );
+  }
+  if (registeredBefore !== null && registeredAfter === null) {
+    fail('MATURITY_REGISTRY_PROJECTION_MISSING', `${commit} removed the full registry projection`);
+  }
+
+  if (registeredBefore !== null && registeredAfter !== null) {
+    const registryRemoved = registeredBefore.filter((id) => !registeredAfter.includes(id));
+    const registryAdded = registeredAfter.filter((id) => !registeredBefore.includes(id));
+    if (registryRemoved.length > 0) {
+      fail(
+        'MATURITY_REGISTRY_REMOVAL_UNSUPPORTED',
+        `${commit} removes registered ids without a retirement protocol`,
+      );
+    }
+    if (registryAdded.length > 0) {
+      if (removed.length === 0 && canonicalJson(registryAdded) === canonicalJson(added)) {
+        return { direction: 'introduction', ids: added };
+      }
+      fail(
+        'MATURITY_REGISTRATION_NOT_EXPERIMENTAL',
+        `${commit} does not introduce every new registered id at experimental`,
+      );
+    }
+  }
+
+  if (removed.length === 0 && added.length === 0) return null;
+  if ((removed.length > 0) === (added.length > 0)) {
+    fail('MATURITY_TRANSITION_MIXED', `${commit} mixes maturity projection directions`);
+  }
+  if (removed.length > 0) return { direction: 'promotion', ids: removed };
+  if (registeredBefore !== null && added.every((id) => registeredBefore.includes(id))) {
+    return { direction: 'demotion', ids: added };
+  }
+  const historical = HISTORICAL_INTRODUCTION_BACKFILLS[commit];
+  if (registeredBefore === null && registeredAfter === null && historical
+    && canonicalJson(historical.capabilityIds) === canonicalJson(added)) {
+    return { direction: 'introduction', ids: added };
+  }
+  fail(
+    'MATURITY_REGISTRY_PROJECTION_MISSING',
+    `${commit} cannot distinguish introduction from demotion without the full registry projection`,
+  );
+}
+
 function changedPaths(repoRoot, parent, commit) {
   return git(repoRoot, ['diff-tree', '--no-commit-id', '--name-only', '-r', parent, commit])
     .trim().split('\n').filter(Boolean);
@@ -665,45 +877,62 @@ export function validateTransitionRange({ repoRoot, range, validation = null }) 
     const parents = git(repoRoot, ['show', '-s', '--format=%P', commit]).trim().split(/\s+/).filter(Boolean);
     if (parents.length !== 1) continue;
     const [parent] = parents;
-    const before = projectionAt(repoRoot, parent);
-    const after = projectionAt(repoRoot, commit);
-    if (before === null || after === null || canonicalJson(before) === canonicalJson(after)) continue;
-    const removed = before.filter((id) => !after.includes(id));
-    const added = after.filter((id) => !before.includes(id));
-    const direction = removed.length > 0 && added.length === 0 ? 'promotion'
-      : added.length > 0 && removed.length === 0 ? 'demotion' : null;
-    if (!direction) fail('MATURITY_TRANSITION_MIXED', `${commit} mixes promotion and demotion`);
-    const ids = direction === 'promotion' ? removed : added;
+    const transition = classifyTransition(repoRoot, parent, commit);
+    if (!transition) continue;
+    const { direction, ids } = transition;
     capabilityIds(ids, `${commit}.changedCapabilityIds`);
     const paths = changedPaths(repoRoot, parent, commit);
-    const suffix = direction === 'promotion' ? '.promotion.json' : '.demotion.json';
-    const recordEntries = checked.records.filter((entry) =>
-      entry.recordCommit === commit && entry.suffix === suffix);
-    if (recordEntries.length !== 1) fail('MATURITY_TRANSITION_RECORD_MISSING', `${commit} needs exactly one ${suffix} record`);
+    const suffix = direction === 'introduction' ? '.introduction.json'
+      : direction === 'promotion' ? '.promotion.json' : '.demotion.json';
+    const recordEntries = checked.records.filter((entry) => {
+      if (direction === 'introduction') {
+        return entry.suffix === suffix && introductionTransitionCommit(entry) === commit;
+      }
+      return entry.suffix === suffix && entry.recordCommit === commit;
+    });
+    if (recordEntries.length !== 1) {
+      fail('MATURITY_TRANSITION_RECORD_MISSING', `${commit} needs exactly one ${suffix} record`);
+    }
     const recordEntry = recordEntries[0];
     const record = recordEntry.value;
     if (record.candidateSourceSha !== parent || record.candidateParentSha !== parent
       || canonicalJson(record.capabilityIds) !== canonicalJson(ids)) {
       fail('MATURITY_TRANSITION_PARENT_MISMATCH', `${commit} record does not bind its sole parent and changed ids`);
     }
-    for (const required of ['src/manifest.rs', 'packages/snapback-codegen/index.mjs']) {
-      if (!paths.includes(required)) fail('MATURITY_TRANSITION_NONATOMIC', `${commit} did not change ${required}`);
+    const registryPaths = ['src/manifest.rs', 'packages/snapback-codegen/index.mjs'];
+    const isHistoricalIntroduction = direction === 'introduction'
+      && record.recordingMode === 'historical-backfill.v1';
+    if (isHistoricalIntroduction) {
+      if (!registryPaths.some((path) => paths.includes(path))) {
+        fail('MATURITY_TRANSITION_NONATOMIC', `${commit} did not change either source registry`);
+      }
+    } else {
+      for (const required of registryPaths) {
+        if (!paths.includes(required)) fail('MATURITY_TRANSITION_NONATOMIC', `${commit} did not change ${required}`);
+      }
     }
-    if (!paths.some((path) => path.startsWith('tests/') && path !== recordEntry.repoPath)) {
+    if (direction === 'introduction' && !isHistoricalIntroduction
+      && !paths.includes('tests/acceptance/capability-registry.ids.json')) {
+      fail('MATURITY_TRANSITION_NONATOMIC', `${commit} did not update the full registry projection`);
+    }
+    if (!paths.some((path) => path.startsWith('tests/')
+      && path !== recordEntry.repoPath
+      && path !== 'tests/acceptance/capability-registry.ids.json'
+      && path !== 'tests/acceptance/capability-maturity.experimental.json')) {
       fail('MATURITY_TRANSITION_TEST_MISSING', `${commit} did not update a maturity/admission test`);
     }
     const governingLlp = direction === 'promotion'
       ? record.governingLlp
-      : JSON.parse(bytesAt(
+      : direction === 'demotion' ? JSON.parse(bytesAt(
         repoRoot,
         record.voidedReceiptRef.sourceSha,
         record.voidedReceiptRef.path,
-      )).governingLlp;
-    if (!paths.includes(governingLlp)) {
+      )).governingLlp : record.governingLlp;
+    if (!isHistoricalIntroduction && !paths.includes(governingLlp)) {
       fail('MATURITY_TRANSITION_LLP_MISSING', `${commit} did not update ${governingLlp}`);
     }
-    if (!paths.includes('guide/capabilities.md')
-      || !paths.some((path) => /^llp\/\d{4}-.+\.plan\.md$/.test(path))) {
+    if (!isHistoricalIntroduction && (!paths.includes('guide/capabilities.md')
+      || !paths.some((path) => /^llp\/\d{4}-.+\.plan\.md$/.test(path)))) {
       fail('MATURITY_TRANSITION_BOARD_MISSING', `${commit} did not update guide and program-board rows`);
     }
     if (direction === 'promotion') {

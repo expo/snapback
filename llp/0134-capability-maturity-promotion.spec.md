@@ -5,7 +5,12 @@
 **Systems:** Capability publication, Application data API, Relational queries, Code generation, Packaging, Documentation, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-08-02 (dated correction after the first implementation:
+**Revised:** 2026-08-03 (experimental-introduction correction: registration is
+now an explicit `unregistered` → `experimental` act with a closed
+`MaturityIntroductionRecordV1`, same-commit records for every future id, and
+an exact four-transition historical backfill. This closes the record-vocabulary
+gap without misrepresenting first registration as stable → experimental
+demotion). 2026-08-02 (dated correction after the first implementation:
 the promotion registry comment cites the exact promotion-record path plus
 this Spec's §4 marker, not the receipt digest. A2/A5 already bind that
 record's exact bytes, sole parent, changed ids, and complete self-excluding
@@ -181,6 +186,67 @@ Two promotion routes exist, and only two:
    of its own), never an inference from this Spec.
 2. **The grandfathered direct act,** reserved by LLP 0127 decision 3 for the
    closed set in §7 and available to no other surface.
+
+`unregistered` is not a third maturity value. It is the history checker's name
+for absence from the closed registry before the commit that first assigns the
+id `experimental`. That **introduction act** uses a canonical
+`*.introduction.json` file under `tests/acceptance/maturity/` with the closed
+`MaturityIntroductionRecordV1` shape:
+
+```text
+{
+  schemaVersion: 1,
+  route: "default.v1",
+  recordingMode: "same-commit.v1" | "historical-backfill.v1",
+  capabilityIds: string[],
+  fromMaturity: "unregistered",
+  toMaturity: "experimental",
+  governingLlp: repo-relative path,
+  candidateSourceSha: git SHA,
+  candidateParentSha: git SHA,
+  introductionDate: UTC timestamp,
+  historicalTransitionCommit?: git SHA,
+  backfillIssue?: repo-relative path
+}
+```
+
+`capabilityIds` is sorted, unique, non-empty, and preserves §1's coupled sets.
+Both candidate pins equal the introduction commit's sole parent;
+`introductionDate` equals its committer time normalized to UTC; and the commit's
+projection delta adds exactly those ids and removes none. The normal
+`same-commit.v1` mode omits both optional members. It lands the record, both
+source registries, the canonical full-registry projection, a non-projection
+maturity/admission test, the governing LLP, and the guide/program-board rows
+together. The checker derives introduction versus demotion from the id's
+absence or presence in the parent full-registry projection; the record cannot
+choose its own direction. This is default-route registration, not a promotion
+and not a support claim. A full-registry addition without the identical
+experimental-projection addition is refused, so a newly minted id cannot enter
+at stable by omitting the introduction record.
+
+The `historical-backfill.v1` mode exists only for the four already-landed
+transitions below. It requires both optional members, fixes `backfillIssue` to
+`issues/closed/20260803-maturity-transition-records-missing.md`, and admits no
+other commit, id set, or governing LLP. The post-hoc record is the only waived
+same-commit item. Because the immutable commits cannot acquire files, the
+checker also accepts the source-registry and documentation split actually
+landed in this closed set: at least one source registry and one non-projection
+test changed in the transition, while the governing LLP already existed at the
+transition. Sole-parent, candidate-pin, exact added-id delta, exact timestamp,
+governing-document existence, and ancestry of the later record remain
+mechanical requirements.
+
+| Transition commit | Sole parent | Capability ids | Governing LLP |
+| --- | --- | --- | --- |
+| `eaecfb3a8e8a04cd7c74c528f5a54b3b08ceacba` | `26c43b86a845c6f8ed252eabe7f9d92c5f5ccacd` | `sequence_allocation_v1` | LLP 0135 |
+| `353fd7467a906ea8f2ae3b598598b41c4a658525` | `708ce295f2b591c0a9c81d5357ed63f094a169dc` | `snapshot_batch_v1` | LLP 0135 |
+| `3bea0bbb5da78e7ee0f59087a911272dae821fd4` | `cbae493241b2858b07c865d809b888537c1e452b` | `live_full_text_search_v1` | LLP 0136 |
+| `79b7f6189e5cd635e0167bc2adf52c51a5c2226e` | `9a1029224d636141c97e7dc1b89dbc5a5d9de8c8` | `vector_search_v1` | LLP 0132 |
+
+The audit corrects the triggering issue's preliminary census:
+`live_full_text_search_v1` was also missing a record, while
+`vector_search_v1` entered the projection in `79b7f618`, not in the later
+implementation commit `532d56ee`.
 
 Ids that publish as one atomic claim family (the relation/activity pair
 `bounded_children_v1` + `write_activity_v1`, LLP 0110 §Hosted union carrier)
@@ -813,16 +879,20 @@ Spec. Per the executing ticket, this document promotes nothing itself.
   experimental set equals the Rust registry's non-stable table, so a
   one-sided maturity flip fails CI. The mechanism is canonical-JSON
   emission compared in CI, never source scraping: a Rust test-mode
-  emitter prints the sorted non-stable ids of `TargetCapabilityId::ALL`
-  as canonical JSON, the codegen package exports its sorted experimental
-  set the same way, and the check compares the two outputs byte-for-byte.
+  emitter prints both all ids and the sorted non-stable ids of
+  `TargetCapabilityId::ALL` as canonical JSON. The full set is compared with
+  `tests/acceptance/capability-registry.ids.json`; the codegen package exports
+  its sorted experimental set, and the non-stable outputs plus
+  `tests/acceptance/capability-maturity.experimental.json` are compared
+  byte-for-byte.
   (Deriving both registries from one canonical source would retire the
   mirror hazard entirely; that is future work, not assumed here.) This
   gate lands with this Spec's first implementation commit, before any
   promotion executes.
 - **A2 — Record validation.** A committed validator parses every file
   under `tests/acceptance/maturity/` against the closed schema its suffix
-  names — `*.promotion.json` (§4), `*.demotion.json` (§6),
+  names — `*.introduction.json` (§1), `*.promotion.json` (§4),
+  `*.demotion.json` (§6),
   `*.grandfather.json` (§7), `*.soak-observation.json`,
   `*.soak-extract.json`, and `*.defect-search.json` (E6) — and refuses
   a file matching no suffix, unknown members, missing bar items for the
@@ -843,19 +913,24 @@ Spec. Per the executing ticket, this document promotes nothing itself.
   against the commit itself.
 - **A4 — The gate's last witness.** The E3 acknowledgment-gate negative at
   the candidate revision is retained with the receipt.
-- **A5 — No unreceipted or non-atomic flip.** Any maturity change in
-  either registry without a same-commit conforming record violates this
-  Spec, in either direction. A history-aware committed check makes the
+- **A5 — No unreceipted or non-atomic transition.** Any maturity change in
+  either registry without a same-commit conforming promotion/demotion record,
+  or any first registration at experimental without §1's conforming
+  introduction record, violates this Spec. The only post-hoc records are the
+  four closed §1 backfills. A history-aware committed check makes the
   atomicity claim mechanical rather than aspirational: when a pushed
   range changes either registry's maturity assignment, CI identifies the
   transition commit, requires its sole parent to equal the record's
   `candidateParentSha` (= `candidateSourceSha`; §4's receipt for
-  promotions, §6's record for demotions) — merge commits and
-  stacked transitions are refused; exactly one transition per
+  promotions, §6's record for demotions, or §1's introduction record) — merge
+  commits and stacked transitions are refused; exactly one transition per
   `parent..HEAD` range — derives the changed id set from the diff, and
   requires that same diff to contain the matching new record, both
   registry changes, the test updates, the governing-LLP addendum, and the
-  guide/board rows. Final-tree tests, including the post-flip admission
+  guide/board rows, subject only to §1's closed historical-backfill exception.
+  An experimental addition resolves to exactly one introduction or demotion
+  record, so registration cannot be mistaken for rollback. Final-tree tests,
+  including the post-flip admission
   behavior, run on the transition commit itself, not only on its parent.
   For promotions, that run also requires `src/manifest.rs` to contain the
   exact dated §4 promotion-record citation defined above, then recomputes the
@@ -883,8 +958,9 @@ byte-for-byte with Rust and with the committed history projection at
 `tests/acceptance/capability-maturity.experimental.json`. The five §7 ids are
 also a closed Rust eligibility set whose members remain experimental.
 
-`scripts/capability-maturity.mjs` implements A2 and A5 for all six record
-suffixes. It rejects unknown members and suffixes, non-canonical bytes,
+`scripts/capability-maturity.mjs` implements A2 and A5 for all six originally
+defined record suffixes. It rejects unknown members and suffixes,
+non-canonical bytes,
 unresolvable or mismatched locators, incomplete local day cells, hosted
 identity/extract mismatches, open MATERIAL findings, invalid grandfather
 baselines, late fast-path notifications, non-atomic registry diffs, wrong
@@ -932,6 +1008,18 @@ committed `src/local.rs` digest had drifted from the source-owned carrier on
 that candidate. Issue
 `20260802-relation-activity-publication-carrier-drift` retains the exact
 failure; no green observation was fabricated.
+
+## Implementation correction — 2026-08-03
+
+The record tree now has a seventh closed suffix, `*.introduction.json`, and
+the range validator resolves an experimental projection addition against
+the Rust-derived full-registry history projection before requiring exactly one
+introduction or demotion record, instead of calling every addition a demotion
+or trusting the record to choose its direction. Same-commit introduction
+fixtures prove the forward path. Four canonical historical records bind the
+closed §1 table; arbitrary backfills fail closed. Explicit one-transition
+ranges over sequence allocation, snapshot batch, live full-text search, and
+vector search now validate their real `unregistered` → `experimental` history.
 
 ## Non-goals
 

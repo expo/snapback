@@ -36,6 +36,10 @@ fn committed_maturity_registry_path() -> PathBuf {
         .join("tests/acceptance/capability-maturity.experimental.json")
 }
 
+fn committed_capability_registry_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/acceptance/capability-registry.ids.json")
+}
+
 fn declared_manifest_json(manifest: CapabilityManifest) -> Value {
     sorted_keys(serde_json::to_value(manifest).expect("serialize declared capability manifest"))
 }
@@ -84,10 +88,19 @@ fn sorted_keys(value: Value) -> Value {
 }
 
 // @ref LLP 0134#9-acceptance — A1 compares canonical emissions, never Rust or
-// JavaScript source text. Rust remains runtime authority; the committed array
-// is a reviewable projection used by the history-aware transition checker.
+// JavaScript source text. Rust remains runtime authority; the committed full
+// registry and experimental arrays are reviewable projections used by the
+// history-aware transition checker.
 #[test]
 fn capability_maturity_registry_matches_codegen_canonical_emission() {
+    let mut registered_ids: Vec<&str> = TargetCapabilityId::ALL
+        .into_iter()
+        .map(TargetCapabilityId::as_str)
+        .collect();
+    registered_ids.sort_unstable();
+    let registered_canonical =
+        serde_json::to_string(&registered_ids).expect("emit Rust capability registry");
+
     let mut rust_ids: Vec<&str> = TargetCapabilityId::ALL
         .into_iter()
         .filter(|id| id.maturity() != CapabilityMaturity::Stable)
@@ -98,10 +111,25 @@ fn capability_maturity_registry_matches_codegen_canonical_emission() {
     println!("[maturity-registry] rust={rust_canonical}");
 
     let projection_path = committed_maturity_registry_path();
+    let registry_projection_path = committed_capability_registry_path();
     if std::env::var("SNAPBACK_UPDATE_MATURITY_REGISTRY").is_ok() {
+        fs::write(
+            &registry_projection_path,
+            format!("{registered_canonical}\n"),
+        )
+        .expect("write committed capability registry projection");
         fs::write(&projection_path, format!("{rust_canonical}\n"))
             .expect("write committed maturity registry projection");
     }
+    assert_eq!(
+        fs::read_to_string(&registry_projection_path)
+            .expect("read committed capability registry projection")
+            .trim_end(),
+        registered_canonical,
+        "the full history-check registry projection drifted; regenerate with \
+         SNAPBACK_UPDATE_MATURITY_REGISTRY=1 cargo test \
+         capability_maturity_registry_matches_codegen_canonical_emission",
+    );
     assert_eq!(
         fs::read_to_string(&projection_path)
             .expect("read committed maturity registry projection")

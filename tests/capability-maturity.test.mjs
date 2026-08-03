@@ -13,6 +13,7 @@ import {
 } from '../scripts/capability-maturity.mjs';
 
 const PAIR = ['bounded_children_v1', 'write_activity_v1'];
+const INTRODUCED_ID = 'new_capability_v1';
 const RECORD_ROOT = 'tests/acceptance/maturity';
 
 function runGit(root, args, options = {}) {
@@ -68,13 +69,20 @@ function indexTreeManifest(root, excludedPath) {
   return sha256(Buffer.from(canonicalJson(entries)));
 }
 
-function scaffoldRepository() {
+function scaffoldRepository({ includeRegistryProjection = true, registeredStableIds = [] } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'snapback-maturity-'));
   runGit(root, ['init', '-q']);
   runGit(root, ['config', 'user.name', 'Maturity Test']);
   runGit(root, ['config', 'user.email', 'maturity-test@example.invalid']);
   write(root, 'src/manifest.rs', 'experimental bounded_children_v1 write_activity_v1\n');
   write(root, 'packages/snapback-codegen/index.mjs', 'experimental bounded_children_v1 write_activity_v1\n');
+  if (includeRegistryProjection) {
+    writeCanonical(
+      root,
+      'tests/acceptance/capability-registry.ids.json',
+      [...PAIR, ...registeredStableIds].sort(),
+    );
+  }
   writeCanonical(root, 'tests/acceptance/capability-maturity.experimental.json', PAIR);
   write(root, 'tests/maturity-admission.txt', 'experimental refusal\n');
   write(root, 'guide/capabilities.md', 'bounded pair experimental\n');
@@ -84,6 +92,55 @@ function scaffoldRepository() {
   write(root, 'evidence/pre-cutoff.json', '{"status":"shipped"}\n');
   const initial = commit(root, '2025-12-31', 'initial experimental pair');
   return { root, initial };
+}
+
+function buildIntroductionFixture(
+  root,
+  candidate,
+  { addToRegistry = true, addToExperimental = true, writeIntroductionRecord = true } = {},
+) {
+  const recordPath = `${RECORD_ROOT}/new-capability.introduction.json`;
+  const registeredBefore = JSON.parse(readFileSync(
+    join(root, 'tests/acceptance/capability-registry.ids.json'),
+  ));
+  const experimentalBefore = JSON.parse(readFileSync(
+    join(root, 'tests/acceptance/capability-maturity.experimental.json'),
+  ));
+  write(root, 'src/manifest.rs', `experimental ${PAIR.join(' ')} ${INTRODUCED_ID}\n`);
+  write(root, 'packages/snapback-codegen/index.mjs', `experimental ${PAIR.join(' ')} ${INTRODUCED_ID}\n`);
+  writeCanonical(
+    root,
+    'tests/acceptance/capability-registry.ids.json',
+    addToRegistry ? [...registeredBefore, INTRODUCED_ID].sort() : registeredBefore,
+  );
+  writeCanonical(
+    root,
+    'tests/acceptance/capability-maturity.experimental.json',
+    addToExperimental ? [...experimentalBefore, INTRODUCED_ID].sort() : experimentalBefore,
+  );
+  write(root, 'tests/maturity-admission.txt', 'experimental introduction refusal\n');
+  write(root, 'guide/capabilities.md', 'bounded pair and new capability experimental\n');
+  write(root, 'llp/0140-new-capability.spec.md', 'Status: Implemented\n');
+  write(root, 'llp/0115-board.plan.md', 'CV-8 new capability experimental\n');
+  mkdirSync(join(root, RECORD_ROOT), { recursive: true });
+  if (writeIntroductionRecord) {
+    writeCanonical(root, recordPath, {
+      candidateParentSha: candidate,
+      candidateSourceSha: candidate,
+      capabilityIds: [INTRODUCED_ID],
+      fromMaturity: 'unregistered',
+      governingLlp: 'llp/0140-new-capability.spec.md',
+      introductionDate: '2026-01-01T12:00:00.000Z',
+      recordingMode: 'same-commit.v1',
+      route: 'default.v1',
+      schemaVersion: 1,
+      toMaturity: 'experimental',
+    });
+  }
+  return {
+    commit: commit(root, '2026-01-01', 'introduce new experimental capability'),
+    recordPath,
+  };
 }
 
 function buildPromotionAndDemotionFixture(root, initial, { registryCitation = true } = {}) {
@@ -258,6 +315,121 @@ test('real capability pair validates through soak, promotion, and demotion', () 
       validateTransitionRange({ repoRoot: root, range: `${fixture.demotionCandidate}..${fixture.demotionCommit}`, validation })
         .map((entry) => entry.direction),
       ['demotion'],
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// @ref LLP 0134#1-maturity-semantics-and-the-two-routes — registration at
+// experimental is an introduction act, not a demotion from stable.
+test('new experimental capability validates through a same-commit introduction record', () => {
+  const { root, initial } = scaffoldRepository();
+  try {
+    const fixture = buildIntroductionFixture(root, initial);
+    const validation = validateMaturityRecordTree({
+      repoRoot: root,
+      recordRoot: join(root, RECORD_ROOT),
+    });
+    assert.deepEqual(
+      validateTransitionRange({ repoRoot: root, range: `${initial}..${fixture.commit}`, validation }),
+      [{
+        capabilityIds: [INTRODUCED_ID],
+        commit: fixture.commit,
+        direction: 'introduction',
+        parent: initial,
+        recordPath: fixture.recordPath,
+      }],
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('the full registry history projection can establish its baseline without a transition', () => {
+  const { root, initial } = scaffoldRepository({ includeRegistryProjection: false });
+  try {
+    writeCanonical(root, 'tests/acceptance/capability-registry.ids.json', PAIR);
+    mkdirSync(join(root, RECORD_ROOT), { recursive: true });
+    const baseline = commit(root, '2026-01-01', 'establish full registry projection');
+    const validation = validateMaturityRecordTree({
+      repoRoot: root,
+      recordRoot: join(root, RECORD_ROOT),
+    });
+    assert.deepEqual(
+      validateTransitionRange({ repoRoot: root, range: `${initial}..${baseline}`, validation }),
+      [],
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('historical introduction backfills are a closed set', () => {
+  const { root } = scaffoldRepository();
+  try {
+    writeCanonical(root, `${RECORD_ROOT}/unapproved.introduction.json`, {
+      backfillIssue: 'issues/closed/20260803-maturity-transition-records-missing.md',
+      candidateParentSha: 'a'.repeat(40),
+      candidateSourceSha: 'a'.repeat(40),
+      capabilityIds: [INTRODUCED_ID],
+      fromMaturity: 'unregistered',
+      governingLlp: 'llp/0140-new-capability.spec.md',
+      historicalTransitionCommit: 'b'.repeat(40),
+      introductionDate: '2026-01-01T12:00:00.000Z',
+      recordingMode: 'historical-backfill.v1',
+      route: 'default.v1',
+      schemaVersion: 1,
+      toMaturity: 'experimental',
+    });
+    assert.throws(
+      () => validateMaturityRecordTree({ repoRoot: root, recordRoot: join(root, RECORD_ROOT) }),
+      /MATURITY_INTRODUCTION_BACKFILL_REFUSED/,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('a registered id cannot relabel demotion as introduction', () => {
+  const { root, initial } = scaffoldRepository({ registeredStableIds: [INTRODUCED_ID] });
+  try {
+    const fixture = buildIntroductionFixture(root, initial, { addToRegistry: false });
+    const validation = validateMaturityRecordTree({
+      repoRoot: root,
+      recordRoot: join(root, RECORD_ROOT),
+    });
+    assert.throws(
+      () => validateTransitionRange({
+        repoRoot: root,
+        range: `${initial}..${fixture.commit}`,
+        validation,
+      }),
+      /MATURITY_TRANSITION_RECORD_MISSING: .*\.demotion\.json/,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('a newly registered id cannot bypass the experimental default route', () => {
+  const { root, initial } = scaffoldRepository();
+  try {
+    const fixture = buildIntroductionFixture(root, initial, {
+      addToExperimental: false,
+      writeIntroductionRecord: false,
+    });
+    const validation = validateMaturityRecordTree({
+      repoRoot: root,
+      recordRoot: join(root, RECORD_ROOT),
+    });
+    assert.throws(
+      () => validateTransitionRange({
+        repoRoot: root,
+        range: `${initial}..${fixture.commit}`,
+        validation,
+      }),
+      /MATURITY_REGISTRATION_NOT_EXPERIMENTAL/,
     );
   } finally {
     rmSync(root, { recursive: true, force: true });
