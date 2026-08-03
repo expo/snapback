@@ -108,6 +108,12 @@ Charlie's.) 2026-08-03 (v0.7, Accepted by Charlie Cheever's explicit
 The §D8 ownership transition is active, with dated boundary notes landed in
 LLP 0043, LLP 0053, LLP 0080, LLP 0110, LLP 0114, and LLP 0135. Acceptance is
 semantic only: implementation and capability-publication gates remain.)
+2026-08-03 (dated amendment landed with Accepted LLP 0166: both §D2
+closed retention unions gain `result-transform-snapshot-v1` (per-plan
+opt-in; reclassification rotates node/plan identity and QMK; manifests
+emit it only for reclassified plans), and §D3's closed event vocabulary
+gains the payload-compaction event (dated row in the transition table).
+No other semantics change.)
 **Related:** LLP 0000, LLP 0004, LLP 0007, LLP 0008, LLP 0010, LLP 0012,
 LLP 0017, LLP 0039, LLP 0043, LLP 0048, LLP 0051, LLP 0053, LLP 0059,
 LLP 0073, LLP 0080,
@@ -322,6 +328,7 @@ type NodeCapabilityBindingV1 = Readonly<{
   retention:
     | "none"
     | "opaque-authorized-snapshot-v1"
+    | "result-transform-snapshot-v1"   // dated 2026-08-03 amendment, below
   requiredCapabilityIds: readonly string[] // sorted, unique
 }>
 ```
@@ -339,9 +346,34 @@ type PlanCapabilityClassificationV1 = Readonly<{
         pageDomain: "cursor-free-first-page" | "whole-result"
       }
   invalidation: "none" | "table-granular-resnapshot" | "proved-disjoint"
-  retention: "none" | "opaque-authorized-snapshot-v1"
+  retention:
+    | "none"
+    | "opaque-authorized-snapshot-v1"
+    | "result-transform-snapshot-v1"   // dated 2026-08-03 amendment, below
 }>
 ```
+
+> **Dated amendment (2026-08-03, with LLP 0166's acceptance):** both
+> closed retention unions above gain `result-transform-snapshot-v1`
+> (LLP 0080's concurrently amended class). The value is owner-issued
+> like its peers and enters the same hash preimages: reclassifying a
+> plan therefore rotates its `NodePlanHashV1`, `PlanHashV1`, and
+> `QueryMaterializationKeyV1`. Adoption is per-plan opt-in — an
+> unreclassified plan's identity, addresses, and retained state are
+> byte-unchanged, and the served function/capability manifests (this
+> section's producers) emit the new value only for owner-reclassified
+> plans — and a reclassified plan derives a fresh materialization
+> address whose predecessor retires through ordinary lifecycle (fresh
+> establishment at the new address; the predecessor is never relabeled
+> in place). §D2's golden and near-miss vectors gain the new value; §D4
+> continues to treat classification as a restated owner fact; §D7's
+> storage profiles treat the class as `durable-fragments-v1`-eligible
+> under `opaque-authorized-snapshot-v1`'s custody rules; §D7's "local
+> plan evaluation over fragments" gate sentence reads on the revised
+> Move-2 profile (LLP 0155's dated §Move 2 note) — the gate itself is
+> unchanged; and §D3's closed event vocabulary gains the payload-
+> compaction event recorded in its transition table (dated row). No
+> other semantics change.
 
 The served function/capability manifests produce this record; an author does
 not assert it. A nested node uses `exportKind: "internal"`; a plan admitted as
@@ -1010,6 +1042,7 @@ completeness installation.
 | terminal retirement begins | `active → retiring`; reject render/write/proof inputs and perform LLP 0053's destructive transition |
 | terminal retirement finalizes | remove the record while preserving allocator/frontier high-water; no status exists |
 | explicit reinitialization after retirement | allocate a new `query_instance_id`; follow `initialize`, never reuse a predecessor proof |
+| payload compaction (LLP 0166 §D5 — dated 2026-08-03 amendment) | discard the record's held fragments, proofs, page-set manifests, and memberships without lowering or releasing any LLP 0053 disposition; derived status `unknown`; instance identity, fences, and frontiers preserved; a later establishment loads the same instance |
 
 Retained-boot failures are not a catch-all. Their exact v1 outcomes are:
 

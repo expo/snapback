@@ -5,7 +5,11 @@
 **Systems:** Sync, Realtime, API, Client integration, Deployment, Auth
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-24
-**Revised:** 2026-08-02 (non-normative mixed-route register-gradient
+**Revised:** 2026-08-03 (Accepted LLP 0166 boundary: LLP 0166 is the
+Channel-B store's declared domain/lifecycle successor; this RFC's
+machinery and the legacy population's lifecycle and budget envelope are
+grandfathered byte-exact; the qmk1 proof-backed resume credential stays
+a future dated amendment here.) 2026-08-02 (non-normative mixed-route register-gradient
 amendment proposal — see Revision history); 2026-08-01 (D3 default-store lifecycle and outbox rendering
 notes — see Revision history);
 2026-07-31 (LLP 0129 Phase 0 amendment — see Revision
@@ -933,6 +937,23 @@ the others, and the gates must see all three.
 (Former Q3 — resume-miss policy — is resolved in D1.1: short-circuit with a
 fresh `LiveReplace`. Former Q5 — bundle consistency — is a prerequisite in
 D1.2.)
+
+**Dated boundary note (2026-08-03, LLP 0166 acceptance):** Accepted
+LLP 0166 is the declared successor of the Channel-B persisted store's
+*domain and lifecycle* — the physical store family evolves in place to
+also hold LLP 0157 materialization records, with this RFC's machinery
+consumed unchanged as the sync engine: the D1.3 admission ladder,
+token/digest identity, arbitration, the D3 outbox rule, and the legacy
+persisted population's exact lifecycle — the shipped eviction
+comparator, indefinite retained offline display, and budget envelope —
+are **grandfathered byte-exact**, with no cross-section budget
+competition and no TTL, grace, or demand semantics applied to legacy
+entries. Coexistence under the family's own labels satisfies LLP 0157
+§Migration's never-mislabel rule (this population has no plan identity
+to migrate on); any attempted adoption follows migrate-or-discard. A
+proof-backed resume credential for `qmk1` materializations remains a
+future dated amendment here (LLP 0166 OQ2). This note changes no
+behavior owned by this RFC.
 
 ## Rollout sketch
 

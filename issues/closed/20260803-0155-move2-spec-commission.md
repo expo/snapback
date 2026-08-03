@@ -9,10 +9,11 @@ consecutive READY; fifteen reviews received, artifacts under
 carries four dated amendments (LLP 0008 DK-9, LLP 0080, LLP 0157,
 LLP 0155 §Move 2) landing in their owners at acceptance, answers
 LLP 0155 OQ5 (the physical store) and LLP 0161 OQ5 (the agent-safe
-seam; nothing pulled forward), and defers acceptance to Charlie per this
-commission's reservation (LLP 0130 SD-4 applies to the converged loop).
-The implementation program is a separate wave-3 commissioning after
-acceptance.
+seam; nothing pulled forward). **Accepted by Charlie the same day**
+("flip to accept"): the Spec is Accepted v1.0, and the four amendments
+plus the LLP 0043/0053/0090 boundary notes landed dated in their owners
+in the acceptance change. The implementation program is a separate
+wave-3 commissioning.
 **Opened:** 2026-08-03 (wave-3 Track A; Charlie ruled spec-first)
 **Related:** LLP 0155 §Move 2 (the charter — read first), LLP 0157
 (Accepted; plan identity + completeness witness this store consumes),

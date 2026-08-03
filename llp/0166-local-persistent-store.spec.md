@@ -1,12 +1,19 @@
 # LLP 0166: The local persistent store
 
 **Type:** Spec
-**Status:** Review
+**Status:** Accepted
 **Systems:** Client SDK, Client integration, Local sync, Offline sync, Storage,
 Live queries, Relational queries, Optimistic updates, Auth, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-03
-**Revised:** 2026-08-03 (v0.9, loop conclusion: the dual-family
+**Revised:** 2026-08-03 (v1.0, **Accepted** by Charlie Cheever's explicit
+"flip to accept" direction after the dual-family loop converged
+dual-READY at round 8. The §D7 amendment set is landed dated in the same
+change: LLP 0008 DK-9, LLP 0080, LLP 0157 (both retention unions + the
+payload-compaction event), and LLP 0155 §Move 2; dated boundary notes
+landed in LLP 0043, LLP 0053, and LLP 0090. Acceptance is semantic only:
+implementation and capability gates remain, and the implementation
+program is a separate wave-3 commissioning.) 2026-08-03 (v0.9, loop conclusion: the dual-family
 super-refine loop converged **dual-READY at round 8** — Codex READY at
 0.97 confidence with one editorial NIT; Fable READY at 0.90, its second
 consecutive READY, with one editorial NIT — over the unchanged v0.8
@@ -2000,24 +2007,26 @@ Micro-profile packaging; no change to outbox/settlement custody semantics
 
 ## Status
 
-**Review, v0.9** — authored 2026-08-03 by the wave-3 Track A session
-under the commission in `issues/20260803-0155-move2-spec-commission.md`.
-The LLP 0005 dual-family super-refine loop ran eight rounds the same day
-(fifteen reviews received) and **converged dual-READY at round 8**:
-Codex READY at 0.97 confidence with one editorial NIT; Fable READY at
-0.90 — its second consecutive READY — with one editorial NIT; both NITs
-applied in v0.9. Every earlier verdict was NOT READY and every finding
-was applied; all actual responses, including one interrupted Fable run
+**Accepted, v1.0** — Charlie Cheever accepted the Spec on 2026-08-03
+("flip to accept") after the LLP 0005 dual-family super-refine loop
+converged **dual-READY at round 8** (Codex 0.97 with one editorial NIT;
+Fable 0.90, its second consecutive READY, with one editorial NIT; both
+applied in v0.9). The loop ran eight rounds the same day, fifteen
+reviews received; every earlier verdict was NOT READY and every finding
+was applied. All actual responses — including one interrupted Fable run
 recorded honestly as no-review and a restored round-2 body with its
-dated provenance-correction note, are preserved verbatim in the two
-provenance-tracked artifacts under
-`llp/reviews/0166-local-persistent-store.{fable,codex}.md`. No prior
+dated provenance-correction note — are preserved verbatim in
+`llp/reviews/0166-local-persistent-store.{fable,codex}.md`; no prior
 verdict is rewritten or counted as READY.
 
-Acceptance is Charlie's, per the commission's explicit reservation;
-LLP 0130 SD-4's standing rule applies to the converged loop within this
-commission's scope. On acceptance: the four §D7 amendments land dated in
-LLP 0008, LLP 0080, LLP 0157, and LLP 0155; boundary notes land in
-LLP 0043, LLP 0053, and LLP 0090; and the implementation program is
-commissioned separately (wave-3 Track A's exit rule). No implementation
-or capability fact is promoted by this document's status.
+The acceptance landing carries the §D7 amendment set, dated, in the
+owning documents — LLP 0008 DK-9, LLP 0080
+(`result-transform-snapshot-v1`), LLP 0157 (both retention unions plus
+the payload-compaction event), LLP 0155 §Move 2 — and the dated
+boundary notes in LLP 0043 (v1 convergence order and preconditions),
+LLP 0053 (store-policy composition, wipe/reset scoping), and LLP 0090
+(successor declaration; legacy grandfathering). Acceptance is semantic
+only: no implementation or capability fact is promoted, evaluation
+still gates on §D7's conformance corpus and oracles, and the
+implementation program is a separate wave-3 commissioning (Track A's
+exit rule).

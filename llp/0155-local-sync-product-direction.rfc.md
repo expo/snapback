@@ -5,7 +5,10 @@
 **Systems:** Application data API, Client SDK, Client integration, Realtime, Local sync, Offline sync, Relational queries, Optimistic updates, Storage, Auth, Conflict handling, Developer experience, Testing, Competitive analysis
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-02
-**Revised:** 2026-08-02 (Accepted by Charlie Cheever at v0.4 after the
+**Revised:** 2026-08-03 (§Move 2 Query-execution dated note landed with
+Accepted LLP 0166, the Move-2 owning Spec: v1 local evaluation is the
+closed `result-transform.v1` profile; same-plan source-row evaluation is
+deliberately deferred behind this RFC's OQ2 gate.) 2026-08-02 (Accepted by Charlie Cheever at v0.4 after the
 three-round dual-family super-refine loop converged dual-READY/dual-ENDORSE;
 Stage 0 reconciliation notes landed in LLP 0129/0008/0080 in the same
 change. 2026-08-02 implementation note — Stage 0's retained-profile hard-kill
@@ -698,6 +701,24 @@ corpus, must produce the same canonical result ordering and projection as the
 server. A local result reports `unknown` until completeness is proved; local
 execution is never permitted to infer missing relationship rows are absent
 when they may simply be unhydrated.
+
+> **Dated note (2026-08-03, with LLP 0166's acceptance):** the Move-2
+> owning Spec revises this section's commissioned outcome as a
+> deliberate scope ruling. V1 local evaluation is LLP 0166 §D7's closed
+> `result-transform.v1` profile: the plan's own established result,
+> transformed (filter/order/limit over projected fields under a frozen
+> total comparator, with optimistic-overlay composition as a client-side
+> step), with a dual-runtime reference implementation of the pure
+> transform as the parity target. This section's "generated query plans
+> should run over the local store … the same plan evaluator, or two
+> evaluators under a conformance corpus" is deliberately deferred, not
+> implemented: a retained fragment is post-projection output, and
+> evaluating plans over source rows locally requires the cross-query
+> normalization and projection-aware authority design this RFC's OQ2
+> gates. That fuller outcome remains reachable through OQ2's gate as a
+> successor amendment; the "same canonical result ordering and
+> projection" obligation applies to the transform's reference
+> implementation in the meantime. Nothing else in Move 2 changes.
 
 ### Storage profile
 
