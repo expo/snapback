@@ -195,6 +195,7 @@ export const baseline = defineLiveQuery({
       scopeReads: 1,
       settlementLookups: 1,
       settlementWrites: 1,
+      sequenceAllocations: 0,
       sourceWrites: 1,
     },
   );
@@ -252,6 +253,88 @@ export const baseline = defineLiveQuery({
   const guardedDelete = guardedProfile(defineApi.mutationPlan(
     defineApi.del('tasks', defineApi.arg('taskId')),
   ));
+  const guardedSequence = guardedProfile(defineApi.mutationPlan(
+    defineApi.patch('tasks', defineApi.arg('taskId'), {
+      position: defineApi.binding('position'),
+    }),
+    defineApi.allocateSequence(
+      'taskPositions',
+      defineApi.arg('incidentId'),
+      'position',
+    ),
+  ));
+  assert.equal(
+    guardedSequence.plan.steps[0].Get.else_error,
+    'SNAPBACK_RELATION_PARENT_UNAVAILABLE',
+  );
+  assert.equal(
+    guardedSequence.plan.steps[1].Guard.else_error,
+    'SNAPBACK_RELATION_PARENT_UNAVAILABLE',
+  );
+  assert.deepEqual(guardedSequence.plan.steps[2], {
+    AllocateSequence: {
+      counter: 'taskPositions',
+      scope: { __expr: true, Arg: 'incidentId' },
+      into: 'position',
+    },
+  });
+  assert.deepEqual(guardedSequence.sequences, [{
+    name: 'taskPositions',
+    scopeTable: 'incidents',
+    scopeAccess: { kind: 'existing-owner.v1', ownerField: 'ownerId' },
+  }]);
+  assert.equal(guardedSequence.writeWithActivityPlan.effectFormula.sequenceAllocations, 1);
+  assert.deepEqual(
+    serializeMutationPlan(guardedSequence.plan).steps[2],
+    {
+      AllocateSequence: {
+        counter: 'taskPositions',
+        scope: { Arg: 'incidentId' },
+        into: 'position',
+      },
+    },
+  );
+  assert.throws(
+    () => guardedProfile(defineApi.mutationPlan(
+      defineApi.letBind('position', defineApi.literal(1)),
+      defineApi.allocateSequence(
+        'taskPositions',
+        defineApi.arg('incidentId'),
+        'position',
+      ),
+    )),
+    /primary binding position is declared more than once/u,
+  );
+  const legacyShadowing = guardedProfile(defineApi.mutationPlan(
+    defineApi.letBind('legacy-shadow', defineApi.literal(1)),
+    defineApi.letBind('legacy-shadow', defineApi.literal(2)),
+    defineApi.patch('tasks', defineApi.arg('taskId'), {
+      body: defineApi.literal('shadow-compatible'),
+    }),
+  ));
+  assert.equal(
+    legacyShadowing.plan.steps.filter((step) => step.Let?.bind_as === 'legacy-shadow').length,
+    2,
+    'non-sequence WWA preserves legacy binding shadowing',
+  );
+  const sequenceWithLegacyShadowing = guardedProfile(defineApi.mutationPlan(
+    defineApi.letBind('legacy-shadow', defineApi.literal(1)),
+    defineApi.letBind('legacy-shadow', defineApi.literal(2)),
+    defineApi.patch('tasks', defineApi.arg('taskId'), {
+      position: defineApi.binding('position'),
+    }),
+    defineApi.allocateSequence(
+      'taskPositions',
+      defineApi.arg('incidentId'),
+      'position',
+    ),
+  ));
+  assert.equal(
+    sequenceWithLegacyShadowing.plan.steps
+      .filter((step) => step.Let?.bind_as === 'legacy-shadow').length,
+    2,
+    'sequence WWA rejects only collisions involving the allocation binding',
+  );
   const assertCurrentRelation = (step, id) => {
     assert.deepEqual(step?.AssertCurrentRelation, {
       table: 'tasks',

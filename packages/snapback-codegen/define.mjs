@@ -2351,6 +2351,29 @@ export const assertSourceChanged = (table, id, operation) => {
   return { AssertSourceChanged: { table, id: expectExpr(id, 'assertSourceChanged()'), operation } };
 };
 
+/** Allocate one authoritative value from a declared scoped sequence.
+ *
+ * The helper is admitted only inside `defineWriteWithActivity`; the builder
+ * places it after the generated scope-owner guard and before authored writes.
+ * @ref LLP 0135#12-allocation-surfaces */
+export const allocateSequence = (counter, scope, into) => {
+  assert(
+    typeof counter === 'string' && /^[A-Za-z_][A-Za-z0-9_]*$/u.test(counter),
+    'allocateSequence() counter must be an identifier',
+  );
+  assert(
+    typeof into === 'string' && /^[A-Za-z_][A-Za-z0-9_]*$/u.test(into),
+    'allocateSequence() into must be an identifier',
+  );
+  return {
+    AllocateSequence: {
+      counter,
+      scope: expectExpr(scope, 'allocateSequence()'),
+      into,
+    },
+  };
+};
+
 export const mutationPlan = (...steps) => Object.freeze({
   __mutationPlan: true,
   steps: steps.flat(),
@@ -2404,6 +2427,7 @@ function mutationStepUsesRuntimeId(step) {
   if (kind === 'Delete' || kind === 'Get') return expressionUsesRuntimeId(payload.id);
   if (kind === 'Guard') return expressionUsesRuntimeId(payload.cond);
   if (kind === 'Let') return expressionUsesRuntimeId(payload.expr);
+  if (kind === 'AllocateSequence') return expressionUsesRuntimeId(payload.scope);
   return false;
 }
 
@@ -2461,7 +2485,9 @@ export function defineWriteWithActivity(spec) {
       facts,
     });
   }
-  const admittedSteps = new Set(['Insert', 'Patch', 'Delete', 'Get', 'Guard', 'Let']);
+  const admittedSteps = new Set([
+    'Insert', 'Patch', 'Delete', 'Get', 'Guard', 'Let', 'AllocateSequence',
+  ]);
   assert(
     spec.primary.steps.every((step) => admittedSteps.has(Object.keys(step)[0])),
     'primary contains a step outside the closed point-operation profile',
@@ -2533,7 +2559,18 @@ export function defineWriteWithActivity(spec) {
     'primary admits at most eight relationship point reads including generated current-relation assertions',
   );
   assert(guardsAndLets <= 16, 'primary admits at most sixteen Guard/Let steps');
+  const allocations = spec.primary.steps.filter((step) => Object.hasOwn(step, 'AllocateSequence'));
+  assert(allocations.length <= 1, 'write-with-activity admits at most one sequence allocation');
+  if (allocations.length === 1) {
+    assert(
+      JSON.stringify(allocations[0].AllocateSequence.scope) === JSON.stringify(spec.scope.id),
+      'write-with-activity sequence allocation must use the exact operation scope id',
+    );
+  }
   const sourceOperation = Object.keys(sourceStep)[0].toLowerCase();
+  const scopeRefusal = allocations.length > 0
+    ? 'SNAPBACK_RELATION_PARENT_UNAVAILABLE'
+    : 'SNAPBACK_ROW_NOT_FOUND';
   const scopeBinding = '__activityScope';
   const activityIdBinding = '__activityId';
   const provenance = spec.activity.provenance;
@@ -2624,10 +2661,25 @@ export function defineWriteWithActivity(spec) {
   }
   assert(relations.has(sourceFacts.name), 'source table must have an explicit relations declaration');
   const authoredBindings = new Set();
+  const allocationBinding = allocations[0]?.AllocateSequence.into ?? null;
   for (const step of spec.primary.steps) {
     const [kind, payload] = Object.entries(step)[0];
-    if (kind === 'Get' || kind === 'Let') authoredBindings.add(payload.bind_as);
-    if (kind === 'Insert' && payload.bind_id_as) authoredBindings.add(payload.bind_id_as);
+    let bindingName = null;
+    if (kind === 'Get' || kind === 'Let') bindingName = payload.bind_as;
+    if (kind === 'Insert' && payload.bind_id_as) bindingName = payload.bind_id_as;
+    if (kind === 'AllocateSequence') bindingName = payload.into;
+    if (bindingName !== null) {
+      // Legacy Get/Let/Insert bindings historically allow shadowing. The new
+      // allocation binding is the sole collision-sensitive name because a
+      // shadow could substitute app data for host-owned authority.
+      if (allocationBinding !== null && bindingName === allocationBinding) {
+        assert(
+          kind === 'AllocateSequence' && !authoredBindings.has(bindingName),
+          `primary binding ${bindingName} is declared more than once`,
+        );
+      }
+      authoredBindings.add(bindingName);
+    }
   }
   assert(
     !authoredBindings.has(scopeBinding)
@@ -2638,6 +2690,10 @@ export function defineWriteWithActivity(spec) {
   const guardedPrimary = [];
   for (const step of spec.primary.steps) {
     const [kind, payload] = Object.entries(step)[0];
+    // Allocation has one host-owned position: after scope reach is proved and
+    // before any authored primary effect. Preserve author order for every
+    // other step while moving only this authority-sensitive operation.
+    if (kind === 'AllocateSequence') continue;
     if (!['Get', 'Insert', 'Patch', 'Delete'].includes(kind) || payload.table === scopeTable) {
       guardedPrimary.push(step);
       continue;
@@ -2703,8 +2759,9 @@ export function defineWriteWithActivity(spec) {
     [provenance.mutation]: clientMutationDigest(),
   };
   const steps = [
-    get(scopeTable, spec.scope.id, scopeBinding, { elseError: 'SNAPBACK_ROW_NOT_FOUND' }),
-    guard(eqv(field(bindingRef(scopeBinding), spec.scope.visibility.field), authUserId()), 'SNAPBACK_ROW_NOT_FOUND'),
+    get(scopeTable, spec.scope.id, scopeBinding, { elseError: scopeRefusal }),
+    guard(eqv(field(bindingRef(scopeBinding), spec.scope.visibility.field), authUserId()), scopeRefusal),
+    ...allocations,
     ...guardedPrimary,
     assertSourceChanged(sourceTable, spec.source.id, sourceOperation),
     insert(activityTable, values, { bindIdAs: activityIdBinding }),
@@ -2715,6 +2772,18 @@ export function defineWriteWithActivity(spec) {
     ...authoredFunctionAuth({ auth: spec.auth ?? 'authenticated' }, 'Mutation'),
     args: spec.args ?? {},
     resultContract: spec.result,
+    // Preserve the handler-tier detailed descriptor grammar. Generated WWA
+    // uses a closed access profile whose authority is the exact owner guard
+    // embedded in the same normalized plan; no schema-level alternate
+    // declaration source is introduced.
+    sequences: allocations.map((step) => ({
+      name: step.AllocateSequence.counter,
+      scopeTable,
+      scopeAccess: {
+        kind: 'existing-owner.v1',
+        ownerField: spec.scope.visibility.field,
+      },
+    })),
     plan: { steps, return_value: { Expr: expectExpr(spec.returns, 'WriteWithActivity returns') } },
     writeWithActivityPlan: {
       profile: 'write-with-activity.v1',
@@ -2745,6 +2814,7 @@ export function defineWriteWithActivity(spec) {
         runtimeNow: 1,
         settlementLookups: 1,
         settlementWrites: 1,
+        sequenceAllocations: allocations.length,
         maximumApplicationWrites: 2 + (authoredWrites.some((step) => step.Patch?.table === scopeTable) ? 1 : 0),
       },
     },
