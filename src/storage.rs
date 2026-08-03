@@ -16119,6 +16119,25 @@ fn activate_relation_incarnation(
     table: &str,
     id: &str,
 ) -> SnapbackResult<String> {
+    let sequence_enrolled = tx
+        .query_row(
+            "SELECT 1 FROM _snapback_sequence_scope_enrollments_v1 WHERE table_name = ?1",
+            params![table],
+            |_| Ok(()),
+        )
+        .optional()?
+        .is_some();
+    if sequence_enrolled && !replay_opaque_id_is_valid(id) {
+        return Err(SnapbackError::error(
+            "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
+            "storage",
+            "sequence scope row id is outside the durable replay grammar",
+        )
+        .with_details(json!({
+            "scopeTable": table,
+            "scopeRowId": id,
+        })));
+    }
     // A predecessor binary cannot clear protected tables introduced after it
     // shipped. Its legacy reset still deletes the application row and rotates
     // the data stream, so a later insert of that row id must retire the stale
@@ -18576,6 +18595,39 @@ mod guarded_commit_tests {
                 .expect("counter count"),
             0,
             "the refusal leaves no protected counter state"
+        );
+    }
+
+    #[test]
+    fn enrolled_sequence_scope_refuses_noncanonical_seed_row_atomically() {
+        let mut db = database();
+        db.install_sequence_declarations(item_sequence_declarations(), false)
+            .expect("empty table enrolls as a sequence scope");
+        let failure = db
+            .seed(SeedData {
+                tables: BTreeMap::from([(
+                    "items".to_owned(),
+                    vec![Map::from_iter([
+                        ("_id".to_owned(), json!("bad/id")),
+                        ("title".to_owned(), json!("must-not-commit")),
+                    ])],
+                )]),
+            })
+            .expect_err("an enrolled sequence scope cannot seed a non-replayable row id");
+        assert_eq!(
+            failure.diagnostic.code,
+            "SNAPBACK_SEQUENCE_DECLARATION_INVALID"
+        );
+        assert!(
+            db.get("items", "bad/id").unwrap().is_none(),
+            "seed rollback leaves no invalid application row"
+        );
+        assert!(
+            DbRead::Live(&db)
+                .active_relation_incarnation("items", "bad/id")
+                .unwrap()
+                .is_none(),
+            "seed rollback leaves no invalid active incarnation"
         );
     }
 
