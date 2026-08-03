@@ -2054,13 +2054,15 @@ impl IbexActionHost for DetachedActionHost {
             let attempt = database.with_auth_transaction(|tx| {
                 crate::push::reserve_send_in(
                     tx,
-                    &declaration,
-                    &schema,
-                    &self.authority,
-                    trigger_mode,
-                    self.deferred_push_grant.as_ref(),
-                    &request,
-                    now_ms,
+                    crate::push::PushSendReservation {
+                        declaration: &declaration,
+                        schema: &schema,
+                        authority: &self.authority,
+                        trigger_mode,
+                        deferred_grant: self.deferred_push_grant.as_ref(),
+                        request: &request,
+                        now_ms,
+                    },
                 )
             })?;
             (attempt, access_token)

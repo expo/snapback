@@ -1408,16 +1408,29 @@ pub(crate) fn inspect(conn: &Connection) -> SnapbackResult<PushRegistryInspectio
 ///
 /// @ref LLP 0143#d3-the-handoff-ledger-receipts-honesty-and-crash-safety — reserve commits the payload binding,
 ///   resolved audience, batches, and messages before the transmitting cut.
+pub(crate) struct PushSendReservation<'a> {
+    pub(crate) declaration: &'a PushSeamDeclarationV1,
+    pub(crate) schema: &'a crate::manifest::SchemaManifest,
+    pub(crate) authority: &'a crate::auth::invocation::PreparedAuthority,
+    pub(crate) trigger_mode: PushTriggerModeV1,
+    pub(crate) deferred_grant: Option<&'a PushDeferredGrantV1>,
+    pub(crate) request: &'a PushSendRequestV1,
+    pub(crate) now_ms: u64,
+}
+
 pub(crate) fn reserve_send_in(
     tx: &Transaction<'_>,
-    declaration: &PushSeamDeclarationV1,
-    schema: &crate::manifest::SchemaManifest,
-    authority: &crate::auth::invocation::PreparedAuthority,
-    trigger_mode: PushTriggerModeV1,
-    deferred_grant: Option<&PushDeferredGrantV1>,
-    request: &PushSendRequestV1,
-    now_ms: u64,
+    reservation: PushSendReservation<'_>,
 ) -> SnapbackResult<ReservedPushAttemptV1> {
+    let PushSendReservation {
+        declaration,
+        schema,
+        authority,
+        trigger_mode,
+        deferred_grant,
+        request,
+        now_ms,
+    } = reservation;
     validate_declaration_against_schema(declaration, schema)?;
     if declaration.ledger.is_none() {
         return Err(push_unavailable("the application declares registry custody only"));
@@ -1773,9 +1786,16 @@ fn refresh_reserved_batch_tokens_in(
     tx: &Transaction<'_>,
     batch_id: &str,
 ) -> SnapbackResult<()> {
-    let snapshots: Vec<(String, String, Vec<u8>, Option<String>, Option<Vec<u8>>)> = {
+    struct ReservedTokenSnapshot {
+        message_id: String,
+        snapshot_hash: Vec<u8>,
+        live_bytes: Option<String>,
+        live_hash: Option<Vec<u8>>,
+    }
+
+    let snapshots = {
         let mut statement = tx.prepare(
-            "SELECT message.id, message.token_id, message.token_hash,
+            "SELECT message.id, message.token_hash,
                     token.token_bytes, token.token_hash
              FROM _snapback_push_messages_v1 AS message
              LEFT JOIN _snapback_push_tokens_v1 AS token
@@ -1785,17 +1805,22 @@ fn refresh_reserved_batch_tokens_in(
         )?;
         statement
             .query_map(params![batch_id], |row| {
-                Ok((
-                    row.get(0)?,
-                    row.get(1)?,
-                    row.get(2)?,
-                    row.get(3)?,
-                    row.get(4)?,
-                ))
+                Ok(ReservedTokenSnapshot {
+                    message_id: row.get(0)?,
+                    snapshot_hash: row.get(1)?,
+                    live_bytes: row.get(2)?,
+                    live_hash: row.get(3)?,
+                })
             })?
             .collect::<Result<Vec<_>, _>>()?
     };
-    for (message_id, _token_id, snapshot_hash, live_bytes, live_hash) in snapshots {
+    for snapshot in snapshots {
+        let ReservedTokenSnapshot {
+            message_id,
+            snapshot_hash,
+            live_bytes,
+            live_hash,
+        } = snapshot;
         match (live_bytes, live_hash) {
             (Some(live_bytes), Some(live_hash)) if live_hash != snapshot_hash => {
                 tx.execute(
@@ -2040,12 +2065,14 @@ pub(crate) fn settle_batch_in(
             settle_request_failure_in(
                 tx,
                 claim,
-                &intent_id,
-                state,
-                *http_status,
-                code,
-                None,
-                now_ms,
+                PushRequestFailure {
+                    intent_id: &intent_id,
+                    state,
+                    http_status: *http_status,
+                    code,
+                    retry_at_ms: None,
+                    now_ms,
+                },
             )?;
         }
         PushBatchSettlementV1::FailedRetryable {
@@ -2057,28 +2084,42 @@ pub(crate) fn settle_batch_in(
             settle_request_failure_in(
                 tx,
                 claim,
-                &intent_id,
-                "failed-retryable",
-                *http_status,
-                code,
-                Some(*retry_at_ms),
-                now_ms,
+                PushRequestFailure {
+                    intent_id: &intent_id,
+                    state: "failed-retryable",
+                    http_status: *http_status,
+                    code,
+                    retry_at_ms: Some(*retry_at_ms),
+                    now_ms,
+                },
             )?;
         }
     }
     Ok(())
 }
 
+struct PushRequestFailure<'a> {
+    intent_id: &'a str,
+    state: &'a str,
+    http_status: Option<u16>,
+    code: &'a str,
+    retry_at_ms: Option<u64>,
+    now_ms: u64,
+}
+
 fn settle_request_failure_in(
     tx: &Transaction<'_>,
     claim: &PushBatchClaimV1,
-    intent_id: &str,
-    state: &str,
-    http_status: Option<u16>,
-    code: &str,
-    retry_at_ms: Option<u64>,
-    now_ms: u64,
+    failure: PushRequestFailure<'_>,
 ) -> SnapbackResult<()> {
+    let PushRequestFailure {
+        intent_id,
+        state,
+        http_status,
+        code,
+        retry_at_ms,
+        now_ms,
+    } = failure;
     let changed = tx.execute(
         "UPDATE _snapback_push_batches_v1
          SET state = 'settled', settled_at_ms = ?1, http_status = ?2,
@@ -3378,8 +3419,10 @@ mod tests {
     }
 
     fn push_acceptance_schema(declaration: PushSeamDeclarationV1) -> crate::manifest::SchemaManifest {
-        let mut schema = crate::manifest::SchemaManifest::default();
-        schema.push_seam = Some(declaration);
+        let mut schema = crate::manifest::SchemaManifest {
+            push_seam: Some(declaration),
+            ..Default::default()
+        };
         for (table_name, declaration_id, roles) in [
             ("event_members", "event_members", vec!["guest".to_owned()]),
             ("event_senders", "event_senders", vec!["sender".to_owned()]),
@@ -3535,6 +3578,9 @@ mod tests {
         .expect("insert session");
     }
 
+    // Keep every registration security field explicit at the call site: these
+    // vectors exercise generation fencing and token custody as one tuple.
+    #[allow(clippy::too_many_arguments)]
     fn register(
         db: &mut LocalDatabase,
         declaration: &PushSeamDeclarationV1,
@@ -3744,13 +3790,15 @@ mod tests {
             .with_auth_transaction(|tx| {
                 reserve_send_in(
                     tx,
-                    &declaration,
-                    &schema,
-                    &system_authority(),
-                    PushTriggerModeV1::System,
-                    None,
-                    &request,
-                    100,
+                    PushSendReservation {
+                        declaration: &declaration,
+                        schema: &schema,
+                        authority: &system_authority(),
+                        trigger_mode: PushTriggerModeV1::System,
+                        deferred_grant: None,
+                        request: &request,
+                        now_ms: 100,
+                    },
                 )
             })
             .expect("reserve fixture send");
@@ -3892,13 +3940,15 @@ mod tests {
             .with_auth_transaction(|tx| {
                 reserve_send_in(
                     tx,
-                    &declaration,
-                    &schema,
-                    &system_authority(),
-                    PushTriggerModeV1::System,
-                    None,
-                    &request,
-                    receipt_due + 2,
+                    PushSendReservation {
+                        declaration: &declaration,
+                        schema: &schema,
+                        authority: &system_authority(),
+                        trigger_mode: PushTriggerModeV1::System,
+                        deferred_grant: None,
+                        request: &request,
+                        now_ms: receipt_due + 2,
+                    },
                 )
             })
             .expect("duplicate intent lookup");
@@ -3910,13 +3960,15 @@ mod tests {
             .with_auth_transaction(|tx| {
                 reserve_send_in(
                     tx,
-                    &declaration,
-                    &schema,
-                    &system_authority(),
-                    PushTriggerModeV1::System,
-                    None,
-                    &zero_target,
-                    receipt_due + 3,
+                    PushSendReservation {
+                        declaration: &declaration,
+                        schema: &schema,
+                        authority: &system_authority(),
+                        trigger_mode: PushTriggerModeV1::System,
+                        deferred_grant: None,
+                        request: &zero_target,
+                        now_ms: receipt_due + 3,
+                    },
                 )
             })
             .expect("zero-target intent");
@@ -3933,13 +3985,15 @@ mod tests {
         let authorization_error = match db.with_auth_transaction(|tx| {
                 reserve_send_in(
                     tx,
-                    &declaration,
-                    &schema,
-                    &session_authority(&unauthorized),
-                    PushTriggerModeV1::Immediate,
-                    None,
-                    &unauthorized_request,
-                    receipt_due + 4,
+                    PushSendReservation {
+                        declaration: &declaration,
+                        schema: &schema,
+                        authority: &session_authority(&unauthorized),
+                        trigger_mode: PushTriggerModeV1::Immediate,
+                        deferred_grant: None,
+                        request: &unauthorized_request,
+                        now_ms: receipt_due + 4,
+                    },
                 )
             }) {
             Ok(_) => panic!("unauthorized push send must refuse"),
@@ -3971,13 +4025,15 @@ mod tests {
             .with_auth_transaction(|tx| {
                 reserve_send_in(
                     tx,
-                    &declaration,
-                    &schema,
-                    &system_authority(),
-                    PushTriggerModeV1::System,
-                    None,
-                    &drop_request,
-                    2_000_000,
+                    PushSendReservation {
+                        declaration: &declaration,
+                        schema: &schema,
+                        authority: &system_authority(),
+                        trigger_mode: PushTriggerModeV1::System,
+                        deferred_grant: None,
+                        request: &drop_request,
+                        now_ms: 2_000_000,
+                    },
                 )
             })
             .expect("reserve drop fixture");
@@ -4023,13 +4079,15 @@ mod tests {
             .with_auth_transaction(|tx| {
                 reserve_send_in(
                     tx,
-                    &declaration,
-                    &schema,
-                    &system_authority(),
-                    PushTriggerModeV1::System,
-                    None,
-                    &drop_request,
-                    2_100_001,
+                    PushSendReservation {
+                        declaration: &declaration,
+                        schema: &schema,
+                        authority: &system_authority(),
+                        trigger_mode: PushTriggerModeV1::System,
+                        deferred_grant: None,
+                        request: &drop_request,
+                        now_ms: 2_100_001,
+                    },
                 )
             })
             .expect("same key remains a deduplicated lookup");
@@ -4042,13 +4100,15 @@ mod tests {
             .with_auth_transaction(|tx| {
                 reserve_send_in(
                     tx,
-                    &declaration,
-                    &schema,
-                    &system_authority(),
-                    PushTriggerModeV1::System,
-                    None,
-                    &explicit_redrive,
-                    2_100_002,
+                    PushSendReservation {
+                        declaration: &declaration,
+                        schema: &schema,
+                        authority: &system_authority(),
+                        trigger_mode: PushTriggerModeV1::System,
+                        deferred_grant: None,
+                        request: &explicit_redrive,
+                        now_ms: 2_100_002,
+                    },
                 )
             })
             .expect("explicit duplicate-risk redrive");

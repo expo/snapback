@@ -2682,9 +2682,14 @@ mod tests {
             )
             .expect("protected token fixture");
 
-        let image = tempfile::tempfile().expect("backup image");
-        db.backup_auth_catalog_into(&image).expect("auth backup");
-        let backup = open_backup_image_connection(&image, true).expect("open backup");
+        // Production backup members are named, owner-only files retained by
+        // descriptor until publication. Match that contract here: an
+        // anonymous tempfile cannot be opened by SQLite through
+        // `/proc/self/fd` on Linux even though the raw descriptor is valid.
+        let image = tempfile::NamedTempFile::new().expect("backup image");
+        db.backup_auth_catalog_into(image.as_file())
+            .expect("auth backup");
+        let backup = open_backup_image_connection(image.as_file(), true).expect("open backup");
         let rows: i64 = backup
             .query_row("SELECT COUNT(*) FROM _snapback_push_tokens_v1", [], |row| {
                 row.get(0)
@@ -2693,8 +2698,10 @@ mod tests {
         assert_eq!(rows, 0, "auth export retains no push custody rows");
         drop(backup);
 
-        let mut raw_image = vec![0_u8; image.metadata().expect("backup metadata").len() as usize];
+        let mut raw_image =
+            vec![0_u8; image.as_file().metadata().expect("backup metadata").len() as usize];
         image
+            .as_file()
             .read_exact_at(&mut raw_image, 0)
             .expect("read raw backup image");
         let forbidden = b"backup_must_not_export";
@@ -2710,17 +2717,20 @@ mod tests {
         // next export gets no table-shaped second chance to scrub old pages.
         db.with_auth_transaction(|tx| crate::push::activate_manifest_in(tx, None))
             .expect("remove push declaration storage");
-        let post_removal_image = tempfile::tempfile().expect("post-removal backup image");
-        db.backup_auth_catalog_into(&post_removal_image)
+        let post_removal_image =
+            tempfile::NamedTempFile::new().expect("post-removal backup image");
+        db.backup_auth_catalog_into(post_removal_image.as_file())
             .expect("post-removal auth backup");
         let mut raw_post_removal = vec![
             0_u8;
             post_removal_image
+                .as_file()
                 .metadata()
                 .expect("post-removal backup metadata")
                 .len() as usize
         ];
         post_removal_image
+            .as_file()
             .read_exact_at(&mut raw_post_removal, 0)
             .expect("read raw post-removal backup image");
         assert!(

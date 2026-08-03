@@ -271,3 +271,18 @@ ticket closes citing that run id.
   expected action-count ratchet after Chrome provisioning (31 actual vs 30
   reviewed); advance the count and add structural checks for the pinned stable
   action, its exact `CHROME_BIN` output, and the no-`apt-get` posture.
+
+- **2026-08-03 — PUSH seam recovery handoff.** The recovered PUSH-01 lane
+  landed as `8fdcd41e`, including its generated guide manifest. Running the
+  canonical all-target Clippy gate against that final amended tree exposed
+  four test/implementation shape warnings that an earlier intermediate-tree
+  cleanup had not survived. The repair restores typed send-reservation and
+  request-failure inputs, a named reserved-token snapshot, and direct default
+  manifest initialization; all-target Clippy and all 17 push-module tests pass
+  locally. The hosted Rust failure also used an anonymous `tempfile()` where
+  production backup retains a named owner-only staging member: SQLite on Linux
+  cannot open the anonymous inode through `/proc/self/fd`. The custody test now
+  matches the production staging contract with a retained `NamedTempFile`;
+  descriptor-bound copy, physical token scrubbing, and raw-image absence proofs
+  are unchanged, and the exact backup test passes locally. Hosted confirmation
+  remains pending.
