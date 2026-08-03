@@ -9,6 +9,16 @@ in `issues/20260802-author-decision-packet.md`)
 closure and packaging facets), LLP 0145 (client bundle metrology), LLP 0148
 (id registry — `@expo/snapback-*` scope facts)
 
+## Running log
+
+- **2026-08-03 — PUSH-01 is closed and no longer caps promotion.** The local
+  `notifications.expoPushSeam` surface has its packaged fake-provider kit and
+  a retained physical iOS development-build ticket/receipt witness with both
+  statuses `ok`. The scoped guide row is shipped. The broader first-class
+  `notifications` capability correctly remains false under LLP 0045, and the
+  complete hosted push conjunction remains Missing. PUSH-01 therefore
+  unblocks this npm-promotion capstone without widening the package claims.
+
 Execute the first real promotion of the locally-provable nine-package
 surface to npm `latest`, under the 0134 evidence bar — not judgment:
 

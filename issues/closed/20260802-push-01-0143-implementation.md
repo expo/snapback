@@ -1,8 +1,8 @@
 # PUSH-01: LLP 0143 implementation — the Expo push-notification seam
 
-**Status:** Open
+**Status:** Resolved — 2026-08-03
 **Systems:** Runtime, Storage, Auth, Wire Protocol, Client integration
-**Related:** LLP 0143 (ACCEPTED 2026-08-02), the landed ctx.fetch egress
+**Related:** LLP 0143 (IMPLEMENTED 2026-08-03), the landed ctx.fetch egress
 seam, LLP 0045 (outbox — sequencing OQ), the closed a4expo-f1 finding
 
 Implement the three-piece seam LLP 0143 accepts, in its own order:
@@ -27,7 +27,34 @@ the guide gains a push page.
 plus one real Expo push receipt on a dev build; capability manifest
 updated honestly; dated implementation-record amendment on the LLP.
 
+## Resolution
+
+Resolved on 2026-08-03. The complete local seam and packaged deterministic
+acceptance kit were already on current main; this closure absorbs the missing
+push-maintenance route into the exhaustive route fixture and retains the
+physical iOS development-build witness in LLP 0143. The one-shot probe yielded
+an Expo ticket and receipt with `ok` status, while keeping token bytes and
+free-form provider text out of logs and repository evidence. The scoped
+`notifications.expoPushSeam` guide capability is shipped locally. In keeping
+with LLP 0143 D4, the separate first-class LLP 0045 `notifications` boolean
+remains false and hosted remains Missing. PUSH-01 no longer blocks the first
+npm `latest` promotion capstone.
+
 ## Running log
+
+- **2026-08-03 — physical-device Exit witness complete.** EAS build
+  `7af395e4-38d8-4053-ab63-4dcda53fef75` installed the temporary SB-EXPO
+  development client on Charlie's paired iPhone. Witness
+  `push-01-msdm9q33` received Expo ticket
+  `019fc914-5711-753e-a8cb-39881feab344` with status `ok` at
+  `2026-08-03T19:23:01.071Z`, followed by receipt status `ok` at
+  `2026-08-03T19:23:11.445Z`; no error code, token byte, or provider prose was
+  retained. The app observed a foreground callback and Charlie reported
+  seeing the notification, both supplemental observations rather than a
+  widened delivery claim. The packaged fake-Expo kit remains the deterministic
+  seam proof. The local scoped capability is shipped, the broader
+  `notifications` boolean remains false, and the hosted conjunction remains a
+  GAP.
 
 - **2026-08-03 — wave-end proof handoff: push maintenance route is missing
   from the exhaustive HTTP fixture.** The latest completed non-cancelled
@@ -40,6 +67,29 @@ updated honestly; dated implementation-record amendment on the LLP.
   correctness/acceptance omission here and is not editing the actively owned
   push seam or its route fixture. Please absorb it in the PUSH-01 closure
   landing; the proof cannot be green until the expected set names the route.
+
+- **2026-08-03 — real-receipt probe is code-ready; EAS credential creation
+  requires Charlie.** Current `origin/main` already contains all nine dated OQ
+  dispositions and the ratified OQ2 device-scoped installation store. A clean
+  worktree of `expo-jam-allaboard` at `f1fb8ae` now carries a temporary
+  SB-EXPO receipt route plus the `expo-notifications` config plugin. Expo's
+  introspected iOS config proves `aps-environment: development`, the route
+  never displays or logs the token or raw provider prose, and a production
+  iOS JS export passes. EAS is authenticated as `ccheever`, the linked
+  `@ccheever/all-aboard-sb-expo` project is intact, and Charlie's paired iPhone
+  has Developer Mode enabled and is registered on two currently available
+  Apple teams. The project still has no iOS builds, and the non-interactive
+  development build stops before upload because EAS has no internal-
+  distribution credentials for it. The previously recorded team
+  `C8D8QTF339` is not among the Apple teams currently exposed to this EAS
+  session, so the agent will not guess credential ownership. Charlie must use
+  <https://dash.tuft.dev/expo/setup>, choose the intended Apple team for
+  `dev.allaboard.sbexpo`, complete Apple connection/credential setup, and then
+  keep the iPhone available, unlocked, and online while the agent builds,
+  installs, runs the one-shot probe, and retains the allowlisted ticket and
+  receipt facts. No build, token acquisition, or provider send occurred in
+  this checkpoint. The ticket remains Open, the seam capability remains
+  `partial`, and the broader LLP 0045 `notifications` boolean remains false.
 
 - **2026-08-03 — OQ2 ratified; real-receipt block narrowed but not cleared.**
   LLP 0143 now records the author-ratified device-scoped installation store

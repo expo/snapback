@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "2dacce69a7aa33ab5c4528791e51589164605470"
+    "commit": "2bb66b0a3e294c04ab13f24372911cdf77cea355"
   },
   "nav": {
     ".": [
@@ -801,7 +801,7 @@
       "targets": [
         "local"
       ],
-      "maturity": "partial",
+      "maturity": "shipped",
       "capabilities": [
         "backend.expo-push-seam"
       ],
@@ -818,9 +818,9 @@
       "examples": [
         "packages/snapback-cli/fixtures/push-seam"
       ],
-      "reviewed": "2026-08-02",
+      "reviewed": "2026-08-03",
       "reviewedCommit": "HEAD",
-      "sha256": "2267a9d845d5e977319978fb95536362367e2866399b3574a44384af60b244df",
+      "sha256": "c81120866922b243b674d8adeb2d1092c10dffa1c9de236e6dcdacf22b720128",
       "snippets": [
         {
           "lang": "js",
@@ -1351,7 +1351,7 @@
       "examples": [],
       "reviewed": "2026-08-03",
       "reviewedCommit": "HEAD",
-      "sha256": "3afbf104b156f994c9ac920de09b12b99deceb73d227fcdfd8c1cd1bc8a6039e",
+      "sha256": "8e99524f65b4bfa54ede3f0e6427cbd0887000fc5804ed29170250f2f7c59b4b",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1992,7 +1992,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "HEAD",
-      "sha256": "b01f4aae6ded1ea946c166df50b0f20eb4667d3468374ebcf553081028910a07",
+      "sha256": "a8a1186d12dee63f06e181efa4c25a16f98f671153823e19cb3324bb614e6264",
       "snippets": []
     },
     "operating.admin-console": {
@@ -2712,5 +2712,5 @@
     "routes": 98,
     "hostOps": 35
   },
-  "contentHash": "d1a8e96ea0fdb2a7e639017664e0ac0708c7f0164809872df98273c89bbb8855"
+  "contentHash": "670b19fcee2f1b590ab0b194b03a490f5097b5f1e469422b0373e37b1ae8258b"
 }

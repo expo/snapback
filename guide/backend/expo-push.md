@@ -8,8 +8,8 @@ authorities: [llp/0143-expo-push-notification-seam.rfc.md, src/push.rs, src/serv
 examples: [packages/snapback-cli/fixtures/push-seam]
 status: current
 targets: [local]
-maturity: partial
-reviewed: 2026-08-02
+maturity: shipped
+reviewed: 2026-08-03
 reviewed-commit: HEAD
 ---
 
@@ -41,6 +41,13 @@ The local capability manifest reports the separate structured capability
 Hosted targets omit the structured capability. There is no hosted native-auth
 entry, authenticated token-registration path, provider custody, or durable
 receipt-poll home yet.
+
+The local seam's acceptance kit combines the packaged deterministic fake-Expo
+carrier with a 2026-08-03 physical iOS development-build witness whose ticket
+and receipt both settled `ok`. That external witness is retained in LLP 0143's
+implementation record. It does not widen the receipt beyond the never-claims
+below, and it does not turn the separate first-class `notifications` capability
+on.
 
 ## Declare custody, audiences, and retention
 
