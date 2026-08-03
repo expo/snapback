@@ -570,7 +570,7 @@ impl LocalDatabase {
         };
         let authorization_interlock = self.authorization_interlock.clone();
         let order_field_bounds = self.order_field_bounds.clone();
-        let mut predecessor_sequence_declarations = self.sequence_declarations.as_ref().clone();
+        let mut predecessor_sequence_declarations = BTreeMap::new();
         let exact_active_predecessor = trusted_predecessor_functions.as_ref().is_some_and(|functions| {
             predecessor.active_manifest.as_ref().is_some_and(|schema| {
                 DeploymentIdentity::from_manifests(predecessor.state.active, schema, functions)
@@ -580,6 +580,8 @@ impl LocalDatabase {
             })
         });
         if exact_active_predecessor {
+            predecessor_sequence_declarations
+                .extend(self.sequence_declarations.as_ref().clone());
             predecessor_sequence_declarations.extend(sequence_declarations.clone());
         }
         let trusted_relation_parent_tables = predecessor
@@ -1083,8 +1085,10 @@ impl LocalDatabase {
         }
 
         let authorization_interlock = self.authorization_interlock.clone();
-        let mut predecessor_sequence_declarations = self.sequence_declarations.as_ref().clone();
+        let mut predecessor_sequence_declarations = BTreeMap::new();
         if current.state.active_deployment.as_ref() == Some(&deployment) {
+            predecessor_sequence_declarations
+                .extend(self.sequence_declarations.as_ref().clone());
             predecessor_sequence_declarations.extend(sequence_declarations.clone());
         }
         let trusted_relation_parent_tables = current
@@ -1254,10 +1258,12 @@ impl LocalDatabase {
         };
         let authorization_interlock = self.authorization_interlock.clone();
         let order_field_bounds = self.order_field_bounds.clone();
-        let mut predecessor_sequence_declarations = self.sequence_declarations.as_ref().clone();
+        let mut predecessor_sequence_declarations = BTreeMap::new();
         let sequence_declarations =
             super::sequence_declarations_from_function_manifest(&functions);
         if predecessor.state.active_deployment.as_ref() == Some(&deployment) {
+            predecessor_sequence_declarations
+                .extend(self.sequence_declarations.as_ref().clone());
             predecessor_sequence_declarations.extend(sequence_declarations.clone());
         }
         let trusted_relation_parent_tables = predecessor
