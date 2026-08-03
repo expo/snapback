@@ -6,7 +6,46 @@
 Live queries, Relational queries, Optimistic updates, Auth, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-03
-**Revised:** 2026-08-03 (v0.3, round-2 fixes: Codex round 2 returned
+**Revised:** 2026-08-03 (v0.4, round-3 fixes: Codex round 3 returned
+NOT READY (5 BLOCKING, 3 MATERIAL); Fable round 3 returned NOT READY
+(4 MATERIAL, 5 NIT) and independently audited every Codex round-2 finding
+as resolved. Applied all: the amendment set gains a **fourth carried
+text — a dated LLP 0155 §Move 2 note** — so the result-transform
+narrowing of the commissioned local-query-execution outcome is an
+explicit owner revision (deferring source-row plan evaluation behind
+LLP 0155 OQ2's gate), with the LLP 0157 amendment aligned to read its
+§D7 gate on the revised profile, and the retention class renamed
+`result-transform-snapshot-v1` so it no longer implies source-plan
+evaluation; `TransformPlanV1` is now total (closed `basic-v1` filter
+grammar, per-field order direction, a total scalar comparator with type
+ranking, integer limit domain, row-sequence-only inputs) and **overlay
+application is excluded from the dual-runtime parity oracle** — shipped
+optimistic layers are arbitrary client callbacks, so the corpus covers
+pure transforms and overlay composition is verified by client-only
+oracles; the broker gains never-reused CSPRNG context identities,
+`(contextId, partition)`-scoped full-set announces (multi-grant
+contexts expressible), an explicit `RegisterReleaseV1`/outcome pair,
+partition-bound forwards, an announce source restriction, heartbeat
+closure edges, a persisted context roster making handoff reconciliation
+decidable, and closed-set refusals on every message; release grace now
+pins **both** policy axes (the merge immediately before the final
+release — S3's pin case corrected to `default` accordingly, with a
+final-set-`pinned` case added) so §D3's condition 3 reads
+grace-pinned-durable and grace is never vacuous; blocker-held custody
+is modeled explicitly (a `safety-blocker` retaining reason, discharge
+transition, inspection row); §D6's convergence step 1 is re-expressed
+as beginning the predecessor's LLP 0053 terminal retirement — an
+existing owner transition, replacing the unownable `migration-closed`
+disposition; §D1's `wipe` names its exact `storeMeta` projection
+(registrations/policy/roster cleared; allocator and barrier high-waters
+preserved); §D3's persistence conditions are scoped to `qmk1` payload
+with the legacy LLP 0090 predicate stated separately; durable
+registrations gain a 16 KiB per-record byte ceiling; the truncated
+Fable round-2 artifact body was restored verbatim with a dated
+provenance-correction note (landed separately at 46127881); compacted
+stubs clear `heldProofs` with their payload; grace clocks anchored at
+suppression end; `TransformHashV1` consumers named; S1/S3/S5/S6 gain
+the corresponding legs.) 2026-08-03 (v0.3, round-2 fixes: Codex round 2 returned
 NOT READY (6 BLOCKING, 4 MATERIAL — the new machinery's exactness and two
 publication-order security defects); Fable round 2 returned NOT READY
 (3 MATERIAL, 6 NIT) with a full round-1 resolution audit. Every finding
@@ -97,9 +136,9 @@ the ordinary client read substrate:
    declared successor of its Channel-B persistence, with a
    close-predecessor-first convergence protocol for the lease family.
 7. **The gated evaluation profile** (§D7) — the closed `TransformPlanV1`
-   contract, plus the exact LLP 0008 DK-9, LLP 0080, and LLP 0157
-   amendment texts this Spec carries; evaluation stays refused until the
-   amendments land and the conformance corpus passes.
+   contract, plus the exact LLP 0008 DK-9, LLP 0080, LLP 0157, and
+   LLP 0155 amendment texts this Spec carries; evaluation stays refused
+   until the amendments land and the conformance corpus passes.
 8. **The agent-safe seam** (§D8) — the LLP 0161 OQ5 answer: which of the
    agent-ideal properties P1–P9 the client store needs natively, which it
    consumes as server-issued artifacts, and which it never takes; no
@@ -149,10 +188,10 @@ This Spec owns the eight items above. It does **not** own:
 Acceptance path: commissioned by an Accepted RFC; LLP 0130 SD-4's standing
 rule applies if the dual-family loop converges READY within this
 commission's scope; the author decides otherwise. Acceptance additionally
-lands the three dated amendments §D7 carries in their owning documents
-(LLP 0008 DK-9, LLP 0080, LLP 0157) and dated boundary notes in LLP 0043,
-LLP 0053, and LLP 0090 for the successor-store, address-family, and
-convergence-order seams. Acceptance is semantic only: no implementation or
+lands the four dated amendments §D7 carries in their owning documents
+(LLP 0008 DK-9, LLP 0080, LLP 0157, LLP 0155) and dated boundary notes in
+LLP 0043, LLP 0053, and LLP 0090 for the successor-store, address-family,
+and convergence-order seams. Acceptance is semantic only: no implementation or
 capability fact is promoted by this document's status.
 
 ## Vocabulary
@@ -305,16 +344,19 @@ it is not compaction and not a general cleanup:
   acknowledgements are untouched).
 - **What it clears, atomically:** the **resident** sections —
   `materializations`, `pageSets`, `memberships`, `entries`, and the
-  `outbox` — in one transaction; another identity must never replay this
-  one's queued mutations. The legacy lease artifact is **outside** this
-  transaction domain: it is cleared by its own owner as a registered
+  `outbox` — plus, within `storeMeta`, exactly the durable
+  (`programmatic`) registrations, the policy/budget facts, and the broker
+  context roster, in one transaction; another identity must never replay
+  this one's queued mutations or re-hydrate its registrations. The legacy
+  lease artifact is **outside** this transaction domain: it is cleared by its own owner as a registered
   participant in the same LLP 0059 `AuthCoordinator` barrier (LLP 0053's
   store-wide barrier already names the LLP 0039/0053 stores as
   participants); the barrier's publication gate, not a cross-artifact
   transaction, is what makes the identity transition safe.
 - **What survives:** the `query_instance_id` allocator high-water (LLP 0053
-  requires never-reuse across recreation), and the fence/tombstone/barrier
-  high-waters LLP 0053's delete rules preserve.
+  requires never-reuse across recreation), the fence/tombstone/barrier
+  high-waters LLP 0053's delete rules preserve, and the store format
+  version.
 - **What rotates:** the LLP 0157 §D6 local-row-handle HMAC key is destroyed
   and re-minted — a predecessor identity's handles must not remain
   comparable across the barrier.
@@ -404,18 +446,26 @@ type QueryRegistrationV1 = Readonly<{
   `retentionRequest` `durable > none`; `idleTtlClass`
   `pinned > default > none`; demand state is `demanded-active` iff any
   `active`-source registration is live. Releasing one registration
-  re-evaluates the merge over the remainder. **The grace class at release
-  is pinned:** when the last live registration releases, the governing
-  `idleTtlClass` for the ensuing grace is the per-axis maximum over the
-  registration set as it stood immediately before that final release.
-- **`retentionRequest` is load-bearing:** an effective merged value of
-  `"durable"` is a necessary §D3 persistence condition. When the effective
-  value drops to `"none"` (by release or re-registration) while the
-  materialization is still demanded, its durable payload custody ends: the
-  payload is reclaimed at the next writer maintenance pass through §D5's
-  compaction path (honoring every blocker), and the materialization
-  continues volatile (in-memory, `volatile-online-v1` honesty) while
-  demanded.
+  re-evaluates the merge over the remainder. **Release grace pins both
+  policy axes:** when the last live registration releases, the ensuing
+  grace carries the per-axis maxima over the registration set as it stood
+  immediately before that final release — the *last-snapshot* rule. (A
+  registration that released earlier contributes nothing: in an address
+  holding A=`pinned` and B=`default`, A releasing first and B last yields
+  a `default` grace; B releasing first and A last yields `pinned`.) The
+  pinned pair — `idleTtlClass` and `retentionRequest` — governs the
+  grace's GC exposure (§D5) and its §D3 condition 3 standing.
+- **`retentionRequest` is load-bearing:** an effective `"durable"` — from
+  live registrations, or pinned by a running release grace — is a
+  necessary §D3 persistence condition. When the effective value drops to
+  `"none"` (by release or re-registration) while the materialization is
+  still demanded, its durable payload custody ends: the payload is
+  reclaimed at the next writer maintenance pass through §D5's compaction
+  path (honoring every blocker), and the materialization continues
+  volatile (in-memory, `volatile-online-v1` honesty) while demanded. A
+  grace pinned at `"none"` retains no payload; a grace pinned at
+  `"durable"` retains it for the grace's duration — release never
+  silently drops a durable-requested payload.
 - **Scope serialization.** LLP 0157 §D3 gives one requested scope per
   address at a time, and a changed-scope request makes predecessor proofs
   historical. The effective scope at an address is therefore: the page-set
@@ -456,21 +506,29 @@ records:
 ```ts
 type DemandAnnounceV1 = Readonly<{
   format: "snapback.demand-announce.v1"
-  contextId: string              // stable for the context's lifetime
-  revision: number               // per-context, strictly increasing
+  contextId: string              // CSPRNG-minted per context lifetime; never reused
+  revision: number               // per (contextId, partition), strictly increasing
   authorityPartitionDigest: `sha256:${string}`
-  demands: readonly QueryRegistrationV1[]   // the context's COMPLETE current set
+  demands: readonly QueryRegistrationV1[]   // the pair's COMPLETE current set;
+                                            // source: "active" entries only
 }>
 type RegisterForwardV1 = Readonly<{
   format: "snapback.register-forward.v1"
   contextId: string
   requestId: string
+  authorityPartitionDigest: `sha256:${string}`
   registration: QueryRegistrationV1          // source: "programmatic" only
+}>
+type RegisterReleaseV1 = Readonly<{
+  format: "snapback.register-release.v1"
+  contextId: string
+  requestId: string
+  registrationId: string                     // a durable registration
 }>
 type RegisterOutcomeV1 = Readonly<{
   format: "snapback.register-outcome.v1"
   requestId: string
-  outcome: { kind: "committed" } | { kind: "refused", code: string }
+  outcome: { kind: "committed" } | { kind: "released" } | { kind: "refused", code: string }
 }>
 type WriterHelloV1 = Readonly<{
   format: "snapback.writer-hello.v1"
@@ -478,43 +536,69 @@ type WriterHelloV1 = Readonly<{
 }>
 ```
 
+Every message is a closed record: unknown fields, out-of-set values, or a
+`demands` entry whose `source` is not `"active"` refuse the message
+(`preload` derives at the writer's own boot; `programmatic` rides only the
+forward/release pair).
+
 Rules, normative:
 
-- **Full-set announces.** A `DemandAnnounceV1` replaces the context's
-  entire volatile demand set at the writer; there is no incremental
-  release message. The writer applies the highest `revision` per
-  `contextId` and ignores lower or duplicate revisions (idempotent,
-  order-tolerant). A context releases everything by announcing an empty
-  set or by dying.
-- **Liveness.** A context is live while its heartbeat holds: re-announce
-  (or empty keep-alive announce) at most every 15 seconds; the writer
-  reaps a context's volatile demands after 45 seconds without one
-  (both values provisional, dated-amendable under OQ4). A carrier
-  disconnect signal (channel close, presence-lock release) reaps
-  immediately. The writer treats an unreachable context as live until the
-  liveness rule expires it — never silently live past expiry, never
-  reaped early.
-- **Authority binding.** Announced demands bind the announcing context's
-  authority partition; a demand naming an address outside that partition
-  refuses. Forwarded registrations commit under the store's current fence
-  (LLP 0157 §D7 operation semantics); a fence mismatch refuses and the
-  context re-announces against fresh state.
-- **Forwarding.** `programmatic` registrations from a non-writer context
-  ride `RegisterForwardV1`; the API resolves only on `RegisterOutcomeV1`
-  (`committed` after the durable commit, else the refusal code).
-  `requestId` makes retries idempotent.
+- **Context identity is never reused.** `contextId` is CSPRNG-minted for
+  one context lifetime. After the writer reaps a `contextId`, further
+  messages bearing it are ignored; a surviving context that was wrongly
+  reaped (e.g. after a network partition of the channel) must mint a
+  fresh id and re-announce its full sets. Revision counters therefore
+  never collide across lifetimes, and a delayed old announce can never
+  resurrect demand.
+- **Full-set announces, per partition.** Announces are scoped by the
+  `(contextId, authorityPartitionDigest)` pair: a `DemandAnnounceV1`
+  replaces that pair's entire volatile demand set at the writer. A
+  multi-partition context (an LLP 0055 multi-grant client) announces each
+  partition's set separately. The writer applies the highest `revision`
+  per pair and ignores lower or duplicate revisions (idempotent,
+  order-tolerant). A context releases a partition's demands by announcing
+  that pair's empty set, and releases everything by dying. Every demand
+  in an announce must name an address inside the announced partition;
+  a cross-partition demand refuses the entry.
+- **Liveness.** A context is live while its heartbeat holds: it must send
+  a well-formed message at intervals of at most 15 seconds — a keep-alive
+  for a context with standing demands is a same-set re-announce (an empty
+  set at a higher revision is a release, not a keep-alive), and **any**
+  well-formed message from the context refreshes its heartbeat even when
+  its revision is ignored as duplicate or lower. The writer reaps all of
+  a context's volatile demands after 45 seconds without one (values
+  provisional, dated-amendable under OQ4). A carrier disconnect signal
+  (channel close, presence-lock release) reaps immediately. The writer
+  treats an unreachable context as live until the liveness rule expires
+  it — never silently live past expiry, never reaped early.
+- **Forwarding and release.** `programmatic` registration from a
+  non-writer context rides `RegisterForwardV1`, carrying its partition
+  digest; the writer validates that the registration's address belongs to
+  that partition and commits under that address's current fence
+  (LLP 0157 §D7 operation semantics) — partition or fence mismatch
+  refuses, and the context retries against fresh state. Durable
+  registrations are released by `RegisterReleaseV1` (or the writer-local
+  API when the caller is the writer). Both resolve only on
+  `RegisterOutcomeV1`; `requestId` makes retries idempotent, and
+  releasing an already-released or unknown `registrationId` returns
+  `released` (release is idempotent). A writer crash between commit and
+  outcome is safe: the retry re-forwards, and the writer answers from the
+  durable state.
 - **Reads protect renderable custody through demand, not through reads.**
   A non-writer tab rendering an adopted materialization keeps it
   `demanded-active` by announcing the demand — the store does not infer
   demand from reads it cannot observe.
 - **Writer handoff.** On acquiring the lock, the new writer emits
-  `WriterHelloV1`, loads durable registrations, and rebuilds the volatile
-  ledger from re-announcements. Until reconciliation completes — every
-  previously known live context re-announces or the 30-second window
-  (provisional, OQ4) elapses — **every demand-derived transition is
-  suppressed**: no release-grace starts, no grace GC, no
+  `WriterHelloV1`, loads durable registrations and the persisted context
+  roster (the writer keeps the set of live `contextId`s durably in
+  `storeMeta`, updated as contexts appear and reap), and rebuilds the
+  volatile ledger from re-announcements. Until reconciliation completes —
+  every roster context re-announces or is affirmatively reaped, or the
+  30-second window (provisional, OQ4) elapses — **every demand-derived
+  transition is suppressed**: no release-grace starts, no grace GC, no
   budget-pressure compaction of any step; a commit that would exceed
-  budget during suppression refuses instead.
+  budget during suppression refuses instead. A release whose grace would
+  begin during suppression anchors its grace clock at suppression end.
 - **Per-carrier qualification and honest degradation.** The browser
   carrier qualifies the protocol over its cross-tab channel plus Web
   Locks presence. The shipped file carrier has **no cross-process
@@ -578,7 +662,8 @@ present whole or absent whole, while its identity, authority state, and
 registration bookkeeping survive compaction per §D5 (their interior page
 lifecycle belongs to LLP 0157 §D3's transitions).
 
-Persistence requires **all** of:
+**The `qmk1` persistence predicate.** Discretionary persistence of a
+`qmk1` materialization's payload requires **all** of:
 
 1. the store's `durable-fragments-v1` profile (LLP 0157 §D7) on a carrier
    whose durability facts are qualified (§D9);
@@ -586,19 +671,33 @@ Persistence requires **all** of:
    widens a classification:
    - `opaque-authorized-snapshot-v1` (LLP 0080) with the complete LLP 0043
      lease/witness custody for auth-scoped plans;
-   - `fragment-evaluated-snapshot-v1` (LLP 0080 as amended at this Spec's
+   - `result-transform-snapshot-v1` (LLP 0080 as amended at this Spec's
      acceptance, §D7) with the identical lease/witness custody — this class
      is **representable only after the carried LLP 0157 classification
      amendment lands** and grants evaluation admission only through §D7's
      full ship gate; until then no plan can carry it;
-   - the LLP 0090 Channel-B rules for the legacy `rqsEligible` population
-     (below);
    - `retention: "none"` never persists;
-3. an effective merged `retentionRequest` of `"durable"` (§D2's lattice —
-   registration interest is necessary, not only owner permission);
+3. an effective `retentionRequest` of `"durable"` — from live
+   registrations (§D2's lattice), or pinned by a running release grace
+   (§D2's last-snapshot rule) — registration interest is necessary, not
+   only owner permission;
 4. a registration or unexpired release grace (§D2/§D5); and
 5. the LLP 0053 state admitting it (disposition `retain`, no blocking
    fence).
+
+When the predicate fails but a §D5 compaction blocker holds (pending
+intent, an obligation needing the payload, a settlement dependency), the
+payload enters **blocker-held custody**: an explicit, inspectable safety
+state (`retainingReason: safety-blocker`, §D5's policy record) that is
+never discretionary retention — it ends the moment the blockers
+discharge, whereupon compaction runs. Rendering under blocker-held
+custody follows §D4's ordinary rules unchanged.
+
+**The legacy predicate is LLP 0090's, separately.** Legacy `entries`
+persist under that owner's own rules — a token-verified `rqsEligible`
+entry within the legacy envelope — with no `retentionRequest`,
+registration, or grace condition; this Spec's predicate above does not
+apply to them (§D5's grandfathering).
 
 ### Address families and their staged convergence
 
@@ -668,8 +767,9 @@ changes:
   page-set manifests, and membership records. Excluded from the byte
   budget and bounded separately: record identity/product/authority/
   subscription metadata (bounded by the 256-record cap), durable
-  `programmatic` registrations (own cap: 512 per store, refuse-at-cap
-  with a stable diagnostic, provisional under OQ4), `storeMeta`
+  `programmatic` registrations (own caps: 512 per store and 16 KiB of
+  serialized record bytes each, refuse-at-cap with a stable diagnostic,
+  both provisional under OQ4), `storeMeta`
   bookkeeping (bounded by the record and registration caps), and the
   outbox — which has its own owner-governed caps (the shipped
   implementation constants: 1,024 records, 256 KiB per record, 4,096
@@ -787,14 +887,16 @@ exists; re-demand after retirement initializes a fresh instance.
 ### Release grace (TTL)
 
 - Grace is **release-anchored**: the clock starts when the last
-  registration releases the address. Default duration 14 days
-  (1,209,600,000 ms; a provisional v1 value, dated-amendable under OQ4).
-  The governing class is pinned at release (§D2's lattice): the per-axis
-  maximum over the registration set as it stood immediately before the
+  registration releases the address (or at suppression end, when the
+  release lands during broker-handoff suppression — §D2). Default
+  duration 14 days (1,209,600,000 ms; a provisional v1 value,
+  dated-amendable under OQ4). The governing policy is pinned at release
+  by §D2's last-snapshot rule — both axes, `idleTtlClass` and
+  `retentionRequest`, from the registration set immediately before the
   final release. `"none"` — no grace, GC-eligible on release; `"default"`
   — the 14-day window; `"pinned"` — **exempt from grace GC entirely**: a
-  record released from a `pinned` merge is never background-collected and
-  is reclaimed only by budget pressure (step 3 below), an owner
+  record whose pinned class is `"pinned"` is never background-collected
+  and is reclaimed only by budget pressure (step 3 below), an owner
   transition, or store reset.
 - **Grace protects against background GC only, never against
   budget-pressure compaction** and never against an owner transition. It
@@ -821,11 +923,13 @@ compaction**, never record destruction:
 - **What compaction preserves:** the materialization's identity, its
   `QueryAuthorizationState` (the exact current-instance fence, tombstones,
   and the frontiers LLP 0053's §GC requires to survive payload
-  compaction), the product-state skeleton, and all registration
-  bookkeeping. Durable `programmatic` registrations are never removed by
-  compaction (§D2 owns their release). The compacted stub derives
-  `unknown`, renders nothing, and **re-establishment rehydrates the same
-  `query_instance_id`** — compaction is not retirement.
+  compaction), the product-state skeleton — with `heldProofs` cleared,
+  since the stored proofs are payload; the stub holds no dangling proof
+  references — and all registration bookkeeping. Durable `programmatic`
+  registrations are never removed by compaction (§D2 owns their release).
+  The compacted stub derives `unknown`, renders nothing, and
+  **re-establishment rehydrates the same `query_instance_id`** —
+  compaction is not retirement.
 - A fully `undemanded` stub whose grace has expired and which carries no
   surviving LLP 0053 obligations may finally be removed through LLP 0053's
   ordinary terminal retirement, preserving allocator/frontier high-waters
@@ -902,6 +1006,8 @@ type StorePolicyInspectionV1 = Readonly<{
             ownerContextKind: "subscription" | "route" | "api"
           }[] }
       | { kind: "release-grace", graceDeadline: number | null }  // null = pinned
+      | { kind: "safety-blocker", blockers: readonly
+            ("pending-intent" | "obligation" | "settlement-dependency")[] }
       | { kind: "grandfathered-legacy-entry" }
     effectiveTtlClass: "none" | "default" | "pinned" | null
     lastEstablishmentAt: number | null
@@ -985,24 +1091,29 @@ staged and fail-closed:
   lease store and this domain are separate artifacts on the shipped
   carriers, and no transaction spans them, so no cross-artifact atomic
   move exists and none is claimed. The v1 convergence protocol is
-  monotone, with a defined state at every crash cut:
-  1. the lease owner durably commits the predecessor record
-     **migration-closed** — non-renderable under its own fence, an
-     LLP 0043-owned disposition written in the lease artifact — *before*
-     any successor establishment is published to renderers;
+  monotone, uses **only existing owner transitions** (no new disposition
+  is invented), and has a defined state at every crash cut:
+  1. the lease owner durably **begins the predecessor instance's LLP 0053
+     terminal retirement** (`active → retiring` — an existing transition
+     that rejects render, write, and proof inputs and is committed in the
+     lease artifact) *before* any successor establishment is published to
+     renderers;
   2. fresh sync establishes the `qmk1` address through LLP 0157 §D7;
-  3. the predecessor retires under its own owner's rules.
-  Crash after (1): the legacy record is non-renderable and the successor
-  not yet established — a data gap, never a dual render; re-running the
-  protocol resumes at (2). Crash after (2): successor renderable,
-  predecessor non-renderable, retirement pending. At **no** cut are both
-  renderable, matching the owners' non-renderable-until-fresh-sync wording
-  (LLP 0043's boundary note; LLP 0157 §Migration); the dated LLP 0043
-  boundary note at acceptance pins this window explicitly. Direct
-  adoption (atomically moving payload, lease, fences, obligations, and
-  pending-intent references) becomes available only if the lease store
-  first moves into this shared transaction domain — a future dated
-  LLP 0043 step (OQ5).
+  3. the predecessor's retirement **finalizes** under its own owner's
+     rules (destructive transition, frontiers preserved).
+  Crash after (1): the legacy record is `retiring` — non-renderable — and
+  the successor not yet established: a data gap, never a dual render;
+  re-running the protocol resumes at (2). Crash after (2): successor
+  renderable, predecessor `retiring`, finalization pending. At **no** cut
+  are both renderable. This maps onto the owners' wording — the
+  non-adoptable record "coexists non-renderably until fresh sync creates
+  the new address, then retires" (LLP 0043's boundary note; LLP 0157
+  §Migration) — with retirement *beginning* first (the non-renderability)
+  and *finalizing* last; the dated LLP 0043 boundary note at acceptance
+  pins this reading explicitly. Direct adoption (atomically moving
+  payload, lease, fences, obligations, and pending-intent references)
+  becomes available only if the lease store first moves into this shared
+  transaction domain — a future dated LLP 0043 step (OQ5).
 - **No dual identity:** one logical retained result is never simultaneously
   renderable under two families; the protocol above leaves exactly one
   renderable copy at every cut.
@@ -1047,35 +1158,54 @@ type TransformPlanV1 = Readonly<{
   format: "snapback.result-transform.v1"
   materializationKey: string      // the single input address
   overlay: "apply" | "none"       // adjacent optimistic layers, or base only
-  filter: object | null           // owning plan family's predicate grammar,
-                                  // restricted to fields present in the
-                                  // projected result
-  orderFields: readonly string[]  // ⊆ projected result fields; may be empty
-  limit: number | null
+  filterGrammar: "basic-v1"
+  filter: readonly {              // conjunction; [] = no filtering
+    field: string                 // present in the projected result contract
+    op: "eq" | "ne" | "lt" | "lte" | "gt" | "gte" | "in"
+    value: unknown                // canonical client scalar; op "in" takes a
+                                  // nonempty array of scalars
+  }[]
+  order: readonly {               // may be empty; duplicate fields refuse
+    field: string                 // present in the projected result contract
+    direction: "asc" | "desc"
+  }[]
+  limit: number | null            // nonnegative safe integer, or null = none
 }>
 ```
 
 `TransformHashV1` is SHA-256 over `snapback:result-transform:v1:` plus the
-record's RFC 8785 JCS bytes. Unknown fields, a field absent from the
-projected result contract, an operator outside this record, or a
+record's RFC 8785 JCS bytes; it is the conformance corpus's fixture
+identity and appears beside transform facts in inspection — no admission
+trusts it. Every record is closed: unknown fields, an out-of-set value, a
+field absent from the projected result contract, a duplicate order field,
+a negative or non-integer limit, an operator outside this record, or a
 `materializationKey` differing from the executing address each refuse.
 
 **The pipeline is fixed and total.** Execution order, normative:
 
-1. **Base assembly:** the address's established result — the fragments of
-   the requested page or the complete page-set chain at one version (a
-   broken or mixed-version chain refuses; the transform never assembles
-   across versions);
+1. **Base assembly:** the address's established result — the requested
+   page's rows in their established order, or the complete page-set
+   chain's pages concatenated first-to-terminal, each page's rows in
+   their established order, all at one version (a broken or
+   mixed-version chain refuses; the transform never assembles across
+   versions). V1 admits only results whose contract is a row sequence;
+   any other result shape refuses.
 2. **Overlay application** (iff `overlay: "apply"`): the address's
    adjacent optimistic layers, in their owners' layer order
    (LLP 0107/0114/0133 semantics, consumed — the transform invokes, never
-   redefines, layer application);
-3. **Filter** over the (possibly overlaid) rows, using the owning plan
-   family's predicate semantics restricted to projected fields;
-4. **Order** by `orderFields` under the server's canonical comparison
-   (LLP 0051 canonical scalar ordering), stable with respect to the base
-   order for ties;
-5. **Limit/window** over the ordered sequence.
+   redefines, layer application). **This step is client-only** — see the
+   parity split below.
+3. **Filter** over the (possibly overlaid) rows: the conjunction of the
+   `basic-v1` comparisons, evaluated per row over projected fields.
+4. **Order** by the `order` entries, in sequence, each ascending or
+   descending under one total scalar comparator: values order first by
+   type rank `null < boolean < number < string` (booleans `false < true`;
+   numbers by numeric order after LLP 0051's canonical numeric
+   normalization; strings by unsigned UTF-8 byte order), and a
+   non-scalar value in an order field refuses. Ties preserve base order
+   (stable sort). These v1 comparator rules are frozen by the conformance
+   corpus's golden vectors.
+5. **Limit** over the ordered sequence (`0` yields the empty result).
 
 Output rows use the same canonical client-value encoding as the
 established result. The transform's output is presentation-only: it
@@ -1087,22 +1217,29 @@ digest that any admission trusts.
 Contract:
 
 - **Admission is per-plan and owner-issued** — a plan participates only by
-  carrying the `fragment-evaluated-snapshot-v1` retention class (below);
+  carrying the `result-transform-snapshot-v1` retention class (below);
   the store never infers evaluability.
-- **Parity target:** a **reference implementation of `TransformPlanV1`
-  itself**, implemented on both the client runtime and the server, run
-  over the same established result bytes at the same version — the
-  conformance corpus (proposed as an LLP 0051 D5 extension, LLP 0157 OQ9;
-  that owner decides; if declined, a standalone corpus with the same
+- **Parity target, split at the overlay:** the dual-runtime oracle covers
+  the **pure transform** — a reference implementation of `TransformPlanV1`
+  with `overlay: "none"`, implemented on both the client runtime and the
+  server, run over the same established result bytes at the same version;
+  the conformance corpus (proposed as an LLP 0051 D5 extension, LLP 0157
+  OQ9; that owner decides; if declined, a standalone corpus with the same
   pinned-identity discipline) freezes fixed inputs and expected outputs at
-  pinned evaluator identities. The plan's own source-row pipeline is
-  **not** the reference and is never invoked locally.
+  pinned evaluator identities. **Overlay application cannot be
+  server-verified** — shipped optimistic layers are arbitrary client
+  callbacks (the LLP 0107/0114 external-store surface), so
+  `overlay: "apply"` is the client-side composition of that shipped layer
+  machinery with the pure transform, verified by client-only oracles (the
+  existing external-store suites plus S6's composition leg), never by the
+  dual-runtime corpus. The plan's own source-row pipeline is **not** the
+  reference and is never invoked locally.
 - **The overlay boundary and its cost, explicit:** overlay application
   over *live/current in-memory* results remains the LLP 0107/0114 owners'
   existing, ungated surface — nothing here re-gates it. What this profile
   gates is overlay recomputation **over a retained base** (and any
   filter/order/limit over retained fragments). Adopting that for a plan
-  requires per-plan reclassification to `fragment-evaluated-snapshot-v1`,
+  requires per-plan reclassification to `result-transform-snapshot-v1`,
   which by the crosswalk below rotates the plan's identity and address
   and forces fresh establishment — a deliberate, visible adoption cost,
   not an ambient upgrade. (The shipped restart behavior — retained rows
@@ -1127,7 +1264,12 @@ nothing here advances that gate.
 
 Per the owners' dated 2026-08-02 commissioning notes ("the amendment lands
 here, dated, alongside the Move 1/2 owning Spec"), this Spec carries the
-texts; they land in the owning documents, dated, at this Spec's acceptance.
+LLP 0008/0080 texts, plus the two consequential amendments the round-2/3
+review loop surfaced — the LLP 0157 classification widening and the
+LLP 0155 §Move 2 revision that makes this Spec's deliberate
+result-transform narrowing an explicit owner decision rather than a
+silent substitution. All four land in the owning documents, dated, at
+this Spec's acceptance.
 
 **Proposed LLP 0008 DK-9 amendment:**
 
@@ -1137,7 +1279,7 @@ texts; they land in the owning documents, dated, at this Spec's acceptance.
 > SQL): in addition to the document/result cache plus outbox, the store may
 > hold LLP 0157 materialization records — opaque authorized query-result
 > fragments with completeness proofs — and, for plans carrying the
-> LLP 0080 `fragment-evaluated-snapshot-v1` class, a conformance-proved
+> LLP 0080 `result-transform-snapshot-v1` class, a conformance-proved
 > evaluator may apply LLP 0166 §D7's closed `result-transform.v1` profile
 > over a single materialization address's fragments. The contract remains
 > the observable-state list, not SQL; nothing in the wire contract may
@@ -1147,7 +1289,7 @@ texts; they land in the owning documents, dated, at this Spec's acceptance.
 **Proposed LLP 0080 retention-class amendment:**
 
 > **Dated amendment (with LLP 0166's acceptance):** the closed retention
-> set gains `fragment-evaluated-snapshot-v1`: an admitted plan whose result
+> set gains `result-transform-snapshot-v1`: an admitted plan whose result
 > is retained as opaque authorized fragments with completeness witnesses
 > under LLP 0157 may additionally be served through LLP 0166 §D7's closed
 > `result-transform.v1` profile **over its own retained fragments only**,
@@ -1165,7 +1307,7 @@ texts; they land in the owning documents, dated, at this Spec's acceptance.
 > **Dated amendment (with LLP 0166's acceptance):** the closed retention
 > unions in §D2's `NodeCapabilityBindingV1` and
 > `PlanCapabilityClassificationV1` gain the value
-> `fragment-evaluated-snapshot-v1` (LLP 0080's amended class). The value
+> `result-transform-snapshot-v1` (LLP 0080's amended class). The value
 > is owner-issued like its peers and enters the same hash preimages:
 > reclassifying a plan therefore rotates its `NodePlanHashV1`,
 > `PlanHashV1`, and `QueryMaterializationKeyV1`. Adoption is per-plan
@@ -1178,24 +1320,48 @@ texts; they land in the owning documents, dated, at this Spec's acceptance.
 > golden and near-miss vectors gain the new value; §D4 continues to treat
 > classification as a restated owner fact; §D7's storage profiles treat
 > the class as `durable-fragments-v1`-eligible under
-> `opaque-authorized-snapshot-v1`'s custody rules. No other §D1–D8
-> semantics change.
+> `opaque-authorized-snapshot-v1`'s custody rules; and §D7's "local plan
+> evaluation over fragments" gate sentence reads on the revised Move-2
+> profile (LLP 0155's dated §Move 2 note, below) — the gate itself is
+> unchanged. No other §D1–D8 semantics change.
+
+**Proposed LLP 0155 amendment (dated note in §Move 2 — Query execution):**
+
+> **Dated note (with LLP 0166's acceptance):** the Move-2 owning Spec
+> revises this section's commissioned outcome as a deliberate scope
+> ruling. V1 local evaluation is LLP 0166 §D7's closed
+> `result-transform.v1` profile: the plan's own established result,
+> transformed (filter/order/limit over projected fields under a frozen
+> total comparator, with optimistic-overlay composition as a client-side
+> step), with a dual-runtime reference implementation of the pure
+> transform as the parity target. This section's "generated query plans
+> should run over the local store … the same plan evaluator, or two
+> evaluators under a conformance corpus" is deliberately deferred, not
+> implemented: a retained fragment is post-projection output, and
+> evaluating plans over source rows locally requires the cross-query
+> normalization and projection-aware authority design this RFC's OQ2
+> gates. That fuller outcome remains reachable through OQ2's gate as a
+> successor amendment; the "same canonical result ordering and
+> projection" obligation applies to the transform's reference
+> implementation in the meantime. Nothing else in Move 2 changes.
 
 **Amendment crosswalk** — what moves, and which identities rotate:
 
 | Closed set | Owner | Change | Identity consequence |
 | --- | --- | --- | --- |
 | DK-9 semantic contract | LLP 0008 | + materialization records; + `result-transform.v1` for admitted plans | none (semantic envelope) |
-| Retention classes | LLP 0080 | + `fragment-evaluated-snapshot-v1` | none until a plan opts in |
-| `NodeCapabilityBindingV1.retention` / `PlanCapabilityClassificationV1.retention` | LLP 0157 §D2 | + the same value; manifests emit it only for reclassified plans | per opted-in plan: `NodePlanHashV1` → `PlanHashV1` → `QueryMaterializationKeyV1` rotate; fresh address; predecessor retires normally |
+| Retention classes | LLP 0080 | + `result-transform-snapshot-v1` | none until a plan opts in |
+| `NodeCapabilityBindingV1.retention` / `PlanCapabilityClassificationV1.retention` | LLP 0157 §D2 | + the same value; manifests emit it only for reclassified plans; §D7 gate reads on the revised profile | per opted-in plan: `NodePlanHashV1` → `PlanHashV1` → `QueryMaterializationKeyV1` rotate; fresh address; predecessor retires normally |
+| Move-2 local query execution outcome | LLP 0155 §Move 2 | commissioned same-plan-evaluation revised to the `result-transform.v1` profile; source-row evaluation deferred behind OQ2 | none (scope ruling) |
 
 ### Ship gate
 
-Evaluation ships only when **all** hold: the three amendments landed (at
-acceptance); the `TransformPlanV1` conformance corpus passing at pinned
-evaluator identities on both runtimes and every claiming carrier; and the
-§Acceptance evaluation oracles (S6) green. Document acceptance alone ships
-nothing; a plan ships nothing until its owner reclassifies it.
+Evaluation ships only when **all** hold: the four amendments landed (at
+acceptance); the pure-transform conformance corpus passing at pinned
+evaluator identities on both runtimes and every claiming carrier; the
+client-only overlay-composition oracles green; and the §Acceptance
+evaluation oracles (S6) green. Document acceptance alone ships nothing; a
+plan ships nothing until its owner reclassifies it.
 
 ## D8 — The agent-safe seam (LLP 0161 OQ5)
 
@@ -1314,22 +1480,32 @@ gate the shared substrate and are consumed, not duplicated. This Spec adds
 store-policy oracles:
 
 1. **S1 — sync-set fidelity.** Register/unregister across all three
-   sources; the hydrated-and-retained set over the governed families
-   equals the registration set plus in-grace releases at every step; an
-   unregistered query never hydrates; the policy record names each
-   record's retaining reason; release starts grace; grace expiry GCs.
-   Grandfathered variant: a store pre-populated with legacy entries —
-   they are excluded from the equality, appear with the
-   grandfathered-legacy reason, and are untouched by registration churn.
-   Restart legs: `programmatic` registrations survive, `active` are
-   reaped, `preload` re-derive from the manifest in force. Cap leg: the
-   513th durable registration refuses with its stable diagnostic.
-   Two-tab legs: a non-writer tab's announced demand keeps its record
-   `demanded-active` (non-compactable); heartbeat expiry reaps it; a
-   stale-revision announce is ignored; writer handoff suppresses every
-   demand-derived transition until reconciliation and rebuilds the
-   ledger; a forwarded `programmatic` registration commits durably
-   through the writer with `RegisterOutcomeV1` or fails visibly;
+   sources; for the `qmk1` family the hydrated-and-retained set equals
+   the registration set plus in-grace releases at every step; for the
+   legacy-resume family only hydration is governed — a released legacy
+   registration's entry legitimately persists under LLP 0090's lifecycle
+   as a grandfathered entry outside the equality; an unregistered query
+   never hydrates; the policy record names each record's retaining
+   reason; release starts grace; grace expiry GCs. Grandfathered variant:
+   a store pre-populated with legacy entries — they are excluded from the
+   equality, appear with the grandfathered-legacy reason, and are
+   untouched by registration churn. Restart legs: `programmatic`
+   registrations survive, `active` are reaped, `preload` re-derive from
+   the manifest in force. Cap legs: the 513th durable registration and a
+   16 KiB-exceeding registration each refuse with their stable
+   diagnostics. Grace-retention leg: a durable-requested record's payload
+   survives release into a `durable`-pinned grace; a `"none"`-pinned
+   release retains nothing. Broker legs: a non-writer tab's announced
+   demand keeps its record `demanded-active` (non-compactable);
+   heartbeat expiry reaps it; a stale-revision or reaped-`contextId`
+   announce is ignored (the context re-mints and re-announces); a
+   multi-partition context announces two partitions' sets independently
+   and both stay demanded; writer handoff suppresses every
+   demand-derived transition until roster reconciliation and rebuilds
+   the ledger; a forwarded `programmatic` registration commits durably
+   with `RegisterOutcomeV1` — including the writer-crash-before-outcome
+   case, where the retry answers from durable state — and
+   `RegisterReleaseV1` from a non-writer releases it idempotently;
    `retentionRequest` downgrade to effective `"none"` compacts the
    payload at the next maintenance pass while the demanded
    materialization continues volatile.
@@ -1351,11 +1527,16 @@ store-policy oracles:
    legacy commits evict per the shipped comparator within their own
    envelope and never touch materializations; compacted stubs retain
    fences, tombstones, and durable registrations, derive `unknown`, and
-   rehydrate at the same `query_instance_id`; grace-lattice pin case: A
-   (`pinned`) releases at t0, B (`default`) at t1 → the grace class is
-   `pinned` (the merge immediately before the final release); grace GC
+   rehydrate at the same `query_instance_id`; grace-lattice pin cases
+   (last-snapshot rule): A (`pinned`) releases at t0, B (`default`) at
+   t1 → the grace class is `default` (the merge immediately before the
+   final release is {B}); B releases at t0, A at t1 → `pinned`; grace GC
    fires only release-anchored and never under a rolled-back clock;
-   `pinned` records are exempt from GC and fall only in pressure step 3.
+   `pinned`-graced records are exempt from GC and fall only in pressure
+   step 3. Blocker-held trace: a record whose predicate fails while
+   pending intent holds it reports `safety-blocker` with the blocker
+   kinds, renders per §D4's ordinary rules, and compacts exactly at
+   blocker discharge.
 4. **S4 — successor-store parity and grandfathering.** The shipped
    store-parameterized resume suite (`rqs-resume-suite.mjs`) passes
    unmodified against the successor store format on every carrier; the D3
@@ -1370,22 +1551,29 @@ store-policy oracles:
    acknowledgements), registrations and grace clocks intact; crash at
    every migration write boundary leaves the prior or successor state,
    never a hybrid. Lease-family convergence runs §D6's protocol with a
-   crash injected at each cut: after (1) the legacy record is
-   non-renderable and no successor exists (gap, not dual render); after
-   (2) exactly the successor renders; at no point are both renderable;
-   the migration-closed disposition is durable in the lease artifact
-   before any successor publication.
+   crash injected at each cut: after (1) the legacy record is `retiring`
+   — non-renderable — and no successor exists (gap, not dual render);
+   after (2) exactly the successor renders; at no point are both
+   renderable; the retirement-begun state is durable in the lease
+   artifact before any successor publication. Corrupt-mid-migration leg:
+   a store found unparseable during a format migration takes §D1's
+   identity-rotation reset, never a partial migrate.
 6. **S6 — evaluation gate.** Before the amendments/corpus: any
    `TransformPlanV1` attempt refuses with the registered closed reason
-   and opaque-snapshot semantics hold. After: the dual-runtime corpus
-   passes at pinned evaluator identities on every claiming carrier;
-   transform output over frozen fragment fixtures byte-matches the
-   reference implementation on both runtimes (pipeline order verified:
-   overlay precedes filter; ties preserve base order); an unprojected
-   order field, a cross-address key, changed canonical args, a
-   mixed-version base, and an unreclassified plan each refuse;
-   reclassification rotates the plan's address per §D7's crosswalk and
-   the predecessor retires normally.
+   and opaque-snapshot semantics hold. After: the pure-transform
+   (`overlay: "none"`) dual-runtime corpus passes at pinned evaluator
+   identities on every claiming carrier — output over frozen fragment
+   fixtures byte-matches the reference on both runtimes, exercising the
+   type-rank comparator (null/boolean/number/string, mixed-type refuse),
+   `desc` direction, stable ties preserving base order, `in` filters,
+   `limit: 0`, and page-chain assembly; the composition leg verifies
+   `overlay: "apply"` client-side (shipped layer machinery over the
+   retained base, then the same pure transform) against the client-only
+   oracles; an unprojected order or filter field, a duplicate order
+   field, a cross-address key, changed canonical args, a mixed-version
+   base, a non-row-sequence contract, and an unreclassified plan each
+   refuse; reclassification rotates the plan's address per §D7's
+   crosswalk and the predecessor retires normally.
 7. **S7 — rotation versus compaction.** Rotate authority (user switch,
    client-wide) and activation (deploy) with the store at budget pressure:
    predecessors are destroyed/quarantined via the barriers before any
@@ -1461,8 +1649,8 @@ Micro-profile packaging; no change to outbox/settlement custody semantics
    any obligation is created.
 4. **Budget, TTL, window, cap, and cadence values** — the v1 provisional
    constants (32 MiB / 256 records / 1,024 fragments materialization
-   envelope; 512 durable registrations; 14-day grace; 15/45-second
-   heartbeat/expiry; 30-second handoff window; 4 concurrent
+   envelope; 512 durable registrations at 16 KiB each; 14-day grace;
+   15/45-second heartbeat/expiry; 30-second handoff window; 4 concurrent
    establishments) await LLP 0155 OQ9's frozen Triage/Fleet custody and
    hydration budgets for their first measured revision; they surface in
    the policy record so revision is observable.
@@ -1500,14 +1688,15 @@ Micro-profile packaging; no change to outbox/settlement custody semantics
 
 ## Status
 
-Draft, v0.3 — authored 2026-08-03 by the wave-3 Track A session under the
+Draft, v0.4 — authored 2026-08-03 by the wave-3 Track A session under the
 commission in `issues/20260803-0155-move2-spec-commission.md`; revised
-twice the same day after dual-family rounds 1 and 2 (all four reviews
+three times the same day after dual-family rounds 1–3 (all six reviews
 NOT READY; every finding applied — see the Revised header; artifacts in
-`llp/reviews/0166-local-persistent-store.{fable,codex}.md`). The
-dual-family super-refine loop continues; the document should not be
+`llp/reviews/0166-local-persistent-store.{fable,codex}.md`, including the
+restored round-2 Fable body with its dated provenance-correction note).
+The dual-family super-refine loop continues; the document should not be
 consumed as a stable contract until the loop concludes and Charlie
 accepts. On acceptance: the §D7 amendments land dated in LLP 0008,
-LLP 0080, and LLP 0157; boundary notes land in LLP 0043, LLP 0053, and
-LLP 0090; and the implementation program is commissioned separately
-(wave-3 Track A's exit rule).
+LLP 0080, LLP 0157, and LLP 0155; boundary notes land in LLP 0043,
+LLP 0053, and LLP 0090; and the implementation program is commissioned
+separately (wave-3 Track A's exit rule).
