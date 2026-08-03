@@ -38912,6 +38912,18 @@ globalThis.__snapbackHandlers = {
         // HTTP-200 result envelope.
         "SNAPBACK_TELEMETRY_CONFIG_INVALID",
         "SNAPBACK_TELEMETRY_CONFIG_TRANSITION_FAILED",
+        // @ref LLP 0156#e13--the-issue-state-machine — durable issue-state,
+        // rollout-window, and enqueue-sequence failures are telemetry-store
+        // invariants. Authored conflicts/invalid transitions are typed result
+        // rows instead, so none of these codes is a caller-input 4xx.
+        "SNAPBACK_ERROR_GROUP_STATE_INVALID",
+        "SNAPBACK_ERROR_RESOLVE_BARRIER_MISSING",
+        "SNAPBACK_ERROR_ROLLOUT_INVALID",
+        "SNAPBACK_ERROR_STATE_SEQUENCE_EXHAUSTED",
+        "SNAPBACK_ERROR_STATE_SEQUENCE_INVALID",
+        "SNAPBACK_ERROR_TRANSITION_SERIALIZATION_FAILED",
+        "SNAPBACK_TELEMETRY_SEQUENCE_EXHAUSTED",
+        "SNAPBACK_TELEMETRY_SEQUENCE_INVALID",
         // @ref LLP 0154#d7--aggregates-a-watermarked-state-machine-mergeable-by-construction — these are
         // internal D7 evidence failures, never request-shape classifications.
         "SNAPBACK_TELEMETRY_BENCH_AMPLIFICATION_FAILED",

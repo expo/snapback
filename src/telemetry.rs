@@ -374,6 +374,25 @@ pub(crate) struct ErrorTransitionHistoryFloor {
     pub history_truncated: bool,
 }
 
+struct ErrorIssueTransition<'a> {
+    issue: &'a str,
+    to: ErrorIssueState,
+    expect_seq: i64,
+    barrier: Option<i64>,
+    release: Option<&'a str>,
+    actor: &'a str,
+}
+
+struct ErrorTransitionRow<'a> {
+    issue: &'a str,
+    seq: i64,
+    from: ErrorIssueState,
+    to: ErrorIssueState,
+    at_ms: i64,
+    actor: &'a str,
+    release: Option<&'a str>,
+}
+
 #[derive(Debug)]
 pub struct ObservationSpan {
     telemetry: Telemetry,
@@ -983,12 +1002,14 @@ impl Telemetry {
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .transition_error_issue(
-                issue,
-                to,
-                expect_seq,
-                barrier,
-                release.as_deref(),
-                "admin",
+                ErrorIssueTransition {
+                    issue,
+                    to,
+                    expect_seq,
+                    barrier,
+                    release: release.as_deref(),
+                    actor: "admin",
+                },
                 wall_now_ms(),
             )
     }
@@ -2466,14 +2487,17 @@ impl Store {
 
     fn transition_error_issue(
         &mut self,
-        issue: &str,
-        to: ErrorIssueState,
-        expect_seq: i64,
-        barrier: Option<i64>,
-        release: Option<&str>,
-        actor: &str,
+        transition: ErrorIssueTransition<'_>,
         now_ms: i64,
     ) -> SnapbackResult<ErrorTransitionResult> {
+        let ErrorIssueTransition {
+            issue,
+            to,
+            expect_seq,
+            barrier,
+            release,
+            actor,
+        } = transition;
         let generation = self.generation.clone();
         let conn = self.ensure_connection(now_ms)?;
         let tx = conn.transaction()?;
@@ -2566,13 +2590,15 @@ impl Store {
         append_error_transition(
             &tx,
             &generation,
-            issue,
-            next_seq,
-            state,
-            to,
-            at_ms,
-            actor,
-            release,
+            ErrorTransitionRow {
+                issue,
+                seq: next_seq,
+                from: state,
+                to,
+                at_ms,
+                actor,
+                release,
+            },
         )?;
         enforce_global_transition_cap(&tx)?;
         tx.commit()?;
@@ -2698,13 +2724,15 @@ impl Store {
             append_error_transition(
                 &tx,
                 &generation,
-                &issue,
-                next_seq,
-                state,
-                ErrorIssueState::Resolved,
-                at_ms,
-                "deploy-hook",
-                Some(release),
+                ErrorTransitionRow {
+                    issue: &issue,
+                    seq: next_seq,
+                    from: state,
+                    to: ErrorIssueState::Resolved,
+                    at_ms,
+                    actor: "deploy-hook",
+                    release: Some(release),
+                },
             )?;
             outcomes.push(ErrorTransitionResult::Applied {
                 issue,
@@ -3626,19 +3654,13 @@ fn fold_eligible_failure(
             state_seq: 0,
             resolved_seq: None,
         });
-    } else {
+    } else if let Some(existing) = group.as_ref() {
         tx.execute(
             "UPDATE error_groups
              SET last_seen_ms=max(last_seen_ms,?1), last_seen_seq=max(last_seen_seq,?2),
                  last_release=?3, count=count+1
              WHERE generation=?4 AND issue=?5",
-            params![
-                stamp,
-                sequence,
-                event.release,
-                generation,
-                group.as_ref().unwrap().issue
-            ],
+            params![stamp, sequence, event.release, generation, existing.issue],
         )?;
     }
 
@@ -3664,13 +3686,15 @@ fn fold_eligible_failure(
             append_error_transition(
                 tx,
                 generation,
-                &group.issue,
-                next_seq,
-                ErrorIssueState::Resolved,
-                ErrorIssueState::Regressed,
-                stamp,
-                "flusher",
-                event.release.as_deref(),
+                ErrorTransitionRow {
+                    issue: &group.issue,
+                    seq: next_seq,
+                    from: ErrorIssueState::Resolved,
+                    to: ErrorIssueState::Regressed,
+                    at_ms: stamp,
+                    actor: "flusher",
+                    release: event.release.as_deref(),
+                },
             )?;
             group.state = ErrorIssueState::Regressed;
             group.state_seq = next_seq;
@@ -3789,16 +3813,16 @@ fn insert_error_exemplar(
         return Ok(());
     }
 
-    if depth >= ERROR_EXEMPLAR_DEPTH as i64 {
-        if let Some(removed) = delete_oldest_exemplar(tx, generation, issue)? {
-            depth -= 1;
-            bytes = bytes.saturating_sub(removed);
-            tx.execute(
-                "UPDATE error_groups SET exemplar_depth_drop_count=exemplar_depth_drop_count+1
-                 WHERE generation=?1 AND issue=?2",
-                params![generation, issue],
-            )?;
-        }
+    if depth >= ERROR_EXEMPLAR_DEPTH as i64
+        && let Some(removed) = delete_oldest_exemplar(tx, generation, issue)?
+    {
+        depth -= 1;
+        bytes = bytes.saturating_sub(removed);
+        tx.execute(
+            "UPDATE error_groups SET exemplar_depth_drop_count=exemplar_depth_drop_count+1
+             WHERE generation=?1 AND issue=?2",
+            params![generation, issue],
+        )?;
     }
     while depth > 0 && bytes.saturating_add(incoming_bytes as i64) > ERROR_EXEMPLAR_BYTES as i64 {
         let Some(removed) = delete_oldest_exemplar(tx, generation, issue)? else {
@@ -3958,14 +3982,17 @@ fn enforce_release_activation_cap(tx: &Transaction<'_>, generation: &str) -> Sna
 fn append_error_transition(
     tx: &Transaction<'_>,
     generation: &str,
-    issue: &str,
-    seq: i64,
-    from: ErrorIssueState,
-    to: ErrorIssueState,
-    at_ms: i64,
-    actor: &str,
-    release: Option<&str>,
+    row: ErrorTransitionRow<'_>,
 ) -> SnapbackResult<()> {
+    let ErrorTransitionRow {
+        issue,
+        seq,
+        from,
+        to,
+        at_ms,
+        actor,
+        release,
+    } = row;
     tx.execute(
         "INSERT INTO error_transitions(generation,issue,seq,from_state,to_state,at_ms,actor,release)
          VALUES(?1,?2,?3,?4,?5,?6,?7,?8)",
@@ -9018,12 +9045,14 @@ mod tests {
             .lock()
             .unwrap()
             .transition_error_issue(
-                &issue,
-                ErrorIssueState::Resolved,
-                0,
-                Some(barrier),
-                Some("release-gate"),
-                "admin",
+                ErrorIssueTransition {
+                    issue: &issue,
+                    to: ErrorIssueState::Resolved,
+                    expect_seq: 0,
+                    barrier: Some(barrier),
+                    release: Some("release-gate"),
+                    actor: "admin",
+                },
                 wall_now_ms(),
             )
             .unwrap();
@@ -9312,12 +9341,14 @@ mod tests {
                 .unwrap();
             store
                 .transition_error_issue(
-                    &issue,
-                    ErrorIssueState::Resolved,
-                    0,
-                    Some(2),
-                    Some("release-before-crash"),
-                    "admin",
+                    ErrorIssueTransition {
+                        issue: &issue,
+                        to: ErrorIssueState::Resolved,
+                        expect_seq: 0,
+                        barrier: Some(2),
+                        release: Some("release-before-crash"),
+                        actor: "admin",
+                    },
                     base + 1,
                 )
                 .unwrap();
@@ -9577,12 +9608,14 @@ mod tests {
             };
             store
                 .transition_error_issue(
-                    &issue,
-                    to,
-                    state_seq,
-                    (to == ErrorIssueState::Resolved).then_some(1),
-                    Some("release-history"),
-                    "admin",
+                    ErrorIssueTransition {
+                        issue: &issue,
+                        to,
+                        expect_seq: state_seq,
+                        barrier: (to == ErrorIssueState::Resolved).then_some(1),
+                        release: Some("release-history"),
+                        actor: "admin",
+                    },
                     100_001 + state_seq,
                 )
                 .unwrap();

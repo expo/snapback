@@ -164,10 +164,18 @@ try {
       ...(result?.predecessor ? { predecessor: result.predecessor } : {}),
       ...(outcome === 'failed'
         ? {
-            diagnostic: result?.diagnostic
-              ?? (suite.status === 0
-                ? 'runner failed or assertion count mismatched'
-                : `suite failed: ${suite.stderr || suite.stdout}`),
+            // A producer failure invalidates every case file. Preserve that
+            // root diagnostic instead of letting each runner's missing/invalid
+            // evidence fallback mask it twenty times.
+            diagnostic: suite.status === 0
+              ? (result?.diagnostic ?? 'runner failed or assertion count mismatched')
+              : `suite failed: ${
+                suite.error?.message
+                ?? suite.stderr
+                ?? suite.stdout
+                ?? suite.signal
+                ?? suite.status
+              }`,
           }
         : {}),
     });

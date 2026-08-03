@@ -369,3 +369,43 @@ ticket closes citing that run id.
   1,779 library tests passed, zero failed, one intentional benchmark ignored,
   with every integration suite and the documentation test green; all-target
   Clippy and the 4,483-reference LLP audit are also clean.
+
+- **2026-08-03 — completed verdict `30778809219`, generated refresh, and
+  predecessor-cache isolation.** The exact `f975404a` proof reduced the
+  keep-going summary to four gates. Relation-activity publication had not been
+  refreshed after the final `define.mjs` edit; All Aboard's committed
+  deployment identity had been computed from an older ignored generated graph,
+  which also caused the Cloudflare local-suite cascade. Materializing the graph
+  first and running the repository-owned publication/identity generators fixes
+  all three, including the additional sequence sources that landed while this
+  verdict ran. The remaining versioned-seed gate reported 20 generic invalid
+  evidence failures. A clean full-history x86-64 Linux reproduction exposed
+  the producer root: current and historical predecessor runtimes pin different
+  patched Hermes revisions, but the predecessor bootstrap inherited the
+  current runtime's persistent Hermes source cache and refused to overwrite its
+  patched tree. The predecessor now receives an `XDG_CACHE_HOME` inside its
+  content-addressed cache root. The package-layout dispatcher passes there with
+  20 passed, zero failed, one declared hosted GAP, and a matched revision. The
+  wrapper also gives a failed producer diagnostic precedence over the 20
+  per-case missing/invalid-evidence fallbacks, so a future producer failure is
+  actionable from the hosted receipt instead of appearing as a vacuous
+  all-case collapse.
+
+- **2026-08-03 — current-main sequence reconciliation.** The scoped-sequence
+  landing reached `main` while the preceding proof was running. Its generated
+  review manifests and committed consumer projections now reproduce from the
+  current codegen registry, including `sequence_allocation_v1`; the exact Rust
+  target-capability inventory and count are updated with the same closed
+  capability. Strict Clippy also exposed four localized telemetry shapes in
+  that landing. Transition inputs are now named records, the loaded error
+  group is carried without an unnecessary unwrap, and the exemplar eviction
+  guard is expressed directly. The landing's eight telemetry issue-state and
+  enqueue-sequence diagnostics are classified in S5-D10 as fail-safe internal
+  invariants, rather than caller-input 4xx responses. The current-tree proof
+  passes all 1,799 library tests (1,798 passed, one intentional benchmark
+  ignore), every integration and documentation test, all-target Clippy, the
+  4,743-reference LLP audit, guide checks, package/workflow inventories,
+  relation publication, Cloudflare deployment identity, the pinned-Node
+  Cloudflare suite (26/26), and versioned-seed conformance (20 passed, zero
+  failed, one declared hosted GAP, matched revision). Hosted confirmation is
+  pending.

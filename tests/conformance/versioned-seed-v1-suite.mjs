@@ -875,6 +875,12 @@ export default defineSchema({
       ...process.env,
       SNAPBACK_BUILD_GIT_COMMIT: predecessorCommit,
       SNAPBACK_BUILD_GIT_DIRTY: 'false',
+      // @ref LLP 0109#18-dated-amendment-the-membership-fixture-lane-lands-2026-08-01 —
+      // The predecessor and current runtime pin different patched Hermes
+      // revisions. Keep the historical source/build cache inside its
+      // content-addressed predecessor root so either build can reset its tree
+      // without colliding with the other revision's persistent cache.
+      XDG_CACHE_HOME: join(predecessorRoot, 'xdg-cache'),
     };
     const bootstrap = spawnSync('scripts/bootstrap-ibex-runtime', [], {
       cwd: predecessorSource,
