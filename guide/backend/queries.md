@@ -9,8 +9,8 @@ examples: [demos/todo, demos/todo-v2, demos/signal-desk]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-02
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # Queries
@@ -75,11 +75,22 @@ JS handler for bounded logic the plan cannot express. Both styles return the
 same public query envelope and must use declared indexes for author-facing
 lookup paths.
 
-Inline v1 does not capture imports, sibling helpers, or outer constants: put
-all application logic and locals inside the direct handler expression. Class
-syntax, dynamic import, `eval`, and `Function` are refused during generation.
-The legacy `{ source, exportName }` form remains supported for existing
-handlers, but it cannot be mixed with `handler`.
+Specialized read shapes are their own closed carriers with their own pages —
+cross-reference rather than reimplementing them in a JS handler: bounded
+joins ([relational queries](./relational-queries.md)), index-backed text
+search ([text search](./text-search.md)), exact vector search
+([vector search](./vector-search.md)), several bounded child lists from one
+snapshot ([snapshot batches](./snapshot-batches.md)), and the generated
+job-status and push-ledger queries ([jobs](./jobs.md),
+[Expo push](./expo-push.md)).
+
+An inline handler does not capture imports, top-level `const` bindings, or
+multi-file graphs; statically reachable same-file function declarations are
+resolved and spliced in with the handler, and everything else must live
+inside the direct handler expression. Class syntax, dynamic import, `eval`,
+and `Function` are refused during generation. The legacy
+`{ source, exportName }` form remains supported for existing handlers, but it
+cannot be mixed with `handler`.
 
 Every JS query handler returns an **array of rows**, including point reads:
 return `[]` for missing or `[row]` for present. Returning a single object fails

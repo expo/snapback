@@ -9,8 +9,8 @@ examples: [demos/competitive-checkpoint, cloudflare/test/acceptance.egress.mjs]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-07-25
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # Streamed actions
@@ -47,6 +47,10 @@ by this page.
 A streamed action needs the same egress enablement as ordinary outbound
 fetch (`SNAPBACK_OUTBOUND_ACTIONS=1`), and its artifact must be admitted by
 a target whose served manifest supports `bounded_response_stream_v1`.
+Codegen selects the outbound-actions capability-manifest variant only when
+that variable is set; the base local manifest declares
+`bounded_response_stream_v1` as a gap, so generation without it fails with
+`SNAPBACK_CAPABILITY_UNSUPPORTED`.
 Codegen detects `ctx.fetchStream` in your handler (AST-derived — aliases and
 destructuring count, comments do not) and adds the requirement to the
 function manifest; every loader then resolves it against the live `/inspect`
@@ -60,8 +64,11 @@ acknowledgment is needed. Artifacts generated while the id was
 that entry is a harmless no-op (acknowledging a stable id never refuses), so
 pre-promotion artifacts keep admitting unchanged. The experimental-maturity
 admission rule itself (LLP 0058 §Capability maturity) still applies to ids
-that remain experimental, currently `relational_query_v1` and
-`migration_keyset_scan_v1`.
+that remain experimental; `relational_query_v1` and `migration_keyset_scan_v1`
+have since been promoted too (LLP 0080/0081 flipped Implemented 2026-07-26),
+and the served manifest's `capabilityMaturity` map is the authoritative
+current list (`vector_search_v1`, `jobs_one_off_v1`, the asset ids, and
+others).
 
 ## Consume the body with one pull-driven reader
 

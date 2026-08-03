@@ -9,8 +9,8 @@ examples: [demos/partiful-matrix/native/react-expo, packages/snapback-client/web
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-01
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # React Expo Online clients
@@ -108,7 +108,7 @@ To use those surfaces on RN, install an RNG polyfill before constructing the
 client — Expo: `expo-crypto` (its `getRandomValues` polyfill), bare RN:
 `react-native-get-random-values`.
 
-## The store: durable on-device once the app registers its filesystem
+## The store: relaunch-durable on-device once the app registers its filesystem
 
 The client package never imports `expo-file-system` (Metro statically
 resolves every literal specifier reachable from the root, so a platform
@@ -124,18 +124,24 @@ registerExpoFileSystemRqsFiles(FileSystem);
 
 After that one line, the default persistence ladder (explicit option → env
 kill switch → browser IndexedDB → **React Native registered files** → node
-filesystem → in-memory) resolves the durable file arm for every client on
+filesystem → in-memory) resolves the on-device file arm for every client on
 this carrier: `client.rqsStoreInfo` reports
-`{ source: 'default', implementation: 'file', durable: true }`, blobs live
+`{ source: 'default', implementation: 'file', durable: false, reason:
+'native-files-no-power-loss-cut' }`, blobs live
 under the app's document container (`Paths.document/snapback-rqs/`, one
 blob per server origin), and at-rest protection is the OS container plus
 platform disk encryption (LLP 0090 Q4 posture — no client-side encryption
-is claimed). Without the registration the ladder stays in-memory with the
-actionable fact `{ implementation: 'memory', durable: false, reason:
+is claimed). `durable: false` is the honest LLP 0043 publication-boundary
+fact, not "nothing persists": Expo's synchronous File/Directory API exposes
+no fsync-style cut, so the adapter declares `powerLossDurable: false` while
+the store still survives ordinary relaunch (the Node filesystem arm, which
+has that cut, reports `durable: true`). Without the registration the ladder
+stays in-memory with the actionable fact
+`{ implementation: 'memory', durable: false, reason:
 'no-native-files-registered' }` — do not claim retention over it.
 
-What the durable arm enables (proven on the iOS simulator against a release
-Hermes build — `demos/rn-durable-store-witness/`):
+What the registered file arm enables (proven on the iOS simulator against a
+release Hermes build — `demos/rn-durable-store-witness/`):
 
 - **Cold-boot retained render** for queries that declared `rqsEligible`
   retention (see [offline retention](../sync/offline-and-retention.md)):
@@ -162,14 +168,15 @@ AppState.addEventListener('change', (state) => {
 
 Two sharp edges, stated plainly:
 
-- **Construct one client for the app, not one per operation.** The durable
+- **Construct one client for the app, not one per operation.** The on-device
   store is single-writer per origin. If a shell deliberately replaces the
   client, `await client.closeAuth()` performs final cleanup and releases a
   store resolved by the default ladder before the successor is constructed.
   A store passed through `rqsStore` remains caller-owned and must be closed by
   that caller.
-- For bare React Native (no expo-file-system), implement the nine-method
-  files adapter against `createFileRqsResumeStore` yourself, or inject a
+- For bare React Native (no expo-file-system), implement the ten-method
+  files adapter (including `syncDirectory` and the `powerLossDurable`
+  declaration) against `createFileRqsResumeStore` yourself, or inject a
   store per client via the `rqsStore` option
   (`createExpoRqsResumeStore({ fileSystem })` is the packaged convenience
   for Expo modules).
@@ -181,7 +188,7 @@ engages on Expo: connectivity is classified by transport provenance — the
 fetch dispatch itself rejected, with no HTTP status, diagnostic, or receipt
 — independent of the rejection's constructor, so Expo's plain-`Error` fetch
 rejections queue exactly like undici's `TypeError` shape. Server-answered
-refusals and caller aborts never queue. With the registered durable store
+refusals and caller aborts never queue. With the registered file store
 above, the queue is also restart-durable. See
 [offline and retention](../sync/offline-and-retention.md) for the mechanics
 and `useSnapbackOutbox()` for rendering the queued state.
@@ -274,9 +281,10 @@ honestly rather than assuming the cycle away.
 - **Do not polyfill RNG with `Math.random`.** When
   `SNAPBACK_CLIENT_WEBCRYPTO_RNG_MISSING` names a missing primitive, install
   a real RNG polyfill (`expo-crypto`).
-- **Do not claim cold-boot retention without the registered durable
+- **Do not claim cold-boot retention without the registered file
   store.** Unregistered, the store is in-memory; either way
-  `client.rqsStoreInfo` is the honest fact to render.
+  `client.rqsStoreInfo` is the honest fact to render — including its
+  `durable: false` power-loss caveat on this carrier.
 - **Do not transfer evidence between operating systems.** Native evidence is
   per immutable surface/OS profile.
 - **Do not call Online local-first or Parity.** No local handler execution is

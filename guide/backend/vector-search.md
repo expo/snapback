@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-03
-reviewed-commit: HEAD
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # Portable exact vector search

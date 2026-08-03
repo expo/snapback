@@ -9,8 +9,8 @@ examples: [demos/card-game]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-26
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # Sessions and principals
@@ -254,14 +254,12 @@ it; teach your tooling to read it. This is the boundary rule this guide
 itself follows: an auth behavior is teachable only when it has an
 acceptance witness or shows as ready here.
 
-**Partial and still an explicit guide gap:** local agent principals and scoped
-grants (LLP 0055) now have real registration/grant routes, scoped-token app
-invocation, the headless `AgentAuthorityFence`, and several terminal lifecycle
-paths. The RFC's owner invitation/re-credentialing/revoke-all and logical
-export/import work is not complete, so this guide does not present the slice as
-a finished end-to-end auth product. The [capability index](../capabilities.md)
-keeps it as an owned GAP until a dedicated page can teach the exact supported
-subset. For the shipped local role-per-resource surface, continue to
+Local agent principals and scoped grants (LLP 0055) — registration, pairing,
+scoped-token app invocation, and the headless `AgentAuthorityFence` — are
+shipped on the local target and have their own page:
+[agent principals and scoped grants](./agent-principals.md). The
+[capability index](../capabilities.md) carries the row with its route
+witnesses. For the shipped local role-per-resource surface, continue to
 [scoped roles and memberships](./scoped-roles.md).
 
 ## Anti-patterns

@@ -9,8 +9,8 @@ examples: [demos/todo, demos/todo-v2, demos/signal-desk]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-26
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # Mutations
@@ -76,14 +76,22 @@ export const createIncident = defineJsMutation({
 ```
 
 The handler writes only through `ctx.db`. Server-owned ids, row versions, and
-storage timestamps are never authored by the handler. Inline v1 is
-self-contained: imported or sibling helpers require the legacy
+storage timestamps are never authored by the handler. An inline handler
+captures no imports or top-level `const` bindings; statically reachable
+same-file function declarations are resolved and spliced in with it, while
+imported helpers and multi-file graphs require the legacy
 `{ source, exportName }` form, which remains compatible but cannot be mixed
 with `handler`.
 
 `defineMutation` is the declarative twin: compose `insert`, `patch`,
 `delete`, conditions, and a declared return binding without running a JS
 handler.
+
+Two transactional effects beyond `ctx.db` writes commit or roll back with the
+same mutation and have their own pages: a declared `sequences` counter
+allocated through `ctx.sequence.allocate`
+([sequences](./sequences.md)) and durable follow-up work enqueued through
+`ctx.jobs.enqueue` ([one-off durable jobs](./jobs.md)).
 
 A mutation that declares a write to a `permissionBacking` table is generated
 with `authorityCreating: true`. Authors may explicitly mark an opaque mutation
@@ -94,8 +102,11 @@ enforces the exact permission-backing write dynamically.
 ## Consume the structured result
 
 Successful direct mutations return one closed envelope:
-`version`, `changed_count`, `result`, an optional deterministic
-`ctx_ledger`, and the terminal `receipt`. The todo acceptance proves the
+`version`, `changed_count`, `result`, the server-derived
+`authorityDescriptor` (persisted with the ACK proof; it grants no authority),
+an optional deterministic `ctx_ledger`, nullable server-derived `attribution`
+and `facts` (the active artifact generation), and the terminal `receipt`. The
+todo acceptance proves the
 created id, changed count, and server-owned row fields together:
 
 ```js source=demos/todo/tests/acceptance/headless.mjs
@@ -120,6 +131,19 @@ still has a terminal receipt on the error envelope so the client store can
 settle it without guessing. A confirmed receipt always carries a non-null
 durable `snapshotVersion`; `null` is allowed only for a rejected invocation
 whose durable cursor could not be read safely.
+
+Application-semantic refusals get typed codes instead of message prose. A
+handler declares a closed set — `refusals: ['STALE_MOVE']` (uppercase
+`A-Z0-9_`, never the reserved `SNAPBACK_` prefix, at most 64 per function) —
+and throws with `ctx.refuse(code, details?)`. The refusal arrives as the
+platform code `SNAPBACK_APP_REFUSAL` with `appCode` and `appDetails` in its
+diagnostic details; it never masks a platform denial, and a refusing mutation
+commits nothing. The host admits the claimed code only when the invoked
+function declared it and folds anything else — undeclared, forged, or bare —
+to `SNAPBACK_HANDLER_FAILED`, dropping the app payload. Queries and actions
+have the same `ctx.refuse` channel. To make a declared code issue-eligible,
+opt it into `trackedRefusals` — see
+[error tracking](../operating/error-tracking.md).
 
 ## Preserve invariants with read sets
 

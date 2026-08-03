@@ -9,8 +9,8 @@ examples: [demos/todo, demos/todo-v2, demos/graffiti, demos/card-game, demos/par
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-01
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # The headless client
@@ -237,6 +237,12 @@ Successful sessions responses expose the server-derived pair at
 `facts.activeGeneration`. String names and older references carry no assertion
 and remain unchecked for compatibility.
 
+`search(ref, ...)` and `vectorSearch(ref, ...)` are the retrieval calls over
+generated search-plan references; their argument grammar, cursors, and
+digest facts are owned by
+[text search](../backend/text-search.md) and
+[vector search](../backend/vector-search.md).
+
 Mutation responses carry `result`, `changed_count`, `version`, and a
 terminal receipt. The client records receipts before returning or rethrowing;
 read them with `receipts()` or subscribe with `onReceipt(listener)`.
@@ -332,9 +338,13 @@ When a generated route group needs one-commit boot, call
 strict projection over the headless client's existing register-mode
 `fetchBundle` owner: it validates the closed response and keeps rows,
 registrations, resume receipts, namespaces, authorization projections, the
-connection handle, and grant in private client custody. Only all-`LiveQuery`
-routes whose `$param` targets are strings receive this
-generated register reference; the broader read-bundle route grammar still
+connection handle, and grant in private client custody. Two route shapes receive a
+generated register reference: all-`LiveQuery` routes (format 1) and format-2
+`mixed-route.v2` routes mixing `Query` and `LiveQuery` children, whose
+register-mode `fetchBundle` request additionally binds
+`formatVersion: 2`, `profile: 'mixed-route.v2'`, and the generated
+`planHash`. In both shapes `$param` targets must be strings and search-plan
+children are excluded; the broader read-bundle route grammar still
 supports server-decoded numeric and boolean parameters. The provider publishes
 registered rows only after the stream returns a positive server readiness
 witness. Only absence of the target-owned `registered_bundle_boot_v1`
@@ -434,18 +444,25 @@ intent so source additions cannot hide as “advanced” APIs:
 
 | Area | Methods |
 | --- | --- |
-| Construction/static helpers | `constructor`, `createExternalSessionClient`, `AgentAuthorityFence`, `SnapbackClient.auth`, `SnapbackClient.roomPermission` |
+| Construction/static helpers | `constructor`, `createExternalSessionClient`, `AgentAuthorityFence`, `SnapbackClient.auth`, `SnapbackClient.roomPermission`, `SnapbackClient.mintBundleBootKey` |
 | Discovery | `health`, `inspect` |
-| App/admin lifecycle | `ensureApp`, `loadSchema`, `loadFunctions`, `ensureEphemeralCollections`, `reset`, `seed`, `cronTick` |
-| Function calls | `query`, `authorizedLeaseQuery`, `mutate`, `action`, `acknowledgeMutations` |
-| Durable live | `liveQuery`, `subscribeLive`, `unsubscribeLive`, `openLiveStream`, `liveStreamManager`, `acknowledgeAuthorizationInvalidation` |
-| Ephemeral | `subscribeEphemeral`, `startEphemeralRoom`, `publishEphemeral`, `deleteEphemeral`, `unsubscribeEphemeral` |
-| Connections/drains | `connectionGrant`, `refreshConnectionGrant`, `disconnect`, `drainEnvelopes`, `drainConnection`, `drainUpdates`, `registerDurableConsumer`, `registerEphemeralConsumer` |
+| App/admin lifecycle | `ensureApp`, `loadSchema`, `loadFunctions`, `ensureEphemeralCollections`, `reset`, `seed`, `cronTick`, `ensureVersionedSeed`, `previewVersionedSeed`, `resetInstallVersionedSeed`, `clearVersionedSeed` |
+| Function calls | `query`, `search`, `vectorSearch`, `authorizedLeaseQuery`, `mutate`, `action`, `acknowledgeMutations` |
+| Route bundles | `fetchBundle` |
+| Durable live | `liveQuery`, `startLiveQuery`, `subscribeLive`, `unsubscribeLive`, `openLiveStream`, `liveStreamManager`, `acknowledgeAuthorizationInvalidation` |
+| Offline queue and settlement | `outboxStatus`, `subscribeOutbox`, `outboxDiagnostics` (getter), `replayQueuedMutations`, `settledMutations`, `markMutationSettlementsConsumed` |
+| Ephemeral | `subscribeEphemeral`, `startEphemeralRoom`, `publishEphemeral`, `deleteEphemeral`, `unsubscribeEphemeral`, `registerEphemeralRepublisher` |
+| Connections/drains | `connectionGrant`, `refreshConnectionGrant`, `disconnect`, `releaseConnection`, `drainEnvelopes`, `drainConnection`, `drainUpdates`, `registerDurableConsumer`, `registerEphemeralConsumer` |
+| Framework bindings | `prepareReactBinding` |
 | Acceptance inspection | `localResourceInspection` |
 | Receipts and retry evidence | `recordReceipt`, `receipts`, `onReceipt`, `reservationRetryDiagnostics` |
-| Session/auth | `authSession`, `authRequestCode`, `authExchange`, `authRefresh`, `authLogout`, `closeAuth`, `setBearerToken`, `replaceBearerToken`, `replaceAgentCredential`, `clearAuthSession`, `currentAuthorityDescriptor`, `currentAuthorizationScope`, `captureAuthority`, `authorityCaptureFor`, `registerAuthBarrierParticipant` |
+| Session/auth | `authSession`, `authRequestCode`, `authExchange`, `authRefresh`, `authLogout`, `closeAuth`, `setBearerToken`, `replaceBearerToken`, `replaceAgentCredential`, `clearAuthSession`, `currentAuthorityDescriptor`, `currentAuthorizationScope`, `authTerminalStatus`, `subscribeAuthTerminal`, `registerAuthBarrierParticipant` |
+| Auth adapter/coordinator seam | `captureAuthority`, `authorityCaptureFor`, `isAuthorityCaptureCurrent`, `allocateLiveQueryNamespace`, `registerAuthMaterialization`, `commitAuthorityPublication`, `commitSenderSocketNonce`, `handleTerminalAuthLoss`, `liveStreamProtocolsFor` |
 
-The overlay returned by `subscribeEphemeral` and the live handle returned by
+Members whose names start with `__` (for example
+`__registerExternalBearerHandle`) are internal composition seams between the
+client and its own arms, not API, and are deliberately excluded. The overlay
+returned by `subscribeEphemeral` and the live handle returned by
 `liveQuery` are separate owned objects with their own methods and disposal
 lifecycle; they are not additional client methods.
 

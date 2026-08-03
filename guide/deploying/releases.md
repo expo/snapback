@@ -4,13 +4,13 @@ id: deploying.releases
 order: 1
 audience: agent-first
 capabilities: [deploy.release-build, deploy.target-control]
-authorities: [llp/0072-trusted-single-tenant-control-plane.rfc.md, packages/snapback-cli/index.mjs, packages/snapback-cli/deployment-control.mjs, src/auth/deployment.rs, schemas/release.manifest.schema.json, schemas/target.descriptor.schema.json, schemas/remote-drill.plan.schema.json, schemas/deploy.plan.schema.json, schemas/vm-adapter.lifecycle-request.schema.json, schemas/vm-adapter.lifecycle-response.schema.json, schemas/backup.manifest.schema.json, schemas/backup.plan.schema.json, schemas/control.audit-event.schema.json, schemas/deploy.receipt.schema.json, schemas/adapter.qualification.schema.json, schemas/hosted-auth.drill-receipt.schema.json, schemas/auth.hosted-admission-envelope.schema.json, schemas/auth.hosted-admission-key.schema.json, schemas/prepared-release.manifest.schema.json, schemas/rollback.plan.schema.json, schemas/restore.plan.schema.json, schemas/restore.activation-plan.schema.json, schemas/maintenance.receipt.schema.json, schemas/vm-adapter.query-request.schema.json, schemas/vm-adapter.query-response.schema.json]
+authorities: [llp/0072-trusted-single-tenant-control-plane.rfc.md, llp/0098-hosted-edge-adapter.spec.md, packages/snapback-cli/index.mjs, packages/snapback-cli/deployment-control.mjs, src/auth/deployment.rs, src/auth/hosted_edge.rs, schemas/release.manifest.schema.json, schemas/target.descriptor.schema.json, schemas/remote-drill.plan.schema.json, schemas/deploy.plan.schema.json, schemas/vm-adapter.lifecycle-request.schema.json, schemas/vm-adapter.lifecycle-response.schema.json, schemas/backup.manifest.schema.json, schemas/backup.plan.schema.json, schemas/control.audit-event.schema.json, schemas/deploy.receipt.schema.json, schemas/adapter.qualification.schema.json, schemas/hosted-auth.drill-receipt.schema.json, schemas/auth.hosted-admission-envelope.schema.json, schemas/auth.hosted-admission-key.schema.json, schemas/prepared-release.manifest.schema.json, schemas/rollback.plan.schema.json, schemas/restore.plan.schema.json, schemas/restore.activation-plan.schema.json, schemas/maintenance.receipt.schema.json, schemas/vm-adapter.query-request.schema.json, schemas/vm-adapter.query-response.schema.json]
 examples: [demos/competitive-checkpoint]
 status: current
 targets: [all]
 maturity: partial
-reviewed: 2026-07-22
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # Build an immutable release
@@ -271,26 +271,40 @@ comes from the target's provider secret manager and conforms to
 `schemas/auth.hosted-admission-key.schema.json`; it is never an application
 config value or release, backup, log, or receipt component.
 
-The adapter starts the runtime with both strict owner-only files:
+No `snapback start` flag consumes those two files today. The native
+MAC-envelope consumer verifies the closed envelope shape, key identity,
+canonical MAC, canonical HTTPS origin, five-minute admission lifetime, exact
+finite throttle policy, positive hosted facts, and a nonzero external replay
+floor — but it is reachable only through the native test harness, not the
+serving path. A refresh of that envelope may advance admission, limiter, and
+invalidation epochs; it cannot change deployment, handler incarnation, the
+canonical origin, or the boot's replay floor. A bad or missing refresh never
+extends authority: new work fails closed when the last authenticated
+admission expires.
+
+What `snapback start --auth-deployment hosted` accepts today is the LLP 0098
+hosted-edge admission seam. Without an adapter attestation it refuses with
+`SNAPBACK_AUTH_DEPLOYMENT_UNSUPPORTED`. With one, the adapter supplies an
+edge configuration — which carries no authority, only the identities and
+verification key to check against — plus an Ed25519-signed admission
+envelope, both verified before the database opens or a listener binds:
 
 ```sh
 snapback start \
   --host 0.0.0.0 \
   --db /var/lib/snapback/app.sqlite3 \
   --auth-deployment hosted \
-  --hosted-admission /run/snapback/hosted-admission.json \
-  --hosted-admission-key /run/secrets/snapback-hosted-admission-key.json
+  --hosted-edge /run/snapback/hosted-edge.json \
+  --hosted-admission /run/snapback/hosted-admission.json
 ```
 
-Before it opens the database or binds a listener, the runtime verifies the
-closed envelope shape, key identity, canonical MAC, canonical HTTPS origin,
-five-minute admission lifetime, exact finite throttle policy, and positive
-hosted facts. It then reconciles the external replay floor into SQLite before
-publishing hosted posture. Every 15 seconds it re-authenticates the envelope;
-a live refresh may advance admission, limiter, and invalidation epochs, but
-cannot change deployment, handler incarnation, or the boot's replay floor. A
-bad or missing refresh never extends authority: new work fails closed when the
-last authenticated admission expires.
+`--hosted-edge` and `--hosted-admission` require each other. Installation
+reconciles the admission epoch and external replay floor into a durable
+SQLite watermark, so a correctly signed but older replayed snapshot is
+refused. A verified admission lives at most five minutes; a renewal loop
+re-reads the envelope document every 30 seconds and only ever installs
+another independently verified successor — when the document stops covering
+the clock, the incumbent expires and serving withdraws.
 
 `refreshHostedAdmissionProjection` authenticates the current envelope with the
 provider key before replacing it atomically. It constructs the next admission

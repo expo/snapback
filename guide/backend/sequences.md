@@ -9,8 +9,8 @@ examples: [demos/improvement-sweep/arms/a6-snapback-web/evidence/app]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-02
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # Scoped sequences

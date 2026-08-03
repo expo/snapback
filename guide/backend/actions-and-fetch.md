@@ -9,8 +9,8 @@ examples: [demos/all-aboard, demos/competitive-checkpoint]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-01
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # Actions and outbound fetch
@@ -169,6 +169,12 @@ commit and live fan-out:
 This split prevents a slow or failed network request from holding the write
 lane. Nested mutations inherit the action's server-resolved authority; they do
 not accept a replacement identity.
+
+Two adjacent action surfaces have their own pages: a mutation schedules an
+action to run later, transactionally with its writes, via `ctx.jobs.enqueue`
+([one-off durable jobs](./jobs.md)); and an action sends Expo push
+notifications through the declared seam's `ctx.push` surface
+([Expo push](./expo-push.md)).
 
 ## Enable egress deliberately
 
