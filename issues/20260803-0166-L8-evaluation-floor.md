@@ -25,3 +25,12 @@ follow-on ticket at that point, gated by §D7's full ship gate
 Done means: S6's pre-gate legs pass (refusal with the registered code;
 opaque-snapshot semantics hold); the code is registered, not
 placeholder; nothing evaluates.
+
+---
+
+**Progress (2026-08-03):** implemented (Codex, session-supervised) and
+landed. `SNAPBACK_LOCAL_EVALUATION_UNADMITTED` registered as a real
+code; `evaluateLocal` refuses every request without inspecting it;
+`readOpaqueSnapshot` serves owner-produced bytes only; no TransformPlanV1
+surface exists. S6 pre-gate legs green. Ticket stays Open until the
+program umbrella closes it.

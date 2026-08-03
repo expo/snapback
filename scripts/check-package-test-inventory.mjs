@@ -75,10 +75,12 @@ const inventories = [
       'browser-closure.test.mjs',
       'bundle.test.mjs',
       'ephemeral-room.test.mjs',
+      'evaluation-floor.test.mjs',
       'external-store.test.mjs',
       'hosted-browser.test.mjs',
       'hosted-ephemeral.test.mjs',
       'lifecycle-disposal.test.mjs',
+      'lease-convergence.test.mjs',
       'materialization-store.test.mjs',
       'micro-operational.test.mjs',
       'micro.test.mjs',
@@ -468,7 +470,9 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // memory-carrier S4 parity run and the format-v3 migration/wipe/reset suite.
 // 172 -> 173 (2026-08-03, LLP 0166 L2): @expo/snapback-client gains the
 // materialization operations, proof, retained-boot, fence, and compaction suite.
-assert.equal(total, 173, 'reviewed package/admin test count changed');
+// 173 -> 175 (2026-08-03, LLP 0166 L8 + L7 convergence): the client gains
+// the pre-admission evaluation floor and close-predecessor-first crash corpus.
+assert.equal(total, 175, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }
