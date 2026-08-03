@@ -16,6 +16,9 @@ pub mod sqlite;
 pub mod storage;
 pub mod types;
 
+#[cfg(test)]
+mod acceptance;
+
 pub use profile::{
     VECTOR_COMPONENT_ABS_MAX, VECTOR_DISTANCE_PROFILE_ID, VECTOR_ORDERING_PROFILE_ID,
     VECTOR_PROFILE_DIMENSIONS_MAX, VECTOR_PROFILE_DIMENSIONS_MIN, admit_vector_components,
