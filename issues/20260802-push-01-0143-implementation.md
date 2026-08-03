@@ -29,6 +29,24 @@ updated honestly; dated implementation-record amendment on the LLP.
 
 ## Running log
 
+- **2026-08-02 late — repository exit is staged; Apple signing remains the
+  sole blocker.** Rebased on current `origin/main` (`2356bde1`), the exact
+  runtime bootstrap/handler-VM qualification passes; the Rust library sweep is
+  1,800 passed / 1 intentionally ignored / 0 failed; all 19 push-module tests,
+  the six-test capability-registry integration, all-target Clippy, the complete
+  client package suite, the 36-profile bundle ratchet, and the packaged
+  fake-Expo acceptance pass. The first-run bundle receipt for the separate
+  Expo installation adapter is frozen prospectively at `553a9bc1`; the older
+  push-registry ledger remains unchanged. A fresh non-interactive EAS
+  development build still refuses because the Expo account has no iOS
+  credential suitable for internal distribution. Charlie must complete
+  <https://dash.tuft.dev/expo/setup> for Apple team `C8D8QTF339`; after that,
+  the staged external probe can build, install on one of the registered
+  iPhones, mint a real Expo token, and retain the final provider receipt. No
+  Apple credential or token is in this repository. Until that witness exists,
+  the capability row remains `partial`, the broader LLP 0045 `notifications`
+  flag remains false, and this ticket remains Open.
+
 - **2026-08-02 — OQ2 ratification implemented; physical receipt remains.**
   Charlie closed the author-decision veto window, so the delegated
   device-scoped default now ships in the additive client module. Apps inject

@@ -950,8 +950,8 @@ device-scoped-store default is now the v1 contract and implementation:
   Expo carrier in `Paths.document/snapback-push/installation.v1.json`, which
   the app passes to `attachPushRegistry` as `pushInstallationStorage`. The app
   still owns and injects the native module, preserving the registry subpath's
-  frozen no-native-dependency closure. The file is a closed two-field artifact and
-  corrupt or unavailable custody fails with stable diagnostics; its bytes
+  frozen no-native-dependency closure. The file is a closed two-field artifact,
+  and corrupt or unavailable custody fails with stable diagnostics; its bytes
   never enter RQS state, app data, requests, or logs.
 - The factory returns one process writer per file-system module and directory.
   Its write is first-writer-wins, and the registry re-reads the committed store
