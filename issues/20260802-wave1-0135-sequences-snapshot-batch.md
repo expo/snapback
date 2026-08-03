@@ -80,3 +80,10 @@ LLP; LLP 0115 board row updated.
   questions are recorded in `issues/20260802-author-decision-packet.md`.
   No executor, `sbsb1` runtime integration, live delivery, canonical plan hash,
   cross-language key bytes, or publication claim lands in this checkpoint.
+- **2026-08-02 — remaining snapshot half held for LLP 0157.** Charlie's
+  wave-closing rescope leaves the static carrier checkpoint above in place but
+  stops further LLP 0135 implementation in this wave. The sequence substrate
+  and snapshot carrier remain support-false with their structured GAPs; no
+  executor, cursor publication, or target claim is implied. Resume the held
+  snapshot half only with the LLP 0157 composition-spec work and the two
+  recorded author rulings resolved.
