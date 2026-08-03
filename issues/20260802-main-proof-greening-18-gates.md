@@ -286,3 +286,20 @@ ticket closes citing that run id.
   descriptor-bound copy, physical token scrubbing, and raw-image absence proofs
   are unchanged, and the exact backup test passes locally. Hosted confirmation
   remains pending.
+
+- **2026-08-03 — completed verdict `30773154772` and publication refresh.**
+  The first verdict after the Chrome, custody, guide-ordering, doctor-timeout,
+  Micro-declaration, and workflow-inventory repairs reduced the proof to seven
+  failed gates. The workflow count, PUSH Clippy shape, and Linux backup fixture
+  are fixed by the newer commits recorded above. The remaining generated drift
+  was exact: current `src/local.rs`, `src/storage.rs`, and
+  `packages/snapback-codegen/define.mjs` no longer matched the checked-in local
+  relation-activity carrier, and both Cloudflare deployments no longer matched
+  their bundled inputs. Running the repository-owned carrier and deployment
+  identity generators refreshes those bindings without changing the governed
+  source. After materializing All Aboard's ignored codegen cache, the relation
+  publication check, deployment-identity check, and complete Cloudflare local
+  suite (26/26) pass under pinned Node 24.18.0. The versioned-seed dispatcher
+  also passes locally against the current source binary with 20 passed, zero
+  failed, one declared hosted GAP, and a matched revision; the older hosted
+  all-case failure remains under investigation against its staged Linux runtime.
