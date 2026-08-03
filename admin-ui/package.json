@@ -21,7 +21,8 @@
   },
   "overrides": {
     "@chenglou/pretext": "0.0.8",
+    "hono": "4.12.34",
     "postcss": "8.5.23",
-    "undici": "6.27.0"
+    "undici": "6.28.0"
   }
 }

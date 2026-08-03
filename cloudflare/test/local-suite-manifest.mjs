@@ -39,7 +39,7 @@ export const LOCAL_SUITES = Object.freeze([
   {
     id: 'acceptance-core',
     file: 'cloudflare/test/acceptance.mjs',
-    evidence: ['"expectedChecks":52', '"ok":true'],
+    evidence: ['"expectedChecks":53', '"ok":true'],
   },
   {
     id: 'acceptance-action-timeout',

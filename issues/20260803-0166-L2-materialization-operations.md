@@ -47,3 +47,14 @@ inputs (not reimplemented); barriers use one bounded transaction
 all carriers, ref-check clean. Verification: no-gap readRenderable and
 the signature-omitted proof preimage confirmed; carrier diffs purely
 additive. Ticket stays Open until the program umbrella closes it.
+
+**Wave-closing handoff (2026-08-03):** the batched proof pass found an
+actively-owned browser-closure regression after L2 landed. Running
+`node scripts/client-bundle-metrology.mjs --check` at merged main head
+`3cbff593` fails because `packages/snapback-client/materialization-store.mjs`
+statically imports `node:crypto`; esbuild cannot resolve that Node builtin for
+the public browser profile. The complete client package suite remains green,
+including L2/L7/L8, so this is specifically the shipped browser closure, not
+the store semantics exercised by the Node tests. Per the wave ownership rule,
+the greening lane did not edit F0a fork code; L2 owns the fix and a rerun of the
+bundle-metrology gate.
