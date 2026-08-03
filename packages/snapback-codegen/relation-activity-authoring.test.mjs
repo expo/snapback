@@ -297,6 +297,9 @@ export const baseline = defineLiveQuery({
   assert.throws(
     () => guardedProfile(defineApi.mutationPlan(
       defineApi.letBind('position', defineApi.literal(1)),
+      defineApi.patch('tasks', defineApi.arg('taskId'), {
+        body: defineApi.literal('collision'),
+      }),
       defineApi.allocateSequence(
         'taskPositions',
         defineApi.arg('incidentId'),
