@@ -1,6 +1,7 @@
 # Asset-intent implementation identity omits the reachable helper closure
 
-**Status:** Open
+**Status:** Open — RULED 2026-08-03, now implementable (was
+author-gated on the disposition)
 **Filed:** 2026-08-01
 **Area:** Codegen, assets, identity
 **Found by:** LLP 0140 super-refine loop, round 16 (Codex family), verified independently
@@ -65,6 +66,19 @@ lifecycle carrier.
 Either way, add metamorphic lifecycle fixtures: direct-body change, helper-only
 change, and `reads` change, each asserting generation bump, stale-reference
 refusal, frozen-code finalization, rollback, and stability of unrelated intents.
+
+## Ruling (2026-08-03)
+
+Ruled by Charlie at author decision sitting #2
+(`issues/20260803-author-decision-sitting-2.md`): **disposition 1** —
+`implementationHash` is extended to the spliced reachable helper closure
+(mirroring the ordinary-function record) and carried through the whole
+chain: client, admission, generation, and finalization. The metamorphic
+lifecycle fixtures named below then pin it. This is the prerequisite
+disposition LLP 0140 Stage 0 requires; the dated decision note is landed
+in LLP 0044's amendment collection and the matching dispositioned note
+in LLP 0140 §D-1. The ticket is now implementable and stays open until
+the extended carrier and fixtures land.
 
 ## Relationship to LLP 0140
 

@@ -30,6 +30,14 @@ Track B). The implementation program is
 S4 legacy parity is a standing gate; capabilities stay unpublished
 until the S1–S8 oracles + the 0157-consumed carrier exit pass.
 
+**2026-08-03 sequencing (author decision sitting #2,
+`issues/20260803-author-decision-sitting-2.md`): LLP 0136 live search
+is the next Track-A lane after the 0166 umbrella closes.** Its held
+implementation program (`issues/20260802-wave1-0136-live-search.md`)
+carries a recorded auto-release condition keyed to the umbrella's
+close (carrier-exit evidence run + closing audit) — no fresh explicit
+release needed.
+
 ## Track B — agent-safe storage
 
 1. **0158 F0a — safety substrate landed 2026-08-03.** The four
@@ -72,7 +80,14 @@ until the S1–S8 oracles + the 0157-consumed carrier exit pass.
 
 - **Identity implementation** (0151 Option D + 0150): wave-4 headline;
   the two 0151-commissioned implementing specs get owners and numbers at
-  that kickoff.
+  that kickoff. **Plus (2026-08-03, author decision sitting #2): the two
+  0151 residual questions are deferred to the wave-4 kickoff with
+  context recorded in 0151 §Open questions** — (a) the generated-domain
+  passkeys tier (production tier-1 + disclosure vs preview-only;
+  tethered-continuity risk is the crux) and (b) Expo-hosted shared
+  email/SMS delivery for generated domains, shadow-metered via 0104
+  (decide beside the passkeys question; the broker rejection does not
+  automatically extend to delivery).
 - **EAS Phase 0**: independent lane, gated on the WfP account purchase;
   starts the moment the probe passes, not tied to wave tracks.
 - **LLP 0063 Step-6 ratification** (0068–0072): parked until Step 6 work

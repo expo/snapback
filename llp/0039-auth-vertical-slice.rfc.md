@@ -5,7 +5,7 @@
 **Systems:** Auth, Sync, Storage, API, Security, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-16 (ENG-24920 companion amendment); 2026-07-15 (ENG-24913 G2 dated implementation amendment: the
+**Revised:** 2026-08-03 (sessions asset-callback execution authority — author decision sitting #2; see the dated amendment); 2026-07-16 (ENG-24920 companion amendment); 2026-07-15 (ENG-24913 G2 dated implementation amendment: the
 non-production step-up slice now reuses the bounded challenge/mailbox protocol
 with a distinct operation-bound digest and transactional consumption; production
 human delivery remains fail-closed on LLP 0045); 2026-07-13 (ENG-24592 focused exact confirmation completed READY
@@ -1952,6 +1952,25 @@ The remaining invalidation questions — structural proof for subject-scoped
 suppression, non-user scope algebra, and hosted-coordinator parity — live in
 [LLP 0053](./0053-authorization-invalidation.rfc.md) §Open Questions. Mutable
 protected inputs and the 24-hour lease default/hard maximum are pinned, not open.
+
+## Dated amendment: sessions asset-callback execution authority (2026-08-03)
+
+Ruled by the author at decision sitting #2
+(`issues/20260803-author-decision-sitting-2.md`), resolving
+`issues/20260731-0044-sessions-callback-authority.md` as its option (a):
+sessions-mode asset lifecycle callbacks (LLP 0044) execute under a
+**per-app scoped LLP 0055-style service principal named
+`asset-callbacks`** — not under a minted user session, and not under a
+new "server-scheduled execution as user X" authority class. No session
+is counterfeited: the runner presents the service principal's scoped,
+auditable grant, so "who ran this" stays explicit in receipts. Inside
+the callback, `ctx.auth` projects the authority honestly per LLP 0053's
+sealed closure — the callback context is explicitly distinguishable from
+an interactive session (its `actorKind` names the service principal),
+never ambiguous. Callback writes participate in
+commit-time validation and can produce authorization events like any
+mutation; no new LLP 0053 machinery is expected. The grant scoping and
+lifecycle vocabulary is LLP 0055's (see its matching dated amendment).
 
 ## Dated amendment: agent authority and lifecycle (2026-07-16)
 

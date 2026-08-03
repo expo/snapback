@@ -5,7 +5,15 @@
 **Systems:** Tooling, Code generation, Developer experience, Packaging, Security, Vite integration, Cloudflare, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-01
-**Revised:** 2026-08-02 (decision-sitting propagation: D-1 selects D-1b —
+**Revised:** 2026-08-03 (decision-sitting propagation: the asset-intent
+carrier prerequisite disposition is ruled — implementation identity
+becomes the carrier, extended to the spliced helper closure and consumed
+through the client/admission/generation/finalization chain, then pinned
+by metamorphic fixtures; Stage 0's baseline freeze is unblocked once
+that lands. Source: author decision sitting #2,
+`issues/20260803-author-decision-sitting-2.md`; dated LLP 0044
+amendment landed in the owner.)
+2026-08-02 (decision-sitting propagation: D-1 selects D-1b —
 retain the TypeScript checker in the shipped codegen closure while Oxc replaces
 syntax-only scanners. Admission semantics do not weaken. The migration program
 remains parked until the implementation wave clears, and Status remains Review.
@@ -390,6 +398,14 @@ have separate lifecycle semantics. The disposition is recorded before the
 Stage-0 gate passes, under **both** D-1 branches — this is not a D-1a-only
 concern, because the defect exists today and D-1b would otherwise preserve it
 byte-identically.
+
+**Dispositioned 2026-08-03 — author decision sitting #2
+(`issues/20260803-author-decision-sitting-2.md`): the first branch is
+ruled.** `implementationHash` is extended to the spliced helper closure
+and carried through the client/admission/generation/finalization chain;
+metamorphic fixtures then pin it. The dated decision lives in LLP 0044's
+amendment collection and the ticket is now implementable; Stage 0 may
+freeze its baseline once that implementation lands.
 
 **Under D-1a the asset-intent carrier additionally needs lifecycle fixtures, not
 just hash equality.** LLP 0044 ties `snapback.asset-intent-implementation.v1` to generated

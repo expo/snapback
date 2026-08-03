@@ -5,7 +5,10 @@
 **Systems:** Sync, Storage, Runtime, Client integration, Auth, Wire Protocol, Realtime, Packaging, Testing, Documentation, Competitive evaluation
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-08-02 (ledger row 1 implementation record — LLP 0133's
+**Revised:** 2026-08-03 (OQ7 ruled — the Phase-0 evidence gate splits;
+author decision sitting #2,
+`issues/20260803-author-decision-sitting-2.md`; see §Open questions 7.)
+2026-08-02 (ledger row 1 implementation record — LLP 0133's
 buildable-now settlement substrate is implemented: synthetic lane-L
 re-derivation, labeled/private settlement evidence, exact identity and logical
 mint mapping, bounded-skew admission, plus client id rewrite/cascade and
@@ -1708,6 +1711,12 @@ scope; both were adjudicated 2026-07-30 and no longer gate this Plan
    because SD-5's self-advancing rule keys off it. Related: whether
    Phase 0's missing pre-start owner/timebox (question 5) gets a dated
    retrospective exception.
+   **RULED 2026-08-03 — author decision sitting #2
+   (`issues/20260803-author-decision-sitting-2.md`): the gate splits.**
+   The Node/file half is recorded as landed; the browser React+server
+   witness remains an explicit open remainder
+   (`issues/20260801-guide-gap-js-arm-browser-indexeddb-proof.md`).
+   SD-5's self-advancing rule keys off this split reading.
 8. **Is Phase 1's gate sufficient for what Phase 1 promises? — OPEN
    (v0.4, raised by round 2).** Phase 1's named gate is the
    IR-evaluator sizing spike plus the LLP 0051 D5 corpus passing on

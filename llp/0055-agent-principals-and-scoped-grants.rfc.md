@@ -5,7 +5,9 @@
 **Systems:** Auth, API, Security, Agent tooling, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-13
-**Revised:** 2026-08-01 (LLP 0062 app-CLI credentialed lane: exact scoped-token
+**Revised:** 2026-08-03 (per-app `asset-callbacks` service principal for
+sessions-mode asset lifecycle callbacks — author decision sitting #2;
+see the dated amendment). 2026-08-01 (LLP 0062 app-CLI credentialed lane: exact scoped-token
 release, server-relative TTL receipts, actor/effective tuple re-attestation,
 reference-only profiles, loopback/redirect fences, and cap-aware
 cross-process admission; see the dated amendment). 2026-07-30 (§Audit extended to the live wire: subscription
@@ -2346,6 +2348,21 @@ This amendment reconciles the earlier pairing prose: re-poll still
 revoke-and-replaces a prior pairing-request token at the server, but the
 process-per-command reference client treats that token as a one-use receipt,
 persists only its durable tuple, and releases it immediately.
+
+## Dated amendment: per-app `asset-callbacks` service principal (2026-08-03)
+
+Ruled by the author at decision sitting #2
+(`issues/20260803-author-decision-sitting-2.md`), resolving
+`issues/20260731-0044-sessions-callback-authority.md` as its option (a):
+LLP 0044's sessions-mode asset lifecycle callbacks execute under a
+**per-app scoped service principal named `asset-callbacks`**, minted per
+app in this document's principal vocabulary. Its grants are scoped and
+auditable like any service-principal grant — the audited grant
+vocabulary is reused rather than inventing a new authority class — so
+receipts keep "who ran this" explicit. The `ctx.auth` projection and
+commit-time validation obligations of the class are recorded in LLP
+0039's matching dated amendment; the classification here is the
+0039/0055-side prerequisite the ticket required before implementation.
 
 ## Status
 

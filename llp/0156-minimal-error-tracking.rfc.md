@@ -233,6 +233,12 @@ rules are pinned to the store behavior and acceptance corpus.)
 group state, read/mutation projections, Errors UI, fixtures, and guide have
 landed. E2 alerting and E3 client crash ingest remain deferred by phasing and
 entirely unbuilt.)
+**Revised:** 2026-08-03 (dated amendment — multi-rejection fingerprint
+authority ruled at author decision sitting #2: the fingerprint authority
+for a multi-rejection handler terminal is the first ordered rejection;
+the full ordered rejection carrier is retained as facts on the failure
+record; no per-rejection group split and no aggregate grammar. See
+§Amendment (2026-08-03): multi-rejection fingerprint authority.)
 **Related:** LLP 0154 (minimal observability; the substrate this layers
 on — spans, the telemetry sibling store, flush-path maintenance, typed
 operations, the variance envelope; this RFC amends its registry, D2
@@ -1419,6 +1425,22 @@ questions named above; there is no client-ingest protocol or implementation.
 It is deferred by phasing and entirely unbuilt. The RFC remains **Accepted**;
 this implementation record closes the local E0/E1 tranche without asserting
 completion of either later phase.
+
+## Amendment (2026-08-03): multi-rejection fingerprint authority
+
+Ruled by the author at decision sitting #2
+(`issues/20260803-author-decision-sitting-2.md`), resolving the question
+extracted to
+`issues/20260803-multiple-unhandled-error-grouping-authority.md`: when
+one handler terminal carries multiple ordered unhandled rejections, the
+**fingerprint authority is the first ordered rejection**. The full
+ordered rejection carrier is retained as facts on the failure record, so
+no truth is dropped — but there is no separate group per rejection and
+no aggregate fingerprint grammar; the observation/group schema stays
+singular. The E0/E1 raw-only fail-safe recorded in the implementation
+record above (no guessed fingerprint, `malformed_error_stamp_count`
+incremented) stands until an implementation lands this rule; the ticket
+stays open as an implementable follow-up.
 
 ## Alternatives considered
 

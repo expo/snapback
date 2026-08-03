@@ -60,3 +60,12 @@ registered; dated implementation-record amendment + 0115 CV-11 row updated.
   continues to report `live_full_text_search_v1` support false with its
   structured GAP. Resume this ticket only after a later explicit release from
   Charlie.
+
+- **2026-08-03 — CONDITIONAL RELEASE (author decision sitting #2,
+  `issues/20260803-author-decision-sitting-2.md`).** The hold above is
+  now a recorded **auto-release condition**, not an indefinite hold: the
+  held implementation program resumes when the LLP 0166 implementation
+  umbrella (`issues/20260803-0166-impl-program.md`) closes — its
+  carrier-exit evidence run plus closing audit. No further explicit
+  release is needed at that point. The wave-3 program ticket sequences
+  this as the next Track-A lane after umbrella close.

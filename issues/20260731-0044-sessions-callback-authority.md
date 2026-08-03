@@ -1,7 +1,8 @@
 # Sessions-mode lifecycle-callback execution authority — design question
 
-**Status:** OPEN — assessment recorded during W2e (2026-07-31); W2c
-refused sessions callbacks at generation pending this design
+**Status:** OPEN — RULED 2026-08-03, now implementable (assessment
+recorded during W2e (2026-07-31); W2c refused sessions callbacks at
+generation pending this design)
 
 Dev-lane callbacks execute through the staged-mutation path under the
 asset owner's dev-admitted authority with client-mutation-ledger
@@ -35,3 +36,18 @@ Recommendation recorded (not decided): option (a) via an LLP 0055-style
 scoped service principal minted per app ("asset-callbacks"), because it
 reuses the audited grant vocabulary and keeps "who ran this" explicit
 in receipts. Needs an 0039/0055-side dated amendment before code.
+
+## Ruling (2026-08-03)
+
+Ruled by Charlie at author decision sitting #2
+(`issues/20260803-author-decision-sitting-2.md`): **option (a)** — a
+per-app scoped LLP 0055-style service principal named
+`asset-callbacks`. The 0039/0055-side dated amendments this ticket
+prescribed are landed: LLP 0039 §Dated amendment: sessions
+asset-callback execution authority (2026-08-03) records the authority
+class, the explicit `actorKind` projection through `ctx.auth`, and the
+commit-time validation/authorization-event posture; LLP 0055 §Dated
+amendment: per-app `asset-callbacks` service principal (2026-08-03)
+records the scoped-grant classification. The ticket is now
+implementable (still open until W2c's generation-time refusal is
+replaced by the ruled execution path).

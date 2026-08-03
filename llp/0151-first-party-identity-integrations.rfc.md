@@ -8,7 +8,13 @@ OpenAI Codex (`gpt-5.6-sol`) and a non-author Fable context (rounds 1–2, per
 Charlie's direction that the other family participate in the design, not
 only review it)
 **Date:** 2026-08-02
-**Revised:** 2026-08-02 (decision-sitting propagation: Option D is adopted as
+**Revised:** 2026-08-03 (decision-sitting propagation: the two remaining
+residual questions — generated-domain passkeys tier and Expo-hosted
+shared email/SMS delivery for generated domains — are deferred to the
+wave-4 kickoff with their context recorded; see the dated note in §Open
+questions. Source: author decision sitting #2,
+`issues/20260803-author-decision-sitting-2.md`).
+2026-08-02 (decision-sitting propagation: Option D is adopted as
 the production paved path; app-owned provider credentials live in LLP
 0036-owned config/secret state, with registration automated where APIs exist
 and deterministic guided walkthroughs for Google and Apple; a broker is at
@@ -856,3 +862,16 @@ labeled walkthrough.
   pinned, but whether Expo-hosted shared *delivery* (email for generated
   domains, shadow-metered via 0104) is offered is the delivery-side twin
   of the broker question and should be decided with it.
+
+**Deferred 2026-08-03 — author decision sitting #2
+(`issues/20260803-author-decision-sitting-2.md`).** The two residual
+author questions above are deferred to the **wave-4 kickoff**, with
+their context recorded so kickoff finds them: (a) the
+**generated-domain passkeys tier** — production tier-1 with disclosure
+versus preview-only; the tethered-continuity risk is the crux; (b)
+**Expo-hosted shared email/SMS delivery for generated domains**,
+shadow-metered via LLP 0104 — decide beside the passkeys question, and
+note that the broker rejection (credential-ownership ruling,
+2026-08-02) does not automatically extend to delivery. The wave-3
+program ticket (`issues/20260803-wave3-program.md`) carries the
+matching wave-4 line.

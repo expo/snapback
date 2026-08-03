@@ -5,7 +5,7 @@
 **Systems:** Deployment, Runtime, Storage, Security, Developer experience
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-23
-**Revised:** 2026-07-25 (Phase 0 progress reconciled to the signed v2 probe list without advancing Gate 0); 2026-07-23 (round-1 multi-family review: Gate 0 restated as a checklist; Miniflare sequencing pinned; LLP 0014 storage invariant pinned across topologies; authority boundaries corrected; Gate 2 split into entry/exit; artifact-security workstream added; concurrent spike progress note integrated. Round-2: trusted-code posture pinned; Gate 0 receipt named and adversarial two-app leg added; Gate 1 remote runners corrected; Phase 1 fixture-only artifact store; Phase 2 prerequisites extended to LLP 0060/0019 and fallback repointed off the handler op table; Gate 2 entry made conjunctive)
+**Revised:** 2026-08-03 (parked pending EAS Phase 0 results; author decision sitting #2, `issues/20260803-author-decision-sitting-2.md` — see §Status); 2026-07-25 (Phase 0 progress reconciled to the signed v2 probe list without advancing Gate 0); 2026-07-23 (round-1 multi-family review: Gate 0 restated as a checklist; Miniflare sequencing pinned; LLP 0014 storage invariant pinned across topologies; authority boundaries corrected; Gate 2 split into entry/exit; artifact-security workstream added; concurrent spike progress note integrated. Round-2: trusted-code posture pinned; Gate 0 receipt named and adversarial two-app leg added; Gate 1 remote runners corrected; Phase 1 fixture-only artifact store; Phase 2 prerequisites extended to LLP 0060/0019 and fallback repointed off the handler op table; Gate 2 entry made conjunctive)
 **Related:** LLP 0007, LLP 0009, LLP 0010, LLP 0011, LLP 0014, LLP 0018, LLP 0019, LLP 0024, LLP 0033, LLP 0040, LLP 0047, LLP 0048, LLP 0049, LLP 0060, LLP 0070, LLP 0083, LLP 0086, ENG-25387, https://developers.cloudflare.com/dynamic-workers/usage/durable-object-facets/
 
 ## Summary
@@ -541,3 +541,11 @@ can start without them, but Gate 0 cannot complete. The Phase 0 spike
 started concurrently and its progress note is folded in above. Phase 0 is
 authorized and in flight; Phases 1+ are authorization-gated as stated.
 Revise at every gate.
+
+**Parked, 2026-08-03 — author decision sitting #2
+(`issues/20260803-author-decision-sitting-2.md`).** This Plan is parked
+pending EAS Phase 0 results: Workers-for-Platforms dispatch namespaces
+may supersede the DO-Facets primitive as the hosted per-app substrate,
+so re-evaluate this Plan when EAS Phase 0 reports. The door-2
+re-ratification explicitly waits with it. No owner, reviewer, or timebox
+is named by the park; status stays Draft.

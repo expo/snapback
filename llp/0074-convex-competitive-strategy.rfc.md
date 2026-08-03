@@ -32,11 +32,17 @@ fixed macOS canonical-path target fencing. This is implementation progress,
 not gate 1 closure: public packages and the hosted profile remain open.)
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Shelved
 **Systems:** Product strategy, Developer experience, Runtime, Actions, Codegen, Client integration, React/Expo, Contract/Exact, Deployment, Control plane, Packaging, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-30 (Diary 0039 head-to-head checkpoint: the seven-app
+**Revised:** 2026-08-03 (Draft → Shelved; author decision sitting #2
+(`issues/20260803-author-decision-sitting-2.md`): the RFC is parked,
+mirroring LLP 0075's shelving decision style. Revival is tied to LLP
+0075's recorded reopening condition — the author recommissioning the
+timed comparison — and the six open author questions (including OQ8's
+anchor profile and OQ9's owner) are deliberately not ruled until then.
+No strategy content changes.) 2026-07-30 (Diary 0039 head-to-head checkpoint: the seven-app
 current-main rerun scored roughly 55/45 for Convex; §Dated checkpoint: Diary
 0039 head-to-head records the result, the retired gaps, the LLP 0115
 execution plan, and the 0111-vs-0074 npm-gate conflict flag. Checkpoint
@@ -246,6 +252,14 @@ only LLP 0036, secrets and configuration, is Accepted); see "Draft
 authorities" below.
 
 ## Status and authority
+
+**Parked (Shelved), 2026-08-03 — author decision sitting #2
+(`issues/20260803-author-decision-sitting-2.md`).** Revival is tied to LLP
+0075's recorded reopening condition (the author recommissions the timed
+comparison; LLP 0075's frozen fixture, margins, and adjudication remain the
+authority when that happens). The open author questions — six per the
+sitting record, including OQ8 (anchor customer/application profile) and
+OQ9 (program owner) — are deliberately not ruled until that reopening.
 
 This is a proposal, not a ratified product decision. Its comparisons are based
 on the Partitime and chat matrices recorded on 2026-07-19 and 2026-07-20. Those

@@ -7,7 +7,13 @@ verification, Diagnostics, Schema and storage, Live queries, Developer
 experience
 **Author:** Charlie Cheever / Claude (Opus 5)
 **Date:** 2026-08-01
-**Revised:** 2026-08-01 (implementation reconciliation outside the RFC's unratified D1 program: the independently ticketed Cloudflare live-delivery defect is fixed by conservative fan-out widening; OQ8 is narrowed to whether and how to recover precision). 2026-08-01 (v0.1, initial draft)
+**Revised:** 2026-08-03 (author decision sitting #2
+(`issues/20260803-author-decision-sitting-2.md`): the D1–D3 first tranche
+is ratified for implementation
+(`issues/20260803-0146-d1-d3-tranche.md`); OQ1 ruled — D1 strict mode is
+opt-in for newly generated apps; OQ8 ruled — Cloudflare fan-out stays
+conservative widening for now, with no hosted claim gated on precision.
+OQ7's CV-14 custody trigger is deliberately not ruled.) 2026-08-01 (implementation reconciliation outside the RFC's unratified D1 program: the independently ticketed Cloudflare live-delivery defect is fixed by conservative fan-out widening; OQ8 is narrowed to whether and how to recover precision). 2026-08-01 (v0.1, initial draft)
 2026-08-01 (v0.2, round-1 dual-family reconciliation — artifacts in
 `llp/reviews/0146-agentic-authoring-affordances.{fable,codex}.md`, both
 NOT READY. The load-bearing correction is rebuilt: v0.1 claimed
@@ -1067,6 +1073,17 @@ value an agent cannot exploit while its model of the app is still wrong.
 
 ## Open questions
 
+**Ruled 2026-08-03 — author decision sitting #2
+(`issues/20260803-author-decision-sitting-2.md`).** The D1–D3 first
+tranche is ratified for implementation (commissioned as
+`issues/20260803-0146-d1-d3-tranche.md`). OQ1: D1 strict mode is
+**opt-in** for newly generated apps — a newly generated app does not opt
+in by default. OQ8: the Cloudflare fan-out stays **conservative
+widening** for now; no hosted claim is gated on recovering precision.
+OQ7 (CV-14 custody trigger) was deliberately **not** ruled —
+implementation must not claim CV-14 custody satisfaction without the
+custody owner's ratification. The remaining questions stay open.
+
 1. **D1 strict-mode default.** Opt-in per app is proposed. Does a
    newly generated app opt in by default, making the *legacy* case the
    opt-out? That would make declarations enforced ceilings for all new
@@ -1128,7 +1145,11 @@ value an agent cannot exploit while its model of the app is still wrong.
 
 ## Status
 
-Draft. No implementation is authorized by this document. D1, D2, and D3 are
+Draft. No implementation was authorized by this document as written;
+on 2026-08-03 the author ratified the D1–D3 first tranche for
+implementation (author decision sitting #2, see §Open questions and
+`issues/20260803-0146-d1-d3-tranche.md`) — the remaining decisions stay
+unratified. D1, D2, and D3 are
 the intended first tranche and are the smallest of the seven; D5 and D6 are
 substantial subsystems and should be re-scoped after Wave 1 lands, when the
 conformance and verification surfaces will have made some of their

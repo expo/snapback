@@ -1,6 +1,6 @@
 # Multiple-unhandled error grouping needs a fingerprint authority
 
-**Status:** Open
+**Status:** Open — RULED 2026-08-03, now implementable (was author-gated)
 **Opened:** 2026-08-03
 **Systems:** Error tracking, Runtime, Observability
 **Related:** LLP 0156 (E0/E1 local implementation record),
@@ -28,9 +28,24 @@ counts, exemplars, and fingerprint-version rollout. If the answer permits more
 than one group from one observation, amend LLP 0156 before implementation; that
 is a data-model change, not a local tie-breaker.
 
+## Ruling (2026-08-03)
+
+Ruled by Charlie at author decision sitting #2
+(`issues/20260803-author-decision-sitting-2.md`); the dated LLP 0156
+amendment is landed (§Amendment (2026-08-03): multi-rejection fingerprint
+authority). The fingerprint authority for a multi-rejection handler
+terminal is the **first ordered rejection**. The full ordered rejection
+carrier is retained as facts on the failure record — no separate groups
+per rejection, no aggregate grammar; the singular observation/group
+schema stands. This ticket is no longer author-gated: it is an
+implementable ticket. The raw-only fail-safe behavior (no guessed
+fingerprint, `malformed_error_stamp_count`) lifts once the ruling is
+implemented and the fixtures pin it.
+
 ## Exit
 
-- An accepted LLP 0156 amendment or successor authority chooses the behavior.
+- ~~An accepted LLP 0156 amendment or successor authority chooses the
+  behavior.~~ Done 2026-08-03 (see Ruling).
 - Rust and JavaScript carrier/fingerprint fixtures pin the same outcome.
 - The raw-only fallback remains until the authority and implementation land.
 - The error-tracking guide and capability row are updated if support changes.

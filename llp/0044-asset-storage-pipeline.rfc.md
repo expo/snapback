@@ -5,7 +5,14 @@
 **Systems:** Assets, Storage, API, Security, Auth, Runtime, Deployment, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-08-01, later same day (ceremony floor + bounded
+**Revised:** 2026-08-03 (two author decisions from decision sitting #2,
+`issues/20260803-author-decision-sitting-2.md` — §Video location policy
+and §Asset-intent implementation identity: a `video: { location }`
+sibling block is admitted with `image:` untouched and its frozen
+`intentPolicyHash` spellings preserved; and `implementationHash` is
+extended to the spliced helper closure and carried through
+client/admission/generation/finalization, pinned by metamorphic
+fixtures). Prior: 2026-08-01, later same day (ceremony floor + bounded
 on-demand widths, ruled by the author on the LLP 0139 bakeoff evidence —
 §Ceremony floor and bounded on-demand widths: bare `v.assetRef()` derives
 a generated default intent (strict/strip/owner-only, manifest-visible,
@@ -1586,6 +1593,37 @@ schema field plus one `ctx.assets.attach` line in an ordinary mutation —
 the upload intent, variants, and policy ceremony all collapse into
 derived defaults, with every fact still generated, manifest-visible, and
 target-honest.
+
+### Video location policy: the `video: { location }` sibling block (dated decision, 2026-08-03)
+
+Ruled by the author at decision sitting #2
+(`issues/20260803-author-decision-sitting-2.md`), resolving
+`issues/20260801-0044-video-location-policy-under-image-block.md`
+(option b): an intent whose accepted media types include video declares
+its mandatory location policy under a **`video: { location }` sibling
+block**. The `image:` block is untouched — its spellings are part of the
+frozen L1-03 authoring surface and existing `intentPolicyHash` values
+must not silently move — and the split is documented rather than papered
+over: `image.location` governs location-bearing image types,
+`video.location` governs video types. Any intentPolicyHash implications
+of admitting the new spelling get the same care as any policy-identity
+change.
+
+### Asset-intent implementation identity: the helper closure joins the carrier (dated decision, 2026-08-03)
+
+Ruled by the author at decision sitting #2
+(`issues/20260803-author-decision-sitting-2.md`), resolving
+`issues/20260801-asset-intent-implementation-hash-omits-helper-closure.md`
+(disposition 1): `implementationHash` is extended to cover the spliced
+reachable helper closure (mirroring the ordinary-function
+implementation record) **and** is carried through the whole lifecycle
+chain — client, admission, generation keying/bumping, and finalization's
+current-versus-retained authorizer selection. Metamorphic lifecycle
+fixtures then pin it: direct-body change, helper-only change, and
+`reads` change, each asserting generation bump, stale-reference refusal,
+frozen-code finalization, rollback, and stability of unrelated intents.
+This is the prerequisite disposition LLP 0140 Stage 0 requires before
+freezing its baseline.
 
 ## Non-goals
 

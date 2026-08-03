@@ -96,6 +96,11 @@ composition chores:
   a recorded permanent boundary with the Contract arm as the sessions
   offline carrier. Either outcome needs the design recorded first; a lane
   implementation without it would guess the custody semantics.
+  **2026-08-03 — design pass commissioned** (author decision sitting #2):
+  `issues/20260803-0043-sessions-custody-design.md` owns leg 2's design,
+  with capture-at-enqueue authority descriptors + strand-on-authority-change
+  as the working hypothesis; the author ratifies the recorded design, not
+  the hypothesis. Do not implement leg 2 ahead of that ratification.
 
 Next owner: leg 1 with its acceptance rows first (it unblocks the
 restart-witness conjunction), then leg 2's decision.
