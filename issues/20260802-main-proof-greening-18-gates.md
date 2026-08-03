@@ -301,5 +301,24 @@ ticket closes citing that run id.
   publication check, deployment-identity check, and complete Cloudflare local
   suite (26/26) pass under pinned Node 24.18.0. The versioned-seed dispatcher
   also passes locally against the current source binary with 20 passed, zero
-  failed, one declared hosted GAP, and a matched revision; the older hosted
-  all-case failure remains under investigation against its staged Linux runtime.
+  failed, one declared hosted GAP, and a matched revision. A clean x86-64 Linux
+  fleet reproduction then bootstrapped and handler-VM-qualified the exact
+  vendored runtime, staged the binary and Hermes library into the public package
+  layout, materialized the canonical generated-artifact cache, and passed the
+  same closed dispatcher with 20 passed, zero failed, one declared hosted GAP,
+  and a matched revision. The older hosted all-case failure therefore does not
+  reproduce at the current head.
+
+- **2026-08-03 — completed verdict `30774424844` and PUSH diagnostic
+  inventory.** The next completed proof reduced the count to five gates. The
+  relation carrier, deployment identities, and dependent Cloudflare cascade
+  are fixed by the publication refresh above. The full Rust suite found one
+  real defect: the new PUSH implementation emitted nineteen production
+  diagnostics that were absent from the reviewed HTTP-status inventory. The
+  mapping now keeps malformed/deferred-grant input at 400, state conflicts at
+  409, provider-shape failures at 502, unavailable or exhausted seams at 503,
+  and internal custody/config/worker invariants at the fail-safe 500; the Expo
+  base-URL environment variable is explicitly non-diagnostic. All three
+  focused S5-D10 inventory/status tests pass locally (3 passed, 0 failed). The
+  exact `ba1d54e2` proof was canceled by concurrent main landings before it
+  could confirm the already-green Linux versioned-seed reproduction.

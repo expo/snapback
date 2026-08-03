@@ -23800,7 +23800,10 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
 
 fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
     match code {
-        "SNAPBACK_PUSH_TOKEN_INVALID"
+        "SNAPBACK_JOB_PUSH_GRANT_INVALID"
+        | "SNAPBACK_PUSH_CONFIG_GRANT_MISSING"
+        | "SNAPBACK_PUSH_SEND_INVALID"
+        | "SNAPBACK_PUSH_TOKEN_INVALID"
         | "SNAPBACK_PUSH_SEAM_AUTH_REQUIRED"
         | "SNAPBACK_PUSH_SEAM_NOT_DECLARED" => {
             StatusCode::BAD_REQUEST
@@ -23808,9 +23811,15 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         "SNAPBACK_PUSH_SESSION_STALE" | "SNAPBACK_PUSH_SESSION_REQUIRED" => {
             StatusCode::UNAUTHORIZED
         }
-        "SNAPBACK_PUSH_TOKEN_SCOPE_COLLISION" | "SNAPBACK_PUSH_APP_SCOPE_CHANGE_BLOCKED" => {
-            StatusCode::CONFLICT
-        }
+        "SNAPBACK_PUSH_TOKEN_SCOPE_COLLISION"
+        | "SNAPBACK_PUSH_APP_SCOPE_CHANGE_BLOCKED"
+        | "SNAPBACK_PUSH_DEDUPE_CONFLICT"
+        | "SNAPBACK_PUSH_REDRIVE_NOT_AMBIGUOUS"
+        | "SNAPBACK_PUSH_REDRIVE_RACED" => StatusCode::CONFLICT,
+        "SNAPBACK_PUSH_PROVIDER_SHAPE_INVALID" => StatusCode::BAD_GATEWAY,
+        "SNAPBACK_PUSH_ATTEMPT_EXHAUSTED"
+        | "SNAPBACK_PUSH_SEND_UNAVAILABLE"
+        | "SNAPBACK_PUSH_SEND_UNSUPPORTED" => StatusCode::SERVICE_UNAVAILABLE,
         "SNAPBACK_PUSH_REGISTRY_CORRUPT" => StatusCode::INTERNAL_SERVER_ERROR,
         "SNAPBACK_UNKNOWN_FUNCTION" | "SNAPBACK_UNKNOWN_TABLE" | "SNAPBACK_UNKNOWN_FIELD" => {
             StatusCode::NOT_FOUND
@@ -37975,6 +37984,10 @@ globalThis.__snapbackHandlers = {
             "environment variable enabling outbound action capabilities",
         ),
         (
+            "SNAPBACK_EXPO_PUSH_BASE_URL",
+            "local/test-only environment variable overriding the Expo provider origin (LLP 0143 D2d)",
+        ),
+        (
             "SNAPBACK_PROFILE",
             "environment variable selecting the server profile",
         ),
@@ -38428,6 +38441,9 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_ASSET_TTL_INVALID",
         "SNAPBACK_PUSH_SEAM_AUTH_REQUIRED",
         "SNAPBACK_PUSH_SEAM_NOT_DECLARED",
+        "SNAPBACK_JOB_PUSH_GRANT_INVALID",
+        "SNAPBACK_PUSH_CONFIG_GRANT_MISSING",
+        "SNAPBACK_PUSH_SEND_INVALID",
         "SNAPBACK_PUSH_TOKEN_INVALID",
     ];
 
@@ -38605,6 +38621,9 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_SEED_ASSET_FIXTURE_NOT_INGESTED",
         "SNAPBACK_PUSH_TOKEN_SCOPE_COLLISION",
         "SNAPBACK_PUSH_APP_SCOPE_CHANGE_BLOCKED",
+        "SNAPBACK_PUSH_DEDUPE_CONFLICT",
+        "SNAPBACK_PUSH_REDRIVE_NOT_AMBIGUOUS",
+        "SNAPBACK_PUSH_REDRIVE_RACED",
     ];
 
     const PAYLOAD_TOO_LARGE_DIAGNOSTICS: &[&str] = &[
@@ -38668,6 +38687,9 @@ globalThis.__snapbackHandlers = {
         // Buffered ctx.fetch upstream outcomes (0137 a4-f1/a5-f1).
         "SNAPBACK_HOST_FETCH_FAILED",
         "SNAPBACK_HOST_FETCH_RESPONSE_INVALID_UTF8",
+        // LLP 0143 D3e: a successful provider response outside the closed
+        // ticket/receipt vocabulary is an upstream protocol failure.
+        "SNAPBACK_PUSH_PROVIDER_SHAPE_INVALID",
     ];
 
     const SERVICE_UNAVAILABLE_DIAGNOSTICS: &[&str] = &[
@@ -38744,6 +38766,9 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_LIVE_STAGE_CAPACITY",
         "SNAPBACK_LIVE_STAGE_UNAVAILABLE",
         "SNAPBACK_OVERLOADED",
+        "SNAPBACK_PUSH_ATTEMPT_EXHAUSTED",
+        "SNAPBACK_PUSH_SEND_UNAVAILABLE",
+        "SNAPBACK_PUSH_SEND_UNSUPPORTED",
         "SNAPBACK_READ_LANE_UNAVAILABLE",
         "SNAPBACK_SEARCH_INDEX_UNAVAILABLE",
         "SNAPBACK_V8_RUNNER_HOST_UNSUPPORTED",
@@ -38927,6 +38952,19 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_V8_RUNNER_INVOKE_FAILED",
         "SNAPBACK_V8_RUNNER_START_FAILED",
         "SNAPBACK_VERSION_OUT_OF_RANGE",
+        // LLP 0143 D2/D3: these are internal handoff-ledger, staged-config,
+        // worker, operator-config, and response-serialization invariants. If
+        // any crosses ApiError, keep the fail-safe 500 projection rather than
+        // misclassifying it as caller input.
+        "SNAPBACK_PUSH_BATCH_CLAIM_RACED",
+        "SNAPBACK_PUSH_BATCH_CLAIM_STALE",
+        "SNAPBACK_PUSH_BATCH_NOT_CLAIMABLE",
+        "SNAPBACK_PUSH_CONFIG_GRANT_INVALID",
+        "SNAPBACK_PUSH_LEDGER_CORRUPT",
+        "SNAPBACK_PUSH_MAINTENANCE_WORKER_FAILED",
+        "SNAPBACK_PUSH_PROVIDER_OVERRIDE_REFUSED",
+        "SNAPBACK_PUSH_RECEIPT_CLAIM_STALE",
+        "SNAPBACK_PUSH_SEND_FAILED",
         "SNAPBACK_PUSH_REGISTRY_CORRUPT",
         "SNAPBACK_ASSET_AUTHORIZER_RESULT_INVALID",
         "SNAPBACK_ASSET_BLOB_CONDEMNED_RACE",

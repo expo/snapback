@@ -556,6 +556,16 @@ under pacing; no receipt in window → `ambiguous-receipt`. In every
 cell the persisted diagnostic is the allowlisted code (D1d), never
 provider prose.
 
+Snapback-side diagnostics that reach an HTTP boundary retain a separate,
+reviewed projection. Malformed send/deferred-grant input and a missing declared
+config grant are 400; dedupe or explicit-redrive state conflicts are 409; an
+Expo response outside the closed ticket/receipt vocabulary is 502; an
+unavailable, unsupported, or attempt-counter-exhausted seam is 503. Internal
+ledger/claim/receipt fences, staged-config corruption, worker failure,
+operator override refusal, and response serialization remain fail-safe 500s.
+`SNAPBACK_EXPO_PUSH_BASE_URL` is an operator environment variable, not a
+diagnostic code.
+
 **D3f. Naming is the honesty surface.** Fields say `handedToExpoAt`,
 `expoAcceptedAt`, `expoErrorCode` — there is no `deliveredAt` anywhere
 in this seam.
