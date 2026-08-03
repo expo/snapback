@@ -22,6 +22,33 @@ updated.
 
 ## Running log
 
+### 2026-08-03 — VEC-3 SQLite maintenance and resumable rebuild checkpoint
+
+- Added ordinary SQLite shadow generations, canonical vector BLOBs and JCS
+  content identities, CAS frontiers/tombstones, verified generation roots, and
+  exact-generation quarantine handoff.
+- Centralized synchronous vector maintenance in every source mutation path.
+  One mutation-global 1,024-effect / 4 MiB preflight and final corpus-occupancy
+  check complete before derived writes, so maintenance, budget, and ownership
+  transfer refusal roll source plus all derived state back together.
+- Kept schema install metadata-only; it stages pending generations without a
+  source scan or eager activation.
+- Added approved `derived-vector-catchup.v1`: audience/plan/approval binding,
+  operation-owned fixed snapshot, exact journal-floor lease, resumable bounded
+  baseline and complete-commit catch-up, authoritative verification, atomic
+  generation switch, retained predecessor, and first-successor-commit rollback
+  invalidation.
+- Added focused evidence for restart, concurrent catch-up, plan/approval
+  collision, missing/tampered lease and pruned-floor quarantine, verified
+  switch, rollback boundary, cross-index budget, full destination transfer,
+  CAS replay/divergence/tombstones, authoritative release drift, and historical
+  quarantine not wedging a successor.
+
+This checkpoint keeps the ticket open. It makes no target support/facts claim,
+does not flip the Guide GAP, and does not supply the realistic-scale or
+cross-target qualification corpus; runtime publication and qualification stay
+with later lanes.
+
 ### 2026-08-02 — VEC-2 static carrier and authoring checkpoint
 
 - Added the closed vector field/value, index, plan, request/item/items-only

@@ -5,7 +5,11 @@
 **Systems:** Search, Storage, Schema, Code generation, Auth, Client integration, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-08-02 (VEC-2 static-carrier/authoring checkpoint: closed
+**Revised:** 2026-08-03 (VEC-3 SQLite maintenance/rebuild checkpoint:
+transactional shadow generations, mutation-global preflight, retained CAS
+frontiers/tombstones, exact-generation corruption quarantine handoff, and the
+approved resumable `derived-vector-catchup.v1` executor; still no target
+qualification or capability-support claim) 2026-08-02 (VEC-2 static-carrier/authoring checkpoint: closed
 field, index, query, contract/provider, client, and target-facts carriers;
 registered the experimental capability vocabulary while every target remains
 support=false/GAP) 2026-08-02 (VEC-1 storage-primitives checkpoint: pinned canonical
@@ -750,6 +754,37 @@ This checkpoint also makes the write-side diagnostic split above explicit,
 matching LLP 0073 instead of misclassifying transaction planning as query work.
 It creates no tables, schema/manifest carriers, query or runtime wiring, target
 qualification, capability fact, or Guide claim.
+
+## Implementation record — 2026-08-03: SQLite maintenance and approved rebuild
+
+The local SQLite durability domain now has ordinary-table shadow generations,
+canonical little-endian posting bytes, exact RFC 8785 posting identities,
+gap-free CAS frontiers and tombstones, and one pre-write planning pass that
+shares the fixed 1,024-effect / 4 MiB budget across every vector index touched
+by a source transaction. Final destination-partition occupancy is checked
+before the first derived write, including ownership transfers, and active
+generation roots plus rebuild receipts are resealed in the source commit.
+Same-version divergence and malformed derived state fail closed; a private
+exact-generation identity crosses the read/write-lane boundary so delayed
+quarantine cannot poison a newer successor.
+
+Schema installation remains metadata-only. Publication belongs to the
+approved `derived-vector-catchup.v1` executor: it binds plan, approval,
+audience, predecessor, ceilings, operation-owned fixed snapshot, and an exact
+journal-floor lease; advances in restart-safe baseline and complete-commit
+catch-up batches; verifies authoritative content before the short generation
+switch; retains one predecessor; and closes rollback on the first later source
+commit. Missing, expired, tampered, or pruned-below leases quarantine the exact
+candidate. Tests exercise cross-index budget refusal, full-destination
+transfer rollback, CAS replay/divergence/tombstones, same-snapshot authoritative
+release and quarantine identity, approval collisions, process restart,
+concurrent journal catch-up, lease/floor loss, verified activation, and the
+predecessor rollback boundary.
+
+This is storage/executor evidence, not target qualification. It does not flip
+any target predicate, publish `VectorSearchFactsV1`, change the capability
+index or Guide GAP, wire a public runtime/client route, or satisfy the
+realistic-scale and cross-target acceptance corpus.
 
 ## Non-goals and claim boundary
 

@@ -520,7 +520,15 @@ pub fn begin_rebuild(
         .optional()?
     {
         let _ = existing;
-        let progress = load_build(&tx, &approval.operation_id)?.progress();
+        let existing = load_build(&tx, &approval.operation_id)?;
+        if existing.plan.plan_digest != plan.plan_digest
+            || existing.approval_digest != sealed_approval
+        {
+            return Err(plan_invalid(
+                "vector rebuild operation id is already bound to a different plan or approval",
+            ));
+        }
+        let progress = existing.progress();
         tx.rollback()?;
         return Ok(progress);
     }
@@ -570,7 +578,7 @@ pub fn begin_rebuild(
          (operation_id,table_name,index_name,generation,predecessor_generation,
           plan_digest,approval_digest,plan_json,approval_json,snapshot_head,candidate_head,
           baseline_cursor,status,snapshot_rows,snapshot_bytes,lease_expires_at_ms)
-         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,0,NULL,'baseline',?11,?12,?13)",
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?10,NULL,'baseline',?11,?12,?13)",
         params![
             approval.operation_id,
             table.name,
@@ -596,25 +604,70 @@ pub fn begin_rebuild(
 }
 
 fn renew_lease(tx: &Transaction<'_>, build: &BuildRow, now_ms: u64) -> SnapbackResult<u64> {
+    let lease: Option<(String, String, i64, i64, i64)> = tx
+        .query_row(
+            "SELECT table_name,index_name,generation,floor_version,expires_at_ms
+             FROM _snapback_vector_journal_leases WHERE operation_id=?1",
+            params![build.operation_id],
+            |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                ))
+            },
+        )
+        .optional()?;
+    let Some((table, index, generation, floor, lease_expires)) = lease else {
+        return Err(index_unavailable());
+    };
+    let generation = decode_nonnegative(generation)?;
+    let floor = decode_nonnegative(floor)?;
+    let lease_expires = decode_nonnegative(lease_expires)?;
+    if table != build.table
+        || index != build.index
+        || generation != build.generation
+        || floor != build.snapshot_head
+        || floor > build.candidate_head.saturating_add(1)
+        || lease_expires != build.lease_expires_at_ms
+        || now_ms >= lease_expires
+    {
+        return Err(index_unavailable());
+    }
     let expires = now_ms
         .checked_add(build.plan.body.journal_lease_ms)
         .ok_or_else(|| plan_invalid("vector journal lease renewal overflowed"))?;
-    tx.execute(
+    let renewed = tx.execute(
         "UPDATE _snapback_vector_journal_leases SET expires_at_ms=?2
-         WHERE operation_id=?1",
+         WHERE operation_id=?1 AND table_name=?3 AND index_name=?4
+           AND generation=?5 AND floor_version=?6 AND expires_at_ms=?7",
         params![
             build.operation_id,
-            to_sql_u64(expires, "vector journal lease expiry")?
+            to_sql_u64(expires, "vector journal lease expiry")?,
+            build.table,
+            build.index,
+            to_sql_u64(build.generation, "vector generation")?,
+            to_sql_u64(build.snapshot_head, "vector journal floor")?,
+            to_sql_u64(build.lease_expires_at_ms, "vector journal lease expiry")?,
         ],
     )?;
-    tx.execute(
+    if renewed != 1 {
+        return Err(index_unavailable());
+    }
+    let build_renewed = tx.execute(
         "UPDATE _snapback_vector_builds SET lease_expires_at_ms=?2
-         WHERE operation_id=?1",
+         WHERE operation_id=?1 AND lease_expires_at_ms=?3",
         params![
             build.operation_id,
-            to_sql_u64(expires, "vector journal lease expiry")?
+            to_sql_u64(expires, "vector journal lease expiry")?,
+            to_sql_u64(build.lease_expires_at_ms, "vector journal lease expiry")?,
         ],
     )?;
+    if build_renewed != 1 {
+        return Err(index_unavailable());
+    }
     Ok(expires)
 }
 
@@ -882,7 +935,14 @@ pub fn resume_rebuild(
             "vector rebuild journal lease expired; restart from a fresh snapshot",
         );
     }
-    renew_lease(&tx, &build, now_ms)?;
+    if renew_lease(&tx, &build, now_ms).is_err() {
+        return quarantine_and_commit(
+            tx,
+            &build,
+            "SNAPBACK_VECTOR_INDEX_UNAVAILABLE",
+            "vector rebuild journal lease is missing, expired, or no longer binds this build",
+        );
+    }
     match build.state {
         VectorRebuildStateV1::Baseline => {
             baseline_batch(&tx, &build, index)?;
@@ -1142,4 +1202,461 @@ pub fn inspect_rebuild(
     operation_id: &str,
 ) -> SnapbackResult<VectorRebuildProgressV1> {
     Ok(load_build(conn, operation_id)?.progress())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::manifest::{FieldManifest, FieldType};
+    use crate::migration::{MIGRATION_APPROVAL_SCHEMA_VERSION, MIGRATION_OPERATION_ID_PREFIX};
+    use crate::storage::ChangedRow;
+    use crate::vector::diagnostics::code;
+    use crate::vector::storage::encode_vector_binary64_le;
+    use crate::vector::{
+        VECTOR_DISTANCE_PROFILE_ID, VECTOR_ORDERING_PROFILE_ID, VectorFieldClassV1,
+        VectorMaintenanceLimitsV1, VectorMetricV1, VectorTieBreakV1, VectorVisibilityV1,
+    };
+    use tempfile::TempDir;
+
+    fn index() -> VectorIndexManifestV1 {
+        VectorIndexManifestV1 {
+            format_version: 1,
+            name: "by_embedding".to_owned(),
+            semantic_version: "documents.embedding.v1".to_owned(),
+            vector_field: "embedding".to_owned(),
+            dimensions: 2,
+            metric: VectorMetricV1::L2sq,
+            distance_profile: VECTOR_DISTANCE_PROFILE_ID.to_owned(),
+            ordering_profile: VECTOR_ORDERING_PROFILE_ID.to_owned(),
+            field_classifications: BTreeMap::from([
+                ("embedding".to_owned(), VectorFieldClassV1::Private),
+                ("owner".to_owned(), VectorFieldClassV1::Private),
+                ("status".to_owned(), VectorFieldClassV1::Private),
+                ("title".to_owned(), VectorFieldClassV1::Private),
+            ]),
+            equality_filters: vec!["status".to_owned()],
+            stored_fields: vec!["title".to_owned()],
+            visibility: VectorVisibilityV1::Owner {
+                field: "owner".to_owned(),
+            },
+            tie_break: VectorTieBreakV1::IdAsc,
+            max_indexed_vectors_per_partition: 32,
+            max_scalar_pairs: 64,
+            maintenance_limits: VectorMaintenanceLimitsV1::default(),
+        }
+    }
+
+    fn schema() -> SchemaManifest {
+        let mut schema = SchemaManifest::default();
+        schema.tables = vec![TableManifest {
+            name: "documents".to_owned(),
+            fields: vec![
+                FieldManifest {
+                    name: "embedding".to_owned(),
+                    field_type: FieldType::Vector { dimensions: 2 },
+                    optional: false,
+                },
+                FieldManifest {
+                    name: "owner".to_owned(),
+                    field_type: FieldType::Principal,
+                    optional: false,
+                },
+                FieldManifest {
+                    name: "status".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                },
+                FieldManifest {
+                    name: "title".to_owned(),
+                    field_type: FieldType::Real,
+                    optional: false,
+                },
+            ],
+            indexes: Vec::new(),
+            search_indexes: Vec::new(),
+            vector_indexes: vec![index()],
+            search_live_limits: None,
+            syncable: false,
+            permission_backing: false,
+            permission_fields: None,
+            membership: None,
+            asset_sharing: None,
+        }];
+        schema
+    }
+
+    fn document(id: &str, version: u64, owner: &str, title: f64) -> Value {
+        serde_json::json!({
+            "_id": id,
+            "_version": version,
+            "embedding": [title, 0.0],
+            "owner": owner,
+            "status": "ready",
+            "title": title,
+        })
+    }
+
+    fn initialize(path: &std::path::Path) -> (Connection, SchemaManifest) {
+        let mut conn = Connection::open(path).unwrap();
+        conn.execute_batch(
+            "PRAGMA journal_mode=WAL;
+             CREATE TABLE _snapback_version(id INTEGER PRIMARY KEY,version INTEGER NOT NULL);
+             INSERT INTO _snapback_version(id,version) VALUES(1,0);
+             CREATE TABLE _snapback_meta(key TEXT PRIMARY KEY,value TEXT NOT NULL);
+             CREATE TABLE _snapback_changes(
+               id INTEGER PRIMARY KEY AUTOINCREMENT,version INTEGER NOT NULL,
+               table_name TEXT NOT NULL,row_id TEXT NOT NULL,op TEXT NOT NULL,
+               row_json TEXT,changed_at_ms INTEGER NOT NULL
+             );
+             CREATE INDEX _snapback_changes_by_version ON _snapback_changes(version,id);
+             CREATE INDEX _snapback_changes_by_table_version
+               ON _snapback_changes(table_name,version);
+             CREATE INDEX _snapback_changes_invalid_committed_version
+               ON _snapback_changes(table_name)
+               WHERE typeof(version) <> 'integer' OR version <= 0
+                 OR version > 9007199254740991;
+             CREATE TABLE documents(
+               _id TEXT PRIMARY KEY,_version INTEGER NOT NULL,embedding BLOB NOT NULL,
+               owner TEXT NOT NULL,status TEXT NOT NULL,title REAL NOT NULL
+             );",
+        )
+        .unwrap();
+        crate::vector::sqlite::create_infra(&conn).unwrap();
+        let schema = schema();
+        source_commit(&mut conn, &schema, 1, vec![("a", "alice", 1.0)]);
+        let tx = conn.transaction().unwrap();
+        crate::vector::sqlite::stage_manifest_in_tx(&tx, &schema, 1).unwrap();
+        tx.commit().unwrap();
+        (conn, schema)
+    }
+
+    fn source_commit(
+        conn: &mut Connection,
+        schema: &SchemaManifest,
+        version: u64,
+        rows: Vec<(&str, &str, f64)>,
+    ) {
+        let tx = conn.transaction().unwrap();
+        let mut changes = Vec::new();
+        for (id, owner, title) in rows {
+            let row = document(id, version, owner, title);
+            let exists: bool = tx
+                .query_row(
+                    "SELECT EXISTS(SELECT 1 FROM documents WHERE _id=?1)",
+                    params![id],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            let op = if exists {
+                tx.execute(
+                    "UPDATE documents SET _version=?2,embedding=?3,owner=?4,
+                         status='ready',title=?5 WHERE _id=?1",
+                    params![
+                        id,
+                        version as i64,
+                        encode_vector_binary64_le(&[title, 0.0], 2).unwrap(),
+                        owner,
+                        title
+                    ],
+                )
+                .unwrap();
+                ChangeOp::Update
+            } else {
+                tx.execute(
+                    "INSERT INTO documents(_id,_version,embedding,owner,status,title)
+                     VALUES (?1,?2,?3,?4,'ready',?5)",
+                    params![
+                        id,
+                        version as i64,
+                        encode_vector_binary64_le(&[title, 0.0], 2).unwrap(),
+                        owner,
+                        title
+                    ],
+                )
+                .unwrap();
+                ChangeOp::Insert
+            };
+            tx.execute(
+                "INSERT INTO _snapback_changes
+                 (version,table_name,row_id,op,row_json,changed_at_ms)
+                 VALUES (?1,'documents',?2,?3,?4,0)",
+                params![
+                    version as i64,
+                    id,
+                    if op == ChangeOp::Insert {
+                        "insert"
+                    } else {
+                        "update"
+                    },
+                    serde_json::to_string(&row).unwrap()
+                ],
+            )
+            .unwrap();
+            changes.push(ChangedRow {
+                table: "documents".to_owned(),
+                id: id.to_owned(),
+                op,
+                row: Some(row),
+                changed_fields: Vec::new(),
+            });
+        }
+        crate::vector::sqlite::maintain_vector_indexes_in_tx(&tx, schema, &changes, version)
+            .unwrap();
+        tx.execute(
+            "UPDATE _snapback_version SET version=?1 WHERE id=1",
+            params![version as i64],
+        )
+        .unwrap();
+        tx.commit().unwrap();
+    }
+
+    fn audience(database_id: &str) -> MigrationAudienceV1 {
+        MigrationAudienceV1 {
+            project_id: None,
+            target_id: None,
+            environment_id: None,
+            deployment_id: None,
+            release_id: None,
+            database_id: database_id.to_owned(),
+            stream_incarnation: "stream-1".to_owned(),
+            activation_generation: 1,
+            target_profile_id: "local-dev-sqlite-ibex.v1".to_owned(),
+        }
+    }
+
+    fn plan(predecessor: Option<u64>, audience: MigrationAudienceV1) -> VectorRebuildPlanV1 {
+        let index = index();
+        VectorRebuildPlanV1::seal(VectorRebuildPlanBodyV1 {
+            schema_version: VECTOR_REBUILD_PLAN_SCHEMA_VERSION.to_owned(),
+            executor: VECTOR_REBUILD_EXECUTOR.to_owned(),
+            table: "documents".to_owned(),
+            index: index.name.clone(),
+            semantic_version: index.semantic_version.clone(),
+            manifest_digest: manifest_digest(&index).unwrap(),
+            predecessor_generation: predecessor,
+            audience,
+            ceilings: MigrationCeilings {
+                max_affected_rows: 32,
+                max_bytes: 1_000_000,
+                max_writes: 32,
+                max_barrier_downtime_ms: 10_000,
+            },
+            max_batch_rows: 1,
+            journal_lease_ms: 10_000,
+        })
+        .unwrap()
+    }
+
+    fn approval(plan: &VectorRebuildPlanV1, operation_suffix: &str) -> MigrationApprovalV1 {
+        MigrationApprovalV1 {
+            schema_version: MIGRATION_APPROVAL_SCHEMA_VERSION.to_owned(),
+            plan_digest: plan.plan_digest.clone(),
+            observation_digest: "observation-1".to_owned(),
+            policy_digest: "policy-1".to_owned(),
+            audience: plan.body.audience.clone(),
+            approver: "operator:test".to_owned(),
+            generator_is_approver: false,
+            issued_at_ms: 1,
+            expires_at_ms: 100_000,
+            operation_id: format!("{MIGRATION_OPERATION_ID_PREFIX}{operation_suffix}"),
+        }
+    }
+
+    fn drive_verified(
+        conn: &mut Connection,
+        schema: &SchemaManifest,
+        operation_id: &str,
+        mut now_ms: u64,
+    ) -> VectorRebuildProgressV1 {
+        for _ in 0..32 {
+            let progress = inspect_rebuild(conn, operation_id).unwrap();
+            if progress.state == VectorRebuildStateV1::Verified {
+                return progress;
+            }
+            now_ms += 1;
+            resume_rebuild(conn, schema, operation_id, now_ms).unwrap();
+        }
+        panic!("vector rebuild did not reach verified state")
+    }
+
+    fn new_fixture() -> (TempDir, std::path::PathBuf, Connection, SchemaManifest) {
+        let temp = TempDir::new().unwrap();
+        let path = temp.path().join("vector.sqlite");
+        let (conn, schema) = initialize(&path);
+        (temp, path, conn, schema)
+    }
+
+    #[test]
+    fn approval_binding_fixed_snapshot_restart_catchup_and_switch_are_exact() {
+        let (_temp, path, mut conn, schema) = new_fixture();
+        assert_eq!(
+            conn.query_row(
+                "SELECT status FROM _snapback_vector_generations",
+                [],
+                |row| row.get::<_, String>(0)
+            )
+            .unwrap(),
+            "pending"
+        );
+        assert_eq!(
+            conn.query_row("SELECT COUNT(*) FROM _snapback_vector_sources", [], |row| {
+                row.get::<_, i64>(0)
+            })
+            .unwrap(),
+            0
+        );
+
+        let plan = plan(None, audience("db-1"));
+        let mut wrong_audience = approval(&plan, "wrong-audience");
+        wrong_audience.audience.database_id = "db-elsewhere".to_owned();
+        let error = begin_rebuild(&mut conn, &schema, &plan, &wrong_audience, 10)
+            .expect_err("approval audience mismatch refuses");
+        assert_eq!(error.diagnostic.code, code::MAINTENANCE_FAILED);
+
+        let approval = approval(&plan, "restart-catchup");
+        let begun = begin_rebuild(&mut conn, &schema, &plan, &approval, 10).unwrap();
+        assert_eq!(begun.state, VectorRebuildStateV1::Baseline);
+        assert_eq!((begun.snapshot_head, begun.candidate_head), (1, 1));
+        let mut colliding_approval = approval.clone();
+        colliding_approval.policy_digest = "policy-elsewhere".to_owned();
+        let collision = begin_rebuild(&mut conn, &schema, &plan, &colliding_approval, 11)
+            .expect_err("operation id cannot adopt another approval");
+        assert_eq!(collision.diagnostic.code, code::MAINTENANCE_FAILED);
+
+        source_commit(
+            &mut conn,
+            &schema,
+            2,
+            vec![("a", "alice", 2.0), ("b", "bob", 3.0)],
+        );
+        let frozen_title: f64 = conn
+            .query_row(
+                "SELECT json_extract(row_json,'$.title')
+                 FROM _snapback_vector_build_snapshot WHERE row_id='a'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(frozen_title, 1.0);
+
+        resume_rebuild(&mut conn, &schema, &approval.operation_id, 12).unwrap();
+        drop(conn);
+        let mut conn = Connection::open(path).unwrap();
+        let verified = drive_verified(&mut conn, &schema, &approval.operation_id, 12);
+        assert_eq!(verified.candidate_head, 2);
+        let versions = conn
+            .prepare(
+                "SELECT row_id,source_version FROM _snapback_vector_sources
+                 WHERE generation=?1 ORDER BY row_id",
+            )
+            .unwrap()
+            .query_map(params![verified.generation as i64], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
+            })
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(versions, vec![("a".to_owned(), 2), ("b".to_owned(), 2)]);
+        let receipt = activate_rebuild(&mut conn, &schema, &approval.operation_id).unwrap();
+        assert_eq!((receipt.source_head, receipt.live_rows), (2, 2));
+        assert_eq!(
+            conn.query_row(
+                "SELECT generation FROM _snapback_vector_generations WHERE status='active'",
+                [],
+                |row| row.get::<_, i64>(0)
+            )
+            .unwrap(),
+            verified.generation as i64
+        );
+    }
+
+    #[test]
+    fn missing_lease_and_lost_journal_floor_quarantine_durably() {
+        let (_temp, _path, mut conn, schema) = new_fixture();
+        let lease_plan = plan(None, audience("db-lease"));
+        let lease_approval = approval(&lease_plan, "lease-loss");
+        begin_rebuild(&mut conn, &schema, &lease_plan, &lease_approval, 10).unwrap();
+        conn.execute(
+            "DELETE FROM _snapback_vector_journal_leases WHERE operation_id=?1",
+            params![lease_approval.operation_id],
+        )
+        .unwrap();
+        let error = resume_rebuild(&mut conn, &schema, &lease_approval.operation_id, 11)
+            .expect_err("deleted lease quarantines");
+        assert_eq!(error.diagnostic.code, code::INDEX_UNAVAILABLE);
+        assert_eq!(
+            inspect_rebuild(&conn, &lease_approval.operation_id)
+                .unwrap()
+                .state,
+            VectorRebuildStateV1::Quarantined
+        );
+
+        let (_temp, _path, mut conn, schema) = new_fixture();
+        let plan = plan(None, audience("db-floor"));
+        let approval = approval(&plan, "floor-loss");
+        begin_rebuild(&mut conn, &schema, &plan, &approval, 10).unwrap();
+        resume_rebuild(&mut conn, &schema, &approval.operation_id, 11).unwrap();
+        resume_rebuild(&mut conn, &schema, &approval.operation_id, 12).unwrap();
+        assert_eq!(
+            inspect_rebuild(&conn, &approval.operation_id)
+                .unwrap()
+                .state,
+            VectorRebuildStateV1::Catchup
+        );
+        source_commit(&mut conn, &schema, 3, vec![("a", "alice", 3.0)]);
+        conn.execute(
+            "INSERT INTO _snapback_meta(key,value) VALUES('retention_floor','3')",
+            [],
+        )
+        .unwrap();
+        let error = resume_rebuild(&mut conn, &schema, &approval.operation_id, 13)
+            .expect_err("lost journal suffix quarantines");
+        assert_eq!(error.diagnostic.code, code::INDEX_UNAVAILABLE);
+        assert_eq!(
+            inspect_rebuild(&conn, &approval.operation_id)
+                .unwrap()
+                .state,
+            VectorRebuildStateV1::Quarantined
+        );
+    }
+
+    fn build_and_activate(
+        conn: &mut Connection,
+        schema: &SchemaManifest,
+        predecessor: Option<u64>,
+        suffix: &str,
+    ) -> VectorRebuildReceiptV1 {
+        let plan = plan(predecessor, audience(&format!("db-{suffix}")));
+        let approval = approval(&plan, suffix);
+        begin_rebuild(conn, schema, &plan, &approval, 10).unwrap();
+        drive_verified(conn, schema, &approval.operation_id, 10);
+        activate_rebuild(conn, schema, &approval.operation_id).unwrap()
+    }
+
+    #[test]
+    fn predecessor_rollback_closes_at_first_successor_source_commit() {
+        let (_temp, _path, mut conn, schema) = new_fixture();
+        let first = build_and_activate(&mut conn, &schema, None, "first");
+        let second = build_and_activate(&mut conn, &schema, Some(first.generation), "second");
+        assert!(second.rollback_eligible);
+        let rolled_back =
+            rollback_generation(&mut conn, &schema, "documents", "by_embedding").unwrap();
+        assert_eq!(rolled_back.generation, first.generation);
+
+        let third = build_and_activate(&mut conn, &schema, Some(first.generation), "third");
+        assert!(third.rollback_eligible);
+        source_commit(&mut conn, &schema, 2, vec![("a", "alice", 4.0)]);
+        let eligible: i64 = conn
+            .query_row(
+                "SELECT rollback_eligible FROM _snapback_vector_generations
+                 WHERE generation=?1",
+                params![first.generation as i64],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(eligible, 0);
+        let error = rollback_generation(&mut conn, &schema, "documents", "by_embedding")
+            .expect_err("first successor commit closes rollback");
+        assert_eq!(error.diagnostic.code, code::INDEX_UNAVAILABLE);
+    }
 }
