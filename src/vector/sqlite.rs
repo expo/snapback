@@ -1487,42 +1487,43 @@ mod tests {
     }
 
     fn schema(indexes: Vec<VectorIndexManifestV1>) -> SchemaManifest {
-        let mut schema = SchemaManifest::default();
-        schema.tables = vec![TableManifest {
-            name: "documents".to_owned(),
-            fields: vec![
-                FieldManifest {
-                    name: "embedding".to_owned(),
-                    field_type: FieldType::Vector { dimensions: 2 },
-                    optional: false,
-                },
-                FieldManifest {
-                    name: "owner".to_owned(),
-                    field_type: FieldType::Principal,
-                    optional: false,
-                },
-                FieldManifest {
-                    name: "status".to_owned(),
-                    field_type: FieldType::String,
-                    optional: false,
-                },
-                FieldManifest {
-                    name: "title".to_owned(),
-                    field_type: FieldType::Real,
-                    optional: false,
-                },
-            ],
-            indexes: Vec::new(),
-            search_indexes: Vec::new(),
-            vector_indexes: indexes,
-            search_live_limits: None,
-            syncable: false,
-            permission_backing: false,
-            permission_fields: None,
-            membership: None,
-            asset_sharing: None,
-        }];
-        schema
+        SchemaManifest {
+            tables: vec![TableManifest {
+                name: "documents".to_owned(),
+                fields: vec![
+                    FieldManifest {
+                        name: "embedding".to_owned(),
+                        field_type: FieldType::Vector { dimensions: 2 },
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "owner".to_owned(),
+                        field_type: FieldType::Principal,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "status".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "title".to_owned(),
+                        field_type: FieldType::Real,
+                        optional: false,
+                    },
+                ],
+                indexes: Vec::new(),
+                search_indexes: Vec::new(),
+                vector_indexes: indexes,
+                search_live_limits: None,
+                syncable: false,
+                permission_backing: false,
+                permission_fields: None,
+                membership: None,
+                asset_sharing: None,
+            }],
+            ..SchemaManifest::default()
+        }
     }
 
     fn setup(indexes: Vec<VectorIndexManifestV1>) -> (Connection, SchemaManifest) {
