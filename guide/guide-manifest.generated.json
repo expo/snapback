@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "c442237dedd412d1fe66a85c7a0ed463eba1e013"
+    "commit": "f9ae0083ef41bfc9d07f033da440f96048919613"
   },
   "nav": {
     ".": [
@@ -974,8 +974,8 @@
         "demos/signal-desk"
       ],
       "reviewed": "2026-08-03",
-      "reviewedCommit": "c442237dedd412d1fe66a85c7a0ed463eba1e013",
-      "sha256": "4e4e7ef84b73b43631f6ffa6fbe1f8d1488f21605c03f3ccdc3b3eb90736ce40",
+      "reviewedCommit": "f9ae0083ef41bfc9d07f033da440f96048919613",
+      "sha256": "b926e7470f35d6f1db978f265c25731328adebd2217ae0adee0f5607730d82b6",
       "snippets": [
         {
           "lang": "js",
@@ -1775,8 +1775,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-03",
-      "reviewedCommit": "3109a3b4f5068595a71448b10788b56b4fa358f5",
-      "sha256": "2ef1735b4a6f770fab01115960a76019348d45240fb64cb5c0971117c1c78eae",
+      "reviewedCommit": "f9ae0083ef41bfc9d07f033da440f96048919613",
+      "sha256": "dbc7b336a9a43d3b8541bfe4c0eb03ed8d8f290da017ad03eec9fa1a9b0c2fa1",
       "snippets": []
     },
     "deploying.cloudflare": {
@@ -2776,5 +2776,5 @@
     "routes": 98,
     "hostOps": 35
   },
-  "contentHash": "bedb0b02d74c6bdd8da6f9afcdd268160ae9df82645e45422d8174ded0197d8a"
+  "contentHash": "5a3b8043159d505feaa499f699bb8414cd9683cac674714f34ae611fef9c6367"
 }

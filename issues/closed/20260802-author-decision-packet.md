@@ -1,7 +1,7 @@
 # Author decision packet — RESOLVED 2026-08-02 (sitting record)
 
-**Status:** Resolved except two standing conditionals (below); this file is
-now the provenance record for the 2026-08-02 decision sitting (Charlie
+**Status:** Closed (provenance record, 2026-08-03). This file is
+the provenance record for the 2026-08-02 decision sitting (Charlie
 Cheever, with Claude Fable 5 presenting). Propagation of each ruling into
 its owning LLP as a dated amendment is tracked by
 `issues/20260802-decision-propagation-amendments.md`.
@@ -286,3 +286,37 @@ and ratified all of them. Deltas and additions from the review:
   account; the dispatch-namespaces probe now succeeds (receipt
   `demos/eas-phase0/receipts/p0-access-wfp-enabled.json`); EAS Phase 0's
   WfP-bound spikes are unblocked.
+
+## Closing note — 2026-08-03
+
+Every question appended to this packet after the sitting is now resolved
+or extracted, so the file closes as a pure provenance record:
+
+- **LLP 0143 installation identity carrier (OQ2):** resolved inline —
+  device-scoped installation identity in a dedicated small store
+  (delegated conventional default; Charlie's veto window closed in the
+  ratification section). Lands with push-01.
+- **LLP 0154 telemetry export carrier:** resolved inline — agent-first
+  ruling; the MCP/host-ops projections ship bounded and continuable.
+- **LLP 0154 admission identity representation:** resolved inline —
+  fixed nullable `release` column plus meta-pinned app/environment
+  identity (dated 0154 amendment landed).
+- **LLP 0154 local environment identity source:** resolved inline —
+  explicit `TargetDescriptor.environment_id` threading, ruled by Charlie.
+- **LLP 0135 snapshot-batch heterogeneous tuple result contract:**
+  absorbed by the snapshot-batch v1 landing (`v.tuple` carrier) together
+  with LLP 0157's acceptance.
+- **LLP 0135 `ParentAuthorizationKeyV1` canonical record encoding:**
+  absorbed the same way — snapshot-batch v1 landing + LLP 0157
+  acceptance pin the encoding.
+- **LLP 0156 multiple-unhandled-rejection fingerprint authority:**
+  extracted to its own ticket,
+  `issues/20260803-multiple-unhandled-error-grouping-authority.md`.
+
+The two standing conditionals are not open decisions here and live on in
+their owning documents: **0115 OQ3 (CV-6 strictness)** — decided after
+A+E land, per the recorded ordering dependency, owned by LLP 0115; and
+**0150 OQ3/OQ8** — resolved at LLP 0150 implementation time against the
+LLP 0148 registry and the acceptance matrix, owned by LLP 0150.
+Propagation of rulings into owning LLPs was tracked by
+`issues/closed/20260802-decision-propagation-amendments.md`.

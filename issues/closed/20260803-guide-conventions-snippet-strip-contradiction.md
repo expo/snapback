@@ -1,6 +1,6 @@
 # Conventions/checker contradiction: snippet leading-indentation stripping
 
-**Status:** Open
+**Status:** Resolved (2026-08-03)
 **Impact:** 2
 **Urgency:** 1
 **Ease:** 4
@@ -31,3 +31,12 @@ Pick one and make them agree in the same change:
   all carry source indentation), or
 - implement uniform-strip matching in `checkSnippets` if de-indented
   snippets are genuinely wanted for readability.
+
+## Resolution (2026-08-03)
+
+Took option (a), the conventions edit: the "Code snippets" section of
+`guide/conventions.md` now says the fence body must be copied byte-exact
+including leading indentation, with only trailing whitespace normalized —
+matching what `scripts/guide-lib.mjs` `checkSnippets` actually does
+(`fileText.includes(normalize(fence.body))`) and the existing corpus
+practice (every fence carries source indentation). No checker change.

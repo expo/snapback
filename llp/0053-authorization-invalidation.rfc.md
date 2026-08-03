@@ -5,7 +5,9 @@
 **Systems:** Sync, Realtime, Auth, Storage, API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-12
-**Revised:** 2026-08-03 (Accepted LLP 0166 boundary: store-policy layer
+**Revised:** 2026-08-03 (terminology pin: the cited "cold-process retained
+boot" is the fresh-wrappers-over-retained-state-in-one-process proof
+class; see §Changelog. No contract change.) 2026-08-03 (Accepted LLP 0166 boundary: store-policy layer
 composes over this RFC's state — payload compaction preserves §GC
 survivals, wipe maps to owner transitions with LLP 0059 participation,
 unparseable reset rotates the store identity; demand never overrides a
@@ -2175,6 +2177,18 @@ LLP 0086 governing constraint 2.
 
 ## Changelog
 
+- **2026-08-03 ("cold process" terminology pin; still Accepted).** The
+  corpus used "cold process" for two proof classes
+  (`issues/closed/20260801-cold-process-claim-vocabulary-collision.md`). The
+  "cold-process retained boot" this document's §Acceptance evidence
+  cites is the **fresh-wrappers-over-retained-state-in-one-process**
+  class — `demos/card-game/tests/acceptance/authority-scope.mjs`
+  constructs new wrappers in the same OS process over explicitly shared
+  memory-store state — not a genuinely process-isolated restart witness.
+  No suite currently proves the process-isolated class; that witness is
+  owned by
+  `issues/20260801-js-arm-integrated-authenticated-restart-witness.md`.
+  Terminology only; no contract or evidence change.
 - **2026-07-31 (LLP 0044 companion classification; still Accepted).** Added
   §Asset read-authorization inputs: one admitted expression kind (the
   asset-readable predicate node, snapshot-bound with pinned empty-result

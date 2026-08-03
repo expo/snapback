@@ -1,6 +1,6 @@
 # "Cold process" names two different proof classes across the corpus
 
-**Status:** Open
+**Status:** Resolved (2026-08-03)
 **Impact:** 3
 **Urgency:** 2
 **Ease:** 3
@@ -66,3 +66,30 @@ documents, and per LLP 0129 constraint 7 it belongs to their owners — either
 reword to "fresh wrappers over retained state in one process" or land a
 genuinely process-isolated witness. This ticket stays open for that
 adjudication.
+
+---
+
+## Resolution (2026-08-03) — residue 2 amended in the doc owners
+
+Took the cheap doc-owner fix: dated terminology notes landed in both
+documents, distinguishing the two proof classes without changing any
+normative claim.
+
+- `llp/0043-offline-replay-retention.rfc.md` — end-of-file dated section
+  "Terminology note (2026-08-03)" (the doc's dated-amendment style) plus
+  a Revised-header entry. It pins "cold process" in that document to the
+  fresh-wrappers-over-retained-state-in-one-process class and names the
+  witnesses: `demos/card-game/tests/acceptance/authority-scope.mjs`
+  (Contract arm, new wrappers over shared memory-store state) and
+  `demos/public-dashboard/tests/acceptance/offline-local-first.mjs`
+  (JS arm, fresh client instance same process).
+- `llp/0053-authorization-invalidation.rfc.md` — mirrored as a
+  2026-08-03 §Changelog entry (that doc's amendment collection point)
+  plus a Revised-header entry, pinning its "cold-process retained boot"
+  citation to the same class.
+
+Both notes state plainly that no current suite proves a genuinely
+process-isolated restart; that witness remains owned by
+`issues/20260801-js-arm-integrated-authenticated-restart-witness.md`.
+Residue 1 (artifact labels/report) was already cleared 2026-08-01, per
+the entry above. Nothing else in this ticket remains open.

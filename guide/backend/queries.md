@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed-commit: f9ae0083ef41bfc9d07f033da440f96048919613
 ---
 
 # Queries
@@ -113,6 +113,13 @@ Declare what that array contains:
 hashing and refuses unknown tables; adding or changing a table field therefore
 regenerates the contract and generated types. It is not accepted in function
 arguments or stored schema fields.
+
+`v.tuple([a, b, ...])` declares a fixed-length heterogeneous array: it takes
+1–8 element validators and validates each position against its own validator.
+It is exported and usable in result contracts; its consumer in the shipped
+surface is the snapshot-batch sealed row, whose declaration-ordered `nodes`
+member is a tuple of per-child page contracts
+([snapshot batches](./snapshot-batches.md)).
 
 The generated reference carries the precise array result. Snapback validates
 the post-JSON image and 4 MiB egress ceiling before cache insertion, snapshot,

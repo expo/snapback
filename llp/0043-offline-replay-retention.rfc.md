@@ -5,7 +5,9 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-08-03 (Accepted LLP 0166 boundary: v1 lease-family
+**Revised:** 2026-08-03 (terminology note: "cold process" in this document
+names the fresh-wrappers-over-retained-state-in-one-process proof class;
+no claim change.) 2026-08-03 (Accepted LLP 0166 boundary: v1 lease-family
 convergence is fresh-sync-only, close-predecessor-first via terminal
 retirement, with a pending-intent precondition; the atomic-move arm
 awaits the lease store joining the shared domain.) 2026-08-03 (Accepted LLP 0157 boundary: composition
@@ -589,3 +591,29 @@ lifecycle as follows; the core rules are affirmed, not weakened.
   range size/window parameter values (LLP 0133 owns collision/identity
   semantics and LLP 0163 the schemas and disposition spellings; they
   reference these parameters rather than fixing them).
+
+## Terminology note (2026-08-03) — "cold process" proof classes
+
+The corpus has used "cold process" for two materially different proof
+classes (`issues/closed/20260801-cold-process-claim-vocabulary-collision.md`,
+found by the LLP 0129 super-refine). This note pins the vocabulary for
+this document; no normative claim changes.
+
+- **Fresh wrappers over retained state in one process:** the witness
+  constructs new client wrappers in the same OS process over explicitly
+  retained store state. This is the class the "cold process" beats in
+  §Acceptance and §Status actually execute today — the Contract-arm
+  `demos/card-game/tests/acceptance/authority-scope.mjs` (new wrappers
+  over shared memory-store state) and the JS-arm
+  `demos/public-dashboard/tests/acceptance/offline-local-first.mjs`
+  (whose check labels were renamed to "fresh client instance (same
+  process)" on 2026-08-01).
+- **Genuinely process-isolated restart:** the client process terminates
+  and a new process renders from durable state alone. No current suite
+  proves this class; the owning ticket for that witness is
+  `issues/20260801-js-arm-integrated-authenticated-restart-witness.md`
+  (the LLP 0129 exit-criterion 1/2 conjunction).
+
+Wherever "cold process" appears in this document it claims the first
+class only. The lease, deletion, and rendering rules it states are
+unchanged.

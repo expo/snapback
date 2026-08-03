@@ -10,7 +10,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-03
-reviewed-commit: 3109a3b4f5068595a71448b10788b56b4fa358f5
+reviewed-commit: f9ae0083ef41bfc9d07f033da440f96048919613
 ---
 
 # Guide conventions
@@ -98,9 +98,10 @@ fences in those languages.
 
 - **Transcluded-verified (the default):**
   <code>```js source=demos/todo/tests/acceptance/headless.mjs</code>
-  The fence body must be an exact contiguous excerpt of the named file
-  (leading indentation may be uniformly stripped; trailing whitespace is
-  normalized). The named file must be exercised by CI — a demo acceptance
+  The fence body must be an exact contiguous excerpt of the named file,
+  copied byte-exact **including leading indentation** — the checker matches
+  it as a literal substring of the source; only trailing whitespace is
+  normalized. The named file must be exercised by CI — a demo acceptance
   suite, package test, or proof script. Drift in the source breaks the
   check, which is the point: the snippet's "this ran" property is inherited
   from CI, and behavioral drift becomes structural breakage. Update the page

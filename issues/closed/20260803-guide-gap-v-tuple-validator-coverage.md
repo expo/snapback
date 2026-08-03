@@ -1,6 +1,6 @@
 # guide-gap: `v.tuple` validator has no guide coverage
 
-**Status:** Open
+**Status:** Resolved (2026-08-03)
 **Impact:** 2
 **Urgency:** 2
 **Ease:** 4
@@ -30,3 +30,19 @@ Either a line in the validator inventory plus a sentence in
 stay an internal composition detail of snapshot batches — say so explicitly
 where validators are enumerated so the omission is a statement rather than a
 gap.
+
+## Resolution (2026-08-03)
+
+Covered in `guide/backend/queries.md`, in the result-contract section
+alongside the `v.doc` discussion (the placement this ticket suggested):
+one paragraph naming `v.tuple([a, b, ...])` as a fixed-length
+heterogeneous array validator taking 1–8 element validators, each
+position validated by its own validator, with its current in-tree
+consumer — the snapshot-batch sealed row's declaration-ordered `nodes`
+member — cross-linked to `guide/backend/snapshot-batches.md`. Semantics
+verified against `packages/snapback-codegen/define.mjs` (`v.tuple()`
+asserts 1–8 validators, `resultKind: 'tuple'`). The deliberately-partial
+inventory in `getting-started/your-first-backend.md` was left as is —
+`v.tuple` is a specialized validator taught with its feature, which is
+the pattern that inventory already declares. No guarantees invented: the
+guide says what it is and where it is used, nothing more.
