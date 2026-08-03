@@ -2659,6 +2659,7 @@ export function defineWriteWithActivity(spec) {
   }
   assert(relations.has(sourceFacts.name), 'source table must have an explicit relations declaration');
   const authoredBindings = new Set();
+  const allocationBinding = allocations[0]?.AllocateSequence.into ?? null;
   for (const step of spec.primary.steps) {
     const [kind, payload] = Object.entries(step)[0];
     let bindingName = null;
@@ -2666,10 +2667,12 @@ export function defineWriteWithActivity(spec) {
     if (kind === 'Insert' && payload.bind_id_as) bindingName = payload.bind_id_as;
     if (kind === 'AllocateSequence') bindingName = payload.into;
     if (bindingName !== null) {
-      assert(
-        !authoredBindings.has(bindingName),
-        `primary binding ${bindingName} is declared more than once`,
-      );
+      if (allocationBinding !== null && bindingName === allocationBinding) {
+        assert(
+          kind === 'AllocateSequence' && !authoredBindings.has(bindingName),
+          `primary binding ${bindingName} is declared more than once`,
+        );
+      }
       authoredBindings.add(bindingName);
     }
   }

@@ -7,6 +7,7 @@ import {
   defineTable,
   v,
 } from './define.js';
+import type { SerializedMutationStep } from './index.mjs';
 
 const orgs = defineTable({ ownerId: v.principal(), name: v.string() }).sync();
 const items = defineTable({ orgId: v.id('orgs'), sequence: v.integer() }).sync();
@@ -20,6 +21,15 @@ defineSchema({ orgs, items }, {
 });
 
 allocateSequence('jobs', arg('orgId'), 'sequence');
+
+const serializedAllocation: SerializedMutationStep = {
+  AllocateSequence: {
+    counter: 'jobs',
+    scope: { Arg: 'orgId' },
+    into: 'sequence',
+  },
+};
+void serializedAllocation;
 
 defineJsMutation({
   reads: ['orgs'],
