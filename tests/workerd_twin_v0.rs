@@ -299,6 +299,43 @@ fn v8_mutation_commits_end_to_end() {
     assert_eq!(rows[0].get("label"), Some(&json!("a")));
 }
 
+/// Regression for the reservation-to-spawn port handoff race
+/// (issues/20260803-workerd-port-handoff-collision.md): the runner used to
+/// release its reserved ephemeral port before spawning workerd, so a parallel
+/// start could reclaim the number during the handoff and turn a healthy
+/// invocation into `SNAPBACK_V8_RUNNER_START_FAILED`. The bound listener is
+/// now handed to workerd as an owned descriptor, so many simultaneous starts
+/// must all come up under the normal parallel test runner.
+#[test]
+fn v8_parallel_starts_do_not_collide_on_the_worker_port() {
+    require_workerd!();
+    let threads: Vec<_> = (0..8)
+        .map(|rank: i64| {
+            std::thread::spawn(move || {
+                let mut snapback = configured();
+                let output = on_v8(|| {
+                    snapback.invoke_mutation(
+                        "addItem",
+                        input(json!({ "label": format!("parallel-{rank}"), "rank": rank })),
+                    )
+                })
+                .unwrap_or_else(|error| {
+                    panic!(
+                        "parallel workerd start {rank} errored: {error}; details={}",
+                        error.diagnostic.details
+                    )
+                });
+                assert_eq!(output.changed_count, 1);
+            })
+        })
+        .collect();
+    for handle in threads {
+        handle
+            .join()
+            .expect("parallel workerd start thread panicked");
+    }
+}
+
 #[test]
 fn local_workerd_invoke_requires_its_generated_bearer() {
     require_workerd!();

@@ -45,3 +45,34 @@ Problem statement overstates the current tree. Remaining residuals only:
 (1) the post-construction vm_lifecycle warm-VM override is duplicated
 verbatim at src/local.rs:5191 and :11567; (2) no cross-seam capability
 parity test exists. Close if those two are judged out of scope.
+
+## Resolution (2026-08-03)
+
+The constructor centralization had already landed
+(`CapabilityManifest::local_v0_instance` at all four serving sites); this
+close lands the two narrowed residuals:
+
+1. **Override dedup** — the post-construction warm-VM `vm_lifecycle`
+   override, previously duplicated verbatim in `inspect_core` and
+   `rqs_generation_digest`, is extracted into one helper
+   (`LocalSnapback::served_capability_manifest`, `src/local.rs`). Both
+   reporting seams now compose the served manifest through that single
+   helper (instance constructor + warm-VM lifecycle override), carrying
+   the LLP 0076 instance-live and LLP 0009 lifecycle-honesty `@ref`s.
+   The admission seams (preflight, ordinary function loading) still
+   compose the bare constructor from the same live facts; they never
+   consumed `vm_lifecycle`.
+2. **Cross-seam parity test** —
+   `local::tests::capability_manifest_is_identical_across_inspect_and_generation_seams`
+   asserts, for one instance state: the inspect-served manifest equals
+   the helper composition; the admission-seam constructor supports the
+   identical capability set; and the RQS generation digest recomposed
+   from the inspect-served manifest (plus the seam's other identity
+   components) equals `rqs_generation_digest()` — so a manifest
+   divergence between the inspect and generation seams breaks the digest
+   equality.
+
+Fail-closed outbound behavior and candidate-artifact non-elevation are
+untouched (composition sites only moved, not changed). Evidence: the new
+parity test passes; adjacent `rqs_generation`/`inspect`/manifest lib
+tests 12/12 green.

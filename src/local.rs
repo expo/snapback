@@ -6241,20 +6241,7 @@ impl LocalSnapback {
     pub(crate) fn inspect_core(&mut self) -> SnapbackResult<InspectState> {
         // @ref LLP 0010#v0-implementation-charter — missing non-v0 capabilities must be reported explicitly.
         let capability_gaps = self.capability_gaps();
-        // @ref LLP 0076#target-contract — the served manifest is instance-live:
-        // it reflects whether THIS process enabled outbound egress and so the
-        // bounded response-stream profile, not the conservative declaration.
-        let mut capability_manifest = CapabilityManifest::local_v0_instance(
-            capability_gaps.clone(),
-            crate::runtime::outbound_actions_enabled(),
-        );
-        // @ref LLP 0009#dk-4-retired--upstream-ibex-owner-thread-contract-2026-07-27 —
-        // report the lifecycle policy honestly. The compatibility branch is
-        // retained for older policy implementations.
-        if self.warm_vms.enabled() {
-            capability_manifest.vm_lifecycle =
-                crate::manifest::VM_LIFECYCLE_WARM_POOLED_RESET.to_owned();
-        }
+        let capability_manifest = self.served_capability_manifest(capability_gaps.clone());
         let active_live_functions = self.active_live_functions();
         let cron = self
             .cron
@@ -6294,6 +6281,30 @@ impl LocalSnapback {
             recent_diagnostics: self.recent_diagnostics.iter().cloned().collect(),
             capability_gaps,
         })
+    }
+
+    /// Compose the served capability manifest from this exact process's live
+    /// facts: the shared instance constructor plus the post-construction
+    /// warm-VM lifecycle override. Every reporting seam (`/inspect`, the RQS
+    /// generation identity) goes through this one helper so the override
+    /// cannot drift between seams
+    /// (issues/20260729-centralize-served-capability-manifest-composition.md).
+    // @ref LLP 0076#target-contract — the served manifest is instance-live:
+    // it reflects whether THIS process enabled outbound egress and so the
+    // bounded response-stream profile, not the conservative declaration.
+    fn served_capability_manifest(&self, capability_gaps: Vec<String>) -> CapabilityManifest {
+        let mut capability_manifest = CapabilityManifest::local_v0_instance(
+            capability_gaps,
+            crate::runtime::outbound_actions_enabled(),
+        );
+        // @ref LLP 0009#dk-4-retired--upstream-ibex-owner-thread-contract-2026-07-27 —
+        // report the lifecycle policy honestly. The compatibility branch is
+        // retained for older policy implementations.
+        if self.warm_vms.enabled() {
+            capability_manifest.vm_lifecycle =
+                crate::manifest::VM_LIFECYCLE_WARM_POOLED_RESET.to_owned();
+        }
+        capability_manifest
     }
 
     fn capability_gaps(&self) -> Vec<String> {
@@ -13197,14 +13208,7 @@ impl LocalSnapback {
         };
         let functions_identity =
             canonical_identity(&manifest_value(serde_json::to_value(&self.functions))?)?;
-        let mut capability_manifest = CapabilityManifest::local_v0_instance(
-            self.capability_gaps(),
-            crate::runtime::outbound_actions_enabled(),
-        );
-        if self.warm_vms.enabled() {
-            capability_manifest.vm_lifecycle =
-                crate::manifest::VM_LIFECYCLE_WARM_POOLED_RESET.to_owned();
-        }
+        let capability_manifest = self.served_capability_manifest(self.capability_gaps());
         let capability_identity =
             canonical_identity(&manifest_value(serde_json::to_value(&capability_manifest))?)?;
         let auth_mode = self.db.auth_mode_snapshot()?.state.active.as_str();
@@ -28213,6 +28217,77 @@ mod tests {
 
         let public: PublicInspect = snapback.inspect().expect("inspect").into();
         assert_eq!(public.maintenance, snapback.maintenance);
+    }
+
+    /// Cross-seam capability-manifest parity
+    /// (issues/20260729-centralize-served-capability-manifest-composition.md):
+    /// the inspect seam and the RQS generation-identity seam must serve one
+    /// composition — the shared instance constructor plus the warm-VM
+    /// lifecycle override — for the same instance state. The generation seam
+    /// is checked by recomposing the digest from the inspect-served manifest
+    /// with the same non-capability components; a manifest divergence between
+    /// the seams breaks the digest equality.
+    #[test]
+    fn capability_manifest_is_identical_across_inspect_and_generation_seams() {
+        let mut snapback = LocalSnapback::memory().expect("memory snapback");
+        let inspected = snapback
+            .inspect_core()
+            .expect("inspect")
+            .capability_manifest;
+        // Both reporting seams reduce to the one helper composition.
+        assert_eq!(
+            inspected,
+            snapback.served_capability_manifest(snapback.capability_gaps())
+        );
+        // Admission seams (preflight, ordinary function loading) compose the
+        // same constructor from the same live facts: capability support must
+        // match what inspect reports.
+        let admission = crate::manifest::CapabilityManifest::local_v0_instance(
+            snapback.capability_gaps(),
+            crate::runtime::outbound_actions_enabled(),
+        );
+        assert_eq!(
+            admission.supported_capabilities,
+            inspected.supported_capabilities
+        );
+        // Generation seam: rebuild the digest from the inspect-served
+        // manifest and the seam's other components; equality proves the
+        // generation identity embeds exactly the manifest inspect serves.
+        let digest = snapback
+            .rqs_generation_digest()
+            .expect("generation digest");
+        let capability_identity = crate::rqs::sha256_identity(
+            &serde_json::to_value(&inspected).expect("manifest serializes"),
+        )
+        .expect("capability identity");
+        let functions_identity = crate::rqs::sha256_identity(
+            &serde_json::to_value(&snapback.functions).expect("functions serialize"),
+        )
+        .expect("functions identity");
+        let schema_identity = snapback
+            .db
+            .schema()
+            .schema_hash
+            .clone()
+            .unwrap_or_else(|| "absent".to_owned());
+        let route_manifest_hash = snapback
+            .routes_manifest_hash
+            .clone()
+            .unwrap_or_else(|| "absent".to_owned());
+        let auth_mode = snapback.db.auth_mode_snapshot().expect("auth mode");
+        let resume_config = crate::rqs::resume_config_identity(
+            "caller-supplied-v0",
+            auth_mode.state.active.as_str(),
+            &route_manifest_hash,
+        );
+        let expected = crate::rqs::generation_digest(
+            &format!("local:{}", env!("CARGO_PKG_VERSION")),
+            &schema_identity,
+            &functions_identity,
+            &capability_identity,
+            &resume_config,
+        );
+        assert_eq!(digest, expected);
     }
 
     #[test]

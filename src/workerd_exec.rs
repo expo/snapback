@@ -518,14 +518,14 @@ pub(crate) fn run_handler_workerd(
             )
         })?
         .port();
-    let worker_probe = TcpListener::bind("127.0.0.1:0").map_err(|error| {
+    let worker_listener = TcpListener::bind("127.0.0.1:0").map_err(|error| {
         runner_error(
             "SNAPBACK_V8_RUNNER_START_FAILED",
             "could not reserve a workerd socket port",
             json!({ "error": error.to_string() }),
         )
     })?;
-    let worker_port = worker_probe
+    let worker_port = worker_listener
         .local_addr()
         .map_err(|error| {
             runner_error(
@@ -567,15 +567,47 @@ pub(crate) fn run_handler_workerd(
 
     let stderr_path = dir.join("workerd-stderr.log");
     let stderr_file = create_private_file(&stderr_path, "workerd-stderr.log", &[])?;
-    // Keep the reservation until immediately before spawn. workerd itself has
-    // to bind the port, but the TOCTOU window is now just the spawn handoff.
-    drop(worker_probe);
-    let child = Command::new(&workerd)
+    let mut command = Command::new(&workerd);
+    command
         .arg("serve")
         .arg(dir.join("config.capnp"))
         .stdin(Stdio::null())
         .stdout(Stdio::null())
-        .stderr(Stdio::from(stderr_file))
+        .stderr(Stdio::from(stderr_file));
+    // Owned-port handoff: keep the reservation listener alive and hand its
+    // descriptor to workerd (`--socket-fd`), so startup never depends on an
+    // unowned numeric port between reservation and spawn. A parallel start
+    // reclaiming the released number during that window used to surface as
+    // `Address already in use` → SNAPBACK_V8_RUNNER_START_FAILED under
+    // full-parallelism Cargo runs; owning the socket removes the TOCTOU.
+    #[cfg(unix)]
+    {
+        use std::os::fd::AsRawFd;
+        use std::os::unix::process::CommandExt;
+        let raw_fd = worker_listener.as_raw_fd();
+        command.arg(format!("--socket-fd=http={raw_fd}"));
+        // Clear FD_CLOEXEC in the forked child only, so exactly this workerd
+        // inherits the listener. The parent's descriptor keeps CLOEXEC set,
+        // so concurrent spawns on other threads cannot leak the socket.
+        unsafe {
+            command.pre_exec(move || {
+                let flags = libc::fcntl(raw_fd, libc::F_GETFD);
+                if flags < 0 {
+                    return Err(std::io::Error::last_os_error());
+                }
+                if libc::fcntl(raw_fd, libc::F_SETFD, flags & !libc::FD_CLOEXEC) < 0 {
+                    return Err(std::io::Error::last_os_error());
+                }
+                Ok(())
+            });
+        }
+    }
+    // Non-unix hosts cannot pass a descriptor across spawn: keep the
+    // reservation until immediately before spawn, so workerd rebinds the
+    // number and the TOCTOU window is just the spawn handoff.
+    #[cfg(not(unix))]
+    drop(worker_listener);
+    let child = command
         .spawn()
         .map_err(|error| {
             runner_error(
@@ -588,6 +620,10 @@ pub(crate) fn run_handler_workerd(
             )
         })?;
     let mut child = ChildGuard(child);
+    // The child's inherited descriptor now owns the socket; release the
+    // parent's copy so the port dies with the invocation process.
+    #[cfg(unix)]
+    drop(worker_listener);
 
     // Readiness: prove the accepted socket is THIS harness, not merely
     // something listening on the reserved port.
@@ -919,12 +955,28 @@ fn read_authenticated_response(
 }
 
 fn startup_failure(stderr_path: &Path, timeout_ms: u64, secrets: &[&str]) -> SnapbackError {
+    let stderr = stderr_tail(stderr_path, secrets);
+    // Distinguish a proven listener bind collision from a generic readiness
+    // timeout (issues/20260803-workerd-port-handoff-collision.md): the
+    // collision is structurally impossible on unix hosts now that the bound
+    // descriptor is handed to workerd, so a sighting here is a regression
+    // signal, not ambient flake.
+    let bind_collision = stderr.contains("Address already in use");
     runner_error(
         "SNAPBACK_V8_RUNNER_START_FAILED",
-        "workerd did not become ready",
+        if bind_collision {
+            "workerd could not bind its listener: the reserved port was already in use"
+        } else {
+            "workerd did not become ready"
+        },
         json!({
             "timeoutMs": timeout_ms,
-            "stderr": stderr_tail(stderr_path, secrets),
+            "startupFailureKind": if bind_collision {
+                "portBindCollision"
+            } else {
+                "readinessTimeout"
+            },
+            "stderr": stderr,
         }),
     )
 }

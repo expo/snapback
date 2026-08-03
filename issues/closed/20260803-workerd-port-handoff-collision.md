@@ -41,3 +41,34 @@ changed or suppressed this behavior.
   timeout without exposing invocation capabilities or private paths.
 - The full `workerd_twin_v0` suite and repository Cargo proof pass at normal
   test parallelism on Linux.
+
+## Resolution (2026-08-03)
+
+Fixed by owned-port handoff, the first exit option: `run_handler_workerd`
+now keeps the reservation `TcpListener` alive and hands its descriptor to
+workerd via `--socket-fd=http=<fd>` (the workerd `serve` override for the
+config's `http` socket), so startup never depends on an unowned numeric
+port between reservation and spawn. `FD_CLOEXEC` is cleared in the forked
+child only (`pre_exec`), so exactly the intended workerd inherits the
+listener and concurrent spawns on other threads cannot leak the socket;
+the parent drops its copy immediately after spawn so the port dies with
+the invocation process. Non-unix hosts cannot pass a descriptor across
+spawn portably and keep the previous drop-before-spawn behavior with the
+narrow handoff window (documented in-line).
+
+- `src/workerd_exec.rs` — owned handoff plus startup diagnostics:
+  `startup_failure` now reports `startupFailureKind` of
+  `portBindCollision` (proven `Address already in use` in the redacted
+  stderr tail) vs `readinessTimeout`, same fail-closed
+  `SNAPBACK_V8_RUNNER_START_FAILED` code, no capability or private-path
+  exposure.
+- `tests/workerd_twin_v0.rs` — new
+  `v8_parallel_starts_do_not_collide_on_the_worker_port`: 8 simultaneous
+  first-start invocations, each spawning its own workerd, all must come
+  up under the normal parallel test runner.
+
+Evidence (macOS, worktree at 0e43800c0 + this change): full
+`cargo test --locked --test workerd_twin_v0` = 31/31 passed at normal
+parallelism, including the new regression test; `--lib workerd` unit
+tests 10/10. The Linux full-proof leg runs the same suite in CI. The
+exact-test retry from the filing remains green.
