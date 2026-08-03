@@ -15,7 +15,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-03
-reviewed-commit: HEAD
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # Capability index
@@ -40,7 +40,7 @@ with the Snapback label and `guide-gap` in the title.
 | backend.schema | Declare tables, fields, indexes, sync | schema, tables, model | local | shipped | `defineSchema` in packages/snapback-codegen/define.mjs | llp/0037, llp/0004 | getting-started/your-first-backend.md |
 | backend.functions | Queries, live queries, mutations, and actions; declarative plans or colocated JS handlers with same-file helpers; explicit document/record/value result contracts including result-side `v.doc(table)` schema references; manifest-derived handler/helper `ctx.db` types with a query-read/mutation-write split; generated exact client references and runtime egress validation | query, mutation, endpoint, api, inline handler, result contract, results.documents, results.records, v.doc, GeneratedHandler, GeneratedQueryDatabase | local | shipped | packages/snapback-codegen/define.mjs | llp/0004, llp/0009, llp/0101, llp/0108, llp/0127 | backend/queries.md |
 | backend.runtime-values | Derive deterministic per-invocation time and fresh identifiers inside JavaScript handlers | server time, server clock, timestamp, generated id, UUID, Date.now, Math.random | local | shipped | `runtime.now` in packages/snapback-harness/ctx-bootstrap.js | llp/0051, llp/0065 | backend/trusted-runtime-values.md |
-| backend.standard-patterns | Generate owner CRUD, unique lookup, owner/membership keyset pages | CRUD generator, pagination, membership pages, trusted defaults | local | partial | `defineOwnedCrud` in packages/snapback-codegen/standard-patterns.mjs | llp/0051, llp/0065, llp/0100 | backend/standard-patterns.md |
+| backend.standard-patterns | Generate owner CRUD, unique lookup, owner/membership keyset pages | CRUD generator, pagination, callable pagination, membership pages, trusted defaults | local | partial | `defineOwnedCrud` in packages/snapback-codegen/standard-patterns.mjs | llp/0051, llp/0065, llp/0100 | backend/standard-patterns.md |
 | backend.relational-queries | Bounded two-source equi-joins with explicit visibility, closed projections, and transactionally maintained projection tables (`defineRelationalQuery`, `defineMaintainedProjection`, stable capability since 2026-07-26) | joins, relational queries, denormalized reads, materialized views | local | partial | `defineRelationalQuery` in packages/snapback-codegen/define.mjs | llp/0080, llp/0065 | backend/relational-queries.md |
 | backend.bounded-children-v1 | Experimental one-visible-parent/one-index-bounded-child-page profile with protected relation incarnations and `sbbc1` AEAD keysets; only contributor source builds with the exact embedded atomic carrier advertise it, while public runtime packages and hosted targets retain a structured GAP | one-to-many, parent children, relation incarnation, bounded child page | local | partial | src/local-relation-activity-publication.v1.json | llp/0104, llp/0108, llp/0101 | GAP (public-package attestation and hosted publication; owner: Charlie, review: 2026-08-31) |
 | backend.snapshot-batch-v1 | Experimental local composition of 2–8 complete `bounded-children.v1` nodes: one pinned authoritative snapshot per invocation, structural parent-authorization dedup, a sealed all-or-nothing tuple, one LLP 0157 `sbsb1` continuation, and cursor-free-first-page `live_replace`; hosted and public-package publication remain nonclaims | snapshot batch, board view, multiple child lists, one snapshot, sbsb1, composite query | local | shipped | `snapshot_batch_three_node_cursor_sealing_and_live_acceptance` in src/local.rs + schemas/capability.manifest.local-dev-sqlite-ibex.json (`snapshot_batch_v1`) | llp/0135, llp/0157, llp/0113 | backend/snapshot-batches.md |
@@ -280,7 +280,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-03
-reviewed-commit: HEAD
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -488,8 +488,8 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
+reviewed: 2026-08-03
+reviewed-commit: 3109a3b4f5068595a71448b10788b56b4fa358f5
 ---
 
 # Guide conventions
@@ -646,6 +646,12 @@ honest, not the corpus being broken. In a fresh tree, run
 review manifests), or just the per-demo codegen for the demos the failing
 snippets cite, e.g.
 `node packages/snapback-codegen/index.mjs demos/todo-v2/snapback`.
+For demos whose snippets use streamed or outbound actions (currently
+`demos/competitive-checkpoint`), prefix the codegen command with
+`SNAPBACK_OUTBOUND_ACTIONS=1` — codegen selects the outbound-actions
+capability manifest only when that variable is set, and otherwise fails
+with `SNAPBACK_CAPABILITY_UNSUPPORTED` because the base local target does
+not declare `bounded_response_stream_v1`.
 Regeneration writes only gitignored paths; the tracked tree stays clean.
 
 ## Freshness
@@ -669,8 +675,8 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
+reviewed: 2026-08-03
+reviewed-commit: 3109a3b4f5068595a71448b10788b56b4fa358f5
 ---
 
 # Retrieval eval protocol
@@ -1793,8 +1799,8 @@ examples: [packages/snapback-app-cli/package.test.mjs, packages/snapback-app-cli
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-01
-reviewed-commit: f245965ccfdc3addd44554d709c1074adec0834f
+reviewed: 2026-08-03
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # Agent principals and scoped grants
@@ -2805,8 +2811,8 @@ examples: [demos/all-aboard]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-01
-reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
+reviewed: 2026-08-03
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # Scheduled execution with cron
@@ -2818,7 +2824,10 @@ reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
 Cron jobs are generated manifest entries that ask the target scheduler to run
 an **action**. The action may perform I/O and calls mutations for durable
 effects, so scheduled writes use the same atomic commit and live-delivery path
-as user-triggered work.
+as user-triggered work. Cron owns only recurring, source-declared schedules;
+one-off delayed work — the `runAfter` shape a mutation enqueues at runtime —
+is [one-off durable jobs](./jobs.md), a separate subsystem with a separate
+ledger (LLP 0028's 2026-07-30 boundary amendment).
 
 ## Define the job
 
@@ -2938,6 +2947,9 @@ portable maximum instead of wrapping.
 
 - **Do not schedule a mutation directly.** Cron targets actions; the action
   calls a mutation for durable effects.
+- **Do not emulate one-off delayed work with a cron job.** The run ledger's
+  identity model rejects runtime-created entries by construction; use
+  [one-off durable jobs](./jobs.md) (`ctx.jobs.enqueue`) instead.
 - **Do not sleep in tests.** Force an authenticated tick and inspect its run
   ledger; start the suite's server with `cronDisabled: true` so the live
   scheduler cannot commit a competing run mid-assertion.
@@ -3768,8 +3780,8 @@ examples: [demos/competitive-checkpoint/snapback/handlers.mjs, demos/competitive
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-26
-reviewed-commit: 5606ab06
+reviewed: 2026-08-03
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # Trusted runtime time and identifiers
@@ -3809,7 +3821,10 @@ each call:
 The host records these answers and reuses them if it replays the invocation.
 That is why ambient clock and randomness APIs are not interchangeable with the
 context methods. An `id()` result belongs in a plain required string field; it
-is not a principal and does not manufacture a table foreign key.
+is not a principal and does not manufacture a table foreign key. Neither value
+yields a dense per-scope ordinal (JOB-42): `id()` is opaque and `now()` is not
+gap-free. That is the [scoped sequences](./sequences.md) surface, which is not
+yet a published capability — do not hand-roll it from these values either.
 
 For owner-scoped generated CRUD, declare the same policy as
 `createDefaults: { createdAt: 'now', pageKey: 'id' }` instead of writing a
@@ -3850,7 +3865,9 @@ operation schema is closed, while trusted fields such as `attemptId`,
 
 A caller that tries to supply an omitted timestamp or identifier is therefore
 rejected as an additional property instead of silently overriding the server
-value.
+value. Official generated clients check the same closed projection before
+transport and report `SNAPBACK_ARGUMENT_VALIDATION_FAILED`; the server's own
+validation remains authoritative either way.
 
 ## Repair ambient dependency diagnostics
 
@@ -3906,8 +3923,8 @@ examples: [packages/snapback-codegen/standard-patterns.test.mjs, packages/snapba
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-07-28
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # Safe standard data patterns
@@ -4096,6 +4113,10 @@ owned helper's live-query emission, because a subscribable historical page
 would create one authorization-sensitive subscription per visited page.
 The product's separate current-room `live_replace` query owns live
 grant/revocation updates; a fresh first-page call observes a later grant.
+When a Contract product screen needs one of these pages, invoke the
+generated references from a host/client control beside the compiled
+Contract surface — the composition is shown in
+[the Contract adapter](../clients/contract-adapter.md#call-a-paged-query-from-a-contract-screen).
 
 A non-member's first page is empty with no cursor and reveals neither room
 nor membership existence — byte-identical to a nonexistent resource id.
@@ -4184,6 +4205,12 @@ the projected parent, the bounded child page, and a nullable continuation.
 Projection leaves are `_id` or portable scalar fields only. Optional stored
 scalars remain required keys whose value is `null | Scalar`; optional JSON is
 not admitted as a projection leaf.
+
+Two to eight complete bounded-children definitions additionally compose into
+one pinned-snapshot batch via `defineSnapshotBatchQuery` — a further
+experimental capability (`snapshot_batch_v1`, which also requires
+`bounded_children_v1`) with its own page:
+[snapshot batches](./snapshot-batches.md).
 
 The source operation is exactly `insert`, `patch`, or `delete`. Empty and
 storage-identical patches are not effects; missing targets and operation
@@ -4478,7 +4505,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-03
-reviewed-commit: HEAD
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # Snapshot batches
@@ -5521,12 +5548,12 @@ order: 1
 audience: agent-first
 capabilities: [clients.contract, clients.contract-provider-generation, clients.contract-keyed-scopes, clients.mutation-outcomes, clients.optimistic-overlays]
 authorities: [llp/0005-contract-exact-react-integration.explainer.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0063-partitime-platform-roadmap.plan.md, packages/snapback-contract/index.mjs, packages/snapback-contract/keyed-provider.mjs, packages/snapback-contract/online-surface.mjs]
-examples: [demos/todo-v2/surfaces/contract, demos/all-aboard/surfaces/contract, packages/snapback-contract/agent-authority-contract.test.mjs, demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs, demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs]
+examples: [demos/todo-v2/surfaces/contract, demos/all-aboard/surfaces/contract, demos/team-chat/surfaces/contract, packages/snapback-contract/agent-authority-contract.test.mjs, demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs, demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-20
-reviewed-commit: 7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7
+reviewed: 2026-08-03
+reviewed-commit: 3109a3b4f5068595a71448b10788b56b4fa358f5
 ---
 
 # The Contract adapter
@@ -5837,6 +5864,56 @@ What the surface does for you:
   containment remain correct. See the
   [presence recipe](../recipes/presence-cursors.md) and
   [ephemeral-state reference](../realtime/ephemeral-state.md).
+
+## Call a paged query from a Contract screen
+
+Standard-pattern page pairs (`firstRoomMessagePage` / `nextRoomMessagePage`
+and kin) are **callable-only** `Query` definitions — they cannot be
+subscribed, so they are not Contract data links (see
+[why the pair is callable-only](../backend/standard-patterns.md)). The
+intended composition when a Contract product screen needs one: keep the live
+room state and actions in compiled Contract, and invoke the generated page
+references from a small host/client control through the ordinary Snapback
+client. That boundary is deliberate, not a workaround — a subscribable
+historical page would create one authorization-sensitive subscription per
+visited page.
+
+Team Chat's Contract surface is the CI-verified example
+([demos/team-chat/surfaces/contract/main.ts](repo:demos/team-chat/surfaces/contract/main.ts),
+exercised by the contract-browser acceptance). The host control owns
+loading, terminal, and refusal state and gates every settlement on a
+`disposed` flag so a torn-down screen never renders a late page:
+
+```ts source=demos/team-chat/surfaces/contract/main.ts
+  button.addEventListener('click', () => {
+    error.textContent = '';
+    const request = cursor === null
+      ? client.query(api.firstRoomMessagePage, { args: { roomId }, userId })
+      : client.query(api.nextRoomMessagePage, { args: { roomId, after: cursor }, userId });
+    void request.then((page) => {
+      if (disposed) return;
+      rows = cursor === null ? page.rows : [...rows, ...page.rows];
+      cursor = page.cursor ?? null;
+      terminal = cursor === null;
+      render();
+    }, (cause) => {
+      if (disposed) return;
+      rows = [];
+      cursor = null;
+      terminal = false;
+      error.textContent = cause instanceof Error ? cause.message : String(cause);
+      render();
+    });
+  });
+```
+
+A `null` cursor from the server is the terminal signal (`terminal = cursor
+=== null`); a refused call (for example after losing the room seat) lands in
+the rejection path, which clears the accumulated rows rather than showing
+history the caller can no longer read. The same surface pairs the control
+with a membership live query that blanks the page list the moment the seat
+is revoked — fresh grants are observed by simply calling the first page
+again.
 
 ## Checked helper metadata and result shapes
 
@@ -8101,8 +8178,8 @@ examples: [demos/todo/snapback, demos/todo-v2/snapback, demos/signal-desk/snapba
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-31
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # Your first backend
@@ -8163,9 +8240,13 @@ export default defineSchema({
 });
 ```
 
-The complete validator set: `v.string()`, `v.principal()`, `v.id(table)`,
+The core validators: `v.string()`, `v.principal()`, `v.id(table)`,
 `v.boolean()`, `v.integer()`, `v.real()` / `v.number()`, `v.json()`,
-`v.object({...})`, and `v.optional(inner)`. `defineSchema` also takes an
+`v.object({...})`, and `v.optional(inner)`. This inventory is deliberately
+partial: specialized validators — typed asset references (`v.assetRef`,
+[assets](../backend/assets.md)), result-side `v.doc(table)` references
+([queries](../backend/queries.md)) — are taught with their features.
+`defineSchema` also takes an
 options object:
 `ephemeral:` (a `defineEphemeral(...)` — see the
 [presence recipe](../recipes/presence-cursors.md) and complete
@@ -8809,8 +8890,8 @@ examples: [demos/all-aboard]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-17
-reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
+reviewed: 2026-08-03
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # Secrets and deployment config
@@ -8848,7 +8929,7 @@ Values never belong in source, manifests, seed data, LLPs, or demo diaries.
 
 Use `/_snapback/admin/setup` for the browser wizard or the admin-gated config
 API/host operations for automation. The core operations are `status`,
-`set`, `unset`, and `verify`.
+`set`, `unset`, and `verify`, plus the read-only `plan` dry-run.
 
 `status` reports declaration, set state, member count, source, generation,
 and verification—never value bytes:
@@ -8878,10 +8959,15 @@ blessed remote path.
 | Operation | Request | Body |
 | --- | --- | --- |
 | status | `GET /_snapback/api/config/status` | — |
+| plan | `GET /_snapback/api/config/plan?entry=<name>` | — |
 | set | `POST /_snapback/api/config/set` | `{ "entry": "<name>", "value": "<string>" }` |
 | set (pool) | `POST /_snapback/api/config/set` | `{ "entry": "<name>", "values": ["a", "b"], "append": true }` |
 | unset | `POST /_snapback/api/config/unset` | `{ "entry": "<name>" }` |
 | verify | `POST /_snapback/api/config/verify` | `{ "entry": "<name>" }` |
+
+`plan` is a read-only dry-run: it reports the write locus, apply boundary,
+and whether this transport would accept a value write, without writing
+anything (the `entry` query parameter is optional).
 
 Exactly one of `value` or `values` must be present: sending both, neither, or
 the plausible-but-wrong `{ entry, member }` spelling refuses with
@@ -8915,7 +9001,10 @@ The acceptance proves accidental materialization stays redacted:
 
 Queries and mutations have no `ctx.secrets`; actions cannot access an entry
 outside `uses`. Missing and undeclared entries fail with stable
-`SNAPBACK_CONFIG_*` diagnostics.
+`SNAPBACK_CONFIG_*` diagnostics. Besides actions, the declared push seam
+(`definePushSeam`) may also name entries in `uses`; that grant feeds the
+engine-owned send lane, never a handler handle, and unknown names fail at
+codegen with `CONFIG_USES_UNKNOWN` just as for actions.
 
 ## Anti-patterns
 
@@ -8942,8 +9031,8 @@ examples: [demos/todo]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-17
-reviewed-commit: a9440ba09eb469c308a46d0c5139e5ca5a9165ff
+reviewed: 2026-08-03
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # Host operations
@@ -8983,7 +9072,7 @@ carries the storage diagnostic; tooling must not substitute zero.
 
 ## Served request operations
 
-The endpoint serves twelve request spellings:
+The endpoint serves twenty-eight request spellings:
 
 | Request operation | Purpose |
 | --- | --- |
@@ -8999,15 +9088,36 @@ The endpoint serves twelve request spellings:
 | `function.explain` | Explain a supported kind; currently `mutationDryRun` is implemented. |
 | `auth.mintSession` | Dev/test session mint requiring the process-bound impersonation capability. |
 | `auth.rescueCollidingTable` | Operator-only pre-auth catalog collision recovery. |
+| `asset.put` | Put asset bytes/metadata through the same machinery as the asset routes. |
+| `asset.ensureSeedFixture` | Install or observe a deterministic seed-fixture asset. |
+| `asset.inspect` | Inspect one asset record. |
+| `asset.list` | List asset records. |
+| `asset.retry` | Retry a failed asset processing step. |
+| `asset.gcSweep` | Deterministic receipted GC sweep with an injected clock. |
+| `asset.delete` | Delete one asset through the authorized deletion path. |
+| `asset.rotateSigningKey` | Rotate the delivery signing key, invalidating outstanding signed URLs. |
+| `asset.exportCut` | Export a consistent asset cut to an absolute directory. |
+| `asset.importCut` | Import a previously exported consistent asset cut. |
+| `telemetry.stats` | Aggregated telemetry statistics (structural metadata). |
+| `telemetry.events` | Bounded filtered raw telemetry events (secret-read lease). |
+| `telemetry.export` | Bounded NDJSON telemetry export (secret-read lease). |
+| `errors.issues` | Structural error-issue listing. |
+| `errors.issue` | Raw detail for one error issue (secret-read lease). |
+| `errors.transition` | Resolve/ignore state transition for one issue. |
 
 `host.start`, `host.stop`, and `host.restart` are CLI-only lifecycle
-verbs—a running server cannot safely own starting/stopping itself.
+verbs—a running server cannot safely own starting/stopping itself; over
+HTTP they fail as `SNAPBACK_HOST_OP_CLI_ONLY`.
 `schema.reload`, `functions.reload`, and `acceptance.run` are pinned but
-unbuilt and fail as `SNAPBACK_HOST_OP_UNIMPLEMENTED`.
+unbuilt and fail as `SNAPBACK_HOST_OP_UNIMPLEMENTED`. Both families are
+registered at AdminWrite so an authenticated request reaches that structured
+envelope; unknown names stay unregistered and fail closed before dispatch.
 
-## The exact 17 registry identities
+## The exact 39 registry identities
 
-The HTTP request names above expand into these 17 audited operation identities:
+The HTTP request names above expand into these 39 audited operation
+identities (the last six are the registered CLI-only and pinned-unbuilt
+verbs):
 
 1. `host_ops.app.inspect`
 2. `host_ops.function.explain`
@@ -9026,6 +9136,28 @@ The HTTP request names above expand into these 17 audited operation identities:
 15. `host_ops.function.run.action`
 16. `host_ops.function.run.unknown`
 17. `host_ops.function.run.impersonated`
+18. `host_ops.asset.put`
+19. `host_ops.asset.ensureSeedFixture`
+20. `host_ops.asset.inspect`
+21. `host_ops.asset.list`
+22. `host_ops.asset.retry`
+23. `host_ops.asset.gcSweep`
+24. `host_ops.asset.delete`
+25. `host_ops.asset.rotateSigningKey`
+26. `host_ops.asset.exportCut`
+27. `host_ops.asset.importCut`
+28. `host_ops.telemetry.stats`
+29. `host_ops.telemetry.events`
+30. `host_ops.telemetry.export`
+31. `host_ops.errors.issues`
+32. `host_ops.errors.issue`
+33. `host_ops.errors.transition`
+34. `host_ops.schema.reload`
+35. `host_ops.functions.reload`
+36. `host_ops.acceptance.run`
+37. `host_ops.host.start`
+38. `host_ops.host.stop`
+39. `host_ops.host.restart`
 
 Query/explain reads, durable writes, credential-producing operations, and
 dev impersonation therefore keep distinct `RoutePolicy`, authority, effect,
@@ -9073,8 +9205,8 @@ examples: [demos/todo/tests/acceptance/headless.mjs, packages/snapback-codegen/a
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-07-27
-reviewed-commit: 8399da34f8bdebb2776395ee5751b57c2bd2e71f
+reviewed: 2026-08-03
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # Diagnostics and local doctoring
@@ -9146,9 +9278,12 @@ scripts/ibex-doctor
 It checks the submodule state, prepared Hermes artifacts/framework, CLI,
 required tools, and then the part file-presence checks cannot prove: an exact
 link of this checkout's final `snapback` Cargo target in an automatically
-cleaned temporary target directory, followed by launch of that newly linked
-binary with `DYLD_*` and `LD_LIBRARY_PATH` scrubbed. An older runnable binary
-does not make the current checkout green. On a clean checkout, bootstrap before
+cleaned temporary target directory, followed by launch and restricted
+handler-VM qualification of that newly linked binary with `DYLD_*` and
+`LD_LIBRARY_PATH` scrubbed. It also verifies, read-only, that the served
+binary's persisted readiness receipt (`<binary>.runtime-readiness.json`) is
+digest-coherent with that binary and the current Hermes artifacts. An older
+runnable binary does not make the current checkout green. On a clean checkout, bootstrap before
 Cargo build/test/run:
 
 ```sh
@@ -9167,7 +9302,9 @@ The stable bootstrap failure vocabulary is:
 `SNAPBACK_IBEX_RUNTIME_LINK_TIMEOUT`,
 `SNAPBACK_IBEX_RUNTIME_LINK_INTERRUPTED`,
 `SNAPBACK_IBEX_RUNTIME_LINK_PROBE_FAILED`,
-`SNAPBACK_IBEX_RUNTIME_LOAD_FAILED`, and
+`SNAPBACK_IBEX_RUNTIME_LOAD_FAILED`,
+`SNAPBACK_IBEX_RUNTIME_VM_CREATE_FAILED`,
+`SNAPBACK_IBEX_RUNTIME_RECEIPT_INVALID`, and
 `SNAPBACK_IBEX_HOST_UNSUPPORTED`.
 
 The doctor additionally distinguishes uninitialized/conflicting/drifted
@@ -9299,8 +9436,8 @@ examples: [admin-ui]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-17
-reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
+reviewed: 2026-08-03
+reviewed-commit: 3109a3b4f5068595a71448b10788b56b4fa358f5
 ---
 
 # Admin console
@@ -9310,9 +9447,9 @@ reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
 > [auth/targets](../auth/targets.md).
 
 The admin console is Snapback's browser debugger over
-`/_snapback/api/*`. Its Contract app exposes Overview, Schema, Data,
-Functions, Secrets, Capabilities, Realtime, and Diagnostics views from the same
-inspect/scan/runner/config boundaries used by tests and tools. Its Docs tab
+`/_snapback/api/*`. Its Contract app exposes Overview, Health, Errors, Logs,
+Schema, Data, Functions, Secrets, Capabilities, Realtime, and Diagnostics views
+from the same inspect/scan/runner/config boundaries used by tests and tools. Its Docs tab
 renders the build-matched served guide from the generated manifest; the
 console's text renderer never injects guide HTML.
 
@@ -9390,6 +9527,14 @@ runtime exceptions, zero console errors, and zero policy violations.
 
 - **Overview/Capabilities/Realtime/Diagnostics:** inspect target, artifacts,
   capability gaps, delivery state, receipts, and stable codes.
+- **Health:** telemetry stat tiles, requests over time, per-route/function
+  latency, top volume/error-rate entries, lifecycle markers, and coverage,
+  with a link into Errors when issues need attention.
+- **Errors:** triage open/regressed issues and resolve or ignore them;
+  structural metadata is ordinary admin authority, while raw detail spends a
+  scoped `errors.issue` secret-read lease.
+- **Logs:** filter the same bounded `telemetry.events` operation agents use;
+  raw rows require a `telemetry.events` secret-read lease.
 - **Schema/Data:** inspect declared tables and page through rows; private reads
   remain subject to secret-read scope/budgets.
 - **Functions:** run queries, mutations, and actions through the classified
@@ -9442,7 +9587,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-03
-reviewed-commit: HEAD
+reviewed-commit: 3109a3b4f5068595a71448b10788b56b4fa358f5
 ---
 
 # Backend observability
@@ -9599,7 +9744,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-03
-reviewed-commit: HEAD
+reviewed-commit: 3109a3b4f5068595a71448b10788b56b4fa358f5
 ---
 
 # Backend error tracking
@@ -9751,8 +9896,8 @@ examples: [clients/swift/SnapbackClient]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-01
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: 3109a3b4f5068595a71448b10788b56b4fa358f5
 ---
 
 # Client protocol
@@ -9899,13 +10044,13 @@ id: realtime.live-queries
 order: 1
 audience: agent-first
 capabilities: [realtime.live-queries, realtime.durable-push]
-authorities: [llp/0008-local-first-sync-and-realtime.rfc.md, llp/0004-application-data-api.rfc.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-contract/keyed-provider.mjs, demos/_kit/client.mjs]
+authorities: [llp/0008-local-first-sync-and-realtime.rfc.md, llp/0004-application-data-api.rfc.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-contract/keyed-provider.mjs, packages/snapback-client/index.mjs]
 examples: [demos/todo/tests/acceptance/headless.mjs, demos/_kit/tests/live-delta-e2e.mjs, demos/all-aboard/surfaces/react/src/main.tsx, demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs, demos/party-wall]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-02
-reviewed-commit: e24d3df0cd10d668d2f04a2708afbf30ff7485bd
+reviewed: 2026-08-03
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # Live queries
@@ -10091,13 +10236,13 @@ id: realtime.ephemeral-state
 order: 2
 audience: agent-first
 capabilities: [realtime.ephemeral]
-authorities: [llp/0013-ephemeral-realtime-state.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, demos/_kit/client.mjs, packages/snapback-contract/index.mjs]
+authorities: [llp/0013-ephemeral-realtime-state.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs]
 examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-17
-reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
+reviewed: 2026-08-03
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # Ephemeral realtime state
@@ -10291,7 +10436,7 @@ status: current
 targets: [local, cloudflare]
 maturity: partial
 reviewed: 2026-08-03
-reviewed-commit: HEAD
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # Route snapshot bundles
@@ -10418,13 +10563,13 @@ id: recipes.presence-cursors
 order: 1
 audience: agent-first
 capabilities: [realtime.ephemeral]
-authorities: [llp/0013-ephemeral-realtime-state.rfc.md, packages/snapback-codegen/define.mjs, demos/_kit/client.mjs]
+authorities: [llp/0013-ephemeral-realtime-state.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-client/index.mjs]
 examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-17
-reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
+reviewed: 2026-08-03
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # Recipe: presence cursors
@@ -10556,8 +10701,8 @@ examples: [demos/card-game]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-17
-reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
+reviewed: 2026-08-03
+reviewed-commit: 3109a3b4f5068595a71448b10788b56b4fa358f5
 ---
 
 # Recipe: hidden hands
@@ -10662,8 +10807,8 @@ examples: [demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashbo
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-02
-reviewed-commit: 63d980b654664d2c990f454cbcb78958d87d27b8
+reviewed: 2026-08-03
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # Offline retention and mutation replay
@@ -10867,8 +11012,11 @@ Two neighbors that are **not** this opt-in:
 Pass a durable `clientStore` (localStorage on web; memory only for tests) and
 a complete retained identity: app id, database id, target-profile id, and
 version-stream id. The generated Contract data manifest must claim
-`offlineReplay`, and every mutation exposed by the surface must have a
-derivable declarative plan.
+`offlineReplay`, and every mutation exposed by the surface must carry its
+generated declarative plan — plan presence is the replayability predicate.
+Whether an optimistic overlay is derived from that plan is a separate axis:
+a sequence-withheld mutation is replayable with no overlay at all (see the
+withholding rule below).
 
 If any identity or replay proof is missing, queued writes and retention are
 disabled instead of being rebound to a guessed backend. A changed artifact or
@@ -10953,8 +11101,10 @@ allocates:
 - one deterministic `ctxLedger` containing generated time/id answers.
 
 The derived optimistic overlay consumes the **same** ledger, so a replayed
-insert uses the id the UI already rendered. If durable enqueue fails, the
-optimistic change is rolled back before any server contact.
+insert uses the id the UI already rendered. (A withheld sequence mutation
+mints this ledger with no overlay consumer — see the withholding rule
+below.) If durable enqueue fails, the optimistic change is rolled back
+before any server contact.
 
 The test queues create → toggle → delete and proves durable ordering:
 
@@ -11078,6 +11228,26 @@ reducer. Server rows remain authoritative:
 - an artifact or authority change clears/quarantines old rows and writes before
   publishing the successor scope.
 
+One declared exception: a generated sequence write-with-activity mutation is
+marked `atomicOptimisticWithholding` and derives **no** overlay — fresh or
+restored after relaunch (LLP 0043's LLP 0135 fold: the client may not guess,
+locally allocate, or show the unaffected subset of a sequence-projected
+changeset). The intent still queues durably and replays: enqueue pre-mints
+the plan's fixed host row-id ledger (the activity row, plus the source row
+for an insert source) without evaluating `AllocateSequence`, and rows appear
+only from authoritative delivery after settlement returns the allocation.
+The sequence surface itself is unpublished substrate — see
+[scoped sequences](../backend/sequences.md).
+
+```js source=packages/snapback-contract/offline-replay.test.mjs
+  assert.equal(queuedResult.queued, true);
+  assert.equal(
+    withheldOnline.boundary.current('todos')[0].completed,
+    false,
+    'fresh atomic withholding queues intent without presenting app reducer rows',
+  );
+```
+
 ## Anti-patterns
 
 - **Do not call a surface Parity because it has localStorage.** The manifest,
@@ -11092,6 +11262,9 @@ reducer. Server rows remain authoritative:
   authorized-retention path or keep the surface online-only.
 - **Do not key an agent outbox by token id.** Tokens are live carriers; the
   server-issued descriptor and durable grant tuple own replay identity.
+- **Do not fake an optimistic row for a withheld sequence mutation.**
+  Sequence-projected placement is settlement's answer; render the queued
+  state, never a guessed allocation or the changeset's unaffected subset.
 
 ---
 
@@ -11107,8 +11280,8 @@ examples: [demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/accep
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-01
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: 3109a3b4f5068595a71448b10788b56b4fa358f5
 ---
 
 # Acceptance testing

@@ -9,8 +9,8 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
+reviewed: 2026-08-03
+reviewed-commit: 3109a3b4f5068595a71448b10788b56b4fa358f5
 ---
 
 # Guide conventions
@@ -167,6 +167,12 @@ honest, not the corpus being broken. In a fresh tree, run
 review manifests), or just the per-demo codegen for the demos the failing
 snippets cite, e.g.
 `node packages/snapback-codegen/index.mjs demos/todo-v2/snapback`.
+For demos whose snippets use streamed or outbound actions (currently
+`demos/competitive-checkpoint`), prefix the codegen command with
+`SNAPBACK_OUTBOUND_ACTIONS=1` — codegen selects the outbound-actions
+capability manifest only when that variable is set, and otherwise fails
+with `SNAPBACK_CAPABILITY_UNSUPPORTED` because the base local target does
+not declare `bounded_response_stream_v1`.
 Regeneration writes only gitignored paths; the tracked tree stays clean.
 
 ## Freshness

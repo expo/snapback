@@ -9,8 +9,8 @@ examples: [demos/all-aboard]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-01
-reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
+reviewed: 2026-08-03
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # Scheduled execution with cron
@@ -22,7 +22,10 @@ reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
 Cron jobs are generated manifest entries that ask the target scheduler to run
 an **action**. The action may perform I/O and calls mutations for durable
 effects, so scheduled writes use the same atomic commit and live-delivery path
-as user-triggered work.
+as user-triggered work. Cron owns only recurring, source-declared schedules;
+one-off delayed work — the `runAfter` shape a mutation enqueues at runtime —
+is [one-off durable jobs](./jobs.md), a separate subsystem with a separate
+ledger (LLP 0028's 2026-07-30 boundary amendment).
 
 ## Define the job
 
@@ -142,6 +145,9 @@ portable maximum instead of wrapping.
 
 - **Do not schedule a mutation directly.** Cron targets actions; the action
   calls a mutation for durable effects.
+- **Do not emulate one-off delayed work with a cron job.** The run ledger's
+  identity model rejects runtime-created entries by construction; use
+  [one-off durable jobs](./jobs.md) (`ctx.jobs.enqueue`) instead.
 - **Do not sleep in tests.** Force an authenticated tick and inspect its run
   ledger; start the suite's server with `cronDisabled: true` so the live
   scheduler cannot commit a competing run mid-assertion.

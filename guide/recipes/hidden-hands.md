@@ -9,8 +9,8 @@ examples: [demos/card-game]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-17
-reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
+reviewed: 2026-08-03
+reviewed-commit: 3109a3b4f5068595a71448b10788b56b4fa358f5
 ---
 
 # Recipe: hidden hands

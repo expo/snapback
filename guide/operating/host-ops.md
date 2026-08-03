@@ -9,8 +9,8 @@ examples: [demos/todo]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-17
-reviewed-commit: a9440ba09eb469c308a46d0c5139e5ca5a9165ff
+reviewed: 2026-08-03
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # Host operations
@@ -50,7 +50,7 @@ carries the storage diagnostic; tooling must not substitute zero.
 
 ## Served request operations
 
-The endpoint serves twelve request spellings:
+The endpoint serves twenty-eight request spellings:
 
 | Request operation | Purpose |
 | --- | --- |
@@ -66,15 +66,36 @@ The endpoint serves twelve request spellings:
 | `function.explain` | Explain a supported kind; currently `mutationDryRun` is implemented. |
 | `auth.mintSession` | Dev/test session mint requiring the process-bound impersonation capability. |
 | `auth.rescueCollidingTable` | Operator-only pre-auth catalog collision recovery. |
+| `asset.put` | Put asset bytes/metadata through the same machinery as the asset routes. |
+| `asset.ensureSeedFixture` | Install or observe a deterministic seed-fixture asset. |
+| `asset.inspect` | Inspect one asset record. |
+| `asset.list` | List asset records. |
+| `asset.retry` | Retry a failed asset processing step. |
+| `asset.gcSweep` | Deterministic receipted GC sweep with an injected clock. |
+| `asset.delete` | Delete one asset through the authorized deletion path. |
+| `asset.rotateSigningKey` | Rotate the delivery signing key, invalidating outstanding signed URLs. |
+| `asset.exportCut` | Export a consistent asset cut to an absolute directory. |
+| `asset.importCut` | Import a previously exported consistent asset cut. |
+| `telemetry.stats` | Aggregated telemetry statistics (structural metadata). |
+| `telemetry.events` | Bounded filtered raw telemetry events (secret-read lease). |
+| `telemetry.export` | Bounded NDJSON telemetry export (secret-read lease). |
+| `errors.issues` | Structural error-issue listing. |
+| `errors.issue` | Raw detail for one error issue (secret-read lease). |
+| `errors.transition` | Resolve/ignore state transition for one issue. |
 
 `host.start`, `host.stop`, and `host.restart` are CLI-only lifecycle
-verbs—a running server cannot safely own starting/stopping itself.
+verbs—a running server cannot safely own starting/stopping itself; over
+HTTP they fail as `SNAPBACK_HOST_OP_CLI_ONLY`.
 `schema.reload`, `functions.reload`, and `acceptance.run` are pinned but
-unbuilt and fail as `SNAPBACK_HOST_OP_UNIMPLEMENTED`.
+unbuilt and fail as `SNAPBACK_HOST_OP_UNIMPLEMENTED`. Both families are
+registered at AdminWrite so an authenticated request reaches that structured
+envelope; unknown names stay unregistered and fail closed before dispatch.
 
-## The exact 17 registry identities
+## The exact 39 registry identities
 
-The HTTP request names above expand into these 17 audited operation identities:
+The HTTP request names above expand into these 39 audited operation
+identities (the last six are the registered CLI-only and pinned-unbuilt
+verbs):
 
 1. `host_ops.app.inspect`
 2. `host_ops.function.explain`
@@ -93,6 +114,28 @@ The HTTP request names above expand into these 17 audited operation identities:
 15. `host_ops.function.run.action`
 16. `host_ops.function.run.unknown`
 17. `host_ops.function.run.impersonated`
+18. `host_ops.asset.put`
+19. `host_ops.asset.ensureSeedFixture`
+20. `host_ops.asset.inspect`
+21. `host_ops.asset.list`
+22. `host_ops.asset.retry`
+23. `host_ops.asset.gcSweep`
+24. `host_ops.asset.delete`
+25. `host_ops.asset.rotateSigningKey`
+26. `host_ops.asset.exportCut`
+27. `host_ops.asset.importCut`
+28. `host_ops.telemetry.stats`
+29. `host_ops.telemetry.events`
+30. `host_ops.telemetry.export`
+31. `host_ops.errors.issues`
+32. `host_ops.errors.issue`
+33. `host_ops.errors.transition`
+34. `host_ops.schema.reload`
+35. `host_ops.functions.reload`
+36. `host_ops.acceptance.run`
+37. `host_ops.host.start`
+38. `host_ops.host.stop`
+39. `host_ops.host.restart`
 
 Query/explain reads, durable writes, credential-producing operations, and
 dev impersonation therefore keep distinct `RoutePolicy`, authority, effect,

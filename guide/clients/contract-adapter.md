@@ -5,12 +5,12 @@ order: 1
 audience: agent-first
 capabilities: [clients.contract, clients.contract-provider-generation, clients.contract-keyed-scopes, clients.mutation-outcomes, clients.optimistic-overlays]
 authorities: [llp/0005-contract-exact-react-integration.explainer.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0063-partitime-platform-roadmap.plan.md, packages/snapback-contract/index.mjs, packages/snapback-contract/keyed-provider.mjs, packages/snapback-contract/online-surface.mjs]
-examples: [demos/todo-v2/surfaces/contract, demos/all-aboard/surfaces/contract, packages/snapback-contract/agent-authority-contract.test.mjs, demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs, demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs]
+examples: [demos/todo-v2/surfaces/contract, demos/all-aboard/surfaces/contract, demos/team-chat/surfaces/contract, packages/snapback-contract/agent-authority-contract.test.mjs, demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs, demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-20
-reviewed-commit: 7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7
+reviewed: 2026-08-03
+reviewed-commit: 3109a3b4f5068595a71448b10788b56b4fa358f5
 ---
 
 # The Contract adapter
@@ -321,6 +321,56 @@ What the surface does for you:
   containment remain correct. See the
   [presence recipe](../recipes/presence-cursors.md) and
   [ephemeral-state reference](../realtime/ephemeral-state.md).
+
+## Call a paged query from a Contract screen
+
+Standard-pattern page pairs (`firstRoomMessagePage` / `nextRoomMessagePage`
+and kin) are **callable-only** `Query` definitions — they cannot be
+subscribed, so they are not Contract data links (see
+[why the pair is callable-only](../backend/standard-patterns.md)). The
+intended composition when a Contract product screen needs one: keep the live
+room state and actions in compiled Contract, and invoke the generated page
+references from a small host/client control through the ordinary Snapback
+client. That boundary is deliberate, not a workaround — a subscribable
+historical page would create one authorization-sensitive subscription per
+visited page.
+
+Team Chat's Contract surface is the CI-verified example
+([demos/team-chat/surfaces/contract/main.ts](repo:demos/team-chat/surfaces/contract/main.ts),
+exercised by the contract-browser acceptance). The host control owns
+loading, terminal, and refusal state and gates every settlement on a
+`disposed` flag so a torn-down screen never renders a late page:
+
+```ts source=demos/team-chat/surfaces/contract/main.ts
+  button.addEventListener('click', () => {
+    error.textContent = '';
+    const request = cursor === null
+      ? client.query(api.firstRoomMessagePage, { args: { roomId }, userId })
+      : client.query(api.nextRoomMessagePage, { args: { roomId, after: cursor }, userId });
+    void request.then((page) => {
+      if (disposed) return;
+      rows = cursor === null ? page.rows : [...rows, ...page.rows];
+      cursor = page.cursor ?? null;
+      terminal = cursor === null;
+      render();
+    }, (cause) => {
+      if (disposed) return;
+      rows = [];
+      cursor = null;
+      terminal = false;
+      error.textContent = cause instanceof Error ? cause.message : String(cause);
+      render();
+    });
+  });
+```
+
+A `null` cursor from the server is the terminal signal (`terminal = cursor
+=== null`); a refused call (for example after losing the room seat) lands in
+the rejection path, which clears the accumulated rows rather than showing
+history the caller can no longer read. The same surface pairs the control
+with a membership live query that blanks the page list the moment the seat
+is revoked — fresh grants are observed by simply calling the first page
+again.
 
 ## Checked helper metadata and result shapes
 

@@ -9,8 +9,8 @@ examples: [admin-ui]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-17
-reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
+reviewed: 2026-08-03
+reviewed-commit: 3109a3b4f5068595a71448b10788b56b4fa358f5
 ---
 
 # Admin console
@@ -20,9 +20,9 @@ reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
 > [auth/targets](../auth/targets.md).
 
 The admin console is Snapback's browser debugger over
-`/_snapback/api/*`. Its Contract app exposes Overview, Schema, Data,
-Functions, Secrets, Capabilities, Realtime, and Diagnostics views from the same
-inspect/scan/runner/config boundaries used by tests and tools. Its Docs tab
+`/_snapback/api/*`. Its Contract app exposes Overview, Health, Errors, Logs,
+Schema, Data, Functions, Secrets, Capabilities, Realtime, and Diagnostics views
+from the same inspect/scan/runner/config boundaries used by tests and tools. Its Docs tab
 renders the build-matched served guide from the generated manifest; the
 console's text renderer never injects guide HTML.
 
@@ -100,6 +100,14 @@ runtime exceptions, zero console errors, and zero policy violations.
 
 - **Overview/Capabilities/Realtime/Diagnostics:** inspect target, artifacts,
   capability gaps, delivery state, receipts, and stable codes.
+- **Health:** telemetry stat tiles, requests over time, per-route/function
+  latency, top volume/error-rate entries, lifecycle markers, and coverage,
+  with a link into Errors when issues need attention.
+- **Errors:** triage open/regressed issues and resolve or ignore them;
+  structural metadata is ordinary admin authority, while raw detail spends a
+  scoped `errors.issue` secret-read lease.
+- **Logs:** filter the same bounded `telemetry.events` operation agents use;
+  raw rows require a `telemetry.events` secret-read lease.
 - **Schema/Data:** inspect declared tables and page through rows; private reads
   remain subject to secret-read scope/budgets.
 - **Functions:** run queries, mutations, and actions through the classified

@@ -1,6 +1,6 @@
 # Guide gap: Contract UI needs a callable-query composition pattern
 
-**Status:** Open
+**Status:** Resolved (2026-08-03)
 **Impact:** 3
 **Urgency:** 2
 **Ease:** 4
@@ -27,3 +27,19 @@ not have to infer this boundary from package APIs.
 - it gives one CI-verified generated-reference example with loading, terminal,
   refusal, and disposal behavior; and
 - the capability index links the example from callable keyset pagination.
+
+## Resolution (2026-08-03)
+
+Absorbed in the guide triage pass. `guide/clients/contract-adapter.md` gained
+"Call a paged query from a Contract screen": callable page pairs are not
+Contract data links — the paved composition is a host/client control invoking
+the generated references beside the compiled Contract surface. The section
+transcludes the Team Chat host control
+(`demos/team-chat/surfaces/contract/main.ts`, exercised by
+`demos/team-chat/tests/acceptance/contract-browser.mjs`), covering loading,
+terminal (`cursor === null`), refusal (rejection path clears accumulated
+rows), and disposal (`disposed` gate on both settlement paths), plus the
+seat-revocation live-query pairing. `guide/backend/standard-patterns.md` links
+the composition from its callable-only paragraph, and the
+`backend.standard-patterns` capability row now carries the `callable
+pagination` keyword and the contract-adapter page link.

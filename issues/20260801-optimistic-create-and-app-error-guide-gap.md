@@ -59,3 +59,13 @@ the normal query store, which made the missing Snapback path especially clear.
 - `node scripts/check-guide.mjs` exercises the example and capability-index
   coverage.
 
+## Running log
+
+- **2026-08-03 — triaged in the guide re-verification pass; remains open.**
+  This ticket's acceptance needs a new CI-verified demo example (intent-ID
+  optimistic create + structured application-error survival through
+  rollback), which is demo build work, not prose absorption — the existing
+  zero-bakeoff sidecar code is bakeoff-arm evidence, not a Guide-led paved
+  example. Deliberately not absorbed docs-only; needs an owner to land the
+  example demo change and guide section together.
+
