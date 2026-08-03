@@ -16,6 +16,7 @@ export interface SnapbackContractQueryDescriptor {
 
 export interface SnapbackContractMutationDescriptor {
   readonly plan?: Readonly<Record<string, unknown>>;
+  readonly atomicOptimisticWithholding?: true;
   readonly [key: string]: unknown;
 }
 

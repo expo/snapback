@@ -458,12 +458,17 @@ const todoPlan = {
     queries: { listTodos: { reads: ['todos'] } },
     mutations: {
       withPlan: { plan: todoPlan },
-      withheld: { optimistic: false, plan: todoPlan },
+      ordinaryJsLegacyFlag: { optimistic: false, plan: todoPlan },
+      withheld: { optimistic: false, atomicOptimisticWithholding: true, plan: todoPlan },
       noPlan: {},
     },
   };
   const derived = deriveOptimisticReducers({ manifest, table: 'todos' });
   assert.ok(typeof derived.withPlan === 'function');
+  assert.ok(
+    typeof derived.ordinaryJsLegacyFlag === 'function',
+    'optimistic:false alone does not carry sequence-atomic withholding authority',
+  );
   assert.ok(!('withheld' in derived));
   assert.ok(!('noPlan' in derived));
 }

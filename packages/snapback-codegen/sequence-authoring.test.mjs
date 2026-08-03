@@ -6,6 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
   buildContractMutationDescriptor,
+  buildContractJsMutationDescriptor,
   contractCapabilitiesForMutations,
   functionImplementationHashRecord,
   generate,
@@ -99,6 +100,7 @@ try {
     sequenceAllocationCount: 1,
   });
   assert.equal(sequenceDescriptor.optimistic, false);
+  assert.equal(sequenceDescriptor.atomicOptimisticWithholding, true);
   assert.equal(sequenceDescriptor.plan, undefined);
   assert.equal(sequenceDescriptor.serverRunnable, true);
   assert.deepEqual(contractCapabilitiesForMutations({ allocate: sequenceDescriptor }), {
@@ -106,6 +108,24 @@ try {
     derivedOptimisticOverlays: false,
     offlineReplay: false,
   });
+  const sequenceJsDescriptor = buildContractJsMutationDescriptor({
+    name: 'allocateJs',
+    args: {},
+    argOrder: [],
+    writes: ['items'],
+    sequenceCount: 1,
+  });
+  assert.equal(sequenceJsDescriptor.optimistic, false);
+  assert.equal(sequenceJsDescriptor.atomicOptimisticWithholding, true);
+  assert.equal(sequenceJsDescriptor.plan, undefined);
+  const ordinaryJsDescriptor = buildContractJsMutationDescriptor({
+    name: 'ordinaryJs',
+    args: {},
+    argOrder: [],
+    writes: ['items'],
+  });
+  assert.equal(ordinaryJsDescriptor.optimistic, false);
+  assert.equal(ordinaryJsDescriptor.atomicOptimisticWithholding, undefined);
 
   writeFileSync(join(dir, 'functions.mjs'), handlerSource({
     sequences: "sequences: ['publicJobs'],",

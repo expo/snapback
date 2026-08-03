@@ -240,6 +240,35 @@ entry.value.z;
     serializeProviderIntrospection(generated.providerIntrospection),
   );
 
+  // Sequence-atomic withholding is a distinct additive Snapback fact. It
+  // survives the closed native binding vocabulary, the neutral extension,
+  // and the Contract projection without overloading optimistic:false.
+  const withholdingContract = clone(contract);
+  withholdingContract.mutations.editTodo.atomicOptimisticWithholding = true;
+  withholdingContract.mutations.editTodo.optimistic = false;
+  delete withholdingContract.mutations.editTodo.plan;
+  const withholdingIntrospection = createSnapbackProviderIntrospection({
+    artifactVersion: withholdingContract.schemaVersion,
+    inputsHash: withholdingContract.inputsHash,
+    schemaHash: withholdingContract.schemaHash,
+    bundleHash: withholdingContract.bundleHash,
+    capabilities: withholdingContract.capabilities,
+    receipts: withholdingContract.receipts,
+    queries: withholdingContract.queries,
+    mutations: withholdingContract.mutations,
+    ephemeral: withholdingContract.ephemeral,
+  });
+  assert.deepEqual(validateProviderIntrospection(withholdingIntrospection), []);
+  assert.equal(
+    withholdingIntrospection.operations.mutations[0]
+      .extensions.snapback.atomicOptimisticWithholding,
+    true,
+  );
+  assert.deepEqual(
+    clone(projectContractDataManifest(withholdingIntrospection)),
+    withholdingContract,
+  );
+
   // The neutral transport representation makes the polling/push contradiction
   // structural rather than a documentation convention.
   const dishonestPoll = clone(generated.providerIntrospection);

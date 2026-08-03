@@ -28,6 +28,7 @@ const EPHEMERAL_QUERY_KEYS = new Set([
 ]);
 const MUTATION_KEYS = new Set([
   'name', 'args', 'argOrder', 'writes', 'invalidates', 'optimistic',
+  'atomicOptimisticWithholding',
   'plan', 'serverRunnable', 'argsHash', 'resultHash', 'resultContract',
   'implementationHash',
 ]);
@@ -739,6 +740,12 @@ function queryOperation(name, binding) {
 function mutationOperation(name, binding) {
   const hasProviderPlan = binding?.plan !== undefined;
   const optimistic = binding?.optimistic === true;
+  const snapbackExtensions = {
+    ...(hasProviderPlan ? { contractPlan: binding.plan } : {}),
+    ...(binding?.atomicOptimisticWithholding === true
+      ? { atomicOptimisticWithholding: true }
+      : {}),
+  };
   return {
     name,
     arguments: argumentsDescriptor(binding),
@@ -755,8 +762,8 @@ function mutationOperation(name, binding) {
       source: optimistic ? (hasProviderPlan ? 'provider-plan' : 'consumer') : 'none',
     },
     ...(binding?.implementationHash ? { contract: contractWitness(binding) } : {}),
-    ...(hasProviderPlan
-      ? { extensions: { snapback: { contractPlan: binding.plan } } }
+    ...(Object.keys(snapbackExtensions).length > 0
+      ? { extensions: { snapback: snapbackExtensions } }
       : {}),
   };
 }
@@ -911,6 +918,8 @@ function projectQuery(operation, isEphemeral) {
 
 function projectMutation(operation) {
   const plan = operation.extensions?.snapback?.contractPlan;
+  const atomicOptimisticWithholding =
+    operation.extensions?.snapback?.atomicOptimisticWithholding === true;
   return {
     name: operation.name,
     args: operation.arguments.fields,
@@ -918,6 +927,7 @@ function projectMutation(operation) {
     writes: operation.effects.writes,
     invalidates: operation.effects.invalidates,
     optimistic: operation.optimistic.supported,
+    ...(atomicOptimisticWithholding ? { atomicOptimisticWithholding: true } : {}),
     ...(operation.contract
       ? {
           implementationHash: operation.contract.implementationHash,
@@ -1006,6 +1016,11 @@ function validateMutation(operation, path, add) {
   }
   if (operation?.optimistic?.source === 'provider-plan' && operation?.extensions?.snapback?.contractPlan === undefined) {
     add(`${path}.extensions.snapback.contractPlan`, 'is required for Snapback provider-plan optimism');
+  }
+  const atomicOptimisticWithholding =
+    operation?.extensions?.snapback?.atomicOptimisticWithholding;
+  if (atomicOptimisticWithholding !== undefined && atomicOptimisticWithholding !== true) {
+    add(`${path}.extensions.snapback.atomicOptimisticWithholding`, 'must be true when present');
   }
   if (operation?.contract !== undefined) {
     validateContractWitness(operation.contract, `${path}.contract`, add);

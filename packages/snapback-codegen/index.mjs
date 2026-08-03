@@ -2016,15 +2016,13 @@ export async function generateInProcess(backendDir, options = {}) {
           details: { function: name, class: def.outgrewIr },
         });
       }
-      contractMutations[name] = {
+      contractMutations[name] = buildContractJsMutationDescriptor({
         name,
         args: argDescriptors(def.args),
         argOrder: Object.keys(def.args),
         writes,
-        invalidates: writes,
-        optimistic: false,
-        serverRunnable: true,
-      };
+        sequenceCount: (def.sequences ?? []).length,
+      });
     } else if (def.__kind === 'Mutation') {
       const writes = new Set();
       let sequenceAllocationCount = 0;
@@ -5190,10 +5188,30 @@ export function buildContractMutationDescriptor({
     // IR-tier mutations normally embed their plan (Exact LLP 0329 E-B), so
     // the adapter can derive the default optimistic overlay from it.
     optimistic,
+    ...(sequenceAllocationCount > 0 ? { atomicOptimisticWithholding: true } : {}),
     // Sequence allocation is authoritative-only in the substrate checkpoint.
     // The Contract adapter cannot ledger this step plus later host-owned WWA
     // ids yet, so withholding the plan also withholds durable lane-Q replay.
     ...(optimistic ? { plan } : {}),
+    serverRunnable: true,
+  };
+}
+
+export function buildContractJsMutationDescriptor({
+  name,
+  args,
+  argOrder,
+  writes,
+  sequenceCount = 0,
+}) {
+  return {
+    name,
+    args,
+    argOrder,
+    writes,
+    invalidates: writes,
+    optimistic: false,
+    ...(sequenceCount > 0 ? { atomicOptimisticWithholding: true } : {}),
     serverRunnable: true,
   };
 }

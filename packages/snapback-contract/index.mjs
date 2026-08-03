@@ -1796,7 +1796,7 @@ export async function createSnapbackContractSurface({
     }
     for (const record of restoredPending) {
       const descriptor = manifest?.mutations?.[record.function];
-      const reducer = descriptor?.optimistic === false
+      const reducer = descriptor?.atomicOptimisticWithholding === true
         ? null
         : typeof optimisticReducers[record.function] === 'function'
           ? optimisticReducers[record.function]
@@ -2189,7 +2189,7 @@ export async function createSnapbackContractSurface({
     for (const name of mutationNames) {
       const descriptor = manifest?.mutations?.[name];
       const appReducer = optimisticReducers[name];
-      const optimisticWithheld = descriptor?.optimistic === false;
+      const optimisticWithheld = descriptor?.atomicOptimisticWithholding === true;
       const activeReducer = optimisticWithheld
         ? null
         : typeof appReducer === 'function' ? appReducer : derivedReducers[name] ?? null;

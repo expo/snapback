@@ -273,6 +273,36 @@ export const baseline = defineLiveQuery({
   const guardedDelete = guardedProfile(defineApi.mutationPlan(
     defineApi.del('tasks', defineApi.arg('taskId')),
   ));
+  const legacyShadowing = guardedProfile(defineApi.mutationPlan(
+    defineApi.letBind('legacy-shadow', defineApi.literal(1)),
+    defineApi.letBind('legacy-shadow', defineApi.literal(2)),
+    defineApi.patch('tasks', defineApi.arg('taskId'), {
+      body: defineApi.literal('shadow-compatible'),
+    }),
+  ));
+  assert.equal(
+    legacyShadowing.plan.steps.filter((step) => step.Let?.bind_as === 'legacy-shadow').length,
+    2,
+    'non-sequence WWA preserves legacy binding shadowing',
+  );
+  const sequenceWithUnrelatedLegacyShadowing = guardedProfile(defineApi.mutationPlan(
+    defineApi.letBind('legacy-shadow', defineApi.literal(1)),
+    defineApi.letBind('legacy-shadow', defineApi.literal(2)),
+    defineApi.patch('tasks', defineApi.arg('taskId'), {
+      body: defineApi.literal('sequence shadow-compatible'),
+    }),
+    defineApi.allocateSequence(
+      'taskPositions',
+      defineApi.arg('incidentId'),
+      'position',
+    ),
+  ));
+  assert.equal(
+    sequenceWithUnrelatedLegacyShadowing.plan.steps
+      .filter((step) => step.Let?.bind_as === 'legacy-shadow').length,
+    2,
+    'sequence WWA rejects only collisions involving the allocation binding',
+  );
   const assertCurrentRelation = (step, id) => {
     assert.deepEqual(step?.AssertCurrentRelation, {
       table: 'tasks',
@@ -380,6 +410,7 @@ export const baseline = defineLiveQuery({
     sequenceAllocationCount: 1,
   });
   assert.equal(sequenceDescriptor.optimistic, false);
+  assert.equal(sequenceDescriptor.atomicOptimisticWithholding, true);
   assert.equal(sequenceDescriptor.plan, undefined);
   assert.equal(sequenceDescriptor.serverRunnable, true);
   assert.deepEqual(
