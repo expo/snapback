@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { asc, defineJsMutation } from './define.mjs';
+import { allocateSequence, arg, asc, defineJsMutation } from './define.mjs';
 import {
   buildContractJsMutationDescriptor,
   buildContractMutationDescriptor,
@@ -37,6 +37,22 @@ assert.throws(
   }),
   /scopeAccess/,
 );
+for (const name of ['bad/name', '9jobs', '_snapbackJobs', '_auth', '_AUTH_jobs']) {
+  assert.throws(
+    () => defineJsMutation({
+      writes: ['jobs'],
+      sequences: [{ ...declaration[0], name }],
+      handler: async () => null,
+    }),
+    /non-reserved user identifier/,
+    `handler sequence counter ${name} must refuse before generation`,
+  );
+  assert.throws(
+    () => allocateSequence(name, arg('orgId'), 'jobNumber'),
+    /non-reserved user identifier/,
+    `generated WWA sequence counter ${name} must refuse at authoring`,
+  );
+}
 assert.deepEqual(asc('title', { maxEncodedBytes: 8 }), {
   field: 'title', direction: 'Asc', maxEncodedBytes: 8,
 });

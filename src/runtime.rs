@@ -15,7 +15,7 @@ use crate::manifest::{
 use crate::storage::{
     BufferedMembershipCommand, BufferedWrite, CapturedReadDependency, CapturedReadKind, DbRead,
     LocalDatabase, MembershipWriter, MutationCommit, SEQUENCE_MAX_SAFE_INTEGER,
-    SequenceAllocationFact,
+    SequenceAllocationFact, validate_sequence_allocation_fact,
 };
 use crate::warm_vm::WarmVmPool;
 use libc::{c_char, c_int, c_void, size_t};
@@ -1734,13 +1734,15 @@ impl<'a> IbexHostContext<'a> {
                         "sequence counter has exhausted the JavaScript-safe integer domain",
                     ));
                 }
-                self.sequence_allocations.push(SequenceAllocationFact {
+                let allocation = SequenceAllocationFact {
                     counter,
                     scope_table: declaration.scope_table,
                     scope_row_id,
                     scope_incarnation: incarnation,
                     value,
-                });
+                };
+                validate_sequence_allocation_fact(&allocation)?;
+                self.sequence_allocations.push(allocation);
                 Ok(Value::Number(value.into()))
             }
             // Transactional one-off enqueue (LLP 0070 first slice). Mutations

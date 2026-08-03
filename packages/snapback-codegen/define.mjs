@@ -28,6 +28,14 @@ const PUSH_SEAM = Symbol('snapback.pushSeam');
 const OBJECT_GET_PROTOTYPE_OF = Object.getPrototypeOf;
 const REFLECT_APPLY = Reflect.apply;
 const ARRAY_SLICE = Array.prototype.slice;
+const USER_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/u;
+const isUserIdentifier = (value) => {
+  if (typeof value !== 'string' || !USER_IDENTIFIER.test(value) || value.startsWith('_snapback')) {
+    return false;
+  }
+  const folded = value.toLowerCase();
+  return folded !== '_auth' && !folded.startsWith('_auth_');
+};
 const AUTH_MODES = new Set(['dev', 'sessions']);
 const AUTH_REQUIREMENTS = new Set(['public', 'optional-user', 'authenticated']);
 const AUTHORIZATION_DIMENSIONS = new Set([
@@ -2358,8 +2366,8 @@ export const assertSourceChanged = (table, id, operation) => {
  * @ref LLP 0135#12-allocation-surfaces */
 export const allocateSequence = (counter, scope, into) => {
   assert(
-    typeof counter === 'string' && /^[A-Za-z_][A-Za-z0-9_]*$/u.test(counter),
-    'allocateSequence() counter must be an identifier',
+    isUserIdentifier(counter),
+    'allocateSequence() counter must be a non-reserved user identifier',
   );
   assert(
     typeof into === 'string' && /^[A-Za-z_][A-Za-z0-9_]*$/u.test(into),
@@ -2918,10 +2926,16 @@ function normalizeSequences(sequences) {
         && Object.keys(sequence).length === 3,
       `defineJsMutation sequences[${index}] must be exactly { name, scopeTable, scopeAccess }`,
     );
-    assert(typeof sequence.name === 'string' && sequence.name.length > 0, `sequences[${index}].name must be non-empty`);
+    assert(
+      isUserIdentifier(sequence.name),
+      `sequences[${index}].name must be a non-reserved user identifier`,
+    );
     assert(!names.has(sequence.name), `sequence ${sequence.name} is declared more than once`);
     names.add(sequence.name);
-    assert(typeof sequence.scopeTable === 'string' && sequence.scopeTable.length > 0, `sequence ${sequence.name} scopeTable must be non-empty`);
+    assert(
+      isUserIdentifier(sequence.scopeTable),
+      `sequence ${sequence.name} scopeTable must be a non-reserved user identifier`,
+    );
     let scopeAccess;
     if (sequence.scopeAccess === 'public.v1') {
       scopeAccess = 'public.v1';

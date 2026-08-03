@@ -134,7 +134,8 @@
     "external_auth",
     "notifications",
     "ephemeral_hosted_adapter",
-    "ephemeral_multi_instance_sticky_routing"
+    "ephemeral_multi_instance_sticky_routing",
+    "sequence_allocation_v1"
   ],
   "capabilityMaturity": {
     "args_contract_v1": "experimental",
@@ -148,7 +149,6 @@
     "jobs_one_off_v1": "experimental",
     "registered_bundle_boot_v1": "experimental",
     "result_contract_v1": "experimental",
-    "sequence_allocation_v1": "experimental",
     "versioned_seed_install_v1": "experimental",
     "versioned_seed_reset_v1": "experimental",
     "write_activity_v1": "experimental"
@@ -379,7 +379,6 @@
     "permission_epoch_resync",
     "registered_bundle_boot_v1",
     "relational_query_v1",
-    "sequence_allocation_v1",
     "migration_keyset_scan_v1",
     "full_text_search_v1",
     "result_contract_v1",
