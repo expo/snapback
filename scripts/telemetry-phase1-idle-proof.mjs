@@ -38,14 +38,26 @@ const IDLE_SAMPLE_MS = smoke ? 250 : 1_000;
 const EXACT_SETTLE_EVENT_BATCHES = 1;
 const EXACT_SETTLE_FLUSH_COMMITS = 1;
 const MAX_SETTLE_EVENTS = 4;
-const RESOURCE_CEILINGS = smoke
-  ? { cpuTicksDelta: 25, rssGrowthPages: 512 }
-  : { cpuTicksDelta: 1, rssGrowthPages: 8 };
 const RESOURCE_RESOLUTION = {
   clockTicksPerSecond: numericGetconf('CLK_TCK'),
   cpuTickMilliseconds: 1_000 / numericGetconf('CLK_TCK'),
   pageSizeBytes: numericGetconf('PAGESIZE'),
 };
+// This is a process-wide noise band, not the C2 zero-write invariant. The
+// ordinary proof server deliberately leaves its non-telemetry cron, jobs,
+// maintenance, and asset schedulers armed. Bound their aggregate CPU to less
+// than one tenth of a second over the two-minute window while proving the
+// storage invariant separately and exactly.
+const FULL_IDLE_CPU_CEILING_MS = 100;
+const RESOURCE_CEILINGS = smoke
+  ? { cpuTicksDelta: 25, rssGrowthPages: 512 }
+  : {
+      cpuTimeMs: FULL_IDLE_CPU_CEILING_MS,
+      cpuTicksDelta: Math.ceil(
+        FULL_IDLE_CPU_CEILING_MS / RESOURCE_RESOLUTION.cpuTickMilliseconds,
+      ),
+      rssGrowthPages: 8,
+    };
 
 if (!smoke && (!existsSync('/proc/self/io') || !existsSync('/proc/self/stat'))) {
   throw new Error(

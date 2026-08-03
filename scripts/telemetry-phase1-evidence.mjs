@@ -166,7 +166,14 @@ function validateReceipt(receipt) {
   assert(Number.isFinite(idle.idle?.resourceResolution?.clockTicksPerSecond), 'idle CPU resolution');
   assert(idle.idle?.resourceResolution?.cpuTickMilliseconds <= 10, 'idle CPU tick resolution');
   assert(Number.isFinite(idle.idle?.resourceResolution?.pageSizeBytes), 'idle page resolution');
-  assert(idle.idle?.resourceCeilings?.cpuTicksDelta === 1, 'idle CPU ceiling baseline');
+  assert(idle.idle?.resourceCeilings?.cpuTimeMs === 100, 'idle CPU time ceiling baseline');
+  assert(
+    idle.idle?.resourceCeilings?.cpuTicksDelta === Math.ceil(
+      idle.idle.resourceCeilings.cpuTimeMs
+        / idle.idle.resourceResolution.cpuTickMilliseconds,
+    ),
+    'idle CPU tick ceiling derives from procfs clock resolution',
+  );
   assert(idle.idle?.resourceCeilings?.rssGrowthPages === 8, 'idle RSS noise band');
   assert(idle.idle?.resources?.cpuTicksDelta <= idle.idle?.resourceCeilings?.cpuTicksDelta, 'idle CPU ceiling');
   assert(idle.idle?.resources?.rssGrowthPages <= idle.idle?.resourceCeilings?.rssGrowthPages, 'idle RSS ceiling');
