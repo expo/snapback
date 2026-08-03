@@ -5,7 +5,11 @@
 **Systems:** Search, Storage, Schema, Code generation, Auth, Client integration, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-08-02 (VEC-0 numeric-authority checkpoint: committed the
+**Revised:** 2026-08-02 (VEC-1 storage-primitives checkpoint: pinned canonical
+little-endian binary64 bytes, the admitted-vector JCS digest, mutation-global
+vector maintenance accounting, source-frontier CAS/tombstone classification,
+and the write-side maintenance diagnostic split; no storage adapter or support
+claim) 2026-08-02 (VEC-0 numeric-authority checkpoint: committed the
 Rust-owned `snapback-vector-distance-v1` profile artifact and schema, JCS
 payload digest, independent BigInt exact-arithmetic derivation, and shared
 Rust/JavaScript witnesses for the named binary64 divergence classes; this is
@@ -387,8 +391,12 @@ projection** — named explicitly so 0073 open question 12's
 Stable diagnostics: `SNAPBACK_VECTOR_QUERY_INVALID`,
 `SNAPBACK_VECTOR_WORK_LIMIT`, `SNAPBACK_VECTOR_INDEX_UNAVAILABLE`,
 `SNAPBACK_VECTOR_INDEX_CORRUPT`, `SNAPBACK_VECTOR_VALUE_INVALID`,
-`SNAPBACK_VECTOR_CORPUS_BOUND` — all on the existing structured
-`Diagnostic` envelope.
+`SNAPBACK_VECTOR_CORPUS_BOUND`, `SNAPBACK_VECTOR_MAINTENANCE_LIMIT`, and
+`SNAPBACK_VECTOR_MAINTENANCE_FAILED` — all on the existing structured
+`Diagnostic` envelope. The last two transfer LLP 0073's write-side split:
+`MAINTENANCE_LIMIT` is the planned aggregate-effects/bytes refusal before any
+write, while `MAINTENANCE_FAILED` is inability to produce or commit the required
+derived state. Neither is query `WORK_LIMIT` or authored `VALUE_INVALID`.
 
 ## Candidate-to-release consistency
 
@@ -685,6 +693,23 @@ there is still no vector field/declaration carrier, index storage, query,
 authorization/release seam, client surface, target receipt, capability-registry
 entry, or support fact. The Guide therefore remains an explicit design-only
 GAP.
+
+## Implementation record — 2026-08-02: storage primitives only
+
+The collision-safe storage primitive layer is present without a database
+adapter. It admits and encodes vectors as fixed-width little-endian binary64,
+revalidates all stored bytes while treating negative-zero bytes as corruption,
+and hashes the admitted component JSON array through the repository's RFC 8785
+authority rather than hashing storage bytes. One checked accumulator composes
+the 1,024 posting-effect and 4 MiB vector-byte ceilings across every vector
+index touched by a mutation; failed charges leave it unchanged. Closed source
+identity/frontier values classify CAS work as apply, exact-idempotent, stale,
+or corrupt and retain tombstones against older replay.
+
+This checkpoint also makes the write-side diagnostic split above explicit,
+matching LLP 0073 instead of misclassifying transaction planning as query work.
+It creates no tables, schema/manifest carriers, query or runtime wiring, target
+qualification, capability fact, or Guide claim.
 
 ## Non-goals and claim boundary
 
