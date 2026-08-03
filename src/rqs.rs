@@ -1692,6 +1692,43 @@ impl ResumeKeyring {
         keys
     }
 
+    /// Root material for the purpose-derived snapshot-batch AEAD. The
+    /// `sbsb1` lifetime matches bounded children, but its codec derives a
+    /// separate key and AAD domain from the shared root custody.
+    ///
+    /// @ref LLP 0135#24-composite-cursor-and-coordinated-resume — shared
+    ///   keyring custody with a distinct purpose and 14-day verification
+    ///   overlap.
+    #[cfg_attr(not(test), allow(dead_code))] // Consumed by the snapshot-batch runtime lane.
+    pub(crate) fn snapshot_batch_cursor_materials(&self, now_ms: u64) -> Vec<(String, [u8; 32])> {
+        let mut keys = self
+            .keys
+            .iter()
+            .filter(|key| {
+                key.retired_at_ms.is_none_or(|retired_at| {
+                    now_ms.saturating_sub(retired_at) <= crate::snapshot_batch_cursor::MAX_AGE_MS
+                })
+            })
+            .map(|key| (key.key_id.clone(), *key.secret))
+            .collect::<Vec<_>>();
+        keys.sort_by(|left, right| {
+            let active_left = self
+                .keys
+                .iter()
+                .find(|key| key.key_id == left.0)
+                .is_some_and(|key| key.retired_at_ms.is_none());
+            let active_right = self
+                .keys
+                .iter()
+                .find(|key| key.key_id == right.0)
+                .is_some_and(|key| key.retired_at_ms.is_none());
+            active_right
+                .cmp(&active_left)
+                .then_with(|| left.0.cmp(&right.0))
+        });
+        keys
+    }
+
     /// Resolve a presented key id for verification under the overlap window.
     fn verification_key(&self, key_id: &str, now_ms: u64) -> Result<&ResumeKey, &'static str> {
         let key = self
@@ -2357,6 +2394,25 @@ mod tests {
         let second = ResumeKeyring::load_or_create(path.clone(), 600);
         assert!(decode_and_verify(&wire, &second, 2_000, RESUME_TOKEN_MAX_AGE_MS).is_ok());
         let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn snapshot_batch_cursor_materials_keep_only_the_fourteen_day_overlap() {
+        let mut ring = ResumeKeyring::in_memory(500);
+        let (retired_generation, _) = ring.active(500).expect("initial root");
+        ring.retire_all_for_test(1_000);
+        ring.mint_active(1_000);
+
+        let inside =
+            ring.snapshot_batch_cursor_materials(1_000 + crate::snapshot_batch_cursor::MAX_AGE_MS);
+        assert_eq!(inside.len(), 2);
+        assert_ne!(inside[0].0, retired_generation, "active root sorts first");
+        assert!(inside.iter().any(|entry| entry.0 == retired_generation));
+
+        let outside = ring
+            .snapshot_batch_cursor_materials(1_000 + crate::snapshot_batch_cursor::MAX_AGE_MS + 1);
+        assert_eq!(outside.len(), 1);
+        assert_ne!(outside[0].0, retired_generation);
     }
 
     #[test]

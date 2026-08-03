@@ -118,6 +118,7 @@ pub mod seed_identity;
 pub mod server;
 #[doc(hidden)]
 pub mod service_profile;
+pub(crate) mod snapshot_batch_cursor;
 #[doc(hidden)]
 pub mod storage;
 #[doc(hidden)]
