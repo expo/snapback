@@ -147,6 +147,19 @@ import { validateSnapbackContractArtifacts } from './artifact-validation.mjs';
 const durableStoreRegistrations = new WeakMap();
 const durableQueryAuthorizationTails = new WeakMap();
 
+// Sequence-atomic descriptors come only from the normalized
+// write-with-activity profile. That profile forbids authored RuntimeId sites;
+// its fixed ctx-ledger consumption is one host-minted row id for every
+// top-level Insert (activity plus, for an insert source, the source row).
+// Capture those ids without evaluating AllocateSequence or publishing rows.
+function atomicWithheldLedgerIdCount(plan) {
+  const steps = plan?.steps;
+  if (!Array.isArray(steps)) return null;
+  const allocations = steps.filter((step) => step?.AllocateSequence !== undefined).length;
+  const inserts = steps.filter((step) => step?.Insert !== undefined).length;
+  return allocations === 1 && (inserts === 1 || inserts === 2) ? inserts : null;
+}
+
 // @ref LLP 0053#client-fences — render/query generations and queued-mutation
 //   custody advance independently, serialized through the shared client store.
 function createContractQueryAuthorizationQueue(store, capture, authorizedQuery = null) {
@@ -2217,7 +2230,7 @@ export async function createSnapbackContractSurface({
           // queue, and transport; evaluating raw args and serializing them
           // again could underfill the RuntimeId ledger.
           let mutationArgs = args;
-          if (derivedReducers[name]) {
+          if (descriptor?.plan !== undefined) {
             try {
               mutationArgs = canonicalizeJsonValue(args ?? {});
             } catch (error) {
@@ -2225,14 +2238,26 @@ export async function createSnapbackContractSurface({
             }
           }
           let optimisticOp = null;
-          if (typeof reducer === 'function') {
+          let nowMs = null;
+          let runtimeId = null;
+          const withheldLedgerIds = optimisticWithheld
+            ? atomicWithheldLedgerIdCount(descriptor?.plan)
+            : null;
+          if (optimisticWithheld && withheldLedgerIds === null) {
+            const error = new Error(
+              `Atomic optimistic withholding for ${name} requires a generated sequence write-with-activity plan`,
+            );
+            error.code = 'SNAPBACK_CONTRACT_MANIFEST_INVALID';
+            return { error };
+          }
+          if (typeof reducer === 'function' || withheldLedgerIds !== null) {
             // The mutation id no longer embeds the function name: the queued
             // record stores `function` beside the id, so carrying it twice only
             // bought a prefix that breaks the LLP 0148 grammar.
             const mutationId = createClientMutationId();
             const ledgerIds = [];
-            const nowMs = Date.now();
-            const runtimeId = () => {
+            nowMs = Date.now();
+            runtimeId = () => {
               if (ledgerIds.length >= 1024) {
                 const error = new Error('offline replay ledger exceeded 1024 ids');
                 error.code = 'SNAPBACK_CTX_LEDGER_LIMIT_EXCEEDED';
@@ -2249,10 +2274,15 @@ export async function createSnapbackContractSurface({
               args: mutationArgs,
               optimisticId: `optimistic_${++optimisticSeq}`,
               baseVersion: maxServerRowVersion(lastServerRows),
-              ctxLedger: derivedReducers[name]
+              ctxLedger: derivedReducers[name] || withheldLedgerIds !== null
                 ? { version: 1, ids: ledgerIds, now: nowMs }
                 : null,
             };
+            if (withheldLedgerIds !== null) {
+              for (let index = 0; index < withheldLedgerIds; index += 1) runtimeId();
+            }
+          }
+          if (typeof reducer === 'function') {
             let rollbackRows = lastServerRows;
             try {
               // Reducers are app code and may mutate their input before

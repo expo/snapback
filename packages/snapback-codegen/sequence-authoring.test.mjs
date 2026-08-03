@@ -53,12 +53,15 @@ const sequenceIrDescriptor = buildContractMutationDescriptor({
 });
 assert.equal(sequenceIrDescriptor.optimistic, false);
 assert.equal(sequenceIrDescriptor.atomicOptimisticWithholding, true);
-assert.equal(sequenceIrDescriptor.plan, undefined);
+assert.deepEqual(sequenceIrDescriptor.plan, {
+  steps: [{ AllocateSequence: {} }],
+  return_value: null,
+});
 assert.equal(sequenceIrDescriptor.serverRunnable, true);
 assert.deepEqual(contractCapabilitiesForMutations({ allocateIr: sequenceIrDescriptor }), {
   optimisticMutations: false,
   derivedOptimisticOverlays: false,
-  offlineReplay: false,
+  offlineReplay: true,
 });
 const sequenceJsDescriptor = buildContractJsMutationDescriptor({
   name: 'allocateJs',

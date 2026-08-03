@@ -15,6 +15,10 @@ import {
   SNAPBACK_CLIENT_STORE_VERSION,
   legacySnapbackAuthFingerprint,
 } from './client-store.mjs';
+import {
+  buildContractMutationDescriptor,
+  contractCapabilitiesForMutations,
+} from '../snapback-codegen/index.mjs';
 import { todoOptimisticReducers } from '../../demos/todo/surfaces/contract/optimistic.mjs';
 
 const USER = 'user_offline';
@@ -486,24 +490,138 @@ second.dispose();
   );
   restored.dispose();
 
+  const sequenceWwaPlan = {
+    steps: [
+      {
+        Get: {
+          table: 'orgs',
+          id: { Arg: 'orgId' },
+          bind_as: 'scopeOwner',
+          else_error: 'SNAPBACK_RELATION_PARENT_UNAVAILABLE',
+        },
+      },
+      {
+        Guard: {
+          cond: { Literal: true },
+          else_error: 'SNAPBACK_RELATION_PARENT_UNAVAILABLE',
+        },
+      },
+      {
+        AllocateSequence: {
+          counter: 'jobNumber',
+          scope: { Arg: 'orgId' },
+          into: 'sequence',
+        },
+      },
+      {
+        Patch: {
+          table: 'todos',
+          id: { Arg: 'id' },
+          values: { completed: { Arg: 'completed' } },
+        },
+      },
+      {
+        AssertSourceChanged: {
+          table: 'todos',
+          id: { Arg: 'id' },
+          operation: 'Patch',
+        },
+      },
+      {
+        Insert: {
+          table: 'activity',
+          values: {
+            sourceId: { Arg: 'id' },
+            occurredAt: 'RuntimeNow',
+          },
+          bind_id_as: 'activityId',
+        },
+      },
+    ],
+    return_value: { Binding: 'sequence' },
+  };
+  const withheldDescriptor = buildContractMutationDescriptor({
+    name: 'setCompleted',
+    args: jsManifest.mutations.setCompleted.args,
+    argOrder: jsManifest.mutations.setCompleted.argOrder,
+    writes: jsManifest.mutations.setCompleted.writes,
+    plan: sequenceWwaPlan,
+    sequenceAllocationCount: 1,
+  });
   const withheldManifest = {
     ...jsManifest,
-    mutations: {
-      setCompleted: {
-        ...jsManifest.mutations.setCompleted,
-        atomicOptimisticWithholding: true,
-      },
+    inputsHash: 'offline-withheld-inputs',
+    schemaHash: 'offline-withheld-schema',
+    bundleHash: 'offline-withheld-bundle',
+    capabilities: contractCapabilitiesForMutations({ setCompleted: withheldDescriptor }),
+    mutations: { setCompleted: withheldDescriptor },
+  };
+  const withheldClient = makeClient();
+  withheldClient.state.rows = [{
+    _id: 'todo_withheld_restore',
+    _version: 1,
+    title: 'authoritative only',
+    completed: false,
+    userId: USER,
+  }];
+  withheldClient.state.version = 1;
+  const withheldState = {};
+  const withheldIdentity = {
+    artifactIndex: { appId: 'offline-withheld-app' },
+    schemaManifest: {
+      schemaHash: withheldManifest.schemaHash,
+      targetProfile: 'local-dev-sqlite-ibex',
+    },
+    retainedIdentity: {
+      databaseId: 'offline-withheld-db',
+      versionStreamId: 'offline-withheld-stream-1',
     },
   };
-  const withheldStore = createMemorySnapbackClientStore({ state: jsState });
-  const withheld = await jsSurface(withheldStore, withheldManifest);
+  const withheldSurface = (store) => createSnapbackContractSurface({
+    runtime,
+    client: withheldClient,
+    clientStore: store,
+    userId: USER,
+    manifest: withheldManifest,
+    queryName: 'listTodos',
+    boundaryKey: 'todos',
+    optimisticReducers: { setCompleted: todoOptimisticReducers.setCompleted },
+    ...withheldIdentity,
+  });
+  const withheldOnlineStore = createMemorySnapbackClientStore({ state: withheldState });
+  const withheldOnline = await withheldSurface(withheldOnlineStore);
+  withheldClient.state.online = false;
+  const queuedResult = await withheldOnline.links.setCompleted({
+    id: 'todo_withheld_restore',
+    orgId: 'org-1',
+    completed: true,
+  });
+  assert.equal(queuedResult.queued, true);
   assert.equal(
-    withheld.boundary.current('todos')[0].completed,
+    withheldOnline.boundary.current('todos')[0].completed,
     false,
-    'atomic withholding suppresses app reducers on the restored-pending branch',
+    'fresh atomic withholding queues intent without presenting app reducer rows',
   );
-  assert.equal(withheld.pendingCount(), 1, 'withheld work remains durably pending');
-  withheld.dispose();
+  const [withheldQueued] = await withheldOnlineStore.pendingMutations();
+  assert.equal(withheldQueued.ctxLedger.ids.length, 1, 'patch WWA mints only its activity row id');
+  assert.equal(withheldQueued.ctxLedger.now >= 0, true);
+  withheldOnline.dispose();
+
+  const withheldRestoredStore = createMemorySnapbackClientStore({ state: withheldState });
+  const withheldRestored = await withheldSurface(withheldRestoredStore);
+  assert.equal(withheldRestored.retained(), true);
+  assert.equal(withheldRestored.pendingCount(), 1);
+  assert.equal(
+    withheldRestored.boundary.current('todos')[0].completed,
+    false,
+    'reload keeps the atomic pending intent withheld from presentation',
+  );
+  withheldClient.state.online = true;
+  assert.deepEqual(await withheldRestored.reconnect(), { replayed: 1, failed: 0 });
+  assert.equal(withheldRestored.pendingCount(), 0);
+  assert.equal(withheldClient.state.rows[0].completed, true);
+  assert.equal(withheldClient.state.deliveries.length, 1);
+  withheldRestored.dispose();
 }
 
 // A foreground reconnect must not turn a failed durable custody read into a

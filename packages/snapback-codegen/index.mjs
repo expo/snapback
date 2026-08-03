@@ -5333,10 +5333,10 @@ export function buildContractMutationDescriptor({
     // the adapter can derive the default optimistic overlay from it.
     optimistic,
     ...(sequenceAllocationCount > 0 ? { atomicOptimisticWithholding: true } : {}),
-    // Sequence allocation is authoritative-only. Until the client queue can
-    // ledger and replay the complete host-owned operation, withholding the
-    // plan also withholds both derived overlays and durable lane-Q replay.
-    ...(sequenceAllocationCount === 0 ? { plan } : {}),
+    // The complete plan remains the durable lane-Q replay authority. Sequence
+    // allocation is withheld only from optimistic presentation; reconnect may
+    // still submit the original intent for idempotent authoritative settlement.
+    plan,
     serverRunnable: true,
   };
 }
@@ -5369,10 +5369,7 @@ export function contractCapabilitiesForMutations(contractMutations) {
       && descriptor.atomicOptimisticWithholding !== true,
   );
   const allMutationsReplayable = descriptors.length > 0
-    && descriptors.every(
-      (descriptor) => descriptor.plan !== undefined
-        && descriptor.atomicOptimisticWithholding !== true,
-    );
+    && descriptors.every((descriptor) => descriptor.plan !== undefined);
   return {
     optimisticMutations: hasDerivedOverlayMutations,
     derivedOptimisticOverlays: hasDerivedOverlayMutations,

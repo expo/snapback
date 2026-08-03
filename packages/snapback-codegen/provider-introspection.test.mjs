@@ -7,7 +7,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import Ajv2020 from 'ajv/dist/2020.js';
 
-import { generate } from './index.mjs';
+import { buildContractMutationDescriptor, generate } from './index.mjs';
 import {
   PROVIDER_ADAPTER_HANDSHAKE_VERSION,
   PROVIDER_BINDING_METADATA_SCHEMA_VERSION,
@@ -244,9 +244,11 @@ entry.value.z;
   // survives the closed native binding vocabulary, the neutral extension,
   // and the Contract projection without overloading optimistic:false.
   const withholdingContract = clone(contract);
-  withholdingContract.mutations.editTodo.atomicOptimisticWithholding = true;
-  withholdingContract.mutations.editTodo.optimistic = false;
-  delete withholdingContract.mutations.editTodo.plan;
+  withholdingContract.mutations.editTodo = buildContractMutationDescriptor({
+    ...withholdingContract.mutations.editTodo,
+    plan: withholdingContract.mutations.editTodo.plan,
+    sequenceAllocationCount: 1,
+  });
   const withholdingIntrospection = createSnapbackProviderIntrospection({
     artifactVersion: withholdingContract.schemaVersion,
     inputsHash: withholdingContract.inputsHash,
