@@ -7,9 +7,9 @@ use crate::manifest::{
     MutationOutput, MutationPlan, MutationSettlement, MutationStep, OrderDirection, OrderExpr,
     PORTABLE_STORAGE_VERSION_MAX, QUERY_INTERNAL_OVERFETCH_MAX, QUERY_MAX_FILTER_BINDINGS,
     QUERY_MAX_IN_ITEMS, QueryOutput, QueryPlan, ReadDependency, ReturnValue, SchemaManifest,
-    SeedData, SettlementMintObservation, SettlementTimeObservation, TableManifest, ValueExpr, auth_fingerprint,
-    effective_query_limit, is_user_identifier, replay_opaque_id_is_valid, validate_ctx_answer_ledger,
-    validate_portable_timestamp_millis, validate_query_plan_shape,
+    SeedData, SettlementMintObservation, SettlementTimeObservation, TableManifest, ValueExpr,
+    auth_fingerprint, effective_query_limit, is_user_identifier, replay_opaque_id_is_valid,
+    validate_ctx_answer_ledger, validate_portable_timestamp_millis, validate_query_plan_shape,
 };
 use rusqlite::types::{Value as SqlValue, ValueRef};
 use rusqlite::{
@@ -3596,8 +3596,9 @@ impl LocalDatabase {
         let mut predecessor_tables = BTreeSet::new();
         let successor_tables = sequence_scope_tables_from_declarations(declarations);
         if trusted_active_generation {
-            predecessor_tables
-                .extend(sequence_scope_tables_from_declarations(&self.sequence_declarations));
+            predecessor_tables.extend(sequence_scope_tables_from_declarations(
+                &self.sequence_declarations,
+            ));
             predecessor_tables.extend(successor_tables.iter().copied());
         }
         for table in &successor_tables {
@@ -16378,9 +16379,7 @@ fn validate_active_sequence_scope_fact_grammar(
     })?;
     for row in rows {
         let (row_id, incarnation) = row?;
-        if !replay_opaque_id_is_valid(&row_id)
-            || !crate::ids::is_canonical_uuid_v7(&incarnation)
-        {
+        if !replay_opaque_id_is_valid(&row_id) || !crate::ids::is_canonical_uuid_v7(&incarnation) {
             return Err(SnapbackError::error(
                 "SNAPBACK_RELATION_ACTIVATION_BACKFILL_REQUIRED",
                 "schema",
@@ -16511,14 +16510,8 @@ fn validate_sequence_counter_rows(
         ))
     })?;
     for row in rows {
-        let (
-            counter,
-            scope_table,
-            scope_row_id,
-            scope_incarnation,
-            next_value,
-            registry_backed,
-        ) = row?;
+        let (counter, scope_table, scope_row_id, scope_incarnation, next_value, registry_backed) =
+            row?;
         let declared = declared.contains(&(counter.as_str(), scope_table.as_str()));
         let successor_in_domain = u64::try_from(next_value)
             .is_ok_and(|value| (1..=SEQUENCE_MAX_SAFE_INTEGER + 1).contains(&value));
@@ -17474,9 +17467,7 @@ fn validate_user_identifier(kind: &str, value: &str) -> SnapbackResult<()> {
     Ok(())
 }
 
-fn validate_retained_sequence_allocations(
-    facts: &[SequenceAllocationFact],
-) -> SnapbackResult<()> {
+fn validate_retained_sequence_allocations(facts: &[SequenceAllocationFact]) -> SnapbackResult<()> {
     let invalid = || {
         SnapbackError::error(
             "SNAPBACK_CLIENT_MUTATION_RESULT_INVALID",
