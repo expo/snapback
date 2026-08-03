@@ -1,9 +1,7 @@
 # 0062-07: ibex-side contracts for the one-file executable
 
-**Status:** READY FOR IBEX / WAITING — coordination ticket; the ibex repo
-owns the work. The precise handoff was reconciled against the ibex corpus on
-2026-08-01; no ibex document identifier or landing commit exists yet for the
-missing external-script contract.
+**Status:** CLOSED — the reviewed Ibex contract cluster landed on 2026-08-03
+at `36442ab9fa399b315ca562da1bdb72190a4aa4f6`; 0062-08 is unblocked.
 **Authority:** LLP 0062 §6 phase 2 (the author's 2026-08-01 one-file
 direction); ENG-25410/25411 (the filed-not-landed ibex 0028/0029
 correcting amendments).
@@ -21,7 +19,38 @@ stated as enforced policy and the threat model honest per ibex
 0013/0014 (supply-chain authority, not hostile-code sandbox).
 
 Done when: the three ibex-side documents land reviewed in the ibex
-repo and this ticket records their identifiers; 0062-08 unblocks.
+repo and this ticket records their identifiers; 0062-08 unblocks. **Satisfied
+2026-08-03.**
+
+## Resolution — 2026-08-03
+
+The required Ibex documents landed together in commit
+`36442ab9fa399b315ca562da1bdb72190a4aa4f6` (`Specify restricted external
+script broker`):
+
+- **LLP 0028**, correcting the false Snapback phase-1/computed-import
+  attribution while retaining candidate tables as an independent Ibex
+  module-runner capability;
+- **LLP 0029**, preserving one trusted embedded parent and defining the
+  caller-selected file/stdin input as bounded data admitted into a distinct
+  restricted worker; and
+- new **LLP 0048**, `Restricted External Script Admission and Broker ABI`,
+  specifying the transform/admission profile, separate arming principal,
+  native worker ABI, broker/timer/lifecycle/resource contract, app-bound
+  format rotations, target-specific evidence chain, honest non-sandbox threat
+  model, and literal product acceptance.
+
+The same commit reconciles collateral LLPs 0000, 0002, 0014, and 0047. Dual-
+family review artifacts are under
+`llp/reviews/0048-external-script-admission-and-broker.{codex,fable}.md`, with
+four recorded rounds. Both final delta reviews returned **READY** with no
+remaining MATERIAL or MINOR findings; the 0028/0029/0047 review artifacts point
+to those cluster bodies.
+
+This closes only the cross-repository documentation dependency. LLP 0048 and
+LLP 0047 explicitly record the worker implementation and per-target evidence
+as open. 0062-08 owns that implementation and acceptance work and is now
+unblocked, not completed.
 
 ## 2026-08-01 precise maintainer handoff
 
@@ -84,6 +113,12 @@ recorded here. Standalone compilation becoming green by itself is not that
 condition.
 
 ## Running log
+
+- **2026-08-03 — closing condition satisfied.** Ibex LLPs 0028, 0029, and new
+  0048 landed reviewed in
+  `36442ab9fa399b315ca562da1bdb72190a4aa4f6`. The final dual-family delta was
+  READY with no MATERIAL or MINOR findings. 0062-08 is unblocked; its one-file
+  implementation/evidence condition remains open.
 
 - **2026-08-02 late — standalone compilation landed ibex-side; the contract
   documents have not.** The ibex agent reports the LLP 0047 finish line
