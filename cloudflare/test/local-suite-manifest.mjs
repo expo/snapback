@@ -21,6 +21,7 @@ export const EXPECTED_LOCAL_SUITE_IDS = Object.freeze([
   'acceptance-storage-layout',
   'acceptance-wire-shapes',
   'acceptance-wire-version',
+  'action-denial-witness',
   'config-set',
   'cron-utils',
   'route-outage-witness-tests',
@@ -32,7 +33,7 @@ export const EXPECTED_LOCAL_SUITE_IDS = Object.freeze([
   'wire-schema-gate',
 ]);
 
-export const EXPECTED_LOCAL_SUITE_CHECKS = 26;
+export const EXPECTED_LOCAL_SUITE_CHECKS = 27;
 
 export const LOCAL_SUITES = Object.freeze([
   { id: 'compatibility', file: 'scripts/cf-check-compat', runtime: 'direct' },
@@ -123,6 +124,16 @@ export const LOCAL_SUITES = Object.freeze([
     evidence: ['cloudflare wire-version acceptance: 24/24 checks passed'],
   },
   {
+    // 0137 a4-f5 hosted mirror (issues/20260801-hosted-action-denial-
+    // witness-parity.md): the four action_denial_witness_v0.rs cases over
+    // the JS record/restore seams.
+    id: 'action-denial-witness',
+    file: 'cloudflare/test/action-denial-witness.mjs',
+    evidence: [
+      'cloudflare action-denial-witness tests: typed surface-through, forged stays untyped, caught-then-fail keeps own failure, caught-then-recover succeeds',
+    ],
+  },
+  {
     id: 'config-set',
     file: 'cloudflare/test/config-set.mjs',
     evidence: ['cloudflare config-set tests: locked Wrangler, bounded stdin apply, and deadline-bound attestation passed'],
@@ -195,6 +206,7 @@ export const TEST_FILE_CLASSIFICATIONS = Object.freeze([
   ['acceptance.storage-layout.mjs', 'gate'],
   ['acceptance.wire-shapes.mjs', 'gate'],
   ['acceptance.wire-version.mjs', 'gate'],
+  ['action-denial-witness.mjs', 'gate'],
   ['billing-windows.mjs', 'remote-credentialed'],
   ['config-set.mjs', 'gate'],
   ['cron-utils.mjs', 'gate'],

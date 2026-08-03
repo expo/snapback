@@ -48,6 +48,7 @@ import {
 import {
   admitDeclaredRefusal,
   parseHandlerEnvelope,
+  restoreDenialWitness,
 } from '../../packages/snapback-harness/envelope.mjs';
 import { ID_PREFIXES, mintId } from '../../packages/snapback-contract/ids.mjs';
 // RQS — the Cloudflare arm (LLP 0090 rollout step 4, ENG-25455). The token/
@@ -3747,7 +3748,14 @@ export class Coordinator {
       //   a claim only. This deploy-time host admits it against the exact
       //   function definition selected above, or folds it fail-closed.
       const admitted = admitDeclaredRefusal(fn.refusals, decoded, { functionName: fn.export });
-      const parsed = classifyHandlerPlatformFailure(admitted, { maxRowBytes: MAX_ROW_BYTES });
+      // 0137 a4-f5 hosted mirror (issues/20260801-hosted-action-denial-
+      // witness-parity.md): a nested mutation's trusted denial recorded at
+      // the host-op dispatch is restored past the envelope fold only when
+      // the handler's raw claim matches — same seam order as the Rust leg
+      // (admit_declared_refusal, then restore_denial_witness). The witness
+      // is recorded in action mode only, so this is vacuous elsewhere.
+      const witnessed = restoreDenialWitness(host.takeDenialWitness(), decoded.claimedCode ?? null, admitted);
+      const parsed = classifyHandlerPlatformFailure(witnessed, { maxRowBytes: MAX_ROW_BYTES });
       return { ...parsed, host, observedVersion: host.observedVersion || this.currentVersion() };
     } finally {
       await host?.closeResponseStreams();

@@ -102,6 +102,12 @@ export function parseHandlerEnvelope(envelope) {
         const decoded = {
           ok: false,
           code,
+          // The raw handler claim before the fold — the JS analogue of the
+          // claim half of parse_handler_output_with_claim (src/runtime.rs).
+          // Untrusted: consumed only by restoreDenialWitness's match below,
+          // never serialized to a wire response (failure()/kitFailure/action
+          // diagnostics all rebuild from code/message/details).
+          claimedCode: typeof r.code === 'string' ? r.code : null,
           message: typeof r.message === 'string' ? r.message : 'JavaScript handler failed',
           failureCarrier: {
             errorClass: validatedErrorClass(r.errorClass),
@@ -164,4 +170,28 @@ export function admitDeclaredRefusal(declared, result, { functionName = null } =
     ...(result.failureCarrier ? { failureCarrier: result.failureCarrier } : {}),
   };
   return admitted;
+}
+
+// Surface a host-recorded trusted SNAPBACK_AUTH_PERMISSION_DENIED through the
+// action boundary — the JS analogue of restore_denial_witness (src/runtime.rs,
+// 0137 a4-f5). The uniform-denial rules (LLP 0053) make the envelope decoder
+// fold the claimed denial code to SNAPBACK_HANDLER_FAILED (it is deliberately
+// not in PASSTHROUGH_CODES); only when the failing handler's raw claim matches
+// a denial the host itself produced during this invocation is the recorded
+// trusted failure — with its uniform, non-disclosing bytes — restored. A
+// witness whose invocation fails with a DIFFERENT claim is not restored (the
+// handler caught the denial and failed on its own terms), and a caught denial
+// followed by success stays success: the denied nested mutation committed
+// nothing, and this seam is deliberately non-terminalizing. The private
+// failureCarrier of the folded failure survives onto the restored result,
+// mirroring the private-failure-context transplant on the Rust side.
+export function restoreDenialWitness(witness, claimedCode, result) {
+  if (!result || result.ok !== false) return result;
+  if (claimedCode !== 'SNAPBACK_AUTH_PERMISSION_DENIED') return result;
+  if (!witness || witness.ok !== false || witness.code !== 'SNAPBACK_AUTH_PERMISSION_DENIED') {
+    return result;
+  }
+  return result.failureCarrier
+    ? { ...witness, failureCarrier: result.failureCarrier }
+    : { ...witness };
 }

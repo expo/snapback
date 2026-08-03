@@ -254,6 +254,12 @@ export class HostContext {
     this.hostFetchHook = hostFetch;
     this.hostStreams = hostStreams;
     this.lastStreamProgressCommitAt = 0;
+    // An out-of-band trusted denial produced by a host op inside an ACTION
+    // (a nested mutation refusing across action.runMutation), recorded so
+    // the typed code can survive the action boundary without letting a
+    // handler-forged {code: ...} become typed — the JS analogue of
+    // denial_witness on IbexHostContext (src/runtime.rs, 0137 a4-f5).
+    this.denialWitness = null;
   }
 
   abandon(code = 'SNAPBACK_ACTION_TIMEOUT', message = 'the invocation was abandoned') {
@@ -507,8 +513,38 @@ export class HostContext {
 
   // The op dispatch — the JS analogue of dispatch_host_call. Returns
   // { ok:true, value } or { ok:false, code, message }; the action-only ops
-  // return promises (the coordinator's serveHostCall awaits).
+  // return promises (the coordinator's serveHostCall awaits). As in
+  // dispatch_host_call, every op result crosses the witness-recording seam
+  // before it reaches the handler.
   handle(op, args) {
+    return this.recordActionDenialWitness(this.dispatchOp(op, args));
+  }
+
+  // 0137 a4-f5 mirror of dispatch_host_call's recording arm: a trusted
+  // platform denial produced by a host op during an action is recorded
+  // out-of-band, so restoreDenialWitness (envelope.mjs) can surface the
+  // recorded uniform bytes past the handler-envelope fold. Mode-gated to
+  // actions exactly as on the Rust side; sync op results stay synchronous.
+  recordActionDenialWitness(result) {
+    if (this.mode !== 'action') return result;
+    const record = (settled) => {
+      if (settled && settled.ok === false && settled.code === 'SNAPBACK_AUTH_PERMISSION_DENIED') {
+        this.denialWitness = settled;
+      }
+      return settled;
+    };
+    return result && typeof result.then === 'function' ? result.then(record) : record(result);
+  }
+
+  // Take semantics mirror take on the Rust side: one restoration per
+  // recorded witness.
+  takeDenialWitness() {
+    const witness = this.denialWitness;
+    this.denialWitness = null;
+    return witness;
+  }
+
+  dispatchOp(op, args) {
     const abandoned = this.abandonedFailure();
     if (abandoned) return abandoned;
     switch (op) {
