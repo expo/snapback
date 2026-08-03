@@ -176,3 +176,41 @@ Tier 3:
   phone; a wiped or reinstalled app is a new device. Matches Expo's own
   installation-identity behavior. Lands as the 0143 OQ2 dated note with
   push-01's send-lane slice.
+
+## Ratification — 2026-08-02 late evening (Charlie Cheever)
+
+Charlie reviewed every ruling in this packet end to end (full option
+walkthrough with a recommendation per item, presented by Claude Fable 5)
+and ratified all of them. Deltas and additions from the review:
+
+- **Ruling 1 (npm parallel gate) — confirmed, plus standing release-cadence
+  guidance:** pre-release, aggressive, rapid, repeated releasing is the
+  intent — "if something breaks at this stage, we can find it and fix it by
+  using it. later on, we'll want to be more careful." Operate the LLP 0134
+  bar as the honesty gate on *claims*, not as a brake on release frequency,
+  until Charlie tightens this.
+- **Ruling 8 (0140 D-1, keep TypeScript) — confirmed for now; explicitly
+  watch-listed** ("let's keep an eye on this though"). When Program E
+  unparks, re-price D-1a (Snapback-owned binding resolver + frozen
+  TypeScript-oracle harness) rather than treating D-1b as permanent.
+- **Ruling 10 (0149 slice-0, served-envelope ownership) — confirmed, with a
+  recorded design input, not a ruling:** some consumption contexts "might
+  want some kind of domain identity verification" — i.e. a consumer being
+  able to verify the descriptor/journal is served by the claimed app or
+  domain. Feed into 0149's public-vs-authenticated field and
+  disclosure-class work.
+- **Ruling 3d (0150 OQ2 exclusive credential kind) — confirmed on
+  recommendation.** Charlie notes he does not fully internalize the
+  rationale; when 0150 lands, keep the rationale documented at the contract
+  (supersession retires the weaker credential; one-act unambiguous
+  revocation; audit maps each act to exactly one credential kind).
+- **LLP 0143 installation identity — veto window closed.** Charlie states
+  no opinion; the delegated device-scoped-store default above stands as
+  ruled. Push-01 lands it as specified.
+- Rulings 2, 3a, 3b, 3c, 9, 11 and the Tier-2 acceptances (4–7): confirmed
+  as recorded, no deltas. Appended rulings (export carrier, telemetry
+  identity representation, environment identity source, 0090-after-0157
+  sequencing): confirmed as recorded.
+- Ruling 11 execution: the LLP 0157 authoring session is being kicked off
+  following this ratification (tracker:
+  `issues/20260802-0155-move1-composition-spec-commission.md`).
