@@ -572,7 +572,7 @@ pub fn fingerprint_v1(input: &FingerprintInputV1) -> FingerprintV1 {
     }
 }
 
-fn lower_hex(bytes: &[u8]) -> String {
+pub(crate) fn lower_hex(bytes: &[u8]) -> String {
     const HEX: &[u8; 16] = b"0123456789abcdef";
     let mut output = String::with_capacity(bytes.len() * 2);
     for byte in bytes {
@@ -674,6 +674,10 @@ pub struct FailureDetailsInputV1 {
     pub message_template: Option<String>,
     pub message: Option<String>,
     pub stack: Option<String>,
+    #[serde(default)]
+    pub message_extraction_truncated: bool,
+    #[serde(default)]
+    pub stack_extraction_truncated: bool,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -1023,7 +1027,12 @@ pub fn allocate_failure_details(
 ) -> Result<AllocatedFailureDetailsV1, DetailsAllocationErrorV1> {
     let mut flags = BTreeMap::new();
     for key in ["function", "name", "messageTemplate", "message", "stack"] {
-        flags.insert(flag_name(key, "Truncated"), false);
+        let pretruncated = match key {
+            "message" => input.message_extraction_truncated,
+            "stack" => input.stack_extraction_truncated,
+            _ => false,
+        };
+        flags.insert(flag_name(key, "Truncated"), pretruncated);
     }
     for key in EXISTING_ALLOWLIST_PRIORITY {
         flags.insert(flag_name(key, "Dropped"), false);
@@ -1458,6 +1467,8 @@ pub fn carrier_fixture_artifact() -> Value {
         message_template: Some("failed for <email>".to_owned()),
         message: Some("failed for alice@example.com".to_owned()),
         stack: Some("frame\n".repeat(2_000)),
+        message_extraction_truncated: false,
+        stack_extraction_truncated: false,
     })
     .expect("fixture allocation fits required fields");
     json!({
@@ -1523,6 +1534,8 @@ mod tests {
             message_template: Some("failed for <email>".to_owned()),
             message: None,
             stack: Some("at messages.send".to_owned()),
+            message_extraction_truncated: false,
+            stack_extraction_truncated: false,
         })
         .expect("eligible fixture fits the closed carrier")
         .details
@@ -1710,6 +1723,8 @@ mod tests {
             message_template: Some("template".to_owned()),
             message: Some("é".repeat(5_000)),
             stack: Some("stack\n".repeat(2_000)),
+            message_extraction_truncated: false,
+            stack_extraction_truncated: false,
         };
         let first = allocate_failure_details(&input).unwrap();
         let second = allocate_failure_details(&input).unwrap();

@@ -13,10 +13,14 @@
 //! @ref LLP 0154#d4--maintenance-rides-the-flush-path-no-cron — retention and
 //!   rollups are post-flush work, never a periodic app-database job.
 
-use crate::diagnostic::{DiagnosticSeverity, SnapbackError, SnapbackResult};
+use crate::diagnostic::{Diagnostic, DiagnosticSeverity, SnapbackError, SnapbackResult};
 use crate::error_tracking::{
-    FailureDispositionV1, FailureStampMaterializationV1, MaterializedFailureStampV1,
-    is_failure_detail_key, materialize_failure_stamp_v1,
+    AppRefusalTrackingV1, CarrierCategoryV1, EXISTING_ALLOWLIST_PRIORITY, FINGERPRINT_VERSION,
+    FailureClassifierInputV1, FailureDetailsInputV1, FailureDispositionV1,
+    FailureStampMaterializationV1, FingerprintBranchV1, FingerprintInputV1,
+    MaterializedFailureStampV1, PrivateFailureContextV1, allocate_failure_details,
+    classify_failure, fingerprint_v1, is_failure_detail_key, lower_hex,
+    materialize_failure_stamp_v1, normalize_message_v1,
 };
 use crate::ids::{self, Kind as IdKind};
 use crate::telemetry_contract::{
@@ -393,6 +397,225 @@ struct ErrorTransitionRow<'a> {
     release: Option<&'a str>,
 }
 
+fn failed_observation(status: Option<i64>, code: Option<&str>) -> bool {
+    code.is_some() || status.is_some_and(|status| status >= 400)
+}
+
+fn http_status_class(status: Option<i64>) -> Option<u16> {
+    status
+        .filter(|status| (400..600).contains(status))
+        .map(|status| u16::try_from(status / 100).expect("bounded HTTP status class"))
+}
+
+fn detail_string<'a>(object: Option<&'a Map<String, Value>>, key: &str) -> Option<&'a str> {
+    object
+        .and_then(|object| object.get(key))
+        .and_then(Value::as_str)
+}
+
+fn fallback_failure_details(
+    classification: crate::error_tracking::FailureClassificationV1,
+    branch: FingerprintBranchV1,
+) -> Value {
+    // A fixed-field allocation failure is not expected under the admitted
+    // grammars. Preserve the classifier result and opt-in marker so E1 counts
+    // an eligible malformed stamp instead of grouping guessed identity.
+    json!({
+        "failure_disposition": classification.failure_disposition,
+        "issue_eligible": classification.issue_eligible,
+        "classifier_version": classification.classifier_version,
+        "fp_branch": branch,
+    })
+}
+
+/// Enrich one already-failed observation at its producer seam. Classification
+/// precedes fingerprint selection, which precedes the closed 8 KiB allocator;
+/// the flush transaction is only allowed to validate and fold these stamps.
+///
+/// @ref LLP 0156#e01--the-failure-classifier-and-issue-eligibility — the
+///   exhaustive first-match classifier runs once, before fingerprinting.
+/// @ref LLP 0156#e02--the-failure-carrier — runtime-private carrier text is
+///   consumed here and allocated into the existing raw telemetry details tier.
+/// @ref LLP 0156#e11--fingerprint-at-the-seam-group-in-the-flush-transaction —
+///   only structurally complete eligible failures receive a producer stamp.
+fn failure_details_at_emission(
+    admission: &AdmittedObservationClassV1,
+    event_name: &str,
+    status: Option<i64>,
+    code: Option<&str>,
+    details: Option<Value>,
+    diagnostic: Option<&Diagnostic>,
+    private_failure: Option<PrivateFailureContextV1>,
+) -> Value {
+    let supplied = details.as_ref().and_then(Value::as_object);
+    let diagnostic_details = diagnostic.and_then(|diagnostic| diagnostic.details.as_object());
+    let field =
+        |key| detail_string(diagnostic_details, key).or_else(|| detail_string(supplied, key));
+    let function = field("function").map(str::to_owned);
+    let decoder_name = field("name").map(str::to_owned);
+    let app_code = field("appCode").map(str::to_owned);
+    let app_details = diagnostic_details
+        .and_then(|object| object.get("appDetails"))
+        .or_else(|| supplied.and_then(|object| object.get("appDetails")))
+        .cloned();
+
+    let mut existing_allowlist = BTreeMap::new();
+    for key in EXISTING_ALLOWLIST_PRIORITY {
+        if let Some(value) = diagnostic_details
+            .and_then(|object| object.get(*key))
+            .or_else(|| supplied.and_then(|object| object.get(*key)))
+        {
+            existing_allowlist.insert((*key).to_owned(), value.clone());
+        }
+    }
+
+    let private_failure = private_failure.unwrap_or_default();
+    let tracking = private_failure.app_refusal_tracking;
+    let multiple_carriers = private_failure.carriers.len() > 1;
+    let carrier = (private_failure.carriers.len() == 1).then(|| &private_failure.carriers[0]);
+    let transport = admission.operation_class.starts_with("transport.") && code.is_none();
+    let carrier_category = if tracking.is_some() {
+        CarrierCategoryV1::AppRefusal
+    } else if !private_failure.carriers.is_empty() {
+        CarrierCategoryV1::Exception
+    } else if transport {
+        CarrierCategoryV1::Transport
+    } else {
+        CarrierCategoryV1::Diagnostic
+    };
+    let status_class = transport.then(|| http_status_class(status)).flatten();
+    let classification = classify_failure(&FailureClassifierInputV1 {
+        operation_class: admission.operation_class.to_owned(),
+        name: Some(event_name.to_owned()),
+        platform_code: code.map(str::to_owned),
+        status_class,
+        carrier_category,
+        app_code: app_code.clone(),
+        app_refusal_admitted: tracking.is_some(),
+        app_refusal_tracked: tracking == Some(AppRefusalTrackingV1::Tracked),
+    });
+
+    let branch = match carrier_category {
+        CarrierCategoryV1::AppRefusal => FingerprintBranchV1::AppRefusal,
+        CarrierCategoryV1::Exception => FingerprintBranchV1::Exception,
+        CarrierCategoryV1::Transport => FingerprintBranchV1::Transport,
+        CarrierCategoryV1::Diagnostic
+            if admission.operation_class == OperationClassIdV1::DIAGNOSTIC.as_str() =>
+        {
+            FingerprintBranchV1::Diagnostic
+        }
+        CarrierCategoryV1::Diagnostic => FingerprintBranchV1::TypedRefusal,
+    };
+    let raw_message = carrier
+        .and_then(|carrier| carrier.message.clone())
+        .or_else(|| field("message").map(str::to_owned))
+        .or_else(|| diagnostic.map(|diagnostic| diagnostic.message.clone()));
+    let message_template = (branch == FingerprintBranchV1::Exception)
+        .then(|| raw_message.as_deref().map(normalize_message_v1))
+        .flatten();
+    let subsystem = (branch == FingerprintBranchV1::Diagnostic)
+        .then(|| diagnostic.map(|diagnostic| diagnostic.subsystem.clone()))
+        .flatten();
+
+    // A vector carrier is required by the Hermes ABI, but LLP 0156 has not
+    // authorized a winner when more than one rejection is unhandled. Keep the
+    // classifier stamp, omit identity, and let E1 fail safe as malformed rather
+    // than grouping under an invented first/last rejection.
+    let fingerprint_input = if classification.issue_eligible && !multiple_carriers {
+        match branch {
+            FingerprintBranchV1::TypedRefusal => {
+                code.map(|code| FingerprintInputV1::TypedRefusal {
+                    scheme_version: FINGERPRINT_VERSION,
+                    kind: Some(admission.telemetry_kind.clone()),
+                    name: Some(event_name.to_owned()),
+                    code: Some(code.to_owned()),
+                })
+            }
+            FingerprintBranchV1::AppRefusal => {
+                app_code
+                    .as_ref()
+                    .map(|app_code| FingerprintInputV1::AppRefusal {
+                        scheme_version: FINGERPRINT_VERSION,
+                        kind: Some(admission.telemetry_kind.clone()),
+                        name: Some(event_name.to_owned()),
+                        app_code: Some(app_code.clone()),
+                    })
+            }
+            FingerprintBranchV1::Exception => {
+                carrier
+                    .zip(code)
+                    .map(|(carrier, _)| FingerprintInputV1::Exception {
+                        scheme_version: FINGERPRINT_VERSION,
+                        kind: Some(admission.telemetry_kind.clone()),
+                        name: Some(event_name.to_owned()),
+                        error_class: Some(carrier.error_class.clone()),
+                        message_template: message_template.clone(),
+                    })
+            }
+            FingerprintBranchV1::Transport => {
+                (status_class == Some(5)).then(|| FingerprintInputV1::Transport {
+                    scheme_version: FINGERPRINT_VERSION,
+                    kind: Some(admission.telemetry_kind.clone()),
+                    name: Some(event_name.to_owned()),
+                    status_class,
+                })
+            }
+            FingerprintBranchV1::Diagnostic => {
+                code.zip(subsystem.as_ref()).map(|(code, subsystem)| {
+                    FingerprintInputV1::Diagnostic {
+                        scheme_version: FINGERPRINT_VERSION,
+                        name: Some(event_name.to_owned()),
+                        subsystem: Some(subsystem.clone()),
+                        code: Some(code.to_owned()),
+                    }
+                })
+            }
+        }
+    } else {
+        None
+    };
+    let fingerprint = fingerprint_input.as_ref().map(fingerprint_v1);
+    let fingerprint_hash = fingerprint
+        .as_ref()
+        .map(|fingerprint| lower_hex(&fingerprint.truncated));
+
+    let input = FailureDetailsInputV1 {
+        platform_code: (branch != FingerprintBranchV1::Transport)
+            .then(|| code.map(str::to_owned))
+            .flatten(),
+        classification,
+        fingerprint_branch: branch,
+        fingerprint_version: fingerprint.as_ref().map(|_| FINGERPRINT_VERSION),
+        fingerprint_hash,
+        predecessor_fingerprint_version: None,
+        predecessor_fingerprint_hash: None,
+        status_class: (branch == FingerprintBranchV1::Transport)
+            .then_some(status_class)
+            .flatten(),
+        app_code: (branch == FingerprintBranchV1::AppRefusal)
+            .then_some(app_code)
+            .flatten(),
+        error_class: (branch == FingerprintBranchV1::Exception)
+            .then(|| carrier.map(|carrier| carrier.error_class.clone()))
+            .flatten(),
+        subsystem,
+        function,
+        name: decoder_name,
+        existing_allowlist,
+        app_details,
+        message_template,
+        message: raw_message,
+        stack: carrier.and_then(|carrier| carrier.stack.clone()),
+        message_extraction_truncated: carrier
+            .is_some_and(|carrier| carrier.message_extraction_truncated),
+        stack_extraction_truncated: carrier
+            .is_some_and(|carrier| carrier.stack_extraction_truncated),
+    };
+    allocate_failure_details(&input)
+        .map(|allocated| allocated.details)
+        .unwrap_or_else(|_| fallback_failure_details(input.classification, branch))
+}
+
 #[derive(Debug)]
 pub struct ObservationSpan {
     telemetry: Telemetry,
@@ -410,6 +633,33 @@ pub struct ObservationSpan {
 
 impl ObservationSpan {
     pub fn finish(mut self, status: Option<i64>, code: Option<&str>, details: Option<Value>) {
+        self.finish_inner(status, code, details, None, None);
+    }
+
+    pub(crate) fn finish_error(
+        mut self,
+        status: Option<i64>,
+        error: &mut SnapbackError,
+        details: Option<Value>,
+    ) {
+        let private_failure = error.take_private_failure_context();
+        self.finish_inner(
+            status,
+            Some(&error.diagnostic.code),
+            details,
+            Some(&error.diagnostic),
+            private_failure,
+        );
+    }
+
+    fn finish_inner(
+        &mut self,
+        status: Option<i64>,
+        code: Option<&str>,
+        details: Option<Value>,
+        diagnostic: Option<&Diagnostic>,
+        private_failure: Option<PrivateFailureContextV1>,
+    ) {
         if !self.active {
             return;
         }
@@ -430,6 +680,20 @@ impl ObservationSpan {
         } else {
             Priority::Normal
         };
+        let details = details.or_else(|| self.details.clone());
+        let details = if failed_observation(status, code) {
+            Some(failure_details_at_emission(
+                &admission,
+                &self.name,
+                status,
+                code,
+                details,
+                diagnostic,
+                private_failure,
+            ))
+        } else {
+            details
+        };
         self.telemetry.enqueue_bound(Event {
             sequence: 0,
             admission,
@@ -442,7 +706,7 @@ impl ObservationSpan {
             code: code.map(|value| cap(value, CODE_MAX_BYTES)),
             correlation: self.correlation.clone(),
             release: self.release.clone(),
-            details: scrub_details(details).or_else(|| self.details.clone()),
+            details: scrub_details(details),
             priority,
             enqueued_at: Instant::now(),
         });
@@ -926,11 +1190,43 @@ impl Telemetry {
         details: Option<Value>,
         priority: Priority,
     ) {
+        self.point_classified_inner(
+            class_id,
+            name,
+            status,
+            code,
+            correlation,
+            details,
+            priority,
+            None,
+        );
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn point_classified_inner(
+        &self,
+        class_id: OperationClassIdV1,
+        name: &str,
+        status: Option<i64>,
+        code: Option<&str>,
+        correlation: Option<&str>,
+        details: Option<Value>,
+        priority: Priority,
+        diagnostic: Option<&Diagnostic>,
+    ) {
         let Ok(observation) = ids::mint(IdKind::Observation) else {
             return;
         };
         let Ok(admission) = admit_operation_class(class_id, observation) else {
             return;
+        };
+        let name = cap(name, NAME_MAX_BYTES);
+        let details = if failed_observation(status, code) {
+            Some(failure_details_at_emission(
+                &admission, &name, status, code, details, diagnostic, None,
+            ))
+        } else {
+            details
         };
         self.enqueue_current(Event {
             sequence: 0,
@@ -938,7 +1234,7 @@ impl Telemetry {
             phase: Phase::Point,
             generation: String::new(),
             ts_ms: wall_now_ms(),
-            name: cap(name, NAME_MAX_BYTES),
+            name,
             status,
             duration_ms: None,
             code: code.map(|value| cap(value, CODE_MAX_BYTES)),
@@ -1103,7 +1399,7 @@ impl Telemetry {
     /// admits only Warning+ diagnostics, further narrowed by `min_level`;
     /// informational diagnostics remain available through the existing
     /// recent-diagnostics ring without entering telemetry.
-    pub(crate) fn standalone_diagnostic(&self, code: &str, severity: &DiagnosticSeverity) {
+    pub(crate) fn standalone_diagnostic(&self, diagnostic: &Diagnostic) {
         let config = self
             .producer
             .shared
@@ -1112,22 +1408,23 @@ impl Telemetry {
             .unwrap_or_else(|poisoned| poisoned.into_inner());
         let threshold =
             severity_rank(config.min_level.clone()).max(severity_rank(DiagnosticSeverity::Warning));
-        if severity_rank(severity.clone()) < threshold {
+        if severity_rank(diagnostic.severity.clone()) < threshold {
             return;
         }
         drop(config);
         let failure = matches!(
-            severity,
+            &diagnostic.severity,
             DiagnosticSeverity::Error | DiagnosticSeverity::Fatal
         );
-        self.point_classified(
+        self.point_classified_inner(
             OperationClassIdV1::DIAGNOSTIC,
-            code,
+            &diagnostic.code,
             Some(if failure { 500 } else { 200 }),
-            Some(code),
+            Some(&diagnostic.code),
             None,
-            Some(json!({ "severity": severity })),
+            Some(json!({ "severity": diagnostic.severity.clone() })),
             Priority::Reserved,
+            Some(diagnostic),
         );
     }
 
@@ -4783,6 +5080,8 @@ mod tests {
             message_template,
             message: None,
             stack: Some("at messages.send".to_owned()),
+            message_extraction_truncated: false,
+            stack_extraction_truncated: false,
         })
         .expect("eligible failure fixture fits the carrier");
         let mut event = joined_named(generation, "diagnostic", "messages.send", sequence);
@@ -8299,6 +8598,274 @@ mod tests {
     }
 
     #[test]
+    fn producer_stamps_single_carriers_and_multi_carrier_fails_safe_without_grouping() {
+        let telemetry =
+            Telemetry::in_memory("01900000-0000-7000-8000-000000000001", config()).unwrap();
+        let carrier = |error_class: &str, message: &str| crate::error_tracking::FailureCarrierV1 {
+            error_class: error_class.to_owned(),
+            message: Some(message.to_owned()),
+            stack: Some("at handler (app.js:1:1)".to_owned()),
+            message_extraction_truncated: false,
+            stack_extraction_truncated: false,
+        };
+
+        let span = telemetry.start_classified_span(
+            OperationClassIdV1::FUNCTION_QUERY,
+            "messages.send",
+            None,
+            None,
+        );
+        let mut exception_carrier = carrier("TypeError", "recipient 123 is missing");
+        exception_carrier.message_extraction_truncated = true;
+        let mut exception = SnapbackError::error(
+            "SNAPBACK_HANDLER_FAILED",
+            "runtime",
+            "JavaScript handler failed",
+        )
+        .with_details(json!({ "function": "messages.send" }))
+        .with_private_failure_context(PrivateFailureContextV1 {
+            carriers: vec![exception_carrier],
+            app_refusal_tracking: None,
+        });
+        span.finish_error(Some(500), &mut exception, None);
+        assert!(
+            exception.private_failure_context().is_none(),
+            "the producer consumes the serde-skipped private carrier"
+        );
+
+        for (name, tracking) in [
+            ("moves.tracked", AppRefusalTrackingV1::Tracked),
+            ("moves.untracked", AppRefusalTrackingV1::AdmittedUntracked),
+        ] {
+            let span = telemetry.start_classified_span(
+                OperationClassIdV1::FUNCTION_MUTATION,
+                name,
+                None,
+                None,
+            );
+            let mut refusal =
+                SnapbackError::error("SNAPBACK_APP_REFUSAL", "runtime", "application refusal")
+                    .with_details(json!({
+                        "function": name,
+                        "appCode": "STALE_MOVE",
+                        "appDetails": { "revision": 9 },
+                    }))
+                    .with_private_failure_context(PrivateFailureContextV1 {
+                        carriers: vec![carrier("AppRefusal", "move revision 9 is stale")],
+                        app_refusal_tracking: Some(tracking),
+                    });
+            span.finish_error(Some(500), &mut refusal, None);
+        }
+
+        let span = telemetry.start_classified_span(
+            OperationClassIdV1::FUNCTION_ACTION,
+            "actions.multiReject",
+            None,
+            None,
+        );
+        let mut multiple = SnapbackError::error(
+            "SNAPBACK_HANDLER_UNHANDLED_REJECTION",
+            "runtime",
+            "handler completed with unhandled promise rejections",
+        )
+        .with_details(json!({ "function": "actions.multiReject" }))
+        .with_private_failure_context(PrivateFailureContextV1 {
+            carriers: vec![
+                carrier("TypeError", "first rejection"),
+                carrier("RangeError", "second rejection"),
+            ],
+            app_refusal_tracking: None,
+        });
+        span.finish_error(Some(500), &mut multiple, None);
+
+        let span = telemetry.start_classified_span(
+            OperationClassIdV1::HTTP_STANDALONE,
+            "/upstream",
+            None,
+            Some(json!({ "method": "GET" })),
+        );
+        span.finish(Some(503), None, None);
+        telemetry.standalone_diagnostic(&Diagnostic::error(
+            "SNAPBACK_EMISSION_TEST_FAILURE",
+            "telemetry",
+            "standalone diagnostic fixture",
+        ));
+
+        telemetry.force_flush().unwrap();
+        let store = telemetry.producer.shared.store.lock().unwrap();
+        let conn = store.conn.as_ref().unwrap();
+        let details_for = |name: &str| -> Value {
+            let encoded: String = conn
+                .query_row(
+                    "SELECT details FROM telemetry_events_visible WHERE name=?1 ORDER BY id DESC LIMIT 1",
+                    params![name],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            serde_json::from_str(&encoded).unwrap()
+        };
+        let exception_details = details_for("messages.send");
+        assert_eq!(exception_details["failure_disposition"], "fault");
+        assert_eq!(exception_details["fp_branch"], "exception");
+        assert!(exception_details["fp_hash"].as_str().is_some());
+        assert_eq!(
+            exception_details["messageTemplate"],
+            "recipient <digits> is missing"
+        );
+        assert_eq!(
+            exception_details["detailFlags"]["messageTruncated"], true,
+            "the allocation retains extraction-time truncation witnesses",
+        );
+        assert_eq!(details_for("moves.tracked")["issue_eligible"], true);
+        let untracked = details_for("moves.untracked");
+        assert_eq!(untracked["failure_disposition"], "app_refusal");
+        assert_eq!(untracked["issue_eligible"], false);
+        assert!(untracked.get("fp_hash").is_none());
+        let multiple = details_for("actions.multiReject");
+        assert_eq!(multiple["failure_disposition"], "fault");
+        assert_eq!(multiple["issue_eligible"], true);
+        assert!(multiple.get("fp_hash").is_none());
+        assert!(multiple.get("errorClass").is_none());
+
+        let groups = conn
+            .prepare("SELECT kind,name,failure_disposition FROM error_groups_visible ORDER BY name")
+            .unwrap()
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                ))
+            })
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(
+            groups,
+            vec![
+                (
+                    "http_request".to_owned(),
+                    "/upstream".to_owned(),
+                    "fault".to_owned(),
+                ),
+                (
+                    "diagnostic".to_owned(),
+                    "SNAPBACK_EMISSION_TEST_FAILURE".to_owned(),
+                    "fault".to_owned(),
+                ),
+                (
+                    "function_run".to_owned(),
+                    "messages.send".to_owned(),
+                    "fault".to_owned(),
+                ),
+                (
+                    "function_run".to_owned(),
+                    "moves.tracked".to_owned(),
+                    "app_refusal".to_owned(),
+                ),
+            ]
+        );
+        let malformed: i64 = conn
+            .query_row(
+                "SELECT malformed_error_stamp_count FROM telemetry_meta WHERE singleton=1",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            malformed, 1,
+            "the author-blocked multi-carrier terminal stays raw and non-grouped"
+        );
+    }
+
+    #[test]
+    fn nested_logical_and_http_carrier_failures_form_distinct_groups() {
+        let telemetry =
+            Telemetry::in_memory("01900000-0000-7000-8000-000000000001", config()).unwrap();
+        let correlation = "nested-http-failure";
+        let logical = telemetry.start_classified_span(
+            OperationClassIdV1::FUNCTION_HTTP,
+            "webhooks.ingest",
+            Some(correlation),
+            None,
+        );
+        let mut error = SnapbackError::error(
+            "SNAPBACK_HANDLER_FAILED",
+            "runtime",
+            "JavaScript handler failed",
+        )
+        .with_details(json!({ "function": "webhooks.ingest" }))
+        .with_private_failure_context(PrivateFailureContextV1 {
+            carriers: vec![crate::error_tracking::FailureCarrierV1 {
+                error_class: "TypeError".to_owned(),
+                message: Some("payload 42 failed".to_owned()),
+                stack: None,
+                message_extraction_truncated: false,
+                stack_extraction_truncated: false,
+            }],
+            app_refusal_tracking: None,
+        });
+        logical.finish_error(Some(500), &mut error, None);
+
+        let carrier = telemetry.start_classified_span(
+            OperationClassIdV1::HTTP_CARRIER,
+            "/functions/:name",
+            Some(correlation),
+            Some(json!({ "method": "POST" })),
+        );
+        carrier.finish(Some(500), Some("SNAPBACK_HANDLER_FAILED"), None);
+        telemetry.force_flush().unwrap();
+
+        let store = telemetry.producer.shared.store.lock().unwrap();
+        let conn = store.conn.as_ref().unwrap();
+        let raw_count: i64 = conn
+            .query_row(
+                "SELECT count(*) FROM telemetry_events_visible WHERE correlation=?1 AND status=500",
+                params![correlation],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(raw_count, 2, "one logical and one carrier terminal emit");
+        let groups = conn
+            .prepare(
+                "SELECT kind,name,code,error_class,status_class FROM error_groups_visible WHERE name IN ('webhooks.ingest','/functions/:name') ORDER BY kind",
+            )
+            .unwrap()
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, Option<String>>(2)?,
+                    row.get::<_, Option<String>>(3)?,
+                    row.get::<_, Option<i64>>(4)?,
+                ))
+            })
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(
+            groups,
+            vec![
+                (
+                    "function_run".to_owned(),
+                    "webhooks.ingest".to_owned(),
+                    Some("SNAPBACK_HANDLER_FAILED".to_owned()),
+                    Some("TypeError".to_owned()),
+                    None,
+                ),
+                (
+                    "http_request".to_owned(),
+                    "/functions/:name".to_owned(),
+                    Some("SNAPBACK_HANDLER_FAILED".to_owned()),
+                    None,
+                    None,
+                ),
+            ],
+            "the existing nested seams intentionally retain two distinct identities",
+        );
+    }
+
+    #[test]
     fn error_group_fold_is_atomic_and_malformed_or_mismatched_stamps_do_not_mutate_it() {
         let mut store =
             Store::memory_unbound("01900000-0000-7000-8000-000000000001", config()).unwrap();
@@ -9681,9 +10248,15 @@ mod tests {
         let telemetry =
             Telemetry::in_memory("01900000-0000-7000-8000-000000000001", policy.clone()).unwrap();
 
-        telemetry.standalone_diagnostic("INFO_SUPPRESSED", &DiagnosticSeverity::Info);
-        telemetry.standalone_diagnostic("WARNING_SUPPRESSED", &DiagnosticSeverity::Warning);
-        telemetry.standalone_diagnostic("ERROR_RECORDED", &DiagnosticSeverity::Error);
+        let diagnostic = |code, severity| {
+            Diagnostic::new(code, severity, "test", "diagnostic fixture", json!({}))
+        };
+        telemetry.standalone_diagnostic(&diagnostic("INFO_SUPPRESSED", DiagnosticSeverity::Info));
+        telemetry.standalone_diagnostic(&diagnostic(
+            "WARNING_SUPPRESSED",
+            DiagnosticSeverity::Warning,
+        ));
+        telemetry.standalone_diagnostic(&diagnostic("ERROR_RECORDED", DiagnosticSeverity::Error));
         telemetry.force_flush().unwrap();
 
         let recorded = || {
@@ -9708,8 +10281,12 @@ mod tests {
 
         policy.min_level = DiagnosticSeverity::Info;
         telemetry.update_config(policy).unwrap();
-        telemetry.standalone_diagnostic("INFO_STILL_SUPPRESSED", &DiagnosticSeverity::Info);
-        telemetry.standalone_diagnostic("WARNING_RECORDED", &DiagnosticSeverity::Warning);
+        telemetry.standalone_diagnostic(&diagnostic(
+            "INFO_STILL_SUPPRESSED",
+            DiagnosticSeverity::Info,
+        ));
+        telemetry
+            .standalone_diagnostic(&diagnostic("WARNING_RECORDED", DiagnosticSeverity::Warning));
         for name in ["pressure_one", "pressure_two", "pressure_three"] {
             telemetry.point("log", name, None, None, None, None, Priority::Normal);
         }

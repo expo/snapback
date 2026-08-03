@@ -3832,7 +3832,7 @@ impl ManagedHostPlanAction {
                 hook();
             }
         });
-        let result = match self.invocation.effect_guard("action result handoff") {
+        let mut result = match self.invocation.effect_guard("action result handoff") {
             Ok(_publication) => result,
             Err(error) => Err(error),
         };
@@ -3842,7 +3842,7 @@ impl ManagedHostPlanAction {
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .take()
         {
-            finish_function_observation(observation, &result);
+            finish_function_observation(observation, &mut result);
         }
         result
     }
@@ -6360,7 +6360,7 @@ impl LocalSnapback {
                     correlation.as_deref(),
                     None,
                 );
-        let result =
+        let mut result =
             crate::runtime::with_runtime_log_telemetry(self.telemetry.clone(), correlation, || {
         execute_query_invocation(
             function,
@@ -6380,7 +6380,7 @@ impl LocalSnapback {
             }),
         )
             });
-        finish_function_observation(span, &result);
+        finish_function_observation(span, &mut result);
         result
     }
 
@@ -12060,7 +12060,7 @@ impl LocalSnapback {
                 None,
             ));
             let telemetry = self.telemetry.clone();
-            let execution = crate::runtime::with_runtime_log_telemetry(
+            let mut execution = crate::runtime::with_runtime_log_telemetry(
                 telemetry,
                 telemetry_correlation,
                 || {
@@ -12198,7 +12198,7 @@ impl LocalSnapback {
                 },
             );
             if let Some(observation) = observation {
-                finish_function_observation(observation, &execution);
+                finish_function_observation(observation, &mut execution);
             }
             execution
         })();
@@ -12248,8 +12248,8 @@ impl LocalSnapback {
             observation,
         } = *staged;
         let admission = prepared.admission_lease().clone();
-        if let Err(error) = self.ensure_permission_epoch_capacity(&epoch_scopes) {
-            finish_function_observation(observation, &Err::<(), _>(error.clone()));
+        if let Err(mut error) = self.ensure_permission_epoch_capacity(&epoch_scopes) {
+            observation.finish_error(Some(500), &mut error, None);
             return Err(error);
         }
         let result = match execution {
@@ -12283,7 +12283,7 @@ impl LocalSnapback {
             }
         }
         .and_then(|commit| self.finish_mutation_commit(epoch_scopes, commit, &admission));
-        let recorded = self.record_mutation_commit_after_publication_guard(
+        let mut recorded = self.record_mutation_commit_after_publication_guard(
             MutationReceiptPublication::new(
                 &name,
                 &transport,
@@ -12296,7 +12296,7 @@ impl LocalSnapback {
         );
         // @ref LLP 0133#re-derivation-semantics-lane-l — only the final
         // guarded, recorded settlement is authoritative; preview is evidence.
-        finish_function_observation(observation, &recorded.0);
+        finish_function_observation(observation, &mut recorded.0);
         Ok(recorded)
     }
 
@@ -12623,7 +12623,7 @@ impl LocalSnapback {
                     correlation.as_deref(),
                     None,
                 );
-        let result = (|| {
+        let mut result = (|| {
         let commit = match &function.runtime {
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan))
             | FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(
@@ -12719,7 +12719,7 @@ impl LocalSnapback {
 
         self.finish_mutation_commit(epoch_scopes, commit, &admission)
         })();
-        finish_function_observation(span, &result);
+        finish_function_observation(span, &mut result);
         result
     }
 
@@ -12771,7 +12771,7 @@ impl LocalSnapback {
             correlation.as_deref(),
             None,
         );
-        let result = crate::runtime::with_runtime_log_telemetry(
+        let mut result = crate::runtime::with_runtime_log_telemetry(
             self.telemetry.clone(),
             correlation,
             || {
@@ -12787,7 +12787,7 @@ impl LocalSnapback {
         self.finish_mutation_commit(epoch_scopes, commit, prepared.admission_lease())
             },
         );
-        finish_function_observation(span, &result);
+        finish_function_observation(span, &mut result);
         result
     }
 
@@ -14551,7 +14551,7 @@ impl LocalSnapback {
                 correlation.as_deref(),
                 None,
             );
-            let result = crate::runtime::with_runtime_log_telemetry(
+            let mut result = crate::runtime::with_runtime_log_telemetry(
                 self.telemetry.clone(),
                 correlation,
                 || {
@@ -14574,7 +14574,7 @@ impl LocalSnapback {
                     )
                 },
             );
-            finish_function_observation(span, &result);
+            finish_function_observation(span, &mut result);
             result?
         };
         let permission_epochs = permission_epochs_from_dependencies(&query.read_dependencies);
@@ -19403,8 +19403,8 @@ impl LocalSnapback {
                 hook();
             }
         });
-        let result = prepared.effect_guard("action result handoff").and(result);
-        finish_function_observation(span, &result);
+        let mut result = prepared.effect_guard("action result handoff").and(result);
+        finish_function_observation(span, &mut result);
         result
     }
 
@@ -21505,8 +21505,7 @@ impl LocalSnapback {
         for diagnostic in diagnostics {
             let diagnostic = self.config.redact_diagnostic(diagnostic);
             if boundary == DiagnosticBoundary::Standalone {
-                self.telemetry
-                    .standalone_diagnostic(&diagnostic.code, &diagnostic.severity);
+                self.telemetry.standalone_diagnostic(&diagnostic);
             }
             self.recent_diagnostics.push_back(diagnostic);
             while self.recent_diagnostics.len() > MAX_RECENT_DIAGNOSTICS {
@@ -21825,7 +21824,7 @@ impl ReadLane {
                     correlation.as_deref(),
                     None,
                 );
-        let result = (|| {
+        let mut result = (|| {
         let reader = pool.checkout()?;
         let tx = reader.conn().unchecked_transaction()?;
         // Pin the WAL snapshot now (the first read fixes it), before any
@@ -21860,7 +21859,7 @@ impl ReadLane {
         )?;
         Ok(invocation.output)
         })();
-        finish_function_observation(span, &result);
+        finish_function_observation(span, &mut result);
         let output = result?;
         facts_authority.validate_admission("query generation facts")?;
         let facts = invocation_facts_from_manifests(
@@ -25876,15 +25875,14 @@ fn asset_media_type_admitted(accepted: &[String], declared: &str) -> bool {
 
 fn finish_function_observation<T>(
     span: crate::telemetry::ObservationSpan,
-    result: &SnapbackResult<T>,
+    result: &mut SnapbackResult<T>,
 ) {
     match result {
         Ok(_) => span.finish(Some(200), None, None),
-        Err(error) => span.finish(
-            Some(500),
-            Some(&error.diagnostic.code),
-            Some(json!({ "severity": error.diagnostic.severity.clone() })),
-        ),
+        Err(error) => {
+            let severity = error.diagnostic.severity.clone();
+            span.finish_error(Some(500), error, Some(json!({ "severity": severity })))
+        }
     }
 }
 
@@ -28067,6 +28065,9 @@ globalThis.__snapbackHandlers = {
   async declaredRefusal(ctx, args) {
     ctx.refuse('STALE_MOVE', { expected: 1, actual: args.revision });
   },
+  async untrackedRefusal(ctx, args) {
+    ctx.refuse('STALE_MOVE', { expected: 1, actual: args.revision });
+  },
   async undeclaredRefusal(ctx) {
     ctx.refuse('SOMETHING_ELSE', { hidden: 'payload' });
   }
@@ -28079,8 +28080,11 @@ globalThis.__snapbackHandlers = {
     /// payload never reaches the caller.
     #[test]
     fn declared_application_refusal_round_trips_and_undeclared_folds() {
-        let mut snapback = LocalSnapback::memory().expect("memory snapback");
-        let refusal_fn = |name: &str, refusals: Vec<String>| {
+        let directory = tempfile::tempdir().expect("refusal telemetry directory");
+        let database_path = directory.path().join("refusal-telemetry.sqlite3");
+        let mut snapback =
+            LocalSnapback::open(&database_path).expect("file-backed refusal snapback");
+        let refusal_fn = |name: &str, refusals: Vec<String>, tracked: Vec<String>| {
             let mut definition = FunctionDefinition::new(
                 name,
                 FunctionKind::Mutation,
@@ -28090,12 +28094,26 @@ globalThis.__snapbackHandlers = {
                 }),
             );
             definition.refusals = refusals;
+            definition.tracked_refusals = tracked;
             definition
         };
         let diagnostics = snapback.load_functions(FunctionManifest {
             functions: vec![
-                refusal_fn("declaredRefusal", vec!["STALE_MOVE".to_owned()]),
-                refusal_fn("undeclaredRefusal", vec!["STALE_MOVE".to_owned()]),
+                refusal_fn(
+                    "declaredRefusal",
+                    vec!["STALE_MOVE".to_owned()],
+                    vec!["STALE_MOVE".to_owned()],
+                ),
+                refusal_fn(
+                    "untrackedRefusal",
+                    vec!["STALE_MOVE".to_owned()],
+                    Vec::new(),
+                ),
+                refusal_fn(
+                    "undeclaredRefusal",
+                    vec!["STALE_MOVE".to_owned()],
+                    Vec::new(),
+                ),
             ],
             ..FunctionManifest::default()
         });
@@ -28123,6 +28141,13 @@ globalThis.__snapbackHandlers = {
         assert_eq!(declared.diagnostic.code, "SNAPBACK_APP_REFUSAL");
         assert_eq!(declared.diagnostic.details["appCode"], "STALE_MOVE");
         assert_eq!(declared.diagnostic.details["appDetails"]["actual"], 2);
+        assert!(
+            declared.private_failure_context().is_none(),
+            "the local function observation consumes private tracking state"
+        );
+
+        let untracked = invoke(&mut snapback, "untrackedRefusal");
+        assert_eq!(untracked.diagnostic.code, "SNAPBACK_APP_REFUSAL");
 
         let undeclared = invoke(&mut snapback, "undeclaredRefusal");
         assert_eq!(undeclared.diagnostic.code, "SNAPBACK_HANDLER_FAILED");
@@ -28135,6 +28160,46 @@ globalThis.__snapbackHandlers = {
                 .expect("details serialize")
                 .contains("hidden"),
             "an undeclared refusal's payload is dropped"
+        );
+
+        snapback
+            .telemetry
+            .force_flush()
+            .expect("flush refusal emission evidence");
+        let raw = rusqlite::Connection::open(crate::telemetry::Telemetry::path_for_database(
+            &database_path,
+        ))
+        .expect("open refusal telemetry sibling");
+        let details_for = |name: &str| -> Value {
+            let encoded: String = raw
+                .query_row(
+                    "SELECT details FROM telemetry_events_visible WHERE kind='function_run' AND name=?1 ORDER BY id DESC LIMIT 1",
+                    rusqlite::params![name],
+                    |row| row.get(0),
+                )
+                .expect("function failure details");
+            serde_json::from_str(&encoded).expect("failure details decode")
+        };
+        let tracked_details = details_for("declaredRefusal");
+        assert_eq!(tracked_details["failure_disposition"], "app_refusal");
+        assert_eq!(tracked_details["issue_eligible"], true);
+        assert_eq!(tracked_details["fp_branch"], "app_refusal");
+        assert!(tracked_details["fp_hash"].as_str().is_some());
+        let untracked_details = details_for("untrackedRefusal");
+        assert_eq!(untracked_details["failure_disposition"], "app_refusal");
+        assert_eq!(untracked_details["issue_eligible"], false);
+        assert!(untracked_details.get("fp_hash").is_none());
+        let grouped_names = raw
+            .prepare("SELECT name FROM error_groups_visible ORDER BY name")
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(
+            grouped_names,
+            vec!["declaredRefusal".to_owned(), "undeclaredRefusal".to_owned()],
+            "tracked admission and folded exception group; admitted-untracked refusal does not",
         );
     }
 

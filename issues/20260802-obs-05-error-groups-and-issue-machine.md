@@ -191,3 +191,42 @@ how one terminal with multiple ordered unhandled rejections maps to eligible
 fingerprints. The last question is recorded in the author decision packet.
 This ticket remains **Open**: this checkpoint is neither whole E0 emission nor
 E1/D-06 completion.
+
+### 2026-08-02 — tranche 5: Rust local/server emission and E1 fold proof
+
+The existing Rust producer seams now consume the serde-skipped failure context
+without widening `Diagnostic`, its API envelope, or any CLI/MCP/console
+surface. One telemetry-private helper owns the required order: apply
+`ErrorClassificationV1`, select and stamp an eligible fingerprint from the
+already-admitted record and at most one carrier, then run the closed 8 KiB
+details allocator. `ObservationSpan::finish_error` takes the private context
+from the returned `SnapbackError`; ordinary span completion covers code-bearing
+typed failures and code-less HTTP transport failures; the standalone
+diagnostic point supplies its validated subsystem. The flush transaction is
+unchanged and proves E1 by materializing only the producer stamps.
+
+Focused coverage pins the local prepared-invocation disposition:
+`trackedRefusals` produces an eligible `app_refusal` fingerprint while an
+admitted-untracked refusal carries the same disposition without a fingerprint
+or group. A detached server nested-mutation throw consumes its exception
+carrier and stamps `errorClass`/normalized template identity. A nested logical
+`function_run` plus its registered HTTP carrier deliberately emits and groups
+two records with distinct `(kind, name, branch)` identity; that is the two
+existing observation seams, not duplicate publication of one issue.
+
+This still does **not** complete obs-05. The author-blocked multiple-unhandled
+path preserves the classifier's truthful residual `fault` and
+`issue_eligible: true`, but selects no carrier or fingerprint winner. It
+therefore remains raw, increments `malformed_error_stamp_count` exactly once,
+and creates no group; a focused test pins that fail-safe behavior pending the
+ruling in `issues/20260802-author-decision-packet.md`. No first/last/aggregate
+winner is inferred.
+
+Hosted-JS tracked-refusal disposition also remains out of this tranche for an
+exact authority reason: `cloudflare/src/coordinator.js` calls the shared
+`admitDeclaredRefusal(fn.refusals, ...)`, while
+`packages/snapback-harness/envelope.mjs` accepts only the declared set and its
+result carries no trusted `trackedRefusals` membership. Extending that hosted
+path would require a reviewed immutable tracking-authority carrier and a
+hosted observation owner; the Rust `PreparedInvocation` authority cannot be
+inferred from handler bytes.
