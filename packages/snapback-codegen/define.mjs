@@ -685,7 +685,6 @@ class TableBuilder {
     this.fields = fields;
     this.indexes = [];
     this.searchIndexes = [];
-    this.searchLiveLimitsDeclaration = undefined;
     this.syncable = false;
   }
 
