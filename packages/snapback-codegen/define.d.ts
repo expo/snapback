@@ -180,15 +180,20 @@ export declare function record(fields: Record<string, ValueExpr>): ValueExpr;
 // ---------------------------------------------------------------------------
 
 export interface FilterSpec { field: string; op: string; value: ValueExpr }
-export interface OrderSpec { field: string; direction: 'Asc' | 'Desc' }
+export interface OrderSpec {
+  field: string;
+  direction: 'Asc' | 'Desc';
+  /** UTF-8 write ceiling for a string order field; single-valued per table/field. */
+  maxEncodedBytes?: number;
+}
 
 export declare function eq(field: string, value: ValueExpr): FilterSpec;
 export declare function ltFilter(field: string, value: ValueExpr): FilterSpec;
 export declare function lteFilter(field: string, value: ValueExpr): FilterSpec;
 export declare function gtFilter(field: string, value: ValueExpr): FilterSpec;
 export declare function gteFilter(field: string, value: ValueExpr): FilterSpec;
-export declare function asc(field: string): OrderSpec;
-export declare function desc(field: string): OrderSpec;
+export declare function asc(field: string, options?: { maxEncodedBytes?: number }): OrderSpec;
+export declare function desc(field: string, options?: { maxEncodedBytes?: number }): OrderSpec;
 
 // ---------------------------------------------------------------------------
 // Mutation steps (v1 profile — LLP 0051 D2)
@@ -261,6 +266,7 @@ export type TargetCapabilityId =
   | 'ibex_ctx_db_host_bridge'
   | 'live_subscriptions'
   | 'mutation_read_set_validation'
+  | 'sequence_allocation_v1'
   | 'settlement.bounded_skew'
   | 'permission_epoch_resync'
   | 'full_text_search_v1';
@@ -393,6 +399,15 @@ interface JsMutationSpecBase extends AuthorityCreatingAuthOptions {
   /** Declares the named out-of-profile class keeping this mutation JS-tier;
    * codegen emits the class-specific "outgrew the IR" info diagnostic. */
   outgrewIr?: OutgrewIrClass;
+  /** Declared scoped counters available through ctx.sequence.allocate(). */
+  sequences?: readonly {
+    name: string;
+    scopeTable: string;
+    scopeAccess: 'public.v1' | {
+      declaration: string;
+      roles: readonly string[];
+    };
+  }[];
 }
 export type JsMutationSpec = JsMutationSpecBase & (
   | { source: string; exportName: string; handler?: never }

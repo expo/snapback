@@ -80,6 +80,7 @@ fn list_cells() -> FunctionDefinition {
             order: vec![OrderExpr {
                 field: "_createdAt".to_owned(),
                 direction: OrderDirection::Asc,
+                max_encoded_bytes: None,
             }],
             limit: None,
             membership_filters: Vec::new(),

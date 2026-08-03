@@ -1139,6 +1139,7 @@ impl FunctionManifest {
 
     fn validate_semantics(&self) -> SnapbackResult<()> {
         let mut identities = BTreeMap::<String, (usize, String)>::new();
+        let mut sequence_declarations = BTreeMap::<String, SequenceDeclaration>::new();
         for (function_index, function) in self.functions.iter().enumerate() {
             if function.name.trim().is_empty() {
                 return Err(SnapbackError::error(
@@ -1283,6 +1284,25 @@ impl FunctionManifest {
             validate_args_contract_definition(function)?;
             validate_declared_refusals(function)?;
             validate_bounded_skew_definition(function)?;
+            validate_sequence_declarations(function)?;
+            for declaration in &function.sequences {
+                match sequence_declarations.get(&declaration.name) {
+                    Some(previous) if previous != declaration => {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
+                            "runtime",
+                            format!(
+                                "sequence {:?} has inconsistent declarations across functions",
+                                declaration.name
+                            ),
+                        ));
+                    }
+                    Some(_) => {}
+                    None => {
+                        sequence_declarations.insert(declaration.name.clone(), declaration.clone());
+                    }
+                }
+            }
 
             if self.schema_version == SNAPBACK_SESSIONS_SCHEMA_VERSION {
                 validate_known_v1_capabilities(
@@ -1499,6 +1519,63 @@ impl FunctionManifest {
         }
         Ok(())
     }
+}
+
+fn validate_sequence_declarations(function: &FunctionDefinition) -> SnapbackResult<()> {
+    if function.sequences.is_empty() {
+        return Ok(());
+    }
+    if function.kind != FunctionKind::Mutation
+        || !matches!(function.runtime, FunctionRuntime::IbexModule(_))
+        || !function
+            .required_capabilities
+            .iter()
+            .any(|capability| capability == "sequence_allocation_v1")
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
+            "runtime",
+            format!(
+                "function {} declares sequences without the handler mutation profile and capability",
+                function.name
+            ),
+        ));
+    }
+    let mut names = BTreeSet::new();
+    for declaration in &function.sequences {
+        if declaration.name.trim().is_empty()
+            || declaration.scope_table.trim().is_empty()
+            || !names.insert(declaration.name.as_str())
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
+                "runtime",
+                format!(
+                    "function {} has an empty or duplicate sequence declaration",
+                    function.name
+                ),
+            ));
+        }
+        match &declaration.scope_access {
+            SequenceScopeAccess::Public(profile) if profile == "public.v1" => {}
+            SequenceScopeAccess::Membership { declaration, roles }
+                if !declaration.trim().is_empty()
+                    && !roles.is_empty()
+                    && roles.iter().all(|role| !role.trim().is_empty())
+                    && roles.iter().collect::<BTreeSet<_>>().len() == roles.len() => {}
+            _ => {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
+                    "runtime",
+                    format!(
+                        "function {} sequence {} has an invalid scopeAccess declaration",
+                        function.name, declaration.name
+                    ),
+                ));
+            }
+        }
+    }
+    Ok(())
 }
 
 /// Fail-closed shape validation for standard-pattern metadata whose deeper
@@ -3821,6 +3898,29 @@ pub enum FunctionResultContract {
     },
 }
 
+/// One declared sequence counter and the structural proof that an invocation
+/// may observe its allocation count. `public.v1` is deliberately a string on
+/// the wire because it is the reviewed disclosure spelling pinned by LLP
+/// 0135; non-public access names the membership declaration and exact roles
+/// the host evaluates against the supplied scope row.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(untagged)]
+pub enum SequenceScopeAccess {
+    Public(String),
+    Membership {
+        declaration: String,
+        roles: Vec<String>,
+    },
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SequenceDeclaration {
+    pub name: String,
+    pub scope_table: String,
+    pub scope_access: SequenceScopeAccess,
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct FunctionDefinition {
@@ -3868,6 +3968,16 @@ pub struct FunctionDefinition {
         skip_serializing_if = "Option::is_none"
     )]
     pub bounded_skew: Option<BoundedSkewDeclaration>,
+    /// Counters this handler may allocate from. The scope table and its
+    /// visibility proof are declaration authority: imperative handler code
+    /// cannot widen either at runtime.
+    ///
+    /// @ref LLP 0135#12-allocation-surfaces — handler allocations are closed
+    ///   by a per-function `sequences` declaration, default empty.
+    /// @ref LLP 0128#contract-guardrails-before-choosing-a-substrate —
+    ///   every counter names its scope table in the authoring surface.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub sequences: Vec<SequenceDeclaration>,
     #[serde(default, rename = "resultContract", alias = "result_contract")]
     pub result_contract: FunctionResultContract,
     #[serde(default, rename = "resultContractHash", alias = "result_contract_hash")]
@@ -4010,6 +4120,7 @@ impl FunctionDefinition {
             args_contract_hash: None,
             args_contract: None,
             bounded_skew: None,
+            sequences: Vec::new(),
             result_contract: FunctionResultContract::Unknown,
             result_contract_hash: None,
             required_capabilities: Vec::new(),
@@ -4638,6 +4749,8 @@ pub struct PublicFunctionDefinition {
     pub args_contract: Option<FunctionArgsContract>,
     #[serde(rename = "boundedSkew", skip_serializing_if = "Option::is_none")]
     pub bounded_skew: Option<BoundedSkewDeclaration>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub sequences: Vec<SequenceDeclaration>,
     // @ref LLP 0107#optimistic-mutation-projection — the browser verifies
     // the deployed descriptor as well as its hash before admitting an
     // optimistic reducer. Result contracts are bounded declarative schemas,
@@ -4833,6 +4946,7 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             args_contract_hash,
             args_contract,
             bounded_skew,
+            sequences,
             result_contract,
             result_contract_hash,
             required_capabilities,
@@ -4867,6 +4981,7 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             args_contract_hash,
             args_contract,
             bounded_skew,
+            sequences,
             result_contract,
             result_contract_hash,
             required_capabilities,
@@ -5256,6 +5371,20 @@ pub enum FilterOp {
 pub struct OrderExpr {
     pub field: String,
     pub direction: OrderDirection,
+    /// Optional UTF-8 ceiling for a string order field. The loader reconciles
+    /// every occurrence to one value per `(table, field)` before storage
+    /// installs it as a central-writer constraint.
+    ///
+    /// @ref LLP 0135#4-fold-on-acceptance-amendments-applied-2026-08-02 — the
+    ///   bound is schema-level even though authoring declares it at an order
+    ///   use; conflicting declarations and oversized writes fail closed.
+    #[serde(
+        default,
+        rename = "maxEncodedBytes",
+        alias = "max_encoded_bytes",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub max_encoded_bytes: Option<u64>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
@@ -6323,6 +6452,20 @@ pub struct MutationOutput {
     )]
     #[schemars(skip)]
     pub(crate) settlement_time_observation: Option<SettlementTimeObservation>,
+    /// Authority-private sequence receipt facts retained only so an exact
+    /// settlement replay can reproduce the first commit's receipt without
+    /// re-running the handler or advancing the counter.
+    ///
+    /// @ref LLP 0135#14-idempotent-re-allocation — replay republishes the
+    ///   retained allocation evidence and never performs a second allocation.
+    #[doc(hidden)]
+    #[serde(
+        default,
+        rename = "_settlementSequenceAllocations",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    #[schemars(skip)]
+    pub(crate) settlement_sequence_allocations: Vec<crate::storage::SequenceAllocationFact>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -6412,6 +6555,8 @@ pub enum TargetCapabilityId {
     RegisteredBundleBootV1,
     #[serde(rename = "relational_query_v1")]
     RelationalQueryV1,
+    #[serde(rename = "sequence_allocation_v1")]
+    SequenceAllocationV1,
     #[serde(rename = "migration_keyset_scan_v1")]
     MigrationKeysetScanV1,
     #[serde(rename = "full_text_search_v1")]
@@ -6441,7 +6586,7 @@ pub enum TargetCapabilityId {
 }
 
 impl TargetCapabilityId {
-    pub const ALL: [Self; 27] = [
+    pub const ALL: [Self; 28] = [
         Self::AuthSessionsV1,
         Self::BoundedResponseStreamV1,
         Self::BoundedChildrenV1,
@@ -6456,6 +6601,7 @@ impl TargetCapabilityId {
         Self::PermissionEpochResync,
         Self::RegisteredBundleBootV1,
         Self::RelationalQueryV1,
+        Self::SequenceAllocationV1,
         Self::MigrationKeysetScanV1,
         Self::FullTextSearchV1,
         Self::ResultContractV1,
@@ -6487,6 +6633,7 @@ impl TargetCapabilityId {
             Self::PermissionEpochResync => "permission_epoch_resync",
             Self::RegisteredBundleBootV1 => "registered_bundle_boot_v1",
             Self::RelationalQueryV1 => "relational_query_v1",
+            Self::SequenceAllocationV1 => "sequence_allocation_v1",
             Self::MigrationKeysetScanV1 => "migration_keyset_scan_v1",
             Self::FullTextSearchV1 => "full_text_search_v1",
             Self::ResultContractV1 => "result_contract_v1",
@@ -6535,6 +6682,7 @@ impl TargetCapabilityId {
             // durable-work capability class or target tuple (claim boundary).
             | Self::JobsOneOffV1
             | Self::RegisteredBundleBootV1
+            | Self::SequenceAllocationV1
             | Self::ResultContractV1
             | Self::ArgsContractV1
             | Self::VersionedSeedInstallV1
@@ -6669,6 +6817,10 @@ impl TargetCapabilityId {
             // (e.g. the Cloudflare host-ops path) does not thereby implement
             // the relational executor (LLP 0080 §2's capability-gap rule).
             Self::RelationalQueryV1 => facts.relational_query_v1_registered,
+            // @ref LLP 0135#18-ceilings-receipts-and-capability — the local
+            //   target advertises only the code-owned registered execution
+            //   seam; maturity remains experimental until LLP 0134 promotion.
+            Self::SequenceAllocationV1 => facts.sequence_allocation_v1_registered,
             // Fail-closed dedicated fact (LLP 0081 §3): the privileged
             // migration scan is a target capability; a target without it
             // cannot claim migration proofs.
@@ -6920,6 +7072,7 @@ pub struct TargetCapabilityFacts {
     bounded_children_v1_registered: bool,
     bounded_response_stream_v1_registered: bool,
     relational_query_v1_registered: bool,
+    sequence_allocation_v1_registered: bool,
     migration_keyset_scan_v1_registered: bool,
     full_text_search_v1_registered: bool,
     inline_handler_v1_registered: bool,
@@ -6970,6 +7123,7 @@ impl TargetCapabilityFacts {
             bounded_children_v1_registered: true,
             bounded_response_stream_v1_registered: true,
             relational_query_v1_registered: true,
+            sequence_allocation_v1_registered: true,
             migration_keyset_scan_v1_registered: true,
             full_text_search_v1_registered: true,
             inline_handler_v1_registered: true,
@@ -7003,6 +7157,7 @@ impl TargetCapabilityFacts {
     fn conformance_auth_aware() -> Self {
         Self {
             bounded_children_v1_registered: false,
+            sequence_allocation_v1_registered: false,
             ibex_ctx_db_host_bridge_available: false,
             // The conformance profile has no jobs worker/drain instance;
             // fail closed like the other local-only registrations.
@@ -8423,6 +8578,10 @@ mod membership_manifest_grammar_tests {
             ),
             (
                 TargetCapabilityId::RegisteredBundleBootV1,
+                CapabilityMaturity::Experimental,
+            ),
+            (
+                TargetCapabilityId::SequenceAllocationV1,
                 CapabilityMaturity::Experimental,
             ),
             (

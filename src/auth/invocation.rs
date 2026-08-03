@@ -1222,6 +1222,11 @@ pub struct PreparedInvocation {
     ///
     /// @ref LLP 0108#tracked-refusal-opt-in
     tracked_refusals: Vec<String>,
+    /// Immutable sequence reach declarations carried through preparation so
+    /// handler code cannot swap the scope/access contract at the host seam.
+    /// @ref LLP 0135#12-allocation-surfaces — the manifest declaration is the
+    ///   runtime ctx boundary authority.
+    sequences: Vec<crate::manifest::SequenceDeclaration>,
 }
 
 impl PreparedInvocation {
@@ -1265,6 +1270,10 @@ impl PreparedInvocation {
     #[allow(dead_code)]
     pub(crate) fn tracked_refusals(&self) -> &[String] {
         &self.tracked_refusals
+    }
+
+    pub(crate) fn sequences(&self) -> &[crate::manifest::SequenceDeclaration] {
+        &self.sequences
     }
 
     pub fn admission_lease(&self) -> &AdmissionLease {
@@ -1558,6 +1567,7 @@ impl InvocationGate {
             invocation_id: crate::ids::mint_time_ordered(crate::ids::Kind::Invocation),
             declared_refusals: function.refusals.clone(),
             tracked_refusals: function.tracked_refusals.clone(),
+            sequences: function.sequences.clone(),
         })
     }
 }

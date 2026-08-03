@@ -132,3 +132,20 @@ caps/floors, generation rotation, fingerprint-version split with exemplars
 absent, and transition-history pruning/derived floor. The checkpoint remains
 open because E0 runtime carrier wiring and the later E1 public surface are
 separate D-05/D-06 tranches.
+
+### 2026-08-02 — integration note from the LLP 0135 sequence lane
+
+After rebasing onto `96f56cb6`, the complete Rust library suite passed 1,797
+tests but the reviewed HTTP diagnostic inventory gate found these newly
+emitted observability diagnostics unclassified:
+`SNAPBACK_ERROR_GROUP_STATE_INVALID`,
+`SNAPBACK_ERROR_RESOLVE_BARRIER_MISSING`,
+`SNAPBACK_ERROR_ROLLOUT_INVALID`,
+`SNAPBACK_ERROR_STATE_SEQUENCE_EXHAUSTED`,
+`SNAPBACK_ERROR_STATE_SEQUENCE_INVALID`,
+`SNAPBACK_ERROR_TRANSITION_SERIALIZATION_FAILED`,
+`SNAPBACK_TELEMETRY_SEQUENCE_EXHAUSTED`, and
+`SNAPBACK_TELEMETRY_SEQUENCE_INVALID`. The sequence lane did not assign HTTP
+semantics for another subsystem; the D-05/observability owner should classify
+them in the reviewed `src/server.rs` table and rerun
+`server::tests::s5_d10_production_diagnostic_inventory_cannot_drift`.

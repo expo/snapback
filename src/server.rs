@@ -7090,6 +7090,7 @@ impl MutationResponse {
             ctx_ledger,
             settlement_mint_observations: _,
             settlement_time_observation: _,
+            settlement_sequence_allocations: _,
         } = output;
         Self {
             version,
@@ -24148,6 +24149,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTHORIZATION_VERSION_CORRUPT"
         | "SNAPBACK_STORAGE_VERSION_CORRUPT"
         | "SNAPBACK_STORAGE_VERSION_EXHAUSTED"
+        | "SNAPBACK_SEQUENCE_EXHAUSTED"
         | "SNAPBACK_CAPABILITY_UNSUPPORTED"
         // LLP 0080 §2: a full page must carry its continuation, so an
         // unmintable cursor is a transient serving failure, not a terminal
@@ -24340,6 +24342,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_FUNCTION_KIND_RUNTIME_MISMATCH"
         | "SNAPBACK_FUNCTION_NOT_LIVE"
         | "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID"
+        | "SNAPBACK_ORDER_FIELD_MAX_ENCODED_BYTES_EXCEEDED"
         | "SNAPBACK_APP_REFUSAL"
         | "SNAPBACK_FUNCTION_REFUSAL_DECLARATION_INVALID"
         | "SNAPBACK_FUNCTION_TRACKED_REFUSAL_INVALID"
@@ -24358,6 +24361,8 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_HANDLER_UNHANDLED_REJECTION"
         | "SNAPBACK_UNHANDLED_REJECTION"
         | "SNAPBACK_HANDLER_WRITE_IN_QUERY"
+        | "SNAPBACK_SEQUENCE_DECLARATION_INVALID"
+        | "SNAPBACK_SEQUENCE_UNDECLARED"
         | "SNAPBACK_HOST_OP_CLI_ONLY"
         | "SNAPBACK_HOST_OP_FUNCTION_KIND_UNSUPPORTED"
         | "SNAPBACK_HOST_OP_FUNCTION_UNKNOWN"
@@ -38263,6 +38268,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_FUNCTION_KIND_RUNTIME_MISMATCH",
         "SNAPBACK_FUNCTION_NOT_LIVE",
         "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
+        "SNAPBACK_ORDER_FIELD_MAX_ENCODED_BYTES_EXCEEDED",
         "SNAPBACK_RESULT_CONTRACT_KIND_MISMATCH",
         "SNAPBACK_APP_REFUSAL",
         "SNAPBACK_FUNCTION_REFUSAL_DECLARATION_INVALID",
@@ -38286,6 +38292,8 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_HANDLER_UNHANDLED_REJECTION",
         "SNAPBACK_UNHANDLED_REJECTION",
         "SNAPBACK_HANDLER_WRITE_IN_QUERY",
+        "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
+        "SNAPBACK_SEQUENCE_UNDECLARED",
         "SNAPBACK_SEARCH_CURSOR_RESTART",
         "SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID",
         "SNAPBACK_SEARCH_MAINTENANCE_LIMIT",
@@ -38777,6 +38785,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_AUTHORIZATION_VERSION_CORRUPT",
         "SNAPBACK_STORAGE_VERSION_CORRUPT",
         "SNAPBACK_STORAGE_VERSION_EXHAUSTED",
+        "SNAPBACK_SEQUENCE_EXHAUSTED",
         "SNAPBACK_PERMISSION_EPOCH_EXHAUSTED",
         "SNAPBACK_CAPABILITY_UNSUPPORTED",
         "SNAPBACK_CAPABILITY_EXACT_ADMIN_DIST_MISSING",

@@ -28,6 +28,8 @@ use std::sync::{OnceLock, mpsc};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
+pub(crate) const SEQUENCE_MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
+
 // The item-3 provider integration consumes these crate-private seams after this
 // catalog lane lands; keep the catalog module narrow without making unfinished
 // provider routes part of the public storage API in this commit.
@@ -578,6 +580,11 @@ pub struct MutationCommit {
     /// maintenance, or the version head — only the live matcher.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub job_changes: Vec<ChangedRow>,
+    /// Authority-private facts for sequence allocations committed with this
+    /// mutation. The direct receipt carries them; fan-out projection removes
+    /// them because the value discloses the number of prior allocations.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub sequence_allocations: Vec<SequenceAllocationFact>,
     /// `None` means no commit occurred (dry-run or exact replay). Every fresh
     /// committed app writer returns the pair observed/written in its SQLite
     /// transaction, including ordinary commits that did not advance it.
@@ -638,6 +645,7 @@ struct BufferedCommitOptions<'a> {
 #[derive(Clone)]
 pub(crate) struct BufferedCommitPayload {
     pub writes: Vec<BufferedWrite>,
+    pub sequence_allocations: Vec<SequenceAllocationFact>,
     pub membership_plans: Vec<AuthorizedMembershipPlan>,
     pub read_dependencies: Vec<CapturedReadDependency>,
     pub result: Value,
@@ -655,6 +663,7 @@ pub(crate) struct BufferedCommitPayload {
 
 struct BufferedEffects {
     writes: Vec<BufferedWrite>,
+    sequence_allocations: Vec<SequenceAllocationFact>,
     membership_plans: Vec<AuthorizedMembershipPlan>,
     read_dependencies: Vec<CapturedReadDependency>,
     result: Value,
@@ -827,6 +836,21 @@ pub enum BufferedWrite {
     },
 }
 
+/// One tentative sequence value. It is returned during handler execution but
+/// becomes a fact only if this exact identity/value transition commits.
+///
+/// @ref LLP 0135#13-allocation-versus-commit-ordering-and-gap-semantics — the
+///   counter advance is buffered and commits or rolls back with app writes.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SequenceAllocationFact {
+    pub counter: String,
+    pub scope_table: String,
+    pub scope_row_id: String,
+    pub scope_incarnation: String,
+    pub value: u64,
+}
+
 impl BufferedWrite {
     pub fn table(&self) -> &str {
         match self {
@@ -864,12 +888,18 @@ pub struct LocalDatabase {
     /// consults them so source commits and projection maintenance share one
     /// transaction.
     projections: Arc<Vec<crate::manifest::MaintainedProjectionPlan>>,
+    /// Reconciled UTF-8 ceilings for string order fields. Function-manifest
+    /// activation installs one value per `(table, field)` only after scanning
+    /// the brownfield rows; all shared application writers consult this map.
+    /// @ref LLP 0135#4-fold-on-acceptance-amendments-applied-2026-08-02
+    order_field_bounds: Arc<BTreeMap<(String, String), u64>>,
 }
 
 fn reset_and_seed_transaction(
     tx: &Transaction<'_>,
     schema: &SchemaManifest,
     projections: &[crate::manifest::MaintainedProjectionPlan],
+    order_field_bounds: &BTreeMap<(String, String), u64>,
     seed: Option<SeedData>,
     successor: &crate::auth::session_projection::AuthorizationStreamIncarnation,
     versioned: Option<(&crate::seed_identity::ResetSeedRequestV1, &str)>,
@@ -960,6 +990,7 @@ fn reset_and_seed_transaction(
     tx.execute("DELETE FROM _snapback_client_mutation_auth_retention", [])?;
     tx.execute("DELETE FROM _snapback_membership_transitions", [])?;
     tx.execute("DELETE FROM _snapback_relation_incarnations_v1", [])?;
+    tx.execute("DELETE FROM _snapback_sequence_counters_v1", [])?;
     // @ref LLP 0076#authority-and-lifecycle — application reload/reset is a
     // cursor-closing terminal event; retained attempt settlement evidence is
     // application state and resets with it.
@@ -1005,7 +1036,8 @@ fn reset_and_seed_transaction(
             // preflight explicit: unlike ordinary seed, no pre-reset corrupt
             // row is allowed to participate in activation.
             preflight_membership_activation_sources(tx, schema, 0)?;
-            let mut changes = seed_into_transaction(tx, schema, seed, 1)?;
+            let mut changes =
+                seed_into_transaction(tx, schema, seed, 1, order_field_bounds)?;
             let direct_application_rows = changes.len();
             if !projections.is_empty() {
                 maintain_projections_in_tx(
@@ -1016,6 +1048,7 @@ fn reset_and_seed_transaction(
                     &BTreeMap::new(),
                     1,
                     now_millis(),
+                    order_field_bounds,
                     if versioned.is_some() {
                         ProjectionEffectCeiling::VersionedSeedV1
                     } else {
@@ -1046,6 +1079,7 @@ fn reset_and_seed_transaction(
                 ctx_ledger: None,
                 settlement_mint_observations: Vec::new(),
                 settlement_time_observation: None,
+                settlement_sequence_allocations: Vec::new(),
             })
         }
     };
@@ -1248,10 +1282,17 @@ fn simulate_versioned_seed_projection_rows(
         // protected state. The real reset clears them before seeding; the
         // disposable preview must model that same successor cut.
         tx.execute("DELETE FROM _snapback_relation_incarnations_v1", [])?;
+        tx.execute("DELETE FROM _snapback_sequence_counters_v1", [])?;
     }
     let current_version = current_version_on(&tx)?;
     let next_version = next_storage_version(current_version)?;
-    let mut changes = seed_into_transaction(&tx, schema, artifact.seed_data(), next_version)?;
+    let mut changes = seed_into_transaction(
+        &tx,
+        schema,
+        artifact.seed_data(),
+        next_version,
+        &simulation.order_field_bounds,
+    )?;
     let direct_application_rows = changes.len();
     if !projections.is_empty() {
         maintain_projections_in_tx(
@@ -1262,6 +1303,7 @@ fn simulate_versioned_seed_projection_rows(
             &BTreeMap::new(),
             next_version,
             now_millis(),
+            &simulation.order_field_bounds,
             ProjectionEffectCeiling::UnboundedPreview,
         )?;
     }
@@ -1645,6 +1687,7 @@ impl LocalDatabase {
                 crate::auth::service_fence::ServiceAuthorityFenceRegistry::default(),
             app_state_graph_claimed: false,
             projections: Arc::new(Vec::new()),
+            order_field_bounds: Arc::new(BTreeMap::new()),
         };
         db.configure(false)?;
         db.create_infra()?;
@@ -1681,6 +1724,7 @@ impl LocalDatabase {
                 crate::auth::service_fence::ServiceAuthorityFenceRegistry::default(),
             app_state_graph_claimed: false,
             projections: Arc::new(Vec::new()),
+            order_field_bounds: Arc::new(BTreeMap::new()),
         };
         db.configure(true)?;
         db.create_infra()?;
@@ -1749,6 +1793,7 @@ impl LocalDatabase {
                 crate::auth::service_fence::ServiceAuthorityFenceRegistry::default(),
             app_state_graph_claimed: false,
             projections: Arc::new(Vec::new()),
+            order_field_bounds: self.order_field_bounds.clone(),
         })
     }
 
@@ -2535,6 +2580,7 @@ impl LocalDatabase {
             &tx,
             &schema,
             self.projections.as_ref(),
+            &self.order_field_bounds,
             seed,
             successor,
             None,
@@ -2672,6 +2718,7 @@ impl LocalDatabase {
             &tx,
             &schema,
             projections.as_ref(),
+            &self.order_field_bounds,
             seed,
             successor,
             Some((&request, &request_digest)),
@@ -3040,7 +3087,13 @@ impl LocalDatabase {
             &request.artifact.tables,
             request.asset_fixtures.as_ref(),
         )?;
-        let mut changes = seed_into_transaction(&tx, &schema, seed_data, next_version)?;
+        let mut changes = seed_into_transaction(
+            &tx,
+            &schema,
+            seed_data,
+            next_version,
+            &self.order_field_bounds,
+        )?;
         let direct_application_rows = changes.len();
         if !projections.is_empty() {
             maintain_projections_in_tx(
@@ -3051,6 +3104,7 @@ impl LocalDatabase {
                 &BTreeMap::new(),
                 next_version,
                 now_millis(),
+                &self.order_field_bounds,
                 ProjectionEffectCeiling::VersionedSeedV1,
             )?;
         }
@@ -3273,7 +3327,13 @@ impl LocalDatabase {
         let touched = seed.tables.keys().cloned().collect();
         validate_touched_managed_tables(&tx, &schema, &touched, current_version)?;
         preflight_membership_activation_sources(&tx, &schema, current_version)?;
-        let changes = seed_into_transaction(&tx, &schema, seed, next_version)?;
+        let changes = seed_into_transaction(
+            &tx,
+            &schema,
+            seed,
+            next_version,
+            &self.order_field_bounds,
+        )?;
         crate::search::maintain_search_indexes_in_tx(&tx, &schema, &changes, next_version)?;
         validate_membership_activation(&tx, &schema, next_version)?;
         tx.rollback()?;
@@ -3293,7 +3353,13 @@ impl LocalDatabase {
         let touched = seed.tables.keys().cloned().collect();
         validate_touched_managed_tables(&tx, &schema, &touched, current_version)?;
         preflight_membership_activation_sources(&tx, &schema, current_version)?;
-        let changes = seed_into_transaction(&tx, &schema, seed, next_version)?;
+        let changes = seed_into_transaction(
+            &tx,
+            &schema,
+            seed,
+            next_version,
+            &self.order_field_bounds,
+        )?;
         // The standalone seed API has the same invariant obligations as a
         // deployment seed; it cannot bypass membership activation checks just
         // because DDL was already active.
@@ -3337,6 +3403,7 @@ impl LocalDatabase {
                 ctx_ledger: None,
                 settlement_mint_observations: Vec::new(),
                 settlement_time_observation: None,
+                settlement_sequence_allocations: Vec::new(),
             },
             authorization,
         })
@@ -3381,6 +3448,129 @@ impl LocalDatabase {
         plans: Vec<crate::manifest::MaintainedProjectionPlan>,
     ) {
         self.projections = Arc::new(plans);
+    }
+
+    /// Refuse adoption when existing rows already exceed a newly declared
+    /// order-field ceiling. This is deliberately read-only; callers install
+    /// the map only after the complete function generation passes preflight.
+    pub(crate) fn validate_order_field_bounds(
+        &self,
+        bounds: &BTreeMap<(String, String), u64>,
+    ) -> SnapbackResult<()> {
+        for ((table, field), maximum) in bounds {
+            let oversized = self
+                .conn
+                .query_row(
+                    &format!(
+                        "SELECT _id FROM {} WHERE {} IS NOT NULL AND length(CAST({} AS BLOB)) > ?1 LIMIT 1",
+                        quote_ident(table)?,
+                        quote_ident(field)?,
+                        quote_ident(field)?,
+                    ),
+                    params![i64::try_from(*maximum).map_err(|_| {
+                        SnapbackError::error(
+                            "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
+                            "runtime",
+                            format!(
+                                "order-field bound for {table}.{field} exceeds the SQLite integer domain"
+                            ),
+                        )
+                    })?],
+                    |row| row.get::<_, String>(0),
+                )
+                .optional()?;
+            if let Some(row_id) = oversized {
+                return Err(order_field_max_encoded_bytes_exceeded(
+                    table, field, &row_id, *maximum,
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    /// Refuse sequence activation over brownfield scope rows until every
+    /// present row has exactly one active LLP 0110 incarnation and no active
+    /// registry row points at a missing scope. New central-writer inserts
+    /// already mint these facts; this gate makes adoption of older rows
+    /// explicit instead of silently blessing them.
+    ///
+    /// @ref LLP 0135#11-counter-identity-and-scope — declaring a counter
+    ///   enrolls its scope in the shared relation-incarnation authority, and
+    ///   brownfield rows require reviewed backfill before activation.
+    pub(crate) fn validate_sequence_scope_activation(
+        &self,
+        scope_tables: &BTreeSet<String>,
+    ) -> SnapbackResult<()> {
+        for table in scope_tables {
+            let table_sql = quote_ident(table)?;
+            let missing_or_duplicate_active = self
+                .conn
+                .query_row(
+                    &format!(
+                        "SELECT s._id
+                           FROM {table_sql} s
+                      LEFT JOIN _snapback_relation_incarnations_v1 r
+                             ON r.table_name = ?1
+                            AND r.row_id = s._id
+                            AND r.active = 1
+                       GROUP BY s._id
+                         HAVING count(r.incarnation) != 1
+                          LIMIT 1"
+                    ),
+                    params![table],
+                    |row| row.get::<_, String>(0),
+                )
+                .optional()?;
+            if let Some(row_id) = missing_or_duplicate_active {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_RELATION_ACTIVATION_BACKFILL_REQUIRED",
+                    "schema",
+                    "each sequence scope row must have exactly one active incarnation",
+                )
+                .with_details(json!({
+                    "scopeTable": table,
+                    "rowId": row_id,
+                    "direction": "scope-to-registry",
+                })));
+            }
+
+            let dangling_active = self
+                .conn
+                .query_row(
+                    &format!(
+                        "SELECT r.row_id
+                           FROM _snapback_relation_incarnations_v1 r
+                      LEFT JOIN {table_sql} s ON s._id = r.row_id
+                          WHERE r.table_name = ?1
+                            AND r.active = 1
+                            AND s._id IS NULL
+                          LIMIT 1"
+                    ),
+                    params![table],
+                    |row| row.get::<_, String>(0),
+                )
+                .optional()?;
+            if let Some(row_id) = dangling_active {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_RELATION_ACTIVATION_BACKFILL_REQUIRED",
+                    "schema",
+                    "an active sequence scope incarnation has no present row",
+                )
+                .with_details(json!({
+                    "scopeTable": table,
+                    "rowId": row_id,
+                    "direction": "registry-to-scope",
+                })));
+            }
+        }
+        Ok(())
+    }
+
+    pub(crate) fn set_order_field_bounds(
+        &mut self,
+        bounds: BTreeMap<(String, String), u64>,
+    ) {
+        self.order_field_bounds = Arc::new(bounds);
     }
 
     /// Execute a closed relational plan under `root-window-v1`.
@@ -3567,6 +3757,7 @@ impl LocalDatabase {
         identity: &ClientMutationIdentity,
     ) -> SnapbackResult<MutationCommit> {
         if let Some(output) = self.client_mutation_result(identity)? {
+            let sequence_allocations = output.settlement_sequence_allocations.clone();
             return Ok(MutationCommit {
                 output,
                 changes: Vec::new(),
@@ -3574,6 +3765,7 @@ impl LocalDatabase {
                 write_dependencies: Vec::new(),
                 job_enqueues: Vec::new(),
                 job_changes: Vec::new(),
+                sequence_allocations,
                 authorization: None,
             });
         }
@@ -3593,6 +3785,7 @@ impl LocalDatabase {
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
         if let Some(output) = self.client_mutation_result(identity)? {
+            let sequence_allocations = output.settlement_sequence_allocations.clone();
             return Ok(MutationCommit {
                 output,
                 changes: Vec::new(),
@@ -3600,6 +3793,7 @@ impl LocalDatabase {
                 write_dependencies: Vec::new(),
                 job_enqueues: Vec::new(),
                 job_changes: Vec::new(),
+                sequence_allocations,
                 authorization: None,
             });
         }
@@ -3680,6 +3874,7 @@ impl LocalDatabase {
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
         if let Some(output) = self.client_mutation_result(identity)? {
+            let sequence_allocations = output.settlement_sequence_allocations.clone();
             return Ok(MutationCommit {
                 output,
                 changes: Vec::new(),
@@ -3687,6 +3882,7 @@ impl LocalDatabase {
                 write_dependencies: Vec::new(),
                 job_enqueues: Vec::new(),
                 job_changes: Vec::new(),
+                sequence_allocations,
                 authorization: None,
             });
         }
@@ -3921,7 +4117,15 @@ impl LocalDatabase {
                             .entry((table.name.clone(), id.clone()))
                             .or_insert(None);
                     }
-                    let document = insert_document(&tx, table, &id, &row, next_version, now_ms)?;
+                    let document = insert_document(
+                        &tx,
+                        table,
+                        &id,
+                        &row,
+                        next_version,
+                        now_ms,
+                        &self.order_field_bounds,
+                    )?;
                     record_change(
                         &tx,
                         next_version,
@@ -3974,7 +4178,15 @@ impl LocalDatabase {
                             .and_then(|value| value.as_object().cloned());
                         projection_pre_images.insert((table.name.clone(), id.clone()), pre);
                     }
-                    if patch_document(&tx, table, &id, &row, next_version, now_ms)? {
+                    if patch_document(
+                        &tx,
+                        table,
+                        &id,
+                        &row,
+                        next_version,
+                        now_ms,
+                        &self.order_field_bounds,
+                    )? {
                         let document = get_document_from_tx(&tx, table, &id, next_version)?;
                         record_change(
                             &tx,
@@ -4444,7 +4656,15 @@ impl LocalDatabase {
                         )?;
                         let changed_fields = changed_field_names(&row);
                         let document =
-                            insert_document(&tx, table, &id, &row, next_version, now_ms)?;
+                            insert_document(
+                                &tx,
+                                table,
+                                &id,
+                                &row,
+                                next_version,
+                                now_ms,
+                                &self.order_field_bounds,
+                            )?;
                         record_change(
                             &tx,
                             next_version,
@@ -4483,6 +4703,7 @@ impl LocalDatabase {
                 &projection_pre_images,
                 next_version,
                 now_ms,
+                &self.order_field_bounds,
                 ProjectionEffectCeiling::MutationV1,
             )?;
         }
@@ -4574,6 +4795,7 @@ impl LocalDatabase {
                     accepted: settlement_time_within_bound && sink_reached,
                 }
             }),
+            settlement_sequence_allocations: Vec::new(),
         };
         let authorization_predecessor = if apply {
             auth_stream::read_authorization_version_on(&tx)?
@@ -4638,6 +4860,7 @@ impl LocalDatabase {
                 // note's callee/producer scoping).
                 job_enqueues: Vec::new(),
                 job_changes: Vec::new(),
+                sequence_allocations: Vec::new(),
                 authorization,
             },
             generated_ids,
@@ -4683,6 +4906,7 @@ impl LocalDatabase {
     {
         let BufferedCommitPayload {
             writes,
+            sequence_allocations,
             membership_plans,
             read_dependencies,
             result,
@@ -4695,6 +4919,7 @@ impl LocalDatabase {
             input,
             BufferedEffects {
                 writes,
+                sequence_allocations,
                 membership_plans,
                 read_dependencies,
                 result,
@@ -4722,6 +4947,7 @@ impl LocalDatabase {
         &mut self,
         input: &HandlerInput,
         writes: Vec<BufferedWrite>,
+        sequence_allocations: Vec<SequenceAllocationFact>,
         membership_plans: Vec<AuthorizedMembershipPlan>,
         read_dependencies: Vec<CapturedReadDependency>,
         result: Value,
@@ -4731,6 +4957,7 @@ impl LocalDatabase {
         self.dry_run_buffered_writes_with_jobs(
             input,
             writes,
+            sequence_allocations,
             membership_plans,
             read_dependencies,
             result,
@@ -4749,6 +4976,7 @@ impl LocalDatabase {
         &mut self,
         input: &HandlerInput,
         writes: Vec<BufferedWrite>,
+        sequence_allocations: Vec<SequenceAllocationFact>,
         membership_plans: Vec<AuthorizedMembershipPlan>,
         read_dependencies: Vec<CapturedReadDependency>,
         result: Value,
@@ -4765,6 +4993,7 @@ impl LocalDatabase {
             input,
             BufferedEffects {
                 writes,
+                sequence_allocations,
                 membership_plans,
                 read_dependencies,
                 result,
@@ -4795,6 +5024,7 @@ impl LocalDatabase {
             input,
             BufferedEffects {
                 writes,
+                sequence_allocations: Vec::new(),
                 membership_plans: Vec::new(),
                 read_dependencies,
                 result,
@@ -4848,6 +5078,7 @@ impl LocalDatabase {
         check_live()?;
         let BufferedEffects {
             writes,
+            sequence_allocations,
             membership_plans,
             mut read_dependencies,
             result,
@@ -4969,7 +5200,15 @@ impl LocalDatabase {
                             .or_insert(None);
                     }
                     let changed_fields = changed_field_names(&values);
-                    let document = insert_document(&tx, table, &id, &values, next_version, now_ms)?;
+                    let document = insert_document(
+                        &tx,
+                        table,
+                        &id,
+                        &values,
+                        next_version,
+                        now_ms,
+                        &self.order_field_bounds,
+                    )?;
                     write_membership_creation_provenance(&tx, table, &id, write_writer.as_ref())?;
                     record_membership_transition(
                         &tx,
@@ -5012,7 +5251,15 @@ impl LocalDatabase {
                             });
                     }
                     let changed_fields = changed_field_names(&values);
-                    if patch_document(&tx, table, &id, &values, next_version, now_ms)? {
+                    if patch_document(
+                        &tx,
+                        table,
+                        &id,
+                        &values,
+                        next_version,
+                        now_ms,
+                        &self.order_field_bounds,
+                    )? {
                         let document = get_document_from_tx(&tx, table, &id, next_version)?;
                         record_membership_transition(
                             &tx,
@@ -5119,6 +5366,7 @@ impl LocalDatabase {
                 &projection_pre_images,
                 next_version,
                 now_ms,
+                &self.order_field_bounds,
                 ProjectionEffectCeiling::MutationV1,
             )?;
         }
@@ -5140,11 +5388,13 @@ impl LocalDatabase {
             now_ms,
         )?;
 
-        if !changes.is_empty() {
+        apply_sequence_allocations_in_tx(&tx, &schema, &sequence_allocations)?;
+
+        if !changes.is_empty() || !sequence_allocations.is_empty() {
             set_version(&tx, next_version)?;
         }
 
-        let version = if changes.is_empty() {
+        let version = if changes.is_empty() && sequence_allocations.is_empty() {
             current_version
         } else {
             next_version
@@ -5193,6 +5443,7 @@ impl LocalDatabase {
             ctx_ledger: options.ctx_ledger,
             settlement_mint_observations: Vec::new(),
             settlement_time_observation: None,
+            settlement_sequence_allocations: sequence_allocations.clone(),
         };
         let authorization_predecessor = if options.apply {
             auth_stream::read_authorization_version_on(&tx)?
@@ -5251,6 +5502,7 @@ impl LocalDatabase {
             read_dependencies,
             job_enqueues: job_enqueue_facts,
             job_changes,
+            sequence_allocations,
             authorization,
         })
     }
@@ -5430,6 +5682,17 @@ impl LocalDatabase {
               _snapback_relation_incarnations_v1_active
               ON _snapback_relation_incarnations_v1(table_name, row_id)
               WHERE active = 1;
+            -- @ref LLP 0135#11-counter-identity-and-scope — counter state is
+            -- protected and keyed by the complete scope-incarnation identity;
+            -- delete/recreate therefore starts a distinct counter at 1.
+            CREATE TABLE IF NOT EXISTS _snapback_sequence_counters_v1 (
+              counter_name TEXT NOT NULL,
+              scope_table TEXT NOT NULL,
+              scope_row_id TEXT NOT NULL,
+              scope_incarnation TEXT NOT NULL,
+              next_value INTEGER NOT NULL CHECK(next_value >= 1),
+              PRIMARY KEY(counter_name, scope_table, scope_row_id, scope_incarnation)
+            );
             -- @ref LLP 0053#invalidation-is-an-obligation-not-a-message —
             -- retry episodes are durable auth-control state, never outbox
             -- messages or process-local timer records.
@@ -5950,6 +6213,7 @@ fn migration_scan_order(
         .map(|field| OrderExpr {
             field: field.clone(),
             direction: OrderDirection::Asc,
+            max_encoded_bytes: None,
         })
         .collect())
 }
@@ -6779,7 +7043,15 @@ impl LocalDatabase {
                             == logical.get(&leaf.name).cloned().unwrap_or(Value::Null)
                     });
                     if !unchanged {
-                        patch_document(&tx, output_table, id, logical, next_version, now_ms)?;
+                        patch_document(
+                            &tx,
+                            output_table,
+                            id,
+                            logical,
+                            next_version,
+                            now_ms,
+                            &self.order_field_bounds,
+                        )?;
                         let document = get_document_from_tx(&tx, output_table, id, next_version)?;
                         record_change(
                             &tx,
@@ -6797,7 +7069,15 @@ impl LocalDatabase {
         }
         for (output_id, (_, logical)) in &pending {
             let document =
-                insert_document(&tx, output_table, output_id, logical, next_version, now_ms)?;
+                insert_document(
+                    &tx,
+                    output_table,
+                    output_id,
+                    logical,
+                    next_version,
+                    now_ms,
+                    &self.order_field_bounds,
+                )?;
             record_change(
                 &tx,
                 next_version,
@@ -7082,6 +7362,7 @@ fn maintain_projections_in_tx(
     pre_images: &BTreeMap<(String, String), Option<Map<String, Value>>>,
     next_version: u64,
     now_ms: u64,
+    order_field_bounds: &BTreeMap<(String, String), u64>,
     effect_ceiling: ProjectionEffectCeiling,
 ) -> SnapbackResult<()> {
     use crate::manifest::ProjectionOutputKey;
@@ -7339,7 +7620,15 @@ fn maintain_projections_in_tx(
                 Some(next) => {
                     let changed_fields = changed_field_names(&next);
                     if existing.is_some() {
-                        patch_document(tx, output_table, &output_id, &next, next_version, now_ms)?;
+                        patch_document(
+                            tx,
+                            output_table,
+                            &output_id,
+                            &next,
+                            next_version,
+                            now_ms,
+                            order_field_bounds,
+                        )?;
                         let document =
                             get_document_from_tx(tx, output_table, &output_id, next_version)?;
                         record_change(
@@ -7366,6 +7655,7 @@ fn maintain_projections_in_tx(
                             &next,
                             next_version,
                             now_ms,
+                            order_field_bounds,
                         )?;
                         record_change(
                             tx,
@@ -8297,6 +8587,39 @@ impl DbRead<'_> {
                 |row| row.get(0),
             )
             .optional()?)
+    }
+
+    pub(crate) fn sequence_next_value(
+        &self,
+        counter: &str,
+        scope_table: &str,
+        scope_row_id: &str,
+        scope_incarnation: &str,
+    ) -> SnapbackResult<u64> {
+        let conn = match self {
+            DbRead::Pinned { conn, .. } => *conn,
+            DbRead::Live(db) => &db.conn,
+        };
+        let next = conn
+            .query_row(
+                "SELECT next_value
+                   FROM _snapback_sequence_counters_v1
+                  WHERE counter_name = ?1
+                    AND scope_table = ?2
+                    AND scope_row_id = ?3
+                    AND scope_incarnation = ?4",
+                params![counter, scope_table, scope_row_id, scope_incarnation],
+                |row| row.get::<_, i64>(0),
+            )
+            .optional()?
+            .unwrap_or(1);
+        u64::try_from(next).map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
+                "storage",
+                "sequence counter state is outside the non-negative integer domain",
+            )
+        })
     }
 
     pub fn table_change_version(&self, table: &str) -> SnapbackResult<u64> {
@@ -12155,6 +12478,7 @@ fn seed_into_transaction(
     schema: &SchemaManifest,
     seed: SeedData,
     version: u64,
+    order_field_bounds: &BTreeMap<(String, String), u64>,
 ) -> SnapbackResult<Vec<ChangedRow>> {
     // @ref LLP 0109#17-dated-amendment-seed-asset-fixtures-2026-07-31 — by
     //   this point every placeholder must have been resolved by the install
@@ -12175,7 +12499,8 @@ fn seed_into_transaction(
             }
         }
     }
-    let mut changes = seed_rows_into_transaction(tx, schema, seed, version)?;
+    let mut changes =
+        seed_rows_into_transaction(tx, schema, seed, version, order_field_bounds)?;
     // @ref LLP 0044#typed-references-and-atomic-attachment — seeds run the
     //   same commit-boundary admission under system authority: restricted
     //   fields verify the asset (owner check waived for system custody),
@@ -12201,6 +12526,7 @@ fn seed_rows_into_transaction(
     schema: &SchemaManifest,
     seed: SeedData,
     version: u64,
+    order_field_bounds: &BTreeMap<(String, String), u64>,
 ) -> SnapbackResult<Vec<ChangedRow>> {
     let mut changes = Vec::new();
     let now_ms = now_millis();
@@ -12229,7 +12555,15 @@ fn seed_rows_into_transaction(
                 }
             };
             let changed_fields = changed_field_names(&row);
-            let document = insert_document(tx, table, &id, &row, version, now_ms)?;
+            let document = insert_document(
+                tx,
+                table,
+                &id,
+                &row,
+                version,
+                now_ms,
+                order_field_bounds,
+            )?;
             // Fixture seats carry the seed writer's provenance per row
             // (LLP 0109 §8's bulk MembershipWriter::Seed primitive; the
             // 0100 §8b routed lane). The declared provenance columns are
@@ -13374,6 +13708,7 @@ impl LocalDatabase {
             &input,
             BufferedEffects {
                 writes: plan.writes,
+                sequence_allocations: Vec::new(),
                 membership_plans: Vec::new(),
                 read_dependencies: plan.read_dependencies,
                 result: plan.result,
@@ -15385,6 +15720,7 @@ fn insert_document(
     row: &Map<String, Value>,
     version: u64,
     now_ms: u64,
+    order_field_bounds: &BTreeMap<(String, String), u64>,
 ) -> SnapbackResult<Value> {
     for key in row.keys() {
         if is_system_field(key) {
@@ -15427,6 +15763,7 @@ fn insert_document(
         {
             Some(value) => {
                 validate_declared_field_value(field, value)?;
+                validate_order_field_bound(order_field_bounds, table, id, field, value)?;
                 value.clone()
             }
             None if field.optional => Value::Null,
@@ -15465,6 +15802,51 @@ fn insert_document(
     activate_relation_incarnation(tx, &table.name, id)?;
 
     Ok(Value::Object(document))
+}
+
+fn order_field_max_encoded_bytes_exceeded(
+    table: &str,
+    field: &str,
+    row_id: &str,
+    maximum: u64,
+) -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_ORDER_FIELD_MAX_ENCODED_BYTES_EXCEEDED",
+        "storage",
+        "string order field exceeds its declared UTF-8 byte ceiling",
+    )
+    .with_details(json!({
+        "table": table,
+        "field": field,
+        "rowId": row_id,
+        "maxEncodedBytes": maximum,
+    }))
+}
+
+fn validate_order_field_bound(
+    bounds: &BTreeMap<(String, String), u64>,
+    table: &TableManifest,
+    row_id: &str,
+    field: &crate::manifest::FieldManifest,
+    value: &Value,
+) -> SnapbackResult<()> {
+    let Some(maximum) = bounds.get(&(table.name.clone(), field.name.clone())) else {
+        return Ok(());
+    };
+    let encoded_bytes = match value {
+        Value::Null if field.optional => return Ok(()),
+        Value::String(value) => value.len() as u64,
+        _ => return Ok(()), // Declared-field validation owns the type refusal.
+    };
+    if encoded_bytes > *maximum {
+        return Err(order_field_max_encoded_bytes_exceeded(
+            &table.name,
+            &field.name,
+            row_id,
+            *maximum,
+        ));
+    }
+    Ok(())
 }
 
 fn relation_incarnation_write_protected(table: &TableManifest, field: &str) -> SnapbackError {
@@ -15600,6 +15982,134 @@ fn deactivate_relation_incarnation(
     Ok(())
 }
 
+/// Validate and advance every tentative sequence value under the same
+/// immediate transaction as its application writes. SQLite's writer
+/// serialization is the local target's per-scope serialization mechanism;
+/// the full identity predicate keeps the rule portable to a future
+/// multi-writer compare-and-swap implementation.
+///
+/// @ref LLP 0135#12-allocation-surfaces — buffered RMW, captured-current at
+///   commit, with no durable trace on failure.
+/// @ref LLP 0135#15-exhaustion — MAX_SAFE_INTEGER is allocatable and leaves
+///   the exactly-representable durable exhausted next value 2^53.
+fn apply_sequence_allocations_in_tx(
+    tx: &Transaction<'_>,
+    schema: &SchemaManifest,
+    allocations: &[SequenceAllocationFact],
+) -> SnapbackResult<()> {
+    for allocation in allocations {
+        let scope = schema_table(schema, &allocation.scope_table)?;
+        let scope_exists = tx
+            .query_row(
+                &format!("SELECT 1 FROM {} WHERE _id = ?1", quote_ident(&scope.name)?),
+                params![allocation.scope_row_id],
+                |_| Ok(()),
+            )
+            .optional()?
+            .is_some();
+        let active_incarnation = tx
+            .query_row(
+                "SELECT incarnation
+                   FROM _snapback_relation_incarnations_v1
+                  WHERE table_name = ?1 AND row_id = ?2 AND active = 1",
+                params![allocation.scope_table, allocation.scope_row_id],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?;
+        if !scope_exists
+            || active_incarnation.as_deref() != Some(allocation.scope_incarnation.as_str())
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_RELATION_PARENT_UNAVAILABLE",
+                "storage",
+                "relation parent is missing or inactive",
+            ));
+        }
+        if allocation.value > SEQUENCE_MAX_SAFE_INTEGER {
+            return Err(SnapbackError::error(
+                "SNAPBACK_SEQUENCE_EXHAUSTED",
+                "storage",
+                "sequence counter has exhausted the JavaScript-safe integer domain",
+            ));
+        }
+        let stored = tx
+            .query_row(
+                "SELECT next_value
+                   FROM _snapback_sequence_counters_v1
+                  WHERE counter_name = ?1
+                    AND scope_table = ?2
+                    AND scope_row_id = ?3
+                    AND scope_incarnation = ?4",
+                params![
+                    allocation.counter,
+                    allocation.scope_table,
+                    allocation.scope_row_id,
+                    allocation.scope_incarnation
+                ],
+                |row| row.get::<_, i64>(0),
+            )
+            .optional()?;
+        let expected = i64::try_from(allocation.value).map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_SEQUENCE_EXHAUSTED",
+                "storage",
+                "sequence value exceeds the storage integer domain",
+            )
+        })?;
+        if stored.unwrap_or(1) != expected {
+            return Err(SnapbackError::error(
+                "SNAPBACK_MUTATION_CONFLICT",
+                "storage",
+                "sequence counter changed since handler execution",
+            ));
+        }
+        let next = expected + 1;
+        match stored {
+            None => {
+                tx.execute(
+                    "INSERT INTO _snapback_sequence_counters_v1(
+                       counter_name, scope_table, scope_row_id, scope_incarnation, next_value
+                     ) VALUES (?1, ?2, ?3, ?4, ?5)",
+                    params![
+                        allocation.counter,
+                        allocation.scope_table,
+                        allocation.scope_row_id,
+                        allocation.scope_incarnation,
+                        next
+                    ],
+                )?;
+            }
+            Some(_) => {
+                let changed = tx.execute(
+                    "UPDATE _snapback_sequence_counters_v1
+                        SET next_value = ?5
+                      WHERE counter_name = ?1
+                        AND scope_table = ?2
+                        AND scope_row_id = ?3
+                        AND scope_incarnation = ?4
+                        AND next_value = ?6",
+                    params![
+                        allocation.counter,
+                        allocation.scope_table,
+                        allocation.scope_row_id,
+                        allocation.scope_incarnation,
+                        next,
+                        expected
+                    ],
+                )?;
+                if changed != 1 {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_MUTATION_CONFLICT",
+                        "storage",
+                        "sequence counter changed during commit",
+                    ));
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Reclassify a SQLite UNIQUE-constraint failure into a stable, typed
 /// conflict. This is error *typing*, not write authorization: it does not
 /// change who may write, only how the exactly-one-wins outcome of a true-unique
@@ -15635,6 +16145,7 @@ fn patch_document(
     row: &Map<String, Value>,
     version: u64,
     now_ms: u64,
+    order_field_bounds: &BTreeMap<(String, String), u64>,
 ) -> SnapbackResult<bool> {
     // Validate the authored patch before consulting the target row. Missing
     // rows remain soft no-ops only for structurally valid patches, and the
@@ -15722,6 +16233,7 @@ fn patch_document(
         }
         let field_manifest = ensure_field(table, field)?;
         validate_declared_field_value(field_manifest, value)?;
+        validate_order_field_bound(order_field_bounds, table, id, field_manifest, value)?;
         assignments.push(format!("{} = ?", quote_ident(field)?));
         values.push(json_to_sql_value(value, Some(&field_manifest.field_type))?);
     }
@@ -17149,6 +17661,285 @@ mod guarded_commit_tests {
         db
     }
 
+    fn sequence_fact(db: &LocalDatabase, value: u64) -> SequenceAllocationFact {
+        let incarnation = DbRead::Live(db)
+            .active_relation_incarnation("items", "scope")
+            .expect("incarnation lookup")
+            .expect("active scope incarnation");
+        SequenceAllocationFact {
+            counter: "ticketNumber".to_owned(),
+            scope_table: "items".to_owned(),
+            scope_row_id: "scope".to_owned(),
+            scope_incarnation: incarnation,
+            value,
+        }
+    }
+
+    fn commit_sequence(
+        db: &mut LocalDatabase,
+        fact: SequenceAllocationFact,
+        identity: Option<&ClientMutationIdentity>,
+        writes: Vec<BufferedWrite>,
+    ) -> SnapbackResult<MutationCommit> {
+        db.commit_buffered_writes_idempotent_guarded(
+            &HandlerInput::default(),
+            BufferedCommitPayload {
+                writes,
+                sequence_allocations: vec![fact],
+                membership_plans: Vec::new(),
+                read_dependencies: Vec::new(),
+                result: json!({ "allocated": true }),
+                ctx_ledger: CtxAnswerLedger::default(),
+                job_enqueues: Vec::new(),
+                job_producer: None,
+                asset_admissions: Vec::new(),
+            },
+            identity,
+            || Ok(()),
+            || Ok(()),
+        )
+    }
+
+    #[test]
+    fn sequence_allocation_is_gapless_atomic_replay_safe_and_incarnation_scoped() {
+        let mut db = database();
+        db.seed(SeedData {
+            tables: BTreeMap::from([(
+                "items".to_owned(),
+                vec![Map::from_iter([
+                    ("_id".to_owned(), json!("scope")),
+                    ("title".to_owned(), json!("original")),
+                ])],
+            )]),
+        })
+        .expect("seed scope");
+
+        let scope_tables = BTreeSet::from(["items".to_owned()]);
+        db.conn
+            .execute(
+                "DELETE FROM _snapback_relation_incarnations_v1
+                  WHERE table_name = 'items' AND row_id = 'scope'",
+                [],
+            )
+            .expect("model a brownfield row predating incarnation enrollment");
+        let activation = db
+            .validate_sequence_scope_activation(&scope_tables)
+            .expect_err("unregistered brownfield scope must refuse activation");
+        assert_eq!(
+            activation.diagnostic.code,
+            "SNAPBACK_RELATION_ACTIVATION_BACKFILL_REQUIRED"
+        );
+        let tx = db.conn.transaction().expect("begin reviewed backfill");
+        activate_relation_incarnation(&tx, "items", "scope")
+            .expect("backfill active scope incarnation");
+        tx.commit().expect("commit reviewed backfill");
+        db.validate_sequence_scope_activation(&scope_tables)
+            .expect("registered brownfield scope activates");
+
+        let first = sequence_fact(&db, 1);
+        db.dry_run_buffered_writes(
+            &HandlerInput::default(),
+            Vec::new(),
+            vec![first.clone()],
+            Vec::new(),
+            Vec::new(),
+            json!({ "sequence": 1 }),
+            CtxAnswerLedger::default(),
+            Vec::new(),
+        )
+        .expect("aborted preview validates");
+        assert_eq!(
+            DbRead::Live(&db)
+                .sequence_next_value(
+                    &first.counter,
+                    &first.scope_table,
+                    &first.scope_row_id,
+                    &first.scope_incarnation,
+                )
+                .unwrap(),
+            1,
+            "dry-run/abort burns no value"
+        );
+
+        let identity = ClientMutationIdentity::new(
+            "cm-sequence",
+            "allocate",
+            &HandlerInput::default(),
+        );
+        let committed = commit_sequence(&mut db, first.clone(), Some(&identity), Vec::new())
+            .expect("first allocation commits");
+        assert_eq!(committed.sequence_allocations, vec![first.clone()]);
+        let replay = db
+            .client_mutation_result(&identity)
+            .expect("settlement lookup")
+            .expect("exact settlement replay short-circuits before handler execution");
+        assert_eq!(replay.result, committed.output.result);
+        assert_eq!(replay.settlement_sequence_allocations, vec![first.clone()]);
+        assert_eq!(
+            DbRead::Live(&db)
+                .sequence_next_value(
+                    &first.counter,
+                    &first.scope_table,
+                    &first.scope_row_id,
+                    &first.scope_incarnation,
+                )
+                .unwrap(),
+            2,
+            "replay advances exactly once"
+        );
+
+        let stale = sequence_fact(&db, 2);
+        commit_sequence(&mut db, stale.clone(), None, Vec::new()).expect("second allocation");
+        let conflict = commit_sequence(&mut db, stale, None, Vec::new())
+            .expect_err("a stale allocator cannot commit a duplicate");
+        assert_eq!(conflict.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
+
+        db.conn
+            .execute(
+                "UPDATE _snapback_sequence_counters_v1 SET next_value = ?1",
+                params![i64::try_from(SEQUENCE_MAX_SAFE_INTEGER).unwrap()],
+            )
+            .expect("install maximum-allocatable boundary");
+        let maximum = SequenceAllocationFact {
+            value: SEQUENCE_MAX_SAFE_INTEGER,
+            ..sequence_fact(&db, SEQUENCE_MAX_SAFE_INTEGER)
+        };
+        commit_sequence(&mut db, maximum, None, Vec::new())
+            .expect("MAX_SAFE_INTEGER itself is allocatable");
+        let exhausted = SequenceAllocationFact {
+            value: SEQUENCE_MAX_SAFE_INTEGER + 1,
+            ..sequence_fact(&db, SEQUENCE_MAX_SAFE_INTEGER + 1)
+        };
+        let failure = commit_sequence(
+            &mut db,
+            exhausted,
+            None,
+            vec![BufferedWrite::Patch {
+                table: "items".to_owned(),
+                id: "scope".to_owned(),
+                values: Map::from_iter([("title".to_owned(), json!("must-roll-back"))]),
+            }],
+        )
+        .expect_err("post-maximum allocation refuses");
+        assert_eq!(failure.diagnostic.code, "SNAPBACK_SEQUENCE_EXHAUSTED");
+        assert_eq!(
+            db.get("items", "scope").unwrap().unwrap()["title"],
+            json!("original"),
+            "exhaustion rolls back source writes"
+        );
+
+        let predecessor_incarnation = first.scope_incarnation;
+        db.commit_buffered_writes(
+            &HandlerInput::default(),
+            vec![BufferedWrite::Delete {
+                table: "items".to_owned(),
+                id: "scope".to_owned(),
+            }],
+            Vec::new(),
+            Value::Null,
+        )
+        .expect("delete old scope");
+        db.commit_buffered_writes(
+            &HandlerInput::default(),
+            vec![BufferedWrite::Insert {
+                table: "items".to_owned(),
+                id: "scope".to_owned(),
+                values: Map::from_iter([("title".to_owned(), json!("successor"))]),
+            }],
+            Vec::new(),
+            Value::Null,
+        )
+        .expect("recreate scope");
+        let restarted = sequence_fact(&db, 1);
+        assert_ne!(restarted.scope_incarnation, predecessor_incarnation);
+        commit_sequence(&mut db, restarted, None, Vec::new())
+            .expect("successor incarnation restarts at one");
+    }
+
+    #[test]
+    fn order_field_utf8_bound_refuses_brownfield_and_all_central_writes() {
+        let mut db = database();
+        db.seed(SeedData {
+            tables: BTreeMap::from([(
+                "items".to_owned(),
+                vec![Map::from_iter([
+                    ("_id".to_owned(), json!("ordered")),
+                    ("title".to_owned(), json!("four")),
+                ])],
+            )]),
+        })
+        .expect("seed brownfield order row");
+
+        let key = ("items".to_owned(), "title".to_owned());
+        let too_small = BTreeMap::from([(key.clone(), 3)]);
+        let adoption = db
+            .validate_order_field_bounds(&too_small)
+            .expect_err("brownfield value above a new bound refuses activation");
+        assert_eq!(
+            adoption.diagnostic.code,
+            "SNAPBACK_ORDER_FIELD_MAX_ENCODED_BYTES_EXCEEDED"
+        );
+
+        let bounds = BTreeMap::from([(key, 8)]);
+        db.validate_order_field_bounds(&bounds)
+            .expect("brownfield row fits the reviewed bound");
+        db.set_order_field_bounds(bounds);
+
+        db.commit_buffered_writes(
+            &HandlerInput::default(),
+            vec![BufferedWrite::Patch {
+                table: "items".to_owned(),
+                id: "ordered".to_owned(),
+                values: Map::from_iter([("title".to_owned(), json!("éééé"))]),
+            }],
+            Vec::new(),
+            Value::Null,
+        )
+        .expect("exact eight-byte UTF-8 value is admitted");
+        let version = db.current_version().expect("version after admitted patch");
+
+        let oversized = db
+            .commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![BufferedWrite::Patch {
+                    table: "items".to_owned(),
+                    id: "ordered".to_owned(),
+                    values: Map::from_iter([("title".to_owned(), json!("ééééx"))]),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect_err("nine-byte UTF-8 patch refuses");
+        assert_eq!(
+            oversized.diagnostic.code,
+            "SNAPBACK_ORDER_FIELD_MAX_ENCODED_BYTES_EXCEEDED"
+        );
+        assert_eq!(
+            db.current_version().unwrap(),
+            version,
+            "oversized patch commits no version"
+        );
+        assert_eq!(db.get("items", "ordered").unwrap().unwrap()["title"], "éééé");
+
+        let oversized_insert = db
+            .commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![BufferedWrite::Insert {
+                    table: "items".to_owned(),
+                    id: "too-long".to_owned(),
+                    values: Map::from_iter([("title".to_owned(), json!("123456789"))]),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect_err("oversized insert refuses at the same writer");
+        assert_eq!(
+            oversized_insert.diagnostic.code,
+            "SNAPBACK_ORDER_FIELD_MAX_ENCODED_BYTES_EXCEEDED"
+        );
+        assert!(db.get("items", "too-long").unwrap().is_none());
+    }
+
     fn relation_schema() -> SchemaManifest {
         use crate::manifest::IndexManifest;
         SchemaManifest {
@@ -17311,6 +18102,7 @@ mod guarded_commit_tests {
                 &object(&[("owner", json!("user-1")), ("title", json!("first"))]),
                 1,
                 1_000,
+                &BTreeMap::new(),
             )
             .expect("insert parent");
             insert_document(
@@ -17324,6 +18116,7 @@ mod guarded_commit_tests {
                 ]),
                 1,
                 1_000,
+                &BTreeMap::new(),
             )
             .expect("central writer stamps child");
             tx.commit().expect("commit initial relation");
@@ -17346,6 +18139,7 @@ mod guarded_commit_tests {
                 &object(&[("parentIncarnation", json!("forged"))]),
                 2,
                 2_000,
+                &BTreeMap::new(),
             )
             .expect_err("protected stamp cannot be patched");
             assert_eq!(
@@ -17359,6 +18153,7 @@ mod guarded_commit_tests {
                 &object(&[("parentIncarnation", json!("forged"))]),
                 2,
                 2_000,
+                &BTreeMap::new(),
             )
             .expect_err("protected stamp is refused before missing-row lookup");
             assert_eq!(
@@ -17388,6 +18183,7 @@ mod guarded_commit_tests {
                 ]),
                 3,
                 3_000,
+                &BTreeMap::new(),
             )
             .expect_err("missing and inactive parents both refuse");
             assert_eq!(
@@ -17405,6 +18201,7 @@ mod guarded_commit_tests {
                 &object(&[("owner", json!("user-1")), ("title", json!("second"))]),
                 4,
                 4_000,
+                &BTreeMap::new(),
             )
             .expect("recreate parent");
             insert_document(
@@ -17418,6 +18215,7 @@ mod guarded_commit_tests {
                 ]),
                 4,
                 4_000,
+                &BTreeMap::new(),
             )
             .expect("stamp child under successor incarnation");
             tx.commit().expect("commit recreated relation");
@@ -17749,6 +18547,7 @@ mod guarded_commit_tests {
                 &object(&[("owner", json!("user-1")), ("title", json!("incident"))]),
                 1,
                 1_000,
+                &BTreeMap::new(),
             )
             .expect("insert scope");
             tx.commit().expect("commit scope");
@@ -17950,6 +18749,7 @@ mod guarded_commit_tests {
             &object(&[("owner", json!("user-1")), ("title", json!("incident"))]),
             1,
             1_000,
+            &BTreeMap::new(),
         )
         .expect("insert activity scope");
         set_version(&tx, 1).expect("publish activity scope version");
@@ -18509,6 +19309,7 @@ mod guarded_commit_tests {
             order: vec![crate::manifest::OrderExpr {
                 field: "title".to_owned(),
                 direction: OrderDirection::Asc,
+                max_encoded_bytes: None,
             }],
             take,
             root_index: "by_owner_title".to_owned(),
@@ -18962,6 +19763,7 @@ mod guarded_commit_tests {
             order: vec![OrderExpr {
                 field: "authorSlug".to_owned(),
                 direction: OrderDirection::Asc,
+                max_encoded_bytes: None,
             }],
             limit: None,
             indexed_by: None,
@@ -19205,6 +20007,7 @@ mod guarded_commit_tests {
                     order: vec![crate::manifest::OrderExpr {
                         field: "rank".to_owned(),
                         direction: OrderDirection::Asc,
+                        max_encoded_bytes: None,
                     }],
                     limit: None,
                     membership_filters: Vec::new(),
@@ -19897,6 +20700,7 @@ mod guarded_commit_tests {
     fn buffered_payload() -> BufferedCommitPayload {
         BufferedCommitPayload {
             writes: buffered_writes(),
+            sequence_allocations: Vec::new(),
             membership_plans: Vec::new(),
             read_dependencies: Vec::new(),
             result: json!(2),
@@ -20443,6 +21247,7 @@ mod guarded_commit_tests {
                 order: vec![crate::manifest::OrderExpr {
                     field: "_version".to_owned(),
                     direction: OrderDirection::Desc,
+                    max_encoded_bytes: None,
                 }],
                 limit: Some(0),
                 membership_filters: Vec::new(),
@@ -22273,6 +23078,7 @@ mod guarded_commit_tests {
                 &input,
                 BufferedCommitPayload {
                     writes: buffered_writes(),
+                    sequence_allocations: Vec::new(),
                     membership_plans: Vec::new(),
                     read_dependencies: Vec::new(),
                     result: json!({ "now": ledger.now }),
@@ -22330,6 +23136,7 @@ mod guarded_commit_tests {
                     order: vec![crate::manifest::OrderExpr {
                         field: "rank".to_owned(),
                         direction,
+                        max_encoded_bytes: None,
                     }],
                     limit,
                     membership_filters: Vec::new(),
@@ -22368,6 +23175,7 @@ mod guarded_commit_tests {
                     order: vec![crate::manifest::OrderExpr {
                         field: "metadata".to_owned(),
                         direction: OrderDirection::Asc,
+                        max_encoded_bytes: None,
                     }],
                     limit: Some(1),
                     membership_filters: Vec::new(),
@@ -23088,6 +23896,7 @@ mod membership_write_tests {
                         table: "events".to_owned(),
                         id: event_id.to_owned(),
                     }],
+                    sequence_allocations: Vec::new(),
                     membership_plans: vec![AuthorizedMembershipPlan::user_transition(writer, plan)],
                     read_dependencies: Vec::new(),
                     result: Value::Null,

@@ -210,3 +210,30 @@ retained app + a jobStatus/enqueue probe pair):
   {terminated:true, code:SNAPBACK_AUTH_STREAM_RESET,
   authorityDisposition:durableDelete} and `subscribeAuthTerminal`
   fired at the cut (RV-A6-F3).
+
+## 2026-08-02 — sequence primitive replaces the hand-rolled counter
+
+The retained A6 source now uses the repository implementation of
+`sequence_allocation_v1`. `createJob` declares `jobNumber` against the `orgs`
+scope and the `orgMembers` dispatcher/operator reach, then calls
+`ctx.sequence.allocate('jobNumber', args.orgId)` in the same mutation as the
+job, job-step, activity, and follow-up enqueue. The `orgs.jobSeq` application
+field and its read-increment-patch workaround are gone. Acceptance still drives
+six concurrent creates and now also checks each direct receipt's exact
+counter/scope/value fact.
+
+The literal seed already contains JOB-1..JOB-3. Rather than adding an authored
+start value or touching the framework table, the fixture records three normal
+committed allocation events through a sequence-only `primeJobSequence`
+mutation before creating JOB-4. Reset/restore similarly re-records every
+historical allocation represented by the export before restoring those rows,
+so the next create receives `max(seq) + 1`. That bridge is intentionally
+A6-specific brownfield setup, not a general migration API.
+
+The ergonomic difference is material: the operation's business handler no
+longer knows a counter row or update protocol, and dedupe returns before
+allocation so it cannot burn a number. Naming the scope in the call also makes
+the contention/authorization unit visible where the effect occurs. Compared
+with Convex-style OCC around an application counter, this is less code and a
+stronger receipt/replay story; the remaining rough edge is migration of
+historical pre-primitive numbers, which this fixture must spell out explicitly.

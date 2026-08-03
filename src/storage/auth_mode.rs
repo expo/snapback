@@ -543,6 +543,7 @@ impl LocalDatabase {
             Err(error) => return DurableModeCommit::RolledBack(error),
         };
         let authorization_interlock = self.authorization_interlock.clone();
+        let order_field_bounds = self.order_field_bounds.clone();
         let track_data_marker = seed.is_some();
         commit_mode_transaction(
             &mut self.conn,
@@ -578,7 +579,13 @@ impl LocalDatabase {
 
                 let authorization = if let Some(seed) = seed {
                     let next_version = next_storage_version(current_version_on(tx)?)?;
-                    let changes = seed_into_transaction(tx, &schema_manifest, seed, next_version)?;
+                    let changes = seed_into_transaction(
+                        tx,
+                        &schema_manifest,
+                        seed,
+                        next_version,
+                        &order_field_bounds,
+                    )?;
                     if !changes.is_empty() {
                         set_version(tx, next_version)?;
                     }
@@ -1031,7 +1038,13 @@ impl LocalDatabase {
         if let Some(seed) = seed {
             require_fresh_seed_target(&tx, &current.state)?;
             let next_version = next_storage_version(current_version_on(&tx)?)?;
-            seeded_changes = seed_into_transaction(&tx, &manifest, seed, next_version)?;
+            seeded_changes = seed_into_transaction(
+                &tx,
+                &manifest,
+                seed,
+                next_version,
+                &self.order_field_bounds,
+            )?;
             if !seeded_changes.is_empty() {
                 set_version(&tx, next_version)?;
             }
@@ -1156,6 +1169,7 @@ impl LocalDatabase {
             Err(error) => return DurableModeCommit::RolledBack(error),
         };
         let authorization_interlock = self.authorization_interlock.clone();
+        let order_field_bounds = self.order_field_bounds.clone();
         let track_data_marker = seed.is_some();
         let committed = commit_mode_transaction(
             &mut self.conn,
@@ -1210,8 +1224,13 @@ impl LocalDatabase {
                         }
                         if all_empty {
                             let next_version = next_storage_version(current_version_on(tx)?)?;
-                            seeded_changes =
-                                seed_into_transaction(tx, &manifest, seed, next_version)?;
+                            seeded_changes = seed_into_transaction(
+                                tx,
+                                &manifest,
+                                seed,
+                                next_version,
+                                &order_field_bounds,
+                            )?;
                             if !seeded_changes.is_empty() {
                                 set_version(tx, next_version)?;
                             }

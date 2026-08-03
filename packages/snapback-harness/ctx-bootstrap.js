@@ -764,6 +764,24 @@
     if (mode !== "mutation") {
       assets.attach = readonlyDenied("attach");
     }
+    // Scoped transactional sequence allocation. Scope is a required API
+    // argument; the host resolves the declaration's scope table and access
+    // proof and buffers the counter advance with the mutation.
+    // @ref LLP 0135#12-allocation-surfaces — handler allocation is mutation
+    //   only and closed by the function manifest's `sequences` member.
+    // @ref LLP 0128#contract-guardrails-before-choosing-a-substrate
+    var sequence = {
+      allocate: mode === "mutation"
+        ? function(counterName, scopeId) {
+            return host("sequence.allocate", { counter: counterName, scopeId: scopeId });
+          }
+        : function() {
+            throw snapbackError(
+              "SNAPBACK_SEQUENCE_UNDECLARED",
+              "ctx.sequence.allocate is available only inside a declared mutation"
+            );
+          }
+    };
     if (mode === "action") {
       db.get = readonlyDenied("get");
       db.query = readonlyDenied("query");
@@ -801,6 +819,7 @@
       },
       db: db,
       assets: assets,
+      sequence: sequence,
       runtime: {
         now: function() { return host("runtime.now", {}); },
         id: function() { return host("runtime.id", {}); }

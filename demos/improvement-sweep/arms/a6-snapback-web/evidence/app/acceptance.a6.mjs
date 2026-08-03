@@ -1,5 +1,7 @@
 // LLP 0137 A6 (operations and workflow ledger) acceptance suite —
-// Snapback web arm. External-consumer build: public @expo/snapback-* 0.1.7.
+// Snapback web arm. The original external-consumer run used public
+// @expo/snapback-* 0.1.7; this checked-in fixture now exercises the repository
+// source implementation of sequence_allocation_v1.
 // 10 checks, contract demos/improvement-sweep/protocol/contracts/a6-operations-ledger.v1.json.
 //
 // The suite owns its dev server (SNAPBACK_OUTBOUND_ACTIONS=1 for the
@@ -71,7 +73,10 @@ async function check(id, fn) {
   } catch (err) {
     results.push({ id, result: 'fail', ms: Date.now() - startedAt, note: String(err?.diagnostic?.code ?? err?.message ?? err) });
     console.error(`FAIL ${id}: ${err?.message ?? err}`);
-    if (process.env.A6_DEBUG) console.error(err?.stack ?? '');
+    if (process.env.A6_DEBUG) {
+      console.error(JSON.stringify(err?.diagnostic ?? null, null, 2));
+      console.error(err?.stack ?? '');
+    }
   }
 }
 // An action refusal surfaces as an ok:false envelope; the original
@@ -285,6 +290,12 @@ try {
     const oscarSeat = await oscar.client.mutate(api.redeemInvite, { args: { code: 'INV-OP-6602' } });
     assert(dispatcherSeat.result.role === 'dispatcher' && opalSeat.result.role === 'operator'
       && oscarSeat.result.role === 'operator', 'seeded invite roles');
+    const historicalAllocations = [];
+    for (let expected = 1; expected <= 3; expected += 1) {
+      const primed = await dana.client.mutate(api.primeJobSequence, { args: { orgId: ORG } });
+      assert(primed.result.sequence === expected, `historical JOB-${expected} allocation recorded`);
+      historicalAllocations.push(primed.result.sequence);
+    }
     const dash = (await dana.client.query(api.orgDashboard, { args: { orgId: ORG, fromMs: 0, toMs: 0 } })).rows[0];
     assert(dash.orgName === 'Meridian Operations', 'org fixture name');
     assert(dash.jobSeq === 3, `seeded sequence counter (${dash.jobSeq})`);
@@ -328,6 +339,7 @@ try {
         seedVersion: preview.current.seedVersion,
         dataVersionStream: preview.current.dataVersionStream ?? null,
       },
+      historicalAllocations,
       personas: {
         dana: 'dispatcher', opal: 'operator (claiming actor)',
         oscar: 'operator (second claiming actor)', mallory: 'outsider (authenticated, no seat)',
@@ -356,11 +368,18 @@ try {
     } })));
     assert(settled.every((r) => r.status === 'fulfilled'), `all six concurrent creates settle (${JSON.stringify(settled.filter((r) => r.status === 'rejected').map((r) => String(r.reason)))})`);
     const allocated = settled.map((r) => r.value.result);
+    const sequenceFacts = settled.map((r) => r.value.receipt?.sequenceAllocations ?? []);
     const seqs = allocated.map((r) => r.seq).sort((a, b) => a - b);
     assert(JSON.stringify(seqs) === JSON.stringify([4, 5, 6, 7, 8, 9]),
       `gap-free duplicate-free allocation under contention (${JSON.stringify(seqs)})`);
     assert(allocated.every((r) => r.deduped === false), 'every create was a fresh insert');
     assert(allocated.every((r) => r.display === `JOB-${r.seq}`), 'human-visible identity derives from seq');
+    assert(sequenceFacts.every((facts, index) => facts.length === 1
+      && facts[0].counter === 'jobNumber'
+      && facts[0].scopeTable === 'orgs'
+      && facts[0].scopeRowId === ORG
+      && facts[0].value === allocated[index].seq),
+    `direct receipts bind each allocation (${JSON.stringify(sequenceFacts)})`);
     for (const r of allocated) jobIdBySeq.set(r.seq, r.jobId);
     // the race assigns seqs nondeterministically: role assignment for later
     // checks is by dedupe key, never by assumed seq
@@ -396,7 +415,7 @@ try {
         dedupeReplay: { deduped: true, seq: reCreate.result.seq, counterAfter: dash.jobSeq },
       },
       authoritativeOrder: jobs.map((j) => ({ seq: j.seq, display: j.display, title: j.title })),
-      primitiveIdentity: 'hand-rolled counter row inside the serialized mutation transaction (the A3 arm\'s zero-ceremony ISS-n pattern); the dedicated sequence-allocation primitive is LLP 0135 (Accepted 2026-07-31, unimplemented on 0.1.7)',
+      primitiveIdentity: 'ctx.sequence.allocate(jobNumber, orgId) via sequence_allocation_v1; declaration binds orgs scope and orgMembers reach; counter advance, job/activity writes, receipt, and settlement share one commit',
     };
     return { note: 'six concurrent creates from two clients allocated JOB-4..JOB-9 gap-free and duplicate-free; dedupe replay returns the committed job without burning the counter' };
   });
@@ -903,6 +922,15 @@ try {
       // through the restored invite (reset never resurrects authority)
       const reseat = await danaPost.client.mutate(api.redeemInvite, { args: { code: 'INV-DISPATCH-5501' } });
       assert(reseat.result.role === 'dispatcher', 'restored invite reseats the dispatcher');
+    }
+    // Reset removes the framework counters. Re-record every historical
+    // allocation represented by the export before restoring its rows; this
+    // makes the next real create allocate max(seq)+1 without an authored
+    // start value or a direct counter-table write.
+    const restoreMaxSequence = Math.max(...before.jobs.map((job) => job.seq));
+    for (let expected = 1; expected <= restoreMaxSequence; expected += 1) {
+      const primed = await danaPost.client.mutate(api.primeJobSequence, { args: { orgId: ORG } });
+      assert(primed.result.sequence === expected, `restore historical JOB-${expected} allocation recorded`);
     }
     const wiped = (await danaPost.client.query(api.orgDashboard, { args: { orgId: ORG, fromMs: 0, toMs: 0 } })).rows[0];
     assert(wiped.jobsTotal === 3 && wiped.attemptReceipts === 0 && wiped.dispatchReceipts === 0

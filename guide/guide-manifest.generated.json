@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "a3f9320e426ef6ceee137fc6e292c6d0e6034d89"
+    "commit": "26c43b86a845c6f8ed252eabe7f9d92c5f5ccacd"
   },
   "nav": {
     ".": [
@@ -114,6 +114,11 @@
         "id": "backend.text-search",
         "order": 27,
         "title": "Portable indexed text search"
+      },
+      {
+        "id": "backend.sequences",
+        "order": 28,
+        "title": "Scoped sequences"
       },
       {
         "id": "backend.streamed-actions",
@@ -1011,6 +1016,43 @@
         }
       ]
     },
+    "backend.sequences": {
+      "path": "guide/backend/sequences.md",
+      "title": "Scoped sequences",
+      "order": 28,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "partial",
+      "capabilities": [
+        "backend.sequences"
+      ],
+      "authorities": [
+        "llp/0128-popular-app-storage-scale.research.md",
+        "llp/0135-sequence-allocation-and-snapshot-batch.spec.md",
+        "src/manifest.rs",
+        "src/runtime.rs",
+        "src/storage.rs",
+        "packages/snapback-codegen/define.mjs",
+        "packages/snapback-codegen/sequence-authoring.test.mjs",
+        "packages/snapback-harness/ctx-bootstrap.js",
+        "demos/improvement-sweep/arms/a6-snapback-web/evidence/app/acceptance.a6.mjs"
+      ],
+      "examples": [
+        "demos/improvement-sweep/arms/a6-snapback-web/evidence/app"
+      ],
+      "reviewed": "2026-08-02",
+      "reviewedCommit": "HEAD",
+      "sha256": "2727fd92048b17900e2bff6b695a916d8cffabd9c6cb68ffbd4a31fb5fd70470",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-codegen/sequence-authoring.test.mjs"
+        }
+      ]
+    },
     "backend.standard-patterns": {
       "path": "guide/backend/standard-patterns.md",
       "title": "Safe standard data patterns",
@@ -1250,7 +1292,7 @@
       "examples": [],
       "reviewed": "2026-08-02",
       "reviewedCommit": "HEAD",
-      "sha256": "1881d1ff0a7bad00681be5dbdfdcc993d1e88d303807e42d00c9f90118a3e3ca",
+      "sha256": "935a0278ee52e618be3c9db7d1f31ae8b3db41551d975a3b848d88886eae23b7",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1889,9 +1931,9 @@
         "demos/card-game",
         "demos/partiful-matrix"
       ],
-      "reviewed": "2026-08-01",
-      "reviewedCommit": "f245965ccfdc3addd44554d709c1074adec0834f",
-      "sha256": "79f954d9e67d20188b5b9f4597f1727c381fb277e010c0560d956082442da6d8",
+      "reviewed": "2026-08-02",
+      "reviewedCommit": "HEAD",
+      "sha256": "8f55c280ed9e9e5a2918f88d6fefd909ef9b5fb6099ecb1376213f12f51b0018",
       "snippets": []
     },
     "operating.admin-console": {
@@ -2525,6 +2567,7 @@
       "backend.runtime-values",
       "backend.schema",
       "backend.seed",
+      "backend.sequences",
       "backend.standard-patterns",
       "backend.streamed-actions",
       "backend.text-search",
@@ -2579,5 +2622,5 @@
     "routes": 94,
     "hostOps": 32
   },
-  "contentHash": "7e772b058ac0d183da211a91f56d2eadaeb4b87ae8f37a2b208d884f3a4bdedf"
+  "contentHash": "129a386551d02842c95b1b3d93591135200e3f0fda5c9051aba84b8205de4140"
 }

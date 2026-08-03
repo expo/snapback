@@ -201,6 +201,7 @@ const inventories = [
       'schema-reference-type-flow.test.mjs',
       'search-ast-fixtures.test.mjs',
       'search-result-contracts.test.mjs',
+      'sequence-authoring.test.mjs',
       'seed-artifact.test.mjs',
       'seed-asset-fixtures.test.mjs',
       'settlement-bounded-skew.test.mjs',
@@ -445,7 +446,10 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // independent JavaScript replay of the Rust-generated fingerprint vectors.
 // 164 -> 165 (2026-08-02, LLP 0156 D-05): @expo/snapback-codegen gains the
 // tracked application-refusal authoring and manifest-subset suite.
-assert.equal(total, 165, 'reviewed package/admin test count changed');
+// 165 -> 166 (2026-08-02, LLP 0135 sequence half): @expo/snapback-codegen
+// gains declared sequence, order-field-bound, A6 replacement, and capability
+// emission acceptance.
+assert.equal(total, 166, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

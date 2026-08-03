@@ -185,6 +185,7 @@ const TARGET_CAPABILITY_IDS = new Set([
   'registered_bundle_boot_v1',
   'relational_query_v1',
   'migration_keyset_scan_v1',
+  'sequence_allocation_v1',
   'result_contract_v1',
   'args_contract_v1',
   'settlement.bounded_skew',
@@ -213,6 +214,7 @@ const EXPERIMENTAL_TARGET_CAPABILITY_IDS = new Set([
   'bounded_children_v1',
   'inline_handler_v1',
   'jobs_one_off_v1',
+  'sequence_allocation_v1',
   'registered_bundle_boot_v1',
   'result_contract_v1',
   'versioned_seed_install_v1',
@@ -1738,7 +1740,7 @@ export async function generateInProcess(backendDir, options = {}) {
               rootVisibility: serializeFilters(plan.rootVisibility),
               joinedVisibility: serializeFilters(plan.joinedVisibility),
               projection: plan.projection,
-              order: plan.order.map((o) => ({ field: o.field, direction: o.direction })),
+              order: plan.order.map(serializeOrderExpr),
               take: plan.take,
               rootIndex: plan.rootIndex,
               joinedIndex: plan.joinedIndex,
@@ -1953,6 +1955,7 @@ export async function generateInProcess(backendDir, options = {}) {
         sourceSpan: resolvedHandler?.sourceSpan ?? null,
         declaredReads: reads,
         declaredWrites: writes,
+        sequences: def.sequences ?? [],
         syncabilityClass: 'mutation',
       });
       // The class-specific "outgrew the IR" diagnostic (LLP 0051 D2 /
@@ -3707,9 +3710,21 @@ function serializeQueryPlan(plan, membershipDeclarations) {
         ...(predicate.roles === null ? {} : { roles: predicate.roles }),
       };
     }),
-    order: plan.order.map((o) => ({ field: o.field, direction: o.direction })),
+    order: plan.order.map(serializeOrderExpr),
     limit: plan.limit,
     indexed_by: plan.index,
+  };
+}
+
+// @ref LLP 0135#4-fold-on-acceptance-amendments-applied-2026-08-02 — retain
+// the optional string-order UTF-8 ceiling in every normalized plan carrier.
+function serializeOrderExpr(order) {
+  return {
+    field: order.field,
+    direction: order.direction,
+    ...(order.maxEncodedBytes !== undefined
+      ? { maxEncodedBytes: order.maxEncodedBytes }
+      : {}),
   };
 }
 
@@ -5120,7 +5135,13 @@ function decorateFunctions(appId, functions) {
       && fn.inlineHelpers.length > 0
       ? [...fn.inlineHelpers].sort((left, right) => (left.name < right.name ? -1 : 1))
       : null;
-    const implementationFormatVersion = inlineHelpers ? 'v2' : 'v1';
+    const sequences = Array.isArray(fn.sequences) ? fn.sequences : [];
+    // @ref LLP 0135#4-fold-on-acceptance-amendments-applied-2026-08-02 —
+    // `sequences` extends the frozen implementation identity only through a
+    // new format domain; sequence-free v1/v2 hashes remain byte-identical.
+    const implementationFormatVersion = sequences.length > 0
+      ? 'v3'
+      : (inlineHelpers ? 'v2' : 'v1');
     const implementationIdentity = {
       format: `snapback.function-implementation.${implementationFormatVersion}`,
       app: appId,
@@ -5151,6 +5172,7 @@ function decorateFunctions(appId, functions) {
       authorizationDependence: fn.authorizationDependence ?? [],
       uses: fn.uses ?? [],
       standardPattern: fn.standardPattern ?? null,
+      ...(sequences.length > 0 ? { sequences } : {}),
       ...(fn.boundedSkew !== undefined ? { boundedSkew: fn.boundedSkew } : {}),
     };
     return {
@@ -5167,6 +5189,7 @@ function decorateFunctions(appId, functions) {
       argsContractHash: fn.argsContractHash,
       argsContract: fn.argsContract,
       ...(fn.boundedSkew !== undefined ? { boundedSkew: { ...fn.boundedSkew } } : {}),
+      ...(sequences.length > 0 ? { sequences: sequences.map((sequence) => ({ ...sequence })) } : {}),
       resultContract: fn.resultContract,
       resultContractHash: fn.resultContractHash,
       requiredCapabilities: requiredCapabilities(fn),
@@ -5309,6 +5332,9 @@ function requiredCapabilities(fn) {
     return [
       runtimeCapability,
       'mutation_read_set_validation',
+      ...(Array.isArray(fn.sequences) && fn.sequences.length > 0
+        ? ['sequence_allocation_v1']
+        : []),
       ...(fn.boundedSkew !== undefined ? ['settlement.bounded_skew'] : []),
       ...contractCapabilities,
     ];

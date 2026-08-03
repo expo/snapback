@@ -111,7 +111,7 @@ export const orgDashboard = defineJsLiveQuery({
     const settledInRange = jobs.filter((j) => j.settledAt >= args.fromMs && j.settledAt < args.toMs);
     return [{
       orgName: org.name,
-      jobSeq: org.jobSeq,
+      jobSeq: jobs.reduce((maximum, job) => Math.max(maximum, job.seq), 0),
       customers: customers.length,
       jobsTotal: jobs.length,
       jobsOpen: jobs.filter((j) => j.status === 'open').length,
@@ -387,7 +387,10 @@ export const exportLedger = defineJsQuery({
     maint.sort((a, b) => a.nominalMs - b.nominalMs);
     followUps.sort((a, b) => (a.dedupeKey < b.dedupeKey ? -1 : 1));
     return [{
-      org: { name: org.name, jobSeq: org.jobSeq },
+      org: {
+        name: org.name,
+        jobSeq: jobs.reduce((maximum, job) => Math.max(maximum, job.seq), 0),
+      },
       customers: customers.map((c) => ({ name: c.name, region: c.region, createdAt: c.createdAt })),
       jobs: jobs.map((j) => ({
         seq: j.seq, title: j.title, customerName: customerNameById.get(j.customerId) ?? '',
@@ -431,6 +434,26 @@ export const exportLedger = defineJsQuery({
 
 // ---- job lifecycle mutations ----
 
+// Brownfield fixture bridge: the literal seed predates the framework counter
+// and already contains JOB-1..JOB-3. Acceptance records those three historical
+// allocation events through the real primitive before concurrent creates.
+// This is ordinary committed allocation (deleted rows need not survive), not
+// an authored start/step or a direct counter-table write.
+export const primeJobSequence = defineJsMutation({
+  args: { orgId: v.id('orgs') },
+  reads: ['orgs'],
+  writes: [],
+  sequences: [{
+    name: 'jobNumber',
+    scopeTable: 'orgs',
+    scopeAccess: { declaration: 'orgMembers', roles: ['dispatcher', 'operator'] },
+  }],
+  result: results.value(v.object({ sequence: v.integer() })),
+  handler: async (ctx, args) => ({
+    sequence: await ctx.sequence.allocate('jobNumber', args.orgId),
+  }),
+});
+
 export const createJob = defineJsMutation({
   args: {
     orgId: v.id('orgs'),
@@ -442,7 +465,15 @@ export const createJob = defineJsMutation({
     followUpDelayMs: v.integer(),
   },
   reads: ['orgs', 'jobs', 'customers', 'activity'],
-  writes: ['orgs', 'jobs', 'jobSteps', 'activity'],
+  writes: ['jobs', 'jobSteps', 'activity'],
+  sequences: [{
+    name: 'jobNumber',
+    scopeTable: 'orgs',
+    scopeAccess: {
+      declaration: 'orgMembers',
+      roles: ['dispatcher', 'operator'],
+    },
+  }],
   result: results.value(v.object({
     jobId: v.id('jobs'),
     seq: v.integer(),
@@ -460,12 +491,9 @@ export const createJob = defineJsMutation({
     }
     const customer = await ctx.db.get('customers', args.customerId);
     if (!customer || customer.orgId !== args.orgId) throw new Error('customer not found in org');
-    const org = await ctx.db.get('orgs', args.orgId);
-    if (!org) throw new Error('org not found');
-    // Transactional human-visible sequence: serialized commit order makes
-    // read-increment-write collision-free (LLP 0135 primitive unshipped).
-    const seq = org.jobSeq + 1;
-    await ctx.db.patch('orgs', args.orgId, { jobSeq: seq });
+    // @ref LLP 0135#12-allocation-surfaces — scope is explicit at the call,
+    // and the host buffers this counter advance with every write below.
+    const seq = await ctx.sequence.allocate('jobNumber', args.orgId);
     const now = ctx.runtime.now();
     // One-off transactional schedule: the follow-up sweep is enqueued in
     // the SAME transaction as the job insert (jobs_one_off_v1), so a
@@ -1060,7 +1088,7 @@ export const dispatchJob = defineAction({
 export const restoreLedger = defineJsMutation({
   args: { orgId: v.id('orgs'), payload: v.json() },
   reads: ['orgs', 'customers', 'jobs', 'jobSteps', 'activity', 'jobAttempts', 'dispatches', 'maintenanceRuns', 'followUpRuns'],
-  writes: ['orgs', 'customers', 'jobs', 'jobSteps', 'activity', 'jobAttempts', 'dispatches', 'maintenanceRuns', 'followUpRuns'],
+  writes: ['customers', 'jobs', 'jobSteps', 'activity', 'jobAttempts', 'dispatches', 'maintenanceRuns', 'followUpRuns'],
   result: results.value(v.object({
     jobsInserted: v.integer(),
     jobsPatched: v.integer(),
@@ -1074,8 +1102,6 @@ export const restoreLedger = defineJsMutation({
     const now = ctx.runtime.now();
     let rowsInserted = 0;
     let rowsSkipped = 0;
-    // org counter
-    await ctx.db.patch('orgs', args.orgId, { jobSeq: payload.org.jobSeq });
     // customers by name
     const customers = await ctx.db.query('customers').withIndex('by_org').eq('orgId', args.orgId).take(500).collect();
     const customerIdByName = new Map();

@@ -640,6 +640,17 @@ pub enum Receipt {
         /// inspectable rollback-schedules-nothing evidence.
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         enqueues: Vec<crate::jobs::JobEnqueueFact>,
+        /// Private sequence evidence for the submitting authority. The value
+        /// discloses prior allocation count, so fan-out projection strips it.
+        /// @ref LLP 0135#17-allocation-authority-and-information-flow — effect
+        ///   receipts carry the full counter/scope/incarnation/value tuple
+        ///   only on the submitter's receipt.
+        #[serde(
+            default,
+            rename = "sequenceAllocations",
+            skip_serializing_if = "Vec::is_empty"
+        )]
+        sequence_allocations: Vec<crate::storage::SequenceAllocationFact>,
         transport: String,
         /// Adapter-supplied opaque correlation, echoed verbatim (capped).
         correlation: Value,
@@ -718,11 +729,13 @@ impl Receipt {
         if let Self::Mutation {
             claim_ledger,
             id_map,
+            sequence_allocations,
             ..
         } = &mut self
         {
             *claim_ledger = None;
             *id_map = None;
+            sequence_allocations.clear();
         }
         self.into_value()
     }
@@ -1033,6 +1046,7 @@ mod tests {
             // Empty enqueues stay off the wire: the pinned shape below is
             // unchanged for every mutation that scheduled nothing.
             enqueues: Vec::new(),
+            sequence_allocations: Vec::new(),
             transport: "http".into(),
             correlation: Value::Null,
             received_at_ms: 1,
@@ -1083,6 +1097,7 @@ mod tests {
             affected_tables: Some(vec!["todos".into()]),
             snapshot_version: Some(9),
             enqueues: Vec::new(),
+            sequence_allocations: Vec::new(),
             transport: "http".into(),
             correlation: Value::Null,
             received_at_ms: 1,

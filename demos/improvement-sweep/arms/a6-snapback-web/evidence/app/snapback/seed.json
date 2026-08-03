@@ -4,8 +4,7 @@
     "orgs": [
       {
         "_id": "org_meridian",
-        "name": "Meridian Operations",
-        "jobSeq": 3
+        "name": "Meridian Operations"
       }
     ],
     "invites": [

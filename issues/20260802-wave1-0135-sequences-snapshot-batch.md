@@ -2,9 +2,9 @@
 
 **Status:** Open
 **Systems:** Runtime, Storage, API, Wire Protocol
-**Related:** LLP 0135 (Accepted 2026-07-31, unbuilt — demos annotate
-"primitive unshipped"), LLP 0120 (option 3a), LLP 0155 Move 1 (same
-option-3a family)
+**Related:** LLP 0135 (Accepted 2026-07-31; handler-tier sequence half
+implemented 2026-08-02, snapshot half held), LLP 0120 (option 3a), LLP 0155
+Move 1 (same option-3a family)
 
 Two halves with different readiness:
 
@@ -36,3 +36,20 @@ dated implementation-record amendment on the LLP; LLP 0115 board row updated.
   and marked §4 folded. This implementation ticket
   must not repeat them; it still owns code, executable acceptance, capability
   registration, demo replacement, and the implementation record.
+- **2026-08-02 — sequence half implemented; ticket intentionally remains
+  open.** The local SQLite/Ibex target now has declared
+  `ctx.sequence.allocate(counterName, scopeId)`, incarnation-scoped serialized
+  counters, atomic settlement/replay facts, safe-integer exhaustion,
+  membership/public scope reach, explicit brownfield-incarnation activation,
+  UTF-8 order-field bounds, experimental capability registration, and
+  package/runtime/storage acceptance. A6 now
+  uses the primitive and asserts JOB-4..JOB-9 plus exact receipt allocation
+  facts; literal seed and reset/restore histories are bridged with real
+  committed allocations. The generated `AllocateSequence` plan step, lane-Q optimistic
+  withholding, and the remaining §5.1 disclosure/performance vectors are
+  recorded as unbuilt in LLP 0135's dated implementation record.
+- **2026-08-02 — snapshot half held.** LLP 0155 Move 1's
+  composition-algebra Spec is still uncommissioned, so this lane does not pin
+  a competing shared cursor grammar. `snapshot_batch_v1`, `sbsb1`, and
+  `sbbc1` remain unimplemented and unregistered. This is the sole reason the
+  ticket stays Open after the commissioned sequence landing.

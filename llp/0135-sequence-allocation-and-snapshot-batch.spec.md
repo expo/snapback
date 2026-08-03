@@ -6,7 +6,10 @@
 generation, Authorization, Live Queries, Diagnostics, Testing, Demo apps
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-08-02 (the §4 acceptance folds landed as dated owner
+**Revised:** 2026-08-02 (the commissioned handler-tier sequence slice landed:
+declarations, `ctx.sequence.allocate`, authoritative commit/replay facts,
+order-field bounds, capability registration, and the A6 fixture; snapshot
+batch remains held pending LLP 0155 Move 1); 2026-08-02 (the §4 acceptance folds landed as dated owner
 amendments; implementation/capability claims remain gated); 2026-07-31 (ACCEPTED under LLP 0130 SD-4's standing
 authorization: dual-family READY — Fable round 3, Codex round 4 —
 with the three conditions checked and satisfied: (1) zero unresolved
@@ -863,8 +866,10 @@ as design contracts rather than implementation or capability claims:
 ## 5. Executable acceptance
 
 Falsifiable, per part. `Implemented` and any capability claim additionally
-require the LLP 0113 qualification machinery; nothing below is claimed as
-passing today.
+require the LLP 0113 qualification machinery. The dated implementation record
+below names the sequence vectors exercised by the commissioned handler-tier
+slice; unlisted sequence vectors and every snapshot-batch vector remain future
+witnesses.
 
 ### 5.1 Sequence allocation
 
@@ -1006,6 +1011,57 @@ passing today.
   and the branch adjudication themselves stay with SD-2's owner
   (LLP 0130), not this Spec.
 
+## Implementation record — 2026-08-02
+
+The local SQLite/Ibex target implements the commissioned **handler-tier
+sequence half** at experimental maturity. `defineJsMutation.sequences`
+declares each counter's name, ordinary scope table, and either the exact
+membership declaration/roles that make the scope reachable or the explicit
+`public.v1` reach declaration. `ctx.sequence.allocate(counterName, scopeId)`
+names the scope in the call itself. The host permits zero or one allocation,
+captures the scope incarnation and counter read, and the serialized SQLite
+commit advances the framework counter in the same transaction as application
+writes and settlement. Exact replay retains the allocation fact and never
+executes a second advance; ordinary live fanout strips that settlement-only
+fact. Sequence-only mutations are admitted without a fictitious application
+write.
+
+The capability registry now advertises `sequence_allocation_v1` on the local
+target at Experimental. `OrderExpr.maxEncodedBytes` is the single declaration
+surface for string ordering bounds. Admission reconciles it to one value per
+`(table, field)`, scans existing rows, and every central insert/patch/seed path
+enforces UTF-8 byte length with
+`SNAPBACK_ORDER_FIELD_MAX_ENCODED_BYTES_EXCEEDED`.
+
+Executable evidence is:
+
+- `sequence_host_bridge_is_declared_scoped_and_commits_with_the_mutation` in
+  `src/runtime.rs` for the ctx boundary, explicit public scope, undeclared
+  refusal, and the collapsed missing-scope refusal;
+- `sequence_allocation_is_gapless_atomic_replay_safe_and_incarnation_scoped`
+  in `src/storage.rs` for explicit brownfield-incarnation backfill refusal,
+  abort-without-burn, dense allocation, stale allocator conflict, exact
+  settlement replay, maximum/exhaustion rollback, and delete/recreate restart
+  under a new incarnation;
+- `order_field_utf8_bound_refuses_brownfield_and_all_central_writes` in
+  `src/storage.rs` plus `packages/snapback-codegen/sequence-authoring.test.mjs`
+  for authoring, identity/capability emission, brownfield adoption, and
+  central-writer enforcement; and
+- the A6 operations-ledger fixture, whose concurrent `createJob` calls now use
+  `ctx.sequence.allocate('jobNumber', orgId)`, prove dense JOB-4..JOB-9
+  allocation and receipt facts, and no longer patch an application-owned
+  counter. Its three literal-seed allocations, and every historical export
+  allocation before reset/restore, are recorded through the real primitive by
+  a sequence-only brownfield bridge.
+
+This is deliberately not a whole-Spec `Implemented` claim. The generated
+`AllocateSequence` host-plan step, lane-Q mutation-atomic optimistic
+withholding, the two app-authored abort-disclosure vectors, and the complete
+multi-writer performance/commit-order corpus remain unbuilt. The entire
+snapshot-batch half (`snapshot_batch_v1`, `sbsb1`, and `sbbc1`) is held because
+LLP 0155 Move 1's composition-algebra Spec has not been commissioned to pin
+the shared cursor grammar. No snapshot capability is registered or advertised.
+
 ## Nonclaims
 
 - **No aggregates, in either part.** No readable counter value, no counts,
@@ -1022,12 +1078,12 @@ passing today.
   surface presents one (§1.4). Admission of allocating operations to
   local execution is out of scope pending LLP 0129 row 2's admission
   vocabulary (open question 6).
-- **No implementation, no capability support, experimental terminus.**
-  Both ids are reserved; support is false everywhere; every §5 claim is a
-  future witness, not a status. On the default LLP 0113 route both
-  profiles terminate at experimental until LLP 0134's promotion path is
-  ratified (LLP 0120 finding 9); this Spec cannot and does not shorten
-  that.
+- **Partial implementation; experimental terminus.** The dated record above
+  is the complete claim for `sequence_allocation_v1`: local handler-tier
+  support exists and remains Experimental. Generated allocation and the named
+  unexercised vectors are not implied. `snapshot_batch_v1` remains reserved,
+  unsupported, and wholly unwitnessed. Any future promotion still follows
+  LLP 0134; this Spec cannot and does not shorten that path.
 - **No performance results.** §1.6's statements are named empirical
   expectations; LLP 0125's burst work owns the measurement.
 - **No general query language, and no relational nodes in v1.**

@@ -9,8 +9,8 @@ examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game, demos/
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-01
-reviewed-commit: f245965ccfdc3addd44554d709c1074adec0834f
+reviewed: 2026-08-02
+reviewed-commit: HEAD
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -62,6 +62,8 @@ you never build around a feature because you didn't know it existed.
   and the ordinary-vs-live boundary.
 - [Mutations](./backend/mutations.md) — buffered writes, one commit version,
   read-set conflict validation, and structured results.
+- [Scoped sequences](./backend/sequences.md) — experimental atomic,
+  incarnation-scoped human-facing numbers and enforced order-field bounds.
 - [Trusted runtime time and identifiers](./backend/trusted-runtime-values.md) —
   server-authored timestamps and IDs in JavaScript handlers, closed operation
   arguments, diagnostics, and transition guidance.

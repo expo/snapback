@@ -1491,8 +1491,28 @@ export const ltFilter = (field, value) => ({ field, op: 'Lt', value });
 export const lteFilter = (field, value) => ({ field, op: 'Lte', value });
 export const gtFilter = (field, value) => ({ field, op: 'Gt', value });
 export const gteFilter = (field, value) => ({ field, op: 'Gte', value });
-export const asc = (field) => ({ field, direction: 'Asc' });
-export const desc = (field) => ({ field, direction: 'Desc' });
+function order(field, direction, options = {}) {
+  assert(typeof field === 'string' && field.length > 0, 'order field must be a non-empty string');
+  assertKnownSpecFields(options, 'order options', new Set(['maxEncodedBytes']));
+  if (options.maxEncodedBytes !== undefined) {
+    assert(
+      Number.isSafeInteger(options.maxEncodedBytes) && options.maxEncodedBytes > 0,
+      'order maxEncodedBytes must be a positive safe integer',
+    );
+  }
+  // @ref LLP 0135#4-fold-on-acceptance-amendments-applied-2026-08-02 — a
+  // string order use can declare the schema-level UTF-8 write ceiling.
+  return {
+    field,
+    direction,
+    ...(options.maxEncodedBytes !== undefined
+      ? { maxEncodedBytes: options.maxEncodedBytes }
+      : {}),
+  };
+}
+
+export const asc = (field, options) => order(field, 'Asc', options);
+export const desc = (field, options) => order(field, 'Desc', options);
 
 function queryDef(kind, spec) {
   assertKnownSpecFields(spec, kind, QUERY_SPEC_FIELDS);
@@ -2818,6 +2838,40 @@ export const OUTGREW_IR_CLASSES = Object.freeze({
   'general-iteration': 'general iteration or data-dependent cross-step control flow',
 });
 
+function normalizeSequences(sequences) {
+  if (sequences === undefined) return [];
+  assert(Array.isArray(sequences) && sequences.length > 0, 'defineJsMutation sequences must be a non-empty array when present');
+  const names = new Set();
+  return sequences.map((sequence, index) => {
+    assert(
+      sequence && typeof sequence === 'object' && !Array.isArray(sequence)
+        && Object.keys(sequence).length === 3,
+      `defineJsMutation sequences[${index}] must be exactly { name, scopeTable, scopeAccess }`,
+    );
+    assert(typeof sequence.name === 'string' && sequence.name.length > 0, `sequences[${index}].name must be non-empty`);
+    assert(!names.has(sequence.name), `sequence ${sequence.name} is declared more than once`);
+    names.add(sequence.name);
+    assert(typeof sequence.scopeTable === 'string' && sequence.scopeTable.length > 0, `sequence ${sequence.name} scopeTable must be non-empty`);
+    let scopeAccess;
+    if (sequence.scopeAccess === 'public.v1') {
+      scopeAccess = 'public.v1';
+    } else {
+      const access = sequence.scopeAccess;
+      assert(
+        access && typeof access === 'object' && !Array.isArray(access)
+          && Object.keys(access).length === 2
+          && typeof access.declaration === 'string' && access.declaration.length > 0
+          && Array.isArray(access.roles) && access.roles.length > 0
+          && access.roles.every((role) => typeof role === 'string' && role.length > 0)
+          && new Set(access.roles).size === access.roles.length,
+        `sequence ${sequence.name} scopeAccess must be "public.v1" or { declaration, roles }`,
+      );
+      scopeAccess = { declaration: access.declaration, roles: [...access.roles] };
+    }
+    return { name: sequence.name, scopeTable: sequence.scopeTable, scopeAccess };
+  });
+}
+
 export function defineJsMutation(spec) {
   const inline = spec.handler !== undefined;
   const legacy = spec.source !== undefined || spec.exportName !== undefined;
@@ -2826,7 +2880,16 @@ export function defineJsMutation(spec) {
     assert(spec.source, 'defineJsMutation requires a handler source file');
     assert(spec.exportName, 'defineJsMutation requires exportName');
   }
-  assert(spec.writes && Array.isArray(spec.writes) && spec.writes.length > 0, 'defineJsMutation requires declared writes');
+  const sequences = normalizeSequences(spec.sequences);
+  assert(Array.isArray(spec.writes), 'defineJsMutation requires declared writes');
+  // @ref LLP 0135#12-allocation-surfaces — a counter advance is itself a
+  // mutation effect, so a sequence-only migration/bridge need not pretend to
+  // write an application table. Ordinary JS mutations still require a
+  // non-empty write set.
+  assert(
+    spec.writes.length > 0 || sequences.length > 0,
+    'defineJsMutation requires declared writes or sequences',
+  );
   if (spec.result !== undefined) {
     assert(
       spec.result?.__resultContract === true
@@ -2847,6 +2910,10 @@ export function defineJsMutation(spec) {
     args: spec.args ?? {},
     ...(spec.result !== undefined ? { resultContract: spec.result } : {}),
     ...(spec.outgrewIr !== undefined ? { outgrewIr: spec.outgrewIr } : {}),
+    // @ref LLP 0135#12-allocation-surfaces — admission-visible declaration;
+    // imperative calls remain runtime checked because generation cannot see
+    // through handler control flow.
+    sequences,
     js: {
       ...(inline
         ? { inlineHandler: spec.handler }

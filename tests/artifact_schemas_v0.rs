@@ -2547,6 +2547,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
     use snapback::server::{
         ConnectionGrant, ErrorResponse, MutationResponse, OpenConnectionRequest,
     };
+    use snapback::storage::SequenceAllocationFact;
 
     for envelope in [
         LiveEnvelope::LiveReplace {
@@ -2679,6 +2680,13 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
     for receipt in [
         Receipt::Mutation {
             enqueues: Vec::new(),
+            sequence_allocations: vec![SequenceAllocationFact {
+                counter: "jobNumber".to_owned(),
+                scope_table: "orgs".to_owned(),
+                scope_row_id: "org_1".to_owned(),
+                scope_incarnation: "incarnation_1".to_owned(),
+                value: 4,
+            }],
             mutation_id: "mut_1".to_owned(),
             mutation: "addTodo".to_owned(),
             outcome: MutationReceiptOutcome::Confirmed,
@@ -2725,6 +2733,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
     }
     let nullable_mutation_snapshot = Receipt::Mutation {
         enqueues: Vec::new(),
+        sequence_allocations: Vec::new(),
         mutation_id: "mut_cursor_unavailable".to_owned(),
         mutation: "addTodo".to_owned(),
         outcome: MutationReceiptOutcome::Rejected,
@@ -2838,6 +2847,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
         },
         receipt: Receipt::Mutation {
             enqueues: Vec::new(),
+            sequence_allocations: Vec::new(),
             mutation_id: "mut_direct_1".to_owned(),
             mutation: "addTodo".to_owned(),
             outcome: MutationReceiptOutcome::Confirmed,
@@ -2890,6 +2900,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
             diagnostic: Diagnostic::error("SNAPBACK_REJECTED", "mutation", "rejected"),
             receipt: Some(Receipt::Mutation {
                 enqueues: Vec::new(),
+                sequence_allocations: Vec::new(),
                 mutation_id: "mut_rejected_1".to_owned(),
                 mutation: "addTodo".to_owned(),
                 outcome: MutationReceiptOutcome::Rejected,

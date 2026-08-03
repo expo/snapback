@@ -31,12 +31,6 @@ export const orgMembers = defineTable({
 const schema = defineSchema({
   orgs: defineTable({
     name: v.string(),
-    // Transactional human-visible job sequence: createJob allocates seq
-    // inside the serialized commit, so concurrent creates cannot collide.
-    // (The dedicated sequence-allocation primitive is LLP 0135, Accepted
-    // 2026-07-31 and unimplemented on 0.1.7 — this hand-rolled counter row
-    // is the paved path, as in the A3 arm's ISS-n differentiator.)
-    jobSeq: v.integer(),
   }).sync(),
 
   invites: defineTable({

@@ -1,0 +1,120 @@
+import assert from 'node:assert/strict';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+import { asc, defineJsMutation } from './define.mjs';
+import { generate } from './index.mjs';
+
+const declaration = [{
+  name: 'jobNumber',
+  scopeTable: 'orgs',
+  scopeAccess: { declaration: 'orgMembers', roles: ['dispatcher', 'operator'] },
+}];
+const direct = defineJsMutation({
+  writes: ['jobs'],
+  sequences: declaration,
+  handler: async (ctx, args) => ctx.sequence.allocate('jobNumber', args.orgId),
+});
+assert.deepEqual(direct.sequences, declaration);
+const sequenceOnly = defineJsMutation({
+  writes: [],
+  sequences: declaration,
+  handler: async (ctx, args) => ctx.sequence.allocate('jobNumber', args.orgId),
+});
+assert.deepEqual(sequenceOnly.js.writes, []);
+assert.throws(
+  () => defineJsMutation({
+    writes: ['jobs'],
+    sequences: [{ name: 'jobNumber', scopeTable: 'orgs', scopeAccess: 'private-ish' }],
+    handler: async () => null,
+  }),
+  /scopeAccess/,
+);
+assert.deepEqual(asc('title', { maxEncodedBytes: 8 }), {
+  field: 'title', direction: 'Asc', maxEncodedBytes: 8,
+});
+assert.throws(() => asc('title', { maxEncodedBytes: 0 }), /positive safe integer/);
+assert.throws(() => asc('title', { maxEncodedBytes: 8, bytesMaybe: 9 }), /unknown field/);
+
+const packageRoot = dirname(fileURLToPath(import.meta.url));
+const defineUrl = pathToFileURL(join(packageRoot, 'define.mjs')).href;
+const dir = mkdtempSync(join(tmpdir(), 'snapback-sequence-authoring-'));
+try {
+  writeFileSync(join(dir, 'schema.mjs'), `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({
+  orgs: defineTable({ name: v.string() }).sync(),
+  jobs: defineTable({ orgId: v.id('orgs'), sequence: v.integer(), sequenceLabel: v.string() }).sync(),
+});
+`);
+  writeFileSync(join(dir, 'functions.mjs'), `
+import { asc, defineJsMutation, defineQuery, results, v } from '${defineUrl}';
+export const orderedJobs = defineQuery({
+  table: 'jobs',
+  order: [asc('sequenceLabel', { maxEncodedBytes: 8 })],
+});
+export const createJob = defineJsMutation({
+  args: { orgId: v.id('orgs') },
+  writes: ['jobs'],
+  sequences: [{ name: 'jobNumber', scopeTable: 'orgs', scopeAccess: 'public.v1' }],
+  result: results.value(v.object({ sequence: v.integer() })),
+  handler: async (ctx, args) => ({ sequence: await ctx.sequence.allocate('jobNumber', args.orgId) }),
+});
+`);
+  const generated = await generate(dir);
+  assert.equal(generated.ok, true, JSON.stringify(generated.diagnostics));
+  const manifest = JSON.parse(readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8'));
+  const createJob = manifest.functions.find((fn) => fn.name === 'createJob');
+  const orderedJobs = manifest.functions.find((fn) => fn.name === 'orderedJobs');
+  assert.deepEqual(orderedJobs.runtime.HostPlan.Query.order, [{
+    field: 'sequenceLabel', direction: 'Asc', maxEncodedBytes: 8,
+  }]);
+  assert.deepEqual(createJob.sequences, [{
+    name: 'jobNumber', scopeTable: 'orgs', scopeAccess: 'public.v1',
+  }]);
+  assert(createJob.requiredCapabilities.includes('sequence_allocation_v1'));
+  assert(manifest.acknowledgedExperimentalCapabilities.includes('sequence_allocation_v1'));
+  assert.match(createJob.implementationHash, /^sha256:[0-9a-f]{64}$/);
+} finally {
+  rmSync(dir, { recursive: true, force: true });
+}
+
+// The A6 operations-ledger app is the brownfield acceptance fixture that
+// motivated this primitive. Compile its retained source in isolation so a
+// regression to the old org.jobSeq read/patch cannot hide in historical demo
+// prose or generated artifacts.
+const a6Source = resolve(
+  packageRoot,
+  '../../demos/improvement-sweep/arms/a6-snapback-web/evidence/app/snapback',
+);
+const a6Dir = mkdtempSync(join(tmpdir(), 'snapback-sequence-a6-'));
+try {
+  for (const file of ['schema.mjs', 'functions.mjs']) {
+    const source = readFileSync(join(a6Source, file), 'utf8')
+      .replace("'@expo/snapback-codegen/define'", `'${defineUrl}'`);
+    writeFileSync(join(a6Dir, file), source);
+  }
+  writeFileSync(join(a6Dir, 'seed.json'), readFileSync(join(a6Source, 'seed.json')));
+  const previousOutbound = process.env.SNAPBACK_OUTBOUND_ACTIONS;
+  process.env.SNAPBACK_OUTBOUND_ACTIONS = '1';
+  const generated = await generate(a6Dir);
+  if (previousOutbound === undefined) delete process.env.SNAPBACK_OUTBOUND_ACTIONS;
+  else process.env.SNAPBACK_OUTBOUND_ACTIONS = previousOutbound;
+  assert.equal(generated.ok, true, JSON.stringify(generated.diagnostics));
+  const manifest = JSON.parse(readFileSync(join(a6Dir, 'generated', 'functions.manifest.json')));
+  const createJob = manifest.functions.find((fn) => fn.name === 'createJob');
+  assert.deepEqual(createJob.writeSetSummary.tables, ['jobs', 'jobSteps', 'activity']);
+  assert.deepEqual(createJob.sequences, declaration);
+  assert(createJob.requiredCapabilities.includes('sequence_allocation_v1'));
+  assert.match(
+    createJob.runtime.IbexModule.source,
+    /ctx\.sequence\.allocate\(['"]jobNumber['"],\s*args\.orgId\)/,
+  );
+  assert.doesNotMatch(createJob.runtime.IbexModule.source, /jobSeq\s*\+\s*1/);
+} finally {
+  rmSync(a6Dir, { recursive: true, force: true });
+}
+
+console.log('sequence-authoring.test.mjs: declaration, v3 identity, and capability checks passed');

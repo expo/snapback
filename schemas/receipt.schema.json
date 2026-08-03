@@ -29,6 +29,37 @@
       ],
       "type": "string"
     },
+    "SequenceAllocationFact": {
+      "additionalProperties": false,
+      "description": "One tentative sequence value. It is returned during handler execution but\nbecomes a fact only if this exact identity/value transition commits.\n\n@ref LLP 0135#13-allocation-versus-commit-ordering-and-gap-semantics — the\n  counter advance is buffered and commits or rolls back with app writes.",
+      "properties": {
+        "counter": {
+          "type": "string"
+        },
+        "scopeIncarnation": {
+          "type": "string"
+        },
+        "scopeRowId": {
+          "type": "string"
+        },
+        "scopeTable": {
+          "type": "string"
+        },
+        "value": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "counter",
+        "scopeTable",
+        "scopeRowId",
+        "scopeIncarnation",
+        "value"
+      ],
+      "type": "object"
+    },
     "SettlementClaim": {
       "additionalProperties": false,
       "properties": {
@@ -213,6 +244,13 @@
             "string",
             "null"
           ]
+        },
+        "sequenceAllocations": {
+          "description": "Private sequence evidence for the submitting authority. The value\ndiscloses prior allocation count, so fan-out projection strips it.\n@ref LLP 0135#17-allocation-authority-and-information-flow — effect\n  receipts carry the full counter/scope/incarnation/value tuple\n  only on the submitter's receipt.",
+          "items": {
+            "$ref": "#/$defs/SequenceAllocationFact"
+          },
+          "type": "array"
         },
         "settlementLane": {
           "$ref": "#/$defs/SettlementLane",

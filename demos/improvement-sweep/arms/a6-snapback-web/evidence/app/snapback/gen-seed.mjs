@@ -12,7 +12,8 @@ const customers = [
   { _id: 'cust_harborlight', name: 'Harborlight Clinic', region: 'Waterfront' },
 ];
 
-// Three baseline jobs: one settled, two open. jobSeq counter = 3.
+// Three baseline jobs: one settled, two open. The acceptance setup records
+// their three historical allocation events through sequence_allocation_v1.
 const jobs = [
   {
     _id: 'job_survey_north', seq: 1, title: 'Survey: North Yard', customerId: 'cust_north_yard',
@@ -57,7 +58,7 @@ const activity = [
 const seed = {
   seedVersion: 'a6-ops.2026-08-01.1',
   tables: {
-    orgs: [{ _id: ORG, name: 'Meridian Operations', jobSeq: 3 }],
+    orgs: [{ _id: ORG, name: 'Meridian Operations' }],
     invites: [
       { _id: 'inv_dispatch', orgId: ORG, code: 'INV-DISPATCH-5501', role: 'dispatcher', consumed: false, createdAt: BASE },
       { _id: 'inv_op_1', orgId: ORG, code: 'INV-OP-6601', role: 'operator', consumed: false, createdAt: BASE + 1000 },

@@ -51,6 +51,7 @@ with the Snapback label and `guide-gap` in the title.
 | backend.provisioning | Idempotent app provisioning (ensureApp) | ensure, deploy app, load app | local | shipped | route /app/ensure | llp/0034 | getting-started/your-first-backend.md |
 | backend.codegen | Generate a digest-verified review manifest, input-hash cache, client API, and Contract bindings with deterministic human/JSON summaries | codegen, generate, artifacts, cache, custody, review manifest | all | shipped | `createReviewManifest` in packages/snapback-codegen/review-surface.mjs | llp/0010, llp/0012, llp/0037, llp/0041 | getting-started/generated-artifacts.md |
 | backend.query-semantics | Read sets, snapshots, commit versions, conflict validation | consistency, transactions, conflicts | local | shipped | route /query/{name} | llp/0003, llp/0004, llp/0007 | backend/queries.md |
+| backend.sequences | Experimental declared, incarnation-scoped `ctx.sequence.allocate(counterName, scopeId)` for one atomic gapless/monotonic allocation per mutation, with membership/public scope reach, exact settlement replay, safe-integer exhaustion, and storage-enforced string order-field bounds | sequence, counter, ticket number, invoice number, monotonic allocation, maxEncodedBytes | local | partial | `sequence.allocate` in packages/snapback-harness/ctx-bootstrap.js + `sequence_allocation_v1` in schemas/capability.manifest.local-dev-sqlite-ibex.json | llp/0135, llp/0128 | backend/sequences.md |
 | backend.actions | Actions with gated outbound fetch: global `fetch` and target-portable host-mediated `ctx.fetch`, in closed-script module handlers or the inline form | action, fetch, ctx.fetch, side effects, notification, webhook | local | shipped | route /action/{name} | llp/0004, llp/0009, llp/0049 | backend/actions-and-fetch.md |
 | backend.assets | Authenticated asset lifecycle plus the media pipeline on the local target — generated upload intents, TUS 1.0.0 resumable transfer, trusted SHA-256 finalization with GPS-strip canonicalization for images (decode/rewrite) and MP4/QuickTime video (in-place location-atom blanking, no transcoding), declared renditions with ThumbHash placeholders, typed `v.assetRef` attachment, private-strict/private-signed/public-immutable delivery with ranges and best-variant selection, opt-in reference GC, lifecycle callbacks, deletion/GC, receipts (`asset_lifecycle_v1`, `asset_image_finalization_v1`, `asset_image_pipeline_v1`, `asset_reference_gc_v1`, `asset_video_finalization_v1`); the paved browser path (stock `@expo/snapback-vite` relay over the `/assets/*` family, sessions custody, typed generated upload references) is CI-verified; transcoding and hosted targets remain design-only | files, images, video, upload, object storage, media, browser upload, vite relay | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json (all five asset ids in supportedCapabilities; `assets` facts block with Enforced image and video ceilings) + src/assets.rs + src/assets_image.rs + src/assets_video.rs suites + demos/file-drop/tests/acceptance/browser-relay.mjs (relay + sessions + typed upload reference browser path) | llp/0044 | backend/assets.md |
 | backend.expo-push-seam | Local Expo integration seam: session-bound token custody, atomic rotation and retirement, declaration-checked/host-authorized `ctx.push.send`, crash-safe intent/batch/message ledger, bounded ticket/receipt maintenance, explicit ambiguous redrive risk, and structured `notifications.expoPushSeam` facts. The app-readable ledger projection, a real-device receipt, and the complete hosted conjunction remain GAPs; this is not first-class notification delivery. | device token, expo push token, installation, ctx.push.send, handoff receipt, DeviceNotRegistered | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json (`expoPushSeam`) + `fake_expo_acceptance_covers_tickets_receipts_dedupe_ambiguity_and_authorization` in src/push.rs | llp/0143, llp/0057, llp/0059, llp/0070 | backend/expo-push.md |
@@ -270,8 +271,8 @@ examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game, demos/
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-01
-reviewed-commit: f245965ccfdc3addd44554d709c1074adec0834f
+reviewed: 2026-08-02
+reviewed-commit: HEAD
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -323,6 +324,8 @@ you never build around a feature because you didn't know it existed.
   and the ordinary-vs-live boundary.
 - [Mutations](./backend/mutations.md) — buffered writes, one commit version,
   read-set conflict validation, and structured results.
+- [Scoped sequences](./backend/sequences.md) — experimental atomic,
+  incarnation-scoped human-facing numbers and enforced order-field bounds.
 - [Trusted runtime time and identifiers](./backend/trusted-runtime-values.md) —
   server-authored timestamps and IDs in JavaScript handlers, closed operation
   arguments, diagnostics, and transition guidance.
@@ -4605,6 +4608,94 @@ snapshot.
 - Do not subscribe to a search operation or retain it offline.
 - Do not use scores as authorization, moderation, pricing, or other correctness
   inputs.
+
+---
+
+<!-- snapback-guide-source: guide/backend/sequences.md -->
+---
+title: Scoped sequences
+id: backend.sequences
+order: 28
+audience: agent-first
+capabilities: [backend.sequences]
+authorities: [llp/0128-popular-app-storage-scale.research.md, llp/0135-sequence-allocation-and-snapshot-batch.spec.md, src/manifest.rs, src/runtime.rs, src/storage.rs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/sequence-authoring.test.mjs, packages/snapback-harness/ctx-bootstrap.js, demos/improvement-sweep/arms/a6-snapback-web/evidence/app/acceptance.a6.mjs]
+examples: [demos/improvement-sweep/arms/a6-snapback-web/evidence/app]
+status: current
+targets: [local]
+maturity: partial
+reviewed: 2026-08-02
+reviewed-commit: HEAD
+---
+
+# Scoped sequences
+
+> **Experimental, local target only.** The handler-tier surface ships as
+> `sequence_allocation_v1`. Generated host-plan allocation, local/offline
+> execution, and snapshot-batch composition do not.
+
+Use a scoped sequence for dense, monotonic human-facing numbers such as
+JOB-42 without maintaining an application-owned read/increment/write counter.
+Declare every counter on the JS mutation, including its scope table and the
+exact way the handler may reach that scope:
+
+```js source=packages/snapback-codegen/sequence-authoring.test.mjs
+const declaration = [{
+  name: 'jobNumber',
+  scopeTable: 'orgs',
+  scopeAccess: { declaration: 'orgMembers', roles: ['dispatcher', 'operator'] },
+}];
+const direct = defineJsMutation({
+  writes: ['jobs'],
+  sequences: declaration,
+  handler: async (ctx, args) => ctx.sequence.allocate('jobNumber', args.orgId),
+});
+```
+
+`scopeAccess` is either a membership declaration plus admitted roles or the
+literal `public.v1`; there is no implicit scope reach. The call names the scope
+row itself: `ctx.sequence.allocate(counterName, scopeId)`. This makes the
+serialization and authorization unit part of the API.
+
+## Commit and replay behavior
+
+A mutation may allocate once. The counter advance, application writes, result,
+and settlement commit atomically. Aborts do not burn numbers. Concurrent
+allocators serialize at the scoped counter or lose with an effect-free
+mutation conflict, so committed values stay dense and monotonic. An Exact
+mutation replay returns the retained result without advancing again.
+
+The scope row's relation incarnation is part of counter identity. Deleting and
+recreating the row starts a new sequence at 1, even when the application row id
+is reused. The last admitted value is `Number.MAX_SAFE_INTEGER`; later
+allocation refuses with `SNAPBACK_SEQUENCE_EXHAUSTED` and commits nothing.
+
+The declaration automatically emits the experimental capability requirement
+and acknowledgment. Allocation facts are settlement evidence: direct receipts
+carry the exact counter, scope, incarnation, and value, while ordinary live
+fanout strips them. A sequence-only migration mutation may use `writes: []`;
+do not invent an application write merely to advance the framework counter.
+
+## Bound string order fields
+
+When a bounded query orders by a string, declare the storage-enforced UTF-8
+width in the order expression, for example
+`asc('sequenceLabel', { maxEncodedBytes: 32 })`. All declarations for one
+`(table, field)` must agree. Activation checks existing rows and every central
+writer rejects oversized values with
+`SNAPBACK_ORDER_FIELD_MAX_ENCODED_BYTES_EXCEEDED`.
+
+## Current limits
+
+- Only JS/Ibex mutation handlers can allocate; generated `AllocateSequence`
+  plans are not implemented.
+- One mutation can allocate at most once.
+- A counter's current or next value is never readable through the API.
+- Lane-Q optimistic changesets containing sequence-derived placement are not
+  implemented by this slice; do not claim local-execution parity.
+- Historical application counters need an explicit, reviewed migration. The
+  A6 fixture records its literal seed and reset/restore history through
+  ordinary committed sequence allocations; there is no authored start-value
+  escape hatch.
 
 ---
 

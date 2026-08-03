@@ -1120,6 +1120,7 @@ mod delta_tests {
                 order: vec![OrderExpr {
                     field: "rank".to_owned(),
                     direction: direction.clone(),
+                    max_encoded_bytes: None,
                 }],
                 limit: Some(2),
                 membership_filters: Vec::new(),
@@ -1156,6 +1157,7 @@ mod delta_tests {
             order: vec![OrderExpr {
                 field: "rank".to_owned(),
                 direction: OrderDirection::Asc,
+                max_encoded_bytes: None,
             }],
             limit: Some(2),
             membership_filters: Vec::new(),
@@ -1494,6 +1496,7 @@ mod delta_tests {
         ordered.order = vec![OrderExpr {
             field: "_createdAt".to_owned(),
             direction: OrderDirection::Asc,
+            max_encoded_bytes: None,
         }];
         assert_eq!(
             compute_live_delta(

@@ -673,6 +673,12 @@
         "runtime": {
           "$ref": "#/$defs/PublicFunctionRuntime"
         },
+        "sequences": {
+          "items": {
+            "$ref": "#/$defs/SequenceDeclaration"
+          },
+          "type": "array"
+        },
         "syncabilityClass": {
           "type": [
             "string",
@@ -693,6 +699,7 @@
         "id",
         "name",
         "kind",
+        "sequences",
         "resultContract",
         "requiredCapabilities",
         "authorityIndependent",
@@ -1153,6 +1160,52 @@
         "platform"
       ],
       "type": "string"
+    },
+    "SequenceDeclaration": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "scopeAccess": {
+          "$ref": "#/$defs/SequenceScopeAccess"
+        },
+        "scopeTable": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "scopeTable",
+        "scopeAccess"
+      ],
+      "type": "object"
+    },
+    "SequenceScopeAccess": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "properties": {
+            "declaration": {
+              "type": "string"
+            },
+            "roles": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "declaration",
+            "roles"
+          ],
+          "type": "object"
+        }
+      ],
+      "description": "One declared sequence counter and the structural proof that an invocation\nmay observe its allocation count. `public.v1` is deliberately a string on\nthe wire because it is the reviewed disclosure spelling pinned by LLP\n0135; non-public access names the membership declaration and exact roles\nthe host evaluates against the supplied scope row."
     }
   },
   "$id": "https://schemas.snapback.dev/snapback.v0/api.envelope.schema.json",

@@ -4640,9 +4640,26 @@ impl LocalSnapback {
         {
             preflight.push(error.diagnostic);
         }
-        if let Err(error) = validate_function_schema_references(&manifest, self.db.schema()) {
-            preflight.push(error.diagnostic);
-        }
+        let order_field_bounds =
+            match validate_function_schema_references(&manifest, self.db.schema()) {
+                Ok(()) => {
+                    let bounds = order_field_bounds_from_functions(&manifest, self.db.schema())
+                        .expect("schema-reference validation reconciled order-field bounds");
+                    if let Err(error) = self.db.validate_order_field_bounds(&bounds) {
+                        preflight.push(error.diagnostic);
+                    }
+                    if let Err(error) = self.db.validate_sequence_scope_activation(
+                        &sequence_scope_tables(&manifest),
+                    ) {
+                        preflight.push(error.diagnostic);
+                    }
+                    Some(bounds)
+                }
+                Err(error) => {
+                    preflight.push(error.diagnostic);
+                    None
+                }
+            };
         // @ref LLP 0076#target-contract — capability admission resolves
         // against the SAME served instance manifest `/inspect` reports for
         // this exact process, before any handler or nested-mutation code can
@@ -4701,6 +4718,9 @@ impl LocalSnapback {
             .set_release(self.functions.bundle_hash.as_deref());
         self.functions_loaded = true;
         self.db.set_projections(self.functions.projections.clone());
+        self.db.set_order_field_bounds(
+            order_field_bounds.expect("error-free preflight prepared order-field bounds"),
+        );
         self.install_app_generation(generation);
         // New code means new warm-VM setup state; content keying already
         // prevents stale reuse, clearing also frees the old VMs' memory.
@@ -4834,6 +4854,22 @@ impl LocalSnapback {
             )
         }));
 
+        let order_field_bounds = order_field_bounds_from_functions(&manifest, self.db.schema())
+            .expect("preflighted generation reconciles order-field bounds");
+        if let Err(error) = self.db.validate_order_field_bounds(&order_field_bounds) {
+            let diagnostics = vec![error.diagnostic];
+            self.record_diagnostics_at_boundary(diagnostics.clone(), diagnostic_boundary);
+            return diagnostics;
+        }
+        if let Err(error) = self
+            .db
+            .validate_sequence_scope_activation(&sequence_scope_tables(&manifest))
+        {
+            let diagnostics = vec![error.diagnostic];
+            self.record_diagnostics_at_boundary(diagnostics.clone(), diagnostic_boundary);
+            return diagnostics;
+        }
+
         let ephemeral = self.ephemeral.clone();
         let ephemeral_collections = self.db.schema().ephemeral_collections.clone();
         crate::exec_guard::run_or_defer_after_local(move || {
@@ -4871,6 +4907,7 @@ impl LocalSnapback {
             .set_release(self.functions.bundle_hash.as_deref());
         self.functions_loaded = true;
         self.db.set_projections(self.functions.projections.clone());
+        self.db.set_order_field_bounds(order_field_bounds);
         self.install_app_generation(generation);
         self.warm_vms.clear();
         if self
@@ -11874,6 +11911,7 @@ impl LocalSnapback {
                 }
                 let admission = authority.admission_lease().clone();
                 let correlation = capped_correlation(input.correlation.clone());
+                let sequence_allocations = output.settlement_sequence_allocations.clone();
                 let commit = MutationCommit {
                     output,
                     changes: Vec::new(),
@@ -11881,6 +11919,7 @@ impl LocalSnapback {
                     write_dependencies: Vec::new(),
                     job_enqueues: Vec::new(),
                     job_changes: Vec::new(),
+                    sequence_allocations,
                     authorization: None,
                 };
                 let recorded = self.record_mutation_commit_after_publication_guard(
@@ -11953,6 +11992,7 @@ impl LocalSnapback {
                 && let Some(output) = self.db.client_mutation_result(identity)?
             {
                 crate::result_contract::validate_handler_result(&function, &output.result)?;
+                let sequence_allocations = output.settlement_sequence_allocations.clone();
                 let commit = MutationCommit {
                     output,
                     changes: Vec::new(),
@@ -11960,6 +12000,7 @@ impl LocalSnapback {
                     write_dependencies: Vec::new(),
                     job_enqueues: Vec::new(),
                     job_changes: Vec::new(),
+                    sequence_allocations,
                     authorization: None,
                 };
                 let recorded = self.record_mutation_commit_after_publication_guard(
@@ -12058,6 +12099,7 @@ impl LocalSnapback {
                     )?;
                     let payload = BufferedCommitPayload {
                         writes: executed.writes,
+                        sequence_allocations: executed.sequence_allocations,
                         membership_plans,
                         read_dependencies: executed.reads,
                         result: executed.result,
@@ -12073,6 +12115,7 @@ impl LocalSnapback {
                     let preview = self.db.dry_run_buffered_writes_with_jobs(
                         &input,
                         payload.writes.clone(),
+                        payload.sequence_allocations.clone(),
                         payload.membership_plans.clone(),
                         payload.read_dependencies.clone(),
                         payload.result.clone(),
@@ -12246,22 +12289,31 @@ impl LocalSnapback {
             .function(name)
             .map(|function| function.write_set_summary.tables.clone())
             .filter(|tables| !tables.is_empty());
-        let (outcome, rollback_reason, snapshot_version, claim_ledger, id_map, enqueues, result) =
-            match result {
-                Ok(commit) => (
-                    MutationReceiptOutcome::Confirmed,
-                    None,
-                    Some(commit.output.version),
-                    settlement_claim_ledger(
-                        settlement,
-                        commit.output.ctx_ledger.as_ref(),
-                        &commit.output.settlement_mint_observations,
-                        commit.output.settlement_time_observation.as_ref(),
-                    ),
-                    settlement_id_map(settlement, &commit.output.settlement_mint_observations),
-                    commit.job_enqueues.clone(),
-                    Ok(commit),
+        let (
+            outcome,
+            rollback_reason,
+            snapshot_version,
+            claim_ledger,
+            id_map,
+            enqueues,
+            sequence_allocations,
+            result,
+        ) = match result {
+            Ok(commit) => (
+                MutationReceiptOutcome::Confirmed,
+                None,
+                Some(commit.output.version),
+                settlement_claim_ledger(
+                    settlement,
+                    commit.output.ctx_ledger.as_ref(),
+                    &commit.output.settlement_mint_observations,
+                    commit.output.settlement_time_observation.as_ref(),
                 ),
+                settlement_id_map(settlement, &commit.output.settlement_mint_observations),
+                commit.job_enqueues.clone(),
+                commit.sequence_allocations.clone(),
+                Ok(commit),
+            ),
             Err(error) => match self.db.current_version() {
                 Ok(version) => (
                     MutationReceiptOutcome::Rejected,
@@ -12272,6 +12324,7 @@ impl LocalSnapback {
                     settlement_claim_ledger(settlement, None, &[], None),
                     settlement_id_map(settlement, &[]),
                     Vec::new(),
+                    Vec::new(),
                     Err(error),
                 ),
                 Err(version_error) => (
@@ -12280,6 +12333,7 @@ impl LocalSnapback {
                     None,
                     settlement_claim_ledger(settlement, None, &[], None),
                     settlement_id_map(settlement, &[]),
+                    Vec::new(),
                     Vec::new(),
                     Err(version_error),
                 ),
@@ -12298,6 +12352,7 @@ impl LocalSnapback {
             affected_tables,
             snapshot_version,
             enqueues,
+            sequence_allocations,
             transport: transport.to_owned(),
             correlation: correlation.unwrap_or(Value::Null),
             received_at_ms: now_millis(),
@@ -12448,6 +12503,7 @@ impl LocalSnapback {
                 expected.authority_instance_id,
             );
             if let Some(output) = self.db.client_mutation_result(&identity)? {
+                let sequence_allocations = output.settlement_sequence_allocations.clone();
                 return Ok(MutationCommit {
                     output,
                     changes: Vec::new(),
@@ -12455,6 +12511,7 @@ impl LocalSnapback {
                     write_dependencies: Vec::new(),
                     job_enqueues: Vec::new(),
                     job_changes: Vec::new(),
+                    sequence_allocations,
                     authorization: None,
                 });
             }
@@ -12488,6 +12545,7 @@ impl LocalSnapback {
             && let Some(output) = self.db.client_mutation_result(identity)?
         {
             crate::result_contract::validate_handler_result(&function, &output.result)?;
+            let sequence_allocations = output.settlement_sequence_allocations.clone();
             return Ok(MutationCommit {
                 output,
                 changes: Vec::new(),
@@ -12495,6 +12553,7 @@ impl LocalSnapback {
                 write_dependencies: Vec::new(),
                 job_enqueues: Vec::new(),
                 job_changes: Vec::new(),
+                sequence_allocations,
                 authorization: None,
             });
         }
@@ -12602,6 +12661,7 @@ impl LocalSnapback {
                     &input,
                     BufferedCommitPayload {
                         writes: executed.writes,
+                        sequence_allocations: executed.sequence_allocations,
                         membership_plans,
                         read_dependencies: executed.reads,
                         result: executed.result,
@@ -12849,6 +12909,7 @@ impl LocalSnapback {
             &input,
             BufferedCommitPayload {
                 writes: executed.writes,
+                sequence_allocations: executed.sequence_allocations,
                 membership_plans,
                 read_dependencies: executed.reads,
                 result: executed.result,
@@ -16649,6 +16710,7 @@ impl LocalSnapback {
         let preview = self.db.dry_run_buffered_writes(
             &canonical_input,
             executed.writes.clone(),
+            executed.sequence_allocations.clone(),
             membership_plans,
             executed.reads.clone(),
             executed.result.clone(),
@@ -22427,6 +22489,97 @@ fn validate_bounded_children_schema_plan(
     Ok(())
 }
 
+/// Reconcile authored order uses into the one schema-level UTF-8 ceiling for
+/// each `(table, field)`. The authoring member lives on `OrderExpr` because a
+/// cursor profile is what needs the bound, but storage must never receive two
+/// competing answers for the same column.
+///
+/// @ref LLP 0135#4-fold-on-acceptance-amendments-applied-2026-08-02 — bounds
+///   are positive, string-only, and single-valued per table/field.
+fn order_field_bounds_from_functions(
+    manifest: &FunctionManifest,
+    schema: &SchemaManifest,
+) -> SnapbackResult<BTreeMap<(String, String), u64>> {
+    let mut bounds = BTreeMap::new();
+    let mut register =
+        |table_name: &str, order: &[crate::manifest::OrderExpr]| -> SnapbackResult<()> {
+            let table = schema.table(table_name).ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
+                    "runtime",
+                    format!("order-field bound references unknown table {table_name}"),
+                )
+            })?;
+            for declaration in order {
+                let Some(max_encoded_bytes) = declaration.max_encoded_bytes else {
+                    continue;
+                };
+                let field = table.field(&declaration.field).ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
+                        "runtime",
+                        format!(
+                            "order-field bound references unknown field {table_name}.{}",
+                            declaration.field
+                        ),
+                    )
+                })?;
+                if max_encoded_bytes == 0
+                    || max_encoded_bytes > 9_007_199_254_740_991
+                    || field.field_type != crate::manifest::FieldType::String
+                {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
+                        "runtime",
+                        format!(
+                            "order-field maxEncodedBytes requires a positive bound on string field {table_name}.{}",
+                            declaration.field
+                        ),
+                    ));
+                }
+                let key = (table_name.to_owned(), declaration.field.clone());
+                if let Some(previous) = bounds.insert(key.clone(), max_encoded_bytes)
+                    && previous != max_encoded_bytes
+                {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
+                        "runtime",
+                        format!(
+                            "order-field bound for {}.{} conflicts: {previous} versus {max_encoded_bytes}",
+                            key.0, key.1
+                        ),
+                    ));
+                }
+            }
+            Ok(())
+        };
+
+    for function in &manifest.functions {
+        match &function.runtime {
+            FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) => {
+                register(&plan.table, &plan.order)?;
+            }
+            FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)) => {
+                register(&plan.root, &plan.order)?;
+            }
+            FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(plan)) => {
+                register(&plan.child_table, &plan.order)?;
+            }
+            _ => {}
+        }
+    }
+    Ok(bounds)
+}
+
+fn sequence_scope_tables(manifest: &FunctionManifest) -> BTreeSet<String> {
+    manifest
+        .functions
+        .iter()
+        .flat_map(|function| function.sequences.iter())
+        .map(|sequence| sequence.scope_table.clone())
+        .collect()
+}
+
 /// Whole-manifest schema-reference preflight. Invocation-time checks remain as
 /// defense in depth, but a malformed direct artifact must not replace a known
 /// good function/config/cron generation and fail only on its first call.
@@ -22434,6 +22587,7 @@ fn validate_function_schema_references(
     manifest: &FunctionManifest,
     schema: &SchemaManifest,
 ) -> SnapbackResult<()> {
+    order_field_bounds_from_functions(manifest, schema)?;
     let table = |name: &str| {
         schema.table(name).ok_or_else(|| {
             SnapbackError::error(
@@ -22522,8 +22676,71 @@ fn validate_function_schema_references(
         }
         Ok(())
     };
+    let projection_outputs = manifest
+        .projections
+        .iter()
+        .map(|projection| projection.output_table.as_str())
+        .collect::<BTreeSet<_>>();
 
     for function in &manifest.functions {
+        for sequence in &function.sequences {
+            let scope = table(&sequence.scope_table)?;
+            // @ref LLP 0135#11-counter-identity-and-scope — sequence scopes
+            //   are ordinary, independently-authorized application tables;
+            //   permission stores and maintained outputs cannot become a
+            //   counter namespace by declaration.
+            if scope.is_permission_backing()
+                || projection_outputs.contains(sequence.scope_table.as_str())
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
+                    "runtime",
+                    format!(
+                        "sequence {} names ineligible scope table {}",
+                        sequence.name, sequence.scope_table
+                    ),
+                ));
+            }
+            if let crate::manifest::SequenceScopeAccess::Membership {
+                declaration,
+                roles,
+            } = &sequence.scope_access
+            {
+                let Some((membership_table, membership)) =
+                    crate::membership_rules::find_declaration(schema, declaration)
+                else {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
+                        "runtime",
+                        format!(
+                            "sequence {} names unknown membership declaration {}",
+                            sequence.name, declaration
+                        ),
+                    ));
+                };
+                let resource_field = membership.resource.as_ref().and_then(|name| {
+                    membership_table.field(name)
+                });
+                let resource_matches = matches!(
+                    resource_field.map(|field| &field.field_type),
+                    Some(crate::manifest::FieldType::Id { table })
+                        if table == &sequence.scope_table
+                );
+                let roles_match = roles
+                    .iter()
+                    .all(|role| membership.roles.iter().any(|declared| declared == role));
+                if !resource_matches || !roles_match {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
+                        "runtime",
+                        format!(
+                            "sequence {} scope access does not authorize rows of {}",
+                            sequence.name, sequence.scope_table
+                        ),
+                    ));
+                }
+            }
+        }
         match &function.runtime {
             FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) => {
                 query(plan)?;
@@ -27043,6 +27260,7 @@ globalThis.__snapbackHandlers = {
             &input,
             crate::storage::BufferedCommitPayload {
                 writes,
+                sequence_allocations: Vec::new(),
                 membership_plans: Vec::new(),
                 read_dependencies: Vec::new(),
                 result: Value::Null,
@@ -35052,6 +35270,7 @@ globalThis.__snapbackHandlers = {
             order: vec![crate::manifest::OrderExpr {
                 field: "title".to_owned(),
                 direction: crate::manifest::OrderDirection::Asc,
+                max_encoded_bytes: None,
             }],
             take: 10,
             root_index: "by_owner_title".to_owned(),
@@ -35271,6 +35490,7 @@ globalThis.__snapbackHandlers = {
             order: vec![crate::manifest::OrderExpr {
                 field: "title".to_owned(),
                 direction: crate::manifest::OrderDirection::Asc,
+                max_encoded_bytes: None,
             }],
             take: 1,
             root_index: "by_owner_title".to_owned(),
@@ -35556,6 +35776,7 @@ globalThis.__snapbackHandlers = {
             order: vec![crate::manifest::OrderExpr {
                 field: "title".to_owned(),
                 direction: crate::manifest::OrderDirection::Asc,
+                max_encoded_bytes: None,
             }],
             take: 1,
             root_index: "by_owner_title".to_owned(),
@@ -35720,6 +35941,7 @@ globalThis.__snapbackHandlers = {
             order: vec![crate::manifest::OrderExpr {
                 field: "title".to_owned(),
                 direction: crate::manifest::OrderDirection::Asc,
+                max_encoded_bytes: None,
             }],
             take: plan_take,
             root_index: "by_owner_title".to_owned(),
@@ -35967,6 +36189,7 @@ globalThis.__snapbackHandlers = {
             .map(|field| crate::manifest::OrderExpr {
                 field: field.to_owned(),
                 direction: OrderDirection::Asc,
+                max_encoded_bytes: None,
             })
             .collect::<Vec<_>>();
         let select = |name: &str| BoundedProjectionField {
@@ -37186,6 +37409,7 @@ globalThis.__snapbackHandlers = {
                         order: vec![crate::manifest::OrderExpr {
                             field: "title".to_owned(),
                             direction: crate::manifest::OrderDirection::Asc,
+                            max_encoded_bytes: None,
                         }],
                         limit: None,
                         indexed_by: None,
@@ -37438,6 +37662,7 @@ globalThis.__snapbackHandlers = {
                     order: vec![crate::manifest::OrderExpr {
                         field: "title".to_owned(),
                         direction: crate::manifest::OrderDirection::Asc,
+                        max_encoded_bytes: None,
                     }],
                     limit: None,
                     indexed_by: None,
@@ -37497,6 +37722,7 @@ globalThis.__snapbackHandlers = {
                     order: vec![crate::manifest::OrderExpr {
                         field: "title".to_owned(),
                         direction: crate::manifest::OrderDirection::Asc,
+                        max_encoded_bytes: None,
                     }],
                     limit: None,
                     indexed_by: None,
@@ -37917,6 +38143,7 @@ globalThis.__snapbackHandlers = {
                     order: vec![crate::manifest::OrderExpr {
                         field: "pageKey".to_owned(),
                         direction: crate::manifest::OrderDirection::Asc,
+                        max_encoded_bytes: None,
                     }],
                     limit: Some(2),
                     indexed_by: Some("by_room_page_key".to_owned()),
@@ -38557,6 +38784,7 @@ globalThis.__snapbackHandlers = {
             order: vec![crate::manifest::OrderExpr {
                 field: "pageKey".to_owned(),
                 direction: crate::manifest::OrderDirection::Asc,
+                max_encoded_bytes: None,
             }],
             limit: Some(2),
             indexed_by: Some("by_owner_page_key".to_owned()),
@@ -38910,6 +39138,7 @@ globalThis.__snapbackHandlers = {
             order: vec![crate::manifest::OrderExpr {
                 field: "title".to_owned(),
                 direction: crate::manifest::OrderDirection::Asc,
+                max_encoded_bytes: None,
             }],
             limit: Some(1),
             indexed_by: Some("by_owner_title".to_owned()),
@@ -39148,6 +39377,7 @@ globalThis.__snapbackHandlers = {
                 order: vec![crate::manifest::OrderExpr {
                     field: "pageKey".to_owned(),
                     direction: crate::manifest::OrderDirection::Asc,
+                    max_encoded_bytes: None,
                 }],
                 limit: Some(2),
                 indexed_by: Some(index.to_owned()),
@@ -43532,6 +43762,7 @@ globalThis.__snapbackHandlers = {
                 order: vec![crate::manifest::OrderExpr {
                     field: "title".to_owned(),
                     direction: crate::manifest::OrderDirection::Asc,
+                    max_encoded_bytes: None,
                 }],
                 take: 10,
                 root_index: "by_owner_title".to_owned(),
@@ -44525,6 +44756,7 @@ globalThis.__snapbackHandlers = {
                 id: "guarded_item".to_owned(),
                 values,
             }],
+            sequence_allocations: Vec::new(),
             job_enqueues: Vec::new(),
             membership_commands: Vec::new(),
             reads: Vec::new(),
@@ -46372,6 +46604,7 @@ globalThis.__snapbackHandlers = {
                     vec![crate::manifest::OrderExpr {
                         field: "rank".to_owned(),
                         direction: crate::manifest::OrderDirection::Asc,
+                        max_encoded_bytes: None,
                     }]
                 } else {
                     Vec::new()

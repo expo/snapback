@@ -10,11 +10,12 @@ use crate::live_matcher::{
 use crate::manifest::{
     CtxAnswerLedger, FunctionKind, HandlerInput, IbexModule, MutationOutput,
     QUERY_INTERNAL_OVERFETCH_MAX, QUERY_MAX_BUFFERED_WRITES, QueryOutput, QueryPlan,
-    effective_query_limit,
+    SequenceDeclaration, SequenceScopeAccess, effective_query_limit,
 };
 use crate::storage::{
     BufferedMembershipCommand, BufferedWrite, CapturedReadDependency, CapturedReadKind, DbRead,
-    LocalDatabase, MembershipWriter, MutationCommit,
+    LocalDatabase, MembershipWriter, MutationCommit, SEQUENCE_MAX_SAFE_INTEGER,
+    SequenceAllocationFact,
 };
 use crate::warm_vm::WarmVmPool;
 use libc::{c_char, c_int, c_void, size_t};
@@ -331,6 +332,7 @@ pub trait IbexActionHost {
 #[derive(Clone)]
 pub(crate) struct ExecutedIbexMutation {
     pub writes: Vec<BufferedWrite>,
+    pub sequence_allocations: Vec<SequenceAllocationFact>,
     pub job_enqueues: Vec<crate::jobs::BufferedJobEnqueue>,
     pub membership_commands: Vec<BufferedMembershipCommand>,
     pub reads: Vec<CapturedReadDependency>,
@@ -408,6 +410,7 @@ impl RuntimeManager {
             true,
         )?;
         invocation.declared_refusals = prepared.declared_refusals().to_vec();
+        invocation.declared_sequences = prepared.sequences().to_vec();
         let result = run_ibex_handler_with_context(module, &mut invocation, pool);
         // A terminal role denial fails the (dry-run) mutation and never commits,
         // preserving the trusted brand regardless of a handler catch.
@@ -418,6 +421,7 @@ impl RuntimeManager {
         let ctx_ledger = invocation.take_ctx_ledger()?;
         let IbexHostContext {
             writes,
+            sequence_allocations,
             job_enqueues,
             membership_commands,
             reads,
@@ -428,6 +432,7 @@ impl RuntimeManager {
         db.dry_run_buffered_writes_with_jobs(
             &input,
             writes,
+            sequence_allocations,
             membership_plans,
             reads,
             result,
@@ -491,6 +496,7 @@ pub(crate) fn execute_ibex_mutation_prepared(
         true,
     )?;
     invocation.declared_refusals = prepared.declared_refusals().to_vec();
+    invocation.declared_sequences = prepared.sequences().to_vec();
     let result = run_ibex_handler_with_context_until(module, &mut invocation, pool, deadline);
     // A terminal role denial fails the mutation before commit and preserves the
     // trusted brand regardless of a handler catch (LLP 0056 M3).
@@ -503,6 +509,7 @@ pub(crate) fn execute_ibex_mutation_prepared(
     let ctx_ledger = invocation.take_ctx_ledger()?;
     let IbexHostContext {
         writes,
+        sequence_allocations,
         job_enqueues,
         membership_commands,
         reads,
@@ -512,6 +519,7 @@ pub(crate) fn execute_ibex_mutation_prepared(
     prepared.validate_admission("ibex mutation completion")?;
     Ok(ExecutedIbexMutation {
         writes,
+        sequence_allocations,
         job_enqueues,
         membership_commands,
         reads,
@@ -1103,6 +1111,14 @@ fn action_db_denied(op: &str) -> SnapbackError {
     )
 }
 
+fn sequence_parent_unavailable() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_RELATION_PARENT_UNAVAILABLE",
+        "storage",
+        "relation parent is missing or inactive",
+    )
+}
+
 fn protected_host_input_error(code: &str, input_kind: &str, op: &str) -> SnapbackError {
     SnapbackError::error(
         code,
@@ -1146,7 +1162,10 @@ pub(crate) struct IbexHostContext<'a> {
     /// and empty by default, so any path that does not deliberately carry the
     /// declaration folds every claimed `appCode` (LLP 0108).
     declared_refusals: Vec<String>,
+    /// Host-owned counter reach declarations for this exact function.
+    declared_sequences: Vec<SequenceDeclaration>,
     writes: Vec<BufferedWrite>,
+    sequence_allocations: Vec<SequenceAllocationFact>,
     /// Buffered `ctx.jobs.enqueue` intents (LLP 0070's first slice). Like
     /// `writes`, these are effects of the mutation transaction: they commit
     /// or roll back with it, never independently.
@@ -1255,7 +1274,9 @@ impl<'a> IbexHostContext<'a> {
             },
             protected_query_profile: false,
             declared_refusals: Vec::new(),
+            declared_sequences: Vec::new(),
             writes: Vec::new(),
+            sequence_allocations: Vec::new(),
             job_enqueues: Vec::new(),
             asset_admissions: Vec::new(),
             membership_commands: Vec::new(),
@@ -1313,7 +1334,9 @@ impl<'a> IbexHostContext<'a> {
             mode: IbexInvocationMode::Action,
             protected_query_profile: false,
             declared_refusals: Vec::new(),
+            declared_sequences: Vec::new(),
             writes: Vec::new(),
+            sequence_allocations: Vec::new(),
             job_enqueues: Vec::new(),
             asset_admissions: Vec::new(),
             membership_commands: Vec::new(),
@@ -1609,6 +1632,106 @@ impl<'a> IbexHostContext<'a> {
                 let existed = self.apply_buffered_to_point(&table, &id, stored).is_some();
                 self.writes.push(BufferedWrite::Delete { table, id });
                 Ok(Value::Bool(existed))
+            }
+            // A sequence is a scoped, buffered read-modify-write — never a
+            // standalone service call. The scope id is an explicit argument
+            // and the scope table/access proof come from the immutable
+            // function declaration carried through admission.
+            //
+            // @ref LLP 0135#12-allocation-surfaces — declared handler surface
+            //   with runtime undeclared refusal and same-transaction advance.
+            // @ref LLP 0135#17-allocation-authority-and-information-flow —
+            //   membership no-reach and missing/inactive scope collapse to one
+            //   byte-identical parent-unavailable result.
+            // @ref LLP 0128#contract-guardrails-before-choosing-a-substrate
+            "sequence.allocate" => {
+                self.ensure_writable("sequence.allocate")?;
+                if !self.sequence_allocations.is_empty() {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
+                        "runtime",
+                        "sequence_allocation_v1 permits one allocation per invocation",
+                    ));
+                }
+                let counter = required_string(&args, "counter")?;
+                let scope_row_id = required_string(&args, "scopeId")?;
+                let declaration = self
+                    .declared_sequences
+                    .iter()
+                    .find(|declaration| declaration.name == counter)
+                    .cloned()
+                    .ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_SEQUENCE_UNDECLARED",
+                            "runtime",
+                            "ctx.sequence.allocate names a counter not declared by this function",
+                        )
+                    })?;
+
+                if let SequenceScopeAccess::Membership {
+                    declaration: membership_id,
+                    roles,
+                } = &declaration.scope_access
+                {
+                    let Some(principal) = self.input.auth.user_id.clone() else {
+                        return Err(sequence_parent_unavailable());
+                    };
+                    let (membership_table, membership) = crate::membership_rules::find_declaration(
+                        self.db().schema(),
+                        membership_id,
+                    )
+                    .map(|(table, membership)| (table.name.clone(), membership.clone()))
+                    .ok_or_else(sequence_parent_unavailable)?;
+                    let outcome = crate::membership_rules::membership_read(
+                        self.db(),
+                        &membership,
+                        &membership_table,
+                        &principal,
+                        crate::membership_rules::ResourceBinding::Fixed(Value::String(
+                            scope_row_id.clone(),
+                        )),
+                        roles,
+                    )?;
+                    self.push_read_dependency(outcome.dependency);
+                    if !outcome.present {
+                        return Err(sequence_parent_unavailable());
+                    }
+                }
+
+                let stored = self.db().get(&declaration.scope_table, &scope_row_id)?;
+                self.capture_point_read(
+                    &declaration.scope_table,
+                    &scope_row_id,
+                    stored.as_ref(),
+                )?;
+                let incarnation = self
+                    .db()
+                    .active_relation_incarnation(&declaration.scope_table, &scope_row_id)?;
+                if stored.is_none() || incarnation.is_none() {
+                    return Err(sequence_parent_unavailable());
+                }
+                let incarnation = incarnation.expect("checked above");
+                let value = self.db().sequence_next_value(
+                    &counter,
+                    &declaration.scope_table,
+                    &scope_row_id,
+                    &incarnation,
+                )?;
+                if value > SEQUENCE_MAX_SAFE_INTEGER {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_SEQUENCE_EXHAUSTED",
+                        "runtime",
+                        "sequence counter has exhausted the JavaScript-safe integer domain",
+                    ));
+                }
+                self.sequence_allocations.push(SequenceAllocationFact {
+                    counter,
+                    scope_table: declaration.scope_table,
+                    scope_row_id,
+                    scope_incarnation: incarnation,
+                    value,
+                });
+                Ok(Value::Number(value.into()))
             }
             // Transactional one-off enqueue (LLP 0070 first slice). Mutations
             // only: queries cannot enqueue, and actions enqueue only through
@@ -4489,10 +4612,12 @@ mod membership_bridge_tests {
     use crate::manifest::{
         AuthInput, FieldManifest, FieldType, HandlerInput, IbexModule, MembershipLastHolder,
         MembershipManifest, MembershipOp, MembershipProvenance, MembershipScope, MembershipTarget,
-        MembershipTransition, SchemaManifest, TableManifest,
+        MembershipTransition, SchemaManifest, SeedData, SequenceDeclaration, SequenceScopeAccess,
+        TableManifest,
     };
     use crate::storage::{BufferedCommitPayload, DbRead, LocalDatabase, MembershipWriter};
-    use serde_json::json;
+    use serde_json::{Map, json};
+    use std::collections::BTreeMap;
 
     fn schema() -> SchemaManifest {
         SchemaManifest {
@@ -4553,6 +4678,21 @@ mod membership_bridge_tests {
                     syncable: true,
                     permission_backing: true,
                     permission_fields: Some(vec!["ownerId".to_owned()]),
+                    search_indexes: Vec::new(),
+                    membership: None,
+                    asset_sharing: None,
+                },
+                TableManifest {
+                    name: "scopes".to_owned(),
+                    fields: vec![FieldManifest {
+                        name: "title".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    }],
+                    indexes: Vec::new(),
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
                     search_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
@@ -4687,6 +4827,94 @@ mod membership_bridge_tests {
     }
 
     #[test]
+    fn sequence_host_bridge_is_declared_scoped_and_commits_with_the_mutation() {
+        let mut db = ready_db();
+        db.seed(SeedData {
+            tables: BTreeMap::from([(
+                "scopes".to_owned(),
+                vec![Map::from_iter([
+                    ("_id".to_owned(), json!("event-a")),
+                    ("title".to_owned(), json!("A")),
+                ])],
+            )]),
+        })
+        .expect("seed scope");
+
+        let mut undeclared = context(&db);
+        let error = undeclared
+            .handle_host_call(
+                "sequence.allocate",
+                json!({ "counter": "eventNumber", "scopeId": "event-a" }),
+            )
+            .expect_err("undeclared counter must refuse at ctx boundary");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_SEQUENCE_UNDECLARED");
+        drop(undeclared);
+
+        let declaration = SequenceDeclaration {
+            name: "eventNumber".to_owned(),
+            scope_table: "scopes".to_owned(),
+            scope_access: SequenceScopeAccess::Public("public.v1".to_owned()),
+        };
+        let mut ctx = context(&db);
+        ctx.declared_sequences = vec![declaration.clone()];
+        let allocated = ctx
+            .handle_host_call(
+                "sequence.allocate",
+                json!({ "counter": "eventNumber", "scopeId": "event-a" }),
+            )
+            .expect("declared public allocation");
+        assert_eq!(allocated, json!(1));
+        let allocations = std::mem::take(&mut ctx.sequence_allocations);
+        drop(ctx);
+        let committed = db
+            .commit_buffered_writes_idempotent_guarded(
+                &input(),
+                BufferedCommitPayload {
+                    writes: Vec::new(),
+                    sequence_allocations: allocations,
+                    membership_plans: Vec::new(),
+                    read_dependencies: Vec::new(),
+                    result: json!({ "sequence": 1 }),
+                    ctx_ledger: crate::manifest::CtxAnswerLedger::default(),
+                    job_enqueues: Vec::new(),
+                    job_producer: None,
+                    asset_admissions: Vec::new(),
+                },
+                None,
+                || Ok(()),
+                || Ok(()),
+            )
+            .expect("allocation commit");
+        assert_eq!(committed.sequence_allocations[0].value, 1);
+
+        let mut next = context(&db);
+        next.declared_sequences = vec![declaration];
+        assert_eq!(
+            next.handle_host_call(
+                "sequence.allocate",
+                json!({ "counter": "eventNumber", "scopeId": "event-a" }),
+            )
+            .expect("next allocation"),
+            json!(2)
+        );
+        let missing = {
+            let mut missing = context(&db);
+            missing.declared_sequences = next.declared_sequences.clone();
+            missing
+                .handle_host_call(
+                    "sequence.allocate",
+                    json!({ "counter": "eventNumber", "scopeId": "absent" }),
+                )
+                .expect_err("missing scope")
+        };
+        assert_eq!(
+            missing.diagnostic,
+            super::sequence_parent_unavailable().diagnostic,
+            "missing scope uses the invariant non-oracle refusal"
+        );
+    }
+
+    #[test]
     fn generated_membership_command_commits_with_provenance_and_raw_writes_stay_denied() {
         let mut db = ready_db();
         let mut ctx = context(&db);
@@ -4710,7 +4938,8 @@ mod membership_bridge_tests {
                 job_enqueues: Vec::new(),
                 job_producer: None,
                 writes: Vec::new(),
-            asset_admissions: Vec::new(),
+                sequence_allocations: Vec::new(),
+                asset_admissions: Vec::new(),
                 membership_plans: plans,
                 read_dependencies: Vec::new(),
                 result: json!(null),
@@ -4786,6 +5015,7 @@ mod membership_bridge_tests {
             .expect("authorized plans");
         db.dry_run_buffered_writes(
             &input(),
+            Vec::new(),
             Vec::new(),
             plans,
             Vec::new(),
@@ -4970,7 +5200,8 @@ globalThis.__snapbackHandlers = {
                 job_enqueues: Vec::new(),
                 job_producer: None,
                 writes: Vec::new(),
-            asset_admissions: Vec::new(),
+                sequence_allocations: Vec::new(),
+                asset_admissions: Vec::new(),
                 membership_plans: plans,
                 read_dependencies: Vec::new(),
                 result: result.clone(),

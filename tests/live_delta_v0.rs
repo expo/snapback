@@ -682,6 +682,7 @@ fn functions() -> FunctionManifest {
                 vec![snapback::manifest::OrderExpr {
                     field: "title".to_owned(),
                     direction: snapback::manifest::OrderDirection::Asc,
+                    max_encoded_bytes: None,
                 }],
             ),
             list_urgent,
