@@ -1,0 +1,3532 @@
+{
+  "startedAt": "2026-08-03T23:19:25.499Z",
+  "idleHoldMs": 90000,
+  "identities": {
+    "platform": "ios 26.3.1",
+    "hermes": true,
+    "simulator": "DB9591C2-0F07-40DC-95DC-61A2E57A022F",
+    "server": "http://127.0.0.1:4287 (repo dev server, runtime binary @ origin/main)",
+    "app": "/Users/ccheever/f7-rerun/dd/Build/Products/Release-iphonesimulator/ImprovementSweepNeutralShell.app"
+  },
+  "userId": "usr_685c29yhpdwymvamzfdjkkbaq8",
+  "headlessProbe": {
+    "error": {
+      "code": null,
+      "message": "undefined is not a function",
+      "stack": "TypeError: undefined is not a function\n    at recomputeScope (/Users/ccheever/f7-rerun/dd/Build/Products/Release-iphonesimulator/main.jsbundle:77027:60)\n    at add (/Users/ccheever/f7-rerun/dd/Build/Products/Release-iphonesimulator/main.jsbundle:77136:21)\n    at applyContextDemands (/Users/ccheever/f7-rerun/dd/Build/Products/Release-iphonesimulator/main.jsbundle:77230:29)\n    at ?anon_2___registerActiveQueryDemand (/Users/ccheever/f7-rerun/dd/Build/Products/Release-iphonesimulator/main.jsbundle:62601:35)\n    at next (native)\n    at anonymous (address at InternalBytecode.js:1:8987)\n    at step (address at InternalBytecode.js:1:6731)\n    at anonymous (address at InternalBytecode.js:1:7890)\n    at tryCallOne (address at InternalBytecode.js:1:1296)\n    at anonymous (address at InternalBytecode.js:1:4984)"
+    }
+  },
+  "setupFailures": [
+    {
+      "step": "notebook-presentation",
+      "error": "timeout waiting for event: notebook presents 3 sites + 3 records"
+    }
+  ],
+  "holdStartedAt": "2026-08-03T23:20:28.455Z",
+  "hold": {
+    "durationMs": 90002,
+    "streamTransitions": 0,
+    "lostDuringHold": {
+      "totalLost": 0,
+      "signatures": []
+    },
+    "lostOverall": {
+      "totalLost": 0,
+      "signatures": []
+    },
+    "connectionStatusFlips": [
+      {
+        "receivedAt": 1785799228455,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799228624,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799228818,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799229021,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799229222,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799229424,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799229627,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799229829,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799230031,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799230234,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799230436,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799230639,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799230845,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799231049,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799231255,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799231459,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799231664,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799231873,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799232079,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799232290,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799232499,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799232704,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799232909,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799233114,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799233319,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799233528,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799233733,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799233941,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799234144,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799234368,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799234565,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799234775,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799234977,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799235193,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799235393,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799235600,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799235803,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799236009,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799236220,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799236421,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799236626,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799236830,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799237035,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799237238,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799237445,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799237645,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799237853,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799238064,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799238274,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799238468,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799238677,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799238886,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799239087,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799239291,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799239501,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799239706,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799239912,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799240119,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799240325,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799240528,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799240736,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799240939,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799241142,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799241348,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799241555,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799241763,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799241968,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799242174,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799242380,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799242587,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799242798,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799243004,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799243211,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799243410,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799243619,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799243829,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799244038,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799244245,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799244448,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799244652,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799244855,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799245059,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799245266,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799245471,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799245676,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799245886,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799246092,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799246295,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799246548,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799246742,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799246953,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799247165,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799247375,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799247579,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799247783,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799247979,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799248201,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799248425,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799248630,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799248857,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799249060,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799249278,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799249480,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799249683,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799249882,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799250091,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799250293,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799250497,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799250697,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799250909,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799251118,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799251328,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799251542,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799251753,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799251966,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799252165,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799252379,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799252589,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799252795,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799253001,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799253208,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799253412,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799253618,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799253825,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799254030,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799254234,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799254438,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799254641,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799254842,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799255042,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799255248,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799255452,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799255666,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799255878,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799256083,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799256291,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799256498,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799256705,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799256912,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799257110,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799257327,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799257531,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799257737,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799257945,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799258146,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799258361,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799258566,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799258762,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799258965,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799259175,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799259367,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799259572,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799259774,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799259985,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799260180,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799260388,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799260597,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799260792,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799261041,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799261239,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799261453,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799261664,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799261884,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799262096,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799262296,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799262504,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799262710,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799262919,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799263134,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799263347,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799263561,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799263774,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799263985,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799264197,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799264415,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799264629,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799264841,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799265044,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799265262,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799265480,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799265695,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799265911,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799266118,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799266328,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799266539,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799266742,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799266950,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799267154,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799267367,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799267578,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799267791,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799268008,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799268220,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799268431,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799268659,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799268857,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799269082,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799269310,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799269520,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799269723,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799269924,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799270126,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799270346,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799270547,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799270751,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799270963,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799271183,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799271384,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799271630,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799271798,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799272011,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799272219,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799272434,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799272654,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799272854,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799273072,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799273290,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799273489,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799273704,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799273921,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799274120,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799274319,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799274538,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799274752,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799274962,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799275166,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799275365,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799275576,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799275788,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799275996,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799276210,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799276424,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799276638,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799276852,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799277051,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799277266,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799277477,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799277682,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799277896,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799278096,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799278309,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799278509,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799278813,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799279003,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799279241,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799279451,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799279651,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799279875,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799280097,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799280299,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799280528,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799280739,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799280949,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799281173,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799281388,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799281607,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799281820,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799282037,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799282258,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799282479,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799282694,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799282897,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799283114,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799283339,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799283535,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799283740,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799283941,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799284145,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799284357,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799284573,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799284787,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799284997,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799285209,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799285421,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799285634,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799285845,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799286077,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799286281,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799286497,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799286709,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799286920,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799287125,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799287330,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799287535,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799287737,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799287948,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799288156,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799288362,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799288569,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799288788,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799289020,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799289207,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799289413,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799289651,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799289848,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799290054,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799290254,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799290462,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799290665,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799290867,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799291075,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799291290,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799291497,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799291706,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799291908,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799292117,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799292320,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799292527,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799292730,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799292934,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799293142,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799293360,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799293567,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799293781,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799293988,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799294195,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799294401,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799294610,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799294812,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799295015,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799295223,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799295433,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799295640,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799295840,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799296061,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799296270,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799296471,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799296673,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799296874,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799297075,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799297280,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799297484,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799297704,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799297924,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799298135,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799298358,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799298562,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799298765,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799298990,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799299194,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799299455,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799299702,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799299917,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799300131,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799300331,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799300548,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799300773,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799301001,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799301229,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799301443,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799301649,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799301861,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799302079,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799302297,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799302516,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799302734,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799302951,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799303172,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799303396,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799303615,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799303839,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799304033,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799304257,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799304464,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799304688,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799304889,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799305093,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799305294,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799305506,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799305711,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799305923,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799306124,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799306357,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799306564,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799306783,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799306998,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799307214,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799307431,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799307649,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799307876,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799308084,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799308302,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799308522,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799308741,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799308958,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799309168,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799309392,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799309617,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799309829,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799310046,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799310264,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799310480,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799310688,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799310898,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799311112,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799311320,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799311538,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799311744,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799311957,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799312165,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799312385,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799312593,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799312799,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799313005,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799313210,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799313416,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799313623,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799313829,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799314038,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799314242,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799314449,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799314654,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799314860,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799315063,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799315269,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799315479,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799315690,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799315896,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799316099,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799316305,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799316521,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799316727,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799316933,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799317144,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799317377,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799317577,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799317792,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799318005,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799318213,
+        "status": "idle",
+        "sites": "error",
+        "siteRows": null,
+        "records": "error",
+        "recordRows": null
+      },
+      {
+        "receivedAt": 1785799318429,
+        "status": "connecting",
+        "sites": "pending",
+        "siteRows": null,
+        "records": "pending",
+        "recordRows": null
+      }
+    ]
+  },
+  "finalNotebook": {
+    "connection": {
+      "status": "connecting"
+    },
+    "sites": {
+      "status": "pending",
+      "connection": "connecting",
+      "error": null,
+      "freshness": "unknown",
+      "retention": null,
+      "rows": null
+    },
+    "records": {
+      "status": "pending",
+      "connection": "connecting",
+      "error": null,
+      "freshness": "unknown",
+      "retention": null,
+      "rows": null
+    },
+    "suppressedSinceLast": 9
+  },
+  "queryErrors": [
+    {
+      "query": "sites",
+      "code": "SNAPBACK_REACT_QUERY_FAILED",
+      "message": "undefined is not a function",
+      "firstAt": 1785799165796,
+      "count": 3
+    },
+    {
+      "query": "sites",
+      "code": "SNAPBACK_REACT_QUERY_FAILED",
+      "message": "TypeError: undefined is not a function\n    at recomputeScope (/Users/ccheever/f7-rerun/dd/Build/Products/Release-iphonesimulator/main.jsbundle:77027:60)\n    at add (/Users/ccheever/f7-rerun/dd/Build/Products/Release-iphonesimulator/main.jsbundle:77136:21)\n    at applyContextDemands (/Users/ccheever/f7-rerun/dd/Build/Products/Release-iphonesimulator/main.jsbundle:77230:29)\n    at ?anon_2___registerActiveQueryDemand (/Users/ccheever/f7-rerun/dd/Build/Products/Release-iphonesimulator/main.jsbundle:62601:35)\n    at next (native)\n    at anonymous (address at InternalBytecode.js:1:8987)\n    at step (address at InternalBytecode.js:1:6731)\n    at anonymous (address at InternalBytecode.js:1:7890)\n    at tryCallOne (address at InternalBytecode.js:1:1296)\n    at anonymous (address at InternalBytecode.js:1:4984)",
+      "firstAt": 1785799168616,
+      "count": 362
+    },
+    {
+      "query": "records",
+      "code": "SNAPBACK_REACT_QUERY_FAILED",
+      "message": "TypeError: undefined is not a function\n    at recomputeScope (/Users/ccheever/f7-rerun/dd/Build/Products/Release-iphonesimulator/main.jsbundle:77027:60)\n    at add (/Users/ccheever/f7-rerun/dd/Build/Products/Release-iphonesimulator/main.jsbundle:77136:21)\n    at applyContextDemands (/Users/ccheever/f7-rerun/dd/Build/Products/Release-iphonesimulator/main.jsbundle:77230:29)\n    at ?anon_2___registerActiveQueryDemand (/Users/ccheever/f7-rerun/dd/Build/Products/Release-iphonesimulator/main.jsbundle:62601:35)\n    at next (native)\n    at anonymous (address at InternalBytecode.js:1:8987)\n    at step (address at InternalBytecode.js:1:6731)\n    at anonymous (address at InternalBytecode.js:1:7890)\n    at tryCallOne (address at InternalBytecode.js:1:1296)\n    at anonymous (address at InternalBytecode.js:1:4984)",
+      "firstAt": 1785799168616,
+      "count": 362
+    }
+  ],
+  "tapHeartbeats": [
+    {
+      "receivedAt": 1785799168416,
+      "managerCount": 1
+    }
+  ],
+  "finishedAt": "2026-08-03T23:21:58.788Z"
+}

@@ -415,3 +415,35 @@ claimed):
   the rewritten page teaches exists in the 0.1.8 exports; the
   checkpoint-era object form appears only as the anti-pattern note
   (RV-A1E-F6).
+
+## 2026-08-03 — f7 rerun: the ~2s reconnect loop is gone on 0.1.8-era packages; HEAD bricks the carrier outright
+
+The f7 simulator-gated remainder ran on a fleet Mac (fresh iPhone 17 Pro /
+iOS 26.3 / Hermes / Release, A1 idle shape + a stream-manager state tap).
+Evidence: `demos/improvement-sweep/arms/a1-snapback-expo-ios/evidence/f7-rerun-20260803/`.
+
+Two findings, opposite directions:
+
+- **Era-faithful arm (published 0.1.8 closure + the landed `ed8ee8764`
+  loss forensics, 0.1.8 packaged server): zero socket losses in a 120s
+  idle hold** — `live` end-to-end, public 3 rows + protected 3 rows
+  intact. No close code exists to capture; the loop is bounded to the
+  0.1.7 era and both suspected owners (server idle policy, RN WebSocket
+  stack) are exonerated. The f7 acceptance witness passed. Disposition is
+  the author call recorded in the ticket.
+- **HEAD (`a4b3a3f4d`) could not be observed at all:** every on-device
+  subscribe dies in `registration-ledger.mjs` on `Array.prototype.toSorted`
+  — ES2023, absent from static Hermes — and the react provider retries a
+  synchronously-failing subscribe with no backoff (21,828 provider
+  snapshots in ~3 min; the retry storm starved unrelated work on the JS
+  thread). New ticket:
+  `issues/20260803-rn-carrier-bricked-tosorted-registration-ledger.md`.
+  The build-experience lesson repeats the f1 pattern: nothing in CI runs
+  the shipped client under an engine without the newest intrinsics, so
+  node-24-only syntax sails through and the device finds it first.
+
+Harness notes for the next rerun: the B1 witness driver adapts cleanly to
+this job (director/witness + simctl, no Metro attached); a manager
+`onState` tap is enough to land the loss detail on the timeline; and a
+report rate-limiter that drops instead of deferring will eat your final
+snapshot — trust the screenshots or defer the trailing post.

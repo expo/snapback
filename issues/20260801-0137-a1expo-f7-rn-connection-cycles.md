@@ -126,3 +126,75 @@ gate waits on that identification, per the fix-lane recommendation. The
 A4-arm narrowing (retainable re-prime implicated, not the socket) is
 consistent with the self-heal above materially improving the A1 symptom
 even before the loop's owner is found.
+
+---
+
+**2026-08-03 — the simulator rerun ran (fleet MacBook Air, fresh iPhone 17
+Pro / iOS 26.3 / Hermes / Release): the loop does NOT reproduce on the
+0.1.8-era closure. Zero socket losses in a 120s idle hold, so there is no
+close code to report — the evidence instead bounds the loop to the 0.1.7
+client era and rules out both suspected owners.**
+
+Evidence: `demos/improvement-sweep/arms/a1-snapback-expo-ios/evidence/f7-rerun-20260803/`
+(runs, harness, screenshots; README has the full provenance).
+
+**Setup.** The A1 idle shape rebuilt faithfully (provider +
+`useSnapbackQuery(listSites)` public retainable + `useSnapbackQuery(listRecords)`
+protected, sessions-mode on-device auth, memory rqs store, native Release
+build of the frozen neutral-expo shell), plus a witness tap that forwards
+every live-stream manager state transition WITH its detail payload — so the
+landed `closeCode`/`closeReason`/`errorPreceded`/`sinceOpenMs` forensics
+(`ed8ee8764`) land on the witness timeline the moment any loss occurs.
+
+**Result (era-faithful arm: published 0.1.8 closure + only the `ed8ee8764`
+instrumentation hunks applied verbatim, published 0.1.8 CLI/runtime dev
+server, a1 backend verbatim):** one socket, `connecting → open` once, then
+**zero `lost` transitions across a 120-second idle hold** — connection
+`live` the whole time, sites ready (3) and records ready (3) intact at hold
+end (screenshot). `totalLost: 0`, so the loss-signature histogram is empty.
+
+**What this supports:**
+
+1. **The server idle policy is exonerated** for this loop: the 0.1.8 server
+   held a fully idle socket for 120s without closing it (the loop period was
+   ~2s). A server-side idle-policy fix has nothing to fix.
+2. **The RN WebSocket stack as such is exonerated**: the same simulator
+   class, RN 0.86.2/Hermes, and carrier held `live` for the full hold. The
+   loop was not an inherent RN-stack behavior.
+3. **The loop is bounded to the 0.1.7 client closure** the original arm ran
+   (the only era it was ever observed in). The between-arms fix wave that
+   shipped in 0.1.8 (rotation settle/park, provenance classification, RN
+   error-event/lifecycle handling — `e1f9ac493` and siblings) most plausibly
+   removed the trigger. With `attempts`-reset cycling no longer observable,
+   the fix-lane's suspect list cannot be narrowed further by measurement.
+4. The ticket's acceptance witness — idle provider with one public + one
+   protected query holds `live` for 60s with rows intact, matching node —
+   **passed** (at 120s) on the 0.1.8-era packages.
+
+**Caveat — origin/main could not be observed:** at HEAD (`a4b3a3f4d`) the
+RN carrier is bricked before any socket exists — `Array.prototype.toSorted`
+(ES2023, absent from Hermes) in `registration-ledger.mjs` fails every
+subscribe, and the provider retries without backoff. That NEW regression is
+filed as
+`issues/20260803-rn-carrier-bricked-tosorted-registration-ledger.md` and
+gates any HEAD-sha confirmation rerun. The loss-detail instrumentation
+itself is verified live on-device (the tap saw `connecting`/`open` with the
+detail field threaded).
+
+**The author question, reframed by this evidence.** The pending decision
+was "RN-stack workaround vs server-side idle-policy fix" — the rerun
+supports *neither*: nothing currently reproduces to work around. The
+decision now is disposition:
+
+- (a) treat the ~2s loop as fixed by the 0.1.7→0.1.8 between-arms wave,
+  close the loop half of this ticket on the run-4 witness, and land the
+  60s-idle-hold Expo receipt gate as a *regression* gate once the toSorted
+  ticket unbricks the HEAD carrier (a HEAD-sha rerun of this same harness
+  is the natural gate seed); or
+- (b) keep the loop half open until that HEAD-sha rerun confirms the hold
+  on current packages.
+
+Either way the permanent-blanking half stays closed by the carrier-agnostic
+self-heal above, and the instrumentation stays in place to name any
+recurrence's close code directly. Ticket stays OPEN for the disposition
+call.

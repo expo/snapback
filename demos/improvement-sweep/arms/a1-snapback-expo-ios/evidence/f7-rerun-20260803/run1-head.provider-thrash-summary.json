@@ -1,0 +1,167 @@
+{
+ "provenance": "run 1 (2026-08-03, HEAD a4b3a3f4d overlay on 0.1.8 install): provider state snapshots posted by the on-device witness; the tight idle<->connecting thrash after the first subscribe failure",
+ "totalStateEvents": 21828,
+ "firstEventAt": 1785798731306,
+ "lastEventAt": 1785798771395,
+ "distinctStatusRuns": 19530,
+ "firstThirtyRuns": [
+  {
+   "status": "idle",
+   "firstAt": 1785798731306,
+   "count": 2
+  },
+  {
+   "status": "connecting",
+   "firstAt": 1785798731316,
+   "count": 2
+  },
+  {
+   "status": "idle",
+   "firstAt": 1785798731317,
+   "count": 2
+  },
+  {
+   "status": "connecting",
+   "firstAt": 1785798731319,
+   "count": 2
+  },
+  {
+   "status": "idle",
+   "firstAt": 1785798731321,
+   "count": 1
+  },
+  {
+   "status": "connecting",
+   "firstAt": 1785798731323,
+   "count": 1
+  },
+  {
+   "status": "idle",
+   "firstAt": 1785798731325,
+   "count": 2
+  },
+  {
+   "status": "connecting",
+   "firstAt": 1785798731325,
+   "count": 2
+  },
+  {
+   "status": "idle",
+   "firstAt": 1785798731328,
+   "count": 1
+  },
+  {
+   "status": "connecting",
+   "firstAt": 1785798731329,
+   "count": 2
+  },
+  {
+   "status": "idle",
+   "firstAt": 1785798731330,
+   "count": 2
+  },
+  {
+   "status": "connecting",
+   "firstAt": 1785798731331,
+   "count": 1
+  },
+  {
+   "status": "idle",
+   "firstAt": 1785798731334,
+   "count": 1
+  },
+  {
+   "status": "connecting",
+   "firstAt": 1785798731334,
+   "count": 1
+  },
+  {
+   "status": "idle",
+   "firstAt": 1785798731334,
+   "count": 1
+  },
+  {
+   "status": "connecting",
+   "firstAt": 1785798731334,
+   "count": 1
+  },
+  {
+   "status": "idle",
+   "firstAt": 1785798731334,
+   "count": 1
+  },
+  {
+   "status": "connecting",
+   "firstAt": 1785798731335,
+   "count": 1
+  },
+  {
+   "status": "idle",
+   "firstAt": 1785798731340,
+   "count": 3
+  },
+  {
+   "status": "connecting",
+   "firstAt": 1785798731341,
+   "count": 4
+  },
+  {
+   "status": "idle",
+   "firstAt": 1785798731347,
+   "count": 2
+  },
+  {
+   "status": "connecting",
+   "firstAt": 1785798731347,
+   "count": 2
+  },
+  {
+   "status": "idle",
+   "firstAt": 1785798731347,
+   "count": 3
+  },
+  {
+   "status": "connecting",
+   "firstAt": 1785798731351,
+   "count": 3
+  },
+  {
+   "status": "idle",
+   "firstAt": 1785798731353,
+   "count": 2
+  },
+  {
+   "status": "connecting",
+   "firstAt": 1785798731356,
+   "count": 1
+  },
+  {
+   "status": "idle",
+   "firstAt": 1785798731356,
+   "count": 2
+  },
+  {
+   "status": "connecting",
+   "firstAt": 1785798731356,
+   "count": 2
+  },
+  {
+   "status": "idle",
+   "firstAt": 1785798731361,
+   "count": 1
+  },
+  {
+   "status": "connecting",
+   "firstAt": 1785798731361,
+   "count": 2
+  }
+ ],
+ "sitesErrorFirstSnapshot": {
+  "status": "error",
+  "connection": "error",
+  "error": "SNAPBACK_REACT_QUERY_FAILED",
+  "freshness": "unknown",
+  "retention": null,
+  "rows": null
+ }
+}

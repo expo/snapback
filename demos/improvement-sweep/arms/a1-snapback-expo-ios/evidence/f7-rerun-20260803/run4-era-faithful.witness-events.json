@@ -1,0 +1,322 @@
+[
+  {
+    "receivedAt": 1785799474482,
+    "at": 1785799474481,
+    "type": "boot",
+    "serverUrl": "http://127.0.0.1:4287",
+    "hadStoredBearer": false,
+    "platform": "ios",
+    "platformVersion": "26.3.1",
+    "hermes": true
+  },
+  {
+    "receivedAt": 1785799474902,
+    "at": 1785799474898,
+    "type": "tap-heartbeat",
+    "managerCount": 2
+  },
+  {
+    "receivedAt": 1785799474905,
+    "at": 1785799474898,
+    "type": "stream-tap-attached",
+    "connectionId": "snapback_react_provider-1-a1108f89-9d1b-4709-b744-6e29ac12bae9"
+  },
+  {
+    "receivedAt": 1785799474906,
+    "at": 1785799474898,
+    "type": "stream-state",
+    "connectionId": "snapback_react_provider-1-a1108f89-9d1b-4709-b744-6e29ac12bae9",
+    "state": "connecting",
+    "detail": {}
+  },
+  {
+    "receivedAt": 1785799474906,
+    "at": 1785799474898,
+    "type": "stream-tap-attached",
+    "connectionId": "f7_headless"
+  },
+  {
+    "receivedAt": 1785799474906,
+    "at": 1785799474900,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "idle"
+      },
+      "sites": {
+        "status": "pending",
+        "connection": "idle",
+        "error": null,
+        "freshness": "unknown",
+        "retention": null,
+        "rows": null
+      },
+      "records": {
+        "status": "skipped",
+        "connection": "idle",
+        "error": null,
+        "freshness": "unknown",
+        "retention": null,
+        "rows": null
+      },
+      "suppressedSinceLast": 0
+    }
+  },
+  {
+    "receivedAt": 1785799474916,
+    "at": 1785799474916,
+    "type": "stream-state",
+    "connectionId": "snapback_react_provider-1-a1108f89-9d1b-4709-b744-6e29ac12bae9",
+    "state": "open",
+    "detail": {}
+  },
+  {
+    "receivedAt": 1785799477850,
+    "at": 1785799477847,
+    "type": "state",
+    "name": "notebook",
+    "snapshot": {
+      "connection": {
+        "status": "live"
+      },
+      "sites": {
+        "status": "ready",
+        "connection": "live",
+        "error": null,
+        "freshness": "current",
+        "retention": {
+          "retainable": true,
+          "code": null,
+          "reason": null,
+          "store": {
+            "source": "default",
+            "implementation": "memory",
+            "durable": false,
+            "reason": "no-durable-backend"
+          }
+        },
+        "rows": 3
+      },
+      "records": {
+        "status": "pending",
+        "connection": "idle",
+        "error": null,
+        "freshness": "unknown",
+        "retention": null,
+        "rows": null
+      },
+      "suppressedSinceLast": 3
+    }
+  },
+  {
+    "receivedAt": 1785799480152,
+    "at": 1785799480148,
+    "type": "tap-heartbeat",
+    "managerCount": 2
+  },
+  {
+    "receivedAt": 1785799485370,
+    "at": 1785799485364,
+    "type": "tap-heartbeat",
+    "managerCount": 2
+  },
+  {
+    "receivedAt": 1785799490404,
+    "at": 1785799490398,
+    "type": "tap-heartbeat",
+    "managerCount": 2
+  },
+  {
+    "receivedAt": 1785799495420,
+    "at": 1785799495414,
+    "type": "tap-heartbeat",
+    "managerCount": 2
+  },
+  {
+    "receivedAt": 1785799500667,
+    "at": 1785799500663,
+    "type": "tap-heartbeat",
+    "managerCount": 2
+  },
+  {
+    "receivedAt": 1785799505685,
+    "at": 1785799505681,
+    "type": "tap-heartbeat",
+    "managerCount": 2
+  },
+  {
+    "receivedAt": 1785799510952,
+    "at": 1785799510948,
+    "type": "tap-heartbeat",
+    "managerCount": 2
+  },
+  {
+    "receivedAt": 1785799516220,
+    "at": 1785799516214,
+    "type": "tap-heartbeat",
+    "managerCount": 2
+  },
+  {
+    "receivedAt": 1785799521453,
+    "at": 1785799521446,
+    "type": "tap-heartbeat",
+    "managerCount": 2
+  },
+  {
+    "receivedAt": 1785799526686,
+    "at": 1785799526681,
+    "type": "tap-heartbeat",
+    "managerCount": 2
+  },
+  {
+    "receivedAt": 1785799531754,
+    "at": 1785799531748,
+    "type": "tap-heartbeat",
+    "managerCount": 2
+  },
+  {
+    "receivedAt": 1785799537002,
+    "at": 1785799536998,
+    "type": "tap-heartbeat",
+    "managerCount": 2
+  },
+  {
+    "receivedAt": 1785799542270,
+    "at": 1785799542265,
+    "type": "tap-heartbeat",
+    "managerCount": 2
+  },
+  {
+    "receivedAt": 1785799547485,
+    "at": 1785799547481,
+    "type": "tap-heartbeat",
+    "managerCount": 2
+  },
+  {
+    "receivedAt": 1785799552538,
+    "at": 1785799552531,
+    "type": "tap-heartbeat",
+    "managerCount": 2
+  },
+  {
+    "receivedAt": 1785799557804,
+    "at": 1785799557798,
+    "type": "tap-heartbeat",
+    "managerCount": 2
+  },
+  {
+    "receivedAt": 1785799563053,
+    "at": 1785799563048,
+    "type": "tap-heartbeat",
+    "managerCount": 2
+  },
+  {
+    "receivedAt": 1785799568303,
+    "at": 1785799568298,
+    "type": "tap-heartbeat",
+    "managerCount": 2
+  },
+  {
+    "receivedAt": 1785799573554,
+    "at": 1785799573548,
+    "type": "tap-heartbeat",
+    "managerCount": 2
+  },
+  {
+    "receivedAt": 1785799578819,
+    "at": 1785799578815,
+    "type": "tap-heartbeat",
+    "managerCount": 2
+  },
+  {
+    "receivedAt": 1785799583837,
+    "at": 1785799583831,
+    "type": "tap-heartbeat",
+    "managerCount": 2
+  },
+  {
+    "receivedAt": 1785799588870,
+    "at": 1785799588865,
+    "type": "tap-heartbeat",
+    "managerCount": 2
+  },
+  {
+    "receivedAt": 1785799593887,
+    "at": 1785799593881,
+    "type": "tap-heartbeat",
+    "managerCount": 2
+  },
+  {
+    "receivedAt": 1785799599135,
+    "at": 1785799599131,
+    "type": "tap-heartbeat",
+    "managerCount": 2
+  },
+  {
+    "receivedAt": 1785799604153,
+    "at": 1785799604148,
+    "type": "tap-heartbeat",
+    "managerCount": 2
+  },
+  {
+    "receivedAt": 1785799609187,
+    "at": 1785799609182,
+    "type": "tap-heartbeat",
+    "managerCount": 2
+  },
+  {
+    "receivedAt": 1785799614203,
+    "at": 1785799614198,
+    "type": "tap-heartbeat",
+    "managerCount": 2
+  },
+  {
+    "receivedAt": 1785799619454,
+    "at": 1785799619448,
+    "type": "tap-heartbeat",
+    "managerCount": 2
+  },
+  {
+    "receivedAt": 1785799624487,
+    "at": 1785799624482,
+    "type": "tap-heartbeat",
+    "managerCount": 2
+  },
+  {
+    "receivedAt": 1785799629719,
+    "at": 1785799629713,
+    "type": "tap-heartbeat",
+    "managerCount": 2
+  },
+  {
+    "receivedAt": 1785799634720,
+    "at": 1785799634715,
+    "type": "tap-heartbeat",
+    "managerCount": 2
+  },
+  {
+    "receivedAt": 1785799639752,
+    "at": 1785799639748,
+    "type": "tap-heartbeat",
+    "managerCount": 2
+  },
+  {
+    "receivedAt": 1785799644769,
+    "at": 1785799644765,
+    "type": "tap-heartbeat",
+    "managerCount": 2
+  },
+  {
+    "receivedAt": 1785799649787,
+    "at": 1785799649782,
+    "type": "tap-heartbeat",
+    "managerCount": 2
+  },
+  {
+    "receivedAt": 1785799654820,
+    "at": 1785799654815,
+    "type": "tap-heartbeat",
+    "managerCount": 2
+  }
+]
