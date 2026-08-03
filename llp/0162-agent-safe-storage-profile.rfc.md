@@ -5,8 +5,8 @@
 **Systems:** Storage, Runtime, Sync, Auth, Effects, Migrations, Agent experience, Diagnostics, Testing, Performance
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-03
-**Revised:** 2026-08-03 (v0.2 — first cross-family review round applied: envelope keyed by operation identity with the commit version demoted to a stream-qualified snapshot association; the promotable fork class pinned to LLP 0097's in-app branch, with LLP 0158 derived-deployment forks capture-only; named checkpoints split into materialized and receipt-only substrate classes; per-fact read-set provenance discriminators per LLP 0007/0133/0146; LLP 0088's history invariants imported normatively; replay-sufficient promotion record required and the landed post-image `branches::promote` path marked superseded; capability claims routed through LLP 0134; commissioning authorities and amendment ownership named)
-**Related:** LLP 0000, LLP 0007, LLP 0008, LLP 0012, LLP 0018, LLP 0035, LLP 0037, LLP 0043, LLP 0051, LLP 0053, LLP 0055, LLP 0070, LLP 0072, LLP 0081, LLP 0088, LLP 0090, LLP 0094, LLP 0095, LLP 0097, LLP 0129, LLP 0130, LLP 0133, LLP 0134, LLP 0146, LLP 0155, LLP 0158, LLP 0159, LLP 0160, LLP 0161
+**Revised:** 2026-08-03 (v0.3 — second cross-family review round applied: `operationId` defined as the shipped `ClientMutationIdentity` widened (LLP 0133's extend-don't-ride-beside discipline) with per-originator identity sources and a bounded suppression lifecycle after LLP 0043's settlement pattern; LLP 0088 §6's per-post-image authorization rule imported verbatim with elision fixtures; the diff surface split into attributed change sequence versus net state diff with first-write-preimage/immutable-base requirement and canonical folding; deny-all egress renamed `DenyAll` (CaptureOnly reserved for 0097's ledger-backed meaning); "covered" given a definition; §8 given a base-class axis, a manifest-extension relationship to LLP 0134, and a closed v1 aggregate matrix; performance gate re-founded on a dated statistically controlled baseline artifact; `branches::promote` reframed as a deviation from Accepted LLP 0097 and ticketed there); 2026-08-03 (v0.2 — first cross-family review round applied: envelope keyed by operation identity with the commit version demoted to a stream-qualified snapshot association; the promotable fork class pinned to LLP 0097's in-app branch, with LLP 0158 derived-deployment forks capture-only; named checkpoints split into materialized and receipt-only substrate classes; per-fact read-set provenance discriminators per LLP 0007/0133/0146; LLP 0088's history invariants imported normatively; replay-sufficient promotion record required and the landed post-image `branches::promote` path marked superseded; capability claims routed through LLP 0134; commissioning authorities and amendment ownership named)
+**Related:** LLP 0000, LLP 0004, LLP 0007, LLP 0008, LLP 0012, LLP 0017, LLP 0018, LLP 0024, LLP 0035, LLP 0036, LLP 0037, LLP 0042, LLP 0043, LLP 0051, LLP 0053, LLP 0055, LLP 0066, LLP 0070, LLP 0072, LLP 0081, LLP 0088, LLP 0090, LLP 0094, LLP 0095, LLP 0097, LLP 0129, LLP 0130, LLP 0133, LLP 0134, LLP 0146, LLP 0155, LLP 0158, LLP 0159, LLP 0160, LLP 0161
 
 > **Proposal boundary.** LLP 0161 derives nine ideal properties for an
 > agent-optimized storage engine. This RFC does not claim all nine at their
@@ -149,6 +149,20 @@ declared absence, not a successful empty diff or proof.
 
 ## Design
 
+### 0. Defined terms
+
+**Covered.** A lane is *covered* exactly when it has a declared entry in the
+target's coverage manifest, a journal-completeness proof for every write path
+in the lane, and an envelope mapping. Coverage is declared per lane, surfaced
+in the capability manifest, and changed only by a dated manifest change.
+Artifacts — envelopes, diffs, proofs — bind the coverage-manifest version in
+force at emission and are never retroactively requalified; whether a crash cut
+or a missing envelope is a defect is judged against the manifest in force at
+the time of the write. Related terms carry their owners' definitions: *lane*
+(a declared family of durable write paths sharing custody and journal
+treatment), *stream identity* (LLP 0158's per-instance version stream),
+*paved path* (the supported authoring surface per LLP 0004/0007).
+
 ### 1. The universal commit envelope
 
 Every covered transition across a durable boundary writes one logical
@@ -168,6 +182,19 @@ required facts and atomicity contract. The follow-on schema marks each field
 as required, required-where-the-lane-defines-one (audience fences, plan
 digests), or retained-bounded (detail subject to §2 expiry).
 
+The operation identity **extends the shipped `ClientMutationIdentity`** under
+LLP 0133's discipline (extend, never ride beside): `operationId` is the
+existing `clientMutationId` widened to every originator, and the canonical
+identity continues to bind every semantics-affecting fact the shipped path
+binds — function, auth fingerprint, authority-instance descriptor, and the
+input fingerprint over `{args, readSet, ctxLedger}` — plus the audience.
+Refusal stays in the shipped `SNAPBACK_CLIENT_MUTATION_ID_REUSED` /
+stale-authority diagnostic families. The physical key is the composite of
+`operationId` and canonical audience bytes, following LLP 0081's
+operation-plus-audience recovery precedent. The widening lands as dated
+amendments to LLP 0133/0043, which remain the duplicate-suppression
+authority.
+
 The envelope contains or durably references:
 
 - stream identity and the produced or observed commit/snapshot version;
@@ -185,10 +212,14 @@ The envelope contains or durably references:
   0133's claim-labeling and LLP 0146's completeness vocabulary apply rather
   than a new parallel scheme;
 - bounded retained read/write details sufficient for recent explanation;
-- the deterministic ctx-answer digest and retained answers required for
-  supported replay;
-- classified effect intents and settlement identities, without embedding
-  credentials or unredacted secret payloads; and
+- the deterministic ctx-answer digest and, for lanes claiming replay, the
+  ledger retained verbatim — the retention selection rule is the lane's
+  declared replay class, not an unstated subset;
+- classified effect intents and settlement identities — classification per
+  LLP 0066's recommended effect vocabulary (not yet an owned taxonomy) as
+  landed in the branch substrate's closed effect classes, with the
+  credential/egress seam per LLP 0036 — without embedding credentials or
+  unredacted secret payloads; and
 - the terminal or pending receipt returned for this operation.
 
 The application data change, row journal entries, commit envelope, duplicate
@@ -197,12 +228,35 @@ transaction. A commit version is not visible until all of those facts are
 visible. A crash may leave none of them or all of them; it may not leave a data
 change whose covered commit envelope is absent.
 
-First-party clients mint an `operationId` before the first attempt and reuse it
-across transport retries; this is a client-contract change owned by LLP
-0012/0095 amendments, not by this RFC alone. Repeating an operation with the same canonical
-identity and audience returns the stored receipt without re-executing. Reusing
-the identity with different canonical arguments, artifact, principal audience,
-or operation kind refuses with a stable mismatch diagnostic.
+Identity source is defined per originator class. Client-originated operations
+carry a client-minted `operationId` before the first attempt, reused across
+transport retries — a client-contract change owned by LLP 0012/0095
+amendments. Host-initiated operations — cron occurrences, durable jobs,
+migration steps, administrative commands — derive their identity
+deterministically from a durable upstream identity (job id plus
+attempt-invariant key, cron occurrence, migration operation id), never minted
+fresh per attempt, so a host-side retry after a crash returns the stored
+receipt. The transition is versioned: once a target advertises envelope
+coverage for a lane, an ordinary mutation arriving on that lane without an
+identity refuses stably rather than executing uncovered, and legacy clients
+negotiate the prior contract until the amendment's cutover. Repeating an
+operation with the same canonical identity and audience returns the stored
+receipt without re-executing. Reusing the identity with any divergence in the
+bound identity facts — arguments, read baseline, ctx ledger, artifact,
+principal audience, or operation kind — refuses with the shipped stable
+mismatch diagnostics.
+
+Duplicate suppression is bounded by an explicit lifecycle, adopting LLP
+0043's settlement pattern rather than inventing one: a receipt is retained
+until consumed (acknowledged), until its declared per-audience retention
+horizon, or until an operator purge that explicitly admits the loss of
+exactly-once semantics; admission refuses at capacity rather than silently
+evicting. After reclamation, a late retry of the same identity refuses with a
+stable `identity-horizon-passed` diagnostic — it never silently re-executes,
+because re-execution past the suppression horizon could double-apply. The
+compact envelope identity (§2) may outlive the suppression record; the retry
+guarantee ends at the declared horizon, and P8 is advertised with that
+horizon, never as an unbounded promise.
 
 The envelope is operation-level metadata. Row journal records join through the
 stream-qualified commit version of the data-changing operation; they do not
@@ -237,7 +291,13 @@ The envelope retains two forms of explanation:
 
 After detailed retention expires, an explanation remains honest: it returns
 the durable digests, counts, coverage, and a stable `detail-expired`
-disposition. It never fabricates an empty set. Named checkpoints, active forks,
+disposition. It never fabricates an empty set. Detail may also be bounded at
+capture time: when captured facts exceed the declared per-operation detail
+budget, the durable digests and counts are still recorded and the explanation
+carries a stable `detail-truncated` disposition — truncation is disclosed,
+never silent. Query explanation is response-scoped and non-durable (§1
+Coverage); the capability manifest distinguishes mutation-durable from
+query-ephemeral explanation. Named checkpoints, active forks,
 open incidents, migrations, or operator pins may retain detail longer, charged
 to an explicit principal or app budget.
 
@@ -283,15 +343,45 @@ A profile-conforming fork of either class:
 - reports host-mediated versus end-to-end isolation honestly, preserving LLP
   0097's distinction for client-initiated effects.
 
-The first safety slice may be **deny-all egress** rather than simulated effect
-success. That narrower slice is useful and honest if its capability class is
-`CaptureOnly`/host-mediated and every bypass test fails closed.
+Promotability is also a retention fact: at admission, each branch operation's
+replay inputs (canonical arguments, ctx answers, effect observations) are
+classified under LLP 0146's retention opt-ins and the protected-lane custody
+rules; an operation whose inputs cannot be retained transitions the branch to
+non-promotable immediately, recorded on the branch receipt. In a derived
+deployment, every profile store — envelopes, suppression records, history,
+checkpoints — is classified by LLP 0158's mechanical custody sweep (copy,
+scrub, rotate, or refuse) like any other `_snapback_*` table.
+
+The first safety slice may be **deny-all egress** rather than capture or
+simulated effect success. That narrower slice is useful and honest only under
+its own name: its capability class is `DenyAll`/host-mediated — `CaptureOnly`
+stays reserved for LLP 0097's ledger-backed meaning, where denied effects are
+recorded as inspectable durable intents — and every bypass test fails closed.
+LLP 0158's F0a ships exactly the `DenyAll` slice; the capture ledger is
+deferred work.
 
 ### 4. Journal diff instead of maintained Merkle state
 
 For a fork with a known base, the covered-lane journal is the primary diff
 index. Each commit records a canonical write-set digest and exact changed-row
-facts for its declared lanes. Fork diff enumerates those changes from the base
+facts for its declared lanes.
+
+The diff surface is two distinct products, named separately even where they
+share machinery: an **attributed change sequence** — the ordered
+journal-derived list of committed changes with operation and principal
+attribution — and a **net base-to-head state diff**. The net diff cannot be
+derived from post-image journals alone: update-then-revert, insert-then-delete,
+and delete-then-reinsert are indistinguishable from net change without the
+base value, and the landed substrate's materialized copy becomes the writable
+fork (LLP 0158's spike records the same fact for backup destinations), so the
+base is not implicitly retained. A net-diff claim therefore requires an
+immutable retained base or first-write preimages recorded per row within the
+fork. Net-diff folding is canonical: update-then-revert folds to no change;
+insert-then-delete folds to nothing; delete-then-reinsert of an identical row
+folds to no change and of a different row to an update; system fields state
+their own coverage.
+
+Fork diff enumerates those changes from the base
 to the fork head and includes:
 
 - base and head stream-qualified commit/checkpoint identities;
@@ -300,7 +390,9 @@ to the fork head and includes:
 - schema, system-field, asset, and effect coverage as separate facts rather
   than implied app-row coverage;
 - operation and principal attribution by commit-envelope join; and
-- a digest over the canonical emitted diff.
+- a digest over the canonical emitted diff — proof only where Acceptance 9's
+  independent base/head comparison supplies the independently derived expected
+  value, inventory otherwise.
 
 The implementation proves journal completeness for every covered write path.
 An unjournaled or unclassifiable path makes the diff capability refuse or marks
@@ -336,10 +428,12 @@ provisional or makes the branch non-promotable. Promotion refuses when a
 required input, artifact version, or effect observation is unavailable. An
 argument digest alone is not replay-sufficient.
 
-The landed `branches::promote` path applies overlay post-images directly — the
-exact mechanism this profile forbids. It is superseded, not wired: strict
-promotion replaces or disables it, and the acceptance corpus keeps a negative
-conformance fixture proving no product path can reach post-image promotion.
+The landed `branches::promote` path applies overlay post-images directly — a
+deviation from Accepted LLP 0097 §5, which already forbids driving promotion
+from post-images, not a design this Draft supersedes. The fix belongs to
+0097's implementation lane and is ticketed there independently of this RFC's
+fate; this profile inherits 0097's rule and adds the negative conformance
+fixture proving no product path can reach post-image promotion.
 
 V1 promotion requires the canonical head to equal the fork's recorded base
 version. It revalidates current principal, grant, policy, manifest, operation
@@ -384,14 +478,21 @@ fork, deployment, incident, and explicit agent operations may create
 checkpoints, declaring the class. A fork's pinned base is a lighter receipt of
 its own materialized copy, not automatically a named checkpoint. (The corpus
 uses "checkpoint" in other senses — LLP 0075's protocol checkpoints, LLP
-0090's resumable query snapshots, LLP 0081's rehearsal checkpoints; a named
+0090's resumable query snapshots, LLP 0081's rehearsal checkpoints, and
+`ContentDigestV1`'s own stream-accumulator checkpoints; a named
 database checkpoint here is none of those.) A checkpoint is a
 read-later/rehearsal primitive, not a promise that every intervening commit
 supports relational `AS OF`.
 
-History reads authorize fail-closed. The caller must be permitted to inspect
-the relevant historical lane and record under the applicable history policy;
-possession of a commit, operation, or checkpoint identifier is not authority.
+History reads authorize fail-closed under LLP 0088 §6's two-part rule,
+imported verbatim: the caller must be authorized for the record **now**, and
+the read policy is additionally evaluated against **each historical
+post-image**, dropping versions that fail — failing versions are elided, not
+disclosed. 0088 explicitly rejected the cheaper current-row-only gate because
+it leaks formerly-visible field values; this profile inherits that rejection.
+The same per-version rule extends to retained explanation detail and
+fork-diff rows, which are historical row values by another name. Possession
+of a commit, operation, or checkpoint identifier is not authority.
 Revoked credentials cannot settle effects or promote a retained fork.
 
 Retention is always bounded unless an explicit owner pins and pays for it.
@@ -430,8 +531,10 @@ distinguish at least:
 
 - commit-envelope coverage by durable lane;
 - read/write explanation detail and retention class;
-- fork class (`Missing`, current-head `CaptureOnly`, or current-head
-  `Promotable`) and host-mediated versus end-to-end isolation;
+- fork effect class (`Missing`, `DenyAll`, `CaptureOnly`, or `Promotable`)
+  crossed with an orthogonal base axis (`currentHead` | `namedCheckpoint`;
+  `Promotable` exists only at `currentHead`) and host-mediated versus
+  end-to-end isolation;
 - diff coverage by data/effect lane;
 - history class (`Missing`, bounded changes, named checkpoints);
 - proof class (recorded inventory versus independent boundary proof);
@@ -439,13 +542,26 @@ distinguish at least:
 - schema-evolution class (proofs with no lens claim); and
 - admission/resource-bound class.
 
-These axes register as `TargetCapabilityId` entries under LLP 0134's
-capability-maturity machinery — with its soak, promotion-registry, and
-demotion obligations — rather than as a parallel reporting surface. The
-aggregate `AgentSafeV1` profile may be claimed only when every required
-component and its coverage manifest pass the acceptance corpus under LLP
-0134's rules. A target with a missing component advertises the individual
-capabilities it actually has.
+These class values are a versioned capability-manifest extension carried
+beside LLP 0134's maturity registry, not forced into it: the extension itself
+registers as a `TargetCapabilityId` whose maturity (soak, promotion registry,
+demotion) is 0134's business, while the multi-valued class facts live in the
+extension because `TargetCapabilityId` is a closed boolean-membership enum
+that cannot carry them; manifest validation enforces mutual exclusion within
+each axis. Capability claims are per-target; whether an app exercises a
+claimed capability (history, for example, is per-table schema opt-in) is an
+app fact that does not change the target's advertisement.
+
+The v1 aggregate is closed, not open-ended. `AgentSafeV1` on the local target
+requires the ordinary Ibex mutation lane, the host-plan settlement lane
+(advertised at `clientSuppliedValidated` provenance while LLP 0007 Option A
+is unratified), and branch promotion — each with envelope coverage,
+explanation, diff, a `DenyAll`-or-better fork effect class, the
+bounded-history capability, and boundary proof. Specialized lanes (migration,
+durable background work, push, auth) advertise individually and join the
+aggregate only through OQ7's receipt bridge. If any component demotes under
+LLP 0134's rules, the aggregate demotes with it. A target with a missing
+component advertises the individual capabilities it actually has.
 
 ### 9. Storage engine and portability
 
@@ -500,16 +616,20 @@ profile-off versus profile-on for:
 - crash/reopen behavior at every envelope, publication, promotion, and effect
   settlement cut.
 
-The measurement protocol is LLP 0035's: dated baseline artifacts from the
-shipped bench-harness fields, a fixed fixture and hardware class, enough runs
-to state a median and spread, and a per-metric verdict rather than one blended
-number. The proposed initial guardrail is: no statistically meaningful
-read-path regression, no new idle CPU or disk writes, and no more than a 15%
+The comparison baseline is a dated, named baseline artifact, not a runtime
+toggle: the profile defines no supported profile-off mode, so profile-off
+numbers come from the pre-profile baseline binary re-measured under the same
+protocol. LLP 0035's current numbers are explicitly single-run
+order-of-magnitude evidence, so a statistically controlled baseline must be
+recorded before this gate can run: fixed hardware class and fixture sizes,
+declared warm-up, a declared run count, median plus spread, and per-metric
+equivalence bounds with explicit formulas for throughput and latency
+regression. The proposed initial guardrail is: no read-path regression beyond
+the equivalence bound, no new idle CPU or disk writes, and no more than a 15%
 regression in warm single-writer throughput and in mutation latency (p50 and
-p95, each judged individually) against the named baseline artifact. A larger
-measured cost requires explicit author ratification recorded next to the
-baseline and a documented benefit; it is not silently absorbed into the
-profile.
+p95, each judged individually). Ratification of any exception happens before
+capability promotion, names a documented benefit, and is recorded next to the
+baseline artifact; it is not silently absorbed into the profile.
 
 ## Security and privacy
 
@@ -539,12 +659,16 @@ following on the local reference target:
 1. **Atomic envelope:** crash cuts around a covered mutation reveal either no
    data/journal/envelope/receipt change or the complete committed set.
 2. **Retry settlement:** identical retries return the stored receipt without a
-   second write; identity reuse with changed arguments, artifact, audience, or
-   kind refuses stably; receipt-only operations sharing one snapshot version
-   keep distinct envelopes keyed by operation identity.
+   second write — including a host-initiated retry after a crash; identity
+   reuse with any divergence in the bound identity facts refuses stably;
+   receipt-only operations sharing one snapshot version keep distinct
+   envelopes keyed by operation identity; and a late retry past the declared
+   suppression horizon refuses with `identity-horizon-passed` rather than
+   re-executing.
 3. **Provenance and explanation:** a committed row change joins to its
    operation, principal, authority, artifact, and retained read/write facts;
-   expired detail reports `detail-expired`, not an empty explanation.
+   expired detail reports `detail-expired`, capture-bounded detail reports
+   `detail-truncated`, and neither fabricates an empty explanation.
 4. **Coverage honesty:** every declared lane has positive and bypass fixtures;
    an undeclared or unjournaled lane cannot produce a complete diff/proof claim.
 5. **Fork isolation:** proved per class — in-app branch writes over the
@@ -562,8 +686,11 @@ following on the local reference target:
    equals its value as computed from sync-resume retention alone (LLP 0088
    §5's independent clocks).
 9. **Exact fork diff:** randomized covered writes compare the journal-derived
-   diff with an independent base/head logical comparison, including deletions,
-   missing rows, schema/system coverage, and multiple commits.
+   net diff with an independent base/head logical comparison, including
+   deletions, missing rows, update-then-revert and delete-then-reinsert
+   folding (distinguished via retained preimages or the immutable base),
+   schema/system coverage, and multiple commits; the attributed change
+   sequence is verified separately against the journal.
 10. **Strict promotion:** an unchanged-base branch re-executes into staging
     and commits once; any advanced canonical head refuses; contingent effect
     state remains provisional through settlement, including LLP 0097's
@@ -571,14 +698,22 @@ following on the local reference target:
     effect outcome stays provisional together; and no product path can invoke
     the superseded post-image promotion.
 11. **Bounded history and checkpoint:** retained row changes and named
-    checkpoint receipts survive crash/reopen, authorize fail-closed, and expire
-    or remain pinned according to policy.
+    checkpoint receipts survive crash/reopen and expire or remain pinned
+    according to policy; authorization enforces the per-version rule — a row
+    whose visibility changed between retained versions returns the authorized
+    versions and elides the rest without disclosing their existence, including
+    across pagination and horizon markers.
 12. **Boundary proof:** migration/promotion/checkpoint fixtures independently
     derive expected values and compare them with actual `ContentDigestV1`
     under each boundary's domain-separated preimage (§4); inventory-only
     digests cannot be presented as proof.
-13. **Performance budget:** the measurement gate above is published and passes
-    or any exception is explicitly ratified.
+13. **Performance budget:** the measurement gate above is published against
+    the named baseline artifact and passes per metric; any exception names its
+    documented benefit next to the baseline before capability promotion.
+14. **Identity lifecycle:** capacity exhaustion refuses admission rather than
+    evicting receipts; delayed acknowledgements and crash cuts preserve
+    exactly-once inside the declared horizon; operator purge is explicit and
+    recorded as forfeiting exactly-once.
 
 Hosted targets remain `Missing` for each unproved capability until they pass the
 same semantic fixtures with target-specific crash and resource tests.
@@ -599,10 +734,14 @@ those contracts here.
    their duplicate-suppression/receipt behavior with the existing settlement
    vocabulary.
 2. Add the operation-level provenance record and public explanation surface
-   over existing captured read/write facts.
-3. Wire the current-head fork through identity scrub-and-mint, deny-all egress,
-   publication recovery, registry/TTL, and resource bounds, coordinated with
-   LLP 0158's F0a program.
+   over existing captured read/write facts, with the read API shaped by LLP
+   0004's surface conventions (admin/inspection per LLP 0017; agent surfaces
+   per LLP 0024/0042).
+3. Wire the fork substrate per class: (a) the in-app branch — registry/TTL,
+   branch-scoped grants, resource bounds, `DenyAll` egress; (b) the derived
+   deployment — identity scrub-and-mint, publication recovery, registry/TTL,
+   coordinated with LLP 0158's F0a program. Step 6's promotion consumes (a)
+   only.
 4. Record fork operations with the envelope and expose the exact coverage-aware
    journal diff.
 5. Wire LLP 0097's host-egress mediation and capture-ledger integration — the
@@ -659,8 +798,9 @@ recording an observation is semantically sufficient.
 
 1. What are the default detail-history and named-checkpoint retention windows,
    and which principals may extend them?
-2. Which exact ordinary and specialized lanes are mandatory for the first
-   aggregate `AgentSafeV1` claim rather than advertised separately?
+2. Should the v1 aggregate matrix in §8 keep host-plan coverage mandatory
+   while LLP 0007 Option A is unratified, or admit an Ibex-only aggregate
+   variant?
 3. Which read/write explanation details remain stored verbatim, which are
    canonical digests only, and which require protected-lane custody?
 4. Does the proposed 15% local mutation budget match the workload value, or
@@ -678,6 +818,9 @@ recording an observation is semantically sufficient.
 8. When LLP 0088's 0085-gated evidence review lands, does its history design
    supersede §6's normative import verbatim, or does this profile keep an
    independent restatement?
+9. Do derived deployments inherit the parent's historical envelopes and
+   explanations, or only application state plus fork-local provenance minted
+   after the cut?
 
 ## Status
 
