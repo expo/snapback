@@ -46,3 +46,42 @@ drill needs shared-deployment coordination per the fleet convention
 3. Provider drills (R2 first per LLP 0014, Tigris beside the Fly lane)
    with per-provider checksum/conditional-write/range variance recorded
    as facts.
+
+## Resolution (2026-08-03)
+
+**Status: CLOSED — dev-lane qualification ran green; the local target now
+declares the `s3-compatible` store parameter.**
+
+Docker was unavailable on the build machine, so the drill used the
+ticket's other allowed path: the standalone MinIO darwin-arm64 server
+binary (RELEASE.2025-09-07T16-13-09Z, `minio server` on
+`http://127.0.0.1:9000`, ephemeral scratch data dir, `mc mb
+qual/snapback-qual`), torn down after the run. Credentials were the
+recipe's throwaway `quser`/`qsecret123` pair, never anything real.
+
+Evidence:
+
+- `SNAPBACK_S3_TEST_*` per the recipe →
+  `cargo test --lib s3_store_live_endpoint_qualification -- --nocapture`:
+  `test assets_s3::tests::s3_store_live_endpoint_qualification ... ok`
+  (1 passed; 1909 filtered out) — idempotent publication, digest
+  read-back, ranged read, multipart create/abort, prefix wipe, clean
+  `exists` probe, all against the live endpoint.
+- Negative control: the same run with a wrong
+  `SNAPBACK_S3_TEST_SECRET_ACCESS_KEY` FAILED — the passing run was a
+  live-endpoint exchange, not an env-gated skip.
+
+Flip (unlock 1 of the ticket's activation order):
+
+- `AssetTargetFactsV1::local_v1().lifecycle_stores` gains
+  `ASSET_STORE_S3_COMPATIBLE` (`"s3-compatible"`) — `src/assets.rs`.
+- The `SNAPBACK_ASSET_STORE=s3` unqualified refusal now consults that
+  same declared-facts source (`src/local.rs asset_store_obj`): declared ⇒
+  admitted; fact withdrawn ⇒ refusal returns, experimental override
+  unchanged.
+- LLP 0044 dated status note + the W2g evidence row in
+  `tests/acceptance/asset-lifecycle-v1-evidence.md` updated to match.
+
+Not claimed (unlocks 2–3 stay open): the S3 attempt routes (multipart
+instructions still held inherent) and every hosted provider — R2 and
+Tigris each still earn their own qualification fact per this recipe.

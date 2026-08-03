@@ -3,9 +3,12 @@
 //!
 //! @ref LLP 0044#byte-stores-and-resumable-transfer — configurations of one
 //!   adapter, not product-specific storage APIs; each provider still earns
-//!   an independent capability claim, so this module existing claims
-//!   nothing: `assetLifecycleStores` stays `["local-fs"]` until a live
-//!   endpoint qualification runs (see the qualification-drill ticket).
+//!   an independent capability claim. The dev-lane store parameter
+//!   (`s3-compatible`) was qualified against a live MinIO endpoint on
+//!   2026-08-03 (`s3_store_live_endpoint_qualification`), so the local
+//!   target declares it in `assetLifecycleStores`; hosted providers (R2,
+//!   Tigris, ...) each still need their own qualification drill before any
+//!   target claims them.
 //!
 //! Design notes, frozen here:
 //! - SigV4 is hand-rolled over the in-tree `hmac`/`sha2` (single-chunk

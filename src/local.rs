@@ -6520,9 +6520,13 @@ impl LocalSnapback {
 
     /// The store-agnostic seam every production asset path uses. Selection
     /// is deployment configuration: `SNAPBACK_ASSET_STORE=s3` chooses the
-    /// S3-compatible store — which refuses until a live qualification has
-    /// run (see the qualification-drill ticket) unless the experimental
-    /// override acknowledges the unqualified posture. Default: local-fs.
+    /// S3-compatible store. The unqualified refusal consults the same
+    /// declared-facts source the manifest embeds: while the local target's
+    /// `assetLifecycleStores` names the s3-compatible parameter (earned by
+    /// the live MinIO qualification drill, 2026-08-03), selection is
+    /// admitted; were the fact ever withdrawn, the refusal returns and only
+    /// the experimental override acknowledges the unqualified posture.
+    /// Default: local-fs.
     pub(crate) fn asset_store_obj(
         &self,
     ) -> SnapbackResult<std::sync::Arc<dyn crate::assets_store::AssetStore>> {
@@ -6535,7 +6539,17 @@ impl LocalSnapback {
                     crate::instance_fork::EgressFamily::AssetProvider,
                     now_millis(),
                 )?;
-                if std::env::var("SNAPBACK_ASSET_S3_EXPERIMENTAL").as_deref() != Ok("1") {
+                // @ref LLP 0044#capability-facts-and-implementation-slices —
+                //   the runtime gate and the advertised claim share one
+                //   source, so they can never disagree (the same pattern as
+                //   `asset_delivery_profile_declared`).
+                let s3_declared = crate::assets::AssetTargetFactsV1::local_v1()
+                    .lifecycle_stores
+                    .iter()
+                    .any(|store| store == crate::assets_s3::ASSET_STORE_S3_COMPATIBLE);
+                if !s3_declared
+                    && std::env::var("SNAPBACK_ASSET_S3_EXPERIMENTAL").as_deref() != Ok("1")
+                {
                     return Err(SnapbackError::error(
                         "SNAPBACK_ASSET_STORE_UNQUALIFIED",
                         "assets",

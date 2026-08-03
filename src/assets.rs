@@ -3225,7 +3225,15 @@ impl AssetTargetFactsV1 {
     pub fn local_v1() -> Self {
         Self {
             capability_id: "asset_lifecycle_v1".to_owned(),
-            lifecycle_stores: vec![ASSET_STORE_LOCAL_FS.to_owned()],
+            // @ref LLP 0044#byte-stores-and-resumable-transfer — the
+            //   s3-compatible dev-lane store earned its parameter through the
+            //   live MinIO qualification drill (2026-08-03,
+            //   `s3_store_live_endpoint_qualification`); each hosted provider
+            //   (R2, Tigris, ...) still earns its own qualification fact.
+            lifecycle_stores: vec![
+                ASSET_STORE_LOCAL_FS.to_owned(),
+                crate::assets_s3::ASSET_STORE_S3_COMPATIBLE.to_owned(),
+            ],
             delivery_profiles: vec![
                 "private-strict".to_owned(),
                 "private-signed".to_owned(),

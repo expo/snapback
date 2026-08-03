@@ -2167,6 +2167,23 @@ and `issues/20260731-0044-s3-qualification-drill.md` carries the runnable
 MinIO/R2/Tigris recipe plus the activation order (dev-lane fact → S3
 attempt routes → per-provider drills, R2 first per LLP 0014).
 
+### Implementation status: dev-lane S3 qualification (2026-08-03)
+
+The drill ran: `s3_store_live_endpoint_qualification` passed against a
+live MinIO endpoint (standalone darwin binary, RELEASE.2025-09-07T16-13-09Z,
+loopback), with a wrong-secret negative control failing — the run was
+live, not a skip. Per the activation order, the local target now declares
+the dev-lane parameter: `assetLifecycleStores` is
+`["local-fs", "s3-compatible"]` and the `SNAPBACK_ASSET_STORE=s3` refusal
+lifts through the same declared-facts source the manifest embeds (the
+gate and the claim cannot disagree; withdrawal of the fact restores the
+refusal). Unchanged honesty: the S3 attempt routes remain designed-only
+(multipart instructions are still held inherent), and no hosted provider
+(R2, Tigris) is qualified — each earns its own per-provider drill fact
+before any target claims it. The closed drill ticket
+(`issues/closed/20260731-0044-s3-qualification-drill.md`) records the
+evidence.
+
 ### Implementation status: consistent-cut export/import (2026-07-31, W2h)
 
 The design above is implemented for the local target: `asset.exportCut`
