@@ -2240,10 +2240,11 @@ export async function createSnapbackContractSurface({
           let optimisticOp = null;
           let nowMs = null;
           let runtimeId = null;
-          const withheldLedgerIds = optimisticWithheld
+          const withheldReplayable = optimisticWithheld && descriptor?.plan !== undefined;
+          const withheldLedgerIds = withheldReplayable
             ? atomicWithheldLedgerIdCount(descriptor?.plan)
             : null;
-          if (optimisticWithheld && withheldLedgerIds === null) {
+          if (withheldReplayable && withheldLedgerIds === null) {
             const error = new Error(
               `Atomic optimistic withholding for ${name} requires a generated sequence write-with-activity plan`,
             );
