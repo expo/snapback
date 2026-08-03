@@ -209,8 +209,10 @@ fn output_path() -> anyhow::Result<Option<PathBuf>> {
     Ok(Some(path))
 }
 
+type BenchMetric = (&'static str, fn(&BenchReport) -> f64);
+
 fn summarize(runs: &[BenchReport], idle: &[IdleObservation]) -> BTreeMap<String, Statistics> {
-    let metrics: [(&str, fn(&BenchReport) -> f64); 20] = [
+    let metrics: [BenchMetric; 20] = [
         ("currentPointReadP50Us", |run| run.current_point_read_p50_us),
         ("currentPointReadP95Us", |run| run.current_point_read_p95_us),
         ("currentRangeReadP50Us", |run| run.current_range_read_p50_us),

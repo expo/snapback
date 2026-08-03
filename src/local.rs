@@ -14177,9 +14177,8 @@ impl LocalSnapback {
                     })
                     .collect::<SnapbackResult<Vec<_>>>()
             })
-            .map_err(|error| {
+            .inspect_err(|_| {
                 self.purge_connection_topology(&target.connection_id, &target.effect_fence);
-                error
             })?;
         let commit_version = invocations
             .first()

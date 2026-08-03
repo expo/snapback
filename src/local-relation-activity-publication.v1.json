@@ -7,7 +7,7 @@
   ],
   "qualificationReceiptSha256": "sha256:362ed2bc9443a6a027b224705c21ad516b647583a1dfda7d2056205e3a4fa6da",
   "executorSourceSha256": {
-    "src/local.rs": "sha256:3f77230faef9b0d0c9c4f8839873b585c33ad1a869eb58ace4d9863fe37cbc10",
+    "src/local.rs": "sha256:3f50ad9d7ba9395f32f0b928d336e62b0d9a0e9b0bba475e429183c58d2ddd6b",
     "src/storage.rs": "sha256:8f9dd3df80217b4f5f0bce26a4256490d784b0bc565e5ef66366769bb4715c96"
   },
   "schemaSourceSha256": {
