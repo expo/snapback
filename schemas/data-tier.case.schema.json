@@ -715,6 +715,35 @@
       "oneOf": [
         {
           "additionalProperties": false,
+          "description": "One point-shaped host allocation. It is legal only inside a validated\n`write-with-activity.v1` plan, after the exact scope owner guard.\n@ref LLP 0135#12-allocation-surfaces",
+          "properties": {
+            "AllocateSequence": {
+              "properties": {
+                "counter": {
+                  "type": "string"
+                },
+                "into": {
+                  "type": "string"
+                },
+                "scope": {
+                  "$ref": "#/$defs/ValueExpr"
+                }
+              },
+              "required": [
+                "counter",
+                "scope",
+                "into"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "AllocateSequence"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "properties": {
             "Insert": {
               "properties": {

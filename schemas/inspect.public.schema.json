@@ -4131,6 +4131,23 @@
       ],
       "type": "object"
     },
+    "SequenceExistingOwnerAccess": {
+      "additionalProperties": false,
+      "description": "Generated-plan access proof. The function's normalized\n`write-with-activity.v1` plan must carry the same scope table, owner field,\nscope expression, and parent-unavailable refusal before this profile is\nadmitted; handlers cannot author this variant.",
+      "properties": {
+        "kind": {
+          "type": "string"
+        },
+        "ownerField": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "ownerField"
+      ],
+      "type": "object"
+    },
     "SequenceScopeAccess": {
       "anyOf": [
         {
@@ -4153,6 +4170,9 @@
             "roles"
           ],
           "type": "object"
+        },
+        {
+          "$ref": "#/$defs/SequenceExistingOwnerAccess"
         }
       ],
       "description": "One declared sequence counter and the structural proof that an invocation\nmay observe its allocation count. `public.v1` is deliberately a string on\nthe wire because it is the reviewed disclosure spelling pinned by LLP\n0135; non-public access names the membership declaration and exact roles\nthe host evaluates against the supplied scope row."
