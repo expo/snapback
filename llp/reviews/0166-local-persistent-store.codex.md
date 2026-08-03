@@ -302,3 +302,77 @@ at 46127881, before this fix pass.
 5. **Recommended next step**
 
 Keep LLP 0166 in Draft. Resolve concerns 1–5 first, repair D1/D3 scoping, and recover or rerun the missing Fable review. Then run another focused dual-family review of D2, D3/D5, D6, and D7 before considering acceptance.
+---
+
+## Round 4 — 2026-08-03
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** `codex-cli` 0.146.0, `codex exec`, model
+`gpt-5.6-sol`, `model_reasoning_effort=xhigh`, sandbox `read-only`
+**Date:** 2026-08-03
+**Redacted:** no
+**Method:** fresh non-author `codex exec` context over the working tree at
+048a1852 (v0.4); focused delta round auditing round-3 resolution and
+probing the changed text, with owner spot-checks (LLP 0053 retirement
+semantics, LLP 0155 §Query execution, LLP 0157 §D3 event closure).
+Orchestrated by the authoring session, which does not count as a
+reviewer; recorded verbatim below.
+
+---
+
+1. **Overall assessment**: **NOT READY — 0.99 confidence.** V0.4 resolves the commission-narrowing, artifact, wipe, legacy scoping, grace-pin, multi-partition, and overlay-parity findings. It is still not ready because the broker lifecycle remains under-specified, `TransformPlanV1` is not total, and LLP 0053 terminal retirement conflicts with §D6’s pending-intent guarantee. The new blocker-custody, compaction, and budget text also contains material internal or owner-spec contradictions.
+
+2. **Round-3 resolution audit**:
+
+| Finding id | Status | Explanation |
+| --- | --- | --- |
+| Codex B1 — LLP 0155 commission narrowing | resolved | |
+| Codex B2 — transform totality / overlay parity | partial | Overlay parity is correctly split, but filter semantics remain undefined and S6 contradicts the mixed-type comparator. |
+| Codex B3 — broker lifecycle | partial | Per-partition announces and release messages landed, but unregister is not partition/fence-bound and reaped-context/retry replay safety is not implementable from the persisted state. |
+| Codex B4 — retention/grace/blocker totality | partial | Both axes are pinned, but blocker custody contradicts the sync-set/guardrail invariants and the pressure order duplicates `undemanded` pinned records. |
+| Codex B5 — terminal-retirement protocol | partial | `active → retiring` is a legal owner transition, but its LLP 0053 semantics make dependent queue custody discard-only, contradicting §D6. |
+| Codex M6 — wipe `storeMeta` projection | resolved | |
+| Codex M7 — D3 legacy scoping | resolved | |
+| Codex M8 — artifact restoration | resolved | |
+| Fable M1 — artifact restoration | resolved | |
+| Fable M2 — last-snapshot/S3 alignment | resolved | |
+| Fable M3 — `retentionRequest` through grace | resolved | |
+| Fable M4 — multi-partition broker | resolved | |
+| Fable N5 — registration byte cap | partial | A 16 KiB ceiling exists, but “serialized record bytes” has no carrier-independent byte formula. |
+| Fable N6 — liveness closure edges | resolved | |
+| Fable N7 — persisted handoff roster | resolved | |
+| Fable N8 — transform closure edges | partial | Direction and limit landed; filter comparison and mixed-type behavior remain non-total. |
+| Fable N9 — S1 family split | resolved | |
+| Suggestion 1 — wipe registrations | resolved | |
+| Suggestion 2 — clear `heldProofs` | resolved | |
+| Suggestion 3 — closed broker records | resolved | |
+| Suggestion 4 — suppression grace anchor | resolved | |
+| Suggestion 5 — `TransformHashV1` consumers | resolved | |
+| Suggestion 6 — corrupt-migration S5 leg | resolved | |
+
+3. **New concerns**
+
+1. **BLOCKING — The durable broker lifecycle is still not closed.** `RegisterReleaseV1` carries neither `authorityPartitionDigest` nor an expected fence; `RegisterForwardV1` also carries no expected fence even though the prose requires a “fence mismatch” refusal. The protocol therefore cannot implement the round-3 requirement that both register and unregister be authority/fence-bound. In addition, only the live context roster is persisted: after restart the writer cannot know that an old `contextId` was previously reaped, so a delayed announce can resurrect it despite §D2’s contrary guarantee. Finally, a delayed forward after release can recreate a durable registration unless consumed request or retired-registration identities are persisted. Define the partition/fence/context bindings and bounded durable replay state explicitly.
+
+2. **BLOCKING — `TransformPlanV1` remains non-total.** `basic-v1` lists operators but never defines `eq`/`ne`, range comparison, `in` membership, absent-field behavior, mixed-type filter operands, or non-scalar filter-field behavior. More directly, §D7 orders mixed scalar types through `null < boolean < number < string`, while S6 requires “mixed-type refuse.” Two conforming evaluators can produce different results, so the dual-runtime oracle still cannot be authoritative.
+
+3. **BLOCKING — LLP 0053 terminal retirement violates §D6’s pending-intent guarantee.** LLP 0053’s `active → retiring` commit immediately destroys the predecessor snapshot, lease, overlays, and live boundaries and makes dependent queue custody **discard-only**. Section D6 simultaneously says family convergence never drops or disrupts pending outbox intent. A lease predecessor referenced by pending intent therefore cannot safely enter step 1. Convergence needs a no-dependent-intent precondition, an owner-defined preservation/remapping protocol, or refusal until the intent settles or is explicitly discarded; S5 needs this crash/pending-intent leg.
+
+4. **MATERIAL — Blocker-held custody is inconsistent with the document-wide retention invariants.** D3 permits payload to survive after the five-part predicate fails, but Vocabulary, D2, Guardrail 1, and S1 say an unregistered `qmk1` record survives only through grace and enumerate only registration, grace, and legacy reasons. They omit `safety-blocker`. The “predicate fails” rule is also too broad: LLP 0053 `delete`/retirement must destroy payload regardless of a compaction blocker, while quarantine can itself require owner-held custody. State the precedence and exceptions explicitly. The inspection union also lacks a reason for a compacted stub retained solely for current-instance fences or non-payload obligations.
+
+5. **MATERIAL — The pressure order contradicts D5 and S3.** Step 1 selects every `undemanded` record, including pinned ones; step 3 again selects `undemanded` pinned records. Yet D5 and S3 say pinned-graced records fall only in step 3. Exclude pinned records from step 1 or revise the claimed priority and oracle.
+
+6. **MATERIAL — Clearing `heldProofs` has no legal LLP 0157 transition.** Same-instance rehydration is owner-correct: LLP 0053 preserves `query_instance_id` through compaction, and LLP 0157 `initialize` may load the current instance. But LLP 0157 declares its product-state event vocabulary closed and contains neither a payload-compaction event nor a compaction operation. V0.4 now mutates `heldProofs`, manifests, and memberships outside that vocabulary while claiming to consume LLP 0157 unchanged; the carried LLP 0157 amendment even says no other D1–D8 semantics change. Add the owner amendment or map compaction to an explicitly authorized owner transition.
+
+7. **MATERIAL — The new persisted broker roster breaks total accounting.** D3 says `storeMeta` is bounded by the record and registration caps, but arbitrarily many contexts—including contexts announcing empty sets—can enter the durable roster. No live-context, message, or roster-byte ceiling exists. The 16 KiB registration cap also lacks an exact encoding formula. Add bounded refusal semantics and surface the ceilings through inspection/OQ4.
+
+4. **Suggestions** (non-blocking).
+
+- Add `effectiveRetentionRequest` to `StorePolicyInspectionV1`; the new two-axis grace state currently exposes only its TTL half.
+- Require an announced registration’s `ownerContext.contextId` to equal the envelope’s `contextId`.
+- Rename inspection’s `materializationKey` to a family-neutral address key if legacy entries remain in the same `addresses` array.
+- Add a broker fixture covering commit, lost outcome, release, delayed forward, reap, writer restart, and delayed announce.
+
+5. **Recommended next step**.
+
+Keep LLP 0166 in Draft. Repair the three blocking protocols first, reconcile blocker custody and compaction with LLP 0157/0053, and close the broker/accounting bounds. Then run a focused round 5 over §D2, §D3/§D5, §D6/S5, and §D7/S6 with the same three owner-document spot-checks.

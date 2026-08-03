@@ -480,3 +480,71 @@ Round-1 residuals: all seven Fable r1 concerns and all four NITs verify as close
 5. **Recommended next step**
 
 Repair in this order: restore the Fable round-2 artifact body (concern 1) so the loop's record is whole; then apply concerns 2-4 — each is a one-to-three-sentence normative fix plus one oracle leg (pick the grace-pin semantics and make D2/D5/S3 agree; pin `retentionRequest` through grace; state or widen the broker's partition scoping). Fold the NITs at author discretion. Because every Codex round-2 finding verifies as resolved and the remaining defects are narrow residues of the round-2 repairs, a targeted round-4 **delta** review scoped to §D2 (lattice + broker), §D3 condition 3, §D5 grace, and S1/S3 — rather than another full pass — should suffice; on dual-family READY the LLP 0130 SD-4 standing rule applies within this commission's scope.
+
+---
+
+## Round 4 — 2026-08-03
+
+**Reviewer family:** Anthropic Claude (Fable 5)
+**Provider / runtime:** Claude Code `general-purpose` subagent, model
+`claude-fable-5`
+**Date:** 2026-08-03
+**Redacted:** no
+**Method:** fresh non-author Fable session (subagent with no authoring
+context) over the working tree at 048a1852 (v0.4); focused delta round
+auditing round-3 resolution and probing the changed text, with owner
+spot-checks (its preamble lists them; all verified by the reviewer).
+Orchestrated by the authoring session, which does not count as a
+reviewer; recorded verbatim below.
+
+---
+
+1. **Overall assessment**: **NOT READY — confidence 0.85.** V0.4 is a genuine and near-complete application of round 3: every structural repair landed as described, and every owner fact I spot-checked verifies against the tree — LLP 0053's terminal retirement is exactly the transition §D6 now uses (`active → retiring` is durable, crash-recoverable, and rejects every render/materialization/frame input, `llp/0053-authorization-invalidation.rfc.md:1062-1087`; LLP 0157's event table carries the same begin/finalize rows at `llp/0157-composition-algebra-and-completeness.spec.md:1010-1011`); the carried LLP 0155 amendment quotes §Query execution's commissioned sentences verbatim (`llp/0155-local-sync-product-direction.rfc.md:695-700`) and defers source-row evaluation behind the OQ2 gate that actually owns the projection-aware authority design (`:1356-1362`); the compacted-stub same-instance claim is expressible through LLP 0157 op 1's "allocates **or loads**" path (`:1376-1377`) with no §D3 event forcing a new instance short of retirement; the class rename is complete (no stale `fragment-evaluated-snapshot-v1` anywhere); and the restored Fable round-2 body is present verbatim with its dated provenance-correction note (46127881). What keeps this round out of READY is two narrow, fix-introduced MATERIAL consistency defects of exactly the class rounds 2–3 caught: the new blocker-held custody state is absent from the document's own retaining-reason law (§D2's rule sentence, the Vocabulary sync-set entry, and Guardrail 1 are false as written against §D3's mechanism), and S6's "mixed-type refuse" leg contradicts §D7's now-total type-rank comparator while the filter operators' comparison semantics remain unbound. Both are one-to-three-sentence repairs; nothing touches the architecture, the amendment set, the broker, or any owner boundary.
+
+2. **Round-3 resolution audit**
+
+| Finding | Status | Explanation (partial/unresolved only) |
+| --- | --- | --- |
+| Codex B1 (0155 commission narrowing) | resolved | |
+| Codex B2 (TransformPlanV1 totality / overlay parity) | partial | The grammar, per-field direction, total order comparator, limit domain, row-sequence restriction, and the overlay parity split all landed. Residue in B2's own scope: the filter step never states which comparator `lt`/`lte`/`gt`/`gte` use or what a cross-type filter comparison does, and the new S6 leg contradicts the order comparator — see concern 2. |
+| Codex B3 (broker lifecycle) | resolved | Residues are NIT-grade (concerns 3, 4). |
+| Codex B4 (retention/grace/blocker totality) | resolved | The asked-for machinery (both axes pinned last-snapshot, grace as an explicit condition-3 leg, blocker-held custody with inspection reason and discharge transition) is all present; the stale reason enumerations around it are a new defect, tracked as concern 1, not as B4 unresolved. |
+| Codex B5 (migration-closed → terminal-retirement-begins) | resolved | Verified ownable: 0053's retirement steps 1–2 give durable non-renderability at begin time; crash cuts hold as stated; S5 updated. |
+| Codex M6 (wipe storeMeta projection) | resolved | |
+| Codex M7 (D3 scoping vs legacy) | resolved | |
+| Codex M8 / Fable M1 (artifact restoration) | resolved | |
+| Fable M2 (grace pin vs S3) | resolved | Last-snapshot adopted; S3's first case corrected to `default`, converse case added; D2/D5/S3 agree. |
+| Fable M3 (retentionRequest through grace) | resolved | |
+| Fable M4 (broker multi-partition) | resolved | |
+| Fable N5 (registration byte cap) | resolved | |
+| Fable N6 (liveness closure edges) | resolved | |
+| Fable N7 (handoff roster) | resolved | |
+| Fable N8 (transform closure edges) | partial | Direction, limit domain, and type-rank/non-scalar rules landed; the suggested "mixed-type refuse" wording survived into S6 against the comparator the author actually chose — same residue as B2, concern 2. |
+| Fable N9 (S1 per-family split) | resolved | |
+| Fable suggestions ×6 | resolved | All six adopted (wipe clears durable registrations; stub clears `heldProofs`; broker closed-record refusals; suppression-end grace anchor; `TransformHashV1` consumers; S5 corrupt-mid-migration leg). |
+| Codex suggestions ×4 | resolved | Class renamed; broker crash/idempotency legs in S1; blocker trace in S3; the converged repairs left unchanged. |
+
+3. **New concerns**
+
+1. **MATERIAL — blocker-held custody is missing from the document's retaining-reason law.** §D3 defines blocker-held custody (`retainingReason: safety-blocker`, `llp/0166-local-persistent-store.spec.md:689-694`) and the inspection union models it (`:1009-1010`), and the state is reachable with zero registrations and no running grace (predicate condition 4 fails while pending intent holds the payload — the ordinary offline-pending-mutation case). But §D2's rule sentence still says the inspection names "the **one** non-registration reason, 'grandfathered legacy entry…'" (`:383-385`), the Vocabulary sync-set entry says released records outlive the sync set "**only** inside §D5's grace" (`:213-215`), Guardrail 1 enumerates exactly three nameable reasons — registration, running grace, grandfathered-legacy (`:1441-1443`) — and S1's qmk1 equality ("the hydrated-and-retained set equals the registration set plus in-grace releases at every step," `:1483-1485`) admits no blocker-held carve-out. A conforming store holding a safety-blocker payload violates Guardrail 1 and §D2 as written. Fix: add `safety-blocker` to both reason enumerations (or point them at §D5's closed `retainingReason` union), qualify the Vocabulary sentence, and scope S1's equality "plus blocker-held records named by inspection."
+
+2. **MATERIAL — S6's "mixed-type refuse" contradicts §D7's total comparator, and filter comparisons are unbound.** §D7 step 4 defines one **total** scalar comparator in which mixed scalar types order by type rank (`null < boolean < number < string`); the only ordering refusal is a non-scalar value (`:1200-1207`). S6 nevertheless requires the corpus to exercise "the type-rank comparator (null/boolean/number/string, **mixed-type refuse**)" (`:1566-1568`) — under the normative rule, mixed types order, they do not refuse. And step 3 ("the conjunction of the `basic-v1` comparisons," `:1198-1199`) never states which relation `lt`/`lte`/`gt`/`gte` use: the step-4 total comparator, numeric/same-type-only with refusal, or false-on-mismatch. Two implementations can diverge on `{op:"lt", value: 5}` against a string-valued field while each claims conformance, and the corpus leg cannot be authored without deciding for the spec. Fix: bind the filter ordering operators to the step-4 comparator (and `eq`/`ne`/`in` to canonical-value equality), or define cross-type filter comparisons as refusals — then correct S6's parenthetical to match the choice.
+
+3. **NIT — `RegisterReleaseV1` is partition-unbound where `RegisterForwardV1` is partition-validated.** Forward carries `authorityPartitionDigest` and the writer validates address-in-partition; release carries only `registrationId` (`:522-527`). State whether release validates the releasing context's partition against the registration's address, or record that release is deliberately partition-unbound (inspection redaction already withholds cross-partition ids, so the exposure is narrow — but the asymmetry should be on the record).
+
+4. **NIT — refusal granularity is inconsistent across the broker rules.** A non-`active` source in `demands` "refuse[s] the message" (`:539-542`) while a cross-partition demand "refuses the entry" (`:561-562`). Entry-level refusal lets a malformed full-set replace half-apply at an advanced revision. Pin one granularity — message-level is the revision-coherent choice.
+
+5. **NIT — blocker-discharge compaction timing is stated two ways.** §D3 says blocker-held custody "ends the moment the blockers discharge, whereupon compaction runs" and S3 tests "compacts exactly at blocker discharge" (`:692-694`, `:1536-1539`), but the equivalent §D2 downgrade path reclaims "at the next writer maintenance pass" (`:463-465`). Pin whether discharge-time compaction is synchronous with the discharging commit or lands at the next pass, and align S3's expectation.
+
+6. **NIT — `writerGeneration`'s `wipe` treatment is unstated.** §D1's storeMeta projection clears registrations, policy/budget facts, and the roster while preserving named high-waters (`:346-359`); the monotone-per-store `writerGeneration` is in neither list. Monotone counters belong with the preserved high-waters.
+
+4. **Suggestions** (non-blocking)
+
+- Make §D5's `retainingReason` union the single source of truth for the reason vocabulary and have §D2/Guardrail 1 cite it rather than re-enumerate — this is the second round in a row an enumeration went stale against the mechanism.
+- One §D7 sentence naming all three comparison families explicitly (canonical-value equality for `eq`/`ne`/`in`; the total comparator for order and — per the concern-2 decision — range filters; refusal for non-scalars) would close the whole comparator surface.
+- Once concern 3 is decided, add the release-partition probe to S1's broker legs.
+- §D6 could note that convergence step (1) is initiated only under a connected convergence attempt, since the acknowledged data-gap window otherwise spans arbitrary offline periods — product-cost clarity, not a correctness defect.
+
+5. **Recommended next step**
+
+Apply the two MATERIAL repairs — concern 1 (add safety-blocker to the §D2/Vocabulary/Guardrail-1 reason law and qualify S1's equality) and concern 2 (bind the filter comparison semantics and correct S6's parenthetical) — plus whichever NITs are cheap in the same pass. Both MATERIALs are localized consistency fixes with no architectural reach, so a **micro-delta round 5** scoped to exactly: §D2's rule paragraph, Vocabulary/Guardrail 1, S1's equality sentence, §D7 steps 3–4, and S6 — rather than another full delta — is proportionate. If both families verify those spot repairs clean, this document is at the READY bar; nothing else in v0.4 stands between it and convergence.
