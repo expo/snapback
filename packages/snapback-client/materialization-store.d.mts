@@ -63,6 +63,10 @@ export interface MaterializationStoreV1 {
   applyAuthorizationTransition(address: ClientMaterializationAddressV1, ownerTransition: Readonly<Record<string, unknown>>): Promise<MaterializationRecordV1>;
   applyStoreAuthorityBarrier(clientStoreId: string, predecessor: DigestV1, successor: DigestV1, transition: Readonly<Record<string, unknown>>): Promise<Readonly<Record<string, unknown>>>;
   readRenderable(address: ClientMaterializationAddressV1, expectedFence: MaterializationFenceV1): Promise<Uint8Array | readonly Uint8Array[] | null>;
+  /** Exact owner-produced fragment bytes; no local transform is applied. */
+  readOpaqueSnapshot(address: ClientMaterializationAddressV1, expectedFence: MaterializationFenceV1): Promise<Uint8Array | readonly Uint8Array[] | null>;
+  /** Pre-admission floor: always rejects with SNAPBACK_LOCAL_EVALUATION_UNADMITTED. */
+  evaluateLocal(address: ClientMaterializationAddressV1, request?: unknown): Promise<never>;
   observeMaterialization(address: ClientMaterializationAddressV1, listener: (snapshot: MaterializationObservationV1) => void): () => void;
   retire(address: ClientMaterializationAddressV1): Promise<boolean>;
   compactPayload(address: ClientMaterializationAddressV1, expectedFence: MaterializationFenceV1): Promise<MaterializationRecordV1>;

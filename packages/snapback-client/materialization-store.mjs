@@ -7,6 +7,7 @@ import { compileResultContractValidator } from '@expo/snapback-contract/result-c
 import { createPublicKey, verify as verifySignature } from 'node:crypto';
 
 import { canonicalizeClientValueV1 } from './canonical-client-value.mjs';
+import { refuseLocalEvaluation } from './evaluation-floor.mjs';
 import { allocateQueryInstanceIdInMeta } from './rqs-store-meta.mjs';
 import { base64UrlNoPad, hex, jcs, jcsBytes, sha256 } from './rqs.mjs';
 
@@ -1402,6 +1403,11 @@ export async function createMaterializationStore(storeHandle, {
     },
   );
 
+  // @ref LLP 0166#current-law-restated — the pre-gate store surface exposes
+  // exact retained bytes only; every transform/evaluation request refuses.
+  const readOpaqueSnapshot = readRenderable;
+  const evaluateLocal = async (_address, request) => refuseLocalEvaluation(request);
+
   const retire = async (address) => {
     const admittedAddress = prepareAddress(address);
     const key = jcs(admittedAddress);
@@ -1466,6 +1472,8 @@ export async function createMaterializationStore(storeHandle, {
     applyAuthorizationTransition,
     applyStoreAuthorityBarrier,
     readRenderable,
+    readOpaqueSnapshot,
+    evaluateLocal,
     observeMaterialization,
     retire,
     compactPayload,

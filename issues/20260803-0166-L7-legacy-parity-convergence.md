@@ -29,3 +29,14 @@ Scope:
 Done means: S4 green as a standing gate across the whole program; S5's
 convergence legs pass (crash at each cut; pending-intent refusal leg;
 exactly-one-renderable at every point).
+
+---
+
+**Progress (2026-08-03):** convergence half implemented (Codex,
+session-supervised) and landed: close-predecessor-first coordinator with
+connected-attempt + pending-intent refusals, real Contract-store
+retirement operations and real L2 establishment in tests, crash cuts at
+every boundary with exactly-one-renderable asserted, and an instrumented
+no-cross-artifact-transaction assertion. The S4 standing-gate half has
+been live since L1. Ticket stays Open until the program umbrella closes
+it.
