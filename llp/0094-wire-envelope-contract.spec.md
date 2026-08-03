@@ -1,11 +1,16 @@
 # LLP 0094: Wire envelope contract (LLP 0093 rollout P-0)
 
 **Type:** Spec
-**Status:** Review
+**Status:** Accepted
 **Systems:** Wire Protocol, Realtime, Live Queries, Client SDK, HTTP surface, Cloudflare arm, Schema governance
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-25
-**Revised:** 2026-08-02 (Accepted LLP 0136 staged wire fold:
+**Revised:** 2026-08-03 (Accepted 2026-08-03 by the author — decision
+sitting #2, "accept all that verify",
+`issues/20260803-author-decision-sitting-2.md`; gate verified: no unresolved
+blocking review finding, the remaining §Open questions carry recorded
+leanings and are not pre-acceptance-blocking; status Review → Accepted);
+2026-08-02 (Accepted LLP 0136 staged wire fold:
 `liveSearchProtocol` offer semantics and closed-DTO routing, unimplemented);
 2026-07-30 (operational: the shared Cloudflare deployment was
 redeployed with the 2026-07-27 wire landings — B1 negotiation echo/refusal

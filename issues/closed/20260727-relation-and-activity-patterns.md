@@ -1,6 +1,6 @@
 # Bounded parent/child reads and transactional activity patterns
 
-**Status:** Open
+**Status:** Resolved
 **Impact:** 4  
 **Urgency:** 3  
 **Ease:** 1  
@@ -157,3 +157,37 @@ the repo-local publication receipt exists
 (tests/conformance/relation-activity-publication-v1.receipt.json). No
 0137 arm changed this — A3 f7 cites the same LLP 0110/0131 shape as
 still unbuilt.
+
+## Resolution — 2026-08-03 (closed)
+
+The gate this ticket was waiting on has been met. LLP 0110 and LLP 0113
+were ACCEPTED by author direction on 2026-08-01 (the ballot's verbatim
+item 4: "accept 0110+0113", recorded in each document's Revised header),
+and the acceptance was reconfirmed at the author's decision sitting #2 on
+2026-08-03 ("accept all that verify",
+`issues/20260803-author-decision-sitting-2.md`). The 2026-08-01 freshness
+note above predates the ballot flip and is superseded.
+
+Against this ticket's own reopened criteria: the repo-local publication
+evidence (paired-store, restore/backfill, cross-language cursor goldens,
+retained-settlement, queue-owner rows) landed 2026-07-27 under
+`tests/conformance/relation-activity-publication-v1.receipt.json`; the
+"equally explicit decision to narrow the public profile" is the
+2026-07-28 local source publication checkpoint (exact
+`local-dev-sqlite-ibex` target, `LocalCapabilityPublicationV1` carrier);
+and author acceptance has now occurred. No capability-fact or guide-row
+flip is performed by this close: both LLP acceptances cover Spec text
+only — `bounded_children_v1` / `write_activity_v1` runtime support facts
+stay gated on their executable receipts per the documents' own capability
+gates, and the guide capability rows
+(`backend.bounded-children-v1`, `backend.write-activity-v1` in
+`guide/capabilities.md`) already state the correct posture: experimental,
+contributor-source-only carrier, structured GAPs for public-package
+attestation and hosted publication (owner: Charlie, review: 2026-08-31).
+
+What remains is deliberately NOT this ticket: the separately gated
+positive public-package attestation and the hosted claim-family
+publication stay tracked by LLP 0110/0113 (and LLP 0108's deployment
+work) through their capability gates and the guide GAP rows. Closed at
+the decision sitting rather than held open as a duplicate tracker for
+that separately owned work.

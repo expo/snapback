@@ -1,11 +1,18 @@
 # LLP 0099 — Container-VM migration-executor conformance profile
 
 **Type:** Spec
-**Status:** Review
+**Status:** Accepted
 **Systems:** Migrations, Deployment, Storage, Backup and restore, CLI, Testing
 **Author:** Claude (Fable 5), directed by Charlie Cheever
 **Date:** 2026-07-26
-**Revised:** 2026-07-28 (unreviewed post-round correction: LLP 0081-compatible
+**Revised:** 2026-08-03 (Accepted 2026-08-03 by the author — decision
+sitting #2, "accept all that verify",
+`issues/20260803-author-decision-sitting-2.md`; acceptance covers the Spec
+text only: the §Gates ladder G1–G3 stands unchanged and
+`container-vm-migration-executor.v1` still appears in no capability manifest
+until G3 passes; all historical open questions were already resolved
+2026-07-28; status Review → Accepted).
+2026-07-28 (unreviewed post-round correction: LLP 0081-compatible
 pre-publication ceiling semantics, a closed signed deadline envelope,
 interruption handling, and a separate LLP 0113 provisional-publication
 observation gate). 2026-07-28 (LLP 0113 corrective reconciliation: trusted

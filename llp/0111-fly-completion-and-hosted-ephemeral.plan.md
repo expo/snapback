@@ -1,11 +1,19 @@
 # LLP 0111: Fly completion and hosted ephemeral profile
 
 **Type:** Plan
-**Status:** Review
+**Status:** Accepted
 **Systems:** Deployment, Control plane, Ephemeral state, Realtime, TLS, Auth, Migrations, Backup, Restore, Logs, Inspection, Runtime, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-02 (decision-sitting propagation: the local nine-package
+**Revised:** 2026-08-03 (Accepted 2026-08-03 by the author — decision
+sitting #2, "accept all that verify",
+`issues/20260803-author-decision-sitting-2.md`; gate verified: the round-3
+Fable-READY/Codex-NOT-READY residue is closed by the §Final author
+reconciliation dispositions, and the 2026-07-30 promotion-ordering conflict
+was resolved by the 2026-08-02 decision-sitting propagation below; acceptance
+covers the Plan text only — Implemented still requires the complete evidence
+gate and `ephemeralHostedAdapter` remains false until it passes; status
+Review → Accepted). 2026-08-02 (decision-sitting propagation: the local nine-package
 closure now follows LLP 0074's parallel npm gate and LLP 0134's maturity bar;
 default-channel promotion is no longer serialized behind hosted qualification,
 while every hosted-dependent claim and its hosted evidence gate remain intact;
@@ -433,8 +441,8 @@ cannot satisfy a remote row.
 
 ## Status
 
-Review. The Plan can be Implemented only after the two-family review loop,
-governing dated amendments, complete local/fixture/remote evidence, and an LLP
+Accepted (2026-08-03). The Plan can be Implemented only after the governing
+dated amendments, complete local/fixture/remote evidence, and an LLP
 maintenance audit. Until then the Fly adapter remains partial and
 `ephemeralHostedAdapter` remains false.
 

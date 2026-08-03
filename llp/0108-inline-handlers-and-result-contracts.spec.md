@@ -1,11 +1,17 @@
 # LLP 0108: Inline handlers and result contracts
 
 **Type:** Spec
-**Status:** Review
+**Status:** Accepted
 **Systems:** Authoring, Code generation, Runtime, Data API, Client integration, Contract, Security, Artifacts, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-02 (typed-interior and schema-reference implementation
+**Revised:** 2026-08-03 (Accepted 2026-08-03 by the author — decision
+sitting #2, "accept all that verify",
+`issues/20260803-author-decision-sitting-2.md`; gate verified: the round-3
+NOT-READY material findings were all absorbed by the §Final author
+reconciliation narrowing, which remains normative for the v1 landing;
+status Review → Accepted).
+2026-08-02 (typed-interior and schema-reference implementation
 clarification: result-side `v.doc(table)` is an app-authority reference that
 expands through the existing frozen structural document contract before
 hashing; generated handler/context types consume schema and effective-contract
@@ -654,8 +660,9 @@ Implementation evidence must prove:
 
 ## Status and implementation sequence
 
-This is a Review proposal. After author-invoked super-refine and acceptance, the
-implementation order is:
+This is an Accepted specification (accepted 2026-08-03; it was a Review
+proposal through the author-invoked super-refine). The implementation order
+is:
 
 1. Rust result-contract manifest/schema and semantic validation;
 2. pre-commit/runtime/replay egress validation and contract hashing;

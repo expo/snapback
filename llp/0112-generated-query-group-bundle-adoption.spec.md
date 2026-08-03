@@ -1,11 +1,17 @@
 # LLP 0112: Generated query-group bundle adoption
 
 **Type:** Spec
-**Status:** Review
+**Status:** Accepted
 **Systems:** Code generation, Client integration, React, Live Queries, RQS, Auth, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-28
-**Revised:** 2026-07-28 (shared-recovery reconciliation: exact per-subscription
+**Revised:** 2026-08-03 (Accepted 2026-08-03 by the author — decision
+sitting #2, "accept all that verify",
+`issues/20260803-author-decision-sitting-2.md`; acceptance proceeds with one
+known defect noted rather than blocking: the open register-eligibility
+JS-parameter seam ticket
+`issues/20260731-0112-register-eligibility-js-param-seam.md` tracks it;
+status Review → Accepted). 2026-07-28 (shared-recovery reconciliation: exact per-subscription
 retirement without closing a demanded sibling connection). 2026-07-28 (unreviewed post-round-3 reconciliation: string-target
 register eligibility and provider-custody opacity; three-round review budget
 exhausted)

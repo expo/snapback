@@ -1,11 +1,18 @@
 # LLP 0114: First-class React and query groups
 
 **Type:** Spec
-**Status:** Review
+**Status:** Accepted
 **Systems:** React, React/Expo, Client integration, Live Queries, Ephemeral state, Code generation, Sync, Auth, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-03 (Accepted LLP 0157 boundary: the React key remains the
+**Revised:** 2026-08-03 (Accepted 2026-08-03 by the author — decision
+sitting #2, "accept all that verify",
+`issues/20260803-author-decision-sitting-2.md`; gate verified: the terminal
+review's material findings are absorbed by the normative §Round-1 author
+reconciliation narrowing (finite React v1), and the register-mode extension
+carved out after that review is separately governed by LLP 0112; status
+Review → Accepted);
+2026-08-03 (Accepted LLP 0157 boundary: the React key remains the
 provider-scoped UI index, while `qmk1` and the complete owner-issued authority
 partition supply the semantic materialization address beneath it);
 2026-08-01 (offline binding receipt: online preparation persists
@@ -796,7 +803,8 @@ the same landing.
 
 ## Status and implementation sequence
 
-This is a Draft specification. Its implementation order is:
+This is an Accepted specification (accepted 2026-08-03). Its implementation
+order is:
 
 1. land LLP 0108's generated result contracts and reference extractors;
 2. factor reference-aware provider construction and context;

@@ -1,12 +1,18 @@
 # LLP 0144: Declared application refusal codes
 
 **Type:** RFC
-**Status:** Review
+**Status:** Accepted
 **Systems:** Runtime, Code generation, Client protocol, Client integration,
 Authoring, Contract, Diagnostics, Guide, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-01
-**Revised:** 2026-08-02 (decision-sitting propagation: OQ1 selects B3 — admit
+**Revised:** 2026-08-03 (Accepted 2026-08-03 by the author — decision
+sitting #2, "accept all that verify",
+`issues/20260803-author-decision-sitting-2.md`; gate verified: the loop
+converged dual-family READY 2026-08-01 with zero unresolved concerns and
+OQ1 was ruled B3 in the 2026-08-02 packet; OQ2–OQ8 remain open design
+questions, none pre-acceptance-blocking; status Review → Accepted).
+2026-08-02 (decision-sitting propagation: OQ1 selects B3 — admit
 the declared code, drop an invalid payload, and emit the
 `appDetailsDropped` diagnostic detail. D2's discriminated union and the wire
 carrier key follow from this selection. Source:
