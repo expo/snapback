@@ -515,6 +515,25 @@ pub(crate) fn execute_ibex_mutation_prepared(
     // The recorded (or replayed) ctx-answer ledger rides the output (LLP 0051
     // D1) so the later commit is semantically identical to the in-lock path.
     let ctx_ledger = invocation.take_ctx_ledger()?;
+    // Strict declaration conformance (LLP 0146 D1, per-app opt-in): this seam
+    // refuses before any caller can commit, so an undeclared write never
+    // becomes a durable effect and an undeclared read never hands off a
+    // result. HostPlan mutations never reach this path and cannot drift.
+    {
+        let schema = invocation.db().schema();
+        crate::conformance::enforce_strict_reads(
+            schema,
+            prepared.function_id(),
+            prepared.strict_declaration_facts(),
+            &invocation.reads,
+        )?;
+        crate::conformance::enforce_strict_writes(
+            schema,
+            prepared.function_id(),
+            prepared.strict_declaration_facts(),
+            &invocation.writes,
+        )?;
+    }
     let IbexHostContext {
         writes,
         sequence_allocations,
@@ -596,6 +615,14 @@ pub(crate) fn run_ibex_query_with_reads_prepared(
             ),
         )
     })?;
+    // Strict declaration conformance (LLP 0146 D1, per-app opt-in): refuse an
+    // undeclared application-table read before the result handoff.
+    crate::conformance::enforce_strict_reads(
+        invocation.db().schema(),
+        prepared.function_id(),
+        prepared.strict_declaration_facts(),
+        &invocation.reads,
+    )?;
     prepared.validate_admission("ibex query completion")?;
     Ok(IbexQueryRun {
         output: QueryOutput {

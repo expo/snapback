@@ -1364,6 +1364,19 @@ export function defineSchema(tables, options = {}) {
       assets = { referenceGc: { graceMs } };
     }
   }
+  // @ref LLP 0146#d1-declarationobservation-conformance — strict mode is the
+  // per-app opt-in (OQ1 ruling 2026-08-03: not the default for newly
+  // generated apps). When set, opaque handlers' application-table reads and
+  // writes are refused at the runtime seam unless declared; without it,
+  // declarations stay evidence (LLP 0127 decision 6).
+  let strictDeclarations;
+  if (options.strictDeclarations !== undefined) {
+    assert(
+      typeof options.strictDeclarations === 'boolean',
+      'defineSchema option "strictDeclarations" must be a boolean',
+    );
+    strictDeclarations = options.strictDeclarations;
+  }
   let pushSeam;
   if (options.pushSeam !== undefined) {
     assert(
@@ -1391,6 +1404,7 @@ export function defineSchema(tables, options = {}) {
     ...(auth ? { auth } : {}),
     ...(assets ? { assets } : {}),
     ...(pushSeam ? { pushSeam } : {}),
+    ...(strictDeclarations === true ? { strictDeclarations: true } : {}),
     ...(options.requiredCapabilities !== undefined
       ? { requiredCapabilities: [...new Set(options.requiredCapabilities)] }
       : {}),

@@ -7,7 +7,7 @@
   },
   "ephemeralCollections": [],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:64567d42c356fbbad52f9fd8a8e027ab42b9142caa0986b67fb337cf0030492a",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:8bddac3e97288667a4985290d7db88749de47d3eee851f24048b10e72645617c",
   "portabilityFlags": [],
   "pushSeam": {
     "appScope": {
@@ -45,7 +45,7 @@
     "auth.sessions.v1",
     "notifications.expoPushSeam"
   ],
-  "schemaHash": "snapback.v1:sessions:schema:sha256:1f5f51d0475b71a9141b0c5842dc624db01a885cd1bec9c62c403b8a6975dd72",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:7644251e2733c8c64e6196470c890bc394e53553abe62be73e801d60af1a6b78",
   "schemaVersion": "snapback.v1",
   "tables": [
     {

@@ -1510,6 +1510,15 @@ pub struct FunctionRunResult {
     pub captured_reads: Vec<CapturedReadDependency>,
     #[serde(default)]
     pub captured_writes: Vec<CapturedWriteDependency>,
+    /// D1 declaration/observation conformance: class-tagged deltas between
+    /// the declared and captured table sets with per-class evidence
+    /// provenance. Emitted on every runner invocation — an action reports
+    /// `unsupported` provenance rather than any conformant verdict.
+    // @ref LLP 0146#d1-declarationobservation-conformance — surface 1, the
+    //   unconditional per-invocation report. Keep this reference out of the
+    //   generated JSON Schema description.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub conformance: Option<crate::conformance::DeclarationConformance>,
     /// Envelope-level audit fact for session-mode operator invocation. The
     /// handler input remains anonymous; this records that access came through
     /// the explicit administrative bypass rather than an app principal.
@@ -1991,6 +2000,11 @@ pub(crate) fn action_run_result(
         writes,
         captured_reads: Vec::new(),
         captured_writes: Vec::new(),
+        // Actions construct empty captured sets by design; `unsupported`
+        // provenance is the honest verdict-free report (LLP 0146 D1).
+        conformance: Some(crate::conformance::DeclarationConformance::without_capture(
+            crate::conformance::DependencyProvenance::Unsupported,
+        )),
         admin_bypass: false,
         elapsed_ms,
         version: None,
@@ -2021,6 +2035,9 @@ fn function_run_admission_failure(name: &str, error: SnapbackError) -> FunctionR
         writes: Vec::new(),
         captured_reads: Vec::new(),
         captured_writes: Vec::new(),
+        conformance: Some(crate::conformance::DeclarationConformance::without_capture(
+            crate::conformance::DependencyProvenance::Incomplete,
+        )),
         admin_bypass: false,
         elapsed_ms: 0,
         version: None,
@@ -16625,6 +16642,7 @@ impl LocalSnapback {
         input: HandlerInput,
         authority: PreparedAuthority,
     ) -> FunctionRunResult {
+        use crate::conformance::{DeclarationConformance, DependencyProvenance};
         let started = Instant::now();
         let Some(definition) = self.functions.function(name).cloned() else {
             return FunctionRunResult {
@@ -16635,6 +16653,9 @@ impl LocalSnapback {
                 writes: Vec::new(),
                 captured_reads: Vec::new(),
                 captured_writes: Vec::new(),
+                conformance: Some(DeclarationConformance::without_capture(
+                    DependencyProvenance::Incomplete,
+                )),
                 admin_bypass: false,
                 elapsed_ms: elapsed_ms(started),
                 version: None,
@@ -16662,6 +16683,9 @@ impl LocalSnapback {
                     writes: Vec::new(),
                     captured_reads: Vec::new(),
                     captured_writes: Vec::new(),
+                    conformance: Some(DeclarationConformance::without_capture(
+                        DependencyProvenance::Incomplete,
+                    )),
                     admin_bypass: false,
                     elapsed_ms: elapsed_ms(started),
                     version: None,
@@ -16675,15 +16699,35 @@ impl LocalSnapback {
         let input = prepared.canonicalize_input(input);
 
         let (reads, writes) = plan_io(&definition);
+        // D1 report (LLP 0146): compute the class-tagged conformance deltas
+        // against the same declared sets the result reports. Provenance is
+        // per-path: success paths carry an authoritative capture, failure
+        // paths do not, and actions construct no capture by design.
+        let report = |captured_reads: &[CapturedReadDependency],
+                      captured_writes: &[CapturedWriteDependency],
+                      read_provenance: DependencyProvenance,
+                      write_provenance: DependencyProvenance,
+                      schema: &SchemaManifest| {
+            Some(crate::conformance::conformance_report(
+                &reads,
+                &writes,
+                captured_reads,
+                captured_writes,
+                read_provenance,
+                write_provenance,
+                schema,
+            ))
+        };
         let kind = definition.kind.clone();
         let base = FunctionRunResult {
             ok: true,
             function: name.to_owned(),
             kind: Some(kind.clone()),
-            reads,
-            writes,
+            reads: reads.clone(),
+            writes: writes.clone(),
             captured_reads: Vec::new(),
             captured_writes: Vec::new(),
+            conformance: None,
             admin_bypass: false,
             elapsed_ms: 0,
             version: None,
@@ -16704,6 +16748,13 @@ impl LocalSnapback {
                         elapsed_ms: elapsed_ms(started),
                         version: Some(invocation.output.version),
                         rows: Some(invocation.output.rows),
+                        conformance: report(
+                            &invocation.read_dependencies,
+                            &[],
+                            DependencyProvenance::Complete,
+                            DependencyProvenance::Complete,
+                            self.db.schema(),
+                        ),
                         captured_reads: invocation.read_dependencies,
                         ..base
                     },
@@ -16711,6 +16762,13 @@ impl LocalSnapback {
                         ok: false,
                         elapsed_ms: elapsed_ms(started),
                         diagnostic: Some(error.diagnostic),
+                        conformance: report(
+                            &[],
+                            &[],
+                            DependencyProvenance::Incomplete,
+                            DependencyProvenance::Incomplete,
+                            self.db.schema(),
+                        ),
                         ..base
                     },
                 }
@@ -16728,6 +16786,13 @@ impl LocalSnapback {
                     version: Some(commit.output.version),
                     changed_count: Some(commit.output.changed_count),
                     result: Some(commit.output.result),
+                    conformance: report(
+                        &commit.read_dependencies,
+                        &commit.write_dependencies,
+                        DependencyProvenance::Complete,
+                        DependencyProvenance::Complete,
+                        self.db.schema(),
+                    ),
                     captured_reads: commit.read_dependencies,
                     captured_writes: commit.write_dependencies,
                     ..base
@@ -16736,21 +16801,40 @@ impl LocalSnapback {
                     ok: false,
                     elapsed_ms: elapsed_ms(started),
                     diagnostic: Some(error.diagnostic),
+                    conformance: report(
+                        &[],
+                        &[],
+                        DependencyProvenance::Incomplete,
+                        DependencyProvenance::Incomplete,
+                        self.db.schema(),
+                    ),
                     ..base
                 },
             },
             FunctionKind::Action => {
                 let metadata = manual_action_metadata("admin", name);
+                // Actions construct empty captured sets by design; the
+                // provenance vocabulary exists exactly so this path never
+                // reports a conformant verdict from an empty capture.
+                let conformance = report(
+                    &[],
+                    &[],
+                    DependencyProvenance::Unsupported,
+                    DependencyProvenance::Unsupported,
+                    self.db.schema(),
+                );
                 match self.invoke_action_prepared(name, input, metadata, prepared) {
                     Ok(result) => FunctionRunResult {
                         elapsed_ms: elapsed_ms(started),
                         result: Some(result),
+                        conformance,
                         ..base
                     },
                     Err(error) => FunctionRunResult {
                         ok: false,
                         elapsed_ms: elapsed_ms(started),
                         diagnostic: Some(error.diagnostic),
+                        conformance,
                         ..base
                     },
                 }
@@ -16763,6 +16847,32 @@ impl LocalSnapback {
             .function(name)
             .map(|definition| plan_io(definition).0)
             .unwrap_or_default()
+    }
+
+    /// The D1 conformance report for one invocation of `name` against the
+    /// active schema (LLP 0146 D1 surface 1). The caller supplies the
+    /// captured sets it holds and the per-class provenance its seam can
+    /// honestly claim; a seam that discarded the capture passes empty sets
+    /// with `Incomplete`, never `Complete`.
+    pub(crate) fn conformance_for_invocation(
+        &self,
+        name: &str,
+        captured_reads: &[CapturedReadDependency],
+        captured_writes: &[CapturedWriteDependency],
+        read_provenance: crate::conformance::DependencyProvenance,
+        write_provenance: crate::conformance::DependencyProvenance,
+    ) -> Option<crate::conformance::DeclarationConformance> {
+        let definition = self.functions.function(name)?;
+        let (reads, writes) = plan_io(definition);
+        Some(crate::conformance::conformance_report(
+            &reads,
+            &writes,
+            captured_reads,
+            captured_writes,
+            read_provenance,
+            write_provenance,
+            self.db.schema(),
+        ))
     }
 
     pub(crate) fn authorization_reservation_snapshot(
@@ -16866,6 +16976,9 @@ impl LocalSnapback {
                 writes: Vec::new(),
                 captured_reads: Vec::new(),
                 captured_writes: Vec::new(),
+                conformance: Some(crate::conformance::DeclarationConformance::without_capture(
+                    crate::conformance::DependencyProvenance::Incomplete,
+                )),
                 admin_bypass: false,
                 elapsed_ms: elapsed_ms(started),
                 version: None,
@@ -16884,6 +16997,9 @@ impl LocalSnapback {
                 writes: Vec::new(),
                 captured_reads: Vec::new(),
                 captured_writes: Vec::new(),
+                conformance: Some(crate::conformance::DeclarationConformance::without_capture(
+                    crate::conformance::DependencyProvenance::Incomplete,
+                )),
                 admin_bypass: false,
                 elapsed_ms: elapsed_ms(started),
                 version: None,
@@ -16910,6 +17026,9 @@ impl LocalSnapback {
                 writes: Vec::new(),
                 captured_reads: Vec::new(),
                 captured_writes: Vec::new(),
+                conformance: Some(crate::conformance::DeclarationConformance::without_capture(
+                    crate::conformance::DependencyProvenance::Incomplete,
+                )),
                 admin_bypass: false,
                 elapsed_ms: elapsed_ms(started),
                 version: None,
@@ -16932,6 +17051,9 @@ impl LocalSnapback {
                     writes,
                     captured_reads: Vec::new(),
                     captured_writes: Vec::new(),
+                    conformance: Some(crate::conformance::DeclarationConformance::without_capture(
+                        crate::conformance::DependencyProvenance::Incomplete,
+                    )),
                     admin_bypass: false,
                     elapsed_ms: elapsed_ms(started),
                     version: None,
@@ -16953,6 +17075,9 @@ impl LocalSnapback {
                 writes,
                 captured_reads: Vec::new(),
                 captured_writes: Vec::new(),
+                conformance: Some(crate::conformance::DeclarationConformance::without_capture(
+                    crate::conformance::DependencyProvenance::Incomplete,
+                )),
                 admin_bypass: false,
                 elapsed_ms: elapsed_ms(started),
                 version: None,
@@ -16971,6 +17096,9 @@ impl LocalSnapback {
                 writes,
                 captured_reads: Vec::new(),
                 captured_writes: Vec::new(),
+                conformance: Some(crate::conformance::DeclarationConformance::without_capture(
+                    crate::conformance::DependencyProvenance::Incomplete,
+                )),
                 admin_bypass: false,
                 elapsed_ms: elapsed_ms(started),
                 version: None,

@@ -134,6 +134,63 @@
       ],
       "type": "string"
     },
+    "DeclarationConformance": {
+      "description": "The per-invocation D1 conformance report: four class-tagged deltas plus\nper-class provenance. Emission is unconditional — an invocation with no\ncapture is exactly the case the provenance vocabulary exists to report.\n\nTables are application tables only (present in the active schema manifest);\nauth/permission dependencies and reserved `_snapback_*` projections are out\nof scope by construction.",
+      "properties": {
+        "extraReads": {
+          "description": "Declared reads unwitnessed by this invocation. Data, not a verdict:\na conditionally-read table is unwitnessed on every invocation that\nskips its branch, so over-declaration is only judgeable in aggregate\n(D2 coverage).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "extraWrites": {
+          "description": "Declared writes unwitnessed by this invocation. Data, not a verdict.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "missingReads": {
+          "description": "Captured reads absent from the declaration — authoritative when\n`readProvenance` is `complete`.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "missingWrites": {
+          "description": "Captured writes absent from the declaration — authoritative when\n`writeProvenance` is `complete`.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "readProvenance": {
+          "$ref": "#/$defs/DependencyProvenance"
+        },
+        "writeProvenance": {
+          "$ref": "#/$defs/DependencyProvenance"
+        }
+      },
+      "required": [
+        "missingReads",
+        "missingWrites",
+        "extraReads",
+        "extraWrites",
+        "readProvenance",
+        "writeProvenance"
+      ],
+      "type": "object"
+    },
+    "DependencyProvenance": {
+      "description": "How authoritative one dependency class's captured evidence is for this\ninvocation.\n\n`Complete` — the runtime captured this class on a supported path; the\nmatching delta fields are authoritative. `Incomplete` — the invocation\nfailed, was refused before handler completion, or ran on a seam that\ndiscards the capture; deltas are data, not verdicts. `Unsupported` — the\npath constructs no capture by design (actions), so no conformant verdict\ncan exist.",
+      "enum": [
+        "complete",
+        "incomplete",
+        "unsupported"
+      ],
+      "type": "string"
+    },
     "Diagnostic": {
       "properties": {
         "code": {
@@ -256,6 +313,17 @@
         "integer",
         "null"
       ]
+    },
+    "conformance": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DeclarationConformance"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "D1 declaration/observation conformance: class-tagged deltas between\nthe declared and captured table sets with per-class evidence\nprovenance. Emitted on every runner invocation — an action reports\n`unsupported` provenance rather than any conformant verdict."
     },
     "diagnostic": {
       "anyOf": [

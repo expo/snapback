@@ -7,7 +7,27 @@ verification, Diagnostics, Schema and storage, Live queries, Developer
 experience
 **Author:** Charlie Cheever / Claude (Opus 5)
 **Date:** 2026-08-01
-**Revised:** 2026-08-03 (author decision sitting #2
+**Revised:** 2026-08-03 (D1 first-tranche implementation record
+(`issues/20260803-0146-d1-d3-tranche.md`): D1 surfaces 1 and 3 are
+implemented on the local target — the per-invocation class-tagged report
+with per-class provenance lands on the admin runner's `FunctionRunResult`
+(`src/conformance.rs`, `src/local.rs`) and on the `function.run` envelope
+and `app.inspect` recent-invocation ring, scoped to host-op invocations as
+this decision's stated v0 fallback (the app-data plane is not wired into
+the ring); the `function.run` mutation envelope seam reports `incomplete`
+provenance because the recording path does not hand its captured sets back.
+Strict mode is the per-app `defineSchema(..., { strictDeclarations: true })`
+opt-in carried on the schema manifest and enforced at the shared Ibex
+query/mutation runtime seams before any result handoff or durable effect,
+refusing with the two LLP 0010-discipline platform codes
+`SNAPBACK_HANDLER_UNDECLARED_READ`/`SNAPBACK_HANDLER_UNDECLARED_WRITE`
+naming function, table, and declaration source span
+(`src/runtime.rs`, `src/auth/invocation.rs`). Acceptance obligations
+decidable at this slice are tests in `tests/conformance_v0.rs` and
+`packages/snapback-codegen/authoring-validation.test.mjs`. Not claimed:
+D1 surface 2 (`verify` coverage — D2), D2, D3, the per-dependency-class
+escape hatch, Cloudflare-arm enforcement or capture authority (OQ14), and
+anything CV-14 (OQ7 unruled — no custody claim).) 2026-08-03 (author decision sitting #2
 (`issues/20260803-author-decision-sitting-2.md`): the D1–D3 first tranche
 is ratified for implementation
 (`issues/20260803-0146-d1-d3-tranche.md`); OQ1 ruled — D1 strict mode is
@@ -1149,7 +1169,10 @@ Draft. No implementation was authorized by this document as written;
 on 2026-08-03 the author ratified the D1–D3 first tranche for
 implementation (author decision sitting #2, see §Open questions and
 `issues/20260803-0146-d1-d3-tranche.md`) — the remaining decisions stay
-unratified. D1, D2, and D3 are
+unratified. The D1 report and strict-mode surfaces landed the same day on
+the local target (see the dated implementation record in the Revised
+header); D1's coverage surface rides D2, and D2/D3 remain unimplemented.
+D1, D2, and D3 are
 the intended first tranche and are the smallest of the seven; D5 and D6 are
 substantial subsystems and should be re-scoped after Wave 1 lands, when the
 conformance and verification surfaces will have made some of their

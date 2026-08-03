@@ -17650,6 +17650,17 @@ async fn host_ops_handler(
                 vec![refusal.0.diagnostic.clone()],
             ),
         };
+        // D1 conformance rides the function.run envelope; the ring copies it
+        // verbatim so `app.inspect` can surface recent declaration drift
+        // (LLP 0146 D1 surface 1 — scoped to host-op invocations).
+        let conformance = match &result {
+            Ok(Json(envelope)) => envelope
+                .data
+                .get("conformance")
+                .filter(|value| !value.is_null())
+                .cloned(),
+            Err(_) => None,
+        };
         ring.record(crate::host_ops::RecentInvocationEntry {
             operation: operation.clone(),
             function_id,
@@ -17657,6 +17668,7 @@ async fn host_ops_handler(
             started_at,
             duration_ms: u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX),
             diagnostics,
+            conformance,
         });
     }
     match result {
@@ -24667,6 +24679,11 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_HANDLER_STALE_CONTINUATION"
         | "SNAPBACK_HANDLER_UNHANDLED_REJECTION"
         | "SNAPBACK_UNHANDLED_REJECTION"
+        // @ref LLP 0146#d1-declarationobservation-conformance — a strict-mode
+        //   undeclared read/write is an authoring fault in the app, never a
+        //   server error.
+        | "SNAPBACK_HANDLER_UNDECLARED_READ"
+        | "SNAPBACK_HANDLER_UNDECLARED_WRITE"
         | "SNAPBACK_HANDLER_WRITE_IN_QUERY"
         | "SNAPBACK_SEQUENCE_DECLARATION_INVALID"
         | "SNAPBACK_SEQUENCE_UNDECLARED"
@@ -38638,6 +38655,8 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_HANDLER_STALE_CONTINUATION",
         "SNAPBACK_HANDLER_UNHANDLED_REJECTION",
         "SNAPBACK_UNHANDLED_REJECTION",
+        "SNAPBACK_HANDLER_UNDECLARED_READ",
+        "SNAPBACK_HANDLER_UNDECLARED_WRITE",
         "SNAPBACK_HANDLER_WRITE_IN_QUERY",
         "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
         "SNAPBACK_SEQUENCE_UNDECLARED",

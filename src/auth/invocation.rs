@@ -1227,6 +1227,14 @@ pub struct PreparedInvocation {
     /// @ref LLP 0135#12-allocation-surfaces — the manifest declaration is the
     ///   runtime ctx boundary authority.
     sequences: Vec<crate::manifest::SequenceDeclaration>,
+    /// Declared read/write table sets plus the declaration's source span,
+    /// carried immutably for the strict-declaration runtime seams. Populated
+    /// only for opaque (Ibex-module) handlers — HostPlan declared sets derive
+    /// from the generated plan and cannot drift by hand.
+    ///
+    /// @ref LLP 0146#d1-declarationobservation-conformance — strict mode
+    ///   refuses undeclared application-table reads/writes at the seam.
+    strict_declaration_facts: Option<crate::conformance::StrictDeclarationFacts>,
 }
 
 impl PreparedInvocation {
@@ -1274,6 +1282,14 @@ impl PreparedInvocation {
 
     pub(crate) fn sequences(&self) -> &[crate::manifest::SequenceDeclaration] {
         &self.sequences
+    }
+
+    /// Declaration facts for the strict-conformance seams; `None` for
+    /// HostPlan runtimes, whose declared sets cannot drift by hand.
+    pub(crate) fn strict_declaration_facts(
+        &self,
+    ) -> Option<&crate::conformance::StrictDeclarationFacts> {
+        self.strict_declaration_facts.as_ref()
     }
 
     pub fn admission_lease(&self) -> &AdmissionLease {
@@ -1568,6 +1584,15 @@ impl InvocationGate {
             declared_refusals: function.refusals.clone(),
             tracked_refusals: function.tracked_refusals.clone(),
             sequences: function.sequences.clone(),
+            strict_declaration_facts: matches!(
+                function.runtime,
+                crate::manifest::FunctionRuntime::IbexModule(_)
+            )
+            .then(|| crate::conformance::StrictDeclarationFacts {
+                declared_reads: function.read_set_summary.tables.clone(),
+                declared_writes: function.write_set_summary.tables.clone(),
+                source_span: function.source_span.clone(),
+            }),
         })
     }
 }

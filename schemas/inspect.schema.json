@@ -6185,6 +6185,10 @@
             "null"
           ]
         },
+        "strictDeclarations": {
+          "description": "Per-app strict declaration conformance opt-in (LLP 0146 D1 surface 3):\nwhen set, an opaque handler's application-table reads and writes must\nbe a subset of its declared sets, refused at the runtime seam with\n`SNAPBACK_HANDLER_UNDECLARED_READ`/`SNAPBACK_HANDLER_UNDECLARED_WRITE`.\nDefault off — declarations stay evidence, not enforced ceilings\n(LLP 0127 decision 6), and per the 2026-08-03 OQ1 ruling newly\ngenerated apps do not opt in by default.",
+          "type": "boolean"
+        },
         "tables": {
           "items": {
             "$ref": "#/$defs/TableManifest"

@@ -103,6 +103,14 @@ fn p6_served_ops_round_trip_through_envelopes() {
         "query rows present"
     );
     assert_eq!(query["data"]["functionResult"]["rows"], json!([]));
+    // LLP 0146 D1: the query envelope carries the conformance report with
+    // authoritative read provenance on success.
+    assert_eq!(
+        query["data"]["conformance"]["readProvenance"],
+        json!("complete"),
+        "function.run query envelope carries D1 conformance: {query}"
+    );
+    assert!(query["data"]["conformance"]["missingReads"].is_array());
 
     // function.run — a mutation, then observe the version advance
     let before = query["artifacts"]["databaseVersion"].as_u64().unwrap();

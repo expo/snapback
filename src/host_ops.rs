@@ -84,6 +84,13 @@ pub struct RecentInvocationEntry {
     #[serde(rename = "durationMs")]
     pub duration_ms: u64,
     pub diagnostics: Vec<Diagnostic>,
+    /// D1 declaration/observation conformance for `function.run` entries,
+    /// copied verbatim from the operation's envelope. The ring records host
+    /// operations only, so this surface is scoped to host-op invocations —
+    /// the app-data plane is not wired into the ring yet (LLP 0146 D1
+    /// surface 1 names that scoping as an admissible v0).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub conformance: Option<serde_json::Value>,
 }
 
 /// Bounded, in-memory, most-recent-first ring of recent operations. Shared by
@@ -970,6 +977,18 @@ pub(crate) fn coordinated_function_run_mutation_result(
 ) -> HostOpsResult {
     let request_id = request.request_id.clone().unwrap_or_else(new_request_id);
     let authority = authority_dev_user(request.user_id.as_deref());
+    // The coordinated (staged) mutation seam also settles without handing the
+    // captured dependency sets back — per-class provenance `incomplete`, so
+    // the deltas are data, never a conformant verdict (LLP 0146 D1).
+    let conformance = request.function.as_deref().and_then(|function| {
+        snapback.conformance_for_invocation(
+            function,
+            &[],
+            &[],
+            crate::conformance::DependencyProvenance::Incomplete,
+            crate::conformance::DependencyProvenance::Incomplete,
+        )
+    });
     match outcome {
         Ok(output) => host_ops_result(
             snapback,
@@ -981,7 +1000,8 @@ pub(crate) fn coordinated_function_run_mutation_result(
             authority,
             json!({
                 "mutationCommit": serde_json::to_value(output)
-                    .unwrap_or_else(|_| Value::Object(Default::default()))
+                    .unwrap_or_else(|_| Value::Object(Default::default())),
+                "conformance": conformance,
             }),
             Vec::new(),
         ),
@@ -993,7 +1013,7 @@ pub(crate) fn coordinated_function_run_mutation_result(
             profile,
             false,
             authority,
-            Value::Object(Default::default()),
+            json!({ "conformance": conformance }),
             vec![error.diagnostic],
         ),
     }
@@ -1551,13 +1571,22 @@ fn run_function(
                             .iter()
                             .filter_map(|dependency| dependency.table.clone()),
                     );
+                    // D1 report (LLP 0146 surface 1): the query seam holds an
+                    // authoritative capture on success.
+                    let conformance = snapback.conformance_for_invocation(
+                        &name,
+                        &invocation.read_dependencies,
+                        &[],
+                        crate::conformance::DependencyProvenance::Complete,
+                        crate::conformance::DependencyProvenance::Complete,
+                    );
                     let result = serde_json::to_value(&invocation.output)
                         .unwrap_or_else(|_| Value::Object(Default::default()));
                     let mut response = envelope(
                         snapback,
                         true,
                         authority,
-                        json!({ "functionResult": result }),
+                        json!({ "functionResult": result, "conformance": conformance }),
                         Vec::new(),
                     );
                     response.secret_read_tables = tables.into_iter().collect();
@@ -1566,11 +1595,18 @@ fn run_function(
                     response
                 }
                 Err(error) => {
+                    let conformance = snapback.conformance_for_invocation(
+                        &name,
+                        &[],
+                        &[],
+                        crate::conformance::DependencyProvenance::Incomplete,
+                        crate::conformance::DependencyProvenance::Incomplete,
+                    );
                     let mut response = envelope(
                         snapback,
                         false,
                         authority,
-                        Value::Object(Default::default()),
+                        json!({ "conformance": conformance }),
                         vec![error.diagnostic],
                     );
                     response.secret_read_tables = declared_reads;
@@ -1585,21 +1621,43 @@ fn run_function(
                 Ok(output) => {
                     let commit = serde_json::to_value(&output)
                         .unwrap_or_else(|_| Value::Object(Default::default()));
+                    // The recording mutation path settles before this seam and
+                    // does not hand its captured dependency sets back, so the
+                    // honest per-class provenance here is `incomplete` — the
+                    // deltas are data, never a conformant verdict (LLP 0146
+                    // D1). The authoritative mutation report lives on the
+                    // admin runner's FunctionRunResult.
+                    let conformance = snapback.conformance_for_invocation(
+                        &name,
+                        &[],
+                        &[],
+                        crate::conformance::DependencyProvenance::Incomplete,
+                        crate::conformance::DependencyProvenance::Incomplete,
+                    );
                     envelope(
                         snapback,
                         true,
                         authority,
-                        json!({ "mutationCommit": commit }),
+                        json!({ "mutationCommit": commit, "conformance": conformance }),
                         Vec::new(),
                     )
                 }
-                Err(error) => envelope(
-                    snapback,
-                    false,
-                    authority,
-                    Value::Object(Default::default()),
-                    vec![error.diagnostic],
-                ),
+                Err(error) => {
+                    let conformance = snapback.conformance_for_invocation(
+                        &name,
+                        &[],
+                        &[],
+                        crate::conformance::DependencyProvenance::Incomplete,
+                        crate::conformance::DependencyProvenance::Incomplete,
+                    );
+                    envelope(
+                        snapback,
+                        false,
+                        authority,
+                        json!({ "conformance": conformance }),
+                        vec![error.diagnostic],
+                    )
+                }
             }
         }
         FunctionKind::Action => envelope(
@@ -1984,6 +2042,7 @@ mod tests {
                 started_at: iso8601_utc_ms(index as u64),
                 duration_ms: 1,
                 diagnostics: Vec::new(),
+                conformance: None,
             });
         }
         let snapshot = ring.snapshot();

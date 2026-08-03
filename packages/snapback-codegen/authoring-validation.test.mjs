@@ -99,6 +99,64 @@ export default defineSchema(
   assert(!apiTypes.includes('readonly push:'), 'registry-only declaration has no send surface');
 }
 
+// @ref LLP 0146#d1-declarationobservation-conformance — strict declaration
+// conformance is a per-app boolean opt-in on defineSchema, carried on the
+// schema manifest; per the 2026-08-03 OQ1 ruling it is NOT the default for
+// newly generated apps, so an unoptioned schema must not emit the field.
+{
+  const optedIn = await validCase({
+    schema: `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema(
+  { todos: defineTable({ title: v.string() }).sync() },
+  { strictDeclarations: true },
+);
+`,
+    functions: 'export const nothing = 0;\n',
+  });
+  const strictManifest = JSON.parse(
+    readFileSync(join(optedIn.outDir, 'schema.manifest.json'), 'utf8'),
+  );
+  assert.equal(strictManifest.strictDeclarations, true);
+
+  const defaulted = await validCase({ functions: 'export const nothing = 0;\n' });
+  const defaultManifest = JSON.parse(
+    readFileSync(join(defaulted.outDir, 'schema.manifest.json'), 'utf8'),
+  );
+  assert.equal('strictDeclarations' in defaultManifest, false, 'opt-in is not the default');
+
+  // An explicit false is a valid spelling of the default posture.
+  const explicitFalse = await validCase({
+    schema: `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema(
+  { todos: defineTable({ title: v.string() }).sync() },
+  { strictDeclarations: false },
+);
+`,
+    functions: 'export const nothing = 0;\n',
+  });
+  const falseManifest = JSON.parse(
+    readFileSync(join(explicitFalse.outDir, 'schema.manifest.json'), 'utf8'),
+  );
+  assert.equal('strictDeclarations' in falseManifest, false);
+
+  const invalid = await invalidCase({
+    schema: `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema(
+  { todos: defineTable({ title: v.string() }).sync() },
+  { strictDeclarations: 'yes' },
+);
+`,
+    functions: 'export const nothing = 0;\n',
+  });
+  assert(
+    JSON.stringify(invalid).includes('strictDeclarations'),
+    `non-boolean opt-in must refuse with the option named: ${JSON.stringify(invalid)}`,
+  );
+}
+
 // The send lane admits only generated audience references. Membership
 // resolvers bind to an installed declaration; explicit-principal resolvers
 // are declaration-bounded and cannot become a deferred raw-list escape hatch.

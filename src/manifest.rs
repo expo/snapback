@@ -233,6 +233,20 @@ pub struct SchemaManifest {
         skip_serializing_if = "Vec::is_empty"
     )]
     pub required_capabilities: Vec<String>,
+    /// Per-app strict declaration conformance opt-in (LLP 0146 D1 surface 3):
+    /// when set, an opaque handler's application-table reads and writes must
+    /// be a subset of its declared sets, refused at the runtime seam with
+    /// `SNAPBACK_HANDLER_UNDECLARED_READ`/`SNAPBACK_HANDLER_UNDECLARED_WRITE`.
+    /// Default off — declarations stay evidence, not enforced ceilings
+    /// (LLP 0127 decision 6), and per the 2026-08-03 OQ1 ruling newly
+    /// generated apps do not opt in by default.
+    #[serde(
+        default,
+        rename = "strictDeclarations",
+        alias = "strict_declarations",
+        skip_serializing_if = "is_false"
+    )]
+    pub strict_declarations: bool,
     #[serde(default, rename = "schemaHash", alias = "schema_hash")]
     pub schema_hash: Option<String>,
     #[serde(default, rename = "inputsHash", alias = "inputs_hash")]
@@ -271,6 +285,7 @@ impl Default for SchemaManifest {
             assets: None,
             push_seam: None,
             required_capabilities: Vec::new(),
+            strict_declarations: false,
             schema_hash: None,
             inputs_hash: None,
             generated_at: None,
@@ -465,6 +480,9 @@ impl From<SchemaManifest> for PublicSchemaManifest {
             assets,
             push_seam,
             required_capabilities,
+            // The strict-declaration posture is server-enforcement authority,
+            // not a client-facing schema fact (LLP 0146 D1).
+            strict_declarations: _,
             schema_hash,
             inputs_hash,
             generated_at,

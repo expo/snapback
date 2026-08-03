@@ -59,6 +59,7 @@ pub mod cli;
 pub mod commit_envelope;
 #[doc(hidden)]
 pub mod config;
+pub mod conformance;
 #[doc(hidden)]
 pub mod contract_exact;
 #[doc(hidden)]

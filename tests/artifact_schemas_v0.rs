@@ -3525,6 +3525,9 @@ fn gap_row_schemas_accept_representative_values() {
         writes: vec!["notes".to_owned()],
         captured_reads: vec![],
         captured_writes: vec![],
+        conformance: Some(snapback::conformance::DeclarationConformance::without_capture(
+            snapback::conformance::DependencyProvenance::Unsupported,
+        )),
         admin_bypass: false,
         elapsed_ms: 12,
         version: Some(7),

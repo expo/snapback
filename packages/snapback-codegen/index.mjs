@@ -3422,6 +3422,10 @@ export async function generateInProcess(backendDir, options = {}) {
     ...(schemaDef.auth !== undefined ? { auth: { mode: authMode } } : {}),
     ...(schemaAssetsPolicy ? { assets: schemaAssetsPolicy } : {}),
     ...(schemaDef.pushSeam ? { pushSeam: schemaDef.pushSeam } : {}),
+    // @ref LLP 0146#d1-declarationobservation-conformance — the per-app
+    // strict-declaration opt-in rides the schema manifest so the serving
+    // runtime enforces exactly what the author declared.
+    ...(schemaDef.strictDeclarations === true ? { strictDeclarations: true } : {}),
     ...(schemaRequiredCapabilities.length > 0
       ? { requiredCapabilities: schemaRequiredCapabilities }
       : {}),
