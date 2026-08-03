@@ -227,7 +227,6 @@ const EXPERIMENTAL_TARGET_CAPABILITY_IDS = new Set([
   'result_contract_v1',
   'versioned_seed_install_v1',
   'versioned_seed_reset_v1',
-  'vector_search_v1',
   'write_activity_v1',
   'vector_search_v1',
 ]);
@@ -782,7 +781,7 @@ export async function generateInProcess(backendDir, options = {}) {
       seenFields.add(fieldName);
       validateAuthoringValidator(val, `${name}.${fieldName}`, (message) => {
         err('SCHEMA_INVALID_VALIDATOR', 'schema', message, { table: name, field: fieldName });
-      }, new Set(), 'schema');
+      });
       const idTable = idFieldTypeTable(val.fieldType);
       if (idTable !== null && !Object.hasOwn(schemaDef.tables, idTable)) {
         err('SCHEMA_ID_TARGET_UNKNOWN', 'schema', `${name}.${fieldName} references unknown id table ${idTable}`, {
@@ -1002,63 +1001,6 @@ export async function generateInProcess(backendDir, options = {}) {
         `table ${name} searchLiveLimits requires at least one search index`,
         { table: name },
       );
-    }
-
-    const vectorIndexes = [];
-    for (const vector of table.vectorIndexes ?? []) {
-      if (!IDENT.test(vector.name) || vector.name.startsWith('_snapback') || isAuthReservedIdentifier(vector.name)) {
-        err('SNAPBACK_VECTOR_INDEX_UNAVAILABLE', 'vector', `invalid vector index identifier ${name}.${vector.name}`, { table: name, index: vector.name });
-      }
-      if (seenIndexes.has(vector.name)) {
-        err('SNAPBACK_VECTOR_INDEX_UNAVAILABLE', 'vector', `duplicate index/vector index name ${name}.${vector.name}`, { table: name, index: vector.name });
-      }
-      seenIndexes.add(vector.name);
-      const vectorField = table.fields[vector.vectorField];
-      if (!vectorField || vectorField.optional || vectorField.fieldType?.Vector?.dimensions !== vector.dimensions) {
-        err('SNAPBACK_VECTOR_INDEX_UNAVAILABLE', 'vector', `vector index ${name}.${vector.name} must name one required v.vector() field`, { table: name, index: vector.name, field: vector.vectorField });
-      }
-      const participating = new Set([
-        vector.vectorField,
-        ...(vector.equalityFilters ?? []),
-        ...(vector.storedFields ?? []),
-      ]);
-      const requiredClassifications = [...participating].sort();
-      const declaredClassifications = Object.keys(vector.fieldClassifications ?? {}).sort();
-      if (JSON.stringify(requiredClassifications) !== JSON.stringify(declaredClassifications)) {
-        err('SNAPBACK_VECTOR_INDEX_UNAVAILABLE', 'vector', `vector index ${name}.${vector.name} must classify exactly every participating field`, { table: name, index: vector.name, requiredFields: requiredClassifications, declaredFields: declaredClassifications });
-      }
-      for (const [field, classification] of Object.entries(vector.fieldClassifications ?? {})) {
-        if (!table.fields[field]) {
-          err('SNAPBACK_VECTOR_INDEX_UNAVAILABLE', 'vector', `vector index ${name}.${vector.name} references unknown field ${field}`, { table: name, index: vector.name, field });
-        } else if (classification === 'sensitive' || classification === 'forbidden') {
-          err('SNAPBACK_VECTOR_INDEX_UNAVAILABLE', 'vector', `vector index ${name}.${vector.name} cannot participate with ${classification} field ${field}`, { table: name, index: vector.name, field });
-        } else if (vector.visibility.kind === 'public-read' && classification !== 'public') {
-          err('SNAPBACK_VECTOR_INDEX_UNAVAILABLE', 'vector', `public vector index ${name}.${vector.name} admits only public participating fields`, { table: name, index: vector.name, field });
-        }
-      }
-      for (const field of vector.equalityFilters ?? []) {
-        const source = table.fields[field];
-        const type = source?.fieldType;
-        const portable = ['String', 'Principal', 'Integer', 'Boolean'].includes(type) || idFieldTypeTable(type) !== null;
-        if (!portable || source?.optional) {
-          err('SNAPBACK_VECTOR_INDEX_UNAVAILABLE', 'vector', `vector equality field ${name}.${vector.name}.${field} must be a required exact scalar`, { table: name, index: vector.name, field });
-        }
-      }
-      for (const field of vector.storedFields ?? []) {
-        if (!table.fields[field]) {
-          err('SNAPBACK_VECTOR_INDEX_UNAVAILABLE', 'vector', `vector stored field ${name}.${vector.name}.${field} is unknown`, { table: name, index: vector.name, field });
-        }
-      }
-      if (vector.visibility.kind === 'owner') {
-        const owner = table.fields[vector.visibility.field];
-        if (!owner || owner.optional || !['String', 'Principal'].includes(owner.fieldType)) {
-          err('SNAPBACK_VECTOR_INDEX_UNAVAILABLE', 'vector', `owner vector index ${name}.${vector.name} requires a required string/principal owner field`, { table: name, index: vector.name, field: vector.visibility.field });
-        }
-      }
-      if (vector.dimensions * vector.maxIndexedVectorsPerPartition > 2 ** 26) {
-        err('SNAPBACK_VECTOR_INDEX_UNAVAILABLE', 'vector', `vector index ${name}.${vector.name} dimensions × corpus exceeds 2^26`, { table: name, index: vector.name });
-      }
-      vectorIndexes.push(vector);
     }
 
     if (table.permissionFields !== undefined && !table.permissionBackingDeclared) {
@@ -1828,6 +1770,8 @@ export async function generateInProcess(backendDir, options = {}) {
         })),
         serverRunnable: true,
         localRunnable: false,
+      
+        ...contractQueryLivenessFields(def),
       };
     } else if ((def.__kind === 'Query' || def.__kind === 'LiveQuery') && def.boundedChildrenPlan) {
       const plan = def.boundedChildrenPlan;
@@ -4463,24 +4407,6 @@ function validateAuthoringValidator(val, where, report, seen = new Set(), positi
     return typeof val.optional === 'boolean';
   }
   const argument = position === 'argument';
-  const vector = val.fieldType?.Vector;
-  if (argument && vector) {
-    report(`${where} cannot use v.vector() as an argument; use the closed array validator vocabulary`);
-    return false;
-  }
-  if (position === 'schema' && val.primitive === 'vector') {
-    if (
-      Object.keys(val.fieldType ?? {}).length !== 1
-      || !Number.isSafeInteger(vector?.dimensions)
-      || vector.dimensions < 1
-      || vector.dimensions > 4_096
-      || val.optional !== false
-    ) {
-      report(`${where} has an invalid v.vector() declaration`);
-      return false;
-    }
-    return true;
-  }
   if (argument) {
     const recurse = (children) => {
       seen.add(val);
@@ -5659,15 +5585,6 @@ function readSummary(fn) {
       authScopeField: null,
     };
   }
-  const vectorPlan = fn.runtime?.HostPlan?.VectorQuery;
-  if (vectorPlan) {
-    return {
-      mode: 'singleTable',
-      primaryTable: vectorPlan.table,
-      tables: [vectorPlan.table],
-      authScopeField: null,
-    };
-  }
   if (fn.declaredReads) {
     return { mode: fn.runtime?.IbexModule ? 'handlerDeclared' : (fn.declaredReads.length ? 'singleTable' : 'none'), primaryTable: fn.declaredReads[0] ?? null, tables: fn.declaredReads, authScopeField: fn.authScopeField ?? null };
   }
@@ -5785,9 +5702,6 @@ function requiredCapabilities(fn) {
           ...contractCapabilities,
         ]
       : [runtimeCapability, 'full_text_search_v1', ...contractCapabilities];
-  }
-  if (fn.runtime?.HostPlan?.VectorQuery) {
-    return [runtimeCapability, 'vector_search_v1', ...contractCapabilities];
   }
   if (fn.runtime?.HostPlan?.VectorQuery) {
     return [runtimeCapability, 'vector_search_v1', ...contractCapabilities];
@@ -8295,9 +8209,7 @@ function renderApiTypes(
         : `SearchRequestV1 & ${typeForGeneratedArgs({
           [search.resourceArg]: def?.args?.[search.resourceArg],
         })}`
-      : vector
-        ? 'VectorRequestV1'
-        : typeForGeneratedArgs(def?.args ?? {});
+      : typeForGeneratedArgs(def?.args ?? {});
     lines.push(`  ${fn.name}: FunctionReference<'${fn.name}', '${fn.kind}', ${args}, ${result}>;`);
   }
   // Explicit and derived upload intents are api members like functions —

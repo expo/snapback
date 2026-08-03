@@ -260,8 +260,31 @@ import { defineVectorQuery } from ${JSON.stringify(defineUrl)};
 import { documents } from './schema.mjs';
 export const nearestDocuments = defineVectorQuery({ table: documents, index: 'by_embedding' });
 `);
-  const refused = await generate(backend);
-  assert.equal(refused.ok, false, 'authoring without target facts cannot mint runtime support');
+  // VEC-4 shipped the qualified local implementation, so the local target's
+  // published facts admit generation; the artifact records the knowing bind
+  // to the experimental capability (LLP 0058 capability maturity).
+  const generated = await generate(backend);
+  assert.equal(generated.ok, true, JSON.stringify(generated.diagnostics));
+  const manifest = JSON.parse(
+    readFileSync(join(backend, 'generated', 'functions.manifest.json'), 'utf8'),
+  );
+  assert(
+    (manifest.acknowledgedExperimentalCapabilities ?? []).includes('vector_search_v1'),
+    `qualified local generation must acknowledge experimental vector_search_v1: ${
+      JSON.stringify(manifest.acknowledgedExperimentalCapabilities)}`,
+  );
+  // A target whose capability manifest reports the structured vector GAP
+  // still refuses: authoring cannot mint runtime support the target facts
+  // do not publish.
+  writeFileSync(join(backend, 'remote-service.publication.json'), JSON.stringify({
+    profileId: 'remote-service-sqlite-ibex',
+    targetProfileId: 'remote-service-sqlite-ibex',
+    authCapabilityId: 'snapback.auth.vector-test',
+    dataCapabilityId: 'snapback.data.vector-test',
+    operations: ['nearestDocuments'],
+  }));
+  const refused = await generate(backend, { targetProfile: 'remote-service-sqlite-ibex' });
+  assert.equal(refused.ok, false, 'a target without vector facts cannot mint runtime support');
   assert(
     refused.diagnostics.some(({ code, capability }) => (
       code === 'SNAPBACK_CAPABILITY_UNSUPPORTED'
@@ -269,7 +292,7 @@ export const nearestDocuments = defineVectorQuery({ table: documents, index: 'by
     )),
     JSON.stringify(refused.diagnostics),
   );
-  assert.equal(existsSync(join(backend, 'generated')), false);
+  assert.equal(existsSync(join(backend, 'generated-remote-service')), false);
 } finally {
   rmSync(backend, { recursive: true, force: true });
 }
