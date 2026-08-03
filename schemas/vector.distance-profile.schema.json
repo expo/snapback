@@ -1,0 +1,353 @@
+{
+  "$defs": {
+    "VectorAdmissionProfileV1": {
+      "additionalProperties": false,
+      "properties": {
+        "componentAbsMaxBits": {
+          "type": "string"
+        },
+        "decimalConversion": {
+          "type": "string"
+        },
+        "dimensionsMax": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "dimensionsMin": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "negativeZero": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "dimensionsMin",
+        "dimensionsMax",
+        "componentAbsMaxBits",
+        "decimalConversion",
+        "negativeZero"
+      ],
+      "type": "object"
+    },
+    "VectorArithmeticProfileV1": {
+      "additionalProperties": false,
+      "properties": {
+        "binaryFormat": {
+          "type": "string"
+        },
+        "evaluationOrder": {
+          "type": "string"
+        },
+        "extendedPrecisionIntermediates": {
+          "type": "boolean"
+        },
+        "flushToZeroOrDenormalsAreZero": {
+          "type": "boolean"
+        },
+        "fusedMultiplyAdd": {
+          "type": "boolean"
+        },
+        "gradualUnderflow": {
+          "type": "boolean"
+        },
+        "reassociation": {
+          "type": "boolean"
+        },
+        "rounding": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "binaryFormat",
+        "rounding",
+        "evaluationOrder",
+        "gradualUnderflow",
+        "fusedMultiplyAdd",
+        "reassociation",
+        "extendedPrecisionIntermediates",
+        "flushToZeroOrDenormalsAreZero"
+      ],
+      "type": "object"
+    },
+    "VectorConversionWitnessV1": {
+      "additionalProperties": false,
+      "properties": {
+        "admission": {
+          "type": "string"
+        },
+        "admittedBits": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "decimal": {
+          "type": "string"
+        },
+        "expectedBits": {
+          "type": "string"
+        },
+        "finiteHDigits": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "purpose": {
+          "$ref": "#/$defs/VectorWitnessPurposeV1"
+        },
+        "roundedToHBits": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "roundedToHDecimal": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "purpose",
+        "decimal",
+        "expectedBits",
+        "admission"
+      ],
+      "type": "object"
+    },
+    "VectorDistanceProfileV1": {
+      "additionalProperties": false,
+      "properties": {
+        "admission": {
+          "$ref": "#/$defs/VectorAdmissionProfileV1"
+        },
+        "arithmetic": {
+          "$ref": "#/$defs/VectorArithmeticProfileV1"
+        },
+        "conversionWitnesses": {
+          "items": {
+            "$ref": "#/$defs/VectorConversionWitnessV1"
+          },
+          "type": "array"
+        },
+        "distanceWitnesses": {
+          "items": {
+            "$ref": "#/$defs/VectorDistanceWitnessV1"
+          },
+          "type": "array"
+        },
+        "orderingProfileId": {
+          "type": "string"
+        },
+        "orderingWitnesses": {
+          "items": {
+            "$ref": "#/$defs/VectorOrderingWitnessV1"
+          },
+          "type": "array"
+        },
+        "profileId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "profileId",
+        "orderingProfileId",
+        "admission",
+        "arithmetic",
+        "conversionWitnesses",
+        "distanceWitnesses",
+        "orderingWitnesses"
+      ],
+      "type": "object"
+    },
+    "VectorDistanceWitnessV1": {
+      "additionalProperties": false,
+      "properties": {
+        "candidateBits": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "expectedBits": {
+          "type": "string"
+        },
+        "forbiddenAlternative": {
+          "$ref": "#/$defs/VectorForbiddenAlternativeV1"
+        },
+        "forbiddenAlternativeBits": {
+          "type": "string"
+        },
+        "metric": {
+          "$ref": "#/$defs/VectorMetricV1"
+        },
+        "name": {
+          "type": "string"
+        },
+        "purpose": {
+          "$ref": "#/$defs/VectorWitnessPurposeV1"
+        },
+        "queryBits": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "wireInputs": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/VectorWireInputsV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "metric",
+        "purpose",
+        "forbiddenAlternative",
+        "queryBits",
+        "candidateBits",
+        "expectedBits",
+        "forbiddenAlternativeBits"
+      ],
+      "type": "object"
+    },
+    "VectorForbiddenAlternativeV1": {
+      "enum": [
+        "fused-term-accumulation",
+        "reverse-reduction-order",
+        "single-round-extended-accumulation",
+        "flush-subnormals-to-zero",
+        "round-decimal-to-finite-h"
+      ],
+      "type": "string"
+    },
+    "VectorMetricV1": {
+      "enum": [
+        "l2sq",
+        "dot"
+      ],
+      "type": "string"
+    },
+    "VectorOrderingWitnessV1": {
+      "additionalProperties": false,
+      "properties": {
+        "direction": {
+          "type": "string"
+        },
+        "distanceBits": {
+          "type": "string"
+        },
+        "expectedFirstRowIdHex": {
+          "type": "string"
+        },
+        "leftRowIdHex": {
+          "type": "string"
+        },
+        "metric": {
+          "$ref": "#/$defs/VectorMetricV1"
+        },
+        "name": {
+          "type": "string"
+        },
+        "rightRowIdHex": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "metric",
+        "distanceBits",
+        "direction",
+        "leftRowIdHex",
+        "rightRowIdHex",
+        "expectedFirstRowIdHex"
+      ],
+      "type": "object"
+    },
+    "VectorWireInputsV1": {
+      "additionalProperties": false,
+      "properties": {
+        "candidateDecimals": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "finiteHDigits": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "queryDecimals": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "queryDecimals",
+        "candidateDecimals"
+      ],
+      "type": "object"
+    },
+    "VectorWitnessPurposeV1": {
+      "enum": [
+        "fma-contraction",
+        "reassociation-reduction-reorder",
+        "extended-precision-x87",
+        "ftz-daz-subnormal-flushing",
+        "one-ulp-decimal-conversion",
+        "component-boundary",
+        "negative-zero"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/vector.distance-profile.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "artifactKind": {
+      "type": "string"
+    },
+    "formatVersion": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "profile": {
+      "$ref": "#/$defs/VectorDistanceProfileV1"
+    },
+    "profileDigest": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "artifactKind",
+    "formatVersion",
+    "profileDigest",
+    "profile"
+  ],
+  "title": "VectorDistanceProfileArtifactV1",
+  "type": "object"
+}

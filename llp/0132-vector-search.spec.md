@@ -5,7 +5,12 @@
 **Systems:** Search, Storage, Schema, Code generation, Auth, Client integration, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-07-31 (ACCEPTED under LLP 0130 SD-4's standing
+**Revised:** 2026-08-02 (VEC-0 numeric-authority checkpoint: committed the
+Rust-owned `snapback-vector-distance-v1` profile artifact and schema, JCS
+payload digest, independent BigInt exact-arithmetic derivation, and shared
+Rust/JavaScript witnesses for the named binary64 divergence classes; this is
+implementation-sequence step 1 evidence only and publishes no field, index,
+query, target, or capability support) 2026-07-31 (ACCEPTED under LLP 0130 SD-4's standing
 authorization: dual-family READY — Fable round 2, Codex round 4 —
 with the three conditions checked and satisfied: (1) zero unresolved
 MATERIAL concerns in either family's final round; (2) within the
@@ -659,6 +664,27 @@ The implementation must retain executable evidence that:
 - generated schemas, TypeScript pages, the client adapter, capability
   facts, the provider/contract projection, and guide rows agree
   byte-for-byte on the declared profile and its nonclaims.
+
+## Implementation record — 2026-08-02: numeric authority only
+
+The first collision-safe part of implementation-sequence step 1 is present.
+`schemas/vector.distance-profile-v1.json` is generated from the Rust-owned
+closed profile shape and binds `snapback-vector-distance-v1`, ordering profile
+`nearest-first-row-id.v1`, and its full witness payload under a pinned RFC 8785
+SHA-256 digest. `scripts/vector-distance-reference.mjs` derives decimal
+conversion and primitive-operation results independently with BigInt exact
+rational/dyadic arithmetic; the Rust and JavaScript semantic kernels consume
+the committed expected bits rather than generating them.
+
+The corpus distinguishes FMA contraction, reduction reordering, extended/x87
+intermediates, FTZ/DAZ, and finite-H decimal double rounding for both metrics,
+and additionally pins subnormals, ±2^100 including the next representable
+outside value, negative-zero canonicalization, and bit-equal row-id ordering.
+This is deliberately not a `vector_search_v1` implementation or qualification:
+there is still no vector field/declaration carrier, index storage, query,
+authorization/release seam, client surface, target receipt, capability-registry
+entry, or support fact. The Guide therefore remains an explicit design-only
+GAP.
 
 ## Non-goals and claim boundary
 

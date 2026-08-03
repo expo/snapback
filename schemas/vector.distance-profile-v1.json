@@ -1,0 +1,347 @@
+{
+  "artifactKind": "vectorDistanceProfileV1",
+  "formatVersion": 1,
+  "profile": {
+    "admission": {
+      "componentAbsMaxBits": "4630000000000000",
+      "decimalConversion": "nearest-binary64-ties-even-any-input-length",
+      "dimensionsMax": 4096,
+      "dimensionsMin": 1,
+      "negativeZero": "canonicalize-to-positive-zero"
+    },
+    "arithmetic": {
+      "binaryFormat": "ieee-754-binary64",
+      "evaluationOrder": "ascending-dimension-strict-sequential",
+      "extendedPrecisionIntermediates": false,
+      "flushToZeroOrDenormalsAreZero": false,
+      "fusedMultiplyAdd": false,
+      "gradualUnderflow": true,
+      "reassociation": false,
+      "rounding": "nearest-ties-even-after-every-primitive-operation"
+    },
+    "conversionWitnesses": [
+      {
+        "admission": "accept",
+        "admittedBits": "3ff0000000000000",
+        "decimal": "1.00000000000000011102230246251565404236316680908203125",
+        "expectedBits": "3ff0000000000000",
+        "name": "arbitrary-length-halfway-ties-to-even",
+        "purpose": "one-ulp-decimal-conversion"
+      },
+      {
+        "admission": "accept",
+        "admittedBits": "3ff0000000000001",
+        "decimal": "1.00000000000000011102230246251565404236316680908203126",
+        "expectedBits": "3ff0000000000001",
+        "finiteHDigits": 20,
+        "name": "arbitrary-length-above-halfway-rounds-up",
+        "purpose": "one-ulp-decimal-conversion",
+        "roundedToHBits": "3ff0000000000000",
+        "roundedToHDecimal": "10000000000000001110e-19"
+      },
+      {
+        "admission": "canonicalize",
+        "admittedBits": "0000000000000000",
+        "decimal": "-0.000000000000000000000000000000000000000000000000000000000000",
+        "expectedBits": "8000000000000000",
+        "name": "negative-zero-canonicalizes-positive",
+        "purpose": "negative-zero"
+      },
+      {
+        "admission": "accept",
+        "admittedBits": "4630000000000000",
+        "decimal": "1267650600228229401496703205376",
+        "expectedBits": "4630000000000000",
+        "name": "positive-component-boundary",
+        "purpose": "component-boundary"
+      },
+      {
+        "admission": "accept",
+        "admittedBits": "c630000000000000",
+        "decimal": "-1267650600228229401496703205376",
+        "expectedBits": "c630000000000000",
+        "name": "negative-component-boundary",
+        "purpose": "component-boundary"
+      },
+      {
+        "admission": "reject-component-bound",
+        "decimal": "1267650600228229682971679916032",
+        "expectedBits": "4630000000000001",
+        "name": "next-representable-above-component-boundary-refuses",
+        "purpose": "component-boundary"
+      },
+      {
+        "admission": "reject-component-bound",
+        "decimal": "2535301200456458802993406410752",
+        "expectedBits": "4640000000000000",
+        "name": "gross-component-boundary-overflow-refuses",
+        "purpose": "component-boundary"
+      }
+    ],
+    "distanceWitnesses": [
+      {
+        "candidateBits": [
+          "3ff0000000000000",
+          "3ff0000000000001"
+        ],
+        "expectedBits": "0000000000000000",
+        "forbiddenAlternative": "fused-term-accumulation",
+        "forbiddenAlternativeBits": "3970000000000000",
+        "metric": "dot",
+        "name": "dot-fma-contraction",
+        "purpose": "fma-contraction",
+        "queryBits": [
+          "bff0000000000002",
+          "3ff0000000000001"
+        ]
+      },
+      {
+        "candidateBits": [
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "expectedBits": "3e34000000000002",
+        "forbiddenAlternative": "fused-term-accumulation",
+        "forbiddenAlternativeBits": "3e34000000000003",
+        "metric": "l2sq",
+        "name": "l2sq-fma-contraction",
+        "purpose": "fma-contraction",
+        "queryBits": [
+          "3f00000000000001",
+          "3f10000000000001"
+        ]
+      },
+      {
+        "candidateBits": [
+          "3ff0000000000000",
+          "3ff0000000000000",
+          "3ff0000000000000"
+        ],
+        "expectedBits": "3ff0000000000000",
+        "forbiddenAlternative": "reverse-reduction-order",
+        "forbiddenAlternativeBits": "0000000000000000",
+        "metric": "dot",
+        "name": "dot-reassociation-reduction-reorder",
+        "purpose": "reassociation-reduction-reorder",
+        "queryBits": [
+          "4350000000000000",
+          "c350000000000000",
+          "3ff0000000000000"
+        ]
+      },
+      {
+        "candidateBits": [
+          "0000000000000000",
+          "0000000000000000",
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "expectedBits": "4350000000000000",
+        "forbiddenAlternative": "reverse-reduction-order",
+        "forbiddenAlternativeBits": "4350000000000001",
+        "metric": "l2sq",
+        "name": "l2sq-reassociation-reduction-reorder",
+        "purpose": "reassociation-reduction-reorder",
+        "queryBits": [
+          "41a0000000000000",
+          "3ff0000000000000",
+          "3ff0000000000000",
+          "3ff0000000000000"
+        ]
+      },
+      {
+        "candidateBits": [
+          "3ff0000000000000",
+          "3ff0000000000000",
+          "3ff0000000000000",
+          "3ff0000000000000"
+        ],
+        "expectedBits": "4350000000000000",
+        "forbiddenAlternative": "single-round-extended-accumulation",
+        "forbiddenAlternativeBits": "4350000000000001",
+        "metric": "dot",
+        "name": "dot-extended-precision-x87",
+        "purpose": "extended-precision-x87",
+        "queryBits": [
+          "3ff0000000000000",
+          "3ff0000000000000",
+          "4350000000000000",
+          "3ff0000000000000"
+        ]
+      },
+      {
+        "candidateBits": [
+          "0000000000000000",
+          "0000000000000000",
+          "0000000000000000",
+          "0000000000000000"
+        ],
+        "expectedBits": "4350000000000000",
+        "forbiddenAlternative": "single-round-extended-accumulation",
+        "forbiddenAlternativeBits": "4350000000000001",
+        "metric": "l2sq",
+        "name": "l2sq-extended-precision-x87",
+        "purpose": "extended-precision-x87",
+        "queryBits": [
+          "3ff0000000000000",
+          "3ff0000000000000",
+          "41a0000000000000",
+          "3ff0000000000000"
+        ]
+      },
+      {
+        "candidateBits": [
+          "3ff0000000000000"
+        ],
+        "expectedBits": "0000000000000001",
+        "forbiddenAlternative": "flush-subnormals-to-zero",
+        "forbiddenAlternativeBits": "0000000000000000",
+        "metric": "dot",
+        "name": "dot-ftz-daz-subnormal",
+        "purpose": "ftz-daz-subnormal-flushing",
+        "queryBits": [
+          "0000000000000001"
+        ]
+      },
+      {
+        "candidateBits": [
+          "0000000000000000"
+        ],
+        "expectedBits": "0000000000000001",
+        "forbiddenAlternative": "flush-subnormals-to-zero",
+        "forbiddenAlternativeBits": "0000000000000000",
+        "metric": "l2sq",
+        "name": "l2sq-ftz-daz-subnormal",
+        "purpose": "ftz-daz-subnormal-flushing",
+        "queryBits": [
+          "1e60000000000000"
+        ]
+      },
+      {
+        "candidateBits": [
+          "3ff0000000000000"
+        ],
+        "expectedBits": "3ff0000000000001",
+        "forbiddenAlternative": "round-decimal-to-finite-h",
+        "forbiddenAlternativeBits": "3ff0000000000000",
+        "metric": "dot",
+        "name": "dot-one-ulp-decimal-conversion",
+        "purpose": "one-ulp-decimal-conversion",
+        "queryBits": [
+          "3ff0000000000001"
+        ],
+        "wireInputs": {
+          "candidateDecimals": [
+            "1"
+          ],
+          "finiteHDigits": 20,
+          "queryDecimals": [
+            "1.00000000000000011102230246251565404236316680908203126"
+          ]
+        }
+      },
+      {
+        "candidateBits": [
+          "0000000000000000"
+        ],
+        "expectedBits": "3ff0000000000002",
+        "forbiddenAlternative": "round-decimal-to-finite-h",
+        "forbiddenAlternativeBits": "3ff0000000000000",
+        "metric": "l2sq",
+        "name": "l2sq-one-ulp-decimal-conversion",
+        "purpose": "one-ulp-decimal-conversion",
+        "queryBits": [
+          "3ff0000000000001"
+        ],
+        "wireInputs": {
+          "candidateDecimals": [
+            "0"
+          ],
+          "finiteHDigits": 20,
+          "queryDecimals": [
+            "1.00000000000000011102230246251565404236316680908203126"
+          ]
+        }
+      },
+      {
+        "candidateBits": [
+          "4630000000000000"
+        ],
+        "expectedBits": "4c70000000000000",
+        "forbiddenAlternative": "single-round-extended-accumulation",
+        "forbiddenAlternativeBits": "4c70000000000000",
+        "metric": "dot",
+        "name": "dot-component-boundary",
+        "purpose": "component-boundary",
+        "queryBits": [
+          "4630000000000000"
+        ]
+      },
+      {
+        "candidateBits": [
+          "c630000000000000"
+        ],
+        "expectedBits": "4c90000000000000",
+        "forbiddenAlternative": "single-round-extended-accumulation",
+        "forbiddenAlternativeBits": "4c90000000000000",
+        "metric": "l2sq",
+        "name": "l2sq-component-boundary",
+        "purpose": "component-boundary",
+        "queryBits": [
+          "4630000000000000"
+        ]
+      },
+      {
+        "candidateBits": [
+          "bff0000000000000"
+        ],
+        "expectedBits": "0000000000000000",
+        "forbiddenAlternative": "flush-subnormals-to-zero",
+        "forbiddenAlternativeBits": "0000000000000000",
+        "metric": "dot",
+        "name": "dot-negative-zero-output-canonicalization",
+        "purpose": "negative-zero",
+        "queryBits": [
+          "0000000000000000"
+        ]
+      },
+      {
+        "candidateBits": [
+          "0000000000000000"
+        ],
+        "expectedBits": "0000000000000000",
+        "forbiddenAlternative": "flush-subnormals-to-zero",
+        "forbiddenAlternativeBits": "0000000000000000",
+        "metric": "l2sq",
+        "name": "l2sq-negative-zero-output-canonicalization",
+        "purpose": "negative-zero",
+        "queryBits": [
+          "0000000000000000"
+        ]
+      }
+    ],
+    "orderingProfileId": "nearest-first-row-id.v1",
+    "orderingWitnesses": [
+      {
+        "direction": "id-asc",
+        "distanceBits": "3ff0000000000000",
+        "expectedFirstRowIdHex": "726f772d61",
+        "leftRowIdHex": "726f772d61",
+        "metric": "l2sq",
+        "name": "l2sq-bit-equal-id-asc",
+        "rightRowIdHex": "726f772d62"
+      },
+      {
+        "direction": "id-desc",
+        "distanceBits": "3ff0000000000000",
+        "expectedFirstRowIdHex": "726f772d62",
+        "leftRowIdHex": "726f772d61",
+        "metric": "dot",
+        "name": "dot-bit-equal-id-desc",
+        "rightRowIdHex": "726f772d62"
+      }
+    ],
+    "profileId": "snapback-vector-distance-v1"
+  },
+  "profileDigest": "sha256:9ce9feab0c6dcb2d009e212d34484051c8594b8ef0e9066d392c0449a8001e1b"
+}

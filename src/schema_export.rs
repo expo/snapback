@@ -134,6 +134,13 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
             "search.request.schema.json",
             schemars::schema_for!(crate::search::types::SearchRequestV1),
         ),
+        // @ref LLP 0132#capabilities-targets-and-staging — the numeric
+        // profile is a Rust-owned, generated, committed carrier even while no
+        // target capability or invocation surface is published.
+        finish(
+            "vector.distance-profile.schema.json",
+            schemars::schema_for!(crate::vector::profile::VectorDistanceProfileArtifactV1),
+        ),
         finish(
             "seed.artifact.schema.json",
             schemars::schema_for!(SeedArtifactV1),
@@ -859,6 +866,13 @@ pub fn artifact_instances() -> Vec<SchemaArtifact> {
         SchemaArtifact {
             file: crate::search::fixtures::SEARCH_AST_FIXTURES_FILE,
             schema: sorted_keys(crate::search::fixtures::search_ast_fixture_corpus()),
+        },
+        // @ref LLP 0132#distance-profile--the-portable-exactness-answer — the
+        // generated instance pins the profile payload, independent expected
+        // bits, and its canonical content digest for non-Rust consumers.
+        SchemaArtifact {
+            file: crate::vector::profile::VECTOR_DISTANCE_PROFILE_FILE,
+            schema: sorted_keys(crate::vector::profile::vector_distance_profile_artifact()),
         },
     ];
     // @ref LLP 0156#e01--the-failure-classifier-and-issue-eligibility —
