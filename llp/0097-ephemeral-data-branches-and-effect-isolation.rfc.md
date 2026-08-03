@@ -134,3 +134,47 @@ Mirroring LLP 0070's capability-class discipline and snapback's Online-vs-Parity
 ## Status
 
 **Accepted** (super-refine converged Round 5 — fable + codex both READY; began as Draft). Implementation is gated by the Acceptance corpus. (The LLP 0007/0018 typed-child-stream amendment is normative in §Design 1, accepted atomically with this LLP; only per-target conformance remains open.) Until the corpus passes, the claim boundary above holds: no target may advertise a branch capability above `Missing`, and no effect may be marked branch-safe. First consumer and motivating driver: Exact Design Mode live futures ([Exact LLP 0390](../../exact/llp/0390-design-mode-live-canvas.rfc.md)).
+
+## Amendment (2026-08-03 — LLP 0162, effective with its acceptance)
+
+Accepted LLP 0162 (agent-safe storage profile) amends this RFC in the
+following enumerated places; LLP 0164 carries the implementation-altitude
+contracts.
+
+- **§Capability classes.** The single ordered branch axis is split into
+  orthogonal axes: egress policy (`Missing` | `DenyAll` | `CaptureOnly`),
+  promotion (`NotPromotable` | `Promotable`), base (`currentHead` |
+  `namedCheckpoint`; promotion only at `currentHead`), and the existing
+  isolation scope. `DenyAll` refuses fail-loud and records a bounded
+  payload-free attempt marker (no intent payload — `CaptureOnly` keeps this
+  RFC's ledger-backed meaning). Forward mapping is lossless: `Missing` →
+  (`Missing`, any); `CaptureOnly` → (`CaptureOnly`, `NotPromotable`);
+  `Promotable` → (`CaptureOnly`, `Promotable`). The new combination
+  (`DenyAll`, `Promotable`) is named `Promotable(noEffects)` — a strictly
+  narrower claim than this RFC's `Promotable` (its staged-settlement half is
+  unexercised) — and projects to `Missing` for legacy three-value consumers
+  (a deliberate under-claim; projecting to `CaptureOnly` would assert a
+  ledger that does not exist).
+- **§Acceptance.** A `Promotable(noEffects)` target passes this corpus with
+  the effect-settlement fixtures replaced by negative fixtures proving its
+  attempt markers are empty and that any egress attempt forecloses
+  promotion. All other rows stand.
+- **§5 (promotion protocol additions).** Promotion consumes a sealed
+  `PromotionRequestV1` (reviewed child-stream head under branch-head CAS;
+  log/diff/manifest digests; approver — a human or an agent principal
+  holding an LLP 0055 scoped grant; a rebase-invariant admission-ticket
+  identity that is the sole admissible retry identity). The approval binds
+  the full approved-facts digest (reads, ctx answers, decision/result
+  facts, writes, effects, artifact, coverage) — this RFC's
+  meaning-preservation comparison made concrete; a rebase reproducing it
+  re-seals as a separately identified engine attestation over the preserved
+  approval, and any divergence forces fresh approval. Admission is
+  serialized and fair per canonical stream (inherited FIFO tickets,
+  concurrency-scaled rebase budget, quotaed bounded head reservation), and
+  **rebase-by-replay** — re-executing the recorded log into a fresh fork
+  from the new head — is the paved recovery after a strict-CAS refusal.
+- **Known code deviations** (independent of LLP 0162):
+  `issues/20260803-branches-promote-postimage-deviation.md` records that the
+  landed `branches::promote` applies post-images (forbidden by §5) and that
+  the landed `MaterializedBase` is a writable copy, not this RFC's
+  immutable-base reading.

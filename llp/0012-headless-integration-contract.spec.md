@@ -1251,3 +1251,20 @@ independently negotiated item-6/8 surfaces and honest hosted-readiness refusal.
   attestation and app-data remain refused. The exact operative pair received
   independent READY verdicts from GPT and Claude with no blocking findings.
   Status remains Draft; the gate authorized no acceptance transition.
+
+## Amendment (2026-08-03 — LLP 0162, effective with its acceptance)
+
+Accepted LLP 0162 (contracts in LLP 0163) adds client-conformance
+obligations for the operation-identity widening:
+
+- A conforming client mints an `operationId` before the first attempt of
+  every ordinary mutation on a covered lane and reuses it across transport
+  retries; once a target advertises envelope coverage for a lane, an
+  identity-less mutation on that lane refuses stably, with a versioned
+  negotiation path for legacy clients until the cutover.
+- Clients persist server-preallocated identity ranges atomically before
+  use, refresh them at reconnect, and treat exhaustion-while-offline as the
+  disclosed uncovered-queueing degradation.
+- `identity-horizon-passed` is handled as outcome-unknown — never recorded
+  as a terminal `failed` — and `result-expired` as outcome-known with the
+  payload gone.

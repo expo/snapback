@@ -545,3 +545,21 @@ lease, fence high-waters, obligations, and pending-intent references move
 atomically. Otherwise it remains non-renderable under its old fence until a
 fresh sync creates the new address, then retires; it is never relabeled in
 place. This boundary changes no implementation or capability claim here.
+
+## Amendment (2026-08-03 — LLP 0162, effective with its acceptance)
+
+Accepted LLP 0162 (with LLP 0163 carrying the contracts) touches this RFC's
+lifecycle as follows; the core rules are affirmed, not weakened.
+
+- **Affirmed:** unacknowledged results are never evicted; capacity refuses
+  new identities; operator purge explicitly forfeits exactly-once.
+- **Added:** reclamation of acknowledged identities inside a still-open
+  issuance epoch leaves a payload-free tombstone until the audience floor
+  passes the epoch, so a reclaimed identity can never re-execute as novel.
+  A retry answered from a surviving compact envelope receives
+  `result-expired` (outcome-known, payload gone) instead of the stored
+  result — a client-visible change owned here by dated revision. Offline
+  minting draws on server-preallocated authenticated finite identity
+  ranges; exhaustion while offline degrades to disclosed uncovered local
+  queueing with refresh at reconnect, and the range size/window parameters
+  are owned here.

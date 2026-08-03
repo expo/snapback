@@ -821,3 +821,29 @@ committed allocation so an idempotent replay never allocates twice. When LLP
 sequence must register as excluded from local execution unless that owner
 admits an explicit successor. This amendment records the accepted boundary;
 it does not claim the LLP 0135 primitive is implemented.
+
+## Amendment (2026-08-03 — LLP 0162, effective with its acceptance)
+
+Accepted LLP 0162 widens this Spec's exactly-once identity, under this
+Spec's own extend-don't-ride-beside rule; LLP 0163 carries the
+implementation-altitude contracts and schemas.
+
+- `operationId` is `clientMutationId` widened to every originator. The
+  physical key becomes `(streamId, originatorClass, operationId)`; the
+  audience and every semantics-affecting fact this Spec binds remain
+  **compared facts, never key components** — the collision rule and the
+  shipped reused/stale diagnostic families are unchanged. Host-derived
+  identities are server-authenticated and deterministic from durable
+  upstream identities; the host namespace is unwritable by client
+  admission.
+- Identities carry server-issued authenticated issuance epochs with
+  preallocated finite offline ranges; the suppression lifecycle adds
+  identity tombstones (retained until the per-audience floor passes an
+  epoch) and two dispositions to this Spec's vocabulary: `result-expired`
+  (outcome-known, payload gone — a declared change from the
+  republish-the-stored-result rule) and `identity-horizon-passed`
+  (outcome-unknown, never a terminal client `failed`). Lookup precedence:
+  suppression record → envelope/tombstone → epoch floor.
+- This Spec remains the duplicate-suppression authority; parameter values
+  (range size/window, retention windows) are fixed by dated revision here
+  as LLP 0163 lands.

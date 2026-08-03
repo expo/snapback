@@ -616,3 +616,14 @@ expected-operation tuple or compatibility-policy transition.
   are the two `live/hosted`-only fixtures under §2.2 tuple routing). The
   JS kit still binds via this spec's normative force and its regression
   suites; a kit-side corpus replay remains open.
+
+## Amendment (2026-08-03 — LLP 0162, effective with its acceptance)
+
+Accepted LLP 0162 (contracts in LLP 0163) extends the conformance surface at
+this tier: the operation-identity obligations of LLP 0012's same-dated
+amendment (pre-attempt minting on covered lanes, versioned negotiation and
+cutover, atomic range persistence and reconnect refresh, outcome-unknown
+handling of `identity-horizon-passed`, outcome-known handling of
+`result-expired`) apply to protocol clients, and the wire shapes for
+identity, epoch, and range negotiation are the generated schemas LLP 0163
+owns rather than hand-authored frames.

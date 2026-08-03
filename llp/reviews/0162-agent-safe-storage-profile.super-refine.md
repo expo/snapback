@@ -98,3 +98,16 @@ of §§1, 4, 5, 8 and Acceptance 2/3/6/10/12 rather than another full round.
    stopping rule: splitting acceptance rows 2/10 into per-property gates,
    a transition-table/property-test presentation of the identity lifecycle,
    and an example capability manifest.
+
+## Postscript — author adjudication (2026-08-03, same day)
+
+Charlie accepted the RFC (v0.9, Status: Accepted) and adjudicated the open
+items: OQ11 decided yes (an agent principal holding an LLP 0055 scoped grant
+may approve a `PromotionRequestV1`); OQ14 executed (contracts extracted to
+LLP 0163 — operation identity and commit envelope, LLP 0164 — fork and
+promotion, LLP 0165 — proof domains and checkpoints, each Draft, with 0162
+as the umbrella, which also settled OQ5's schema-ownership half via LLP
+0037's pattern); and the commissioned dated amendments landed in LLP 0097,
+0133, 0043, 0012, and 0095. The v0.8 repairs entered acceptance unreviewed,
+as the record above notes; the round-7 reviews' scoped re-read remains
+available to the author on the extracted Specs' own review loops.
