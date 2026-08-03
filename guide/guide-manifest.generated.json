@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "dd8d4ee7a50d97e38ba97c020f80313099fdc079"
+    "commit": "34cb2a813fb5405e46d1d6cf4a5d71075dbc2340"
   },
   "nav": {
     ".": [
@@ -227,6 +227,11 @@
         "id": "operating.observability",
         "order": 5,
         "title": "Backend observability"
+      },
+      {
+        "id": "operating.error-tracking",
+        "order": 6,
+        "title": "Backend error tracking"
       }
     ],
     "protocol": [
@@ -1330,17 +1335,19 @@
         "llp/0061-agent-first-snapback-guide.rfc.md",
         "llp/0064-native-client-surfaces.rfc.md",
         "llp/0154-minimal-observability.rfc.md",
+        "llp/0156-minimal-error-tracking.rfc.md",
         "src/server.rs",
         "src/admin.rs",
         "src/telemetry_query.rs",
+        "src/errors_query.rs",
         "packages/snapback-cli/index.mjs",
         "packages/snapback-client/external-store.mjs",
         "packages/snapback-react/index.mjs"
       ],
       "examples": [],
-      "reviewed": "2026-08-02",
+      "reviewed": "2026-08-03",
       "reviewedCommit": "HEAD",
-      "sha256": "3e0b21d8a33be57b5891d475e265a57eba431840aa23930695e5340e4816a143",
+      "sha256": "deafe81747510ec4ad972d74fedc83cf6d3d7a01e4ed23889ad113071850e3b6",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1981,7 +1988,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "HEAD",
-      "sha256": "b443e852c0f06461f4ee8b05866ef0d5886520f176a818c5ad70bed91468222e",
+      "sha256": "b01f4aae6ded1ea946c166df50b0f20eb4667d3468374ebcf553081028910a07",
       "snippets": []
     },
     "operating.admin-console": {
@@ -2056,6 +2063,37 @@
         }
       ]
     },
+    "operating.error-tracking": {
+      "path": "guide/operating/error-tracking.md",
+      "title": "Backend error tracking",
+      "order": 6,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "partial",
+      "capabilities": [
+        "backend.error-tracking-v1"
+      ],
+      "authorities": [
+        "llp/0156-minimal-error-tracking.rfc.md",
+        "llp/0154-minimal-observability.rfc.md",
+        "llp/0108-inline-handlers-and-result-contracts.spec.md",
+        "src/error_tracking.rs",
+        "src/errors_query.rs",
+        "src/telemetry.rs",
+        "src/cli.rs",
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs",
+        "admin-ui/app.contract",
+        "admin-ui/admin-boundary.mjs"
+      ],
+      "examples": [],
+      "reviewed": "2026-08-03",
+      "reviewedCommit": "HEAD",
+      "sha256": "cd58a3929df962ef9bba564cba813d12d66cad6e5639090a05c88881c27b3a4c",
+      "snippets": []
+    },
     "operating.host-ops": {
       "path": "guide/operating/host-ops.md",
       "title": "Host operations",
@@ -2096,7 +2134,7 @@
       "targets": [
         "local"
       ],
-      "maturity": "partial",
+      "maturity": "shipped",
       "capabilities": [
         "backend.observability-v1"
       ],
@@ -2112,9 +2150,9 @@
         "src/telemetry_bench.rs"
       ],
       "examples": [],
-      "reviewed": "2026-08-02",
+      "reviewed": "2026-08-03",
       "reviewedCommit": "HEAD",
-      "sha256": "e7ebbac7362bd5143c225c45f496198a56347ba9c34b58e8494afe76b3b94fe9",
+      "sha256": "4fefff3923dccf4092bbafbcfdc47f0cbcb7bcc8ebdc46c3baa976e309a570d8",
       "snippets": []
     },
     "operating.secrets-and-config": {
@@ -2606,9 +2644,11 @@
       "backend.assets",
       "backend.codegen",
       "backend.cron",
+      "backend.error-tracking-v1",
       "backend.expo-push-seam",
       "backend.functions",
       "backend.jobs-one-off",
+      "backend.observability-v1",
       "backend.provisioning",
       "backend.query-semantics",
       "backend.relational-queries",
@@ -2654,9 +2694,7 @@
     ],
     "gaps": [
       "backend.bounded-children-v1",
-      "backend.error-tracking-v1",
       "backend.notifications",
-      "backend.observability-v1",
       "backend.sequences",
       "backend.write-activity-v1",
       "clients.non-js",
@@ -2670,5 +2708,5 @@
     "routes": 97,
     "hostOps": 35
   },
-  "contentHash": "e9af42c7b12ce35f98a6fc242a9f39ca8aa09f7d9ab6860a5d88fc39d2af9f19"
+  "contentHash": "71d5dccc43e95b0d026279be4ad2abec6cb9a252ff0fbf8d1b3ee949fadbdd2b"
 }

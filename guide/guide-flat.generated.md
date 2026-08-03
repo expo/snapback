@@ -9,12 +9,12 @@ id: meta.capabilities
 order: 2
 audience: agent-first
 capabilities: []
-authorities: [llp/0041-packaged-dev-loop.rfc.md, llp/0061-agent-first-snapback-guide.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0154-minimal-observability.rfc.md, src/server.rs, src/admin.rs, src/telemetry_query.rs, packages/snapback-cli/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-react/index.mjs]
+authorities: [llp/0041-packaged-dev-loop.rfc.md, llp/0061-agent-first-snapback-guide.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0154-minimal-observability.rfc.md, llp/0156-minimal-error-tracking.rfc.md, src/server.rs, src/admin.rs, src/telemetry_query.rs, src/errors_query.rs, packages/snapback-cli/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-react/index.mjs]
 examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-02
+reviewed: 2026-08-03
 reviewed-commit: HEAD
 ---
 
@@ -56,8 +56,8 @@ with the Snapback label and `guide-gap` in the title.
 | backend.assets | Authenticated asset lifecycle plus the media pipeline on the local target — generated upload intents, TUS 1.0.0 resumable transfer, trusted SHA-256 finalization with GPS-strip canonicalization for images (decode/rewrite) and MP4/QuickTime video (in-place location-atom blanking, no transcoding), declared renditions with ThumbHash placeholders, typed `v.assetRef` attachment, private-strict/private-signed/public-immutable delivery with ranges and best-variant selection, opt-in reference GC, lifecycle callbacks, deletion/GC, receipts (`asset_lifecycle_v1`, `asset_image_finalization_v1`, `asset_image_pipeline_v1`, `asset_reference_gc_v1`, `asset_video_finalization_v1`); the paved browser path (stock `@expo/snapback-vite` relay over the `/assets/*` family, sessions custody, typed generated upload references) is CI-verified; transcoding and hosted targets remain design-only | files, images, video, upload, object storage, media, browser upload, vite relay | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json (all five asset ids in supportedCapabilities; `assets` facts block with Enforced image and video ceilings) + src/assets.rs + src/assets_image.rs + src/assets_video.rs suites + demos/file-drop/tests/acceptance/browser-relay.mjs (relay + sessions + typed upload reference browser path) | llp/0044 | backend/assets.md |
 | backend.expo-push-seam | Local Expo integration seam: session-bound token custody, atomic rotation and retirement, declaration-checked/host-authorized `ctx.push.send`, crash-safe intent/batch/message ledger, bounded ticket/receipt maintenance, explicit ambiguous redrive risk, and structured `notifications.expoPushSeam` facts. The app-readable ledger projection, a real-device receipt, and the complete hosted conjunction remain GAPs; this is not first-class notification delivery. | device token, expo push token, installation, ctx.push.send, handoff receipt, DeviceNotRegistered | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json (`expoPushSeam`) + `fake_expo_acceptance_covers_tickets_receipts_dedupe_ambiguity_and_authorization` in src/push.rs | llp/0143, llp/0057, llp/0059, llp/0070 | backend/expo-push.md |
 | backend.notifications | First-class notification and effect delivery; application-authored table ledgers are not this product capability | notifications, push, email, delivery, effects | none | design-only | schemas/capability.manifest.local-dev-sqlite-ibex.json (`notifications: false`; explicit `notifications` gap) | llp/0045 | GAP (owner: Charlie, review: 2026-08-31; issue: issues/20260728-guide-gap-assets-and-notifications-capability-rows.md) |
-| backend.observability-v1 | Local built-in backend telemetry with a generation-bound sibling store, operation-class spans, bounded retention and rollups, typed agent-facing queries, and Health/Logs projections; hosted arms and declared product analytics remain deferred | telemetry, observability, health, logs, metrics, traces | local | partial | route /_snapback/api/telemetry/stats | llp/0154 | GAP (retained full clean-release idle and benchmark evidence pending; owner: Program D, review: 2026-08-31; issue: issues/20260802-obs-04-guide-gates-crossrefs.md); operating/observability.md |
-| backend.error-tracking-v1 | Minimal built-in backend error grouping and issue lifecycle layered on the observability substrate; LLP 0156 is Accepted but its Phase E0/E1 capability has no implementation witness yet | error tracking, issues, fingerprints, exceptions, failures | none | design-only | issues/20260802-obs-06-errors-surface-and-fixture-gates.md | llp/0156, llp/0154 | GAP (implementation and guide page; owner: Charlie, review: 2026-08-31; issue: issues/20260802-obs-06-errors-surface-and-fixture-gates.md) |
+| backend.observability-v1 | Shipped local Phase-1 backend telemetry with a generation-bound sibling store, operation-class spans, bounded retention and rollups, typed agent-facing queries, Health/Logs projections, and retained clean-release idle/benchmark evidence; hosted arms and declared product analytics remain later capabilities | telemetry, observability, health, logs, metrics, traces | local | shipped | tests/acceptance/telemetry-phase1-evidence.v1.json | llp/0154 | operating/observability.md |
+| backend.error-tracking-v1 | Local Phase E0/E1 backend failure classification, deterministic grouping, retained raw exemplars, release-aware issue lifecycle, typed CLI/MCP operations, and Errors/Health console projections; multiple-unhandled grouping, hosted grouping, E2 alerts, and E3 client ingest remain unbuilt | error tracking, issues, fingerprints, exceptions, failures | local | partial | route /_snapback/api/errors/issues | llp/0156, llp/0154, llp/0108 | operating/error-tracking.md |
 | backend.vector-search | Experimental bounded exact k-NN over declared fixed-width binary64 vector fields, with pinned `dot`/`l2sq` arithmetic, public/owner visibility partitions, exact equality filters, stored fields, synchronous SQLite maintenance, and digest-recheck quarantine; ANN, embedding computation, live/paginated/offline search, hosted targets, PostgreSQL, and sensitive fields remain nonclaims | vector, embeddings, similarity, semantic search, RAG, exact k-NN | local | shipped | schemas/capability.manifest.local-dev-sqlite-ibex.json (`vector_search_v1` + `vectorSearch`) + `defineVectorQuery` in packages/snapback-codegen/define.mjs | llp/0132, llp/0073 | backend/vector-search.md |
 | backend.cron | Scheduled execution | cron, schedule, background jobs | local | shipped | route /_snapback/api/cron/tick | llp/0028 | backend/cron.md |
 | backend.jobs-one-off | Experimental transactional one-off durable work (LLP 0070 first slice): `ctx.jobs.enqueue` inside the mutation transaction, a paved default queue, `availableAt = now + delay`, fenced claims with append-only attempt receipts, producer association on job rows plus bounded `enqueues` facts on confirmed mutation receipts, the generated declared job-status live query (codegen emits the capability requirement and acknowledgment), the injected-clock forced drain (`POST /_snapback/api/jobs/drain`), and the secret-read-leased admin inspection lane (`GET /_snapback/api/jobs`, `/jobs/{id}`). `jobs_one_off_v1` stays experimental and no durable-background-work capability class is claimed while LLP 0070 is Draft | one-off jobs, runAfter, scheduler, durable work, enqueue, background jobs, drain, job status, secret-read lease | local | partial | route /_snapback/api/jobs/drain | llp/0070, llp/0121, llp/0115 | backend/jobs.md |
@@ -432,6 +432,9 @@ you never build around a feature because you didn't know it existed.
 - [Backend observability](./operating/observability.md) — inspect Health and
   Logs, query typed telemetry from CLI/MCP, and interpret coverage, freshness,
   retention, and shedding honestly.
+- [Backend error tracking](./operating/error-tracking.md) — group eligible
+  backend failures, inspect raw exemplars under scoped authority, and triage
+  release-aware issue state from the console, CLI, or MCP.
 
 ### Deploying
 - [Immutable releases and deploy plans](./deploying/releases.md) — build the
@@ -9295,8 +9298,8 @@ authorities: [llp/0154-minimal-observability.rfc.md, src/telemetry.rs, src/telem
 examples: []
 status: current
 targets: [local]
-maturity: partial
-reviewed: 2026-08-02
+maturity: shipped
+reviewed: 2026-08-03
 reviewed-commit: HEAD
 ---
 
@@ -9311,17 +9314,20 @@ no application setup. Use the fixed Health and Logs console pages for a quick
 view; use the typed operations below when an agent needs exact filters,
 coverage facts, or an export.
 
-The local implementation and smoke gate are available, but the capability
-index remains an explicit GAP until Program D retains the clean-release
-120-second idle and full benchmark receipt after the active observability
-source tranches freeze.
+The local implementation, recurring smoke gate, and retained clean-release
+idle/benchmark receipt are shipped together. The
+[retained carrier](repo:tests/acceptance/telemetry-phase1-evidence.v1.json)
+binds its measured clean source revision, the complete proof-source byte
+closure, and the exact receipt bytes; the recurring local proof reopens it
+before running the smoke profile.
 
 This is the Phase-1 surface from
 [LLP 0154](repo:llp/0154-minimal-observability.rfc.md): backend requests,
 function and job runs, live/WebSocket lifecycle, process and release markers,
 runtime logs, and standalone diagnostics. It does not include hosted telemetry,
-declared product-analytics events, distinct-user metrics, funnels, client crash
-ingest, or error-group issue management.
+declared product-analytics events, distinct-user metrics, funnels, or client
+crash ingest. Grouped backend issue lifecycle is the separate
+[error-tracking capability](./error-tracking.md) built on these rows.
 
 ## Check health and recent logs in the console
 
@@ -9432,8 +9438,162 @@ assuming defaults; the current author-facing CLI does not mutate this policy.
   typed operations, or the bounded local visibility-view hatch.
 - **Do not infer zero activity from an empty page without checking freshness,
   coverage, retention, truncation, and drops.**
-- **Do not build product analytics or error-group lifecycle on raw Phase-1
-  rows.** Those are separate unshipped capability areas.
+- **Do not build product analytics or a second error-group lifecycle on raw
+  Phase-1 rows.** Product analytics remains unbuilt; use the typed
+  [error-tracking capability](./error-tracking.md) for backend issue triage.
+
+---
+
+<!-- snapback-guide-source: guide/operating/error-tracking.md -->
+---
+title: Backend error tracking
+id: operating.error-tracking
+order: 6
+audience: agent-first
+capabilities: [backend.error-tracking-v1]
+authorities: [llp/0156-minimal-error-tracking.rfc.md, llp/0154-minimal-observability.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, src/error_tracking.rs, src/errors_query.rs, src/telemetry.rs, src/cli.rs, src/host_ops.rs, packages/snapback-cli/mcp-control.mjs, admin-ui/app.contract, admin-ui/admin-boundary.mjs]
+examples: []
+status: current
+targets: [local]
+maturity: partial
+reviewed: 2026-08-03
+reviewed-commit: HEAD
+---
+
+# Backend error tracking
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
+Snapback groups eligible backend failures into durable-within-retention
+issues, keeps occurrence and suppression counts, and remembers whether each
+issue is open, resolved, ignored, or regressed. Start with the fixed Errors
+console page for triage. Use the typed operations when an agent needs exact
+filters, raw exemplars, or compare-and-swap state transitions.
+
+This is LLP 0156's local Phase E0/E1 capability, built on the
+[observability substrate](./observability.md). It is partial rather than a
+general crash service: grouped state does not ship on the Cloudflare target;
+one terminal containing multiple unhandled rejections is retained as raw
+telemetry but deliberately receives no guessed fingerprint while its owning
+authority question remains open; E2 alert delivery is unbuilt; and E3 client
+crash ingest is unbuilt. Server-side stacks are raw rather than symbolicated.
+
+## Triage open and regressed issues in the console
+
+Open the admin console and select **Errors**. The list combines open and
+regressed issues in last-seen order, with occurrence, release, and suppression
+counts. Resolve or ignore an issue from its row. Each action sends the row's
+current `stateSeq`, so another actor's intervening transition produces a
+visible conflict instead of overwriting it.
+
+Raw templates and stack heads are absent from list rows. Select the explicit
+detail action to acquire the scoped raw-read lease and load one issue's
+retained exemplars. Normal console bootstrap and Health polling never load raw
+detail. Health's Errors tile is only a link-out count derived from the same
+structural issue reads; it is not a second query path.
+
+## Ask the release-first questions from the CLI
+
+Address the server by its readiness descriptor so the CLI can resolve the
+server, admin credential, and—only for raw issue detail—the short-lived scoped
+lease:
+
+```sh
+snapback errors issues --ready-file .snapback/server-ready.json
+snapback errors issues --ready-file .snapback/server-ready.json --since release-a --state regressed
+snapback errors issue iss_00000000000000000000000000 --ready-file .snapback/server-ready.json
+```
+
+`errors issues` defaults `since` to the newest retained release. Supply
+`--state`, `--kind`, `--name`, `--subsystem`, `--failure-disposition`,
+`--release`, `--since`, `--from-ms`, `--to-ms`, `--order last-seen|count`,
+`--cursor`, or `--limit` to narrow the structural list. An unknown release, or
+one older than the visible activation floor, fails closed and reports the
+known retained releases.
+
+`errors issue <iss_…>` returns one structural issue plus retained template and
+stack-head exemplars, bounded transition history, and a ready-to-run
+`telemetry.events` correlation query per exemplar. With `--url` instead of a
+readiness file, provide both the admin token and a separately minted
+`--secret-read-lease`; an admin token alone cannot read raw detail.
+
+## Transition state without losing a concurrent update
+
+Read the issue's current `stateSeq`, then supply it as the CAS expectation:
+
+```sh
+snapback errors transition iss_00000000000000000000000000 \
+  --ready-file .snapback/server-ready.json --to resolved --expect-seq 3
+```
+
+The authored targets are `open`, `resolved`, and `ignored`; `regressed` is a
+flusher-authored state when a new eligible occurrence is accepted after the
+resolve barrier. A stale `expectSeq` returns a conflict with no transition.
+Transition history is bounded, so use the group row's current state and
+`stateSeq` as authority and read the reported history floor before treating
+the visible history as complete.
+
+For a deploy hook, resolve all open or regressed issues last seen before one
+retained release activation:
+
+```sh
+snapback errors resolve --ready-file .snapback/server-ready.json --open-before release-a
+```
+
+The selector and transitions execute in one telemetry-store transaction. The
+response reports an applied, skipped, missing, or conflict outcome per issue;
+the command does not pretend every selected row was transitionable.
+
+## Use the same operations from an agent tool
+
+The control MCP projects the Rust-owned contract without another issue model:
+
+- `snapback_errors_issues` projects `errors.issues`, the structural list;
+- `snapback_errors_issue` projects `errors.issue` and automatically mints the
+  bounded `errors-issue` secret-read lease; and
+- `snapback_errors_transition` projects either the single CAS form or the
+  atomic `openBefore` bulk-resolve form.
+
+List and detail operations report the observability variance envelope plus
+error-group facts. Check `groupHorizonStartMs` before assuming an old resolved
+issue would still be remembered; `transitionHistoryFloorSeq` and
+`transitionHistoryTruncated` before treating history as complete;
+`exemplarStale` and exemplar drop counters before assuming raw detail never
+existed; and `overflowFoldCount` before treating the visible groups as every
+eligible fingerprint. Suppression counts record rollout/cooldown decisions;
+they do not imply an alert was delivered, because E2 delivery is not built.
+
+## Understand what survives and what does not
+
+Issue groups, transitions, activations, and raw exemplars live in the same
+generation-bound telemetry sibling database. The classification group can
+outlive its raw exemplar, but deleting the telemetry file, rotating the app
+generation, reaching the group horizon, or setting `maxDays: 0` removes it
+from the visible issue surface. This is triage state, not an audit ledger.
+
+Declared application refusals are issue-eligible only when the function
+explicitly lists the admitted code in `trackedRefusals`. The private opt-in is
+validated as a subset of `refusals` and is never added to public function
+introspection. Ordinary caller errors and untracked app refusals remain out of
+the issue list; tracking every failed request would erase the distinction
+between actionable faults and routine domain outcomes.
+
+## Anti-patterns
+
+- **Do not query `error_groups` directly or build a second grouping store.**
+  Use `errors.*`; grouping and raw telemetry share one flush transaction and
+  one generation fence.
+- **Do not put stack or template text on a structural list or webhook.** Raw
+  content requires the scoped detail lease and must remain `no-store` on HTTP.
+- **Do not update state without `stateSeq`.** A timestamp is informational;
+  the sequence is the concurrency token.
+- **Do not infer alert delivery from suppression counters.** E2's outbox,
+  retries, webhook, and Sentry-formatted bridge are deferred and unbuilt.
+- **Do not send browser or native crashes to the backend issue routes.** E3's
+  authority, abuse limits, offline ordering, protocol, and symbolication are
+  deferred to a separate RFC and are unbuilt.
 
 ---
 
