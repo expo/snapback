@@ -13,7 +13,7 @@ use clap::Parser;
 use serde::Deserialize;
 use serde_json::{Value, json};
 use std::ffi::OsString;
-use std::io::ErrorKind;
+use std::io::{self, ErrorKind, IsTerminal};
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -812,6 +812,10 @@ pub enum HostCommand {
     },
     /// migrate.* — LLP 0081 reviewed storage evolution (local profile).
     Migrate {
+        /// Emit only the structured envelope on stdout. Human presentation is
+        /// default-on to stderr; this flag silences it for machine consumers.
+        #[arg(long, global = true)]
+        json: bool,
         #[command(subcommand)]
         command: MigrateCommand,
     },
@@ -1030,6 +1034,10 @@ pub enum MigrateCommand {
         db: PathBuf,
         #[arg(long)]
         out: PathBuf,
+        /// Non-interactive render-first authorization. Exact value:
+        /// `<planDigest>:<observationDigest>` as printed by the review block.
+        #[arg(long)]
+        acknowledge_digests: Option<String>,
     },
     /// migrate.apply — execute the approved file by path; never
     /// regenerates a plan. --dry-run validates admission without writing.
@@ -1576,7 +1584,9 @@ pub async fn run_from_env() -> anyhow::Result<()> {
         // bound, so the whole subcommand is one pre-bind blocking section —
         // without the handoff the first SQLite read panics the async-worker
         // guard (found by the Step 5 schema-evolution witness).
-        Some(HostCommand::Migrate { command }) => startup_blocking(|| migrate_command(command)),
+        Some(HostCommand::Migrate { json, command }) => {
+            startup_blocking(|| migrate_command(command, json))
+        }
     }
 }
 
@@ -8007,6 +8017,54 @@ mod tests {
         );
     }
 
+    #[test]
+    fn migrate_json_and_digest_acknowledgement_parse_as_one_surface() {
+        let parsed = Cli::try_parse_from([
+            "snapback",
+            "migrate",
+            "--json",
+            "approve",
+            "preview.json",
+            "--db",
+            "app.sqlite",
+            "--out",
+            "approved.json",
+            "--acknowledge-digests",
+            "plan:observation",
+        ])
+        .expect("migrate machine mode parses");
+        let Some(HostCommand::Migrate { json, command }) = parsed.command else {
+            panic!("expected migrate command");
+        };
+        assert!(json);
+        let super::MigrateCommand::Approve {
+            acknowledge_digests,
+            ..
+        } = command
+        else {
+            panic!("expected approve command");
+        };
+        assert_eq!(acknowledge_digests.as_deref(), Some("plan:observation"));
+    }
+
+    #[test]
+    fn migrate_approval_authorization_is_exact_and_fail_closed() {
+        let expected = "plan-digest:observation-digest";
+        assert!(super::validate_approval_authorization(expected, Some(expected), None).is_ok());
+        assert!(super::validate_approval_authorization(expected, None, Some("approve\n")).is_ok());
+        for refused in [
+            super::validate_approval_authorization(expected, Some("plan-digest"), None),
+            super::validate_approval_authorization(expected, None, Some("yes")),
+            super::validate_approval_authorization(expected, None, None),
+        ] {
+            let error = refused.expect_err("anything but exact authorization refuses");
+            assert_eq!(
+                error.diagnostic.code,
+                "SNAPBACK_MIGRATION_APPROVAL_REQUIRED"
+            );
+        }
+    }
+
     // The `migrate rehearse` verb is a thin file-IO wrapper over
     // `migrate_rehearse_artifact` — this witnesses verb parity: the same
     // binding refusal and the same marked, released receipt the library
@@ -8189,13 +8247,16 @@ mod tests {
         // (b) Against the bound isolated target the verb writes the same
         // marked, released receipt the library path produces.
         let out = directory.path().join("rehearsal-receipt.json");
-        migrate_command(MigrateCommand::Rehearse {
-            approved: approved_path,
-            schema: schema_path,
-            rehearsal_plan: rehearsal_path,
-            db: db.clone(),
-            out: out.clone(),
-        })
+        migrate_command(
+            MigrateCommand::Rehearse {
+                approved: approved_path,
+                schema: schema_path,
+                rehearsal_plan: rehearsal_path,
+                db: db.clone(),
+                out: out.clone(),
+            },
+            true,
+        )
         .expect("rehearse verb runs");
         let receipt: crate::storage::migration_executor::MigrationReceiptV1 =
             serde_json::from_str(&std::fs::read_to_string(&out).unwrap()).unwrap();
@@ -8239,9 +8300,32 @@ fn migrate_envelope(
     }
 }
 
-fn migrate_emit(operation: &str, outcome: anyhow::Result<Value>) -> anyhow::Result<()> {
+struct MigrateOutput {
+    data: Value,
+    human: String,
+}
+
+impl MigrateOutput {
+    fn new(data: Value, human: String) -> Self {
+        Self { data, human }
+    }
+}
+
+fn migrate_emit(
+    operation: &str,
+    json_only: bool,
+    outcome: anyhow::Result<MigrateOutput>,
+) -> anyhow::Result<()> {
     let envelope = match outcome {
-        Ok(data) => migrate_envelope(operation, true, data, Vec::new()),
+        Ok(output) => {
+            if !json_only && !output.human.is_empty() {
+                eprint!("{}", output.human);
+                if !output.human.ends_with('\n') {
+                    eprintln!();
+                }
+            }
+            migrate_envelope(operation, true, output.data, Vec::new())
+        }
         Err(error) => {
             let diagnostic = match error.downcast::<crate::diagnostic::SnapbackError>() {
                 Ok(snapback) => snapback.diagnostic,
@@ -8254,6 +8338,12 @@ fn migrate_emit(operation: &str, outcome: anyhow::Result<Value>) -> anyhow::Resu
                     .diagnostic
                 }
             };
+            if !json_only {
+                eprintln!(
+                    "Migration command failed\n  {}: {}",
+                    diagnostic.code, diagnostic.message
+                );
+            }
             migrate_envelope(operation, false, Value::Null, vec![diagnostic])
         }
     };
@@ -8304,7 +8394,57 @@ fn local_operator() -> String {
     std::env::var("USER").unwrap_or_else(|_| "local-operator".to_owned())
 }
 
-pub(crate) fn migrate_command(command: MigrateCommand) -> anyhow::Result<()> {
+fn migrate_presentation_width() -> usize {
+    crate::migration_presentation::presentation_width_from_columns(
+        std::env::var("COLUMNS").ok().as_deref(),
+    )
+}
+
+fn migrate_review_options(
+    json_only: bool,
+) -> crate::migration_presentation::MigrationPresentationOptions {
+    let width = migrate_presentation_width();
+    if !json_only && io::stderr().is_terminal() {
+        crate::migration_presentation::MigrationPresentationOptions::review(width)
+    } else {
+        crate::migration_presentation::MigrationPresentationOptions::narration(width)
+    }
+}
+
+fn approval_authorization_error(message: impl Into<String>) -> crate::diagnostic::SnapbackError {
+    crate::diagnostic::SnapbackError::error(
+        "SNAPBACK_MIGRATION_APPROVAL_REQUIRED",
+        "migration",
+        message.into(),
+    )
+}
+
+fn validate_approval_authorization(
+    expected: &str,
+    acknowledgement: Option<&str>,
+    interactive_response: Option<&str>,
+) -> crate::diagnostic::SnapbackResult<()> {
+    if let Some(acknowledgement) = acknowledgement {
+        return if acknowledgement == expected {
+            Ok(())
+        } else {
+            Err(approval_authorization_error(
+                "--acknowledge-digests did not exactly match the displayed plan and observation digests",
+            ))
+        };
+    }
+    match interactive_response.map(str::trim) {
+        Some("approve") => Ok(()),
+        Some(_) => Err(approval_authorization_error(
+            "approval was not confirmed; the approval artifact was not written",
+        )),
+        None => Err(approval_authorization_error(format!(
+            "non-interactive approval requires --acknowledge-digests {expected}"
+        ))),
+    }
+}
+
+pub(crate) fn migrate_command(command: MigrateCommand, json_only: bool) -> anyhow::Result<()> {
     match command {
         MigrateCommand::Preview {
             db,
@@ -8318,6 +8458,7 @@ pub(crate) fn migrate_command(command: MigrateCommand) -> anyhow::Result<()> {
             out,
         } => migrate_emit(
             "migrate.preview",
+            json_only,
             (|| {
                 let successor: crate::manifest::SchemaManifest =
                     migrate_read_json(&schema, "successor schema")?;
@@ -8327,7 +8468,6 @@ pub(crate) fn migrate_command(command: MigrateCommand) -> anyhow::Result<()> {
                 };
                 let snapback = crate::local::LocalSnapback::open(&db)?;
                 let predecessor = snapback.migrate_predecessor_schema();
-                let head = snapback.migrate_head_version()?;
                 // Explicit intents win; a schema-diff derivation covers exactly
                 // the unambiguous changes (LLP 0081 §2 — the derivation refuses
                 // anything needing a declared backfill/rename/conversion).
@@ -8336,6 +8476,12 @@ pub(crate) fn migrate_command(command: MigrateCommand) -> anyhow::Result<()> {
                     None => crate::migration::derive_intents(&predecessor, &successor)?,
                 };
                 let steps = crate::migration::derive_plan_steps(&successor, &intents)?;
+                // @ref LLP 0160#2-the-ideal-experience-moment-by-moment —
+                // Moment 3's estimate line is sourced only from the separately
+                // digested, snapshot-pinned observation; it adds no plan
+                // authority and is omitted when no step declares a read table.
+                let (head, precondition_rows) = snapback
+                    .migrate_preview_observation_facts(&steps, max_affected_rows)?;
                 let body = crate::migration::MigrationPlanBody {
                     schema_version: crate::migration::MIGRATION_PLAN_SCHEMA_VERSION.to_owned(),
                     app: snapback.migrate_app_id(),
@@ -8390,7 +8536,7 @@ pub(crate) fn migrate_command(command: MigrateCommand) -> anyhow::Result<()> {
                     plan_digest: artifact.plan_digest.clone(),
                     target_head_version: head,
                     observed_at_ms: wall_clock_now_ms(),
-                    precondition_rows: Default::default(),
+                    precondition_rows,
                     capability_health: Default::default(),
                 };
                 let file = MigratePreviewFile {
@@ -8399,12 +8545,20 @@ pub(crate) fn migrate_command(command: MigrateCommand) -> anyhow::Result<()> {
                     generated_by: local_operator(),
                 };
                 std::fs::write(&out, serde_json::to_string_pretty(&file)?)?;
-                Ok(json!({
-                    "planId": file.artifact.plan_id,
-                    "planDigest": file.artifact.plan_digest,
-                    "steps": file.artifact.body.steps.len(),
-                    "out": out.display().to_string(),
-                }))
+                let human = crate::migration_presentation::render_plan(
+                    &file.artifact,
+                    &file.observation,
+                    migrate_review_options(json_only),
+                );
+                Ok(MigrateOutput::new(
+                    json!({
+                        "planId": file.artifact.plan_id,
+                        "planDigest": file.artifact.plan_digest,
+                        "steps": file.artifact.body.steps.len(),
+                        "out": out.display().to_string(),
+                    }),
+                    human,
+                ))
             })(),
         ),
         MigrateCommand::Approve {
@@ -8413,8 +8567,10 @@ pub(crate) fn migrate_command(command: MigrateCommand) -> anyhow::Result<()> {
             expires_in_ms,
             db,
             out,
+            acknowledge_digests,
         } => migrate_emit(
             "migrate.approve",
+            json_only,
             (|| {
                 let preview: MigratePreviewFile = migrate_read_json(&plan, "preview file")?;
                 let mut snapback = crate::local::LocalSnapback::open(&db)?;
@@ -8444,18 +8600,57 @@ pub(crate) fn migrate_command(command: MigrateCommand) -> anyhow::Result<()> {
                     operation_id: crate::migration::new_operation_id(),
                 };
                 crate::migration::validate_approval_shape(&approval)?;
+                let rendered = crate::migration_presentation::render_approval(
+                    &preview.artifact,
+                    &preview.observation,
+                    &approval,
+                    migrate_review_options(json_only),
+                );
+                // Render before the authorization gate and before the output
+                // path is touched. A CI/piped face is redacted and therefore
+                // requires the exact two-digest acknowledgement.
+                // @ref LLP 0160#2-the-ideal-experience-moment-by-moment —
+                // Moment 4's render-before-mint/write ordering.
+                if !json_only {
+                    eprint!("{rendered}");
+                    if !rendered.ends_with('\n') {
+                        eprintln!();
+                    }
+                }
+                let expected = crate::migration_presentation::approval_acknowledgement_token(
+                    &preview.artifact,
+                    &preview.observation,
+                );
+                if acknowledge_digests.is_some() {
+                    validate_approval_authorization(
+                        &expected,
+                        acknowledge_digests.as_deref(),
+                        None,
+                    )?;
+                } else if !json_only && io::stdin().is_terminal() && io::stderr().is_terminal() {
+                    eprint!("Type `approve` to authorize these exact digests: ");
+                    std::io::Write::flush(&mut io::stderr())?;
+                    let mut response = String::new();
+                    io::stdin().read_line(&mut response)?;
+                    validate_approval_authorization(&expected, None, Some(&response))?;
+                } else {
+                    validate_approval_authorization(&expected, None, None)?;
+                }
                 let approved = MigrateApprovedFile {
                     artifact: preview.artifact,
                     observation: preview.observation,
                     approval,
                 };
                 std::fs::write(&out, serde_json::to_string_pretty(&approved)?)?;
-                Ok(json!({
-                    "operationId": approved.approval.operation_id,
-                    "planId": approved.artifact.plan_id,
-                    "generatorIsApprover": approved.approval.generator_is_approver,
-                    "out": out.display().to_string(),
-                }))
+                Ok(MigrateOutput::new(
+                    json!({
+                        "operationId": approved.approval.operation_id,
+                        "planId": approved.artifact.plan_id,
+                        "generatorIsApprover": approved.approval.generator_is_approver,
+                        "out": out.display().to_string(),
+                    }),
+                    String::new(),
+                ))
             })(),
         ),
         MigrateCommand::Apply {
@@ -8466,6 +8661,7 @@ pub(crate) fn migrate_command(command: MigrateCommand) -> anyhow::Result<()> {
             rehearsal_receipt,
         } => migrate_emit(
             "migrate.apply",
+            json_only,
             (|| {
                 let approved: MigrateApprovedFile = migrate_read_json(&approved, "approved file")?;
                 let successor: crate::manifest::SchemaManifest =
@@ -8479,12 +8675,23 @@ pub(crate) fn migrate_command(command: MigrateCommand) -> anyhow::Result<()> {
                         &successor,
                     )?;
                     crate::migration::validate_approval_shape(&approved.approval)?;
-                    return Ok(json!({
-                        "dryRun": true,
-                        "operationId": approved.approval.operation_id,
-                        "planId": approved.artifact.plan_id,
-                        "wouldApply": true,
-                    }));
+                    let mut human = crate::migration_presentation::render_plan(
+                        &approved.artifact,
+                        &approved.observation,
+                        crate::migration_presentation::MigrationPresentationOptions::narration(
+                            migrate_presentation_width(),
+                        ),
+                    );
+                    human.push_str("\nDry run\n  Non-authoritative pre-admission estimate; real admission re-proves under the closed fence.\n");
+                    return Ok(MigrateOutput::new(
+                        json!({
+                            "dryRun": true,
+                            "operationId": approved.approval.operation_id,
+                            "planId": approved.artifact.plan_id,
+                            "wouldApply": true,
+                        }),
+                        human,
+                    ));
                 }
                 let rehearsal: Option<crate::storage::migration_executor::MigrationReceiptV1> =
                     match &rehearsal_receipt {
@@ -8497,7 +8704,11 @@ pub(crate) fn migrate_command(command: MigrateCommand) -> anyhow::Result<()> {
                     &successor,
                     rehearsal.as_ref(),
                 )?;
-                Ok(serde_json::to_value(&receipt)?)
+                let human = crate::migration_presentation::render_receipt(
+                    &receipt,
+                    migrate_presentation_width(),
+                );
+                Ok(MigrateOutput::new(serde_json::to_value(&receipt)?, human))
             })(),
         ),
         MigrateCommand::Rehearse {
@@ -8508,6 +8719,7 @@ pub(crate) fn migrate_command(command: MigrateCommand) -> anyhow::Result<()> {
             out,
         } => migrate_emit(
             "migrate.rehearse",
+            json_only,
             (|| {
                 let approved: MigrateApprovedFile = migrate_read_json(&approved, "approved file")?;
                 let successor: crate::manifest::SchemaManifest =
@@ -8525,36 +8737,68 @@ pub(crate) fn migrate_command(command: MigrateCommand) -> anyhow::Result<()> {
                     &rehearsal,
                 )?;
                 std::fs::write(&out, serde_json::to_string_pretty(&receipt)?)?;
-                Ok(json!({
-                    "operationId": approved.approval.operation_id,
-                    "planId": approved.artifact.plan_id,
-                    "rehearsal": true,
-                    "state": receipt.state.kind(),
-                    "out": out.display().to_string(),
-                }))
+                let human = crate::migration_presentation::render_receipt(
+                    &receipt,
+                    migrate_presentation_width(),
+                );
+                Ok(MigrateOutput::new(
+                    json!({
+                        "operationId": approved.approval.operation_id,
+                        "planId": approved.artifact.plan_id,
+                        "rehearsal": true,
+                        "state": receipt.state.kind(),
+                        "out": out.display().to_string(),
+                    }),
+                    human,
+                ))
             })(),
         ),
         MigrateCommand::Cancel { approved, db } => migrate_emit(
             "migrate.cancel",
+            json_only,
             (|| {
                 let approved: MigrateApprovedFile = migrate_read_json(&approved, "approved file")?;
                 let mut snapback = crate::local::LocalSnapback::open(&db)?;
                 snapback.migrate_request_cancel(&approved.approval.operation_id)?;
-                Ok(json!({
-                    "operationId": approved.approval.operation_id,
-                    "cancelRequested": true,
-                }))
+                let mut human = crate::migration_presentation::render_plan(
+                    &approved.artifact,
+                    &approved.observation,
+                    crate::migration_presentation::MigrationPresentationOptions::narration(
+                        migrate_presentation_width(),
+                    ),
+                );
+                human.push('\n');
+                human.push_str(&crate::migration_presentation::render_action(
+                    "cancellation",
+                    &approved.approval.operation_id,
+                    "cancel_requested",
+                    migrate_presentation_width(),
+                ));
+                Ok(MigrateOutput::new(
+                    json!({
+                        "operationId": approved.approval.operation_id,
+                        "cancelRequested": true,
+                    }),
+                    human,
+                ))
             })(),
         ),
         MigrateCommand::Verify { operation_id, db } => migrate_emit(
             "migrate.verify",
+            json_only,
             (|| {
                 let snapback = crate::local::LocalSnapback::open(&db)?;
-                Ok(snapback.migrate_verify_receipt(&operation_id)?)
+                let verification = snapback.migrate_verify_receipt(&operation_id)?;
+                let human = crate::migration_presentation::render_verification(
+                    &verification,
+                    migrate_presentation_width(),
+                );
+                Ok(MigrateOutput::new(verification, human))
             })(),
         ),
         MigrateCommand::Rollback { receipt, db } => migrate_emit(
             "migrate.rollback",
+            json_only,
             (|| {
                 // The fast rollback runs under the original operation's
                 // approval, which acknowledged the rollback boundary by
@@ -8565,7 +8809,11 @@ pub(crate) fn migrate_command(command: MigrateCommand) -> anyhow::Result<()> {
                 let mut snapback = crate::local::LocalSnapback::open(&db)?;
                 let rollback =
                     snapback.migrate_rollback_artifact(&approved.artifact, &approved.approval)?;
-                Ok(serde_json::to_value(&rollback)?)
+                let human = crate::migration_presentation::render_rollback_receipt(
+                    &rollback,
+                    migrate_presentation_width(),
+                );
+                Ok(MigrateOutput::new(serde_json::to_value(&rollback)?, human))
             })(),
         ),
     }

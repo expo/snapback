@@ -1,0 +1,25 @@
+Migration receipt operation-v1:fixture… (released)
+Narration face — constants and row values redacted
+
+Identity
+  operation id: operation-v1:fixture0001
+  plan id: migration-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  plan digest: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  approval digest: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+  admission digest: cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+Journal projection
+  state: released
+  entries: 12
+  digest: dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
+  input version: 42
+  publication version: 43
+  barrier duration: 987 ms
+
+Recorded step results
+  s2:BackfillField:models.provider: recorded (values redacted)
+  §5-data-proof: recorded (values redacted)
+
+Rollback window
+  Fast predecessor republish is unavailable after release; use an approved reverse plan
+  or exact restore.
