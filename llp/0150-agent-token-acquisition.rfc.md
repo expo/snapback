@@ -907,4 +907,12 @@ questions.
   inbox exists (which also provides a user-initiated entry point — though
   an inbox-minted, user-bound request seed *is* pairing semantics under
   another UI), or whether retiring it loses a structurally distinct
-  guarantee.
+  guarantee. **ANSWERED 2026-08-03 (Charlie Cheever, ratifying both review
+  families' convergent recommendation):** keep both flows — the approval
+  link as the ergonomic default, the pairing inversion retained for the
+  headless-human case and its structural immunity to unsolicited requests —
+  on the converged single request record/approval
+  transaction/digest/poll contract with the closed `userSeeded` /
+  `agentRequested` discriminator. Source:
+  `issues/20260802-author-decision-packet.md` (2026-08-03 follow-on
+  ratifications).

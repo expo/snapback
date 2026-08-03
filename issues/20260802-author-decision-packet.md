@@ -253,3 +253,23 @@ and ratified all of them. Deltas and additions from the review:
   bounded carrier in queue order and deliberately chooses no fingerprint
   winner until this is resolved; the public diagnostic remains the existing
   single terminal with its ordered `rejections` summary.
+
+## Follow-on ratifications — 2026-08-03 (Charlie Cheever)
+
+- **First npm `latest` promotion — trigger pulled.** With ruling 1's
+  parallel gate ratified, the LLP 0134 maturity machinery landed, and main
+  green (local-proof run 30786381634), Charlie authorized executing the
+  first real promotion of the locally-provable nine-package surface.
+  Sequenced as the wave capstone after the remaining feature landings and
+  the closing greening pass. Tracker:
+  `issues/20260803-first-npm-latest-promotion.md`.
+- **LLP 0150 OQ7 — ratified: keep both acquisition flows.** Approval link
+  as the ergonomic default; pairing inversion retained (headless-human
+  case; structural immunity to unsolicited requests); one converged
+  request/approval/digest/poll contract with the closed
+  `userSeeded`/`agentRequested` discriminator. Dated answer recorded in
+  LLP 0150.
+- Not included in this ratification: the LLP 0063 Step-6 semantics
+  ratification for Draft LLPs 0068–0072
+  (`issues/20260726-step6-ratification-and-independent-review.md`) remains
+  open — it needs its own pass when Step 6 work resumes.
